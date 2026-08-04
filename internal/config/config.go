@@ -672,6 +672,7 @@ func Load(path string) (*Config, error) {
 	cfg.SpeechLab.BaseURL = DefaultSpeechLabBaseURL
 	cfg.SpeechLab.Deployment.Mode = "managed"
 	cfg.SpeechLab.Deployment.Bundle = "stable"
+	cfg.SpeechLab.Deployment.GPUBackend = SpeechLabGPUBackendAuto
 	cfg.SpeechLab.Deployment.AutoStart = true
 	cfg.SpeechLab.Deployment.AutoUpdate = false
 	cfg.SpeechLab.Language = "de"

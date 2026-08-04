@@ -382,6 +382,72 @@
     min-height: 26px;
 }
 
+.pw-page .speech-lab-section .btn-speech-lab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding-inline: 1rem;
+    color: var(--pw-surface);
+    background: linear-gradient(135deg, var(--pw-accent-strong), var(--pw-accent));
+    border-color: color-mix(in srgb, var(--pw-accent-strong) 72%, var(--pw-line));
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--pw-accent) 24%, transparent);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.pw-page .speech-lab-section .btn-speech-lab:hover,
+.pw-page .speech-lab-section .btn-speech-lab:focus-visible {
+    color: var(--pw-surface);
+    background: linear-gradient(135deg, var(--pw-accent), var(--pw-accent-strong));
+    border-color: var(--pw-accent-strong);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--pw-accent) 34%, transparent);
+}
+
+.pw-page .speech-lab-section .speech-lab-capability-details {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+}
+
+.pw-page .speech-lab-section .speech-lab-hardware-profile {
+    max-width: 34rem;
+    margin-top: 1rem;
+}
+
+.pw-page .speech-lab-section .speech-lab-hardware-status {
+    margin: 0.75rem 0 1rem;
+    color: var(--pw-muted);
+}
+
+.pw-page .speech-lab-section .speech-lab-hardware-status .cfg-note-banner {
+    margin-top: 0.65rem;
+}
+
+.pw-page .speech-lab-section .btn-speech-lab-apply {
+    min-height: 42px;
+    padding-inline: 1.1rem;
+}
+
+.pw-page .speech-lab-section .speech-lab-external-card {
+    border-color: color-mix(in srgb, var(--pw-warning) 48%, var(--pw-line));
+}
+
+.pw-page .speech-lab-section .speech-lab-command {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.8rem 0;
+}
+
+.pw-page .speech-lab-section .speech-lab-command code {
+    padding: 0.2rem 0.45rem;
+    border: 1px solid var(--pw-line);
+    border-radius: 0.35rem;
+    background: color-mix(in srgb, var(--pw-surface-strong) 76%, transparent);
+}
+
 .pw-page .speech-lab-section .cfg-card {
     margin-block: 1rem;
     min-width: 0;

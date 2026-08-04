@@ -13,6 +13,7 @@ speech_lab:
   deployment:
     mode: managed       # managed provisions the signed GHCR bundle; external keeps an existing stack
     bundle: stable
+    gpu_backend: auto   # auto, vulkan, or cpu; AMD uses auto/Vulkan when the host exposes the GPU
     auto_start: true
     auto_update: false
   language: de
@@ -26,6 +27,10 @@ speech_lab:
 `use_for_sip`, `use_for_chat_voice`, and the former free-form `voice` value remain load-compatible for older configuration files. The voice value is ignored and removed on the next UI save because voice is owned by the active Speech Lab stack. API paths are fixed by contract and are not configurable.
 
 `AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed. AuraGo automatically opens the Browser Lab on `http://<current AuraGo host>:8766`; users do not have to discover or enter that address. `advanced_ui_url` remains an expert-only YAML override for non-standard reverse proxies or port mappings.
+
+In managed mode, choose the hardware profile in **Media → Speech Lab**. `Auto` is the recommended choice for AMD and lets s2s select Vulkan; `Vulkan` forces that path; `CPU` is intended only for compatibility tests. AuraGo never accepts arbitrary backend environment variables. On Linux, managed Vulkan containers receive `/dev/dri` and validated numeric `render`/`video` group IDs when available. If the host does not expose a GPU, `Auto` may fall back to CPU and the runtime capability remains authoritative.
+
+External stacks are not changed by AuraGo. Set `S2S_GPU=auto` or `S2S_GPU=vulkan` in the s2s stack, remove `GGML_BACKEND=CPU`, and use the Linux GPU Compose overlay where applicable.
 
 Only credential-free HTTP(S) URLs without query or fragment are accepted. AuraGo resolves and connects only to loopback or private network addresses. It does not provide a general Speech Lab proxy.
 

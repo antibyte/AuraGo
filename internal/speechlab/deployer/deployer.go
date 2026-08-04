@@ -18,6 +18,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,12 +74,15 @@ type BundleManifest struct {
 }
 
 type State struct {
-	SchemaVersion    int                    `json:"schema_version,omitempty"`
-	Mode             string                 `json:"mode"`
-	Managed          bool                   `json:"managed"`
-	State            string                 `json:"state"`
-	Bundle           string                 `json:"bundle"`
-	Digest           string                 `json:"digest,omitempty"`
+	SchemaVersion int    `json:"schema_version,omitempty"`
+	Mode          string `json:"mode"`
+	Managed       bool   `json:"managed"`
+	State         string `json:"state"`
+	Bundle        string `json:"bundle"`
+	Digest        string `json:"digest,omitempty"`
+	// GPUBackend is the effective profile of the published containers. It may
+	// be CPU when the requested Auto profile could not receive GPU passthrough.
+	GPUBackend       string                 `json:"gpu_backend,omitempty"`
 	NetworkID        string                 `json:"network_id,omitempty"`
 	ContainerIDs     []string               `json:"container_ids,omitempty"`
 	DockerHost       string                 `json:"docker_host,omitempty"`
@@ -99,6 +104,7 @@ type DeploymentTransaction struct {
 	PreviousProgress         int               `json:"previous_progress,omitempty"`
 	PreviousBundle           string            `json:"previous_bundle,omitempty"`
 	PreviousDigest           string            `json:"previous_digest,omitempty"`
+	PreviousGPUBackend       string            `json:"previous_gpu_backend,omitempty"`
 	PreviousNetworkID        string            `json:"previous_network_id,omitempty"`
 	PreviousContainerIDs     []string          `json:"previous_container_ids,omitempty"`
 	PreviousDockerHost       string            `json:"previous_docker_host,omitempty"`
@@ -129,19 +135,21 @@ type ContainerBackup struct {
 // HTTP status surface. Those identifiers are only needed for local lifecycle
 // reconciliation and remain in the private deployment state file.
 type PublicState struct {
-	Mode             string    `json:"mode"`
-	Managed          bool      `json:"managed"`
-	State            string    `json:"state"`
-	Bundle           string    `json:"bundle"`
-	RequestedBundle  string    `json:"requested_bundle"`
-	Digest           string    `json:"digest,omitempty"`
-	LastErrorCode    string    `json:"last_error_code,omitempty"`
-	LastError        string    `json:"last_error,omitempty"`
-	Progress         int       `json:"progress"`
-	LastCheck        time.Time `json:"last_check,omitempty"`
-	RecoveryPending  bool      `json:"recovery_pending"`
-	CleanupPending   bool      `json:"cleanup_pending"`
-	CleanupAvailable bool      `json:"cleanup_available"`
+	Mode                string    `json:"mode"`
+	Managed             bool      `json:"managed"`
+	State               string    `json:"state"`
+	Bundle              string    `json:"bundle"`
+	RequestedBundle     string    `json:"requested_bundle"`
+	RequestedGPUBackend string    `json:"requested_gpu_backend"`
+	ActiveGPUBackend    string    `json:"active_gpu_backend"`
+	Digest              string    `json:"digest,omitempty"`
+	LastErrorCode       string    `json:"last_error_code,omitempty"`
+	LastError           string    `json:"last_error,omitempty"`
+	Progress            int       `json:"progress"`
+	LastCheck           time.Time `json:"last_check,omitempty"`
+	RecoveryPending     bool      `json:"recovery_pending"`
+	CleanupPending      bool      `json:"cleanup_pending"`
+	CleanupAvailable    bool      `json:"cleanup_available"`
 }
 
 type Error struct {
@@ -270,7 +278,15 @@ func (m *Manager) PublicStatus() PublicState {
 	}
 	return PublicState{
 		Mode: cfg.Deployment.Mode, Managed: cfg.Deployment.Mode == "managed", State: state.State,
-		Bundle: state.Bundle, RequestedBundle: cfg.Deployment.Bundle, Digest: state.Digest,
+		Bundle: state.Bundle, RequestedBundle: cfg.Deployment.Bundle,
+		RequestedGPUBackend: config.NormalizeSpeechLabGPUBackend(cfg.Deployment.GPUBackend),
+		ActiveGPUBackend: func() string {
+			if state.Managed {
+				return state.GPUBackend
+			}
+			return ""
+		}(),
+		Digest:        state.Digest,
 		LastErrorCode: state.LastErrorCode, LastError: state.LastError, Progress: state.Progress, LastCheck: state.LastCheck,
 		RecoveryPending:  state.Transaction != nil && phase != "commit_cleanup",
 		CleanupPending:   state.Transaction != nil && phase == "commit_cleanup",
@@ -397,12 +413,19 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 		m.fail(err)
 		return err
 	}
+	gpuBackend := config.NormalizeSpeechLabGPUBackend(op.cfg.Deployment.GPUBackend)
+	gpuHostConfig, err := speechLabGPUHostConfig(gpuBackend)
+	if err != nil {
+		m.fail(err)
+		return err
+	}
 	sum := sha256.Sum256(raw)
 	digest := hex.EncodeToString(sum[:])
+	fingerprint := speechLabDeploymentFingerprint(digest, gpuBackend)
 	if update {
-		m.logger.Info("Updating managed Speech Lab bundle", "bundle", manifest.BundleVersion)
+		m.logger.Info("Updating managed Speech Lab bundle", "bundle", manifest.BundleVersion, "gpu_backend", gpuBackend)
 	}
-	if ids, identical, err := m.matchingDeployment(ctx, op, manifest, digest); err != nil {
+	if ids, identical, err := m.matchingDeployment(ctx, op, manifest, fingerprint); err != nil {
 		m.fail(err)
 		return err
 	} else if identical {
@@ -422,7 +445,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 			return err
 		}
 		m.mu.Lock()
-		m.state.Bundle, m.state.Digest, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, ids, op.dockerHost
+		m.state.Bundle, m.state.Digest, m.state.GPUBackend, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, speechLabActiveGPUBackend(gpuBackend, gpuHostConfig), ids, op.dockerHost
 		m.state.ReadinessBaseURL = op.readinessBaseURL
 		m.state.State, m.state.Progress, m.state.LastErrorCode, m.state.LastError = "ready", 100, "", ""
 		m.mu.Unlock()
@@ -441,7 +464,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	}
 	transaction := &DeploymentTransaction{
 		ID: transactionID(), Phase: "preparing_resources", PreviousState: oldState.State, PreviousProgress: oldState.Progress,
-		PreviousBundle: oldState.Bundle, PreviousDigest: oldState.Digest,
+		PreviousBundle: oldState.Bundle, PreviousDigest: oldState.Digest, PreviousGPUBackend: oldState.GPUBackend,
 		PreviousNetworkID: oldState.NetworkID, PreviousContainerIDs: append([]string(nil), oldState.ContainerIDs...),
 		PreviousDockerHost:       previousDockerHost,
 		PreviousReadinessBaseURL: previousReadinessBaseURL,
@@ -487,7 +510,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	if err := m.persist(); err != nil {
 		return &Error{Code: "speech_lab_state_persist_failed", Err: err}
 	}
-	ids, identical, err := m.replaceServices(ctx, op, manifest, digest)
+	ids, identical, err := m.replaceServices(ctx, op, manifest, fingerprint, gpuHostConfig)
 	if err != nil {
 		return err
 	}
@@ -498,7 +521,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 		return err
 	}
 	m.mu.Lock()
-	m.state.Bundle, m.state.Digest, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, append([]string(nil), ids...), op.dockerHost
+	m.state.Bundle, m.state.Digest, m.state.GPUBackend, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, speechLabActiveGPUBackend(gpuBackend, gpuHostConfig), append([]string(nil), ids...), op.dockerHost
 	m.state.ReadinessBaseURL = op.readinessBaseURL
 	m.state.State, m.state.Progress, m.state.LastErrorCode, m.state.LastError = "ready", 100, "", ""
 	if m.state.Transaction != nil {
@@ -1105,6 +1128,160 @@ func networkAliases(role string) []string {
 	}
 }
 
+const speechLabGPUGroupIDsEnv = "AURAGO_GPU_GROUP_IDS"
+
+func speechLabDeploymentFingerprint(manifestDigest, gpuBackend string) string {
+	input := manifestDigest + "\x00" + config.NormalizeSpeechLabGPUBackend(gpuBackend)
+	sum := sha256.Sum256([]byte(input))
+	return hex.EncodeToString(sum[:])
+}
+
+func speechLabActiveGPUBackend(gpuBackend string, hostConfig map[string]any) string {
+	switch gpuBackend = config.NormalizeSpeechLabGPUBackend(gpuBackend); gpuBackend {
+	case config.SpeechLabGPUBackendCPU:
+		return config.SpeechLabGPUBackendCPU
+	case config.SpeechLabGPUBackendVulkan:
+		return config.SpeechLabGPUBackendVulkan
+	default:
+		if hostConfig == nil {
+			return config.SpeechLabGPUBackendCPU
+		}
+		return config.SpeechLabGPUBackendAuto
+	}
+}
+
+func overlaySpeechLabGPUEnvironment(environment []string, gpuBackend string) ([]string, error) {
+	gpuBackend = config.NormalizeSpeechLabGPUBackend(gpuBackend)
+	if err := config.ValidateSpeechLabGPUBackend(gpuBackend); err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(environment)+2)
+	for _, entry := range environment {
+		key := strings.TrimSpace(strings.SplitN(entry, "=", 2)[0])
+		if key == "S2S_GPU" || key == "GGML_BACKEND" {
+			continue
+		}
+		result = append(result, entry)
+	}
+	result = append(result, "S2S_GPU="+gpuBackend)
+	if gpuBackend == config.SpeechLabGPUBackendCPU {
+		result = append(result, "GGML_BACKEND=CPU")
+	}
+	return result, nil
+}
+
+func speechLabGPUHostConfig(gpuBackend string) (map[string]any, error) {
+	gpuBackend = config.NormalizeSpeechLabGPUBackend(gpuBackend)
+	if err := config.ValidateSpeechLabGPUBackend(gpuBackend); err != nil {
+		return nil, &Error{Code: "speech_lab_bundle_incompatible", Err: err}
+	}
+	if gpuBackend == config.SpeechLabGPUBackendCPU {
+		return nil, nil
+	}
+	if runtime.GOOS != "linux" {
+		if gpuBackend == config.SpeechLabGPUBackendVulkan {
+			return nil, &Error{Code: "speech_lab_gpu_unavailable", Err: fmt.Errorf("Vulkan passthrough requires a Linux /dev/dri device in the managed container runtime")}
+		}
+		return nil, nil
+	}
+	devices, err := filepath.Glob("/dev/dri/renderD*")
+	if err != nil {
+		return nil, &Error{Code: "speech_lab_gpu_unavailable", Err: fmt.Errorf("inspect Vulkan render devices: %w", err)}
+	}
+	// In a container AuraGo cannot see the host's /dev/dri tree. The
+	// installer/Compose contract forwards the host render/video GIDs through
+	// AURAGO_GPU_GROUP_IDS; treat that explicit, validated hint as sufficient
+	// to ask Docker to bind the host device path. Without either signal Auto
+	// stays a safe CPU fallback and explicit Vulkan gets an actionable error.
+	hostGroupHint := strings.TrimSpace(os.Getenv(speechLabGPUGroupIDsEnv)) != ""
+	if len(devices) == 0 && !hostGroupHint {
+		if gpuBackend == config.SpeechLabGPUBackendVulkan {
+			return nil, &Error{Code: "speech_lab_gpu_unavailable", Err: fmt.Errorf("no accessible Vulkan render device was found under /dev/dri")}
+		}
+		return nil, nil
+	}
+	groupIDs, err := speechLabGPUGroupIDs()
+	if err != nil {
+		return nil, &Error{Code: "speech_lab_gpu_unavailable", Err: err}
+	}
+	return speechLabVulkanHostConfig(groupIDs), nil
+}
+
+func speechLabVulkanHostConfig(groupIDs []string) map[string]any {
+	hostConfig := map[string]any{
+		"Devices": []map[string]string{{
+			"PathOnHost":        "/dev/dri",
+			"PathInContainer":   "/dev/dri",
+			"CgroupPermissions": "rwm",
+		}},
+	}
+	if len(groupIDs) > 0 {
+		hostConfig["GroupAdd"] = append([]string(nil), groupIDs...)
+	}
+	return hostConfig
+}
+
+func speechLabGPUGroupIDs() ([]string, error) {
+	if configured := strings.TrimSpace(os.Getenv(speechLabGPUGroupIDsEnv)); configured != "" {
+		return normalizeSpeechLabGPUGroupIDs([]string{configured})
+	}
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		// The group database in the AuraGo image describes the container, not
+		// the Docker host. Host IDs must be supplied explicitly by the
+		// installer or Compose environment.
+		return nil, nil
+	}
+	data, err := os.ReadFile("/etc/group")
+	if err != nil {
+		return nil, nil
+	}
+	var ids []string
+	for _, line := range strings.Split(string(data), "\n") {
+		parts := strings.SplitN(line, ":", 4)
+		if len(parts) < 3 || (parts[0] != "render" && parts[0] != "video") {
+			continue
+		}
+		ids = append(ids, parts[2])
+	}
+	return normalizeSpeechLabGPUGroupIDs(ids)
+}
+
+func normalizeSpeechLabGPUGroupIDs(values []string) ([]string, error) {
+	const maxGroups = 16
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, raw := range values {
+		for _, value := range strings.Fields(strings.ReplaceAll(raw, ",", " ")) {
+			id, err := strconv.ParseUint(value, 10, 31)
+			if err != nil || id == 0 {
+				return nil, fmt.Errorf("invalid GPU group ID %q", value)
+			}
+			canonical := strconv.FormatUint(id, 10)
+			if _, exists := seen[canonical]; exists {
+				continue
+			}
+			if len(result) == maxGroups {
+				return nil, fmt.Errorf("too many GPU group IDs")
+			}
+			seen[canonical] = struct{}{}
+			result = append(result, canonical)
+		}
+	}
+	return result, nil
+}
+
+func speechLabGPUServiceRole(role string) bool {
+	switch role {
+	case "gateway", "asr", "llm", "tts":
+		return true
+	default:
+		return false
+	}
+}
+
 func (m *Manager) matchingDeployment(ctx context.Context, op operationSnapshot, manifest BundleManifest, fingerprint string) ([]string, bool, error) {
 	images := map[string]string{"gateway": manifest.Images.Gateway, "asr": manifest.Images.ASR, "tts": manifest.Images.TTS, "llm": manifest.Images.LLM, "web": manifest.Images.Web, "model_init": manifest.Images.ModelInit}
 	ids := make([]string, 0, len(manifest.StartOrder))
@@ -1140,7 +1317,7 @@ func (m *Manager) matchingDeployment(ctx context.Context, op operationSnapshot, 
 	return ids, matched > 0 && len(ids) == matched, nil
 }
 
-func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, manifest BundleManifest, fingerprint string) ([]string, bool, error) {
+func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, manifest BundleManifest, fingerprint string, gpuHostConfig map[string]any) ([]string, bool, error) {
 	_, state := m.snapshot()
 	if state.Transaction == nil {
 		return nil, false, &Error{Code: "speech_lab_state_persist_failed", Err: fmt.Errorf("deployment transaction is unavailable")}
@@ -1199,6 +1376,11 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 			allIdentical = false
 		}
 		hostConfig := map[string]any{"NetworkMode": manifest.Network, "RestartPolicy": map[string]any{"Name": restartPolicy(role, spec.Restart)}}
+		if speechLabGPUServiceRole(role) {
+			for key, value := range gpuHostConfig {
+				hostConfig[key] = value
+			}
+		}
 		if len(manifest.Volumes) > 0 && role != "web" {
 			hostConfig["Binds"] = []string{manifest.Volumes[0] + ":/models"}
 			if len(manifest.Volumes) > 1 {
@@ -1214,7 +1396,10 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 			hostConfig["PortBindings"] = map[string][]map[string]string{fmt.Sprintf("%d/tcp", containerPort): {{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", hostPort)}}}
 		}
 		aliases := networkAliases(role)
-		environment := append([]string(nil), spec.Environment...)
+		environment, err := overlaySpeechLabGPUEnvironment(spec.Environment, op.cfg.Deployment.GPUBackend)
+		if err != nil {
+			return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: err}
+		}
 		if role == "gateway" {
 			environment = append(environment, "S2S_BUNDLE_VERSION="+manifest.BundleVersion)
 		}
@@ -1616,6 +1801,7 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 	m.mu.Lock()
 	m.state.Bundle = transaction.PreviousBundle
 	m.state.Digest = transaction.PreviousDigest
+	m.state.GPUBackend = transaction.PreviousGPUBackend
 	m.state.NetworkID = transaction.PreviousNetworkID
 	m.state.ContainerIDs = restoredIDs
 	m.state.DockerHost = transaction.PreviousDockerHost

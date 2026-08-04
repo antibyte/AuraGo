@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
 	"aurago/internal/speechlab/deployer"
@@ -74,7 +75,11 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 		if s.SpeechLabDeployer != nil {
 			result.Deployment = s.SpeechLabDeployer.PublicStatus()
 		} else {
-			result.Deployment = deployer.PublicState{Mode: cfg.SpeechLab.Deployment.Mode, Managed: cfg.SpeechLab.Deployment.Mode == "managed", State: "disabled", RequestedBundle: cfg.SpeechLab.Deployment.Bundle}
+			result.Deployment = deployer.PublicState{
+				Mode: cfg.SpeechLab.Deployment.Mode, Managed: cfg.SpeechLab.Deployment.Mode == "managed", State: "disabled",
+				RequestedBundle:     cfg.SpeechLab.Deployment.Bundle,
+				RequestedGPUBackend: config.NormalizeSpeechLabGPUBackend(cfg.SpeechLab.Deployment.GPUBackend),
+			}
 		}
 		if s.SpeechLab != nil {
 			result.ActiveOperations = s.SpeechLab.ActiveOperations()
@@ -159,17 +164,29 @@ func handleSpeechLabDeployment(s *Server, action string) http.Handler {
 		}
 		if err != nil {
 			status := http.StatusBadGateway
-			if code := deployer.Code(err); code == "speech_lab_deployment_busy" {
+			code := deployer.Code(err)
+			if code == "speech_lab_deployment_busy" {
 				status = http.StatusConflict
 			}
-			if code := deployer.Code(err); code == "speech_lab_docker_unavailable" {
+			if code == "speech_lab_docker_unavailable" || code == "speech_lab_gpu_unavailable" {
 				status = http.StatusServiceUnavailable
 			}
-			writeSpeechLabJSON(w, status, map[string]any{"error": deployer.Code(err), "message": "Speech Lab deployment failed", "deployment": s.SpeechLabDeployer.PublicStatus()})
+			writeSpeechLabJSON(w, status, map[string]any{"error": code, "message": speechLabDeploymentErrorMessage(code), "deployment": s.SpeechLabDeployer.PublicStatus()})
 			return
 		}
 		writeSpeechLabJSON(w, http.StatusOK, map[string]any{"ok": true, "deployment": s.SpeechLabDeployer.PublicStatus()})
 	})
+}
+
+func speechLabDeploymentErrorMessage(code string) string {
+	switch code {
+	case "speech_lab_gpu_unavailable":
+		return "Vulkan ist für den Managed-Stack nicht verfügbar. Prüfe /dev/dri und die render/video-Gruppen oder wähle Auto für den CPU-Fallback."
+	case "speech_lab_bundle_incompatible":
+		return "Das Speech-Lab-Bundle unterstützt diese Auswahl nicht."
+	default:
+		return "Speech-Lab-Bereitstellung fehlgeschlagen"
+	}
 }
 
 // speechLabBrowserURLForRequest returns only the explicit browser-facing lab

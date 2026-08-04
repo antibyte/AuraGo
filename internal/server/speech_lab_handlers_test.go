@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
+	"aurago/internal/speechlab/deployer"
 )
 
 func speechLabServerForTest(t *testing.T, handler http.Handler) (*Server, *speechlab.Client) {
@@ -69,6 +70,7 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	}))
 	s.Cfg.Auth.Enabled = true
 	s.Cfg.Auth.SessionSecret = "speech-lab-admin-test"
+	s.Cfg.SpeechLab.Deployment.GPUBackend = config.SpeechLabGPUBackendVulkan
 	mux := http.NewServeMux()
 	registerSpeechLabRoutes(mux, s)
 
@@ -82,6 +84,9 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	}
 	if !strings.Contains(statusRec.Body.String(), `"voice":"Serena"`) {
 		t.Fatalf("status did not expose the active runtime voice: %s", statusRec.Body.String())
+	}
+	if !strings.Contains(statusRec.Body.String(), `"requested_gpu_backend":"vulkan"`) {
+		t.Fatalf("status did not expose the requested hardware profile: %s", statusRec.Body.String())
 	}
 	if !strings.Contains(statusRec.Body.String(), `"warnings":["advanced_ui_url_missing"]`) || strings.Contains(statusRec.Body.String(), `"advanced_ui_url"`) {
 		t.Fatalf("status did not report the missing explicit browser lab URL: %s", statusRec.Body.String())
@@ -101,6 +106,56 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	}
 	if isAdminProtectedPath("/api/speech-lab/status") {
 		t.Fatal("sanitized Speech Lab status must not require administrator scope")
+	}
+}
+
+func TestSpeechLabDeploymentRequiresExplicitConfirmation(t *testing.T) {
+	s, _ := speechLabServerForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	s.SpeechLabDeployer = deployer.NewManager(s.Cfg.SpeechLab, false, true, false, "", s.Logger)
+	rec := httptest.NewRecorder()
+	handleSpeechLabDeployment(s, "install").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/speech-lab/deployment/install", strings.NewReader(`{}`)))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("deployment without confirmation = %d, want 400: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"error":"confirmation_required"`) {
+		t.Fatalf("confirmation error missing: %s", rec.Body.String())
+	}
+}
+
+func TestSpeechLabStatusReportsRequestedHardwareForManagedAndExternalModes(t *testing.T) {
+	for _, mode := range []string{"managed", "external"} {
+		t.Run(mode, func(t *testing.T) {
+			s, _ := speechLabServerForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.NotFound(w, r)
+			}))
+			s.Cfg.SpeechLab.Deployment.Mode = mode
+			s.Cfg.SpeechLab.Deployment.GPUBackend = config.SpeechLabGPUBackendCPU
+			rec := httptest.NewRecorder()
+			handleSpeechLabStatus(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/speech-lab/status", nil))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+			}
+			body := rec.Body.String()
+			if !strings.Contains(body, `"requested_gpu_backend":"cpu"`) {
+				t.Fatalf("requested profile missing in %s mode: %s", mode, body)
+			}
+			if !strings.Contains(body, `"active_gpu_backend":""`) {
+				t.Fatalf("active profile field missing in %s mode: %s", mode, body)
+			}
+			wantManaged := mode == "managed"
+			if strings.Contains(body, `"managed":true`) != wantManaged {
+				t.Fatalf("managed flag mismatch for %s: %s", mode, body)
+			}
+		})
+	}
+}
+
+func TestSpeechLabDeploymentErrorMessageForMissingVulkan(t *testing.T) {
+	message := speechLabDeploymentErrorMessage("speech_lab_gpu_unavailable")
+	if !strings.Contains(message, "/dev/dri") || !strings.Contains(message, "Auto") {
+		t.Fatalf("missing actionable Vulkan diagnosis: %q", message)
 	}
 }
 

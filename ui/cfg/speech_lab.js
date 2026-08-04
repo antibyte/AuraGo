@@ -8,6 +8,7 @@ let speechLabSuggestions = null;
 let speechLabShowExperimental = false;
 let speechLabProviders = [];
 let speechLabProviderLoadFailed = false;
+const SPEECH_LAB_BROWSER_PORT = '8766';
 
 function speechLabEnsureData() {
     if (!configData.speech_lab) configData.speech_lab = {};
@@ -16,6 +17,7 @@ function speechLabEnsureData() {
     if (!data.deployment) data.deployment = {};
     if (!data.deployment.mode) data.deployment.mode = 'managed';
     if (!data.deployment.bundle) data.deployment.bundle = 'stable';
+    if (!data.deployment.gpu_backend) data.deployment.gpu_backend = 'auto';
     if (!data.language) data.language = 'de';
     delete data.voice;
     data.chat_llm_provider_id = String(data.chat_llm_provider_id || '').trim();
@@ -53,9 +55,9 @@ async function renderSpeechLabSection(section) {
     html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="speechLabRefresh()">' + escapeHtml(t('config.speech_lab.refresh')) + '</button>';
     const browserURL = speechLabBrowserURL(data.advanced_ui_url);
     if (browserURL) {
-        html += ' <a id="speech-lab-advanced-link" class="btn-secondary" href="' + escapeAttr(browserURL) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(t('config.speech_lab.open_advanced')) + '</a>';
+        html += ' <a id="speech-lab-advanced-link" class="btn-secondary btn-speech-lab" href="' + escapeAttr(browserURL) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(t('config.speech_lab.open_advanced')) + '</a>';
     } else {
-        html += ' <button id="speech-lab-advanced-link" type="button" class="btn-secondary" disabled>' + escapeHtml(t('config.speech_lab.open_advanced')) + '</button>';
+        html += ' <button id="speech-lab-advanced-link" type="button" class="btn-secondary btn-speech-lab" disabled>' + escapeHtml(t('config.speech_lab.open_advanced')) + '</button>';
     }
     html += '</div>';
     html += '<div id="speech-lab-deployment"></div><div id="speech-lab-capability"></div><div id="speech-lab-suggestions"></div><div id="speech-lab-stack"></div>';
@@ -66,11 +68,24 @@ async function renderSpeechLabSection(section) {
 }
 
 function speechLabBrowserURL(configured) {
-    return String(configured || '').trim();
+    const override = String(configured || '').trim();
+    if (override) return override;
+    try {
+        const url = new URL(window.location.href);
+        if (!/^https?:$/.test(url.protocol) || !url.hostname) return '';
+        url.protocol = 'http:';
+        url.port = SPEECH_LAB_BROWSER_PORT;
+        url.pathname = '/';
+        url.search = '';
+        url.hash = '';
+        return url.toString();
+    } catch (_) {
+        return '';
+    }
 }
 
 function speechLabWarningText(code) {
-    if (code === 'advanced_ui_url_missing') return t('config.speech_lab.advanced_ui_url_missing');
+    if (code === 'advanced_ui_url_missing') return '';
     return String(code || '');
 }
 
@@ -85,6 +100,31 @@ function speechLabField(path, value, type, labelKey, helpKey, extra) {
     return '<label class="field-group"><span class="field-label">' + escapeHtml(t(labelKey)) + '</span>' +
         '<span class="field-help">' + escapeHtml(t(helpKey)) + '</span><input class="field-input" type="' + type + '" data-path="' +
         escapeAttr(path) + '" value="' + escapeAttr(value) + '"' + (extra || '') + '></label>';
+}
+
+function speechLabHardwareBackend(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ['auto', 'vulkan', 'cpu'].includes(normalized) ? normalized : 'auto';
+}
+
+function speechLabHardwareLabel(value) {
+    switch (speechLabHardwareBackend(value)) {
+    case 'vulkan': return t('config.speech_lab.hardware_vulkan');
+    case 'cpu': return t('config.speech_lab.hardware_cpu');
+    default: return t('config.speech_lab.hardware_auto');
+    }
+}
+
+function speechLabHardwareProfileField(selected, disabled) {
+    const value = speechLabHardwareBackend(selected);
+    const options = [
+        ['auto', t('config.speech_lab.hardware_auto')],
+        ['vulkan', t('config.speech_lab.hardware_vulkan')],
+        ['cpu', t('config.speech_lab.hardware_cpu')]
+    ].map(([option, label]) => '<option value="' + option + '"' + (option === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('');
+    return '<label class="field-group speech-lab-hardware-profile"><span class="field-label">' + escapeHtml(t('config.speech_lab.hardware_profile')) + '</span>' +
+        '<span class="field-help">' + escapeHtml(t('config.speech_lab.hardware_profile_help')) + '</span>' +
+        '<select class="field-select" data-path="speech_lab.deployment.gpu_backend"' + (disabled ? ' disabled' : '') + '>' + options + '</select></label>';
 }
 
 function speechLabProviderField(selected) {
@@ -160,7 +200,8 @@ async function speechLabRefresh() {
     if (baseInput && speechLabStatus && speechLabStatus.environment_managed) baseInput.disabled = true;
     const browserLink = document.getElementById('speech-lab-advanced-link');
     if (browserLink && browserLink.tagName === 'A') {
-        browserLink.href = speechLabBrowserURL(speechLabStatus && speechLabStatus.advanced_ui_url);
+        const configuredBrowserURL = speechLabStatus?.advanced_ui_url || speechLabEnsureData().advanced_ui_url;
+        browserLink.href = speechLabBrowserURL(configuredBrowserURL);
     }
     speechLabRenderCapability();
     speechLabRenderSuggestions();
@@ -177,34 +218,90 @@ async function speechLabJSON(response) {
 function speechLabRenderCapability() {
     const node = document.getElementById('speech-lab-capability');
     if (!node || !speechLabCapability) return;
-    const gpu = speechLabCapability.gpu || speechLabCapability.hardware || {};
-    const tier = speechLabCapability.tier || gpu.tier || t('config.speech_lab.unknown');
-    const name = speechLabCapability.device_name || speechLabCapability.vendor || gpu.name || gpu.device_name || gpu.vendor || '';
+    const legacy = speechLabCapability.gpu || speechLabCapability.hardware || {};
+    const value = key => speechLabCapability[key] ?? legacy[key];
+    const tier = value('tier') || t('config.speech_lab.unknown');
+    const identity = [value('vendor'), value('device_name') || value('name')]
+        .map(item => String(item || '').trim())
+        .filter(Boolean)
+        .filter((item, index, items) => items.findIndex(candidate => candidate.toLowerCase() === item.toLowerCase()) === index)
+        .join(' · ');
+    const accelerators = Array.isArray(value('accelerators'))
+        ? [...new Set(value('accelerators').map(item => String(item || '').trim()).filter(Boolean))]
+        : [];
+    const formatGB = item => {
+        if (item === null || item === undefined || item === '') return '';
+        const number = Number(item);
+        if (!Number.isFinite(number)) return '';
+        return (Math.abs(number) >= 10 ? number.toFixed(0) : number.toFixed(1)).replace(/\.0$/, '') + ' GB';
+    };
+    const memory = [];
+    const vramTotal = formatGB(value('vram_total_gb'));
+    const vramFree = formatGB(value('vram_free_gb'));
+    const ramTotal = formatGB(value('ram_total_gb'));
+    const ramAvailable = formatGB(value('ram_available_gb'));
+    if (vramTotal || vramFree) memory.push('VRAM ' + (vramTotal || '—') + (vramFree ? ' · ' + vramFree + ' free' : ''));
+    if (ramTotal || ramAvailable) memory.push('RAM ' + (ramTotal || '—') + (ramAvailable ? ' · ' + ramAvailable + ' available' : ''));
+    let details = '';
+    if (accelerators.length) {
+        details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_accelerators')) + ':</strong> ' + escapeHtml(accelerators.join(' · ')) + '</div>';
+    }
+    if (typeof value('host_agent_online') === 'boolean') {
+        details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_host_agent')) + ':</strong> ' + (value('host_agent_online') ? '✓' : '—') + '</div>';
+    }
+    if (memory.length) {
+        details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_memory')) + ':</strong> ' + escapeHtml(memory.join(' · ')) + '</div>';
+    }
     node.innerHTML = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.capability')) + '</div>' +
-        '<p>' + escapeHtml(String(tier)) + (name ? ' · ' + escapeHtml(String(name)) : '') + '</p></div>';
+        '<p>' + escapeHtml(String(tier)) + (identity ? ' · ' + escapeHtml(identity) : '') + '</p>' +
+        (details ? '<div class="field-help speech-lab-capability-details">' + details + '</div>' : '') + '</div>';
 }
 
 function speechLabRenderDeployment() {
 	const node = document.getElementById('speech-lab-deployment');
 	if (!node || !speechLabStatus) return;
+	const data = speechLabEnsureData();
 	const deployment = speechLabStatus.deployment || {};
 	const cleanupAvailable = deployment.cleanup_available === true;
-	if (deployment.managed !== true && !cleanupAvailable) { node.innerHTML = ''; return; }
+	const managed = deployment.managed === true;
+	if (!managed && !cleanupAvailable) {
+		let externalHTML = '<div class="cfg-card speech-lab-external-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.external_hardware_title')) + '</div>';
+		externalHTML += '<p class="field-help">' + escapeHtml(t('config.speech_lab.external_hardware_help')) + '</p>';
+        externalHTML += '<p class="speech-lab-command"><code>S2S_GPU=auto</code> <span>/</span> <code>S2S_GPU=vulkan</code> <span>·</span> <code>GGML_BACKEND</code> ' + escapeHtml(t('config.speech_lab.external_hardware_unset')) + '</p>';
+		externalHTML += '<p class="field-help">' + escapeHtml(t('config.speech_lab.external_hardware_linux')) + '</p></div>';
+		node.innerHTML = externalHTML;
+		return;
+	}
 	const state = String(deployment.state || 'disabled');
 	const installedBundle = String(deployment.bundle || '');
 	const requestedBundle = String(deployment.requested_bundle || '');
-	let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.deployment_managed')) + '</div>';
+	let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(managed ? t('config.speech_lab.deployment_managed') : t('config.speech_lab.external_hardware_title')) + '</div>';
 	html += '<p>' + escapeHtml(state) + (installedBundle ? ' · ✓ ' + escapeHtml(installedBundle) : '') + (deployment.digest ? ' · ' + escapeHtml(deployment.digest.slice(0, 20)) : '') + '</p>';
-	if (deployment.managed === true && requestedBundle && requestedBundle !== installedBundle) {
+	if (managed && requestedBundle && requestedBundle !== installedBundle) {
 		html += '<p class="field-help">✓ ' + escapeHtml(installedBundle || '—') + ' → ' + escapeHtml(requestedBundle) + '</p>';
 	}
 	if (deployment.last_error) html += '<p class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(deployment.last_error) + '</p>';
-	if (deployment.managed !== true) {
+	if (!managed) {
+		html += '<p class="field-help">' + escapeHtml(t('config.speech_lab.external_hardware_help')) + '</p>';
+        html += '<p class="speech-lab-command"><code>S2S_GPU=auto</code> <span>/</span> <code>S2S_GPU=vulkan</code> <span>·</span> <code>GGML_BACKEND</code> ' + escapeHtml(t('config.speech_lab.external_hardware_unset')) + '</p>';
+		html += '<p class="field-help">' + escapeHtml(t('config.speech_lab.external_hardware_linux')) + '</p>';
 		html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="speechLabDeploymentAction(\'remove\')">' + escapeHtml(t('config.speech_lab.deployment_remove')) + '</button></div></div>';
 		node.innerHTML = html;
 		return;
 	}
 	const busy = ['pulling', 'starting', 'stopping', 'removing', 'checking'].includes(state) || deployment.recovery_pending === true || deployment.cleanup_pending === true;
+	const requestedGPU = speechLabHardwareBackend(deployment.requested_gpu_backend || data.deployment.gpu_backend);
+	const activeRaw = String(deployment.active_gpu_backend || '').trim();
+	const activeGPU = activeRaw ? speechLabHardwareBackend(activeRaw) : '';
+	html += speechLabHardwareProfileField(requestedGPU, busy);
+	html += '<div class="speech-lab-hardware-status">' + escapeHtml(t('config.speech_lab.hardware_selected')) + ': <strong>' + escapeHtml(speechLabHardwareLabel(requestedGPU)) + '</strong>';
+	if (activeGPU) html += ' · ' + escapeHtml(t('config.speech_lab.hardware_active')) + ': <strong>' + escapeHtml(speechLabHardwareLabel(activeGPU)) + '</strong>';
+    if (activeGPU && activeGPU !== requestedGPU) {
+        const fallback = requestedGPU === 'auto' && activeGPU === 'cpu';
+        html += '<div class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(t(fallback ? 'config.speech_lab.hardware_auto_fallback' : 'config.speech_lab.hardware_pending')) + '</div>';
+    }
+	html += '</div>';
+	html += '<div class="field-group"><button type="button" class="btn-save btn-speech-lab-apply" ' + (busy ? 'disabled' : '') + ' onclick="speechLabApplyHardwareProfile()">' + escapeHtml(t('config.speech_lab.hardware_apply')) + '</button></div>';
     html += '<div class="field-group">';
     html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'install\')">' + escapeHtml(t('config.speech_lab.deployment_install')) + '</button> ';
     html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'start\')">' + escapeHtml(t('config.speech_lab.deployment_start')) + '</button> ';
@@ -224,8 +321,34 @@ async function speechLabDeploymentAction(action) {
         method, headers: { 'Content-Type': 'application/json' },
         body: confirming ? JSON.stringify({ confirm: true }) : undefined
     });
-    try { await speechLabJSON(response); await speechLabRefresh(); }
-    catch (error) { showToast(error.message || t('config.speech_lab.apply_failed'), 'error'); }
+    try { await speechLabJSON(response); await speechLabRefresh(); return true; }
+    catch (error) { showToast(error.message || t('config.speech_lab.apply_failed'), 'error'); return false; }
+}
+
+function speechLabHardwareDirtyPaths() {
+    if (window.AuraConfigState) {
+        window.AuraConfigState.syncFromDOM();
+        return window.AuraConfigState.dirtyPaths();
+    }
+    return typeof isDirty !== 'undefined' && isDirty ? ['*'] : [];
+}
+
+async function speechLabApplyHardwareProfile() {
+    const deployment = speechLabStatus?.deployment || {};
+    if (deployment.managed !== true) {
+        showToast(t('config.speech_lab.external_hardware_help'), 'warn');
+        return;
+    }
+    const dirtyPaths = speechLabHardwareDirtyPaths();
+    if (dirtyPaths.some(path => path !== 'speech_lab.deployment.gpu_backend')) {
+        showToast(t('config.speech_lab.hardware_save_first'), 'warn');
+        return;
+    }
+    if (dirtyPaths.includes('speech_lab.deployment.gpu_backend')) {
+        if (typeof saveConfig !== 'function' || !await saveConfig()) return;
+    }
+    const action = deployment.cleanup_available === true || String(deployment.state || 'disabled') !== 'disabled' ? 'update' : 'install';
+    await speechLabDeploymentAction(action);
 }
 
 function speechLabRenderSuggestions() {
@@ -252,7 +375,7 @@ function speechLabRenderStack() {
     const backends = (speechLabCatalog.backends || []).filter(item => item.available &&
         (speechLabShowExperimental || item.stable === true || item.selected_variant?.stable === true));
     const tts = backends.filter(speechLabIsTTS);
-    const asr = backends.filter(item => !speechLabIsTTS(item));
+    const asr = backends.filter(speechLabIsASR);
     let html = '<div class="cfg-card speech-lab-stack-editor"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.stack')) + '</div>';
     const activeParts = [speechLabStatus?.asr_id || '—', speechLabStatus?.tts_id || '—', speechLabStatus?.voice || '—'];
     html += '<div class="cfg-note-banner cfg-note-banner-info"><strong>' + escapeHtml(t('config.speech_lab.active_combination')) + ':</strong> ' + escapeHtml(activeParts.join(' + ')) + '</div>';
@@ -265,11 +388,16 @@ function speechLabRenderStack() {
     speechLabUpdateVoices();
 }
 
+function speechLabStage(backend) {
+    return String(backend?.stage || '').trim().toLowerCase();
+}
+
+function speechLabIsASR(backend) {
+    return speechLabStage(backend) === 'asr';
+}
+
 function speechLabIsTTS(backend) {
-    if (String(backend.stage || '').toLowerCase() === 'tts') return true;
-    if (String(backend.stage || '').toLowerCase() === 'asr') return false;
-    const protocol = String(backend.protocol || '').toLowerCase();
-    return (backend.voices || []).length > 0 || !!backend.default_voice || protocol.includes('tts') || protocol.includes('speech');
+    return speechLabStage(backend) === 'tts';
 }
 
 function speechLabOptions(items, selected) {
@@ -332,3 +460,4 @@ window.speechLabApplyStack = speechLabApplyStack;
 window.speechLabUpdateVoices = speechLabUpdateVoices;
 window.speechLabToggleExperimental = speechLabToggleExperimental;
 window.speechLabDeploymentAction = speechLabDeploymentAction;
+window.speechLabApplyHardwareProfile = speechLabApplyHardwareProfile;

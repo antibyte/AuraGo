@@ -877,6 +877,7 @@ speech_lab:
     deployment:
         mode: managed                       # managed: AuraGo provisions the verified GHCR bundle; external: existing s2s stack
         bundle: stable
+        gpu_backend: auto                    # auto: prefer the detected GPU/Vulkan path; vulkan: force Vulkan; cpu: test fallback
         auto_start: true
         auto_update: false
     language: de

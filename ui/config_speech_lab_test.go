@@ -48,12 +48,27 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"provider.runtime_chat?.configured !== true",
 		"backend.default_voice",
 		"speechLabStatus?.voice",
+		"const SPEECH_LAB_BROWSER_PORT = '8766'",
 		"function speechLabBrowserURL(",
-		"return String(configured || '').trim()",
-		"advanced_ui_url_missing",
+		"new URL(window.location.href)",
+		"btn-speech-lab",
+		"function speechLabStage(",
+		"function speechLabIsASR(",
+		"const asr = backends.filter(speechLabIsASR)",
+		"host_agent_online",
+		"vram_total_gb",
+		"capability_accelerators",
 		"deployment.cleanup_available === true",
-		"deployment.managed !== true && !cleanupAvailable",
+		"if (!managed && !cleanupAvailable)",
 		"deployment.requested_bundle || ''",
+		"speech_lab.deployment.gpu_backend",
+		"speechLabHardwareProfileField",
+		"speechLabApplyHardwareProfile",
+		"hardware_save_first",
+		"hardware_auto_fallback",
+		"S2S_GPU=auto",
+		"S2S_GPU=vulkan",
+		"GGML_BACKEND",
 		"requestedBundle !== installedBundle",
 		"target=\"_blank\"",
 	} {
@@ -78,10 +93,22 @@ func TestSpeechLabSectionKeepsAsyncFieldsInNormalFlow(t *testing.T) {
 		"position: static;",
 		".pw-page .speech-lab-section .field-input",
 		"max-width: 100%;",
+		".pw-page .speech-lab-section .btn-speech-lab {",
+		"linear-gradient(135deg, var(--pw-accent-strong), var(--pw-accent))",
 	} {
 		if !strings.Contains(css, wanted) {
 			t.Fatalf("Speech Lab layout guard missing %q", wanted)
 		}
+	}
+}
+
+func TestSpeechLabASRSelectionUsesExplicitCatalogStage(t *testing.T) {
+	module := readSpeechLabUIFile(t, "cfg/speech_lab.js")
+	if !strings.Contains(module, "function speechLabIsASR(backend) {\n    return speechLabStage(backend) === 'asr';") {
+		t.Fatal("Speech Lab ASR selection must require the explicit catalog asr stage")
+	}
+	if strings.Contains(module, "backends.filter(item => !speechLabIsTTS(item))") {
+		t.Fatal("non-TTS catalog entries must not be exposed as ASR backends")
 	}
 }
 

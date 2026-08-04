@@ -17,6 +17,9 @@ func TestNormalizeSpeechLabConfigDefaultsAndLegacyAliases(t *testing.T) {
 	if cfg.BaseURL != DefaultSpeechLabBaseURL || cfg.TimeoutSeconds != 60 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
+	if cfg.Deployment.GPUBackend != SpeechLabGPUBackendAuto {
+		t.Fatalf("unexpected Speech Lab hardware default: %q", cfg.Deployment.GPUBackend)
+	}
 	if cfg.Voice != "" {
 		t.Fatalf("legacy voice must not become a runtime default: %q", cfg.Voice)
 	}
@@ -126,6 +129,19 @@ func TestValidateSpeechLabConfig(t *testing.T) {
 	tooSlow.TimeoutSeconds = DefaultSpeechLabTimeoutSeconds + 1
 	if err := ValidateSpeechLabConfig(tooSlow); err == nil {
 		t.Fatal("inference timeout above 60 seconds was accepted")
+	}
+}
+
+func TestSpeechLabGPUBackendValidation(t *testing.T) {
+	for _, value := range []string{SpeechLabGPUBackendAuto, SpeechLabGPUBackendVulkan, SpeechLabGPUBackendCPU, " Vulkan "} {
+		if err := ValidateSpeechLabGPUBackend(value); err != nil {
+			t.Fatalf("valid GPU backend %q rejected: %v", value, err)
+		}
+	}
+	for _, value := range []string{"amd", "nvidia", "GGML_BACKEND=CPU", "custom-profile"} {
+		if err := ValidateSpeechLabGPUBackend(value); err == nil {
+			t.Fatalf("free-form GPU backend %q was accepted", value)
+		}
 	}
 }
 

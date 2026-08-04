@@ -12,6 +12,9 @@ const (
 	DefaultSpeechLabBaseURL        = "http://s2s-vulkan:8765"
 	DefaultManagedSpeechLabBaseURL = "http://127.0.0.1:8765"
 	DefaultSpeechLabTimeoutSeconds = 60
+	SpeechLabGPUBackendAuto        = "auto"
+	SpeechLabGPUBackendVulkan      = "vulkan"
+	SpeechLabGPUBackendCPU         = "cpu"
 )
 
 // SpeechLabDeploymentConfig controls the optional AuraGo-owned Docker bundle.
@@ -20,6 +23,7 @@ const (
 type SpeechLabDeploymentConfig struct {
 	Mode       string `yaml:"mode,omitempty" json:"mode,omitempty"`
 	Bundle     string `yaml:"bundle,omitempty" json:"bundle,omitempty"`
+	GPUBackend string `yaml:"gpu_backend,omitempty" json:"gpu_backend,omitempty"`
 	AutoStart  bool   `yaml:"auto_start" json:"auto_start"`
 	AutoUpdate bool   `yaml:"auto_update" json:"auto_update"`
 }
@@ -79,6 +83,7 @@ func NormalizeSpeechLabConfig(cfg *SpeechLabConfig, rawConfig []byte) {
 	if cfg.Deployment.Bundle == "" {
 		cfg.Deployment.Bundle = "stable"
 	}
+	cfg.Deployment.GPUBackend = NormalizeSpeechLabGPUBackend(cfg.Deployment.GPUBackend)
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = DefaultSpeechLabBaseURL
 	}
@@ -96,6 +101,26 @@ func NormalizeSpeechLabConfig(cfg *SpeechLabConfig, rawConfig []byte) {
 	}
 }
 
+// NormalizeSpeechLabGPUBackend trims and lowercases the persisted preference.
+// Empty values use the safe automatic profile; unknown values remain visible
+// so validation can reject them instead of silently changing the user's mode.
+func NormalizeSpeechLabGPUBackend(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return SpeechLabGPUBackendAuto
+	}
+	return value
+}
+
+func ValidateSpeechLabGPUBackend(value string) error {
+	switch NormalizeSpeechLabGPUBackend(value) {
+	case SpeechLabGPUBackendAuto, SpeechLabGPUBackendVulkan, SpeechLabGPUBackendCPU:
+		return nil
+	default:
+		return fmt.Errorf("speech_lab.deployment.gpu_backend must be auto, vulkan, or cpu")
+	}
+}
+
 // ValidateSpeechLabConfig validates syntax and bounded scalar fields. Network
 // destinations are additionally restricted by the Speech Lab HTTP transport at
 // dial time, after DNS resolution.
@@ -105,6 +130,9 @@ func ValidateSpeechLabConfig(cfg SpeechLabConfig) error {
 	}
 	if len(strings.TrimSpace(cfg.Deployment.Bundle)) > 64 {
 		return fmt.Errorf("speech_lab.deployment.bundle is too long")
+	}
+	if err := ValidateSpeechLabGPUBackend(cfg.Deployment.GPUBackend); err != nil {
+		return err
 	}
 	if err := validateSpeechLabURL("base_url", cfg.BaseURL, true); err != nil {
 		return err

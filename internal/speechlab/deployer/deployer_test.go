@@ -116,6 +116,7 @@ type fakeDocker struct {
 	volumes          map[string]*fakeResource
 	pulls            int
 	creates          int
+	createPayloads   []map[string]any
 }
 
 func newFakeDocker(t *testing.T, manifest BundleManifest) *fakeDocker {
@@ -263,7 +264,11 @@ func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
 				RestartPolicy struct{ Name string } `json:"RestartPolicy"`
 			} `json:"HostConfig"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
+		payload, _ := io.ReadAll(r.Body)
+		var raw map[string]any
+		_ = json.Unmarshal(payload, &raw)
+		f.createPayloads = append(f.createPayloads, raw)
+		_ = json.Unmarshal(payload, &body)
 		id := fmt.Sprintf("new-%d", f.nextID)
 		f.nextID++
 		name := r.URL.Query().Get("name")
@@ -337,7 +342,7 @@ func (f *fakeDocker) manager(t *testing.T, cfg config.SpeechLabConfig, dataDir s
 }
 
 func managedSpeechLabConfig(baseURL string) config.SpeechLabConfig {
-	return config.SpeechLabConfig{Enabled: true, BaseURL: baseURL, Deployment: config.SpeechLabDeploymentConfig{Mode: "managed", Bundle: "stable", AutoStart: true}}
+	return config.SpeechLabConfig{Enabled: true, BaseURL: baseURL, Deployment: config.SpeechLabDeploymentConfig{Mode: "managed", Bundle: "stable", GPUBackend: config.SpeechLabGPUBackendAuto, AutoStart: true}}
 }
 
 func manifestDigest(t *testing.T, manifest BundleManifest) string {
@@ -354,7 +359,8 @@ func TestUpdateIdenticalDeploymentIsNoOpAndAccepts304(t *testing.T) {
 	manifest := validManifest()
 	fake := newFakeDocker(t, manifest)
 	fake.startNotModified = true
-	fake.addContainer(&fakeContainer{ID: "old", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", manifestDigest(t, manifest)), Running: true, Attached: true})
+	fingerprint := speechLabDeploymentFingerprint(manifestDigest(t, manifest), config.SpeechLabGPUBackendAuto)
+	fake.addContainer(&fakeContainer{ID: "old", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", fingerprint), Running: true, Attached: true})
 	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
 	if err := manager.Update(context.Background()); err != nil {
 		t.Fatalf("Update() error = %v", err)
@@ -367,6 +373,116 @@ func TestUpdateIdenticalDeploymentIsNoOpAndAccepts304(t *testing.T) {
 	}
 }
 
+func TestOverlaySpeechLabGPUEnvironment(t *testing.T) {
+	base := []string{"KEEP=1", "S2S_GPU=stale", "GGML_BACKEND=CPU", "NO_EQUALS"}
+	for _, tc := range []struct {
+		backend string
+		want    []string
+	}{
+		{config.SpeechLabGPUBackendAuto, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=auto"}},
+		{config.SpeechLabGPUBackendVulkan, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=vulkan"}},
+		{config.SpeechLabGPUBackendCPU, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=cpu", "GGML_BACKEND=CPU"}},
+	} {
+		t.Run(tc.backend, func(t *testing.T) {
+			got, err := overlaySpeechLabGPUEnvironment(base, tc.backend)
+			if err != nil {
+				t.Fatalf("overlay error: %v", err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("overlay = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+	if _, err := overlaySpeechLabGPUEnvironment(nil, "amd"); err == nil {
+		t.Fatal("unsupported GPU backend was accepted by the environment overlay")
+	}
+}
+
+func TestSpeechLabDeploymentFingerprintIncludesHardwareProfile(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	auto := speechLabDeploymentFingerprint(digest, config.SpeechLabGPUBackendAuto)
+	if auto != speechLabDeploymentFingerprint(digest, " AUTO ") {
+		t.Fatal("GPU backend normalization changed the stable fingerprint")
+	}
+	for _, backend := range []string{config.SpeechLabGPUBackendVulkan, config.SpeechLabGPUBackendCPU} {
+		if auto == speechLabDeploymentFingerprint(digest, backend) {
+			t.Fatalf("fingerprint did not change for %s", backend)
+		}
+	}
+}
+
+func TestSpeechLabActiveGPUBackendReportsAutoCPUFallback(t *testing.T) {
+	if got := speechLabActiveGPUBackend(config.SpeechLabGPUBackendAuto, nil); got != config.SpeechLabGPUBackendCPU {
+		t.Fatalf("auto without GPU host config = %q, want cpu", got)
+	}
+	if got := speechLabActiveGPUBackend(config.SpeechLabGPUBackendAuto, map[string]any{"Devices": true}); got != config.SpeechLabGPUBackendAuto {
+		t.Fatalf("auto with GPU host config = %q, want auto", got)
+	}
+	if got := speechLabActiveGPUBackend(config.SpeechLabGPUBackendVulkan, map[string]any{}); got != config.SpeechLabGPUBackendVulkan {
+		t.Fatalf("vulkan active profile = %q", got)
+	}
+}
+
+func TestSpeechLabVulkanHostConfigUsesDriAndValidatedGroups(t *testing.T) {
+	hostConfig := speechLabVulkanHostConfig([]string{"44", "109"})
+	devices, ok := hostConfig["Devices"].([]map[string]string)
+	if !ok || len(devices) != 1 {
+		t.Fatalf("unexpected Vulkan devices: %#v", hostConfig["Devices"])
+	}
+	if devices[0]["PathOnHost"] != "/dev/dri" || devices[0]["PathInContainer"] != "/dev/dri" || devices[0]["CgroupPermissions"] != "rwm" {
+		t.Fatalf("unexpected Vulkan device mapping: %#v", devices[0])
+	}
+	if got := hostConfig["GroupAdd"].([]string); !reflect.DeepEqual(got, []string{"44", "109"}) {
+		t.Fatalf("group_add = %#v", got)
+	}
+	if _, err := normalizeSpeechLabGPUGroupIDs([]string{"44", "not-a-number"}); err == nil {
+		t.Fatal("non-numeric GPU group ID was accepted")
+	}
+}
+
+func TestManagedDeploymentAppliesGPUEnvironmentOverlay(t *testing.T) {
+	manifest := validManifest()
+	manifest.Services[0].Environment = []string{"KEEP=1", "S2S_GPU=stale", "GGML_BACKEND=CPU"}
+	fake := newFakeDocker(t, manifest)
+	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+	if err := manager.Install(context.Background()); err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	if len(fake.createPayloads) != 1 {
+		t.Fatalf("captured %d create payloads, want one", len(fake.createPayloads))
+	}
+	environment, ok := fake.createPayloads[0]["Env"].([]any)
+	if !ok {
+		t.Fatalf("create payload has unexpected Env: %#v", fake.createPayloads[0]["Env"])
+	}
+	values := make([]string, 0, len(environment))
+	for _, item := range environment {
+		values = append(values, item.(string))
+	}
+	if !reflect.DeepEqual(values, []string{"KEEP=1", "S2S_GPU=auto", "S2S_BUNDLE_VERSION=stable"}) {
+		t.Fatalf("managed environment = %#v", values)
+	}
+}
+
+func TestUpdateRecreatesDeploymentWhenHardwareProfileChanges(t *testing.T) {
+	manifest := validManifest()
+	fake := newFakeDocker(t, manifest)
+	oldFingerprint := speechLabDeploymentFingerprint(manifestDigest(t, manifest), config.SpeechLabGPUBackendAuto)
+	fake.addContainer(&fakeContainer{ID: "old", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", oldFingerprint), Running: true, Attached: true})
+	cfg := managedSpeechLabConfig(fake.server.URL)
+	cfg.Deployment.GPUBackend = config.SpeechLabGPUBackendCPU
+	manager := fake.manager(t, cfg, "")
+	if err := manager.Update(context.Background()); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+	if fake.creates != 1 {
+		t.Fatalf("profile update created %d containers, want one replacement", fake.creates)
+	}
+	if state := manager.Status(); state.GPUBackend != config.SpeechLabGPUBackendCPU || state.State != "ready" {
+		t.Fatalf("profile update state = %#v", state)
+	}
+}
+
 func TestUpdateRollsBackAfterReadinessFailure(t *testing.T) {
 	manifest := validManifest()
 	fake := newFakeDocker(t, manifest)
@@ -374,7 +490,7 @@ func TestUpdateRollsBackAfterReadinessFailure(t *testing.T) {
 	fake.readyOnRollback = true
 	fake.addContainer(&fakeContainer{ID: "old", Name: "aurago-speech-lab-gateway", Image: "ghcr.io/antibyte/old@sha256:" + strings.Repeat("a", 64), Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", "old"), Running: true, Attached: true})
 	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
-	manager.state = State{Mode: "managed", Managed: true, State: "ready", Bundle: "old", Digest: "old", NetworkID: "network-id", ContainerIDs: []string{"old"}}
+	manager.state = State{Mode: "managed", Managed: true, State: "ready", Bundle: "old", Digest: "old", GPUBackend: config.SpeechLabGPUBackendAuto, NetworkID: "network-id", ContainerIDs: []string{"old"}}
 	if err := manager.Update(context.Background()); err == nil {
 		t.Fatal("Update() succeeded, want readiness error")
 	}
@@ -382,7 +498,7 @@ func TestUpdateRollsBackAfterReadinessFailure(t *testing.T) {
 	if old == nil || old.Name != "aurago-speech-lab-gateway" || !old.Running || !old.Attached {
 		t.Fatalf("old container was not restored: %#v", old)
 	}
-	if state := manager.Status(); state.Bundle != "old" || state.Transaction != nil || !reflect.DeepEqual(state.ContainerIDs, []string{"old"}) {
+	if state := manager.Status(); state.Bundle != "old" || state.GPUBackend != config.SpeechLabGPUBackendAuto || state.Transaction != nil || !reflect.DeepEqual(state.ContainerIDs, []string{"old"}) {
 		t.Fatalf("rollback state = %#v", state)
 	}
 }
