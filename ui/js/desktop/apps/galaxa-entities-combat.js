@@ -3,7 +3,9 @@
     const GC = window.GalaxaCore = window.GalaxaCore || {};
 
     GC.createEntitiesCombat = function (ctx) {
+        GC.createEntitiesWeapons(ctx);
         let lastFireT = 0;
+
                 function fire(now) {
             // REMOVED: Old super effects branches — bursts are now triggered by galaxa-supers.js via triggerBurst() during superPhase==='burst'
             if (ctx.G.activePU && (ctx.G.activePU.type === 'laser' || ctx.G.activePU.type === 'mega_laser')) {
@@ -15,28 +17,31 @@
                 ctx.SFX.laserShoot(ctx.G.p.x);
                 return;
             }
+            const isMegaRocket = ctx.G.activePU && ctx.G.activePU.type === 'mega_rocket';
+            const isRocketLauncher = ctx.G.activePU && (ctx.G.activePU.type === 'rocket_launcher' || isMegaRocket);
+            if (isRocketLauncher) {
+                const cd = isMegaRocket ? 280 : 380;
+                if (now - lastFireT < cd) return;
+                lastFireT = now;
+                const bulBefore = ctx.G.bul.length;
+                ctx.fireRocketSalvo(isMegaRocket);
+                ctx.mirrorDuplicateBullets(bulBefore);
+                return;
+            }
             const isUltraRapid = ctx.G.activePU && ctx.G.activePU.type === 'ultra_rapid';
             const isRapid = ctx.G.activePU && ctx.G.activePU.type === 'rapid';
             const cd = isUltraRapid ? 80 : isRapid ? 120 : 250;
             if (now - lastFireT < cd) return;
             lastFireT = now;
+            const bulBefore = ctx.G.bul.length;
             const isPierce = ctx.G.activePU && (ctx.G.activePU.type === 'pierce' || ctx.G.activePU.type === 'mega_pierce');
             const isHoming = ctx.G.activePU && ctx.G.activePU.type === 'homing';
             const isMegaSpread = ctx.G.activePU && ctx.G.activePU.type === 'mega_spread';
             const isSpread = ctx.G.activePU && ctx.G.activePU.type === 'spread';
             if (isHoming && ctx.G.activePU.shots > 0) {
-                // OPTIMIZATION: same pattern as drone targeting — replaced
-                // filter+sort with a single-pass nearest search.
-                let nearestE = null, nearD2 = Infinity;
-                const ppx = ctx.G.p.x, ppy = ctx.G.p.y;
-                for (let _ei = 0; _ei < ctx.G.enemies.length; _ei++) {
-                    const e = ctx.G.enemies[_ei];
-                    if (e.st === 'DEAD') continue;
-                    const dx = e.x - ppx, dy = e.y - ppy;
-                    const d2 = dx * dx + dy * dy;
-                    if (d2 < nearD2) { nearD2 = d2; nearestE = e; }
-                }
+                let nearestE = ctx.findNearestEnemy(ctx.G.p.x, ctx.G.p.y);
                 if (nearestE) {
+                    const ppx = ctx.G.p.x, ppy = ctx.G.p.y;
                     const dx = nearestE.x - ppx, dy = nearestE.y - ppy;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     ctx.G.bul.push({ x: ppx, y: ppy - 8, w: 3, h: 6, vx: (dx / dist) * ctx.PB_SPEED * 0.7, vy: (dy / dist) * ctx.PB_SPEED * 0.7, homing: true, target: nearestE });
@@ -78,19 +83,7 @@
                 }
             }
             ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50; ctx.G.stageAccuracyShots = (ctx.G.stageAccuracyShots || 0) + 1;
-            const _mirrorOn = ctx.G.mirrorActive || (ctx.modesIsMirrorPermanent && ctx.modesIsMirrorPermanent());
-            if (_mirrorOn) {
-                const mirrorX = ctx.W - ctx.G.p.x;
-                const mirrorBullets = [];
-                const _ghost = ctx.modesIsMirrorPermanent && ctx.modesIsMirrorPermanent();
-                for (let bi = ctx.G.bul.length - 1; bi >= 0; bi--) {
-                    const b = ctx.G.bul[bi];
-                    if (b._mirror) continue;
-                    mirrorBullets.push({ x: mirrorX + (ctx.G.p.x - b.x), y: b.y, w: b.w, h: b.h, vx: b.vx ? -b.vx : 0, vy: b.vy, laser: b.laser, pierce: b.pierce, homing: b.homing, target: b.target, _mirror: true, _ghost: _ghost });
-                }
-                for (const mb of mirrorBullets) ctx.G.bul.push(mb);
-                if (_ghost && ctx.fxMirrorRefract) ctx.fxMirrorRefract();
-            }
+            ctx.mirrorDuplicateBullets(bulBefore);
         }
         function boom(x, y, isBoss, enemyType, killVx, killVy) {
             // NEW: Use per-enemy explosion profile for layered explosion intensity
@@ -292,6 +285,33 @@
             }
         }
         function collectPU(pu) {
+            ctx.G.collectedPU.add(pu.type);
+            if (ctx.G.collectedPU.size >= ctx.PU_TYPES.length) ctx.unlockAchievement('power_collector');
+            if (pu.type === 'megabomb') {
+                ctx.SFX.megabomb(pu.x);
+                for (const e of ctx.G.enemies) {
+                    if (e.st !== 'DEAD') {
+                        if (e.type === 'boss' || e.type === 'miniboss') {
+                            e.hp -= 2;
+                            if (e.hp <= 0) {
+                                const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][0] + 800 : 800;
+                                ctx.addScore(pts, e.x, e.y, '#ff2200');
+                                ctx.boom(e.x, e.y, true, e.type); ctx.SFX.eExplode(e.x); e.st = 'DEAD'; ctx.dropPU(e);
+                            } else { e.enraged = true; e.hitF = 300; e.rageMode = 2500; e.rageSpeedMult = 1.4; }
+                        } else {
+                            const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][0] + 300 : 300;
+                            ctx.addScore(pts, e.x, e.y, '#ff2200'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD';
+                        }
+                    }
+                }
+                for (let i = ctx.G.ebul.length - 1; i >= 0; i--) ctx.bulletImpact(ctx.G.ebul[i].x, ctx.G.ebul[i].y, '#ff4400');
+                ctx.G.ebul = [];
+                ctx.G.flashT = 250; ctx.G.shkT = 700; ctx.G.shkM = 10;
+                ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 50, text: ctx.t('galaxa.megabomb'), t: 0, dur: 1800, col: '#ff2200', big: true });
+                if (ctx.fxScreenShatter) ctx.fxScreenShatter();
+                ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
+                return;
+            }
             if (pu.type === 'bomb' || pu.type === 'multibomb') {
                 ctx.SFX.bomb(pu.x);
                 const bonus = pu.type === 'multibomb' ? 500 : 0;
@@ -406,8 +426,16 @@
             else if (pu.type === 'ricochet') {
                 ctx.G.activePU = { type: ctx.G.puUpgrade === 'mega_ricochet' ? 'mega_ricochet' : 'ricochet', timer: ctx.PU_DUR.ricochet }; ctx.G.puTimer = ctx.PU_DUR.ricochet; ctx.setPUClass(ctx.G.activePU.type);
             }
+            else if (pu.type === 'rocket_launcher' || pu.type === 'mine_layer') {
+                const baseMatch = ctx.G.activePU && (ctx.G.activePU.type === pu.type || ctx.G.activePU.type === ctx.PU_UPGRADE[pu.type]);
+                const upType = (isUpgradeable && baseMatch) ? ctx.PU_UPGRADE[pu.type] : pu.type;
+                ctx.G.activePU = { type: upType, timer: ctx.PU_DUR[pu.type] }; ctx.G.puTimer = ctx.PU_DUR[pu.type]; ctx.setPUClass(upType);
+                if (pu.type === 'mine_layer') ctx.G.mineDropT = 0;
+                if (isUpgradeable && baseMatch && upType !== pu.type) {
+                    ctx.G.upgradeBanner = { text: 'POWER UP!', type: upType, t: 0, dur: 1500 };
+                }
+            }
             else { ctx.G.activePU = { type: pu.type, timer: ctx.PU_DUR[pu.type] || 0 }; ctx.G.puTimer = ctx.PU_DUR[pu.type] || 0; ctx.setPUClass(pu.type); }
-            ctx.G.collectedPU.add(pu.type); if (ctx.G.collectedPU.size >= ctx.PU_TYPES.length) ctx.unlockAchievement('power_collector');
             ctx.SFX.puCollect(pu.x);
             const puCol = ctx.PU_COL[pu.type] || ctx.PU_UPGRADE_COL[pu.type];
             ctx.G.plasmaRings.push({ x: pu.x, y: pu.y, r: 0, maxR: 35, t: 0, dur: 350, col: puCol || '#ffffff' });
@@ -623,6 +651,20 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     if (dist < 80 && dist > 5) { pu.x += dx / dist * 120 * dt; pu.y += dy / dist * 120 * dt; if (ctx.fxMagnetPull && Math.random() < 0.04) ctx.fxMagnetPull(pu.x, pu.y); }
                 }
             }
+            if (ctx.G.activePU && (ctx.G.activePU.type === 'mine_layer' || ctx.G.activePU.type === 'mega_mine_layer') && ctx.G.p.alive && ctx.G.st === 'PLAYING') {
+                const dtMs = dt * 1000;
+                ctx.G.mineDropT = (ctx.G.mineDropT || 0) - dtMs;
+                const interval = ctx.G.activePU.type === 'mega_mine_layer' ? 520 : 780;
+                if (ctx.G.mineDropT <= 0) {
+                    ctx.G.mineDropT = interval;
+                    const spread = ctx.G.activePU.type === 'mega_mine_layer' ? 14 : 0;
+                    ctx.pushPlayerMine({ x: ctx.G.p.x - spread, y: ctx.G.p.y + 12, vy: 22, armT: 320, t: 0, r: 9 });
+                    if (ctx.G.activePU.type === 'mega_mine_layer') {
+                        ctx.pushPlayerMine({ x: ctx.G.p.x + spread, y: ctx.G.p.y + 12, vy: 22, armT: 320, t: 0, r: 9 });
+                    }
+                    if (ctx.SFX.mineDrop) ctx.SFX.mineDrop(ctx.G.p.x);
+                }
+            }
             // NEW: Overcharge timer decay
             if (ctx.G.overchargeTimer > 0) {
                 ctx.G.overchargeTimer -= dt * 1000;
@@ -692,7 +734,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 if (_pu.y > ctx.H + 20) continue;
                 if (ctx.G.p.alive && ctx.hit({ x: _pu.x - 6, y: _pu.y - 6, w: 12, h: 12 }, { x: ctx.G.p.x - 8, y: ctx.G.p.y - 8, w: 16, h: 16 })) {
                     // NEW: Overcharge — reject powerup by pressing down
-                    if (inp.d && _pu.type !== 'bomb' && _pu.type !== 'multibomb' && _pu.type !== 'supernova' && _pu.type !== 'levelskip') {
+                    if (inp.d && _pu.type !== 'bomb' && _pu.type !== 'multibomb' && _pu.type !== 'supernova' && _pu.type !== 'levelskip' && _pu.type !== 'megabomb') {
                         ctx.G.overcharge++;
                         ctx.G.overchargeTimer = 15000; // 15s to collect another
                         if (ctx.G.overcharge >= 5) ctx.unlockAchievement('overcharge');
@@ -713,6 +755,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
         }
         function updateBul(dt) {
             const dtMs = dt * 1000;
+            ctx.updatePlayerMines(dtMs, dt);
             const hasRicochet = ctx.G.activePU && (ctx.G.activePU.type === 'ricochet' || ctx.G.activePU.type === 'mega_ricochet');
             const maxBounces = ctx.G.activePU && ctx.G.activePU.type === 'mega_ricochet' ? 4 : 2;
             let bw = 0;
@@ -724,14 +767,15 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     const d2 = dx * dx + dy * dy;
                     if (d2 > 25) {
                         const dist = Math.sqrt(d2);
-                        b.vx += (dx / dist) * 800 * dt; b.vy += (dy / dist) * 800 * dt;
+                        const turn = b.rocket ? 1400 : 800;
+                        b.vx += (dx / dist) * turn * dt; b.vy += (dy / dist) * turn * dt;
                         const spd2 = b.vx * b.vx + b.vy * b.vy;
-                        const maxSpd = ctx.PB_SPEED * 0.8;
+                        const maxSpd = b.rocket ? ctx.PB_SPEED * 1.15 : ctx.PB_SPEED * 0.8;
                         const maxSpd2 = maxSpd * maxSpd;
                         if (spd2 > maxSpd2) { const sc = maxSpd / Math.sqrt(spd2); b.vx *= sc; b.vy *= sc; }
                     }
                     if (ctx.G.trails.length < 100) {
-                        ctx.G.trails.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: 150, t: 0, col: 'rgba(255,136,170,0.5)', size: 1 });
+                        ctx.G.trails.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: b.rocket ? 220 : 150, t: 0, col: b.rocket ? 'rgba(255,120,40,0.55)' : 'rgba(255,136,170,0.5)', size: b.rocket ? 2 : 1 });
                     }
                     b.x += b.vx * dt; b.y += b.vy * dt;
                 } else if (b.vx) { b.x += b.vx * dt; b.y += b.vy * dt; } else b.y -= (b.laser ? ctx.PB_SPEED * 1.5 : ctx.PB_SPEED) * dt;
@@ -758,6 +802,25 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             _applyHit = false;
                         }
                         if (_applyHit) e.hp--;
+                        if (b.rocket && _applyHit) {
+                            for (let sj = 0; sj < ctx.G.enemies.length; sj++) {
+                                const se = ctx.G.enemies[sj];
+                                if (se.st === 'DEAD' || se === e) continue;
+                                if (Math.hypot(se.x - b.x, se.y - b.y) < 50) {
+                                    se.hp--;
+                                    se.hitF = Math.max(se.hitF || 0, 90);
+                                    if (se.hp <= 0) {
+                                        const spts = ctx.PTS[se.type] ? ctx.PTS[se.type][0] : 200;
+                                        ctx.registerKill(); ctx.addScore(spts, se.x, se.y, '#ff7722');
+                                        ctx.boom(se.x, se.y, se.type === 'boss' || se.type === 'miniboss', se.type);
+                                        ctx.SFX.eExplode(se.x); ctx.dropPU(se); se.st = 'DEAD';
+                                        ctx.G.killCount++; ctx.G.stageKills = (ctx.G.stageKills || 0) + 1;
+                                    }
+                                }
+                            }
+                            ctx.boom(b.x, b.y, false, 'hunter');
+                            if (ctx.SFX.rocketHit) ctx.SFX.rocketHit(b.x);
+                        }
                         ctx.G.stageAccuracyHits = (ctx.G.stageAccuracyHits || 0) + 1;
                         if (e.hp <= 0) {
                             const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][e.st === 'DIVING' ? 1 : 0] : 200;

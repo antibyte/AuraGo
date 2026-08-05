@@ -235,7 +235,8 @@
             // NEW: Motion trail history buffers per bullet (capped)
             trailBudget: 0, parryMasterCount: 0,
             // NEW: Bonus sub-stage flag
-            bonusStage: false, bonusStageT: 0, bonusRating: null
+            bonusStage: false, bonusStageT: 0, bonusRating: null,
+            playerMines: [], mineDropT: 0
         };
         gameCtx.G.lives = diffMod('lives');
 

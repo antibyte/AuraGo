@@ -208,6 +208,11 @@
             mirrorPing(panX) { if (ctx.G.muted) return; beep('sine', 1600, 2200, 0.05, 0.16 * vv(), panX); beep('triangle', 1200, 800, 0.06, 0.12 * vv(), panX); },
             modeSelect() { if (ctx.G.muted) return; beep('square', 660, 990, 0.05, 0.2 * vv()); setTimeout(() => beep('triangle', 990, 1320, 0.05, 0.18 * vv()), 60); },
             gauntletWave() { if (ctx.G.muted) return; [523, 659, 784].forEach((f, i) => setTimeout(() => beep('sawtooth', f, f, 0.08, 0.24 * vv()), i * 70)); },
+            rocketLaunch(panX) { if (ctx.G.muted) return; beep('sawtooth', 180, 520, 0.1, 0.24 * vv(), panX); noise(0.07, 0.12 * vv(), 380, panX); },
+            rocketHit(panX) { if (ctx.G.muted) return; beep('square', 120, 60, 0.12, 0.28 * vv(), panX); noise(0.15, 0.2 * vv(), 500, panX); },
+            mineDrop(panX) { if (ctx.G.muted) return; beep('square', 240, 110, 0.06, 0.16 * vv(), panX); },
+            mineExplode(panX) { if (ctx.G.muted) return; beep('sawtooth', 90, 45, 0.14, 0.26 * vv(), panX); noise(0.2, 0.22 * vv(), 600, panX); },
+            megabomb(panX) { if (ctx.G.muted) return; noise(0.75, 0.75 * vv(), 1400, panX); beep('sawtooth', 80, 25, 0.55, 0.55 * vv(), panX); setTimeout(() => beep('sine', 40, 20, 0.4, 0.35 * vv(), panX), 120); },
             weatherCrack() { if (ctx.G.muted) return; noise(0.06, 0.14 * vv(), 7000); beep('sawtooth', 1200, 300, 0.04, 0.12 * vv()); }
         };
         ctx.SFX = SFX;

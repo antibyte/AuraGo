@@ -170,6 +170,7 @@
             ctx.G.bonusStage = (ctx.G.stage > 1) && (ctx.G.stage % ctx.BONUS_STAGE_EVERY === 0) && !ctx.G.chal && !ctx.isMiniBossStage();
             if (ctx.G.bonusStage) { ctx.G.bonusStageT = ctx.BONUS_STAGE_DURATION; if (ctx.SFX.bonusStart) ctx.SFX.bonusStart(); }
             ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.pendingBooms = []; ctx.G.levelSkipTimer = 0;
+            ctx.G.playerMines = []; ctx.G.mineDropT = 0;
             ctx.G.beam = null; ctx.G.powerups = []; ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.G.shieldHits = 0;
             ctx.G.scorePopups = []; ctx.G.warpT = 0; ctx.G.warpFlash = 0; ctx.G.perfectT = 0;
             ctx.G.combo = 0; ctx.G.comboTimer = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null;

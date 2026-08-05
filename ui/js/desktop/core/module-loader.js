@@ -171,6 +171,7 @@
                 '/js/desktop/apps/galaxa-entities-core.js',
                 '/js/desktop/apps/galaxa-entities-spawning.js',
                 '/js/desktop/apps/galaxa-entities-behaviors.js',
+                '/js/desktop/apps/galaxa-entities-weapons.js',
                 '/js/desktop/apps/galaxa-entities-combat.js',
                 '/js/desktop/apps/galaxa-entities.js',
                 '/js/desktop/apps/galaxa-render-effects.js',

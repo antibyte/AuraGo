@@ -14,6 +14,7 @@ func TestGalaxaModesModuleRegistered(t *testing.T) {
 		"/js/desktop/apps/galaxa-audio-sfx.js",
 		"/js/desktop/apps/galaxa-audio-music.js",
 		"/js/desktop/apps/galaxa-entities-combat.js",
+		"/js/desktop/apps/galaxa-entities-weapons.js",
 		"/js/desktop/apps/galaxa-render-world.js",
 	} {
 		if !strings.Contains(loader, marker) {

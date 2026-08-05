@@ -140,12 +140,18 @@ registration lives in `internal/desktop/types.go`.
 - Galaxa load order is defined under the `galaxa-deluxe` entry.
   `galaxa-constants.js` and `galaxa-tweens.js` must load before factory modules.
   Split modules (soft budget **≤1000 lines** per file): `galaxa-entities-{core,
-  spawning, behaviors, combat}.js`, `galaxa-render-{effects, stage, hud,
+  spawning, behaviors, combat, weapons}.js`, `galaxa-render-{effects, stage, hud,
   world}.js`, `galaxa-audio-{core, sfx, music}.js`, `galaxa-enemy-motion.js`.
   Orchestrator glue stays in `galaxa-entities.js`, `galaxa-render.js`, and
   `galaxa-audio.js`.
 - Enemy movement visuals live in `galaxa-enemy-motion.js` with per-type presets
   in `GC.ENEMY_MOTION_FX` (pulse scale, dive trails, blink invisibility).
+- Weapon power-ups (rare/legendary): `rocket_launcher` / `mega_rocket` (homing
+  salvo), `mine_layer` / `mega_mine_layer` (player mines via `ctx.pushPlayerMine`,
+  cap `GC.PLAYER_MINE_MAX`), and instant `megabomb`. Mirror shots use
+  `ctx.mirrorDuplicateBullets(fromIdx)` for rockets and normal fire. SFX:
+  `rocketLaunch`, `rocketHit`, `mineDrop`, `mineExplode`, `megabomb`.
+  `collectPU` tracks every pickup in `collectedPU` at entry for `power_collector`.
 - Game mode logic lives in `galaxa-modes.js` (`GC.createModes(ctx)`): `gauntlet`
   (12 curated waves, no shop, 3 lives), `hyperdrive` (endless speed ramp +
   rotating modifiers; spawning/HP scaling matches `endless`), `mirror`

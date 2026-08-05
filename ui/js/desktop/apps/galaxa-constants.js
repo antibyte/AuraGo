@@ -36,19 +36,20 @@
     GC.EXTRA_LIFE = 20000;
     GC.TITLE_IDLE = 15000;
 
-    GC.PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser', 'multibomb', 'timeslow', 'pierce', 'homing', 'supernova', 'freeze', 'levelskip', 'ricochet', 'drone', 'blackhole_bomb', 'gravity_bomb', 'mirror', 'orbital_shield', 'chain_lightning'];
-    GC.PU_COL = { rapid: '#00ffcc', spread: '#ff6600', shield: '#4488ff', bomb: '#ff4444', speed: '#ffee00', magnet: '#ff44ff', laser: '#eeeeff', multibomb: '#cc2222', timeslow: '#aa44ff', pierce: '#88ffaa', homing: '#ff88aa', supernova: '#ffffff', freeze: '#88eeff', levelskip: '#ff88ff', ricochet: '#ffaa44', drone: '#44ffaa', blackhole_bomb: '#8844ff', gravity_bomb: '#cc66ff', mirror: '#88ddff', orbital_shield: '#44aaff', chain_lightning: '#aaddff' };
-    GC.PU_DUR = { rapid: 8000, spread: 10000, speed: 6000, magnet: 8000, laser: 5000, timeslow: 4000, pierce: 6000, homing: 0, freeze: 4000, ricochet: 8000, drone: 10000, mirror: 8000, orbital_shield: 8000, chain_lightning: 10000 };
-    GC.PU_UPGRADE = { rapid: 'ultra_rapid', spread: 'mega_spread', speed: 'hyper_speed', magnet: 'super_magnet', laser: 'mega_laser', pierce: 'mega_pierce', ricochet: 'mega_ricochet', drone: 'dual_drone' };
-    GC.PU_UPGRADE_COL = { ultra_rapid: '#00ffee', mega_spread: '#ff8800', hyper_speed: '#ffff44', super_magnet: '#ff88ff', mega_laser: '#ccddff', mega_pierce: '#aaffcc', mega_ricochet: '#ffcc66', dual_drone: '#66ffcc' };
-    GC.PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255', levelskip: '255,136,255', ricochet: '255,170,68', mega_ricochet: '255,204,102', drone: '68,255,170', dual_drone: '102,255,204', blackhole_bomb: '136,68,255', gravity_bomb: '204,102,255', mirror: '136,221,255', orbital_shield: '68,170,255', chain_lightning: '170,221,255' };
+    GC.PU_TYPES = ['rapid', 'spread', 'shield', 'bomb', 'speed', 'magnet', 'laser', 'multibomb', 'timeslow', 'pierce', 'homing', 'supernova', 'freeze', 'levelskip', 'ricochet', 'drone', 'blackhole_bomb', 'gravity_bomb', 'mirror', 'orbital_shield', 'chain_lightning', 'rocket_launcher', 'mine_layer', 'megabomb'];
+    GC.PU_COL = { rapid: '#00ffcc', spread: '#ff6600', shield: '#4488ff', bomb: '#ff4444', speed: '#ffee00', magnet: '#ff44ff', laser: '#eeeeff', multibomb: '#cc2222', timeslow: '#aa44ff', pierce: '#88ffaa', homing: '#ff88aa', supernova: '#ffffff', freeze: '#88eeff', levelskip: '#ff88ff', ricochet: '#ffaa44', drone: '#44ffaa', blackhole_bomb: '#8844ff', gravity_bomb: '#cc66ff', mirror: '#88ddff', orbital_shield: '#44aaff', chain_lightning: '#aaddff', rocket_launcher: '#ff7722', mine_layer: '#ccaa44', megabomb: '#ff2200' };
+    GC.PU_DUR = { rapid: 8000, spread: 10000, speed: 6000, magnet: 8000, laser: 5000, timeslow: 4000, pierce: 6000, homing: 0, freeze: 4000, ricochet: 8000, drone: 10000, mirror: 8000, orbital_shield: 8000, chain_lightning: 10000, rocket_launcher: 12000, mine_layer: 10000, mega_rocket: 12000, mega_mine_layer: 10000 };
+    GC.PU_UPGRADE = { rapid: 'ultra_rapid', spread: 'mega_spread', speed: 'hyper_speed', magnet: 'super_magnet', laser: 'mega_laser', pierce: 'mega_pierce', ricochet: 'mega_ricochet', drone: 'dual_drone', rocket_launcher: 'mega_rocket', mine_layer: 'mega_mine_layer' };
+    GC.PU_UPGRADE_COL = { ultra_rapid: '#00ffee', mega_spread: '#ff8800', hyper_speed: '#ffff44', super_magnet: '#ff88ff', mega_laser: '#ccddff', mega_pierce: '#aaffcc', mega_ricochet: '#ffcc66', dual_drone: '#66ffcc', mega_rocket: '#ff9944', mega_mine_layer: '#eedd66' };
+    GC.PU_TRAIL_COL = { rapid: '0,255,204', ultra_rapid: '0,255,238', spread: '255,102,0', mega_spread: '255,136,0', shield: '68,136,255', speed: '255,238,0', hyper_speed: '255,255,68', magnet: '255,68,255', super_magnet: '255,136,255', laser: '180,200,255', mega_laser: '160,180,255', timeslow: '170,68,255', pierce: '136,255,170', mega_pierce: '170,255,204', homing: '255,136,170', freeze: '136,238,255', levelskip: '255,136,255', ricochet: '255,170,68', mega_ricochet: '255,204,102', drone: '68,255,170', dual_drone: '102,255,204', blackhole_bomb: '136,68,255', gravity_bomb: '204,102,255', mirror: '136,221,255', orbital_shield: '68,170,255', chain_lightning: '170,221,255', rocket_launcher: '255,120,40', mega_rocket: '255,150,60', mine_layer: '204,170,68', mega_mine_layer: '238,204,102' };
     GC.PU_RARITY = {
         common: ['rapid', 'spread', 'speed', 'pierce'],
         uncommon: ['shield', 'magnet', 'laser', 'ricochet', 'mirror', 'orbital_shield'],
-        rare: ['homing', 'drone', 'timeslow', 'freeze', 'chain_lightning'],
-        legendary: ['bomb', 'multibomb', 'supernova', 'blackhole_bomb', 'levelskip', 'gravity_bomb']
+        rare: ['homing', 'drone', 'timeslow', 'freeze', 'chain_lightning', 'rocket_launcher', 'mine_layer'],
+        legendary: ['bomb', 'multibomb', 'supernova', 'blackhole_bomb', 'levelskip', 'gravity_bomb', 'megabomb']
     };
     GC.PU_RARITY_WEIGHT = { common: 50, uncommon: 30, rare: 15, legendary: 5 };
+    GC.PLAYER_MINE_MAX = 12;
     GC.PU_SYNERGIES = {
         'rapid+pierce': { name: 'Phaser', col: '#00ffaa', desc: 'Double fire rate + pierce' },
         'spread+homing': { name: 'Swarm', col: '#ff8844', desc: 'Spread bullets curve toward targets' },
@@ -160,7 +161,7 @@
         one_life: { name: 'Iron Man', desc: 'Reach stage 5 starting with 1 life' },
         bullet_hell: { name: 'Bullet Hell', desc: 'Have 100+ enemy bullets on screen at once' },
         boss_rusher: { name: 'Boss Rusher', desc: 'Reach stage 10 in Boss Rush mode' },
-        collector: { name: 'Collector', desc: 'Collect all 17 powerup types in a single run' },
+        collector: { name: 'Collector', desc: 'Collect all powerup types in a single run' },
         speedrun: { name: 'Speedrunner', desc: 'Complete stages 1-5 in under 2 minutes' },
         pacifist: { name: 'Pacifist', desc: 'Clear a stage without firing (drones/blackhole only)' },
         overcharge: { name: 'Overcharged', desc: 'Use Overcharge 5 times in one run' },

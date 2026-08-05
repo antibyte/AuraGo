@@ -266,17 +266,44 @@
                 ctx.c.shadowBlur = 0;
             }
             ctx.c.globalAlpha = 1;
+            // player mines
+            for (const m of (ctx.G.playerMines || [])) {
+                const armed = m.armT <= 0;
+                const pulse = 0.55 + Math.sin(ctx.tick * 0.14 + m.t * 0.01) * 0.25;
+                ctx.c.globalAlpha = armed ? pulse : 0.35;
+                ctx.c.fillStyle = armed ? '#ddaa33' : '#666633';
+                ctx.c.beginPath(); ctx.c.arc(m.x, m.y, m.r || 9, 0, Math.PI * 2); ctx.c.fill();
+                if (armed) {
+                    ctx.c.strokeStyle = '#ff8844'; ctx.c.lineWidth = 1.5;
+                    ctx.c.shadowBlur = 6; ctx.c.shadowColor = '#ffaa44';
+                    ctx.c.stroke(); ctx.c.shadowBlur = 0;
+                }
+                ctx.c.globalAlpha = 1;
+            }
             // bullet trails (no shadow)
             for (const b of ctx.G.bul) {
-                if (!b.laser) {
+                if (!b.laser && !b.rocket) {
                     ctx.c.fillStyle = 'rgba(255,255,136,0.3)';
                     ctx.c.fillRect(Math.floor(b.x - 1), Math.floor(b.y + 3), 2, 4);
                 }
             }
+            // homing rockets
+            ctx.c.shadowColor = '#ff6622'; ctx.c.shadowBlur = 10;
+            for (const b of ctx.G.bul) {
+                if (b.rocket) {
+                    ctx.c.fillStyle = '#ff7722';
+                    ctx.c.fillRect(Math.floor(b.x - 2), Math.floor(b.y - 5), 5, 11);
+                    ctx.c.globalAlpha = 0.45;
+                    ctx.c.fillStyle = '#ffaa44';
+                    ctx.c.fillRect(Math.floor(b.x - 3), Math.floor(b.y - 2), 7, 6);
+                    ctx.c.globalAlpha = 1;
+                }
+            }
+            ctx.c.shadowBlur = 0;
             // player bullets — shadow set once for the whole batch
             ctx.c.shadowColor = '#ffff88'; ctx.c.shadowBlur = 6;
             for (const b of ctx.G.bul) {
-                if (!b.laser) {
+                if (!b.laser && !b.rocket) {
                     ctx.c.fillStyle = '#ffff88';
                     ctx.c.fillRect(Math.floor(b.x - 1), Math.floor(b.y - 3), 2, 6);
                     ctx.c.globalAlpha = 0.4;
@@ -633,6 +660,9 @@
                 else if (pu.type === 'timeslow') { ctx.c.beginPath(); ctx.c.arc(0, 0, 4, -Math.PI / 2, Math.PI / 2); ctx.c.stroke(); ctx.c.fillRect(0, -4, 1, 4); }
                 else if (pu.type === 'pierce') { ctx.c.fillRect(-1, -5, 2, 10); ctx.c.fillRect(-3, 0, 6, 1); }
                 else if (pu.type === 'homing') { ctx.c.beginPath(); ctx.c.moveTo(0, -4); ctx.c.lineTo(3, 2); ctx.c.lineTo(-3, 2); ctx.c.closePath(); ctx.c.stroke(); }
+                else if (pu.type === 'rocket_launcher') { ctx.c.fillRect(-1, -5, 2, 8); ctx.c.beginPath(); ctx.c.moveTo(0, -6); ctx.c.lineTo(3, 0); ctx.c.lineTo(-3, 0); ctx.c.closePath(); ctx.c.fill(); }
+                else if (pu.type === 'mine_layer') { ctx.c.beginPath(); ctx.c.arc(0, 0, 4, 0, Math.PI * 2); ctx.c.stroke(); for (let mi = 0; mi < 4; mi++) { const ma = mi * 1.57; ctx.c.fillRect(Math.floor(Math.cos(ma) * 5), Math.floor(Math.sin(ma) * 5), 2, 2); } }
+                else if (pu.type === 'megabomb') { ctx.c.lineWidth = 2; ctx.c.beginPath(); ctx.c.moveTo(-4, -4); ctx.c.lineTo(4, 4); ctx.c.moveTo(4, -4); ctx.c.lineTo(-4, 4); ctx.c.stroke(); ctx.c.beginPath(); ctx.c.arc(0, 0, 5, 0, Math.PI * 2); ctx.c.stroke(); }
                 else if (pu.type === 'supernova') { for (let i2 = 0; i2 < 8; i2++) { const a2 = i2 * 0.785; ctx.c.fillRect(Math.floor(Math.cos(a2) * 5), Math.floor(Math.sin(a2) * 5), 2, 2); } }
                 else if (pu.type === 'freeze') {
                     ctx.c.strokeStyle = ctx.PU_COL.freeze; ctx.c.lineWidth = 1;
@@ -670,14 +700,16 @@
             }
 
             if (ctx.G.activePU && ctx.G.p.alive) {
-                ctx.c.fillStyle = ctx.PU_COL[ctx.G.activePU.type]; ctx.c.font = '9px "Courier New",monospace'; ctx.c.textAlign = 'center';
-                const labels = { rapid: 'RAPID FIRE', spread: 'SPREAD SHOT', shield: 'SHIELD', speed: 'SPEED BOOST', magnet: 'MAGNET', laser: 'LASER', timeslow: 'TIME SLOW' };
-                const label = labels[ctx.G.activePU.type];
+                const puCol = ctx.PU_COL[ctx.G.activePU.type] || ctx.PU_UPGRADE_COL[ctx.G.activePU.type];
+                ctx.c.fillStyle = puCol || '#fff'; ctx.c.font = '9px "Courier New",monospace'; ctx.c.textAlign = 'center';
+                const labelKeys = { rapid: 'galaxa.rapid_fire', spread: 'galaxa.spread_shot', shield: 'galaxa.shield', rocket_launcher: 'galaxa.rocket_launcher', mine_layer: 'galaxa.mine_layer', mega_rocket: 'galaxa.mega_rocket', mega_mine_layer: 'galaxa.mega_mine_layer' };
+                const label = labelKeys[ctx.G.activePU.type] ? ctx.t(labelKeys[ctx.G.activePU.type]) : ({ speed: 'SPEED BOOST', magnet: 'MAGNET', laser: 'LASER', timeslow: 'TIME SLOW' }[ctx.G.activePU.type]);
                 if (label) ctx.c.fillText(label, p.x, p.y + 26);
-                if (ctx.G.activePU.type !== 'shield' && ctx.PU_DUR[ctx.G.activePU.type]) {
+                const durBase = ctx.PU_DUR[ctx.G.activePU.type];
+                if (ctx.G.activePU.type !== 'shield' && durBase) {
                     const bw = 40, bh = 3, bx = p.x - bw / 2, by = p.y + 28;
                     ctx.c.fillStyle = '#333'; ctx.c.fillRect(bx, by, bw, bh);
-                    ctx.c.fillStyle = ctx.PU_COL[ctx.G.activePU.type]; ctx.c.fillRect(bx, by, bw * (ctx.G.puTimer / ctx.PU_DUR[ctx.G.activePU.type]), bh);
+                    ctx.c.fillStyle = puCol || '#fff'; ctx.c.fillRect(bx, by, bw * (ctx.G.puTimer / durBase), bh);
                 }
             }
 
