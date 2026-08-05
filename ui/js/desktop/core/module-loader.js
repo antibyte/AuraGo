@@ -151,6 +151,7 @@
                 '/js/desktop/apps/pixel-canvas.js',
                 '/js/desktop/apps/pixel-tools.js',
                 '/js/desktop/apps/pixel-actions.js',
+                '/js/desktop/apps/pixel-filters.js',
                 '/js/desktop/apps/pixel-events.js',
                 '/js/desktop/apps/pixel.js'
             ]

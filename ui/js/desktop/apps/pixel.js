@@ -43,6 +43,9 @@
         let fontSize = 24;
         let fontFamily = 'Arial';
         let fillTolerance = 32;
+        let sprayDensity = 25;
+        let dodgeMode = 'dodge';
+        let gradientMode = 'linear';
         let isDrawing = false;
         let drawStartX = 0, drawStartY = 0;
         let lastDrawX = 0, lastDrawY = 0;
@@ -67,6 +70,12 @@
         let compareOrigData = null;
 
         let aiConfigured = false;
+
+        let activeFilterId = null;
+        let activeFilterCat = 'all';
+        let filterStrength = 100;
+        let filterPreview = null;
+        let filterThumbKey = '';
 
         const adjustments = { brightness: 0, contrast: 0, saturation: 0, exposure: 0, sharpness: 0, temperature: 0, shadows: 0, highlights: 0 };
 
@@ -114,6 +123,9 @@
             fontSize: { get: () => fontSize, set: value => { fontSize = value; }, enumerable: true },
             fontFamily: { get: () => fontFamily, set: value => { fontFamily = value; }, enumerable: true },
             fillTolerance: { get: () => fillTolerance, set: value => { fillTolerance = value; }, enumerable: true },
+            sprayDensity: { get: () => sprayDensity, set: value => { sprayDensity = value; }, enumerable: true },
+            dodgeMode: { get: () => dodgeMode, set: value => { dodgeMode = value; }, enumerable: true },
+            gradientMode: { get: () => gradientMode, set: value => { gradientMode = value; }, enumerable: true },
             isDrawing: { get: () => isDrawing, set: value => { isDrawing = value; }, enumerable: true },
             drawStartX: { get: () => drawStartX, set: value => { drawStartX = value; }, enumerable: true },
             drawStartY: { get: () => drawStartY, set: value => { drawStartY = value; }, enumerable: true },
@@ -138,6 +150,11 @@
             comparePos: { get: () => comparePos, set: value => { comparePos = value; }, enumerable: true },
             compareOrigData: { get: () => compareOrigData, set: value => { compareOrigData = value; }, enumerable: true },
             aiConfigured: { get: () => aiConfigured, set: value => { aiConfigured = value; }, enumerable: true },
+            activeFilterId: { get: () => activeFilterId, set: value => { activeFilterId = value; }, enumerable: true },
+            activeFilterCat: { get: () => activeFilterCat, set: value => { activeFilterCat = value; }, enumerable: true },
+            filterStrength: { get: () => filterStrength, set: value => { filterStrength = value; }, enumerable: true },
+            filterPreview: { get: () => filterPreview, set: value => { filterPreview = value; }, enumerable: true },
+            filterThumbKey: { get: () => filterThumbKey, set: value => { filterThumbKey = value; }, enumerable: true },
             adjustments: { get: () => adjustments, set: value => { adjustments = value; }, enumerable: true },
             appEl: { get: () => appEl, set: value => { appEl = value; }, enumerable: true },
             canvasArea: { get: () => canvasArea, set: value => { canvasArea = value; }, enumerable: true },
@@ -149,12 +166,13 @@
             statusColorHex: { get: () => statusColorHex, set: value => { statusColorHex = value; }, enumerable: true },
             statusTool: { get: () => statusTool, set: value => { statusTool = value; }, enumerable: true },
             panelContainer: { get: () => panelContainer, set: value => { panelContainer = value; }, enumerable: true },
+            optionsBar: { get: () => optionsBar, set: value => { optionsBar = value; }, enumerable: true },
+            toolRail: { get: () => toolRail, set: value => { toolRail = value; }, enumerable: true },
             zoomLabel: { get: () => zoomLabel, set: value => { zoomLabel = value; }, enumerable: true },
             compareDivider: { get: () => compareDivider, set: value => { compareDivider = value; }, enumerable: true },
             primarySwatch: { get: () => primarySwatch, set: value => { primarySwatch = value; }, enumerable: true },
             secondarySwatch: { get: () => secondarySwatch, set: value => { secondarySwatch = value; }, enumerable: true },
             hexInput: { get: () => hexInput, set: value => { hexInput = value; }, enumerable: true },
-            mainOpacitySlider: { get: () => mainOpacitySlider, set: value => { mainOpacitySlider = value; }, enumerable: true },
             strengthSlider: { get: () => strengthSlider, set: value => { strengthSlider = value; }, enumerable: true },
             MAX_HISTORY: { get: () => Pixel.MAX_HISTORY, enumerable: true },
             IMAGE_EXTS: { get: () => Pixel.IMAGE_EXTS, enumerable: true },
@@ -172,15 +190,19 @@
         Pixel.installCanvas(runtime);
         Pixel.installTools(runtime);
         Pixel.installActions(runtime);
+        Pixel.installFilters(runtime);
         Pixel.installEvents(runtime);
         const {
             toolSvg,
-            buildDrawPanelHTML,
+            toolLabel,
+            buildToolRailHTML,
             buildDrawOptionsHTML,
+            buildColorsPanelHTML,
+            buildHistoryPanelHTML,
             buildLayersPanelHTML,
             buildPanelHTML,
             buildSlider,
-            buildFilterCard,
+            buildFilterGalleryHTML,
             setStatus,
             updateStatus,
             updateZoomLabel,
@@ -209,7 +231,11 @@
             exportFile,
             showPanel,
             refreshLayerPanel,
+            refreshHistoryPanel,
+            jumpToHistory,
+            renderRecentColors,
             setActiveTool,
+            renderOptionsBar,
             getToolCursor,
             clearOverlay,
             drawMarchingAnts,
@@ -221,6 +247,11 @@
             cutSelection,
             pasteClipboard,
             deleteSelection,
+            magicWandSelect,
+            commitGradient,
+            sprayAt,
+            dodgeBurnAt,
+            blurAt,
             addRecentColor,
             setPrimaryColor,
             setSecondaryColor,
@@ -230,10 +261,6 @@
             commitShape,
             floodFill,
             commitTextToCanvas,
-            applyFilterPreview,
-            applyVignette,
-            applyEmboss,
-            convolve,
             buildFilterString,
             applyAdjustmentsPreview,
             applyCustomAdjustments,
@@ -255,6 +282,14 @@
             duplicateLayer,
             mergeDown,
             flattenLayers,
+            filterDef,
+            renderFiltered,
+            selectFilter,
+            applyFilter,
+            resetFilterPreview,
+            applyFilterPreview,
+            refreshFilterThumbnails,
+            wireFilterPanel,
             onCanvasMouseDown,
             onCanvasMouseMove,
             onCanvasMouseUp,
@@ -283,13 +318,16 @@
                 <div class="pixel-tabs">
                     <button class="pixel-tab${activePanel === 'adjust' ? ' active' : ''}" type="button" data-panel="adjust">${esc(t('pixel.adjust'))}</button>
                     <button class="pixel-tab${activePanel === 'filters' ? ' active' : ''}" type="button" data-panel="filters">${esc(t('pixel.filters'))}</button>
+                    <button class="pixel-tab${activePanel === 'colors' ? ' active' : ''}" type="button" data-panel="colors">${esc(t('pixel.tab_colors'))}</button>
                     <button class="pixel-tab${activePanel === 'transform' ? ' active' : ''}" type="button" data-panel="transform">${esc(t('pixel.transform'))}</button>
-                    <button class="pixel-tab${activePanel === 'draw' ? ' active' : ''}" type="button" data-panel="draw">${esc(t('pixel.draw'))}</button>
                     <button class="pixel-tab${activePanel === 'layers' ? ' active' : ''}" type="button" data-panel="layers">${esc(t('pixel.layers'))}</button>
+                    <button class="pixel-tab${activePanel === 'history' ? ' active' : ''}" type="button" data-panel="history">${esc(t('pixel.tab_history'))}</button>
                     <button class="pixel-tab${activePanel === 'ai' ? ' active' : ''}" type="button" data-panel="ai">${esc(t('pixel.ai_generate'))}</button>
                 </div>
             </div>
+            <div class="pixel-options-bar" data-options-bar hidden></div>
             <div class="pixel-workspace">
+                ${buildToolRailHTML()}
                 <div class="pixel-canvas-area" data-canvas-area>
                     <div class="pixel-canvas-wrap" data-canvas-wrap hidden>
                         <canvas class="pixel-canvas" data-canvas></canvas>
@@ -344,6 +382,8 @@
         const statusColorHex = host.querySelector('[data-color-hex]');
         const statusTool = host.querySelector('[data-status-tool]');
         const panelContainer = host.querySelector('[data-panel-container]');
+        const optionsBar = host.querySelector('[data-options-bar]');
+        const toolRail = host.querySelector('[data-tool-rail]');
         const zoomLabel = host.querySelector('[data-zoom-label]');
         cropOverlay = host.querySelector('[data-crop-overlay]');
         const compareDivider = host.querySelector('[data-compare-divider]');
@@ -368,7 +408,8 @@
         wireClick('[data-action="apply-adjust"]', applyAdjustments);
         wireClick('[data-action="reset-adjust"]', resetAdjustments);
         wireClick('[data-action="compare-toggle"]', toggleCompare);
-        host.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => applyFilterPreview(b.dataset.filter)));
+        wireClick('[data-action="apply-filter"]', applyFilter);
+        wireClick('[data-action="reset-filter"]', resetFilterPreview);
         wireClick('[data-action="rotate-cw"]', () => rotateCanvas(90));
         wireClick('[data-action="rotate-ccw"]', () => rotateCanvas(-90));
         wireClick('[data-action="flip-h"]', () => flipCanvas(true));
@@ -381,12 +422,12 @@
         wireClick('[data-action="ai-enhance"]', aiEnhance);
         wireClick('[data-action="new-image"]', showNewImageDialog);
         wireClick('[data-action="swap-colors"]', swapColors);
-        wireClick('[data-action="clear-selection"]', deselect);
         wireClick('[data-action="add-layer"]', addLayer);
         wireClick('[data-action="delete-layer"]', deleteLayer);
         wireClick('[data-action="duplicate-layer"]', duplicateLayer);
         wireClick('[data-action="merge-layers"]', mergeDown);
         wireClick('[data-action="flatten-layers"]', flattenLayers);
+        wireFilterPanel();
 
         host.querySelectorAll('[data-template]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -406,6 +447,10 @@
                 const path = photoBtn.dataset.photoPath;
                 loadDesktopImagePath(path).catch(() => {});
             }
+            const histBtn = e.target.closest('[data-history-idx]');
+            if (histBtn) {
+                jumpToHistory(Number(histBtn.dataset.historyIdx));
+            }
         });
 
         state._cropMouseDown = onCropMouseDown;
@@ -414,7 +459,7 @@
         overlayCanvas.addEventListener('mousedown', onCanvasMouseDown);
         overlayCanvas.addEventListener('mousemove', onCanvasMouseMove);
         overlayCanvas.addEventListener('mouseup', onCanvasMouseUp);
-        overlayCanvas.addEventListener('mouseleave', () => { if (isDrawing && activeTool && ['brush', 'eraser', 'pencil'].includes(activeTool)) { isDrawing = false; pushHistory('draw:' + activeTool); } });
+        overlayCanvas.addEventListener('mouseleave', () => { if (isDrawing && activeTool && ['brush', 'eraser', 'pencil'].includes(activeTool)) { isDrawing = false; pushHistory('draw:' + activeTool); } if (!selection && !isDrawing) clearOverlay(); });
 
         canvasArea.addEventListener('contextmenu', showContextMenu);
 
@@ -433,6 +478,8 @@
         host.addEventListener('click', e => {
             const rc = e.target.closest('[data-recent-color]');
             if (rc) { setPrimaryColor(rc.dataset.recentColor); }
+            const clearBtn = e.target.closest('[data-action="clear-selection"]');
+            if (clearBtn) { deselect(); }
         });
 
         const primarySwatch = host.querySelector('[data-color-primary]');
@@ -466,15 +513,6 @@
                 if (!v.startsWith('#')) v = '#' + v;
                 if (/^#[0-9a-fA-F]{6}$/.test(v)) { setPrimaryColor(v); addRecentColor(v); }
                 else hexInput.value = primaryColor;
-            });
-        }
-
-        const mainOpacitySlider = host.querySelector('[data-opacity-slider]');
-        if (mainOpacitySlider) {
-            mainOpacitySlider.addEventListener('input', () => {
-                brushOpacity = Number(mainOpacitySlider.value);
-                const next = mainOpacitySlider.nextElementSibling;
-                if (next) next.textContent = brushOpacity + '%';
             });
         }
 
@@ -518,7 +556,7 @@
             }
         });
 
-        wireDrawOptionEvents();
+        renderRecentColors();
 
         // Scroll-wheel zoom
         canvasArea.addEventListener('wheel', e => {
@@ -585,6 +623,12 @@
             if (!e.ctrlKey && !e.metaKey) {
                 if (e.key === 'b') setActiveTool('brush');
                 if (e.key === 'e') setActiveTool('eraser');
+                if (e.key === 'p') setActiveTool('pencil');
+                if (e.key === 'a') setActiveTool('airbrush');
+                if (e.key === 'd') setActiveTool('dodge-burn');
+                if (e.key === 'n') setActiveTool('blur-brush');
+                if (e.key === 'w') setActiveTool('magic-wand');
+                if (e.key === 'u') setActiveTool('gradient');
                 if (e.key === 'l') setActiveTool('line');
                 if (e.key === 'r') setActiveTool('rectangle');
                 if (e.key === 'o') setActiveTool('ellipse');
@@ -700,6 +744,7 @@
             originalImage = null;
             selImageData = null;
             layers = [];
+            filterPreview = null;
             canvas = null;
             cctx = null;
             overlayCanvas = null;

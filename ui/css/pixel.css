@@ -1049,12 +1049,200 @@
     white-space: nowrap;
 }
 
+/* Options bar (contextual tool options) */
+.pixel-options-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--pixel-line);
+    background: var(--vd-surface, #1a1f2e);
+    min-height: 42px;
+    box-sizing: border-box;
+}
+
+.pixel-options-bar[hidden] {
+    display: none;
+}
+
+.pixel-options-bar .pixel-slider-row {
+    flex: 0 1 auto;
+    min-width: 180px;
+}
+
+.pixel-options-bar .pixel-label {
+    font-size: 0.78rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-options-bar .pixel-draw-hint {
+    padding: 0;
+    text-align: left;
+}
+
+/* Tool rail */
+.pixel-tool-rail {
+    flex: 0 0 48px;
+    width: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 0;
+    border-right: 1px solid var(--pixel-line);
+    background: var(--vd-surface, #1a1f2e);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    box-sizing: border-box;
+}
+
+.pixel-rail-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.pixel-rail-sep {
+    width: 24px;
+    height: 1px;
+    background: var(--pixel-line);
+    flex: 0 0 auto;
+}
+
+.pixel-rail-spacer {
+    flex: 1 1 auto;
+}
+
+.pixel-tool-rail .pixel-tool-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+}
+
+.pixel-rail-colors {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--pixel-line);
+    width: 100%;
+}
+
+/* Filter gallery */
+.pixel-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.pixel-chip {
+    padding: 3px 10px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 999px;
+    background: var(--pixel-surface);
+    color: var(--pixel-muted);
+    font: inherit;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.pixel-chip:hover {
+    background: var(--pixel-hover);
+    color: var(--vd-text, #eff7ff);
+}
+
+.pixel-chip.active {
+    background: var(--pixel-accent);
+    border-color: var(--pixel-accent);
+    color: #0e1117;
+    font-weight: 600;
+}
+
+.pixel-filter-gallery {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.pixel-filter-card.active {
+    border-color: var(--pixel-accent);
+    background: var(--pixel-hover);
+    box-shadow: 0 0 0 1px var(--pixel-accent);
+}
+
+.pixel-filter-thumb {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    height: auto;
+    border-radius: 4px;
+    background:
+        linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.06) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.06) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.06) 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+    background-color: rgba(0, 0, 0, 0.25);
+    object-fit: cover;
+}
+
+/* History panel */
+.pixel-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 50vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.pixel-history-item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: none;
+    color: var(--pixel-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background 120ms ease, color 120ms ease;
+}
+
+.pixel-history-item:hover {
+    background: var(--pixel-hover);
+    color: var(--vd-text, #eff7ff);
+}
+
+.pixel-history-item.active {
+    background: var(--pixel-hover);
+    color: var(--vd-text, #eff7ff);
+    border-color: var(--pixel-accent);
+}
+
 @media (max-width: 800px) {
     .pixel-panel {
         flex: 0 0 min(320px, 44vw);
         width: min(320px, 44vw);
     }
     .pixel-filter-grid {
+        grid-template-columns: 1fr;
+    }
+    .pixel-filter-gallery {
         grid-template-columns: 1fr;
     }
     .pixel-btn-group {

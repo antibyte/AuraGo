@@ -11,7 +11,7 @@
                                 if (this.filePath) parts.push(this.filePath.split('/').pop());
                                 if (this.isDirty) parts.push('● ' + this.t('pixel.unsaved_changes'));
                                 this.setStatus(parts.join('  ·  '));
-                                if (this.statusTool) this.statusTool.textContent = this.activeTool ? this.t('pixel.' + this.activeTool, this.activeTool) : '';
+                                if (this.statusTool) this.statusTool.textContent = this.activeTool ? this.toolLabel(this.activeTool) : '';
             }),
             updateZoomLabel: Pixel.bindRuntime(runtime, function updateZoomLabel() {                     if (this.zoomLabel) this.zoomLabel.textContent = Math.round(this.zoom * 100) + '%';
             }),
@@ -64,6 +64,7 @@
                                 this.historyIdx = this.history.length - 1;
                                 this.isDirty = true;
                                 this.updateStatus();
+                                if (this.refreshHistoryPanel) this.refreshHistoryPanel();
             }),
             restoreHistory: Pixel.bindRuntime(runtime, function restoreHistory(entry) {
                                 this.canvas.width = entry.width;
@@ -87,12 +88,14 @@
                                 this.historyIdx--;
                                 this.restoreHistory(this.history[this.historyIdx]);
                                 this.updateStatus();
+                                if (this.refreshHistoryPanel) this.refreshHistoryPanel();
             }),
             redo: Pixel.bindRuntime(runtime, function redo() {
                                 if (this.historyIdx >= this.history.length - 1) return;
                                 this.historyIdx++;
                                 this.restoreHistory(this.history[this.historyIdx]);
                                 this.updateStatus();
+                                if (this.refreshHistoryPanel) this.refreshHistoryPanel();
             }),
             applyZoom: Pixel.bindRuntime(runtime, function applyZoom() {
                                 const w = this.imgWidth * this.zoom;
@@ -169,73 +172,6 @@
                                 this.clearOverlay();
                                 this.zoomFit();
                                 this.updateStatus();
-            }),
-            applyFilterPreview: Pixel.bindRuntime(runtime, function applyFilterPreview(name) {
-                                if (!this.canvas.width) return;
-                                const isMultiLayer = this.layers.length > 1;
-                                if (isMultiLayer) this.ensureBackgroundMigrated();
-                                const src = this.originalImage || this.canvas;
-                                const tmpCanvas = this.acquireTempCanvas(this.imgWidth, this.imgHeight);
-                                const tmpCtx = tmpCanvas.getContext('2d');
-                                switch (name) {
-                                    case 'grayscale': tmpCtx.filter = 'grayscale(100%)'; break;
-                                    case 'sepia': tmpCtx.filter = 'sepia(100%)'; break;
-                                    case 'invert': tmpCtx.filter = 'invert(100%)'; break;
-                                    case 'blur': tmpCtx.filter = 'blur(2px)'; break;
-                                    case 'vintage': tmpCtx.filter = 'sepia(60%) contrast(80%) brightness(90%)'; break;
-                                    case 'warm': tmpCtx.filter = 'saturate(1.3) brightness(1.05)'; break;
-                                    case 'cool': tmpCtx.filter = 'saturate(0.8) hue-rotate(20deg)'; break;
-                                    case 'high-contrast': tmpCtx.filter = 'contrast(150%)'; break;
-                                    default: tmpCtx.filter = 'none';
-                                }
-                                tmpCtx.drawImage(src, 0, 0, this.imgWidth, this.imgHeight);
-                                if (name === 'vignette') this.applyVignette(tmpCtx);
-                                if (name === 'emboss') this.applyEmboss(tmpCtx);
-                                if (isMultiLayer) {
-                                    const actx = this.getActiveCtx();
-                                    actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                    actx.drawImage(tmpCanvas, 0, 0);
-                                    this.compositeLayers();
-                                } else {
-                                    this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                    this.cctx.drawImage(tmpCanvas, 0, 0);
-                                }
-                                this.releaseTempCanvas(tmpCanvas);
-                                this.pushHistory('filter:' + name);
-            }),
-            applyVignette: Pixel.bindRuntime(runtime, function applyVignette(ctx) {
-                                const w = this.canvas.width, h = this.canvas.height;
-                                const grd = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.7);
-                                grd.addColorStop(0, 'rgba(0,0,0,0)');
-                                grd.addColorStop(1, 'rgba(0,0,0,0.6)');
-                                ctx.fillStyle = grd;
-                                ctx.fillRect(0, 0, w, h);
-            }),
-            applyEmboss: Pixel.bindRuntime(runtime, function applyEmboss(ctx) {
-                                const imgData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                                const kernel = [-2, -1, 0, -1, 1, 1, 0, 1, 2];
-                                this.convolve(imgData, kernel, this.canvas.width, this.canvas.height);
-                                ctx.putImageData(imgData, 0, 0);
-            }),
-            convolve: Pixel.bindRuntime(runtime, function convolve(imgData, kernel, w, h) {
-                                const src = new Uint8ClampedArray(imgData.data);
-                                const d = imgData.data;
-                                const kSize = Math.sqrt(kernel.length) | 0;
-                                const half = (kSize / 2) | 0;
-                                for (let y = half; y < h - half; y++) {
-                                    for (let x = half; x < w - half; x++) {
-                                        let r = 0, g = 0, b = 0;
-                                        for (let ky = 0; ky < kSize; ky++) {
-                                            for (let kx = 0; kx < kSize; kx++) {
-                                                const idx = ((y + ky - half) * w + (x + kx - half)) * 4;
-                                                const kv = kernel[ky * kSize + kx];
-                                                r += src[idx] * kv; g += src[idx + 1] * kv; b += src[idx + 2] * kv;
-                                            }
-                                        }
-                                        const idx = (y * w + x) * 4;
-                                        d[idx] = this.clamp255(r + 128); d[idx + 1] = this.clamp255(g + 128); d[idx + 2] = this.clamp255(b + 128);
-                                    }
-                                }
             }),
             buildFilterString: Pixel.bindRuntime(runtime, function buildFilterString() {
                                 const parts = [];

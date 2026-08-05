@@ -81,6 +81,19 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   filter. The app can also run
   windowless as a floating desktop gadget (see `sip-phone-gadget-runtime.js`
   in the Child DOX Index).
+- `pixel*.js` implements Pixel, a canvas image editor: left tool rail (17
+  tools in 5 groups, incl. magic wand with mask selections, gradient,
+  airbrush, dodge/burn and blur brush), contextual options bar, adjustments,
+  a 21-filter gallery in 4 categories with live thumbnails and a strength
+  slider, plus colors, transform, layers (max 10), click-to-jump history and
+  AI generate/enhance panels. Split across `pixel-state.js` (constants, tool
+  SVGs/groups, canvas pool), `pixel-view.js` (rail/panel markup),
+  `pixel-canvas.js` (canvas, history stack, zoom, adjustments,
+  crop/resize/rotate), `pixel-tools.js` (tools, selections, layers, history
+  panel), `pixel-actions.js` (file I/O, AI calls, photos), `pixel-filters.js`
+  (filter catalog, gallery, non-destructive preview), `pixel-events.js`
+  (mouse handlers, shortcuts modal, context menu, option wiring) and
+  `pixel.js` (shell, runtime, event wiring).
 
 ## Ownership
 
@@ -245,6 +258,25 @@ registration lives in `internal/desktop/types.go`.
 - SIP Phone visible UI strings use `desktop.sip_phone_*` keys in all 16
   `ui/lang/sip_phone/*.json` files (identical key sets); the dock/start name
   uses `desktop.app_sip_phone` in `ui/lang/desktop/*.json`.
+- Pixel load order in `module-loader.js` must be: state, view, canvas, tools,
+  actions, filters, events, pixel.js. Modules attach via
+  `Pixel.install<Domain>(runtime)` with `bindRuntime` (no eval); shared state
+  lives in the getter/setter runtime object created by `pixel.js`.
+- Pixel exposes `window.PixelApp = { render, dispose }`; every window
+  instance owns its history stack, layers, filter preview state, marching-ants
+  RAF, and document-level key handlers (all removed on dispose).
+- Pixel layout contract: toolbar + panel tabs on top, contextual options bar
+  (`data-options-bar`) below it, tool rail (`data-tool-rail`) left, canvas
+  center, panel right. Panel tabs: adjust, filters, colors, transform,
+  layers, history, ai. Tool options render into the options bar via
+  `renderOptionsBar()`; there is no draw panel tab.
+- Pixel filters live in the `Pixel.FILTERS` catalog (`pixel-filters.js`) with
+  css/pixel/canvas implementations across the categories color/light/style/
+  detail; legacy filter IDs stay valid. Selecting a filter previews
+  non-destructively (layer snapshot + strength blend); Apply commits to
+  history, leaving the filters tab resets the preview.
+- Pixel visible UI strings use `pixel.*` keys in all 16
+  `ui/lang/desktop/*.json` files.
 - System World performance contracts: glow textures are cached in Maps, comet/
   burst/ring effects come from capped recycled pools, no `new THREE.*`
   allocations inside per-frame update paths, and every module's `dispose()`
@@ -535,3 +567,10 @@ registration lives in `internal/desktop/types.go`.
   Settings app), layer CSS in `ui/css/desktop-sip-phone-shell.css`, gadget
   overrides in `ui/css/desktop-app-sip-phone.css`. Exposes
   `window.SipPhoneGadget { init, sync }`. No child DOX file needed.
+- `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
+  `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -
+  Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
+  with mask selections, gradient, airbrush, dodge/burn, blur brush plus the
+  classic set), 21-filter catalog gallery with live thumbnails and strength
+  slider, layers, click-to-jump history panel, AI generate/enhance. Exposes
+  `window.PixelApp`. No child DOX file needed.

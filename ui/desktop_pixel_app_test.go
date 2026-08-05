@@ -356,8 +356,7 @@ func TestPixelWiredActionsExistInMarkup(t *testing.T) {
 	}
 }
 
-func TestPixelBindRuntimeDoesNotUseEval(t *testing.T) {
-	state := readDesktopAssetText(t, "js/desktop/apps/pixel-state.js")
+func TestPixelBindRuntimeDoesNotUseEval(t *testing.T) {state := readDesktopAssetText(t, "js/desktop/apps/pixel-state.js")
 	for _, forbidden := range []string{"eval(", "new Function(", "Function('runtime'"} {
 		if strings.Contains(state, forbidden) {
 			t.Fatalf("pixel-state.js must not use runtime code evaluation (%s)", forbidden)
@@ -385,6 +384,126 @@ func TestPixelLoaderUsesOrderedSemanticScripts(t *testing.T) {
 	}
 }
 
+func TestPixelToolRailAndOptionsBarExist(t *testing.T) {
+	shell := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel.js"))
+	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))
+
+	for _, want := range []string{"data-tool-rail", "data-options-bar", `data-panel="history"`, `data-panel="colors"`} {
+		if !strings.Contains(shell, want) {
+			t.Fatalf("pixel shell should contain %q for the tool rail / options bar layout", want)
+		}
+	}
+	if !strings.Contains(view, "buildToolRailHTML") || !strings.Contains(view, "pixel-tool-rail") {
+		t.Fatal("pixel view should build the tool rail markup")
+	}
+	if !strings.Contains(view, "pixel-rail-colors") {
+		t.Fatal("pixel tool rail should host the compact color block")
+	}
+}
+
+func TestPixelNewToolsRegistered(t *testing.T) {
+	state := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-state.js"))
+	for _, tool := range []string{"magic-wand", "airbrush", "dodge-burn", "blur-brush", "gradient"} {
+		if !strings.Contains(state, "'"+tool+"'") {
+			t.Fatalf("pixel-state.js should register new tool %q in TOOL_GROUPS/TOOL_SVGS", tool)
+		}
+	}
+	events := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-events.js"))
+	for _, want := range []string{"magicWandSelect", "applyPointTool", "snapEnd", "drawBrushCursor", "data-spray-density", "data-dodge-mode", "data-gradient-mode"} {
+		if !strings.Contains(events, want) {
+			t.Fatalf("pixel-events.js missing new tool wiring %q", want)
+		}
+	}
+	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
+	for _, want := range []string{"commitGradient", "sprayAt", "dodgeBurnAt", "blurAt", "eraseMaskPixels", "renderOptionsBar"} {
+		if !strings.Contains(tools, want) {
+			t.Fatalf("pixel-tools.js missing new tool implementation %q", want)
+		}
+	}
+}
+
+func TestPixelFilterCatalogHasNewFilters(t *testing.T) {
+	filters := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
+
+	for _, id := range []string{"sharpen", "edge", "pixelate", "posterize", "duotone", "solarize", "tint", "bloom", "grain", "sketch", "aberration"} {
+		if !strings.Contains(filters, "id: '"+id+"'") {
+			t.Fatalf("pixel filter catalog missing new filter %q", id)
+		}
+	}
+	for _, legacy := range []string{"grayscale", "sepia", "invert", "blur", "vintage", "vignette", "warm", "cool", "high-contrast", "emboss"} {
+		if !strings.Contains(filters, "id: '"+legacy+"'") {
+			t.Fatalf("pixel filter catalog lost legacy filter %q", legacy)
+		}
+	}
+	for _, want := range []string{"data-filter-strength", "data-filter-thumb", "data-filter-cat", "renderFiltered", "refreshFilterThumbnails", `data-action="apply-filter"`, `data-action="reset-filter"`} {
+		if !strings.Contains(filters, want) {
+			t.Fatalf("pixel filters module missing %q", want)
+		}
+	}
+}
+
+func TestPixelHistoryPanelExists(t *testing.T) {
+	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
+	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+
+	for _, want := range []string{"refreshHistoryPanel", "jumpToHistory", "data-history-idx"} {
+		if !strings.Contains(tools, want) {
+			t.Fatalf("pixel-tools.js missing history panel feature %q", want)
+		}
+	}
+	if !strings.Contains(canvas, "if (this.refreshHistoryPanel) this.refreshHistoryPanel();") {
+		t.Fatal("pixel-canvas.js should refresh the history panel on push/undo/redo")
+	}
+}
+
+func TestPixelCssHasToolRailAndGalleryStyles(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+
+	for _, selector := range []string{
+		".pixel-tool-rail",
+		".pixel-options-bar",
+		".pixel-filter-gallery",
+		".pixel-filter-thumb",
+		".pixel-chip",
+		".pixel-history-list",
+		".pixel-history-item",
+	} {
+		if !strings.Contains(css, selector) {
+			t.Fatalf("pixel.css should contain styles for %q", selector)
+		}
+	}
+	if !pixelCSSRuleContains(css, `.pixel-options-bar[hidden]`, "display: none") {
+		t.Fatal("pixel options bar uses flex display, so [hidden] needs an explicit display:none override")
+	}
+}
+
+func TestPixelNewToolI18nKeysExist(t *testing.T) {
+	langDir := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	required := []string{
+		"pixel.magic_wand",
+		"pixel.airbrush",
+		"pixel.dodge_burn",
+		"pixel.blur_brush",
+		"pixel.gradient",
+		"pixel.filter_strength",
+		"pixel.apply_filter",
+		"pixel.tab_colors",
+		"pixel.tab_history",
+		"pixel.history_empty",
+	}
+	for _, lang := range langDir {
+		var values map[string]string
+		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/"+lang+".json")), &values); err != nil {
+			t.Fatalf("parse %s desktop translations: %v", lang, err)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing translation for %q", lang, key)
+			}
+		}
+	}
+}
+
 func normalizePixelAsset(text string) string {
 	return strings.ReplaceAll(text, "\r\n", "\n")
 }
@@ -395,6 +514,7 @@ var pixelAppScriptPaths = []string{
 	"js/desktop/apps/pixel-canvas.js",
 	"js/desktop/apps/pixel-tools.js",
 	"js/desktop/apps/pixel-actions.js",
+	"js/desktop/apps/pixel-filters.js",
 	"js/desktop/apps/pixel-events.js",
 	"js/desktop/apps/pixel.js",
 }
