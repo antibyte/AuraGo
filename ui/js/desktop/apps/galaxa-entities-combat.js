@@ -98,7 +98,7 @@
             if (isBoss) {
                 ctx.G.exp.push({ x, y, t: 0, dur: 700, seed: Math.random(), isBoss: false, shockwave: true });
                 ctx.G.exp.push({ x, y, t: 0, dur: 180, seed: Math.random(), isBoss: false, flash: true });
-                for (let _bi = 0; _bi < 16; _bi++) { const _ba = (_bi / 16) * Math.PI * 2; const _bsp = 40 + Math.random() * 60; ctx.G.part.push(getParticle({ x, y, vx: Math.cos(_ba) * _bsp, vy: Math.sin(_ba) * _bsp, life: 800, t: 0, col: '#ffcc44', size: 2, spark: true, trail: true, bloom: true, bloomPhase: 0 })); }
+                for (let _bi = 0; _bi < 16; _bi++) { const _ba = (_bi / 16) * Math.PI * 2; const _bsp = 40 + Math.random() * 60; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(_ba) * _bsp, vy: Math.sin(_ba) * _bsp, life: 800, t: 0, col: '#ffcc44', size: 2, spark: true, trail: true, bloom: true, bloomPhase: 0 })); }
                 ctx.SFX.deathBloom();
                 if (ctx.fxScreenShatter) ctx.fxScreenShatter();
                 if (ctx.SFX.screenShatter) ctx.SFX.screenShatter();
@@ -130,7 +130,7 @@
                 const sz = i % 4 === 0 ? 4 : i % 3 === 0 ? 3 : 2;
                 const shapes = ['rect', 'diamond', 'circle', 'star'];
                 const shape = Math.random() < 0.2 ? shapes[1 + Math.floor(Math.random() * 3)] : 'rect';
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz, shape }));
+                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (280 + (i * 41 % 280)) * (isBoss ? 1.6 : 1.1), t: 0, col: cols, size: sz, shape }));
             }
             // NEW: Type-specific death effects
             if (enemyType === 'bee') {
@@ -158,22 +158,22 @@
             }
             for (let i = 0; i < sparkCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 150;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 120 + Math.random() * 180, t: 0, col: Math.random() > 0.5 ? '#ffffff' : '#ffeeaa', size: 1, spark: true, shape: 'diamond' }));
+                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 120 + Math.random() * 180, t: 0, col: Math.random() > 0.5 ? '#ffffff' : '#ffeeaa', size: 1, spark: true, shape: 'diamond' }));
             }
             for (let i = 0; i < debrisCount; i++) {
                 const hasKillDir = killVx !== undefined && killVy !== undefined;
                 const baseA = hasKillDir ? Math.atan2(killVy, killVx) + (Math.random() - 0.5) * 1.5 : Math.random() * Math.PI * 2;
                 const sp = 25 + Math.random() * 50;
                 const sz = isBoss ? 3 + Math.random() * 4 : 2 + Math.random() * 3;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(baseA) * sp + (killVx || 0) * 0.15, vy: Math.sin(baseA) * sp + (killVy || 0) * 0.15 - 18, life: 600 + Math.random() * 500, t: 0, col: isBoss ? '#999' : '#777', size: sz, debris: true, rot: Math.random() * 6.28 }));
+                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(baseA) * sp + (killVx || 0) * 0.15, vy: Math.sin(baseA) * sp + (killVy || 0) * 0.15 - 18, life: 600 + Math.random() * 500, t: 0, col: isBoss ? '#999' : '#777', size: sz, debris: true, rot: Math.random() * 6.28 }));
             }
             for (let i = 0; i < smokeCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 12 + Math.random() * 25;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 600 + Math.random() * 500, t: 0, col: Math.random() > 0.5 ? '#666' : '#555', size: 3 + (isBoss ? 3 : 0), smoke: true, shape: 'circle' }));
+                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 600 + Math.random() * 500, t: 0, col: Math.random() > 0.5 ? '#666' : '#555', size: 3 + (isBoss ? 3 : 0), smoke: true, shape: 'circle' }));
             }
             for (let i = 0; i < flashCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 80;
-                ctx.G.part.push(getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 60 + Math.random() * 40, t: 0, col: '#ffffff', size: 2, spark: true, trail: true, shape: 'star' }));
+                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 60 + Math.random() * 40, t: 0, col: '#ffffff', size: 2, spark: true, trail: true, shape: 'star' }));
             }
             if (isBoss) {
                 for (let i = 0; i < 6; i++) {
@@ -383,13 +383,13 @@
             if (pu.type === 'blackhole_bomb') {
                 ctx.G.blackhole = { x: ctx.G.p.x, y: ctx.G.p.y - 60, targetX: ctx.G.p.x, targetY: ctx.G.p.y - 120, t: 0 };
                 ctx.SFX.bomb(pu.x); ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
-                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.G.part.push(getParticle({ x: ctx.G.p.x, y: ctx.G.p.y - 60, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#8844ff', size: 2, spark: true })); }
+                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: ctx.G.p.x, y: ctx.G.p.y - 60, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#8844ff', size: 2, spark: true })); }
                 return;
             }
             if (pu.type === 'gravity_bomb') {
                 ctx.G.gravityBomb = { x: ctx.G.p.x, y: ctx.G.p.y - 80, t: 0, phase: 'pull' };
                 ctx.SFX.bomb(pu.x); ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null);
-                for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.G.part.push(getParticle({ x: ctx.G.p.x, y: ctx.G.p.y - 80, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 400, t: 0, col: '#cc66ff', size: 2, spark: true })); }
+                for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: ctx.G.p.x, y: ctx.G.p.y - 80, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 400, t: 0, col: '#cc66ff', size: 2, spark: true })); }
                 return;
             }
             if (pu.type === 'mirror') {
@@ -606,7 +606,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         }
                         ctx.G.flashT = 150; ctx.G.shkT = 500; ctx.G.shkM = 7;
                         ctx.SFX.bigExplode(gbx);
-                        for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; ctx.G.part.push(getParticle({ x: gbx, y: gby, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, life: 400, t: 0, col: '#cc66ff', size: 3, spark: true, trail: true })); }
+                        for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: gbx, y: gby, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, life: 400, t: 0, col: '#cc66ff', size: 3, spark: true, trail: true })); }
                         ctx.G.gravityBomb = null;
                     }
                 }
@@ -885,7 +885,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); }
                         if (!b.laser && !b.pierce) { removed = true; break; }
                         if (b.laser) {
-                            for (let li = 0; li < 4; li++) { const la = Math.random() * Math.PI * 2; ctx.G.part.push(getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + Math.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }
+                            for (let li = 0; li < 4; li++) { const la = Math.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + Math.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }
                         }
                     }
                 }

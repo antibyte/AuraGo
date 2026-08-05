@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -60,6 +63,61 @@ func TestGalaxaModeThemesExist(t *testing.T) {
 	for _, theme := range []string{"gauntlet:", "hyperdrive:", "mirror:"} {
 		if !strings.Contains(music, theme) {
 			t.Fatalf("galaxa music missing theme %q", theme)
+		}
+	}
+}
+
+func TestGalaxaSplitModulesUseCtxExports(t *testing.T) {
+	t.Parallel()
+
+	// Helpers moved onto ctx during the Galaxa file split must not be called bare
+	// from sibling modules (ReferenceError at runtime).
+	ctxOnly := []string{
+		"getParticle",
+		"recycleParticles",
+		"renderFlame",
+	}
+
+	appsDir := filepath.Join("js", "desktop", "apps")
+	entries, err := os.ReadDir(appsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	funcDefRe := regexp.MustCompile(`\bfunction\s+([A-Za-z_$][\w$]*)\s*\(`)
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "galaxa") || !strings.HasSuffix(entry.Name(), ".js") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(appsDir, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(raw)
+		locals := map[string]bool{}
+		for _, m := range funcDefRe.FindAllStringSubmatch(text, -1) {
+			locals[m[1]] = true
+		}
+
+		lines := strings.Split(text, "\n")
+		for i, line := range lines {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "//") || strings.HasPrefix(trim, "*") {
+				continue
+			}
+			for _, sym := range ctxOnly {
+				if locals[sym] {
+					continue
+				}
+				if !strings.Contains(line, sym+"(") {
+					continue
+				}
+				if strings.Contains(line, "ctx."+sym+"(") || strings.Contains(line, "function "+sym+"(") {
+					continue
+				}
+				t.Errorf("%s:%d bare %s() call; use ctx.%s() after module split", entry.Name(), i+1, sym, sym)
+			}
 		}
 	}
 }

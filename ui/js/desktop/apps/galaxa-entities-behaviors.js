@@ -223,8 +223,8 @@
                             e.y = ctx.FTOP + Math.random() * 100;
                             for (let _ti = 0; _ti < 8; _ti++) {
                                 const _ta = (_ti / 8) * Math.PI * 2;
-                                ctx.G.part.push(getParticle({ x: oldX, y: oldY, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
-                                ctx.G.part.push(getParticle({ x: e.x, y: e.y, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
+                                ctx.G.part.push(ctx.getParticle({ x: oldX, y: oldY, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
+                                ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
                             }
                             for (const oe of ctx.G.enemies) {
                                 if (oe === e || oe.st === 'DEAD') continue;
@@ -232,7 +232,7 @@
                                 if (dist < 60) {
                                     oe.x += e.x - oldX; oe.y += e.y - oldY;
                                     oe.x = Math.max(20, Math.min(ctx.W - 20, oe.x));
-                                    for (let _oi = 0; _oi < 4; _oi++) { const _oa = (_oi / 4) * Math.PI * 2; ctx.G.part.push(getParticle({ x: oe.x, y: oe.y, vx: Math.cos(_oa) * 20, vy: Math.sin(_oa) * 20, life: 150, t: 0, col: '#66ffff', size: 1, spark: true })); }
+                                    for (let _oi = 0; _oi < 4; _oi++) { const _oa = (_oi / 4) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: oe.x, y: oe.y, vx: Math.cos(_oa) * 20, vy: Math.sin(_oa) * 20, life: 150, t: 0, col: '#66ffff', size: 1, spark: true })); }
                                 }
                             }
                         }
@@ -360,7 +360,7 @@
                             if (!b.pierce && !b.laser) { ctx.G.bul.splice(bi, 1); }
                             if (h.hp <= 0) {
                                 ctx.addScore(100, h.x, h.y, '#886644');
-                                for (let pi = 0; pi < 8; pi++) { const pa = (pi / 8) * Math.PI * 2; ctx.G.part.push(getParticle({ x: h.x, y: h.y, vx: Math.cos(pa) * 40, vy: Math.sin(pa) * 40, life: 300, t: 0, col: '#776655', size: 2, debris: true, rot: Math.random() * 6.28 })); }
+                                for (let pi = 0; pi < 8; pi++) { const pa = (pi / 8) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: h.x, y: h.y, vx: Math.cos(pa) * 40, vy: Math.sin(pa) * 40, life: 300, t: 0, col: '#776655', size: 2, debris: true, rot: Math.random() * 6.28 })); }
                                 break;
                             }
                         }
@@ -379,7 +379,7 @@
                         ctx.G.weaponLv = Math.min(4, ctx.G.weaponLv + 1);
                         ctx.SFX.puCollect(h.x);
                         ctx.G.scorePopups.push({ x: h.x, y: h.y - 10, text: 'CRYSTAL!', t: 0, dur: 800, col: '#88ccff', big: true });
-                        for (let ci = 0; ci < 10; ci++) { const ca = (ci / 10) * Math.PI * 2; ctx.G.part.push(getParticle({ x: h.x, y: h.y, vx: Math.cos(ca) * 50, vy: Math.sin(ca) * 50, life: 250, t: 0, col: '#88ccff', size: 2, spark: true })); }
+                        for (let ci = 0; ci < 10; ci++) { const ca = (ci / 10) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: h.x, y: h.y, vx: Math.cos(ca) * 50, vy: Math.sin(ca) * 50, life: 250, t: 0, col: '#88ccff', size: 2, spark: true })); }
                     }
                 }
                 if (h.hp > 0 || h.type === 'crystal_h') ctx.G.envHazards[hw++] = h;
