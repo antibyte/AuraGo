@@ -78,7 +78,7 @@
                 if (ctx.SFX && ctx.SFX.gauntletWave) ctx.SFX.gauntletWave();
                 ctx.G.scorePopups.push({
                     x: ctx.W / 2, y: 56,
-                    text: ctx.t('galaxa.gauntlet_wave', 'GAUNTLET') + ' ' + ctx.G.gauntletWave + '/' + GC.GAUNTLET_WAVES.length,
+                    text: ctx.t('galaxa.gauntlet_wave') + ' ' + ctx.G.gauntletWave + '/' + GC.GAUNTLET_WAVES.length,
                     t: 0, dur: 1800, col: '#ff8844', big: true
                 });
             }
@@ -121,7 +121,7 @@
                 if (ctx.SFX && ctx.SFX.screenShatter) ctx.SFX.screenShatter();
                 ctx.G.scorePopups.push({
                     x: ctx.W / 2, y: ctx.H / 2 - 30,
-                    text: ctx.t('galaxa.gauntlet_clear', 'GAUNTLET CLEAR!'),
+                    text: ctx.t('galaxa.gauntlet_clear'),
                     t: 0, dur: 3500, col: '#ffcc00', big: true
                 });
                 return 'gauntlet_win';

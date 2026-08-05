@@ -10,7 +10,11 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 
 	sprites := readEmbeddedText(t, "js/desktop/apps/galaxa-sprites.js")
 	render := readEmbeddedText(t, "js/desktop/apps/galaxa-render.js")
+	renderWorld := readEmbeddedText(t, "js/desktop/apps/galaxa-render-world.js")
+	renderBundle := render + renderWorld
 	entities := readEmbeddedText(t, "js/desktop/apps/galaxa-entities.js")
+	spawning := readEmbeddedText(t, "js/desktop/apps/galaxa-entities-spawning.js")
+	entitiesBundle := entities + spawning
 
 	for _, marker := range []string{
 		"const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v5'",
@@ -40,7 +44,7 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 		"ctx.enemySpriteFor(e)",
 		"ctx.SP.playerIcon",
 	} {
-		if !strings.Contains(render, marker) {
+		if !strings.Contains(renderBundle, marker) {
 			t.Fatalf("galaxa premium render missing marker %q", marker)
 		}
 	}
@@ -76,7 +80,7 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 		"ctx.SP.carrier[e.fr]",
 		"ctx.SP.teleporter[e.fr]",
 	} {
-		if strings.Contains(render+sprites, stale) {
+		if strings.Contains(renderBundle+sprites, stale) {
 			t.Fatalf("galaxa premium sprites still contain stale pattern %q", stale)
 		}
 	}
@@ -87,7 +91,7 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 		"animFrame: 0, animTimer: 0, animSpeed, animFrames",
 		"spawnAnim: 0, spawnDur: GC.ENEMY_SPAWN_DURATION",
 	} {
-		if !strings.Contains(entities, marker) {
+		if !strings.Contains(entitiesBundle, marker) {
 			t.Fatalf("galaxa enemies must use centralized animation constants, missing %q", marker)
 		}
 	}
@@ -97,7 +101,7 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 		"animFrames: animFramesMap[type] || 3",
 		"spawnDur: 400",
 	} {
-		if strings.Contains(entities, stale) {
+		if strings.Contains(entitiesBundle, stale) {
 			t.Fatalf("galaxa enemies still contain stale local animation constant %q", stale)
 		}
 	}

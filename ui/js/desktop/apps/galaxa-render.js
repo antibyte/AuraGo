@@ -100,6 +100,15 @@
                 c.fillStyle = _hvg; c.fillRect(0, 0, W, H);
                 c.restore();
             }
+            if (G.darkness && G.st === 'PLAYING') {
+                c.save();
+                const _dkg = ctx.cachedRadialGradient(c, 'modifier:darkness', W * 0.5, H * 0.5, H * 0.08, H * 0.72, [
+                    [0, 'rgba(0,0,0,0)'],
+                    [1, 'rgba(0,0,0,0.82)']
+                ]);
+                c.fillStyle = _dkg; c.fillRect(0, 0, W, H);
+                c.restore();
+            }
             if (G.slowMoT > 0 && G.slowMoT > 1000) {
                 const _rbInt = Math.min(1, (G.slowMoT - 1000) / 500) * 0.15;
                 c.save();

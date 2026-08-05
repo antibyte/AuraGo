@@ -296,6 +296,7 @@
             },
             stop() {
                 this._shouldPlay = false;
+                this._playPending = null;
                 if (!this._playing && !this.el) return;
                 const a = this._ensure();
                 try { a.pause(); a.currentTime = 0; } catch (_) {}

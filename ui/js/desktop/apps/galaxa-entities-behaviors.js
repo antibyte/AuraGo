@@ -135,6 +135,7 @@
                 function updateE(dt) {
             const eDt = dt * ctx.G.timeScale;
             const dtMs = eDt * 1000; ctx.G.fTmr += dt; ctx.G.fX = Math.sin(ctx.G.fTmr * 0.5) * 30;
+            const _sTmrDt = dtMs * (ctx.G.bulletStorm ? 2 : 1);
             for (const e of ctx.G.enemies) {
                 if (e.st === 'DEAD') continue;
                 // NEW: Sprite animation system (replaces old fr/frT toggle)
@@ -170,7 +171,7 @@
                         // Spawn phase transition particles
                         for (let _pi = 0; _pi < 20; _pi++) {
                             const _pa = Math.random() * Math.PI * 2;
-                            ctx.G.part.push({ x: e.x, y: e.y, vx: Math.cos(_pa) * 80, vy: Math.sin(_pa) * 80, life: 400, t: 0, col: e.bossPhase === 2 ? '#ff8800' : '#ff4444', size: 2, spark: true });
+                            ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(_pa) * 80, vy: Math.sin(_pa) * 80, life: 400, t: 0, col: e.bossPhase === 2 ? '#ff8800' : '#ff4444', size: 2, spark: true }));
                         }
                     }
                 }
@@ -191,7 +192,7 @@
                             e.y = e.fy + Math.sin(ctx.G.fTmr * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
                             e.st = 'FORM';
                             e.spawnAnim = e.spawnDur;
-                            for (let _ei = 0; _ei < 2; _ei++) { const _ea = Math.random() * Math.PI * 2; ctx.G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ea)*25, vy: Math.sin(_ea)*25, life: 200, t: 0, col: e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : e.type === 'hunter' ? '#ff6600' : e.type === 'spinner' ? '#44ffff' : e.type === 'bomber' ? '#cc66ff' : e.type === 'lasher' ? '#44ff88' : '#44cc44', size: 1, spark: true }); }
+                            for (let _ei = 0; _ei < 2; _ei++) { const _ea = Math.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(_ea)*25, vy: Math.sin(_ea)*25, life: 200, t: 0, col: e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : e.type === 'hunter' ? '#ff6600' : e.type === 'spinner' ? '#44ffff' : e.type === 'bomber' ? '#cc66ff' : e.type === 'lasher' ? '#44ff88' : '#44cc44', size: 1, spark: true })); }
                             if ((e.type === 'boss' || e.type === 'miniboss') && !ctx.G.bossWarningShown) { ctx.G.bossWarningT = 2000; ctx.G.bossWarningShown = true; if (e.type === 'miniboss') ctx.SFX.miniBossWarning(); else ctx.SFX.bossWarning(); if (ctx.fxBossEntrance) ctx.fxBossEntrance(e.x, e.y); }
                             if (e.type === 'hunter') { ctx.G.bossWarningT = Math.max(ctx.G.bossWarningT || 0, 1000); ctx.SFX.hunterDive(e.x); }
                         }
@@ -207,7 +208,7 @@
                     // NEW: Weaver sine-wave horizontal movement
                     if (e.type === 'weaver') {
                         e.x += Math.sin(ctx.G.fTmr * 3 + e.col) * 40;
-                        e.sTmr -= dtMs;
+                        e.sTmr -= _sTmrDt;
                         if (e.sTmr <= 0 && ctx.G.p.alive && ctx.G.freezeT <= 0) {
                             ctx.enemyFire(e);
                             e.sTmr = 1800 + Math.random() * 1200;
@@ -236,14 +237,14 @@
                                 }
                             }
                         }
-                        e.sTmr -= dtMs;
+                        e.sTmr -= _sTmrDt;
                         if (e.sTmr <= 0 && ctx.G.p.alive && ctx.G.freezeT <= 0) {
                             ctx.enemyFire(e);
                             e.sTmr = 1500 + Math.random() * 1000;
                         }
                     }
                     if ((e.type === 'sniper' || e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher' || e.type === 'weaver' || e.type === 'splitter' || e.type === 'shield_bee' || e.type === 'carrier' || e.type === 'teleporter') && ctx.G.p.alive && ctx.G.freezeT <= 0) {
-                        e.sTmr -= dtMs;
+                        e.sTmr -= _sTmrDt;
                         if (e.sTmr <= 0) {
                             ctx.enemyFire(e);
                             e.sTmr = e.type === 'spinner' ? 1600 + Math.random() * 1200 : e.type === 'bomber' ? 2400 + Math.random() * 1400 : e.type === 'lasher' ? 2100 + Math.random() * 1600 : 2000 + Math.random() * 1500;
@@ -286,7 +287,7 @@
                         }
                         else if (e.dPath) { e.dPath.ph += eDt * 3; e.x += e.dPath.vx * eDt + Math.cos(e.dPath.ph) * e.dPath.amp * 3 * eDt; }
                         if (ctx.G.beam && ctx.G.beam.owner === e) { ctx.G.beam.x = e.x; ctx.G.beam.y = e.y + 16; }
-                        e.sTmr -= dtMs;
+                        e.sTmr -= _sTmrDt;
                         if (e.sTmr <= 0 && !ctx.G.chal) {
                             ctx.enemyFire(e);
                             e.sTmr = e.type === 'hunter' ? 350 + Math.random() * 450 : e.type === 'miniboss' ? 500 + Math.random() * 800 : (e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher') ? 600 + Math.random() * 700 : 800 + Math.random() * 1200;

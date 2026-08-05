@@ -638,7 +638,7 @@
                 ctx.c.globalAlpha = 1;
                 if (Math.random() < 0.08 && ctx.G.enemies.length > 0) {
                     const _fe = ctx.G.enemies[Math.floor(Math.random() * ctx.G.enemies.length)];
-                    if (_fe.st !== 'DEAD') ctx.G.part.push({ x: _fe.x + (Math.random()-0.5)*18, y: _fe.y + (Math.random()-0.5)*18, vx: (Math.random()-0.5)*12, vy: -8 - Math.random()*15, life: 280, t: 0, col: '#ccf4ff', size: 1, spark: true });
+                    if (_fe.st !== 'DEAD') ctx.G.part.push(ctx.getParticle({ x: _fe.x + (Math.random()-0.5)*18, y: _fe.y + (Math.random()-0.5)*18, vx: (Math.random()-0.5)*12, vy: -8 - Math.random()*15, life: 280, t: 0, col: '#ccf4ff', size: 1, spark: true }));
                 }
             }
 

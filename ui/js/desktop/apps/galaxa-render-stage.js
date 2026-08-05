@@ -57,7 +57,7 @@
             ctx.c.fillText('D=Daily Challenge', ctx.W / 2, ctx.H - 25);
             if (ctx.getModeLabel) {
                 ctx.c.fillStyle = '#66ddff'; ctx.c.font = 'bold 11px "Courier New",monospace';
-                ctx.c.fillText(ctx.t('galaxa.mode_label', 'MODE') + ': ' + ctx.getModeLabel(), ctx.W / 2, 300);
+                ctx.c.fillText(ctx.t('galaxa.mode_label') + ': ' + ctx.getModeLabel(), ctx.W / 2, 300);
             }
         }
 

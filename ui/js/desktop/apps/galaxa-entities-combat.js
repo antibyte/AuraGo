@@ -7,6 +7,7 @@
         let lastFireT = 0;
 
                 function fire(now) {
+            const evoProf = ctx.G.weaponEvo && ctx.WEAPON_EVOS ? ctx.WEAPON_EVOS[ctx.G.weaponEvo] : null;
             // REMOVED: Old super effects branches — bursts are now triggered by galaxa-supers.js via triggerBurst() during superPhase==='burst'
             if (ctx.G.activePU && (ctx.G.activePU.type === 'laser' || ctx.G.activePU.type === 'mega_laser')) {
                 const cd = ctx.G.activePU.type === 'mega_laser' ? 200 : 300;
@@ -14,6 +15,15 @@
                 lastFireT = now;
                 ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
                 if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
+                ctx.SFX.laserShoot(ctx.G.p.x);
+                return;
+            }
+            if (evoProf && evoProf.isBeam) {
+                const beamCd = 300;
+                if (now - lastFireT < beamCd) return;
+                lastFireT = now;
+                ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
+                if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y - 8, w: 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
                 ctx.SFX.laserShoot(ctx.G.p.x);
                 return;
             }
@@ -30,7 +40,8 @@
             }
             const isUltraRapid = ctx.G.activePU && ctx.G.activePU.type === 'ultra_rapid';
             const isRapid = ctx.G.activePU && ctx.G.activePU.type === 'rapid';
-            const cd = isUltraRapid ? 80 : isRapid ? 120 : 250;
+            let cd = isUltraRapid ? 80 : isRapid ? 120 : 250;
+            if (evoProf && evoProf.fireRate && !evoProf.isBeam) cd = Math.round(cd * evoProf.fireRate);
             if (now - lastFireT < cd) return;
             lastFireT = now;
             const bulBefore = ctx.G.bul.length;
@@ -89,11 +100,15 @@
             // NEW: Use per-enemy explosion profile for layered explosion intensity
             const _prof = (enemyType && ctx.EXPLOSION_PROFILE[enemyType]) || ctx.EXPLOSION_PROFILE.bee;
             const dur = isBoss ? 900 : 450;
-            const pCount = isBoss ? _prof.debris * 3 : _prof.debris;
-            const sparkCount = isBoss ? _prof.sparks * 2 : _prof.sparks;
-            const debrisCount = isBoss ? _prof.debris * 2 : _prof.debris;
-            const smokeCount = isBoss ? _prof.smoke * 2 : _prof.smoke;
-            const flashCount = isBoss ? 8 : 4;
+            const _pScale = ctx.settings.particles === 'low' ? 0.55 : ctx.settings.particles === 'medium' ? 0.8 : 1;
+            const _scaleN = (n) => Math.max(1, Math.round(n * _pScale));
+            let pCount = isBoss ? _prof.debris * 3 : _prof.debris;
+            let sparkCount = isBoss ? _prof.sparks * 2 : _prof.sparks;
+            let debrisCount = isBoss ? _prof.debris * 2 : _prof.debris;
+            let smokeCount = isBoss ? _prof.smoke * 2 : _prof.smoke;
+            let flashCount = isBoss ? 8 : 4;
+            pCount = _scaleN(pCount); sparkCount = _scaleN(sparkCount); debrisCount = _scaleN(debrisCount);
+            smokeCount = _scaleN(smokeCount); flashCount = _scaleN(flashCount);
             ctx.G.exp.push({ x, y, t: 0, dur, seed: Math.random(), isBoss });
             if (isBoss) {
                 ctx.G.exp.push({ x, y, t: 0, dur: 700, seed: Math.random(), isBoss: false, shockwave: true });
@@ -134,27 +149,27 @@
             }
             // NEW: Type-specific death effects
             if (enemyType === 'bee') {
-                for (let i = 0; i < 6; i++) { const a = Math.random() * Math.PI * 2; ctx.G.part.push({ x, y, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30 - 20, life: 400, t: 0, col: '#ffcc00', size: 2, spark: true }); }
+                for (let i = 0; i < 6; i++) { const a = Math.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30 - 20, life: 400, t: 0, col: '#ffcc00', size: 2, spark: true })); }
             } else if (enemyType === 'butterfly') {
-                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.G.part.push({ x, y, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#ff3366', size: 1, spark: true }); }
+                for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#ff3366', size: 1, spark: true })); }
             } else if (enemyType === 'stalker') {
                 ctx.G.exp.push({ x, y, t: 0, dur: 400, seed: Math.random(), isBoss: false, implosion: true, col: '#8844cc' });
             } else if (enemyType === 'hunter') {
-                for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2; ctx.G.part.push({ x, y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, life: 350, t: 0, col: '#ff6600', size: 3, debris: true, rot: Math.random() * 6.28 }); }
+                for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, life: 350, t: 0, col: '#ff6600', size: 3, debris: true, rot: Math.random() * 6.28 })); }
             } else if (enemyType === 'spinner') {
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 40, t: 0, dur: 300, col: '#44ffff' });
             } else if (enemyType === 'bomber') {
                 for (let i = 0; i < 3; i++) { ctx.G.pendingBooms.push({ x: x + (Math.random() - 0.5) * 30, y: y + (Math.random() - 0.5) * 20, isBoss: false, delay: i * 80 }); }
             } else if (enemyType === 'lasher') {
                 ctx.G.flashT = Math.max(ctx.G.flashT, 50);
-                for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.G.part.push({ x, y, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 200, t: 0, col: '#44ff88', size: 2, spark: true }); }
+                for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 200, t: 0, col: '#44ff88', size: 2, spark: true })); }
             } else if (enemyType === 'kamikaze') {
                 ctx.G.shkT = Math.max(ctx.G.shkT, 300); ctx.G.shkM = Math.max(ctx.G.shkM, 5);
                 ctx.G.exp.push({ x, y, t: 0, dur: 300, seed: Math.random(), isBoss: false, flash: true });
             } else if (enemyType === 'carrier') {
                 for (let i = 0; i < 3; i++) { ctx.G.pendingBooms.push({ x: x + (Math.random() - 0.5) * 40, y: y + (Math.random() - 0.5) * 30, isBoss: false, delay: i * 150 }); }
             } else if (enemyType === 'teleporter') {
-                for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.G.part.push({ x, y, vx: Math.cos(a) * 80, vy: Math.sin(a) * 80, life: 250, t: 0, col: '#44ffff', size: 1, spark: true }); }
+                for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * 80, vy: Math.sin(a) * 80, life: 250, t: 0, col: '#44ffff', size: 1, spark: true })); }
             }
             for (let i = 0; i < sparkCount; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 150;
@@ -197,7 +212,7 @@
         function bulletImpact(x, y, col, dirX, dirY) {
             for (let i = 0; i < 4; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 50;
-                ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 80 + Math.random() * 60, t: 0, col: col || '#ffff88', size: 1, spark: true });
+                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 80 + Math.random() * 60, t: 0, col: col || '#ffff88', size: 1, spark: true }));
             }
             // NEW: Optional directional spark cone along the bullet travel direction (galaxa-fx)
             if (dirX !== undefined && dirY !== undefined && ctx.fxSparkCone) ctx.fxSparkCone(x, y, col, dirX, dirY);
@@ -346,8 +361,8 @@
                     if (e.st === 'DEAD') continue;
                     for (let _fi = 0; _fi < 8; _fi++) {
                         const _fa = (_fi / 8) * Math.PI * 2;
-                        ctx.G.part.push({ x: e.x + Math.cos(_fa) * 14, y: e.y + Math.sin(_fa) * 14, vx: Math.cos(_fa) * 35, vy: Math.sin(_fa) * 35 - 10, life: 500, t: 0, col: '#88eeff', size: 2 });
-                        ctx.G.part.push({ x: e.x, y: e.y, vx: (Math.random()-0.5)*40, vy: -20-Math.random()*30, life: 350, t: 0, col: '#ccf4ff', size: 1, spark: true });
+                        ctx.G.part.push(ctx.getParticle({ x: e.x + Math.cos(_fa) * 14, y: e.y + Math.sin(_fa) * 14, vx: Math.cos(_fa) * 35, vy: Math.sin(_fa) * 35 - 10, life: 500, t: 0, col: '#88eeff', size: 2 }));
+                        ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: (Math.random()-0.5)*40, vy: -20-Math.random()*30, life: 350, t: 0, col: '#ccf4ff', size: 1, spark: true }));
                     }
                 }
                 ctx.G.flashT = 30; return;
@@ -441,7 +456,7 @@
             ctx.G.plasmaRings.push({ x: pu.x, y: pu.y, r: 0, maxR: 35, t: 0, dur: 350, col: puCol || '#ffffff' });
             for (let i = 0; i < 12; i++) {
                 const a = (i / 12) * Math.PI * 2, sp = 60 + Math.random() * 40;
-                ctx.G.part.push({ x: pu.x, y: pu.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: puCol, size: 2, spark: true });
+                ctx.G.part.push(ctx.getParticle({ x: pu.x, y: pu.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: puCol, size: 2, spark: true }));
             }
             // NEW: Rarity-scaled sparkle burst + rising glints (galaxa-fx); rare/legendary get a reverb chime
             if (ctx.fxPowerupSparkle) {
@@ -458,13 +473,13 @@
                 ctx.G.damageVignetteT = 200;
                 for (let i = 0; i < 6; i++) {
                     const a = (i / 6) * Math.PI * 2, sp = 60 + Math.random() * 40;
-                    ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: '#66ccff', size: 2, spark: true });
+                    ctx.G.part.push(ctx.getParticle({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: '#66ccff', size: 2, spark: true }));
                 }
                 if (ctx.G.startShieldHits <= 0) {
                     ctx.SFX.shieldBreak();
                     for (let i = 0; i < 16; i++) {
                         const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 80;
-                        ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 400 + Math.random() * 200, t: 0, col: i % 2 === 0 ? '#66ccff' : '#88ddff', size: 2, spark: true });
+                        ctx.G.part.push(ctx.getParticle({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 400 + Math.random() * 200, t: 0, col: i % 2 === 0 ? '#66ccff' : '#88ddff', size: 2, spark: true }));
                     }
                     ctx.G.shkT = 150; ctx.G.shkM = 2;
                 } else { ctx.SFX.shieldHit(); }
@@ -741,7 +756,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         // Visual feedback
                         for (let _oi = 0; _oi < 8; _oi++) {
                             const _oa = (_oi / 8) * Math.PI * 2;
-                            ctx.G.part.push({ x: _pu.x, y: _pu.y, vx: Math.cos(_oa) * 40, vy: Math.sin(_oa) * 40 - 20, life: 300, t: 0, col: '#ffaa00', size: 2, spark: true });
+                            ctx.G.part.push(ctx.getParticle({ x: _pu.x, y: _pu.y, vx: Math.cos(_oa) * 40, vy: Math.sin(_oa) * 40 - 20, life: 300, t: 0, col: '#ffaa00', size: 2, spark: true }));
                         }
                         ctx.G.scorePopups.push({ x: _pu.x, y: _pu.y - 10, text: 'OVERCHARGE ' + ctx.G.overcharge + '/3', t: 0, dur: 1200, col: '#ffaa00', big: false });
                         ctx.SFX.puCollect(_pu.x);
@@ -783,7 +798,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 if (b.x < 0 || b.x > ctx.W) {
                     if (hasRicochet && (b.bounces || 0) < maxBounces) {
                         b.vx = -(b.vx || 0); b.x = Math.max(1, Math.min(ctx.W - 1, b.x)); b.bounces = (b.bounces || 0) + 1;
-                        for (let _bi = 0; _bi < 3; _bi++) ctx.G.part.push({ x: b.x, y: b.y, vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, life: 120, t: 0, col: '#ffaa44', size: 1, spark: true });
+                        for (let _bi = 0; _bi < 3; _bi++) ctx.G.part.push(ctx.getParticle({ x: b.x, y: b.y, vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, life: 120, t: 0, col: '#ffaa44', size: 1, spark: true }));
                     } else continue;
                 }
                 let removed = false;
@@ -801,7 +816,11 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         if (b._mirror && b._ghost && ctx.modesMirrorGhostDamageMult && Math.random() > ctx.modesMirrorGhostDamageMult()) {
                             _applyHit = false;
                         }
-                        if (_applyHit) e.hp--;
+                        if (_applyHit) {
+                            let _hitDmg = 1;
+                            if (ctx.G.weaponEvo === 'cannon') _hitDmg = 4;
+                            e.hp -= _hitDmg;
+                        }
                         if (b.rocket && _applyHit) {
                             for (let sj = 0; sj < ctx.G.enemies.length; sj++) {
                                 const se = ctx.G.enemies[sj];
@@ -948,7 +967,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         if (Math.hypot(_ob.x - osx, _ob.y - osy) < 8) {
                             os.active = false; ctx.G.orbitalBlocks = (ctx.G.orbitalBlocks || 0) + 1;
                             ctx.SFX.orbitalShieldHit(_ob.x);
-                            for (let pi = 0; pi < 6; pi++) { const pa = (pi / 6) * Math.PI * 2; ctx.G.part.push({ x: osx, y: osy, vx: Math.cos(pa) * 40, vy: Math.sin(pa) * 40, life: 200, t: 0, col: '#44aaff', size: 2, spark: true }); }
+                            for (let pi = 0; pi < 6; pi++) { const pa = (pi / 6) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: osx, y: osy, vx: Math.cos(pa) * 40, vy: Math.sin(pa) * 40, life: 200, t: 0, col: '#44aaff', size: 2, spark: true })); }
                             ctx.G.ebul.splice(bi, 1); break;
                         }
                     }
@@ -1019,7 +1038,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         if (ctx.fxBulletTime) ctx.fxBulletTime();
                         if (ctx.SFX.bulletTimeEnter) ctx.SFX.bulletTimeEnter();
                         ctx.duckMusic(0.25, 200);
-                        for (let _pi = 0; _pi < 12; _pi++) { const _pa = (_pi / 12) * Math.PI * 2; ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(_pa) * 80, vy: Math.sin(_pa) * 80, life: 300, t: 0, col: '#ffffff', size: 2, spark: true }); }
+                        for (let _pi = 0; _pi < 12; _pi++) { const _pa = (_pi / 12) * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(_pa) * 80, vy: Math.sin(_pa) * 80, life: 300, t: 0, col: '#ffffff', size: 2, spark: true })); }
                         if (ctx.G.parryCount >= 50) ctx.unlockAchievement('parry_master');
                         continue;
                     }

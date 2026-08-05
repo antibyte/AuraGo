@@ -245,7 +245,12 @@
             for (let i = 0; i < ctx.G.exp.length; i++) { const ex = ctx.G.exp[i]; ex.t += dtMs; if (ex.t < ex.dur) ctx.G.exp[elen++] = ex; }
             ctx.G.exp.length = elen;
             const _partCap = ctx.settings.particles === 'low' ? 60 : ctx.settings.particles === 'medium' ? 100 : 150;
-            if (ctx.G.part.length > _partCap) ctx.G.part.length = _partCap;
+            if (ctx.G.part.length > _partCap && ctx.recycleParticles) {
+                const dead = ctx.G.part.splice(_partCap);
+                ctx.recycleParticles(dead);
+            } else if (ctx.G.part.length > _partCap) {
+                ctx.G.part.length = _partCap;
+            }
             let plen = 0;
             for (let i = 0; i < ctx.G.part.length; i++) {
                 const p = ctx.G.part[i];

@@ -11,6 +11,7 @@
             let idx = 0;
 
             function pushEnemy(type, r, col, fx, fy, hp) {
+                if (ctx.G.glassCannon && type !== 'boss') hp = 1;
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = ctx.G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
                 const animSpeed = GC.ENEMY_ANIM_SPEED[type] || 120;

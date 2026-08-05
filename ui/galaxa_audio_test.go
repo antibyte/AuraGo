@@ -8,7 +8,7 @@ import (
 func TestGalaxaMusicRecoversFromRejectedInitialPlayback(t *testing.T) {
 	t.Parallel()
 
-	audio := readEmbeddedText(t, "js/desktop/apps/galaxa-audio.js")
+	music := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-music.js")
 	for _, marker := range []string{
 		"_playPending: null",
 		"this._playPending = pending",
@@ -20,12 +20,12 @@ func TestGalaxaMusicRecoversFromRejectedInitialPlayback(t *testing.T) {
 		"resumeFromGesture()",
 		"this.play(true)",
 	} {
-		if !strings.Contains(audio, marker) {
+		if !strings.Contains(music, marker) {
 			t.Fatalf("Galaxa music recovery missing marker %q", marker)
 		}
 	}
 
-	playBody := sectionBetween(t, audio, "play(fromGesture) {", "resumeFromGesture() {")
+	playBody := sectionBetween(t, music, "play(fromGesture) {", "resumeFromGesture() {")
 	if strings.Contains(playBody, "p.catch(() => {})") || strings.Contains(playBody, "this._playing = true; } catch") {
 		t.Fatal("Galaxa music must not report playback before the play promise resolves")
 	}
