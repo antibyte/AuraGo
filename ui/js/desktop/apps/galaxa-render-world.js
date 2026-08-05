@@ -90,11 +90,11 @@
                     const beatMod = ctx.G.beatPhase > 0.85 ? 1.3 : 1;
                     const eg = (0.5 + Math.sin(ctx.tick * 0.15) * 0.3) * beatMod;
                     const flameGlowCol = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
-                    renderFlame(ctx.c, p.x - 8, p.y + 15, eg, ctx.tick);
-                    renderFlame(ctx.c, p.x + 4, p.y + 15, eg, ctx.tick);
+                    ctx.renderFlame(ctx.c, p.x - 8, p.y + 15, eg, ctx.tick);
+                    ctx.renderFlame(ctx.c, p.x + 4, p.y + 15, eg, ctx.tick);
                     if (p.dual) {
-                        renderFlame(ctx.c, p.x + 36, p.y + 15, eg, ctx.tick);
-                        renderFlame(ctx.c, p.x + 44, p.y + 15, eg, ctx.tick);
+                        ctx.renderFlame(ctx.c, p.x + 36, p.y + 15, eg, ctx.tick);
+                        ctx.renderFlame(ctx.c, p.x + 44, p.y + 15, eg, ctx.tick);
                     }
                 }
                 ctx.c.restore();
