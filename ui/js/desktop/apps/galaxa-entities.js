@@ -4,6 +4,7 @@
 
     GC.createEntities = function (ctx) {
         GC.createEntitiesCore(ctx);
+        GC.createEnemyMotion(ctx);
         GC.createEntitiesSpawning(ctx);
         GC.createEntitiesCombat(ctx);
         GC.createEntitiesBehaviors(ctx);

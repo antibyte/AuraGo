@@ -141,8 +141,11 @@ registration lives in `internal/desktop/types.go`.
   `galaxa-constants.js` and `galaxa-tweens.js` must load before factory modules.
   Split modules (soft budget **≤1000 lines** per file): `galaxa-entities-{core,
   spawning, behaviors, combat}.js`, `galaxa-render-{effects, stage, hud,
-  world}.js`, `galaxa-audio-{core, sfx, music}.js`. Orchestrator glue stays in
-  `galaxa-entities.js`, `galaxa-render.js`, and `galaxa-audio.js`.
+  world}.js`, `galaxa-audio-{core, sfx, music}.js`, `galaxa-enemy-motion.js`.
+  Orchestrator glue stays in `galaxa-entities.js`, `galaxa-render.js`, and
+  `galaxa-audio.js`.
+- Enemy movement visuals live in `galaxa-enemy-motion.js` with per-type presets
+  in `GC.ENEMY_MOTION_FX` (pulse scale, dive trails, blink invisibility).
 - Game mode logic lives in `galaxa-modes.js` (`GC.createModes(ctx)`): `gauntlet`
   (12 curated waves, no shop, 3 lives), `hyperdrive` (endless speed ramp +
   rotating modifiers; spawning/HP scaling matches `endless`), `mirror`

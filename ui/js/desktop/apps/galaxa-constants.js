@@ -230,6 +230,27 @@
     };
     GC.ENEMY_SPAWN_DURATION = 400;
 
+    // Per-type movement visuals: pulse scale, dive trails, blink invisibility
+    GC.ENEMY_MOTION_FX = {
+        default: { pulse: { amp: 0.04, speed: 1.6 } },
+        bee: { pulse: { amp: 0.09, speed: 2.4 } },
+        butterfly: { pulse: { amp: 0.11, speed: 2.0 } },
+        boss: { pulse: { amp: 0.05, speed: 1.2 }, diveScale: { min: 0.94, max: 1.08 } },
+        miniboss: { pulse: { amp: 0.06, speed: 1.3 }, diveScale: { min: 0.94, max: 1.1 } },
+        hunter: { pulse: { amp: 0.05, speed: 3 }, diveTrail: true, diveScale: { min: 0.9, max: 1.2 } },
+        stalker: { blink: { on: 520, off: 2400 }, diveTrail: true },
+        kamikaze: { pulse: { amp: 0.08, speed: 5.5 }, diveTrail: true, diveScale: { min: 0.86, max: 1.3 } },
+        spinner: { pulse: { amp: 0.15, speed: 6.2 } },
+        bomber: { pulse: { amp: 0.08, speed: 1.4 }, diveTrail: true },
+        lasher: { pulse: { amp: 0.07, speed: 2.8 }, diveTrail: true },
+        weaver: { pulse: { amp: 0.16, speed: 3.8 } },
+        splitter: { pulse: { amp: 0.13, speed: 4.6 } },
+        shield_bee: { pulse: { amp: 0.1, speed: 2.6 } },
+        carrier: { pulse: { amp: 0.06, speed: 1.5 }, diveScale: { min: 0.95, max: 1.12 } },
+        teleporter: { pulse: { amp: 0.08, speed: 3 }, blink: { on: 300, off: 2100 }, teleportBlink: true },
+        sniper: { pulse: { amp: 0.04, speed: 1.2 }, blink: { on: 140, off: 3400, blinkAim: true } }
+    };
+
     // NEW: Parry tuning
     GC.PARRY_WINDOW = 120;     // ms active parry window
     GC.PARRY_COOLDOWN = 600;   // ms cooldown after window ends

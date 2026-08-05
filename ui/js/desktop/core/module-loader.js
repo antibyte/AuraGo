@@ -161,6 +161,7 @@
             scripts: [
                 '/js/desktop/apps/galaxa-constants.js',
                 '/js/desktop/apps/galaxa-tweens.js',
+                '/js/desktop/apps/galaxa-enemy-motion.js',
                 '/js/desktop/apps/galaxa-audio-core.js',
                 '/js/desktop/apps/galaxa-audio-sfx.js',
                 '/js/desktop/apps/galaxa-audio-music.js',

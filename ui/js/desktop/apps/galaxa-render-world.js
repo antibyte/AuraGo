@@ -396,14 +396,36 @@
                 ctx.c.globalAlpha = 1;
             }
 
+            function drawEnemySprite(c, e, fl, extraScale, alphaMul) {
+                const _rot = e.rot || 0;
+                const _eref = ctx.enemySpriteFor(e);
+                const sp = _eref.sp, cols = _eref.cols;
+                const _isBoss = e.type === 'boss' || e.type === 'miniboss';
+                const _eOff = _isBoss ? 16 : 12;
+                const mScale = (e.mScale != null ? e.mScale : 1) * (extraScale || 1);
+                const mAlpha = (e.mAlpha != null ? e.mAlpha : 1) * (alphaMul != null ? alphaMul : 1);
+                c.save();
+                c.globalAlpha = mAlpha;
+                c.translate(e.x, e.y);
+                c.rotate(_rot);
+                c.scale(mScale, mScale);
+                c.translate(-e.x, -e.y);
+                ctx.drawSp(c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
+                c.restore();
+                c.globalAlpha = 1;
+                return { sp, cols, off: _eOff };
+            }
+
             for (const e of ctx.G.enemies) {
                 if (e.st === 'DEAD') continue;
                 const _rot = e.rot || 0;
                 if (window.__galaxaDebug && (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && (ctx.tick % 30 === 0)) console.log('[render]', e.type, 'st=', e.st, 'rot=', _rot);
+                const _eref = ctx.enemySpriteFor(e);
+                const sp = _eref.sp, cols = _eref.cols;
+                const _isBoss = e.type === 'boss' || e.type === 'miniboss';
+                const _eOff = _isBoss ? 16 : 12;
                 if (e.st === 'DIVING') {
                     ctx.c.globalAlpha = 0.12;
-                    const _ghostRef = ctx.enemySpriteFor(e);
-                    const sp = _ghostRef.sp, cols = _ghostRef.cols;
                     ctx.c.save();
                     ctx.c.translate(e.x, e.y);
                     ctx.c.rotate(_rot);
@@ -413,42 +435,21 @@
                     ctx.c.restore();
                     ctx.c.globalAlpha = 1;
                 }
+                if (ctx.drawEnemyMotionTrail) ctx.drawEnemyMotionTrail(ctx.c, e, sp, cols, _eOff);
                 const fl = e.hitF > 0;
-                const _eref = ctx.enemySpriteFor(e);
-                const sp = _eref.sp, cols = _eref.cols;
-                const _isBoss = e.type === 'boss' || e.type === 'miniboss';
-                const _eOff = _isBoss ? 16 : 12;
                 if (e.type === 'hunter' && e.st !== 'DEAD') {
-                    ctx.c.globalAlpha = 0.25 + Math.sin(ctx.tick * 0.12) * 0.1;
                     ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ff6600';
-                    ctx.c.save();
-                    ctx.c.translate(e.x, e.y);
-                    ctx.c.rotate(_rot);
-                    ctx.c.translate(-e.x, -e.y);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false);
-                    ctx.c.restore();
-                    ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+                    drawEnemySprite(ctx.c, e, false, 1, 0.25 + Math.sin(ctx.tick * 0.12) * 0.1);
+                    ctx.c.shadowBlur = 0;
                 }
                 const _spawnT = e.spawnAnim || 0;
                 const _spawnDur = e.spawnDur || 400;
                 if (_spawnT < _spawnDur && e.st === 'FORM') {
                     const _sprog = _spawnT / _spawnDur;
                     const _bounce = _sprog < 0.6 ? (_sprog / 0.6) * 1.15 : 1.15 - (_sprog - 0.6) / 0.4 * 0.15;
-                    const _sc = Math.max(0.1, _bounce);
-                    ctx.c.save();
-                    ctx.c.translate(e.x, e.y);
-                    ctx.c.rotate(_rot);
-                    ctx.c.scale(_sc, _sc);
-                    ctx.c.translate(-e.x, -e.y);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
-                    ctx.c.restore();
+                    drawEnemySprite(ctx.c, e, fl, Math.max(0.1, _bounce));
                 } else {
-                    ctx.c.save();
-                    ctx.c.translate(e.x, e.y);
-                    ctx.c.rotate(_rot);
-                    ctx.c.translate(-e.x, -e.y);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
-                    ctx.c.restore();
+                    drawEnemySprite(ctx.c, e, fl);
                 }
                 if (fl && e.hitF > 60) {
                     const _hitAlpha = (e.hitF - 60) / 40 * 0.5;
@@ -462,14 +463,9 @@
                     // beat glow drawn in batched pass below to avoid per-enemy shadowBlur changes
                 }
                 if (e.rageMode > 0) {
-                    ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.3) * 0.15; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000';
-                    ctx.c.save();
-                    ctx.c.translate(e.x, e.y);
-                    ctx.c.rotate(_rot);
-                    ctx.c.translate(-e.x, -e.y);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false);
-                    ctx.c.restore();
-                    ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+                    ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000';
+                    drawEnemySprite(ctx.c, e, false, 1, 0.3 + Math.sin(ctx.tick * 0.3) * 0.15);
+                    ctx.c.shadowBlur = 0;
                 }
                 if (e.weakPoint && (e.type === 'boss' || e.type === 'miniboss')) { const wpx = e.x + e.weakPoint.x, wpy = e.y + e.weakPoint.y; const wpPulse = 0.6 + Math.sin(ctx.tick * 0.15) * 0.4; ctx.c.globalAlpha = wpPulse; ctx.c.fillStyle = '#ff4444'; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff4444'; ctx.c.beginPath(); ctx.c.arc(wpx, wpy, 3, 0, Math.PI * 2); ctx.c.fill(); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
                 if (e.type === 'kamikaze' && e.st === 'DIVING') {

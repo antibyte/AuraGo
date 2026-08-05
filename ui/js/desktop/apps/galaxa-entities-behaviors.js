@@ -148,6 +148,7 @@
                 e.fr = e.animFrame % maxFrames;
                 e.frT = e.animTimer;
                 if (e.hitF > 0) e.hitF -= dtMs;
+                if (ctx.updateEnemyMotionFx) ctx.updateEnemyMotionFx(e, dtMs);
                 // Rage mode decay
                 if (e.rageMode > 0) { e.rageMode -= dtMs; if (e.rageMode <= 0) { e.rageMode = 0; e.rageSpeedMult = 1; } }
                 // Weak point update
