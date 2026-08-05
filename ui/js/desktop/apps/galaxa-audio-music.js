@@ -5,6 +5,7 @@
     GC.createAudioMusic = function (ctx) {
         const audio = () => ctx.audio();
         const beep = (...args) => ctx.beep(...args);
+        const schedNoise = (...args) => ctx.schedNoise(...args);
                 const MusicEngine = {
             nodes: [], masterGain: null, playing: null, loopId: 0, tempoMult: 1, stopped: false, intensity: 5,
             themes: {
@@ -233,13 +234,6 @@
             }
         };
 
-        ctx.audio = audio;
-        ctx.beep = beep;
-        ctx.noise = noise;
-        ctx.schedNoise = schedNoise;
-        ctx.SFX = SFX;
-        ctx.MusicEngine = MusicEngine;
-
         const GalagaMusic = {
             el: null,
             _playing: false,
@@ -316,6 +310,5 @@
         };
         ctx.GalagaMusic = GalagaMusic;
         ctx.MusicEngine = MusicEngine;
-        ctx.GalagaMusic = GalagaMusic;
     };
 })();
