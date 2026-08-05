@@ -2098,6 +2098,265 @@ AuraGo führt sowohl die sicherheitsbegrenzte Suche als auch die ONVIF-Einrichtu
 
 Kameraänderungen werden zuerst sicher in Konfiguration und Vault veröffentlicht. Ist go2rtc danach vorübergehend nicht erreichbar, meldet die App den gespeicherten Teilerfolg und AuraGo gleicht den gewünschten Zustand automatisch später ab. Vor der Aktivierung prüft AuraGo außerdem die benötigten Docker-Endpunkte und zeigt fehlende Rechte direkt in der App an. ONVIF-Setup-Tokens bleiben bei Speicherfehlern für einen erneuten Versuch gültig; private SOAP-Verbindungen verwenden keinen Umgebungsproxy.
 
+### go2rtc: Einrichtung und Recovery-Details
+
+- Die ONVIF-Suche läuft nur bei vorhandener Broadcast-Fähigkeit (`Runtime.BroadcastOK`). Sie verwendet begrenzte Sonden auf geeigneten privaten IPv4-Interfaces; bei Docker-Bridge bleiben manuelle IP- und Stream-URL-Einrichtung verfügbar.
+- Discovery-Kandidaten und Einrichtungs-Tokens mit Zugangsdaten bleiben ausschließlich im Speicher, sind einmalig verwendbar und verfallen nach fünf Minuten. Sie werden weder im Vault gespeichert noch an den Browser zurückgegeben.
+- Eine vollständige ONVIF-Profilabfrage ist auf 20 Sekunden begrenzt. Die optionale Erkennung der Snapshot-Fähigkeit erhält höchstens fünf Sekunden davon; jede SOAP-Antwort ist auf 1 MiB begrenzt.
+- Der Snapshot-Speicher ist auf 16 Einträge bzw. 64 MiB begrenzt. Persistente Snapshots behalten höchstens 1.000 Dateien oder 2 GiB und löschen zuerst die ältesten Dateien.
+- Konfigurations- und Vault-Änderungen werden vor dem Laufzeitabgleich veröffentlicht. Scheitert danach die Docker-/go2rtc-Reconciliation, liefert die API HTTP `202` mit `saved: true`; AuraGo versucht den Abgleich im Hintergrund erneut. Fehler vor der Veröffentlichung liefern `saved: false`.
+- Die rohe go2rtc-ONVIF-API bleibt gesperrt. Browser sehen nur AuraGo-eigene, auf Stream-IDs begrenzte Endpunkte; Quell-URLs, Kamera-Zugangsdaten und Cookies werden nie offengelegt.
+
+## Native SIP-Telefonie
+
+AuraGo enthält einen SIP-User-Agent im Go-Prozess, ein Vault-geschütztes Konto und höchstens einen gleichzeitigen Anruf. Asterisk, FreeSWITCH, PJSIP, FFmpeg, CGO und ein Sidecar sind nicht erforderlich. Die Funktion ist standardmäßig deaktiviert und schreibgeschützt.
+
+### Einrichtung
+
+1. Öffne **Config → SIP Phone** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
+2. Speichere das Digest-Passwort über die UI. Es liegt ausschließlich unter dem Vault-Schlüssel `sip_endpoint_password`.
+3. Konfiguriere Signaling-Bind-Adresse, Transport, vertrauenswürdige Peer-CIDRs, Caller-Allowlist, Zielrichtlinie und RTP-Bereich.
+4. Setze in Docker vor aktiven Gesprächen `advertised_signaling_host` und `media.advertised_host` auf vom PBX erreichbare Adressen.
+5. Öffne die Virtual-Desktop-App **SIP Phone** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
+
+```yaml
+sip:
+  enabled: false
+  readonly: true
+  bind_host: 127.0.0.1
+  bind_port: 5060
+  transport: udp                 # udp, tcp, tls; kein WS/WSS
+  advertised_signaling_host: ""
+  media:
+    rtp_port_start: 30000
+    rtp_port_end: 30099
+    advertised_host: ""
+```
+
+V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Router-Konfiguration, kein WS/WSS und kein SRTP. Docker-Desktop-NAT ist ungeeignet, wenn der PBX die angekündigte RTP-Adresse nicht erreichen kann; Linux-Host-Networking ist eine explizite Alternative mit geringerer Netzwerktrennung.
+
+### Vertrauen, Agent-Routing und Datenschutz
+
+- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen exakten normalisierten Caller-Allowlist-Treffer. Leere Caller- oder Ziellisten verweigern alles.
+- Ausgehende Anrufe benötigen eine kanonische `sip:`-URI, eine exakt erlaubte Domain und entweder einen exakten Benutzer oder ein erlaubtes E.164-Präfix. FRITZ!Box-Ziele wie `**610` sind exakte Benutzer.
+- Das separate Profil **Telephone agent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
+- `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
+- RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
+- `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
+
+Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
+
+## Speech-Lab-Integration
+
+Speech Lab verbindet AuraGo mit dem lokalen s2s-ASR-/TTS-Dienst. AuraGo behält Gespräch, LLM, Tools, Guardian und Memory; Speech Lab verwaltet seinen aktiven ASR-, TTS- und Voice-Stack. Die Funktion ist standardmäßig deaktiviert.
+
+### Web-UI und Kanalauswahl
+
+1. Öffne **Config → Media → Speech Lab**.
+2. Wähle im Managed-Modus das Hardwareprofil (`Auto`, `Vulkan` oder `CPU`) und bestätige den ersten Bundle-Download. `Auto` wird für AMD empfohlen; `CPU` dient Kompatibilitätstests.
+3. Aktiviere Chat-Eingabe, Chat-Ausgabe und klassische SIP-ASR/TTS unabhängig voneinander.
+4. Öffne das **Browser Lab** aus der Einstellungsseite oder dem Chat-Integrationsdrawer. AuraGo leitet die normale Browser-URL aus dem aktuellen Host über Port `8766` ab; `advanced_ui_url` ist nur für Experten-Setups gedacht.
+
+```yaml
+speech_lab:
+  enabled: false
+  base_url: http://s2s-vulkan:8765
+  language: de
+  chat_llm_provider_id: ""
+  timeout_seconds: 60
+  sip_enabled: false
+  chat_input_enabled: false
+  chat_output_enabled: false
+```
+
+Eine Speech-Lab-Transkription kann `chat_llm_provider_id` nur für den nächsten direkten Webchat-Turn auswählen. Getippter Chat, Browser-Spracherkennung, Missionen, interne Follow-ups und SIP behalten ihr bisheriges Provider-Routing. Ein nicht verfügbarer Provider bricht kontrolliert ab; AuraGo wechselt nicht still zum Hauptprovider oder zu Cloud-ASR/TTS.
+
+AuraGo liest ASR, TTS und Stimme aus einem `/ready`-Snapshot und verlangt passende Backend-IDs sowie die Header `X-S2S-Voice` und `X-S2S-TTS-ID`. Ein Stack-Wechsel wird während einer Speech-Lab-Operation oder eines SIP-Anrufs abgelehnt. Realtime-Aktionen senden genau ein `final_response` und danach ein inhaltsloses `done`; die Abbruchlogik ist requestbezogen.
+
+### Deployment und Netzwerkgrenze
+
+Die Managed-Installation verwendet das signierte, Digest-gepinnte Bundle und verlangt für den ersten Pull eine ausdrückliche Admin-Bestätigung. Port `8765` bleibt privat, das Browser Lab verwendet `8766`. Native AuraGo-Prozesse binden beide Ports an Loopback; Container verwenden das private Docker-Netzwerk. Bei aktiviertem eingebettetem Tailscale wird nur das Browser Lab zusätzlich über den eigenen TLS-Listener von AuraGo erreichbar.
+
+Akzeptiert werden nur credential-freie HTTP(S)-URLs zu Loopback- oder privaten Adressen. Speech Lab ist kein allgemeiner Proxy. Details zum festen Dienstvertrag und zu Deployment-Overlays stehen in der [Speech-Lab-Dokumentation](../../s2s_speech_lab.md).
+
+## Game Maker Studio
+
+Game Maker Studio ist der isolierte Virtual-Desktop-Arbeitsbereich für offlinefähige Einzelspieler-Browser-Spiele. Die Funktion ist standardmäßig deaktiviert und schreibgeschützt. Aktiviere sie unter **Config → Game Maker Studio** und öffne danach **Game Maker Studio** im Virtual Desktop.
+
+### Workflow und Laufzeiten
+
+1. Erstelle ein 2D- oder 3D-Projekt, beschreibe das Spiel, wähle einen konfigurierten Provider bzw. ein Modell und aktiviere optional Bild- oder Musikgenerierung.
+2. AuraGo führt den Job in einem Staging-Verzeichnis aus. Für 2D wird Phaser `4.2.1`, für 3D Three.js `0.185.1` verwendet; beide Laufzeiten sind eingebettet und offline.
+3. Die Pure-Go-esbuild-Validierung muss erfolgreich sein, bevor das Staging-Ergebnis als nächste veröffentlichte Revision übernommen wird. Ein fehlgeschlagener oder abgebrochener Job lässt die letzte spielbare Revision unverändert.
+4. Fortschritt, Diagnosen, Preview, Revisionen, Restore und ZIP-Export bleiben im selben Fenster. Weltweit läuft nur ein Writer-Job gleichzeitig.
+
+Bilder können Sprites, Hintergründe, Texturen oder UI-Grafiken werden. Musik kann als lokaler Hintergrund-Track dienen; Soundeffekte verwenden prozedurales Web Audio. Bei Generatorfehlern, deaktivierter Konfiguration oder erschöpftem Budget wird ein sichtbarer prozeduraler Fallback verwendet. AuraGo behauptet nicht, 3D-Modelle zu erzeugen.
+
+### Isolation und Preview-Sicherheit
+
+Game-Maker-Jobs erhalten nur Projekt-, Asset- und Validierungs-Tools sowie die kuratierten Agent-Skill-Tools zum Auflisten und Aktivieren. Generische Datei-, Shell-, Python-, Netzwerk-, Desktop-, Homepage- und `invoke_tool`-Zugriffe sind ausgeschlossen. Kuratierte Skill-Pakete werden bei lokaler Abweichung aus dem eingebetteten, verifizierten Bundle wiederhergestellt.
+
+Preview-Iframes verwenden kurzlebige, an Projekt und Job gebundene Tokens, verzichten auf `allow-same-origin`, blockieren externe Verbindungen per restriktiver CSP und erlauben nur einen begrenzten, validierten Diagnosekanal über `postMessage`. Revisionsblobs sind SHA-256-adressiert und dedupliziert. Der ZIP-Export schließt Staging-Daten, Preview-Tokens, Ledger-Metadaten und AuraGo-Secrets aus, enthält aber lokale Laufzeiten und Third-Party-Hinweise.
+
+Siehe [Game Maker Studio](../../game-maker-studio.md) für Limits, Revisions-APIs und den vollständigen Exportvertrag.
+
+## Lokale SMB- und NFS-Freigaben
+
+AuraGo kann Shares auf dem eigenen Linux- oder Windows-Host prüfen und verwalten. Öffne **Config → Netzwerk & Remote → Netzwerkfreigaben** und verwende **Neu erkennen** für eine passive Capability-Prüfung. Dabei werden keine Pakete installiert, Dienste gestartet, Samba-Registry-Shares aktiviert oder globale Serverkonfigurationen verändert. Die Integration mountet keine Remote-Shares und verwaltet keine Benutzer oder Passwörter.
+
+### Ownership und Berechtigungen
+
+- SMB und NFS werden nur angezeigt, wenn das konfigurierte Backend lesbar ist. Änderungen benötigen zusätzlich `readonly: false`, die passende Einzelberechtigung, ein schreibbares natives Backend und ein vorhandenes kanonisches Directory unter einem erlaubten Root.
+- Nur von AuraGo erstellte und in `data/network_shares.db` erfasste Shares dürfen geändert oder entfernt werden. Native Ownership-Marker sind erforderlich, wenn das Backend sie unterstützt; Windows-NFS nutzt stattdessen einen exakten Ledger-Abgleich.
+- Externe, verwaiste, unsichere, abweichende und außerhalb der Roots liegende Shares sind schreibgeschützt oder für den Agenten verborgen. Das Entfernen eines Shares löscht niemals Directory oder Dateien.
+- Linux-Samba nutzt bestehende Registry-Shares über `net conf`; Linux-NFS verwaltet nur `/etc/exports.d/aurago-<id>.exports`. Windows verwendet feste PowerShell-Skripte und installierte SMBShare-/NFS-Cmdlets.
+- NFS-Clients sind unter Linux explizite IP-Adressen oder CIDRs, unter Windows einzelne IP-Einträge. Linux-Exports enthalten immer `sync,root_squash,no_subtree_check` sowie `ro` oder `rw`.
+
+```yaml
+network_shares:
+  enabled: false
+  readonly: true
+  allow_create: false
+  allow_update: false
+  allow_delete: false
+  allowed_roots: []
+  smb:
+    enabled: true
+    allow_guest: false
+    allowed_principals: []
+  nfs:
+    enabled: true
+    allowed_clients: []
+```
+
+Die Standard-Docker-Bereitstellung meldet Host-Mutationen als nicht verfügbar, kann aber weiterhin lesbaren Status anzeigen. Siehe [Lokale SMB- und NFS-Freigaben](../../network_shares.md) für Plattformvoraussetzungen, Drift-Behandlung, Rollback und stabile Fehlercodes.
+
+## Realtime Speech
+
+Realtime Speech bietet ein durchgehendes Live-Spracherlebnis in Webchat und Virtual Desktop. Es wird getrennt von der normalen `providers`-Liste konfiguriert und verwendet OpenAI-, xAI- oder Gemini-Live-Profile aus dem versionierten AuraGo-Katalog.
+
+### Einrichtung und Datenschutz
+
+1. Öffne **Config → Realtime Speech** und erstelle ein Profil mit Modell und Stimme aus dem Katalog.
+2. Speichere den Provider-Key über die UI. Keys liegen pro Profil im Vault und werden weder in `config.yaml` serialisiert noch an Python exportiert.
+3. Wähle das Standardprofil und das Inaktivitätsintervall zum Parken.
+4. Öffne **Live Speech** in Webchat oder Virtual Desktop. Pro Browser-Origin ist nur eine Mikrofon-Session erlaubt.
+
+Der Live-Provider erhält niemals Auras nativen Tool-Katalog. Für AuraGo-Zustand oder Aktionen ruft er die private Funktion `aurago_execute` auf; diese läuft durch den normalen Agent-Loop mit Guardian, Berechtigungen, Bestätigungen, Tool-Events und Abbruch. Rohes Mikrofon-Audio und partielle Transcripts bleiben im Browser; gespeichert werden nur finale direkte Dialog-Turns.
+
+```yaml
+realtime_speech:
+  enabled: false
+  default_profile: ""
+  park_after_seconds: 5
+  profiles:
+    - id: openai-live
+      name: "OpenAI Live"
+      provider: openai
+      model: gpt-realtime-2.1
+      voice: marin
+      enabled: true
+```
+
+Siehe [Realtime Speech](../../realtime_speech.md) für Provider-Katalog, VAD-Timing, Session-Leases und API-Vertrag.
+
+## Virtual Computers
+
+Virtual Computers verwaltet die vollständige Boring-Computers-Bereitstellung über AuraGo. Die private `boringd`-Steuerung kann lokal auf einem Linux/KVM-Host oder auf einem ausgewählten SSH-Host eingerichtet werden; die Verwaltungs-App wird über die authentifizierte AuraGo-Origin bereitgestellt.
+
+```yaml
+virtual_computers:
+  enabled: false
+  auto_setup: false
+  readonly: false
+  control_plane:
+    mode: ssh_host          # ssh_host oder local_host
+    host: ""
+    ssh_port: 22
+  default_template: python
+  default_ttl_seconds: 600
+  max_ttl_seconds: 900
+  max_running_machines: 3
+  allow_internet: false
+  allow_persistent: false
+  allow_publish: false
+  allow_volumes: false
+  allow_agent_tasks: false
+  agent_provider: ""       # Anthropic-Provider-ID für Agent-Jobs
+```
+
+Der Chat-Integrationsdrawer öffnet `/boring-computers/`, sobald die Integration läuft. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig. Agent-Jobs benötigen einen konfigurierten Anthropic-Provider und eine eigene Allowlist.
+
+Siehe [Virtual Computers](../../virtual_computers.md) für Modi, Screenshots, VNC, Headless-Terminals, Volumes, Task-Historie und Repair-Verhalten.
+
+## Manus-Integration
+
+Das native `manus`-Tool delegiert private asynchrone Recherche- oder Ausführungsaufgaben an Manus v2. AuraGo speichert den API-Key nur unter `manus_api_key` im Vault, wartet mit begrenztem Polling und hält in `data/manus.db` nur lokale Aufgaben-Metadaten.
+
+### Einrichtung und Richtlinien
+
+1. Öffne **Config → External AI → Manus**.
+2. Speichere den API-Key im Vault und teste die Verbindung.
+3. Wähle erlaubte Projekte, Connectoren und Skills.
+4. Aktiviere nur die benötigten Aufgaben- und Datei-Berechtigungen; Read-only überschreibt sie alle.
+
+Uploads müssen aus dem AuraGo-Workspace stammen und Pfad, Symlink-, Typ- und Größenprüfungen bestehen. Downloads werden unter dem Verzeichnis der verfolgten Aufgabe geschrieben und nie automatisch ausgeführt. Manus-Texte und Fehler sind nicht vertrauenswürdige externe Daten. OAuth, Webhooks, öffentliche Freigaben, kontoweite Aufgabenlisten und Account-Verwaltung gehören nicht zur aktuellen Integration.
+
+```yaml
+manus:
+  enabled: false
+  read_only: true
+  allow_create_tasks: false
+  allow_send_messages: false
+  allow_stop_tasks: false
+  allow_file_uploads: false
+  allow_file_downloads: false
+  allowed_project_ids: []
+  allowed_connector_ids: []
+  allowed_skill_ids: []
+  default_agent_profile: manus-1.6
+```
+
+Siehe [Manus v2](../../manus.md) für Dateiübertragung, Schema-Validierung, Freigaben und Fehlerausgänge.
+
+## OmniRoute-Integration
+
+OmniRoute ist ein optionales verwaltetes oder externes OpenAI-kompatibles Gateway. AuraGo kann den festgelegten lokalen Sidecar starten, dessen Health prüfen und LLM-Traffic über einen Provider mit `type: omniroute` routen.
+
+```yaml
+omniroute:
+  enabled: false
+  auto_start: true
+  mode: managed          # managed oder external
+  url: http://omniroute:20128
+  external_base_url: http://127.0.0.1:20128/v1
+  host: 127.0.0.1
+  port: 20128
+  host_port: 20128
+```
+
+OmniRoute-API-Key, Initialpasswort und Laufzeit-Secrets werden über den Vault gespeichert. Die Web-UI bietet Status, Verbindungstest, Start und Stop. Binde den Endpoint über das normale Provider-System ein; Credentials gehören nicht direkt in Provider-YAML.
+
+## EvoMap-Integration
+
+EvoMap ist eine optionale GEP-/A2A-Integration für Node-Status, Verbindungstests und Registrierung. Sie ist standardmäßig deaktiviert und schreibgeschützt. Fremde Capsules und Assets gelten als nicht vertrauenswürdige externe Daten und werden nie automatisch ausgeführt.
+
+```yaml
+evomap:
+  enabled: false
+  readonly: true
+  base_url: https://evomap.ai
+  node_id: ""
+  request_timeout_seconds: 30
+  max_result_bytes: 262144
+  kg_enabled: false
+  allow_publish: false
+  allow_report: false
+  allow_bounties: false
+```
+
+API-Key und Node-Secret sind Vault-only (`evomap_api_key` und `evomap_node_secret`). Der aktuelle MVP bereitet Publish-, Report- und Bounty-Operationen vor, verweigert sie aber, solange keine spätere Implementierung sie ausdrücklich aktiviert.
+
 ## Integrationen testen
 
 ### Test über Chat

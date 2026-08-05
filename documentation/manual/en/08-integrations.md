@@ -2484,6 +2484,265 @@ AuraGo performs both the security-bounded discovery and the private-host ONVIF s
 
 Camera changes are published safely to configuration and Vault first. If go2rtc is temporarily unreachable afterwards, the app reports the saved partial success and AuraGo reconciles the desired state automatically later. Before activation, AuraGo also checks the required Docker endpoints and shows missing permissions directly in the app. ONVIF setup tokens remain valid for retry after storage failures, and private SOAP connections never use an environment proxy.
 
+### go2rtc setup and recovery details
+
+- ONVIF discovery runs only when the runtime has broadcast capability (`Runtime.BroadcastOK`). It sends bounded probes on suitable private IPv4 interfaces; Docker bridge mode therefore keeps the manual-IP and stream-URL setup paths available.
+- Discovery candidates and credential-bearing setup tokens are memory-only, single-use, and expire after five minutes. They are never written to the Vault or returned to the browser.
+- A complete ONVIF profile operation is limited to 20 seconds. Optional snapshot-capability detection receives at most five seconds of that budget, and each SOAP response is capped at 1 MiB.
+- Snapshot memory is bounded to 16 entries / 64 MiB. Persistent snapshots retain at most 1,000 files or 2 GiB and remove the oldest files first.
+- Configuration and Vault changes are published before runtime reconciliation. A saved change whose Docker/go2rtc reconciliation fails returns HTTP `202` with `saved: true` and is retried in the background; pre-publication failures return `saved: false`.
+- The raw go2rtc ONVIF API remains blocked. Browser viewers receive only AuraGo-owned, stream-ID-scoped endpoints; source URLs, camera credentials, and cookies are never exposed.
+
+## Native SIP Telephony
+
+AuraGo includes one in-process SIP user agent, one Vault-backed account, and at most one concurrent call. It requires no Asterisk, FreeSWITCH, PJSIP, FFmpeg, CGO, or sidecar. The feature is disabled and read-only by default.
+
+### Setup
+
+1. Open **Config → SIP Phone** and choose the guided provider preset or expert settings.
+2. Store the digest password through the UI. It is kept only under Vault key `sip_endpoint_password`.
+3. Configure the signaling bind address, transport, trusted peer CIDRs, caller allowlist, destination policy, and RTP range.
+4. In Docker, set both `advertised_signaling_host` and `media.advertised_host` to addresses reachable by the PBX before enabling calls.
+5. Open the Virtual Desktop **SIP Phone** app for the authenticated browser phone. Its Contacts tab uses the AuraGo contact registry; the optional floating phone gadget is another entry point to the same app.
+
+```yaml
+sip:
+    enabled: false
+    readonly: true
+    bind_host: 127.0.0.1
+    bind_port: 5060
+    transport: udp                 # udp, tcp, tls; no WS/WSS
+    advertised_signaling_host: ""
+    media:
+        rtp_port_start: 30000
+        rtp_port_end: 30099
+        advertised_host: ""
+```
+
+V1 supports G.711 PCMA/PCMU and does not provide STUN, ICE, automatic router configuration, WS/WSS, or SRTP. Docker Desktop NAT is unsuitable when the PBX cannot route to the advertised RTP address; Linux host networking is an explicit alternative with less network isolation.
+
+### Trust, agent routing, and privacy
+
+- Incoming calls require both a trusted source IP/CIDR and an exact normalized caller allowlist match. Empty caller or destination lists deny all.
+- Outgoing calls require a canonical `sip:` URI, an exact allowed domain, and an exact user or allowed E.164 prefix. FRITZ!Box destinations such as `**610` are exact users.
+- The separate **Telephone agent** profile applies only to agent-led calls. It snapshots provider, tools, behavior, duration, language, and transcript policy before answer or INVITE; saving the profile affects future calls only.
+- `classic` uses the selected ASR, agent LLM, and central TTS. `gemini_live` uses a server-side Gemini Live connection and never exposes its provider credential to the browser. Both use explicit tool allowlists; an empty list means no native tools.
+- RTP/audio, complete SIP headers, authentication data, and raw transcripts are not logged or stored. Transcripts are transient by default and telephone sessions do not create recordings or derived memory artifacts.
+- `readonly: true` still permits registration, status, history, and connection tests, but blocks answering and originating calls.
+
+See [Native SIP telephony](../../sip_telephony.md) for network policies, failure codes, provider setup, and the complete API list.
+
+## Speech Lab Integration
+
+Speech Lab connects AuraGo to the local s2s ASR/TTS service. AuraGo continues to own the conversation, LLM, tools, Guardian, and memory; Speech Lab owns its active ASR, TTS, and voice stack. The feature is disabled by default.
+
+### Web UI and channel selection
+
+1. Open **Config → Media → Speech Lab**.
+2. In managed mode, choose the hardware profile (`Auto`, `Vulkan`, or `CPU`) and confirm the first bundle download. `Auto` is recommended for AMD; `CPU` is a compatibility path.
+3. Enable the channels independently: local chat input, chat output, and classic SIP ASR/TTS.
+4. Open **Browser Lab** from the settings page or the chat integrations drawer. AuraGo derives the normal browser URL from the current host on port `8766`; `advanced_ui_url` is an expert-only override.
+
+```yaml
+speech_lab:
+    enabled: false
+    base_url: http://s2s-vulkan:8765
+    language: en
+    chat_llm_provider_id: ""
+    timeout_seconds: 60
+    sip_enabled: false
+    chat_input_enabled: false
+    chat_output_enabled: false
+```
+
+Speech-Lab transcription can select `chat_llm_provider_id` for exactly the next direct web-chat turn. Typed chat, browser speech recognition, missions, internal follow-ups, and SIP keep their existing provider routing. An unavailable selected provider fails closed; AuraGo does not silently fall back to the main provider or to cloud ASR/TTS.
+
+AuraGo reads ASR, TTS, and voice from one `/ready` snapshot and requires matching backend IDs and `X-S2S-Voice`/`X-S2S-TTS-ID` response headers. A stack change is rejected while a speech operation or SIP call is active. Speech Lab realtime actions emit one `final_response` followed by a contentless `done`; cancellation is request-scoped.
+
+### Deployment and network boundary
+
+Managed installation uses the signed, digest-pinned bundle and requires explicit administrator confirmation for the first pull. The service port `8765` stays private; the Browser Lab uses `8766`. Native AuraGo binds both to loopback, while container deployments use the private Docker network. With embedded Tailscale, only the Browser Lab is additionally exposed through AuraGo's own TLS listener.
+
+Only credential-free HTTP(S) URLs pointing to loopback or private addresses are accepted. Speech Lab does not become a general-purpose proxy. See [Speech Lab integration](../../s2s_speech_lab.md) for the fixed service contract and deployment overlays.
+
+## Game Maker Studio
+
+Game Maker Studio is the isolated Virtual Desktop workspace for building offline, single-player browser games. It is disabled and read-only by default. Enable it under **Config → Game Maker Studio**, then open **Game Maker Studio** from the Virtual Desktop.
+
+### Workflow and runtimes
+
+1. Create a 2D or 3D project, describe the game, select a configured provider/model, and optionally enable image or music generation.
+2. AuraGo runs the job in a staging directory. Phaser `4.2.1` is used for 2D and Three.js `0.185.1` for 3D; both runtimes are embedded and offline.
+3. Pure-Go esbuild validation must pass before the staged result becomes the next published revision. A failed or cancelled job leaves the last playable revision untouched.
+4. Use the same window to follow progress, diagnostics, preview, revisions, restore, and ZIP export. Only one writer job runs globally.
+
+Images can be used as sprites, backgrounds, textures, or UI art. Music can become a local background track; sound effects use procedural Web Audio. Generator failure, disabled configuration, or exhausted budget produces a visible procedural fallback. AuraGo does not claim to generate 3D models.
+
+### Isolation and preview security
+
+Game Maker jobs receive only the project tools, asset/validation tools, and the curated Agent Skill listing/activation tools. Generic filesystem, shell, Python, network, Desktop, Homepage, and `invoke_tool` access is excluded. Curated skill packages are restored from the embedded, verified bundle when local files drift.
+
+Preview iframes use short-lived project/job-bound tokens, omit `allow-same-origin`, block external connections through a restrictive CSP, and expose only a bounded, validated diagnostic `postMessage` channel. Revision blobs are SHA-256 addressed and deduplicated. ZIP export excludes staging data, preview tokens, ledger metadata, and AuraGo secrets, while including local runtimes and third-party notices.
+
+See [Game Maker Studio](../../game-maker-studio.md) for limits, revision APIs, and the complete export contract.
+
+## Local SMB and NFS Shares
+
+AuraGo can inspect and manage shares on its own Linux or Windows host. Open **Config → Network & Remote → Network Shares** and use **Detect again** for a passive capability probe. The probe never installs packages, starts services, enables Samba registry shares, or changes global server configuration. This integration does not mount remote shares and does not manage remote users or passwords.
+
+### Ownership and permissions
+
+- SMB and NFS are exposed only when the configured backend is readable. Mutations additionally require `readonly: false`, the matching granular permission, a writable native backend, and an existing canonical directory under an allowed root.
+- Only AuraGo-created shares recorded in `data/network_shares.db` can be updated or removed. Native ownership markers are required where the backend supports them; Windows NFS uses an exact ledger match instead.
+- External, orphaned, unsafe, drifted, and out-of-root shares are read-only or hidden from agent results. Removing a share never removes its directory or files.
+- Linux Samba uses existing `net conf` registry shares and Linux NFS owns only `/etc/exports.d/aurago-<id>.exports`. Windows uses fixed PowerShell scripts and installed SMBShare/NFS cmdlets.
+- NFS clients are explicit IP addresses or CIDRs on Linux and individual IP entries on Windows. Linux exports always include `sync,root_squash,no_subtree_check` plus `ro` or `rw`.
+
+```yaml
+network_shares:
+    enabled: false
+    readonly: true
+    allow_create: false
+    allow_update: false
+    allow_delete: false
+    allowed_roots: []
+    smb:
+        enabled: true
+        allow_guest: false
+        allowed_principals: []
+    nfs:
+        enabled: true
+        allowed_clients: []
+```
+
+The standard Docker deployment reports host mutations as unavailable but can still show readable status. See [Local SMB and NFS shares](../../network_shares.md) for platform prerequisites, drift handling, rollback, and stable error codes.
+
+## Realtime Speech
+
+Realtime Speech provides one continuous live voice experience across Web Chat and the Virtual Desktop. It is configured separately from the regular `providers` list and uses OpenAI, xAI, or Gemini live-provider profiles from AuraGo's versioned catalog.
+
+### Setup and privacy
+
+1. Open **Config → Realtime Speech** and create a profile with a catalog model and voice.
+2. Store the provider key through the UI. Keys are kept per profile in the Vault and are never serialized into `config.yaml` or exported to Python.
+3. Choose the default profile and set the inactivity parking interval.
+4. Open **Live Speech** from Web Chat or the Virtual Desktop. Only one microphone session is allowed per browser origin.
+
+The live provider never receives AuraGo's native tool catalog. Requests that need AuraGo state or capabilities call the private `aurago_execute` function, which runs the normal agent loop with Guardian, permissions, confirmations, tool events, and cancellation. Raw microphone audio and partial transcripts stay in the browser; only final direct-dialog turns are persisted.
+
+```yaml
+realtime_speech:
+    enabled: false
+    default_profile: ""
+    park_after_seconds: 5
+    profiles:
+        - id: openai-live
+            name: "OpenAI Live"
+            provider: openai
+            model: gpt-realtime-2.1
+            voice: marin
+            enabled: true
+```
+
+See [Realtime Speech](../../realtime_speech.md) for the provider catalog, VAD timing, session leases, and API contract.
+
+## Virtual Computers
+
+Virtual Computers manages the complete Boring Computers deployment through AuraGo. It can provision the private `boringd` control plane locally on a Linux/KVM host or on a selected SSH host and exposes the management app through the authenticated AuraGo origin.
+
+```yaml
+virtual_computers:
+    enabled: false
+    auto_setup: false
+    readonly: false
+    control_plane:
+        mode: ssh_host          # ssh_host or local_host
+        host: ""
+        ssh_port: 22
+    default_template: python
+    default_ttl_seconds: 600
+    max_ttl_seconds: 900
+    max_running_machines: 3
+    allow_internet: false
+    allow_persistent: false
+    allow_publish: false
+    allow_volumes: false
+    allow_agent_tasks: false
+    agent_provider: ""       # Anthropic provider ID for agent tasks
+```
+
+The Chat integrations drawer opens `/boring-computers/` when the integration is running. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side. Agent tasks require a configured Anthropic provider and use a separate allowlist.
+
+See [Virtual Computers](../../virtual_computers.md) for setup modes, screenshots, VNC, headless terminals, volumes, task history, and repair behavior.
+
+## Manus Integration
+
+The native `manus` tool delegates private asynchronous research or execution tasks to Manus v2. AuraGo stores the API key only in Vault key `manus_api_key`, polls with bounded waits, and keeps only local task metadata in `data/manus.db`.
+
+### Setup and policy
+
+1. Open **Config → External AI → Manus**.
+2. Store the API key in the Vault and test the connection.
+3. Select allowed projects, connectors, and skills.
+4. Enable only the granular task and file permissions required; read-only mode overrides them all.
+
+Uploads must originate in the AuraGo workspace and pass path, symlink, type, and size checks. Downloads are written below the tracked task directory and are never executed automatically. Manus text and errors are untrusted external data. OAuth, webhooks, public sharing, account-wide task listing, and account administration are outside the current integration.
+
+```yaml
+manus:
+    enabled: false
+    read_only: true
+    allow_create_tasks: false
+    allow_send_messages: false
+    allow_stop_tasks: false
+    allow_file_uploads: false
+    allow_file_downloads: false
+    allowed_project_ids: []
+    allowed_connector_ids: []
+    allowed_skill_ids: []
+    default_agent_profile: manus-1.6
+```
+
+See [Manus v2](../../manus.md) for the complete file-transfer, schema-validation, approval, and failure-outcome rules.
+
+## OmniRoute Integration
+
+OmniRoute is an optional managed or external OpenAI-compatible gateway. AuraGo can start its pinned local sidecar, test its health, and route LLM traffic through a provider with `type: omniroute`.
+
+```yaml
+omniroute:
+    enabled: false
+    auto_start: true
+    mode: managed          # managed or external
+    url: http://omniroute:20128
+    external_base_url: http://127.0.0.1:20128/v1
+    host: 127.0.0.1
+    port: 20128
+    host_port: 20128
+```
+
+Store the OmniRoute API key, initial password, and runtime secrets through the Vault. The Web UI provides status, connection test, start, and stop actions. Add the resulting endpoint through the normal Provider system; do not put credentials directly in the provider YAML.
+
+## EvoMap Integration
+
+EvoMap is an optional GEP/A2A integration for node status, connectivity tests, and registration. It is disabled and read-only by default. Foreign capsules and assets are treated as untrusted external data and are never executed automatically.
+
+```yaml
+evomap:
+    enabled: false
+    readonly: true
+    base_url: https://evomap.ai
+    node_id: ""
+    request_timeout_seconds: 30
+    max_result_bytes: 262144
+    kg_enabled: false
+    allow_publish: false
+    allow_report: false
+    allow_bounties: false
+```
+
+The API key and node secret are Vault-only (`evomap_api_key` and `evomap_node_secret`). The current MVP prepares publish, report, and bounty operations but denies them unless a later implementation explicitly enables them.
+
 ## Testing Integrations
 
 ### Health Check Commands

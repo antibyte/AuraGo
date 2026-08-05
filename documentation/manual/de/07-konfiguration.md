@@ -518,6 +518,11 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
     port: 0
   client:
     enabled: false` |
+| `realtime_speech` | Live-Sprachsessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
+| `virtual_computers` | Verwaltete virtuelle Computer | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
+| `manus` | Asynchrone Manus-Aufgaben | `manus:`<br>`  enabled: false`<br>`  read_only: true` |
+| `omniroute` | OpenAI-kompatibles Gateway | `omniroute:`<br>`  enabled: false`<br>`  mode: managed` |
+| `evomap` | EvoMap GEP/A2A | `evomap:`<br>`  enabled: false`<br>`  readonly: true` |
 | `music_generation` | KI-Musik | `music_generation:
   enabled: false
   provider: ""
@@ -530,6 +535,117 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
   daily_summary: true` |
 
 > 📖 Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
+
+---
+
+## Neue Laufzeiten und lokale Integrationen
+
+Die folgenden Blöcke sind in der aktuellen Web-UI bzw. in `config_template.yaml` verfügbar. Alle Funktionen bleiben standardmäßig deaktiviert oder schreibgeschützt.
+
+### AuraGo-Qwen – lokales Test- und Fallback-Modell
+
+AuraGo-Qwen ist ein kleines, auf AuraGo-Tool-Calls abgestimmtes lokales Modell. Es ist für Tests und als kontrollierter Fallback gedacht, nicht als Ersatz für ein leistungsfähiges Cloud- oder großes lokales Modell. Öffne **Config → Local LLM**, prüfe zuerst die Hardware und starte Installation oder Smoke-Test erst nach einer ausdrücklichen Admin-Aktion.
+
+```yaml
+local_llm:
+  enabled: false
+  backend: auto             # auto, cuda, sycl, vulkan, cpu
+  model_variant: q4_k_m     # q4_k_m oder q8_0
+  mtp: off                  # off, auto, mtp2
+  context_size: 16384      # 16384 oder 32768
+  idle_timeout_minutes: 15
+  listen_port: 18081        # nur Native-Betrieb, Loopback
+```
+
+Die Rollen `test_only`, `fallback` und `primary` werden erst nach Gesundheits-, Tool-Call-, Speicher- und GPU/KV-Offload-Prüfungen aktiv. Bei `primary` ist ein regulärer Provider als Fallback erforderlich. Der Provider-ID `aurago-qwen-local` darf nicht manuell unter `providers` eingetragen werden. Downloads sind größen- und SHA-256-geprüft; experimentelle CPU-, iGPU-, SYCL- oder Vulkan-Pfade benötigen eine Hardware-Bestätigung. Details: [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
+
+### Speech Lab
+
+Speech Lab bindet die lokale s2s-ASR-/TTS-Pipeline an AuraGo an. Die aktive Kombination aus ASR, TTS und Stimme wird aus einem gemeinsamen `/ready`-Snapshot übernommen; AuraGo führt weiterhin Gespräch, LLM, Tools, Guardian und Memory aus. Die Kanäle werden unabhängig aktiviert:
+
+```yaml
+speech_lab:
+  enabled: false
+  base_url: http://s2s-vulkan:8765
+  language: de
+  chat_llm_provider_id: ""
+  timeout_seconds: 60
+  sip_enabled: false
+  chat_input_enabled: false
+  chat_output_enabled: false
+```
+
+Im Managed-Modus wird der verifizierte Bundle-Stack erst nach Admin-Bestätigung heruntergeladen. `AURAGO_SPEECH_LAB_BASE_URL` kann die URL zur Laufzeit überschreiben; das Browser Lab wird standardmäßig über Port `8766` aus dem aktuellen AuraGo-Host abgeleitet. Es gibt keinen stillen Cloud-Fallback. Siehe [Speech Lab](../../s2s_speech_lab.md).
+
+### Native SIP-Telefonie
+
+Die SIP-Konfiguration liegt unter `sip` und wird unter **Config → SIP Phone** bearbeitet. Das Feature bleibt deaktiviert und schreibgeschützt, bis Account, Netzwerk und Berechtigungen ausdrücklich eingerichtet sind. Das Digest-Passwort gehört ausschließlich in den Vault-Schlüssel `sip_endpoint_password`.
+
+```yaml
+sip:
+  enabled: false
+  readonly: true
+  bind_host: 127.0.0.1
+  bind_port: 5060
+  transport: udp
+  advertised_signaling_host: ""
+  media:
+    rtp_port_start: 30000
+    rtp_port_end: 30099
+    advertised_host: ""
+```
+
+Docker benötigt für aktive Gespräche explizite, vom PBX erreichbare Werte für `advertised_signaling_host` und `media.advertised_host`. V1 unterstützt G.711 sowie UDP/TCP/TLS, aber kein STUN, ICE, WS/WSS oder SRTP. Details zu Allowlisten, Browser-Telefon und Telefon-Agent stehen unter [Native SIP-Telefonie](../../sip_telephony.md).
+
+### Game Maker Studio
+
+Game Maker Studio ist ein isolierter Virtual-Desktop-Arbeitsbereich für offlinefähige Einzelspieler-Spiele. Neue Projekte und Änderungen bleiben standardmäßig gesperrt und werden erst nach erfolgreicher Pure-Go-esbuild-Validierung als Revision veröffentlicht.
+
+```yaml
+game_maker:
+  enabled: false
+  readonly: true
+  allow_create: false
+  allow_edit: false
+  allow_delete: false
+  allow_media_generation: false
+  workspace_path: agent_workspace/virtual_desktop
+  max_projects: 25
+  max_files_per_project: 250
+  max_file_size_kb: 2048
+  max_asset_size_mb: 32
+  max_project_size_mb: 100
+  job_timeout_seconds: 1800
+```
+
+Die eingebetteten Laufzeiten sind Phaser `4.2.1` und Three.js `0.185.1`; externe CDNs, APIs und Assets sind nicht erlaubt. Siehe [Game Maker Studio](../../game-maker-studio.md).
+
+### Lokale Netzwerkfreigaben
+
+`network_shares` verwaltet nur Shares auf dem AuraGo-Host. Die Erkennung bleibt passiv und installiert keine Pakete, startet keine Dienste und verändert keine globale Serverkonfiguration. Änderungen benötigen jeweils die passende Berechtigung und eine vorhandene, kanonische Directory unter `allowed_roots`.
+
+```yaml
+network_shares:
+  enabled: false
+  readonly: true
+  allow_create: false
+  allow_update: false
+  allow_delete: false
+  allowed_roots: []
+  smb:
+    enabled: true
+    allow_guest: false
+    allowed_principals: []
+  nfs:
+    enabled: true
+    allowed_clients: []
+```
+
+Nur AuraGo-erstellte und im Ledger `data/network_shares.db` erfasste Shares dürfen geändert oder entfernt werden. Das Entfernen eines Shares löscht niemals Directory oder Dateien. Docker und gehärtete Services erlauben in der Standardkonfiguration nur lesbaren Status. Details: [Lokale SMB- und NFS-Freigaben](../../network_shares.md).
+
+### Workspace Search und go2rtc
+
+Der residente Workspace-Index wird über `workspace_search.enabled` gesteuert; er ist vom semantischen `indexing`-Indexer getrennt und speichert keine Dateiinhalte. Die Kamera-Integration `go2rtc` bleibt ebenfalls opt-in; Quellen und internes Passwort werden ausschließlich im Vault verwaltet. Die ausführlichen Grenzen stehen in [go2rtc](../../go2rtc.md) und im Abschnitt [Workspace Search](06-tools.md#10-workspace-search).
 
 ---
 

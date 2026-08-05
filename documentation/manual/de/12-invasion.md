@@ -433,7 +433,7 @@ Bei `invasion_control.enabled: true` kann der Agent Nests, Eggs, Tasks und Artef
 | `list_artifacts`, `get_artifact`, `read_artifact` | Artefakt-Zugriff |
 | `list_egg_messages`, `ack_egg_message` | Egg-Benachrichtigungen |
 
-Details: [Kapitel 22: Interne Tools](./22-internal-tools.md)
+Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 
 ---
 

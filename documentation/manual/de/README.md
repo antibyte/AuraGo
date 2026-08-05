@@ -2,9 +2,9 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** 9. Juli 2026
+> 📅 **Stand:** 5. August 2026
 > 🔄 **Version:** 2.x kompatibel  
-> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Composio Tool Previews, Sandbox Härtung, LLM Guardian Updates, Cloudflare Gateway, Chromecast Media Security)
+> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Speech Lab, native SIP-Telefonie, Game Maker Studio, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM und Operational Issues)
 
 ---
 
@@ -38,6 +38,12 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **🔧 Output Compression** | Token-sparende Deduplizierung von Tool-Ausgaben |
 | **🖥️ Virtual Desktop** | Workspace-basierte Desktop-Apps, Code Studio, Pixel, Zipper und App-Launch-Workflows |
 | **🛒 Desktop Software Store** | Verwaltete Docker-Apps wie Termix, code-server, Dozzle, Beszel und Node-RED |
+| **🎙️ Speech Lab** | Lokaler ASR-/TTS-Stack für Chat und klassische Telefonie |
+| **☎️ Native SIP-Telefonie** | Browser-Telefon und optionaler Telefon-Agent mit expliziten Richtlinien |
+| **🎮 Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung im Virtual Desktop |
+| **🖥️ Virtual Computers** | Verwaltete Boring Computers mit VNC, Terminal, Volumes und Agent-Jobs |
+| **🗣️ Realtime Speech** | Live-Sprachsessions mit OpenAI-, xAI- oder Gemini-Profilen |
+| **🧪 Lokales LLM** | Verwaltete AuraGo-Qwen-Laufzeit für Tests und Fallback |
 
 ---
 
@@ -176,6 +182,7 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-04 | YepAPI, Inventar/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression zu Integrations-Kapitel hinzugefügt |
 | 2026-05 | Virtual Desktop, Desktop Software Store, Pixel-Bildeditor, Code Studio, Task-Rules-API und erweiterte Output Compression aktualisiert |
 | 2026-03 | **Chat-Commands /sudopwd** hinzugefügt |
+| 2026-08 | **Speech Lab, SIP-Telefonie, Game Maker, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, Netzwerkfreigaben, Operational Issues und neue APIs synchronisiert** |
 
 ---
 

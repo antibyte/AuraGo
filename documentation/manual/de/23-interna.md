@@ -546,6 +546,19 @@ Tool-Guides werden dynamisch adaptiert:
 - **RAG-Indexierung**: Guides sind in der Vector-DB indiziert für semantische Suche
 - **On-Demand Loading**: `get_tool_info` lädt Guides bei Bedarf nach
 
+### 7.5 Laufzeitidentität und Prompt-Drift
+
+AuraGo stellt die laufende Build-Identität über `GET /api/system/info` bereit. Die Antwort enthält `build_id`, `vcs_revision`, `vcs_time` und die Information, ob der Arbeitsbaum verändert wurde. Release-Images setzen die Kennung beim Linken mit `-X aurago/internal/buildinfo.BuildID=<geprüfter-Commit>`; ein `-dirty`-Build ist kein akzeptiertes sauberes Release-Artefakt.
+
+Wenn `logging.enable_prompt_log` aktiviert ist, wird jede vollständige Prompt-Anfrage nach `log/prompts.log` geschrieben. Das ist ein ausdrücklicher Diagnosemodus, weil Anfragen sensible Gesprächs- oder Tool-Daten enthalten können. Einträge enthalten Provider/Modell, Build- und VCS-Identität, Prompt-Revision, sortierte aktive Tools, Tool-Catalog-Hash sowie Recovery-/Retry-Zähler und machen Laufzeit-Drift prüfbar.
+
+```yaml
+logging:
+    enable_prompt_log: false
+```
+
+Bei der Deployment-Abnahme sollte `build_id` aus `/api/system/info` mit dem geprüften Commit verglichen und ein verändertes Artefakt (`vcs_modified: true`) abgelehnt werden. Prompt-Logs sind Diagnoseaufzeichnungen und kein Ersatz für die bereinigten Dashboard-Statistiken.
+
 ---
 
 ## 8. Sicherheitsarchitektur

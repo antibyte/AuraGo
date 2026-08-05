@@ -546,6 +546,19 @@ Tool guides are dynamically adapted:
 - **RAG Indexing**: Guides are indexed in the vector DB for semantic search
 - **On-Demand Loading**: `get_tool_info` loads guides on demand
 
+### 7.5 Runtime identity and prompt drift
+
+AuraGo exposes the running build identity through `GET /api/system/info`. The response includes `build_id`, `vcs_revision`, `vcs_time`, and whether the working tree was modified. Release images set the identifier at link time with `-X aurago/internal/buildinfo.BuildID=<reviewed-commit>`; a `-dirty` build is not an accepted clean release artifact.
+
+When `logging.enable_prompt_log` is enabled, each full prompt request is written to `log/prompts.log`. This is an explicit diagnostic mode because requests can contain sensitive conversation or tool data. Entries carry the provider/model, build and VCS identity, prompt revision, sorted active tools, tool-catalog hash, and recovery/retry counters, making runtime drift auditable.
+
+```yaml
+logging:
+    enable_prompt_log: false
+```
+
+Deployment acceptance should compare `/api/system/info.build_id` with the reviewed commit and reject a modified (`vcs_modified: true`) artifact. Prompt logs are diagnostic records, not a replacement for the sanitized dashboard statistics.
+
 ---
 
 ## 8. Security Architecture

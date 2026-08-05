@@ -2,9 +2,9 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** July 9, 2026
+> 📅 **Updated:** August 5, 2026
 > 🔄 **Version:** 2.x compatible  
-> 📝 **Last Update:** Documentation sync with current codebase (Composio Tool Previews, Sandbox Hardening, LLM Guardian Updates, Cloudflare Gateway, Chromecast Media Security)
+> 📝 **Last Update:** Documentation sync with current codebase (Speech Lab, native SIP telephony, Game Maker Studio, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, and operational issue handling)
 
 ---
 
@@ -38,6 +38,12 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **🔧 Output Compression** | Token-saving deduplication of tool outputs |
 | **🖥️ Virtual Desktop** | Workspace-backed desktop apps, Code Studio, Pixel, Zipper, and app launch workflows |
 | **🛒 Desktop Software Store** | Managed Docker apps such as Termix, code-server, Dozzle, Beszel, and Node-RED |
+| **🎙️ Speech Lab** | Local ASR/TTS stack for chat and classic telephone flows |
+| **☎️ Native SIP Phone** | Browser phone and optional telephone agent with explicit call policies |
+| **🎮 Game Maker Studio** | Isolated offline 2D/3D game creation in the Virtual Desktop |
+| **🖥️ Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent tasks |
+| **🗣️ Realtime Speech** | Live voice sessions with OpenAI, xAI, or Gemini profiles |
+| **🧪 Local LLM** | Managed AuraGo-Qwen test and fallback runtime |
 
 ---
 
@@ -176,6 +182,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-04 | Added YepAPI, Inventory/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression to Integrations chapter |
 | 2026-05 | Updated Virtual Desktop, Desktop Software Store, Pixel image editor, Code Studio, Task Rules API, and advanced Output Compression documentation |
 | 2026-03 | **Added Chat Command /sudopwd** |
+| 2026-08 | **Synced Speech Lab, SIP telephony, Game Maker, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, network shares, Operational Issues, and new APIs** |
 
 ---
 

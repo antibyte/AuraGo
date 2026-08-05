@@ -2,7 +2,7 @@
 
 AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf alle Funktionen. Die API folgt den REST-Prinzipien und verwendet JSON für die Datenübertragung.
 
-> 📅 **Stand:** 7. Juni 2026
+> 📅 **Stand:** 5. August 2026
 > 🔌 **Basis-URL:** `http://localhost:8088` (Standard)
 
 ---
@@ -66,9 +66,22 @@ AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf all
 55. [Todos API](#todos-api)
 56. [Preferences API](#preferences-api)
 57. [Space Agent API](#space-agent-api)
-58. [Warnings API](#warnings-api)
-59. [SSE Events](#sse-events)
-60. [Fehlerbehandlung](#fehlerbehandlung)
+59. [3D Printer API](#3d-printer-api)
+60. [AgentMail API](#agentmail-api)
+61. [Native SIP API](#native-sip-api)
+62. [Speech Lab API](#speech-lab-api)
+63. [Realtime Speech API](#realtime-speech-api)
+64. [Game Maker API](#game-maker-api)
+65. [Virtual Computers API](#virtual-computers-api)
+66. [Local LLM API](#local-llm-api)
+67. [Manus API](#manus-api)
+68. [OmniRoute API](#omniroute-api)
+69. [EvoMap API](#evomap-api)
+70. [Network Shares API](#network-shares-api)
+71. [Operational-Issues-API](#operational-issues-api)
+72. [SSE Events](#sse-events)
+73. [Fehlerbehandlung](#fehlerbehandlung)
+74. [Weiterführende Links](#weiterführende-links)
 
 ---
 
@@ -1743,6 +1756,15 @@ GET /api/system/os
 GET /api/runtime
 ```
 
+### Build- und VCS-Identität
+```http
+GET /api/system/info
+```
+
+Liefert `build_id`, VCS-Revision und Zeitstempel sowie das Flag
+`vcs_modified`. Bei einer sauberen Deployment-Abnahme sollte `build_id` mit
+dem geprüften Commit verglichen und ein verändertes Artefakt abgelehnt werden.
+
 ---
 
 ## i18n API
@@ -2143,6 +2165,232 @@ POST /api/agentmail/test
   "message": "Connection successful"
 }
 ```
+
+---
+
+## Native SIP API
+
+Die administrativen SIP-Endpunkte decken Account-Konfiguration, Provider-Presets,
+Tests, Registrierungsstatus, Anrufe, Browser-Telefon-Status und Agent-Routing ab.
+
+```http
+GET    /api/sip/config
+PUT    /api/sip/config
+DELETE /api/sip/config
+GET    /api/sip/providers
+POST   /api/sip/setup
+POST   /api/sip/test
+GET    /api/sip/status
+GET    /api/sip/calls
+POST   /api/sip/calls/{id}/{action}
+GET    /api/sip/events
+GET    /api/sip/app/state
+GET    /api/sip/agent
+PUT    /api/sip/agent
+GET    /api/sip/agent/catalog
+POST   /api/sip/agent/test
+POST   /api/sip/browser-media/sessions
+DELETE /api/sip/browser-media/sessions/{id}
+```
+
+Die Browser-Media-Sessions sind Same-Origin-geschützt und auf das
+authentifizierte Virtual-Desktop-Telefon begrenzt. SIP-Passwörter, RTP, rohe
+Header und Provider-Credentials werden von diesen APIs nie zurückgegeben.
+
+---
+
+## Speech Lab API
+
+```http
+GET    /api/speech-lab/status
+GET    /api/speech-lab/capability
+GET    /api/speech-lab/catalog
+GET    /api/speech-lab/suggestions
+PUT    /api/speech-lab/stack
+POST   /api/speech-lab/deployment/install
+POST   /api/speech-lab/deployment/start
+POST   /api/speech-lab/deployment/stop
+POST   /api/speech-lab/deployment/update
+DELETE /api/speech-lab/deployment
+```
+
+Der Status ist authentifiziert und bereinigt; Capability, Katalog, Vorschläge,
+Stack und Deployment-Mutationen benötigen Administratorrechte. Stack-Updates
+akzeptieren die aktive Kombination `{asr_id, tts_id, voice}` und werden während
+einer Speech-Operation oder eines SIP-Anrufs abgelehnt.
+
+---
+
+## Game Maker API
+
+Virtual-Desktop-Clients verwenden diese authentifizierten, projektbezogenen Endpunkte:
+
+```http
+GET    /api/game-maker/capabilities
+GET    /api/game-maker/projects
+POST   /api/game-maker/projects
+GET    /api/game-maker/projects/{project}
+PATCH  /api/game-maker/projects/{project}
+DELETE /api/game-maker/projects/{project}
+POST   /api/game-maker/projects/{project}/jobs
+GET    /api/game-maker/projects/{project}/events
+POST   /api/game-maker/jobs/{id}/cancel
+GET    /api/game-maker/projects/{project}/revisions
+POST   /api/game-maker/projects/{project}/revisions/{number}/restore
+POST   /api/game-maker/projects/{project}/preview-token
+GET    /api/game-maker/preview/{token}/index.html
+GET    /api/game-maker/projects/{project}/export
+```
+
+Preview-Tokens sind kurzlebig und an Projekt sowie gegebenenfalls den aktiven
+Job gebunden. Event-Streams unterstützen die Wiederaufnahme über
+`Last-Event-ID` oder den Query-Parameter `after`.
+
+---
+
+## Local LLM API
+
+Alle Local-LLM-Endpunkte sind administratorgeschützt und liefern bereinigten Status.
+
+```http
+GET  /api/local-llm/status
+POST /api/local-llm/probe
+POST /api/local-llm/install
+POST /api/local-llm/action
+POST /api/local-llm/role
+POST /api/local-llm/acknowledgement
+```
+
+Der Endpunkt `action` steuert Lebenszyklusaktionen wie `start`, `stop`,
+`recreate` und `smoke_test`. Experimentelle Hardware-Aktionen benötigen die
+aktuelle Hardware-Fingerprint-Bestätigung.
+
+---
+
+## Realtime Speech API
+
+```http
+GET    /api/realtime-speech/config
+PUT    /api/realtime-speech/config
+GET    /api/realtime-speech/catalog
+GET    /api/realtime-speech/status
+POST   /api/realtime-speech/test
+POST   /api/realtime-speech/sessions
+PATCH  /api/realtime-speech/sessions/{id}
+DELETE /api/realtime-speech/sessions/{id}
+POST   /api/realtime-speech/actions
+DELETE /api/realtime-speech/actions/{request_id}
+POST   /api/realtime-speech/turns
+```
+
+Konfigurationsänderungen werden atomar über YAML und die Vault-Einträge pro
+Profil ausgeführt. Session- und Action-Routen erzwingen Same-Origin,
+Lease-Ownership und begrenzte Request-Größen. Action-Antworten werden als SSE gestreamt.
+
+---
+
+## Virtual Computers API
+
+```http
+GET    /api/virtual-computers/setup/status
+POST   /api/virtual-computers/setup/preflight
+POST   /api/virtual-computers/setup/install
+POST   /api/virtual-computers/setup/repair
+GET    /api/virtual-computers/status
+GET    /api/virtual-computers/templates
+GET    /api/virtual-computers/volumes
+GET    /api/virtual-computers/volumes/{id}
+POST   /api/virtual-computers/storage/test
+GET    /api/virtual-computers/tasks
+POST   /api/virtual-computers/tasks
+GET    /api/virtual-computers/tasks/{id}
+DELETE /api/virtual-computers/tasks/{id}
+GET    /api/virtual-computers/machines
+```
+
+Maschinenspezifische Aktionen liegen unter `/api/virtual-computers/machines/{id}/`,
+darunter Screenshots, Publish, Fork, Save, Exec, VNC, TTY und Agent-Kanäle.
+VNC und TTY sind WebSocket-Endpunkte und benötigen Desktop-Schreibrechte;
+boringd-Credentials und private Upstream-URLs bleiben serverseitig.
+
+---
+
+## Manus API
+
+```http
+GET /api/manus/status
+POST /api/manus/test
+GET /api/manus/projects
+GET /api/manus/connectors
+GET /api/manus/skills
+```
+
+Diese Endpunkte für Administratoren liefern bereinigte Account-Kataloge und
+Verbindungsstatus. Aufgabenerstellung, Warten, Nachrichten und kontrollierte
+Dateiübertragung laufen über das richtliniengeschützte native `manus`-Tool,
+nicht über eine unbeschränkte REST-Oberfläche.
+
+---
+
+## OmniRoute API
+
+```http
+GET  /api/omniroute/status
+POST /api/omniroute/test
+POST /api/omniroute/start
+POST /api/omniroute/stop
+```
+
+Die Lifecycle-Endpunkte steuern nur den konfigurierten AuraGo-Sidecar oder
+testen den externen Endpoint. Secrets und Provider-Credentials bleiben im Vault.
+
+---
+
+## EvoMap API
+
+```http
+GET  /api/evomap/status
+POST /api/evomap/test
+POST /api/evomap/register
+```
+
+Registrierungs- und Statusantworten sind bereinigt. EvoMap-Payloads gelten als
+nicht vertrauenswürdige externe Daten; der aktuelle MVP aktiviert keine Publish-,
+Report- oder Bounty-Mutationen.
+
+---
+
+## Network Shares API
+
+```http
+GET    /api/network-shares/status
+POST   /api/network-shares/reprobe
+POST   /api/network-shares/validate
+GET    /api/network-shares
+POST   /api/network-shares
+PUT    /api/network-shares/{id}
+DELETE /api/network-shares/{id}
+```
+
+Diese Endpunkte benötigen Administratorrechte. Die Validierung kann als
+Dry-Run erfolgen und schreibt weder Host-Konfiguration noch Ledger. Mutationen
+betreffen nur verwaltete Shares und löschen niemals deren Directories oder Dateien.
+
+---
+
+## Operational-Issues-API
+
+```http
+GET  /api/operational-issues
+GET  /api/operational-issues/stale-preview
+POST /api/operational-issues/archive-stale
+POST /api/operational-issues/{id}/resolve
+POST /api/operational-issues/{id}/archive
+```
+
+Listenfilter sind `status`, `kind`, `severity`, `source`, `limit` und `offset`.
+Datensätze sind bereinigt und verwenden nicht umkehrbare öffentliche IDs.
+Archivieren und Auflösen bewahren die Historie.
 
 ---
 

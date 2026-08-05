@@ -13,9 +13,9 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 | **🌐 Web & Sites** | Homepage scaffold, Build, Deploy, Registry, Netlify, Vercel | Nein (`homepage.enabled`) |
 | **🐳 Docker** | Container, Images, Netzwerke, Sidecars | Ja |
 | **🖥️ Proxmox** | VMs, LXCs, Snapshots | Ja |
-| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D-Drucker | Ja (teilweise) |
+| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D-Drucker, go2rtc, Netzwerkfreigaben | Ja (teilweise) |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | Nein (teilweise) |
-| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx, Rocket.Chat, MQTT, MeshCentral | Nein |
+| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx, native SIP-Telefonie, Rocket.Chat, MQTT, MeshCentral | Nein (teilweise) |
 | **🎬 Medien-Generierung** | Bilder, Musik, Videos, TTS, Vision, Piper, Supertonic, Media Registry | Nein (Provider-Limits) |
 | **🔧 System** | Metriken, Prozesse, Cron, Sandbox, Background Tasks, Daemon Skills | Teilweise |
 | **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph, Cheatsheets, Core Memory | Nein |
@@ -25,7 +25,7 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 | **🎬 Medien-Konvertierung** | FFmpeg, ImageMagick, Video-Download, YouTube-Player, Transcription | Nein |
 | **🛒 Skills & Python** | Skill Manager, Manifest, Python Tool Bridge, Daemon Skills | Nein (teilweise) |
 | **🔐 Sicherheit & Vault** | Vault, AES-256-GCM, Secret Injection, LLM Guardian, SSH Key Manager | Nein |
-| **🖥️ Virtual Desktop** | Code Studio, Pixel, Zipper, App-Launcher, SSH/SFTP/VNC, Office (Pixel/Calc/Writer) | Nein (teilweise) |
+| **🖥️ Virtual Desktop** | Code Studio, Pixel, Zipper, Game Maker Studio, Network Cameras, App-Launcher, SSH/SFTP/VNC, Office (Pixel/Calc/Writer) | Nein (teilweise) |
 | **🚀 Missionen & Co-Agents** | Mission Control v2, Co-Agent Dispatcher, A2A, Handoff | Nein (teilweise) |
 | **🔌 MCP & Composio** | Model Context Protocol Client/Server, Compos.io, AI Gateway | Nein (`agent.allow_mcp`) |
 | **🛡️ Inventar & Wake-on-LAN** | SSH-Geräte-Inventar, WOL, SSH Key Manager | Ja (passiver Zugriff) |
@@ -51,6 +51,16 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **Invasion Control** | Verteilte Orchestrierung über mehrere Hosts |
 | **Homepage / Website-Projekte** | Docker-Dev-Workspace, fokussierte Tools, Registry & Historie |
 | **Sudo-Execution** | Vault-gestütztes Credential-Handling für privilegierte Befehle |
+| **Speech Lab** | Lokale ASR-/TTS-Pipeline für Chat und Telefonie, mit gemeinsamem Browser Lab |
+| **Native SIP-Telefonie** | Eine SIP-Leitung, Browser-Telefon und optionaler Telefon-Agent mit Classic- oder Gemini-Live-Backend |
+| **Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung im Virtual Desktop |
+| **Workspace Search** | Residenter Pure-Go-Index für schnelle Suche im Agent-Workspace |
+| **Lokale Netzwerkfreigaben** | Read-only-Erkennung sowie kontrollierte SMB-/NFS-Verwaltung auf dem AuraGo-Host |
+| **Realtime Speech** | Live-Sprachsessions mit getrennten OpenAI-, xAI- oder Gemini-Profilen |
+| **Virtual Computers** | Verwaltete Boring Computers mit VNC, Terminal, Volumes und Agent-Jobs |
+| **Manus** | Richtliniengeschützte asynchrone Aufgaben und kontrollierte Dateiübertragung |
+| **OmniRoute** | Verwaltetes oder externes OpenAI-kompatibles Gateway |
+| **EvoMap** | Optionale GEP-/A2A-Integration mit sicherem Read-only-Standard |
 
 ---
 
@@ -246,6 +256,38 @@ homepage:
 ```
 
 Siehe [Integrationen](08-integrations.md#homepage--und-website-projekte) und [Interne Tools](22-interne-tools.md#homepage--statische-website-tool-familie).
+
+
+---
+
+### 10. Workspace Search
+
+`workspace_search` ist der residente, Pure-Go-Suchindex für den vollständigen Agent-Workspace. Er benötigt weder CGO, mmap, FFI noch fsnotify und speichert keine Dateiinhalte dauerhaft. In `data/workspace_search.db` liegen nur Zugriffs- und Frecency-Metadaten.
+
+Das native Tool bietet sechs Operationen:
+
+| Operation | Zweck |
+|-----------|-------|
+| `find` | Dateien nach Pfad- oder Namensmuster finden |
+| `grep` | Textdateien nach Text oder regulärem Ausdruck durchsuchen |
+| `glob` | Pfad-Muster innerhalb des Workspace auswerten |
+| `recent` | Zuletzt oder häufig verwendete Dateien nach Frecency auflisten |
+| `rescan` | Den Index manuell neu aufbauen |
+| `status` | Indexgröße, letzte Synchronisierung und Grenzen anzeigen |
+
+Der Index wird aus `directories.workspace_dir` abgeleitet. Ausschlüsse wie `.git`, `node_modules`, virtuelle Umgebungen, Vault-Dateien und SQLite-Dateien bleiben standardmäßig außen vor. Die Treffergrenze und Größenlimits können per YAML angepasst werden:
+
+```yaml
+workspace_search:
+  enabled: true
+  max_file_size_mb: 10
+  max_index_size_mb: 256
+  max_results: 100
+  poll_interval_seconds: 5
+  fuzzy_threshold: 0.35
+```
+
+Die Suche ist vom semantischen RAG-Indexer getrennt: Sie liefert Dateitreffer und Textstellen direkt aus dem Workspace, während `indexing` Embeddings und Wissenskontext erzeugt.
 
 
 ---

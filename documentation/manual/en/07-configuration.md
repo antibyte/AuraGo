@@ -900,6 +900,115 @@ auth:
 
 ---
 
+## New Runtimes and Local Integrations
+
+The following blocks are available in the current Web UI or `config_template.yaml`. All features remain disabled or read-only by default.
+
+### AuraGo-Qwen — local test and fallback model
+
+AuraGo-Qwen is a small local model tuned for AuraGo tool-call shapes. It is intended for tests and controlled fallback use, not as a replacement for a capable cloud or large local model. Open **Config → Local LLM**, check compatibility first, and perform installation or a smoke test only after an explicit administrator action.
+
+```yaml
+local_llm:
+    enabled: false
+    backend: auto             # auto, cuda, sycl, vulkan, cpu
+    model_variant: q4_k_m     # q4_k_m or q8_0
+    mtp: off                  # off, auto, mtp2
+    context_size: 16384       # 16384 or 32768
+    idle_timeout_minutes: 15
+    listen_port: 18081        # native mode only, loopback-bound
+```
+
+The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
+
+### Speech Lab
+
+Speech Lab connects the local s2s ASR/TTS pipeline to AuraGo. The active ASR, TTS, and voice combination is read from one `/ready` snapshot; AuraGo still owns the conversation, LLM, tools, Guardian, and memory. Channels are enabled independently:
+
+```yaml
+speech_lab:
+    enabled: false
+    base_url: http://s2s-vulkan:8765
+    language: en
+    chat_llm_provider_id: ""
+    timeout_seconds: 60
+    sip_enabled: false
+    chat_input_enabled: false
+    chat_output_enabled: false
+```
+
+In managed mode the verified bundle is downloaded only after administrator confirmation. `AURAGO_SPEECH_LAB_BASE_URL` can override the URL at runtime; the Browser Lab is normally derived from the current AuraGo host on port `8766`. There is no silent cloud fallback. See [Speech Lab](../../s2s_speech_lab.md).
+
+### Native SIP telephony
+
+SIP settings live under `sip` and are edited under **Config → SIP Phone**. The feature remains disabled and read-only until the account, network, and permissions are explicitly configured. The digest password belongs only in the Vault key `sip_endpoint_password`.
+
+```yaml
+sip:
+    enabled: false
+    readonly: true
+    bind_host: 127.0.0.1
+    bind_port: 5060
+    transport: udp
+    advertised_signaling_host: ""
+    media:
+        rtp_port_start: 30000
+        rtp_port_end: 30099
+        advertised_host: ""
+```
+
+Docker requires explicit PBX-reachable values for `advertised_signaling_host` and `media.advertised_host` before active calls can answer or dial. V1 supports G.711 and UDP/TCP/TLS, but not STUN, ICE, WS/WSS, or SRTP. See [Native SIP telephony](../../sip_telephony.md) for policies, the browser phone, and the telephone agent.
+
+### Game Maker Studio
+
+Game Maker Studio is an isolated Virtual Desktop workspace for offline single-player games. New projects and changes remain locked down by default and become a published revision only after Pure-Go esbuild validation succeeds.
+
+```yaml
+game_maker:
+    enabled: false
+    readonly: true
+    allow_create: false
+    allow_edit: false
+    allow_delete: false
+    allow_media_generation: false
+    workspace_path: agent_workspace/virtual_desktop
+    max_projects: 25
+    max_files_per_project: 250
+    max_file_size_kb: 2048
+    max_asset_size_mb: 32
+    max_project_size_mb: 100
+    job_timeout_seconds: 1800
+```
+
+The embedded runtimes are Phaser `4.2.1` and Three.js `0.185.1`; external CDNs, APIs, and assets are not allowed. See [Game Maker Studio](../../game-maker-studio.md).
+
+### Local network shares
+
+`network_shares` manages shares on the AuraGo host only. Detection is passive: it installs no packages, starts no services, and changes no global server configuration. Each mutation needs its matching permission and an existing canonical directory beneath `allowed_roots`.
+
+```yaml
+network_shares:
+    enabled: false
+    readonly: true
+    allow_create: false
+    allow_update: false
+    allow_delete: false
+    allowed_roots: []
+    smb:
+        enabled: true
+        allow_guest: false
+        allowed_principals: []
+    nfs:
+        enabled: true
+        allowed_clients: []
+```
+
+Only shares created by AuraGo and recorded in `data/network_shares.db` may be changed or removed. Removing a share never removes its directory or files. Docker and hardened services expose read-only status in the standard deployment. See [Local SMB and NFS shares](../../network_shares.md).
+
+### Workspace Search and go2rtc
+
+The resident workspace index is controlled by `workspace_search.enabled`; it is separate from the semantic `indexing` service and does not persist file contents. The `go2rtc` camera integration is opt-in as well; sources and the internal password are stored only in the Vault. See [go2rtc](../../go2rtc.md) and [Workspace Search](06-tools.md#10-workspace-search) for the detailed limits.
+
 ## Compact YAML Reference
 
 The blocks below are available for advanced and headless setups. Most can be configured more easily in the **Web UI under Config → Integrations, Config → Security, and Config → Tools**.
@@ -939,6 +1048,11 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8`<br>`  default_cost:`<br>`    input_per_million: 1.0`<br>`    output_per_million: 3.0` |
 | `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  provider: ""`<br>`  error_threshold: 2`<br>`  probe_interval_seconds: 60` |
 | `a2a` | Agent-to-Agent protocol. | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`    base_path: "/a2a"`<br>`    agent_name: "AuraGo"`<br>`    streaming: true`<br>`  client:`<br>`    enabled: false`<br>`    remote_agents: []` |
+| `realtime_speech` | Live voice sessions. | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""`<br>`  park_after_seconds: 5` |
+| `virtual_computers` | Managed virtual computers. | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
+| `manus` | Asynchronous Manus tasks. | `manus:`<br>`  enabled: false`<br>`  read_only: true`<br>`  allowed_project_ids: []` |
+| `omniroute` | OpenAI-compatible gateway. | `omniroute:`<br>`  enabled: false`<br>`  mode: managed`<br>`  auto_start: true` |
+| `evomap` | EvoMap GEP/A2A integration. | `evomap:`<br>`  enabled: false`<br>`  readonly: true`<br>`  base_url: https://evomap.ai` |
 | `music_generation` | AI music generation. | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  max_daily: 0` |
 | `security_proxy` | Public-facing protection layer. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
 | `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_skip_verify: false` |

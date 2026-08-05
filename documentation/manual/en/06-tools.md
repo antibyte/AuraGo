@@ -13,9 +13,9 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 | **🌐 Web & Sites** | Homepage scaffold, build, deploy, registry, Netlify, Vercel | No (`homepage.enabled`) |
 | **🐳 Docker** | Containers, images, networks, sidecars | Yes |
 | **🖥️ Proxmox** | VMs, LXCs, snapshots | Yes |
-| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D printer | Yes (partial) |
+| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D printer, go2rtc, network shares | Yes (partial) |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | No (partial) |
-| **📧 Communication** | Email, Telegram, Discord, Telnyx, Rocket.Chat, MQTT, MeshCentral | No |
+| **📧 Communication** | Email, Telegram, Discord, Telnyx, native SIP telephony, Rocket.Chat, MQTT, MeshCentral | No (partial) |
 | **🎬 Media Generation** | Images, music, videos, TTS, vision, Piper, Supertonic, media registry | No (provider limits apply) |
 | **🔧 System** | Metrics, processes, cron, sandbox, background tasks, daemon skills | Partial |
 | **🧠 Memory** | Memory, notes, knowledge graph, cheatsheets, core memory | No |
@@ -25,7 +25,7 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 | **🎬 Media Conversion** | FFmpeg, ImageMagick, video download, YouTube player, transcription | No |
 | **🛒 Skills & Python** | Skill Manager, manifest, Python tool bridge, daemon skills | No (partial) |
 | **🔐 Security & Vault** | Vault, AES-256-GCM, secret injection, LLM Guardian, SSH key manager | No |
-| **🖥️ Virtual Desktop** | Code Studio, Pixel, Zipper, app launcher, SSH/SFTP/VNC, office (Pixel/Calc/Writer) | No (partial) |
+| **🖥️ Virtual Desktop** | Code Studio, Pixel, Zipper, Game Maker Studio, Network Cameras, app launcher, SSH/SFTP/VNC, office (Pixel/Calc/Writer) | No (partial) |
 | **🚀 Missions & Co-Agents** | Mission Control v2, co-agent dispatcher, A2A, handoff | No (partial) |
 | **🔌 MCP & Composio** | Model Context Protocol client/server, Compos.io, AI Gateway | No (`agent.allow_mcp`) |
 | **🛡️ Inventory & Wake-on-LAN** | SSH device inventory, WOL, SSH key manager | Yes (passive access) |
@@ -51,6 +51,16 @@ The current version includes several powerful extensions:
 | **Invasion Control** | Distributed orchestration across multiple hosts |
 | **Homepage / site projects** | Docker dev workspace, focused tools, project registry & history |
 | **Sudo Execution** | Vault-backed credential handling for privileged commands |
+| **Speech Lab** | Local ASR/TTS pipeline for chat and telephony, with a shared browser lab |
+| **Native SIP telephony** | One SIP account, browser phone, and optional telephone agent with classic or Gemini Live backends |
+| **Game Maker Studio** | Isolated offline 2D/3D game development inside the Virtual Desktop |
+| **Workspace Search** | Resident Pure-Go index for fast searches across the agent workspace |
+| **Local network shares** | Read-only detection and controlled SMB/NFS management on the AuraGo host |
+| **Realtime Speech** | Live voice sessions with separate OpenAI, xAI, or Gemini profiles |
+| **Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent tasks |
+| **Manus** | Policy-gated asynchronous tasks and controlled file transfers |
+| **OmniRoute** | Managed or external OpenAI-compatible gateway |
+| **EvoMap** | Optional GEP/A2A integration with a secure read-only default |
 
 ---
 
@@ -249,6 +259,38 @@ homepage:
 ```
 
 See [Integrations](08-integrations.md#homepage-and-site-projects) and [Internal Tools](22-internal-tools.md#homepage--static-site-tool-family).
+
+
+---
+
+### 10. Workspace Search
+
+`workspace_search` is the resident Pure-Go search index for the complete agent workspace. It requires no CGO, mmap, FFI, or fsnotify dependency and does not persist file contents. Only access and frecency metadata is stored in `data/workspace_search.db`.
+
+The native tool provides six operations:
+
+| Operation | Purpose |
+|-----------|---------|
+| `find` | Find files by path or name pattern |
+| `grep` | Search text files for text or a regular expression |
+| `glob` | Evaluate a path pattern inside the workspace |
+| `recent` | List recently or frequently used files by frecency |
+| `rescan` | Rebuild the index manually |
+| `status` | Show index size, last sync, and configured limits |
+
+The index is derived from `directories.workspace_dir`. Exclusions such as `.git`, `node_modules`, virtual environments, Vault files, and SQLite files are outside the index by default. Adjust result and size limits in YAML:
+
+```yaml
+workspace_search:
+  enabled: true
+  max_file_size_mb: 10
+  max_index_size_mb: 256
+  max_results: 100
+  poll_interval_seconds: 5
+  fuzzy_threshold: 0.35
+```
+
+Workspace Search is separate from the semantic RAG index: it returns file matches and text excerpts directly from the workspace, while `indexing` creates embeddings and knowledge context.
 
 
 ---

@@ -19,8 +19,9 @@ Diese Startseite bündelt alle gepflegten Handbücher und Einstiegslinks.
 - [Sicherheit](de/14-sicherheit.md) / [Security](en/14-security.md)
 
 ## Hinweise
-- Die Manuals wurden am 14. Juni 2026 erneut gegen den aktuellen Repo-Stand geprüft.
-- Interne Verlinkungen, Desktop-Dokumentation, API-Referenz und Konfigurationsbeispiele wurden nachgeschärft (u. a. Config-UX, Setup-Erfolgsbildschirm, Homepage-Registry, Juni 2026).
+- Die Manuals wurden am 5. August 2026 erneut gegen den aktuellen Repo-Stand geprüft.
+- Die Ergänzung umfasst unter anderem Speech Lab, native SIP-Telefonie, Game Maker Studio, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, lokale SMB/NFS-Freigaben und Operational Issues.
+- Interne Verlinkungen, API-Referenz, Konfigurationsbeispiele und go2rtc-Sicherheitsdetails wurden nachgeschärft.
 
 ## Weitere Dokumentation (Repository)
 

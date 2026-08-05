@@ -2,7 +2,7 @@
 
 AuraGo provides a comprehensive REST API for programmatic access to all features. The API follows REST principles and uses JSON for data transfer.
 
-> 📅 **Updated:** June 7, 2026
+> 📅 **Updated:** August 5, 2026
 > 🔌 **Base URL:** `http://localhost:8088` (default)
 
 ---
@@ -67,8 +67,22 @@ AuraGo provides a comprehensive REST API for programmatic access to all features
 56. [Preferences API](#preferences-api)
 57. [Space Agent API](#space-agent-api)
 58. [Warnings API](#warnings-api)
-59. [SSE Events](#sse-events)
-60. [Error Handling](#error-handling)
+59. [3D Printer API](#3d-printer-api)
+60. [AgentMail API](#agentmail-api)
+61. [Native SIP API](#native-sip-api)
+62. [Speech Lab API](#speech-lab-api)
+63. [Realtime Speech API](#realtime-speech-api)
+64. [Game Maker API](#game-maker-api)
+65. [Virtual Computers API](#virtual-computers-api)
+66. [Local LLM API](#local-llm-api)
+67. [Manus API](#manus-api)
+68. [OmniRoute API](#omniroute-api)
+69. [EvoMap API](#evomap-api)
+70. [Network Shares API](#network-shares-api)
+71. [Operational Issues API](#operational-issues-api)
+72. [SSE Events](#sse-events)
+73. [Error Handling](#error-handling)
+74. [Related Links](#related-links)
 
 ---
 
@@ -1743,6 +1757,15 @@ GET /api/system/os
 GET /api/runtime
 ```
 
+### Build and VCS identity
+```http
+GET /api/system/info
+```
+
+Returns the running `build_id`, VCS revision and timestamp, and the
+`vcs_modified` flag. Clean deployment acceptance should compare `build_id` with
+the reviewed commit and reject modified artifacts.
+
 ---
 
 ## i18n API
@@ -2143,6 +2166,234 @@ POST /api/agentmail/test
   "message": "Connection successful"
 }
 ```
+
+---
+
+## Native SIP API
+
+Administrative SIP endpoints cover account configuration, provider presets,
+tests, registration status, calls, browser-phone state, and agent routing.
+
+```http
+GET    /api/sip/config
+PUT    /api/sip/config
+DELETE /api/sip/config
+GET    /api/sip/providers
+POST   /api/sip/setup
+POST   /api/sip/test
+GET    /api/sip/status
+GET    /api/sip/calls
+POST   /api/sip/calls/{id}/{action}
+GET    /api/sip/events
+GET    /api/sip/app/state
+GET    /api/sip/agent
+PUT    /api/sip/agent
+GET    /api/sip/agent/catalog
+POST   /api/sip/agent/test
+POST   /api/sip/browser-media/sessions
+DELETE /api/sip/browser-media/sessions/{id}
+```
+
+The browser-media session endpoints are same-origin protected and scoped to the
+authenticated Virtual Desktop phone. SIP passwords, RTP, raw headers, and
+provider credentials are never returned by these APIs.
+
+---
+
+## Speech Lab API
+
+```http
+GET    /api/speech-lab/status
+GET    /api/speech-lab/capability
+GET    /api/speech-lab/catalog
+GET    /api/speech-lab/suggestions
+PUT    /api/speech-lab/stack
+POST   /api/speech-lab/deployment/install
+POST   /api/speech-lab/deployment/start
+POST   /api/speech-lab/deployment/stop
+POST   /api/speech-lab/deployment/update
+DELETE /api/speech-lab/deployment
+```
+
+Status is authenticated and sanitized; capability, catalog, suggestions,
+stack, and deployment mutations require administrator access. Stack updates
+accept the active `{asr_id, tts_id, voice}` combination and are rejected while
+a speech operation or SIP call is active.
+
+---
+
+## Game Maker API
+
+Virtual Desktop clients use these authenticated, project-scoped endpoints:
+
+```http
+GET    /api/game-maker/capabilities
+GET    /api/game-maker/projects
+POST   /api/game-maker/projects
+GET    /api/game-maker/projects/{project}
+PATCH  /api/game-maker/projects/{project}
+DELETE /api/game-maker/projects/{project}
+POST   /api/game-maker/projects/{project}/jobs
+GET    /api/game-maker/projects/{project}/events
+POST   /api/game-maker/jobs/{id}/cancel
+GET    /api/game-maker/projects/{project}/revisions
+POST   /api/game-maker/projects/{project}/revisions/{number}/restore
+POST   /api/game-maker/projects/{project}/preview-token
+GET    /api/game-maker/preview/{token}/index.html
+GET    /api/game-maker/projects/{project}/export
+```
+
+Preview tokens are short-lived and bound to the project and, when applicable,
+the active job. Game Maker event streams support reconnecting with
+`Last-Event-ID` or the `after` query parameter.
+
+---
+
+## Local LLM API
+
+All Local LLM endpoints are administrator-only and return sanitized status.
+
+```http
+GET  /api/local-llm/status
+POST /api/local-llm/probe
+POST /api/local-llm/install
+POST /api/local-llm/action
+POST /api/local-llm/role
+POST /api/local-llm/acknowledgement
+```
+
+The `action` endpoint handles lifecycle actions such as `start`, `stop`,
+`recreate`, and `smoke_test`. Experimental hardware operations require the
+current hardware-fingerprint acknowledgement.
+
+---
+
+## Realtime Speech API
+
+```http
+GET    /api/realtime-speech/config
+PUT    /api/realtime-speech/config
+GET    /api/realtime-speech/catalog
+GET    /api/realtime-speech/status
+POST   /api/realtime-speech/test
+POST   /api/realtime-speech/sessions
+PATCH  /api/realtime-speech/sessions/{id}
+DELETE /api/realtime-speech/sessions/{id}
+POST   /api/realtime-speech/actions
+DELETE /api/realtime-speech/actions/{request_id}
+POST   /api/realtime-speech/turns
+```
+
+Configuration updates are atomic across YAML and per-profile Vault entries.
+Session and action routes enforce same-origin requests, lease ownership, and
+bounded request sizes. Action responses stream as SSE.
+
+---
+
+## Virtual Computers API
+
+```http
+GET    /api/virtual-computers/setup/status
+POST   /api/virtual-computers/setup/preflight
+POST   /api/virtual-computers/setup/install
+POST   /api/virtual-computers/setup/repair
+GET    /api/virtual-computers/status
+GET    /api/virtual-computers/templates
+GET    /api/virtual-computers/volumes
+GET    /api/virtual-computers/volumes/{id}
+POST   /api/virtual-computers/storage/test
+GET    /api/virtual-computers/tasks
+POST   /api/virtual-computers/tasks
+GET    /api/virtual-computers/tasks/{id}
+DELETE /api/virtual-computers/tasks/{id}
+GET    /api/virtual-computers/machines
+```
+
+Machine-specific actions are below `/api/virtual-computers/machines/{id}/`,
+including screenshots, publish, fork, save, execute, VNC, TTY, and agent
+channels. VNC and TTY are WebSocket endpoints and require Desktop write access;
+the server keeps boringd credentials and private upstream URLs out of the
+browser.
+
+---
+
+## Manus API
+
+```http
+GET /api/manus/status
+POST /api/manus/test
+GET /api/manus/projects
+GET /api/manus/connectors
+GET /api/manus/skills
+```
+
+These administrator-facing endpoints return sanitized account catalogs and
+connection status. Task creation, waiting, messages, and controlled file
+transfers are exposed through the policy-gated native `manus` tool rather than
+an unrestricted REST surface.
+
+---
+
+## OmniRoute API
+
+```http
+GET  /api/omniroute/status
+POST /api/omniroute/test
+POST /api/omniroute/start
+POST /api/omniroute/stop
+```
+
+The lifecycle endpoints control only AuraGo's configured managed sidecar or
+test the configured external endpoint. Secrets and provider credentials remain
+Vault-backed.
+
+---
+
+## EvoMap API
+
+```http
+GET  /api/evomap/status
+POST /api/evomap/test
+POST /api/evomap/register
+```
+
+Registration and status responses are sanitized. EvoMap payloads are treated
+as untrusted external data and the current MVP does not enable publish, report,
+or bounty mutations.
+
+---
+
+## Network Shares API
+
+```http
+GET    /api/network-shares/status
+POST   /api/network-shares/reprobe
+POST   /api/network-shares/validate
+GET    /api/network-shares
+POST   /api/network-shares
+PUT    /api/network-shares/{id}
+DELETE /api/network-shares/{id}
+```
+
+These endpoints are administrator-only. Validation is dry-run capable and does
+not write host configuration or ledger state. Mutations affect only managed
+shares and never delete their directories or files.
+
+---
+
+## Operational Issues API
+
+```http
+GET  /api/operational-issues
+GET  /api/operational-issues/stale-preview
+POST /api/operational-issues/archive-stale
+POST /api/operational-issues/{id}/resolve
+POST /api/operational-issues/{id}/archive
+```
+
+List filters include `status`, `kind`, `severity`, `source`, `limit`, and
+`offset`. Records are sanitized and use non-reversible public IDs. Archive and
+resolve actions preserve the issue history.
 
 ---
 

@@ -205,8 +205,58 @@ Der Tab **System** bündelt Betrieb, Diagnose und Logs.
 | **Tooling-Diagnose** | Parse-Quellen, Recovery-Events, Policy-Signale, fehleranfällige Tools | `GET /api/dashboard/tool-stats` |
 | **GitHub Repositories** | Verknüpfte Repos (bei GitHub-Integration) | `GET /api/dashboard/github-repos` |
 | **Live-Log** | Server-Log-Tail mit Regex-Filter | `GET /api/dashboard/logs?lines=100` |
+| **Operational Issues** | Bereinigte Hintergrundfehler, Schweregrad, Vorkommen, Status und Admin-Aktionen | `GET /api/operational-issues` |
 
 Prompt-Statistiken werden beim Serverneustart zurückgesetzt und erscheinen nach dem ersten Gespräch.
+
+---
+
+## Operational Issues
+
+Operational Issues sind dauerhafte Datensätze für Probleme aus Hintergrundverarbeitung, Maintenance, Health-Checks oder wiederholter Tool-Ausführung. AuraGo dedupliziert sie über einen Fingerprint und speichert Revisionen, Vorkommen, Status und Zeitpunkte, statt für denselben Fehler unbegrenzt neue Warnungen anzulegen.
+
+### Hinweise und Zustellung
+
+- Hintergrund- und Maintenance-Code erfasst das Problem, verschickt aber selbst keinen Benutzerhinweis.
+- Beim nächsten direkten Chatkontakt wählt der Supervisor höchstens zwei geänderte Issues nach Schweregrad, Revisionsänderung und Aktualität aus. Das Modell erhält den vorbereiteten Diagnosekontext und entscheidet nicht, ob der Nutzer den Hinweis sieht.
+- Unterstützte Notification-Broker können das Event `operational_issue_notice` erhalten. Andere Kanäle bekommen denselben lokalisierten Text als deterministischen Prefix der finalen Antwort. Eine Revision wird erst nach Broker-Zustellung oder dauerhafter Final-Message-Speicherung als benachrichtigt markiert.
+- Eine einmalige `tool_failure`-Warnung bleibt bis zum zweiten Vorkommen intern. Schwere offene Issues dürfen nach 24 Stunden nur nach einem weiteren Vorkommen oder während einer ausstehenden Nutzerentscheidung erneut erscheinen.
+
+Die Dashboard-Karte filtert nach Status, Typ, Schweregrad und Quelle. Administratoren können Issues auflösen oder archivieren und veraltete Issues zunächst prüfen und anschließend archivieren. Die API liefert bereinigte Datensätze mit nicht umkehrbaren öffentlichen IDs; rohe Credentials, vollständige Tool-Payloads und interne Datenbank-IDs werden nicht ausgegeben.
+
+### Aufbewahrung und Mission-Trigger
+
+Aktive Historie wird verlustfrei archiviert: einzelne Warnungen nach sieben Tagen, wiederkehrende Warnungen und Fehler nach 30 Tagen. Explizite `review_required`-Entscheidungen werden nie automatisch archiviert. Archivierte Issues erscheinen nicht in Hinweisen, aktiven Zählern, Erinnerungen oder Mission-Triggern; bei erneutem Auftreten wird derselbe Fingerprint mit seiner Historie wieder geöffnet.
+
+```yaml
+maintenance:
+	retention:
+		operational_issues_days: 30
+```
+
+Mission Control kann auf ein Planner-Issue reagieren, ohne rohe Logtexte zu matchen:
+
+```yaml
+trigger:
+	type: planner_operational_issue
+	planner_issue_source: maintenance
+	planner_issue_severity: high
+	planner_title_contains: backup
+```
+
+Quelle, Schweregrad und Titel sind optionale Filter. Verwende diesen Trigger für einen ausdrücklich gewünschten Folgeworkflow, nicht als Ersatz für die direkte Hinweislogik des Supervisors.
+
+### Operational-Issues-API
+
+```http
+GET /api/operational-issues?status=active&severity=high&limit=25&offset=0
+GET /api/operational-issues/stale-preview
+POST /api/operational-issues/archive-stale
+POST /api/operational-issues/{id}/resolve
+POST /api/operational-issues/{id}/archive
+```
+
+Liste, Vorschau, Archivierung und Auflösung benötigen Administratorrechte. Archivieren löscht weder Datensatz noch Historie.
 
 ---
 
@@ -313,7 +363,7 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 - **Tab direkt verlinken:** `http://localhost:8088/dashboard#agent` öffnet direkt den Agent-Tab.
 - **Karten einklappen:** Mit ▼ am Kartenkopf selten genutzte Bereiche ausblenden.
 - **Theme:** 🌙 in der Kopfzeile — gilt für alle Web-UI-Seiten.
-- **Budget-Hinweise:** Bei Annäherung an Tageslimits kommen SSE-Toasts im Dashboard — Limits in [Kapitel 7: Konfiguration](07-configuration.md) setzen, nicht per Dashboard-YAML.
+- **Budget-Hinweise:** Bei Annäherung an Tageslimits kommen SSE-Toasts im Dashboard — Limits in [Kapitel 7: Konfiguration](07-konfiguration.md) setzen, nicht per Dashboard-YAML.
 
 ---
 
@@ -336,5 +386,5 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 - **[Kapitel 9: Gedächtnis](09-memory.md)** — Speicherschichten auf dem Agent-Tab verstehen
 - **[Kapitel 11: Mission Control](11-missions.md)** — Mission History und Cron-Zeitpläne
 - **[Kapitel 12: Invasion Control](12-invasion.md)** — Remote-Nodes in den Betriebs-Stats
-- **[Kapitel 14: Sicherheit](14-security.md)** — Audit-Protokoll und LLM Guardian
+- **[Kapitel 14: Sicherheit](14-sicherheit.md)** — Audit-Protokoll und LLM Guardian
 - **[Kapitel 21: REST-API-Referenz](21-api-reference.md)** — Vollständige Endpunkt-Details

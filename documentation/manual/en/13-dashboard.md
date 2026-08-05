@@ -205,8 +205,58 @@ The **System** tab covers operations, diagnostics, and logs.
 | **Tooling Diagnostics** | Parse sources, recovery events, policy signals, failure-prone tools | `GET /api/dashboard/tool-stats` |
 | **GitHub Repositories** | Linked repos (when GitHub integration is configured) | `GET /api/dashboard/github-repos` |
 | **Live Log** | Tail of server logs with regex filter | `GET /api/dashboard/logs?lines=100` |
+| **Operational Issues** | Sanitized background failures, severity, occurrences, status, and admin actions | `GET /api/operational-issues` |
 
 Prompt statistics reset on server restart and appear after the first conversation.
+
+---
+
+## Operational Issues
+
+Operational Issues are durable records for problems found during background work, maintenance, health checks, or repeated tool execution. AuraGo deduplicates them by fingerprint and keeps revisions, occurrences, status, and last-seen timestamps instead of creating an unbounded stream of identical warnings.
+
+### Notices and delivery
+
+- Background and maintenance code records the issue; it never sends a user notice directly.
+- At the next direct chat contact, the supervisor selects at most two changed issues, ordered by severity, revision change, and recency. The model receives already-prepared diagnostic context and does not decide whether a notice is shown.
+- Supported notification brokers can receive the `operational_issue_notice` event. Other channels get the same localized text as a deterministic final-answer prefix. A revision is marked notified only after broker delivery or durable final-message persistence.
+- A one-off `tool_failure` warning remains internal until its second occurrence. High-severity open issues can repeat after 24 hours only after another occurrence or while waiting for a user decision.
+
+The Dashboard card supports filters for status, kind, severity, and source. Administrators can resolve or archive an issue and can preview or archive stale issues. The API returns sanitized records with non-reversible public IDs; it never exposes raw credentials, complete tool payloads, or internal database identifiers.
+
+### Retention and mission triggers
+
+Active history is archived losslessly: single warnings after seven days, recurring warnings and errors after 30 days. Explicit `review_required` decisions are never auto-archived. Archived issues are excluded from notices, active counts, reminders, and mission triggers; a recurrence reopens the same fingerprint and retains its history.
+
+```yaml
+maintenance:
+	retention:
+		operational_issues_days: 30
+```
+
+Mission Control can react to a planner issue without matching raw log text:
+
+```yaml
+trigger:
+	type: planner_operational_issue
+	planner_issue_source: maintenance
+	planner_issue_severity: high
+	planner_title_contains: backup
+```
+
+The source, severity, and title filters are optional. Use this trigger for an explicit follow-up workflow, not as a replacement for the supervisor's direct notice policy.
+
+### Operational Issues API
+
+```http
+GET /api/operational-issues?status=active&severity=high&limit=25&offset=0
+GET /api/operational-issues/stale-preview
+POST /api/operational-issues/archive-stale
+POST /api/operational-issues/{id}/resolve
+POST /api/operational-issues/{id}/archive
+```
+
+The list, preview, archive, and resolve endpoints require administrator access. Archiving does not delete the record or its history.
 
 ---
 
