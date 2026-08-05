@@ -19,9 +19,21 @@
             ctx.c.imageSmoothingEnabled = false;
         }
 
-        function isChal(s) { return ctx.settings.mode !== 'endless' && s >= 3 && (s - 3) % 4 === 0; }
+        function isChal(s) {
+            const m = ctx.settings.mode;
+            if (m === 'endless' || m === 'hyperdrive') return false;
+            return s >= 3 && (s - 3) % 4 === 0;
+        }
 
         function isMiniBossStage() { return ctx.G.stage >= 5 && ctx.G.stage % 5 === 0; }
+
+        function restoreTimeScale() {
+            return ctx.modesRestoreTimeScale ? ctx.modesRestoreTimeScale() : 1;
+        }
+
+        function baseMusicTheme(chal) {
+            return ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(!!chal) : (chal ? 'challenge' : 'gameplay');
+        }
 
         function dailySeed() {
             const d = new Date();
@@ -75,6 +87,25 @@
 
         function advanceToNextStage(fromSkip) {
             if (ctx.G.stageClearLock > 0 || ctx.G.st === 'STAGE_INTRO' || ctx.G.st === 'GAME_OVER') return;
+            if (ctx.trackStageBoni) ctx.trackStageBoni(ctx.G);
+            if (ctx.G.stageRank && ctx.fxRankSlam) ctx.fxRankSlam(ctx.G.stageRank);
+            if (ctx.modesOnStageClearBeforeAdvance) {
+                const clearResult = ctx.modesOnStageClearBeforeAdvance();
+                if (clearResult === 'gauntlet_win') {
+                    ctx.G.stageClearLock = 600;
+                    setTimeout(() => {
+                        if (ctx.state.disposed) return;
+                        if (ctx.G.score > 0 && ctx.isHS(ctx.G.score)) {
+                            ctx.G.st = 'HIGH_SCORE';
+                            ctx.G.ne = { ch: [65, 65, 65], pos: 0, done: false };
+                            ctx.showHSOverlay();
+                        } else {
+                            ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.showTitle(); ctx.MusicEngine.play('title');
+                        }
+                    }, 2500);
+                    return;
+                }
+            }
             ctx.G.stageClearLock = 600;
             ctx.G.stageEmptyT = 0;
             ctx.G.transitionType = 0;
@@ -110,9 +141,10 @@
             if (ctx.SFX.warpWhoosh) ctx.SFX.warpWhoosh();
             if (!ctx.G.chal && !fromSkip) {
                 ctx.MusicEngine.play('victory');
-                setTimeout(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play('gameplay'); }, 3500);
+                const _victoryTheme = baseMusicTheme(false);
+                setTimeout(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play(_victoryTheme); }, 3500);
             }
-            if (ctx.G.stage % 3 === 0 && !fromSkip && ctx.openShop) {
+            if (ctx.G.stage % 3 === 0 && !fromSkip && ctx.openShop && (!ctx.modesShouldOpenShop || ctx.modesShouldOpenShop())) {
                 ctx.openShop();
             } else {
                 ctx.startStage();
@@ -148,15 +180,21 @@
             ctx.G._closeCallCooldown = 0; ctx.G._synergyChecked = null; ctx.G.shieldReflect = false; ctx.G.laserSlow = false; ctx.G.droneRicochet = false;
             ctx.G.scoreMult = 1; ctx.G.glassCannon = false; ctx.G.bulletStorm = false; ctx.G.powerSurge = false; ctx.G.darkness = false; ctx.G.turbo = false;
             ctx.G.mirrorField = false; ctx.G.gravityWell = false; ctx.G.phasing = false; ctx.G.ricochetWorld = false;
+            if (!(ctx.modesIsMirrorPermanent && ctx.modesIsMirrorPermanent())) {
+                ctx.G.mirrorActive = false; ctx.G.mirrorTimer = 0;
+            }
             ctx.G.orbitalShields = null; ctx.G.orbitalShieldTimer = 0;
             ctx.G.stageKills = 0; ctx.G.stageDamageTaken = 0; ctx.G.stageAccuracyShots = 0; ctx.G.stageAccuracyHits = 0;
+            ctx.G.stageRank = null;
             ctx.G.pacifistStage = true; ctx.G.overcharge = 0; ctx.G.overchargeTimer = 0;
             ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 2000; ctx.G.p.cap = null; ctx.G.p.dual = false; ctx.G.p.reviveTimer = 0;
             ctx.G.stageEmptyT = 0;
             ctx.setPUClass(null);
+            if (ctx.modesOnStageStart) ctx.modesOnStageStart();
             ctx.G.chal ? ctx.SFX.challenge() : ctx.SFX.stageClear();
             ctx.MusicEngine.setTempo(1 + ctx.G.stage * 0.05);
-            ctx.MusicEngine.play(ctx.G.chal ? 'challenge' : 'gameplay');
+            const _baseTheme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(ctx.G.chal) : (ctx.G.chal ? 'challenge' : 'gameplay');
+            ctx.MusicEngine.play(_baseTheme);
             ctx.mkFormation();
             if (ctx.spawnHazards) ctx.spawnHazards();
             if (ctx.relic_applyRelics) ctx.relic_applyRelics(ctx.G);
@@ -232,7 +270,7 @@
             ctx.G.scorePopups.length = slen;
             if (ctx.G.flashT > 0) ctx.G.flashT -= dtMs;
             // NEW: Hitstop countdown — freezes gameplay timeScale briefly for impact weight
-            if (ctx.G.hitstopT > 0) { ctx.G.hitstopT -= dtMs; if (ctx.G.hitstopT <= 0) { ctx.G.hitstopT = 0; ctx.G.timeScale = 1; } else ctx.G.timeScale = 0.001; }
+            if (ctx.G.hitstopT > 0) { ctx.G.hitstopT -= dtMs; if (ctx.G.hitstopT <= 0) { ctx.G.hitstopT = 0; ctx.G.timeScale = restoreTimeScale(); } else ctx.G.timeScale = 0.001; }
             // NEW: Biome reveal timer + bonus sub-stage timer
             if (ctx.G.biomeRevealT > 0) ctx.G.biomeRevealT -= dtMs;
             if (ctx.G.bonusStage && ctx.G.bonusStageT > 0) { ctx.G.bonusStageT -= dtMs; if (ctx.G.bonusStageT <= 0) ctx.G.bonusStageT = 0; }
@@ -256,7 +294,7 @@
             if (ctx.G.bossWarningT > 0) ctx.G.bossWarningT -= dtMs;
             if (ctx.G.comboBanner) { ctx.G.comboBanner.t += dtMs; if (ctx.G.comboBanner.t >= ctx.G.comboBanner.dur) ctx.G.comboBanner = null; }
             if (ctx.G.upgradeBanner) { ctx.G.upgradeBanner.t += dtMs; if (ctx.G.upgradeBanner.t >= ctx.G.upgradeBanner.dur) ctx.G.upgradeBanner = null; }
-            if (ctx.G.slowMoT > 0) { ctx.G.slowMoT -= dtMs; if (ctx.G.slowMoT <= 0) ctx.G.timeScale = 1; }
+            if (ctx.G.slowMoT > 0) { ctx.G.slowMoT -= dtMs; if (ctx.G.slowMoT <= 0) ctx.G.timeScale = restoreTimeScale(); }
             if (ctx.G.chromAb > 0) ctx.G.chromAb -= dtMs;
             if (ctx.G.muzzleT > 0) ctx.G.muzzleT -= dtMs;
             if (ctx.G.displayScore < ctx.G.score) { ctx.G.displayScore += Math.max(1, Math.ceil((ctx.G.score - ctx.G.displayScore) * 0.1)); if (ctx.G.displayScore > ctx.G.score) ctx.G.displayScore = ctx.G.score; }
@@ -317,7 +355,20 @@
             if (ctx.G.st === 'TITLE') {
                 ctx.G.tIdle += dt * 1000;
                 if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.demoMode) { ctx.startDemo(); }
-                else if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.SFX.coinInsert(); ctx.G.titleParts = []; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0; ctx.G.bossKillTotal = 0; ctx.G.startShieldHits = 3; ctx.startStage(); ctx.MusicEngine.play('gameplay'); }
+                else if (ctx.G.inp.s && !ctx.G.inp.sp) {
+                    ctx.SFX.coinInsert();
+                    ctx.G.titleParts = [];
+                    ctx.G.score = 0;
+                    ctx.G.lives = ctx.isGameMode && ctx.isGameMode('gauntlet') ? 3 : ctx.diffMod('lives');
+                    ctx.G.stage = 1;
+                    ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0;
+                    ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0;
+                    ctx.G.bossKillTotal = 0; ctx.G.startShieldHits = 3;
+                    if (ctx.modesOnRunStart) ctx.modesOnRunStart();
+                    ctx.startStage();
+                    const _theme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(false) : 'gameplay';
+                    ctx.MusicEngine.play(_theme);
+                }
                 if (!ctx.G.demoMode) {
                     if (Math.random() < 0.04) { const _tc = ['#4488ff','#ffcc00','#ff4444','#00ffcc','#ff88aa']; ctx.G.titleParts.push({ x: Math.random() * ctx.W, y: ctx.H + 5, vx: (Math.random()-0.5)*20, vy: -30 - Math.random()*40, life: 2500, t: 0, col: _tc[Math.floor(Math.random()*_tc.length)], size: 1 + Math.floor(Math.random()*2) }); }
                     let _tplen = 0; for (let _ti = 0; _ti < ctx.G.titleParts.length; _ti++) { const _tp = ctx.G.titleParts[_ti]; _tp.x += _tp.vx * dt; _tp.y += _tp.vy * dt; _tp.t += dt * 1000; if (_tp.t < _tp.life && _tp.y >= -10) ctx.G.titleParts[_tplen++] = _tp; } ctx.G.titleParts.length = _tplen;
@@ -336,7 +387,7 @@
             if (ctx.G.st === 'GAME_OVER') {
                 ctx.G.sTmr -= dt * 1000; ctx.updateExp(dt);
                 if (ctx.G.contTmr > 0) { ctx.G.contTmr -= dt; ctx.G.contCnt = Math.ceil(ctx.G.contTmr); }
-                if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = 1; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play('gameplay'); }
+                if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp && (!ctx.modesAllowContinue || ctx.modesAllowContinue())) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = restoreTimeScale(); ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play(baseMusicTheme(ctx.G.chal)); }
                 if (ctx.G.sTmr <= 0 && ctx.G.contTmr <= 0) {
                     if (ctx.relic_earnShards) ctx.relic_earnShards(ctx.G.score, ctx.G.stage);
                     if (ctx.G.demoMode) { ctx.startDemo(); }
@@ -387,7 +438,7 @@
                 } else {
                     ctx.G.stageEmptyT = 0;
                 }
-                const baseTheme = ctx.G.chal ? 'challenge' : 'gameplay';
+                const baseTheme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(ctx.G.chal) : (ctx.G.chal ? 'challenge' : 'gameplay');
                 const bossTheme = minibossAlive ? 'miniboss' : 'boss';
                 const effectiveBossTheme = ctx.G.stage >= 15 ? 'deep_boss' : bossTheme;
                 if (bossAlive && ctx.MusicEngine.playing !== effectiveBossTheme) { ctx.SFX.bossJingle(); ctx.MusicEngine.play(effectiveBossTheme); }
@@ -409,20 +460,18 @@
         }
 
         function updateSettingsMenu() {
-            const u = ctx.G.inp.u && !ctx.G.inp.up, d = ctx.G.inp.d && !ctx.G.inp.dp, f = ctx.G.inp.f && !ctx.G.inp.fp, l = ctx.G.inp.l && !ctx.G.inp.lp, r = ctx.G.inp.r && !ctx.G.inp.rp;
+            const items = ctx.SETTINGS_ITEMS || [];
+            const u = ctx.G.inp.u && !ctx.G.inp.up, d = ctx.G.inp.d && !ctx.G.inp.dp;
+            const f = ctx.G.inp.f && !ctx.G.inp.fp, l = ctx.G.inp.l && !ctx.G.inp.lp, r = ctx.G.inp.r && !ctx.G.inp.rp;
             if (u) ctx.G.settingsSel = Math.max(0, ctx.G.settingsSel - 1);
-            if (d) ctx.G.settingsSel = Math.min(7, ctx.G.settingsSel + 1);
-            if (f) {
-                if (ctx.G.settingsSel === 7) { ctx.G.st = 'TITLE'; }
-                else if (ctx.G.settingsSel === 0) { ctx.G.muted = !ctx.G.muted; ctx.settings.mute = ctx.G.muted; ctx.MusicEngine.setMuted(ctx.G.muted); ctx.saveSettings(); }
-                else if (ctx.G.settingsSel === 4) { ctx.settings.crt = !ctx.settings.crt; if (ctx.settings.crt) ctx.wrapEl.classList.add('galaxa-crt'); else ctx.wrapEl.classList.remove('galaxa-crt'); ctx.saveSettings(); }
+            if (d) ctx.G.settingsSel = Math.min(items.length - 1, ctx.G.settingsSel + 1);
+            const item = items[ctx.G.settingsSel];
+            if (f && item) {
+                if (item.type === 'action' && item.action === 'quit') { ctx.G.st = 'TITLE'; return; }
+                if (item.type === 'toggle') { GC.applySettingsInput(ctx, item, 1); return; }
             }
-            if (l || r) {
-                if (ctx.G.settingsSel === 1) { ctx.settings.diff = l ? (ctx.settings.diff === 'hard' ? 'normal' : ctx.settings.diff === 'normal' ? 'easy' : 'easy') : (ctx.settings.diff === 'easy' ? 'normal' : ctx.settings.diff === 'normal' ? 'hard' : 'hard'); ctx.saveSettings(); }
-                if (ctx.G.settingsSel === 2) { ctx.settings.vol = Math.max(0, Math.min(100, ctx.settings.vol + (l ? -10 : 10))); ctx.G.vol = ctx.settings.vol / 100; if (ctx.MusicEngine.masterGain) ctx.MusicEngine.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35; if (ctx.GalagaMusic && ctx.GalagaMusic.el) ctx.GalagaMusic.el.volume = ctx.G.muted ? 0 : Math.max(0, Math.min(1, ctx.G.vol * 0.7)); ctx.saveSettings(); }
-                if (ctx.G.settingsSel === 3) { const ships = Object.keys(ctx.SHIP_TYPES); const idx = ships.indexOf(ctx.settings.ship); ctx.settings.ship = l ? ships[(idx + ships.length - 1) % ships.length] : ships[(idx + 1) % ships.length]; ctx.saveSettings(); }
-                if (ctx.G.settingsSel === 5) { const modes = ['high', 'medium', 'low']; const idx = modes.indexOf(ctx.settings.particles); ctx.settings.particles = l ? modes[(idx + modes.length - 1) % modes.length] : modes[(idx + 1) % modes.length]; ctx.saveSettings(); }
-                if (ctx.G.settingsSel === 6) { ctx.settings.shake = Math.max(0, Math.min(1, ctx.settings.shake + (l ? -0.25 : 0.25))); ctx.saveSettings(); }
+            if ((l || r) && item) {
+                if (GC.applySettingsInput(ctx, item, l ? -1 : 1) && ctx.SFX && ctx.SFX.uiClick) ctx.SFX.uiClick();
             }
         }
 

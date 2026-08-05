@@ -51,12 +51,17 @@
             }
         }
 
+        function activeBaseTheme() {
+            if (ctx.modesGetBaseMusicTheme && ctx.G) return ctx.modesGetBaseMusicTheme(!!ctx.G.chal);
+            return ctx.G && ctx.G.chal ? 'challenge' : 'gameplay';
+        }
+
         function applyBiomeAmbient(biomeId) {
             for (const layerId of Object.keys(activeLayers)) {
-                removeLayer('gameplay', layerId);
+                removeLayer(activeLayers[layerId].themeId, layerId);
             }
             if (biomeId && BIOME_LAYERS[biomeId]) {
-                addLayer('gameplay', biomeId);
+                addLayer(activeBaseTheme(), biomeId);
             }
         }
 

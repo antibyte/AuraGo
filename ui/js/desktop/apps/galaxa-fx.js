@@ -362,11 +362,103 @@
                 G.fxRumbleVignette.t += dtMs;
                 if (G.fxRumbleVignette.t >= G.fxRumbleVignette.dur) G.fxRumbleVignette = null;
             }
+            if (G.fxBulletTimeT > 0) {
+                G.fxBulletTimeT -= dtMs;
+                if (G.fxBulletTimeT <= 0) {
+                    if (ctx.SFX && ctx.SFX.bulletTimeExit) ctx.SFX.bulletTimeExit();
+                    G.timeScale = ctx.modesRestoreTimeScale ? ctx.modesRestoreTimeScale() : (G.hyperdriveBaseScale || 1);
+                }
+            }
+            if (G.fxScreenShatterT > 0) G.fxScreenShatterT -= dtMs;
+            if (G.fxRankSlamT > 0) G.fxRankSlamT -= dtMs;
+            if (G.fxHyperTunnelT > 0) G.fxHyperTunnelT -= dtMs;
+            if (G.fxMirrorRefractT > 0) G.fxMirrorRefractT -= dtMs;
+            if (G.fxHeatHazeT > 0) G.fxHeatHazeT -= dtMs;
+            if (G.st === 'PLAYING' && (G.combo || 0) >= 15) G.fxHeatHazeT = Math.max(G.fxHeatHazeT || 0, 120);
+            if (G.st === 'PLAYING' && ctx.isGameMode && ctx.isGameMode('hyperdrive')) {
+                G.fxHyperTunnelT = Math.max(G.fxHyperTunnelT || 0, 200);
+            }
+            if (G.st === 'PLAYING') fxBiomeWeatherTick(dtMs);
+        }
+
+        function fxScreenShatter() {
+            ctx.G.fxScreenShatterT = 1400;
+            if (!ctx.G.fxShatterCracks) ctx.G.fxShatterCracks = [];
+            ctx.G.fxShatterCracks.length = 0;
+            for (let i = 0; i < 8 + caps().ring * 2; i++) {
+                const ax = Math.random() * ctx.W, ay = Math.random() * ctx.H;
+                const bx = ax + (Math.random() - 0.5) * 120, by = ay + (Math.random() - 0.5) * 120;
+                ctx.G.fxShatterCracks.push({ x1: ax, y1: ay, x2: bx, y2: by, w: 1 + Math.random() * 2 });
+            }
+        }
+
+        function fxBulletTime() {
+            ctx.G.fxBulletTimeT = 650;
+            ctx.G.timeScale = Math.min(ctx.G.timeScale || 1, 0.35);
+        }
+
+        function fxBiomeWeatherTick(dtMs) {
+            const biome = ctx.G.biome || 'nebula';
+            if (!ctx.G.fxWeatherT) ctx.G.fxWeatherT = 0;
+            ctx.G.fxWeatherT += dtMs;
+            if (ctx.G.fxWeatherT < 180) return;
+            ctx.G.fxWeatherT = 0;
+            const n = Math.max(1, Math.round(caps().sparkle * 0.15));
+            for (let i = 0; i < n; i++) {
+                if (biome === 'storm') {
+                    ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: Math.random() * ctx.H * 0.4, vx: (Math.random() - 0.5) * 40, vy: 20 + Math.random() * 30, life: 200, t: 0, col: '#ffff88', size: 1, spark: true }));
+                    if (ctx.SFX.weatherCrack && Math.random() < 0.2) ctx.SFX.weatherCrack();
+                } else if (biome === 'crystal') {
+                    ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: Math.random() * ctx.H, vx: (Math.random() - 0.5) * 10, vy: 8 + Math.random() * 12, life: 400, t: 0, col: '#aaddff', size: 1, spark: true }));
+                } else if (biome === 'debris') {
+                    ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: -5, vx: (Math.random() - 0.5) * 20, vy: 30 + Math.random() * 40, life: 500, t: 0, col: '#aa6644', size: 2, debris: true }));
+                }
+            }
+        }
+
+        function fxRankSlam(rank) {
+            ctx.G.fxRankSlamT = 900;
+            ctx.G.fxRankSlamRank = rank || ctx.G.stageRank || 'A';
+            if (ctx.SFX.rankSlam) ctx.SFX.rankSlam();
+        }
+
+        function fxHyperTunnel() {
+            ctx.G.fxHyperTunnelT = 2200;
+            ctx.G.fxWarpT = Math.max(ctx.G.fxWarpT || 0, 800);
+        }
+
+        function fxMirrorRefract() {
+            ctx.G.fxMirrorRefractT = 350;
+            ctx.G.chromAb = Math.max(ctx.G.chromAb || 0, 180);
+        }
+
+        function fxHeatHaze() {
+            ctx.G.fxHeatHazeT = 300;
         }
 
         // --- Draw: warp streaks behind the game layer -------------------------
         function fxDrawBack(c) {
             const G = ctx.G;
+            if (G.fxHyperTunnelT > 0) {
+                const pr = G.fxHyperTunnelT / 2200;
+                const intensity = Math.sin(Math.min(1, pr) * Math.PI) * 1.4;
+                const cx = ctx.W / 2, cy = ctx.H / 2;
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < caps().streak; i++) {
+                    const ang = (i / caps().streak) * Math.PI * 2 + ctx.tick * 0.02;
+                    const r0 = 10 + (i % 7) * 18;
+                    const r1 = r0 + 40 + intensity * 60;
+                    c.globalAlpha = 0.15 + intensity * 0.35;
+                    c.strokeStyle = i % 2 ? '#ff88ff' : '#66ddff';
+                    c.lineWidth = 2;
+                    c.beginPath();
+                    c.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0);
+                    c.lineTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1);
+                    c.stroke();
+                }
+                c.restore();
+            }
             if (!G.fxWarpT || G.fxWarpT <= 0) return;
             const progress = 1 - G.fxWarpT / GC.FX_WARP_DUR;
             const intensity = Math.sin(Math.min(1, progress) * Math.PI);
@@ -508,25 +600,71 @@
         // --- Draw: combo screen-edge pulse over the game layer ----------------
         function fxDrawOverlay(c) {
             const G = ctx.G;
-            if (!G.fxEdgePulse) return;
-            const pr = Math.min(1, G.fxEdgePulse.t / G.fxEdgePulse.dur);
-            const alpha = Math.pow(1 - pr, 1.5) * 0.55;
-            if (alpha <= 0.01) return;
-            const inset = easeOutCubic(pr) * 14 + 2;
-            const strip = 18 * (1 - pr) + 4;
-            c.save();
-            c.globalCompositeOperation = 'lighter';
-            c.globalAlpha = alpha;
-            c.fillStyle = G.fxEdgePulse.col;
-            c.fillRect(0, 0, ctx.W, strip);
-            c.fillRect(0, ctx.H - strip, ctx.W, strip);
-            c.fillRect(0, 0, strip, ctx.H);
-            c.fillRect(ctx.W - strip, 0, strip, ctx.H);
-            c.globalAlpha = alpha * 0.9;
-            c.strokeStyle = '#ffffff';
-            c.lineWidth = 2;
-            c.strokeRect(inset, inset, ctx.W - inset * 2, ctx.H - inset * 2);
-            c.restore();
+            if (G.fxEdgePulse) {
+                const pr = Math.min(1, G.fxEdgePulse.t / G.fxEdgePulse.dur);
+                const alpha = Math.pow(1 - pr, 1.5) * 0.55;
+                if (alpha > 0.01) {
+                    const inset = easeOutCubic(pr) * 14 + 2;
+                    const strip = 18 * (1 - pr) + 4;
+                    c.save();
+                    c.globalCompositeOperation = 'lighter';
+                    c.globalAlpha = alpha;
+                    c.fillStyle = G.fxEdgePulse.col;
+                    c.fillRect(0, 0, ctx.W, strip);
+                    c.fillRect(0, ctx.H - strip, ctx.W, strip);
+                    c.fillRect(0, 0, strip, ctx.H);
+                    c.fillRect(ctx.W - strip, 0, strip, ctx.H);
+                    c.globalAlpha = alpha * 0.9;
+                    c.strokeStyle = '#ffffff';
+                    c.lineWidth = 2;
+                    c.strokeRect(inset, inset, ctx.W - inset * 2, ctx.H - inset * 2);
+                    c.restore();
+                }
+            }
+            if (G.fxBulletTimeT > 0) {
+                const pr = G.fxBulletTimeT / 650;
+                c.save();
+                c.fillStyle = 'rgba(8,12,32,' + (0.35 * pr) + ')';
+                c.fillRect(0, 0, ctx.W, ctx.H);
+                c.restore();
+            }
+            if (G.fxScreenShatterT > 0 && G.fxShatterCracks) {
+                const pr = G.fxScreenShatterT / 1400;
+                c.save();
+                c.globalAlpha = Math.min(1, pr * 1.2);
+                c.strokeStyle = '#aaddff';
+                c.lineWidth = 1.5;
+                for (let i = 0; i < G.fxShatterCracks.length; i++) {
+                    const cr = G.fxShatterCracks[i];
+                    c.beginPath(); c.moveTo(cr.x1, cr.y1); c.lineTo(cr.x2, cr.y2); c.stroke();
+                }
+                c.restore();
+            }
+            if (G.fxRankSlamT > 0) {
+                const pr = 1 - G.fxRankSlamT / 900;
+                const scale = 0.6 + easeOutCubic(Math.min(1, pr * 1.4)) * 0.8;
+                c.save();
+                c.translate(ctx.W / 2, ctx.H * 0.32);
+                c.scale(scale, scale);
+                c.fillStyle = '#ffcc00';
+                c.font = 'bold 48px monospace';
+                c.textAlign = 'center';
+                c.shadowColor = '#ffcc00';
+                c.shadowBlur = 12;
+                c.fillText(G.fxRankSlamRank || '', 0, 0);
+                c.restore();
+            }
+            if (G.fxHeatHazeT > 0) {
+                const pr = G.fxHeatHazeT / 300;
+                c.save();
+                c.globalAlpha = 0.08 * pr;
+                c.strokeStyle = '#ff8844';
+                for (let i = 0; i < 4; i++) {
+                    const y = (ctx.H / 4) * i + Math.sin(ctx.tick * 0.08 + i) * 4;
+                    c.beginPath(); c.moveTo(0, y); c.lineTo(ctx.W, y + 6); c.stroke();
+                }
+                c.restore();
+            }
             c.globalAlpha = 1;
         }
 
@@ -657,5 +795,12 @@
         ctx.fxDrawPullLines = fxDrawPullLines;
         ctx.fxDrawRumbleOverlay = fxDrawRumbleOverlay;
         ctx.fxDrawFireTrail = fxDrawFireTrail;
+        ctx.fxScreenShatter = fxScreenShatter;
+        ctx.fxBulletTime = fxBulletTime;
+        ctx.fxBiomeWeatherTick = fxBiomeWeatherTick;
+        ctx.fxRankSlam = fxRankSlam;
+        ctx.fxHyperTunnel = fxHyperTunnel;
+        ctx.fxMirrorRefract = fxMirrorRefract;
+        ctx.fxHeatHaze = fxHeatHaze;
     };
 })();

@@ -182,7 +182,10 @@
         parry_master: { name: 'Parry Master', desc: 'Parry 50 enemy bullets in one run' },
         super_nova: { name: 'Nova Strike', desc: 'Activate your ship super 10 times total' },
         biome_explorer: { name: 'Explorer', desc: 'Reach every biome' },
-        bonus_hunter: { name: 'Bonus Hunter', desc: 'Complete 5 bonus sub-stages' }
+        bonus_hunter: { name: 'Bonus Hunter', desc: 'Complete 5 bonus sub-stages' },
+        gauntlet_clear: { name: 'Gauntlet Champion', desc: 'Clear all 12 Gauntlet waves' },
+        hyper_survivor: { name: 'Hyper Survivor', desc: 'Reach stage 15 in Hyperdrive' },
+        mirror_master: { name: 'Mirror Master', desc: 'Parry 25 bullets in Mirror mode' }
     };
 
     GC.SHIP_TYPES = {

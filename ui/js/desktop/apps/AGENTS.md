@@ -139,6 +139,19 @@ registration lives in `internal/desktop/types.go`.
   created via `Object.create(GC)` in `galaxa-deluxe.js`.
 - Galaxa load order is defined under the `galaxa-deluxe` entry.
   `galaxa-constants.js` and `galaxa-tweens.js` must load before factory modules.
+  Split modules (soft budget **≤1000 lines** per file): `galaxa-entities-{core,
+  spawning, behaviors, combat}.js`, `galaxa-render-{effects, stage, hud,
+  world}.js`, `galaxa-audio-{core, sfx, music}.js`. Orchestrator glue stays in
+  `galaxa-entities.js`, `galaxa-render.js`, and `galaxa-audio.js`.
+- Game mode logic lives in `galaxa-modes.js` (`GC.createModes(ctx)`): `gauntlet`
+  (12 curated waves, no shop, 3 lives), `hyperdrive` (endless speed ramp +
+  rotating modifiers; spawning/HP scaling matches `endless`), `mirror`
+  (permanent horizontal mirror + 50% ghost damage; delayed enemy bullets mirror
+  on spawn). Export `ctx.modesRestoreTimeScale()` for hitstop/slow-mo/continue/
+  bullet-time recovery. Settings `mode` cycle plays `modeSelect` once via
+  `GC.applySettingsInput`; daily challenge remains title hotkey `D`.
+- Adaptive biome layers in `galaxa-adaptive-music.js` attach to the active base
+  theme from `ctx.modesGetBaseMusicTheme`, not hardcoded `gameplay`.
 - New Galaxa constants (biomes, super defs, parry tuning, explosion profiles)
   are added to `galaxa-constants.js`, not duplicated in game logic files.
 - Galaxa visible UI strings use `galaxa.*` keys in all
@@ -362,6 +375,7 @@ registration lives in `internal/desktop/types.go`.
 
 ## Verification
 
+- `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go test ./ui/ -run TestGalaxaDeluxeCachesCanvasResources`
 - `go test ./ui/ -run TestVirtualDesktopJSUsesSemanticChunkNames`
@@ -374,10 +388,16 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `galaxa-modes.js` - Game mode contracts (`gauntlet`, `hyperdrive`, `mirror`)
+  and hooks (`modesOnRunStart`, `modesOnStageStart`, `modesShouldOpenShop`,
+  `modesGetBaseMusicTheme`). Settings mode cycle reads/writes `settings.mode`.
+  Achievements: `gauntlet_clear`, `hyper_survivor`, `mirror_master`.
 - `galaxa-fx.js` - Supplementary Galaxa visual-effects package: chromatic boss
   shockwave rings, warp speed-line streaks, powerup sparkle bursts + rising
-  glints, directional bullet-impact spark cones, combo screen-edge pulses, and
-  ship afterimage ghosts. Attaches `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`,
+  glints, directional bullet-impact spark cones, combo screen-edge pulses, ship
+  afterimage ghosts, plus mode/FX juice: `fxScreenShatter`, `fxBulletTime`,
+  `fxBiomeWeather`, `fxRankSlam`, `fxHyperTunnel`, `fxMirrorRefract`,
+  `fxHeatHaze`. Attaches `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`,
   `ctx.fxPowerupSparkle()`, `ctx.fxSparkCone()`, `ctx.fxComboPulse()`,
   `ctx.updateFX(dt)` and `ctx.fxDraw{Back,Mid,Ghosts,Overlay}(c)` via
   `GC.createFx(ctx)`; caps scale with `ctx.settings.particles` via `GC.FX_CAPS`.

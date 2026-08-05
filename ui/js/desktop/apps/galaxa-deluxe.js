@@ -25,6 +25,7 @@
         { id: 'difficulty', label: 'DIFFICULTY', type: 'cycle', key: 'diff', values: ['easy', 'normal', 'hard'] },
         { id: 'volume', label: 'VOLUME', type: 'slider', key: 'vol', min: 0, max: 100, step: 10 },
         { id: 'ship', label: 'SHIP', type: 'cycle', key: 'ship', values: 'SHIPS' },
+        { id: 'mode', label: 'MODE', type: 'cycle', key: 'mode', values: ['classic', 'endless', 'boss_rush', 'gauntlet', 'hyperdrive', 'mirror'], onChange: 'modeSelect' },
         { id: 'crt', label: 'CRT EFFECT', type: 'toggle', key: 'crt' },
         { id: 'particles', label: 'PARTICLES', type: 'cycle', key: 'particles', values: ['high', 'medium', 'low'] },
         { id: 'shake', label: 'SHAKE', type: 'cycle', key: 'shake', values: [0, 0.25, 0.5, 0.75, 1] },
@@ -41,6 +42,14 @@
         switch (item.type) {
             case 'toggle': {
                 s[item.key] = !s[item.key];
+                if (item.key === 'mute' && ctx.G) {
+                    ctx.G.muted = s.mute;
+                    if (ctx.MusicEngine && ctx.MusicEngine.setMuted) ctx.MusicEngine.setMuted(s.mute);
+                }
+                if (item.key === 'crt' && ctx.wrapEl) {
+                    if (s.crt) ctx.wrapEl.classList.add('galaxa-crt');
+                    else ctx.wrapEl.classList.remove('galaxa-crt');
+                }
                 if (ctx.saveSettings) ctx.saveSettings();
                 if (item.onChange && ctx.SFX && typeof ctx.SFX[item.onChange] === 'function') ctx.SFX[item.onChange]();
                 return true;
@@ -53,12 +62,26 @@
                 const next = pool[(idx + pool.length + (dir < 0 ? -1 : 1)) % pool.length];
                 s[item.key] = next;
                 if (ctx.saveSettings) ctx.saveSettings();
+                if (item.onChange && ctx.SFX && typeof ctx.SFX[item.onChange] === 'function') ctx.SFX[item.onChange]();
                 return true;
             }
             case 'slider': {
                 const step = item.step || 1;
                 const next = Math.max(item.min, Math.min(item.max, s[item.key] + (dir < 0 ? -step : step)));
-                if (next !== s[item.key]) { s[item.key] = next; if (ctx.saveSettings) ctx.saveSettings(); return true; }
+                if (next !== s[item.key]) {
+                    s[item.key] = next;
+                    if (item.key === 'vol' && ctx.G) {
+                        ctx.G.vol = next / 100;
+                        if (ctx.MusicEngine && ctx.MusicEngine.masterGain) {
+                            ctx.MusicEngine.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35;
+                        }
+                        if (ctx.GalagaMusic && ctx.GalagaMusic.el) {
+                            ctx.GalagaMusic.el.volume = ctx.G.muted ? 0 : Math.max(0, Math.min(1, ctx.G.vol * 0.7));
+                        }
+                    }
+                    if (ctx.saveSettings) ctx.saveSettings();
+                    return true;
+                }
                 return false;
             }
         }
@@ -132,19 +155,14 @@
         GC.createTweens(gameCtx);
         GC.createSprites(gameCtx);
         GC.createBackground(gameCtx);
-        GC.createEntitiesCore(gameCtx);
-        GC.createEntitiesSpawning(gameCtx);
-        GC.createEntitiesBehaviors(gameCtx);
         GC.createEntities(gameCtx);
         GC.createRenderer(gameCtx);
-        GC.createRenderEffects(gameCtx);
-        GC.createRenderStage(gameCtx);
-        GC.createRenderHUD(gameCtx);
         GC.createFx(gameCtx);
         GC.createSupers(gameCtx);
         GC.createBiomeTransitions(gameCtx);
         GC.createComboLadder(gameCtx);
         GC.createAdaptiveMusic(gameCtx);
+        GC.createModes(gameCtx);
         GC.createDemo(gameCtx);
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
