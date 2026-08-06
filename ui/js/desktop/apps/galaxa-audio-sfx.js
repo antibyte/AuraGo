@@ -301,7 +301,7 @@
             screenShatter() { if (ctx.G.muted) return; const _v = vv(); noise(0.25, 0.35 * _v, 5000); [880, 660, 440].forEach((f, i) => setTimeout(() => beep('sawtooth', f, f * 0.5, 0.08, 0.22 * _v), i * 40)); },
             bulletTimeEnter() { if (ctx.G.muted) return; beep('sine', 1200, 2400, 0.12, 0.25 * vv()); noise(0.08, 0.12 * vv(), 8000); },
             bulletTimeExit() { if (ctx.G.muted) return; beep('triangle', 800, 400, 0.1, 0.18 * vv()); },
-            rankSlam() { if (ctx.G.muted) return; const _v = vv(); [440, 554, 659, 880].forEach((f, i) => setTimeout(() => beep('square', f, f, 0.07, 0.28 * _v), i * 45)); },
+            rankSlam() { if (ctx.G.muted) return; const _v = vv(); beep('square', 220, 220, 0.04, 0.34 * _v); [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep('square', f, f * 0.98, 0.055, (0.36 - i * 0.02) * _v), i * 32)); },
             hyperShift() { if (ctx.G.muted) return; beep('sawtooth', 180, 720, 0.2, 0.3 * vv()); setTimeout(() => beep('sine', 360, 1080, 0.15, 0.22 * vv()), 80); },
             mirrorPing(panX) { if (ctx.G.muted) return; beep('sine', 1600, 2200, 0.05, 0.16 * vv(), panX); beep('triangle', 1200, 800, 0.06, 0.12 * vv(), panX); },
             modeSelect() { if (ctx.G.muted) return; beep('square', 660, 990, 0.05, 0.2 * vv()); setTimeout(() => beep('triangle', 990, 1320, 0.05, 0.18 * vv()), 60); },

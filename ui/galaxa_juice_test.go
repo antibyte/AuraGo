@@ -82,6 +82,42 @@ func TestGalaxaJuiceSignatureComboStageMarkers(t *testing.T) {
 	}
 }
 
+func TestGalaxaJuiceMuteAndCaps(t *testing.T) {
+	t.Parallel()
+	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
+	for _, name := range []string{
+		"shootTyped", "puCollectRarity", "weaponArm", "bossKillFanfare",
+		"megaComboStinger", "stageClearFanfare", "playerHurt",
+	} {
+		needle := name + "("
+		offset := 0
+		found := false
+		for {
+			idx := strings.Index(sfx[offset:], needle)
+			if idx < 0 {
+				break
+			}
+			abs := offset + idx
+			end := abs + 180
+			if end > len(sfx) {
+				end = len(sfx)
+			}
+			if strings.Contains(sfx[abs:end], "muted") {
+				found = true
+				break
+			}
+			offset = abs + len(needle)
+		}
+		if !found {
+			t.Fatalf("%s should check muted near declaration", name)
+		}
+	}
+	consts := readEmbeddedText(t, "js/desktop/apps/galaxa-constants.js")
+	if !strings.Contains(consts, "muzzle:") {
+		t.Fatal("FX_CAPS must include muzzle")
+	}
+}
+
 func TestGalaxaJuicePlayerFeedbackMarkers(t *testing.T) {
 	t.Parallel()
 	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")

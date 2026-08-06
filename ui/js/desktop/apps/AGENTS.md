@@ -343,6 +343,11 @@ registration lives in `internal/desktop/types.go`.
   setting (`low`/`medium`/`high`); particle/trail caps must scale accordingly.
 - Galaxa audio uses Web Audio API synthesis only (no sample files). New SFX
   must check `ctx.G.muted` and respect `ctx.G.vol`.
+- Juice pass (2026-08): `shootTyped`, `puCollectRarity`, `weaponArm`,
+  `bossKillFanfare`, `megaComboStinger`, `stageClearFanfare`, plus
+  `fxMuzzleSparks` / `fxBossKillSetPiece` / `fxMegaCombo` /
+  `fxStageClearSetPiece`; signature FX honor `FX_CAPS` and
+  `prefers-reduced-motion`.
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
@@ -407,12 +412,14 @@ registration lives in `internal/desktop/types.go`.
   shockwave rings, warp speed-line streaks, powerup sparkle bursts + rising
   glints, directional bullet-impact spark cones, combo screen-edge pulses, ship
   afterimage ghosts, plus mode/FX juice: `fxScreenShatter`, `fxBulletTime`,
-  `fxBiomeWeather`, `fxRankSlam`, `fxHyperTunnel`, `fxMirrorRefract`,
-  `fxHeatHaze`. Attaches `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`,
-  `ctx.fxPowerupSparkle()`, `ctx.fxSparkCone()`, `ctx.fxComboPulse()`,
-  `ctx.updateFX(dt)` and `ctx.fxDraw{Back,Mid,Ghosts,Overlay}(c)` via
-  `GC.createFx(ctx)`; caps scale with `ctx.settings.particles` via `GC.FX_CAPS`.
-  No child DOX file needed.
+  `fxBiomeWeather`, `fxRankSlam` (pixel-rect flash, no soft gradients),
+  `fxHyperTunnel`, `fxMirrorRefract`, `fxHeatHaze`. Signature set-pieces:
+  `fxMuzzleSparks`, `fxBossKillSetPiece`, `fxMegaCombo`, `fxStageClearSetPiece`
+  (all honor `FX_CAPS` and `prefers-reduced-motion`). Attaches
+  `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`, `ctx.fxPowerupSparkle()`,
+  `ctx.fxSparkCone()`, `ctx.fxComboPulse()`, `ctx.updateFX(dt)` and
+  `ctx.fxDraw{Back,Mid,Ghosts,Overlay}(c)` via `GC.createFx(ctx)`; caps scale
+  with `ctx.settings.particles` via `GC.FX_CAPS`. No child DOX file needed.
 - `writer.js` - Word-processing editor: Quill rich-text, auto-save with 800 ms
   debounce, dirty-state tracking, word/character/page status bar, find &
   replace overlay with match highlighting, enhanced formatting toolbar (font,
