@@ -260,6 +260,8 @@
                 // NEW: Screen-edge pulse + rising pitch arpeggio on combo milestones (galaxa-fx)
                 if (ctx.fxComboPulse) ctx.fxComboPulse(level);
                 if (level >= 3 && ctx.SFX.comboRiser) ctx.SFX.comboRiser(level, ctx.W / 2);
+                if (level >= 3 && ctx.SFX.megaComboStinger) ctx.SFX.megaComboStinger(level, ctx.W / 2);
+                if (level >= 3 && ctx.fxMegaCombo) ctx.fxMegaCombo(level);
             }
             if (ctx.G.combo === 10) {
                 for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.type !== 'boss' && e.type !== 'miniboss') { ctx.addScore(50, e.x, e.y, '#ff4444'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; } }

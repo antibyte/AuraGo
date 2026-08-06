@@ -193,6 +193,7 @@
             ctx.setPUClass(null);
             if (ctx.modesOnStageStart) ctx.modesOnStageStart();
             ctx.G.chal ? ctx.SFX.challenge() : ctx.SFX.stageClear();
+            if (!ctx.G.chal && ctx.fxStageClearSetPiece) ctx.fxStageClearSetPiece();
             ctx.MusicEngine.setTempo(1 + ctx.G.stage * 0.05);
             const _baseTheme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(ctx.G.chal) : (ctx.G.chal ? 'challenge' : 'gameplay');
             ctx.MusicEngine.play(_baseTheme);

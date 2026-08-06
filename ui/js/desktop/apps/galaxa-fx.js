@@ -113,6 +113,25 @@
             ctx.G.fxEdgePulse = { t: 0, dur: 450, col };
         }
 
+        function fxMegaCombo(level) {
+            fxComboPulse(level);
+            ctx.G.fxMegaComboBurst = 3;
+            for (let i = 0; i < 2; i++) spawnFireTrail();
+            if (level >= 4 && !reducedMotion()) {
+                if (ctx.fxBulletTime) ctx.fxBulletTime();
+                else ctx.G.hitstopT = Math.max(ctx.G.hitstopT || 0, 40);
+            }
+        }
+
+        function fxStageClearSetPiece() {
+            const low = ctx.settings.particles === 'low';
+            if (ctx.fxWarpStart) ctx.fxWarpStart();
+            if (!low && ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(ctx.W / 2, ctx.H / 2);
+            if (!reducedMotion()) {
+                ctx.G.flashT = Math.max(ctx.G.flashT || 0, low ? 100 : 180);
+            }
+        }
+
         // --- Ship afterimage ghosts ------------------------------------------
         function spawnGhost() {
             const G = ctx.G, p = G.p;
@@ -348,9 +367,15 @@
             // --- Combo fire trail --------------------------------------------
             if (G.st === 'PLAYING' && G.p.alive && (G.comboMult || 1) >= GC.FX_FIRE_TRAIL_COMBO) {
                 lastFireTrailT += dtMs;
-                if (lastFireTrailT >= GC.FX_FIRE_TRAIL_INTERVAL) {
+                const burst = G.fxMegaComboBurst || 0;
+                const interval = burst > 0 ? GC.FX_FIRE_TRAIL_INTERVAL * 0.5 : GC.FX_FIRE_TRAIL_INTERVAL;
+                if (lastFireTrailT >= interval) {
                     lastFireTrailT = 0;
                     spawnFireTrail();
+                    if (burst > 0) {
+                        G.fxMegaComboBurst = burst - 1;
+                        spawnFireTrail();
+                    }
                 }
             } else {
                 lastFireTrailT = 0;
@@ -827,6 +852,8 @@
         ctx.fxWeaponArmPulse = fxWeaponArmPulse;
         ctx.fxSparkCone = fxSparkCone;
         ctx.fxComboPulse = fxComboPulse;
+        ctx.fxMegaCombo = fxMegaCombo;
+        ctx.fxStageClearSetPiece = fxStageClearSetPiece;
         ctx.updateFX = updateFX;
         ctx.fxDrawBack = fxDrawBack;
         ctx.fxDrawMid = fxDrawMid;

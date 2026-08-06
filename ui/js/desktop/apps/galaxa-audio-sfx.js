@@ -74,7 +74,7 @@
             respawn() { beep('sine', 200, 800, 0.3, 0.25); setTimeout(() => beep('sine', 600, 1200, 0.2, 0.2), 80); },
             shieldBreak() { noise(0.2, 0.5 * vv(), 3000); beep('sawtooth', 200 * pv(), 100, 0.15, 0.4 * vv()); },
             bossJingle() { [220, 262, 330, 220, 165, 220].forEach((f, i) => { setTimeout(() => beep('sawtooth', f, f, 0.15, 0.2 + i * 0.02), i * 100); }); },
-            stageClear() { [523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.15, 0.2), i * 80); }); },
+            stageClear() { this.stageClearFanfare(); },
             puUpgrade(panX) { [800, 1000, 1200, 1400, 1600].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.05, 0.25, panX), i * 30); }); },
             weaponUp() { [600, 800, 1000, 1200].forEach((f, i) => { setTimeout(() => beep('triangle', f, f, 0.08, 0.2), i * 60); }); },
             homingLock(panX) { const _p = pv(); beep('sine', 1200 * _p, 1200 * _p, 0.04, 0.15, panX); beep('sine', 1800 * _p, 1800 * _p, 0.03, 0.1, panX); },
@@ -234,6 +234,15 @@
             },
             // NEW: Combo milestone arpeggio — base pitch rises a minor third per combo level
             comboRiser(level, panX) { const base = 440 * Math.pow(1.1892, Math.min(level, 8)); [1, 1.26, 1.5, 2, 2.52].forEach((iv, i) => { setTimeout(() => beep('sine', base * iv, base * iv, 0.09, (0.2 + level * 0.02) * vv(), panX), i * 45); }); },
+            megaComboStinger(level, panX) { if (ctx.G.muted) return;
+                if (ctx.duckMusic) ctx.duckMusic(0.45, 700);
+                this.comboRiser(level, panX);
+                const base = 523 * Math.pow(1.122, Math.min(level, 6));
+                [0, 4, 7, 12].forEach((semi, i) => {
+                    const f = base * Math.pow(2, semi / 12);
+                    setTimeout(() => beep('square', f, f, 0.1, 0.22 + i * 0.03, panX), 220 + i * 55);
+                });
+            },
             // NEW: Short high sparkle twinkle for precision score bonuses (headshots)
             sparkleTwinkle(panX) { const _p = pv(); beep('sine', 2400 * _p, 2400 * _p, 0.05, 0.16, panX); setTimeout(() => beep('sine', 3600 * _p, 3600 * _p, 0.06, 0.14, panX), 55); },
             // NEW: Graze — brief high-pitched "zip" when bullets skim the player
@@ -252,6 +261,17 @@
                     setTimeout(() => { beep('triangle', f, f, 0.12, 0.25 * _v, panX); if (i >= 4) beep('sine', f * 0.5, f * 0.5, 0.1, 0.1 * _v, panX); }, i * 60);
                 });
                 setTimeout(() => { beep('sine', 1047, 1047, 0.4, 0.2 * _v, panX); beep('triangle', 1568, 1568, 0.4, 0.15 * _v, panX); }, 560);
+            },
+            stageClearFanfare(panX) { if (ctx.G.muted) return;
+                if (ctx.duckMusic) ctx.duckMusic(0.4, 1600);
+                const melody = [523, 659, 784, 1047, 784, 1047, 1319, 1568];
+                const harmony = [392, 523, 659, 784, 659, 784, 1047, 1175];
+                melody.forEach((f, i) => setTimeout(() => {
+                    if (ctx.G.muted) return;
+                    beep('square', f, f, 0.14, 0.22, panX);
+                    beep('triangle', harmony[i], harmony[i], 0.14, 0.12, panX);
+                }, i * 90));
+                setTimeout(() => { if (!ctx.G.muted && this.warpWhoosh) this.warpWhoosh(); }, 200);
             },
             // NEW: Magnet pull — subtle electronic hum that rises in pitch
             magnetPull(panX) { const _p = pv(); beep('sine', 400 * _p, 700 * _p, 0.15, 0.08, panX); beep('triangle', 600 * _p, 900 * _p, 0.12, 0.05, panX); },

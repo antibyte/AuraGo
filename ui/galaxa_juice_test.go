@@ -59,6 +59,29 @@ func TestGalaxaJuiceBossKillMarkers(t *testing.T) {
 	}
 }
 
+func TestGalaxaJuiceSignatureComboStageMarkers(t *testing.T) {
+	t.Parallel()
+	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
+	for _, marker := range []string{
+		"megaComboStinger(level, panX) { if (ctx.G.muted) return;",
+		"stageClearFanfare(panX) { if (ctx.G.muted) return;",
+	} {
+		if !strings.Contains(sfx, marker) {
+			t.Fatalf("missing %q", marker)
+		}
+	}
+	fx := readEmbeddedText(t, "js/desktop/apps/galaxa-fx.js")
+	for _, marker := range []string{"fxMegaCombo", "fxStageClearSetPiece"} {
+		if !strings.Contains(fx, marker) {
+			t.Fatalf("missing %q", marker)
+		}
+	}
+	game := readEmbeddedText(t, "js/desktop/apps/galaxa-game.js")
+	if !strings.Contains(game, "stageClearFanfare") && !strings.Contains(game, "fxStageClearSetPiece") {
+		t.Fatal("stage clear path must call fanfare or set-piece")
+	}
+}
+
 func TestGalaxaJuicePlayerFeedbackMarkers(t *testing.T) {
 	t.Parallel()
 	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
