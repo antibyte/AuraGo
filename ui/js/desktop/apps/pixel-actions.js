@@ -201,9 +201,14 @@
                                 if (mode === 'layer' && this.layers.length < this.MAX_LAYERS) {
                                     this.ensureBackgroundMigrated();
                                     const img = await this.loadImage(resp.url);
+                                    const nw = img.naturalWidth;
+                                    const nh = img.naturalHeight;
+                                    if (nw > this.canvas.width || nh > this.canvas.height) {
+                                        this.expandCanvasToFit(nw, nh);
+                                    }
                                     const c = document.createElement('canvas');
-                                    c.width = img.naturalWidth;
-                                    c.height = img.naturalHeight;
+                                    c.width = nw;
+                                    c.height = nh;
                                     c.getContext('2d').drawImage(img, 0, 0);
                                     this.layers.push({ canvas: c, name: this.t('pixel.ai_layer'), visible: true, opacity: 1 });
                                     this.activeLayerIdx = this.layers.length - 1;

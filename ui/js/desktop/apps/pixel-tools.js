@@ -61,6 +61,10 @@
                 ).join('');
             }),
             setActiveTool: Pixel.bindRuntime(runtime, function setActiveTool(tool) {
+                if (tool !== this.activeTool && this.editMaskMode) {
+                    this.editMaskMode = false;
+                    this.refreshLayerPanel();
+                }
                 if (this.activeTool === tool) { this.activeTool = null; } else { this.activeTool = tool; }
                 this.host.querySelectorAll('[data-draw-tool]').forEach(b => b.classList.toggle('active', b.dataset.drawTool === this.activeTool));
                 this.renderOptionsBar();
@@ -95,6 +99,12 @@
                 if (!this.selection) { this.clearOverlay(); return; }
                 this.marchingOfs = (this.marchingOfs + 0.5) % 8;
                 this.olCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+                if (this.moveSelFloating && this.selImageData && this.selection) {
+                    const floatC = this.acquireTempCanvas(this.selImageData.width, this.selImageData.height);
+                    floatC.getContext('2d').putImageData(this.selImageData, 0, 0);
+                    this.olCtx.drawImage(floatC, Math.round(this.selection.x), Math.round(this.selection.y));
+                    this.releaseTempCanvas(floatC);
+                }
                 if (this.selection.type === 'mask' && this.selection.border) {
                     const w = this.overlayCanvas.width;
                     const phase = Math.floor(this.marchingOfs) % 2;
@@ -151,6 +161,7 @@
             deselect: Pixel.bindRuntime(runtime, function deselect() {
                 this.selection = null;
                 this.selImageData = null;
+                this.moveSelFloating = false;
                 this.stopMarchingAnts();
                 this.clearOverlay();
             }),
@@ -251,6 +262,64 @@
                 actx.putImageData(imgData, 0, 0);
                 if (this.layers.length > 1) this.compositeLayers();
             }),
+            ensureSelectionPixels: Pixel.bindRuntime(runtime, function ensureSelectionPixels() {
+                if (this.selImageData || !this.selection || !this.canvas.width) return !!this.selImageData;
+                const sx = Math.max(0, Math.round(Math.min(this.selection.x, this.selection.x + this.selection.w)));
+                const sy = Math.max(0, Math.round(Math.min(this.selection.y, this.selection.y + this.selection.h)));
+                const sw = Math.round(Math.abs(this.selection.w));
+                const sh = Math.round(Math.abs(this.selection.h));
+                if (sw < 1 || sh < 1) return false;
+                const actx = this.getActiveCtx();
+                this.selImageData = actx.getImageData(sx, sy, sw, sh);
+                if (this.selection.type === 'mask' && this.selection.mask) {
+                    const fullW = this.canvas.width;
+                    const mask = this.selection.mask;
+                    const d = this.selImageData.data;
+                    for (let yy = 0; yy < sh; yy++) {
+                        for (let xx = 0; xx < sw; xx++) {
+                            if (!mask[(sy + yy) * fullW + (sx + xx)]) d[(yy * sw + xx) * 4 + 3] = 0;
+                        }
+                    }
+                }
+                return true;
+            }),
+            beginMoveSelection: Pixel.bindRuntime(runtime, function beginMoveSelection() {
+                if (!this.selection || !this.canvas.width || this.moveSelFloating) return false;
+                if (!this.ensureSelectionPixels()) return false;
+                const sx = Math.max(0, Math.round(Math.min(this.selection.x, this.selection.x + this.selection.w)));
+                const sy = Math.max(0, Math.round(Math.min(this.selection.y, this.selection.y + this.selection.h)));
+                const sw = Math.round(Math.abs(this.selection.w));
+                const sh = Math.round(Math.abs(this.selection.h));
+                if (sw < 1 || sh < 1) return false;
+                this.moveSelOrigX = sx;
+                this.moveSelOrigY = sy;
+                const actx = this.getActiveCtx();
+                if (this.selection.type === 'mask' && this.selection.mask) {
+                    this.eraseMaskPixels();
+                } else {
+                    actx.clearRect(sx, sy, sw, sh);
+                }
+                if (this.layers.length > 1) this.compositeLayers();
+                this.moveSelFloating = true;
+                this.startMarchingAnts();
+                return true;
+            }),
+            commitMoveSelection: Pixel.bindRuntime(runtime, function commitMoveSelection() {
+                if (!this.moveSelFloating || !this.selImageData || !this.selection) {
+                    this.moveSelFloating = false;
+                    return;
+                }
+                const destX = Math.round(this.selection.x);
+                const destY = Math.round(this.selection.y);
+                const actx = this.getActiveCtx();
+                actx.putImageData(this.selImageData, destX, destY);
+                this.selection.x = destX;
+                this.selection.y = destY;
+                if (this.layers.length > 1) this.compositeLayers();
+                const moved = destX !== this.moveSelOrigX || destY !== this.moveSelOrigY;
+                this.moveSelFloating = false;
+                if (moved) this.pushHistory('move-selection');
+            }),
             toggleLayerMask: Pixel.bindRuntime(runtime, function toggleLayerMask(idx) {
                 const layer = this.layers[idx];
                 if (!layer) return;
@@ -273,23 +342,26 @@
                 this.refreshLayerPanel();
                 this.notify({ type: 'info', message: this.editMaskMode ? this.t('pixel.mask_edit_on') : this.t('pixel.mask_edit_off') });
             }),
-            cloneStampAt: Pixel.bindRuntime(runtime, function cloneStampAt(x0, y0, x1, y1) {
-                if (this.cloneSourceX == null || this.cloneSourceY == null) return;
+            cloneStampAt: Pixel.bindRuntime(runtime, function cloneStampAt(x, y) {
+                if (this.cloneSourceX == null || this.cloneSourceY == null || !this.cloneSampleCanvas) return;
                 const actx = this.getActiveCtx();
-                const offX = x0 - this.cloneSourceX;
-                const offY = y0 - this.cloneSourceY;
+                const offX = this.cloneStrokeOffX;
+                const offY = this.cloneStrokeOffY;
                 const size = this.brushSize;
                 const r = Math.max(1, Math.round(size / 2));
-                const sx0 = Math.max(0, Math.min(x1 - offX - r, this.canvas.width - 1));
-                const sy0 = Math.max(0, Math.min(y1 - offY - r, this.canvas.height - 1));
+                const srcX = x - offX;
+                const srcY = y - offY;
+                const sx0 = Math.max(0, Math.min(Math.round(srcX - r), this.canvas.width - 1));
+                const sy0 = Math.max(0, Math.min(Math.round(srcY - r), this.canvas.height - 1));
                 const sw = Math.min(r * 2, this.canvas.width - sx0);
                 const sh = Math.min(r * 2, this.canvas.height - sy0);
                 if (sw < 1 || sh < 1) return;
-                const srcLayer = this.cctx;
-                const patch = srcLayer.getImageData(sx0, sy0, sw, sh);
-                const destX = Math.max(0, Math.min(x1 - r, this.canvas.width - sw));
-                const destY = Math.max(0, Math.min(y1 - r, this.canvas.height - sh));
+                const srcCtx = this.cloneSampleCanvas.getContext('2d');
+                const patch = srcCtx.getImageData(sx0, sy0, sw, sh);
+                const destX = Math.max(0, Math.min(Math.round(x - r), this.canvas.width - sw));
+                const destY = Math.max(0, Math.min(Math.round(y - r), this.canvas.height - sh));
                 actx.putImageData(patch, destX, destY);
+                this.cloneStampUsed = true;
             }),
             commitLassoPath: Pixel.bindRuntime(runtime, function commitLassoPath() {
                 const path = this.lassoPath;

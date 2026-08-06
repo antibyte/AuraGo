@@ -420,10 +420,14 @@ func TestPixelNewToolsRegistered(t *testing.T) {
 		}
 	}
 	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
-	for _, want := range []string{"commitGradient", "sprayAt", "dodgeBurnAt", "blurAt", "eraseMaskPixels", "renderOptionsBar", "toggleLayerMask", "MAX_LAYERS"} {
+	for _, want := range []string{"commitGradient", "sprayAt", "dodgeBurnAt", "blurAt", "eraseMaskPixels", "renderOptionsBar", "toggleLayerMask", "MAX_LAYERS", "beginMoveSelection", "commitMoveSelection", "cloneSampleCanvas"} {
 		if !strings.Contains(tools, want) {
 			t.Fatalf("pixel-tools.js missing new tool implementation %q", want)
 		}
+	}
+	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	if !strings.Contains(canvas, "expandCanvasToFit") {
+		t.Fatal("pixel-canvas.js should expose expandCanvasToFit for oversized AI layers")
 	}
 	if strings.Contains(tools, "layers.length >= 10") {
 		t.Fatal("pixel-tools.js should use MAX_LAYERS (20) instead of hard-coded 10")

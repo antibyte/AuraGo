@@ -90,7 +90,8 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   panels. Split across `pixel-state.js` (constants, tool SVGs/groups,
   canvas pool, MAX_LAYERS), `pixel-view.js` (rail/panel markup),
   `pixel-canvas.js` (canvas, history stack, zoom, adjustments,
-  crop/resize/rotate), `pixel-tools.js` (tools, selections, layers, history
+  crop/resize/rotate, expandCanvasToFit for oversized AI layers), `pixel-tools.js`
+  (tools, selections, floating move, clone-stamp stroke snapshot, layers, history
   panel), `pixel-actions.js` (file I/O, AI calls, photos), `pixel-filters.js`
   (filter catalog, gallery, non-destructive preview), `pixel-events.js`
   (mouse handlers, shortcuts modal, context menu, option wiring) and

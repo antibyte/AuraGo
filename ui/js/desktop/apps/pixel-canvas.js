@@ -459,6 +459,37 @@
                                 this.cancelCrop();
                                 this.zoomFit();
             }),
+            expandCanvasToFit: Pixel.bindRuntime(runtime, function expandCanvasToFit(nw, nh) {
+                                if (!this.canvas.width) return;
+                                nw = Math.max(this.canvas.width, nw);
+                                nh = Math.max(this.canvas.height, nh);
+                                if (nw === this.canvas.width && nh === this.canvas.height) return;
+                                const growLayerCanvas = (canvas) => {
+                                    if (!canvas) return;
+                                    const tmp = this.acquireTempCanvas(nw, nh);
+                                    tmp.getContext('2d').drawImage(canvas, 0, 0);
+                                    canvas.width = nw;
+                                    canvas.height = nh;
+                                    canvas.getContext('2d').drawImage(tmp, 0, 0);
+                                    this.releaseTempCanvas(tmp);
+                                };
+                                this.layers.forEach(layer => {
+                                    growLayerCanvas(layer.canvas);
+                                    growLayerCanvas(layer.maskCanvas);
+                                });
+                                const tmpCanvas = this.acquireTempCanvas(nw, nh);
+                                tmpCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+                                this.canvas.width = nw;
+                                this.canvas.height = nh;
+                                this.overlayCanvas.width = nw;
+                                this.overlayCanvas.height = nh;
+                                this.cctx.drawImage(tmpCanvas, 0, 0);
+                                this.releaseTempCanvas(tmpCanvas);
+                                this.imgWidth = nw;
+                                this.imgHeight = nh;
+                                if (this.layers.length > 1) this.compositeLayers();
+                                this.applyZoom();
+            }),
             resizeImage: Pixel.bindRuntime(runtime, function resizeImage() {
                                 if (!this.canvas.width) return;
                                 const dlg = document.createElement('div');

@@ -81,11 +81,18 @@
 
         let cloneSourceX = null;
         let cloneSourceY = null;
+        let cloneStrokeOffX = 0;
+        let cloneStrokeOffY = 0;
+        let cloneSampleCanvas = null;
+        let cloneStampUsed = false;
         let lassoPath = null;
         let editMaskMode = false;
         let moveLayerSnapshot = null;
         let moveLayerStartX = 0;
         let moveLayerStartY = 0;
+        let moveSelFloating = false;
+        let moveSelOrigX = 0;
+        let moveSelOrigY = 0;
 
         const adjustments = { brightness: 0, contrast: 0, saturation: 0, exposure: 0, sharpness: 0, temperature: 0, shadows: 0, highlights: 0 };
 
@@ -169,11 +176,18 @@
             filterFavorites: { get: () => filterFavorites, set: value => { filterFavorites = value; }, enumerable: true },
             cloneSourceX: { get: () => cloneSourceX, set: value => { cloneSourceX = value; }, enumerable: true },
             cloneSourceY: { get: () => cloneSourceY, set: value => { cloneSourceY = value; }, enumerable: true },
+            cloneStrokeOffX: { get: () => cloneStrokeOffX, set: value => { cloneStrokeOffX = value; }, enumerable: true },
+            cloneStrokeOffY: { get: () => cloneStrokeOffY, set: value => { cloneStrokeOffY = value; }, enumerable: true },
+            cloneSampleCanvas: { get: () => cloneSampleCanvas, set: value => { cloneSampleCanvas = value; }, enumerable: true },
+            cloneStampUsed: { get: () => cloneStampUsed, set: value => { cloneStampUsed = value; }, enumerable: true },
             lassoPath: { get: () => lassoPath, set: value => { lassoPath = value; }, enumerable: true },
             editMaskMode: { get: () => editMaskMode, set: value => { editMaskMode = value; }, enumerable: true },
             moveLayerSnapshot: { get: () => moveLayerSnapshot, set: value => { moveLayerSnapshot = value; }, enumerable: true },
             moveLayerStartX: { get: () => moveLayerStartX, set: value => { moveLayerStartX = value; }, enumerable: true },
             moveLayerStartY: { get: () => moveLayerStartY, set: value => { moveLayerStartY = value; }, enumerable: true },
+            moveSelFloating: { get: () => moveSelFloating, set: value => { moveSelFloating = value; }, enumerable: true },
+            moveSelOrigX: { get: () => moveSelOrigX, set: value => { moveSelOrigX = value; }, enumerable: true },
+            moveSelOrigY: { get: () => moveSelOrigY, set: value => { moveSelOrigY = value; }, enumerable: true },
             adjustments: { get: () => adjustments, set: value => { adjustments = value; }, enumerable: true },
             appEl: { get: () => appEl, set: value => { appEl = value; }, enumerable: true },
             canvasArea: { get: () => canvasArea, set: value => { canvasArea = value; }, enumerable: true },
@@ -578,6 +592,10 @@
             if (nameEl) {
                 const idx = parseInt(nameEl.dataset.layerName);
                 activeLayerIdx = idx;
+                if (editMaskMode) {
+                    editMaskMode = false;
+                    notify({ type: 'info', message: t('pixel.mask_edit_off') });
+                }
                 refreshLayerPanel();
             }
         });

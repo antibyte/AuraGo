@@ -85,10 +85,11 @@
                 if (this.activeTool === 'move') {
                     this.moveLayerStartX = coords.x;
                     this.moveLayerStartY = coords.y;
-                    if (this.selection && this.selImageData) {
+                    if (this.selection) {
                         this.isMovingSel = true;
                         this.selDragOfsX = coords.x - this.selection.x;
                         this.selDragOfsY = coords.y - this.selection.y;
+                        this.beginMoveSelection();
                     } else {
                         this.isMovingSel = true;
                         this.moveLayerSnapshot = { x: coords.x, y: coords.y };
@@ -107,12 +108,24 @@
                     this.isDrawing = true;
                     this.lastDrawX = coords.x;
                     this.lastDrawY = coords.y;
-                    const actx = this.getActiveCtx();
-                    const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                    const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
-                    const opacity = this.activeTool === 'pencil' ? 100 : this.brushOpacity;
-                    const color = this.activeTool === 'eraser' ? '#000000' : this.primaryColor;
-                    this.drawBrushStroke(actx, coords.x, coords.y, coords.x, coords.y, size, opacity, color, op, this.brushHardness);
+                    if (this.activeTool === 'clone-stamp') {
+                        this.cloneStampUsed = false;
+                        if (this.cloneSampleCanvas) this.releaseTempCanvas(this.cloneSampleCanvas);
+                        this.cloneSampleCanvas = null;
+                        if (this.cloneSourceX != null && this.cloneSourceY != null) {
+                            this.cloneStrokeOffX = coords.x - this.cloneSourceX;
+                            this.cloneStrokeOffY = coords.y - this.cloneSourceY;
+                            this.cloneSampleCanvas = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
+                            this.cloneSampleCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+                        }
+                    } else {
+                        const actx = this.getActiveCtx();
+                        const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
+                        const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
+                        const opacity = this.activeTool === 'pencil' ? 100 : this.brushOpacity;
+                        const color = this.activeTool === 'eraser' ? '#000000' : this.primaryColor;
+                        this.drawBrushStroke(actx, coords.x, coords.y, coords.x, coords.y, size, opacity, color, op, this.brushHardness);
+                    }
                     if (this.layers.length > 1) this.compositeLayers();
                     return;
                 }
@@ -185,7 +198,7 @@
                 if (this.isDrawing && isDrawingTool) {
                     const actx = this.getActiveCtx();
                     if (this.activeTool === 'clone-stamp') {
-                        this.cloneStampAt(this.lastDrawX, this.lastDrawY, coords.x, coords.y);
+                        this.cloneStampAt(coords.x, coords.y);
                     } else {
                         const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
                         const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
@@ -242,7 +255,7 @@
                 }
 
                 if (this.isMovingSel && e.buttons === 1) {
-                    if (this.activeTool === 'move' && this.moveLayerSnapshot && !this.selImageData) {
+                    if (this.activeTool === 'move' && this.moveLayerSnapshot && !this.selection) {
                         return;
                     }
                     if (this.selection) {
@@ -262,8 +275,16 @@
 
                 if (this.isDrawing && isDrawingTool) {
                     this.isDrawing = false;
-                    if (this.activeTool !== 'clone-stamp') this.addRecentColor(this.primaryColor);
-                    this.pushHistory('draw:' + this.activeTool);
+                    if (this.activeTool === 'clone-stamp') {
+                        if (this.cloneSampleCanvas) {
+                            this.releaseTempCanvas(this.cloneSampleCanvas);
+                            this.cloneSampleCanvas = null;
+                        }
+                        if (this.cloneStampUsed) this.pushHistory('draw:clone-stamp');
+                    } else {
+                        if (this.activeTool !== 'clone-stamp') this.addRecentColor(this.primaryColor);
+                        this.pushHistory('draw:' + this.activeTool);
+                    }
                     return;
                 }
 
@@ -310,11 +331,15 @@
                 }
 
                 if (this.isMovingSel) {
-                    if (this.activeTool === 'move' && this.moveLayerSnapshot && !this.selImageData) {
-                        const dx = coords.x - this.moveLayerStartX;
-                        const dy = coords.y - this.moveLayerStartY;
-                        this.commitMoveLayer(dx, dy);
-                        this.moveLayerSnapshot = null;
+                    if (this.activeTool === 'move') {
+                        if (this.moveSelFloating) {
+                            this.commitMoveSelection();
+                        } else if (this.moveLayerSnapshot && !this.selection) {
+                            const dx = coords.x - this.moveLayerStartX;
+                            const dy = coords.y - this.moveLayerStartY;
+                            this.commitMoveLayer(dx, dy);
+                            this.moveLayerSnapshot = null;
+                        }
                     }
                     this.isMovingSel = false;
                     return;
