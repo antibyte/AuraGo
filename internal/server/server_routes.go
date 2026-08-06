@@ -615,8 +615,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerOpenSCADRoutes(mux, s)
 	registerVirtualComputersRoutes(mux, s)
 	// Start cgroup monitoring for Virtual Computers so leftover cgroups are
-	// detected before they exhaust the global cgroup limit.
-	startVirtualComputersCgroupMonitor(serverCtx, s, s.Logger)
+	// detected before they exhaust the global cgroup limit. Only start when the
+	// integration is actually enabled to avoid wasted work.
+	s.CfgMu.RLock()
+	vcEnabled := s.Cfg != nil && s.Cfg.VirtualComputers.Enabled
+	s.CfgMu.RUnlock()
+	if vcEnabled {
+		startVirtualComputersCgroupMonitor(serverCtx, s, s.Logger)
+	}
 	registerGameMakerRoutes(mux, s)
 
 	// Pixel image editor endpoints

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -32,7 +33,25 @@ var virtualComputersAutoSetupState = struct {
 	cancel              context.CancelFunc
 	cancelGeneration    uint64
 	consecutiveFailures int
+	failuresLoaded      bool
 }{}
+
+func loadVirtualComputersAutoSetupFailures() {
+	state, err := virtualComputersLoadSetupState()
+	if err != nil {
+		return
+	}
+	virtualComputersAutoSetupState.consecutiveFailures = state.ConsecutiveFailures
+	virtualComputersAutoSetupState.failuresLoaded = true
+}
+
+func saveVirtualComputersAutoSetupFailures() {
+	state := virtualComputersSetupState{
+		ConsecutiveFailures: virtualComputersAutoSetupState.consecutiveFailures,
+		LastFailureAt:       time.Now(),
+	}
+	_ = virtualComputersSaveSetupState(state)
+}
 
 func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig) bool {
 	return virtualComputersTriggerAutoSetupWithForce(s, cfg, false)
@@ -74,6 +93,9 @@ func virtualComputersTriggerAutoSetupWithForce(s *Server, cfg virtualcomputers.T
 	if !force && !configChanged && time.Now().Before(virtualComputersAutoSetupState.retryAfter) {
 		virtualComputersAutoSetupState.Unlock()
 		return false
+	}
+	if !virtualComputersAutoSetupState.failuresLoaded {
+		loadVirtualComputersAutoSetupFailures()
 	}
 	if !force && virtualComputersAutoSetupState.consecutiveFailures >= virtualComputersAutoSetupMaxRetries {
 		if s != nil && s.Logger != nil {
@@ -141,10 +163,12 @@ func reconcileVirtualComputersAutoSetup() {
 		if attempted && runErr != nil {
 			virtualComputersAutoSetupState.retryAfter = time.Now().Add(virtualComputersAutoSetupRetryCooldown)
 			virtualComputersAutoSetupState.consecutiveFailures++
+			saveVirtualComputersAutoSetupFailures()
 		} else {
 			virtualComputersAutoSetupState.retryAfter = time.Time{}
 			if runErr == nil {
 				virtualComputersAutoSetupState.consecutiveFailures = 0
+				saveVirtualComputersAutoSetupFailures()
 			}
 		}
 		virtualComputersAutoSetupState.Unlock()
@@ -221,7 +245,10 @@ func resetVirtualComputersAutoSetupState() {
 	virtualComputersAutoSetupState.desiredConfig = virtualcomputers.ToolConfig{}
 	virtualComputersAutoSetupState.cancel = nil
 	virtualComputersAutoSetupState.cancelGeneration = 0
+	virtualComputersAutoSetupState.consecutiveFailures = 0
+	virtualComputersAutoSetupState.failuresLoaded = false
 	virtualComputersAutoSetupState.Unlock()
+	_ = os.Remove(virtualComputersSetupStatePath)
 	if cancel != nil {
 		cancel()
 	}

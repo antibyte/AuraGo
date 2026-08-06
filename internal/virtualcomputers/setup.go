@@ -377,11 +377,25 @@ cp /root/infra/boringd.service /etc/systemd/system/boringd.service
 
 # Ensure the service cleans up leftover empty child cgroups when it stops.
 # Delegate=yes lets boringd manage its own cgroup subtree; systemd will not
-# remove the service cgroup until it is empty. This ExecStopPost removes empty
-# child directories so the service cgroup can be released even if jailer
-# cgroups were not fully cleaned up by the upstream code.
-if ! grep -q "^ExecStopPost=" /etc/systemd/system/boringd.service; then
-	printf '\n[Service]\nExecStopPost=-/bin/sh -c '"'"'cd /sys/fs/cgroup/system.slice/boringd.service && find . -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true'"'"'\n' >> /etc/systemd/system/boringd.service
+# remove the service cgroup until it is empty. This ExecStopPost calls a small
+# helper script that removes empty child directories so the service cgroup
+# can be released even if jailer cgroups were not fully cleaned up upstream.
+BORING_CG_CLEANUP="/opt/boring/bin/boringd-cg-cleanup.sh"
+cat > "${BORING_CG_CLEANUP}" <<'CG_CLEANUP_EOF'
+#!/bin/sh
+# Remove empty child cgroups under boringd.service so the delegated service
+# cgroup can be released by systemd.
+cd /sys/fs/cgroup/system.slice/boringd.service 2>/dev/null || exit 0
+find . -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true
+CG_CLEANUP_EOF
+chmod +x "${BORING_CG_CLEANUP}"
+
+	if ! grep -qx "ExecStopPost=-${BORING_CG_CLEANUP}" /etc/systemd/system/boringd.service; then
+	# Avoid duplicate cleanup entries if the path is already referenced.
+	if ! grep -q "ExecStopPost=.*/boringd-cg-cleanup.sh" /etc/systemd/system/boringd.service; then
+		# Note: %%s is escaped for Go's fmt.Sprintf; the shell sees a percent-s placeholder.
+		printf '\n[Service]\nExecStopPost=-%%s\n' "${BORING_CG_CLEANUP}" >> /etc/systemd/system/boringd.service
+	fi
 fi
 
 log "writing boringd environment"

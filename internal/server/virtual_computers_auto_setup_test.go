@@ -369,11 +369,21 @@ func setVirtualComputersAutoSetupTestHooks(t *testing.T) func() {
 	t.Helper()
 	oldNeeded := virtualComputersAutoSetupNeeded
 	oldRunner := virtualComputersAutoSetupRunner
+	oldStatePath := virtualComputersSetupStatePath
+	oldLoad := virtualComputersLoadSetupState
+	oldSave := virtualComputersSaveSetupState
+	tmpPath := filepath.Join(t.TempDir(), "vc_setup_state.json")
+	virtualComputersSetupStatePath = tmpPath
+	virtualComputersLoadSetupState = func() (virtualComputersSetupState, error) { return virtualComputersSetupState{}, nil }
+	virtualComputersSaveSetupState = func(virtualComputersSetupState) error { return nil }
 	resetVirtualComputersAutoSetupState()
 	return func() {
 		waitForVirtualComputersAutoSetupIdle(t)
 		virtualComputersAutoSetupNeeded = oldNeeded
 		virtualComputersAutoSetupRunner = oldRunner
+		virtualComputersSetupStatePath = oldStatePath
+		virtualComputersLoadSetupState = oldLoad
+		virtualComputersSaveSetupState = oldSave
 		resetVirtualComputersAutoSetupState()
 	}
 }
