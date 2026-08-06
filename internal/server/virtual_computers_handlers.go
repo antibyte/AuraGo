@@ -73,7 +73,25 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/virtual-computers/tasks/", handleVirtualComputersTask(s))
 	mux.HandleFunc("/api/virtual-computers/machines", handleVirtualComputersMachines(s))
 	mux.HandleFunc("/api/virtual-computers/machines/", handleVirtualComputersMachine(s))
-	virtualComputersTriggerAutoSetup(s, virtualComputersConfigSnapshot(s))
+	// Only trigger auto-setup at startup if boringd is not already installed and healthy.
+	// A routine AuraGo restart (e.g. via update.sh) must not re-run the full install/restart
+	// of boringd, because that accumulates leftover cgroups under boringd.service.
+	triggerStartupAutoSetupIfNeeded(s)
+}
+
+func triggerStartupAutoSetupIfNeeded(s *Server) {
+	cfg := virtualComputersConfigSnapshot(s)
+	if !cfg.Enabled || !cfg.AutoSetup {
+		return
+	}
+	// If boringd is already reachable, skip startup auto-setup entirely.
+	if virtualComputersHealthOK(cfg.BoringdURL) {
+		if s.Logger != nil {
+			s.Logger.Info("[VirtualComputers] boringd is already healthy; skipping startup auto-setup")
+		}
+		return
+	}
+	virtualComputersTriggerAutoSetup(s, cfg)
 }
 
 func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {

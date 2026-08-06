@@ -15,6 +15,7 @@ import (
 )
 
 const virtualComputersAutoSetupRetryCooldown = 5 * time.Minute
+const virtualComputersAutoSetupMaxRetries = 3
 
 var (
 	virtualComputersAutoSetupNeeded = defaultVirtualComputersAutoSetupNeeded
@@ -23,13 +24,14 @@ var (
 
 var virtualComputersAutoSetupState = struct {
 	sync.Mutex
-	running          bool
-	retryAfter       time.Time
-	generation       uint64
-	desiredServer    *Server
-	desiredConfig    virtualcomputers.ToolConfig
-	cancel           context.CancelFunc
-	cancelGeneration uint64
+	running             bool
+	retryAfter          time.Time
+	generation          uint64
+	desiredServer       *Server
+	desiredConfig       virtualcomputers.ToolConfig
+	cancel              context.CancelFunc
+	cancelGeneration    uint64
+	consecutiveFailures int
 }{}
 
 func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig) bool {
@@ -73,6 +75,13 @@ func virtualComputersTriggerAutoSetupWithForce(s *Server, cfg virtualcomputers.T
 		virtualComputersAutoSetupState.Unlock()
 		return false
 	}
+	if !force && virtualComputersAutoSetupState.consecutiveFailures >= virtualComputersAutoSetupMaxRetries {
+		if s != nil && s.Logger != nil {
+			s.Logger.Warn("[VirtualComputers] Auto-setup has failed repeatedly; manual install/repair required")
+		}
+		virtualComputersAutoSetupState.Unlock()
+		return false
+	}
 	virtualComputersAutoSetupState.generation++
 	virtualComputersAutoSetupState.desiredServer = s
 	virtualComputersAutoSetupState.desiredConfig = cfg
@@ -88,6 +97,9 @@ func virtualComputersRetryAutoSetupAfterSudoCredentialChange(s *Server) bool {
 	if !cfg.Enabled || !cfg.AutoSetup || virtualComputersControlPlaneMode(cfg) != virtualcomputers.ControlPlaneLocalHost {
 		return false
 	}
+	virtualComputersAutoSetupState.Lock()
+	virtualComputersAutoSetupState.consecutiveFailures = 0
+	virtualComputersAutoSetupState.Unlock()
 	return virtualComputersTriggerAutoSetupWithForce(s, cfg, true)
 }
 
@@ -128,8 +140,12 @@ func reconcileVirtualComputersAutoSetup() {
 		virtualComputersAutoSetupState.running = false
 		if attempted && runErr != nil {
 			virtualComputersAutoSetupState.retryAfter = time.Now().Add(virtualComputersAutoSetupRetryCooldown)
+			virtualComputersAutoSetupState.consecutiveFailures++
 		} else {
 			virtualComputersAutoSetupState.retryAfter = time.Time{}
+			if runErr == nil {
+				virtualComputersAutoSetupState.consecutiveFailures = 0
+			}
 		}
 		virtualComputersAutoSetupState.Unlock()
 

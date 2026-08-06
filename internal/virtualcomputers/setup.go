@@ -291,8 +291,19 @@ if [ ! -e /dev/kvm ]; then
 fi
 
 log "installing host dependencies"
-apt-get update -y
-apt-get install -y ca-certificates curl git rsync build-essential
+NEED_APT_UPDATE=0
+for pkg in ca-certificates curl git rsync build-essential; do
+	if ! dpkg -l "${pkg}" 2>/dev/null | grep -qE "^ii"; then
+		NEED_APT_UPDATE=1
+		break
+	fi
+done
+if [ "${NEED_APT_UPDATE}" = "1" ]; then
+	apt-get update -y
+	apt-get install -y ca-certificates curl git rsync build-essential
+else
+	log "host dependencies already present"
+fi
 
 REPO_DIR="${INSTALL_DIR}/boring-computers"
 mkdir -p "${INSTALL_DIR}" /root/infra /opt/boring/src
@@ -364,6 +375,15 @@ cd /opt/boring/src
 CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o /usr/local/bin/boringd .
 cp /root/infra/boringd.service /etc/systemd/system/boringd.service
 
+# Ensure the service cleans up leftover empty child cgroups when it stops.
+# Delegate=yes lets boringd manage its own cgroup subtree; systemd will not
+# remove the service cgroup until it is empty. This ExecStopPost removes empty
+# child directories so the service cgroup can be released even if jailer
+# cgroups were not fully cleaned up by the upstream code.
+if ! grep -q "^ExecStopPost=" /etc/systemd/system/boringd.service; then
+	printf '\n[Service]\nExecStopPost=-/bin/sh -c '"'"'cd /sys/fs/cgroup/system.slice/boringd.service && find . -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true'"'"'\n' >> /etc/systemd/system/boringd.service
+fi
+
 log "writing boringd environment"
 install -d -m0755 /etc/boring
 umask 077
@@ -392,7 +412,28 @@ log "starting boringd"
 systemctl daemon-reload
 systemctl enable boring-net.service 2>/dev/null || true
 systemctl enable boringd
-systemctl restart boringd
+
+# Stop any previous boringd instance explicitly and wait for its cgroup to drain.
+# With Delegate=yes, systemd only removes the service cgroup when it is empty;
+# leftover jailer child cgroups from previous runs would otherwise accumulate
+# across restarts and eventually exhaust the global cgroup limit.
+log "stopping any previous boringd instance"
+systemctl stop boringd || true
+BORING_CG="/sys/fs/cgroup/system.slice/boringd.service"
+if [ -d "${BORING_CG}" ]; then
+	for _ in $(seq 1 30); do
+		if [ ! -s "${BORING_CG}/cgroup.procs" ]; then
+			# No processes left in the main cgroup; attempt to remove empty child cgroups.
+			find "${BORING_CG}" -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true
+			break
+		fi
+		sleep 1
+	done
+	find "${BORING_CG}" -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true
+fi
+
+log "starting fresh boringd instance"
+systemctl start boringd
 log "waiting for boringd health"
 BORING_HEALTHY=0
 for attempt in $(seq 1 30); do

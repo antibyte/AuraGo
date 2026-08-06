@@ -614,6 +614,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerCodeStudioRoutes(mux, s)
 	registerOpenSCADRoutes(mux, s)
 	registerVirtualComputersRoutes(mux, s)
+	// Start cgroup monitoring for Virtual Computers so leftover cgroups are
+	// detected before they exhaust the global cgroup limit.
+	startVirtualComputersCgroupMonitor(serverCtx, s, s.Logger)
 	registerGameMakerRoutes(mux, s)
 
 	// Pixel image editor endpoints
