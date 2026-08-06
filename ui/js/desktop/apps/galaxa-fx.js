@@ -125,7 +125,6 @@
 
         function fxStageClearSetPiece() {
             const low = ctx.settings.particles === 'low';
-            if (ctx.fxWarpStart) ctx.fxWarpStart();
             if (!low && ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(ctx.W / 2, ctx.H / 2);
             if (!reducedMotion()) {
                 ctx.G.flashT = Math.max(ctx.G.flashT || 0, low ? 100 : 180);
@@ -169,11 +168,11 @@
             if (ctx.fxBossDeathRumble) ctx.fxBossDeathRumble(x, y);
             if (!reducedMotion()) {
                 if (!low && ctx.fxScreenShatter) ctx.fxScreenShatter();
-                if (ctx.SFX && ctx.SFX.screenShatter) ctx.SFX.screenShatter();
                 if (ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(x, y);
             } else {
                 ctx.G.flashT = Math.max(ctx.G.flashT || 0, 120);
             }
+            if (ctx.SFX && ctx.SFX.screenShatter) ctx.SFX.screenShatter();
             ctx.G.hitstopT = Math.max(ctx.G.hitstopT || 0, low ? 80 : 140);
         }
 
@@ -254,7 +253,6 @@
                     rotSpd: (Math.random() - 0.5) * 8
                 });
             }
-            if (ctx.SFX && ctx.SFX.stageFanfare) ctx.SFX.stageFanfare(x);
         }
 
         // --- Magnet pull-line visual -----------------------------------------

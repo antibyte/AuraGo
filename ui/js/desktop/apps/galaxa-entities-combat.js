@@ -237,7 +237,7 @@
         function updateCombo(dtMs) {
             if (ctx.G.comboTimer > 0) {
                 ctx.G.comboTimer -= dtMs || 16;
-                if (ctx.G.comboTimer <= 0) { if (ctx.G.combo > 2) ctx.SFX.comboBreak(); ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null; }
+                if (ctx.G.comboTimer <= 0) { if (ctx.G.combo > 2) ctx.SFX.comboBreak(); ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null; ctx.G._comboLevel = 0; }
             }
         }
         function getComboTimeout() { const _rb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { comboBonus: 0 }; return ctx.COMBO_TIMEOUT + _rb.comboBonus; }
@@ -253,15 +253,18 @@
             let level = 0;
             for (let i = ctx.COMBO_THRESH.length - 1; i >= 0; i--) { if (ctx.G.combo >= ctx.COMBO_THRESH[i]) { level = i + 1; break; } }
             ctx.G.comboMult = ctx.COMBO_MULT[level] || 1;
+            const prevLevel = ctx.G._comboLevel || 0;
+            ctx.G._comboLevel = level;
+            const isMilestone = level > prevLevel;
             if (level > 0 && ctx.COMBO_TEXT[level]) {
                 ctx.G.comboBanner = { text: ctx.COMBO_TEXT[level], mult: ctx.G.comboMult, t: 0, dur: 1200 };
-                ctx.SFX.combo(level);
-                if (level >= 4) ctx.SFX.killStreak();
-                // NEW: Screen-edge pulse + rising pitch arpeggio on combo milestones (galaxa-fx)
-                if (ctx.fxComboPulse) ctx.fxComboPulse(level);
-                if (level >= 3 && ctx.SFX.comboRiser) ctx.SFX.comboRiser(level, ctx.W / 2);
-                if (level >= 3 && ctx.SFX.megaComboStinger) ctx.SFX.megaComboStinger(level, ctx.W / 2);
-                if (level >= 3 && ctx.fxMegaCombo) ctx.fxMegaCombo(level);
+                if (isMilestone) {
+                    ctx.SFX.combo(level);
+                    if (level >= 4) ctx.SFX.killStreak();
+                    if (ctx.fxComboPulse) ctx.fxComboPulse(level);
+                    if (level >= 3 && ctx.SFX.megaComboStinger) ctx.SFX.megaComboStinger(level, ctx.W / 2);
+                    if (level >= 3 && ctx.fxMegaCombo) ctx.fxMegaCombo(level);
+                }
             }
             if (ctx.G.combo === 10) {
                 for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.type !== 'boss' && e.type !== 'miniboss') { ctx.addScore(50, e.x, e.y, '#ff4444'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; } }
@@ -780,6 +783,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
         }
         function updateBul(dt) {
             const dtMs = dt * 1000;
+            const hitSfxNow = performance.now ? performance.now() : Date.now();
             ctx.updatePlayerMines(dtMs, dt);
             const hasRicochet = ctx.G.activePU && (ctx.G.activePU.type === 'ricochet' || ctx.G.activePU.type === 'mega_ricochet');
             const maxBounces = ctx.G.activePU && ctx.G.activePU.type === 'mega_ricochet' ? 4 : 2;
@@ -911,7 +915,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             const _remainingAlive = ctx.G.enemies.filter(_en => _en.st !== 'DEAD' && _en !== e).length;
                             if (_remainingAlive === 0 && e.type !== 'boss' && e.type !== 'miniboss') { ctx.G.timeScale = 0.2; ctx.G.slowMoT = 600; }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
-                        }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); }
+                        }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); if (hitSfxNow - (e._lastHitSfxT || 0) > 60) { e._lastHitSfxT = hitSfxNow; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); } }
                         if (!b.laser && !b.pierce) { removed = true; break; }
                         if (b.laser) {
                             for (let li = 0; li < 4; li++) { const la = Math.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + Math.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }

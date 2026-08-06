@@ -181,7 +181,7 @@
             bossDeathStinger() { const _v = vv(); [110, 82, 65, 49, 41].forEach((f, i) => { setTimeout(() => { beep('sawtooth', f, f * 0.5, 0.6, 0.35 * _v); beep('sine', f * 2, f, 0.5, 0.25 * _v); }, i * 400); }); },
             bossKillFanfare(panX) { if (ctx.G.muted) return;
                 const _v = vv();
-                if (ctx.duckMusic) ctx.duckMusic(0.15, 1400);
+                if (ctx.duckMusic) ctx.duckMusic(0.8, 1400);
                 noise(0.08, 0.05 * _v, 200, panX);
                 setTimeout(() => {
                     if (ctx.G.muted) return;
@@ -271,7 +271,6 @@
                     beep('square', f, f, 0.14, 0.22, panX);
                     beep('triangle', harmony[i], harmony[i], 0.14, 0.12, panX);
                 }, i * 90));
-                setTimeout(() => { if (!ctx.G.muted && this.warpWhoosh) this.warpWhoosh(); }, 200);
             },
             // NEW: Magnet pull — subtle electronic hum that rises in pitch
             magnetPull(panX) { const _p = pv(); beep('sine', 400 * _p, 700 * _p, 0.15, 0.08, panX); beep('triangle', 600 * _p, 900 * _p, 0.12, 0.05, panX); },

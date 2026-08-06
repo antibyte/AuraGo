@@ -143,6 +143,8 @@
                 ctx.MusicEngine.play('victory');
                 const _victoryTheme = baseMusicTheme(false);
                 setTimeout(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play(_victoryTheme); }, 3500);
+                if (ctx.SFX.stageClear) ctx.SFX.stageClear();
+                if (ctx.fxStageClearSetPiece) ctx.fxStageClearSetPiece();
             }
             if (ctx.G.stage % 3 === 0 && !fromSkip && ctx.openShop && (!ctx.modesShouldOpenShop || ctx.modesShouldOpenShop())) {
                 ctx.openShop();
@@ -173,7 +175,7 @@
             ctx.G.playerMines = []; ctx.G.mineDropT = 0;
             ctx.G.beam = null; ctx.G.powerups = []; ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.G.shieldHits = 0;
             ctx.G.scorePopups = []; ctx.G.warpT = 0; ctx.G.warpFlash = 0; ctx.G.perfectT = 0;
-            ctx.G.combo = 0; ctx.G.comboTimer = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null;
+            ctx.G.combo = 0; ctx.G.comboTimer = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null; ctx.G._comboLevel = 0; ctx.G.fxMegaComboBurst = 0;
             ctx.G.trails = []; ctx.G.timeScale = 1; ctx.G.timeSlowTimer = 0; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0;
             ctx.G.bossWarningT = 0; ctx.G.bossWarningShown = false;
             ctx.G.weaponLv = Math.max(1, ctx.G.weaponLv); ctx.G.puUpgrade = null; ctx.G.upgradeBanner = null; ctx.G.killCount = 0; ctx.G.slowMoT = 0;
@@ -192,8 +194,7 @@
             ctx.G.stageEmptyT = 0;
             ctx.setPUClass(null);
             if (ctx.modesOnStageStart) ctx.modesOnStageStart();
-            ctx.G.chal ? ctx.SFX.challenge() : ctx.SFX.stageClear();
-            if (!ctx.G.chal && ctx.fxStageClearSetPiece) ctx.fxStageClearSetPiece();
+            if (ctx.G.chal) ctx.SFX.challenge();
             ctx.MusicEngine.setTempo(1 + ctx.G.stage * 0.05);
             const _baseTheme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(ctx.G.chal) : (ctx.G.chal ? 'challenge' : 'gameplay');
             ctx.MusicEngine.play(_baseTheme);
