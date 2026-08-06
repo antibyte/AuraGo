@@ -179,6 +179,17 @@
             bossPhaseTransition() { const _v = vv(); beep('sawtooth', 100, 50, 0.6, 0.4 * _v); noise(0.4, 0.3 * _v, 800); setTimeout(() => beep('sawtooth', 200, 100, 0.3, 0.25 * _v), 200); },
             bossPhaseCrescendo() { const _v = vv(); beep('sawtooth', 200, 800, 0.5, 0.35 * _v); beep('triangle', 400, 1600, 0.4, 0.25 * _v); noise(0.3, 0.2 * _v, 4000); },
             bossDeathStinger() { const _v = vv(); [110, 82, 65, 49, 41].forEach((f, i) => { setTimeout(() => { beep('sawtooth', f, f * 0.5, 0.6, 0.35 * _v); beep('sine', f * 2, f, 0.5, 0.25 * _v); }, i * 400); }); },
+            bossKillFanfare(panX) { if (ctx.G.muted) return;
+                const _v = vv();
+                if (ctx.duckMusic) ctx.duckMusic(0.15, 1400);
+                noise(0.08, 0.05 * _v, 200, panX);
+                setTimeout(() => {
+                    if (ctx.G.muted) return;
+                    if (this.bossDeathStinger) this.bossDeathStinger();
+                    else this.bossDeathRumble(panX);
+                    if (this.subThump) this.subThump(panX);
+                }, 120);
+            },
             // NEW: Ambient loops (one-shot, called by biome system)
             ambientStormWind() { noise(1.5, 0.04, 400); beep('sine', 30, 30, 1.5, 0.02); },
             ambientBlackholeDrone() { beep('sine', 40, 40, 2, 0.04); beep('sine', 55, 55, 2, 0.03); },

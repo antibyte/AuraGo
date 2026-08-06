@@ -23,6 +23,9 @@
 
         function caps() { return GC.FX_CAPS[ctx.settings.particles] || GC.FX_CAPS.high; }
         function easeOutCubic(t) { const f = t - 1; return f * f * f + 1; }
+        function reducedMotion() {
+            try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+        }
 
         // --- Boss shockwave: staggered rings with chromatic fringe -----------
         function fxBossShockwave(x, y) {
@@ -139,7 +142,20 @@
                     maxR: 60 + i * 30, w: 4 - i * 0.6
                 });
             }
-            if (ctx.SFX && ctx.SFX.bossDeathRumble) ctx.SFX.bossDeathRumble(x);
+        }
+
+        function fxBossKillSetPiece(x, y) {
+            const low = ctx.settings.particles === 'low';
+            if (ctx.fxBossShockwave) ctx.fxBossShockwave(x, y);
+            if (ctx.fxBossDeathRumble) ctx.fxBossDeathRumble(x, y);
+            if (!reducedMotion()) {
+                if (!low && ctx.fxScreenShatter) ctx.fxScreenShatter();
+                if (ctx.SFX && ctx.SFX.screenShatter) ctx.SFX.screenShatter();
+                if (ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(x, y);
+            } else {
+                ctx.G.flashT = Math.max(ctx.G.flashT || 0, 120);
+            }
+            ctx.G.hitstopT = Math.max(ctx.G.hitstopT || 0, low ? 80 : 140);
         }
 
         // --- Graze particle flare near player --------------------------------
@@ -804,6 +820,7 @@
         }
 
         ctx.fxBossShockwave = fxBossShockwave;
+        ctx.fxBossKillSetPiece = fxBossKillSetPiece;
         ctx.fxMuzzleSparks = fxMuzzleSparks;
         ctx.fxWarpStart = fxWarpStart;
         ctx.fxPowerupSparkle = fxPowerupSparkle;

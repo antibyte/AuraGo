@@ -124,9 +124,6 @@
                 ctx.G.exp.push({ x, y, t: 0, dur: 700, seed: Math.random(), isBoss: false, shockwave: true });
                 ctx.G.exp.push({ x, y, t: 0, dur: 180, seed: Math.random(), isBoss: false, flash: true });
                 for (let _bi = 0; _bi < 16; _bi++) { const _ba = (_bi / 16) * Math.PI * 2; const _bsp = 40 + Math.random() * 60; ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(_ba) * _bsp, vy: Math.sin(_ba) * _bsp, life: 800, t: 0, col: '#ffcc44', size: 2, spark: true, trail: true, bloom: true, bloomPhase: 0 })); }
-                ctx.SFX.deathBloom();
-                if (ctx.fxScreenShatter) ctx.fxScreenShatter();
-                if (ctx.SFX.screenShatter) ctx.SFX.screenShatter();
             } else { ctx.G.exp.push({ x, y, t: 0, dur: 100, seed: Math.random(), isBoss: false, flash: true }); ctx.G.exp.push({ x, y, t: 0, dur: 300, seed: Math.random(), isBoss: false, shockwave: true }); }
             // NEW: Per-enemy-type death animation colors
             const typeCols = {
@@ -148,7 +145,10 @@
             const fireCols = (enemyType && typeCols[enemyType]) ? typeCols[enemyType] : (isBoss ? ['#ffcc00', '#ff8800', '#ff4444', '#fff'] : ['#ffcc00', '#ff4444', '#ff8800', '#fff', '#ffee88', '#ff6622', '#ffaa00']);
             // NEW: Per-enemy-type layered explosion sound + hitstop on boss kills
             if (ctx.SFX.eExplodeTyped) ctx.SFX.eExplodeTyped(enemyType || 'bee', isBoss ? 'big' : 'normal', x); else ctx.SFX.eExplode(x);
-            if (isBoss) { ctx.G.hitstopT = Math.max(ctx.G.hitstopT, 120); ctx.duckMusic(0.5, 600); }
+            if (isBoss) {
+                if (ctx.SFX.bossKillFanfare) ctx.SFX.bossKillFanfare(x);
+                if (ctx.fxBossKillSetPiece) ctx.fxBossKillSetPiece(x, y);
+            }
             for (let i = 0; i < pCount; i++) {
                 const a = (i / pCount) * Math.PI * 2 + Math.random() * 0.8, sp = 60 + (i * 23 % 160) * (isBoss ? 2 : 1.2);
                 const cols = fireCols[i % fireCols.length];
@@ -210,13 +210,6 @@
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 100, t: 0, dur: 550, col: '#ff8800' });
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 60, t: 0, dur: 320, col: '#ffcc00' });
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 30, t: 0, dur: 200, col: '#ffffff' });
-                // NEW: Chromatic multi-ring shockwave + sub-bass thump (galaxa-fx)
-                if (ctx.fxBossShockwave) ctx.fxBossShockwave(x, y);
-                if (ctx.SFX.subThump) ctx.SFX.subThump(x);
-                // NEW: Boss death rumble — extended screen shake + vignette (galaxa-fx)
-                if (ctx.fxBossDeathRumble) ctx.fxBossDeathRumble(x, y);
-                // NEW: Stage-clear confetti burst (galaxa-fx)
-                if (ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(x, y);
             }
         }
         function bulletImpact(x, y, col, dirX, dirY) {

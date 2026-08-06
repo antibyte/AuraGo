@@ -44,6 +44,21 @@ func TestGalaxaJuicePowerupProgressionMarkers(t *testing.T) {
 	}
 }
 
+func TestGalaxaJuiceBossKillMarkers(t *testing.T) {
+	t.Parallel()
+	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
+	if !strings.Contains(sfx, "bossKillFanfare(panX) { if (ctx.G.muted) return;") {
+		t.Fatal("missing bossKillFanfare")
+	}
+	fx := readEmbeddedText(t, "js/desktop/apps/galaxa-fx.js")
+	if !strings.Contains(fx, "fxBossKillSetPiece") {
+		t.Fatal("missing fxBossKillSetPiece")
+	}
+	if !strings.Contains(fx, "prefers-reduced-motion") {
+		t.Fatal("boss kill FX must respect prefers-reduced-motion")
+	}
+}
+
 func TestGalaxaJuicePlayerFeedbackMarkers(t *testing.T) {
 	t.Parallel()
 	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
