@@ -423,7 +423,14 @@
                 if (this.filterCompareMode && this.filterPreview.filtered) {
                     const split = Math.round(w * 0.5);
                     target.drawImage(this.filterPreview.snap, 0, 0, split, h, 0, 0, split, h);
-                    target.drawImage(this.filterPreview.filtered, split, 0, w - split, h, split, 0, w - split, h);
+                    const blend = this.acquireTempCanvas(w, h);
+                    const bctx = blend.getContext('2d');
+                    bctx.drawImage(this.filterPreview.snap, 0, 0);
+                    bctx.globalAlpha = Math.max(0, Math.min(1, this.filterStrength / 100));
+                    bctx.drawImage(this.filterPreview.filtered, 0, 0);
+                    bctx.globalAlpha = 1;
+                    target.drawImage(blend, split, 0, w - split, h, split, 0, w - split, h);
+                    this.releaseTempCanvas(blend);
                 } else {
                     target.drawImage(this.filterPreview.snap, 0, 0);
                     if (this.filterPreview.filtered) {

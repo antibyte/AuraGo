@@ -436,6 +436,9 @@ func TestPixelNewToolsRegistered(t *testing.T) {
 
 func TestPixelFilterCatalogHasNewFilters(t *testing.T) {
 	filters := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
+	if !strings.Contains(filters, "filterStrength / 100") {
+		t.Fatal("pixel filter compare preview should honor filterStrength on the filtered side")
+	}
 
 	for _, id := range []string{"sharpen", "edge", "pixelate", "posterize", "duotone", "solarize", "tint", "bloom", "grain", "sketch", "aberration", "monochrome", "cyanotype", "fade", "glow", "tilt-shift", "mosaic", "denoise", "clarity"} {
 		if !strings.Contains(filters, "id: '"+id+"'") {
