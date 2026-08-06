@@ -16,9 +16,9 @@
 
         function blinkAlpha(ph, onMs) {
             const t = ph / onMs;
-            if (t < 0.15) return t / 0.15 * 0.14;
-            if (t > 0.85) return (1 - t) / 0.15 * 0.14;
-            return 0.1;
+            if (t < 0.12) return t / 0.12 * 0.05;
+            if (t > 0.88) return (1 - t) / 0.12 * 0.05;
+            return 0.02;
         }
 
         function updateEnemyMotionFx(e, dtMs) {
@@ -50,7 +50,7 @@
             }
 
             if (fx.teleportBlink && e.type === 'teleporter' && e.teleportTimer != null && e.teleportTimer < 220) {
-                alpha = Math.min(alpha, Math.max(0.06, e.teleportTimer / 220 * 0.35));
+                alpha = Math.min(alpha, Math.max(0.02, e.teleportTimer / 220 * 0.12));
             }
 
             if (e.st === 'ENTER') {
@@ -60,10 +60,11 @@
 
             e.mScale = scale;
             e.mAlpha = alpha;
+            e.mSkipDraw = alpha < 0.035;
 
             if (fx.diveTrail && e.st === 'DIVING') {
                 e.trailAcc = (e.trailAcc || 0) + dtMs;
-                const interval = e.type === 'kamikaze' ? 26 : e.type === 'hunter' ? 38 : 48;
+                const interval = e.type === 'kamikaze' ? 16 : e.type === 'hunter' ? 22 : 30;
                 if (e.trailAcc >= interval) {
                     e.trailAcc -= interval;
                     if (!e.trail) e.trail = [];
@@ -89,11 +90,11 @@
             for (let i = 0; i < e.trail.length; i++) {
                 const t = e.trail[i];
                 const fade = 1 - i / e.trail.length;
-                c.globalAlpha = fade * 0.32 * baseA;
+                c.globalAlpha = fade * 0.58 * baseA;
                 c.save();
                 c.translate(t.x, t.y);
                 c.rotate(t.rot);
-                const ts = 0.7 + fade * 0.25;
+                const ts = 0.78 + fade * 0.22;
                 c.scale(ts, ts);
                 c.translate(-t.x, -t.y);
                 ctx.drawSp(c, sp, cols, t.x - off, t.y - off, false);

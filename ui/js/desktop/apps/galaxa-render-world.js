@@ -68,7 +68,10 @@
             // NEW: Combo fire trail (galaxa-fx)
             if (ctx.fxDrawFireTrail) ctx.fxDrawFireTrail(c);
             if (p.alive) {
+                const _phaseDash = ctx.G.superPhase === 'burst' && ctx.G.superType === 'interceptor';
+                const _playerAlpha = _phaseDash ? 0.35 + Math.sin(ctx.tick * 0.25) * 0.15 : 1;
                 ctx.c.save(); ctx.c.translate(p.x, p.y); ctx.c.rotate(ctx.G.shipTilt); ctx.c.transform(1, ctx.G.shipPitch || 0, 0, 1 - Math.abs(ctx.G.shipPitch || 0) * 0.35, 0, 0); ctx.c.translate(-p.x, -p.y);
+                ctx.c.globalAlpha = _playerAlpha;
                 const _egGlow = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
                 const _egInt = 0.25 + Math.sin(ctx.tick * 0.15) * 0.15;
                 const _eglG = ctx.cachedRadialGradient(ctx.c, 'engGlow:' + _egGlow, p.x, p.y + 14, 0, 18, [[0, _egGlow + '88'], [0.5, _egGlow + '22'], [1, 'transparent']]);
@@ -97,6 +100,7 @@
                         ctx.renderFlame(ctx.c, p.x + 44, p.y + 15, eg, ctx.tick);
                     }
                 }
+                ctx.c.globalAlpha = 1;
                 ctx.c.restore();
             }
             if (p.cap) {
@@ -213,19 +217,25 @@
                 }
             }
             // NEW: Super active glow — colored aura per ship super type
-            if (ctx.G.superActive > 0 && p.alive) {
+            const _superVisual = ctx.G.superPhase === 'charge' || ctx.G.superPhase === 'burst' || ctx.G.superPhase === 'aftermath';
+            if (_superVisual && p.alive) {
                 const _def = ctx.SUPER_DEFS[ctx.G.superType] || ctx.SUPER_DEFS.classic;
-                const _sga = Math.min(1, ctx.G.superActive / 500) * 0.4 + 0.2;
+                const _sga = Math.min(1, (ctx.G.superPhaseT || 0) / 500) * 0.4 + 0.2;
                 ctx.c.globalAlpha = _sga * (0.6 + Math.sin(ctx.tick * 0.3) * 0.4);
                 ctx.c.fillStyle = _def.col;
                 const _sgr = 22 + Math.sin(ctx.tick * 0.15) * 4;
                 const _sgGrad = ctx.cachedRadialGradient(ctx.c, 'superGlow:' + _def.col, p.x, p.y, 0, _sgr + 10, [[0, _def.col + 'cc'], [0.5, _def.col + '44'], [1, 'transparent']]);
                 ctx.c.fillStyle = _sgGrad; ctx.c.fillRect(p.x - _sgr - 10, p.y - _sgr - 10, (_sgr + 10) * 2, (_sgr + 10) * 2);
                 ctx.c.globalAlpha = 1;
-                // Interceptor phase dash — motion streak lines
-                if (ctx.G.superType === 'interceptor') {
-                    ctx.c.strokeStyle = _def.col; ctx.c.lineWidth = 1; ctx.c.globalAlpha = 0.3;
-                    for (let _si = 0; _si < 4; _si++) { ctx.c.beginPath(); ctx.c.moveTo(p.x, p.y); ctx.c.lineTo(p.x + (Math.random()-0.5)*8, p.y + 20 + _si * 6); ctx.c.stroke(); }
+                // Interceptor phase dash — motion streak lines + afterimages
+                if (ctx.G.superType === 'interceptor' && ctx.G.superPhase === 'burst') {
+                    ctx.c.strokeStyle = _def.col; ctx.c.lineWidth = 2; ctx.c.globalAlpha = 0.55;
+                    for (let _si = 0; _si < 6; _si++) {
+                        ctx.c.beginPath();
+                        ctx.c.moveTo(p.x, p.y);
+                        ctx.c.lineTo(p.x + (Math.sin(ctx.tick * 0.4 + _si) * 6), p.y + 18 + _si * 8);
+                        ctx.c.stroke();
+                    }
                     ctx.c.globalAlpha = 1;
                 }
                 // Shadow clone ghosts (stealth)
@@ -464,7 +474,8 @@
                 }
                 if (ctx.drawEnemyMotionTrail) ctx.drawEnemyMotionTrail(ctx.c, e, sp, cols, _eOff);
                 const fl = e.hitF > 0;
-                if (e.type === 'hunter' && e.st !== 'DEAD') {
+                const _skipBody = e.mSkipDraw && e.st !== 'DIVING';
+                if (e.type === 'hunter' && e.st !== 'DEAD' && e.st !== 'DIVING' && !_skipBody) {
                     ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ff6600';
                     drawEnemySprite(ctx.c, e, false, 1, 0.25 + Math.sin(ctx.tick * 0.12) * 0.1);
                     ctx.c.shadowBlur = 0;
@@ -475,7 +486,7 @@
                     const _sprog = _spawnT / _spawnDur;
                     const _bounce = _sprog < 0.6 ? (_sprog / 0.6) * 1.15 : 1.15 - (_sprog - 0.6) / 0.4 * 0.15;
                     drawEnemySprite(ctx.c, e, fl, Math.max(0.1, _bounce));
-                } else {
+                } else if (!_skipBody) {
                     drawEnemySprite(ctx.c, e, fl);
                 }
                 if (fl && e.hitF > 60) {

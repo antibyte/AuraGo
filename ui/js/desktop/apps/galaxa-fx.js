@@ -140,9 +140,30 @@
             G.fxGhosts.push({
                 x: p.x, y: p.y, tilt: G.shipTilt || 0, pitch: G.shipPitch || 0,
                 frame: (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player,
-                col: G.parryActive > 0 ? '#ffffff' : GC.FX_GHOST_COL,
+                col: G.parryActive > 0 ? '#ffffff' : (G.superPhase === 'burst' && G.superType === 'interceptor' ? '#00ffcc' : GC.FX_GHOST_COL),
                 t: 0, life: GC.FX_GHOST_LIFE
             });
+        }
+
+        function fxSpawnPhaseDashGhosts(x0, y0, x1, y1) {
+            const G = ctx.G;
+            if (!G.fxGhosts) G.fxGhosts = [];
+            const max = caps().ghost;
+            const steps = 8;
+            for (let i = 0; i <= steps; i++) {
+                if (G.fxGhosts.length >= max) G.fxGhosts.shift();
+                const t = i / steps;
+                G.fxGhosts.push({
+                    x: x0 + (x1 - x0) * t,
+                    y: y0 + (y1 - y0) * t,
+                    tilt: G.shipTilt || 0,
+                    pitch: G.shipPitch || 0,
+                    frame: (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player,
+                    col: '#00ffcc',
+                    t: 0,
+                    life: GC.FX_GHOST_LIFE * 1.4
+                });
+            }
         }
 
         // --- Boss death rumble: expanding screen shake + vignette spike ------
@@ -330,12 +351,14 @@
                 for (let i = 0; i < G.fxGhosts.length; i++) { const g = G.fxGhosts[i]; g.t += dtMs; if (g.t < g.life) G.fxGhosts[w++] = g; }
                 G.fxGhosts.length = w;
             }
-            // Ghost spawn check: speed-boosted movement or active parry window.
+            // Ghost spawn check: speed-boosted movement, parry window, or interceptor phase dash.
             if (G.st === 'PLAYING' && G.p.alive) {
                 lastGhostT += dtMs;
                 const speedy = G.activePU && (G.activePU.type === 'speed' || G.activePU.type === 'hyper_speed');
                 const moving = G.inp.l || G.inp.r || G.inp.u || G.inp.d;
-                if (((speedy && moving) || G.parryActive > 0) && lastGhostT >= GC.FX_GHOST_INTERVAL) {
+                const phaseDash = G.superPhase === 'burst' && G.superType === 'interceptor';
+                const ghostInterval = phaseDash ? 35 : GC.FX_GHOST_INTERVAL;
+                if (((speedy && moving) || G.parryActive > 0 || phaseDash) && lastGhostT >= ghostInterval) {
                     lastGhostT = 0;
                     spawnGhost();
                 }
@@ -652,7 +675,7 @@
             const ghostCols = { 1: '', 2: '', 3: '' };
             for (let i = 0; i < G.fxGhosts.length; i++) {
                 const g = G.fxGhosts[i];
-                const alpha = (1 - g.t / g.life) * 0.35;
+                const alpha = (1 - g.t / g.life) * (g.col === '#00ffcc' ? 0.55 : 0.35);
                 ghostCols[1] = g.col; ghostCols[2] = g.col; ghostCols[3] = g.col;
                 c.save();
                 c.globalAlpha = alpha;
@@ -863,6 +886,7 @@
             c.globalAlpha = 1;
         }
 
+        ctx.fxSpawnPhaseDashGhosts = fxSpawnPhaseDashGhosts;
         ctx.fxBossShockwave = fxBossShockwave;
         ctx.fxBossKillSetPiece = fxBossKillSetPiece;
         ctx.fxMuzzleSparks = fxMuzzleSparks;

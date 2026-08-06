@@ -30,9 +30,12 @@
         function updateSupers(dt) {
             const G = ctx.G;
             if (G.superPhase === 'idle') {
+                G.superActive = 0;
                 if (G.superMeter < 100) G.superMeter = Math.min(100, G.superMeter + dt * 0.001);
                 return;
             }
+            if (G.superPhase === 'cooldown') G.superActive = 0;
+            else G.superActive = 1;
 
             G.superPhaseT += dt;
             const ship = ctx.settings.ship || 'classic';
@@ -95,8 +98,9 @@
         function burstInterceptor() {
             const G = ctx.G;
             const p = G.p;
-            // Teleport to opposite side + spawn trailing blades
+            const oldX = p.x, oldY = p.y;
             p.x = GC.W - p.x;
+            if (ctx.fxSpawnPhaseDashGhosts) ctx.fxSpawnPhaseDashGhosts(oldX, oldY, p.x, p.y);
             for (let i = 0; i < 8; i++) {
                 setTimeout(() => {
                     G.bul.push({ x: p.x, y: p.y - 8, w: 2, h: 10, vx: 0, vy: -500, kind: 'phase_blade', dmg: 3 });
