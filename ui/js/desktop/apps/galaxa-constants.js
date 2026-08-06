@@ -280,9 +280,9 @@
     // NEW: FX module tuning (galaxa-fx.js) — per-particle-setting caps so every
     // new effect scales with the PARTICLES setting (low/medium/high).
     GC.FX_CAPS = {
-        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2, graze: 2, fireTrail: 4, confetti: 8, deathFlash: 2 },
-        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3, graze: 4, fireTrail: 8, confetti: 16, deathFlash: 3 },
-        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3, graze: 6, fireTrail: 12, confetti: 28, deathFlash: 5 }
+        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2, graze: 2, fireTrail: 4, confetti: 8, deathFlash: 2, muzzle: 2 },
+        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3, graze: 4, fireTrail: 8, confetti: 16, deathFlash: 3, muzzle: 3 },
+        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3, graze: 6, fireTrail: 12, confetti: 28, deathFlash: 5, muzzle: 4 }
     };
     GC.FX_WARP_DUR = 1400;      // ms warp speed-line streaks stay active after a stage advance
     GC.FX_GHOST_INTERVAL = 90;  // ms between ship afterimage snapshots

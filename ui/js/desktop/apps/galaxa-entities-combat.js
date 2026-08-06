@@ -6,6 +6,14 @@
         GC.createEntitiesWeapons(ctx);
         let lastFireT = 0;
 
+        function playFireJuice(kind) {
+            if (ctx.SFX.shootTyped) ctx.SFX.shootTyped(kind, ctx.G.p.x);
+            else if (kind === 'laser' || kind === 'mega_laser') ctx.SFX.laserShoot(ctx.G.p.x);
+            else ctx.SFX.shoot(ctx.G.p.x);
+            ctx.G.muzzleT = 50;
+            if (ctx.fxMuzzleSparks) ctx.fxMuzzleSparks(ctx.G.p.x, ctx.G.p.y, '#ffee88');
+        }
+
                 function fire(now) {
             const evoProf = ctx.G.weaponEvo && ctx.WEAPON_EVOS ? ctx.WEAPON_EVOS[ctx.G.weaponEvo] : null;
             // REMOVED: Old super effects branches — bursts are now triggered by galaxa-supers.js via triggerBurst() during superPhase==='burst'
@@ -15,7 +23,7 @@
                 lastFireT = now;
                 ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
                 if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y - 8, w: ctx.G.activePU.type === 'mega_laser' ? 6 : 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
-                ctx.SFX.laserShoot(ctx.G.p.x);
+                playFireJuice(ctx.G.activePU.type);
                 return;
             }
             if (evoProf && evoProf.isBeam) {
@@ -24,7 +32,7 @@
                 lastFireT = now;
                 ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
                 if (ctx.G.p.dual) ctx.G.bul.push({ x: ctx.G.p.x + 36, y: ctx.G.p.y - 8, w: 4, h: 14, vx: 0, vy: -ctx.PB_SPEED * 1.5, laser: true });
-                ctx.SFX.laserShoot(ctx.G.p.x);
+                playFireJuice('laser');
                 return;
             }
             const isMegaRocket = ctx.G.activePU && ctx.G.activePU.type === 'mega_rocket';
@@ -93,7 +101,9 @@
                     ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(0.2) * ctx.PB_SPEED * 0.2, vy: -ctx.PB_SPEED, pierce: isPierce });
                 }
             }
-            ctx.SFX.shoot(ctx.G.p.x); ctx.G.muzzleT = 50; ctx.G.stageAccuracyShots = (ctx.G.stageAccuracyShots || 0) + 1;
+            const kind = (ctx.G.activePU && ctx.G.activePU.type) || 'normal';
+            playFireJuice(kind);
+            ctx.G.stageAccuracyShots = (ctx.G.stageAccuracyShots || 0) + 1;
             ctx.mirrorDuplicateBullets(bulBefore);
         }
         function boom(x, y, isBoss, enemyType, killVx, killVy) {
@@ -471,6 +481,7 @@
             if (ctx.G.startShieldHits > 0) {
                 ctx.G.startShieldHits--;
                 ctx.G.damageVignetteT = 200;
+                if (ctx.SFX.playerHurt) ctx.SFX.playerHurt(ctx.G.p.x);
                 for (let i = 0; i < 6; i++) {
                     const a = (i / 6) * Math.PI * 2, sp = 60 + Math.random() * 40;
                     ctx.G.part.push(ctx.getParticle({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: '#66ccff', size: 2, spark: true }));
@@ -485,7 +496,7 @@
                 } else { ctx.SFX.shieldHit(); }
                 return;
             }
-            if (ctx.G.shieldHits > 0) { ctx.G.shieldHits--; ctx.G.damageVignetteT = 300; if (ctx.G.shieldHits <= 0) { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); ctx.SFX.shieldBreak(); } else ctx.SFX.shieldHit(); return; }
+            if (ctx.G.shieldHits > 0) { ctx.G.shieldHits--; ctx.G.damageVignetteT = 300; if (ctx.SFX.playerHurt) ctx.SFX.playerHurt(ctx.G.p.x); if (ctx.G.shieldHits <= 0) { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); ctx.SFX.shieldBreak(); } else ctx.SFX.shieldHit(); return; }
 ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.pExplode(ctx.G.p.x); ctx.G.shkT = 300; ctx.G.shkM = 4; ctx.G.lives--; ctx.G.stageDamageTaken = (ctx.G.stageDamageTaken || 0) + 1;
             ctx.wrapEl.classList.add('galaxa-desaturate'); setTimeout(() => { if (!ctx.state.disposed) ctx.wrapEl.classList.remove('galaxa-desaturate'); }, 800);
             ctx.G.flashT = 50; ctx.G.chromAb = 300; ctx.G.damageVignetteT = 800; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1; ctx.G.timeSlowTimer = 0; ctx.G.puUpgrade = null;
@@ -901,7 +912,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             const _remainingAlive = ctx.G.enemies.filter(_en => _en.st !== 'DEAD' && _en !== e).length;
                             if (_remainingAlive === 0 && e.type !== 'boss' && e.type !== 'miniboss') { ctx.G.timeScale = 0.2; ctx.G.slowMoT = 600; }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
-                        }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); }
+                        }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); }
                         if (!b.laser && !b.pierce) { removed = true; break; }
                         if (b.laser) {
                             for (let li = 0; li < 4; li++) { const la = Math.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + Math.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }
@@ -945,6 +956,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     }
                     if (nearest) {
                         chainTargets.push(nearest); chainSeen.add(nearest); lastTarget = nearest; nearest.hp--; nearest.hitF = 100;
+                        if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(nearest.type, nearest.x);
                         ctx.SFX.chainLightning(hop, nearest.x);
                         const prev = chainTargets[chainTargets.length - 2];
                         for (let li = 0; li < 5; li++) {

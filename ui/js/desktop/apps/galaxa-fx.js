@@ -68,6 +68,19 @@
             }
         }
 
+        // --- Muzzle sparks on player fire ------------------------------------
+        function fxMuzzleSparks(x, y, col) {
+            const n = caps().muzzle || (ctx.settings.particles === 'low' ? 2 : ctx.settings.particles === 'medium' ? 3 : 4);
+            for (let i = 0; i < n; i++) {
+                const a = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+                const sp = 40 + Math.random() * 50;
+                ctx.G.part.push(ctx.getParticle({
+                    x, y: y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 80 + Math.random() * 60, t: 0, col: col || '#ffee88', size: 1, spark: true, shape: 'rect'
+                }));
+            }
+        }
+
         // --- Directional spark cone (bullet impacts) -------------------------
         function fxSparkCone(x, y, col, dirX, dirY) {
             const n = caps().sparkCone;
@@ -775,6 +788,7 @@
         }
 
         ctx.fxBossShockwave = fxBossShockwave;
+        ctx.fxMuzzleSparks = fxMuzzleSparks;
         ctx.fxWarpStart = fxWarpStart;
         ctx.fxPowerupSparkle = fxPowerupSparkle;
         ctx.fxSparkCone = fxSparkCone;

@@ -89,7 +89,7 @@
                                         ctx.registerKill(); ctx.addScore(pts, ne.x, ne.y, '#ccaa44');
                                         ctx.boom(ne.x, ne.y, ne.type === 'boss' || ne.type === 'miniboss', ne.type);
                                         ctx.SFX.eExplode(ne.x); ctx.dropPU(ne); ne.st = 'DEAD';
-                                    } else ne.hitF = 120;
+                                    } else { ne.hitF = 120; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(ne.type, ne.x); }
                                 }
                             }
                             m.t = 99999;

@@ -9,8 +9,35 @@
         const noise = (...args) => ctx.noise(...args);
         const audio = () => ctx.audio();
                 const SFX = {
-            shoot(panX) { const _p = pv(); beep('sine', 800 * _p, 1200 * _p, 0.08, 0.3 * vv(), panX); beep('square', 400 * _p, 200 * _p, 0.05, 0.08 * vv(), panX); },
-            laserShoot(panX) { const _p = pv(), _v = vv(); beep('sine', 1200 * _p, 400 * _p, 0.15, 0.25 * _v, panX); beep('sawtooth', 800 * _p, 200 * _p, 0.1, 0.15 * _v, panX); noise(0.08, 0.1 * _v, 3000, panX); },
+            shootTyped(kind, panX) {
+                if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                if (kind === 'laser' || kind === 'mega_laser') {
+                    beep('sine', 1200 * _p, 400 * _p, 0.12, 0.22 * _v, panX);
+                    beep('sawtooth', 800 * _p, 200 * _p, 0.08, 0.12 * _v, panX);
+                    noise(0.06, 0.08 * _v, 3000, panX);
+                    return;
+                }
+                if (kind === 'spread' || kind === 'mega_spread') {
+                    beep('square', 700 * _p, 1100 * _p, 0.06, 0.2 * _v, panX);
+                    beep('triangle', 500 * _p, 900 * _p, 0.05, 0.1 * _v, panX);
+                    return;
+                }
+                if (kind === 'rapid' || kind === 'ultra_rapid') {
+                    beep('square', 900 * _p, 1400 * _p, 0.04, 0.18 * _v, panX);
+                    return;
+                }
+                beep('sine', 800 * _p, 1200 * _p, 0.07, 0.28 * _v, panX);
+                beep('square', 400 * _p, 200 * _p, 0.04, 0.07 * _v, panX);
+            },
+            shoot(panX) { this.shootTyped('normal', panX); },
+            laserShoot(panX) { this.shootTyped('laser', panX); },
+            playerHurt(panX) {
+                if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('sawtooth', 320 * _p, 120 * _p, 0.08, 0.28 * _v, panX);
+                noise(0.06, 0.14 * _v, 1800, panX);
+            },
             dive(panX) { const _p = pv(); beep('sawtooth', 600 * _p, 200 * _p, 0.3, 0.15 * vv(), panX); },
             eExplode(panX) { const _p = pv(), _v = vv(); noise(0.15, 0.4 * _v, 2000, panX); noise(0.08, 0.2 * _v, 5000, panX); beep('sine', 200 * _p, 80 * _p, 0.1, 0.2 * _v, panX); beep('triangle', 60 * _p, 30 * _p, 0.15, 0.15 * _v, panX); },
             bigExplode(panX) { const _p = pv(), _v = vv(); noise(0.3, 0.5 * _v, 1500, panX); noise(0.15, 0.3 * _v, 4000, panX); beep('sine', 80 * _p, 40 * _p, 0.25, 0.4 * _v, panX); noise(0.2, 0.2 * _v, 600, panX); },
@@ -42,7 +69,15 @@
             killStreak() { [880, 1100, 1320, 1760].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.09, 0.28), i * 55); }); },
             freeze(panX) { const _p = pv(), _v = vv(); beep('sine', 1200 * _p, 3600 * _p, 0.06, 0.35 * _v, panX); beep('triangle', 900 * _p, 2800 * _p, 0.05, 0.28 * _v, panX); setTimeout(() => { beep('triangle', 400, 180, 0.09, 0.15, panX); noise(0.12, 0.18, 7000, panX); }, 100); },
             powerupExpire() { beep('sawtooth', 880, 440, 0.07, 0.4); },
-            enemyHitSfx(panX) { const _p = pv(), _v = vv(); beep('sine', 380 * _p, 180 * _p, 0.03, 0.25 * _v, panX); beep('sine', 550 * _p, 300 * _p, 0.02, 0.15 * _v, panX); },
+            enemyHitSfx(type, panX) {
+                if (ctx.G.muted) return;
+                let hitType = type, px = panX;
+                if (px === undefined) { hitType = 'bee'; px = type; }
+                const _p = pv(), _v = vv();
+                const base = hitType === 'shield_bee' ? 520 : hitType === 'boss' || hitType === 'miniboss' ? 220 : 380;
+                beep('sine', base * _p, (base * 0.45) * _p, 0.03, 0.22 * _v, px);
+                beep('square', (base * 1.3) * _p, (base * 0.7) * _p, 0.02, 0.1 * _v, px);
+            },
             stalkerDive(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 900 * _p, 300 * _p, 0.2, 0.2 * _v, panX); noise(0.1, 0.15 * _v, 5000, panX); },
             hunterDive(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 1200 * _p, 180 * _p, 0.35, 0.28 * _v, panX); noise(0.15, 0.22 * _v, 3500, panX); beep('square', 400 * _p, 120 * _p, 0.12, 0.18 * _v, panX); },
             hunterShot(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 700 * _p, 350 * _p, 0.1, 0.22 * _v, panX); beep('square', 500 * _p, 200 * _p, 0.06, 0.14 * _v, panX); },
