@@ -26,3 +26,21 @@ func TestGalaxaJuiceCombatSFXMarkers(t *testing.T) {
 		t.Fatal("combat fire path must call fxMuzzleSparks")
 	}
 }
+
+func TestGalaxaJuicePlayerFeedbackMarkers(t *testing.T) {
+	t.Parallel()
+	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
+	for _, marker := range []string{
+		"graze(panX) { if (ctx.G.muted) return;",
+		"parrySuccess(panX) { if (ctx.G.muted) return;",
+		"parryMiss(panX) { if (ctx.G.muted) return;",
+	} {
+		if !strings.Contains(sfx, marker) {
+			t.Fatalf("missing mute-guarded sfx %q", marker)
+		}
+	}
+	fx := readEmbeddedText(t, "js/desktop/apps/galaxa-fx.js")
+	if !strings.Contains(fx, "fxParryRing") {
+		t.Fatal("missing fxParryRing")
+	}
+}

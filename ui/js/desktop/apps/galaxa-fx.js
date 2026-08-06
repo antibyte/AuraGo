@@ -143,15 +143,26 @@
             const baseA = Math.atan2(bulletVy || 1, bulletVx || 0) + Math.PI;
             for (let i = 0; i < n; i++) {
                 const a = baseA + (Math.random() - 0.5) * 1.8;
-                const sp = 25 + Math.random() * 55;
+                const sp = 30 + Math.random() * 65;
                 ctx.G.part.push(ctx.getParticle({
                     x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-                    life: 150 + Math.random() * 120, t: 0,
-                    col: Math.random() < 0.4 ? '#ffffff' : '#88ddff',
-                    size: 1, spark: true, shape: 'diamond'
+                    life: 160 + Math.random() * 140, t: 0,
+                    col: i % 2 === 0 ? '#ffffff' : '#88ddff',
+                    size: 1 + (i % 2), spark: true, shape: 'diamond'
                 }));
             }
             if (ctx.SFX && ctx.SFX.graze) ctx.SFX.graze(x);
+        }
+
+        // --- Parry success plasma ring ---------------------------------------
+        function fxParryRing(x, y) {
+            const n = caps().ring;
+            const cols = ['#ffffff', '#aaddff', '#66ccff'];
+            for (let i = 0; i < n; i++) {
+                ctx.G.plasmaRings.push({
+                    x, y, r: 0, maxR: 22 + i * 14, t: 0, dur: 200 + i * 40, col: cols[i % cols.length]
+                });
+            }
         }
 
         // --- Combo fire trail behind player ----------------------------------
@@ -800,6 +811,7 @@
         ctx.fxDrawOverlay = fxDrawOverlay;
         ctx.fxBossDeathRumble = fxBossDeathRumble;
         ctx.fxGrazeSpark = fxGrazeSpark;
+        ctx.fxParryRing = fxParryRing;
         ctx.fxStageClearConfetti = fxStageClearConfetti;
         ctx.fxMagnetPull = fxMagnetPull;
         ctx.fxPlayerDeathFlash = fxPlayerDeathFlash;

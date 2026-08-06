@@ -1046,6 +1046,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         ctx.addScore(300, b.x, b.y - 10, '#ffffff');
                         ctx.G.combatText.push({ x: b.x, y: b.y - 14, text: 'PARRY!', t: 0, dur: 700, col: '#ffffff', big: true });
                         if (ctx.SFX.parrySuccess) ctx.SFX.parrySuccess(ctx.G.p.x);
+                        if (ctx.fxParryRing) ctx.fxParryRing(ctx.G.p.x, ctx.G.p.y);
                         if (ctx.isGameMode && ctx.isGameMode('mirror') && ctx.SFX.mirrorPing) ctx.SFX.mirrorPing(ctx.G.p.x);
                         if (ctx.fxBulletTime) ctx.fxBulletTime();
                         if (ctx.SFX.bulletTimeEnter) ctx.SFX.bulletTimeEnter();

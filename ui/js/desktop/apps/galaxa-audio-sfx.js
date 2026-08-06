@@ -41,7 +41,7 @@
             dive(panX) { const _p = pv(); beep('sawtooth', 600 * _p, 200 * _p, 0.3, 0.15 * vv(), panX); },
             eExplode(panX) { const _p = pv(), _v = vv(); noise(0.15, 0.4 * _v, 2000, panX); noise(0.08, 0.2 * _v, 5000, panX); beep('sine', 200 * _p, 80 * _p, 0.1, 0.2 * _v, panX); beep('triangle', 60 * _p, 30 * _p, 0.15, 0.15 * _v, panX); },
             bigExplode(panX) { const _p = pv(), _v = vv(); noise(0.3, 0.5 * _v, 1500, panX); noise(0.15, 0.3 * _v, 4000, panX); beep('sine', 80 * _p, 40 * _p, 0.25, 0.4 * _v, panX); noise(0.2, 0.2 * _v, 600, panX); },
-            pExplode(panX) { const _p = pv(), _v = vv(); noise(0.4, 0.6 * _v, 1200, panX); noise(0.2, 0.35 * _v, 3000, panX); beep('sine', 60 * _p, 60 * _p, 0.3, 0.5 * _v, panX); beep('sawtooth', 100 * _p, 30 * _p, 0.2, 0.3 * _v, panX); },
+            pExplode(panX) { const _p = pv(), _v = vv(); noise(0.4, 0.6 * _v, 1200, panX); noise(0.2, 0.35 * _v, 3000, panX); noise(0.06, 0.18 * _v, 4500, panX); beep('sine', 60 * _p, 60 * _p, 0.3, 0.5 * _v, panX); beep('sawtooth', 100 * _p, 30 * _p, 0.2, 0.3 * _v, panX); },
             stage() { [523, 659, 784, 1047].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.2, 0.25), i * 120); }); },
             challenge() { [440, 554, 659, 880, 1109, 1319].forEach((f, i) => { setTimeout(() => beep('square', f, f, 0.15, 0.2), i * 80); }); },
             extra() { beep('sine', 1200, 1200, 0.2, 0.3); },
@@ -101,9 +101,18 @@
             deathBloom() { noise(0.3, 0.4, 8000); beep('sine', 2000, 500, 0.25, 0.3); },
             envWind() { noise(1.5, 0.04, 600); beep('sine', 30, 30, 1.5, 0.02); },
             // NEW: Parry success — crisp upward "shwing" with reverb tail
-            parrySuccess(panX) { const _p = pv(), _v = vv(); beep('triangle', 1800 * _p, 4200 * _p, 0.06, 0.35 * _v, panX); beep('sine', 2400 * _p, 3600 * _p, 0.05, 0.25 * _v, panX); setTimeout(() => { beep('sine', 1200, 800, 0.1, 0.18 * _v, panX); }, 60); },
+            parrySuccess(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('triangle', 2000 * _p, 4800 * _p, 0.05, 0.38 * _v, panX);
+                beep('square', 1600 * _p, 2800 * _p, 0.04, 0.2 * _v, panX);
+                setTimeout(() => beep('sine', 1400, 900, 0.08, 0.16 * _v, panX), 50);
+            },
             parryStart(panX) { const _p = pv(); beep('sine', 2200 * _p, 2600 * _p, 0.04, 0.18, panX); beep('triangle', 1400 * _p, 2000 * _p, 0.03, 0.12, panX); },
-            parryMiss(panX) { const _p = pv(); beep('sawtooth', 400 * _p, 200 * _p, 0.08, 0.12, panX); },
+            parryMiss(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('sawtooth', 280 * _p, 90 * _p, 0.09, 0.16 * _v, panX);
+                noise(0.05, 0.1 * _v, 700, panX);
+            },
             // NEW: Super activation — build sweep + impact boom, unique per ship type
             superActivate(shipType, panX) {
                 const _v = vv();
@@ -199,7 +208,12 @@
             // NEW: Short high sparkle twinkle for precision score bonuses (headshots)
             sparkleTwinkle(panX) { const _p = pv(); beep('sine', 2400 * _p, 2400 * _p, 0.05, 0.16, panX); setTimeout(() => beep('sine', 3600 * _p, 3600 * _p, 0.06, 0.14, panX), 55); },
             // NEW: Graze — brief high-pitched "zip" when bullets skim the player
-            graze(panX) { const _p = pv(), _v = vv(); beep('triangle', 2800 * _p, 3600 * _p, 0.04, 0.12 * _v, panX); noise(0.03, 0.06 * _v, 8000, panX); },
+            graze(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('triangle', 3000 * _p, 4200 * _p, 0.035, 0.16 * _v, panX);
+                beep('sine', 2400 * _p, 3200 * _p, 0.03, 0.1 * _v, panX);
+                noise(0.025, 0.07 * _v, 9000, panX);
+            },
             // NEW: Boss entrance rumble — deep ominous stinger + sub-bass growl
             bossEntrance(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 60 * _p, 30 * _p, 0.8, 0.45 * _v, panX); beep('triangle', 40 * _p, 20 * _p, 0.6, 0.3 * _v, panX); noise(0.6, 0.25 * _v, 120, panX); setTimeout(() => { beep('sawtooth', 120 * _p, 80 * _p, 0.3, 0.3 * _v, panX); noise(0.2, 0.15 * _v, 300, panX); }, 300); },
             // NEW: Stage clear fanfare — triumphant ascending arpeggio with reverb tail
