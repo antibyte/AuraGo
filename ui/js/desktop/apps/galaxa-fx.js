@@ -68,6 +68,11 @@
             }
         }
 
+        // --- Weapon arm glow pulse (short plasma ring on player) -------------
+        function fxWeaponArmPulse(x, y) {
+            ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 28, t: 0, dur: 280, col: '#aaccff' });
+        }
+
         // --- Muzzle sparks on player fire ------------------------------------
         function fxMuzzleSparks(x, y, col) {
             const n = caps().muzzle || (ctx.settings.particles === 'low' ? 2 : ctx.settings.particles === 'medium' ? 3 : 4);
@@ -802,6 +807,7 @@
         ctx.fxMuzzleSparks = fxMuzzleSparks;
         ctx.fxWarpStart = fxWarpStart;
         ctx.fxPowerupSparkle = fxPowerupSparkle;
+        ctx.fxWeaponArmPulse = fxWeaponArmPulse;
         ctx.fxSparkCone = fxSparkCone;
         ctx.fxComboPulse = fxComboPulse;
         ctx.updateFX = updateFX;

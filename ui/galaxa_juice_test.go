@@ -27,6 +27,23 @@ func TestGalaxaJuiceCombatSFXMarkers(t *testing.T) {
 	}
 }
 
+func TestGalaxaJuicePowerupProgressionMarkers(t *testing.T) {
+	t.Parallel()
+	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")
+	for _, marker := range []string{
+		"puCollectRarity(rarity, panX)",
+		"weaponArm(panX) { if (ctx.G.muted) return;",
+	} {
+		if !strings.Contains(sfx, marker) {
+			t.Fatalf("missing %q", marker)
+		}
+	}
+	shop := readEmbeddedText(t, "js/desktop/apps/galaxa-shop.js")
+	if !strings.Contains(shop, "shopBuy") {
+		t.Fatal("shop buy must use SFX.shopBuy")
+	}
+}
+
 func TestGalaxaJuicePlayerFeedbackMarkers(t *testing.T) {
 	t.Parallel()
 	sfx := readEmbeddedText(t, "js/desktop/apps/galaxa-audio-sfx.js")

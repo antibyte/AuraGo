@@ -48,7 +48,25 @@
             rescue() { beep('sine', 880, 880, 0.2, 0.25); setTimeout(() => beep('sine', 1100, 1100, 0.2, 0.25), 100); },
             beam() { beep('sawtooth', 200, 200, 0.5, 0.15); },
             perfect() { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.15, 0.3), i * 60); }); },
-            puCollect(panX) { [600, 800, 1000, 1200].forEach((f, i) => { setTimeout(() => beep('sine', f, f, 0.06, 0.2, panX), i * 40); }); },
+            puCollectRarity(rarity, panX) {
+                if (ctx.G.muted) return;
+                const tiers = {
+                    common: [600, 800, 1000],
+                    uncommon: [700, 900, 1100, 1300],
+                    rare: [800, 1000, 1200, 1600],
+                    legendary: [880, 1175, 1568, 2093, 2637]
+                };
+                const notes = tiers[rarity] || tiers.common;
+                const gap = rarity === 'legendary' ? 55 : rarity === 'rare' ? 45 : 35;
+                notes.forEach((f, i) => setTimeout(() => beep('sine', f, f, 0.06, 0.18 + i * 0.02, panX), i * gap));
+                if (rarity === 'rare' || rarity === 'legendary') this.powerupChime(panX);
+            },
+            weaponArm(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('triangle', 500 * _p, 1400 * _p, 0.07, 0.22 * _v, panX);
+                beep('square', 300 * _p, 900 * _p, 0.05, 0.12 * _v, panX);
+            },
+            puCollect(panX) { this.puCollectRarity('common', panX); },
             bomb(panX) { const _v = vv(); noise(0.5, 0.7 * _v, 800, panX); noise(0.3, 0.4 * _v, 200, panX); beep('sawtooth', 100, 50, 0.4, 0.5 * _v, panX); },
             combo(n) { const _p = pv(); beep('sine', (440 + n * 110) * _p, (440 + n * 110) * _p, 0.12, (0.25 + n * 0.05) * vv()); },
             bossWarning() { beep('sawtooth', 440, 220, 0.5, 0.3); setTimeout(() => beep('sawtooth', 440, 220, 0.5, 0.3), 500); },

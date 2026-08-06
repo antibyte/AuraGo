@@ -105,7 +105,7 @@
                         const lo = loadLoadout();
                         if (lo.includes(rid)) { saveLoadout(lo.filter(x => x !== rid)); }
                         else if (lo.length < MAX_ACTIVE) { lo.push(rid); saveLoadout(lo); }
-                        if (ctx.SFX) ctx.SFX.puCollect(ctx.W / 2);
+                        if (ctx.SFX) ctx.SFX.uiClick();
                     } else {
                         if (buyRelic(rid)) { if (ctx.SFX) ctx.SFX.relicActivate(); }
                     }

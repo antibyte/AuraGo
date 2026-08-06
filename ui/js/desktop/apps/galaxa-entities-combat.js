@@ -312,6 +312,11 @@
         function collectPU(pu) {
             ctx.G.collectedPU.add(pu.type);
             if (ctx.G.collectedPU.size >= ctx.PU_TYPES.length) ctx.unlockAchievement('power_collector');
+            let _puRarity = 'common';
+            for (const _rk in ctx.PU_RARITY) { if (ctx.PU_RARITY[_rk].indexOf(pu.type) >= 0) { _puRarity = _rk; break; } }
+            const _playPuSfx = (panX) => { if (ctx.SFX.puCollectRarity) ctx.SFX.puCollectRarity(_puRarity, panX); else ctx.SFX.puCollect(panX); };
+            const _weaponPuTypes = ['laser', 'rapid', 'spread', 'rocket_launcher', 'mine_layer', 'mega_laser', 'ultra_rapid', 'mega_spread', 'mega_rocket', 'mega_mine_layer'];
+            const _playWeaponArm = () => { if (_weaponPuTypes.indexOf(pu.type) >= 0 || (ctx.G.activePU && _weaponPuTypes.indexOf(ctx.G.activePU.type) >= 0)) { if (ctx.SFX.weaponArm) ctx.SFX.weaponArm(pu.x); if (ctx.fxWeaponArmPulse) ctx.fxWeaponArmPulse(ctx.G.p.x, ctx.G.p.y); } };
             if (pu.type === 'megabomb') {
                 ctx.SFX.megabomb(pu.x);
                 for (const e of ctx.G.enemies) {
@@ -398,12 +403,13 @@
             }
             const isUpgradeable = ctx.PU_UPGRADE[pu.type];
             const isSameType = ctx.G.activePU && ctx.G.activePU.type === pu.type;
+            const isWeaponUpgrade = isUpgradeable && isSameType && !ctx.G.puUpgrade;
             if (pu.type === 'drone') {
                 const count = (isUpgradeable && isSameType) ? 2 : 1;
                 ctx.G.drones = [];
                 for (let di = 0; di < count; di++) ctx.G.drones.push({ x: ctx.G.p.x + (di === 0 ? -20 : 20), y: ctx.G.p.y - 20, targetX: ctx.G.p.x + (di === 0 ? -25 : 25), targetY: ctx.G.p.y - 30, fireT: 0 });
                 ctx.G.droneTimer = ctx.PU_DUR.drone; ctx.G.activePU = { type: count > 1 ? 'dual_drone' : 'drone', timer: ctx.PU_DUR.drone }; ctx.G.puTimer = ctx.PU_DUR.drone; ctx.setPUClass(count > 1 ? 'dual_drone' : 'drone');
-                ctx.SFX.puCollect(pu.x); return;
+                _playPuSfx(pu.x); return;
             }
             if (pu.type === 'blackhole_bomb') {
                 ctx.G.blackhole = { x: ctx.G.p.x, y: ctx.G.p.y - 60, targetX: ctx.G.p.x, targetY: ctx.G.p.y - 120, t: 0 };
@@ -420,23 +426,23 @@
             if (pu.type === 'mirror') {
                 ctx.G.mirrorActive = true; ctx.G.mirrorTimer = ctx.PU_DUR.mirror;
                 ctx.G.activePU = { type: 'mirror', timer: ctx.PU_DUR.mirror }; ctx.G.puTimer = ctx.PU_DUR.mirror; ctx.setPUClass('mirror');
-                ctx.SFX.puCollect(pu.x); return;
+                _playPuSfx(pu.x); return;
             }
             if (pu.type === 'orbital_shield') {
                 ctx.G.orbitalShields = [];
                 for (let i = 0; i < 4; i++) ctx.G.orbitalShields.push({ angle: (i / 4) * Math.PI * 2, active: true });
                 ctx.G.orbitalShieldTimer = 8000;
                 ctx.G.activePU = { type: 'orbital_shield', timer: 8000 }; ctx.G.puTimer = 8000; ctx.setPUClass('orbital_shield');
-                ctx.SFX.puCollect(pu.x); return;
+                _playPuSfx(pu.x); return;
             }
             if (pu.type === 'chain_lightning') {
                 ctx.G.activePU = { type: 'chain_lightning', timer: 10000 }; ctx.G.puTimer = 10000; ctx.setPUClass('chain_lightning');
-                ctx.SFX.puCollect(pu.x); return;
+                _playPuSfx(pu.x); return;
             }
-            if (isUpgradeable && isSameType && !ctx.G.puUpgrade) {
+            if (isWeaponUpgrade) {
                 ctx.G.puUpgrade = ctx.PU_UPGRADE[pu.type]; ctx.G.activePU.type = ctx.G.puUpgrade; ctx.G.puTimer = ctx.PU_DUR[pu.type] || 0;
                 ctx.G.upgradeBanner = { text: 'POWER UP!', type: ctx.G.puUpgrade, t: 0, dur: 1500 };
-                ctx.SFX.puUpgrade(pu.x); ctx.setPUClass(ctx.G.puUpgrade);
+                ctx.SFX.puUpgrade(pu.x); ctx.setPUClass(ctx.G.puUpgrade); _playWeaponArm();
             } else if (pu.type === 'homing') {
                 ctx.G.activePU = { type: 'homing', timer: 0, shots: 5 }; ctx.G.puTimer = 30000; ctx.setPUClass('homing');
             } else if (pu.type === 'shield') { ctx.G.shieldHits = 3; ctx.G.activePU = { type: 'shield', timer: 0 }; ctx.G.puTimer = 0; ctx.setPUClass('shield'); }
@@ -461,7 +467,8 @@
                 }
             }
             else { ctx.G.activePU = { type: pu.type, timer: ctx.PU_DUR[pu.type] || 0 }; ctx.G.puTimer = ctx.PU_DUR[pu.type] || 0; ctx.setPUClass(pu.type); }
-            ctx.SFX.puCollect(pu.x);
+            if (!isWeaponUpgrade) _playPuSfx(pu.x);
+            if (!isWeaponUpgrade) _playWeaponArm();
             const puCol = ctx.PU_COL[pu.type] || ctx.PU_UPGRADE_COL[pu.type];
             ctx.G.plasmaRings.push({ x: pu.x, y: pu.y, r: 0, maxR: 35, t: 0, dur: 350, col: puCol || '#ffffff' });
             for (let i = 0; i < 12; i++) {
@@ -470,10 +477,7 @@
             }
             // NEW: Rarity-scaled sparkle burst + rising glints (galaxa-fx); rare/legendary get a reverb chime
             if (ctx.fxPowerupSparkle) {
-                let _puRarity = 'common';
-                for (const _rk in ctx.PU_RARITY) { if (ctx.PU_RARITY[_rk].indexOf(pu.type) >= 0) { _puRarity = _rk; break; } }
                 ctx.fxPowerupSparkle(pu.x, pu.y, puCol || '#ffffff', _puRarity);
-                if ((_puRarity === 'rare' || _puRarity === 'legendary') && ctx.SFX.powerupChime) ctx.SFX.powerupChime(pu.x);
             }
         }
         function killP() {

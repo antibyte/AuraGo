@@ -53,7 +53,8 @@
             } else if (item.puType) {
                 ctx.G.powerups.push({ x: ctx.G.p.x, y: ctx.G.p.y - 30, type: item.puType, t: 0 });
             }
-            ctx.SFX.puCollect(ctx.W / 2);
+            ctx.SFX.shopBuy();
+            if (ctx.fxPowerupSparkle) ctx.fxPowerupSparkle(ctx.W / 2, ctx.H / 2, '#ffcc00', 'uncommon');
             for (let i = 0; i < 10; i++) {
                 const a = (i / 10) * Math.PI * 2;
                 ctx.G.part.push({ x: ctx.W / 2, y: ctx.H / 2, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, life: 300, t: 0, col: '#ffcc00', size: 2, spark: true });
