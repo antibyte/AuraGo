@@ -222,6 +222,8 @@ func TestPixelActionsUseRootAPIEndpoints(t *testing.T) {
 		"/api/pixel/save",
 		"/api/pixel/generate",
 		"/api/pixel/enhance",
+		"/api/pixel/remove-bg",
+		"/api/pixel/upscale",
 		"/api/pixel/config",
 	} {
 		if !strings.Contains(actions, want) {
@@ -403,29 +405,35 @@ func TestPixelToolRailAndOptionsBarExist(t *testing.T) {
 
 func TestPixelNewToolsRegistered(t *testing.T) {
 	state := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-state.js"))
-	for _, tool := range []string{"magic-wand", "airbrush", "dodge-burn", "blur-brush", "gradient"} {
+	for _, tool := range []string{"magic-wand", "airbrush", "dodge-burn", "blur-brush", "gradient", "clone-stamp", "lasso", "move"} {
 		if !strings.Contains(state, "'"+tool+"'") {
 			t.Fatalf("pixel-state.js should register new tool %q in TOOL_GROUPS/TOOL_SVGS", tool)
 		}
 	}
+	if !strings.Contains(state, "'line': 'Shift+L'") {
+		t.Fatal("pixel-state.js should move line shortcut to Shift+L because lasso uses L")
+	}
 	events := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-events.js"))
-	for _, want := range []string{"magicWandSelect", "applyPointTool", "snapEnd", "drawBrushCursor", "data-spray-density", "data-dodge-mode", "data-gradient-mode"} {
+	for _, want := range []string{"magicWandSelect", "applyPointTool", "snapEnd", "drawBrushCursor", "cloneStampAt", "commitLassoPath", "commitMoveLayer", "drawLassoPreview"} {
 		if !strings.Contains(events, want) {
 			t.Fatalf("pixel-events.js missing new tool wiring %q", want)
 		}
 	}
 	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
-	for _, want := range []string{"commitGradient", "sprayAt", "dodgeBurnAt", "blurAt", "eraseMaskPixels", "renderOptionsBar"} {
+	for _, want := range []string{"commitGradient", "sprayAt", "dodgeBurnAt", "blurAt", "eraseMaskPixels", "renderOptionsBar", "toggleLayerMask", "MAX_LAYERS"} {
 		if !strings.Contains(tools, want) {
 			t.Fatalf("pixel-tools.js missing new tool implementation %q", want)
 		}
+	}
+	if strings.Contains(tools, "layers.length >= 10") {
+		t.Fatal("pixel-tools.js should use MAX_LAYERS (20) instead of hard-coded 10")
 	}
 }
 
 func TestPixelFilterCatalogHasNewFilters(t *testing.T) {
 	filters := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
 
-	for _, id := range []string{"sharpen", "edge", "pixelate", "posterize", "duotone", "solarize", "tint", "bloom", "grain", "sketch", "aberration"} {
+	for _, id := range []string{"sharpen", "edge", "pixelate", "posterize", "duotone", "solarize", "tint", "bloom", "grain", "sketch", "aberration", "monochrome", "cyanotype", "fade", "glow", "tilt-shift", "mosaic", "denoise", "clarity"} {
 		if !strings.Contains(filters, "id: '"+id+"'") {
 			t.Fatalf("pixel filter catalog missing new filter %q", id)
 		}
@@ -435,7 +443,7 @@ func TestPixelFilterCatalogHasNewFilters(t *testing.T) {
 			t.Fatalf("pixel filter catalog lost legacy filter %q", legacy)
 		}
 	}
-	for _, want := range []string{"data-filter-strength", "data-filter-thumb", "data-filter-cat", "renderFiltered", "refreshFilterThumbnails", `data-action="apply-filter"`, `data-action="reset-filter"`} {
+	for _, want := range []string{"data-filter-strength", "data-filter-thumb", "data-filter-cat", "renderFiltered", "refreshFilterThumbnails", `data-action="apply-filter"`, `data-action="reset-filter"`, "toggleFilterFavorite", "filterCompareMode", "pixel.filter_favorites"} {
 		if !strings.Contains(filters, want) {
 			t.Fatalf("pixel filters module missing %q", want)
 		}
@@ -485,8 +493,15 @@ func TestPixelNewToolI18nKeysExist(t *testing.T) {
 		"pixel.dodge_burn",
 		"pixel.blur_brush",
 		"pixel.gradient",
+		"pixel.clone_stamp",
+		"pixel.lasso",
+		"pixel.move",
 		"pixel.filter_strength",
 		"pixel.apply_filter",
+		"pixel.filter_compare",
+		"pixel.remove_bg",
+		"pixel.upscale_2x",
+		"pixel.export_format",
 		"pixel.tab_colors",
 		"pixel.tab_history",
 		"pixel.history_empty",

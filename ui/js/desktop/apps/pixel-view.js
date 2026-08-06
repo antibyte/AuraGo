@@ -34,8 +34,9 @@
                 const isTextType = this.activeTool === 'text';
                 const isFillType = this.activeTool === 'fill' || this.activeTool === 'magic-wand';
                 const isSelectType = this.activeTool === 'select-rect' || this.activeTool === 'select-ellipse';
+                const isCloneType = this.activeTool === 'clone-stamp';
 
-                if (isBrushType || this.activeTool === 'airbrush' || this.activeTool === 'dodge-burn' || this.activeTool === 'blur-brush') {
+                if (isBrushType || this.activeTool === 'airbrush' || this.activeTool === 'dodge-burn' || this.activeTool === 'blur-brush' || isCloneType) {
                     html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_size'))}</span><input type="range" class="pixel-slider" data-brush-size min="1" max="200" value="${this.brushSize}"><span class="pixel-slider-value" data-brush-size-val>${this.brushSize}px</span></div>`;
                     if (this.activeTool !== 'pencil') {
                         html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.brush_opacity'))}</span><input type="range" class="pixel-slider" data-brush-opacity min="1" max="100" value="${this.brushOpacity}"><span class="pixel-slider-value" data-brush-opacity-val>${this.brushOpacity}%</span></div>`;
@@ -46,6 +47,9 @@
                     }
                     if (this.activeTool === 'dodge-burn') {
                         html += `<label class="pixel-label">${this.esc(this.t('pixel.mode'))}</label><select class="pixel-select" data-dodge-mode><option value="dodge"${this.dodgeMode === 'dodge' ? ' selected' : ''}>${this.esc(this.t('pixel.dodge'))}</option><option value="burn"${this.dodgeMode === 'burn' ? ' selected' : ''}>${this.esc(this.t('pixel.burn'))}</option></select>`;
+                    }
+                    if (isCloneType) {
+                        html += `<p class="pixel-draw-hint">${this.esc(this.t('pixel.clone_stamp_hint'))}</p>`;
                     }
                 } else if (isShapeType) {
                     html += `<div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.stroke_width'))}</span><input type="range" class="pixel-slider" data-shape-stroke min="1" max="20" value="${this.shapeStrokeWidth}"><span class="pixel-slider-value" data-shape-stroke-val>${this.shapeStrokeWidth}px</span></div>`;
@@ -61,8 +65,11 @@
                     html += `<label class="pixel-label">${this.esc(this.t('pixel.gradient_mode'))}</label><select class="pixel-select" data-gradient-mode><option value="linear"${this.gradientMode === 'linear' ? ' selected' : ''}>${this.esc(this.t('pixel.gradient_linear'))}</option><option value="radial"${this.gradientMode === 'radial' ? ' selected' : ''}>${this.esc(this.t('pixel.gradient_radial'))}</option></select>`;
                 }
 
-                if (isSelectType || this.activeTool === 'magic-wand') {
+                if (isSelectType || this.activeTool === 'magic-wand' || this.activeTool === 'lasso') {
                     html += `<button class="pixel-btn" type="button" data-action="clear-selection">${this.esc(this.t('pixel.clear_selection'))}</button>`;
+                }
+                if (this.activeTool === 'move') {
+                    html += `<p class="pixel-draw-hint">${this.esc(this.t('pixel.move_hint'))}</p>`;
                 }
 
                 if (!html) {
@@ -162,6 +169,16 @@
                         <label class="pixel-label">${this.esc(this.t('pixel.ai_strength'))} <span data-strength-val>0.7</span></label>
                         <input type="range" class="pixel-slider" data-enhance-strength min="0.1" max="1" step="0.05" value="0.7">
                         <button class="pixel-btn pixel-btn-full" type="button" data-action="ai-enhance">${this.esc(this.t('pixel.enhance'))}</button>
+                    </div>
+                    <hr class="pixel-divider">
+                    <div class="pixel-ai-panel">
+                        <label class="pixel-label">${this.esc(this.t('pixel.ai_result_mode'))}</label>
+                        <select class="pixel-select" data-ai-result-mode>
+                            <option value="layer">${this.esc(this.t('pixel.ai_as_layer'))}</option>
+                            <option value="replace">${this.esc(this.t('pixel.ai_replace'))}</option>
+                        </select>
+                        <button class="pixel-btn pixel-btn-full" type="button" data-action="ai-remove-bg" data-ai-remove-bg>${this.esc(this.t('pixel.remove_bg'))}</button>
+                        <button class="pixel-btn pixel-btn-full" type="button" data-action="ai-upscale" data-ai-upscale>${this.esc(this.t('pixel.upscale_2x'))}</button>
                     </div>
                 </div>`;
             }),

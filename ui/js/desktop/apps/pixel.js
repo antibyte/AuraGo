@@ -76,6 +76,16 @@
         let filterStrength = 100;
         let filterPreview = null;
         let filterThumbKey = '';
+        let filterCompareMode = false;
+        let filterFavorites = [];
+
+        let cloneSourceX = null;
+        let cloneSourceY = null;
+        let lassoPath = null;
+        let editMaskMode = false;
+        let moveLayerSnapshot = null;
+        let moveLayerStartX = 0;
+        let moveLayerStartY = 0;
 
         const adjustments = { brightness: 0, contrast: 0, saturation: 0, exposure: 0, sharpness: 0, temperature: 0, shadows: 0, highlights: 0 };
 
@@ -155,6 +165,15 @@
             filterStrength: { get: () => filterStrength, set: value => { filterStrength = value; }, enumerable: true },
             filterPreview: { get: () => filterPreview, set: value => { filterPreview = value; }, enumerable: true },
             filterThumbKey: { get: () => filterThumbKey, set: value => { filterThumbKey = value; }, enumerable: true },
+            filterCompareMode: { get: () => filterCompareMode, set: value => { filterCompareMode = value; }, enumerable: true },
+            filterFavorites: { get: () => filterFavorites, set: value => { filterFavorites = value; }, enumerable: true },
+            cloneSourceX: { get: () => cloneSourceX, set: value => { cloneSourceX = value; }, enumerable: true },
+            cloneSourceY: { get: () => cloneSourceY, set: value => { cloneSourceY = value; }, enumerable: true },
+            lassoPath: { get: () => lassoPath, set: value => { lassoPath = value; }, enumerable: true },
+            editMaskMode: { get: () => editMaskMode, set: value => { editMaskMode = value; }, enumerable: true },
+            moveLayerSnapshot: { get: () => moveLayerSnapshot, set: value => { moveLayerSnapshot = value; }, enumerable: true },
+            moveLayerStartX: { get: () => moveLayerStartX, set: value => { moveLayerStartX = value; }, enumerable: true },
+            moveLayerStartY: { get: () => moveLayerStartY, set: value => { moveLayerStartY = value; }, enumerable: true },
             adjustments: { get: () => adjustments, set: value => { adjustments = value; }, enumerable: true },
             appEl: { get: () => appEl, set: value => { appEl = value; }, enumerable: true },
             canvasArea: { get: () => canvasArea, set: value => { canvasArea = value; }, enumerable: true },
@@ -175,6 +194,7 @@
             hexInput: { get: () => hexInput, set: value => { hexInput = value; }, enumerable: true },
             strengthSlider: { get: () => strengthSlider, set: value => { strengthSlider = value; }, enumerable: true },
             MAX_HISTORY: { get: () => Pixel.MAX_HISTORY, enumerable: true },
+            MAX_LAYERS: { get: () => Pixel.MAX_LAYERS, enumerable: true },
             IMAGE_EXTS: { get: () => Pixel.IMAGE_EXTS, enumerable: true },
             PRESET_COLORS: { get: () => Pixel.PRESET_COLORS, enumerable: true },
             FONT_FAMILIES: { get: () => Pixel.FONT_FAMILIES, enumerable: true },
@@ -276,6 +296,9 @@
             resizeImage,
             aiGenerate,
             aiEnhance,
+            aiRemoveBG,
+            aiUpscale,
+            showExportDialog,
             checkAIConfig,
             addLayer,
             deleteLayer,
@@ -290,6 +313,8 @@
             applyFilterPreview,
             refreshFilterThumbnails,
             wireFilterPanel,
+            toggleFilterCompare,
+            toggleLayerMask,
             onCanvasMouseDown,
             onCanvasMouseMove,
             onCanvasMouseUp,
@@ -410,6 +435,7 @@
         wireClick('[data-action="compare-toggle"]', toggleCompare);
         wireClick('[data-action="apply-filter"]', applyFilter);
         wireClick('[data-action="reset-filter"]', resetFilterPreview);
+        wireClick('[data-action="filter-compare"]', toggleFilterCompare);
         wireClick('[data-action="rotate-cw"]', () => rotateCanvas(90));
         wireClick('[data-action="rotate-ccw"]', () => rotateCanvas(-90));
         wireClick('[data-action="flip-h"]', () => flipCanvas(true));
@@ -420,6 +446,9 @@
         wireClick('[data-action="resize"]', resizeImage);
         wireClick('[data-action="ai-generate"]', aiGenerate);
         wireClick('[data-action="ai-enhance"]', aiEnhance);
+        wireClick('[data-action="ai-remove-bg"]', aiRemoveBG);
+        wireClick('[data-action="ai-upscale"]', aiUpscale);
+        wireClick('[data-action="export-preset"]', showExportDialog);
         wireClick('[data-action="new-image"]', showNewImageDialog);
         wireClick('[data-action="swap-colors"]', swapColors);
         wireClick('[data-action="add-layer"]', addLayer);
@@ -532,6 +561,11 @@
         }
 
         host.addEventListener('click', e => {
+            const maskBtn = e.target.closest('[data-layer-mask]');
+            if (maskBtn) {
+                toggleLayerMask(parseInt(maskBtn.dataset.layerMask, 10));
+                return;
+            }
             const visBtn = e.target.closest('[data-layer-vis]');
             if (visBtn) {
                 const idx = parseInt(visBtn.dataset.layerVis);
@@ -629,13 +663,18 @@
                 if (e.key === 'n') setActiveTool('blur-brush');
                 if (e.key === 'w') setActiveTool('magic-wand');
                 if (e.key === 'u') setActiveTool('gradient');
-                if (e.key === 'l') setActiveTool('line');
+                if (e.key === 'l' && !e.shiftKey) setActiveTool('lasso');
+                if (e.key === 'l' && e.shiftKey) setActiveTool('line');
+                if (e.key === 's' && !e.ctrlKey && !e.metaKey) setActiveTool('clone-stamp');
+                if (e.key === 'm') setActiveTool('move');
                 if (e.key === 'r') setActiveTool('rectangle');
                 if (e.key === 'o') setActiveTool('ellipse');
                 if (e.key === 't') setActiveTool('text');
                 if (e.key === 'g') setActiveTool('fill');
                 if (e.key === 'i') setActiveTool('eyedropper');
-                if (e.key === 'v') setActiveTool('select-rect');
+                if (e.key === 'v' && !e.shiftKey) setActiveTool('select-rect');
+                if (e.key === 'v' && e.shiftKey) setActiveTool('select-ellipse');
+                if (e.key === 'a' && e.shiftKey) setActiveTool('arrow');
             }
 
             if (e.key === 'Escape' && cropState) cancelCrop();

@@ -1,11 +1,11 @@
 (function () {
     const Pixel = window.AuraPixelApp = window.AuraPixelApp || {};
 
-    const STROKE_TOOLS = ['brush', 'eraser', 'pencil'];
+    const STROKE_TOOLS = ['brush', 'eraser', 'pencil', 'clone-stamp'];
     const POINT_TOOLS = ['airbrush', 'dodge-burn', 'blur-brush'];
     const SHAPE_TOOLS = ['line', 'rectangle', 'ellipse', 'arrow', 'gradient'];
     const SELECTION_TOOLS = ['select-rect', 'select-ellipse'];
-    const CURSOR_TOOLS = ['brush', 'pencil', 'airbrush', 'eraser', 'dodge-burn', 'blur-brush'];
+    const CURSOR_TOOLS = ['brush', 'pencil', 'airbrush', 'eraser', 'clone-stamp', 'dodge-burn', 'blur-brush'];
 
     Pixel.installEvents = function installEvents(runtime) {
         Object.assign(runtime, {
@@ -73,6 +73,33 @@
 
                 if (this.activeTool === 'text') {
                     this.showTextInput(coords.x, coords.y);
+                    return;
+                }
+
+                if (this.activeTool === 'lasso') {
+                    this.lassoPath = [{ x: coords.x, y: coords.y }];
+                    this.isDrawing = true;
+                    return;
+                }
+
+                if (this.activeTool === 'move') {
+                    this.moveLayerStartX = coords.x;
+                    this.moveLayerStartY = coords.y;
+                    if (this.selection && this.selImageData) {
+                        this.isMovingSel = true;
+                        this.selDragOfsX = coords.x - this.selection.x;
+                        this.selDragOfsY = coords.y - this.selection.y;
+                    } else {
+                        this.isMovingSel = true;
+                        this.moveLayerSnapshot = { x: coords.x, y: coords.y };
+                    }
+                    return;
+                }
+
+                if (this.activeTool === 'clone-stamp' && e.altKey) {
+                    this.cloneSourceX = coords.x;
+                    this.cloneSourceY = coords.y;
+                    this.notify({ type: 'info', message: this.t('pixel.clone_source_set') });
                     return;
                 }
 
@@ -157,14 +184,25 @@
 
                 if (this.isDrawing && isDrawingTool) {
                     const actx = this.getActiveCtx();
-                    const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                    const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
-                    const opacity = this.activeTool === 'pencil' ? 100 : this.brushOpacity;
-                    const color = this.activeTool === 'eraser' ? '#000000' : this.primaryColor;
-                    this.drawBrushStroke(actx, this.lastDrawX, this.lastDrawY, coords.x, coords.y, size, opacity, color, op, this.brushHardness);
+                    if (this.activeTool === 'clone-stamp') {
+                        this.cloneStampAt(this.lastDrawX, this.lastDrawY, coords.x, coords.y);
+                    } else {
+                        const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
+                        const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
+                        const opacity = this.activeTool === 'pencil' ? 100 : this.brushOpacity;
+                        const color = this.activeTool === 'eraser' ? '#000000' : (this.editMaskMode ? '#ffffff' : this.primaryColor);
+                        const maskErase = this.editMaskMode && this.activeTool === 'eraser';
+                        this.drawBrushStroke(actx, this.lastDrawX, this.lastDrawY, coords.x, coords.y, size, opacity, maskErase ? '#000000' : color, maskErase ? 'source-over' : op, this.brushHardness);
+                    }
                     if (this.layers.length > 1) this.compositeLayers();
                     this.lastDrawX = coords.x;
                     this.lastDrawY = coords.y;
+                    return;
+                }
+
+                if (this.isDrawing && this.activeTool === 'lasso') {
+                    this.lassoPath.push({ x: coords.x, y: coords.y });
+                    this.drawLassoPreview();
                     return;
                 }
 
@@ -204,9 +242,14 @@
                 }
 
                 if (this.isMovingSel && e.buttons === 1) {
-                    this.selection.x = coords.x - this.selDragOfsX;
-                    this.selection.y = coords.y - this.selDragOfsY;
-                    this.startMarchingAnts();
+                    if (this.activeTool === 'move' && this.moveLayerSnapshot && !this.selImageData) {
+                        return;
+                    }
+                    if (this.selection) {
+                        this.selection.x = coords.x - this.selDragOfsX;
+                        this.selection.y = coords.y - this.selDragOfsY;
+                        this.startMarchingAnts();
+                    }
                     return;
                 }
             }),
@@ -219,8 +262,14 @@
 
                 if (this.isDrawing && isDrawingTool) {
                     this.isDrawing = false;
-                    this.addRecentColor(this.primaryColor);
+                    if (this.activeTool !== 'clone-stamp') this.addRecentColor(this.primaryColor);
                     this.pushHistory('draw:' + this.activeTool);
+                    return;
+                }
+
+                if (this.isDrawing && this.activeTool === 'lasso') {
+                    this.isDrawing = false;
+                    this.commitLassoPath();
                     return;
                 }
 
@@ -261,6 +310,12 @@
                 }
 
                 if (this.isMovingSel) {
+                    if (this.activeTool === 'move' && this.moveLayerSnapshot && !this.selImageData) {
+                        const dx = coords.x - this.moveLayerStartX;
+                        const dy = coords.y - this.moveLayerStartY;
+                        this.commitMoveLayer(dx, dy);
+                        this.moveLayerSnapshot = null;
+                    }
                     this.isMovingSel = false;
                     return;
                 }
@@ -363,7 +418,12 @@
                         ['N', this.t('pixel.blur_brush')],
                         ['W', this.t('pixel.magic_wand')],
                         ['U', this.t('pixel.gradient')],
-                        ['L', this.t('pixel.line')],
+                        ['L', this.t('pixel.lasso')],
+                        ['Shift+L', this.t('pixel.line')],
+                        ['S', this.t('pixel.clone_stamp')],
+                        ['M', this.t('pixel.move')],
+                        ['Shift+V', this.t('pixel.select_ellipse')],
+                        ['Shift+A', this.t('pixel.arrow')],
                         ['R', this.t('pixel.rectangle')],
                         ['O', this.t('pixel.ellipse')],
                         ['T', this.t('pixel.text')],

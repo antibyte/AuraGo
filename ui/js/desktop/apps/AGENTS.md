@@ -81,13 +81,14 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   filter. The app can also run
   windowless as a floating desktop gadget (see `sip-phone-gadget-runtime.js`
   in the Child DOX Index).
-- `pixel*.js` implements Pixel, a canvas image editor: left tool rail (17
-  tools in 5 groups, incl. magic wand with mask selections, gradient,
-  airbrush, dodge/burn and blur brush), contextual options bar, adjustments,
-  a 21-filter gallery in 4 categories with live thumbnails and a strength
-  slider, plus colors, transform, layers (max 10), click-to-jump history and
-  AI generate/enhance panels. Split across `pixel-state.js` (constants, tool
-  SVGs/groups, canvas pool), `pixel-view.js` (rail/panel markup),
+- `pixel*.js` implements Pixel, a canvas image editor: left tool rail (20
+  tools in 5 groups, incl. magic wand, lasso, move, clone stamp, mask
+  selections, gradient, airbrush, dodge/burn and blur brush), contextual
+  options bar, adjustments, a 29-filter gallery in 4 categories with
+  favorites and before/after compare, plus colors, transform, layers (max
+  20), click-to-jump history and AI generate/enhance/remove-bg/upscale
+  panels. Split across `pixel-state.js` (constants, tool SVGs/groups,
+  canvas pool, MAX_LAYERS), `pixel-view.js` (rail/panel markup),
   `pixel-canvas.js` (canvas, history stack, zoom, adjustments,
   crop/resize/rotate), `pixel-tools.js` (tools, selections, layers, history
   panel), `pixel-actions.js` (file I/O, AI calls, photos), `pixel-filters.js`

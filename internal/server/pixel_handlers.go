@@ -33,13 +33,17 @@ func handlePixelConfig(s *Server) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":          cfg.Enabled,
-			"provider_type":    cfg.ProviderType,
-			"model":            cfg.ResolvedModel,
-			"supports_img2img": supportsImg2Img,
-			"default_size":     cfg.DefaultSize,
-			"default_quality":  cfg.DefaultQuality,
-			"default_style":    cfg.DefaultStyle,
+			"enabled":             cfg.Enabled,
+			"provider_type":       cfg.ProviderType,
+			"model":               cfg.ResolvedModel,
+			"supports_img2img":    supportsImg2Img,
+			"supports_remove_bg":  cfg.Enabled && supportsImg2Img,
+			"supports_upscale":    true,
+			"default_size":        cfg.DefaultSize,
+			"default_quality":     cfg.DefaultQuality,
+			"default_style":       cfg.DefaultStyle,
+			"max_monthly":         cfg.MaxMonthly,
+			"daily_count":         tools.ImageGenDailyCount(),
 		})
 	}
 }
@@ -165,30 +169,15 @@ func handlePixelEnhance(s *Server) http.HandlerFunc {
 
 		sourcePath := req.SourcePath
 		if sourcePath == "" && req.SourceData != "" {
-			dataURL := req.SourceData
-			comma := strings.Index(dataURL, ",")
-			if comma >= 0 {
-				dataURL = dataURL[comma+1:]
-			}
-			imgBytes, err := base64.StdEncoding.DecodeString(dataURL)
-			if err != nil {
+			var cleanup func()
+			var writeErr error
+			sourcePath, cleanup, writeErr = pixelWriteTempSource(cfg.Directories.DataDir, req.SourceData, "pixel_enhance")
+			if writeErr != nil {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid base64 source data"})
+				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": writeErr.Error()})
 				return
 			}
-			tmpPath := filepath.Join(cfg.Directories.DataDir, "generated_images", fmt.Sprintf("pixel_enhance_%d.png", time.Now().UnixNano()))
-			if err := os.MkdirAll(filepath.Dir(tmpPath), 0755); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "failed to prepare source"})
-				return
-			}
-			if err := os.WriteFile(tmpPath, imgBytes, 0644); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "failed to write temp source"})
-				return
-			}
-			sourcePath = tmpPath
-			defer os.Remove(tmpPath)
+			defer cleanup()
 		}
 
 		genCfg := tools.ImageGenConfig{
@@ -233,6 +222,213 @@ func handlePixelEnhance(s *Server) http.HandlerFunc {
 			"format": "png",
 		})
 	}
+}
+
+// handlePixelRemoveBG returns POST /api/pixel/remove-bg — AI background removal via img2img.
+func handlePixelRemoveBG(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		s.CfgMu.RUnlock()
+
+		if !cfg.ImageGeneration.Enabled {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image generation is not enabled"})
+			return
+		}
+
+		supportsImg2Img := false
+		switch strings.ToLower(cfg.ImageGeneration.ProviderType) {
+		case "openai", "openrouter", "stability":
+			supportsImg2Img = true
+		}
+		if !supportsImg2Img {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Provider does not support background removal"})
+			return
+		}
+
+		var req struct {
+			SourcePath string `json:"source_path"`
+			SourceData string `json:"source_data"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid request"})
+			return
+		}
+		if req.SourcePath == "" && req.SourceData == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "source_path or source_data is required"})
+			return
+		}
+
+		sourcePath := req.SourcePath
+		if sourcePath == "" && req.SourceData != "" {
+			var cleanup func()
+			var writeErr error
+			sourcePath, cleanup, writeErr = pixelWriteTempSource(cfg.Directories.DataDir, req.SourceData, "pixel_remove_bg")
+			if writeErr != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": writeErr.Error()})
+				return
+			}
+			defer cleanup()
+		}
+
+		genCfg := tools.ImageGenConfig{
+			ProviderType: cfg.ImageGeneration.ProviderType,
+			BaseURL:      cfg.ImageGeneration.BaseURL,
+			APIKey:       cfg.ImageGeneration.APIKey,
+			Model:        cfg.ImageGeneration.ResolvedModel,
+			DataDir:      cfg.Directories.DataDir,
+		}
+
+		opts := tools.ImageGenOptions{
+			Size:        cfg.ImageGeneration.DefaultSize,
+			Quality:     cfg.ImageGeneration.DefaultQuality,
+			Style:       cfg.ImageGeneration.DefaultStyle,
+			SourceImage: sourcePath,
+		}
+
+		prompt := "Remove the background completely. Transparent background, isolated subject, clean cutout, no backdrop."
+		result, err := tools.GenerateImage(genCfg, prompt, opts)
+		if err != nil {
+			s.Logger.Error("Pixel remove-bg failed", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+			return
+		}
+
+		tools.SaveGeneratedImage(s.ImageGalleryDB, result)
+
+		imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
+		width, height := imageDimensions(imgPath)
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"path":   imgPath,
+			"url":    result.WebPath,
+			"width":  width,
+			"height": height,
+			"format": "png",
+		})
+	}
+}
+
+// handlePixelUpscale returns POST /api/pixel/upscale — 2× Lanczos upscale (Pure Go).
+func handlePixelUpscale(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		s.CfgMu.RUnlock()
+
+		if !cfg.ImageGeneration.Enabled {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image generation is not enabled"})
+			return
+		}
+
+		var req struct {
+			SourcePath string  `json:"source_path"`
+			SourceData string  `json:"source_data"`
+			Scale      float64 `json:"scale"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid request"})
+			return
+		}
+		if req.SourcePath == "" && req.SourceData == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "source_path or source_data is required"})
+			return
+		}
+
+		scale := req.Scale
+		if scale <= 1 {
+			scale = 2
+		}
+
+		var imgBytes []byte
+		var err error
+		if req.SourceData != "" {
+			imgBytes, err = pixelDecodeDataURL(req.SourceData)
+		} else {
+			imgBytes, err = os.ReadFile(req.SourcePath)
+		}
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+			return
+		}
+
+		upscaled, err := tools.UpscaleImageBytes(imgBytes, scale)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+			return
+		}
+
+		outDir := filepath.Join(cfg.Directories.DataDir, "generated_images")
+		if err := os.MkdirAll(outDir, 0755); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "failed to prepare output directory"})
+			return
+		}
+		filename := fmt.Sprintf("pixel_upscale_%d.png", time.Now().UnixNano())
+		outPath := filepath.Join(outDir, filename)
+		if err := os.WriteFile(outPath, upscaled.PNGBytes, 0644); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "failed to write upscaled image"})
+			return
+		}
+
+		webPath := "/files/generated_images/" + filename
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"path":   outPath,
+			"url":    webPath,
+			"width":  upscaled.Width,
+			"height": upscaled.Height,
+			"format": "png",
+		})
+	}
+}
+
+func pixelDecodeDataURL(dataURL string) ([]byte, error) {
+	comma := strings.Index(dataURL, ",")
+	if comma >= 0 {
+		dataURL = dataURL[comma+1:]
+	}
+	return base64.StdEncoding.DecodeString(dataURL)
+}
+
+func pixelWriteTempSource(dataDir, sourceData, prefix string) (path string, cleanup func(), err error) {
+	imgBytes, err := pixelDecodeDataURL(sourceData)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid base64 source data")
+	}
+	tmpPath := filepath.Join(dataDir, "generated_images", fmt.Sprintf("%s_%d.png", prefix, time.Now().UnixNano()))
+	if err := os.MkdirAll(filepath.Dir(tmpPath), 0755); err != nil {
+		return "", nil, fmt.Errorf("failed to prepare source")
+	}
+	if err := os.WriteFile(tmpPath, imgBytes, 0644); err != nil {
+		return "", nil, fmt.Errorf("failed to write temp source")
+	}
+	return tmpPath, func() { _ = os.Remove(tmpPath) }, nil
 }
 
 // handlePixelSave returns POST /api/pixel/save — save canvas data URL as file.

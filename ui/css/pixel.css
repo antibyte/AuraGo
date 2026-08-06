@@ -1255,3 +1255,30 @@
         grid-template-columns: 1fr;
     }
 }
+
+.pixel-filter-card {
+    position: relative;
+}
+
+.pixel-filter-card.is-favorite {
+    border-color: var(--pixel-accent, #5b9cff);
+}
+
+.pixel-filter-fav {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+.pixel-layer-mask {
+    flex: 0 0 auto;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 2px;
+}

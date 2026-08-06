@@ -4,6 +4,7 @@
     const Pixel = window.AuraPixelApp = window.AuraPixelApp || {};
 
     const MAX_HISTORY = 30;
+    const MAX_LAYERS = 20;
     const canvasPool = [];
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'];
     const PRESET_COLORS = [
@@ -61,29 +62,37 @@
         'airbrush': '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M9 2.5h4v3H9zM3 13.5l6-8h2l-5 8H3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="13" cy="9" r=".9" fill="currentColor"/><circle cx="11.5" cy="11" r=".9" fill="currentColor"/><circle cx="13.5" cy="12.5" r=".9" fill="currentColor"/><circle cx="10" cy="13.5" r=".9" fill="currentColor"/></svg>',
         'dodge-burn': '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2a6 6 0 010 12z" fill="currentColor" opacity="0.75"/></svg>',
         'blur-brush': '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor" opacity="0.9"/><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.55"/><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"/></svg>',
-        'gradient': '<svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3" width="3" height="10" fill="currentColor" opacity="0.25"/><rect x="5" y="3" width="3" height="10" fill="currentColor" opacity="0.5"/><rect x="8" y="3" width="3" height="10" fill="currentColor" opacity="0.75"/><rect x="11" y="3" width="3" height="10" fill="currentColor"/></svg>'
+        'gradient': '<svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3" width="3" height="10" fill="currentColor" opacity="0.25"/><rect x="5" y="3" width="3" height="10" fill="currentColor" opacity="0.5"/><rect x="8" y="3" width="3" height="10" fill="currentColor" opacity="0.75"/><rect x="11" y="3" width="3" height="10" fill="currentColor"/></svg>',
+        'clone-stamp': '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="6" cy="6" r="3.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="10" cy="10" r="3.5" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.7"/><path d="M8.5 7.5l3 3" stroke="currentColor" stroke-width="1.2"/></svg>',
+        'lasso': '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8c0-2 1.5-4 4-4 1.2 0 2.2.4 3 1.1.8.7 1.3 1.7 1.3 2.9 0 2.5-2 4-4 4-.8 0-1.5-.2-2.1-.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+        'move': '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2v12M8 2l-2.5 2.5M8 2l2.5 2.5M2 8h12M2 8l2.5-2.5M2 8l2.5 2.5M14 8l-2.5-2.5M14 8l-2.5 2.5M8 14l-2.5-2.5M8 14l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>'
     };
 
     const TOOL_GROUPS = [
-        ['select-rect', 'select-ellipse', 'magic-wand'],
-        ['brush', 'pencil', 'airbrush', 'eraser', 'dodge-burn', 'blur-brush'],
+        ['select-rect', 'select-ellipse', 'magic-wand', 'lasso', 'move'],
+        ['brush', 'pencil', 'airbrush', 'eraser', 'clone-stamp', 'dodge-burn', 'blur-brush'],
         ['fill', 'gradient', 'eyedropper'],
         ['line', 'arrow', 'rectangle', 'ellipse'],
         ['text']
     ];
     const TOOL_SHORTCUTS = {
         'select-rect': 'V',
+        'select-ellipse': 'Shift+V',
         'magic-wand': 'W',
+        'lasso': 'L',
+        'move': 'M',
         'brush': 'B',
         'pencil': 'P',
         'airbrush': 'A',
         'eraser': 'E',
+        'clone-stamp': 'S',
         'dodge-burn': 'D',
         'blur-brush': 'N',
         'fill': 'G',
         'gradient': 'U',
         'eyedropper': 'I',
-        'line': 'L',
+        'line': 'Shift+L',
+        'arrow': 'Shift+A',
         'rectangle': 'R',
         'ellipse': 'O',
         'text': 'T'
@@ -97,6 +106,7 @@
 
     Object.assign(Pixel, {
         MAX_HISTORY,
+        MAX_LAYERS,
         IMAGE_EXTS,
         PRESET_COLORS,
         FONT_FAMILIES,

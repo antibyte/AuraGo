@@ -620,6 +620,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))
 	mux.HandleFunc("/api/pixel/generate", handlePixelGenerate(s))
 	mux.HandleFunc("/api/pixel/enhance", handlePixelEnhance(s))
+	mux.HandleFunc("/api/pixel/remove-bg", handlePixelRemoveBG(s))
+	mux.HandleFunc("/api/pixel/upscale", handlePixelUpscale(s))
 	mux.HandleFunc("/api/pixel/save", handlePixelSave(s))
 
 	// Galaxa Deluxe highscore endpoints

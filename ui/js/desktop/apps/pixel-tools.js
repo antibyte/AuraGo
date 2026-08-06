@@ -21,8 +21,10 @@
                 if (!list) return;
                 list.innerHTML = this.layers.map((layer, i) => {
                     const isActive = i === this.activeLayerIdx;
+                    const maskBtn = layer.maskCanvas ? '🎭' : '◻';
                     return `<div class="pixel-layer-item${isActive ? ' active' : ''}" data-layer-idx="${i}">
                         <button class="pixel-layer-vis" type="button" data-layer-vis="${i}" title="${this.esc(this.t('pixel.toggle_visibility'))}">${layer.visible ? '👁' : '◻'}</button>
+                        <button class="pixel-layer-mask" type="button" data-layer-mask="${i}" title="${this.esc(this.t('pixel.layer_mask'))}">${maskBtn}</button>
                         <span class="pixel-layer-name" data-layer-name="${i}">${this.esc(layer.name)}</span>
                         <input type="range" class="pixel-slider pixel-layer-opacity" data-layer-opacity="${i}" min="0" max="100" value="${Math.round(layer.opacity * 100)}">
                     </div>`;
@@ -81,8 +83,9 @@
             }),
             getToolCursor: Pixel.bindRuntime(runtime, function getToolCursor() {
                 if (!this.activeTool) return 'default';
-                if (['brush', 'pencil', 'airbrush', 'eraser', 'dodge-burn', 'blur-brush'].includes(this.activeTool)) return 'none';
+                if (['brush', 'pencil', 'airbrush', 'eraser', 'clone-stamp', 'dodge-burn', 'blur-brush'].includes(this.activeTool)) return 'none';
                 if (this.activeTool === 'text') return 'text';
+                if (this.activeTool === 'move') return 'move';
                 return 'crosshair';
             }),
             clearOverlay: Pixel.bindRuntime(runtime, function clearOverlay() {
@@ -247,6 +250,116 @@
                 }
                 actx.putImageData(imgData, 0, 0);
                 if (this.layers.length > 1) this.compositeLayers();
+            }),
+            toggleLayerMask: Pixel.bindRuntime(runtime, function toggleLayerMask(idx) {
+                const layer = this.layers[idx];
+                if (!layer) return;
+                if (!layer.maskCanvas) {
+                    this.ensureBackgroundMigrated();
+                    if (!layer.canvas && idx === this.activeLayerIdx) {
+                        layer.canvas = this.acquireTempCanvas(this.imgWidth, this.imgHeight);
+                        layer.canvas.getContext('2d').drawImage(this.canvas, 0, 0);
+                    }
+                    const mc = document.createElement('canvas');
+                    mc.width = this.imgWidth;
+                    mc.height = this.imgHeight;
+                    const mx = mc.getContext('2d');
+                    mx.fillStyle = '#ffffff';
+                    mx.fillRect(0, 0, mc.width, mc.height);
+                    layer.maskCanvas = mc;
+                }
+                this.activeLayerIdx = idx;
+                this.editMaskMode = !this.editMaskMode;
+                this.refreshLayerPanel();
+                this.notify({ type: 'info', message: this.editMaskMode ? this.t('pixel.mask_edit_on') : this.t('pixel.mask_edit_off') });
+            }),
+            cloneStampAt: Pixel.bindRuntime(runtime, function cloneStampAt(x0, y0, x1, y1) {
+                if (this.cloneSourceX == null || this.cloneSourceY == null) return;
+                const actx = this.getActiveCtx();
+                const offX = x0 - this.cloneSourceX;
+                const offY = y0 - this.cloneSourceY;
+                const size = this.brushSize;
+                const r = Math.max(1, Math.round(size / 2));
+                const sx0 = Math.max(0, Math.min(x1 - offX - r, this.canvas.width - 1));
+                const sy0 = Math.max(0, Math.min(y1 - offY - r, this.canvas.height - 1));
+                const sw = Math.min(r * 2, this.canvas.width - sx0);
+                const sh = Math.min(r * 2, this.canvas.height - sy0);
+                if (sw < 1 || sh < 1) return;
+                const srcLayer = this.cctx;
+                const patch = srcLayer.getImageData(sx0, sy0, sw, sh);
+                const destX = Math.max(0, Math.min(x1 - r, this.canvas.width - sw));
+                const destY = Math.max(0, Math.min(y1 - r, this.canvas.height - sh));
+                actx.putImageData(patch, destX, destY);
+            }),
+            commitLassoPath: Pixel.bindRuntime(runtime, function commitLassoPath() {
+                const path = this.lassoPath;
+                this.lassoPath = null;
+                this.clearOverlay();
+                if (!path || path.length < 3 || !this.canvas.width) return;
+                const w = this.canvas.width, h = this.canvas.height;
+                const tmp = this.acquireTempCanvas(w, h);
+                const tctx = tmp.getContext('2d');
+                tctx.fillStyle = '#ffffff';
+                tctx.beginPath();
+                tctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) tctx.lineTo(path[i].x, path[i].y);
+                tctx.closePath();
+                tctx.fill();
+                const data = tctx.getImageData(0, 0, w, h).data;
+                this.releaseTempCanvas(tmp);
+                const mask = new Uint8Array(w * h);
+                let minX = w, minY = h, maxX = 0, maxY = 0, count = 0;
+                const border = [];
+                for (let yy = 0; yy < h; yy++) {
+                    for (let xx = 0; xx < w; xx++) {
+                        const p = yy * w + xx;
+                        if (data[p * 4 + 3] > 128) {
+                            mask[p] = 1;
+                            count++;
+                            if (xx < minX) minX = xx;
+                            if (xx > maxX) maxX = xx;
+                            if (yy < minY) minY = yy;
+                            if (yy > maxY) maxY = yy;
+                        }
+                    }
+                }
+                if (!count) return;
+                for (let yy = minY; yy <= maxY; yy++) {
+                    for (let xx = minX; xx <= maxX; xx++) {
+                        const p = yy * w + xx;
+                        if (!mask[p]) continue;
+                        if ((xx > 0 && !mask[p - 1]) || (xx < w - 1 && !mask[p + 1]) || (yy > 0 && !mask[p - w]) || (yy < h - 1 && !mask[p + w])) {
+                            border.push(p);
+                        }
+                    }
+                }
+                this.selection = { type: 'mask', mask, border, x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+                this.startMarchingAnts();
+            }),
+            drawLassoPreview: Pixel.bindRuntime(runtime, function drawLassoPreview() {
+                if (!this.lassoPath || this.lassoPath.length < 2) return;
+                this.clearOverlay();
+                this.olCtx.save();
+                this.olCtx.strokeStyle = '#ffffff';
+                this.olCtx.lineWidth = 1;
+                this.olCtx.setLineDash([4, 4]);
+                this.olCtx.beginPath();
+                this.olCtx.moveTo(this.lassoPath[0].x, this.lassoPath[0].y);
+                for (let i = 1; i < this.lassoPath.length; i++) this.olCtx.lineTo(this.lassoPath[i].x, this.lassoPath[i].y);
+                this.olCtx.stroke();
+                this.olCtx.restore();
+            }),
+            commitMoveLayer: Pixel.bindRuntime(runtime, function commitMoveLayer(dx, dy) {
+                if (!dx && !dy) return;
+                const actx = this.getActiveCtx();
+                const w = this.canvas.width, h = this.canvas.height;
+                const snap = this.acquireTempCanvas(w, h);
+                snap.getContext('2d').drawImage(actx.canvas, 0, 0);
+                actx.clearRect(0, 0, w, h);
+                actx.drawImage(snap, dx, dy);
+                this.releaseTempCanvas(snap);
+                if (this.layers.length > 1) this.compositeLayers();
+                this.pushHistory('move');
             }),
             magicWandSelect: Pixel.bindRuntime(runtime, function magicWandSelect(x, y) {
                 if (!this.canvas.width) return;
@@ -558,7 +671,7 @@
                 this.pushHistory('text');
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
-                if (this.layers.length >= 10) { this.notify({ type: 'error', message: this.t('pixel.max_layers') }); return; }
+                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.max_layers') }); return; }
                 this.ensureBackgroundMigrated();
                 const c = document.createElement('canvas');
                 c.width = this.imgWidth;
@@ -583,7 +696,7 @@
                 this.pushHistory('delete layer');
             }),
             duplicateLayer: Pixel.bindRuntime(runtime, function duplicateLayer() {
-                if (this.layers.length >= 10) return;
+                if (this.layers.length >= this.MAX_LAYERS) return;
                 const src = this.layers[this.activeLayerIdx];
                 const c = document.createElement('canvas');
                 c.width = this.imgWidth;

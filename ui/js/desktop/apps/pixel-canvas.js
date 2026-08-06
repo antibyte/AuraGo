@@ -23,6 +23,9 @@
                                 };
             }),
             getActiveCtx: Pixel.bindRuntime(runtime, function getActiveCtx() {
+                                if (this.editMaskMode && this.layers[this.activeLayerIdx] && this.layers[this.activeLayerIdx].maskCanvas) {
+                                    return this.layers[this.activeLayerIdx].maskCanvas.getContext('2d');
+                                }
                                 if (this.layers.length === 1 || !this.layers[this.activeLayerIdx].canvas) return this.cctx;
                                 return this.layers[this.activeLayerIdx].canvas.getContext('2d');
             }),
@@ -40,7 +43,17 @@
                                     if (!layer.visible) continue;
                                     this.cctx.globalAlpha = layer.opacity;
                                     if (layer.canvas) {
-                                        this.cctx.drawImage(layer.canvas, 0, 0);
+                                        if (layer.maskCanvas) {
+                                            const masked = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
+                                            const mctx = masked.getContext('2d');
+                                            mctx.drawImage(layer.canvas, 0, 0);
+                                            mctx.globalCompositeOperation = 'destination-in';
+                                            mctx.drawImage(layer.maskCanvas, 0, 0);
+                                            this.cctx.drawImage(masked, 0, 0);
+                                            this.releaseTempCanvas(masked);
+                                        } else {
+                                            this.cctx.drawImage(layer.canvas, 0, 0);
+                                        }
                                     } else if (i === 0 && this.layers.length === 1) {
                                     }
                                 }
@@ -55,11 +68,18 @@
                                     tmp.getContext('2d').drawImage(src, 0, 0);
                                     return tmp;
                                 });
+                                const maskStates = this.layers.map(l => {
+                                    if (!l.maskCanvas) return null;
+                                    const tmp = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
+                                    tmp.getContext('2d').drawImage(l.maskCanvas, 0, 0);
+                                    return tmp;
+                                });
                                 if (this.historyIdx < this.history.length - 1) this.history = this.history.slice(0, this.historyIdx + 1);
-                                this.history.push({ layerStates, width: this.canvas.width, height: this.canvas.height, label: label || '', layerMeta: this.layers.map(l => ({ name: l.name, visible: l.visible, opacity: l.opacity })) });
+                                this.history.push({ layerStates, maskStates, width: this.canvas.width, height: this.canvas.height, label: label || '', layerMeta: this.layers.map(l => ({ name: l.name, visible: l.visible, opacity: l.opacity, hasMask: !!l.maskCanvas })) });
                                 if (this.history.length > this.MAX_HISTORY) {
                                     const removed = this.history.shift();
                                     removed.layerStates.forEach(s => { if (s) this.releaseTempCanvas(s); });
+                                    if (removed.maskStates) removed.maskStates.forEach(s => { if (s) this.releaseTempCanvas(s); });
                                 }
                                 this.historyIdx = this.history.length - 1;
                                 this.isDirty = true;
@@ -75,6 +95,7 @@
                                 this.overlayCanvas.height = entry.height;
                                 this.layers = entry.layerMeta.map((meta, i) => ({
                                     canvas: entry.layerStates[i] ? (() => { const tc = this.acquireTempCanvas(entry.width, entry.height); tc.getContext('2d').drawImage(entry.layerStates[i], 0, 0); return tc; })() : null,
+                                    maskCanvas: (entry.maskStates && entry.maskStates[i]) ? (() => { const mc = this.acquireTempCanvas(entry.width, entry.height); mc.getContext('2d').drawImage(entry.maskStates[i], 0, 0); return mc; })() : (meta.hasMask ? (() => { const mc = document.createElement('canvas'); mc.width = entry.width; mc.height = entry.height; const mx = mc.getContext('2d'); mx.fillStyle = '#fff'; mx.fillRect(0, 0, entry.width, entry.height); return mc; })() : null),
                                     name: meta.name,
                                     visible: meta.visible,
                                     opacity: meta.opacity
