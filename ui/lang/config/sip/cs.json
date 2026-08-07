@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Profil se uloží atomicky a AuraGo ihned otestuje registraci. Při problému zůstanete v tomto kroku.",
   "config.sip.wizard.save_test": "Uložit a otestovat",
   "config.sip.wizard.custom_value_invalid": "„{value}“ není samostatné číslo ani linka.",
-  "config.sip.allowed_domains_help": "Povoleny jsou pouze přesné domény; zástupné znaky neudělují přístup.",
-  "config.sip.allowed_users_help": "Povoleni jsou pouze přesní uživatelé SIP; rozsahy čísel zadávejte jako předvolby E.164.",
+  "config.sip.allowed_domains_help": "Prázdné pole povolí pouze doménu účtu; položky přidají přesné domény. Zástupné znaky přístup neudělují.",
+  "config.sip.allowed_users_help": "Prázdné seznamy uživatelů a předvoleb E.164 povolí všechny cíle v povolené doméně; položky výběr omezí.",
   "config.sip.outbound_policy_migration_required": "Odchozí pravidla se zástupnými znaky již neudělují přístup. Před uložením je nahraďte přesnými cíli."
 }

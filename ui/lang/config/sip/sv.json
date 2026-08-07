@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Profilen sparas atomiskt och registreringen testas direkt. Vid problem stannar du kvar i detta steg.",
   "config.sip.wizard.save_test": "Spara och testa",
   "config.sip.wizard.custom_value_invalid": "”{value}” är inte ett enskilt nummer eller en anknytning.",
-  "config.sip.allowed_domains_help": "Endast exakta domäner tillåts; jokertecken ger ingen åtkomst.",
-  "config.sip.allowed_users_help": "Endast exakta SIP-användare tillåts; ange nummerintervall som E.164-prefix.",
+  "config.sip.allowed_domains_help": "Tomt tillåter bara kontodomänen; poster lägger till exakta domäner. Jokertecken ger ingen åtkomst.",
+  "config.sip.allowed_users_help": "Tomma användar- och E.164-prefixlistor tillåter alla mål i en tillåten domän; poster begränsar urvalet.",
   "config.sip.outbound_policy_migration_required": "Utgående jokerregler ger inte längre åtkomst. Ersätt dem med exakta destinationer innan du sparar."
 }

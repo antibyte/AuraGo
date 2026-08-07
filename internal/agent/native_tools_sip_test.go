@@ -1,10 +1,13 @@
 package agent
 
 import (
+	"encoding/json"
 	"slices"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/sipphone"
 )
 
 func TestSIPPhoneSchemaFollowsRuntimePermissions(t *testing.T) {
@@ -28,5 +31,17 @@ func TestSIPPhoneSchemaFollowsRuntimePermissions(t *testing.T) {
 		if !slices.Contains(operations, operation) {
 			t.Fatalf("%s missing from %v", operation, operations)
 		}
+	}
+}
+
+func TestSIPPhoneToolDailyLimitErrorIsStable(t *testing.T) {
+	reset := time.Date(2026, 8, 8, 0, 0, 0, 0, time.Local)
+	raw := sipPhoneToolResult(nil, &sipphone.AgentDailyCallLimitError{Used: 10, Limit: 10, RetryAfterSeconds: 120, ResetsAt: reset})
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw[len("Tool Output: "):]), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["code"] != "agent_daily_call_limit_reached" || payload["used"] != float64(10) || payload["limit"] != float64(10) {
+		t.Fatalf("unexpected tool limit payload: %#v", payload)
 	}
 }

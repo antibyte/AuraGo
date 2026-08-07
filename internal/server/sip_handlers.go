@@ -888,13 +888,7 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 			blockers = append(blockers, "not_registered")
 		}
 		if status.Enabled && !status.ReadOnly {
-			hasOutboundTargets := len(cfg.Outbound.AllowedUsers) > 0 || len(cfg.Outbound.AllowedE164Prefixes) > 0
-			hasOutboundDomain := len(cfg.Outbound.AllowedDomains) > 0
-			switch {
-			case !cfg.Permissions.OriginateOutbound:
-				blockers = append(blockers, "outbound_disabled")
-			case !hasOutboundTargets || !hasOutboundDomain:
-				// Permission alone is not enough; dial policy requires domain + user/prefix allowlists.
+			if !cfg.Permissions.OriginateOutbound {
 				blockers = append(blockers, "outbound_disabled")
 			}
 		}
@@ -1111,6 +1105,7 @@ func writeSIPJSON(w http.ResponseWriter, value interface{}) {
 
 func writeSIPManagerError(w http.ResponseWriter, err error) {
 	var speechLabNotReady *speechlab.NotReadyError
+	var dailyLimit *sipphone.AgentDailyCallLimitError
 	switch {
 	case errors.As(err, &speechLabNotReady):
 		writeSpeechLabJSON(w, http.StatusServiceUnavailable, map[string]any{
@@ -1122,6 +1117,12 @@ func writeSIPManagerError(w http.ResponseWriter, err error) {
 		jsonError(w, err.Error(), http.StatusForbidden)
 	case errors.Is(err, sipphone.ErrInvalidTarget):
 		writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{"error": "invalid_target", "message": "The SIP target is invalid"})
+	case errors.As(err, &dailyLimit):
+		w.Header().Set("Retry-After", strconv.Itoa(dailyLimit.RetryAfterSeconds))
+		writeSIPJSONStatus(w, http.StatusTooManyRequests, map[string]any{
+			"error": "agent_daily_call_limit_reached", "message": "The telephone agent daily outbound call limit has been reached",
+			"used": dailyLimit.Used, "limit": dailyLimit.Limit, "retry_after_seconds": dailyLimit.RetryAfterSeconds, "resets_at": dailyLimit.ResetsAt,
+		})
 	case errors.Is(err, sipphone.ErrNetworkConfiguration):
 		writeSIPJSONStatus(w, http.StatusConflict, map[string]string{"error": "docker_advertised_host_required", "message": err.Error()})
 	case errors.Is(err, sipphone.ErrSpeechLabStackChange):

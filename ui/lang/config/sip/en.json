@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "The profile is saved atomically, then AuraGo immediately tests registration. You stay here if anything needs attention.",
   "config.sip.wizard.save_test": "Save and test",
   "config.sip.wizard.custom_value_invalid": "“{value}” is not an individual number or extension.",
-  "config.sip.allowed_domains_help": "Only exact domains are allowed; wildcards grant no access.",
-  "config.sip.allowed_users_help": "Only exact SIP users are allowed; enter number ranges as E.164 prefixes.",
+  "config.sip.allowed_domains_help": "Empty permits only the configured account domain; entries add exact domains. Wildcards grant no access.",
+  "config.sip.allowed_users_help": "Leave users and E.164 prefixes empty to allow every destination at an allowed domain; entries restrict the set.",
   "config.sip.outbound_policy_migration_required": "Wildcard outbound rules no longer grant access. Replace them with exact destinations before saving."
 }

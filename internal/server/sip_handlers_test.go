@@ -29,6 +29,28 @@ func TestSIPStackReservationMapsOutboundBusyToServiceUnavailable(t *testing.T) {
 	}
 }
 
+func TestSIPDailyAgentLimitMapsToHTTP429(t *testing.T) {
+	reset := time.Date(2026, 8, 8, 0, 0, 0, 0, time.Local)
+	recorder := httptest.NewRecorder()
+	writeSIPManagerError(recorder, &sipphone.AgentDailyCallLimitError{Used: 10, Limit: 10, RetryAfterSeconds: 123, ResetsAt: reset})
+	if recorder.Code != http.StatusTooManyRequests || recorder.Header().Get("Retry-After") != "123" {
+		t.Fatalf("status=%d retry-after=%q body=%s", recorder.Code, recorder.Header().Get("Retry-After"), recorder.Body.String())
+	}
+	var payload struct {
+		Error             string    `json:"error"`
+		Used              int       `json:"used"`
+		Limit             int       `json:"limit"`
+		RetryAfterSeconds int       `json:"retry_after_seconds"`
+		ResetsAt          time.Time `json:"resets_at"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Error != "agent_daily_call_limit_reached" || payload.Used != 10 || payload.Limit != 10 || payload.RetryAfterSeconds != 123 || !payload.ResetsAt.Equal(reset) {
+		t.Fatalf("unexpected limit payload: %+v", payload)
+	}
+}
+
 func TestSIPConfigResponseMasksPassword(t *testing.T) {
 	var sipCfg config.SIPConfig
 	config.ApplySIPDefaults(&sipCfg)
@@ -410,6 +432,34 @@ func TestSIPAppStateReportsDisabledOutboundCalling(t *testing.T) {
 	}
 }
 
+func TestSIPAppStateAllowsEmptyProviderDestinationLists(t *testing.T) {
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	sipCfg.Enabled = true
+	sipCfg.ReadOnly = false
+	sipCfg.Registrar = "pbx.example"
+	sipCfg.Domain = "pbx.example"
+	sipCfg.Username = "desk"
+	sipCfg.Permissions.OriginateOutbound = true
+	sipCfg.BrowserMedia.Enabled = true
+	manager, err := sipphone.NewManager(sipCfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Close() })
+	recorder := httptest.NewRecorder()
+	handleSIPAppState(&Server{SIPPhone: manager}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/app/state", nil))
+	var payload struct {
+		Blockers []string `json:"blockers"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(payload.Blockers, "outbound_disabled") {
+		t.Fatalf("empty provider destination lists disabled outbound calling: %+v", payload.Blockers)
+	}
+}
+
 func TestSIPAppStateReportsOutboundPolicyMigration(t *testing.T) {
 	var sipCfg config.SIPConfig
 	config.ApplySIPDefaults(&sipCfg)
@@ -420,7 +470,7 @@ func TestSIPAppStateReportsOutboundPolicyMigration(t *testing.T) {
 	sipCfg.Username = "desk"
 	sipCfg.Permissions.OriginateOutbound = true
 	sipCfg.Outbound.AllowedDomains = []string{"pbx.example"}
-	sipCfg.Outbound.AllowedUsers = []string{"*"}
+	sipCfg.Outbound.AllowedUsers = []string{"sales-*"}
 	manager, err := sipphone.NewManager(sipCfg, t.TempDir(), nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)

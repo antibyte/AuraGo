@@ -4,6 +4,7 @@ let telephoneAgentSaved = '';
 let telephoneAgentInherited = {};
 let telephoneAgentBlockers = [];
 let telephoneAgentToolQuery = '';
+let telephoneAgentDailyUsage = null;
 
 function taEsc(value) {
     return escapeHtml(String(value == null ? '' : value));
@@ -41,7 +42,8 @@ function taNormalize(payload) {
             max_call_duration_seconds: Number(voice.max_call_duration_seconds || 3600),
 			idle_timeout_seconds: Number(voice.idle_timeout_seconds || 120),
 			turn_timeout_seconds: Number(voice.turn_timeout_seconds || 60),
-			max_response_chars: Number(voice.max_response_chars || 1200)
+			max_response_chars: Number(voice.max_response_chars || 1200),
+			max_outbound_calls_per_day: Number(voice.max_outbound_calls_per_day || 10)
         }
     };
 }
@@ -86,6 +88,15 @@ function taToolMarkup(selected) {
         <input type="checkbox" value="${taEsc(tool.id)}" data-ta-tool ${selectedSet.has(tool.id) ? 'checked' : ''}>
         <span><strong>${taEsc(tool.id)}</strong><small>${taEsc(tool.description || '')}</small></span>
     </label>`).join('');
+}
+
+function taDailyUsageMarkup() {
+	const usage = telephoneAgentDailyUsage || {};
+	if (!usage.available) return `<p class="ta-hint">${taEsc(t('config.telephone_agent.daily_usage_unavailable'))}</p>`;
+	return `<p class="ta-hint">${taEsc(t('config.telephone_agent.daily_usage')
+		.replace('{used}', String(usage.used || 0))
+		.replace('{limit}', String(usage.limit || 0))
+		.replace('{reset}', usage.resets_at ? new Date(usage.resets_at).toLocaleString() : ''))}</p>`;
 }
 
 function taRender() {
@@ -164,6 +175,8 @@ function taRender() {
 				<label>${taEsc(t('config.telephone_agent.idle_timeout'))}<input class="field-input" type="number" min="15" max="3600" data-ta="voice.idle_timeout_seconds" value="${c.voice.idle_timeout_seconds}"></label>
 				<label>${taEsc(t('config.telephone_agent.turn_timeout'))}<input class="field-input" type="number" min="15" max="300" data-ta="voice.turn_timeout_seconds" value="${c.voice.turn_timeout_seconds}"></label>
 				<label>${taEsc(t('config.telephone_agent.max_response_chars'))}<input class="field-input" type="number" min="200" max="5000" data-ta="voice.max_response_chars" value="${c.voice.max_response_chars}"></label>
+				<label>${taEsc(t('config.telephone_agent.max_outbound_calls_per_day'))}<input class="field-input" type="number" min="1" max="1000" data-ta="voice.max_outbound_calls_per_day" value="${c.voice.max_outbound_calls_per_day}"></label>
+				${taDailyUsageMarkup()}
                 <p class="ta-hint">${taEsc(t('config.telephone_agent.snapshot_note'))}</p>
             </fieldset>
         </div>
@@ -250,7 +263,7 @@ function taBind() {
 async function taRequest(path, options) {
     const response = await fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || body.message || `HTTP ${response.status}`);
+    if (!response.ok) throw new Error(body.message || body.error || `HTTP ${response.status}`);
     return body;
 }
 
@@ -266,7 +279,8 @@ async function taSave() {
         });
         telephoneAgentState = taNormalize(response);
         telephoneAgentBlockers = response.blockers || [];
-        telephoneAgentInherited = response.inherited || {};
+		telephoneAgentInherited = response.inherited || {};
+		telephoneAgentDailyUsage = response.daily_usage || null;
         telephoneAgentSaved = taComparable(telephoneAgentState);
         taRender();
         const renderedStatus = document.getElementById('telephone-agent-status');
@@ -325,7 +339,8 @@ async function renderTelephoneAgentSection() {
         ]);
         telephoneAgentState = taNormalize(payload);
         telephoneAgentCatalog = catalog;
-        telephoneAgentInherited = payload.inherited || {};
+		telephoneAgentInherited = payload.inherited || {};
+		telephoneAgentDailyUsage = payload.daily_usage || null;
         telephoneAgentBlockers = payload.blockers || [];
         telephoneAgentSaved = taComparable(telephoneAgentState);
         taRender();

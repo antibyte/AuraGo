@@ -97,7 +97,7 @@ func TestNormalizeSIPURIAndDestinationPolicy(t *testing.T) {
 	allowed := config.SIPOutboundConfig{
 		AllowedDomains: []string{"example.com"}, AllowedE164Prefixes: []string{"+49"},
 	}
-	if !DestinationAllowed(allowed, uri) {
+	if !DestinationAllowed(allowed, "example.com", uri) {
 		t.Fatal("expected E.164 destination to be allowed")
 	}
 	for _, invalid := range []string{
@@ -107,8 +107,15 @@ func TestNormalizeSIPURIAndDestinationPolicy(t *testing.T) {
 			t.Fatalf("expected %q to be rejected", invalid)
 		}
 	}
-	if DestinationAllowed(config.SIPOutboundConfig{}, uri) {
-		t.Fatal("empty destination allowlists must deny")
+	if !DestinationAllowed(config.SIPOutboundConfig{}, "example.com", uri) {
+		t.Fatal("empty destination allowlists must allow the account domain")
+	}
+	foreign, _, err := NormalizeSIPURI("sip:+491234@other.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if DestinationAllowed(config.SIPOutboundConfig{}, "example.com", foreign) {
+		t.Fatal("empty domain allowlist widened access beyond the account domain")
 	}
 }
 
@@ -133,7 +140,7 @@ func TestDestinationPolicyRequiresExactAllowsAndKeepsDenyPrecedence(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := DestinationAllowed(cfg, uri); got != test.allowed {
+		if got := DestinationAllowed(cfg, "example.com", uri); got != test.allowed {
 			t.Errorf("DestinationAllowed(%q) = %v, want %v", test.raw, got, test.allowed)
 		}
 	}
@@ -145,11 +152,30 @@ func TestDestinationPolicyLegacyWildcardAllowsRequireMigrationAndGrantNothing(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if DestinationAllowed(cfg, uri) {
+	if DestinationAllowed(cfg, "example.com", uri) {
 		t.Fatal("legacy wildcard allow granted outbound access")
 	}
 	if !OutboundPolicyMigrationRequired(cfg) {
 		t.Fatal("legacy wildcard allow did not request migration")
+	}
+}
+
+func TestDestinationPolicyUniversalWildcardMigratesToProviderScope(t *testing.T) {
+	var cfg config.SIPConfig
+	config.ApplySIPDefaults(&cfg)
+	cfg.Domain = "example.com"
+	cfg.Outbound.AllowedDomains = []string{"*"}
+	cfg.Outbound.AllowedUsers = []string{"*"}
+	config.NormalizeSIPConfig(&cfg)
+	if OutboundPolicyMigrationRequired(cfg.Outbound) {
+		t.Fatal("universal wildcard still requires manual migration")
+	}
+	uri, _, err := NormalizeSIPURI("sip:any-extension@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !DestinationAllowed(cfg.Outbound, cfg.Domain, uri) {
+		t.Fatal("migrated universal wildcard did not permit the provider destination")
 	}
 }
 
@@ -163,7 +189,7 @@ func TestDestinationPolicyDeniedE164PrefixOverridesAllow(t *testing.T) {
 		AllowedE164Prefixes: []string{"+49"},
 		DeniedE164Prefixes:  []string{"+49900"},
 	}
-	if DestinationAllowed(cfg, uri) {
+	if DestinationAllowed(cfg, "example.com", uri) {
 		t.Fatal("denied E.164 prefix must override the allowed prefix")
 	}
 }
@@ -257,12 +283,16 @@ backend TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT ''); PRAGMA user_version
 	}
 	defer store.Close()
 	var version int
-	if err := store.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 2 {
+	if err := store.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 3 {
 		t.Fatalf("schema version = %d, err=%v", version, err)
 	}
 	call := CallRecord{ID: "call-1", Direction: "inbound", StartedAt: time.Now(), State: StateEnded, Backend: "classic", SessionID: "sip-call-1", persistTranscripts: false}
 	if err := store.Upsert(context.Background(), call); err != nil {
 		t.Fatal(err)
+	}
+	var mediaMode string
+	if err := store.db.QueryRow(`SELECT media_mode FROM sip_calls WHERE id=?`, call.ID).Scan(&mediaMode); err != nil || mediaMode != MediaModeAgent {
+		t.Fatalf("media mode = %q, err=%v", mediaMode, err)
 	}
 	sessions, err := store.NonPersistentSessionIDs(context.Background())
 	if err != nil || len(sessions) != 1 || sessions[0] != call.SessionID {

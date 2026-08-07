@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Il profilo viene salvato in modo atomico e la registrazione viene subito verificata. In caso di problemi rimani in questo passaggio.",
   "config.sip.wizard.save_test": "Salva e verifica",
   "config.sip.wizard.custom_value_invalid": "«{value}» non è un singolo numero o interno.",
-  "config.sip.allowed_domains_help": "Sono consentiti solo domini esatti; i caratteri jolly non concedono accesso.",
-  "config.sip.allowed_users_help": "Sono consentiti solo utenti SIP esatti; inserisci gli intervalli numerici come prefissi E.164.",
+  "config.sip.allowed_domains_help": "Vuoto consente solo il dominio dell’account; le voci aggiungono domini esatti. I caratteri jolly non concedono accesso.",
+  "config.sip.allowed_users_help": "Liste vuote di utenti e prefissi E.164 consentono tutte le destinazioni di un dominio permesso; le voci limitano l’insieme.",
   "config.sip.outbound_policy_migration_required": "Le regole in uscita con caratteri jolly non concedono più accesso. Sostituiscile con destinazioni esatte prima di salvare."
 }

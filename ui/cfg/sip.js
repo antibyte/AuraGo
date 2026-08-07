@@ -105,12 +105,10 @@ function sipWizardProgress() {
 function sipOutboundPhoneReady(state) {
     const c = state || sipConfigState;
     if (!c) return false;
-    return !c.readonly &&
-        !!c.browser_media.enabled &&
-        !!c.permissions.originate_outbound &&
-        Array.isArray(c.outbound.allowed_domains) && c.outbound.allowed_domains.length > 0 &&
-        ((c.outbound.allowed_users && c.outbound.allowed_users.length) ||
-            (c.outbound.allowed_e164_prefixes && c.outbound.allowed_e164_prefixes.length));
+	return !c.readonly &&
+		!!c.browser_media.enabled &&
+		!!c.permissions.originate_outbound &&
+		!!String(c.domain || '').trim();
 }
 
 function sipDesktopPhoneReady(state) {
@@ -244,8 +242,9 @@ function sipWizardCredentials(provider) {
 
 function sipWizardCalling(provider) {
     const domesticAvailable = !!provider.domestic_region;
-    const outboundOptions = [
-        ...(domesticAvailable ? [['domestic', 'config.sip.wizard.scope_domestic', 'config.sip.wizard.scope_domestic_desc']] : []),
+	const outboundOptions = [
+		['all', 'config.sip.wizard.scope_all', 'config.sip.wizard.scope_all_desc'],
+		...(domesticAvailable ? [['domestic', 'config.sip.wizard.scope_domestic', 'config.sip.wizard.scope_domestic_desc']] : []),
         ['custom', 'config.sip.wizard.scope_custom', 'config.sip.wizard.scope_custom_desc']
     ];
     return `<div class="sip-wizard-panel">
@@ -458,7 +457,7 @@ function sipNormalizeOutboundPayload(payload) {
     payload.outbound.denied_e164_prefixes = denied.prefixes;
     const domain = String(payload.domain || '').trim().toLowerCase();
     const domains = Array.isArray(payload.outbound.allowed_domains) ? payload.outbound.allowed_domains.slice() : [];
-    if (domain && (classified.users.length || classified.prefixes.length) && !domains.map(item => String(item).toLowerCase()).includes(domain)) {
+	if (domain && domains.length > 0 && !domains.map(item => String(item).toLowerCase()).includes(domain)) {
         domains.push(domain);
     }
     payload.outbound.allowed_domains = domains;
@@ -830,7 +829,7 @@ async function sipRequest(path, options) {
     const response = await fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const error = new Error(body.error || body.message || ('HTTP ' + response.status));
+        const error = new Error(body.message || body.error || ('HTTP ' + response.status));
         error.code = body.code || '';
         error.retryable = !!body.retryable;
         error.body = body;
@@ -850,9 +849,7 @@ async function sipSave() {
         // Expert destinations still become dialable when the administrator
         // explicitly leaves read-only mode.
         sipNormalizeOutboundPayload(payload);
-        const hasTargets = (payload.outbound.allowed_users && payload.outbound.allowed_users.length) ||
-            (payload.outbound.allowed_e164_prefixes && payload.outbound.allowed_e164_prefixes.length);
-        if (hasTargets && payload.domain && !payload.readonly) {
+		if (payload.domain && !payload.readonly && payload.permissions?.originate_outbound) {
             payload.permissions = payload.permissions || {};
             payload.permissions.originate_outbound = true;
             payload.permissions.send_dtmf = true;
@@ -1010,7 +1007,7 @@ async function renderSIPSection() {
     sipWizardTestCode = '';
     sipWizardFieldErrors = {};
     sipWizardPasswordVisible = false;
-    sipWizardOutboundScope = 'custom';
+	sipWizardOutboundScope = 'all';
     sipWizardInboundEnabled = false;
     sipWizardInboundScope = 'all';
     sipWizardCustomCallers = '';
@@ -1038,7 +1035,8 @@ async function renderSIPSection() {
         ]);
         sipWizardProviderID = sipConfigState.preset_id || '';
         sipWizardStep = sipConfigState.registrar ? 0 : 1;
-        sipWizardOutboundScope = 'custom';
+		const hasOutboundTargets = (sipConfigState.outbound.allowed_users || []).length > 0 || (sipConfigState.outbound.allowed_e164_prefixes || []).length > 0;
+		sipWizardOutboundScope = hasOutboundTargets ? 'custom' : 'all';
         sipWizardInboundEnabled = sipConfigState.inbound.route === 'manual' && !!sipConfigState.permissions.answer_inbound;
         sipWizardInboundScope = (sipConfigState.inbound.allowed_callers || []).includes('*') ? 'all' : 'custom';
         sipWizardCustomCallers = sipList(sipConfigState.inbound.allowed_callers || []);

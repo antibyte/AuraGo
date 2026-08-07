@@ -44,7 +44,7 @@ func ApplySetupActivation(ctx context.Context, cfg *config.SIPConfig, presetID s
 		cfg.Outbound.AllowedE164Prefixes = nil
 		cfg.Permissions.OriginateOutbound = false
 	case SetupScopeAll:
-		return fmt.Errorf("unrestricted outbound calling is no longer supported; enter exact destinations")
+		enableGuidedOutbound(cfg, nil, nil)
 	case SetupScopeDomestic:
 		preset, ok := sipProviderPreset(presetID)
 		if !ok || preset.domesticPrefix == "" {

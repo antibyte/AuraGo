@@ -19,21 +19,22 @@ const (
 	// SIPPasswordVaultKey is the only supported storage location for the SIP digest password.
 	SIPPasswordVaultKey = "sip_endpoint_password"
 
-	DefaultSIPBindHost             = "127.0.0.1"
-	DefaultSIPBindPort             = 5060
-	DefaultSIPRegisterExpires      = 300
-	DefaultSIPRTPPortStart         = 30000
-	DefaultSIPRTPPortEnd           = 30099
-	DefaultSIPBrowserMediaUDPPort  = 30100
-	DefaultSIPJitterBufferMS       = 60
-	DefaultSIPRTPIdleTimeout       = 60
-	DefaultSIPAutoAnswerDelayMS    = 1000
-	DefaultSIPRingTimeout          = 90
-	DefaultSIPMaxCallDuration      = 3600
-	DefaultSIPIdleTimeout          = 120
-	DefaultSIPTurnTimeout          = 60
-	DefaultSIPMaxResponseChars     = 1200
-	DefaultSIPHistoryRetentionDays = 90
+	DefaultSIPBindHost               = "127.0.0.1"
+	DefaultSIPBindPort               = 5060
+	DefaultSIPRegisterExpires        = 300
+	DefaultSIPRTPPortStart           = 30000
+	DefaultSIPRTPPortEnd             = 30099
+	DefaultSIPBrowserMediaUDPPort    = 30100
+	DefaultSIPJitterBufferMS         = 60
+	DefaultSIPRTPIdleTimeout         = 60
+	DefaultSIPAutoAnswerDelayMS      = 1000
+	DefaultSIPRingTimeout            = 90
+	DefaultSIPMaxCallDuration        = 3600
+	DefaultSIPIdleTimeout            = 120
+	DefaultSIPTurnTimeout            = 60
+	DefaultSIPMaxResponseChars       = 1200
+	DefaultSIPMaxOutboundCallsPerDay = 10
+	DefaultSIPHistoryRetentionDays   = 90
 )
 
 // SIPConfig configures AuraGo's single-account, single-call native SIP endpoint.
@@ -129,6 +130,7 @@ type SIPVoiceConfig struct {
 	IdleTimeoutSeconds     int                    `yaml:"idle_timeout_seconds" json:"idle_timeout_seconds"`
 	TurnTimeoutSeconds     int                    `yaml:"turn_timeout_seconds" json:"turn_timeout_seconds"`
 	MaxResponseChars       int                    `yaml:"max_response_chars" json:"max_response_chars"`
+	MaxOutboundCallsPerDay int                    `yaml:"max_outbound_calls_per_day" json:"max_outbound_calls_per_day"`
 }
 
 // SIPVoiceClassicConfig selects the three independently managed stages of the
@@ -181,6 +183,7 @@ func ApplySIPDefaults(cfg *SIPConfig) {
 	cfg.Voice.IdleTimeoutSeconds = DefaultSIPIdleTimeout
 	cfg.Voice.TurnTimeoutSeconds = DefaultSIPTurnTimeout
 	cfg.Voice.MaxResponseChars = DefaultSIPMaxResponseChars
+	cfg.Voice.MaxOutboundCallsPerDay = DefaultSIPMaxOutboundCallsPerDay
 	cfg.Voice.Behavior.GreetingEnabled = true
 	cfg.Voice.Behavior.UnavailableRequestBehavior = "explain"
 	cfg.HistoryRetentionDays = DefaultSIPHistoryRetentionDays
@@ -204,6 +207,9 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	}
 	if cfg.Voice.MaxResponseChars == 0 {
 		cfg.Voice.MaxResponseChars = DefaultSIPMaxResponseChars
+	}
+	if cfg.Voice.MaxOutboundCallsPerDay == 0 {
+		cfg.Voice.MaxOutboundCallsPerDay = DefaultSIPMaxOutboundCallsPerDay
 	}
 	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
 	cfg.PresetID = strings.ToLower(strings.TrimSpace(cfg.PresetID))
@@ -233,6 +239,18 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	cfg.Outbound.DeniedUsers = normalizedUnique(cfg.Outbound.DeniedUsers, false)
 	cfg.Outbound.AllowedE164Prefixes = normalizedUnique(cfg.Outbound.AllowedE164Prefixes, false)
 	cfg.Outbound.DeniedE164Prefixes = normalizedUnique(cfg.Outbound.DeniedE164Prefixes, false)
+	// A legacy universal wildcard now maps to the explicit empty-list semantics:
+	// all users at the account domain. Partial wildcards remain visible so the
+	// runtime can require an administrator migration instead of widening them.
+	if slicesContainExactSIPWildcard(cfg.Outbound.AllowedUsers) {
+		cfg.Outbound.AllowedUsers = nil
+	}
+	if slicesContainExactSIPWildcard(cfg.Outbound.AllowedDomains) {
+		cfg.Outbound.AllowedDomains = removeExactSIPWildcard(cfg.Outbound.AllowedDomains)
+		if cfg.Domain != "" {
+			cfg.Outbound.AllowedDomains = normalizedUnique(append(cfg.Outbound.AllowedDomains, cfg.Domain), true)
+		}
+	}
 	// Exact E.164 values are destinations/prefixes, not SIP URI users. Keep them
 	// in the prefix list so dial policy and validation stay consistent.
 	if len(cfg.Outbound.AllowedUsers) > 0 {
@@ -362,8 +380,8 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		if cfg.Permissions.AnswerInbound && (len(cfg.Inbound.TrustedPeerCIDRs) == 0 || len(cfg.Inbound.AllowedCallers) == 0) {
 			return fmt.Errorf("enabled SIP requires trusted peer and caller allowlists")
 		}
-		if cfg.Permissions.OriginateOutbound && (len(cfg.Outbound.AllowedDomains) == 0 || (len(cfg.Outbound.AllowedUsers) == 0 && len(cfg.Outbound.AllowedE164Prefixes) == 0)) {
-			return fmt.Errorf("enabled SIP requires destination domain and user or E.164 allowlists")
+		if cfg.Permissions.OriginateOutbound && cfg.ReadOnly {
+			return fmt.Errorf("enabled SIP outbound calling requires readonly=false")
 		}
 		if cfg.Transport == "tls" && (cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "") {
 			return fmt.Errorf("sip.tls.cert_file and sip.tls.key_file are required for TLS listening")
@@ -491,6 +509,9 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	if cfg.Voice.MaxResponseChars < 200 || cfg.Voice.MaxResponseChars > 5000 {
 		return fmt.Errorf("sip.voice.max_response_chars must be between 200 and 5000")
 	}
+	if cfg.Voice.MaxOutboundCallsPerDay < 1 || cfg.Voice.MaxOutboundCallsPerDay > 1000 {
+		return fmt.Errorf("sip.voice.max_outbound_calls_per_day must be between 1 and 1000")
+	}
 	for name, value := range map[string]string{
 		"agent_provider_id":   cfg.Voice.AgentProviderID,
 		"asr_provider_id":     cfg.Voice.Classic.ASRProviderID,
@@ -539,6 +560,25 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		return fmt.Errorf("sip.history_retention_days must be between 1 and 3650")
 	}
 	return nil
+}
+
+func slicesContainExactSIPWildcard(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+func removeExactSIPWildcard(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if strings.TrimSpace(value) != "*" {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func validSIPDomain(value string) bool {

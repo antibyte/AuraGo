@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "O perfil é guardado de forma atómica e o registo é testado de imediato. Se existir um problema, permanece neste passo.",
   "config.sip.wizard.save_test": "Guardar e testar",
   "config.sip.wizard.custom_value_invalid": "«{value}» não é um número ou extensão individual.",
-  "config.sip.allowed_domains_help": "Apenas são permitidos domínios exatos; os caracteres universais não concedem acesso.",
-  "config.sip.allowed_users_help": "Apenas são permitidos utilizadores SIP exatos; introduza intervalos de números como prefixos E.164.",
+  "config.sip.allowed_domains_help": "Vazio permite apenas o domínio da conta; as entradas adicionam domínios exatos. Os caracteres universais não concedem acesso.",
+  "config.sip.allowed_users_help": "Listas vazias de utilizadores e prefixos E.164 permitem todos os destinos num domínio permitido; as entradas restringem o conjunto.",
   "config.sip.outbound_policy_migration_required": "As regras de saída com caracteres universais já não concedem acesso. Substitua-as por destinos exatos antes de guardar."
 }

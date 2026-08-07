@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Das Profil wird atomar gespeichert und anschließend wird sofort die Registrierung getestet. Falls etwas fehlt, bleibst du in diesem Schritt.",
   "config.sip.wizard.save_test": "Speichern und prüfen",
   "config.sip.wizard.custom_value_invalid": "„{value}“ ist keine einzelne Rufnummer oder Nebenstelle.",
-  "config.sip.allowed_domains_help": "Nur exakte Domains sind erlaubt; Platzhalter gewähren keinen Zugriff.",
-  "config.sip.allowed_users_help": "Nur exakte SIP-Benutzer sind erlaubt; Nummernbereiche werden als E.164-Präfixe eingetragen.",
+  "config.sip.allowed_domains_help": "Leer erlaubt nur die konfigurierte Account-Domain; Einträge ergänzen exakte Domains. Platzhalter gewähren keinen Zugriff.",
+  "config.sip.allowed_users_help": "Leere Benutzer- und E.164-Präfixlisten erlauben alle Ziele einer erlaubten Domain; Einträge schränken die Auswahl ein.",
   "config.sip.outbound_policy_migration_required": "Ausgehende Platzhalterregeln gewähren keinen Zugriff mehr. Ersetze sie vor dem Speichern durch exakte Ziele."
 }

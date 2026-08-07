@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "El perfil se guarda de forma atómica y el registro se prueba de inmediato. Si hay un problema, permanecerás en este paso.",
   "config.sip.wizard.save_test": "Guardar y probar",
   "config.sip.wizard.custom_value_invalid": "«{value}» no es un número ni una extensión individual.",
-  "config.sip.allowed_domains_help": "Solo se permiten dominios exactos; los comodines no conceden acceso.",
-  "config.sip.allowed_users_help": "Solo se permiten usuarios SIP exactos; introduce los rangos numéricos como prefijos E.164.",
+  "config.sip.allowed_domains_help": "Vacío permite solo el dominio de la cuenta; las entradas añaden dominios exactos. Los comodines no conceden acceso.",
+  "config.sip.allowed_users_help": "Las listas vacías de usuarios y prefijos E.164 permiten todos los destinos de un dominio permitido; las entradas restringen el conjunto.",
   "config.sip.outbound_policy_migration_required": "Las reglas de salida con comodines ya no conceden acceso. Sustitúyelas por destinos exactos antes de guardar."
 }

@@ -43,6 +43,8 @@ func TestTelephoneAgentConfigSectionContract(t *testing.T) {
 		`data-ta-tool`,
 		`data-ta="voice.persist_transcripts"`,
 		`data-ta="voice.idle_timeout_seconds"`,
+		`data-ta="voice.max_outbound_calls_per_day"`,
+		"daily_usage",
 		`data-ta-live-confirm`,
 		"taComparable(taRead()) !== telephoneAgentSaved",
 		"const selectedTools = new Set(Array.isArray(next.voice.allowed_tools)",
@@ -84,6 +86,7 @@ func TestSIPExpertFormDelegatesTelephoneAgentFields(t *testing.T) {
 		`data-sip="voice.allowed_tools"`,
 		`data-sip="voice.persist_transcripts"`,
 		`data-sip="voice.max_call_duration_seconds"`,
+		`data-sip="voice.max_outbound_calls_per_day"`,
 	} {
 		if strings.Contains(source, duplicate) {
 			t.Fatalf("SIP expert form still duplicates telephone field %q", duplicate)

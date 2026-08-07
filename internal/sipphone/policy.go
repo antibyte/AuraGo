@@ -46,10 +46,7 @@ func NormalizeSIPURI(raw string) (sip.Uri, string, error) {
 	return uri, uri.String(), nil
 }
 
-func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
-	if len(cfg.AllowedDomains) == 0 || (len(cfg.AllowedUsers) == 0 && len(cfg.AllowedE164Prefixes) == 0) {
-		return false
-	}
+func DestinationAllowed(cfg config.SIPOutboundConfig, accountDomain string, uri sip.Uri) bool {
 	host := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(uri.Host), "."))
 	for _, domain := range cfg.DeniedDomains {
 		if wildcardMatch(strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")), host) {
@@ -70,14 +67,21 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
 		}
 	}
 	domainAllowed := false
-	for _, domain := range cfg.AllowedDomains {
-		if strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")) == host {
-			domainAllowed = true
-			break
+	if len(cfg.AllowedDomains) == 0 {
+		domainAllowed = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(accountDomain), ".")) == host
+	} else {
+		for _, domain := range cfg.AllowedDomains {
+			if strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")) == host {
+				domainAllowed = true
+				break
+			}
 		}
 	}
 	if !domainAllowed {
 		return false
+	}
+	if len(cfg.AllowedUsers) == 0 && len(cfg.AllowedE164Prefixes) == 0 {
+		return true
 	}
 	for _, user := range cfg.AllowedUsers {
 		if strings.TrimSpace(user) == uri.User {

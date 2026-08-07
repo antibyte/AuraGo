@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/realtimespeech"
+	"aurago/internal/sipphone"
 	"aurago/internal/tools"
 	"aurago/internal/voice"
 
@@ -243,11 +244,22 @@ func writeSIPAgent(w http.ResponseWriter, s *Server, sipCfg config.SIPConfig, in
 		}
 	}
 	voiceCfg := effectiveSIPVoiceConfig(cfg, sipCfg.Voice)
+	dailyUsage := sipphone.DailyCallUsage{Limit: voiceCfg.MaxOutboundCallsPerDay}
+	if s != nil && s.SIPPhone != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		usage, err := s.SIPPhone.DailyAgentCallUsage(ctx)
+		cancel()
+		dailyUsage = usage
+		if err != nil {
+			dailyUsage.Available = false
+		}
+	}
 	writeSIPJSON(w, map[string]any{
 		"config":      sipAgentPayload{InboundRoute: sipCfg.Inbound.Route, AutoAnswerDelayMS: sipCfg.Inbound.AutoAnswerDelayMS, Voice: voiceCfg},
 		"sip_enabled": sipCfg.Enabled,
 		"blockers":    sipAgentBlockers(s, sipCfg, voiceCfg),
 		"inherited":   inherited,
+		"daily_usage": dailyUsage,
 	})
 }
 

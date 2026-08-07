@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Het profiel wordt atomair opgeslagen en de registratie wordt direct getest. Bij een probleem blijf je in deze stap.",
   "config.sip.wizard.save_test": "Opslaan en testen",
   "config.sip.wizard.custom_value_invalid": "‘{value}’ is geen afzonderlijk nummer of extensie.",
-  "config.sip.allowed_domains_help": "Alleen exacte domeinen zijn toegestaan; jokertekens verlenen geen toegang.",
-  "config.sip.allowed_users_help": "Alleen exacte SIP-gebruikers zijn toegestaan; voer nummerbereiken in als E.164-prefixen.",
+  "config.sip.allowed_domains_help": "Leeg staat alleen het accountdomein toe; vermeldingen voegen exacte domeinen toe. Jokertekens verlenen geen toegang.",
+  "config.sip.allowed_users_help": "Lege gebruikers- en E.164-prefixlijsten staan alle bestemmingen in een toegestaan domein toe; vermeldingen beperken de set.",
   "config.sip.outbound_policy_migration_required": "Uitgaande jokerregels verlenen geen toegang meer. Vervang ze vóór het opslaan door exacte bestemmingen."
 }

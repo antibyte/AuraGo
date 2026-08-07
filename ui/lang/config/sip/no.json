@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Profilen lagres atomisk, og registreringen testes umiddelbart. Ved problemer blir du i dette trinnet.",
   "config.sip.wizard.save_test": "Lagre og test",
   "config.sip.wizard.custom_value_invalid": "«{value}» er ikke et enkelt nummer eller internnummer.",
-  "config.sip.allowed_domains_help": "Bare eksakte domener er tillatt; jokertegn gir ikke tilgang.",
-  "config.sip.allowed_users_help": "Bare eksakte SIP-brukere er tillatt; angi nummerserier som E.164-prefikser.",
+  "config.sip.allowed_domains_help": "Tomt tillater bare kontodomenet; oppføringer legger til eksakte domener. Jokertegn gir ikke tilgang.",
+  "config.sip.allowed_users_help": "Tomme bruker- og E.164-prefikslister tillater alle mål i et tillatt domene; oppføringer begrenser utvalget.",
   "config.sip.outbound_policy_migration_required": "Utgående jokerregler gir ikke lenger tilgang. Erstatt dem med eksakte mål før lagring."
 }

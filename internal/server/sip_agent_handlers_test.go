@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/security"
+	"aurago/internal/sipphone"
 	"aurago/internal/voice"
 
 	"github.com/sashabaranov/go-openai"
@@ -48,8 +49,12 @@ func TestSIPAgentGETMaterializesLegacyProviderSelection(t *testing.T) {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 	var response struct {
-		Config    sipAgentPayload `json:"config"`
-		Inherited map[string]bool `json:"inherited"`
+		Config     sipAgentPayload `json:"config"`
+		Inherited  map[string]bool `json:"inherited"`
+		DailyUsage struct {
+			Available bool `json:"available"`
+			Limit     int  `json:"limit"`
+		} `json:"daily_usage"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
@@ -60,10 +65,60 @@ func TestSIPAgentGETMaterializesLegacyProviderSelection(t *testing.T) {
 		response.Config.Voice.Classic.TTSProvider != "google" {
 		t.Fatalf("legacy telephone providers were not resolved: %+v", response.Config.Voice)
 	}
+	if response.DailyUsage.Available || response.DailyUsage.Limit != config.DefaultSIPMaxOutboundCallsPerDay {
+		t.Fatalf("unexpected unavailable daily usage: %+v", response.DailyUsage)
+	}
 	for _, key := range []string{"agent_provider_id", "asr_provider_id", "asr_mode", "tts_provider"} {
 		if !response.Inherited[key] {
 			t.Fatalf("inheritance marker %q = false", key)
 		}
+	}
+}
+
+func TestSIPAgentGETReportsPersistentDailyUsage(t *testing.T) {
+	cfg := telephoneAgentTestConfig(t)
+	manager, err := sipphone.NewManager(cfg.SIP, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Close() })
+	server := &Server{Cfg: cfg, SIPPhone: manager}
+	recorder := httptest.NewRecorder()
+	handleSIPAgent(server).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/agent", nil))
+	var response struct {
+		DailyUsage sipphone.DailyCallUsage `json:"daily_usage"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if !response.DailyUsage.Available || response.DailyUsage.Used != 0 || response.DailyUsage.Limit != config.DefaultSIPMaxOutboundCallsPerDay || response.DailyUsage.Remaining != config.DefaultSIPMaxOutboundCallsPerDay || response.DailyUsage.ResetsAt == nil {
+		t.Fatalf("unexpected daily usage: %+v", response.DailyUsage)
+	}
+}
+
+func TestSIPAgentGETKeepsConfigAvailableWhenHistoryFails(t *testing.T) {
+	cfg := telephoneAgentTestConfig(t)
+	manager, err := sipphone.NewManager(cfg.SIP, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	handleSIPAgent(&Server{Cfg: cfg, SIPPhone: manager}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/agent", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Config     sipAgentPayload         `json:"config"`
+		DailyUsage sipphone.DailyCallUsage `json:"daily_usage"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.DailyUsage.Available || response.Config.Voice.MaxOutboundCallsPerDay != config.DefaultSIPMaxOutboundCallsPerDay {
+		t.Fatalf("unexpected unavailable usage response: %+v", response)
 	}
 }
 
@@ -279,6 +334,7 @@ func TestSIPAgentPUTPersistsMaterializedProviderIDs(t *testing.T) {
 	voiceCfg.Classic.ASRProviderID = "phone-asr"
 	voiceCfg.Classic.ASRMode = "whisper"
 	voiceCfg.Classic.TTSProvider = "google"
+	voiceCfg.MaxOutboundCallsPerDay = 25
 	body, err := json.Marshal(sipAgentPayload{
 		InboundRoute: loaded.SIP.Inbound.Route, AutoAnswerDelayMS: loaded.SIP.Inbound.AutoAnswerDelayMS, Voice: voiceCfg,
 	})
@@ -295,14 +351,14 @@ func TestSIPAgentPUTPersistsMaterializedProviderIDs(t *testing.T) {
 	snapshot := server.ConfigSnapshot()
 	if snapshot.SIP.Voice.AgentProviderID != "phone-agent" ||
 		snapshot.SIP.Voice.Classic.ASRProviderID != "phone-asr" ||
-		snapshot.SIP.Voice.Classic.TTSProvider != "google" {
+		snapshot.SIP.Voice.Classic.TTSProvider != "google" || snapshot.SIP.Voice.MaxOutboundCallsPerDay != 25 {
 		t.Fatalf("saved telephone references = %+v", snapshot.SIP.Voice)
 	}
 	saved, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"agent_provider_id: phone-agent", "asr_provider_id: phone-asr", "tts_provider: google"} {
+	for _, expected := range []string{"agent_provider_id: phone-agent", "asr_provider_id: phone-asr", "tts_provider: google", "max_outbound_calls_per_day: 25"} {
 		if !strings.Contains(string(saved), expected) {
 			t.Fatalf("saved config omitted %q", expected)
 		}

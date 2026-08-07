@@ -39,7 +39,27 @@ var (
 	ErrInvalidTarget        = errors.New("invalid SIP target")
 	ErrNetworkConfiguration = errors.New("SIP advertised signaling and media hosts are required in Docker")
 	ErrMediaTimeout         = errors.New("SIP RTP media timed out")
+	ErrAgentDailyCallLimit  = errors.New("telephone agent daily outbound call limit reached")
 )
+
+type AgentDailyCallLimitError struct {
+	Used              int       `json:"used"`
+	Limit             int       `json:"limit"`
+	RetryAfterSeconds int       `json:"retry_after_seconds"`
+	ResetsAt          time.Time `json:"resets_at"`
+}
+
+func (e *AgentDailyCallLimitError) Error() string { return ErrAgentDailyCallLimit.Error() }
+func (e *AgentDailyCallLimitError) Unwrap() error { return ErrAgentDailyCallLimit }
+
+type DailyCallUsage struct {
+	Available bool       `json:"available"`
+	Date      string     `json:"date,omitempty"`
+	Used      int        `json:"used"`
+	Limit     int        `json:"limit"`
+	Remaining int        `json:"remaining"`
+	ResetsAt  *time.Time `json:"resets_at,omitempty"`
+}
 
 type CallRecord struct {
 	ID                 string     `json:"id"`
@@ -51,6 +71,7 @@ type CallRecord struct {
 	State              State      `json:"state"`
 	EndReason          string     `json:"end_reason,omitempty"`
 	Backend            string     `json:"backend"`
+	MediaMode          string     `json:"media_mode"`
 	SessionID          string     `json:"session_id,omitempty"`
 	persistTranscripts bool
 }

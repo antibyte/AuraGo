@@ -221,13 +221,16 @@ func TestApplySetupActivationBuildsStrictOutboundPolicies(t *testing.T) {
 	}
 }
 
-func TestApplySetupActivationRejectsUnrestrictedOutbound(t *testing.T) {
+func TestApplySetupActivationAllowsAllProviderDestinations(t *testing.T) {
 	cfg, err := ApplySIPProviderPreset("fritzbox", map[string]string{"server": "192.0.2.10", "username": "desk"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{OutboundScope: SetupScopeAll}); err == nil {
-		t.Fatal("unrestricted outbound setup was accepted")
+	if err := ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{OutboundScope: SetupScopeAll}); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Permissions.OriginateOutbound || len(cfg.Outbound.AllowedUsers) != 0 || len(cfg.Outbound.AllowedE164Prefixes) != 0 || len(cfg.Outbound.AllowedDomains) != 1 || cfg.Outbound.AllowedDomains[0] != cfg.Domain {
+		t.Fatalf("unexpected all-provider policy: %+v", cfg.Outbound)
 	}
 }
 

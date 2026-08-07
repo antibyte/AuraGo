@@ -156,6 +156,7 @@ func TestSIPConfigTranslationsComplete(t *testing.T) {
 		"config.sip.diagnostic.dns_failed", "config.sip.diagnostic.unreachable",
 		"config.sip.diagnostic.authentication_failed", "config.sip.diagnostic.timeout",
 		"config.sip.wizard.calling", "config.sip.wizard.verify", "config.sip.wizard.calling_title",
+		"config.sip.wizard.scope_all", "config.sip.wizard.scope_all_desc",
 		"config.sip.wizard.scope_domestic", "config.sip.wizard.scope_custom",
 		"config.sip.wizard.custom_targets", "config.sip.wizard.custom_targets_required",
 		"config.sip.wizard.inbound_enable", "config.sip.wizard.callers_all", "config.sip.wizard.callers_custom",

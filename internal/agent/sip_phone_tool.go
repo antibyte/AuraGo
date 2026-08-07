@@ -87,6 +87,13 @@ func sipPhoneToolResult(payload map[string]any, err error) string {
 		payload["status"] = "error"
 		payload["code"] = sipPhoneErrorCode(err)
 		payload["message"] = sipPhonePublicError(err)
+		var dailyLimit *sipphone.AgentDailyCallLimitError
+		if errors.As(err, &dailyLimit) {
+			payload["used"] = dailyLimit.Used
+			payload["limit"] = dailyLimit.Limit
+			payload["retry_after_seconds"] = dailyLimit.RetryAfterSeconds
+			payload["resets_at"] = dailyLimit.ResetsAt
+		}
 	}
 	encoded, marshalErr := json.Marshal(payload)
 	if marshalErr != nil {
@@ -103,6 +110,8 @@ func sipPhoneErrorCode(err error) string {
 		return "read_only"
 	case errors.Is(err, sipphone.ErrBusy):
 		return "busy"
+	case errors.Is(err, sipphone.ErrAgentDailyCallLimit):
+		return "agent_daily_call_limit_reached"
 	case errors.Is(err, sipphone.ErrPermissionDenied):
 		return "permission_denied"
 	case errors.Is(err, sipphone.ErrInvalidTarget):
@@ -124,6 +133,8 @@ func sipPhonePublicError(err error) string {
 		return "The SIP phone is in read-only mode."
 	case "busy":
 		return "The SIP phone already has an active call."
+	case "agent_daily_call_limit_reached":
+		return "The telephone agent has reached its daily outbound call limit. It can dial again after the local daily reset."
 	case "permission_denied":
 		return "The SIP operation is not permitted."
 	case "invalid_target":

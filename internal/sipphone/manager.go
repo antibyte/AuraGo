@@ -74,6 +74,7 @@ type Manager struct {
 	persistClosed        bool
 	persistCloseErr      error
 	callFinished         func(CallRecord, bool)
+	now                  func() time.Time
 }
 
 type persistRequest struct {
@@ -89,20 +90,27 @@ const (
 	historyPrune
 	historyDeleteAll
 	historyNonPersistentSessions
+	historyDailyUsage
+	historyAdmitAgentOutbound
 	historyClose
 )
 
 type historyCommand struct {
-	kind    historyCommandKind
-	request persistRequest
-	limit   int
-	cutoff  time.Time
-	result  chan historyResult
+	kind       historyCommandKind
+	request    persistRequest
+	limit      int
+	cutoff     time.Time
+	dayStart   time.Time
+	dayEnd     time.Time
+	dailyLimit int
+	result     chan historyResult
 }
 
 type historyResult struct {
 	calls      []CallRecord
 	sessionIDs []string
+	dailyUsed  int
+	admitted   bool
 	err        error
 }
 
@@ -172,7 +180,7 @@ func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFact
 		cfg: cfg, logger: logger, store: store, backendFactory: backendFactory,
 		issueReporter: reporter, state: state, subscribers: make(map[uint64]chan Event),
 		persistWake: make(chan struct{}, 1), persistSpace: make(chan struct{}, 1), persistDone: make(chan struct{}),
-		persistStarted: true,
+		persistStarted: true, now: time.Now,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -555,6 +563,22 @@ func (m *Manager) executeHistoryCommand(command historyCommand) bool {
 		}); ok {
 			result.sessionIDs, result.err = store.NonPersistentSessionIDs(ctx)
 		}
+	case historyDailyUsage:
+		if store, ok := m.store.(interface {
+			CountAgentOutbound(context.Context, time.Time, time.Time) (int, error)
+		}); ok {
+			result.dailyUsed, result.err = store.CountAgentOutbound(ctx, command.dayStart, command.dayEnd)
+		} else {
+			result.err = fmt.Errorf("SIP call history does not support daily usage")
+		}
+	case historyAdmitAgentOutbound:
+		if store, ok := m.store.(interface {
+			AdmitAgentOutbound(context.Context, CallRecord, time.Time, time.Time, int) (int, bool, error)
+		}); ok {
+			result.dailyUsed, result.admitted, result.err = store.AdmitAgentOutbound(ctx, command.request.record, command.dayStart, command.dayEnd, command.dailyLimit)
+		} else {
+			result.err = fmt.Errorf("SIP call history does not support daily admission")
+		}
 	case historyClose:
 		result.err = m.store.Close()
 		m.persistMu.Lock()
@@ -734,6 +758,23 @@ func (m *Manager) NonPersistentSessionIDs(ctx context.Context) ([]string, error)
 	return result.sessionIDs, err
 }
 
+func (m *Manager) DailyAgentCallUsage(ctx context.Context) (DailyCallUsage, error) {
+	m.mu.Lock()
+	limit := m.cfg.Voice.MaxOutboundCallsPerDay
+	now := m.currentTime()
+	m.mu.Unlock()
+	start, end := localDayBounds(now)
+	usage := DailyCallUsage{Limit: limit, Date: start.Format("2006-01-02"), ResetsAt: &end}
+	result, err := m.submitHistoryCommand(ctx, historyCommand{kind: historyDailyUsage, dayStart: start, dayEnd: end})
+	if err != nil {
+		return usage, err
+	}
+	usage.Available = true
+	usage.Used = result.dailyUsed
+	usage.Remaining = max(limit-result.dailyUsed, 0)
+	return usage, nil
+}
+
 func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
 	return m.dial(ctx, target, MediaModeAgent, nil)
 }
@@ -784,7 +825,7 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		m.mu.Unlock()
 		return CallRecord{}, fmt.Errorf("%w: %v", ErrInvalidTarget, err)
 	}
-	if !DestinationAllowed(cfg.Outbound, uri) {
+	if !DestinationAllowed(cfg.Outbound, cfg.Domain, uri) {
 		m.mu.Unlock()
 		return CallRecord{}, ErrPermissionDenied
 	}
@@ -816,8 +857,36 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 			return CallRecord{}, ErrBusy
 		}
 	}
-	call := m.newActiveCallLocked("outbound", canonical)
+	var call *activeCall
+	if mediaMode == MediaModeAgent {
+		now := m.currentTime()
+		record := m.newCallRecordLocked("outbound", canonical, MediaModeAgent, now)
+		start, end := localDayBounds(now)
+		historyCtx, historyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		result, admissionErr := m.submitHistoryCommand(historyCtx, historyCommand{
+			kind: historyAdmitAgentOutbound, request: persistRequest{record: record, stage: "outbound_created"},
+			dayStart: start, dayEnd: end, dailyLimit: cfg.Voice.MaxOutboundCallsPerDay,
+		})
+		historyCancel()
+		if admissionErr != nil {
+			m.mu.Unlock()
+			m.reportPersistenceFailure(record.ID, "outbound_admission", admissionErr)
+			return CallRecord{}, fmt.Errorf("telephone agent daily call admission failed: %w", admissionErr)
+		}
+		if !result.admitted {
+			m.mu.Unlock()
+			retryAfter := int((end.Sub(now) + time.Second - 1) / time.Second)
+			if retryAfter < 1 {
+				retryAfter = 1
+			}
+			return CallRecord{}, &AgentDailyCallLimitError{Used: result.dailyUsed, Limit: cfg.Voice.MaxOutboundCallsPerDay, RetryAfterSeconds: retryAfter, ResetsAt: end}
+		}
+		call = m.activateCallLocked(record)
+	} else {
+		call = m.newActiveCallLocked("outbound", canonical)
+	}
 	call.mediaMode = mediaMode
+	call.record.MediaMode = mediaMode
 	call.mediaPeer = peer
 	call.voiceBackend = preparedBackend
 	if mediaMode == MediaModeBrowser {
@@ -825,7 +894,9 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 	}
 	m.state = StateConnecting
 	call.record.State = StateConnecting
-	m.persistCall(call.record, "outbound_created")
+	if mediaMode == MediaModeBrowser {
+		m.persistCall(call.record, "outbound_created")
+	}
 	m.emitLocked("call", &call.record, nil)
 	m.mu.Unlock()
 	go m.runOutbound(call, endpoint, uri, cfg)
@@ -865,6 +936,7 @@ func (m *Manager) decideInbound(callID, decision string, peer MediaPeer) error {
 			return ErrBusy
 		}
 		m.active.mediaMode = MediaModeBrowser
+		m.active.record.MediaMode = MediaModeBrowser
 		m.active.mediaPeer = peer
 		m.active.record.Backend = MediaModeBrowser
 	}
@@ -1550,16 +1622,38 @@ func (m *Manager) forwardBridgeEvents(call *activeCall) {
 }
 
 func (m *Manager) newActiveCallLocked(direction, remote string) *activeCall {
-	ctx, cancel := context.WithTimeout(m.rootCtx, time.Duration(m.cfg.Voice.MaxCallDurationSeconds)*time.Second)
+	record := m.newCallRecordLocked(direction, remote, MediaModeAgent, m.currentTime())
+	return m.activateCallLocked(record)
+}
+
+func (m *Manager) newCallRecordLocked(direction, remote, mediaMode string, now time.Time) CallRecord {
 	id := randomCallID()
+	return CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: now.UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, MediaMode: mediaMode, SessionID: "sip-" + id, persistTranscripts: m.cfg.Voice.PersistTranscripts}
+}
+
+func (m *Manager) activateCallLocked(record CallRecord) *activeCall {
+	ctx, cancel := context.WithTimeout(m.rootCtx, time.Duration(m.cfg.Voice.MaxCallDurationSeconds)*time.Second)
 	call := &activeCall{
-		record: CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: time.Now().UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, SessionID: "sip-" + id, persistTranscripts: m.cfg.Voice.PersistTranscripts},
+		record: record,
 		ctx:    ctx, cancel: cancel, decision: make(chan string, 1), bridge: voice.NewBridge(25), done: make(chan struct{}),
-		mediaMode: MediaModeAgent, persistTranscripts: m.cfg.Voice.PersistTranscripts,
+		mediaMode: record.MediaMode, persistTranscripts: record.persistTranscripts,
 	}
 	m.active = call
 	go m.forwardBridgeEvents(call)
 	return call
+}
+
+func (m *Manager) currentTime() time.Time {
+	if m.now != nil {
+		return m.now()
+	}
+	return time.Now()
+}
+
+func localDayBounds(now time.Time) (time.Time, time.Time) {
+	local := now.In(time.Local)
+	start := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.Local)
+	return start, start.AddDate(0, 0, 1)
 }
 
 func (m *Manager) updateCallState(call *activeCall, state State) {

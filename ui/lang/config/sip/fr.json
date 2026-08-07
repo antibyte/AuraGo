@@ -78,7 +78,7 @@
   "config.sip.wizard.verify_check_text": "Le profil est enregistré de façon atomique, puis l'inscription est testée immédiatement. En cas de problème, vous restez à cette étape.",
   "config.sip.wizard.save_test": "Enregistrer et tester",
   "config.sip.wizard.custom_value_invalid": "« {value} » n'est pas un numéro ou un poste individuel.",
-  "config.sip.allowed_domains_help": "Seuls les domaines exacts sont autorisés ; les jokers n’accordent aucun accès.",
-  "config.sip.allowed_users_help": "Seuls les utilisateurs SIP exacts sont autorisés ; saisissez les plages de numéros comme préfixes E.164.",
+  "config.sip.allowed_domains_help": "Vide, seul le domaine du compte est autorisé ; les entrées ajoutent des domaines exacts. Les jokers n’accordent aucun accès.",
+  "config.sip.allowed_users_help": "Des listes d’utilisateurs et de préfixes E.164 vides autorisent toutes les destinations d’un domaine permis ; les entrées restreignent l’ensemble.",
   "config.sip.outbound_policy_migration_required": "Les règles sortantes avec jokers n’accordent plus d’accès. Remplacez-les par des destinations exactes avant d’enregistrer."
 }

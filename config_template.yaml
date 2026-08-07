@@ -191,11 +191,11 @@ sip:
         allowed_callers: []                                 # positive list; users/SIP URIs, * and ? wildcards
         denied_callers: []                                  # negative list; overrides allowed_callers
     outbound:
-        allowed_domains: []                                 # exact domains only; ports and wildcards are rejected
+        allowed_domains: []                                 # empty uses sip.domain; entries define the exact allowed domains
         denied_domains: []                                  # negative list; overrides allowed_domains
-        allowed_users: []                                   # exact users/internal numbers, e.g. 101 or FRITZ!Box **610
+        allowed_users: []                                   # when this and allowed_e164_prefixes are empty, every user is allowed
         denied_users: []                                    # negative list; overrides allowed_users
-        allowed_e164_prefixes: []                           # international prefixes, e.g. +49
+        allowed_e164_prefixes: []                           # entries restrict numbers; denylists always take precedence
         denied_e164_prefixes: []                            # blocked prefixes; overrides positive lists
     permissions:
         answer_inbound: false
@@ -226,6 +226,7 @@ sip:
         idle_timeout_seconds: 120
         turn_timeout_seconds: 60                            # complete ASR/agent/TTS turn budget: 15-300 seconds
         max_response_chars: 1200                           # spoken/tool response cap: 200-5000 characters
+        max_outbound_calls_per_day: 10                     # Telephone Agent outbound starts per local calendar day: 1-1000
     history_retention_days: 90
     # The digest password is stored only in Vault key sip_endpoint_password.
 circuit_breaker:
