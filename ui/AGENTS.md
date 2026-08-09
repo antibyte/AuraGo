@@ -70,6 +70,12 @@ images, and browser-oriented regression tests.
   their DOM-diff snapshots so API-only reordering cannot leave stale cards.
 - The service worker caches only same-origin static assets, retains full
   versioned request URLs, and keeps HTML, API, event, and auth traffic network-only.
+- CanvasUI components are vendored as local framework-free ESM under
+  `ui/js/vendor/canvasui/` with committed `manifest.json`, `LICENSE.txt`, and
+  pinned upstream provenance. They must not load remote assets at runtime, must
+  not introduce React solely for effects, and consumers (for example login
+  Droplets) must keep graceful WebGL2 / `html-in-canvas` / reduced-motion
+  fallbacks without breaking existing backgrounds or auth hooks.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
 

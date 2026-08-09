@@ -1,0 +1,12 @@
+{
+  "name": "canvasui",
+  "component": "droplets",
+  "components": ["droplets"],
+  "source": "https://github.com/DavidHDev/canvas-ui",
+  "commit": "81b65e159c63bde7167b9b4b458a775838e4cd39",
+  "license": "MIT + Commons Clause License Condition v1.0",
+  "license_file": "LICENSE.txt",
+  "module": "droplets.js",
+  "adaptation": "react-source-to-vanilla-esm",
+  "upstream_path": "src/lib/Droplets/DropletsVanilla.ts"
+}

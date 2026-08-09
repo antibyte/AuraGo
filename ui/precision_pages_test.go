@@ -1950,6 +1950,8 @@ func TestPrecisionEntryTemplatesPreserveHooksWithoutInlineStyles(t *testing.T) {
 		hooks    []string
 	}{
 		{template: "login.html", hooks: []string{
+			`id="login-bg-host"`, `id="login-bg-content"`, `id="droplets-source"`, `id="droplets-output"`,
+			`aria-hidden="true"`, `/js/login/droplets.js?v={{.BuildVersion}}`, `type="module"`,
 			`id="bg-canvas"`, `id="css-bg"`, `id="password"`, `id="totpSection"`, `id="totpCode"`,
 			`id="btnLogin"`, `id="loginError"`, `/js/vendor/three.min.js`, `/js/login/main.js`, `submitLogin()`,
 		}},
@@ -2011,7 +2013,7 @@ func TestPrecisionEntryStylesAreScopedResponsiveAndFlat(t *testing.T) {
 		page       string
 		selectors  []string
 	}{
-		{name: "Login", stylesheet: "css/login.css", page: "login", selectors: []string{`.login-card`, `.login-input`, `.btn-login`, `#bg-canvas`, `.css-fallback-bg`}},
+		{name: "Login", stylesheet: "css/login.css", page: "login", selectors: []string{`.login-card`, `.login-input`, `.btn-login`, `#bg-canvas`, `.css-fallback-bg`, `.login-bg-host`, `.login-droplets-output`, `.login-droplets-source`}},
 		{name: "Setup", stylesheet: "css/setup.css", page: "setup", selectors: []string{`.setup-header`, `.setup-card`, `.setup-section`, `.btn-setup`, `.profile-loading-spinner`, `.or-browser-modal`}},
 		{name: "NotFound", stylesheet: "css/not-found.css", page: "not-found", selectors: []string{`.not-found-page`, `.not-found-code`, `.not-found-actions`, `.not-found-link`, `.not-found-logo`}},
 	}
@@ -2391,6 +2393,20 @@ func TestPrecisionEntryLoginCSSFallbackRemainsAvailable(t *testing.T) {
 	}
 	if !strings.Contains(css, `@media (prefers-reduced-motion: reduce)`) {
 		t.Error("login.css must preserve reduced-motion behavior")
+	}
+	for _, want := range []string{
+		prefix + ` .login-bg-host`,
+		prefix + ` .login-droplets-output`,
+		`.login-droplets-output`,
+		`pointer-events: none`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("login.css missing droplets contract marker %q", want)
+		}
+	}
+	reduced := css[strings.Index(css, `@media (prefers-reduced-motion: reduce)`):]
+	if !strings.Contains(reduced, `.login-droplets-output`) {
+		t.Error("reduced-motion must hide login droplets output")
 	}
 }
 

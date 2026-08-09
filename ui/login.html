@@ -35,15 +35,19 @@
 </head>
 
 <body class="pw-page pw-entry-page" data-entry-page="login">
-    <!-- Epic Background -->
-    <canvas id="bg-canvas" class="is-hidden"></canvas>
-    
-    <!-- CSS Fallback (shown by default, hidden when WebGL starts successfully) -->
-    <div id="css-bg" class="css-fallback-bg">
-        <div class="particle-grid"></div>
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
+    <!-- Background host: Neural Network / CSS fallback + optional CanvasUI Droplets overlay -->
+    <div id="login-bg-host" class="login-bg-host" aria-hidden="true">
+        <div id="login-bg-content" class="login-bg-content">
+            <canvas id="bg-canvas" class="is-hidden"></canvas>
+            <div id="css-bg" class="css-fallback-bg">
+                <div class="particle-grid"></div>
+                <div class="orb orb-1"></div>
+                <div class="orb orb-2"></div>
+                <div class="orb orb-3"></div>
+            </div>
+        </div>
+        <canvas id="droplets-source" class="login-droplets-source" aria-hidden="true"></canvas>
+        <canvas id="droplets-output" class="login-droplets-output is-hidden" aria-hidden="true"></canvas>
     </div>
 
     <!-- Vignette Overlay -->
@@ -98,6 +102,7 @@
     <!-- Three.js for WebGL -->
     <script src="/js/vendor/three.min.js" onerror="window._threeLoadFailed=true"></script>
     <script src="/js/login/main.js"></script>
+    <script type="module" src="/js/login/droplets.js?v={{.BuildVersion}}"></script>
 </body>
 
 </html>

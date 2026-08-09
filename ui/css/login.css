@@ -613,13 +613,55 @@
     color: var(--pw-text);
 }
 
-.pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas {
+.pw-page.pw-entry-page[data-entry-page="login"] .login-bg-host {
     position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-bg-content {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-source {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    pointer-events: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-bg-host.is-native-capture .login-droplets-source {
+    display: block;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-output {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas {
+    position: absolute;
     inset: 0;
     max-width: none;
     opacity: 0.34;
     filter: none;
     box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .css-fallback-bg {
+    position: absolute;
+    inset: 0;
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .corner-theme {
@@ -637,8 +679,16 @@
     backdrop-filter: none;
 }
 
+.pw-page.pw-entry-page[data-entry-page="login"] .vignette {
+    z-index: 2;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .scan-line {
+    z-index: 5;
+}
+
 .pw-page.pw-entry-page[data-entry-page="login"] .login-card {
-    z-index: 1;
+    z-index: 10;
     width: min(100%, 420px);
     max-width: 420px;
     padding: clamp(1.5rem, 5vw, 2.5rem);
@@ -759,7 +809,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas {
+    .pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-output,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-source {
         display: none !important;
     }
 
