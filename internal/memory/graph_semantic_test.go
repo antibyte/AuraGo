@@ -596,6 +596,7 @@ func TestKGRunSemanticReindexDoesNotMarkPartialBatchOnFailure(t *testing.T) {
 	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
 		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
 	}
+	waitForSemanticReindexIdle(t, kg)
 	if err := kg.AddNode("first", "First", map[string]string{"type": "device"}); err != nil {
 		t.Fatalf("AddNode first: %v", err)
 	}
