@@ -461,17 +461,6 @@
                 const sp = _eref.sp, cols = _eref.cols;
                 const _isBoss = e.type === 'boss' || e.type === 'miniboss';
                 const _eOff = _isBoss ? 16 : 12;
-                if (e.st === 'DIVING') {
-                    ctx.c.globalAlpha = 0.12;
-                    ctx.c.save();
-                    ctx.c.translate(e.x, e.y);
-                    ctx.c.rotate(_rot);
-                    ctx.c.translate(-e.x, -e.y);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 18, false);
-                    ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 10, false);
-                    ctx.c.restore();
-                    ctx.c.globalAlpha = 1;
-                }
                 if (ctx.drawEnemyMotionTrail) ctx.drawEnemyMotionTrail(ctx.c, e, sp, cols, _eOff);
                 const fl = e.hitF > 0;
                 const _skipBody = e.mSkipDraw && e.st !== 'DIVING';
@@ -919,7 +908,6 @@
             ctx.renderHUD();
             if (ctx.drawSuperMeterHUD) ctx.drawSuperMeterHUD(ctx.c, ctx.G);
             if (ctx.drawArchetypeHUD) ctx.drawArchetypeHUD(ctx.c, ctx.G);
-            if (ctx.G.stageRank && ctx.drawRankBanner) ctx.drawRankBanner(ctx.c, ctx.G);
             if (ctx.G.st === 'GAME_OVER') {
                 ctx.c.fillStyle = 'rgba(0,0,0,0.5)'; ctx.c.fillRect(0, ctx.H / 2 - 40, ctx.W, 80);
                 ctx.c.fillStyle = '#ff4444'; ctx.c.font = 'bold 24px "Courier New",monospace'; ctx.c.textAlign = 'center'; ctx.c.fillText(ctx.t('galaxa.game_over'), ctx.W / 2, ctx.H / 2 - 10);

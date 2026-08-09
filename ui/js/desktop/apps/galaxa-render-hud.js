@@ -29,35 +29,28 @@
             c.fillText(arch.name, GC.W - 59, 20);
         }
 
-        function drawRankBanner(c, G) {
-            if (!G.stageRank || !(G.fxRankSlamT > 0)) return;
+        function drawStageRankChip(c, G) {
+            if (!(G.fxRankSlamT > 0) || !G.fxRankSlamRank) return;
+            const rank = G.fxRankSlamRank;
             const colors = { 'S+': '#ffcc00', 'S': '#cccccc', 'A': '#44ccff', 'B': '#44ff44', 'C': '#888888' };
-            const col = colors[G.stageRank] || '#fff';
-            const y = GC.H * 0.4;
-            const scale = Math.min(1, (G.tick % 60) / 30);
+            const col = colors[rank] || '#fff';
+            const fade = Math.min(1, G.fxRankSlamT / 280);
             c.save();
-            c.translate(GC.W / 2, y);
-            c.scale(scale, scale);
-            c.fillStyle = col;
-            c.font = 'bold 64px monospace';
+            c.globalAlpha = fade;
             c.textAlign = 'center';
+            c.fillStyle = col;
+            c.font = 'bold 9px "Courier New",monospace';
+            c.shadowBlur = 6;
             c.shadowColor = col;
-            c.shadowBlur = 16;
-            c.fillText(G.stageRank, 0, 0);
+            const label = (ctx.t && ctx.t('galaxa.stage_rank')) || 'RANK';
+            c.fillText(label + ' ' + rank, GC.W / 2, 7);
             c.shadowBlur = 0;
-            // Bonus icons
-            c.font = '12px monospace';
-            c.fillStyle = '#fff';
-            const boni = G.stageBoni || {};
-            c.fillText(`NO DAMAGE: ${boni.noDamageRun ? '✓' : '✗'}`, 0, 30);
-            c.fillText(`SPEED: ${boni.speedDemon ? '✓' : '✗'}`, 0, 50);
-            c.fillText(`PACIFIST: ${boni.pacifist ? '✓' : '✗'}`, 0, 70);
             c.restore();
         }
 
         ctx.drawSuperMeterHUD = drawSuperMeter;
         ctx.drawArchetypeHUD = drawArchetypeHUD;
-        ctx.drawRankBanner = drawRankBanner;
+        ctx.drawStageRankChip = drawStageRankChip;
 
                 function renderBeam(tb) {
             ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#4488ff';
@@ -102,6 +95,7 @@
             ctx.c.fillStyle = '#4488ff'; ctx.c.font = 'bold 12px "Courier New",monospace'; ctx.c.textAlign = 'center';
             ctx.c.fillText(ctx.t('galaxa.stage') + ' ' + ctx.G.stage, 0, 0);
             ctx.c.restore();
+            if (ctx.drawStageRankChip) ctx.drawStageRankChip(ctx.c, ctx.G);
             if (ctx.getModeLabel && ctx.isGameMode && !ctx.isGameMode('classic')) {
                 ctx.c.fillStyle = '#88ddff'; ctx.c.font = '9px "Courier New",monospace'; ctx.c.textAlign = 'center';
                 ctx.c.fillText(ctx.getModeLabel(), ctx.W / 2, 30);

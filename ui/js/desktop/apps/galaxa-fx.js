@@ -462,6 +462,7 @@
             }
             if (G.fxScreenShatterT > 0) G.fxScreenShatterT -= dtMs;
             if (G.fxRankSlamT > 0) G.fxRankSlamT -= dtMs;
+            else if (G.fxRankSlamRank) G.fxRankSlamRank = '';
             if (G.fxHyperTunnelT > 0) G.fxHyperTunnelT -= dtMs;
             if (G.fxMirrorRefractT > 0) G.fxMirrorRefractT -= dtMs;
             if (G.fxHeatHazeT > 0) G.fxHeatHazeT -= dtMs;
@@ -731,14 +732,15 @@
                 }
                 c.restore();
             }
-            if (G.fxRankSlamT > 0) {
+            if (G.fxRankSlamT > 0 && G.fxRankSlamRank) {
                 const pr = 1 - G.fxRankSlamT / 900;
+                if (pr < 0.82) {
                 const scale = 0.55 + easeOutCubic(Math.min(1, pr * 1.5)) * 0.95;
-                const rank = G.fxRankSlamRank || '';
+                const rank = G.fxRankSlamRank;
                 const colMap = { 'S+': '#ffcc00', 'S': '#eeeeee', 'A': '#44ccff', 'B': '#44ff44', 'C': '#888888' };
                 const col = colMap[rank] || '#ffcc00';
                 c.save();
-                c.translate(ctx.W / 2, ctx.H * 0.32);
+                c.translate(ctx.W / 2, ctx.H * 0.42);
                 if (pr < 0.28) {
                     const flash = 1 - pr / 0.28;
                     const sz = 6 + (1 - flash) * 52;
@@ -765,6 +767,7 @@
                     c.fillRect(-22, -2, 44, 4);
                 }
                 c.restore();
+                }
             }
             if (G.fxHeatHazeT > 0) {
                 const pr = G.fxHeatHazeT / 300;

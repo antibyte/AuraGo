@@ -239,7 +239,7 @@
         boss: { pulse: { amp: 0.05, speed: 1.2 }, diveScale: { min: 0.94, max: 1.08 } },
         miniboss: { pulse: { amp: 0.06, speed: 1.3 }, diveScale: { min: 0.94, max: 1.1 } },
         hunter: { pulse: { amp: 0.05, speed: 3 }, diveTrail: true, diveScale: { min: 0.9, max: 1.2 } },
-        stalker: { blink: { on: 520, off: 2400 }, diveTrail: true },
+        stalker: { blink: { on: 1500, off: 900 }, diveTrail: true },
         kamikaze: { pulse: { amp: 0.08, speed: 5.5 }, diveTrail: true, diveScale: { min: 0.86, max: 1.3 } },
         spinner: { pulse: { amp: 0.15, speed: 6.2 } },
         bomber: { pulse: { amp: 0.08, speed: 1.4 }, diveTrail: true },
