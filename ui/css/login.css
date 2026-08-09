@@ -616,7 +616,7 @@
 .pw-page.pw-entry-page[data-entry-page="login"] .login-bg-host {
     position: fixed;
     inset: 0;
-    z-index: 0;
+    /* No z-index: keep host from trapping droplets under vignette/scan-line. */
     pointer-events: none;
     overflow: hidden;
 }
@@ -642,9 +642,10 @@
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-output {
-    position: absolute;
+    /* Above vignette (2) and scan-line (5); below login-card (10) and corner-theme (100). */
+    position: fixed;
     inset: 0;
-    z-index: 1;
+    z-index: 6;
     width: 100%;
     height: 100%;
     pointer-events: none;
