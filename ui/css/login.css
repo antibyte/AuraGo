@@ -19,6 +19,217 @@
         /* ═══════════════════════════════════════════════════════════════
            EPIC BACKGROUND ANIMATION - WebGL + CSS Fallback
            ═══════════════════════════════════════════════════════════════ */
+
+        /* AuraGo teal/cyan aurora — always under neural net / CSS fallback */
+        .login-color-aurora {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse 120% 80% at 50% 120%, #041016 0%, #050a12 45%, #020617 100%);
+        }
+
+        .login-aurora-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(72px);
+            opacity: 0.55;
+            will-change: transform, opacity, background-color;
+            mix-blend-mode: screen;
+        }
+
+        .login-aurora-blob-a {
+            width: min(72vw, 720px);
+            height: min(72vw, 720px);
+            top: -18%;
+            left: -12%;
+            background: radial-gradient(circle at 40% 40%,
+                rgba(45, 212, 191, 0.75) 0%,
+                rgba(20, 184, 166, 0.35) 42%,
+                transparent 70%);
+            animation: login-aurora-drift-a 22s ease-in-out infinite,
+                       login-aurora-hue-a 18s ease-in-out infinite;
+        }
+
+        .login-aurora-blob-b {
+            width: min(64vw, 640px);
+            height: min(64vw, 640px);
+            right: -14%;
+            bottom: -10%;
+            background: radial-gradient(circle at 55% 45%,
+                rgba(34, 211, 238, 0.65) 0%,
+                rgba(13, 148, 136, 0.4) 48%,
+                transparent 72%);
+            animation: login-aurora-drift-b 26s ease-in-out infinite,
+                       login-aurora-hue-b 20s ease-in-out infinite;
+            animation-delay: -6s, -3s;
+        }
+
+        .login-aurora-blob-c {
+            width: min(58vw, 560px);
+            height: min(58vw, 560px);
+            top: 28%;
+            left: 32%;
+            background: radial-gradient(circle at 50% 50%,
+                rgba(94, 234, 212, 0.55) 0%,
+                rgba(6, 182, 212, 0.28) 46%,
+                transparent 70%);
+            animation: login-aurora-drift-c 24s ease-in-out infinite,
+                       login-aurora-hue-c 16s ease-in-out infinite;
+            animation-delay: -11s, -7s;
+        }
+
+        .login-aurora-blob-d {
+            width: min(48vw, 480px);
+            height: min(48vw, 480px);
+            top: 8%;
+            right: 18%;
+            background: radial-gradient(circle at 50% 50%,
+                rgba(45, 212, 191, 0.4) 0%,
+                rgba(56, 189, 248, 0.22) 50%,
+                transparent 72%);
+            animation: login-aurora-drift-d 28s ease-in-out infinite,
+                       login-aurora-hue-d 22s ease-in-out infinite;
+            animation-delay: -4s, -9s;
+            opacity: 0.45;
+        }
+
+        .login-aurora-sheen {
+            position: absolute;
+            inset: -30%;
+            background:
+                conic-gradient(from 120deg at 50% 50%,
+                    rgba(45, 212, 191, 0.0) 0deg,
+                    rgba(45, 212, 191, 0.14) 60deg,
+                    rgba(34, 211, 238, 0.1) 130deg,
+                    rgba(13, 148, 136, 0.16) 200deg,
+                    rgba(56, 189, 248, 0.1) 270deg,
+                    rgba(94, 234, 212, 0.12) 330deg,
+                    rgba(45, 212, 191, 0.0) 360deg);
+            filter: blur(40px);
+            opacity: 0.7;
+            mix-blend-mode: soft-light;
+            animation: login-aurora-sheen-spin 48s linear infinite,
+                       login-aurora-sheen-breathe 14s ease-in-out infinite;
+        }
+
+        @keyframes login-aurora-drift-a {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(12%, 10%) scale(1.12); }
+            66% { transform: translate(4%, 18%) scale(0.94); }
+        }
+
+        @keyframes login-aurora-drift-b {
+            0%, 100% { transform: translate(0, 0) scale(1.05); }
+            40% { transform: translate(-14%, -8%) scale(1.18); }
+            70% { transform: translate(-6%, -16%) scale(0.92); }
+        }
+
+        @keyframes login-aurora-drift-c {
+            0%, 100% { transform: translate(-50%, -40%) scale(1); }
+            50% { transform: translate(-35%, -55%) scale(1.2); }
+        }
+
+        @keyframes login-aurora-drift-d {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-18%, 14%) scale(1.15); }
+        }
+
+        @keyframes login-aurora-hue-a {
+            0%, 100% {
+                background: radial-gradient(circle at 40% 40%,
+                    rgba(45, 212, 191, 0.78) 0%,
+                    rgba(20, 184, 166, 0.32) 42%,
+                    transparent 70%);
+                opacity: 0.58;
+            }
+            50% {
+                background: radial-gradient(circle at 45% 35%,
+                    rgba(94, 234, 212, 0.82) 0%,
+                    rgba(6, 182, 212, 0.38) 44%,
+                    transparent 72%);
+                opacity: 0.72;
+            }
+        }
+
+        @keyframes login-aurora-hue-b {
+            0%, 100% {
+                background: radial-gradient(circle at 55% 45%,
+                    rgba(34, 211, 238, 0.68) 0%,
+                    rgba(13, 148, 136, 0.38) 48%,
+                    transparent 72%);
+                opacity: 0.52;
+            }
+            50% {
+                background: radial-gradient(circle at 50% 50%,
+                    rgba(45, 212, 191, 0.7) 0%,
+                    rgba(56, 189, 248, 0.36) 46%,
+                    transparent 74%);
+                opacity: 0.68;
+            }
+        }
+
+        @keyframes login-aurora-hue-c {
+            0%, 100% {
+                background: radial-gradient(circle at 50% 50%,
+                    rgba(94, 234, 212, 0.5) 0%,
+                    rgba(15, 118, 110, 0.28) 48%,
+                    transparent 70%);
+                opacity: 0.48;
+            }
+            50% {
+                background: radial-gradient(circle at 50% 50%,
+                    rgba(34, 211, 238, 0.58) 0%,
+                    rgba(45, 212, 191, 0.3) 46%,
+                    transparent 72%);
+                opacity: 0.62;
+            }
+        }
+
+        @keyframes login-aurora-hue-d {
+            0%, 100% {
+                background: radial-gradient(circle at 50% 50%,
+                    rgba(56, 189, 248, 0.42) 0%,
+                    rgba(20, 184, 166, 0.22) 50%,
+                    transparent 72%);
+                opacity: 0.4;
+            }
+            50% {
+                background: radial-gradient(circle at 50% 50%,
+                    rgba(45, 212, 191, 0.5) 0%,
+                    rgba(103, 232, 249, 0.28) 48%,
+                    transparent 74%);
+                opacity: 0.58;
+            }
+        }
+
+        @keyframes login-aurora-sheen-spin {
+            0% { transform: rotate(0deg) scale(1); }
+            100% { transform: rotate(360deg) scale(1.05); }
+        }
+
+        @keyframes login-aurora-sheen-breathe {
+            0%, 100% { opacity: 0.45; }
+            50% { opacity: 0.85; }
+        }
+
+        [data-theme="light"] .login-color-aurora {
+            background:
+                radial-gradient(ellipse 120% 80% at 50% 120%, #e8f7f5 0%, #f0f9ff 50%, #f8fafc 100%);
+        }
+
+        [data-theme="light"] .login-aurora-blob {
+            mix-blend-mode: multiply;
+            filter: blur(64px);
+            opacity: 0.4;
+        }
+
+        [data-theme="light"] .login-aurora-sheen {
+            mix-blend-mode: multiply;
+            opacity: 0.35;
+        }
         
         #bg-canvas {
             position: fixed;
@@ -642,7 +853,8 @@
     display: block;
 }
 
-/* Neural net / CSS fallback stay in the backplate. */
+/* Color aurora + neural net / CSS fallback stay in the backplate. */
+.pw-page.pw-entry-page[data-entry-page="login"] .login-color-aurora,
 .pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas,
 .pw-page.pw-entry-page[data-entry-page="login"] .css-fallback-bg {
     position: absolute;
@@ -650,9 +862,13 @@
     z-index: 0;
 }
 
+.pw-page.pw-entry-page[data-entry-page="login"] .login-bg-content {
+    z-index: 1;
+}
+
 .pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas {
     max-width: none;
-    opacity: 0.28;
+    opacity: 0.42;
     filter: none;
     box-shadow: none;
 }
@@ -835,6 +1051,9 @@
     }
 
     .pw-page.pw-entry-page[data-entry-page="login"] .css-fallback-bg,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-color-aurora,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-aurora-blob,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-aurora-sheen,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card::before,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card::after {

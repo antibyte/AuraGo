@@ -134,7 +134,7 @@
             activePalette = resolveWebGLPalette(theme);
             const palette = activePalette.raw;
 
-            renderer.setClearColor(palette.clearColor, 1);
+            renderer.setClearColor(palette.clearColor, 0);
             if (scene.fog) scene.fog.color.setHex(palette.fogColor);
 
             scene.children.forEach(child => {
@@ -181,7 +181,8 @@
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(palette.clearColor, 1);
+            // Transparent clear so the AuraGo color aurora shows through the neural net.
+            renderer.setClearColor(palette.clearColor, 0);
             
             // Create particle system
             createParticles();

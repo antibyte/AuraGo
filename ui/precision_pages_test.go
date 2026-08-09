@@ -1950,7 +1950,7 @@ func TestPrecisionEntryTemplatesPreserveHooksWithoutInlineStyles(t *testing.T) {
 		hooks    []string
 	}{
 		{template: "login.html", hooks: []string{
-			`id="login-bg-host"`, `id="login-bg-content"`, `id="droplets-source"`, `id="droplets-output"`,
+			`id="login-bg-host"`, `id="login-color-aurora"`, `id="login-bg-content"`, `id="droplets-source"`, `id="droplets-output"`,
 			`aria-hidden="true"`, `/js/login/droplets.js?v={{.BuildVersion}}`, `type="module"`,
 			`id="bg-canvas"`, `id="css-bg"`, `id="password"`, `id="totpSection"`, `id="totpCode"`,
 			`id="btnLogin"`, `id="loginError"`, `/js/vendor/three.min.js`, `/js/login/main.js`, `submitLogin()`,

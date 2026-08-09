@@ -65,31 +65,31 @@ function currentTheme() {
 }
 
 function tintForTheme(theme) {
-  // Bright glass highlights so procedural droplets read as a foreground layer.
+  // Restrained teal wash matching login accent; slightly stronger on light theme for contrast.
   if (theme === "light") {
-    return { tint: [0.35, 0.75, 0.7], tintStrength: 0.35 };
+    return { tint: [0.18, 0.55, 0.5], tintStrength: 0.12 };
   }
-  return { tint: [0.55, 0.95, 0.9], tintStrength: 0.45 };
+  return { tint: [0.18, 0.83, 0.75], tintStrength: 0.08 };
 }
 
 function loginDropletsOptions(theme) {
   const tint = tintForTheme(theme);
   return {
-    intensity: 0.75,
-    speed: 1,
-    scale: 0.38,
-    dropWidth: 1.1,
-    dropLength: 1.15,
-    refraction: 0.18,
+    intensity: 0.42,
+    speed: 0.85,
+    scale: 0.45,
+    dropWidth: 0.95,
+    dropLength: 1,
+    refraction: 0.12,
     blur: 0,
     vignette: 0,
-    fallSpeed: 1,
-    wiggle: 1,
-    staticDrops: 0.35,
+    fallSpeed: 0.9,
+    wiggle: 0.85,
+    staticDrops: 0.18,
     interactive: true,
-    interactionRadius: 0.32,
-    interactionStrength: 0.55,
-    interactionDistortion: 2.2,
+    interactionRadius: 0.28,
+    interactionStrength: 0.45,
+    interactionDistortion: 2,
     tint: tint.tint,
     tintStrength: tint.tintStrength,
   };

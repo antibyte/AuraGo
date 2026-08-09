@@ -37,6 +37,14 @@
 <body class="pw-page pw-entry-page" data-entry-page="login">
     <!-- Background host: Neural Network / CSS fallback + optional CanvasUI Droplets overlay -->
     <div id="login-bg-host" class="login-bg-host" aria-hidden="true">
+        <!-- Always-on AuraGo color aurora (visible under WebGL and CSS fallback) -->
+        <div id="login-color-aurora" class="login-color-aurora" aria-hidden="true">
+            <div class="login-aurora-blob login-aurora-blob-a"></div>
+            <div class="login-aurora-blob login-aurora-blob-b"></div>
+            <div class="login-aurora-blob login-aurora-blob-c"></div>
+            <div class="login-aurora-blob login-aurora-blob-d"></div>
+            <div class="login-aurora-sheen"></div>
+        </div>
         <div id="login-bg-content" class="login-bg-content">
             <canvas id="bg-canvas" class="is-hidden"></canvas>
             <div id="css-bg" class="css-fallback-bg">
