@@ -69,50 +69,55 @@
     <!-- Theme toggle -->
     <button id="theme-toggle" type="button" class="btn-theme corner-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
 
-    <!-- Login Card -->
-    <div class="login-card" id="main-content">
-        <!-- Logo -->
-        <div class="login-logo">
-            <div class="login-logo-icon">✦</div>
-            <div class="login-title">AURAGO</div>
-            <div class="login-subtitle" id="loginSubtitle"></div>
-        </div>
-
-        <!-- Password -->
-        <div class="login-field">
-            <label class="login-label" for="password" id="lblPassword"></label>
-            <div class="login-input-wrap">
-                <input class="login-input" type="password" id="password"
-                    placeholder="••••••••" autocomplete="current-password"
-                    onkeydown="if(event.key==='Enter') submitLogin()">
-                <button type="button" class="eye-btn" onclick="toggleEye(this, 'password')" id="eyeBtn">👁</button>
+    <!-- Login Card + CanvasUI Flame Wrap -->
+    <div id="login-card-wrap" class="login-card-wrap">
+        <canvas id="flame-source" class="login-flame-source" aria-hidden="true"></canvas>
+        <canvas id="flame-output" class="login-flame-output is-hidden" aria-hidden="true"></canvas>
+        <div class="login-card" id="main-content">
+            <!-- Logo -->
+            <div class="login-logo">
+                <div class="login-logo-icon">✦</div>
+                <div class="login-title">AURAGO</div>
+                <div class="login-subtitle" id="loginSubtitle"></div>
             </div>
-        </div>
 
-        <!-- TOTP Code (shown only when TOTP is enabled) -->
-        <div id="totpSection" class="is-hidden">
-            <div class="totp-divider" id="totpDivider"></div>
+            <!-- Password -->
             <div class="login-field">
-                <label class="login-label" for="totpCode" id="lblTotp"></label>
-                <input class="login-input" type="number" id="totpCode"
-                    placeholder="000000" maxlength="6" autocomplete="one-time-code"
-                    onkeydown="if(event.key==='Enter') submitLogin()">
+                <label class="login-label" for="password" id="lblPassword"></label>
+                <div class="login-input-wrap">
+                    <input class="login-input" type="password" id="password"
+                        placeholder="••••••••" autocomplete="current-password"
+                        onkeydown="if(event.key==='Enter') submitLogin()">
+                    <button type="button" class="eye-btn" onclick="toggleEye(this, 'password')" id="eyeBtn">👁</button>
+                </div>
             </div>
+
+            <!-- TOTP Code (shown only when TOTP is enabled) -->
+            <div id="totpSection" class="is-hidden">
+                <div class="totp-divider" id="totpDivider"></div>
+                <div class="login-field">
+                    <label class="login-label" for="totpCode" id="lblTotp"></label>
+                    <input class="login-input" type="number" id="totpCode"
+                        placeholder="000000" maxlength="6" autocomplete="one-time-code"
+                        onkeydown="if(event.key==='Enter') submitLogin()">
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button class="btn-login" id="btnLogin" onclick="submitLogin()">
+                <span id="btnText"></span>
+            </button>
+
+            <!-- Error -->
+            <div class="login-error" id="loginError"></div>
         </div>
-
-        <!-- Submit Button -->
-        <button class="btn-login" id="btnLogin" onclick="submitLogin()">
-            <span id="btnText"></span>
-        </button>
-
-        <!-- Error -->
-        <div class="login-error" id="loginError"></div>
     </div>
 
     <!-- Three.js for WebGL -->
     <script src="/js/vendor/three.min.js" onerror="window._threeLoadFailed=true"></script>
     <script src="/js/login/main.js"></script>
     <script type="module" src="/js/login/droplets.js?v={{.BuildVersion}}"></script>
+    <script type="module" src="/js/login/flame-wrap.js?v={{.BuildVersion}}"></script>
 </body>
 
 </html>

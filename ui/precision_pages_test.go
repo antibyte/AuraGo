@@ -1951,7 +1951,8 @@ func TestPrecisionEntryTemplatesPreserveHooksWithoutInlineStyles(t *testing.T) {
 	}{
 		{template: "login.html", hooks: []string{
 			`id="login-bg-host"`, `id="login-color-aurora"`, `id="login-bg-content"`, `id="droplets-source"`, `id="droplets-output"`,
-			`aria-hidden="true"`, `/js/login/droplets.js?v={{.BuildVersion}}`, `type="module"`,
+			`id="login-card-wrap"`, `id="flame-source"`, `id="flame-output"`,
+			`aria-hidden="true"`, `/js/login/droplets.js?v={{.BuildVersion}}`, `/js/login/flame-wrap.js?v={{.BuildVersion}}`, `type="module"`,
 			`id="bg-canvas"`, `id="css-bg"`, `id="password"`, `id="totpSection"`, `id="totpCode"`,
 			`id="btnLogin"`, `id="loginError"`, `/js/vendor/three.min.js`, `/js/login/main.js`, `submitLogin()`,
 		}},
@@ -2013,7 +2014,7 @@ func TestPrecisionEntryStylesAreScopedResponsiveAndFlat(t *testing.T) {
 		page       string
 		selectors  []string
 	}{
-		{name: "Login", stylesheet: "css/login.css", page: "login", selectors: []string{`.login-card`, `.login-input`, `.btn-login`, `#bg-canvas`, `.css-fallback-bg`, `.login-bg-host`, `.login-droplets-output`, `.login-droplets-source`}},
+		{name: "Login", stylesheet: "css/login.css", page: "login", selectors: []string{`.login-card`, `.login-card-wrap`, `.login-input`, `.btn-login`, `#bg-canvas`, `.css-fallback-bg`, `.login-bg-host`, `.login-droplets-output`, `.login-droplets-source`, `.login-flame-output`, `.login-flame-source`}},
 		{name: "Setup", stylesheet: "css/setup.css", page: "setup", selectors: []string{`.setup-header`, `.setup-card`, `.setup-section`, `.btn-setup`, `.profile-loading-spinner`, `.or-browser-modal`}},
 		{name: "NotFound", stylesheet: "css/not-found.css", page: "not-found", selectors: []string{`.not-found-page`, `.not-found-code`, `.not-found-actions`, `.not-found-link`, `.not-found-logo`}},
 	}
