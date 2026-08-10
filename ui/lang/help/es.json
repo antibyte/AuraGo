@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Tiempo de espera entre reintentos en segundos.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Tiempo máximo de espera para que se complete una tarea en segundo plano. Predeterminado: 600 segundos (10 minutos).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Con qué frecuencia el agente verifica el estado de una tarea en espera (en segundos).",
-  "help.agent.context_window": "Tamaño de la ventana de contexto en tokens. 0 = detección automática.",
+  "help.agent.context_window": "Límite superior global del contexto de la solicitud en tokens. 0 significa que no hay un límite global configurado. Los límites del proveedor se detectan automáticamente; los modelos desconocidos usan de forma conservadora 8.192 tokens de contexto y 4.096 de salida.",
   "help.agent.core_memory_cap_mode": "Comportamiento cuando se alcanza el límite: 'suave' agrega la entrada y devuelve una advertencia, 'duro' rechaza nuevas entradas. Predeterminado: suave.",
   "help.agent.core_memory_max_entries": "Límite superior de hechos permanentes en core memory. 0 usa el valor predeterminado de 80.",
   "help.agent.core_personality": "Perfil de personalidad activa, p.e. 'neutral', 'punk', 'zen'.",

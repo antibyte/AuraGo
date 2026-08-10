@@ -128,10 +128,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		}
 	}
 
-	initialUserMsg := ""
-	if len(req.Messages) > 0 {
+	initialUserMsg := strings.TrimSpace(runCfg.UserIntent)
+	if initialUserMsg == "" && len(req.Messages) > 0 {
 		for i := len(req.Messages) - 1; i >= 0; i-- {
-			if req.Messages[i].Role == openai.ChatMessageRoleUser {
+			if req.Messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(req.Messages[i]) {
 				txt := strings.TrimSpace(messageText(req.Messages[i]))
 				if txt == "" {
 					continue
@@ -141,10 +141,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 		}
 	}
-	adaptiveUserContext := collectRecentUserIntentText(req.Messages, 4, 800)
-	if adaptiveUserContext == "" {
-		adaptiveUserContext = initialUserMsg
-	}
+	adaptiveUserContext := initialUserMsg
 	isFirstTurn := isFirstUserMessageInSession(req.Messages)
 	plannerContext := plannerPromptContextText(runCfg, initialUserMsg, time.Now(), isFirstTurn, logger)
 	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
@@ -311,7 +308,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	coreMemLoadedAt := time.Time{}
 	coreMemDirty := true // Force initial load
 	tokenCache := newTokenCountCache(4096)
-	detectedCtxWindow := 0
 
 	cachedSysPromptKey := ""
 	cachedSysPrompt := ""
@@ -598,7 +594,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.coreMemLoadedAt = coreMemLoadedAt
 	s.coreMemDirty = coreMemDirty
 	s.tokenCache = tokenCache
-	s.detectedCtxWindow = detectedCtxWindow
 	s.cachedSysPromptKey = cachedSysPromptKey
 	s.cachedSysPrompt = cachedSysPrompt
 	s.cachedSysPromptAt = cachedSysPromptAt

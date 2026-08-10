@@ -692,6 +692,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Stream:   stream,
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
+	turn.runCfg.UserIntent = message
 	if opts.NativeToolSchemas != nil {
 		turn.runCfg.NativeToolSchemas = append([]openai.Tool{}, opts.NativeToolSchemas...)
 	}

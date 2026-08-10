@@ -1,10 +1,12 @@
 package warnings
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 )
 
 // RegisterBuiltinProducers populates the registry with warnings that can be detected
@@ -19,31 +21,47 @@ func RegisterBuiltinProducers(reg *Registry, cfg *config.Config, vdb VectorDBHea
 	NewVectorDBMonitor(reg, cfg, vdb, logger).Start()
 }
 
-// checkTokenBudgetFallback emits a warning when the token budget had to fall back
-// to the minimal 8192 default because context-window auto-detection failed.
+// checkTokenBudgetFallback emits a warning when either model limit could not be
+// resolved through an override, the registry, or the provider probe.
 func checkTokenBudgetFallback(reg *Registry, cfg *config.Config, logger *slog.Logger) {
-	if cfg.Agent.SystemPromptTokenBudgetAuto && cfg.Agent.ContextWindow <= 0 {
-		model := cfg.LLM.Model
-		if model == "" {
-			for _, p := range cfg.Providers {
-				if p.ID == cfg.LLM.Provider {
-					model = p.Model
-					break
-				}
-			}
+	if reg == nil || cfg == nil {
+		return
+	}
+
+	route := llm.ModelRoute{
+		ProviderID:   cfg.LLM.Provider,
+		ProviderType: cfg.LLM.ProviderType,
+		BaseURL:      cfg.LLM.BaseURL,
+		APIKey:       cfg.LLM.APIKey,
+		Model:        cfg.LLM.Model,
+		Primary:      true,
+	}
+	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil {
+		route.ContextWindowOverride = provider.ContextWindow
+		route.MaxOutputTokensOverride = provider.MaxOutputTokens
+		if route.Model == "" {
+			route.Model = provider.Model
 		}
-		reg.Add(Warning{
-			ID:       "token_budget_fallback",
-			Severity: SeverityWarning,
-			Title:    "Token Budget Fallback",
-			Description: fmt.Sprintf(
-				"Context window auto-detection failed for model %q. The system prompt token budget fell back to 8192 tokens, which significantly limits agent capabilities. "+
-					"You can set llm.context_window manually in config.yaml to resolve this.",
-				model,
-			),
-			Category: CategoryPerformance,
-		})
-		logger.Warn("Registered warning: token budget fallback to 8192", "model", model)
+	}
+	limits := llm.ResolveModelLimits(context.Background(), route, cfg.Agent.ContextWindow, logger)
+	if !limits.Unknown {
+		return
+	}
+
+	reg.Add(Warning{
+		ID:       "token_budget_fallback",
+		Severity: SeverityWarning,
+		Title:    "Model Limit Fallback",
+		Description: fmt.Sprintf(
+			"Model limits for %q could not be fully resolved. Unresolved values use conservative defaults of %d context tokens and %d output tokens. "+
+				"Set provider-level context_window and max_output_tokens overrides if the provider does not expose reliable metadata.",
+			route.Model, llm.ConservativeContextWindow, llm.ConservativeOutputTokens,
+		),
+		Category: CategoryPerformance,
+	})
+	if logger != nil {
+		logger.Warn("Registered warning: conservative model limits", "model", route.Model,
+			"context_source", limits.ContextSource, "output_source", limits.OutputSource)
 	}
 }
 

@@ -88,6 +88,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs, s.runCfg)
 	pResultContent = policyResult.Content
+	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Failed)
 	pEventContent := policyResult.EventContent
 	if pEventContent == "" {
 		pEventContent = pResultContent
@@ -364,6 +365,7 @@ func executeAgentToolTurn(
 	}
 	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
 	resultContent = policyResult.Content
+	invalidateTurnSnapshotAfterTool(s, tc, policyResult.Failed)
 	eventContent := policyResult.EventContent
 	if eventContent == "" {
 		eventContent = resultContent
@@ -559,6 +561,7 @@ func executeAgentToolTurn(
 			}
 			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
 			bResult = policyResult.Content
+			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Failed)
 			bEventContent := policyResult.EventContent
 			if bEventContent == "" {
 				bEventContent = bResult

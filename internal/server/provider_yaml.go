@@ -63,6 +63,12 @@ func providerEntryYAMLNode(entry config.ProviderEntry) *yaml.Node {
 	appendYAMLStringField(node, "type", entry.Type)
 	appendYAMLStringField(node, "base_url", entry.BaseURL)
 	appendYAMLStringField(node, "model", entry.Model)
+	if entry.ContextWindow > 0 {
+		appendYAMLIntField(node, "context_window", entry.ContextWindow)
+	}
+	if entry.MaxOutputTokens > 0 {
+		appendYAMLIntField(node, "max_output_tokens", entry.MaxOutputTokens)
+	}
 	if entry.AccountID != "" {
 		appendYAMLStringField(node, "account_id", entry.AccountID)
 	}
@@ -111,6 +117,10 @@ func appendYAMLBoolField(node *yaml.Node, key string, value bool) {
 
 func appendYAMLFloatField(node *yaml.Node, key string, value float64) {
 	appendYAMLNodeField(node, key, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!float", Value: strconv.FormatFloat(value, 'f', -1, 64)})
+}
+
+func appendYAMLIntField(node *yaml.Node, key string, value int) {
+	appendYAMLNodeField(node, key, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(value)})
 }
 
 func appendYAMLNodeField(node *yaml.Node, key string, value *yaml.Node) {

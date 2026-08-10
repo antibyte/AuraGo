@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Temps d'attente entre les tentatives de nouvelle tentative en secondes.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Temps d'attente maximum pour qu'une tâche en arrière-plan se termine. Par défaut : 600 secondes (10 minutes).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "À quelle fréquence l'agent vérifie l'état d'une tâche en attente (en secondes).",
-  "help.agent.context_window": "Taille de la fenêtre contextuelle en jetons. 0 = détection automatique.",
+  "help.agent.context_window": "Limite supérieure globale du contexte de requête en jetons. 0 signifie qu’aucune limite globale n’est configurée. Les limites du fournisseur sont détectées automatiquement ; les modèles inconnus utilisent par prudence 8 192 jetons de contexte et 4 096 jetons de sortie.",
   "help.agent.core_memory_cap_mode": "Comportement lorsque le plafond est atteint : 'soft' ajoute l'entrée et renvoie un avertissement, 'hard' rejette les nouvelles entrées. Par défaut : doux.",
   "help.agent.core_memory_max_entries": "Limite supérieure des faits stockés durablement en core memory. 0 utilise la valeur par défaut de 80.",
   "help.agent.core_personality": "Profil de personnalité actif, par ex. « neutre », « punk », « zen ».",

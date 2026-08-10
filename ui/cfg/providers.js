@@ -843,6 +843,24 @@ let _providerCatalogPromise = null;
             });
         }
 
+        function providerLimitSourceLabel(source) {
+            const normalized = String(source || '').trim();
+            if (!normalized) return '—';
+            return t('config.providers.limit_source_' + normalized);
+        }
+
+        function providerLimitDisplay(override, effective, source) {
+            const configured = Number(override) > 0
+                ? String(override)
+                : t('config.providers.limit_automatic');
+            const resolved = Number(effective) > 0 ? String(effective) : '—';
+            return t('config.providers.limit_effective', {
+                override: configured,
+                effective: resolved,
+                source: providerLimitSourceLabel(source)
+            });
+        }
+
         function providerRenderCards() {
             const wrap = document.getElementById('providers-list');
             const empty = document.getElementById('providers-empty');
@@ -895,6 +913,11 @@ let _providerCatalogPromise = null;
                             ${escapeHtml(t('config.providers.oauth_connect'))}
                        </button>`
                     : '';
+                const contextLimit = providerLimitDisplay(p.context_window, p.effective_context_window, p.context_window_source);
+                const outputLimit = providerLimitDisplay(p.max_output_tokens, p.effective_max_output_tokens, p.max_output_tokens_source);
+                const modelLimitsWarning = p.model_limits_warning === 'unknown_model_conservative_limits'
+                    ? `<div class="prov-text-error">⚠ ${escapeHtml(t('config.providers.unknown_model_limits_warning'))}</div>`
+                    : '';
                 html += `
                 <div class="provider-card prov-provider-card" data-idx="${idx}">
                     <div class="prov-provider-head">
@@ -912,7 +935,10 @@ let _providerCatalogPromise = null;
                         <div><span class="prov-text-muted">${t('config.providers.card_base_url')}</span> ${escapeAttr(p.base_url || '—')}</div>
                         <div><span class="prov-text-muted">${t('config.providers.card_model')}</span> ${escapeAttr(p.model || '—')}</div>
                         <div><span class="prov-text-muted">${isOAuth ? t('config.providers.card_auth') : t('config.providers.card_api_key')}</span> ${authInfo}</div>
+                        <div><span class="prov-text-muted">${t('config.providers.card_context_window')}</span> ${escapeHtml(contextLimit)}</div>
+                        <div><span class="prov-text-muted">${t('config.providers.card_max_output_tokens')}</span> ${escapeHtml(outputLimit)}</div>
                     </div>
+                    ${modelLimitsWarning}
                 </div>`;
             });
             wrap.innerHTML = html;
@@ -1571,6 +1597,7 @@ let _providerCatalogPromise = null;
             function providerModalSnapshot() {
                 const ids = [
                     'prov-id', 'prov-name', 'prov-type', 'prov-url', 'prov-account-id', 'prov-model',
+                    'prov-context-window', 'prov-max-output-tokens',
                     'prov-auth-type', 'prov-copy-key-from', 'prov-key', 'prov-oauth-client-id',
                     'prov-oauth-client-secret', 'prov-oauth-auth-url', 'prov-oauth-token-url',
                     'prov-oauth-scopes'
@@ -1663,6 +1690,19 @@ let _providerCatalogPromise = null;
                     <div class="field-label">${t('config.providers.field_model_label')}</div>
                     <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
                     <select class="field-select prov-catalog-model-picker is-hidden" id="prov-catalog-model"></select>
+                </div>
+
+                <div class="field-group">
+                    <div class="field-label">${t('config.providers.field_context_window_label')}</div>
+                    <div class="field-help">${t('config.providers.model_limit_override_help')}</div>
+                    <input class="field-input" id="prov-context-window" type="number" min="0" step="1" value="${Number(data.context_window) > 0 ? Number(data.context_window) : 0}">
+                    <div class="prov-field-hint">${providerLimitDisplay(data.context_window, data.effective_context_window, data.context_window_source)}</div>
+                </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.providers.field_max_output_tokens_label')}</div>
+                    <div class="field-help">${t('config.providers.model_limit_override_help')}</div>
+                    <input class="field-input" id="prov-max-output-tokens" type="number" min="0" step="1" value="${Number(data.max_output_tokens) > 0 ? Number(data.max_output_tokens) : 0}">
+                    <div class="prov-field-hint">${providerLimitDisplay(data.max_output_tokens, data.effective_max_output_tokens, data.max_output_tokens_source)}</div>
                 </div>
 
                 <div class="field-group prov-group-divider" id="prov-capabilities-block">
@@ -2226,10 +2266,16 @@ let _providerCatalogPromise = null;
                 const type = document.getElementById('prov-type').value;
                 const base_url = document.getElementById('prov-url').value.trim();
                 const model = document.getElementById('prov-model').value.trim();
+                const context_window = Number(document.getElementById('prov-context-window').value || 0);
+                const max_output_tokens = Number(document.getElementById('prov-max-output-tokens').value || 0);
                 const auth_type = document.getElementById('prov-auth-type').value;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
                 if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
+                if (!Number.isInteger(context_window) || context_window < 0 || !Number.isInteger(max_output_tokens) || max_output_tokens < 0) {
+                    showToast(t('config.providers.model_limits_nonnegative_error'), 'warn');
+                    return;
+                }
                 // New provider IDs: lowercase, digits, dots, hyphens, underscores.
                 // Existing legacy IDs (e.g. mixed-case EdenAi) may still re-save.
                 const isExistingID = data._editMode || (providersCache || []).some(p => p.id === id);
@@ -2245,7 +2291,7 @@ let _providerCatalogPromise = null;
                     showToast(t('config.providers.url_empty_error'), 'warn'); return;
                 }
 
-                const entry = { id, name: name || id, type, base_url, model, auth_type, account_id };
+                const entry = { id, name: name || id, type, base_url, model, context_window, max_output_tokens, auth_type, account_id };
 
                 if (auth_type === 'oauth2') {
                     entry.api_key = data.api_key === '••••••••' ? '••••••••' : '';

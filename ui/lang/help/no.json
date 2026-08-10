@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Beskrivelse: Wait time between retry attempts in sekunder.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Maksimum: wait time for a background task to complete. Standard: 600 sekunder (10 minutter).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Hvor ofte agenten sjekker statusen til en ventende oppgave (i sekunder).",
-  "help.agent.context_window": "Beskrivelse: Total context window size in tokens. The agenten uses this to calculate available capacity. 0 = auto-detect from model.",
+  "help.agent.context_window": "Global øvre grense for forespørselskonteksten i tokener. 0 betyr at ingen global grense er konfigurert. Providergrenser oppdages automatisk; ukjente modeller bruker konservativt 8 192 konteksttokener og 4 096 utdatatokener.",
   "help.agent.core_memory_cap_mode": "Oppførsel når grensen nås: \"soft\" legger til oppføringen og returnerer en advarsel, \"hard\" avviser nye oppføringer. Standard: soft.",
   "help.agent.core_memory_max_entries": "Øvre grense for permanent lagrede core-memory fakta. 0 bruker standarden 80.",
   "help.agent.core_personality": "Aktiv personlighetsprofil, f.eks. \"neutral\", \"punk\", \"zen\".",

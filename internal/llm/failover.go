@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,8 @@ type FailoverManager struct {
 	fallbackModel  string
 	primaryBaseURL string
 	primaryAPIKey  string
+	primaryRoute   ModelRoute
+	fallbackRoute  ModelRoute
 
 	isOnFallback       bool
 	errorCount         int
@@ -85,6 +88,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 		logger:         logger,
 		clientFactory:  NewClient,
 	}
+	fm.primaryRoute = modelRouteFromConfig(cfg, false)
 	for _, option := range options {
 		option(fm)
 	}
@@ -104,6 +108,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 	fm.fallback = fm.clientFactory(&fallbackCfg)
 	fm.fallbackType = fb.ProviderType
 	fm.fallbackModel = fb.Model
+	fm.fallbackRoute = modelRouteFromConfig(cfg, true)
 
 	if fb.ErrorThreshold > 0 {
 		fm.errorThreshold = fb.ErrorThreshold
@@ -141,6 +146,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.primaryModel = cfg.LLM.Model
 	fm.primaryBaseURL = cfg.LLM.BaseURL
 	fm.primaryAPIKey = cfg.LLM.APIKey
+	fm.primaryRoute = modelRouteFromConfig(cfg, false)
 	fm.isOnFallback = false
 	fm.errorCount = 0
 	fm.fallbackErrorCount = 0
@@ -159,6 +165,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		fm.fallback = fm.clientFactory(&fallbackCfg)
 		fm.fallbackType = fb.ProviderType
 		fm.fallbackModel = fb.Model
+		fm.fallbackRoute = modelRouteFromConfig(cfg, true)
 		if fb.ErrorThreshold > 0 {
 			fm.errorThreshold = fb.ErrorThreshold
 		}
@@ -170,8 +177,10 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		fm.fallback = nil
 		fm.fallbackType = ""
 		fm.fallbackModel = ""
+		fm.fallbackRoute = ModelRoute{}
 	}
 	fm.mu.Unlock()
+	InvalidateModelLimitCache()
 
 	if startProbe {
 		go fm.probeLoop(newStopCh)
@@ -291,13 +300,48 @@ func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
 	return fm.primaryType, fm.primaryModel
 }
 
-func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionRequest) bool {
+// CandidateRoutes returns every route that can serve this request. The active
+// route is listed first, but callers must budget against all returned routes.
+func (fm *FailoverManager) CandidateRoutes(req openai.ChatCompletionRequest) []ModelRoute {
 	fm.mu.RLock()
-	fallbackType := fm.fallbackType
-	fallbackModel := fm.fallbackModel
+	primary := fm.primaryRoute
+	fallback := fm.fallbackRoute
+	onFallback := fm.isOnFallback
+	hasFallback := fm.fallback != nil && strings.TrimSpace(fallback.Model) != ""
 	fm.mu.RUnlock()
 
-	if fallbackModel == "" {
+	fallbackUsable := hasFallback && routeSupportsRequest(fallback, req)
+	routes := make([]ModelRoute, 0, 2)
+	if onFallback && fallbackUsable {
+		routes = append(routes, fallback)
+	}
+	if strings.TrimSpace(primary.Model) != "" {
+		routes = append(routes, primary)
+	}
+	if !onFallback && fallbackUsable {
+		routes = append(routes, fallback)
+	}
+	return routes
+}
+
+func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionRequest) bool {
+	fm.mu.RLock()
+	route := fm.fallbackRoute
+	if strings.TrimSpace(route.Model) == "" {
+		// Compatibility for focused tests and embedders that construct a manager
+		// directly instead of going through NewFailoverManager.
+		route = ModelRoute{
+			ProviderID:   fm.fallbackType,
+			ProviderType: fm.fallbackType,
+			Model:        fm.fallbackModel,
+		}
+	}
+	fm.mu.RUnlock()
+	return routeSupportsRequest(route, req)
+}
+
+func routeSupportsRequest(route ModelRoute, req openai.ChatCompletionRequest) bool {
+	if strings.TrimSpace(route.Model) == "" {
 		return false
 	}
 
@@ -322,9 +366,9 @@ func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionReq
 	}
 
 	caps := ResolveProviderCapabilities(config.ProviderEntry{
-		ID:    fallbackType,
-		Type:  fallbackType,
-		Model: fallbackModel,
+		ID:    route.ProviderID,
+		Type:  route.ProviderType,
+		Model: route.Model,
 	}, CapabilityFallback{})
 	if !caps.Known {
 		// Preserve existing custom-provider behavior for text/tool requests.
@@ -335,6 +379,39 @@ func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionReq
 	return (!hasImage || caps.Multimodal) &&
 		(!requiresTools || caps.ToolCalling) &&
 		(!requiresStructured || caps.StructuredOutputs)
+}
+
+func modelRouteFromConfig(cfg *config.Config, fallback bool) ModelRoute {
+	if cfg == nil {
+		return ModelRoute{}
+	}
+	if fallback {
+		route := ModelRoute{
+			ProviderID:   cfg.FallbackLLM.Provider,
+			ProviderType: cfg.FallbackLLM.ProviderType,
+			BaseURL:      cfg.FallbackLLM.BaseURL,
+			APIKey:       cfg.FallbackLLM.APIKey,
+			Model:        cfg.FallbackLLM.Model,
+		}
+		if provider := cfg.FindProvider(cfg.FallbackLLM.Provider); provider != nil {
+			route.ContextWindowOverride = provider.ContextWindow
+			route.MaxOutputTokensOverride = provider.MaxOutputTokens
+		}
+		return route
+	}
+	route := ModelRoute{
+		ProviderID:   cfg.LLM.Provider,
+		ProviderType: cfg.LLM.ProviderType,
+		BaseURL:      cfg.LLM.BaseURL,
+		APIKey:       cfg.LLM.APIKey,
+		Model:        cfg.LLM.Model,
+		Primary:      true,
+	}
+	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil {
+		route.ContextWindowOverride = provider.ContextWindow
+		route.MaxOutputTokensOverride = provider.MaxOutputTokens
+	}
+	return route
 }
 
 func (fm *FailoverManager) recordError(err error) {

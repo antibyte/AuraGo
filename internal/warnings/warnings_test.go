@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/config"
 )
 
 func TestNewRegistry(t *testing.T) {
@@ -174,4 +176,40 @@ func TestConcurrentAccess(t *testing.T) {
 	if total == 0 {
 		t.Fatal("expected some warnings after concurrent adds")
 	}
+}
+
+func TestCheckTokenBudgetFallbackWarnsOnlyForUnresolvedModelLimits(t *testing.T) {
+	t.Run("unknown model", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.LLM.Provider = "custom"
+		cfg.LLM.ProviderType = "openai"
+		cfg.LLM.Model = "unknown-model-without-metadata"
+
+		reg := NewRegistry()
+		checkTokenBudgetFallback(reg, cfg, nil)
+
+		warnings := reg.Warnings()
+		if len(warnings) != 1 || warnings[0].ID != "token_budget_fallback" {
+			t.Fatalf("warnings = %+v, want one model-limit fallback warning", warnings)
+		}
+	})
+
+	t.Run("provider overrides", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.LLM.Provider = "custom"
+		cfg.LLM.ProviderType = "openai"
+		cfg.LLM.Model = "unknown-model-with-overrides"
+		cfg.Providers = []config.ProviderEntry{{
+			ID:              "custom",
+			Model:           cfg.LLM.Model,
+			ContextWindow:   32768,
+			MaxOutputTokens: 4096,
+		}}
+
+		reg := NewRegistry()
+		checkTokenBudgetFallback(reg, cfg, nil)
+		if warnings := reg.Warnings(); len(warnings) != 0 {
+			t.Fatalf("warnings = %+v, want none for explicit limits", warnings)
+		}
+	})
 }

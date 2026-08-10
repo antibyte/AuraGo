@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ func BenchmarkTokenCountCacheMiss(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = cache.Count(strings.Repeat("x", i%1000+1), model)
+		_ = cache.Count("cold-key-"+strconv.Itoa(i)+" "+strings.Repeat("x", 64), model)
 	}
 }
 

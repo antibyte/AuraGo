@@ -14,8 +14,8 @@ import (
 
 // CompressHistory only mutates the in-flight req.Messages slice for the current agent
 // request. It intentionally does not persist compressed drops to SQLite or
-// HistoryManager; cross-turn compression for the default session is handled
-// separately in the HTTP handler via HistoryManager summarization.
+// HistoryManager; the session compression coordinator owns persistent default-
+// session updates and reuses that exact summary in the active request.
 
 // compressionCooldown is the minimum number of messages between two compression runs
 // to avoid repeatedly compressing the same conversation window.
@@ -49,6 +49,7 @@ type CompressHistoryResult struct {
 	DroppedCount  int
 	SummaryTokens int
 	TotalTokens   int // total message tokens (excl. system prompt) after compression
+	Summary       string
 }
 
 // CompressHistory checks whether the conversation history exceeds the compression
@@ -201,6 +202,7 @@ func CompressHistory(
 	newMessages = append(newMessages, messages[tailStart:]...)
 
 	result.Compressed = true
+	result.Summary = summary
 	result.DroppedCount = len(compressible)
 	result.SummaryTokens = prompts.CountTokensForModel(summaryContent, model)
 

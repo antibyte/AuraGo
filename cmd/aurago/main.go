@@ -700,15 +700,9 @@ func main() {
 		return llm.NewClient(clientCfg)
 	}))
 
-	// Auto-detect context window and configure token budget
-	if cfg.Agent.ContextWindow == 0 || cfg.Agent.SystemPromptTokenBudgetAuto {
-		if cfg.Agent.ContextWindow == 0 {
-			cfg.Agent.ContextWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.ProviderType, appLog)
-		}
-		if cfg.Agent.SystemPromptTokenBudgetAuto {
-			cfg.Agent.SystemPromptTokenBudget, cfg.Agent.ContextWindow = llm.AutoConfigureBudget(cfg.Agent.ContextWindow, cfg.Agent.SystemPromptTokenBudget, appLog)
-		}
-	}
+	// A zero agent.context_window is intentionally preserved as "no global cap".
+	// Per-request route budgeting resolves model-specific limits and derives the
+	// automatic system-prompt budget after schemas and history are accounted for.
 
 	// Warnings Registry for runtime health / security issue tracking
 	warningsRegistry := warnings.NewRegistry()

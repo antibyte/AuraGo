@@ -29,7 +29,7 @@ const maxSkillOutputBytes = 10 * 1024 * 1024 // 10 MB
 const skillDependencyInstallTimeout = 10 * time.Minute
 
 // skillsCacheTTL is the time-to-live for the ListSkills cache.
-const skillsCacheTTL = 30 * time.Second
+const skillsCacheTTL = 5 * time.Second
 
 // skillsCacheEntry holds cached skill manifests and their expiration time.
 type skillsCacheEntry struct {
@@ -44,6 +44,12 @@ var listSkillsCache = struct {
 }{
 	entries: make(map[string]skillsCacheEntry),
 }
+
+var skillsRevisionGeneration = struct {
+	mu      sync.RWMutex
+	byDir   map[string]uint64
+	counter uint64
+}{byDir: make(map[string]uint64)}
 
 // SkillManifest represents the structure of a skill config file (.json).
 type SkillManifest struct {
@@ -202,6 +208,25 @@ func InvalidateSkillsCache(skillsDir string) {
 	listSkillsCache.mu.Lock()
 	delete(listSkillsCache.entries, absDir)
 	listSkillsCache.mu.Unlock()
+
+	skillsRevisionGeneration.mu.Lock()
+	skillsRevisionGeneration.counter++
+	skillsRevisionGeneration.byDir[absDir] = skillsRevisionGeneration.counter
+	skillsRevisionGeneration.mu.Unlock()
+}
+
+// SkillsRevisionGeneration lets schema consumers detect AuraGo-owned skill
+// mutations immediately while retaining a short filesystem polling interval
+// for external edits.
+func SkillsRevisionGeneration(skillsDir string) uint64 {
+	absDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		absDir = skillsDir
+	}
+	skillsRevisionGeneration.mu.RLock()
+	generation := skillsRevisionGeneration.byDir[absDir]
+	skillsRevisionGeneration.mu.RUnlock()
+	return generation
 }
 
 type skillExecutionOptions struct {

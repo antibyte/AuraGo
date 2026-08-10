@@ -49,6 +49,34 @@ func TestInitAgentLoopStateSetsEnabledToolsForTextMode(t *testing.T) {
 	}
 }
 
+func TestInitAgentLoopStateKeepsExplicitHumanIntentAcrossTextToolResults(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Directories.PromptsDir = t.TempDir()
+	cfg.LLM.ProviderType = "openai"
+	cfg.LLM.Model = "glm-4"
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "Prüfe den Docker-Status."},
+		{Role: openai.ChatMessageRoleAssistant, Content: `{"action":"docker"}`},
+		{Role: openai.ChatMessageRoleUser, Content: `Tool Output: {"containers":["postgres"]}`},
+	}
+
+	explicit := initAgentLoopState(openai.ChatCompletionRequest{Model: "glm-4", Messages: messages}, RunConfig{
+		Config: cfg, Logger: logger, SessionID: "intent-explicit", UserIntent: "Nur den menschlichen Auftrag verwenden.",
+	}, nil, false)
+	if explicit.initialUserMsg != "Nur den menschlichen Auftrag verwenden." {
+		t.Fatalf("explicit intent drifted: initial=%q", explicit.initialUserMsg)
+	}
+
+	fallback := initAgentLoopState(openai.ChatCompletionRequest{Model: "glm-4", Messages: messages}, RunConfig{
+		Config: cfg, Logger: logger, SessionID: "intent-fallback",
+	}, nil, false)
+	if fallback.initialUserMsg != "Prüfe den Docker-Status." {
+		t.Fatalf("fallback intent = %q, want original human message", fallback.initialUserMsg)
+	}
+}
+
 func TestInitAgentLoopStateSuppressesTTSForRealtimeSpeechRequest(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Directories.SkillsDir = t.TempDir()

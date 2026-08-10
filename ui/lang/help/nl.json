@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Wachttijd tussen herpogingen in seconden.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Maximale wachttijd voor het voltooien van een achtergrondtaak. Standaard: 600 seconden (10 minuten).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Hoe vaak de agent de status van een wachtende taak controleert (in seconden).",
-  "help.agent.context_window": "Beschrijving: Total context window size in tokens. The agent uses this to calculate available capacity. 0 = auto-detect from model.",
+  "help.agent.context_window": "Globale bovengrens voor de aanvraagcontext in tokens. 0 betekent dat geen globale limiet is ingesteld. Providerlimieten worden automatisch gedetecteerd; onbekende modellen gebruiken voorzichtig 8.192 contexttokens en 4.096 uitvoertokens.",
   "help.agent.core_memory_cap_mode": "Gedrag wanneer de limiet is bereikt: \"soft\" voegt de invoer toe en retourneert een waarschuwing, \"hard\" weigert nieuwe invoer. Standaard: soft.",
   "help.agent.core_memory_max_entries": "Bovengrens voor permanent opgeslagen core-memory feiten. 0 gebruikt de standaard van 80.",
   "help.agent.core_personality": "Actief persoonlijkheidsprofiel, bijv. \"neutral\", \"punk\", \"zen\".",

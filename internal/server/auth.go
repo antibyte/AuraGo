@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	pathpkg "path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -786,6 +787,10 @@ func setupWizardRedirectTarget(s *Server) string {
 // auth.enabled is true. API paths return 401 JSON; browser paths redirect to /auth/login.
 func authMiddleware(s *Server, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, _, ok := validateInternalChatHeaders(r, s); !ok {
+			writeInvalidInternalChatHeaders(w)
+			return
+		}
 		s.CfgMu.RLock()
 		enabled := s.Cfg.Auth.Enabled
 		secret := s.Cfg.Auth.SessionSecret
@@ -897,6 +902,38 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			target += "?redirect=" + url.QueryEscape(r.URL.RequestURI())
 		}
 		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+	})
+}
+
+var internalMissionIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
+
+// validateInternalChatHeaders establishes the trust boundary for headers that
+// change chat-loop behavior. It is deliberately independent of web auth: a
+// valid browser session must not be able to forge a mission or follow-up turn.
+func validateInternalChatHeaders(r *http.Request, s *Server) (followUp bool, missionID string, valid bool) {
+	if r == nil {
+		return false, "", true
+	}
+	followUpHeader := strings.TrimSpace(r.Header.Get("X-Internal-FollowUp"))
+	missionID = strings.TrimSpace(r.Header.Get("X-Mission-ID"))
+	if followUpHeader == "" && missionID == "" {
+		return false, "", true
+	}
+	if followUpHeader != "true" || s == nil || !isValidInternalLoopbackToken(r, s.internalToken) {
+		return false, "", false
+	}
+	if missionID != "" && (len(missionID) > 128 || !internalMissionIDPattern.MatchString(missionID)) {
+		return false, "", false
+	}
+	return true, missionID, true
+}
+
+func writeInvalidInternalChatHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   "invalid_internal_chat_headers",
+		"message": "Internal chat control headers require a valid loopback process token.",
 	})
 }
 

@@ -11,7 +11,7 @@ auth:
     max_login_attempts: 5
     lockout_minutes: 15
 agent:
-    context_window: 0             # 0 = auto-detect from provider API at startup
+    context_window: 0             # global context cap; 0 = no configured cap (provider/model limits still apply)
     core_memory_cap_mode: hard
     core_memory_max_entries: 80
     debug_mode: false
@@ -679,6 +679,8 @@ s3:
 #     type: manifest
 #     name: "Manifest Gateway"
 #     model: "manifest/auto"
+#     context_window: 0                                # optional override; 0 = registry/probe/unknown fallback
+#     max_output_tokens: 0                             # optional override; unknown models default to 4096
 #     capabilities:                                      # optional; omitted or auto=true enables per-model detection
 #       auto: true                                       # detect from provider metadata, models.dev registry, and safe heuristics
 #       tool_calling: true                               # stored detected/manual value for the current model

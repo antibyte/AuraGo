@@ -823,8 +823,11 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 	externalReq.RemoteAddr = "10.0.0.42:1234"
 	externalRec := httptest.NewRecorder()
 	handler.ServeHTTP(externalRec, externalReq)
-	if externalRec.Code != http.StatusUnauthorized {
-		t.Fatalf("external follow-up status = %d, want 401", externalRec.Code)
+	if externalRec.Code != http.StatusForbidden {
+		t.Fatalf("external follow-up status = %d, want 403", externalRec.Code)
+	}
+	if !strings.Contains(externalRec.Body.String(), "invalid_internal_chat_headers") {
+		t.Fatalf("external follow-up response = %q, want structured header error", externalRec.Body.String())
 	}
 
 	loopbackReq := httptest.NewRequest(http.MethodPost, "/api/invasion/nests/n1/hatch", nil)
@@ -843,8 +846,66 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 	wrongTokenReq.RemoteAddr = "127.0.0.1:1234"
 	wrongTokenRec := httptest.NewRecorder()
 	handler.ServeHTTP(wrongTokenRec, wrongTokenReq)
-	if wrongTokenRec.Code != http.StatusUnauthorized {
-		t.Fatalf("loopback follow-up with wrong token status = %d, want 401", wrongTokenRec.Code)
+	if wrongTokenRec.Code != http.StatusForbidden {
+		t.Fatalf("loopback follow-up with wrong token status = %d, want 403", wrongTokenRec.Code)
+	}
+}
+
+func TestAuthMiddlewareRejectsUntrustedInternalChatHeadersRegardlessOfWebAuth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		authEnabled bool
+		authCookie  bool
+		remoteAddr  string
+		token       string
+		followUp    string
+		missionID   string
+		wantStatus  int
+	}{
+		{name: "unauthenticated external", authEnabled: true, remoteAddr: "10.0.0.8:9000", token: "process-token", followUp: "true", wantStatus: http.StatusForbidden},
+		{name: "authenticated external", authEnabled: true, authCookie: true, remoteAddr: "10.0.0.8:9000", token: "process-token", followUp: "true", wantStatus: http.StatusForbidden},
+		{name: "auth disabled external", remoteAddr: "10.0.0.8:9000", token: "process-token", followUp: "true", wantStatus: http.StatusForbidden},
+		{name: "loopback wrong token", authEnabled: true, remoteAddr: "127.0.0.1:9000", token: "wrong", followUp: "true", wantStatus: http.StatusForbidden},
+		{name: "mission requires followup", remoteAddr: "127.0.0.1:9000", token: "process-token", missionID: "mission-1", wantStatus: http.StatusForbidden},
+		{name: "mission id charset", remoteAddr: "127.0.0.1:9000", token: "process-token", followUp: "true", missionID: "mission/1", wantStatus: http.StatusForbidden},
+		{name: "mission id length", remoteAddr: "127.0.0.1:9000", token: "process-token", followUp: "true", missionID: strings.Repeat("a", 129), wantStatus: http.StatusForbidden},
+		{name: "trusted loopback mission", authEnabled: true, remoteAddr: "127.0.0.1:9000", token: "process-token", followUp: "true", missionID: "mission.1_test:run-2", wantStatus: http.StatusNoContent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), internalToken: "process-token"}
+			s.Cfg.Auth.Enabled = tt.authEnabled
+			s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+			s.Cfg.Auth.PasswordHash = "configured"
+			handler := authMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+			req.RemoteAddr = tt.remoteAddr
+			if tt.token != "" {
+				req.Header.Set("X-Internal-Token", tt.token)
+			}
+			if tt.followUp != "" {
+				req.Header.Set("X-Internal-FollowUp", tt.followUp)
+			}
+			if tt.missionID != "" {
+				req.Header.Set("X-Mission-ID", tt.missionID)
+			}
+			if tt.authCookie {
+				req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))})
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%q", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+			if tt.wantStatus == http.StatusForbidden && !strings.Contains(rec.Body.String(), "invalid_internal_chat_headers") {
+				t.Fatalf("response = %q, want invalid_internal_chat_headers", rec.Body.String())
+			}
+		})
 	}
 }
 

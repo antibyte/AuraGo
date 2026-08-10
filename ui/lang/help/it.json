@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Tempo di attesa tra i tentativi di riprova in secondi.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Tempo massimo di attesa per il completamento di un'attività in background. Predefinito: 600 secondi (10 minuti).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Quanto spesso l'agente controlla lo stato di un'attività in attesa (in secondi).",
-  "help.agent.context_window": "Dimensione della finestra di contesto in token. 0 = auto-rilevamento.",
+  "help.agent.context_window": "Limite superiore globale del contesto della richiesta in token. 0 indica che non è configurato alcun limite globale. I limiti del provider vengono rilevati automaticamente; i modelli sconosciuti usano in modo prudente 8.192 token di contesto e 4.096 token di output.",
   "help.agent.core_memory_cap_mode": "Comportamento quando il limite è raggiunto: 'soft' aggiunge l'entry e restituisce un avviso, 'hard' rifiuta nuove entry. Default: soft.",
   "help.agent.core_memory_max_entries": "Limite massimo dei fatti salvati permanentemente in core memory. 0 usa il default di 80.",
   "help.agent.core_personality": "Profilo di personalità attivo, es. 'neutral', 'punk', 'zen'.",

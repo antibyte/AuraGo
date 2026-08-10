@@ -13,3 +13,10 @@ type ChatClient interface {
 	CreateChatCompletion(ctx context.Context, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error)
 	CreateChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error)
 }
+
+// RequestRouteProvider is an optional capability implemented by clients that
+// can route a request to more than one provider/model. Keeping it separate from
+// ChatClient preserves compatibility with existing clients and test doubles.
+type RequestRouteProvider interface {
+	CandidateRoutes(request openai.ChatCompletionRequest) []ModelRoute
+}

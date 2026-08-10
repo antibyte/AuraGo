@@ -309,6 +309,7 @@ func TestPromptSourceFingerprintChangesForRootPromptAndPersonality(t *testing.T)
 	if err := os.WriteFile(filepath.Join(dir, "identity.md"), []byte("identity two"), 0o644); err != nil {
 		t.Fatalf("rewrite identity: %v", err)
 	}
+	expirePromptSourceFingerprintForTest(dir, "neutral")
 	if got := promptSourceFingerprint(dir, "neutral"); got == first {
 		t.Fatal("expected root prompt edit to change fingerprint")
 	} else {
@@ -318,9 +319,19 @@ func TestPromptSourceFingerprintChangesForRootPromptAndPersonality(t *testing.T)
 	if err := os.WriteFile(filepath.Join(dir, "personalities", "neutral.md"), []byte("neutral two"), 0o644); err != nil {
 		t.Fatalf("rewrite personality: %v", err)
 	}
+	expirePromptSourceFingerprintForTest(dir, "neutral")
 	if got := promptSourceFingerprint(dir, "neutral"); got == first {
 		t.Fatal("expected selected personality edit to change fingerprint")
 	}
+}
+
+func expirePromptSourceFingerprintForTest(dir, profile string) {
+	cacheKey := filepath.Clean(dir) + "\x00" + profile
+	promptSourceFingerprintMu.Lock()
+	entry := promptSourceFingerprintCache[cacheKey]
+	entry.checked = time.Now().Add(-promptSourceRevisionTTL - time.Second)
+	promptSourceFingerprintCache[cacheKey] = entry
+	promptSourceFingerprintMu.Unlock()
 }
 
 func TestRefreshCachedSystemPromptNowAndCountRecomputesTokens(t *testing.T) {

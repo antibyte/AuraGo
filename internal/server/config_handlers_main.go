@@ -689,27 +689,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// provider or fallback settings have changed. This ensures that model
 			// name changes in the web UI take effect immediately without a restart.
 			if llmHotReloadChanged(oldCfg, *newCfg) || oldCfg.FallbackLLM != newCfg.FallbackLLM {
+				// Provider/model probes are keyed by the previous route configuration.
+				// Drop them even when the active client is not a failover manager so the
+				// next request resolves limits from the newly published configuration.
+				llm.InvalidateModelLimitCache()
 				if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
 					fm.Reconfigure(newCfg)
 					s.Logger.Info("[Config UI] LLM client reconfigured",
 						"model", newCfg.LLM.Model,
 						"provider", newCfg.LLM.ProviderType,
 						"base_url", newCfg.LLM.BaseURL)
-				}
-
-				// Re-detect context window and recalculate budget when model
-				// changes and the user has budget set to automatic (0).
-				if newCfg.Agent.SystemPromptTokenBudgetAuto {
-					detected := llm.DetectContextWindow(
-						newCfg.LLM.BaseURL, newCfg.LLM.APIKey,
-						newCfg.LLM.Model, newCfg.LLM.ProviderType, s.Logger)
-					if detected > 0 {
-						newCfg.Agent.ContextWindow = detected
-					}
-					if newCfg.Agent.ContextWindow > 0 {
-						newCfg.Agent.SystemPromptTokenBudget, newCfg.Agent.ContextWindow =
-							llm.AutoConfigureBudget(newCfg.Agent.ContextWindow, newCfg.Agent.SystemPromptTokenBudget, s.Logger)
-					}
 				}
 			}
 			if s.LocalLLM != nil && oldCfg.LocalLLM != newCfg.LocalLLM {
@@ -1613,6 +1602,8 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 	type providerCapabilityFingerprint struct {
 		ID                string
 		Model             string
+		ContextWindow     int
+		MaxOutputTokens   int
 		Auto              bool
 		ToolCalling       bool
 		StructuredOutputs bool
@@ -1651,6 +1642,8 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 			out = append(out, providerCapabilityFingerprint{
 				ID:                p.ID,
 				Model:             p.Model,
+				ContextWindow:     p.ContextWindow,
+				MaxOutputTokens:   p.MaxOutputTokens,
 				Auto:              p.Capabilities.AutoEnabled(),
 				ToolCalling:       p.Capabilities.ToolCalling,
 				StructuredOutputs: p.Capabilities.StructuredOutputs,

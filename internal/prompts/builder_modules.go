@@ -1,9 +1,7 @@
 package prompts
 
 import (
-	"aurago/internal/memory"
-	"aurago/internal/security"
-	promptsembed "aurago/prompts"
+	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -13,6 +11,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"aurago/internal/memory"
+	"aurago/internal/security"
+	promptsembed "aurago/prompts"
 
 	"gopkg.in/yaml.v3"
 )
@@ -41,19 +43,22 @@ var GetActivePromptOverrides func() map[string]string
 
 func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	logger = normalizePromptLogger(logger)
+	now := time.Now()
 	// --- Fast path: check cache validity (TTL + disk files) ---
 	promptCacheMu.RLock()
 	cached, ok := promptCacheByDir[dir]
 	promptCacheMu.RUnlock()
 
 	if ok {
-		if time.Since(cached.checked) < 60*time.Second {
+		if now.Sub(cached.checked) < 60*time.Second {
+			touchPromptModuleCacheEntry(dir, now)
 			return cached.modules
 		}
 		if !promptCacheStale(dir, cached.mtimes) {
 			promptCacheMu.Lock()
 			c := promptCacheByDir[dir]
-			c.checked = time.Now()
+			c.checked = now
+			c.lastUsed = now
 			promptCacheByDir[dir] = c
 			promptCacheMu.Unlock()
 			return cached.modules
@@ -131,7 +136,10 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 
 	// Update cache
 	promptCacheMu.Lock()
-	promptCacheByDir[dir] = promptDirCache{modules: modules, mtimes: mtimes, checked: time.Now()}
+	if _, exists := promptCacheByDir[dir]; !exists && len(promptCacheByDir) >= staticPromptCacheLimit {
+		evictOldestPromptModuleCacheEntryLocked()
+	}
+	promptCacheByDir[dir] = promptDirCache{modules: modules, mtimes: mtimes, checked: now, lastUsed: now}
 	promptCacheMu.Unlock()
 
 	if ok {
@@ -141,6 +149,30 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	}
 
 	return modules
+}
+
+func touchPromptModuleCacheEntry(dir string, now time.Time) {
+	promptCacheMu.Lock()
+	entry, ok := promptCacheByDir[dir]
+	if ok {
+		entry.lastUsed = now
+		promptCacheByDir[dir] = entry
+	}
+	promptCacheMu.Unlock()
+}
+
+func evictOldestPromptModuleCacheEntryLocked() {
+	oldestKey := ""
+	var oldest time.Time
+	for key, entry := range promptCacheByDir {
+		if oldestKey == "" || entry.lastUsed.Before(oldest) {
+			oldestKey = key
+			oldest = entry.lastUsed
+		}
+	}
+	if oldestKey != "" {
+		delete(promptCacheByDir, oldestKey)
+	}
 }
 
 func isRootToolPromptModule(name string) bool {
@@ -169,7 +201,7 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 		if err != nil {
 			return true
 		}
-		if cached, ok := mtimes[path]; !ok || info.ModTime().After(cached) {
+		if cached, ok := mtimes[path]; !ok || !info.ModTime().Equal(cached) {
 			return true
 		}
 	}
@@ -529,7 +561,7 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 
 	if ok {
 		info, err := os.Stat(path)
-		if err == nil && !info.ModTime().After(cached.mtime) {
+		if err == nil && info.ModTime().Equal(cached.mtime) {
 			if !guideConditionsAllow(cached.conditions, flags) {
 				return "", false
 			}
@@ -790,6 +822,14 @@ type DynamicGuideStrategy struct {
 	Flags *ContextFlags
 }
 
+var searchDynamicToolGuides = func(ctx context.Context, vdb memory.VectorDB, query string, topK int) ([]string, error) {
+	chromemDB, ok := vdb.(*memory.ChromemVectorDB)
+	if !ok {
+		return nil, nil
+	}
+	return chromemDB.SearchToolGuidesContext(ctx, query, topK)
+}
+
 func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
 	return PrepareDynamicGuidesWithStrategy(vdb, stm, userQuery, lastTool, toolsDir, recentTools, explicitTools, maxTotalGuides, DynamicGuideStrategy{}, logger)
 }
@@ -797,6 +837,20 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 // PrepareDynamicGuidesWithStrategy behaves like PrepareDynamicGuides but allows
 // the caller to selectively down-weight heuristic sources for weaker models.
 func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, strategy DynamicGuideStrategy, logger *slog.Logger) []string {
+	return PrepareDynamicGuidesWithStrategyContext(context.Background(), vdb, stm, userQuery, lastTool, toolsDir, recentTools, explicitTools, maxTotalGuides, strategy, logger)
+}
+
+// PrepareDynamicGuidesWithStrategyContext is the cancellation-aware variant
+// used by request-scoped prompt construction.
+func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, strategy DynamicGuideStrategy, logger *slog.Logger) []string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if ctx.Err() != nil {
+		return nil
+	}
 	if maxTotalGuides <= 0 {
 		maxTotalGuides = 5
 	}
@@ -821,6 +875,18 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			allowedSet[name] = true
 		}
 	}
+	if len(allowedSet) > 0 {
+		allSkipped := true
+		for name := range allowedSet {
+			if !skipSet[name] {
+				allSkipped = false
+				break
+			}
+		}
+		if allSkipped {
+			return nil
+		}
+	}
 	isAllowed := func(tool string) bool {
 		if len(allowedSet) == 0 {
 			return true
@@ -834,6 +900,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 
 	// Phase Z: EXPLICIT requested tools (highest priority, injected via <workflow_plan> tag)
 	for _, tool := range explicitTools {
+		if ctx.Err() != nil {
+			return guides
+		}
 		if len(guides) >= maxTotalGuides {
 			break
 		}
@@ -864,6 +933,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 
 	addRecentGuides := func(limit int) {
 		for _, tool := range recentTools {
+			if ctx.Err() != nil {
+				return
+			}
 			if len(guides) >= limit {
 				break
 			}
@@ -885,11 +957,10 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	}
 
 	addSemanticGuides := func(limit int) {
-		chromemDB, ok := vdb.(*memory.ChromemVectorDB)
-		if !ok || len(guides) >= limit {
+		if vdb == nil || len(guides) >= limit {
 			return
 		}
-		paths, err := chromemDB.SearchToolGuides(userQuery, 2)
+		paths, err := searchDynamicToolGuides(ctx, vdb, userQuery, 2)
 		if err != nil {
 			if logger != nil {
 				logger.Debug("[DynamicGuides] Semantic tool guide search unavailable", "error", err)
@@ -928,6 +999,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		}
 		addSemanticGuides(3)
 	}
+	if ctx.Err() != nil {
+		return guides
+	}
 
 	// C. Statistics (Transition Graph)
 	if !strategy.DisableStatisticalHeuristics && stm != nil && lastTool != "" && len(guides) < 3 {
@@ -950,6 +1024,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	// C2. Global usage frequency: boost tools that are frequently used across all sessions
 	if !strategy.DisableFrequencyHeuristics && len(guides) < 3 {
 		for _, tool := range GetFrequentTools(3) {
+			if ctx.Err() != nil {
+				return guides
+			}
 			if len(guides) >= 3 {
 				break
 			}
@@ -995,7 +1072,7 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 
 	if ok {
 		info, err := os.Stat(profilePath)
-		if err == nil && !info.ModTime().After(cached.mtime) {
+		if err == nil && info.ModTime().Equal(cached.mtime) {
 			return cached.meta
 		}
 		if err != nil && cached.fromEmbed {

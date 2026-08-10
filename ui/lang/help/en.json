@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Wait time between retry attempts in seconds.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Maximum wait time for a background task to complete. Default: 600 seconds (10 minutes).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "How often the agent checks the status of a waiting task (in seconds).",
-  "help.agent.context_window": "Total context window size in tokens. The agent uses this to calculate available capacity. 0 = auto-detect from model.",
+  "help.agent.context_window": "Global upper limit for the request context in tokens. 0 means no configured global cap. Provider limits are detected automatically; unknown models use a conservative 8,192-token context and 4,096-token output limit.",
   "help.agent.core_memory_cap_mode": "How the agent responds when reaching the core memory limit. 'soft' = entry added with warning, 'hard' = entry rejected. Default: soft.",
   "help.agent.core_memory_max_entries": "Upper limit for permanently stored core memory facts. 0 uses the default of 80.",
   "help.agent.core_personality": "Active personality profile, e.g. 'neutral', 'punk', 'zen'.",

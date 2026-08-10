@@ -409,6 +409,10 @@ Tools are defined in `internal/tools/`:
 ### Prompt and Runtime Drift Contract
 - Prompt logs must include provider/model, build and VCS identifiers, prompt revision, sorted active tools, tool-catalog hash, and recovery counters.
 - `/api/system/info` exposes the running build identifier and VCS metadata. Deployment acceptance requires its `build_id` to match the reviewed commit; a `-dirty` identifier is not a clean release artifact.
+- Every LLM request must fit every eligible primary/failover route after reserving output and protocol safety tokens. Resolve limits in this order: provider override, model registry, cached provider probe, configured global cap for an unknown primary model, then conservative 8192/4096 defaults; `agent.context_window` is always an upper cap.
+- `RunConfig.UserIntent` is the immutable human intent for one tool chain. Tool outputs remain in model history but must not retarget RAG, KG, dynamic guides, coding mode, task rules, or specialist selection. Recompute only explicitly invalidated turn-snapshot categories after successful mutations.
+- Internal chat control headers are trusted only from loopback with the process token. A mission ID additionally requires `X-Internal-FollowUp: true`; invalid internal headers fail with `invalid_internal_chat_headers` before normal authentication handling.
+- Persisted history compression is coordinated per session and applies one stable-ID update to the summary, in-memory history, and SQLite. Hard truncation must preserve valid UTF-8 and the final token limit.
 
 ### 3D Printer Integration Contract
 - Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.

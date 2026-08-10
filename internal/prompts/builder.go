@@ -1,9 +1,6 @@
 package prompts
 
 import (
-	"aurago/internal/memory"
-	"aurago/internal/security"
-	promptsembed "aurago/prompts"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -18,6 +15,10 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"aurago/internal/memory"
+	"aurago/internal/security"
+	promptsembed "aurago/prompts"
 
 	tiktoken "github.com/pkoukk/tiktoken-go"
 )
@@ -50,10 +51,13 @@ var (
 	promptCacheByDir = make(map[string]promptDirCache)
 )
 
+const staticPromptCacheLimit = 128
+
 type promptDirCache struct {
-	modules []PromptModule
-	mtimes  map[string]time.Time // file path → last mod time
-	checked time.Time            // last time staleness was checked
+	modules  []PromptModule
+	mtimes   map[string]time.Time // file path → last mod time
+	checked  time.Time            // last time staleness was checked
+	lastUsed time.Time
 }
 
 // personalityMetaCache caches parsed personality meta keyed by profile path.
@@ -78,6 +82,8 @@ type personalityCacheEntry struct {
 	content   string
 	mtime     time.Time
 	fromEmbed bool
+	checked   time.Time
+	lastUsed  time.Time
 }
 
 // toolGuideCache caches tool guide contents keyed by file path.
@@ -342,22 +348,40 @@ func BuildSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string
 }
 
 func BuildSystemPromptContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
+	result := BuildSystemPromptDetailed(ctx, promptsDir, flags, coreMemory, logger)
+	return result.Text, result.Tokens
+}
+
+// BuildSystemPromptDetailed returns the built text together with its typed
+// section ledger, removed sections and stable content revision.
+func BuildSystemPromptDetailed(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) PromptBuildResult {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	flags = normalizePromptFlags(flags)
 	ctx, cancel := context.WithTimeout(ctx, buildPromptTimeout)
 	defer cancel()
+	collector := &promptBuildDetailsCollector{}
+	ctx = promptBuildContextWithCollector(ctx, collector)
 	if err := promptContextErr(ctx); err != nil {
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled before build, using fallback", "error", err)
-		return fallbackSystemPromptContext(ctx, promptsDir, flags, coreMemory, logger)
+		prompt, tokens := fallbackSystemPromptContext(ctx, promptsDir, flags, coreMemory, logger)
+		document := newPromptDocumentContext(context.Background(), prompt, flags.Model, tokens)
+		return PromptBuildResult{Text: prompt, Tokens: tokens, Revision: document.Revision, Document: document}
 	}
 
 	prompt, tokens, err := buildSystemPromptInnerContext(ctx, promptsDir, flags, coreMemory, logger)
 	if err != nil {
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled, using fallback", "error", err)
-		return fallbackSystemPromptContext(ctx, promptsDir, flags, coreMemory, logger)
+		prompt, tokens = fallbackSystemPromptContext(context.Background(), promptsDir, flags, coreMemory, logger)
 	}
-	return prompt, tokens
+	document := newPromptDocumentContext(context.Background(), prompt, flags.Model, tokens)
+	return PromptBuildResult{
+		Text:            prompt,
+		Tokens:          tokens,
+		RemovedSections: append([]string(nil), collector.removed...),
+		Revision:        document.Revision,
+		Document:        document,
+	}
 }
 
 // buildPromptTimeout is the maximum time BuildSystemPrompt may take before
@@ -940,35 +964,35 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	// Filter savings: chars that were loaded but excluded by filterModules.
 	filterSavings := rawFilteredOutChars
 
-	// 6. Token budget shedding FIRST — shed large sections before spending CPU on optimization
+	// 6. Apply the cheap structural optimization before the two-pass budget
+	// ledger. This makes the ledger operate on the exact text that will be sent
+	// and avoids a third full-prompt tokenization after shedding.
+	optimized, saved := OptimizePrompt(rawPrompt)
+	optimizedBeforeShedLen := len(optimized)
+
+	// 7. Token budget shedding uses one initial and one final full-document
+	// tokenization. Per-section counts drive all intermediate decisions.
 	var shedSavings int
 	var shedSections []string
 	budgetShedTriggered := false
+	var finalTokens int
 	if flags.TokenBudget > 0 {
 		var err error
-		rawPrompt, shedSections, err = budgetShedContext(ctx, rawPrompt, flags, corePersonalityContent, coreMemory, now, logger)
+		optimized, shedSections, finalTokens, err = budgetShedDetailedContext(ctx, optimized, flags, corePersonalityContent, coreMemory, now, logger)
 		if err != nil {
 			return "", 0, err
 		}
 		budgetShedTriggered = len(shedSections) > 0
-		shedSavings = rawLen - len(rawPrompt)
+		shedSavings = optimizedBeforeShedLen - len(optimized)
 		if shedSavings < 0 {
 			shedSavings = 0
 		}
+	} else {
+		finalTokens = countTokensWithModelContext(ctx, optimized, flags.Model)
 	}
 
-	// 7. Optimize after shedding — only minify what remains
-	optimized, saved := OptimizePrompt(rawPrompt)
 	if err := promptContextErr(ctx); err != nil {
 		return "", 0, err
-	}
-	finalTokens := countTokensWithModelContext(ctx, optimized, flags.Model)
-
-	// 7b. Post-shed verification: warn if prompt still exceeds budget after all shedding.
-	if flags.TokenBudget > 0 && finalTokens > flags.TokenBudget {
-		logger.Warn("[Budget] Prompt still exceeds token budget after shedding",
-			"tokens", finalTokens, "budget", flags.TokenBudget,
-			"shed_sections", shedSections, "optimized_len", len(optimized))
 	}
 
 	logger.Debug("System prompt built", "raw_len", rawLen, "optimized_len", len(optimized), "saved_chars", saved, "tier", tier, "tokens", finalTokens)
@@ -1403,136 +1427,89 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 }
 
 func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string, error) {
+	result, shedList, _, err := budgetShedDetailedContext(ctx, prompt, flags, personalityContent, coreMemory, now, logger)
+	return result, shedList, err
+}
+
+func budgetShedDetailedContext(ctx context.Context, prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string, int, error) {
 	ctx = normalizePromptContext(ctx)
 	flags = normalizePromptFlags(flags)
 	if err := promptContextErr(ctx); err != nil {
-		return "", nil, err
+		return "", nil, 0, err
 	}
+	noteBudgetShedFullTokenization()
 	tokens := countTokensWithModelContext(ctx, prompt, flags.Model)
 	if tokens <= flags.TokenBudget {
-		return prompt, nil, nil
+		recordRemovedPromptSections(ctx, nil)
+		return prompt, nil, tokens, nil
 	}
 
 	logger.Info("[Budget] Token budget exceeded, shedding content", "tokens", tokens, "budget", flags.TokenBudget)
 
 	var shedList []string
 	result := prompt
+	estimatedTokens := tokens
+	sectionTokens := newPromptDocumentContext(ctx, prompt, flags.Model, tokens).sectionTokenLedger()
 
-	type shedTarget struct {
-		header string
-		isLine bool
-	}
-
-	// Shed sections in fixed priority order. Re-count tokens only when a section
-	// was actually removed. This avoids the expensive double token-counting that
-	// the previous size-sorting approach required.
-	shedTargets := []shedTarget{
-		{"# TOOL GUIDES", false},
-	}
-
-	if flags.UnifiedMemoryBlock {
-		shedTargets = append(shedTargets,
-			shedTarget{"## USER PROFILING", false},
-			shedTarget{"# UNIFIED MEMORY CONTEXT", false},
-		)
-	} else {
-		shedTargets = append(shedTargets,
-			shedTarget{"# PREDICTED CONTEXT", false},
-			shedTarget{"# LAST 7 DAYS OVERVIEW", false},
-			shedTarget{"## USER PROFILING", false},
-		)
-	}
-
-	shedTargets = append(shedTargets,
-		shedTarget{"# RELEVANT KNOWLEDGE", false},
-		shedTarget{"# KNOWN ERROR PATTERNS", false},
-		shedTarget{"# LEARNED RULES", false},
-		shedTarget{"# REUSE-FIRST CONTEXT", false},
-		shedTarget{"### ACTIVE REMINDERS", false},
-		shedTarget{"### PLANNER CONTEXT", false},
-		shedTarget{"### DAILY TODO REMINDER", false},
-		shedTarget{"### OPERATIONAL ISSUE REMINDER", false},
-		shedTarget{"### ACTIVE TASK LIST", false},
-		shedTarget{"# OUTGOING WEBHOOKS", false},
-		shedTarget{"# TASK RULES", false},
-		shedTarget{"# HOMEPAGE DESIGN SYSTEM", false},
-		shedTarget{"# AGENT SKILLS CATALOG", false},
-		shedTarget{"### PERSONA SIGNALS", false},
-		shedTarget{"### INNER VOICE", false},
-		shedTarget{"### CURRENT EMOTIONAL STATE & MOOD", false},
-		shedTarget{"### CURRENT PERSONALITY TRAITS", false},
-		shedTarget{"# PERSONA", false},
-		shedTarget{"# YOUR PERSONALITY", false},
-	)
-
-	for _, target := range shedTargets {
+	for _, header := range promptOptionalHeaders(flags.UnifiedMemoryBlock) {
 		if err := promptContextErr(ctx); err != nil {
-			return "", nil, err
+			return "", nil, 0, err
 		}
-		if tokens <= flags.TokenBudget {
+		if estimatedTokens <= flags.TokenBudget {
 			break
 		}
-		before := len(result)
-		if target.isLine {
-			result = removeLineByPrefix(result, target.header)
-		} else {
-			result = removeSection(result, target.header)
-		}
-		if len(result) < before {
-			tokens = countTokensWithModelContext(ctx, result, flags.Model)
-			shedList = append(shedList, target.header)
-			logger.Debug("[Budget] Shed section", "header", target.header, "tokens", tokens)
+		before := result
+		result = removeSection(result, header)
+		if len(result) < len(before) {
+			removedTokens := takeSectionTokens(sectionTokens, header)
+			if removedTokens == 0 {
+				// A dynamically generated heading that was absent from the initial
+				// document ledger is still handled safely without a full recount.
+				removedTokens = countTokensWithModelContext(ctx, removedTextBetween(before, result), flags.Model)
+			}
+			estimatedTokens = maxInt(0, estimatedTokens-removedTokens)
+			shedList = append(shedList, header)
+			logger.Debug("[Budget] Shed section", "header", header, "estimated_tokens", estimatedTokens)
 		}
 	}
 
-	// Accurate re-count after all section shedding (single O(n) pass).
+	// Token-aware Retrieved Memories trim uses per-entry ledger counts instead
+	// of repeatedly tokenizing the full prompt.
+	if estimatedTokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
+		var partial, full bool
+		var err error
+		result, partial, full, estimatedTokens, err = trimRetrievedMemoriesLedgerContext(ctx, result, flags.TokenBudget, estimatedTokens, flags.Model)
+		if err != nil {
+			return "", nil, 0, err
+		}
+		if partial {
+			shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
+		}
+		if full {
+			shedList = append(shedList, "# RETRIEVED MEMORIES")
+		}
+	}
+
+	// Second and normally final full-prompt tokenization.
+	noteBudgetShedFullTokenization()
 	tokens = countTokensWithModelContext(ctx, result, flags.Model)
 
-	// Token-aware Retrieved Memories trim: progressively remove individual entries (lowest ranked first)
-	// instead of dropping the entire section at once.
-	if tokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
-		var trimmed bool
-		var err error
-		result, trimmed, tokens, err = trimRetrievedMemoriesSectionContext(ctx, result, flags.TokenBudget, flags.Model, logger)
-		if err != nil {
-			return "", nil, err
-		}
-		if trimmed {
-			if hasSectionHeader(result, "# RETRIEVED MEMORIES") {
-				shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
-			} else {
-				shedList = append(shedList, "# RETRIEVED MEMORIES")
-			}
-		}
-	}
-
-	if tokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
-		before := len(result)
-		result = removeSection(result, "# RETRIEVED MEMORIES")
-		if len(result) < before {
-			tokens = countTokensWithModelContext(ctx, result, flags.Model)
-			shedList = append(shedList, "# RETRIEVED MEMORIES")
-			logger.Debug("[Budget] Shed section", "header", "# RETRIEVED MEMORIES", "tokens", tokens)
-		}
-	}
-
-	// Final hard-truncate: if the mandatory core content alone exceeds the budget,
-	// truncate the raw string so that CountTokens(result) <= budget.  This is a
-	// last-resort safety net — the prompt will be degraded but the LLM call won't
-	// fail with a context-window overflow.
+	// A residual overflow can result from token-boundary effects in the section
+	// ledger. Reduce the already-counted over-budget document conservatively;
+	// the truncator deliberately does not recount the complete input.
 	if tokens > flags.TokenBudget {
-		logger.Warn("[Budget] Hard-truncating prompt (mandatory content exceeds budget)",
+		logger.Warn("[Budget] Conservatively truncating residual prompt overflow",
 			"tokens", tokens, "budget", flags.TokenBudget)
 		var err error
-		result, err = hardTruncateToBudgetContext(ctx, result, flags.TokenBudget, flags.Model)
+		result, tokens, err = hardTruncateKnownOverflowContext(ctx, result, flags.TokenBudget, flags.Model)
 		if err != nil {
-			return "", nil, err
+			return "", nil, 0, err
 		}
-		tokens = countTokensWithModelContext(ctx, result, flags.Model)
 		shedList = append(shedList, "HARD_TRUNCATE")
 	}
 
-	return result, shedList, nil
+	recordRemovedPromptSections(ctx, shedList)
+	return result, shedList, tokens, nil
 }
 
 func hasSectionHeader(text, header string) bool {
@@ -1680,61 +1657,97 @@ func hardTruncateToBudgetContext(ctx context.Context, prompt string, budget int,
 	if countTokensWithModelContext(ctx, prompt, model) <= budget {
 		return prompt, nil
 	}
+	result, _, err := hardTruncateKnownOverflowContext(ctx, prompt, budget, model)
+	return result, err
+}
 
-	// Work on byte level rather than rune level. BPE tokenizers operate on
-	// UTF-8 bytes, so splitting on byte boundaries produces more accurate
-	// truncation points than splitting on rune boundaries (where a single
-	// emoji rune can expand to 3-6 tokens).
+// hardTruncateKnownOverflowContext trims a document whose exact full token
+// count is already known to exceed budget. It excludes the full input from the
+// binary search, preserving the prompt builder's two-full-tokenization bound.
+func hardTruncateKnownOverflowContext(ctx context.Context, prompt string, budget int, model string) (string, int, error) {
+	ctx = normalizePromptContext(ctx)
+	if err := promptContextErr(ctx); err != nil {
+		return "", 0, err
+	}
+	if budget <= 0 || prompt == "" {
+		return "", 0, nil
+	}
+
+	// Tokenizers operate on UTF-8 bytes, but provider requests must remain valid
+	// UTF-8. The binary search below therefore considers only rune boundaries
+	// and still validates the exact token count for every candidate.
 	bytes := []byte(prompt)
 	marker := "\n\n[BUDGET TRUNCATED]"
 
-	bestWithMarker, ok, err := longestBytePrefixWithinBudgetContext(ctx, bytes, marker, budget, model)
+	bestWithMarker, bestTokens, ok, err := longestBytePrefixWithinBudgetDetailedContext(ctx, bytes, marker, budget, model, false)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if ok {
-		return bestWithMarker, nil
+		return bestWithMarker, bestTokens, nil
 	}
 
-	bestWithoutMarker, ok, err := longestBytePrefixWithinBudgetContext(ctx, bytes, "", budget, model)
+	bestWithoutMarker, bestTokens, ok, err := longestBytePrefixWithinBudgetDetailedContext(ctx, bytes, "", budget, model, false)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if ok {
-		return bestWithoutMarker, nil
+		return bestWithoutMarker, bestTokens, nil
 	}
 
-	if countTokensWithModelContext(ctx, marker, model) <= budget {
-		return marker, nil
+	markerTokens := countTokensWithModelContext(ctx, marker, model)
+	if markerTokens <= budget {
+		return marker, markerTokens, nil
 	}
-	return "", nil
+	return "", 0, nil
 }
 
-// longestBytePrefixWithinBudget performs a binary search over byte-sliced
-// prefixes of data, appending suffix, and returns the longest candidate whose
-// token count fits within budget.
+// longestBytePrefixWithinBudget performs a binary search over valid UTF-8 rune
+// boundaries, appending suffix, and returns the longest fitting candidate.
 func longestBytePrefixWithinBudget(data []byte, suffix string, budget int, model string) (string, bool) {
 	result, ok, _ := longestBytePrefixWithinBudgetContext(context.Background(), data, suffix, budget, model)
 	return result, ok
 }
 
 func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suffix string, budget int, model string) (string, bool, error) {
+	result, _, ok, err := longestBytePrefixWithinBudgetDetailedContext(ctx, data, suffix, budget, model, true)
+	return result, ok, err
+}
+
+func longestBytePrefixWithinBudgetDetailedContext(ctx context.Context, data []byte, suffix string, budget int, model string, includeFull bool) (string, int, bool, error) {
 	ctx = normalizePromptContext(ctx)
 	if err := promptContextErr(ctx); err != nil {
-		return "", false, err
+		return "", 0, false, err
 	}
-	lo, hi := 0, len(data)
+	valid := strings.ToValidUTF8(string(data), "�")
+	boundaries := make([]int, 1, utf8.RuneCountInString(valid)+1)
+	boundaries[0] = 0
+	for offset := 0; offset < len(valid); {
+		_, size := utf8.DecodeRuneInString(valid[offset:])
+		if size <= 0 {
+			break
+		}
+		offset += size
+		boundaries = append(boundaries, offset)
+	}
+	lo, hi := 0, len(boundaries)-1
+	if !includeFull && hi > 0 {
+		hi--
+	}
 	best := ""
+	bestTokens := 0
 	found := false
 
 	for lo <= hi {
 		if err := promptContextErr(ctx); err != nil {
-			return "", false, err
+			return "", 0, false, err
 		}
 		mid := (lo + hi) / 2
-		candidate := string(data[:mid]) + suffix
-		if countTokensWithModelContext(ctx, candidate, model) <= budget {
+		candidate := valid[:boundaries[mid]] + suffix
+		candidateTokens := countTokensWithModelContext(ctx, candidate, model)
+		if candidateTokens <= budget {
 			best = candidate
+			bestTokens = candidateTokens
 			found = true
 			lo = mid + 1
 			continue
@@ -1742,7 +1755,7 @@ func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suff
 		hi = mid - 1
 	}
 
-	return best, found, nil
+	return best, bestTokens, found, nil
 }
 
 func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
@@ -2160,13 +2173,31 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 	cached, ok := personalityCache[cacheKey]
 	personalityCacheMu.RUnlock()
 
+	now := time.Now()
+	if ok && now.Sub(cached.checked) < time.Minute {
+		personalityCacheMu.Lock()
+		entry := personalityCache[cacheKey]
+		entry.lastUsed = now
+		personalityCache[cacheKey] = entry
+		personalityCacheMu.Unlock()
+		return cached.content
+	}
 	if ok {
-		if info, err := os.Stat(profilePath); err == nil {
-			if !info.ModTime().After(cached.mtime) {
-				return cached.content
-			}
-		} else if cached.fromEmbed {
-			// File gone from disk — still valid if loaded from embed
+		if info, err := os.Stat(profilePath); err == nil && !cached.fromEmbed && info.ModTime().Equal(cached.mtime) {
+			personalityCacheMu.Lock()
+			entry := personalityCache[cacheKey]
+			entry.checked = now
+			entry.lastUsed = now
+			personalityCache[cacheKey] = entry
+			personalityCacheMu.Unlock()
+			return cached.content
+		} else if os.IsNotExist(err) && cached.fromEmbed {
+			personalityCacheMu.Lock()
+			entry := personalityCache[cacheKey]
+			entry.checked = now
+			entry.lastUsed = now
+			personalityCache[cacheKey] = entry
+			personalityCacheMu.Unlock()
 			return cached.content
 		}
 	}
@@ -2191,10 +2222,27 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 
 	content := compactCorePersonalityBody(raw)
 	personalityCacheMu.Lock()
-	personalityCache[cacheKey] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed}
+	if _, exists := personalityCache[cacheKey]; !exists && len(personalityCache) >= staticPromptCacheLimit {
+		evictOldestPersonalityCacheEntryLocked()
+	}
+	personalityCache[cacheKey] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed, checked: now, lastUsed: now}
 	personalityCacheMu.Unlock()
 
 	return content
+}
+
+func evictOldestPersonalityCacheEntryLocked() {
+	oldestKey := ""
+	var oldest time.Time
+	for key, entry := range personalityCache {
+		if oldestKey == "" || entry.lastUsed.Before(oldest) {
+			oldestKey = key
+			oldest = entry.lastUsed
+		}
+	}
+	if oldestKey != "" {
+		delete(personalityCache, oldestKey)
+	}
 }
 
 func compactCorePersonalityBody(raw string) string {
@@ -2378,6 +2426,25 @@ func CountTokensForModelContext(ctx context.Context, text string, model string) 
 		return base
 	}
 	return int(float64(base) * mult)
+}
+
+// TranslateTokenBudget converts a token allowance measured for fromModel into
+// the largest allowance for toModel that represents the same base-token
+// capacity. The calculation mirrors CountTokensForModel's truncation exactly,
+// so callers can reserve one prompt against routes with different multipliers.
+func TranslateTokenBudget(budget int, fromModel, toModel string) int {
+	if budget <= 0 {
+		return 0
+	}
+	fromMultiplier := tokenMultiplier(fromModel)
+	maxBaseTokens := int(float64(budget+1) / fromMultiplier)
+	for maxBaseTokens > 0 && int(float64(maxBaseTokens)*fromMultiplier) > budget {
+		maxBaseTokens--
+	}
+	for int(float64(maxBaseTokens+1)*fromMultiplier) <= budget {
+		maxBaseTokens++
+	}
+	return int(float64(maxBaseTokens) * tokenMultiplier(toModel))
 }
 
 // countTokensWithModel returns CountTokensForModel when model is set,

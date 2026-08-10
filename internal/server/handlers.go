@@ -17,7 +17,6 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
-	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -229,6 +228,11 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
+		isFollowUp, missionID, validInternalHeaders := validateInternalChatHeaders(r, s)
+		if !validInternalHeaders {
+			writeInvalidInternalChatHeaders(w)
+			return
+		}
 
 		// Limit request body to 1 MB to prevent abuse
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
@@ -242,9 +246,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		s.Logger.Debug("Received chat completion request", "model", req.Model, "messages_count", len(req.Messages), "stream", req.Stream)
 
-		// Check for Follow-Up loop protection
-		isFollowUp := r.Header.Get("X-Internal-FollowUp") == "true"
-		missionID := r.Header.Get("X-Mission-ID")
+		// Check for Follow-Up loop protection. The headers were authenticated
+		// above independently of the normal browser/API authentication mode.
 		followUpKey := "default"
 		if missionID != "" {
 			followUpKey = "mission-" + missionID
@@ -443,113 +446,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			recentMessages = sanitizedMessages
 		}
 
-		// Phase 33: Recursive Context Compression (Character Based)
-		// Only applies to the default session which uses HistoryManager
-		charLimit := turnCfg.Agent.MemoryCompressionCharLimit
-		if sessionID == "default" && s.HistoryManager.TotalChars() >= charLimit {
-			if ok, release := s.HistoryManager.TryLockCompression(); ok {
-				// Do NOT defer release() here — ownership transfers to the goroutine below.
-				// If no goroutine is spawned, release() is called explicitly at the end of the
-				// else branch.  Using defer here would fire when the HTTP handler returns
-				// (~seconds after the agent loop finishes), which is far BEFORE the goroutine's
-				// LLM summarisation call completes (up to 2 minutes).  That premature unlock
-				// allowed a second request to start another compression round whose snapshot
-				// included the just-finished agent response, silently deleting it from
-				// HistoryManager and making it disappear on the next page reload.
-
-				// Safety Check: Check if pinned messages exceed 50% of the limit
-				pinnedChars := s.HistoryManager.TotalPinnedChars()
-				if pinnedChars > charLimit/2 {
-					s.Logger.Warn("[Compression] Context overcrowded with pinned messages", "pinned_chars", pinnedChars, "limit", charLimit)
-					warningMsg := fmt.Sprintf("WARNING: Pinned messages are consuming %d characters, which is over 50%% of your memory limit (%d). Consider unpinning old information to maintain full context reliability.", pinnedChars, charLimit)
-					// Inject warning to agent
-					id, err := s.ShortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleSystem, warningMsg, false, false)
-					if err != nil {
-						s.Logger.Error("Failed to insert compression warning", "error", err)
-					}
-					if agent.ShouldAppendHistoryMessage(id, err) {
-						s.HistoryManager.Add(openai.ChatMessageRoleSystem, warningMsg, id, false, false)
-					}
-				}
-
-				// We want to compress about 20% of the limit or at least enough to be under the limit
-				targetPruneChars := charLimit / 5
-				messagesToSummarize, actualChars := s.HistoryManager.GetOldestMessagesForPruning(targetPruneChars)
-
-				if len(messagesToSummarize) > 0 {
-					go func(msgs []memory.HistoryMessage, charsPruned int, existingSummary string, releaseFn func(), compressionCfg *config.Config, fallbackClient llm.ChatClient) {
-						defer releaseFn() // Goroutine owns the lock; released when summarisation completes
-						defer func() {
-							if r := recover(); r != nil {
-								s.Logger.Error("[Compression] Goroutine panic recovered", "error", r)
-							}
-						}()
-						compressionClient, compressionModel := llm.ResolveHelperBackedClient(compressionCfg, fallbackClient, compressionCfg.LLM.Model)
-						llmSource := "main"
-						if compressionModel != compressionCfg.LLM.Model {
-							llmSource = "helper"
-						}
-						s.Logger.Info("[Compression] Triggering character-based context compression",
-							"msg_count", len(msgs), "chars", charsPruned, "limit", charLimit, "llm", llmSource, "model", compressionModel)
-
-						prompt, dropIDs := buildPersistentSummaryPrompt(existingSummary, msgs)
-
-						summaryReq := openai.ChatCompletionRequest{
-							Model: compressionModel,
-							Messages: []openai.ChatCompletionMessage{
-								{Role: openai.ChatMessageRoleUser, Content: prompt},
-							},
-							MaxTokens:   1000,
-							Temperature: 0.3,
-						}
-
-						bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-						defer cancel()
-
-						resp, err := llm.ExecuteWithRetry(bgCtx, compressionClient, summaryReq, s.Logger, nil)
-						if err != nil {
-							s.Logger.Error("[Compression] Background summarization failed", "error", err)
-							return
-						}
-
-						if len(resp.Choices) > 0 {
-							newSummary := resp.Choices[0].Message.Content
-							s.HistoryManager.SetSummary(newSummary)
-							s.HistoryManager.DropMessages(dropIDs)
-							// In SQLite we still delete by count for now, or we could update ShortTermMem to delete by ID list
-							// For simplicity and since HistoryManager is the source of truth for active context, we'll stick to this.
-							// However, stm.DeleteOldMessages might delete pinned ones if we are not careful.
-							// Requirement: "rest weiterhin komprimiert wird".
-							// Let's add a DeleteMessagesByID to ShortTermMem too.
-							if err := s.ShortTermMem.DeleteMessagesByID(sessionID, dropIDs); err != nil {
-								s.Logger.Error("[Compression] Failed to clean up SQLite memory", "error", err)
-							}
-							s.Logger.Info("[Compression] Background summarization complete and saved",
-								"summary_len", len(newSummary), "messages_dropped", len(dropIDs))
-
-							// Archive the LLM-distilled summary to VectorDB so it remains
-							// semantically searchable via RAG even after chat resets.
-							if s.LongTermMem != nil && !s.LongTermMem.IsDisabled() {
-								concept := fmt.Sprintf("Gesprächszusammenfassung %s", time.Now().Format("2006-01-02 15:04"))
-								go func(concept, summary string) {
-									if _, err := s.LongTermMem.StoreDocument(concept, summary); err != nil {
-										s.Logger.Warn("[Compression] VectorDB archive of summary failed", "error", err)
-									} else {
-										s.Logger.Info("[Compression] Summary archived to VectorDB", "concept", concept)
-									}
-								}(concept, newSummary)
-							}
-						}
-					}(messagesToSummarize, actualChars, s.HistoryManager.GetSummary(), release, turnCfg, turnLLMClient)
-				} else {
-					// No messages to compress — release the lock immediately.
-					release()
-				}
-			}
-		}
-
 		// Build run configuration for the unified agent loop.
 		msgSource := chatCompletionMessageSource(isFollowUp, missionID)
+		userIntent := ""
+		if !isFollowUp && missionID == "" && lastUserMsg.Role == openai.ChatMessageRoleUser {
+			userIntent = lastUserMsg.Content
+		}
 		runCfg := agent.RunConfig{
 			Config:             turnCfg,
 			Logger:             s.Logger,
@@ -581,6 +483,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			PreparationService: s.PreparationService,
 			WorkspaceSearch:    s.WorkspaceSearch,
 			SessionID:          sessionID,
+			UserIntent:         userIntent,
 			IsMaintenance:      inMaintenance,
 			IsMission:          missionID != "",
 			MissionID:          missionID,
@@ -655,6 +558,17 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		req.Messages = finalMessages
+		if err := agent.ValidateMinimumRequestBudget(r.Context(), req, runCfg); err != nil {
+			if agent.IsContextBudgetExceeded(err) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusRequestEntityTooLarge)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "context_budget_exceeded"})
+				return
+			}
+			s.Logger.Error("Chat request budget preflight failed", "error", err)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
+			return
+		}
 
 		// 4. Pass execution to the unified agent loop
 		// runCfg is already built above for prompt context flags.
@@ -701,6 +615,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
+				if agent.IsContextBudgetExceeded(err) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusRequestEntityTooLarge)
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": "context_budget_exceeded"})
+					return
+				}
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500
 				errMsg := chatCompletionErrorMessage(s.Cfg.Server.UILanguage, err)
 				writeChatCompletionErrorResponse(w, sessionID, errMsg)

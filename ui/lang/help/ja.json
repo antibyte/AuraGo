@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "リトライ間の待機時間（秒）。",
   "help.agent.background_tasks.wait_default_timeout_secs": "バックグラウンドタスク完了の最大待機時間。デフォルト：600秒（10分）。",
   "help.agent.background_tasks.wait_poll_interval_seconds": "エージェントが待機中タスクのステータスを確認する頻度（秒）。",
-  "help.agent.context_window": "トークン単位のコンテキスト ウィンドウ サイズ。 0 = 自動検出。",
+  "help.agent.context_window": "リクエストコンテキストのグローバル上限（トークン単位）です。0 はグローバル上限を設定しないことを意味します。プロバイダー上限は自動検出され、不明なモデルには保守的にコンテキスト 8,192 トークン、出力 4,096 トークンが使われます。",
   "help.agent.core_memory_cap_mode": "上限に達したときの動作: 「ソフト」はエントリを追加して警告を返し、「ハード」は新しいエントリを拒否します。デフォルト: ソフト。",
   "help.agent.core_memory_max_entries": "Core Memory に永続保存する事実の上限です。0 は既定値 80 を使います。",
   "help.agent.core_personality": "アクティブな性格プロフィール、例: 「ニュートラル」、「パンク」、「禅」。",

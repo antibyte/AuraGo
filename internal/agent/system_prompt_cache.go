@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/prompts"
@@ -188,7 +190,65 @@ func refreshCachedSystemPromptNowAndCount(prompt string, now time.Time, model st
 	return refreshed, prompts.CountTokensForModel(refreshed, model)
 }
 
+const promptSourceRevisionTTL = 60 * time.Second
+
+type promptSourceFingerprintEntry struct {
+	fingerprint  string
+	diskRevision string
+	checked      time.Time
+	lastUsed     time.Time
+}
+
+var (
+	promptSourceFingerprintMu    sync.Mutex
+	promptSourceFingerprintCache = make(map[string]promptSourceFingerprintEntry)
+	embeddedPromptDigestsOnce    sync.Once
+	embeddedRootPromptDigest     string
+	embeddedPersonalityDigests   map[string]string
+)
+
 func promptSourceFingerprint(promptsDir, profile string) string {
+	cleanDir := strings.TrimSpace(promptsDir)
+	if cleanDir != "" {
+		cleanDir = filepath.Clean(cleanDir)
+	}
+	profile = strings.TrimSpace(profile)
+	cacheKey := cleanDir + "\x00" + profile
+	now := time.Now()
+
+	promptSourceFingerprintMu.Lock()
+	cached, ok := promptSourceFingerprintCache[cacheKey]
+	if ok && now.Sub(cached.checked) < promptSourceRevisionTTL {
+		cached.lastUsed = now
+		promptSourceFingerprintCache[cacheKey] = cached
+		promptSourceFingerprintMu.Unlock()
+		return cached.fingerprint
+	}
+	promptSourceFingerprintMu.Unlock()
+
+	diskRevision := diskPromptSourceRevision(cleanDir, profile)
+	if ok && diskRevision == cached.diskRevision {
+		cached.checked = now
+		cached.lastUsed = now
+		promptSourceFingerprintMu.Lock()
+		promptSourceFingerprintCache[cacheKey] = cached
+		promptSourceFingerprintMu.Unlock()
+		return cached.fingerprint
+	}
+
+	fingerprint := computePromptSourceFingerprint(cleanDir, profile)
+	promptSourceFingerprintMu.Lock()
+	if _, exists := promptSourceFingerprintCache[cacheKey]; !exists && len(promptSourceFingerprintCache) >= 128 {
+		evictOldestPromptFingerprintLocked()
+	}
+	promptSourceFingerprintCache[cacheKey] = promptSourceFingerprintEntry{
+		fingerprint: fingerprint, diskRevision: diskRevision, checked: now, lastUsed: now,
+	}
+	promptSourceFingerprintMu.Unlock()
+	return fingerprint
+}
+
+func computePromptSourceFingerprint(cleanDir, profile string) string {
 	h := sha256.New()
 	writePart := func(parts ...string) {
 		for _, part := range parts {
@@ -203,29 +263,9 @@ func promptSourceFingerprint(promptsDir, profile string) string {
 		h.Write([]byte{0})
 	}
 
-	cleanDir := strings.TrimSpace(promptsDir)
-	if cleanDir != "" {
-		cleanDir = filepath.Clean(cleanDir)
-	}
 	writePart("dir", cleanDir)
-
-	var embeddedRoots []string
-	_ = fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.Contains(path, "/") || !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-		if isRootToolPromptCacheFile(path) {
-			return nil
-		}
-		embeddedRoots = append(embeddedRoots, path)
-		return nil
-	})
-	sort.Strings(embeddedRoots)
-	for _, path := range embeddedRoots {
-		if data, err := fs.ReadFile(promptsembed.FS, path); err == nil {
-			writeBytes("embed-root:"+path, data)
-		}
-	}
+	embeddedRootDigest, personalityDigests := embeddedPromptSourceDigests()
+	writePart("embed-root-digest", embeddedRootDigest)
 
 	if cleanDir != "" {
 		entries, err := os.ReadDir(cleanDir)
@@ -248,7 +288,6 @@ func promptSourceFingerprint(promptsDir, profile string) string {
 		}
 	}
 
-	profile = strings.TrimSpace(profile)
 	if profile != "" {
 		diskProfile := ""
 		if cleanDir != "" {
@@ -260,14 +299,90 @@ func promptSourceFingerprint(promptsDir, profile string) string {
 				return hex.EncodeToString(h.Sum(nil))
 			}
 		}
-		if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+profile+".md"); err == nil {
-			writeBytes("embed-personality:"+profile, data)
+		if digest, ok := personalityDigests[profile]; ok {
+			writePart("embed-personality:"+profile, digest)
 		} else {
 			writePart("missing-personality", profile)
 		}
 	}
 
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func embeddedPromptSourceDigests() (string, map[string]string) {
+	embeddedPromptDigestsOnce.Do(func() {
+		rootParts := make([]string, 0)
+		embeddedPersonalityDigests = make(map[string]string)
+		_ = fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d == nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
+				return nil
+			}
+			data, readErr := fs.ReadFile(promptsembed.FS, path)
+			if readErr != nil {
+				return nil
+			}
+			sum := sha256.Sum256(data)
+			digest := hex.EncodeToString(sum[:])
+			if !strings.Contains(path, "/") && !isRootToolPromptCacheFile(path) {
+				rootParts = append(rootParts, path+"="+digest)
+			}
+			if strings.HasPrefix(path, "personalities/") {
+				name := strings.TrimSuffix(strings.TrimPrefix(path, "personalities/"), ".md")
+				embeddedPersonalityDigests[name] = digest
+			}
+			return nil
+		})
+		sort.Strings(rootParts)
+		sum := sha256.Sum256([]byte(strings.Join(rootParts, "\n")))
+		embeddedRootPromptDigest = hex.EncodeToString(sum[:])
+	})
+	return embeddedRootPromptDigest, embeddedPersonalityDigests
+}
+
+func diskPromptSourceRevision(cleanDir, profile string) string {
+	h := sha256.New()
+	writeInfo := func(label string, info os.FileInfo) {
+		_, _ = fmt.Fprintf(h, "%s:%d:%d\x00", label, info.Size(), info.ModTime().UnixNano())
+	}
+	if cleanDir != "" {
+		if entries, err := os.ReadDir(cleanDir); err == nil {
+			names := make([]string, 0, len(entries))
+			for _, entry := range entries {
+				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") || isRootToolPromptCacheFile(entry.Name()) {
+					continue
+				}
+				names = append(names, entry.Name())
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				if info, err := os.Stat(filepath.Join(cleanDir, name)); err == nil {
+					writeInfo("root:"+strings.ToLower(name), info)
+				}
+			}
+		}
+		if profile != "" {
+			if info, err := os.Stat(filepath.Join(cleanDir, "personalities", profile+".md")); err == nil {
+				writeInfo("personality:"+profile, info)
+			} else {
+				_, _ = h.Write([]byte("personality-missing:" + profile))
+			}
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func evictOldestPromptFingerprintLocked() {
+	oldestKey := ""
+	var oldest time.Time
+	for key, entry := range promptSourceFingerprintCache {
+		if oldestKey == "" || entry.lastUsed.Before(oldest) {
+			oldestKey = key
+			oldest = entry.lastUsed
+		}
+	}
+	if oldestKey != "" {
+		delete(promptSourceFingerprintCache, oldestKey)
+	}
 }
 
 func isRootToolPromptCacheFile(name string) bool {

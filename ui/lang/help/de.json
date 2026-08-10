@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Wartezeit zwischen Wiederholungsversuchen in Sekunden.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Maximale Wartezeit auf den Abschluss eines Hintergrund-Tasks. Standard: 600 Sekunden (10 Minuten).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Wie oft der Agent den Status eines wartenden Tasks prüft (in Sekunden).",
-  "help.agent.context_window": "Gesamtgröße des Kontextfensters in Tokens. Der Agent nutzt dies zur Berechnung der verfügbaren Kapazität. 0 = automatisch vom Modell ermitteln.",
+  "help.agent.context_window": "Globale Obergrenze für den Request-Kontext in Tokens. 0 bedeutet: kein konfiguriertes globales Limit. Providergrenzen werden automatisch ermittelt; unbekannte Modelle nutzen konservativ 8.192 Kontext- und 4.096 Ausgabe-Tokens.",
   "help.agent.core_memory_cap_mode": "Wie reagiert der Agent beim Erreichen des Core-Memory-Limits? 'soft' = Eintrag wird mit Warnung hinzugefügt, 'hard' = Eintrag wird abgelehnt. Standard: soft.",
   "help.agent.core_memory_max_entries": "Obergrenze für dauerhaft gespeicherte Core-Memory-Fakten. 0 nutzt den Standard von 80.",
   "help.agent.core_personality": "Aktives Persönlichkeitsprofil, z.B. 'neutral', 'punk', 'zen'.",

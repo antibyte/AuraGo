@@ -7,12 +7,18 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Manifest manages the tool registry file (manifest.json).
 type Manifest struct {
-	mu       sync.RWMutex
-	filePath string
+	mu           sync.RWMutex
+	filePath     string
+	cached       map[string]string
+	cacheReady   bool
+	checked      time.Time
+	fileRevision string
+	generation   uint64
 }
 
 // manifestFile is the on-disk schema for manifest.json.
@@ -23,6 +29,7 @@ type manifestFile struct {
 }
 
 const currentManifestVersion = 2
+const manifestSnapshotTTL = 5 * time.Second
 
 // NewManifest creates a manifest manager for the given tools directory.
 func NewManifest(toolsDir string) *Manifest {
@@ -33,20 +40,44 @@ func NewManifest(toolsDir string) *Manifest {
 
 // Load reads and returns the manifest contents (tool name → description).
 func (m *Manifest) Load() (map[string]string, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	if m == nil {
+		return map[string]string{}, nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now()
+	if m.cacheReady && now.Sub(m.checked) < manifestSnapshotTTL {
+		return cloneManifestEntries(m.cached), nil
+	}
+	revision := manifestFileRevision(m.filePath)
+	if m.cacheReady && revision == m.fileRevision {
+		m.checked = now
+		return cloneManifestEntries(m.cached), nil
+	}
 
 	data, err := os.ReadFile(m.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			m.updateSnapshotLocked(map[string]string{}, revision, now)
 			return map[string]string{}, nil
 		}
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
+	entries, err := parseManifestData(data)
+	if err != nil {
+		return nil, err
+	}
+	m.updateSnapshotLocked(entries, revision, now)
+	return cloneManifestEntries(entries), nil
+}
 
+func parseManifestData(data []byte) (map[string]string, error) {
 	// Try versioned format first.
 	var mf manifestFile
 	if err := json.Unmarshal(data, &mf); err == nil && mf.Version > 0 {
+		if mf.Tools == nil {
+			return map[string]string{}, nil
+		}
 		return mf.Tools, nil
 	}
 
@@ -56,6 +87,60 @@ func (m *Manifest) Load() (map[string]string, error) {
 		return nil, fmt.Errorf("failed to parse manifest: %w", err)
 	}
 	return legacy, nil
+}
+
+func (m *Manifest) updateSnapshotLocked(entries map[string]string, revision string, now time.Time) {
+	changed := !m.cacheReady || revision != m.fileRevision
+	m.cached = cloneManifestEntries(entries)
+	m.cacheReady = true
+	m.checked = now
+	m.fileRevision = revision
+	if changed {
+		m.generation++
+	}
+}
+
+func manifestFileRevision(path string) string {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "missing"
+		}
+		return "error:" + err.Error()
+	}
+	return fmt.Sprintf("%d:%d", info.Size(), info.ModTime().UnixNano())
+}
+
+func cloneManifestEntries(entries map[string]string) map[string]string {
+	out := make(map[string]string, len(entries))
+	for name, description := range entries {
+		out[name] = description
+	}
+	return out
+}
+
+// Generation changes whenever the cached manifest snapshot observes a new
+// on-disk revision or AuraGo writes the manifest itself.
+func (m *Manifest) Generation() uint64 {
+	if m == nil {
+		return 0
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.generation
+}
+
+// Invalidate forces the next Load to re-check the on-disk manifest.
+func (m *Manifest) Invalidate() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.checked = time.Time{}
+	m.fileRevision = ""
+	m.cacheReady = false
+	m.generation++
+	m.mu.Unlock()
 }
 
 // Save writes the manifest to disk in the versioned format.
@@ -96,7 +181,15 @@ func (m *Manifest) Register(name, description string) error {
 	}
 
 	manifest[name] = description
-	return m.save(manifest)
+	if err := m.save(manifest); err != nil {
+		return err
+	}
+	m.cached = cloneManifestEntries(manifest)
+	m.cacheReady = true
+	m.checked = time.Now()
+	m.fileRevision = manifestFileRevision(m.filePath)
+	m.generation++
+	return nil
 }
 
 func unmarshalManifestRegisterData(data []byte, manifest *map[string]string) error {

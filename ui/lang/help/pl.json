@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Czas oczekiwania między ponownymi próbami w sekundach.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Maksymalny czas oczekiwania na ukończenie zadania w tle. Domyślnie: 600 sekund (10 minut).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Jak często agent sprawdza stan oczekującego zadania (w sekundach).",
-  "help.agent.context_window": "Rozmiar okna kontekstu w tokenach. 0 = auto-detekcja.",
+  "help.agent.context_window": "Globalny górny limit kontekstu żądania w tokenach. 0 oznacza brak skonfigurowanego limitu globalnego. Limity dostawcy są wykrywane automatycznie; nieznane modele używają konserwatywnie 8192 tokenów kontekstu i 4096 tokenów wyjściowych.",
   "help.agent.core_memory_cap_mode": "Zachowanie po osiągnięciu limitu: 'soft' dodaje wpis i zwraca ostrzeżenie, 'hard' odrzuca nowe wpisy. Domyślnie: soft.",
   "help.agent.core_memory_max_entries": "Górny limit trwale zapisanych faktów w core memory. 0 używa domyślnej wartości 80.",
   "help.agent.core_personality": "Aktywny profil osobowości, np. 'neutral', 'punk', 'zen'.",

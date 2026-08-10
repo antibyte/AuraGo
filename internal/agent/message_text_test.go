@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
@@ -15,6 +16,33 @@ func TestMessageText_MultiContentImageOnly(t *testing.T) {
 	}
 	if got := messageText(msg); got != "[image]" {
 		t.Fatalf("expected %q, got %q", "[image]", got)
+	}
+}
+
+func TestMessageAccountingIncludesStructuredToolCallsAndImageReserve(t *testing.T) {
+	msg := openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleAssistant,
+		ToolCalls: []openai.ToolCall{{
+			ID:   "call-structured",
+			Type: openai.ToolTypeFunction,
+			Function: openai.FunctionCall{
+				Name:      "execute_shell",
+				Arguments: `{"command":"Get-Process"}`,
+			},
+		}},
+		MultiContent: []openai.ChatMessagePart{{
+			Type:     openai.ChatMessagePartTypeImageURL,
+			ImageURL: &openai.ChatMessageImageURL{URL: "data:image/png;base64,AA==", Detail: openai.ImageURLDetailHigh},
+		}},
+	}
+	accounting := messageTextWithReasoningForAccounting(msg)
+	for _, required := range []string{"execute_shell", "Get-Process", "call-structured", "image_detail=high"} {
+		if !strings.Contains(accounting, required) {
+			t.Fatalf("accounting payload missing %q", required)
+		}
+	}
+	if got := strings.Count(accounting, " image"); got != multimodalImageTokenReserve {
+		t.Fatalf("image reserve markers = %d, want %d", got, multimodalImageTokenReserve)
 	}
 }
 

@@ -5,33 +5,43 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 // providerJSON is the API representation of a provider entry.
 type providerJSON struct {
-	ID                    string                     `json:"id"`
-	Name                  string                     `json:"name"`
-	Type                  string                     `json:"type"`
-	BaseURL               string                     `json:"base_url"`
-	APIKey                string                     `json:"api_key"`
-	Model                 string                     `json:"model"`
-	AccountID             string                     `json:"account_id"`
-	AuthType              string                     `json:"auth_type"`
-	OAuthAuthURL          string                     `json:"oauth_auth_url"`
-	OAuthTokenURL         string                     `json:"oauth_token_url"`
-	OAuthClientID         string                     `json:"oauth_client_id"`
-	OAuthClientSecret     string                     `json:"oauth_client_secret"`
-	OAuthScopes           string                     `json:"oauth_scopes"`
-	Models                []config.ModelCost         `json:"models,omitempty"`
-	Capabilities          *providerCapabilitiesJSON  `json:"capabilities,omitempty"`
-	EffectiveCapabilities providerCapabilitiesJSON   `json:"effective_capabilities,omitempty"`
-	References            []providerReferencePayload `json:"references,omitempty"`
-	RuntimeChat           speechLabRuntimeChatStatus `json:"runtime_chat"`
+	ID                       string                     `json:"id"`
+	Name                     string                     `json:"name"`
+	Type                     string                     `json:"type"`
+	BaseURL                  string                     `json:"base_url"`
+	APIKey                   string                     `json:"api_key"`
+	Model                    string                     `json:"model"`
+	ContextWindow            int                        `json:"context_window"`
+	MaxOutputTokens          int                        `json:"max_output_tokens"`
+	EffectiveContextWindow   int                        `json:"effective_context_window"`
+	EffectiveMaxOutputTokens int                        `json:"effective_max_output_tokens"`
+	ContextWindowSource      string                     `json:"context_window_source"`
+	MaxOutputTokensSource    string                     `json:"max_output_tokens_source"`
+	ModelLimitsWarning       string                     `json:"model_limits_warning,omitempty"`
+	AccountID                string                     `json:"account_id"`
+	AuthType                 string                     `json:"auth_type"`
+	OAuthAuthURL             string                     `json:"oauth_auth_url"`
+	OAuthTokenURL            string                     `json:"oauth_token_url"`
+	OAuthClientID            string                     `json:"oauth_client_id"`
+	OAuthClientSecret        string                     `json:"oauth_client_secret"`
+	OAuthScopes              string                     `json:"oauth_scopes"`
+	Models                   []config.ModelCost         `json:"models,omitempty"`
+	Capabilities             *providerCapabilitiesJSON  `json:"capabilities,omitempty"`
+	EffectiveCapabilities    providerCapabilitiesJSON   `json:"effective_capabilities,omitempty"`
+	References               []providerReferencePayload `json:"references,omitempty"`
+	RuntimeChat              speechLabRuntimeChatStatus `json:"runtime_chat"`
 }
 
 type providerCapabilitiesJSON struct {
@@ -206,7 +216,7 @@ func handleProviders(s *Server) http.HandlerFunc {
 }
 
 // handleGetProviders returns the provider list with API keys masked.
-func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
+func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RLock()
 	cfgSnapshot := *s.Cfg
 	providers := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
@@ -217,8 +227,46 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 	}
 	s.CfgMu.RUnlock()
 
+	// Unknown provider models may need a bounded metadata probe. Resolve them in
+	// parallel so one unavailable endpoint cannot serially delay the config UI.
+	limitResults := make([]llm.ModelLimits, len(providers))
+	probeCtx := context.Background()
+	if r != nil {
+		probeCtx = r.Context()
+	}
+	probeCtx, cancelProbes := context.WithTimeout(probeCtx, 10*time.Second)
+	defer cancelProbes()
+	probeJobs := make(chan int)
+	var limitWG sync.WaitGroup
+	workerCount := min(4, len(providers))
+	for worker := 0; worker < workerCount; worker++ {
+		limitWG.Add(1)
+		go func() {
+			defer limitWG.Done()
+			for index := range probeJobs {
+				provider := providers[index]
+				limitResults[index] = llm.ResolveModelLimits(probeCtx, llm.ModelRoute{
+					ProviderID:              provider.ID,
+					ProviderType:            provider.Type,
+					BaseURL:                 provider.BaseURL,
+					APIKey:                  provider.APIKey,
+					Model:                   provider.Model,
+					ContextWindowOverride:   provider.ContextWindow,
+					MaxOutputTokensOverride: provider.MaxOutputTokens,
+					Primary:                 provider.ID == cfgSnapshot.LLM.Provider,
+				}, cfgSnapshot.Agent.ContextWindow, s.Logger)
+			}
+		}()
+	}
+	for i := range providers {
+		probeJobs <- i
+	}
+	close(probeJobs)
+	limitWG.Wait()
+
 	out := make([]providerJSON, len(providers))
 	for i, p := range providers {
+		limits := limitResults[i]
 		authType := normalizeProviderAuthType(p.AuthType)
 		apiKey := ""
 		if authType != "oauth2" && p.APIKey != "" {
@@ -230,24 +278,33 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 		}
 		runtimeChat, _ := speechLabRuntimeChatProvider(&p, s.Vault)
 		out[i] = providerJSON{
-			ID:                    p.ID,
-			Name:                  p.Name,
-			Type:                  p.Type,
-			BaseURL:               p.BaseURL,
-			APIKey:                apiKey,
-			Model:                 p.Model,
-			AccountID:             p.AccountID,
-			AuthType:              authType,
-			OAuthAuthURL:          p.OAuthAuthURL,
-			OAuthTokenURL:         p.OAuthTokenURL,
-			OAuthClientID:         p.OAuthClientID,
-			OAuthClientSecret:     clientSecret,
-			OAuthScopes:           p.OAuthScopes,
-			Models:                p.Models,
-			Capabilities:          &providerCapabilitiesJSON{},
-			EffectiveCapabilities: providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
-			References:            providerReferences(&cfgSnapshot, p.ID),
-			RuntimeChat:           runtimeChat,
+			ID:                       p.ID,
+			Name:                     p.Name,
+			Type:                     p.Type,
+			BaseURL:                  p.BaseURL,
+			APIKey:                   apiKey,
+			Model:                    p.Model,
+			ContextWindow:            p.ContextWindow,
+			MaxOutputTokens:          p.MaxOutputTokens,
+			EffectiveContextWindow:   limits.ContextWindow,
+			EffectiveMaxOutputTokens: limits.MaxOutputTokens,
+			ContextWindowSource:      limits.ContextSource,
+			MaxOutputTokensSource:    limits.OutputSource,
+			AccountID:                p.AccountID,
+			AuthType:                 authType,
+			OAuthAuthURL:             p.OAuthAuthURL,
+			OAuthTokenURL:            p.OAuthTokenURL,
+			OAuthClientID:            p.OAuthClientID,
+			OAuthClientSecret:        clientSecret,
+			OAuthScopes:              p.OAuthScopes,
+			Models:                   p.Models,
+			Capabilities:             &providerCapabilitiesJSON{},
+			EffectiveCapabilities:    providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
+			References:               providerReferences(&cfgSnapshot, p.ID),
+			RuntimeChat:              runtimeChat,
+		}
+		if limits.Unknown {
+			out[i].ModelLimitsWarning = "unknown_model_conservative_limits"
 		}
 		caps := providerCapabilitiesToJSON(p.Capabilities)
 		out[i].Capabilities = &caps
@@ -309,6 +366,10 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	vaultMutations := make([]vaultMutation, 0, len(incoming)*3)
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
+		if p.ContextWindow < 0 || p.MaxOutputTokens < 0 {
+			jsonError(w, "context_window and max_output_tokens must be zero or positive", http.StatusBadRequest)
+			return
+		}
 		if err := validateProviderIDForSave(p.ID, existingIDSet); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -401,6 +462,8 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			BaseURL:           p.BaseURL,
 			APIKey:            apiKey,
 			Model:             p.Model,
+			ContextWindow:     p.ContextWindow,
+			MaxOutputTokens:   p.MaxOutputTokens,
 			AccountID:         p.AccountID,
 			AuthType:          authType,
 			OAuthAuthURL:      p.OAuthAuthURL,
@@ -497,6 +560,7 @@ func persistProviderEntries(s *Server, entries []config.ProviderEntry, vaultMuta
 	newCfg.ResolveProviders()
 	newCfg.ApplyOAuthTokens(s.Vault)
 	s.replaceConfigSnapshot(newCfg)
+	llm.InvalidateModelLimitCache()
 
 	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
 		fm.Reconfigure(newCfg)
@@ -692,6 +756,12 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 		"type":     e.Type,
 		"base_url": e.BaseURL,
 		"model":    e.Model,
+	}
+	if e.ContextWindow > 0 {
+		m["context_window"] = e.ContextWindow
+	}
+	if e.MaxOutputTokens > 0 {
+		m["max_output_tokens"] = e.MaxOutputTokens
 	}
 	if e.AccountID != "" {
 		m["account_id"] = e.AccountID

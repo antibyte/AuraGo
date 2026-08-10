@@ -1964,7 +1964,7 @@ func Load(path string) (*Config, error) {
 		cfg.LLM.Temperature = 0.7
 	}
 	if cfg.Agent.ContextWindow <= 0 {
-		cfg.Agent.ContextWindow = 0 // 0 = agent loop defaults to 163840 (160k context guard)
+		cfg.Agent.ContextWindow = 0 // 0 = no global cap; request routing resolves model-specific limits
 	}
 
 	if cfg.FallbackLLM.ProbeIntervalSeconds <= 0 {

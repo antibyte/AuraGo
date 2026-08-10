@@ -1,11 +1,16 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+const multimodalImageTokenReserve = 4096
+
+var multimodalImageAccountingReserve = strings.Repeat(" image", multimodalImageTokenReserve)
 
 func messageText(msg openai.ChatCompletionMessage) string {
 	content := strings.TrimSpace(msg.Content)
@@ -47,13 +52,40 @@ func messageText(msg openai.ChatCompletionMessage) string {
 }
 
 func messageTextWithReasoningForAccounting(msg openai.ChatCompletionMessage) string {
-	content := messageText(msg)
-	reasoning := strings.TrimSpace(msg.ReasoningContent)
-	if reasoning == "" {
-		return content
+	parts := make([]string, 0, 8)
+	if content := messageText(msg); content != "" {
+		parts = append(parts, content)
 	}
-	if content == "" {
-		return reasoning
+	if reasoning := strings.TrimSpace(msg.ReasoningContent); reasoning != "" {
+		parts = append(parts, reasoning)
 	}
-	return content + "\n" + reasoning
+	if refusal := strings.TrimSpace(msg.Refusal); refusal != "" {
+		parts = append(parts, refusal)
+	}
+	if name := strings.TrimSpace(msg.Name); name != "" {
+		parts = append(parts, "name="+name)
+	}
+	if msg.FunctionCall != nil {
+		if encoded, err := json.Marshal(msg.FunctionCall); err == nil {
+			parts = append(parts, string(encoded))
+		}
+	}
+	if len(msg.ToolCalls) > 0 {
+		if encoded, err := json.Marshal(msg.ToolCalls); err == nil {
+			parts = append(parts, string(encoded))
+		}
+	}
+	if toolCallID := strings.TrimSpace(msg.ToolCallID); toolCallID != "" {
+		parts = append(parts, "tool_call_id="+toolCallID)
+	}
+	for _, part := range msg.MultiContent {
+		if part.Type != openai.ChatMessagePartTypeImageURL || part.ImageURL == nil {
+			continue
+		}
+		// Image payloads consume model context even though their binary bytes are
+		// not text-tokenized. Reserve a conservative per-image envelope while
+		// retaining only non-sensitive metadata in the accounting string.
+		parts = append(parts, "image_detail="+string(part.ImageURL.Detail)+multimodalImageAccountingReserve)
+	}
+	return strings.Join(parts, "\n")
 }

@@ -845,6 +845,85 @@ func TestHandleUpdateConfigDiscordChangeDoesNotRequireFullRestart(t *testing.T) 
 	}
 }
 
+func TestLLMHotReloadChangedDetectsProviderModelLimitOverrides(t *testing.T) {
+	base := config.Config{
+		Providers: []config.ProviderEntry{{
+			ID:    "main",
+			Type:  "openai",
+			Model: "gpt-4o-mini",
+		}},
+	}
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(*config.ProviderEntry)
+	}{
+		{name: "context window", mutate: func(p *config.ProviderEntry) { p.ContextWindow = 32768 }},
+		{name: "max output tokens", mutate: func(p *config.ProviderEntry) { p.MaxOutputTokens = 6144 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			updated := base
+			updated.Providers = append([]config.ProviderEntry(nil), base.Providers...)
+			tc.mutate(&updated.Providers[0])
+			if !llmHotReloadChanged(base, updated) {
+				t.Fatal("provider model-limit override did not trigger LLM hot reload")
+			}
+		})
+	}
+}
+
+func TestHandleUpdateConfigPreservesGlobalContextCapOnModelChange(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		contextYAML string
+		want        int
+	}{
+		{name: "unset", contextYAML: "0", want: 0},
+		{name: "explicit cap", contextYAML: "12345", want: 12345},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.yaml")
+			configYAML := `providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: main
+agent:
+  context_window: ` + tc.contextYAML + `
+  system_prompt_token_budget: 0
+`
+			if err := os.WriteFile(configPath, []byte(configYAML), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			vault, err := security.NewVault(strings.Repeat("57", 32), filepath.Join(tmpDir, "vault.bin"))
+			if err != nil {
+				t.Fatalf("NewVault: %v", err)
+			}
+			loaded, err := config.Load(configPath)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			loaded.ConfigPath = configPath
+			s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+
+			body := `{"providers":[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o"}]}`
+			rec := httptest.NewRecorder()
+			handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(body)))
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+			}
+			if got := s.Cfg.Agent.ContextWindow; got != tc.want {
+				t.Fatalf("agent.context_window = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestHandleUpdateConfigRecreatesSQLPoolWhenPoolSettingsChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

@@ -2,11 +2,86 @@ package agent
 
 import (
 	"log/slog"
+	"sync"
 
 	openai "github.com/sashabaranov/go-openai"
 
 	"aurago/internal/tools"
 )
+
+type boundedNativeSchemaCacheEntry struct {
+	snapshot *nativeToolSchemaSnapshot
+	used     uint64
+}
+
+type boundedNativeSchemaCache struct {
+	mu      sync.Mutex
+	limit   int
+	clock   uint64
+	entries map[dynamicToolSchemaCacheKey]boundedNativeSchemaCacheEntry
+}
+
+func newBoundedNativeSchemaCache(limit int) *boundedNativeSchemaCache {
+	if limit < 1 {
+		limit = 1
+	}
+	return &boundedNativeSchemaCache{limit: limit, entries: make(map[dynamicToolSchemaCacheKey]boundedNativeSchemaCacheEntry)}
+}
+
+func (c *boundedNativeSchemaCache) Load(key dynamicToolSchemaCacheKey) (interface{}, bool) {
+	if c == nil {
+		return nil, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[key]
+	if !ok {
+		return nil, false
+	}
+	c.clock++
+	entry.used = c.clock
+	c.entries[key] = entry
+	return entry.snapshot, true
+}
+
+func (c *boundedNativeSchemaCache) Store(key dynamicToolSchemaCacheKey, snapshot *nativeToolSchemaSnapshot) {
+	if c == nil || snapshot == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.clock++
+	if _, exists := c.entries[key]; !exists && len(c.entries) >= c.limit {
+		var oldestKey dynamicToolSchemaCacheKey
+		oldestUsed := ^uint64(0)
+		for candidate, entry := range c.entries {
+			if entry.used < oldestUsed {
+				oldestKey = candidate
+				oldestUsed = entry.used
+			}
+		}
+		delete(c.entries, oldestKey)
+	}
+	c.entries[key] = boundedNativeSchemaCacheEntry{snapshot: snapshot, used: c.clock}
+}
+
+func (c *boundedNativeSchemaCache) Len() int {
+	if c == nil {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.entries)
+}
+
+func (c *boundedNativeSchemaCache) Clear() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.entries = make(map[dynamicToolSchemaCacheKey]boundedNativeSchemaCacheEntry)
+	c.mu.Unlock()
+}
 
 type nativeToolSchemaSnapshot struct {
 	full   []openai.Tool

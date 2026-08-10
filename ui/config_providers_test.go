@@ -223,6 +223,88 @@ func TestConfigProvidersCopilotFlowUsesI18n(t *testing.T) {
 	}
 }
 
+func TestConfigProvidersModelLimitsUseOverridesEffectiveValuesAndAllLocales(t *testing.T) {
+	t.Parallel()
+
+	providersJS := readDesktopAssetText(t, "cfg/providers.js")
+	for _, marker := range []string{
+		"id=\"prov-context-window\"",
+		"id=\"prov-max-output-tokens\"",
+		"effective_context_window",
+		"effective_max_output_tokens",
+		"context_window_source",
+		"max_output_tokens_source",
+		"unknown_model_conservative_limits",
+		"Number.isInteger(context_window)",
+		"Number.isInteger(max_output_tokens)",
+	} {
+		if !strings.Contains(providersJS, marker) {
+			t.Fatalf("providers.js missing model-limit contract marker %q", marker)
+		}
+	}
+
+	required := []string{
+		"config.providers.card_context_window",
+		"config.providers.card_max_output_tokens",
+		"config.providers.field_context_window_label",
+		"config.providers.field_max_output_tokens_label",
+		"config.providers.model_limit_override_help",
+		"config.providers.limit_automatic",
+		"config.providers.limit_effective",
+		"config.providers.limit_source_provider_override",
+		"config.providers.limit_source_model_registry",
+		"config.providers.limit_source_provider_probe",
+		"config.providers.limit_source_global_unknown_primary",
+		"config.providers.limit_source_global_cap",
+		"config.providers.limit_source_conservative_default",
+		"config.providers.unknown_model_limits_warning",
+		"config.providers.model_limits_nonnegative_error",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "providers", "*.json"))
+	if err != nil {
+		t.Fatalf("glob provider translations: %v", err)
+	}
+	if len(files) != 16 {
+		t.Fatalf("provider locale count = %d, want 16", len(files))
+	}
+	for _, path := range files {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatalf("read %s: %v", path, readErr)
+		}
+		var values map[string]string
+		if unmarshalErr := json.Unmarshal(data, &values); unmarshalErr != nil {
+			t.Fatalf("unmarshal %s: %v", path, unmarshalErr)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing %s", path, key)
+			}
+		}
+	}
+
+	helpFiles, err := filepath.Glob(filepath.Join("lang", "help", "*.json"))
+	if err != nil {
+		t.Fatalf("glob help translations: %v", err)
+	}
+	if len(helpFiles) != 16 {
+		t.Fatalf("help locale count = %d, want 16", len(helpFiles))
+	}
+	for _, path := range helpFiles {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatalf("read %s: %v", path, readErr)
+		}
+		var values map[string]string
+		if unmarshalErr := json.Unmarshal(data, &values); unmarshalErr != nil {
+			t.Fatalf("unmarshal %s: %v", path, unmarshalErr)
+		}
+		if strings.TrimSpace(values["help.agent.context_window"]) == "" {
+			t.Fatalf("%s missing help.agent.context_window", path)
+		}
+	}
+}
+
 func configProviderCSSRuleBody(t *testing.T, source, selector string) string {
 	t.Helper()
 

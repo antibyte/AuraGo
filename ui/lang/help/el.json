@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Χρόνος αναμονής μεταξύ προσπαθειών επανάληψης σε δευτερόλεπτα.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Μέγιστος χρόνος αναμονής για ολοκλήρωση εργασίας παρασκηνίου. Προεπιλογή: 600 δευτερόλεπτα (10 λεπτά).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Πόσο συχνά ο πράκτορας ελέγχει την κατάσταση μιας αναμένων εργασίας (σε δευτερόλεπτα).",
-  "help.agent.context_window": "Περιγραφή: Total context window size in tokens. The πράκτορας uses this to calculate available capacity. 0 = auto-detect from model.",
+  "help.agent.context_window": "Καθολικό ανώτατο όριο για το περιβάλλον του αιτήματος σε token. Το 0 σημαίνει ότι δεν έχει ρυθμιστεί καθολικό όριο. Τα όρια παρόχου ανιχνεύονται αυτόματα· τα άγνωστα μοντέλα χρησιμοποιούν συντηρητικά 8.192 token περιβάλλοντος και 4.096 token εξόδου.",
   "help.agent.core_memory_cap_mode": "Πώς ανταποκρίνεται ο πράκτορας όταν φτάνει το όριο core memory. 'soft' = η εγγραφή προστίθεται με προειδοποίηση, 'hard' = η εγγραφή απορρίπτεται. Προεπιλογή: soft.",
   "help.agent.core_memory_max_entries": "Ανώτατο όριο μόνιμα αποθηκευμένων facts στο core memory. Το 0 χρησιμοποιεί την προεπιλογή 80.",
   "help.agent.core_personality": "Ενεργό προφίλ προσωπικότητας, π.χ. 'neutral', 'punk', 'zen'.",

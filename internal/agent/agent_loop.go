@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -168,7 +167,6 @@ type agentLoopState struct {
 	coreMemUpdatedAt   time.Time
 	coreMemLoadedAt    time.Time
 	tokenCache         *tokenCountCache
-	detectedCtxWindow  int
 	lastCompressionMsg int
 
 	// Cached compression client/model resolved once per session instead of per loop iteration.
@@ -193,6 +191,7 @@ type agentLoopState struct {
 	useNativeFunctions    bool
 	adaptiveFilteredTools []string
 	nativeSchemaSnapshot  *nativeToolSchemaSnapshot
+	turnSnapshot          *turnContextSnapshot
 }
 
 // makeDispatchContext builds a DispatchContext from the current loop state.
@@ -248,7 +247,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
-func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (openai.ChatCompletionResponse, error) {
+func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
 	releaseAgentLoopSlot, err := acquireAgentLoopSlot(ctx)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
@@ -258,9 +257,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if rec := recover(); rec != nil {
 			panic(rec)
 		}
+		if retErr == nil {
+			ScheduleProactiveHistoryCompression(runCfg)
+		}
 	}()
 
 	s := initAgentLoopState(req, runCfg, broker, VoiceOutputSuppressed(ctx))
+	s.turnSnapshot = &turnContextSnapshot{UserIntent: s.initialUserMsg}
 	req = s.req
 
 	cfg := s.runCfg.Config
@@ -318,7 +321,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	coreMemLoadedAt := s.coreMemLoadedAt
 	coreMemDirty := s.coreMemDirty
 	tokenCache := s.tokenCache
-	detectedCtxWindow := s.detectedCtxWindow
 	cachedSysPromptKey := s.cachedSysPromptKey
 	cachedSysPrompt := s.cachedSysPrompt
 	cachedSysPromptAt := s.cachedSysPromptAt
@@ -329,6 +331,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	reuseLookup := ReuseLookupResult{}
 	lastReuseLookupMsg := ""
 	lastGeneratedSystemPrompt := ""
+	guidesPrepared := false
+	transientCompressionAttempted := false
+	var cachedTurnGuides []string
+	preparedExplicitGuideKey := ""
+
+	var requestBudget *RequestBudget
 
 	loopStartedAt := time.Now()
 	loopIterationCount := 0
@@ -471,6 +479,46 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			req.Tools = nil // Physically remove tool schemas to prevent infinite loops
 		}
 
+		// Resolve the budget for the exact request shape of this iteration. Tool
+		// schemas can disappear at the circuit breaker, which may make an
+		// additional (and smaller) failover route eligible. Re-resolving before
+		// every prompt build keeps the route invariant true throughout the chain
+		// and gives optional schemas another chance to shed as history grows.
+		s.req = req
+		s.flags = flags
+		s.pendingTCs = pendingTCs
+		s.explicitTools = explicitTools
+		requiredSchemas := requiredToolSchemasForState(s)
+		budgetRequest := req
+		if lastGeneratedSystemPrompt != "" && len(budgetRequest.Messages) > 0 &&
+			budgetRequest.Messages[0].Role == openai.ChatMessageRoleSystem && budgetRequest.Messages[0].Content == lastGeneratedSystemPrompt {
+			budgetRequest.Messages = budgetRequest.Messages[1:]
+		}
+		budgeted, budgetedTools, budgetDroppedTools, budgetErr := prepareRequestBudgetAndTools(
+			ctx, cfg, client, budgetRequest, requiredSchemas, tokenCache, s.currentLogger,
+		)
+		if budgetErr != nil {
+			return openai.ChatCompletionResponse{}, budgetErr
+		}
+		requestBudget = budgeted
+		req.MaxTokens = requestBudget.CompletionReserve
+		if len(budgetDroppedTools) > 0 {
+			req.Tools = budgetedTools
+			adaptiveFilteredTools = uniqueStrings(append(adaptiveFilteredTools, budgetDroppedTools...))
+			flags.ActiveNativeTools = toolSchemaNames(req.Tools)
+			flags.AdaptiveFilteredTools = append([]string(nil), adaptiveFilteredTools...)
+			allSchemas := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
+			if runCfg.VaultSecretPrompter == nil {
+				allSchemas = filterSchemasByName(allSchemas, "request_vault_secret")
+			}
+			SetDiscoverToolsState(sessionID, allSchemas, req.Tools, cfg.Directories.PromptsDir)
+			s.currentLogger.Info("[RequestBudget] Shed optional tool schemas before prompt construction",
+				"dropped_count", len(budgetDroppedTools), "remaining_count", len(req.Tools))
+		}
+		s.req = req
+		s.flags = flags
+		s.adaptiveFilteredTools = adaptiveFilteredTools
+
 		flags.ActiveProcesses = GetActiveProcessStatus(registry)
 
 		// Load Core Memory (cached, invalidated when manage_memory is called
@@ -493,10 +541,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Extract explicit workflow tools if present (populated from previous iteration's <workflow_plan> tag)
 		// explicitTools is persistent across loop iterations
 
-		// Prepare Dynamic Tool Guides
-		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
-			lastUserMsg = messageText(req.Messages[len(req.Messages)-1])
-		}
+		// Prepare Dynamic Tool Guides. lastUserMsg remains the immutable human
+		// intent; text-mode tool results may be user-role transport messages but
+		// are never allowed to steer retrieval or prompt policy.
 		s.lastUserMsg = lastUserMsg
 		if shouldInjectCodingRules(lastUserMsg) {
 			flags.RequiresCoding = true
@@ -516,7 +563,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			RecentlyUsedTools: recentTools,
 			PredictedGuides:   explicitTools,
 		}
-		if shouldSuppressCoAgentTools(runCfg) {
+		explicitGuideKey := strings.Join(uniqueStrings(explicitTools), "\x00")
+		if guidesPrepared {
+			if explicitGuideKey != preparedExplicitGuideKey && len(explicitTools) > 0 && !shouldSuppressCoAgentTools(runCfg) {
+				// A workflow plan may activate explicit tools after the turn's one
+				// semantic search. Load only those local manuals and merge them at
+				// highest priority without issuing another vector/heuristic search.
+				incrementalStrategy := toolingPolicy.EffectiveGuideStrategy
+				incrementalStrategy.SkipTools = skipToolsForGuideSnapshot(req.Tools, adaptiveFilteredTools)
+				incrementalStrategy.AllowedTools = append([]string(nil), flags.EnabledNativeTools...)
+				incrementalStrategy.DisableRecentHeuristics = true
+				incrementalStrategy.DisableStatisticalHeuristics = true
+				incrementalStrategy.DisableFrequencyHeuristics = true
+				incrementalStrategy.Flags = &flags
+				explicitGuides := prompts.PrepareDynamicGuidesWithStrategyContext(
+					ctx, nil, nil, lastUserMsg, "", toolGuidesDir, nil, explicitTools,
+					toolingPolicy.EffectiveMaxToolGuides, incrementalStrategy, s.currentLogger,
+				)
+				cachedTurnGuides = mergeTurnGuideSnapshot(explicitGuides, cachedTurnGuides, toolingPolicy.EffectiveMaxToolGuides)
+			}
+			preparedExplicitGuideKey = explicitGuideKey
+			flags.PredictedGuides = append([]string(nil), cachedTurnGuides...)
+		} else if shouldSuppressCoAgentTools(runCfg) {
 			flags.PredictedGuides = nil
 		} else if preliminaryTier := prompts.DetermineTierAdaptive(&preliminaryTierFlags); preliminaryTier == "full" || len(explicitTools) > 0 {
 			// Build skip list: tools that already have native OpenAI function schemas
@@ -536,7 +604,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				guideStrategy.AllowedTools = append([]string(nil), flags.EnabledNativeTools...)
 			}
 			guideStrategy.Flags = &flags
-			flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategy(
+			flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategyContext(
+				ctx,
 				longTermMem,
 				shortTermMem,
 				lastUserMsg,
@@ -551,380 +620,393 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		} else {
 			flags.PredictedGuides = nil
 		}
-		turnMemoryCandidates := make(map[string]string)
-		turnPendingActions := make([]memory.EpisodicMemory, 0, 2)
-
-		// Automatic RAG: retrieve relevant long-term memories for the current user message
-		// Phase A3: Over-fetch and re-rank with recency boost from memory_meta
-		flags.RetrievedMemories = ""
-		flags.PredictedMemories = ""
+		if !guidesPrepared {
+			cachedTurnGuides = append([]string(nil), flags.PredictedGuides...)
+			preparedExplicitGuideKey = explicitGuideKey
+			guidesPrepared = true
+		}
+		turnMemoryCandidates, turnPendingActions, memorySnapshotRestored := s.turnSnapshot.restoreMemory(&flags)
 		retrievalPromptTokens := 0
-		var topMemories []string
-		if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
-			ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
-			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
-			ragQuery := resolveInitialRAGQuery(lastUserMsg, useHelperRAGBatch, func(query string) string {
-				return expandQueryForRAG(ctx, cfg, s.currentLogger, query, shortTermMem)
-			})
-			ragLastUserMsg = lastUserMsg
-			ragToolIterationsSinceLastRefresh = 0
+		if !memorySnapshotRestored {
+			turnMemoryCandidates = make(map[string]string)
+			turnPendingActions = make([]memory.EpisodicMemory, 0, 2)
 
-			// Over-fetch 6 candidates, then re-rank to keep best 3
-			RecordRetrievalEventForScope(telemetryScope, "rag_auto_attempt")
-			autoRetrievalStart := time.Now()
-			searchLimit := 6
-			if useHelperRAGBatch {
-				searchLimit = 8
-			}
-			memories, docIDs, similarities, err := searchSimilarWithScores(ctx, longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
-			RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
-			if err != nil {
-				RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
-			}
-			if err == nil {
-				ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
-				if useHelperRAGBatch {
-					batchCtx, batchCancel := context.WithTimeout(ctx, helperRAGBatchTimeout)
-					batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
-					batchCancel()
-					if batchErr != nil {
-						helperManager.ObserveFallback("rag_batch", batchErr.Error())
-						// Keep the already-ranked vector results. Chaining query expansion,
-						// another embedding search, and a second LLM reranker after an
-						// optional helper timeout made the interactive path progressively
-						// slower while the same provider was unhealthy.
-					} else {
-						if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
-							ragQuery = helperQuery
-							extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
-							if extraErr == nil && len(extraMemories) > 0 {
-								extraRanked := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
-								existing := make(map[string]struct{}, len(ranked))
-								for _, item := range ranked {
-									existing[item.docID] = struct{}{}
-								}
-								for _, item := range extraRanked {
-									if _, ok := existing[item.docID]; ok {
-										continue
-									}
-									existing[item.docID] = struct{}{}
-									ranked = append(ranked, item)
-								}
-							}
-						}
-						ranked = applyHelperRAGScores(s.currentLogger, ranked, batchResult)
-					}
-				} else {
-					// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
-					ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
-				}
-
-				// For short queries (<40 chars), apply a softer score filtering to
-				// avoid injecting semantically-similar but contextually-irrelevant
-				// old memories (e.g. "versuche es erneut" matching old error messages).
-				// Use a lower threshold (0.50) to avoid filtering out highly-relevant old memories,
-				// and always keep at least the top result if anything was found.
-				if len(lastUserMsg) < 40 && len(ranked) > 0 {
-					scoreThreshold := 0.50
-					var filtered []rankedMemory
-					for _, r := range ranked {
-						if r.score >= scoreThreshold {
-							filtered = append(filtered, r)
-						}
-					}
-					// Preserve at least the top result if it was filtered out — old memories
-					// that are semantically highly similar may still be relevant.
-					if len(filtered) == 0 && len(ranked) > 0 {
-						filtered = ranked[:1]
-					}
-					if len(filtered) < len(ranked) {
-						s.currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
-					}
-					ranked = filtered
-				}
-
-				onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
-				servedRanked, availableRanked := selectRAGMemoriesForOnDemand(ranked, onDemandRetrieval, s.currentLogger)
-				if shortTermMem != nil {
-					for _, r := range servedRanked {
-						_ = shortTermMem.UpdateMemoryAccess(r.docID)
-						_ = shortTermMem.RecordMemoryUsage(r.docID, "ltm_retrieved", sessionID, r.score, false)
-					}
-				}
-				markMemoryDocIDsUsed(usedMemoryDocIDs, servedRanked)
-				if onDemandRetrieval.Enabled {
-					flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
-						flags.AvailableMemoryContextIndex,
-						buildAvailableMemoryIndex(availableRanked, onDemandRetrieval.MaxAvailableChars),
-						onDemandRetrieval.MaxAvailableChars,
-					)
-				}
-				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
-				ragEntries := buildAggressiveRAGPromptEntries(servedRanked, wantsDeepDetails, func(docID string) (string, error) {
-					return longTermMem.GetByID(docID)
+			// Automatic RAG: retrieve relevant long-term memories for the immutable
+			// human intent. The completed snapshot is reused across the tool chain.
+			flags.RetrievedMemories = ""
+			flags.PredictedMemories = ""
+			flags.KnowledgeContext = ""
+			flags.AvailableMemoryContextIndex = ""
+			flags.AvailableKnowledgeContextIndex = ""
+			flags.RecentActivityOverview = ""
+			var topMemories []string
+			if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
+				ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
+				useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
+				ragQuery := resolveInitialRAGQuery(lastUserMsg, useHelperRAGBatch, func(query string) string {
+					return expandQueryForRAG(ctx, cfg, s.currentLogger, query, shortTermMem)
 				})
-				for _, entry := range ragEntries {
-					topMemories = append(topMemories, entry.text)
-					if entry.docID != "" {
-						turnMemoryCandidates[entry.docID] = entry.text
-					}
+				ragLastUserMsg = lastUserMsg
+				ragToolIterationsSinceLastRefresh = 0
+
+				// Over-fetch 6 candidates, then re-rank to keep best 3
+				RecordRetrievalEventForScope(telemetryScope, "rag_auto_attempt")
+				autoRetrievalStart := time.Now()
+				searchLimit := 6
+				if useHelperRAGBatch {
+					searchLimit = 8
 				}
-				flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
-				if flags.RetrievedMemories != "" {
-					retrievalPromptTokens += tokenCache.Count(flags.RetrievedMemories, req.Model)
-					RecordRetrievalEventForScope(telemetryScope, "rag_auto_hit")
-					RecordRetrievalEventForScope(telemetryScope, "rag_auto_source:ltm")
-				} else {
-					RecordRetrievalEventForScope(telemetryScope, "rag_auto_filtered_out")
+				memories, docIDs, similarities, err := searchSimilarWithScores(ctx, longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
+				RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
+				if err != nil {
+					RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
 				}
-				s.currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(servedRanked), "candidates", len(ranked))
-			} else {
-				RecordRetrievalEventForScope(telemetryScope, "rag_auto_miss")
-			}
-
-			// Phase A4: Record interaction pattern for temporal learning
-			if shortTermMem != nil {
-				topic := lastUserMsg
-				if len(topic) > 80 {
-					topic = topic[:80]
-				}
-				_ = shortTermMem.RecordInteraction(topic)
-			}
-
-			// Phase B: Predictive pre-fetch based on temporal patterns + tool transitions
-			// Deduplicate against already-retrieved memories to avoid wasting tokens
-			if shortTermMem != nil {
-				now := time.Now()
-				temporalPredictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 1)
-				if err == nil && len(temporalPredictions) > 0 {
-					predictions := buildPredictiveMemoryQueries(lastUserMsg, lastTool, temporalPredictions, 1)
-					if len(predictions) == 0 {
-						predictions = temporalPredictions
-					}
-					// Build set of already-retrieved memory texts for dedup
-					retrievedSet := make(map[string]struct{})
-					for _, r := range topMemories {
-						retrievedSet[r] = struct{}{}
-					}
-
-					var predictedResults []string
-					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_attempt")
-					predictiveStart := time.Now()
-					hadPredictiveError := false
-					type predictiveFetch struct {
-						mem   string
-						docID string
-						err   error
-					}
-					fetches := make([]predictiveFetch, len(predictions))
-
-					g, _ := errgroup.WithContext(ctx)
-					g.SetLimit(3)
-					for i, pred := range predictions {
-						i, pred := i, pred
-						g.Go(func() error {
-							ranked, pErr := searchRankedMemoriesOnly(ctx, longTermMem, shortTermMem, pred, 1, usedMemoryDocIDs, time.Now())
-							if pErr != nil {
-								fetches[i].err = pErr
-								return nil
+				if err == nil {
+					ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
+					if useHelperRAGBatch {
+						batchCtx, batchCancel := context.WithTimeout(ctx, helperRAGBatchTimeout)
+						batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
+						batchCancel()
+						if batchErr != nil {
+							helperManager.ObserveFallback("rag_batch", batchErr.Error())
+							// Keep the already-ranked vector results. Chaining query expansion,
+							// another embedding search, and a second LLM reranker after an
+							// optional helper timeout made the interactive path progressively
+							// slower while the same provider was unhealthy.
+						} else {
+							if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
+								ragQuery = helperQuery
+								extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
+								if extraErr == nil && len(extraMemories) > 0 {
+									extraRanked := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
+									existing := make(map[string]struct{}, len(ranked))
+									for _, item := range ranked {
+										existing[item.docID] = struct{}{}
+									}
+									for _, item := range extraRanked {
+										if _, ok := existing[item.docID]; ok {
+											continue
+										}
+										existing[item.docID] = struct{}{}
+										ranked = append(ranked, item)
+									}
+								}
 							}
-							if len(ranked) > 0 {
-								fetches[i].mem = ranked[0].text
-								fetches[i].docID = ranked[0].docID
-							}
-							return nil
-						})
-					}
-					_ = g.Wait()
-
-					for _, f := range fetches {
-						if len(predictedResults) >= 1 {
-							break
+							ranked = applyHelperRAGScores(s.currentLogger, ranked, batchResult)
 						}
-						if f.err != nil {
-							hadPredictiveError = true
-							continue
-						}
-						if f.mem == "" {
-							continue
-						}
-						if f.docID != "" && usedMemoryDocIDs[f.docID] > 0 {
-							continue
-						}
-						if _, dup := retrievedSet[f.mem]; dup {
-							continue
-						}
-						servedMemory, ok := preparePredictiveMemoryForPrompt(f.mem)
-						if !ok {
-							continue
-						}
-						servedMemory = compactMemoryForPrompt(servedMemory, aggressivePredictedMemoriesChars)
-						predictedResults = append(predictedResults, servedMemory)
-						retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
-						if f.docID != "" && shortTermMem != nil {
-							usedMemoryDocIDs[f.docID]++
-							_ = shortTermMem.RecordMemoryUsage(f.docID, "ltm_predicted", sessionID, 0, false)
-							turnMemoryCandidates[f.docID] = servedMemory
-						}
-					}
-					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
-					if hadPredictiveError {
-						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_error")
-					}
-					if len(predictedResults) > 0 {
-						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
-						retrievalPromptTokens += tokenCache.Count(flags.PredictedMemories, req.Model)
-						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_hit")
-						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_source:ltm_predicted")
-						s.currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
 					} else {
-						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_miss")
+						// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
+						ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
+					}
+
+					// For short queries (<40 chars), apply a softer score filtering to
+					// avoid injecting semantically-similar but contextually-irrelevant
+					// old memories (e.g. "versuche es erneut" matching old error messages).
+					// Use a lower threshold (0.50) to avoid filtering out highly-relevant old memories,
+					// and always keep at least the top result if anything was found.
+					if len(lastUserMsg) < 40 && len(ranked) > 0 {
+						scoreThreshold := 0.50
+						var filtered []rankedMemory
+						for _, r := range ranked {
+							if r.score >= scoreThreshold {
+								filtered = append(filtered, r)
+							}
+						}
+						// Preserve at least the top result if it was filtered out — old memories
+						// that are semantically highly similar may still be relevant.
+						if len(filtered) == 0 && len(ranked) > 0 {
+							filtered = ranked[:1]
+						}
+						if len(filtered) < len(ranked) {
+							s.currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
+						}
+						ranked = filtered
+					}
+
+					onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
+					servedRanked, availableRanked := selectRAGMemoriesForOnDemand(ranked, onDemandRetrieval, s.currentLogger)
+					if shortTermMem != nil {
+						for _, r := range servedRanked {
+							_ = shortTermMem.UpdateMemoryAccess(r.docID)
+							_ = shortTermMem.RecordMemoryUsage(r.docID, "ltm_retrieved", sessionID, r.score, false)
+						}
+					}
+					markMemoryDocIDsUsed(usedMemoryDocIDs, servedRanked)
+					if onDemandRetrieval.Enabled {
+						flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
+							flags.AvailableMemoryContextIndex,
+							buildAvailableMemoryIndex(availableRanked, onDemandRetrieval.MaxAvailableChars),
+							onDemandRetrieval.MaxAvailableChars,
+						)
+					}
+					wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
+					ragEntries := buildAggressiveRAGPromptEntries(servedRanked, wantsDeepDetails, func(docID string) (string, error) {
+						return longTermMem.GetByID(docID)
+					})
+					for _, entry := range ragEntries {
+						topMemories = append(topMemories, entry.text)
+						if entry.docID != "" {
+							turnMemoryCandidates[entry.docID] = entry.text
+						}
+					}
+					flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
+					if flags.RetrievedMemories != "" {
+						retrievalPromptTokens += tokenCache.Count(flags.RetrievedMemories, req.Model)
+						RecordRetrievalEventForScope(telemetryScope, "rag_auto_hit")
+						RecordRetrievalEventForScope(telemetryScope, "rag_auto_source:ltm")
+					} else {
+						RecordRetrievalEventForScope(telemetryScope, "rag_auto_filtered_out")
+					}
+					s.currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(servedRanked), "candidates", len(ranked))
+				} else {
+					RecordRetrievalEventForScope(telemetryScope, "rag_auto_miss")
+				}
+
+				// Phase A4: Record interaction pattern for temporal learning
+				if shortTermMem != nil {
+					topic := lastUserMsg
+					if len(topic) > 80 {
+						topic = topic[:80]
+					}
+					_ = shortTermMem.RecordInteraction(topic)
+				}
+
+				// Phase B: Predictive pre-fetch based on temporal patterns + tool transitions
+				// Deduplicate against already-retrieved memories to avoid wasting tokens
+				if shortTermMem != nil {
+					now := time.Now()
+					temporalPredictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 1)
+					if err == nil && len(temporalPredictions) > 0 {
+						predictions := buildPredictiveMemoryQueries(lastUserMsg, lastTool, temporalPredictions, 1)
+						if len(predictions) == 0 {
+							predictions = temporalPredictions
+						}
+						// Build set of already-retrieved memory texts for dedup
+						retrievedSet := make(map[string]struct{})
+						for _, r := range topMemories {
+							retrievedSet[r] = struct{}{}
+						}
+
+						var predictedResults []string
+						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_attempt")
+						predictiveStart := time.Now()
+						hadPredictiveError := false
+						type predictiveFetch struct {
+							mem   string
+							docID string
+							err   error
+						}
+						fetches := make([]predictiveFetch, len(predictions))
+
+						g, _ := errgroup.WithContext(ctx)
+						g.SetLimit(3)
+						for i, pred := range predictions {
+							i, pred := i, pred
+							g.Go(func() error {
+								ranked, pErr := searchRankedMemoriesOnly(ctx, longTermMem, shortTermMem, pred, 1, usedMemoryDocIDs, time.Now())
+								if pErr != nil {
+									fetches[i].err = pErr
+									return nil
+								}
+								if len(ranked) > 0 {
+									fetches[i].mem = ranked[0].text
+									fetches[i].docID = ranked[0].docID
+								}
+								return nil
+							})
+						}
+						_ = g.Wait()
+
+						for _, f := range fetches {
+							if len(predictedResults) >= 1 {
+								break
+							}
+							if f.err != nil {
+								hadPredictiveError = true
+								continue
+							}
+							if f.mem == "" {
+								continue
+							}
+							if f.docID != "" && usedMemoryDocIDs[f.docID] > 0 {
+								continue
+							}
+							if _, dup := retrievedSet[f.mem]; dup {
+								continue
+							}
+							servedMemory, ok := preparePredictiveMemoryForPrompt(f.mem)
+							if !ok {
+								continue
+							}
+							servedMemory = compactMemoryForPrompt(servedMemory, aggressivePredictedMemoriesChars)
+							predictedResults = append(predictedResults, servedMemory)
+							retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
+							if f.docID != "" && shortTermMem != nil {
+								usedMemoryDocIDs[f.docID]++
+								_ = shortTermMem.RecordMemoryUsage(f.docID, "ltm_predicted", sessionID, 0, false)
+								turnMemoryCandidates[f.docID] = servedMemory
+							}
+						}
+						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
+						if hadPredictiveError {
+							RecordRetrievalEventForScope(telemetryScope, "rag_predictive_error")
+						}
+						if len(predictedResults) > 0 {
+							flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
+							retrievalPromptTokens += tokenCache.Count(flags.PredictedMemories, req.Model)
+							RecordRetrievalEventForScope(telemetryScope, "rag_predictive_hit")
+							RecordRetrievalEventForScope(telemetryScope, "rag_predictive_source:ltm_predicted")
+							s.currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
+						} else {
+							RecordRetrievalEventForScope(telemetryScope, "rag_predictive_miss")
+						}
+					}
+				}
+
+			}
+
+			if len(usedMemoryDocIDs) > 500 {
+				usedMemoryDocIDs = make(map[string]int)
+			}
+
+			// For capability/availability queries, RAG was intentionally skipped.
+			// Inject a live-state policy note so the agent knows not to rely on any
+			// stale memory it may have encountered in the conversation history.
+			if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && isCapabilityQuery(lastUserMsg) && flags.RetrievedMemories == "" {
+				flags.RetrievedMemories = "[Memory Policy] This query concerns agent capabilities or tool/integration availability. " +
+					"The authoritative source is the CURRENT TOOL SCHEMA in this context — NOT past memory entries. " +
+					"Memory about tool availability is always considered potentially stale. " +
+					"If you are unsure whether a tool is present, use discover_tools first. Do not guess, improvise, or attempt hidden tools blindly."
+				s.currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
+			}
+
+			// Pending follow-ups use their own topic matcher. Generic retry phrases
+			// intentionally produce no match and cannot reactivate stale work.
+			if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
+				pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 1)
+				if pErr == nil && len(pendingActions) > 0 {
+					turnPendingActions = append(turnPendingActions, pendingActions...)
+					lines := make([]string, 0, len(pendingActions))
+					for _, action := range pendingActions {
+						line := action.EventDate + " | " + action.Title + " — " + action.Summary
+						if trigger := strings.TrimSpace(action.TriggerQuery); trigger != "" {
+							line += " | trigger: " + trigger
+						}
+						lines = append(lines, line)
+					}
+					prefix := compactMemoryForPrompt("[Pending Follow-Ups]\n- "+strings.Join(lines, "\n- "), 230)
+					if flags.RetrievedMemories == "" {
+						flags.RetrievedMemories = prefix
+					} else {
+						flags.RetrievedMemories += "\n---\n" + prefix
+					}
+				}
+				anchors, aErr := shortTermMem.GetRecentDayAnchors(5)
+				anchors = selectRelevantRecentMemoryLines(lastUserMsg, anchors, 1)
+				if aErr == nil && len(anchors) > 0 {
+					prefix := compactMemoryForPrompt("[Recent Day Anchors]\n- "+strings.Join(anchors, "\n- "), 230)
+					if flags.RetrievedMemories == "" {
+						flags.RetrievedMemories = prefix
+					} else {
+						flags.RetrievedMemories += "\n---\n" + prefix
+					}
+				}
+				episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 5)
+				episodic = selectRelevantRecentMemoryLines(lastUserMsg, episodic, 1)
+				if eErr == nil && len(episodic) > 0 {
+					prefix := compactMemoryForPrompt("[Last 72h Episodes]\n- "+strings.Join(episodic, "\n- "), 230)
+					if flags.RetrievedMemories == "" {
+						flags.RetrievedMemories = prefix
+					} else {
+						flags.RetrievedMemories += "\n---\n" + prefix
 					}
 				}
 			}
 
-		}
-
-		if len(usedMemoryDocIDs) > 500 {
-			usedMemoryDocIDs = make(map[string]int)
-		}
-
-		// For capability/availability queries, RAG was intentionally skipped.
-		// Inject a live-state policy note so the agent knows not to rely on any
-		// stale memory it may have encountered in the conversation history.
-		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && isCapabilityQuery(lastUserMsg) && flags.RetrievedMemories == "" {
-			flags.RetrievedMemories = "[Memory Policy] This query concerns agent capabilities or tool/integration availability. " +
-				"The authoritative source is the CURRENT TOOL SCHEMA in this context — NOT past memory entries. " +
-				"Memory about tool availability is always considered potentially stale. " +
-				"If you are unsure whether a tool is present, use discover_tools first. Do not guess, improvise, or attempt hidden tools blindly."
-			s.currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
-		}
-
-		// Pending follow-ups use their own topic matcher. Generic retry phrases
-		// intentionally produce no match and cannot reactivate stale work.
-		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
-			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 1)
-			if pErr == nil && len(pendingActions) > 0 {
-				turnPendingActions = append(turnPendingActions, pendingActions...)
-				lines := make([]string, 0, len(pendingActions))
-				for _, action := range pendingActions {
-					line := action.EventDate + " | " + action.Title + " — " + action.Summary
-					if trigger := strings.TrimSpace(action.TriggerQuery); trigger != "" {
-						line += " | trigger: " + trigger
+			if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
+				if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
+					if len(selectRelevantRecentMemoryLines(lastUserMsg, []string{overview}, 1)) > 0 {
+						flags.RecentActivityOverview = compactMemoryForPrompt(overview, aggressiveRecentOverviewChars)
 					}
-					lines = append(lines, line)
-				}
-				prefix := compactMemoryForPrompt("[Pending Follow-Ups]\n- "+strings.Join(lines, "\n- "), 230)
-				if flags.RetrievedMemories == "" {
-					flags.RetrievedMemories = prefix
-				} else {
-					flags.RetrievedMemories += "\n---\n" + prefix
 				}
 			}
-			anchors, aErr := shortTermMem.GetRecentDayAnchors(5)
-			anchors = selectRelevantRecentMemoryLines(lastUserMsg, anchors, 1)
-			if aErr == nil && len(anchors) > 0 {
-				prefix := compactMemoryForPrompt("[Recent Day Anchors]\n- "+strings.Join(anchors, "\n- "), 230)
-				if flags.RetrievedMemories == "" {
-					flags.RetrievedMemories = prefix
-				} else {
-					flags.RetrievedMemories += "\n---\n" + prefix
-				}
-			}
-			episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 5)
-			episodic = selectRelevantRecentMemoryLines(lastUserMsg, episodic, 1)
-			if eErr == nil && len(episodic) > 0 {
-				prefix := compactMemoryForPrompt("[Last 72h Episodes]\n- "+strings.Join(episodic, "\n- "), 230)
-				if flags.RetrievedMemories == "" {
-					flags.RetrievedMemories = prefix
-				} else {
-					flags.RetrievedMemories += "\n---\n" + prefix
-				}
-			}
-		}
 
-		if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
-			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
-				if len(selectRelevantRecentMemoryLines(lastUserMsg, []string{overview}, 1)) > 0 {
-					flags.RecentActivityOverview = compactMemoryForPrompt(overview, aggressiveRecentOverviewChars)
+			// Knowledge Graph context injection: search for relevant entities
+			if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
+				maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
+				maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
+				if maxNodes <= 0 || maxNodes > 3 {
+					maxNodes = 3
 				}
-			}
-		}
-
-		// Knowledge Graph context injection: search for relevant entities
-		if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
-			maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
-			maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
-			if maxNodes <= 0 || maxNodes > 3 {
-				maxNodes = 3
-			}
-			if maxChars <= 0 || maxChars > aggressiveKnowledgeContextChars {
-				maxChars = aggressiveKnowledgeContextChars
-			}
-			onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
-			if onDemandRetrieval.Enabled {
-				availableKGNodes := onDemandRetrieval.MaxAvailableKGNodes
-				if availableKGNodes < 0 {
-					availableKGNodes = 0
+				if maxChars <= 0 || maxChars > aggressiveKnowledgeContextChars {
+					maxChars = aggressiveKnowledgeContextChars
 				}
-				availableChars := onDemandRetrieval.MaxAvailableChars
-				if availableChars <= 0 {
-					availableChars = aggressiveAvailableContextChars
-				}
-				searchNodes := 1 + availableKGNodes
-				if searchNodes < maxNodes {
-					searchNodes = maxNodes
-				}
-				kgResult := kg.SearchForContextStructured(lastUserMsg, searchNodes, maxChars+availableChars)
-				if len(kgResult.Nodes) > 0 {
-					kg.RecordContextAccess(kgResult)
-					if kgContext := kgResult.LimitNodes(0, 1).FormatContext(maxChars); kgContext != "" {
+				onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
+				if onDemandRetrieval.Enabled {
+					availableKGNodes := onDemandRetrieval.MaxAvailableKGNodes
+					if availableKGNodes < 0 {
+						availableKGNodes = 0
+					}
+					availableChars := onDemandRetrieval.MaxAvailableChars
+					if availableChars <= 0 {
+						availableChars = aggressiveAvailableContextChars
+					}
+					searchNodes := 1 + availableKGNodes
+					if searchNodes < maxNodes {
+						searchNodes = maxNodes
+					}
+					kgResult := kg.SearchForContextStructured(lastUserMsg, searchNodes, maxChars+availableChars)
+					if len(kgResult.Nodes) > 0 {
+						kg.RecordContextAccess(kgResult)
+						if kgContext := kgResult.LimitNodes(0, 1).FormatContext(maxChars); kgContext != "" {
+							flags.KnowledgeContext = kgContext
+						}
+						flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
+							flags.AvailableKnowledgeContextIndex,
+							kgResult.LimitNodes(1, availableKGNodes).AvailableIndex(availableChars),
+							availableChars,
+						)
+						s.currentLogger.Debug("[Sync] KG: Injected on-demand knowledge context", "direct_nodes", 1, "available_nodes", len(kgResult.Nodes)-1)
+					}
+				} else {
+					kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
+					if kgContext != "" {
 						flags.KnowledgeContext = kgContext
+						s.currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
 					}
-					flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
-						flags.AvailableKnowledgeContextIndex,
-						kgResult.LimitNodes(1, availableKGNodes).AvailableIndex(availableChars),
-						availableChars,
-					)
-					s.currentLogger.Debug("[Sync] KG: Injected on-demand knowledge context", "direct_nodes", 1, "available_nodes", len(kgResult.Nodes)-1)
-				}
-			} else {
-				kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
-				if kgContext != "" {
-					flags.KnowledgeContext = kgContext
-					s.currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
 				}
 			}
-		}
 
-		// Retrieval Fusion: cross-reference RAG↔KG for bidirectional enrichment.
-		// When both RAG and KG produced results, enrich each with the other's findings.
-		if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
-			flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
-			longTermMem != nil && kg != nil {
-			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
-			if fusionResult.EnrichedMemories != "" {
-				if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
-					flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
-						flags.AvailableMemoryContextIndex,
-						"- [fusion:memory] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedMemories, 260),
-						cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
-					)
-				} else {
-					flags.RetrievedMemories += "\n---\n" + compactMemoryForPrompt(fusionResult.EnrichedMemories, 400)
+			// Retrieval Fusion: cross-reference RAG↔KG for bidirectional enrichment.
+			// When both RAG and KG produced results, enrich each with the other's findings.
+			if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
+				flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
+				longTermMem != nil && kg != nil {
+				fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
+				if fusionResult.EnrichedMemories != "" {
+					if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+						flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
+							flags.AvailableMemoryContextIndex,
+							"- [fusion:memory] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedMemories, 260),
+							cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
+						)
+					} else {
+						flags.RetrievedMemories += "\n---\n" + compactMemoryForPrompt(fusionResult.EnrichedMemories, 400)
+					}
+				}
+				if fusionResult.EnrichedKGContext != "" {
+					if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+						flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
+							flags.AvailableKnowledgeContextIndex,
+							"- [fusion:kg] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedKGContext, 260),
+							cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
+						)
+					} else {
+						flags.KnowledgeContext += "\n" + compactMemoryForPrompt(fusionResult.EnrichedKGContext, 400)
+					}
 				}
 			}
-			if fusionResult.EnrichedKGContext != "" {
-				if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
-					flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
-						flags.AvailableKnowledgeContextIndex,
-						"- [fusion:kg] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedKGContext, 260),
-						cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
-					)
-				} else {
-					flags.KnowledgeContext += "\n" + compactMemoryForPrompt(fusionResult.EnrichedKGContext, 400)
-				}
-			}
+			s.turnSnapshot.captureMemory(&flags, turnMemoryCandidates, turnPendingActions)
 		}
 
 		// Error Pattern Context: inject known errors when in error recovery state.
@@ -1061,8 +1143,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Inject high-priority open notes as reminders
-		if cfg.Tools.Notes.Enabled && shortTermMem != nil {
-			if hpNotes, err := shortTermMem.GetHighPriorityOpenNotes(5); err == nil && len(hpNotes) > 0 {
+		flags.HighPriorityNotes = ""
+		if cfg.Tools.Notes.Enabled && shortTermMem != nil && s.turnSnapshot != nil {
+			if s.turnSnapshot.NotesReady && !s.turnSnapshot.NotesDirty {
+				flags.HighPriorityNotes = s.turnSnapshot.HighPriorityNotes
+			} else if hpNotes, err := shortTermMem.GetHighPriorityOpenNotes(5); err == nil {
 				var sb strings.Builder
 				for _, n := range hpNotes {
 					sb.WriteString(fmt.Sprintf("- [%s] %s", n.Category, n.Title))
@@ -1072,6 +1157,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					sb.WriteString("\n")
 				}
 				flags.HighPriorityNotes = sb.String()
+				s.turnSnapshot.HighPriorityNotes = flags.HighPriorityNotes
+				s.turnSnapshot.NotesReady = true
+				s.turnSnapshot.NotesDirty = false
 			}
 		}
 
@@ -1081,15 +1169,36 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Inject session todo list into system prompt context
 		flags.SessionTodoItems = sessionTodoList
-		if shortTermMem != nil {
-			if planPrompt, err := shortTermMem.BuildSessionPlanPrompt(sessionID); err == nil && strings.TrimSpace(planPrompt) != "" {
-				flags.SessionTodoItems = planPrompt
+		if shortTermMem != nil && s.turnSnapshot != nil {
+			if s.turnSnapshot.PlanReady && !s.turnSnapshot.PlanDirty {
+				if strings.TrimSpace(s.turnSnapshot.SessionPlanPrompt) != "" {
+					flags.SessionTodoItems = s.turnSnapshot.SessionPlanPrompt
+				}
+			} else if planPrompt, err := shortTermMem.BuildSessionPlanPrompt(sessionID); err == nil {
+				s.turnSnapshot.SessionPlanPrompt = planPrompt
+				s.turnSnapshot.PlanReady = true
+				s.turnSnapshot.PlanDirty = false
+				if strings.TrimSpace(planPrompt) != "" {
+					flags.SessionTodoItems = planPrompt
+				}
 			}
 		}
 		// When inner voice is active, suppress general emotion guidance while
 		// preserving trait-driven curiosity guidance.
 		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy, flags.InnerVoice != "")
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
+		budgetMessages := req.Messages
+		if lastGeneratedSystemPrompt != "" && len(budgetMessages) > 0 &&
+			budgetMessages[0].Role == openai.ChatMessageRoleSystem && budgetMessages[0].Content == lastGeneratedSystemPrompt {
+			budgetMessages = budgetMessages[1:]
+		}
+		routeSystemBudget, routeBudgetErr := requestBudget.systemPromptBudget(budgetMessages, req.Tools, req.Model, tokenCache)
+		if routeBudgetErr != nil {
+			return openai.ChatCompletionResponse{}, routeBudgetErr
+		}
+		if flags.TokenBudget <= 0 || flags.TokenBudget > routeSystemBudget {
+			flags.TokenBudget = routeSystemBudget
+		}
 		applyAggressivePromptContextBudgets(&flags)
 		retrievalPromptTokens = countMemoryPromptTelemetryTokens(flags, req.Model)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
@@ -1132,15 +1241,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			!cachedSysPromptAt.IsZero() &&
 			time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
 
+		promptBuildStarted := time.Now()
 		sysPrompt := ""
 		sysPromptTokens := 0
+		promptRevision := ""
+		removedPromptSections := 0
 		if cacheHit {
 			sysPrompt, sysPromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
+			promptRevision = prompts.DescribePromptDocument(sysPrompt, req.Model, sysPromptTokens).Revision
 		} else {
-			sysPrompt, sysPromptTokens = prompts.BuildSystemPromptContext(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
+			promptResult := prompts.BuildSystemPromptDetailed(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
+			sysPrompt, sysPromptTokens = promptResult.Text, promptResult.Tokens
+			promptRevision = promptResult.Revision
+			removedPromptSections = len(promptResult.RemovedSections)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 				sysPromptTokens += tokenCache.Count(budgetHint, req.Model) + 2
+				promptRevision = prompts.DescribePromptDocument(sysPrompt, req.Model, sysPromptTokens).Revision
 			}
 
 			if cacheKeyErr == nil && cacheKey != "" {
@@ -1153,6 +1270,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				cachedSysPromptAt = time.Time{}
 			}
 		}
+		promptBuildDuration := time.Since(promptBuildStarted)
 
 		// Update the Guardian with the current trusted system prompt so that
 		// structure enforcement (sandwich defense) can frame user/external input.
@@ -1181,37 +1299,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		req.Messages = ensureGeneratedSystemPromptMessage(req.Messages, sysPrompt, lastGeneratedSystemPrompt)
 		lastGeneratedSystemPrompt = sysPrompt
 
-		// ── Context compression ──
-		// Before the hard-trim guard, try to compress older messages into a summary
-		// to preserve knowledge while freeing token budget.
-		ctxWindow := cfg.Agent.ContextWindow
-		if ctxWindow <= 0 {
-			if detectedCtxWindow == 0 {
-				detectedCtxWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, req.Model, cfg.LLM.ProviderType, s.currentLogger)
-			}
-			if detectedCtxWindow > 0 {
-				ctxWindow = detectedCtxWindow
-			} else {
-				ctxWindow = 163840
-			}
+		// ── Route-aware context compression and guard ──
+		// Tool schemas, output capacity, the protocol margin and the generated
+		// system prompt have already been reserved. Compression therefore receives
+		// only the capacity that is genuinely available to history.
+		historyBudget := requestBudget.historyBudget(sysPrompt, req.Tools, tokenCache)
+		usageBeforeCompression := requestBudget.tokenUsage(req.Messages, req.Tools, tokenCache)
+		historyTokens := 0
+		if len(usageBeforeCompression) > 0 {
+			historyTokens = usageBeforeCompression[0].HistoryTokens
 		}
-		completionMargin := 4096
-		maxHistoryTokens := ctxWindow - completionMargin
-		if maxHistoryTokens < 4096 {
-			maxHistoryTokens = 4096
-		}
-		// Count message tokens once per iteration. The same cached total drives the
-		// later-iteration compaction/compression policy and the hard-trim fallback.
-		messageTokens := countMessageTokens(req.Messages, req.Model, tokenCache)
-		runHistoryCompression := shouldRunHistoryCompression(loopIterationCount, messageTokens, maxHistoryTokens)
-		historyCompacted := false
+		runHistoryCompression := shouldRunHistoryCompression(loopIterationCount, historyTokens, historyBudget)
 		if runHistoryCompression && cfg.Agent.HistoryCompaction.Enabled {
 			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, HistoryCompactionOptions{
 				KeepRecentToolRoundsFull: cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull,
 			})
 			if historyCompaction.Compacted {
 				req.Messages = compactedMessages
-				historyCompacted = true
 				if lastCompressionMsg > len(req.Messages) {
 					lastCompressionMsg = 0
 				}
@@ -1228,96 +1332,68 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		compressionClient, compressionModel := s.cachedCompressionClient, s.cachedCompressionModel
 		var compRes CompressHistoryResult
 		if runHistoryCompression && compressionClient != nil && compressionModel != "" {
-			// Pre-check threshold: use the cached count to show UI feedback
-			// before the potentially slow synchronous LLM call inside CompressHistory.
-			compressionThreshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
-			if messageTokens > compressionThreshold {
+			compressionThreshold := int(float64(historyBudget) * compressionThresholdPct)
+			if historyTokens > compressionThreshold {
 				broker.Send("thinking", "Compressing context...")
-			}
-			req.Messages, lastCompressionMsg, compRes = CompressHistory(
-				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, s.currentLogger,
-			)
-			if compRes.Compressed {
-				s.currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
-			}
-		}
-
-		// ── Context window guard ──
-		// Use TotalTokens from CompressHistory when available. Only re-count when
-		// compaction rewrote the message slice but compression skipped accounting.
-		totalMsgTokens := contextGuardMessageTokens(messageTokens, req.Messages, req.Model, tokenCache, compRes, historyCompacted, sysPromptTokens)
-		if len(req.Tools) > 0 {
-			toolSchemaJSON, _ := json.Marshal(req.Tools)
-			totalMsgTokens += tokenCache.Count(string(toolSchemaJSON), req.Model)
-		}
-		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
-			broker.Send("thinking", "Trimming context window...")
-			s.currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
-				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
-			var droppedMessages []openai.ChatCompletionMessage
-			var mid []openai.ChatCompletionMessage
-
-			useImportance := s.runCfg.Config.Agent.ImportanceScoring.Enabled && s.runCfg.Config.Agent.ImportanceScoring.Mode == "active"
-			logOnly := s.runCfg.Config.Agent.ImportanceScoring.Enabled && s.runCfg.Config.Agent.ImportanceScoring.Mode == "log_only"
-
-			if useImportance {
-				originalMessages := make([]openai.ChatCompletionMessage, len(req.Messages))
-				copy(originalMessages, req.Messages)
-				var droppedIndices []int
-				req.Messages, droppedIndices, totalMsgTokens = TrimByImportance(req.Messages, maxHistoryTokens, req.Model, s.currentLogger)
-				for _, idx := range droppedIndices {
-					if idx < len(originalMessages) {
-						droppedMessages = append(droppedMessages, originalMessages[idx])
+				if lease, acquired := historyCompressionCoordinator.acquire(ctx, sessionID, true, false); acquired {
+					persistable := sessionID == "default" && historyManager != nil && shortTermMem != nil && !runCfg.IsCoAgent && !runCfg.IsMission
+					if persistable {
+						persistentResult := compressPersistentHistory(ctx, runCfg, historyBudget, 0, false, compressionModel, compressionClient, s.currentLogger)
+						if persistentResult.Compressed {
+							req.Messages = applyPersistentCompressionToRequest(req.Messages, persistentResult)
+							compRes = CompressHistoryResult{
+								Compressed: true, DroppedCount: len(persistentResult.Dropped), Summary: persistentResult.Summary,
+								SummaryTokens: prompts.CountTokensForModel(persistentResult.Summary, compressionModel),
+							}
+							lastCompressionMsg = len(req.Messages)
+						}
+					} else if !transientCompressionAttempted {
+						transientCompressionAttempted = true
+						compressionEnvelope := historyBudget
+						if len(req.Messages) > 0 {
+							compressionEnvelope += tokenCache.Count(messageTextWithReasoningForAccounting(req.Messages[0]), compressionModel) + 4
+						}
+						req.Messages, lastCompressionMsg, compRes = CompressHistory(
+							ctx, req.Messages, compressionEnvelope, compressionModel, compressionClient, lastCompressionMsg, s.currentLogger,
+						)
 					}
+					lease.release(compRes.Compressed)
 				}
-				if len(req.Messages) >= 2 {
-					mid = req.Messages[1 : len(req.Messages)-1]
+				if compRes.Compressed {
+					s.currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
 				}
-			} else {
-				if logOnly {
-					_, droppedIndices, _ := TrimByImportance(req.Messages, maxHistoryTokens, req.Model, s.currentLogger)
-					s.currentLogger.Info("[ImportanceScoring] log_only mode — scores computed but not applied",
-						"would_drop_count", len(droppedIndices))
-				}
-				// Chronological trimming (oldest first).
-				// Always keep system (0), the latest message, and at least 4 recent messages.
-				const minPreservedMessages = 4
-				mid = req.Messages[1 : len(req.Messages)-1]
-				preserveFrom := len(mid)
-				if preserveFrom > minPreservedMessages {
-					preserveFrom = len(mid) - minPreservedMessages
-				}
-				for totalMsgTokens > maxHistoryTokens && len(mid) > preserveFrom {
-					dropped := mid[0]
-					droppedMessages = append(droppedMessages, dropped)
-					mid = mid[1:]
-					totalMsgTokens -= tokenCache.Count(messageTextWithReasoningForAccounting(dropped), req.Model) + 4
-				}
-				req.Messages = append([]openai.ChatCompletionMessage{req.Messages[0]}, append(mid, req.Messages[len(req.Messages)-1])...)
 			}
+		}
 
-			// Re-extract sysMsg/lastMsg after any trimming so they reflect the current state.
-			sysMsg := req.Messages[0]
-			lastMsg := req.Messages[len(req.Messages)-1]
+		// Repair tool-call integrity before trimming so conversation groups are
+		// formed from the exact request that can be sent to the provider.
+		sanitizedMessages, droppedToolMessages := SanitizeToolMessages(req.Messages)
+		beforeSanitizeMessages := len(req.Messages)
+		req.Messages = sanitizedMessages
+		if droppedToolMessages > 0 {
+			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before context trimming",
+				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
+		}
 
-			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
-			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4
-			if recap := buildTrimmedContextRecap(droppedMessages, remainingRecapBudget); recap != "" {
-				trimmedMessages = append(trimmedMessages, openai.ChatCompletionMessage{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: recap,
-				})
-				totalMsgTokens += tokenCache.Count(recap, req.Model) + 4
-			}
-			if useImportance {
-				req.Messages = append(trimmedMessages, mid...)
-				req.Messages = append(req.Messages, lastMsg)
-			} else {
-				req.Messages = append(trimmedMessages, append(mid, lastMsg)...)
-			}
+		useImportance := cfg.Agent.ImportanceScoring.Enabled && cfg.Agent.ImportanceScoring.Mode == "active"
+		if cfg.Agent.ImportanceScoring.Enabled && cfg.Agent.ImportanceScoring.Mode == "log_only" && len(requestBudget.Routes) > 0 {
+			target := requestBudget.historyAndSystemLimit(req.Tools, tokenCache)
+			_, droppedIndices, _ := TrimByImportance(req.Messages, target, requestBudget.Routes[0].Limits.Route.Model, s.currentLogger)
+			s.currentLogger.Info("[ImportanceScoring] log_only mode — scores computed but not applied", "would_drop_count", len(droppedIndices))
+		}
+
+		trimmedMessages, droppedMessages, trimErr := requestBudget.trimHistory(req.Messages, req.Tools, useImportance, s.currentLogger, tokenCache)
+		if trimErr != nil {
+			return openai.ChatCompletionResponse{}, trimErr
+		}
+		if len(droppedMessages) > 0 {
+			broker.Send("thinking", "Trimming context window...")
+			req.Messages = appendRecapWithinBudget(requestBudget, trimmedMessages, req.Tools, droppedMessages, tokenCache)
 			req.Messages = trim422Messages(req.Messages)
 			s.currentLogger.Info("[ContextGuard] History trimmed",
-				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages), "mode", s.runCfg.Config.Agent.ImportanceScoring.Mode)
+				"remaining_messages", len(req.Messages), "dropped_messages", len(droppedMessages), "mode", cfg.Agent.ImportanceScoring.Mode)
+		} else {
+			req.Messages = trimmedMessages
 		}
 
 		// Verbose Logging of LLM Request
@@ -1335,14 +1411,37 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Pre-send validation: ensure tool-call integrity before sending to the
 		// provider. This catches orphaned tool results that slipped through
 		// GetForLLM() or were introduced by context compression / trimming.
-		sanitizedMessages, droppedToolMessages := SanitizeToolMessages(req.Messages)
-		beforeSanitizeMessages := len(req.Messages)
+		sanitizedMessages, droppedToolMessages = SanitizeToolMessages(req.Messages)
+		beforeSanitizeMessages = len(req.Messages)
 		req.Messages = sanitizedMessages
 		if droppedToolMessages > 0 {
 			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
 				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
 		}
 		req.Messages = sanitizeReasoningForContinuation(req.Messages, telemetryScope.ProviderType, req.Model)
+		budgetUsage, budgetValidationErr := requestBudget.validate(req.Messages, req.Tools, tokenCache)
+		if budgetValidationErr != nil {
+			return openai.ChatCompletionResponse{}, budgetValidationErr
+		}
+		for _, usage := range budgetUsage {
+			s.currentLogger.Info("[PromptBudget] Request ready",
+				"prompt_build_ms", promptBuildDuration.Milliseconds(),
+				"prompt_revision", promptRevision,
+				"removed_sections", removedPromptSections,
+				"system_cache_hit", cacheHit,
+				"probe_cache_hit", usage.ProbeCacheHit,
+				"provider", usage.ProviderType,
+				"model", usage.Model,
+				"context_window", usage.ContextWindow,
+				"context_source", usage.ContextSource,
+				"output_source", usage.OutputSource,
+				"system_tokens", usage.SystemTokens,
+				"schema_tokens", usage.SchemaTokens,
+				"history_tokens", usage.HistoryTokens,
+				"output_tokens", usage.CompletionTokens,
+				"safety_tokens", usage.SafetyTokens,
+				"total_tokens", usage.TotalTokens)
+		}
 
 		// Prompt log: append full request JSON to prompts.log when enabled.
 		// Logged AFTER sanitization so the record reflects what is actually sent.

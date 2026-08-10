@@ -3,15 +3,19 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/security"
 )
 
@@ -244,6 +248,178 @@ llm:
 	}
 	if !providers[0].EffectiveCapabilities.ToolCalling || !providers[0].EffectiveCapabilities.StructuredOutputs || !providers[0].EffectiveCapabilities.Multimodal {
 		t.Fatalf("effective capabilities not returned: %+v", providers[0].EffectiveCapabilities)
+	}
+}
+
+func TestHandleProvidersRoundTripsModelLimitOverrides(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o
+llm:
+  provider: main
+`)
+
+	body := `[{
+		"id":"main",
+		"name":"Main",
+		"type":"openai",
+		"base_url":"https://api.openai.com/v1",
+		"model":"gpt-4o",
+		"auth_type":"api_key",
+		"context_window":32768,
+		"max_output_tokens":6144
+	}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	raw, err := os.ReadFile(server.Cfg.ConfigPath)
+	if err != nil {
+		t.Fatalf("ReadFile(config) error = %v", err)
+	}
+	if !strings.Contains(string(raw), "context_window: 32768") || !strings.Contains(string(raw), "max_output_tokens: 6144") {
+		t.Fatalf("saved config does not contain model limit overrides:\n%s", raw)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/providers", nil)
+	rec = httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var providers []providerJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &providers); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(providers) != 1 {
+		t.Fatalf("provider count = %d, want 1", len(providers))
+	}
+	provider := providers[0]
+	if provider.ContextWindow != 32768 || provider.MaxOutputTokens != 6144 {
+		t.Fatalf("overrides = %d/%d, want 32768/6144", provider.ContextWindow, provider.MaxOutputTokens)
+	}
+	if provider.EffectiveContextWindow != 32768 || provider.EffectiveMaxOutputTokens != 6144 {
+		t.Fatalf("effective limits = %d/%d, want 32768/6144", provider.EffectiveContextWindow, provider.EffectiveMaxOutputTokens)
+	}
+	if provider.ContextWindowSource != "provider_override" || provider.MaxOutputTokensSource != "provider_override" {
+		t.Fatalf("sources = %q/%q, want provider_override", provider.ContextWindowSource, provider.MaxOutputTokensSource)
+	}
+}
+
+func TestHandleGetProvidersWarnsForConservativeUnknownModelLimits(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: main
+    name: Main
+    type: custom
+    base_url: ""
+    model: definitely-unknown-model
+llm:
+  provider: main
+`)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/providers", nil)
+	rec := httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var providers []providerJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &providers); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(providers) != 1 {
+		t.Fatalf("provider count = %d, want 1", len(providers))
+	}
+	provider := providers[0]
+	if provider.EffectiveContextWindow != llm.ConservativeContextWindow || provider.EffectiveMaxOutputTokens != llm.ConservativeOutputTokens {
+		t.Fatalf("effective limits = %d/%d, want conservative %d/%d", provider.EffectiveContextWindow, provider.EffectiveMaxOutputTokens, llm.ConservativeContextWindow, llm.ConservativeOutputTokens)
+	}
+	if provider.ModelLimitsWarning != "unknown_model_conservative_limits" {
+		t.Fatalf("warning = %q, want unknown_model_conservative_limits", provider.ModelLimitsWarning)
+	}
+}
+
+func TestHandleGetProvidersBoundsConcurrentModelLimitProbes(t *testing.T) {
+	llm.InvalidateModelLimitCache()
+	defer llm.InvalidateModelLimitCache()
+	var active atomic.Int32
+	var maximum atomic.Int32
+	models := make([]map[string]interface{}, 8)
+	for i := range models {
+		models[i] = map[string]interface{}{
+			"id":                    fmt.Sprintf("probe-model-%d", i),
+			"context_length":        32768,
+			"max_completion_tokens": 2048,
+		}
+	}
+	probeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		current := active.Add(1)
+		for {
+			observed := maximum.Load()
+			if current <= observed || maximum.CompareAndSwap(observed, current) {
+				break
+			}
+		}
+		time.Sleep(40 * time.Millisecond)
+		active.Add(-1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": models})
+	}))
+	defer probeServer.Close()
+
+	cfg := &config.Config{}
+	for i := 0; i < len(models); i++ {
+		cfg.Providers = append(cfg.Providers, config.ProviderEntry{
+			ID:      fmt.Sprintf("provider-%d", i),
+			Type:    "custom",
+			BaseURL: probeServer.URL,
+			Model:   fmt.Sprintf("probe-model-%d", i),
+		})
+	}
+	cfg.LLM.Provider = cfg.Providers[0].ID
+	vault, err := security.NewVault(strings.Repeat("61", 32), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	s := &Server{Cfg: cfg, Logger: slog.Default(), Vault: vault}
+	rec := httptest.NewRecorder()
+	handleGetProviders(s, rec, httptest.NewRequest(http.MethodGet, "/api/providers", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if got := maximum.Load(); got > 4 {
+		t.Fatalf("concurrent provider probes = %d, want at most 4", got)
+	}
+}
+
+func TestHandlePutProvidersRejectsNegativeModelLimitOverrides(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+providers: []
+llm:
+  provider: ""
+`)
+	body := `[{
+		"id":"main",
+		"name":"Main",
+		"type":"custom",
+		"base_url":"http://127.0.0.1:1/v1",
+		"model":"unknown",
+		"context_window":-1,
+		"max_output_tokens":4096
+	}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 }
 

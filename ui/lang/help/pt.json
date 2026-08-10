@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Tempo de espera entre tentativas de repetição em segundos.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Tempo máximo de espera para a conclusão de uma tarefa em segundo plano. Padrão: 600 segundos (10 minutos).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Com que frequência o agente verifica o status de uma tarefa em espera (em segundos).",
-  "help.agent.context_window": "Descrição: Total context window size in tokens. The agente uses this to calculate available capacity. 0 = auto-detect from model.",
+  "help.agent.context_window": "Limite superior global do contexto do pedido em tokens. 0 significa que não existe um limite global configurado. Os limites do fornecedor são detetados automaticamente; modelos desconhecidos usam de forma conservadora 8.192 tokens de contexto e 4.096 tokens de saída.",
   "help.agent.core_memory_cap_mode": "Comportamento ao atingir o limite: \"soft\" adiciona a entrada e retorna um aviso, \"hard\" recusa novas entradas. Padrão: soft.",
   "help.agent.core_memory_max_entries": "Limite superior de fatos permanentes no core memory. 0 usa o padrão de 80.",
   "help.agent.core_personality": "Perfil de personalidade ativo, por exemplo \"neutral\", \"punk\", \"zen\".",

@@ -520,6 +520,44 @@ func (hm *HistoryManager) SetSummary(summary string) error {
 	return nil
 }
 
+// ApplyCompression updates the persistent summary and removes exactly the
+// selected stable message IDs under one lock and with one save notification.
+// It returns the IDs that were still present and were actually removed.
+func (hm *HistoryManager) ApplyCompression(summary string, ids []int64) ([]int64, error) {
+	if hm == nil || strings.TrimSpace(summary) == "" || len(ids) == 0 {
+		return nil, nil
+	}
+	idSet := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id > 0 {
+			idSet[id] = struct{}{}
+		}
+	}
+	if len(idSet) == 0 {
+		return nil, nil
+	}
+
+	hm.mu.Lock()
+	remaining := make([]HistoryMessage, 0, len(hm.Messages))
+	dropped := make([]int64, 0, len(idSet))
+	for _, message := range hm.Messages {
+		if _, ok := idSet[message.ID]; ok && !message.Pinned {
+			dropped = append(dropped, message.ID)
+			continue
+		}
+		remaining = append(remaining, message)
+	}
+	if len(dropped) > 0 {
+		hm.Messages = remaining
+		hm.CurrentSummary = summary
+	}
+	hm.mu.Unlock()
+	if len(dropped) > 0 {
+		hm.triggerSave()
+	}
+	return dropped, nil
+}
+
 func (hm *HistoryManager) DropFirstN(n int) error {
 	hm.mu.Lock()
 	if n >= len(hm.Messages) {

@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "重试之间的等待时间（秒）。",
   "help.agent.background_tasks.wait_default_timeout_secs": "后台任务完成的最大等待时间。默认值：600 秒（10 分钟）。",
   "help.agent.background_tasks.wait_poll_interval_seconds": "代理检查等待任务状态的频率（秒）。",
-  "help.agent.context_window": "上下文窗口大小（以标记为单位）。 0 = 自动检测。",
+  "help.agent.context_window": "请求上下文的全局令牌上限。0 表示未配置全局上限。系统会自动检测提供商限制；未知模型会保守地使用 8,192 个上下文令牌和 4,096 个输出令牌。",
   "help.agent.core_memory_cap_mode": "达到上限时的行为：“软”添加条目并返回警告，“硬”拒绝新条目。默认值：软。",
   "help.agent.core_memory_max_entries": "永久 Core Memory 事实的上限。0 使用默认值 80。",
   "help.agent.core_personality": "活跃的个性档案，例如“中性”、“朋克”、“禅宗”。",

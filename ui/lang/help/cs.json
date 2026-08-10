@@ -27,7 +27,7 @@
   "help.agent.background_tasks.retry_delay_seconds": "Čekací doba mezi pokusy o opakování v sekundách.",
   "help.agent.background_tasks.wait_default_timeout_secs": "Maximální čekací doba na dokončení úlohy na pozadí. Výchozí: 600 sekund (10 minut).",
   "help.agent.background_tasks.wait_poll_interval_seconds": "Jak často agent kontroluje stav čekající úlohy (v sekundách).",
-  "help.agent.context_window": "Velikost kontextu.",
+  "help.agent.context_window": "Globální horní limit kontextu požadavku v tokenech. 0 znamená bez nakonfigurovaného globálního limitu. Limity poskytovatele se zjišťují automaticky; neznámé modely používají konzervativně 8 192 tokenů kontextu a 4 096 výstupních tokenů.",
   "help.agent.core_memory_cap_mode": "Chování při dosažení limitu: \"soft\" položku přidá a vrátí varování, \"hard\" nové položky odmítne. Výchozí: soft.",
   "help.agent.core_memory_max_entries": "Horni limit trvale ulozenych faktu v core memory. 0 pouzije vychozi hodnotu 80.",
   "help.agent.core_personality": "Aktivní profil osobnosti, např. \"neutral\", \"punk\", \"zen\".",

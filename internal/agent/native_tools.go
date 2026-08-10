@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 
@@ -25,13 +26,26 @@ var nativeToolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 var providerNativeToolNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$`)
 
 var builtinToolSchemaCache sync.Map
-var dynamicToolSchemaCache sync.Map
+var dynamicToolSchemaCache = newBoundedNativeSchemaCache(64)
 
 type dynamicToolSchemaCacheKey struct {
 	Flags               ToolFeatureFlags
 	SkillsFingerprint   string
 	ManifestFingerprint string
 }
+
+const nativeSkillsRevisionTTL = 5 * time.Second
+
+type nativeSkillsRevisionCacheEntry struct {
+	fingerprint string
+	checked     time.Time
+	generation  uint64
+}
+
+var nativeSkillsRevisionCache = struct {
+	mu      sync.Mutex
+	entries map[string]nativeSkillsRevisionCacheEntry
+}{entries: make(map[string]nativeSkillsRevisionCacheEntry)}
 
 var nativeMalformedArgFieldPatterns = map[string]*regexp.Regexp{
 	"prompt":      regexp.MustCompile(`"prompt"\s*:\s*"((?:[^"\\]|\\.)*)`),
@@ -1040,8 +1054,20 @@ func nativeSkillsFingerprint(skillsDir string) string {
 	if skillsDir == "" {
 		return ""
 	}
+	cleanDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		cleanDir = filepath.Clean(skillsDir)
+	}
+	now := time.Now()
+	generation := tools.SkillsRevisionGeneration(cleanDir)
+	nativeSkillsRevisionCache.mu.Lock()
+	if cached, ok := nativeSkillsRevisionCache.entries[cleanDir]; ok && cached.generation == generation && now.Sub(cached.checked) < nativeSkillsRevisionTTL {
+		nativeSkillsRevisionCache.mu.Unlock()
+		return cached.fingerprint
+	}
+	nativeSkillsRevisionCache.mu.Unlock()
 	parts := make([]string, 0)
-	_ = filepath.WalkDir(skillsDir, func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(cleanDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil || d.IsDir() {
 			return nil
 		}
@@ -1049,7 +1075,7 @@ func nativeSkillsFingerprint(skillsDir string) string {
 		if err != nil {
 			return nil
 		}
-		rel, err := filepath.Rel(skillsDir, path)
+		rel, err := filepath.Rel(cleanDir, path)
 		if err != nil {
 			rel = path
 		}
@@ -1057,7 +1083,17 @@ func nativeSkillsFingerprint(skillsDir string) string {
 		return nil
 	})
 	sort.Strings(parts)
-	return strings.Join(parts, "\n")
+	fingerprint := strings.Join(parts, "\n")
+	nativeSkillsRevisionCache.mu.Lock()
+	if len(nativeSkillsRevisionCache.entries) >= 128 {
+		for key := range nativeSkillsRevisionCache.entries {
+			delete(nativeSkillsRevisionCache.entries, key)
+			break
+		}
+	}
+	nativeSkillsRevisionCache.entries[cleanDir] = nativeSkillsRevisionCacheEntry{fingerprint: fingerprint, checked: now, generation: generation}
+	nativeSkillsRevisionCache.mu.Unlock()
+	return fingerprint
 }
 
 func nativeManifestFingerprint(manifest *tools.Manifest) string {
@@ -1073,7 +1109,8 @@ func nativeManifestFingerprint(manifest *tools.Manifest) string {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	parts := make([]string, 0, len(names))
+	parts := make([]string, 0, len(names)+1)
+	parts = append(parts, fmt.Sprintf("generation=%d", manifest.Generation()))
 	for _, name := range names {
 		parts = append(parts, name+"="+entries[name])
 	}

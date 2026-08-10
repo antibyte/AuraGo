@@ -116,13 +116,15 @@ func (c ProviderCapabilities) AutoEnabled() bool {
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
-	ID           string               `yaml:"id"       json:"id"`         // unique slug, e.g. "main", "vision", "local-ollama"
-	Name         string               `yaml:"name"     json:"name"`       // human-readable label shown in UI
-	Type         string               `yaml:"type"     json:"type"`       // openai, openrouter, ollama, anthropic, google, custom
-	BaseURL      string               `yaml:"base_url" json:"base_url"`   // API base URL
-	APIKey       string               `yaml:"-" vault:"api_key" json:"-"` // API key (vault-only)
-	Model        string               `yaml:"model"    json:"model"`      // default model name
-	Capabilities ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	ID              string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
+	Name            string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
+	Type            string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
+	BaseURL         string               `yaml:"base_url" json:"base_url"`                                       // API base URL
+	APIKey          string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
+	Model           string               `yaml:"model"    json:"model"`                                          // default model name
+	ContextWindow   int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
+	MaxOutputTokens int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
+	Capabilities    ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
 	// Cloudflare Workers AI — required when Type is "workers-ai"
 	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID
