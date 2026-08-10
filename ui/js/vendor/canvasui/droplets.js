@@ -297,8 +297,9 @@ function drawImageCover(ctx, image, width, height) {
 export function createDroplets(elements, options = {}) {
   const config = { ...DEFAULTS, ...options };
   const { source, content, output } = elements;
-  // Optional static bitmap (Image/Canvas/Video/ImageBitmap) for refraction when
-  // experimental html-in-canvas is unavailable — keeps uHasContent path active.
+  // Optional static bitmap (Image/Canvas/Video/ImageBitmap) for refraction.
+  // When supplied, it ALWAYS wins over experimental html-in-canvas so desktop
+  // wallpaper refraction cannot fall back to gray procedural glass.
   let bitmap = elements.bitmap || null;
 
   const gl = output.getContext("webgl2", {
@@ -310,45 +311,60 @@ export function createDroplets(elements, options = {}) {
   });
   if (!gl || gl.isContextLost()) return null;
 
-  const sourceCtx = source.getContext("2d", { alpha: true, willReadFrequently: false });
+  // Do not pass conflicting context attributes — a second getContext with
+  // different opts can return null and force the gray no-content path.
+  const sourceCtx = source.getContext("2d");
   const paintable = source;
-  const htmlInCanvas = Boolean(
+  const htmlInCanvasNative = Boolean(
     sourceCtx &&
     typeof sourceCtx.drawElementImage === "function" &&
     typeof paintable.requestPaint === "function",
   );
-  const allowBitmap = Boolean(sourceCtx && !htmlInCanvas);
-  const hasContent = () => htmlInCanvas || (allowBitmap && Boolean(bitmap));
+  const allowBitmap = Boolean(sourceCtx);
+  const useBitmap = () => allowBitmap && Boolean(bitmap);
+  // Prefer wallpaper/static bitmap whenever present.
+  const useHtmlInCanvas = () => htmlInCanvasNative && !useBitmap();
+  const hasContent = () => useHtmlInCanvas() || useBitmap();
 
   let contentDirty = false;
+  let contentReady = false;
   let wake = () => {};
 
-  if (htmlInCanvas) {
+  if (htmlInCanvasNative) {
     paintable.onpaint = () => {
+      if (useBitmap()) return;
       try {
         sourceCtx.reset();
         sourceCtx.drawElementImage(content, 0, 0);
         contentDirty = true;
+        contentReady = true;
         wake();
       } catch {}
     };
   }
 
   function paintBitmap() {
-    if (!allowBitmap || !bitmap || !sourceCtx) return;
-    const width = Math.max(1, output.width || 1);
-    const height = Math.max(1, output.height || 1);
+    if (!useBitmap() || !sourceCtx) return false;
+    const width = Math.max(1, output.width || Math.round(output.clientWidth) || 1);
+    const height = Math.max(1, output.height || Math.round(output.clientHeight) || 1);
     if (source.width !== width || source.height !== height) {
       source.width = width;
       source.height = height;
     }
-    sourceCtx.setTransform(1, 0, 0, 1, 0, 0);
-    sourceCtx.clearRect(0, 0, width, height);
+    const iw = bitmap.naturalWidth || bitmap.videoWidth || bitmap.width || 0;
+    const ih = bitmap.naturalHeight || bitmap.videoHeight || bitmap.height || 0;
+    if (iw < 2 || ih < 2) return false;
     try {
+      sourceCtx.setTransform(1, 0, 0, 1, 0, 0);
+      sourceCtx.globalCompositeOperation = "copy";
+      sourceCtx.clearRect(0, 0, width, height);
       drawImageCover(sourceCtx, bitmap, width, height);
+      sourceCtx.globalCompositeOperation = "source-over";
       contentDirty = true;
+      contentReady = true;
+      return true;
     } catch {
-      /* decode/paint race */
+      return false;
     }
   }
 
@@ -420,24 +436,26 @@ export function createDroplets(elements, options = {}) {
 
   function syncCanvasSize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.max(1, Math.round(output.clientWidth * dpr));
-    const height = Math.max(1, Math.round(output.clientHeight * dpr));
+    const cssW = Math.max(1, output.clientWidth || output.offsetWidth || 1);
+    const cssH = Math.max(1, output.clientHeight || output.offsetHeight || 1);
+    const width = Math.max(1, Math.round(cssW * dpr));
+    const height = Math.max(1, Math.round(cssH * dpr));
     if (output.width !== width || output.height !== height) {
       output.width = width;
       output.height = height;
     }
-    if (allowBitmap && bitmap) {
+    if (useBitmap()) {
       contentMaxX = 1;
       paintBitmap();
     } else {
       contentMaxX = Math.min(
         1,
-        Math.max(0.05, content.clientWidth / Math.max(output.clientWidth, 1)),
+        Math.max(0.05, content.clientWidth / Math.max(cssW, 1)),
       );
     }
-    if (htmlInCanvas) {
-      const cssWidth = Math.max(1, Math.round(source.clientWidth));
-      const cssHeight = Math.max(1, Math.round(source.clientHeight));
+    if (useHtmlInCanvas()) {
+      const cssWidth = Math.max(1, Math.round(source.clientWidth || cssW));
+      const cssHeight = Math.max(1, Math.round(source.clientHeight || cssH));
       if (source.width !== cssWidth * dpr || source.height !== cssHeight * dpr) {
         source.width = cssWidth * dpr;
         source.height = cssHeight * dpr;
@@ -543,18 +561,42 @@ export function createDroplets(elements, options = {}) {
   }
 
   function uploadContent() {
+    // Bitmap path: only enable refraction after a successful paint+upload.
+    if (useBitmap() && !contentReady) {
+      paintBitmap();
+    }
     if (!hasContent() || !contentDirty) return;
-    contentDirty = false;
-    gl.bindTexture(gl.TEXTURE_2D, contentTexture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      source,
-    );
-    gl.generateMipmap(gl.TEXTURE_2D);
+    try {
+      gl.bindTexture(gl.TEXTURE_2D, contentTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+      if (useBitmap() && source.width > 1 && source.height > 1) {
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          source,
+        );
+      } else if (useHtmlInCanvas()) {
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          source,
+        );
+      } else {
+        return;
+      }
+      gl.generateMipmap(gl.TEXTURE_2D);
+      contentDirty = false;
+    } catch {
+      // Keep dirty so the next frame retries (transient decode/GPU issues).
+      contentDirty = true;
+    }
   }
 
   function render(timeSec) {
@@ -563,14 +605,16 @@ export function createDroplets(elements, options = {}) {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, contentTexture);
     gl.uniform1i(uniforms.uContent, 0);
-    gl.uniform1f(uniforms.uHasContent, hasContent() ? 1 : 0);
+    // Only flip on the refracting path after content is actually ready.
+    const contentOn = hasContent() && (useHtmlInCanvas() || contentReady);
+    gl.uniform1f(uniforms.uHasContent, contentOn ? 1 : 0);
     gl.uniform2f(uniforms.uResolution, output.width, output.height);
     gl.uniform2f(
       uniforms.uOffset,
-      allowBitmap && bitmap
+      useBitmap()
         ? 0
         : content.scrollLeft / Math.max(content.clientWidth, 1),
-      allowBitmap && bitmap
+      useBitmap()
         ? 0
         : -content.scrollTop / Math.max(content.clientHeight, 1),
     );
@@ -694,6 +738,12 @@ export function createDroplets(elements, options = {}) {
   listenTarget.addEventListener("pointerleave", onPointerLeave, { passive: true });
   content.addEventListener("scroll", start, { passive: true });
 
+  // Prime wallpaper content before the first animated frame.
+  if (useBitmap()) {
+    paintBitmap();
+    uploadContent();
+  }
+
   return {
     setOptions(next) {
       if (
@@ -708,12 +758,17 @@ export function createDroplets(elements, options = {}) {
     setBitmap(next) {
       if (!allowBitmap) return;
       bitmap = next || null;
-      paintBitmap();
+      contentReady = false;
+      if (paintBitmap()) uploadContent();
       start();
     },
     resize() {
       syncCanvasSize();
+      if (useBitmap()) uploadContent();
       start();
+    },
+    hasContent() {
+      return hasContent() && contentReady;
     },
     destroy() {
       destroyed = true;
@@ -734,7 +789,7 @@ export function createDroplets(elements, options = {}) {
       gl.deleteShader(fragmentShader);
       gl.deleteShader(trailShader);
       gl.deleteBuffer(quad);
-      if (htmlInCanvas) paintable.onpaint = null;
+      if (htmlInCanvasNative) paintable.onpaint = null;
     },
   };
 }

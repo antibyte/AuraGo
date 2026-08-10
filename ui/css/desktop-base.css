@@ -395,8 +395,12 @@
     max-width: none;
 }
 
+/* Keep source canvas paintable (display:none can break 2d→WebGL uploads). */
 .vd-droplets-source {
-    display: none;
+    display: block;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .vd-droplets-output.is-hidden {

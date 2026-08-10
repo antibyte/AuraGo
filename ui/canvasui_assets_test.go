@@ -57,7 +57,10 @@ func TestCanvasUIAssetsAreEmbedded(t *testing.T) {
 		"drawImageCover",
 		"setBitmap",
 		"allowBitmap",
+		"useBitmap",
 		"hasContent()",
+		"contentReady",
+		"ALWAYS wins over experimental html-in-canvas",
 	} {
 		if !strings.Contains(droplets, want) {
 			t.Fatalf("droplets module missing bitmap-content marker %q", want)

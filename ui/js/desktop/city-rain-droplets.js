@@ -299,8 +299,22 @@ async function startDroplets() {
   source.style.width = "100%";
   source.style.height = "100%";
 
+  if (!bitmap || !(bitmap.naturalWidth || bitmap.width)) {
+    starting = false;
+    host.classList.remove("is-active");
+    host.hidden = true;
+    output.classList.add("is-hidden");
+    output.classList.remove("is-active");
+    host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.gracefulWebGL2Failure;
+    return;
+  }
+
   try {
-    instance = createDroplets({ source, content, output, bitmap }, rainOptions());
+    // Bitmap is required so refraction uses wallpaper colors, not gray glass.
+    instance = createDroplets(
+      { source, content, output, bitmap },
+      rainOptions()
+    );
   } catch {
     instance = null;
   }
@@ -335,6 +349,10 @@ async function startDroplets() {
     kick();
     requestAnimationFrame(kick);
   });
+  // Late decode / GPU settle: re-push wallpaper a few times after mount.
+  window.setTimeout(kick, 120);
+  window.setTimeout(kick, 400);
+  window.setTimeout(kick, 1000);
 }
 
 function syncWallpaperEffect() {
