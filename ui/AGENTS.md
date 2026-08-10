@@ -75,10 +75,12 @@ images, and browser-oriented regression tests.
   versioned request URLs, and keeps HTML, API, event, and auth traffic network-only.
 - CanvasUI components are vendored as local framework-free ESM under
   `ui/js/vendor/canvasui/` with committed `manifest.json`, `LICENSE.txt`, and
-  pinned upstream provenance. They must not load remote assets at runtime, must
-  not introduce React solely for effects, and consumers (for example login
-  Droplets) must keep graceful WebGL2 / `html-in-canvas` / reduced-motion
-  fallbacks without breaking existing backgrounds or auth hooks.
+  pinned upstream provenance. They must not load remote assets at runtime and
+  must not introduce React solely for effects. Login uses Flame Wrap on the
+  auth card. Droplets are desktop-only for the `city_rain` wallpaper via
+  `ui/js/desktop/city-rain-droplets.js`, painted on `#vd-wallpaper-fx`
+  (`z-index: -1`) behind icons/widgets/windows, with graceful WebGL2 /
+  reduced-motion fallbacks and no HTML capture of foreground UI.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
 

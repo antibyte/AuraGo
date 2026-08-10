@@ -217,7 +217,11 @@ void main () {
     + (1.0 - min(g, 1.0)) * 0.3
     - g * (0.9 + 0.25 * n);
   dens = clamp(dens * 2.4, 0.0, 1.0) * win;
-  dens *= mix(1.0 - S(0.32, 1.05, q), 1.0 - S(0.9, 1.2, g), wTop);
+  // Irregular outer falloff (avoids a hard rounded-rect silhouette).
+  float ragged = 0.55 + 0.45 * shred + 0.25 * (perim - 0.5);
+  float outerA = S(0.18 * ragged, 0.95 + 0.55 * ragged, q);
+  float outerB = S(0.55 + 0.35 * shred, 1.45 + 0.55 * perim, g);
+  dens *= mix(1.0 - outerA, 1.0 - outerB, wTop);
   float body = dens * dens * (3.0 - 2.0 * dens);
   float emis = clamp(uIntensity, 0.0, 2.0);
   float e = body * (0.55 + 0.75 * root) * (0.45 + 0.55 * n)
@@ -233,8 +237,12 @@ void main () {
   fireCol *= 0.8 + 0.4 * ramp;
   float fireA = clamp(1.0 - exp(-e * 3.4), 0.0, 1.0);
 
-  float halo = exp(-max(front, 0.0) / (spreadPx * 1.2)) * S(0.0, 3.0, front)
-    * (0.5 + 0.5 * n) * 0.3 * clamp(uRim, 0.0, 2.0) * mix(1.0, 0.45, wTop);
+  float haloReach = spreadPx * (1.45 + 0.55 * perim) + unit * 0.06 * shred;
+  float halo = exp(-max(front, 0.0) / max(haloReach, 1.0))
+    * S(0.0, 6.0 + 8.0 * shred, front)
+    * (0.35 + 0.65 * n) * 0.28 * clamp(uRim, 0.0, 2.0) * mix(1.0, 0.45, wTop);
+  // Soften the outer halo rim with a second ragged envelope.
+  halo *= 1.0 - S(0.55 + 0.4 * shred, 1.35 + 0.5 * perim, q);
   vec3 glow = uColor * halo * clamp(uIntensity, 0.0, 2.0);
 
   if (uSparks > 0.001) {
@@ -276,9 +284,15 @@ void main () {
     fireA = clamp(fireA + spark * 0.85, 0.0, 1.0);
   }
 
+  // Soft, noise-warped canvas-edge fade so the effect never ends in a sharp box.
   vec2 edgePx = min(frag, uResolution - frag);
-  float fadeW = max(24.0, spreadPx * 0.75);
-  float fade = S(0.0, fadeW, edgePx.x) * S(0.0, fadeW, edgePx.y);
+  float edgeNoise = fbm2(frag * 0.011 + vec2(t * 0.07, -t * 0.05) + 13.0);
+  float fadeW = max(56.0, spreadPx * 2.4 + unit * 0.18);
+  float fadeWx = fadeW * (0.7 + 0.6 * edgeNoise);
+  float fadeWy = fadeW * (0.7 + 0.6 * (1.0 - edgeNoise));
+  float fadeX = S(0.0, fadeWx, edgePx.x);
+  float fadeY = S(0.0, fadeWy, edgePx.y);
+  float fade = pow(clamp(fadeX * fadeY, 0.0, 1.0), 0.72);
   fireA *= fade;
   glow *= fade;
   halo *= fade;

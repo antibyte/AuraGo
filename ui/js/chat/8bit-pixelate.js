@@ -1,22 +1,30 @@
 /**
- * 8Bit Theme — Canvas-based real pixelation for <img> elements.
+ * 8Bit Theme — Canvas-based real pixelation for <img> elements and the
+ * chat background logo (#chat-box::after via --bg-logo).
  *
- * Draws each target image onto a tiny canvas (e.g. 8×8),
- * then replaces the src with the low-res data-URL.
- * image-rendering:pixelated on the element does nearest-neighbor
- * upscaling = visible pixel blocks from actual source pixels.
+ * Images: draw onto a tiny canvas, swap src to the low-res data-URL;
+ * image-rendering:pixelated upscales with nearest-neighbor.
  *
- * Monitors img.src changes via load events and MutationObserver
- * so dynamically loaded persona images get pixelated too.
+ * Background: downsample the logo (4×4 CSS-pixel blocks) with a slight
+ * center-top zoom so the wordmark under the gopher is cropped out.
  */
 (() => {
     'use strict';
 
     const PIXEL_SMALL = 36;
     const PIXEL_LARGE = 64;
+    /** Each logical pixel of the downsampled background becomes a 4×4 CSS block. */
+    const BG_BLOCK = 4;
+    /** Extra cover zoom (>1) crops edges; bias keeps the gopher, hides bottom text. */
+    const BG_ZOOM = 1.28;
+    const BG_FOCUS_Y = 0.38;
 
     const _cache = new Map();
     const _observed = new WeakSet();
+    let _originalBgLogo = '';
+    let _originalBgLogoSize = '';
+    let _bgToken = 0;
+    let _bgResizeTimer = 0;
 
     function is8BitTheme() {
         return document.documentElement.getAttribute('data-theme') === '8bit';
@@ -81,26 +89,21 @@
     function watchImage(img, px) {
         if (!img || _observed.has(img)) return;
         _observed.add(img);
-        // Pixelate on every load in 8bit mode; restore if the theme changed away.
         img.addEventListener('load', () => is8BitTheme() ? pixelateImage(img, px) : restoreImage(img));
     }
 
     function targetImages() {
         const targets = [];
-        // Avatar <img> inside .avatar containers
         document.querySelectorAll('.avatar img, .avatar .persona-avatar-img').forEach(img => {
             targets.push([img, PIXEL_SMALL]);
         });
 
-        // Personality current icon (standalone <img>)
         const currentIcon = document.getElementById('personality-current-icon');
         if (currentIcon) targets.push([currentIcon, PIXEL_SMALL]);
 
-        // Personality preview image (appears on hover)
         const previewImg = document.getElementById('personality-preview-image');
         if (previewImg) targets.push([previewImg, PIXEL_LARGE]);
 
-        // Any persona images in personality options / drawers
         document.querySelectorAll('.personality-option img, img[class*="persona"]').forEach(img => {
             targets.push([img, PIXEL_SMALL]);
         });
@@ -118,22 +121,134 @@
         document.querySelectorAll('img[data-aurago8bit-pixelated], img[data-aurago8bit-src]').forEach(restoreImage);
     }
 
+    function parseCssUrl(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const match = raw.match(/url\(\s*(['"]?)(.*?)\1\s*\)/i);
+        return match ? match[2] : '';
+    }
+
+    function rememberBackgroundLogo() {
+        if (_originalBgLogo) return;
+        const computed = getComputedStyle(document.documentElement);
+        const logo = computed.getPropertyValue('--bg-logo').trim();
+        if (logo && !logo.includes('data:')) {
+            _originalBgLogo = logo;
+            _originalBgLogoSize = computed.getPropertyValue('--bg-logo-size').trim() || 'cover';
+        }
+    }
+
+    function restoreBackground() {
+        _bgToken += 1;
+        const root = document.documentElement;
+        root.style.removeProperty('--bg-logo');
+        root.style.removeProperty('--bg-logo-size');
+        root.removeAttribute('data-aurago8bit-bg');
+        _originalBgLogo = '';
+        _originalBgLogoSize = '';
+    }
+
+    function drawImageCoverZoomed(ctx, image, width, height, zoom, focusY) {
+        const iw = image.naturalWidth || image.width || 1;
+        const ih = image.naturalHeight || image.height || 1;
+        const z = Math.max(1, Number(zoom) || 1);
+        const fy = Math.min(1, Math.max(0, Number(focusY) || 0.5));
+        const scale = Math.max(width / iw, height / ih) * z;
+        const dw = iw * scale;
+        const dh = ih * scale;
+        const dx = (width - dw) / 2;
+        // Anchor crop toward focusY so bottom wordmark leaves the frame.
+        const dy = height * fy - dh * fy;
+        ctx.drawImage(image, dx, dy, dw, dh);
+    }
+
+    function loadImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.decoding = 'async';
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('bg logo load failed'));
+            img.src = url;
+        });
+    }
+
+    async function pixelateBackground() {
+        if (!is8BitTheme()) {
+            restoreBackground();
+            return;
+        }
+        rememberBackgroundLogo();
+        const logoValue = _originalBgLogo || getComputedStyle(document.documentElement).getPropertyValue('--bg-logo').trim();
+        const src = parseCssUrl(logoValue);
+        if (!src || src.startsWith('data:')) return;
+
+        const token = ++_bgToken;
+        const vw = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+        const vh = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+        const tinyW = Math.max(1, Math.round(vw / BG_BLOCK));
+        const tinyH = Math.max(1, Math.round(vh / BG_BLOCK));
+        const cacheKey = src + '@bg@' + tinyW + 'x' + tinyH + '@' + BG_BLOCK + '@z' + BG_ZOOM + '@fy' + BG_FOCUS_Y;
+
+        let dataURL = _cache.get(cacheKey);
+        if (!dataURL) {
+            try {
+                const img = await loadImage(src);
+                if (token !== _bgToken || !is8BitTheme()) return;
+                const tiny = document.createElement('canvas');
+                tiny.width = tinyW;
+                tiny.height = tinyH;
+                const tctx = tiny.getContext('2d');
+                tctx.imageSmoothingEnabled = true;
+                drawImageCoverZoomed(tctx, img, tinyW, tinyH, BG_ZOOM, BG_FOCUS_Y);
+                // Re-sample nearest-neighbor so the bitmap itself is blocky when upscaled.
+                const out = document.createElement('canvas');
+                out.width = tinyW;
+                out.height = tinyH;
+                const octx = out.getContext('2d');
+                octx.imageSmoothingEnabled = false;
+                octx.drawImage(tiny, 0, 0, tinyW, tinyH);
+                dataURL = out.toDataURL('image/png');
+                _cache.set(cacheKey, dataURL);
+            } catch (_) {
+                return;
+            }
+        }
+        if (token !== _bgToken || !is8BitTheme()) return;
+
+        const root = document.documentElement;
+        root.style.setProperty('--bg-logo', 'url("' + dataURL + '")');
+        // Stretch the low-res bitmap to the full viewport so each texel is BG_BLOCK×BG_BLOCK.
+        root.style.setProperty('--bg-logo-size', '100% 100%');
+        root.setAttribute('data-aurago8bit-bg', 'pixelated-4x4');
+    }
+
+    function scheduleBackgroundPixelate() {
+        if (_bgResizeTimer) window.clearTimeout(_bgResizeTimer);
+        _bgResizeTimer = window.setTimeout(() => {
+            _bgResizeTimer = 0;
+            pixelateBackground();
+        }, 80);
+    }
+
     function sync() {
-        if (is8BitTheme()) setTimeout(pixelateAll, 400);
-        else restoreAll();
+        if (is8BitTheme()) {
+            setTimeout(pixelateAll, 400);
+            scheduleBackgroundPixelate();
+        } else {
+            restoreAll();
+            restoreBackground();
+        }
     }
 
     function init() {
         sync();
 
-        // MutationObserver for new chat messages
         const chatBox = document.getElementById('chat-content') || document.getElementById('chat-box');
         if (chatBox && typeof MutationObserver !== 'undefined') {
             new MutationObserver(() => setTimeout(sync, 80))
                 .observe(chatBox, { childList: true, subtree: true });
         }
 
-        // Observe personality dropdown and preview panel for src changes
         const personalityPicker = document.querySelector('.personality-select-wrapper')
             || document.getElementById('personality-dropdown');
         if (personalityPicker && typeof MutationObserver !== 'undefined') {
@@ -142,6 +257,9 @@
         }
 
         window.addEventListener('aurago:themechange', sync);
+        window.addEventListener('resize', () => {
+            if (is8BitTheme()) scheduleBackgroundPixelate();
+        }, { passive: true });
     }
 
     if (document.readyState === 'loading') {
@@ -150,6 +268,3 @@
         init();
     }
 })();
-
-
-

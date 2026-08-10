@@ -812,8 +812,14 @@
     justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
-    padding: clamp(4.75rem, 10vh, 7rem) max(1rem, env(safe-area-inset-right, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px));
-    overflow-x: clip;
+    /* Extra inset so Flame Wrap outline is not clipped by the viewport edge. */
+    padding:
+        clamp(7rem, 14vh, 10rem)
+        max(3.5rem, env(safe-area-inset-right, 0px))
+        max(3.5rem, env(safe-area-inset-bottom, 0px))
+        max(3.5rem, env(safe-area-inset-left, 0px));
+    /* Must stay visible: base body { overflow:hidden } clips side/top flames. */
+    overflow: visible !important;
     background: var(--pw-canvas);
     background-image: none;
     color: var(--pw-text);
@@ -839,19 +845,7 @@
     pointer-events: none;
 }
 
-.pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-source {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    width: 100%;
-    height: 100%;
-    display: none;
-    pointer-events: none;
-}
 
-.pw-page.pw-entry-page[data-entry-page="login"] .login-bg-host.is-native-capture .login-droplets-source {
-    display: block;
-}
 
 /* Color aurora + neural net / CSS fallback stay in the backplate. */
 .pw-page.pw-entry-page[data-entry-page="login"] .login-color-aurora,
@@ -873,7 +867,6 @@
     box-shadow: none;
 }
 
-/* Keep vignette/scan under the rain so droplets stay sharp in the foreground. */
 .pw-page.pw-entry-page[data-entry-page="login"] .vignette {
     z-index: 1;
     opacity: 0.35;
@@ -884,26 +877,8 @@
 }
 
 /* Foreground rain layer: above backplate/vignette/scan, below form controls. */
-.pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-output {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    pointer-events: none;
-    opacity: 1;
-    mix-blend-mode: screen;
-}
 
-.pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-output.is-active {
-    display: block !important;
-}
 
-.pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) .login-droplets-output {
-    mix-blend-mode: multiply;
-    opacity: 0.9;
-}
 
 .pw-page.pw-entry-page[data-entry-page="login"] .corner-theme {
     position: fixed;
@@ -927,7 +902,10 @@
     z-index: 100;
     width: min(100%, 420px);
     max-width: 420px;
+    /* Room for side/bottom flame outline without clipping the burn edge. */
+    margin: var(--login-flame-reach, 184px) var(--login-flame-spread, 58px) var(--login-flame-spread, 58px);
     overflow: visible;
+    flex-shrink: 0;
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-source {
@@ -1057,7 +1035,18 @@
 @media (max-width: 768px) {
     .pw-page.pw-entry-page[data-entry-page="login"] {
         align-items: flex-start;
-        padding: calc(4.75rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+        padding:
+            calc(6.5rem + env(safe-area-inset-top, 0px))
+            max(2rem, env(safe-area-inset-right, 0px))
+            calc(2.5rem + env(safe-area-inset-bottom, 0px))
+            max(2rem, env(safe-area-inset-left, 0px));
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-card-wrap {
+        margin:
+            var(--login-flame-reach, 140px)
+            var(--login-flame-spread, 40px)
+            var(--login-flame-spread, 40px);
     }
 }
 
@@ -1085,8 +1074,6 @@
 
 @media (prefers-reduced-motion: reduce) {
     .pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas,
-    .pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-output,
-    .pw-page.pw-entry-page[data-entry-page="login"] .login-droplets-source,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-output,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-source {
         display: none !important;
