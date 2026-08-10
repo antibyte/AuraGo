@@ -188,7 +188,6 @@
             if (ctx.fxBossShockwave) ctx.fxBossShockwave(x, y);
             if (ctx.fxBossDeathRumble) ctx.fxBossDeathRumble(x, y);
             if (!reducedMotion()) {
-                if (!low && ctx.fxScreenShatter) ctx.fxScreenShatter();
                 if (ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(x, y);
             } else {
                 ctx.G.flashT = Math.max(ctx.G.flashT || 0, 120);
@@ -460,29 +459,15 @@
                     G.timeScale = ctx.modesRestoreTimeScale ? ctx.modesRestoreTimeScale() : (G.hyperdriveBaseScale || 1);
                 }
             }
-            if (G.fxScreenShatterT > 0) G.fxScreenShatterT -= dtMs;
-            if (G.fxRankSlamT > 0) G.fxRankSlamT -= dtMs;
-            else if (G.fxRankSlamRank) G.fxRankSlamRank = '';
             if (G.fxHyperTunnelT > 0) G.fxHyperTunnelT -= dtMs;
             if (G.fxMirrorRefractT > 0) G.fxMirrorRefractT -= dtMs;
-            if (G.fxHeatHazeT > 0) G.fxHeatHazeT -= dtMs;
-            if (G.st === 'PLAYING' && (G.combo || 0) >= 15) G.fxHeatHazeT = Math.max(G.fxHeatHazeT || 0, 120);
             if (G.st === 'PLAYING' && ctx.isGameMode && ctx.isGameMode('hyperdrive')) {
                 G.fxHyperTunnelT = Math.max(G.fxHyperTunnelT || 0, 200);
             }
             if (G.st === 'PLAYING') fxBiomeWeatherTick(dtMs);
         }
 
-        function fxScreenShatter() {
-            ctx.G.fxScreenShatterT = 1400;
-            if (!ctx.G.fxShatterCracks) ctx.G.fxShatterCracks = [];
-            ctx.G.fxShatterCracks.length = 0;
-            for (let i = 0; i < 8 + caps().ring * 2; i++) {
-                const ax = Math.random() * ctx.W, ay = Math.random() * ctx.H;
-                const bx = ax + (Math.random() - 0.5) * 120, by = ay + (Math.random() - 0.5) * 120;
-                ctx.G.fxShatterCracks.push({ x1: ax, y1: ay, x2: bx, y2: by, w: 1 + Math.random() * 2 });
-            }
-        }
+        function fxScreenShatter() {}
 
         function fxBulletTime() {
             ctx.G.fxBulletTimeT = 650;
@@ -508,11 +493,7 @@
             }
         }
 
-        function fxRankSlam(rank) {
-            ctx.G.fxRankSlamT = 900;
-            ctx.G.fxRankSlamRank = rank || ctx.G.stageRank || 'A';
-            if (ctx.SFX.rankSlam) ctx.SFX.rankSlam();
-        }
+        function fxRankSlam() {}
 
         function fxHyperTunnel() {
             ctx.G.fxHyperTunnelT = 2200;
@@ -524,9 +505,7 @@
             ctx.G.chromAb = Math.max(ctx.G.chromAb || 0, 180);
         }
 
-        function fxHeatHaze() {
-            ctx.G.fxHeatHazeT = 300;
-        }
+        function fxHeatHaze() {}
 
         // --- Draw: warp streaks behind the game layer -------------------------
         function fxDrawBack(c) {
@@ -718,66 +697,6 @@
                 c.save();
                 c.fillStyle = 'rgba(8,12,32,' + (0.35 * pr) + ')';
                 c.fillRect(0, 0, ctx.W, ctx.H);
-                c.restore();
-            }
-            if (G.fxScreenShatterT > 0 && G.fxShatterCracks) {
-                const pr = G.fxScreenShatterT / 1400;
-                c.save();
-                c.globalAlpha = Math.min(1, pr * 1.2);
-                c.strokeStyle = '#aaddff';
-                c.lineWidth = 1.5;
-                for (let i = 0; i < G.fxShatterCracks.length; i++) {
-                    const cr = G.fxShatterCracks[i];
-                    c.beginPath(); c.moveTo(cr.x1, cr.y1); c.lineTo(cr.x2, cr.y2); c.stroke();
-                }
-                c.restore();
-            }
-            if (G.fxRankSlamT > 0 && G.fxRankSlamRank) {
-                const pr = 1 - G.fxRankSlamT / 900;
-                if (pr < 0.82) {
-                const scale = 0.55 + easeOutCubic(Math.min(1, pr * 1.5)) * 0.95;
-                const rank = G.fxRankSlamRank;
-                const colMap = { 'S+': '#ffcc00', 'S': '#eeeeee', 'A': '#44ccff', 'B': '#44ff44', 'C': '#888888' };
-                const col = colMap[rank] || '#ffcc00';
-                c.save();
-                c.translate(ctx.W / 2, ctx.H * 0.42);
-                if (pr < 0.28) {
-                    const flash = 1 - pr / 0.28;
-                    const sz = 6 + (1 - flash) * 52;
-                    c.globalAlpha = flash * 0.9;
-                    c.fillStyle = col;
-                    c.fillRect(-sz, -sz * 0.35, sz * 2, sz * 0.7);
-                    c.fillRect(-sz * 0.35, -sz, sz * 0.7, sz * 2);
-                    const p = Math.floor(sz * 0.45);
-                    c.fillRect(-p - 22, -p - 10, 4, 4);
-                    c.fillRect(p + 18, -p - 10, 4, 4);
-                    c.fillRect(-p - 22, p + 6, 4, 4);
-                    c.fillRect(p + 18, p + 6, 4, 4);
-                }
-                c.globalAlpha = Math.min(1, 0.45 + pr * 1.1);
-                c.scale(scale, scale);
-                c.fillStyle = col;
-                c.font = 'bold 48px monospace';
-                c.textAlign = 'center';
-                c.textBaseline = 'middle';
-                c.fillText(rank, 0, 0);
-                if (pr < 0.12) {
-                    c.globalAlpha = 1 - pr / 0.12;
-                    c.fillStyle = '#ffffff';
-                    c.fillRect(-22, -2, 44, 4);
-                }
-                c.restore();
-                }
-            }
-            if (G.fxHeatHazeT > 0) {
-                const pr = G.fxHeatHazeT / 300;
-                c.save();
-                c.globalAlpha = 0.08 * pr;
-                c.strokeStyle = '#ff8844';
-                for (let i = 0; i < 4; i++) {
-                    const y = (ctx.H / 4) * i + Math.sin(ctx.tick * 0.08 + i) * 4;
-                    c.beginPath(); c.moveTo(0, y); c.lineTo(ctx.W, y + 6); c.stroke();
-                }
                 c.restore();
             }
             c.globalAlpha = 1;

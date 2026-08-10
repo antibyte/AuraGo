@@ -88,7 +88,6 @@
         function advanceToNextStage(fromSkip) {
             if (ctx.G.stageClearLock > 0 || ctx.G.st === 'STAGE_INTRO' || ctx.G.st === 'GAME_OVER') return;
             if (ctx.trackStageBoni) ctx.trackStageBoni(ctx.G);
-            if (ctx.G.stageRank && ctx.fxRankSlam) ctx.fxRankSlam(ctx.G.stageRank);
             if (ctx.modesOnStageClearBeforeAdvance) {
                 const clearResult = ctx.modesOnStageClearBeforeAdvance();
                 if (clearResult === 'gauntlet_win') {
