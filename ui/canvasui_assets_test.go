@@ -52,6 +52,17 @@ func TestCanvasUIAssetsAreEmbedded(t *testing.T) {
 	if !strings.Contains(droplets, "export function createDroplets") {
 		t.Fatal("droplets module missing createDroplets export")
 	}
+	for _, want := range []string{
+		"elements.bitmap",
+		"drawImageCover",
+		"setBitmap",
+		"allowBitmap",
+		"hasContent()",
+	} {
+		if !strings.Contains(droplets, want) {
+			t.Fatalf("droplets module missing bitmap-content marker %q", want)
+		}
+	}
 	flame := string(mustReadUIFile(t, "js/vendor/canvasui/flame-wrap.js"))
 	if !strings.Contains(flame, "export function createFlameWrap") {
 		t.Fatal("flame-wrap module missing createFlameWrap export")
@@ -233,6 +244,9 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 		`from "/js/vendor/canvasui/droplets.js"`,
 		"createDroplets",
 		`city_rain`,
+		`/img/wallpapers/city_rain.jpg`,
+		"bitmap",
+		"wallpaper-bitmap",
 		"data-wallpaper",
 		"vd-wallpaper-fx",
 		"desktop-droplets:webgl2-unavailable",
@@ -242,6 +256,7 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 		"MutationObserver",
 		"prefers-reduced-motion",
 		"destroy()",
+		"tintStrength: 0",
 	} {
 		if !strings.Contains(desktopJS, want) {
 			t.Fatalf("desktop city-rain droplets missing marker %q", want)
@@ -249,7 +264,7 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 	}
 	// Must not capture desktop HTML into the effect (keeps windows/icons clean).
 	if strings.Contains(desktopJS, "layoutsubtree=\"true\"") || strings.Contains(desktopJS, "drawElementImage") {
-		t.Fatal("desktop droplets must stay procedural and must not capture desktop HTML")
+		t.Fatal("desktop droplets must not capture desktop HTML; wallpaper bitmap only")
 	}
 
 	html := normalizeAssetText(mustReadUIFile(t, "desktop.html"))
@@ -284,11 +299,16 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 			`pointer-events: none`,
 			`data-wallpaper="city_rain"`,
 			`.vd-droplets-output`,
+			`mix-blend-mode: normal`,
 			`@media (prefers-reduced-motion: reduce)`,
 		} {
 			if !strings.Contains(source, want) {
 				t.Fatalf("desktop CSS missing city-rain droplets marker %q", want)
 			}
+		}
+		if strings.Contains(source, `.vd-droplets-output.is-active`) &&
+			strings.Contains(source[strings.Index(source, `.vd-droplets-output.is-active`):], `mix-blend-mode: screen`) {
+			t.Fatal("desktop droplets must not use mix-blend-mode: screen on the output canvas")
 		}
 	}
 }

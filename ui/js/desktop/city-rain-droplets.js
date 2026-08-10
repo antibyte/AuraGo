@@ -2,10 +2,13 @@
  * Virtual Desktop City Rain wallpaper effect.
  * CanvasUI Droplets only while appearance.wallpaper === city_rain,
  * painted strictly behind icons/widgets/windows.
+ * Feeds the city_rain wallpaper bitmap so drops refract real background colors
+ * (original CanvasUI uHasContent path) instead of gray procedural glass.
  */
-import { createDroplets, supportsHtmlInCanvas } from "/js/vendor/canvasui/droplets.js";
+import { createDroplets } from "/js/vendor/canvasui/droplets.js";
 
 const WALLPAPER_KEY = "city_rain";
+const WALLPAPER_URL = "/img/wallpapers/city_rain.jpg";
 const HOST_ID = "vd-wallpaper-fx";
 const CONTENT_ID = "vd-droplets-content";
 const SOURCE_ID = "vd-droplets-source";
@@ -14,6 +17,7 @@ const OUTPUT_ID = "vd-droplets-output";
 export const DESKTOP_DROPLETS_MARKERS = Object.freeze({
   wallpaperGate: "city_rain",
   backgroundOnly: "vd-wallpaper-fx",
+  contentBitmap: "wallpaper-bitmap",
   gracefulWebGL2Failure: "desktop-droplets:webgl2-unavailable",
   reducedMotionSkip: "desktop-droplets:reduced-motion-skip",
   active: "desktop-droplets:active",
@@ -24,6 +28,9 @@ let instance = null;
 let hostEl = null;
 let observer = null;
 let motionQuery = null;
+let wallpaperImage = null;
+let wallpaperLoad = null;
+let startToken = 0;
 
 function prefersReducedMotion() {
   try {
@@ -72,7 +79,6 @@ function ensureHost() {
       `<div id="${CONTENT_ID}" class="vd-droplets-content" aria-hidden="true"></div>` +
       `<canvas id="${SOURCE_ID}" class="vd-droplets-source" aria-hidden="true"></canvas>` +
       `<canvas id="${OUTPUT_ID}" class="vd-droplets-output" aria-hidden="true"></canvas>`;
-    // First child so paint order stays under icons/widgets/windows.
     workspace.insertBefore(host, workspace.firstChild);
   }
   if (!host) return null;
@@ -82,27 +88,50 @@ function ensureHost() {
 
 function rainOptions() {
   return {
-    intensity: 0.55,
+    intensity: 0.62,
     speed: 0.95,
-    scale: 0.42,
-    dropWidth: 0.9,
+    scale: 0.4,
+    dropWidth: 0.95,
     dropLength: 1.05,
-    refraction: 0.1,
-    blur: 0,
-    vignette: 0,
+    refraction: 0.14,
+    blur: 0.35,
+    vignette: 0.15,
     fallSpeed: 1,
     wiggle: 0.9,
-    staticDrops: 0.22,
+    staticDrops: 0.28,
     interactive: false,
     interactionRadius: 0,
     interactionStrength: 0,
     interactionDistortion: 0,
-    tint: [0.45, 0.72, 0.88],
-    tintStrength: 0.12,
+    // No gray glass tint — wallpaper colors carry the look.
+    tint: [1, 1, 1],
+    tintStrength: 0,
   };
 }
 
+function loadWallpaperImage() {
+  if (wallpaperImage && wallpaperImage.complete && wallpaperImage.naturalWidth > 0) {
+    return Promise.resolve(wallpaperImage);
+  }
+  if (wallpaperLoad) return wallpaperLoad;
+  wallpaperLoad = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      wallpaperImage = img;
+      resolve(img);
+    };
+    img.onerror = () => {
+      wallpaperLoad = null;
+      reject(new Error("city_rain wallpaper failed to load"));
+    };
+    img.src = WALLPAPER_URL;
+  });
+  return wallpaperLoad;
+}
+
 function destroyDroplets(reason) {
+  startToken += 1;
   if (instance) {
     try {
       instance.destroy();
@@ -124,8 +153,10 @@ function destroyDroplets(reason) {
   }
 }
 
-function startDroplets() {
+async function startDroplets() {
   if (instance) return;
+  const token = ++startToken;
+
   if (prefersReducedMotion()) {
     const host = ensureHost();
     if (host) host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.reducedMotionSkip;
@@ -144,17 +175,25 @@ function startDroplets() {
   const output = document.getElementById(OUTPUT_ID);
   if (!content || !source || !output) return;
 
-  // Procedural rain only — never capture desktop HTML (keeps windows/icons clean).
+  // Never capture desktop HTML — only the wallpaper bitmap for refraction.
   source.removeAttribute("layoutsubtree");
   host.classList.remove("is-native-capture");
-  void supportsHtmlInCanvas;
+
+  let bitmap;
+  try {
+    bitmap = await loadWallpaperImage();
+  } catch {
+    if (token !== startToken) return;
+    host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.gracefulWebGL2Failure;
+    return;
+  }
+  if (token !== startToken || !isCityRainWallpaper()) return;
 
   host.hidden = false;
   host.classList.add("is-active");
   output.classList.remove("is-hidden");
   output.classList.add("is-active");
 
-  // Force measurable box before WebGL init.
   void host.offsetWidth;
   const rect = host.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -162,9 +201,14 @@ function startDroplets() {
   output.style.height = "100%";
   output.width = Math.max(1, Math.round(rect.width * dpr));
   output.height = Math.max(1, Math.round(rect.height * dpr));
+  source.style.width = "100%";
+  source.style.height = "100%";
 
   try {
-    instance = createDroplets({ source, content, output }, rainOptions());
+    instance = createDroplets(
+      { source, content, output, bitmap },
+      rainOptions()
+    );
   } catch {
     instance = null;
   }
@@ -175,6 +219,7 @@ function startDroplets() {
   }
 
   host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.active;
+  host.dataset.dropletsContent = DESKTOP_DROPLETS_MARKERS.contentBitmap;
   try {
     instance.resize();
   } catch {

@@ -409,8 +409,15 @@
 
 .vd-droplets-output.is-active {
     display: block;
-    mix-blend-mode: screen;
-    opacity: 0.85;
+    /* Full refracted wallpaper path — no blend that grays out drop colors. */
+    mix-blend-mode: normal;
+    opacity: 1;
+}
+
+/* Canvas already paints the wallpaper with refraction; avoid double stacking. */
+.desktop-body[data-wallpaper="city_rain"]:has(.vd-wallpaper-fx.is-active) {
+    background-image: none;
+    background-color: #03050c;
 }
 
 @media (prefers-reduced-motion: reduce) {

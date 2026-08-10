@@ -283,9 +283,23 @@ export function supportsHtmlInCanvas() {
   );
 }
 
+function drawImageCover(ctx, image, width, height) {
+  const iw = image.naturalWidth || image.videoWidth || image.width || 1;
+  const ih = image.naturalHeight || image.videoHeight || image.height || 1;
+  const scale = Math.max(width / iw, height / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  const dx = (width - dw) / 2;
+  const dy = (height - dh) / 2;
+  ctx.drawImage(image, dx, dy, dw, dh);
+}
+
 export function createDroplets(elements, options = {}) {
   const config = { ...DEFAULTS, ...options };
   const { source, content, output } = elements;
+  // Optional static bitmap (Image/Canvas/Video/ImageBitmap) for refraction when
+  // experimental html-in-canvas is unavailable — keeps uHasContent path active.
+  let bitmap = elements.bitmap || null;
 
   const gl = output.getContext("webgl2", {
     alpha: true,
@@ -296,13 +310,15 @@ export function createDroplets(elements, options = {}) {
   });
   if (!gl || gl.isContextLost()) return null;
 
-  const sourceCtx = source.getContext("2d");
+  const sourceCtx = source.getContext("2d", { alpha: true, willReadFrequently: false });
   const paintable = source;
   const htmlInCanvas = Boolean(
     sourceCtx &&
     typeof sourceCtx.drawElementImage === "function" &&
     typeof paintable.requestPaint === "function",
   );
+  const allowBitmap = Boolean(sourceCtx && !htmlInCanvas);
+  const hasContent = () => htmlInCanvas || (allowBitmap && Boolean(bitmap));
 
   let contentDirty = false;
   let wake = () => {};
@@ -316,6 +332,24 @@ export function createDroplets(elements, options = {}) {
         wake();
       } catch {}
     };
+  }
+
+  function paintBitmap() {
+    if (!allowBitmap || !bitmap || !sourceCtx) return;
+    const width = Math.max(1, output.width || 1);
+    const height = Math.max(1, output.height || 1);
+    if (source.width !== width || source.height !== height) {
+      source.width = width;
+      source.height = height;
+    }
+    sourceCtx.setTransform(1, 0, 0, 1, 0, 0);
+    sourceCtx.clearRect(0, 0, width, height);
+    try {
+      drawImageCover(sourceCtx, bitmap, width, height);
+      contentDirty = true;
+    } catch {
+      /* decode/paint race */
+    }
   }
 
   function compile(type, text) {
@@ -392,10 +426,15 @@ export function createDroplets(elements, options = {}) {
       output.width = width;
       output.height = height;
     }
-    contentMaxX = Math.min(
-      1,
-      Math.max(0.05, content.clientWidth / Math.max(output.clientWidth, 1)),
-    );
+    if (allowBitmap && bitmap) {
+      contentMaxX = 1;
+      paintBitmap();
+    } else {
+      contentMaxX = Math.min(
+        1,
+        Math.max(0.05, content.clientWidth / Math.max(output.clientWidth, 1)),
+      );
+    }
     if (htmlInCanvas) {
       const cssWidth = Math.max(1, Math.round(source.clientWidth));
       const cssHeight = Math.max(1, Math.round(source.clientHeight));
@@ -504,7 +543,7 @@ export function createDroplets(elements, options = {}) {
   }
 
   function uploadContent() {
-    if (!htmlInCanvas || !contentDirty) return;
+    if (!hasContent() || !contentDirty) return;
     contentDirty = false;
     gl.bindTexture(gl.TEXTURE_2D, contentTexture);
     gl.texImage2D(
@@ -524,12 +563,16 @@ export function createDroplets(elements, options = {}) {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, contentTexture);
     gl.uniform1i(uniforms.uContent, 0);
-    gl.uniform1f(uniforms.uHasContent, htmlInCanvas ? 1 : 0);
+    gl.uniform1f(uniforms.uHasContent, hasContent() ? 1 : 0);
     gl.uniform2f(uniforms.uResolution, output.width, output.height);
     gl.uniform2f(
       uniforms.uOffset,
-      content.scrollLeft / Math.max(content.clientWidth, 1),
-      -content.scrollTop / Math.max(content.clientHeight, 1),
+      allowBitmap && bitmap
+        ? 0
+        : content.scrollLeft / Math.max(content.clientWidth, 1),
+      allowBitmap && bitmap
+        ? 0
+        : -content.scrollTop / Math.max(content.clientHeight, 1),
     );
     gl.uniform1f(uniforms.uTime, timeSec);
     gl.uniform1f(uniforms.uIntensity, config.intensity);
@@ -660,6 +703,12 @@ export function createDroplets(elements, options = {}) {
       )
         return;
       Object.assign(config, next);
+      start();
+    },
+    setBitmap(next) {
+      if (!allowBitmap) return;
+      bitmap = next || null;
+      paintBitmap();
       start();
     },
     resize() {
