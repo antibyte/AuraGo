@@ -2,8 +2,10 @@
  * Virtual Desktop City Rain wallpaper effect.
  * CanvasUI Droplets only while appearance.wallpaper === city_rain,
  * painted strictly behind icons/widgets/windows.
- * Feeds the city_rain wallpaper bitmap so drops refract real background colors
- * (original CanvasUI uHasContent path) instead of gray procedural glass.
+ * Feeds the city_rain wallpaper bitmap so drops refract real background colors.
+ *
+ * Bootstrap sets data-wallpaper asynchronously after settings load — always
+ * keep the CSS body wallpaper as fallback until the WebGL layer is ready.
  */
 import { createDroplets } from "/js/vendor/canvasui/droplets.js";
 
@@ -13,6 +15,8 @@ const HOST_ID = "vd-wallpaper-fx";
 const CONTENT_ID = "vd-droplets-content";
 const SOURCE_ID = "vd-droplets-source";
 const OUTPUT_ID = "vd-droplets-output";
+const MIN_LAYER_SIZE = 32;
+const BOOTSTRAP_RETRY_MS = [0, 50, 120, 300, 700, 1500, 3000];
 
 export const DESKTOP_DROPLETS_MARKERS = Object.freeze({
   wallpaperGate: "city_rain",
@@ -22,15 +26,20 @@ export const DESKTOP_DROPLETS_MARKERS = Object.freeze({
   reducedMotionSkip: "desktop-droplets:reduced-motion-skip",
   active: "desktop-droplets:active",
   destroyed: "desktop-droplets:destroyed",
+  waitingLayout: "desktop-droplets:waiting-layout",
 });
 
 let instance = null;
 let hostEl = null;
 let observer = null;
+let layoutObserver = null;
 let motionQuery = null;
 let wallpaperImage = null;
 let wallpaperLoad = null;
 let startToken = 0;
+let starting = false;
+let retryTimers = [];
+let initDone = false;
 
 function prefersReducedMotion() {
   try {
@@ -64,6 +73,22 @@ function webgl2Available() {
 
 function isCityRainWallpaper() {
   return document.body && document.body.dataset.wallpaper === WALLPAPER_KEY;
+}
+
+function clearRetryTimers() {
+  for (const id of retryTimers) window.clearTimeout(id);
+  retryTimers = [];
+}
+
+function scheduleBootstrapRetries() {
+  clearRetryTimers();
+  for (const delay of BOOTSTRAP_RETRY_MS) {
+    retryTimers.push(
+      window.setTimeout(() => {
+        if (!instance && isCityRainWallpaper()) syncWallpaperEffect();
+      }, delay)
+    );
+  }
 }
 
 function ensureHost() {
@@ -103,10 +128,14 @@ function rainOptions() {
     interactionRadius: 0,
     interactionStrength: 0,
     interactionDistortion: 0,
-    // No gray glass tint — wallpaper colors carry the look.
     tint: [1, 1, 1],
     tintStrength: 0,
   };
+}
+
+/** Preload as early as possible so first open is not blank. */
+function preloadWallpaperImage() {
+  return loadWallpaperImage().catch(() => null);
 }
 
 function loadWallpaperImage() {
@@ -114,24 +143,59 @@ function loadWallpaperImage() {
     return Promise.resolve(wallpaperImage);
   }
   if (wallpaperLoad) return wallpaperLoad;
+
   wallpaperLoad = new Promise((resolve, reject) => {
     const img = new Image();
     img.decoding = "async";
-    img.onload = () => {
-      wallpaperImage = img;
-      resolve(img);
+    // Help the browser treat this as a high-priority wallpaper asset.
+    try {
+      img.fetchPriority = "high";
+    } catch {
+      /* ignore */
+    }
+
+    const finishOk = () => {
+      if (img.naturalWidth > 0) {
+        wallpaperImage = img;
+        resolve(img);
+        return;
+      }
+      wallpaperLoad = null;
+      reject(new Error("city_rain wallpaper empty"));
     };
-    img.onerror = () => {
+    const finishErr = () => {
       wallpaperLoad = null;
       reject(new Error("city_rain wallpaper failed to load"));
     };
+
+    img.onload = () => {
+      if (typeof img.decode === "function") {
+        img.decode().then(finishOk).catch(finishOk);
+      } else {
+        finishOk();
+      }
+    };
+    img.onerror = finishErr;
     img.src = WALLPAPER_URL;
+
+    // Cached images may already be complete before handlers attach.
+    if (img.complete && img.naturalWidth > 0) {
+      finishOk();
+    }
   });
   return wallpaperLoad;
 }
 
+function layerSizeReady(host, output) {
+  const hostRect = host.getBoundingClientRect();
+  const outW = output.clientWidth || hostRect.width;
+  const outH = output.clientHeight || hostRect.height;
+  return outW >= MIN_LAYER_SIZE && outH >= MIN_LAYER_SIZE;
+}
+
 function destroyDroplets(reason) {
   startToken += 1;
+  starting = false;
   if (instance) {
     try {
       instance.destroy();
@@ -154,77 +218,123 @@ function destroyDroplets(reason) {
 }
 
 async function startDroplets() {
-  if (instance) return;
+  if (instance || starting) return;
+  if (!isCityRainWallpaper()) return;
+
+  starting = true;
   const token = ++startToken;
 
   if (prefersReducedMotion()) {
+    starting = false;
     const host = ensureHost();
     if (host) host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.reducedMotionSkip;
     return;
   }
   if (!hasRequiredAPIs() || !webgl2Available()) {
+    starting = false;
     const host = ensureHost();
     if (host) host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.gracefulWebGL2Failure;
     return;
   }
 
   const host = ensureHost();
-  if (!host) return;
+  if (!host) {
+    starting = false;
+    return;
+  }
   const content = document.getElementById(CONTENT_ID);
   const source = document.getElementById(SOURCE_ID);
   const output = document.getElementById(OUTPUT_ID);
-  if (!content || !source || !output) return;
+  if (!content || !source || !output) {
+    starting = false;
+    return;
+  }
 
-  // Never capture desktop HTML — only the wallpaper bitmap for refraction.
   source.removeAttribute("layoutsubtree");
   host.classList.remove("is-native-capture");
+
+  // Reveal host early so layout/size can settle while the image loads.
+  host.hidden = false;
+  host.classList.add("is-active");
+  output.classList.remove("is-hidden");
+  output.classList.add("is-active");
+  void host.offsetWidth;
 
   let bitmap;
   try {
     bitmap = await loadWallpaperImage();
   } catch {
+    starting = false;
     if (token !== startToken) return;
+    // Leave CSS wallpaper visible; do not claim active WebGL.
+    host.classList.remove("is-active");
+    host.hidden = true;
+    output.classList.add("is-hidden");
+    output.classList.remove("is-active");
     host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.gracefulWebGL2Failure;
     return;
   }
-  if (token !== startToken || !isCityRainWallpaper()) return;
 
-  host.hidden = false;
-  host.classList.add("is-active");
-  output.classList.remove("is-hidden");
-  output.classList.add("is-active");
+  if (token !== startToken || !isCityRainWallpaper()) {
+    starting = false;
+    return;
+  }
 
-  void host.offsetWidth;
+  if (!layerSizeReady(host, output)) {
+    starting = false;
+    host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.waitingLayout;
+    // Keep CSS wallpaper; retry when layout is ready.
+    host.classList.remove("is-active");
+    output.classList.add("is-hidden");
+    output.classList.remove("is-active");
+    return;
+  }
+
   const rect = host.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   output.style.width = "100%";
   output.style.height = "100%";
-  output.width = Math.max(1, Math.round(rect.width * dpr));
-  output.height = Math.max(1, Math.round(rect.height * dpr));
+  output.width = Math.max(1, Math.round(Math.max(rect.width, output.clientWidth) * dpr));
+  output.height = Math.max(1, Math.round(Math.max(rect.height, output.clientHeight) * dpr));
   source.style.width = "100%";
   source.style.height = "100%";
 
   try {
-    instance = createDroplets(
-      { source, content, output, bitmap },
-      rainOptions()
-    );
+    instance = createDroplets({ source, content, output, bitmap }, rainOptions());
   } catch {
     instance = null;
   }
 
+  starting = false;
+
   if (!instance) {
-    destroyDroplets(DESKTOP_DROPLETS_MARKERS.gracefulWebGL2Failure);
+    if (token === startToken) {
+      host.classList.remove("is-active");
+      host.hidden = true;
+      output.classList.add("is-hidden");
+      output.classList.remove("is-active");
+      host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.gracefulWebGL2Failure;
+    }
     return;
   }
 
   host.dataset.dropletsState = DESKTOP_DROPLETS_MARKERS.active;
   host.dataset.dropletsContent = DESKTOP_DROPLETS_MARKERS.contentBitmap;
-  try {
-    instance.resize();
-  } catch {
-    /* ignore */
-  }
+
+  const kick = () => {
+    if (!instance || token !== startToken) return;
+    try {
+      if (typeof instance.setBitmap === "function") instance.setBitmap(bitmap);
+      instance.resize();
+    } catch {
+      /* ignore */
+    }
+  };
+  kick();
+  requestAnimationFrame(() => {
+    kick();
+    requestAnimationFrame(kick);
+  });
 }
 
 function syncWallpaperEffect() {
@@ -232,14 +342,42 @@ function syncWallpaperEffect() {
   else destroyDroplets(DESKTOP_DROPLETS_MARKERS.destroyed);
 }
 
+function ensureLayoutObserver() {
+  if (layoutObserver || typeof ResizeObserver !== "function") return;
+  const workspace = document.getElementById("vd-workspace");
+  if (!workspace) return;
+  layoutObserver = new ResizeObserver(() => {
+    if (!isCityRainWallpaper()) return;
+    if (!instance) syncWallpaperEffect();
+    else {
+      try {
+        instance.resize();
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+  layoutObserver.observe(workspace);
+  const host = document.getElementById(HOST_ID);
+  if (host) layoutObserver.observe(host);
+}
+
 function initCityRainDroplets() {
-  if (observer) return;
+  if (initDone) return;
+  initDone = true;
+
+  // Warm the wallpaper cache immediately (even before settings arrive).
+  preloadWallpaperImage();
+
   syncWallpaperEffect();
+  scheduleBootstrapRetries();
+  ensureLayoutObserver();
 
   observer = new MutationObserver((records) => {
     for (const record of records) {
       if (record.type === "attributes" && record.attributeName === "data-wallpaper") {
         syncWallpaperEffect();
+        if (isCityRainWallpaper()) scheduleBootstrapRetries();
         break;
       }
     }
@@ -256,16 +394,31 @@ function initCityRainDroplets() {
   }
 
   window.addEventListener(
+    "pageshow",
+    () => {
+      // bfcache / soft navigations
+      preloadWallpaperImage();
+      syncWallpaperEffect();
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
     "pagehide",
     () => {
       destroyDroplets(DESKTOP_DROPLETS_MARKERS.destroyed);
+      clearRetryTimers();
       if (observer) observer.disconnect();
       observer = null;
+      if (layoutObserver) layoutObserver.disconnect();
+      layoutObserver = null;
+      initDone = false;
     },
     { once: true }
   );
 }
 
+// Module scripts are deferred; still guard loading state.
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initCityRainDroplets, { once: true });
 } else {

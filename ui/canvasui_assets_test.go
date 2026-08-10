@@ -252,8 +252,13 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 		"desktop-droplets:webgl2-unavailable",
 		"desktop-droplets:reduced-motion-skip",
 		"desktop-droplets:active",
+		"desktop-droplets:waiting-layout",
 		"interactive: false",
 		"MutationObserver",
+		"ResizeObserver",
+		"preloadWallpaperImage",
+		"scheduleBootstrapRetries",
+		"pageshow",
 		"prefers-reduced-motion",
 		"destroy()",
 		"tintStrength: 0",
@@ -277,6 +282,8 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 		`id="vd-window-layer"`,
 		`/js/desktop/city-rain-droplets.js?v={{.BuildVersion}}`,
 		`type="module"`,
+		`rel="preload"`,
+		`/img/wallpapers/city_rain.jpg`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("desktop.html missing city-rain droplets marker %q", want)
@@ -305,6 +312,11 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 			if !strings.Contains(source, want) {
 				t.Fatalf("desktop CSS missing city-rain droplets marker %q", want)
 			}
+		}
+		// CSS wallpaper must remain as fallback while WebGL settles.
+		if strings.Contains(source, `:has(.vd-wallpaper-fx.is-active)`) &&
+			strings.Contains(source, `background-image: none`) {
+			t.Fatal("city_rain must not hide the CSS wallpaper while droplets activate")
 		}
 		if strings.Contains(source, `.vd-droplets-output.is-active`) &&
 			strings.Contains(source[strings.Index(source, `.vd-droplets-output.is-active`):], `mix-blend-mode: screen`) {

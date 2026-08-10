@@ -410,11 +410,11 @@
     opacity: 1;
 }
 
-/* Canvas already paints the wallpaper with refraction; avoid double stacking. */
-.desktop-body[data-wallpaper="city_rain"]:has(.vd-wallpaper-fx.is-active) {
-    background-image: none;
-    background-color: #03050c;
-}
+/*
+ * Keep the CSS city_rain wallpaper as a permanent fallback under the FX layer.
+ * Bootstrap sets data-wallpaper asynchronously; hiding body bg caused blank
+ * desktops until reload while droplets/image/layout were still settling.
+ */
 
 @media (prefers-reduced-motion: reduce) {
     .vd-wallpaper-fx,
