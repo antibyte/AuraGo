@@ -927,6 +927,7 @@
     z-index: 100;
     width: min(100%, 420px);
     max-width: 420px;
+    overflow: visible;
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-source {
@@ -945,8 +946,10 @@
 .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-output {
     position: absolute;
     z-index: 0;
+    display: none;
     pointer-events: none;
     opacity: 1;
+    max-width: none;
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-output.is-active {

@@ -161,12 +161,10 @@ func TestLoginCanvasUIUsesLocalModules(t *testing.T) {
 		"aurago:themechange",
 		"prefers-reduced-motion",
 		"destroy()",
-		`id="login-card-wrap"`,
+		"applyOutputGeometry(wrap, card, output)",
+		"getBoundingClientRect()",
+		"Must be measurable before createFlameWrap",
 	} {
-		// last marker is html-only; skip here
-		if want == `id="login-card-wrap"` {
-			continue
-		}
 		if !strings.Contains(flameJS, want) {
 			t.Fatalf("login flame-wrap initializer missing marker %q", want)
 		}

@@ -86,17 +86,25 @@ function readCardRadius(card) {
   return 16;
 }
 
-function applyOutputGeometry(wrap, output) {
+function flameInsets() {
   const reach = Math.round(Math.max(FLAME_HEIGHT, 24) * 1.5) + 40;
   const glow = Math.round(Math.max(FLAME_SPREAD, 8) * 3) + 16;
+  return { reach, glow };
+}
+
+function applyOutputGeometry(wrap, card, output) {
+  const { reach, glow } = flameInsets();
+  // Size from the live card box so the burn outline matches the modal, not a collapsed canvas.
+  const cardWidth = Math.max(1, Math.round(card.getBoundingClientRect().width || card.offsetWidth || wrap.clientWidth || 420));
+  const cardHeight = Math.max(1, Math.round(card.getBoundingClientRect().height || card.offsetHeight || 1));
   wrap.style.setProperty("--login-flame-reach", `${reach}px`);
   wrap.style.setProperty("--login-flame-glow", `${glow}px`);
   output.style.top = `-${reach}px`;
-  output.style.right = `-${glow}px`;
-  output.style.bottom = `-${glow}px`;
   output.style.left = `-${glow}px`;
-  output.style.width = `calc(100% + ${glow * 2}px)`;
-  output.style.height = `calc(100% + ${reach + glow}px)`;
+  output.style.right = "auto";
+  output.style.bottom = "auto";
+  output.style.width = `${cardWidth + glow * 2}px`;
+  output.style.height = `${cardHeight + reach + glow}px`;
 }
 
 function placeContentForCapture(wrap, source, card, nativeCapture) {
@@ -160,7 +168,6 @@ function initLoginFlameWrap() {
 
   output.setAttribute("aria-hidden", "true");
   source.setAttribute("aria-hidden", "true");
-  applyOutputGeometry(wrap, output);
 
   if (prefersReducedMotion()) {
     wrap.dataset.flameState = LOGIN_FLAME_MARKERS.reducedMotionSkip;
@@ -182,6 +189,11 @@ function initLoginFlameWrap() {
 
   placeContentForCapture(wrap, source, card, nativeCapture);
 
+  // Must be measurable before createFlameWrap — display:none yields a 1x1 burn rect.
+  output.classList.remove("is-hidden");
+  output.classList.add("is-active");
+  applyOutputGeometry(wrap, card, output);
+
   let instance = null;
   try {
     instance = createFlameWrap(
@@ -200,8 +212,19 @@ function initLoginFlameWrap() {
     return null;
   }
 
-  output.classList.remove("is-hidden");
-  output.classList.add("is-active");
+  // Second pass after layout/fonts so the outline tracks the full modal.
+  const syncSize = () => {
+    applyOutputGeometry(wrap, card, output);
+    try {
+      instance.setOptions({ radius: readCardRadius(card) });
+      instance.resize();
+    } catch {
+      /* ignore */
+    }
+  };
+  syncSize();
+  requestAnimationFrame(syncSize);
+
   if (!wrap.dataset.flameState) {
     wrap.dataset.flameState = nativeCapture
       ? "login-flame:native-capture"
@@ -221,22 +244,17 @@ function initLoginFlameWrap() {
     }
   };
   window.addEventListener("aurago:themechange", onThemeChange);
+  window.addEventListener("resize", syncSize, { passive: true });
 
-  const onResize = () => {
-    applyOutputGeometry(wrap, output);
-    try {
-      instance.setOptions({ radius: readCardRadius(card) });
-      instance.resize();
-    } catch {
-      /* ignore */
-    }
-  };
-  window.addEventListener("resize", onResize, { passive: true });
+  const cardObserver = new ResizeObserver(syncSize);
+  cardObserver.observe(card);
+  cardObserver.observe(wrap);
 
   const destroy = () => {
     wrap.dataset.flameState = LOGIN_FLAME_MARKERS.destroyCleanup;
     window.removeEventListener("aurago:themechange", onThemeChange);
-    window.removeEventListener("resize", onResize);
+    window.removeEventListener("resize", syncSize);
+    cardObserver.disconnect();
     try {
       instance.destroy();
     } catch {
