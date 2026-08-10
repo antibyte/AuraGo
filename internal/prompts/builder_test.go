@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -444,8 +445,33 @@ func (markerAwareEncoder) Encode(text string, _, _ []string) []int {
 	}
 }
 
+func waitForTokenEncoderInitForTest(tb testing.TB) {
+	tb.Helper()
+
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	for {
+		tiktokenMu.Lock()
+		inFlight := tiktokenInitInFlight
+		done := tiktokenInitDone
+		tiktokenMu.Unlock()
+		if !inFlight {
+			return
+		}
+		if done == nil {
+			tb.Fatal("token encoder initialization is in flight without a completion signal")
+		}
+		select {
+		case <-done:
+		case <-timer.C:
+			tb.Fatal("timed out waiting for token encoder initialization to finish")
+		}
+	}
+}
+
 func resetTokenEncoderStateForTest(tb testing.TB, loader func() (tokenEncoder, error), timeout, backoff time.Duration) {
 	tb.Helper()
+	waitForTokenEncoderInitForTest(tb)
 
 	tiktokenMu.Lock()
 	oldEnc := tiktokenEnc
@@ -455,9 +481,6 @@ func resetTokenEncoderStateForTest(tb testing.TB, loader func() (tokenEncoder, e
 	oldLoader := tiktokenLoadEncoding
 	oldTimeout := tiktokenInitTimeout
 	oldBackoff := tiktokenRetryBackoff
-	tiktokenMu.Unlock()
-
-	tiktokenMu.Lock()
 	tiktokenEnc = nil
 	tiktokenInitDone = nil
 	tiktokenInitInFlight = false
@@ -469,6 +492,7 @@ func resetTokenEncoderStateForTest(tb testing.TB, loader func() (tokenEncoder, e
 	tiktokenMu.Unlock()
 
 	tb.Cleanup(func() {
+		waitForTokenEncoderInitForTest(tb)
 		tiktokenMu.Lock()
 		tiktokenEnc = oldEnc
 		tiktokenInitDone = oldDone
@@ -1740,10 +1764,9 @@ func TestHardTruncateToBudgetContextReturnsCancellation(t *testing.T) {
 
 func TestCountTokensRetriesAfterTimeoutAndUsesLateSuccess(t *testing.T) {
 	block := make(chan struct{})
-	callCount := 0
+	var callCount atomic.Int32
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
-		callCount++
-		if callCount == 1 {
+		if callCount.Add(1) == 1 {
 			<-block
 			return stubTokenEncoder{tokensPerCall: 3}, nil
 		}
@@ -1765,14 +1788,13 @@ func TestCountTokensRetriesAfterTimeoutAndUsesLateSuccess(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 
-	t.Fatalf("expected late encoder initialization to be reused; loader calls=%d", callCount)
+	t.Fatalf("expected late encoder initialization to be reused; loader calls=%d", callCount.Load())
 }
 
 func TestCountTokensRetriesAfterFailure(t *testing.T) {
-	callCount := 0
+	var callCount atomic.Int32
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
-		callCount++
-		if callCount == 1 {
+		if callCount.Add(1) == 1 {
 			return nil, errors.New("boom")
 		}
 		return stubTokenEncoder{tokensPerCall: 7}, nil
@@ -1787,8 +1809,8 @@ func TestCountTokensRetriesAfterFailure(t *testing.T) {
 	if second != 7 {
 		t.Fatalf("expected retry to use encoder token count 7, got %d", second)
 	}
-	if callCount < 2 {
-		t.Fatalf("expected loader to be retried, got %d calls", callCount)
+	if callCount.Load() < 2 {
+		t.Fatalf("expected loader to be retried, got %d calls", callCount.Load())
 	}
 }
 
