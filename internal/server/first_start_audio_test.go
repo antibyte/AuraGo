@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestFirstStartNamingPromptQueuesBrainInTheMachineAudio(t *testing.T) {
+func TestFirstStartNamingPromptPreflightsBeforeQueuingBrainInTheMachineAudio(t *testing.T) {
 	t.Parallel()
 
 	source, err := os.ReadFile("handlers.go")
@@ -33,8 +33,8 @@ func TestFirstStartNamingPromptQueuesBrainInTheMachineAudio(t *testing.T) {
 	if loopAt < 0 {
 		t.Fatalf("agent loop marker missing")
 	}
-	if !(audioAt < promptAt && promptAt < loopAt) {
-		t.Fatalf("first-start intro order = audio:%d prompt:%d loop:%d, want audio before naming prompt before agent loop", audioAt, promptAt, loopAt)
+	if !(promptAt < audioAt && audioAt < loopAt) {
+		t.Fatalf("first-start intro order = prompt:%d audio:%d loop:%d, want prospective prompt before side-effecting audio and agent loop", promptAt, audioAt, loopAt)
 	}
 }
 

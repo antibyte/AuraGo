@@ -13,7 +13,9 @@ func readSpeechLabUIFile(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
-	return string(data)
+	// Git may materialize text=auto JavaScript files with CRLF on Windows.
+	// Keep source-shape assertions independent of the checkout line ending.
+	return strings.ReplaceAll(string(data), "\r\n", "\n")
 }
 
 func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {

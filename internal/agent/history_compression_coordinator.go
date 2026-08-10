@@ -18,6 +18,8 @@ import (
 
 const (
 	proactiveHistoryCompressionCooldown         = time.Minute
+	sessionCompressionIdleTTL                   = 15 * time.Minute
+	sessionCompressionMaxEntries                = 512
 	persistentCompressionMaxMessages            = 256
 	persistentCompressionMaxTranscriptChars     = 24 * 1024
 	persistentCompressionMaxMessageSummaryChars = 2000
@@ -27,6 +29,7 @@ type sessionCompressionState struct {
 	gate          chan struct{}
 	lastCompleted time.Time
 	lastUsed      time.Time
+	references    int
 }
 
 type sessionCompressionCoordinator struct {
@@ -51,38 +54,105 @@ func (c *sessionCompressionCoordinator) acquire(ctx context.Context, sessionID s
 	if key == "" {
 		key = "default"
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	now := time.Now()
 	c.mu.Lock()
+	c.cleanupLocked(now, key)
 	state := c.sessions[key]
 	if state == nil {
 		state = &sessionCompressionState{gate: make(chan struct{}, 1)}
 		state.gate <- struct{}{}
 		c.sessions[key] = state
 	}
-	state.lastUsed = time.Now()
+	state.lastUsed = now
+	state.references++
 	c.mu.Unlock()
 
+	acquired := false
 	if wait {
 		select {
 		case <-ctx.Done():
+			c.dropReference(key, state)
 			return nil, false
 		case <-state.gate:
+			acquired = true
 		}
 	} else {
 		select {
 		case <-state.gate:
+			acquired = true
 		default:
+			c.dropReference(key, state)
 			return nil, false
 		}
 	}
 
 	c.mu.Lock()
-	onCooldown := honorCooldown && !state.lastCompleted.IsZero() && time.Since(state.lastCompleted) < proactiveHistoryCompressionCooldown
+	now = time.Now()
+	onCooldown := honorCooldown && !state.lastCompleted.IsZero() && now.Sub(state.lastCompleted) < proactiveHistoryCompressionCooldown
+	state.lastUsed = now
 	c.mu.Unlock()
 	if onCooldown {
-		state.gate <- struct{}{}
+		if acquired {
+			state.gate <- struct{}{}
+		}
+		c.dropReference(key, state)
 		return nil, false
 	}
 	return &sessionCompressionLease{coordinator: c, key: key, state: state}, true
+}
+
+func (c *sessionCompressionCoordinator) dropReference(key string, state *sessionCompressionState) {
+	if c == nil || state == nil {
+		return
+	}
+	c.mu.Lock()
+	if state.references > 0 {
+		state.references--
+	}
+	state.lastUsed = time.Now()
+	c.cleanupLocked(state.lastUsed, key)
+	c.mu.Unlock()
+}
+
+func (c *sessionCompressionCoordinator) cleanupLocked(now time.Time, preserveKey string) {
+	if c.sessions == nil {
+		c.sessions = make(map[string]*sessionCompressionState)
+		return
+	}
+	for key, state := range c.sessions {
+		if key == preserveKey || state == nil || state.references > 0 || state.lastUsed.IsZero() {
+			continue
+		}
+		if now.Sub(state.lastUsed) >= sessionCompressionIdleTTL {
+			delete(c.sessions, key)
+		}
+	}
+	overLimit := func() bool {
+		if preserveKey != "" {
+			return len(c.sessions) >= sessionCompressionMaxEntries
+		}
+		return len(c.sessions) > sessionCompressionMaxEntries
+	}
+	for overLimit() {
+		oldestKey := ""
+		var oldest time.Time
+		for key, state := range c.sessions {
+			if key == preserveKey || state == nil || state.references > 0 {
+				continue
+			}
+			if oldestKey == "" || state.lastUsed.Before(oldest) {
+				oldestKey = key
+				oldest = state.lastUsed
+			}
+		}
+		if oldestKey == "" {
+			break
+		}
+		delete(c.sessions, oldestKey)
+	}
 }
 
 func (l *sessionCompressionLease) release(markCompleted bool) {
@@ -91,14 +161,23 @@ func (l *sessionCompressionLease) release(markCompleted bool) {
 	}
 	l.once.Do(func() {
 		if l.coordinator != nil {
+			now := time.Now()
 			l.coordinator.mu.Lock()
-			l.state.lastUsed = time.Now()
+			l.state.lastUsed = now
 			if markCompleted {
-				l.state.lastCompleted = time.Now()
+				l.state.lastCompleted = now
+			}
+			if l.state.references > 0 {
+				l.state.references--
 			}
 			l.coordinator.mu.Unlock()
 		}
 		l.state.gate <- struct{}{}
+		if l.coordinator != nil {
+			l.coordinator.mu.Lock()
+			l.coordinator.cleanupLocked(time.Now(), "")
+			l.coordinator.mu.Unlock()
+		}
 	})
 }
 

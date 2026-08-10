@@ -6,6 +6,32 @@ let _orModelsCacheTime = 0;
 const OR_CACHE_TTL = 5 * 60 * 1000;
 let _providerCatalogCache = null;
 let _providerCatalogPromise = null;
+let _providerLimitRefreshTimer = null;
+let _providerLimitRefreshAttempts = 0;
+const PROVIDER_LIMIT_REFRESH_MAX_ATTEMPTS = 16;
+const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
+
+        function providerScheduleLimitRefresh() {
+            const pending = providersCache.some(p => p.model_limits_probe_status === 'pending');
+            if (!pending) {
+                _providerLimitRefreshAttempts = 0;
+                if (_providerLimitRefreshTimer) clearTimeout(_providerLimitRefreshTimer);
+                _providerLimitRefreshTimer = null;
+                return;
+            }
+            if (_providerLimitRefreshTimer ||
+                _providerLimitRefreshAttempts >= PROVIDER_LIMIT_REFRESH_MAX_ATTEMPTS ||
+                !document.getElementById('providers-list')) return;
+            _providerLimitRefreshTimer = setTimeout(async () => {
+                _providerLimitRefreshTimer = null;
+                if (!document.getElementById('providers-list')) {
+                    _providerLimitRefreshAttempts = 0;
+                    return;
+                }
+                _providerLimitRefreshAttempts++;
+                if (await loadProviders()) providerRenderCards();
+            }, PROVIDER_LIMIT_REFRESH_DELAY_MS);
+        }
 
         async function queryOllamaModelsInModal() {
             const spinner = document.getElementById('prov-ollama-spinner');
@@ -953,6 +979,7 @@ let _providerCatalogPromise = null;
                         }).catch(() => {});
                 }
             });
+            providerScheduleLimitRefresh();
         }
 
         // Known base URLs for auto-fill when creating new providers

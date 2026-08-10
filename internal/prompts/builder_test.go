@@ -577,7 +577,7 @@ func TestRulesPromptRequiresAnnouncedActionsToBeExecuted(t *testing.T) {
 	}
 }
 
-func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
+func TestBudgetShedFailsWhenRequiredCoreExceedsBudget(t *testing.T) {
 	prompt := strings.Repeat("word ", 5000)
 
 	flags := ContextFlags{
@@ -586,24 +586,16 @@ func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
 	}
 
 	logger := slog.Default()
-	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), logger)
-
-	if !strings.Contains(result, "[BUDGET TRUNCATED]") {
-		t.Errorf("expected hard-truncate marker, got result len=%d", len(result))
+	result, shedSections, err := budgetShedContext(context.Background(), prompt, &flags, "", "", time.Now(), logger)
+	var budgetErr *PromptBudgetExceededError
+	if !errors.As(err, &budgetErr) {
+		t.Fatalf("error = %v, want PromptBudgetExceededError", err)
 	}
-
-	foundHardTruncate := false
-	for _, s := range shedSections {
-		if s == "HARD_TRUNCATE" {
-			foundHardTruncate = true
-		}
+	if result != prompt {
+		t.Fatal("required prompt must not be truncated")
 	}
-	if !foundHardTruncate {
-		t.Errorf("expected HARD_TRUNCATE in shedSections, got: %v", shedSections)
-	}
-
-	if len(result) >= len(prompt) {
-		t.Errorf("expected result to be shorter than original, got len=%d vs orig=%d", len(result), len(prompt))
+	if containsString(shedSections, "HARD_TRUNCATE") {
+		t.Fatalf("required prompt was hard-truncated: %v", shedSections)
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
+	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -126,6 +127,26 @@ func recentMessagesForRequest(sessionID, missionID string, requestMessages, defa
 
 func requestMessageIsInternal(isFollowUp bool, missionID string) bool {
 	return isFollowUp || strings.TrimSpace(missionID) != ""
+}
+
+func shouldAppendProspectiveUserMessage(role, missionID string) bool {
+	return role == openai.ChatMessageRoleUser && strings.TrimSpace(missionID) == ""
+}
+
+func firstStartInitializationMessage() openai.ChatCompletionMessage {
+	return openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleSystem,
+		Content: "[FIRST START INITIALIZATION — ONE TIME ONLY] " +
+			"YOU are the AI assistant. YOU do not yet have a name. " +
+			"Before responding to the user's message, ask the USER to give YOU (the AI) a personal name. " +
+			"Example: 'Bevor wir loslegen – magst du mir einen Namen geben? Oder soll ich mir selbst einen aussuchen?' " +
+			"IMPORTANT: You are asking the user to name YOU, the AI — NOT asking them for their own name, " +
+			"and NOT offering to give the user a name. " +
+			"Wait for the user's answer, then settle on a name for yourself. " +
+			"Immediately after the name is decided, save it permanently to core memory " +
+			"using the manage_memory tool (operation \"add\", fact: \"My name is <chosen_name>\"). " +
+			"Do not skip this step.",
+	}
 }
 
 func chatCompletionMessageSource(isFollowUp bool, missionID string) string {
@@ -294,10 +315,21 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			speechLabSessionID = chatSessionID
 		}
 		lastRequestMessage := req.Messages[len(req.Messages)-1]
-		markedSpeechLabInput := !isFollowUp && missionID == "" && s.speechLabTokens().Consume(
-			strings.TrimSpace(r.Header.Get(speechLabChatTurnTokenHeader)), speechLabSessionID, lastRequestMessage.Content,
-		)
-		turnCfg, turnLLMClient, routeErr := speechLabChatTurnRuntime(markedSpeechLabInput, isFollowUp, missionID, turnCfg, turnLLMClient, s.Vault)
+		var speechLabReservation *speechLabTurnTokenReservation
+		markedSpeechLabInput := false
+		if !isFollowUp && missionID == "" {
+			speechLabReservation, markedSpeechLabInput = s.speechLabTokens().Reserve(
+				strings.TrimSpace(r.Header.Get(speechLabChatTurnTokenHeader)), speechLabSessionID, lastRequestMessage.Content,
+			)
+		}
+		if speechLabReservation != nil {
+			defer speechLabReservation.release()
+		}
+		var speechLabVault config.SecretReader
+		if s.Vault != nil {
+			speechLabVault = s.Vault
+		}
+		turnCfg, turnLLMClient, routeErr := speechLabChatTurnRuntime(markedSpeechLabInput, isFollowUp, missionID, turnCfg, turnLLMClient, speechLabVault)
 		if routeErr != nil {
 			lang := ""
 			if cfg := s.ConfigSnapshot(); cfg != nil {
@@ -341,18 +373,6 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 		unlockSession := lockSessionRequestWithLogger(sessionID, s.Logger)
 		defer unlockSession()
-
-		if missionID != "" && s.ShortTermMem != nil {
-			if err := s.ShortTermMem.ClearSession(sessionID); err != nil {
-				s.Logger.Warn("Failed to clear stale mission session context", "session_id", sessionID, "mission_id", missionID, "error", err)
-			}
-			agent.ClearDiscoverToolsState(sessionID)
-		}
-
-		// Guardian: Scan user input for injection patterns (log only, never block)
-		if lastUserMsg.Role == openai.ChatMessageRoleUser && s.Guardian != nil {
-			s.Guardian.ScanUserInput(lastUserMsg.Content)
-		}
 
 		// Phase: Command Interception
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && strings.HasPrefix(lastUserMsg.Content, "/") {
@@ -400,25 +420,6 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}
 		}
 
-		if lastUserMsg.Role == openai.ChatMessageRoleUser {
-			isInternalRequestMessage := requestMessageIsInternal(isFollowUp, missionID)
-			id, err := s.ShortTermMem.InsertMessage(sessionID, lastUserMsg.Role, lastUserMsg.Content, false, isInternalRequestMessage)
-			if err != nil {
-				s.Logger.Error("Failed to insert user message", "error", err)
-			}
-			agent.NoteInnerVoiceUserTurn(sessionID)
-			if sessionID == "default" && !isInternalRequestMessage && agent.ShouldAppendHistoryMessage(id, err) {
-				// Persist the raw text message (including attachment paths) so we
-				// don't bloat history.json with base64-encoded images. Multimodal
-				// promotion happens only when building the outgoing LLM request.
-				s.HistoryManager.Add(lastUserMsg.Role, lastUserMsg.Content, id, false, false)
-			}
-			// Update session preview and touch timestamp
-			_ = s.ShortTermMem.UpdateChatSessionPreview(sessionID)
-			_ = s.ShortTermMem.TouchChatSession(sessionID)
-			agent.EnforceSTMPRetentionIfConfigured(s.Cfg, s.ShortTermMem, sessionID, s.Logger)
-		}
-
 		// 2. Rebuild the Context
 		// For non-default chat sessions, build context from SQLite instead of HistoryManager
 		var recentMessages []openai.ChatCompletionMessage
@@ -444,6 +445,14 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					"before", len(recentMessages), "after", len(sanitizedMessages))
 			}
 			recentMessages = sanitizedMessages
+		}
+		isInternalRequestMessage := requestMessageIsInternal(isFollowUp, missionID)
+		if shouldAppendProspectiveUserMessage(lastUserMsg.Role, missionID) {
+			// Build the exact prospective history before persistence. The accepted
+			// request is committed only after budget preflight succeeds. Generic
+			// internal follow-ups still belong in the model request; mission requests
+			// already carry their complete request-local history above.
+			recentMessages = append(recentMessages, lastUserMsg)
 		}
 
 		// Build run configuration for the unified agent loop.
@@ -520,30 +529,15 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}
 		}
 
-		// First-start: inject a one-time naming prompt so the agent asks the user
-		// for a personal name on the very first conversation.
+		// Include first-start initialization in the prospective request without
+		// consuming the one-shot state until budget preflight has accepted it.
+		includeFirstStart := false
 		if s.IsFirstStart {
 			s.muFirstStart.Lock()
-			if !s.firstStartDone {
-				s.firstStartDone = true
-				s.muFirstStart.Unlock()
-				s.Logger.Info("[FirstStart] Injecting one-time naming prompt")
-				sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID))
-				finalMessages = append(finalMessages, openai.ChatCompletionMessage{
-					Role: openai.ChatMessageRoleSystem,
-					Content: "[FIRST START INITIALIZATION — ONE TIME ONLY] " +
-						"YOU are the AI assistant. YOU do not yet have a name. " +
-						"Before responding to the user's message, ask the USER to give YOU (the AI) a personal name. " +
-						"Example: 'Bevor wir loslegen – magst du mir einen Namen geben? Oder soll ich mir selbst einen aussuchen?' " +
-						"IMPORTANT: You are asking the user to name YOU, the AI — NOT asking them for their own name, " +
-						"and NOT offering to give the user a name. " +
-						"Wait for the user's answer, then settle on a name for yourself. " +
-						"Immediately after the name is decided, save it permanently to core memory " +
-						"using the manage_memory tool (operation \"add\", fact: \"My name is <chosen_name>\"). " +
-						"Do not skip this step.",
-				})
-			} else {
-				s.muFirstStart.Unlock()
+			includeFirstStart = !s.firstStartDone
+			s.muFirstStart.Unlock()
+			if includeFirstStart {
+				finalMessages = append(finalMessages, firstStartInitializationMessage())
 			}
 		}
 
@@ -568,6 +562,50 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			s.Logger.Error("Chat request budget preflight failed", "error", err)
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
 			return
+		}
+
+		// Commit one-shot provenance and persistent state only after the complete
+		// prospective request has passed the context guard.
+		if speechLabReservation != nil && !speechLabReservation.commit() {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "speech_lab_turn_token_conflict"})
+			return
+		}
+		if missionID != "" && s.ShortTermMem != nil {
+			if err := s.ShortTermMem.ClearSession(sessionID); err != nil {
+				s.Logger.Warn("Failed to clear stale mission session context", "session_id", sessionID, "mission_id", missionID, "error", err)
+			}
+			agent.ClearDiscoverToolsState(sessionID)
+		}
+		if lastUserMsg.Role == openai.ChatMessageRoleUser && s.Guardian != nil {
+			s.Guardian.ScanUserInput(lastUserMsg.Content)
+		}
+		if lastUserMsg.Role == openai.ChatMessageRoleUser {
+			id, err := s.ShortTermMem.InsertMessage(sessionID, lastUserMsg.Role, lastUserMsg.Content, false, isInternalRequestMessage)
+			if err != nil {
+				s.Logger.Error("Failed to insert user message", "error", err)
+			}
+			agent.NoteInnerVoiceUserTurn(sessionID)
+			if sessionID == "default" && !isInternalRequestMessage && agent.ShouldAppendHistoryMessage(id, err) {
+				// Persist raw attachment references; multimodal expansion stays request-local.
+				s.HistoryManager.Add(lastUserMsg.Role, lastUserMsg.Content, id, false, false)
+			}
+			_ = s.ShortTermMem.UpdateChatSessionPreview(sessionID)
+			_ = s.ShortTermMem.TouchChatSession(sessionID)
+			agent.EnforceSTMPRetentionIfConfigured(s.Cfg, s.ShortTermMem, sessionID, s.Logger)
+		}
+		if includeFirstStart {
+			s.muFirstStart.Lock()
+			commitFirstStart := !s.firstStartDone
+			if commitFirstStart {
+				s.firstStartDone = true
+			}
+			s.muFirstStart.Unlock()
+			if commitFirstStart {
+				s.Logger.Info("[FirstStart] Injecting one-time naming prompt")
+				sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID))
+			}
 		}
 
 		// 4. Pass execution to the unified agent loop

@@ -115,6 +115,10 @@ func shouldRefreshRAG(query, lastQuery string, toolIterations int, lastResponseW
 	return toolIterations >= ragRefreshAfterToolIterations
 }
 
+func shouldRefreshTurnMemory(snapshotDirty bool, query, lastQuery string, toolIterations int, lastResponseWasTool bool) bool {
+	return snapshotDirty || shouldRefreshRAG(query, lastQuery, toolIterations, lastResponseWasTool)
+}
+
 func buildTrimmedContextRecap(messages []openai.ChatCompletionMessage, tokenBudget int) string {
 	if len(messages) == 0 || tokenBudget <= 0 {
 		return ""

@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -347,56 +346,52 @@ llm:
 	}
 }
 
-func TestHandleGetProvidersBoundsConcurrentModelLimitProbes(t *testing.T) {
+func TestHandleGetProvidersDoesNotWaitForModelLimitProbe(t *testing.T) {
 	llm.InvalidateModelLimitCache()
 	defer llm.InvalidateModelLimitCache()
-	var active atomic.Int32
-	var maximum atomic.Int32
-	models := make([]map[string]interface{}, 8)
-	for i := range models {
-		models[i] = map[string]interface{}{
-			"id":                    fmt.Sprintf("probe-model-%d", i),
-			"context_length":        32768,
-			"max_completion_tokens": 2048,
-		}
-	}
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
 	probeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		current := active.Add(1)
-		for {
-			observed := maximum.Load()
-			if current <= observed || maximum.CompareAndSwap(observed, current) {
-				break
-			}
+		select {
+		case started <- struct{}{}:
+		default:
 		}
-		time.Sleep(40 * time.Millisecond)
-		active.Add(-1)
+		<-release
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": models})
+		_, _ = fmt.Fprint(w, `{"data":[{"id":"probe-model","context_length":32768,"max_completion_tokens":2048}]}`)
 	}))
 	defer probeServer.Close()
+	defer close(release)
 
-	cfg := &config.Config{}
-	for i := 0; i < len(models); i++ {
-		cfg.Providers = append(cfg.Providers, config.ProviderEntry{
-			ID:      fmt.Sprintf("provider-%d", i),
-			Type:    "custom",
-			BaseURL: probeServer.URL,
-			Model:   fmt.Sprintf("probe-model-%d", i),
-		})
-	}
-	cfg.LLM.Provider = cfg.Providers[0].ID
+	cfg := &config.Config{Providers: []config.ProviderEntry{{
+		ID: "provider", Type: "custom", BaseURL: probeServer.URL, Model: "probe-model",
+	}}}
+	cfg.LLM.Provider = "provider"
 	vault, err := security.NewVault(strings.Repeat("61", 32), filepath.Join(t.TempDir(), "vault.bin"))
 	if err != nil {
 		t.Fatalf("NewVault: %v", err)
 	}
 	s := &Server{Cfg: cfg, Logger: slog.Default(), Vault: vault}
 	rec := httptest.NewRecorder()
+	startedAt := time.Now()
 	handleGetProviders(s, rec, httptest.NewRequest(http.MethodGet, "/api/providers", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET status = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	if got := maximum.Load(); got > 4 {
-		t.Fatalf("concurrent provider probes = %d, want at most 4", got)
+	if elapsed := time.Since(startedAt); elapsed > 500*time.Millisecond {
+		t.Fatalf("GET waited %s for provider probe", elapsed)
+	}
+	var providers []providerJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &providers); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(providers) != 1 || providers[0].ModelLimitsProbeStatus != "pending" {
+		t.Fatalf("provider probe status = %+v, want pending", providers)
+	}
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("background provider probe did not start")
 	}
 }
 

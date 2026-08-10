@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -31,6 +32,47 @@ func TestSessionCompressionCoordinatorSerializesAndAppliesCooldown(t *testing.T)
 		t.Fatal("required compression should ignore proactive cooldown")
 	}
 	necessary.release(false)
+}
+
+func TestSessionCompressionCoordinatorBoundsInactiveSessions(t *testing.T) {
+	coordinator := &sessionCompressionCoordinator{sessions: make(map[string]*sessionCompressionState)}
+	for i := 0; i < sessionCompressionMaxEntries+200; i++ {
+		lease, ok := coordinator.acquire(context.Background(), fmt.Sprintf("session-%d", i), false, false)
+		if !ok {
+			t.Fatalf("lease %d was not acquired", i)
+		}
+		lease.release(false)
+	}
+	coordinator.mu.Lock()
+	count := len(coordinator.sessions)
+	coordinator.mu.Unlock()
+	if count > sessionCompressionMaxEntries {
+		t.Fatalf("compression coordinator sessions = %d, limit = %d", count, sessionCompressionMaxEntries)
+	}
+}
+
+func TestSessionCompressionCoordinatorEvictsIdleButProtectsActiveSession(t *testing.T) {
+	coordinator := &sessionCompressionCoordinator{sessions: make(map[string]*sessionCompressionState)}
+	active, ok := coordinator.acquire(context.Background(), "active", false, false)
+	if !ok {
+		t.Fatal("active lease was not acquired")
+	}
+	coordinator.mu.Lock()
+	coordinator.sessions["active"].lastUsed = time.Now().Add(-2 * sessionCompressionIdleTTL)
+	coordinator.sessions["idle"] = &sessionCompressionState{
+		gate: make(chan struct{}, 1), lastUsed: time.Now().Add(-2 * sessionCompressionIdleTTL),
+	}
+	coordinator.cleanupLocked(time.Now(), "")
+	_, activePresent := coordinator.sessions["active"]
+	_, idlePresent := coordinator.sessions["idle"]
+	coordinator.mu.Unlock()
+	if !activePresent {
+		t.Fatal("active compression state was evicted")
+	}
+	if idlePresent {
+		t.Fatal("idle compression state was not evicted")
+	}
+	active.release(false)
 }
 
 func TestPersistentCompressionUsesStableIDsAndReusesSummaryInRequest(t *testing.T) {

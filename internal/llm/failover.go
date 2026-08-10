@@ -393,7 +393,7 @@ func modelRouteFromConfig(cfg *config.Config, fallback bool) ModelRoute {
 			APIKey:       cfg.FallbackLLM.APIKey,
 			Model:        cfg.FallbackLLM.Model,
 		}
-		if provider := cfg.FindProvider(cfg.FallbackLLM.Provider); provider != nil {
+		if provider := matchingProviderForRoute(cfg, route); provider != nil {
 			route.ContextWindowOverride = provider.ContextWindow
 			route.MaxOutputTokensOverride = provider.MaxOutputTokens
 		}
@@ -407,11 +407,32 @@ func modelRouteFromConfig(cfg *config.Config, fallback bool) ModelRoute {
 		Model:        cfg.LLM.Model,
 		Primary:      true,
 	}
-	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil {
+	if provider := matchingProviderForRoute(cfg, route); provider != nil {
 		route.ContextWindowOverride = provider.ContextWindow
 		route.MaxOutputTokensOverride = provider.MaxOutputTokens
 	}
 	return route
+}
+
+// matchingProviderForRoute returns a provider entry only when it describes the
+// exact route. Model overrides and legacy/custom endpoints must not inherit
+// limits from a provider entry that merely shares an ID.
+func matchingProviderForRoute(cfg *config.Config, route ModelRoute) *config.ProviderEntry {
+	if cfg == nil || strings.TrimSpace(route.ProviderID) == "" {
+		return nil
+	}
+	provider := cfg.FindProvider(route.ProviderID)
+	if provider == nil ||
+		!strings.EqualFold(strings.TrimSpace(provider.Type), strings.TrimSpace(route.ProviderType)) ||
+		normalizeRouteBaseURL(provider.BaseURL) != normalizeRouteBaseURL(route.BaseURL) ||
+		strings.TrimSpace(provider.Model) != strings.TrimSpace(route.Model) {
+		return nil
+	}
+	return provider
+}
+
+func normalizeRouteBaseURL(value string) string {
+	return strings.TrimRight(strings.TrimSpace(value), "/")
 }
 
 func (fm *FailoverManager) recordError(err error) {

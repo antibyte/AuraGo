@@ -234,6 +234,8 @@ func TestConfigProvidersModelLimitsUseOverridesEffectiveValuesAndAllLocales(t *t
 		"effective_max_output_tokens",
 		"context_window_source",
 		"max_output_tokens_source",
+		"model_limits_probe_status",
+		"providerScheduleLimitRefresh",
 		"unknown_model_conservative_limits",
 		"Number.isInteger(context_window)",
 		"Number.isInteger(max_output_tokens)",

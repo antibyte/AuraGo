@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -11,6 +13,7 @@ import (
 // sections that are shed earlier; Required sections are never section-shed.
 type PromptSection struct {
 	ID       string
+	GroupID  string
 	Text     string
 	Priority int
 	Required bool
@@ -33,7 +36,24 @@ type PromptBuildResult struct {
 	RemovedSections []string
 	Revision        string
 	Document        PromptDocument
+	BudgetExceeded  *PromptBudgetExceededError
 }
+
+// PromptBudgetExceededError reports that the mandatory system-prompt
+// sections cannot fit. It intentionally carries no prompt text.
+type PromptBudgetExceededError struct {
+	Budget         int
+	RequiredTokens int
+}
+
+func (e *PromptBudgetExceededError) Error() string {
+	if e == nil {
+		return "prompt_budget_exceeded"
+	}
+	return fmt.Sprintf("prompt_budget_exceeded: required=%d budget=%d", e.RequiredTokens, e.Budget)
+}
+
+func (e *PromptBudgetExceededError) Code() string { return "prompt_budget_exceeded" }
 
 // DescribePromptDocument builds a section ledger for already-cached prompt
 // text without rebuilding any prompt sources.
@@ -115,24 +135,46 @@ func splitPromptSections(text string) []PromptSection {
 	sections := make([]PromptSection, 0, 24)
 	var current strings.Builder
 	currentID := "preamble"
+	currentGroupID := "preamble"
+	currentPriority := 1000
+	currentRequired := true
+	type headingPolicy struct {
+		level    int
+		groupID  string
+		priority int
+		required bool
+	}
+	stack := make([]headingPolicy, 0, 6)
 	flush := func() {
 		if current.Len() == 0 {
 			return
 		}
-		priority, required := promptSectionPolicy(currentID)
 		sections = append(sections, PromptSection{
 			ID:       currentID,
+			GroupID:  currentGroupID,
 			Text:     current.String(),
-			Priority: priority,
-			Required: required,
+			Priority: currentPriority,
+			Required: currentRequired,
 		})
 		current.Reset()
 	}
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if isMarkdownHeading(trimmed) {
+		level := markdownHeadingLevel(trimmed)
+		if level > 0 {
 			flush()
 			currentID = trimmed
+			for len(stack) > 0 && stack[len(stack)-1].level >= level {
+				stack = stack[:len(stack)-1]
+			}
+			priority, required, known := promptSectionDirectPolicy(currentID)
+			groupID := currentID
+			if !known && len(stack) > 0 && !stack[len(stack)-1].required {
+				parent := stack[len(stack)-1]
+				priority, required, groupID = parent.priority, false, parent.groupID
+			}
+			currentPriority, currentRequired, currentGroupID = priority, required, groupID
+			stack = append(stack, headingPolicy{level: level, groupID: groupID, priority: priority, required: required})
 		}
 		current.WriteString(line)
 	}
@@ -141,31 +183,98 @@ func splitPromptSections(text string) []PromptSection {
 }
 
 func isMarkdownHeading(line string) bool {
+	return markdownHeadingLevel(line) > 0
+}
+
+func markdownHeadingLevel(line string) int {
 	if !strings.HasPrefix(line, "#") {
-		return false
+		return 0
 	}
 	index := 0
 	for index < len(line) && line[index] == '#' {
 		index++
 	}
-	return index > 0 && index <= 6 && index < len(line) && line[index] == ' '
+	if index > 0 && index <= 6 && index < len(line) && line[index] == ' ' {
+		return index
+	}
+	return 0
 }
 
 func promptSectionPolicy(id string) (int, bool) {
+	priority, required, _ := promptSectionDirectPolicy(id)
+	return priority, required
+}
+
+func promptSectionDirectPolicy(id string) (int, bool, bool) {
 	for priority, header := range promptOptionalHeaders(false) {
 		if id == header {
-			return priority, false
+			return priority, false, true
 		}
 	}
 	for priority, header := range promptOptionalHeaders(true) {
 		if id == header {
-			return priority, false
+			return priority, false, true
 		}
 	}
 	if id == "# RETRIEVED MEMORIES" {
-		return 100, false
+		return 100, false, true
 	}
-	return 1000, true
+	return 1000, true, false
+}
+
+type promptSectionGroup struct {
+	ID       string
+	Priority int
+	Tokens   int
+}
+
+func (d PromptDocument) optionalGroups() []promptSectionGroup {
+	byID := make(map[string]*promptSectionGroup)
+	order := make([]string, 0, len(d.Sections))
+	for _, section := range d.Sections {
+		if section.Required {
+			continue
+		}
+		id := section.GroupID
+		if id == "" {
+			id = section.ID
+		}
+		group := byID[id]
+		if group == nil {
+			group = &promptSectionGroup{ID: id, Priority: section.Priority}
+			byID[id] = group
+			order = append(order, id)
+		}
+		group.Tokens += section.Tokens
+	}
+	groups := make([]promptSectionGroup, 0, len(order))
+	for _, id := range order {
+		groups = append(groups, *byID[id])
+	}
+	sort.SliceStable(groups, func(i, j int) bool { return groups[i].Priority < groups[j].Priority })
+	return groups
+}
+
+func (d PromptDocument) estimatedTokens() int {
+	total := 0
+	for _, section := range d.Sections {
+		total += section.Tokens
+	}
+	return total
+}
+
+func (d PromptDocument) renderWithoutGroups(removed map[string]bool) string {
+	var result strings.Builder
+	for _, section := range d.Sections {
+		groupID := section.GroupID
+		if groupID == "" {
+			groupID = section.ID
+		}
+		if !removed[groupID] {
+			result.WriteString(section.Text)
+		}
+	}
+	return result.String()
 }
 
 func promptOptionalHeaders(unifiedMemory bool) []string {

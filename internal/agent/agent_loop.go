@@ -263,7 +263,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	}()
 
 	s := initAgentLoopState(req, runCfg, broker, VoiceOutputSuppressed(ctx))
-	s.turnSnapshot = &turnContextSnapshot{UserIntent: s.initialUserMsg}
+	s.turnSnapshot = &turnContextSnapshot{
+		UserIntent:        s.initialUserMsg,
+		PlannerReady:      true,
+		PlannerContext:    s.plannerContext,
+		DailyTodoReminder: s.dailyTodoReminder,
+	}
 	req = s.req
 
 	cfg := s.runCfg.Config
@@ -563,6 +568,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			RecentlyUsedTools: recentTools,
 			PredictedGuides:   explicitTools,
 		}
+		preliminaryTier := prompts.DetermineTierAdaptive(&preliminaryTierFlags)
+		guidePreparation := classifyTurnGuidePreparation(shouldSuppressCoAgentTools(runCfg), preliminaryTier, explicitTools)
 		explicitGuideKey := strings.Join(uniqueStrings(explicitTools), "\x00")
 		if guidesPrepared {
 			if explicitGuideKey != preparedExplicitGuideKey && len(explicitTools) > 0 && !shouldSuppressCoAgentTools(runCfg) {
@@ -584,9 +591,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			preparedExplicitGuideKey = explicitGuideKey
 			flags.PredictedGuides = append([]string(nil), cachedTurnGuides...)
-		} else if shouldSuppressCoAgentTools(runCfg) {
+		} else if guidePreparation == turnGuidesResolvedWithoutSearch {
 			flags.PredictedGuides = nil
-		} else if preliminaryTier := prompts.DetermineTierAdaptive(&preliminaryTierFlags); preliminaryTier == "full" || len(explicitTools) > 0 {
+		} else if guidePreparation == turnGuidesSearchEligible {
 			// Build skip list: tools that already have native OpenAI function schemas
 			// should not also get their guide content (saves tokens, avoids redundancy).
 			// Also skip tools that were removed by adaptive filtering — injecting a guide
@@ -620,11 +627,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		} else {
 			flags.PredictedGuides = nil
 		}
-		if !guidesPrepared {
+		if !guidesPrepared && guidePreparation != turnGuidesNotEligible {
 			cachedTurnGuides = append([]string(nil), flags.PredictedGuides...)
 			preparedExplicitGuideKey = explicitGuideKey
 			guidesPrepared = true
 		}
+		memorySnapshotWasDirty := s.turnSnapshot.MemoryDirty
 		turnMemoryCandidates, turnPendingActions, memorySnapshotRestored := s.turnSnapshot.restoreMemory(&flags)
 		retrievalPromptTokens := 0
 		if !memorySnapshotRestored {
@@ -640,7 +648,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.AvailableKnowledgeContextIndex = ""
 			flags.RecentActivityOverview = ""
 			var topMemories []string
-			if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
+			if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshTurnMemory(memorySnapshotWasDirty, lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
 				ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 				useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
 				ragQuery := resolveInitialRAGQuery(lastUserMsg, useHelperRAGBatch, func(query string) string {
@@ -1163,6 +1171,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		if restoredPlannerContext, restoredReminder, ok := s.turnSnapshot.restorePlanner(); ok {
+			plannerContext, dailyTodoReminder = restoredPlannerContext, restoredReminder
+		} else {
+			// A successful planner mutation invalidates only this category. Rebuild
+			// it even when the immutable user intent did not originally mention a
+			// planner keyword, because the model has just changed that live state.
+			plannerContext = plannerPromptContextText(runCfg, initialUserMsg, time.Now(), true, s.currentLogger)
+			dailyTodoReminder = dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), s.currentLogger)
+			s.turnSnapshot.capturePlanner(plannerContext, dailyTodoReminder)
+		}
 		flags.PlannerContext = plannerContext
 		flags.DailyTodoReminder = dailyTodoReminder
 		flags.OperationalIssueReminder = s.operationalIssueReminder
@@ -1254,6 +1272,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt, sysPromptTokens = promptResult.Text, promptResult.Tokens
 			promptRevision = promptResult.Revision
 			removedPromptSections = len(promptResult.RemovedSections)
+			if promptResult.BudgetExceeded != nil {
+				limitingRoute := requestBudget.Routes[0].Limits
+				for _, candidate := range requestBudget.Routes[1:] {
+					if requestBudget.inputLimit(candidate.Limits) < requestBudget.inputLimit(limitingRoute) {
+						limitingRoute = candidate.Limits
+					}
+				}
+				return openai.ChatCompletionResponse{}, requestBudget.exceededError(limitingRoute, promptResult.BudgetExceeded.RequiredTokens)
+			}
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 				sysPromptTokens += tokenCache.Count(budgetHint, req.Model) + 2

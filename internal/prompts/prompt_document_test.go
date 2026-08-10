@@ -71,6 +71,42 @@ func TestBudgetShedUsesAtMostTwoFullDocumentTokenizations(t *testing.T) {
 	}
 }
 
+func TestBudgetShedUsesTypedGroupsAndPreservesRequiredSections(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+	prompt := "# REQUIRED CORE\nKeep this instruction.\n\n# TOOL GUIDES\n" +
+		strings.Repeat("optional guide ", 200) +
+		"\n## Nested Guide\n" + strings.Repeat("nested optional ", 100) +
+		"\n# FINAL REQUIRED\nKeep this too."
+	flags := &ContextFlags{TokenBudget: 40, Model: "gpt-4o"}
+	result, shed, err := budgetShedContext(context.Background(), prompt, flags, "", "", time.Now(), slog.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(result, "# REQUIRED CORE") || !strings.Contains(result, "# FINAL REQUIRED") {
+		t.Fatalf("required sections were removed:\n%s", result)
+	}
+	if strings.Contains(result, "# TOOL GUIDES") || strings.Contains(result, "## Nested Guide") {
+		t.Fatalf("optional group was not removed atomically:\n%s", result)
+	}
+	if !containsString(shed, "# TOOL GUIDES") {
+		t.Fatalf("shed = %v, want tool-guide group", shed)
+	}
+}
+
+func TestBuildSystemPromptDetailedReportsMandatoryOverflow(t *testing.T) {
+	result := BuildSystemPromptDetailed(context.Background(), t.TempDir(), &ContextFlags{
+		Tier: "minimal", SystemLanguage: "English", Model: "gpt-4o", TokenBudget: 1,
+	}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if result.BudgetExceeded == nil {
+		t.Fatal("expected mandatory prompt budget error")
+	}
+	if strings.Contains(result.Text, "[BUDGET TRUNCATED]") {
+		t.Fatal("mandatory prompt was hard-truncated")
+	}
+}
+
 func TestHardTruncatePreservesUTF8AndTokenLimit(t *testing.T) {
 	tests := []struct {
 		name string

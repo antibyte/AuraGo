@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -108,6 +110,153 @@ func TestResolveModelLimitsUsesAndCachesProviderProbe(t *testing.T) {
 	}
 }
 
+func TestResolveModelLimitsSingleflightsConcurrentProviderProbe(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		time.Sleep(40 * time.Millisecond)
+		fmt.Fprint(w, `{"data":[{"id":"shared-model","context_length":32768,"max_output_tokens":2048}]}`)
+	}))
+	defer server.Close()
+
+	route := ModelRoute{ProviderID: "shared", ProviderType: "custom", BaseURL: server.URL, Model: "shared-model"}
+	var wg sync.WaitGroup
+	results := make(chan ModelLimits, 12)
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- ResolveModelLimits(context.Background(), route, 0, logger)
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for result := range results {
+		if result.ContextWindow != 32768 || result.MaxOutputTokens != 2048 {
+			t.Fatalf("singleflight result = %+v", result)
+		}
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("provider probe calls = %d, want 1", got)
+	}
+}
+
+func TestScheduleModelLimitRefreshBoundsBackgroundProviderIO(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	const routeCount = 10
+	var models strings.Builder
+	models.WriteString(`{"data":[`)
+	for i := 0; i < routeCount; i++ {
+		if i > 0 {
+			models.WriteByte(',')
+		}
+		fmt.Fprintf(&models, `{"id":"async-%d","context_length":32768,"max_output_tokens":2048}`, i)
+	}
+	models.WriteString(`]}`)
+
+	var active atomic.Int32
+	var maximum atomic.Int32
+	var calls atomic.Int32
+	done := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		current := active.Add(1)
+		for {
+			observed := maximum.Load()
+			if current <= observed || maximum.CompareAndSwap(observed, current) {
+				break
+			}
+		}
+		time.Sleep(30 * time.Millisecond)
+		active.Add(-1)
+		_, _ = io.WriteString(w, models.String())
+		if calls.Add(1) == routeCount {
+			close(done)
+		}
+	}))
+	defer server.Close()
+
+	for i := 0; i < routeCount; i++ {
+		if !ScheduleModelLimitRefresh(ModelRoute{
+			ProviderID: fmt.Sprintf("provider-%d", i), ProviderType: "custom", BaseURL: server.URL, Model: fmt.Sprintf("async-%d", i),
+		}, logger) {
+			t.Fatalf("route %d was not scheduled", i)
+		}
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("background probes did not complete; calls=%d", calls.Load())
+	}
+	if got := maximum.Load(); got > modelLimitAsyncProbes {
+		t.Fatalf("concurrent background probes = %d, limit = %d", got, modelLimitAsyncProbes)
+	}
+}
+
+func TestProviderModelLimitCacheSeparatesProviderIdentities(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		fmt.Fprint(w, `{"data":[{"id":"same-model","context_length":16384,"max_output_tokens":1024}]}`)
+	}))
+	defer server.Close()
+
+	for _, providerID := range []string{"tenant-a", "tenant-b"} {
+		_ = ResolveModelLimits(context.Background(), ModelRoute{
+			ProviderID: providerID, ProviderType: "custom", BaseURL: server.URL, Model: "same-model",
+		}, 0, logger)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("provider-specific probe calls = %d, want 2", got)
+	}
+}
+
+func TestModelLimitInvalidationRejectsStaleInflightResult(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var calls atomic.Int32
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		call := calls.Add(1)
+		contextWindow := 22222
+		if call == 1 {
+			close(firstStarted)
+			<-releaseFirst
+			contextWindow = 11111
+		}
+		fmt.Fprintf(w, `{"data":[{"id":"changing-model","context_length":%d,"max_output_tokens":2048}]}`, contextWindow)
+	}))
+	defer server.Close()
+
+	route := ModelRoute{ProviderID: "changing", ProviderType: "custom", BaseURL: server.URL, Model: "changing-model"}
+	firstDone := make(chan struct{})
+	go func() {
+		defer close(firstDone)
+		_ = ResolveModelLimits(context.Background(), route, 0, logger)
+	}()
+	<-firstStarted
+	InvalidateModelLimitCache()
+	second := ResolveModelLimits(context.Background(), route, 0, logger)
+	if second.ContextWindow != 22222 {
+		t.Fatalf("post-invalidation context = %d, want 22222", second.ContextWindow)
+	}
+	close(releaseFirst)
+	<-firstDone
+	cached := ResolveModelLimitsCached(route, 0)
+	if cached.ContextWindow != 22222 || cached.ProbeStatus != "cached" {
+		t.Fatalf("stale in-flight result replaced refreshed cache: %+v", cached)
+	}
+}
+
 func TestResolveModelLimitsNegativeProbeTTL(t *testing.T) {
 	InvalidateModelLimitCache()
 	defer func() {
@@ -151,12 +300,16 @@ func TestResolveModelLimitsHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	started := time.Now()
-	got := ResolveModelLimits(ctx, ModelRoute{ProviderType: "custom", BaseURL: server.URL, Model: "cancelled"}, 0, logger)
+	route := ModelRoute{ProviderID: "cancelled", ProviderType: "custom", BaseURL: server.URL, Model: "cancelled"}
+	got := ResolveModelLimits(ctx, route, 0, logger)
 	if time.Since(started) > time.Second {
 		t.Fatal("cancelled probe did not return promptly")
 	}
 	if got.ContextWindow != ConservativeContextWindow {
 		t.Fatalf("context = %d, want conservative fallback", got.ContextWindow)
+	}
+	if cached := ResolveModelLimitsCached(route, 0); cached.ProbeStatus != "pending" {
+		t.Fatalf("cancelled probe was cached: %+v", cached)
 	}
 }
 

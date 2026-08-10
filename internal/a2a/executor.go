@@ -100,6 +100,8 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 
 		// Build config with A2A-specific overrides
 		a2aCfg := *e.deps.Config
+		a2aCfg.LLM.Provider = resolvedA2AProviderID(e.deps.Config)
+		a2aCfg.LLM.ProviderType = e.deps.Config.A2A.LLM.ProviderType
 		a2aCfg.LLM.APIKey = e.deps.Config.A2A.LLM.APIKey
 		a2aCfg.LLM.BaseURL = e.deps.Config.A2A.LLM.BaseURL
 		a2aCfg.LLM.Model = model
@@ -179,12 +181,29 @@ func (e *Executor) Cancel(ctx context.Context, execCtx *a2asrv.ExecutorContext) 
 func (e *Executor) buildLLMClient() llm.ChatClient {
 	cfg := e.deps.Config
 	a2aCfg := *cfg
+	a2aCfg.LLM.Provider = resolvedA2AProviderID(cfg)
+	a2aCfg.LLM.ProviderType = cfg.A2A.LLM.ProviderType
 	a2aCfg.LLM.APIKey = cfg.A2A.LLM.APIKey
 	a2aCfg.LLM.BaseURL = cfg.A2A.LLM.BaseURL
 	a2aCfg.LLM.Model = cfg.A2A.LLM.Model
 	a2aCfg.FallbackLLM.Enabled = false
 
 	return llm.NewFailoverManager(&a2aCfg, e.deps.Logger.With("component", "a2a-llm"))
+}
+
+func resolvedA2AProviderID(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	if providerID := strings.TrimSpace(cfg.A2A.LLM.Provider); providerID != "" {
+		return providerID
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.A2A.LLM.ProviderType), strings.TrimSpace(cfg.LLM.ProviderType)) &&
+		strings.TrimRight(strings.TrimSpace(cfg.A2A.LLM.BaseURL), "/") == strings.TrimRight(strings.TrimSpace(cfg.LLM.BaseURL), "/") &&
+		strings.TrimSpace(cfg.A2A.LLM.Model) == strings.TrimSpace(cfg.LLM.Model) {
+		return strings.TrimSpace(cfg.LLM.Provider)
+	}
+	return ""
 }
 
 // extractTextFromMessage extracts all text parts from an A2A message.

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/memory"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -42,15 +43,20 @@ func TestHandleChatCompletionsReturnsSanitized413ForImpossibleBudget(t *testing.
 
 	cfg := &config.Config{}
 	cfg.LLM.Provider = "main"
-	cfg.LLM.ProviderType = "openai"
+	cfg.LLM.ProviderType = "ollama"
 	cfg.LLM.Model = "unknown-budget-test-model"
 	cfg.Providers = []config.ProviderEntry{{
 		ID:              "main",
-		Type:            "openai",
+		Type:            "ollama",
+		BaseURL:         "http://127.0.0.1:11434/v1",
 		Model:           cfg.LLM.Model,
 		ContextWindow:   8192,
 		MaxOutputTokens: 1024,
 	}}
+	cfg.LLM.BaseURL = cfg.Providers[0].BaseURL
+	cfg.SpeechLab = config.SpeechLabConfig{
+		Enabled: true, BaseURL: "http://127.0.0.1:8765", ChatInputEnabled: true, ChatLLMProviderID: "main",
+	}
 	client := &rejectingBudgetTestClient{}
 	server := &Server{
 		Cfg:            cfg,
@@ -58,14 +64,19 @@ func TestHandleChatCompletionsReturnsSanitized413ForImpossibleBudget(t *testing.
 		LLMClient:      client,
 		ShortTermMem:   stm,
 		HistoryManager: memory.NewEphemeralHistoryManager(),
+		IsFirstStart:   true,
 	}
+	originalFactory := speechLabChatClientFactory
+	t.Cleanup(func() { speechLabChatClientFactory = originalFactory })
+	speechLabChatClientFactory = func(*config.Config, string, string, string, string) llm.ChatClient { return client }
 
 	const marker = "PROMPT_CONTENT_MUST_NOT_LEAK"
+	transcript := marker + strings.Repeat(" token", 12000)
 	payload, err := json.Marshal(openai.ChatCompletionRequest{
 		Model: cfg.LLM.Model,
 		Messages: []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleUser,
-			Content: marker + strings.Repeat(" token", 12000),
+			Content: transcript,
 		}},
 		MaxTokens: 256,
 	})
@@ -73,6 +84,8 @@ func TestHandleChatCompletionsReturnsSanitized413ForImpossibleBudget(t *testing.
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(payload))
+	turnToken := server.speechLabTokens().Issue("default", transcript)
+	req.Header.Set(speechLabChatTurnTokenHeader, turnToken)
 	rec := httptest.NewRecorder()
 
 	handleChatCompletions(server, nil).ServeHTTP(rec, req)
@@ -92,5 +105,17 @@ func TestHandleChatCompletionsReturnsSanitized413ForImpossibleBudget(t *testing.
 	}
 	if strings.Contains(rec.Body.String(), marker) {
 		t.Fatal("413 response leaked prompt content")
+	}
+	if messages, err := stm.GetSessionMessages("default"); err != nil || len(messages) != 0 {
+		t.Fatalf("rejected request persisted STM messages: count=%d err=%v", len(messages), err)
+	}
+	if got := len(server.HistoryManager.GetAll()); got != 0 {
+		t.Fatalf("rejected request persisted history messages: %d", got)
+	}
+	if server.firstStartDone {
+		t.Fatal("rejected request consumed first-start state")
+	}
+	if !server.speechLabTokens().Consume(turnToken, "default", transcript) {
+		t.Fatal("rejected request consumed Speech Lab provenance token")
 	}
 }

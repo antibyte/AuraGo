@@ -306,7 +306,10 @@ func TestPromptSourceFingerprintChangesForRootPromptAndPersonality(t *testing.T)
 		t.Fatal("expected non-empty fingerprint")
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, "identity.md"), []byte("identity two"), 0o644); err != nil {
+	// Change the size as well as the content. The production recheck happens
+	// after 60 seconds, while this test advances only the cache timestamp; an
+	// immediate same-size rewrite can retain the same filesystem Mtime on Windows.
+	if err := os.WriteFile(filepath.Join(dir, "identity.md"), []byte("identity version two"), 0o644); err != nil {
 		t.Fatalf("rewrite identity: %v", err)
 	}
 	expirePromptSourceFingerprintForTest(dir, "neutral")
@@ -316,7 +319,7 @@ func TestPromptSourceFingerprintChangesForRootPromptAndPersonality(t *testing.T)
 		first = got
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, "personalities", "neutral.md"), []byte("neutral two"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "personalities", "neutral.md"), []byte("neutral version two"), 0o644); err != nil {
 		t.Fatalf("rewrite personality: %v", err)
 	}
 	expirePromptSourceFingerprintForTest(dir, "neutral")

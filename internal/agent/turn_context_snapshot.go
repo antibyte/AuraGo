@@ -30,6 +30,11 @@ type turnContextSnapshot struct {
 	PlanReady         bool
 	PlanDirty         bool
 	SessionPlanPrompt string
+
+	PlannerReady      bool
+	PlannerDirty      bool
+	PlannerContext    string
+	DailyTodoReminder string
 }
 
 func (s *turnContextSnapshot) restoreMemory(flags *prompts.ContextFlags) (map[string]string, []memory.EpisodicMemory, bool) {
@@ -59,6 +64,23 @@ func (s *turnContextSnapshot) captureMemory(flags *prompts.ContextFlags, candida
 	s.PendingActions = append([]memory.EpisodicMemory(nil), pending...)
 	s.MemoryReady = true
 	s.MemoryDirty = false
+}
+
+func (s *turnContextSnapshot) restorePlanner() (string, string, bool) {
+	if s == nil || !s.PlannerReady || s.PlannerDirty {
+		return "", "", false
+	}
+	return s.PlannerContext, s.DailyTodoReminder, true
+}
+
+func (s *turnContextSnapshot) capturePlanner(contextText, reminder string) {
+	if s == nil {
+		return
+	}
+	s.PlannerContext = contextText
+	s.DailyTodoReminder = reminder
+	s.PlannerReady = true
+	s.PlannerDirty = false
 }
 
 func cloneStringMap(input map[string]string) map[string]string {
@@ -108,16 +130,43 @@ func mergeTurnGuideSnapshot(priority, cached []string, limit int) []string {
 }
 
 func invalidateTurnSnapshotAfterTool(s *agentLoopState, call ToolCall, failed bool) {
-	if s == nil || s.turnSnapshot == nil || failed || !toolCallMutatesState(call) {
-		if s != nil && s.turnSnapshot != nil && !failed && strings.TrimSpace(string(call.Todo)) != "" {
-			s.turnSnapshot.PlanDirty = true
-		}
+	if s == nil || s.turnSnapshot == nil || failed {
 		return
 	}
 	if strings.TrimSpace(string(call.Todo)) != "" {
 		s.turnSnapshot.PlanDirty = true
 	}
+	categories := turnSnapshotMutationCategories(call)
+	if categories&snapshotMemory != 0 {
+		s.turnSnapshot.MemoryDirty = true
+	}
+	if categories&snapshotNotes != 0 {
+		s.turnSnapshot.NotesDirty = true
+	}
+	if categories&snapshotSessionPlan != 0 {
+		s.turnSnapshot.PlanDirty = true
+	}
+	if categories&snapshotPlanner != 0 {
+		s.turnSnapshot.PlannerDirty = true
+	}
+}
+
+func toolCallMutatesState(call ToolCall) bool {
+	return turnSnapshotMutationCategories(call) != 0
+}
+
+type turnSnapshotCategory uint8
+
+const (
+	snapshotMemory turnSnapshotCategory = 1 << iota
+	snapshotNotes
+	snapshotSessionPlan
+	snapshotPlanner
+)
+
+func turnSnapshotMutationCategories(call ToolCall) turnSnapshotCategory {
 	action := strings.ToLower(strings.TrimSpace(call.Action))
+	operation := toolCallSnapshotOperation(call)
 	switch action {
 	case "remember":
 		category := strings.ToLower(strings.TrimSpace(call.Category))
@@ -126,27 +175,56 @@ func invalidateTurnSnapshotAfterTool(s *agentLoopState, call ToolCall, failed bo
 				category = strings.ToLower(strings.TrimSpace(raw))
 			}
 		}
-		if category == "task" {
-			s.turnSnapshot.NotesDirty = true
-		} else if category == "" {
-			// Auto-classification can select either a memory store or notes. Mark
-			// both candidates dirty without re-evaluating unrelated categories.
-			s.turnSnapshot.MemoryDirty = true
-			s.turnSnapshot.NotesDirty = true
-		} else {
-			s.turnSnapshot.MemoryDirty = true
+		switch category {
+		case "task":
+			return snapshotNotes
+		case "":
+			return snapshotMemory | snapshotNotes
+		default:
+			return snapshotMemory
 		}
-	case "manage_memory", "core_memory", "manage_knowledge", "knowledge_graph", "manage_journal", "journal":
-		s.turnSnapshot.MemoryDirty = true
-	case "manage_notes", "notes", "todo", "manage_todos":
-		s.turnSnapshot.NotesDirty = true
+	case "manage_memory", "core_memory":
+		if oneOf(operation, "", "read", "query", "search", "list", "get", "status", "view_profile") {
+			return 0
+		}
+		return snapshotMemory
+	case "manage_knowledge", "knowledge_graph":
+		if oneOf(operation, "", "query", "search", "get", "get_node", "get_neighbors", "subgraph", "list", "status",
+			"graph_health", "explore", "suggest_relations", "suggest_inferred_relations", "export_jsonld", "explain_edge", "list_conflicts") {
+			return 0
+		}
+		return snapshotMemory
+	case "manage_journal", "journal":
+		if oneOf(operation, "", "list", "search", "get", "get_summary", "status") {
+			return 0
+		}
+		return snapshotMemory
+	case "archive_memory", "optimize_memory":
+		return snapshotMemory
+	case "memory_reflect":
+		return snapshotMemory | snapshotPlanner
+	case "manage_notes", "notes", "todo":
+		if oneOf(operation, "", "list", "get", "search", "status") {
+			return 0
+		}
+		return snapshotNotes
+	case "manage_todos", "manage_appointments":
+		if oneOf(operation, "", "list", "get", "search", "status") {
+			return 0
+		}
+		// Planner writes synchronize their corresponding KG nodes.
+		return snapshotPlanner | snapshotMemory
 	case "manage_plan":
-		s.turnSnapshot.PlanDirty = true
+		if oneOf(operation, "", "list", "get", "status") {
+			return 0
+		}
+		return snapshotSessionPlan
+	default:
+		return 0
 	}
 }
 
-func toolCallMutatesState(call ToolCall) bool {
-	action := strings.ToLower(strings.TrimSpace(call.Action))
+func toolCallSnapshotOperation(call ToolCall) string {
 	operation := strings.ToLower(strings.TrimSpace(firstNonEmpty(call.Operation, call.ActionType, call.SubOperation)))
 	if operation == "" && call.Params != nil {
 		for _, key := range []string{"operation", "action_type", "sub_operation"} {
@@ -156,22 +234,25 @@ func toolCallMutatesState(call ToolCall) bool {
 			}
 		}
 	}
-	switch action {
-	case "remember":
-		return true
-	case "manage_memory", "core_memory":
-		return !oneOf(operation, "", "read", "query", "search", "list", "get", "status")
-	case "manage_knowledge", "knowledge_graph":
-		return !oneOf(operation, "", "query", "search", "get", "get_node", "get_neighbors", "subgraph", "list", "status")
-	case "manage_journal", "journal":
-		return !oneOf(operation, "", "list", "search", "get", "get_summary", "status")
-	case "manage_notes", "notes", "todo", "manage_todos":
-		return !oneOf(operation, "", "list", "get", "search", "status")
-	case "manage_plan":
-		return !oneOf(operation, "", "list", "get", "status")
-	default:
-		return false
+	return operation
+}
+
+type turnGuidePreparationState uint8
+
+const (
+	turnGuidesNotEligible turnGuidePreparationState = iota
+	turnGuidesResolvedWithoutSearch
+	turnGuidesSearchEligible
+)
+
+func classifyTurnGuidePreparation(suppress bool, tier string, explicitTools []string) turnGuidePreparationState {
+	if suppress {
+		return turnGuidesResolvedWithoutSearch
 	}
+	if strings.EqualFold(strings.TrimSpace(tier), "full") || len(explicitTools) > 0 {
+		return turnGuidesSearchEligible
+	}
+	return turnGuidesNotEligible
 }
 
 func oneOf(value string, candidates ...string) bool {

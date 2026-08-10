@@ -43,6 +43,36 @@ func TestFailoverManagerActiveProviderAndModelTracksFallback(t *testing.T) {
 	}
 }
 
+func TestModelRouteFromConfigUsesOverridesOnlyForExactProviderRoute(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers = []config.ProviderEntry{{
+		ID: "selected", Type: "ollama", BaseURL: "http://localhost:11434/v1", Model: "small-model",
+		ContextWindow: 8192, MaxOutputTokens: 2048,
+	}}
+	cfg.LLM.Provider = "selected"
+	cfg.LLM.ProviderType = "ollama"
+	cfg.LLM.BaseURL = "http://localhost:11434/v1/"
+	cfg.LLM.Model = "small-model"
+
+	route := modelRouteFromConfig(cfg, false)
+	if route.ContextWindowOverride != 8192 || route.MaxOutputTokensOverride != 2048 {
+		t.Fatalf("exact route overrides = (%d, %d), want (8192, 2048)", route.ContextWindowOverride, route.MaxOutputTokensOverride)
+	}
+
+	cfg.LLM.Model = "job-model-override"
+	route = modelRouteFromConfig(cfg, false)
+	if route.ContextWindowOverride != 0 || route.MaxOutputTokensOverride != 0 {
+		t.Fatalf("model override inherited provider limits: (%d, %d)", route.ContextWindowOverride, route.MaxOutputTokensOverride)
+	}
+
+	cfg.LLM.Model = "small-model"
+	cfg.LLM.BaseURL = "http://other-host:11434/v1"
+	route = modelRouteFromConfig(cfg, false)
+	if route.ContextWindowOverride != 0 || route.MaxOutputTokensOverride != 0 {
+		t.Fatalf("endpoint override inherited provider limits: (%d, %d)", route.ContextWindowOverride, route.MaxOutputTokensOverride)
+	}
+}
+
 func TestFailoverRecordErrorSkipsRateLimit(t *testing.T) {
 	fm := &FailoverManager{
 		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),

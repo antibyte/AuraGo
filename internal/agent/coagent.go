@@ -40,10 +40,12 @@ type coAgentPromptTemplate struct {
 }
 
 type coAgentLLMSelection struct {
-	Model   string
-	APIKey  string
-	BaseURL string
-	Source  string
+	ProviderID   string
+	ProviderType string
+	Model        string
+	APIKey       string
+	BaseURL      string
+	Source       string
 }
 
 const (
@@ -412,13 +414,21 @@ func extractCoAgentPartialResult(history *memory.HistoryManager) string {
 
 func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelection, string) {
 	selection := coAgentLLMSelection{
-		Model:   strings.TrimSpace(cfg.CoAgents.LLM.Model),
-		APIKey:  cfg.CoAgents.LLM.APIKey,
-		BaseURL: cfg.CoAgents.LLM.BaseURL,
-		Source:  "co_agents",
+		ProviderID:   firstNonEmpty(strings.TrimSpace(cfg.CoAgents.LLM.Provider), strings.TrimSpace(cfg.LLM.Provider)),
+		ProviderType: firstNonEmpty(strings.TrimSpace(cfg.CoAgents.LLM.ProviderType), strings.TrimSpace(cfg.LLM.ProviderType)),
+		Model:        strings.TrimSpace(cfg.CoAgents.LLM.Model),
+		APIKey:       cfg.CoAgents.LLM.APIKey,
+		BaseURL:      cfg.CoAgents.LLM.BaseURL,
+		Source:       "co_agents",
 	}
 	if role != "" {
 		if spec := cfg.GetSpecialist(role); spec != nil {
+			if spec.LLM.Provider != "" {
+				selection.ProviderID = strings.TrimSpace(spec.LLM.Provider)
+			}
+			if spec.LLM.ProviderType != "" {
+				selection.ProviderType = strings.TrimSpace(spec.LLM.ProviderType)
+			}
 			if spec.LLM.APIKey != "" {
 				selection.APIKey = spec.LLM.APIKey
 			}
@@ -438,16 +448,20 @@ func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelecti
 
 	candidates := []coAgentLLMSelection{
 		{
-			Model:   strings.TrimSpace(cfg.CoAgents.LLM.Model),
-			APIKey:  cfg.CoAgents.LLM.APIKey,
-			BaseURL: cfg.CoAgents.LLM.BaseURL,
-			Source:  "co_agents",
+			ProviderID:   firstNonEmpty(strings.TrimSpace(cfg.CoAgents.LLM.Provider), strings.TrimSpace(cfg.LLM.Provider)),
+			ProviderType: firstNonEmpty(strings.TrimSpace(cfg.CoAgents.LLM.ProviderType), strings.TrimSpace(cfg.LLM.ProviderType)),
+			Model:        strings.TrimSpace(cfg.CoAgents.LLM.Model),
+			APIKey:       cfg.CoAgents.LLM.APIKey,
+			BaseURL:      cfg.CoAgents.LLM.BaseURL,
+			Source:       "co_agents",
 		},
 		{
-			Model:   strings.TrimSpace(cfg.LLM.Model),
-			APIKey:  cfg.LLM.APIKey,
-			BaseURL: cfg.LLM.BaseURL,
-			Source:  "main",
+			ProviderID:   strings.TrimSpace(cfg.LLM.Provider),
+			ProviderType: strings.TrimSpace(cfg.LLM.ProviderType),
+			Model:        strings.TrimSpace(cfg.LLM.Model),
+			APIKey:       cfg.LLM.APIKey,
+			BaseURL:      cfg.LLM.BaseURL,
+			Source:       "main",
 		},
 	}
 	for _, candidate := range candidates {
@@ -466,6 +480,8 @@ func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelecti
 // newCoAgentLLMClientForSelection creates an LLM client for a co-agent or specialist.
 func newCoAgentLLMClientForSelection(cfg *config.Config, logger *slog.Logger, role string, selection coAgentLLMSelection) llm.ChatClient {
 	coCfg := deepClone(*cfg)
+	coCfg.LLM.Provider = selection.ProviderID
+	coCfg.LLM.ProviderType = selection.ProviderType
 	coCfg.LLM.APIKey = selection.APIKey
 	coCfg.LLM.BaseURL = selection.BaseURL
 	coCfg.LLM.Model = selection.Model

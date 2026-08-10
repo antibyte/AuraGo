@@ -20,6 +20,7 @@ const (
 	modelLimitPositiveTTL = time.Hour
 	modelLimitNegativeTTL = 5 * time.Minute
 	modelLimitCacheSize   = 128
+	modelLimitAsyncProbes = 4
 )
 
 // ModelRoute describes one provider/model combination that may serve a request.
@@ -47,6 +48,7 @@ type ModelLimits struct {
 	Unknown           bool
 	Warning           string
 	ProbeCacheHit     bool
+	ProbeStatus       string
 }
 
 type providerModelLimitProbe struct {
@@ -60,10 +62,25 @@ type modelLimitCacheEntry struct {
 	lastAccess time.Time
 }
 
+type modelLimitProbeCall struct {
+	done       chan struct{}
+	value      providerModelLimitProbe
+	generation uint64
+}
+
 var providerModelLimitCache = struct {
 	sync.Mutex
-	entries map[string]modelLimitCacheEntry
-}{entries: make(map[string]modelLimitCacheEntry)}
+	entries    map[string]modelLimitCacheEntry
+	inflight   map[string]*modelLimitProbeCall
+	scheduled  map[string]uint64
+	generation uint64
+}{
+	entries:   make(map[string]modelLimitCacheEntry),
+	inflight:  make(map[string]*modelLimitProbeCall),
+	scheduled: make(map[string]uint64),
+}
+
+var providerModelLimitProbeSlots = make(chan struct{}, modelLimitAsyncProbes)
 
 var modelLimitNow = time.Now
 
@@ -72,6 +89,9 @@ var modelLimitNow = time.Now
 func InvalidateModelLimitCache() {
 	providerModelLimitCache.Lock()
 	providerModelLimitCache.entries = make(map[string]modelLimitCacheEntry)
+	providerModelLimitCache.inflight = make(map[string]*modelLimitProbeCall)
+	providerModelLimitCache.scheduled = make(map[string]uint64)
+	providerModelLimitCache.generation++
 	providerModelLimitCache.Unlock()
 }
 
@@ -79,6 +99,67 @@ func InvalidateModelLimitCache() {
 // fallback precedence. globalContextCap is an upper bound for every route and,
 // for an otherwise unknown primary route, the legacy configured fallback value.
 func ResolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap int, logger *slog.Logger) ModelLimits {
+	return resolveModelLimits(ctx, route, globalContextCap, logger, true)
+}
+
+// ResolveModelLimitsCached resolves effective limits without performing
+// network I/O. Unknown routes use a valid cached probe result when available
+// and otherwise report a pending probe while retaining conservative limits.
+func ResolveModelLimitsCached(route ModelRoute, globalContextCap int) ModelLimits {
+	return resolveModelLimits(context.Background(), route, globalContextCap, nil, false)
+}
+
+// RefreshModelLimits refreshes a missing or expired provider probe. Concurrent
+// refreshes for the same provider identity and model share one network call.
+func RefreshModelLimits(ctx context.Context, route ModelRoute, logger *slog.Logger) {
+	_ = resolveModelLimits(ctx, route, 0, logger, true)
+}
+
+// ScheduleModelLimitRefresh starts at most one asynchronous refresh for a
+// route and globally bounds background provider I/O. It is intended for
+// latency-sensitive status endpoints; request budgeting continues to use the
+// synchronous resolver when no cached metadata exists.
+func ScheduleModelLimitRefresh(route ModelRoute, logger *slog.Logger) bool {
+	key := providerModelLimitCacheKey(route)
+	now := modelLimitNow()
+	providerModelLimitCache.Lock()
+	if cached, ok := providerModelLimitCache.entries[key]; ok && now.Before(cached.expiresAt) {
+		providerModelLimitCache.Unlock()
+		return false
+	}
+	if providerModelLimitCache.inflight[key] != nil {
+		providerModelLimitCache.Unlock()
+		return false
+	}
+	if _, ok := providerModelLimitCache.scheduled[key]; ok {
+		providerModelLimitCache.Unlock()
+		return false
+	}
+	generation := providerModelLimitCache.generation
+	providerModelLimitCache.scheduled[key] = generation
+	providerModelLimitCache.Unlock()
+
+	go func() {
+		providerModelLimitProbeSlots <- struct{}{}
+		defer func() { <-providerModelLimitProbeSlots }()
+
+		providerModelLimitCache.Lock()
+		stillCurrent := providerModelLimitCache.generation == generation && providerModelLimitCache.scheduled[key] == generation
+		providerModelLimitCache.Unlock()
+		if stillCurrent {
+			RefreshModelLimits(context.Background(), route, logger)
+		}
+
+		providerModelLimitCache.Lock()
+		if providerModelLimitCache.scheduled[key] == generation {
+			delete(providerModelLimitCache.scheduled, key)
+		}
+		providerModelLimitCache.Unlock()
+	}()
+	return true
+}
+
+func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap int, logger *slog.Logger, allowProbe bool) ModelLimits {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -110,7 +191,23 @@ func ResolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 	}
 
 	if limits.ContextWindow <= 0 || limits.MaxOutputTokens <= 0 {
-		probe, cacheHit := cachedProviderModelLimitProbe(ctx, route, logger)
+		var probe providerModelLimitProbe
+		var cacheHit bool
+		if allowProbe {
+			probe, cacheHit = cachedProviderModelLimitProbe(ctx, route, logger)
+			if cacheHit {
+				limits.ProbeStatus = "cached"
+			} else {
+				limits.ProbeStatus = "completed"
+			}
+		} else {
+			probe, cacheHit = lookupCachedProviderModelLimitProbe(route)
+			if cacheHit {
+				limits.ProbeStatus = "cached"
+			} else {
+				limits.ProbeStatus = "pending"
+			}
+		}
 		limits.ProbeCacheHit = cacheHit
 		if limits.ContextWindow <= 0 && probe.ContextWindow > 0 {
 			limits.ContextWindow = probe.ContextWindow
@@ -120,6 +217,8 @@ func ResolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 			limits.MaxOutputTokens = probe.MaxOutputTokens
 			limits.OutputSource = "provider_probe"
 		}
+	} else {
+		limits.ProbeStatus = "not_needed"
 	}
 
 	unknownContext := limits.ContextWindow <= 0
@@ -174,8 +273,7 @@ func resolveRegistryModelMetadata(provider, model string) (ModelRegistryEntry, b
 }
 
 func cachedProviderModelLimitProbe(ctx context.Context, route ModelRoute, logger *slog.Logger) (providerModelLimitProbe, bool) {
-	key := strings.ToLower(strings.TrimSpace(route.ProviderType)) + "\x00" +
-		strings.TrimRight(strings.TrimSpace(route.BaseURL), "/") + "\x00" + strings.ToLower(strings.TrimSpace(route.Model))
+	key := providerModelLimitCacheKey(route)
 	now := modelLimitNow()
 
 	providerModelLimitCache.Lock()
@@ -186,27 +284,70 @@ func cachedProviderModelLimitProbe(ctx context.Context, route ModelRoute, logger
 		return cached.value, true
 	}
 	delete(providerModelLimitCache.entries, key)
+	if call := providerModelLimitCache.inflight[key]; call != nil {
+		providerModelLimitCache.Unlock()
+		select {
+		case <-ctx.Done():
+			return providerModelLimitProbe{}, false
+		case <-call.done:
+			return call.value, true
+		}
+	}
+	call := &modelLimitProbeCall{
+		done:       make(chan struct{}),
+		generation: providerModelLimitCache.generation,
+	}
+	providerModelLimitCache.inflight[key] = call
 	providerModelLimitCache.Unlock()
 
 	value := probeProviderModelLimits(ctx, route, logger)
+	call.value = value
 	ttl := modelLimitNegativeTTL
 	if value.ContextWindow > 0 || value.MaxOutputTokens > 0 {
 		ttl = modelLimitPositiveTTL
 	}
 	providerModelLimitCache.Lock()
-	providerModelLimitCache.entries[key] = modelLimitCacheEntry{value: value, expiresAt: now.Add(ttl), lastAccess: now}
-	for len(providerModelLimitCache.entries) > modelLimitCacheSize {
-		oldestKey := ""
-		var oldest time.Time
-		for candidate, entry := range providerModelLimitCache.entries {
-			if oldestKey == "" || entry.lastAccess.Before(oldest) {
-				oldestKey, oldest = candidate, entry.lastAccess
+	if call.generation == providerModelLimitCache.generation && ctx.Err() == nil {
+		providerModelLimitCache.entries[key] = modelLimitCacheEntry{value: value, expiresAt: now.Add(ttl), lastAccess: now}
+		for len(providerModelLimitCache.entries) > modelLimitCacheSize {
+			oldestKey := ""
+			var oldest time.Time
+			for candidate, entry := range providerModelLimitCache.entries {
+				if oldestKey == "" || entry.lastAccess.Before(oldest) {
+					oldestKey, oldest = candidate, entry.lastAccess
+				}
 			}
+			delete(providerModelLimitCache.entries, oldestKey)
 		}
-		delete(providerModelLimitCache.entries, oldestKey)
 	}
+	if providerModelLimitCache.inflight[key] == call {
+		delete(providerModelLimitCache.inflight, key)
+	}
+	close(call.done)
 	providerModelLimitCache.Unlock()
 	return value, false
+}
+
+func lookupCachedProviderModelLimitProbe(route ModelRoute) (providerModelLimitProbe, bool) {
+	key := providerModelLimitCacheKey(route)
+	now := modelLimitNow()
+	providerModelLimitCache.Lock()
+	defer providerModelLimitCache.Unlock()
+	cached, ok := providerModelLimitCache.entries[key]
+	if !ok || !now.Before(cached.expiresAt) {
+		delete(providerModelLimitCache.entries, key)
+		return providerModelLimitProbe{}, false
+	}
+	cached.lastAccess = now
+	providerModelLimitCache.entries[key] = cached
+	return cached.value, true
+}
+
+func providerModelLimitCacheKey(route ModelRoute) string {
+	return strings.ToLower(strings.TrimSpace(route.ProviderID)) + "\x00" +
+		strings.ToLower(strings.TrimSpace(route.ProviderType)) + "\x00" +
+		strings.TrimRight(strings.TrimSpace(route.BaseURL), "/") + "\x00" +
+		strings.ToLower(strings.TrimSpace(route.Model))
 }
 
 func probeProviderModelLimits(ctx context.Context, route ModelRoute, logger *slog.Logger) providerModelLimitProbe {

@@ -577,6 +577,29 @@ func TestSelectCoAgentLLMForDesignerKeepsTextModel(t *testing.T) {
 	}
 }
 
+func TestSelectCoAgentLLMForRoleKeepsProviderIdentity(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.LLM.Provider = "main"
+	cfg.LLM.ProviderType = "openai"
+	cfg.CoAgents.LLM.Provider = "local"
+	cfg.CoAgents.LLM.ProviderType = "ollama"
+	cfg.CoAgents.LLM.BaseURL = "http://localhost:11434/v1"
+	cfg.CoAgents.LLM.Model = "qwen-small"
+	cfg.CoAgents.Specialists.Coder.LLM.Provider = "specialist"
+	cfg.CoAgents.Specialists.Coder.LLM.ProviderType = "anthropic"
+	cfg.CoAgents.Specialists.Coder.LLM.Model = "claude-specialist"
+
+	selection, _ := selectCoAgentLLMForRole(cfg, "coder")
+	if selection.ProviderID != "specialist" || selection.ProviderType != "anthropic" {
+		t.Fatalf("specialist route identity = (%q, %q), want (specialist, anthropic)", selection.ProviderID, selection.ProviderType)
+	}
+
+	selection, _ = selectCoAgentLLMForRole(cfg, "")
+	if selection.ProviderID != "local" || selection.ProviderType != "ollama" {
+		t.Fatalf("co-agent route identity = (%q, %q), want (local, ollama)", selection.ProviderID, selection.ProviderType)
+	}
+}
+
 // ══════════════════════════════════════════════
 // helpers
 // ══════════════════════════════════════════════

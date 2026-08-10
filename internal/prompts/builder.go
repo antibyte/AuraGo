@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -371,6 +372,18 @@ func BuildSystemPromptDetailed(ctx context.Context, promptsDir string, flags *Co
 
 	prompt, tokens, err := buildSystemPromptInnerContext(ctx, promptsDir, flags, coreMemory, logger)
 	if err != nil {
+		var budgetErr *PromptBudgetExceededError
+		if errors.As(err, &budgetErr) {
+			document := newPromptDocumentContext(context.Background(), prompt, flags.Model, tokens)
+			return PromptBuildResult{
+				Text:            prompt,
+				Tokens:          tokens,
+				RemovedSections: append([]string(nil), collector.removed...),
+				Revision:        document.Revision,
+				Document:        document,
+				BudgetExceeded:  budgetErr,
+			}
+		}
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled, using fallback", "error", err)
 		prompt, tokens = fallbackSystemPromptContext(context.Background(), promptsDir, flags, coreMemory, logger)
 	}
@@ -980,7 +993,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		var err error
 		optimized, shedSections, finalTokens, err = budgetShedDetailedContext(ctx, optimized, flags, corePersonalityContent, coreMemory, now, logger)
 		if err != nil {
-			return "", 0, err
+			return optimized, finalTokens, err
 		}
 		budgetShedTriggered = len(shedSections) > 0
 		shedSavings = optimizedBeforeShedLen - len(optimized)
@@ -1420,7 +1433,7 @@ func truncateWithEllipsis(text string, maxChars int) string {
 // 1. Tool Guides, 2. predicted/recent context, 3. user profile and advisory
 // sections, 4. planner/reminders/task rules/persona sections, then
 // per-entry Retrieved Memories trim, full Retrieved Memories drop if needed,
-// and final hard truncate.
+// and a typed error when the mandatory document cannot fit.
 func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
 	result, shedList, _ := budgetShedContext(context.Background(), prompt, flags, personalityContent, coreMemory, now, logger)
 	return result, shedList
@@ -1447,31 +1460,34 @@ func budgetShedDetailedContext(ctx context.Context, prompt string, flags *Contex
 	logger.Info("[Budget] Token budget exceeded, shedding content", "tokens", tokens, "budget", flags.TokenBudget)
 
 	var shedList []string
-	result := prompt
-	estimatedTokens := tokens
-	sectionTokens := newPromptDocumentContext(ctx, prompt, flags.Model, tokens).sectionTokenLedger()
+	document := newPromptDocumentContext(ctx, prompt, flags.Model, tokens)
+	removedGroups := make(map[string]bool)
+	estimatedTokens := document.estimatedTokens()
+	appendShed := func(id string) {
+		for _, existing := range shedList {
+			if existing == id {
+				return
+			}
+		}
+		shedList = append(shedList, id)
+	}
 
-	for _, header := range promptOptionalHeaders(flags.UnifiedMemoryBlock) {
+	for _, group := range document.optionalGroups() {
 		if err := promptContextErr(ctx); err != nil {
 			return "", nil, 0, err
 		}
 		if estimatedTokens <= flags.TokenBudget {
 			break
 		}
-		before := result
-		result = removeSection(result, header)
-		if len(result) < len(before) {
-			removedTokens := takeSectionTokens(sectionTokens, header)
-			if removedTokens == 0 {
-				// A dynamically generated heading that was absent from the initial
-				// document ledger is still handled safely without a full recount.
-				removedTokens = countTokensWithModelContext(ctx, removedTextBetween(before, result), flags.Model)
-			}
-			estimatedTokens = maxInt(0, estimatedTokens-removedTokens)
-			shedList = append(shedList, header)
-			logger.Debug("[Budget] Shed section", "header", header, "estimated_tokens", estimatedTokens)
+		if group.ID == "# RETRIEVED MEMORIES" {
+			continue
 		}
+		removedGroups[group.ID] = true
+		estimatedTokens = maxInt(0, estimatedTokens-group.Tokens)
+		appendShed(group.ID)
+		logger.Debug("[Budget] Shed section group", "group", group.ID, "estimated_tokens", estimatedTokens)
 	}
+	result := document.renderWithoutGroups(removedGroups)
 
 	// Token-aware Retrieved Memories trim uses per-entry ledger counts instead
 	// of repeatedly tokenizing the full prompt.
@@ -1483,29 +1499,37 @@ func budgetShedDetailedContext(ctx context.Context, prompt string, flags *Contex
 			return "", nil, 0, err
 		}
 		if partial {
-			shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
+			appendShed("# RETRIEVED MEMORIES (partial)")
 		}
 		if full {
-			shedList = append(shedList, "# RETRIEVED MEMORIES")
+			removedGroups["# RETRIEVED MEMORIES"] = true
+			appendShed("# RETRIEVED MEMORIES")
 		}
+	}
+
+	// If section estimates still exceed the budget, remove every remaining
+	// optional group before the final exact count. Required groups remain intact.
+	if estimatedTokens > flags.TokenBudget {
+		for _, group := range document.optionalGroups() {
+			if !removedGroups[group.ID] {
+				removedGroups[group.ID] = true
+				appendShed(group.ID)
+			}
+		}
+		result = document.renderWithoutGroups(removedGroups)
 	}
 
 	// Second and normally final full-prompt tokenization.
 	noteBudgetShedFullTokenization()
 	tokens = countTokensWithModelContext(ctx, result, flags.Model)
 
-	// A residual overflow can result from token-boundary effects in the section
-	// ledger. Reduce the already-counted over-budget document conservatively;
-	// the truncator deliberately does not recount the complete input.
+	// Required sections define the trust and behavior boundary. If they do not
+	// fit after every optional group is removed, fail instead of truncating them.
 	if tokens > flags.TokenBudget {
-		logger.Warn("[Budget] Conservatively truncating residual prompt overflow",
-			"tokens", tokens, "budget", flags.TokenBudget)
-		var err error
-		result, tokens, err = hardTruncateKnownOverflowContext(ctx, result, flags.TokenBudget, flags.Model)
-		if err != nil {
-			return "", nil, 0, err
-		}
-		shedList = append(shedList, "HARD_TRUNCATE")
+		logger.Warn("[Budget] Mandatory system prompt exceeds route budget",
+			"required_tokens", tokens, "budget", flags.TokenBudget)
+		recordRemovedPromptSections(ctx, shedList)
+		return result, shedList, tokens, &PromptBudgetExceededError{Budget: flags.TokenBudget, RequiredTokens: tokens}
 	}
 
 	recordRemovedPromptSections(ctx, shedList)

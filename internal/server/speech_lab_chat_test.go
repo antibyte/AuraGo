@@ -182,6 +182,26 @@ func TestSpeechLabTurnTokenIsBoundToSessionTranscriptAndSingleUse(t *testing.T) 
 	}
 }
 
+func TestSpeechLabTurnTokenReservationReleaseAndCommit(t *testing.T) {
+	registry := newSpeechLabTurnTokenRegistry(nil)
+	token := registry.Issue("default", "hello")
+	reservation, ok := registry.Reserve(token, "default", "hello")
+	if !ok || reservation == nil {
+		t.Fatal("valid token could not be reserved")
+	}
+	if _, second := registry.Reserve(token, "default", "hello"); second {
+		t.Fatal("reserved token was concurrently reservable")
+	}
+	reservation.release()
+	reservation, ok = registry.Reserve(token, "default", "hello")
+	if !ok || !reservation.commit() {
+		t.Fatal("released token could not be reserved and committed")
+	}
+	if registry.Consume(token, "default", "hello") {
+		t.Fatal("committed token remained reusable")
+	}
+}
+
 func TestSpeechLabTurnTokenRegistryIsGloballyBounded(t *testing.T) {
 	registry := newSpeechLabTurnTokenRegistry(nil)
 	for index := 0; index < speechLabTurnTokenMax+20; index++ {

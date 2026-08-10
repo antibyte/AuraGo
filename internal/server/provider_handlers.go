@@ -5,14 +5,11 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
-	"time"
 )
 
 // providerJSON is the API representation of a provider entry.
@@ -30,6 +27,7 @@ type providerJSON struct {
 	ContextWindowSource      string                     `json:"context_window_source"`
 	MaxOutputTokensSource    string                     `json:"max_output_tokens_source"`
 	ModelLimitsWarning       string                     `json:"model_limits_warning,omitempty"`
+	ModelLimitsProbeStatus   string                     `json:"model_limits_probe_status,omitempty"`
 	AccountID                string                     `json:"account_id"`
 	AuthType                 string                     `json:"auth_type"`
 	OAuthAuthURL             string                     `json:"oauth_auth_url"`
@@ -227,42 +225,25 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 	s.CfgMu.RUnlock()
 
-	// Unknown provider models may need a bounded metadata probe. Resolve them in
-	// parallel so one unavailable endpoint cannot serially delay the config UI.
+	// The config read path is cache-only. Missing provider metadata is refreshed
+	// asynchronously so an unavailable endpoint cannot delay the config UI.
 	limitResults := make([]llm.ModelLimits, len(providers))
-	probeCtx := context.Background()
-	if r != nil {
-		probeCtx = r.Context()
+	for i, provider := range providers {
+		route := llm.ModelRoute{
+			ProviderID:              provider.ID,
+			ProviderType:            provider.Type,
+			BaseURL:                 provider.BaseURL,
+			APIKey:                  provider.APIKey,
+			Model:                   provider.Model,
+			ContextWindowOverride:   provider.ContextWindow,
+			MaxOutputTokensOverride: provider.MaxOutputTokens,
+			Primary:                 provider.ID == cfgSnapshot.LLM.Provider,
+		}
+		limitResults[i] = llm.ResolveModelLimitsCached(route, cfgSnapshot.Agent.ContextWindow)
+		if limitResults[i].ProbeStatus == "pending" {
+			llm.ScheduleModelLimitRefresh(route, s.Logger)
+		}
 	}
-	probeCtx, cancelProbes := context.WithTimeout(probeCtx, 10*time.Second)
-	defer cancelProbes()
-	probeJobs := make(chan int)
-	var limitWG sync.WaitGroup
-	workerCount := min(4, len(providers))
-	for worker := 0; worker < workerCount; worker++ {
-		limitWG.Add(1)
-		go func() {
-			defer limitWG.Done()
-			for index := range probeJobs {
-				provider := providers[index]
-				limitResults[index] = llm.ResolveModelLimits(probeCtx, llm.ModelRoute{
-					ProviderID:              provider.ID,
-					ProviderType:            provider.Type,
-					BaseURL:                 provider.BaseURL,
-					APIKey:                  provider.APIKey,
-					Model:                   provider.Model,
-					ContextWindowOverride:   provider.ContextWindow,
-					MaxOutputTokensOverride: provider.MaxOutputTokens,
-					Primary:                 provider.ID == cfgSnapshot.LLM.Provider,
-				}, cfgSnapshot.Agent.ContextWindow, s.Logger)
-			}
-		}()
-	}
-	for i := range providers {
-		probeJobs <- i
-	}
-	close(probeJobs)
-	limitWG.Wait()
 
 	out := make([]providerJSON, len(providers))
 	for i, p := range providers {
@@ -290,6 +271,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			EffectiveMaxOutputTokens: limits.MaxOutputTokens,
 			ContextWindowSource:      limits.ContextSource,
 			MaxOutputTokensSource:    limits.OutputSource,
+			ModelLimitsProbeStatus:   limits.ProbeStatus,
 			AccountID:                p.AccountID,
 			AuthType:                 authType,
 			OAuthAuthURL:             p.OAuthAuthURL,

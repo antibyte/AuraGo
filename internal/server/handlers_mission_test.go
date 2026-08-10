@@ -98,6 +98,28 @@ func TestInternalLoopbackRequestMessagesAreHidden(t *testing.T) {
 	}
 }
 
+func TestShouldAppendProspectiveUserMessage(t *testing.T) {
+	tests := []struct {
+		name      string
+		role      string
+		missionID string
+		want      bool
+	}{
+		{name: "direct user turn", role: openai.ChatMessageRoleUser, want: true},
+		{name: "generic internal follow-up", role: openai.ChatMessageRoleUser, want: true},
+		{name: "mission request already carries request history", role: openai.ChatMessageRoleUser, missionID: "mission-1", want: false},
+		{name: "assistant message", role: openai.ChatMessageRoleAssistant, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldAppendProspectiveUserMessage(tt.role, tt.missionID); got != tt.want {
+				t.Fatalf("shouldAppendProspectiveUserMessage(%q, %q) = %v, want %v", tt.role, tt.missionID, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestInternalFollowUpRequestsUseAutonomousMessageSource(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -178,7 +178,13 @@ func candidateModelRoutes(cfg *config.Config, client llm.ChatClient, req openai.
 		Model:        firstNonEmpty(strings.TrimSpace(req.Model), cfg.LLM.Model),
 		Primary:      true,
 	}
-	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil {
+	// Direct clients do not expose a route snapshot. Resolve limits from the
+	// concrete provider/model identity without copying overrides from a provider
+	// whose default model or endpoint differs from this request.
+	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil &&
+		strings.EqualFold(strings.TrimSpace(provider.Type), strings.TrimSpace(route.ProviderType)) &&
+		strings.TrimRight(strings.TrimSpace(provider.BaseURL), "/") == strings.TrimRight(strings.TrimSpace(route.BaseURL), "/") &&
+		strings.TrimSpace(provider.Model) == strings.TrimSpace(route.Model) {
 		route.ContextWindowOverride = provider.ContextWindow
 		route.MaxOutputTokensOverride = provider.MaxOutputTokens
 	}
