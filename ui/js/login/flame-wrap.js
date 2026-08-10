@@ -18,8 +18,8 @@ export const LOGIN_FLAME_MARKERS = Object.freeze({
   reducedMotionSkip: "login-flame:reduced-motion-skip",
 });
 
-const FLAME_HEIGHT = 120;
-const FLAME_SPREAD = 36;
+const FLAME_HEIGHT = 128;
+const FLAME_SPREAD = 42;
 
 function prefersReducedMotion() {
   try {
@@ -87,8 +87,9 @@ function readCardRadius(card) {
 }
 
 function flameInsets() {
-  const reach = Math.round(Math.max(FLAME_HEIGHT, 24) * 1.5) + 40;
-  const glow = Math.round(Math.max(FLAME_SPREAD, 8) * 3) + 16;
+  // Extra room so the soft/irregular outer fade never hits a hard canvas edge.
+  const reach = Math.round(Math.max(FLAME_HEIGHT, 24) * 1.75) + 72;
+  const glow = Math.round(Math.max(FLAME_SPREAD, 8) * 3.6) + 48;
   return { reach, glow };
 }
 
