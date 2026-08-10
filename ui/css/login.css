@@ -812,8 +812,14 @@
     justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
-    padding: clamp(4.75rem, 10vh, 7rem) max(1rem, env(safe-area-inset-right, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px));
-    overflow-x: clip;
+    /* Extra inset so Flame Wrap outline is not clipped by the viewport edge. */
+    padding:
+        clamp(7rem, 14vh, 10rem)
+        max(3.5rem, env(safe-area-inset-right, 0px))
+        max(3.5rem, env(safe-area-inset-bottom, 0px))
+        max(3.5rem, env(safe-area-inset-left, 0px));
+    /* Must stay visible: base body { overflow:hidden } clips side/top flames. */
+    overflow: visible !important;
     background: var(--pw-canvas);
     background-image: none;
     color: var(--pw-text);
@@ -927,7 +933,10 @@
     z-index: 100;
     width: min(100%, 420px);
     max-width: 420px;
+    /* Room for side/bottom flame outline without clipping the burn edge. */
+    margin: var(--login-flame-reach, 184px) var(--login-flame-spread, 58px) var(--login-flame-spread, 58px);
     overflow: visible;
+    flex-shrink: 0;
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-source {
@@ -1057,7 +1066,18 @@
 @media (max-width: 768px) {
     .pw-page.pw-entry-page[data-entry-page="login"] {
         align-items: flex-start;
-        padding: calc(4.75rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+        padding:
+            calc(6.5rem + env(safe-area-inset-top, 0px))
+            max(2rem, env(safe-area-inset-right, 0px))
+            calc(2.5rem + env(safe-area-inset-bottom, 0px))
+            max(2rem, env(safe-area-inset-left, 0px));
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-card-wrap {
+        margin:
+            var(--login-flame-reach, 140px)
+            var(--login-flame-spread, 40px)
+            var(--login-flame-spread, 40px);
     }
 }
 

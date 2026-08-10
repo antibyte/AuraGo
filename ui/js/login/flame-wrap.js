@@ -18,8 +18,8 @@ export const LOGIN_FLAME_MARKERS = Object.freeze({
   reducedMotionSkip: "login-flame:reduced-motion-skip",
 });
 
-const FLAME_HEIGHT = 96;
-const FLAME_SPREAD = 14;
+const FLAME_HEIGHT = 120;
+const FLAME_SPREAD = 36;
 
 function prefersReducedMotion() {
   try {
@@ -94,17 +94,34 @@ function flameInsets() {
 
 function applyOutputGeometry(wrap, card, output) {
   const { reach, glow } = flameInsets();
-  // Size from the live card box so the burn outline matches the modal, not a collapsed canvas.
-  const cardWidth = Math.max(1, Math.round(card.getBoundingClientRect().width || card.offsetWidth || wrap.clientWidth || 420));
-  const cardHeight = Math.max(1, Math.round(card.getBoundingClientRect().height || card.offsetHeight || 1));
   wrap.style.setProperty("--login-flame-reach", `${reach}px`);
-  wrap.style.setProperty("--login-flame-glow", `${glow}px`);
-  output.style.top = `-${reach}px`;
-  output.style.left = `-${glow}px`;
+  wrap.style.setProperty("--login-flame-spread", `${glow}px`);
+  // Force layout so wrap/card boxes are final before measuring.
+  void wrap.offsetWidth;
+  void card.offsetHeight;
+  const cardRect = card.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  const cardWidth = Math.max(
+    1,
+    Math.round(cardRect.width || card.offsetWidth || wrap.clientWidth || 420)
+  );
+  const cardHeight = Math.max(
+    1,
+    Math.round(cardRect.height || card.offsetHeight || 1)
+  );
+  // Anchor to the card inside the wrap (accounts for any future padding).
+  const offsetLeft = Math.round((cardRect.left || wrapRect.left) - wrapRect.left);
+  const offsetTop = Math.round((cardRect.top || wrapRect.top) - wrapRect.top);
+  output.style.top = `${offsetTop - reach}px`;
+  output.style.left = `${offsetLeft - glow}px`;
   output.style.right = "auto";
   output.style.bottom = "auto";
   output.style.width = `${cardWidth + glow * 2}px`;
   output.style.height = `${cardHeight + reach + glow}px`;
+  // Explicit bitmap size so WebGL never samples a collapsed client box.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  output.width = Math.max(1, Math.round((cardWidth + glow * 2) * dpr));
+  output.height = Math.max(1, Math.round((cardHeight + reach + glow) * dpr));
 }
 
 function placeContentForCapture(wrap, source, card, nativeCapture) {
@@ -137,25 +154,25 @@ function restoreContent(wrap, source, card) {
 function loginFlameOptions(theme, card) {
   return {
     color: colorForTheme(theme),
-    intensity: 0.55,
+    intensity: 0.85,
     height: FLAME_HEIGHT,
     spread: FLAME_SPREAD,
     radius: readCardRadius(card),
-    speed: 0.35,
-    scale: 0.7,
-    turbulence: 0.45,
-    turbulenceScale: 0.55,
-    turbulenceReach: 18,
-    sparks: 1.2,
-    sparkSize: 0.4,
-    sparkDensity: 0.9,
-    sparkSpeed: 0.9,
-    rim: 2.2,
-    melt: 3.5,
-    distortion: 6,
-    smoke: 1.1,
-    ember: 1.6,
-    scorch: 0.15,
+    speed: 0.4,
+    scale: 0.72,
+    turbulence: 0.55,
+    turbulenceScale: 0.6,
+    turbulenceReach: 22,
+    sparks: 1.6,
+    sparkSize: 0.45,
+    sparkDensity: 1.1,
+    sparkSpeed: 1,
+    rim: 2.8,
+    melt: 5,
+    distortion: 8,
+    smoke: 1.3,
+    ember: 2,
+    scorch: 0.2,
   };
 }
 
