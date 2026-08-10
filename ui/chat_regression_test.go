@@ -1422,12 +1422,15 @@ func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
 		"restoreAll();",
 		"restoreBackground();",
 		"img.removeAttribute('srcset');",
-		"BG_BLOCK = 2",
+		"BG_BLOCK = 4",
+		"BG_ZOOM",
+		"BG_FOCUS_Y",
+		"drawImageCoverZoomed",
 		"pixelateBackground",
 		"restoreBackground",
 		"--bg-logo",
 		"data-aurago8bit-bg",
-		"pixelated-2x2",
+		"pixelated-4x4",
 	} {
 		if !strings.Contains(pixelatorJS, marker) {
 			t.Fatalf("8bit-pixelate.js missing image restore marker %q", marker)
@@ -1438,7 +1441,7 @@ func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
 	for _, marker := range []string{
 		`[data-theme="8bit"] #chat-box::after`,
 		`image-rendering: pixelated`,
-		`data-aurago8bit-bg="pixelated-2x2"`,
+		`data-aurago8bit-bg="pixelated-4x4"`,
 	} {
 		if !strings.Contains(themesCSS, marker) {
 			t.Fatalf("chat-themes.css missing 8bit background pixelation marker %q", marker)

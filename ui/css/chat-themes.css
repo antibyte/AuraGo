@@ -8075,14 +8075,14 @@
 
 [data-theme="8bit"] #chat-box::after {
     background-size: var(--bg-logo-size);
-    /* Nearest-neighbor upscale of the half-res bitmap from 8bit-pixelate.js (2×2 blocks). */
+    /* Nearest-neighbor upscale of the low-res bitmap from 8bit-pixelate.js (4×4 blocks). */
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
     filter: var(--bg-logo-filter) contrast(1.08);
 }
 
-html[data-theme="8bit"][data-aurago8bit-bg="pixelated-2x2"] #chat-box::after {
+html[data-theme="8bit"][data-aurago8bit-bg="pixelated-4x4"] #chat-box::after {
     background-size: 100% 100%;
     background-position: center center;
 }

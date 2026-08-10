@@ -5,16 +5,19 @@
  * Images: draw onto a tiny canvas, swap src to the low-res data-URL;
  * image-rendering:pixelated upscales with nearest-neighbor.
  *
- * Background: downsample the logo to half viewport (2×2 CSS-pixel blocks),
- * then set --bg-logo to that bitmap so cover scaling stays crisp.
+ * Background: downsample the logo (4×4 CSS-pixel blocks) with a slight
+ * center-top zoom so the wordmark under the gopher is cropped out.
  */
 (() => {
     'use strict';
 
     const PIXEL_SMALL = 36;
     const PIXEL_LARGE = 64;
-    /** Each logical pixel of the downsampled background becomes a 2×2 CSS block. */
-    const BG_BLOCK = 2;
+    /** Each logical pixel of the downsampled background becomes a 4×4 CSS block. */
+    const BG_BLOCK = 4;
+    /** Extra cover zoom (>1) crops edges; bias keeps the gopher, hides bottom text. */
+    const BG_ZOOM = 1.28;
+    const BG_FOCUS_Y = 0.38;
 
     const _cache = new Map();
     const _observed = new WeakSet();
@@ -145,14 +148,17 @@
         _originalBgLogoSize = '';
     }
 
-    function drawImageCover(ctx, image, width, height) {
+    function drawImageCoverZoomed(ctx, image, width, height, zoom, focusY) {
         const iw = image.naturalWidth || image.width || 1;
         const ih = image.naturalHeight || image.height || 1;
-        const scale = Math.max(width / iw, height / ih);
+        const z = Math.max(1, Number(zoom) || 1);
+        const fy = Math.min(1, Math.max(0, Number(focusY) || 0.5));
+        const scale = Math.max(width / iw, height / ih) * z;
         const dw = iw * scale;
         const dh = ih * scale;
         const dx = (width - dw) / 2;
-        const dy = (height - dh) / 2;
+        // Anchor crop toward focusY so bottom wordmark leaves the frame.
+        const dy = height * fy - dh * fy;
         ctx.drawImage(image, dx, dy, dw, dh);
     }
 
@@ -181,7 +187,7 @@
         const vh = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
         const tinyW = Math.max(1, Math.round(vw / BG_BLOCK));
         const tinyH = Math.max(1, Math.round(vh / BG_BLOCK));
-        const cacheKey = src + '@bg@' + tinyW + 'x' + tinyH + '@' + BG_BLOCK;
+        const cacheKey = src + '@bg@' + tinyW + 'x' + tinyH + '@' + BG_BLOCK + '@z' + BG_ZOOM + '@fy' + BG_FOCUS_Y;
 
         let dataURL = _cache.get(cacheKey);
         if (!dataURL) {
@@ -193,7 +199,7 @@
                 tiny.height = tinyH;
                 const tctx = tiny.getContext('2d');
                 tctx.imageSmoothingEnabled = true;
-                drawImageCover(tctx, img, tinyW, tinyH);
+                drawImageCoverZoomed(tctx, img, tinyW, tinyH, BG_ZOOM, BG_FOCUS_Y);
                 // Re-sample nearest-neighbor so the bitmap itself is blocky when upscaled.
                 const out = document.createElement('canvas');
                 out.width = tinyW;
@@ -211,9 +217,9 @@
 
         const root = document.documentElement;
         root.style.setProperty('--bg-logo', 'url("' + dataURL + '")');
-        // Stretch the half-res bitmap to the full viewport so each texel is BG_BLOCK×BG_BLOCK.
+        // Stretch the low-res bitmap to the full viewport so each texel is BG_BLOCK×BG_BLOCK.
         root.style.setProperty('--bg-logo-size', '100% 100%');
-        root.setAttribute('data-aurago8bit-bg', 'pixelated-2x2');
+        root.setAttribute('data-aurago8bit-bg', 'pixelated-4x4');
     }
 
     function scheduleBackgroundPixelate() {
