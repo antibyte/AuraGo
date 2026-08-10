@@ -369,6 +369,58 @@
     background-image: linear-gradient(180deg, rgba(3, 5, 12, 0.08), rgba(3, 5, 12, 0.38)), url('/img/wallpapers/city_rain.jpg');
 }
 
+/* City Rain droplets: wallpaper layer only (below icons/widgets/windows). */
+.vd-wallpaper-fx {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+    display: none;
+}
+
+.vd-wallpaper-fx.is-active,
+.desktop-body[data-wallpaper="city_rain"] .vd-wallpaper-fx {
+    display: block;
+}
+
+.vd-wallpaper-fx[hidden]:not(.is-active) {
+    display: none !important;
+}
+
+.vd-droplets-content,
+.vd-droplets-source,
+.vd-droplets-output {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    max-width: none;
+}
+
+.vd-droplets-source {
+    display: none;
+}
+
+.vd-droplets-output.is-hidden {
+    display: none;
+}
+
+.vd-droplets-output.is-active {
+    display: block;
+    mix-blend-mode: screen;
+    opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-wallpaper-fx,
+    .vd-droplets-output,
+    .vd-droplets-source {
+        display: none !important;
+    }
+}
+
 .desktop-body[data-wallpaper="ocean_cliff"] {
     background-image: linear-gradient(180deg, rgba(6, 16, 22, 0.04), rgba(6, 16, 22, 0.26)), url('/img/wallpapers/ocean_cliff.jpg');
 }

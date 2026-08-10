@@ -38,6 +38,12 @@
     <div id="vd-widget-drawer" class="vd-widget-drawer vd-scroll" role="dialog" aria-modal="false" data-i18n-aria-label="desktop.widget_drawer_title"><div class="vd-widget-drawer-header"><div class="vd-widget-drawer-title" data-i18n="desktop.widget_drawer_title"></div><button type="button" class="vd-widget-drawer-close" id="vd-widget-drawer-close" data-i18n-aria-label="desktop.widget_drawer_close">&times;</button></div></div>
     <main id="main-content" class="vd-shell" aria-live="polite">
         <section class="vd-workspace" id="vd-workspace">
+            <!-- Wallpaper FX (City Rain droplets) stays behind icons/widgets/windows -->
+            <div id="vd-wallpaper-fx" class="vd-wallpaper-fx" aria-hidden="true" hidden>
+                <div id="vd-droplets-content" class="vd-droplets-content" aria-hidden="true"></div>
+                <canvas id="vd-droplets-source" class="vd-droplets-source" aria-hidden="true"></canvas>
+                <canvas id="vd-droplets-output" class="vd-droplets-output is-hidden" aria-hidden="true"></canvas>
+            </div>
             <div class="vd-icons" id="vd-icons"></div>
             <div class="vd-widgets" id="vd-widgets"></div>
             <div class="vd-window-layer" id="vd-window-layer"></div>
@@ -93,6 +99,7 @@
 
     <script defer src="/js/desktop/core/module-loader.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/main.js?v={{.BuildVersion}}"></script>
+    <script type="module" src="/js/desktop/city-rain-droplets.js?v={{.BuildVersion}}"></script>
 </body>
 
 </html>

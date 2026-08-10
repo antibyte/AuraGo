@@ -2,7 +2,6 @@ package ui
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -126,27 +125,8 @@ func TestCanvasUIAssetsAreEmbedded(t *testing.T) {
 	}
 }
 
-func TestLoginCanvasUIUsesLocalModules(t *testing.T) {
+func TestLoginFlameWrapUsesLocalCanvasUI(t *testing.T) {
 	t.Parallel()
-
-	dropletsJS := string(mustReadUIFile(t, "js/login/droplets.js"))
-	for _, want := range []string{
-		`from "/js/vendor/canvasui/droplets.js"`,
-		"createDroplets",
-		"supportsHtmlInCanvas",
-		"login-droplets:webgl2-unavailable",
-		"login-droplets:html-in-canvas-fallback",
-		"login-droplets:theme-update",
-		"login-droplets:destroy",
-		"login-droplets:reduced-motion-skip",
-		"aurago:themechange",
-		"prefers-reduced-motion",
-		"destroy()",
-	} {
-		if !strings.Contains(dropletsJS, want) {
-			t.Fatalf("login droplets initializer missing marker %q", want)
-		}
-	}
 
 	flameJS := string(mustReadUIFile(t, "js/login/flame-wrap.js"))
 	for _, want := range []string{
@@ -169,33 +149,25 @@ func TestLoginCanvasUIUsesLocalModules(t *testing.T) {
 			t.Fatalf("login flame-wrap initializer missing marker %q", want)
 		}
 	}
-
-	for _, text := range []string{dropletsJS, flameJS} {
-		for _, forbidden := range []string{
-			"cdn.jsdelivr",
-			"unpkg.com",
-			"canvasui.dev",
-			"from \"react\"",
-			"from 'react'",
-			"https://github.com/DavidHDev/canvas-ui",
-		} {
-			if strings.Contains(text, forbidden) {
-				t.Fatalf("login CanvasUI initializer must not reference remote/runtime asset %q", forbidden)
-			}
+	for _, forbidden := range []string{
+		"cdn.jsdelivr",
+		"unpkg.com",
+		"canvasui.dev",
+		"from \"react\"",
+		"from 'react'",
+		"https://github.com/DavidHDev/canvas-ui",
+	} {
+		if strings.Contains(flameJS, forbidden) {
+			t.Fatalf("login flame-wrap initializer must not reference remote/runtime asset %q", forbidden)
 		}
 	}
 
 	html := normalizeAssetText(mustReadUIFile(t, "login.html"))
 	for _, want := range []string{
-		`id="login-bg-host"`,
-		`id="login-bg-content"`,
-		`id="droplets-source"`,
-		`id="droplets-output"`,
 		`id="login-card-wrap"`,
 		`id="flame-source"`,
 		`id="flame-output"`,
 		`id="main-content"`,
-		`/js/login/droplets.js?v={{.BuildVersion}}`,
 		`/js/login/flame-wrap.js?v={{.BuildVersion}}`,
 		`type="module"`,
 		`id="bg-canvas"`,
@@ -204,43 +176,119 @@ func TestLoginCanvasUIUsesLocalModules(t *testing.T) {
 		`/js/login/main.js`,
 	} {
 		if !strings.Contains(html, want) {
-			t.Fatalf("login.html missing CanvasUI integration marker %q", want)
+			t.Fatalf("login.html missing flame-wrap integration marker %q", want)
 		}
 	}
-	if strings.Contains(html, "canvasui.dev") || strings.Contains(html, "unpkg.com") || strings.Contains(html, "cdn.jsdelivr") {
-		t.Fatal("login.html must not load CanvasUI from a remote host")
+	for _, forbidden := range []string{
+		"droplets.js",
+		"droplets-source",
+		"droplets-output",
+		"login-droplets",
+		"canvasui.dev",
+		"unpkg.com",
+		"cdn.jsdelivr",
+	} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("login.html must not contain %q", forbidden)
+		}
 	}
-	_ = regexp.MustCompile(`(?i)https?://`)
 }
 
-func TestLoginCanvasUICSSIsScopedAndDecorative(t *testing.T) {
+func TestLoginFlameCSSIsScopedAndDecorative(t *testing.T) {
 	t.Parallel()
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/login.css"))
 	prefix := `.pw-page.pw-entry-page[data-entry-page="login"]`
 	for _, want := range []string{
-		prefix + ` .login-bg-host`,
-		prefix + ` .login-bg-content`,
-		prefix + ` .login-droplets-source`,
-		prefix + ` .login-droplets-output`,
 		prefix + ` .login-card-wrap`,
 		prefix + ` .login-flame-source`,
 		prefix + ` .login-flame-output`,
 		`pointer-events: none`,
 		`is-native-capture`,
 		`@media (prefers-reduced-motion: reduce)`,
-		`.login-droplets-output`,
 		`.login-flame-output`,
 	} {
 		if !strings.Contains(css, want) {
-			t.Fatalf("login.css missing CanvasUI style marker %q", want)
+			t.Fatalf("login.css missing flame style marker %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		`.login-droplets-output`,
+		`.login-droplets-source`,
+	} {
+		if strings.Contains(css, forbidden) {
+			t.Fatalf("login.css must not retain droplets selector %q", forbidden)
 		}
 	}
 	if !strings.Contains(css, `display: none !important`) {
-		t.Fatal("login CanvasUI reduced-motion hide contract missing")
+		t.Fatal("login flame reduced-motion hide contract missing")
 	}
-	reduced := css[strings.Index(css, `@media (prefers-reduced-motion: reduce)`):]
-	if !strings.Contains(reduced, `.login-flame-output`) {
-		t.Error("reduced-motion must hide login flame output")
+}
+
+func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
+	t.Parallel()
+
+	desktopJS := string(mustReadUIFile(t, "js/desktop/city-rain-droplets.js"))
+	for _, want := range []string{
+		`from "/js/vendor/canvasui/droplets.js"`,
+		"createDroplets",
+		`city_rain`,
+		"data-wallpaper",
+		"vd-wallpaper-fx",
+		"desktop-droplets:webgl2-unavailable",
+		"desktop-droplets:reduced-motion-skip",
+		"desktop-droplets:active",
+		"interactive: false",
+		"MutationObserver",
+		"prefers-reduced-motion",
+		"destroy()",
+	} {
+		if !strings.Contains(desktopJS, want) {
+			t.Fatalf("desktop city-rain droplets missing marker %q", want)
+		}
+	}
+	// Must not capture desktop HTML into the effect (keeps windows/icons clean).
+	if strings.Contains(desktopJS, "layoutsubtree=\"true\"") || strings.Contains(desktopJS, "drawElementImage") {
+		t.Fatal("desktop droplets must stay procedural and must not capture desktop HTML")
+	}
+
+	html := normalizeAssetText(mustReadUIFile(t, "desktop.html"))
+	for _, want := range []string{
+		`id="vd-wallpaper-fx"`,
+		`id="vd-droplets-source"`,
+		`id="vd-droplets-output"`,
+		`id="vd-workspace"`,
+		`id="vd-icons"`,
+		`id="vd-window-layer"`,
+		`/js/desktop/city-rain-droplets.js?v={{.BuildVersion}}`,
+		`type="module"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("desktop.html missing city-rain droplets marker %q", want)
+		}
+	}
+	// Wallpaper FX must appear before foreground layers in DOM order.
+	fxIdx := strings.Index(html, `id="vd-wallpaper-fx"`)
+	iconsIdx := strings.Index(html, `id="vd-icons"`)
+	windowsIdx := strings.Index(html, `id="vd-window-layer"`)
+	if fxIdx < 0 || iconsIdx < 0 || windowsIdx < 0 || !(fxIdx < iconsIdx && iconsIdx < windowsIdx) {
+		t.Fatal("vd-wallpaper-fx must precede icons and window layer in desktop.html")
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/desktop-base.css"))
+	bundle := normalizeAssetText(mustReadUIFile(t, "css/desktop-shell.bundle.css"))
+	for _, source := range []string{css, bundle} {
+		for _, want := range []string{
+			`.vd-wallpaper-fx`,
+			`z-index: -1`,
+			`pointer-events: none`,
+			`data-wallpaper="city_rain"`,
+			`.vd-droplets-output`,
+			`@media (prefers-reduced-motion: reduce)`,
+		} {
+			if !strings.Contains(source, want) {
+				t.Fatalf("desktop CSS missing city-rain droplets marker %q", want)
+			}
+		}
 	}
 }

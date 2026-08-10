@@ -35,7 +35,7 @@
 </head>
 
 <body class="pw-page pw-entry-page" data-entry-page="login">
-    <!-- Background host: Neural Network / CSS fallback + optional CanvasUI Droplets overlay -->
+    <!-- Background host: Neural Network / CSS fallback -->
     <div id="login-bg-host" class="login-bg-host" aria-hidden="true">
         <!-- Always-on AuraGo color aurora (visible under WebGL and CSS fallback) -->
         <div id="login-color-aurora" class="login-color-aurora" aria-hidden="true">
@@ -54,7 +54,6 @@
                 <div class="orb orb-3"></div>
             </div>
         </div>
-        <canvas id="droplets-source" class="login-droplets-source" aria-hidden="true"></canvas>
     </div>
 
     <!-- Vignette Overlay -->
@@ -62,9 +61,6 @@
 
     <!-- Scan Line Effect -->
     <div class="scan-line"></div>
-
-    <!-- Droplets output sits above vignette/scan-line, below the login card -->
-    <canvas id="droplets-output" class="login-droplets-output is-hidden" aria-hidden="true"></canvas>
 
     <!-- Theme toggle -->
     <button id="theme-toggle" type="button" class="btn-theme corner-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
@@ -116,7 +112,6 @@
     <!-- Three.js for WebGL -->
     <script src="/js/vendor/three.min.js" onerror="window._threeLoadFailed=true"></script>
     <script src="/js/login/main.js"></script>
-    <script type="module" src="/js/login/droplets.js?v={{.BuildVersion}}"></script>
     <script type="module" src="/js/login/flame-wrap.js?v={{.BuildVersion}}"></script>
 </body>
 
