@@ -36,6 +36,21 @@ func TestBuildToolingPolicyAutoEnablesNativeFunctionsForDeepSeek(t *testing.T) {
 	}
 }
 
+func TestBuildPromptContextFlagsNormalizesConfiguredPersonality(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.CorePersonality = "../rules"
+	flags := buildPromptContextFlags(RunConfig{Config: cfg}, ToolingPolicy{}, promptContextOptions{})
+	if flags.CorePersonality != "neutral" {
+		t.Fatalf("CorePersonality = %q, want neutral", flags.CorePersonality)
+	}
+
+	cfg.Personality.CorePersonality = "custom_Profile-2"
+	flags = buildPromptContextFlags(RunConfig{Config: cfg}, ToolingPolicy{}, promptContextOptions{})
+	if flags.CorePersonality != "custom_Profile-2" {
+		t.Fatalf("valid custom CorePersonality = %q", flags.CorePersonality)
+	}
+}
+
 func TestPlannerNativeToolsRespectConfigAndRuntimeDB(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Tools.Planner.Enabled = true

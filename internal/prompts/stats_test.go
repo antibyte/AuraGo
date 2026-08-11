@@ -1,6 +1,8 @@
 package prompts
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -225,6 +227,7 @@ func TestRecordAdaptiveToolUsage(t *testing.T) {
 func resetPromptStats() {
 	globalStats.mu.Lock()
 	globalStats.records = nil
+	globalStats.fitRecords = nil
 	globalStats.requestCount = 0
 	globalStats.coldBuildCount = 0
 	globalStats.cacheHitCount = 0
@@ -246,6 +249,10 @@ func TestPromptBuildRecordSavingsBreakdown(t *testing.T) {
 		Tokens:        1500,
 		ModulesLoaded: 10,
 		ModulesUsed:   7,
+	})
+	RecordPromptFit(PromptFitRecord{
+		Timestamp: time.Now(), InputChars: 7800, OutputChars: 6000,
+		RemovedSections: []string{"# TOOL GUIDES"},
 	})
 
 	agg := GetAggregatedStats()
@@ -299,17 +306,12 @@ func TestPromptStatsShedRate(t *testing.T) {
 	resetPromptStats()
 	defer resetPromptStats()
 
-	// 2 builds: 1 with budget shed, 1 without
-	RecordBuild(PromptBuildRecord{
-		Timestamp: time.Now(), Tier: "full",
-		RawLen: 1000, OptimizedLen: 900,
-		BudgetShed: true, ShedSavings: 80,
+	// 2 fits: 1 with budget shedding, 1 without.
+	RecordPromptFit(PromptFitRecord{
+		Timestamp: time.Now(), InputChars: 1000, OutputChars: 920,
+		RemovedSections: []string{"# TOOL GUIDES"},
 	})
-	RecordBuild(PromptBuildRecord{
-		Timestamp: time.Now(), Tier: "full",
-		RawLen: 1000, OptimizedLen: 980,
-		BudgetShed: false,
-	})
+	RecordPromptFit(PromptFitRecord{Timestamp: time.Now(), InputChars: 1000, OutputChars: 1000})
 
 	agg := GetAggregatedStats()
 	if agg.BudgetShedCount != 1 {
@@ -355,6 +357,14 @@ func TestPromptStatsTotalsBreakdown(t *testing.T) {
 		RawLen: 8000, OptimizedLen: 4000,
 		FormatSavings: 300, ShedSavings: 1500, FilterSavings: 2200,
 	})
+	RecordPromptFit(PromptFitRecord{
+		Timestamp: time.Now(), InputChars: 7000, OutputChars: 5000,
+		RemovedSections: []string{"# TOOL GUIDES"},
+	})
+	RecordPromptFit(PromptFitRecord{
+		Timestamp: time.Now(), InputChars: 5500, OutputChars: 4000,
+		RemovedSections: []string{"# PERSONA"},
+	})
 
 	agg := GetAggregatedStats()
 	if agg.TotalFormatSavings != 800 {
@@ -385,5 +395,83 @@ func TestPromptStatsEmptyState(t *testing.T) {
 	}
 	if agg.AvgModuleFilterRatePct != 0 {
 		t.Errorf("empty: AvgModuleFilterRatePct = %.2f, want 0", agg.AvgModuleFilterRatePct)
+	}
+}
+
+func TestPromptFitStatsAreIndependentFromColdBuildRecords(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	RecordBuild(PromptBuildRecord{
+		Timestamp: time.Now(), Tier: "full", RawLen: 1000, OptimizedLen: 900,
+		ShedSavings: 999, ShedSections: []string{"legacy"}, BudgetShed: true,
+	})
+	RecordPromptFit(PromptFitRecord{
+		Timestamp: time.Now(), CacheHit: true,
+		InputChars: 900, OutputChars: 650, InputTokens: 225, OutputTokens: 160,
+		TokenBudget: 170, RemovedSections: []string{"# TOOL GUIDES", "# PERSONA"},
+	})
+	RecordPromptFit(PromptFitRecord{
+		Timestamp: time.Now(), InputChars: 700, OutputChars: 700,
+		InputTokens: 175, OutputTokens: 175, TokenBudget: 170, BudgetExceeded: true,
+	})
+
+	agg := GetAggregatedStats()
+	if agg.RequestCount != 2 || agg.FitCount != 2 || agg.CacheHitCount != 1 || agg.ColdBuildCount != 1 {
+		t.Fatalf("unexpected fit/cache counters: %+v", agg)
+	}
+	if agg.BudgetExceededCount != 1 {
+		t.Fatalf("BudgetExceededCount = %d, want 1", agg.BudgetExceededCount)
+	}
+	if agg.BudgetShedCount != 1 || agg.ShedRatePct != 50 {
+		t.Fatalf("shed count/rate = %d/%.1f, want 1/50", agg.BudgetShedCount, agg.ShedRatePct)
+	}
+	if agg.TotalShedSavings != 250 || agg.AvgShedSavings != 125 {
+		t.Fatalf("shed savings total/avg = %d/%d, want 250/125", agg.TotalShedSavings, agg.AvgShedSavings)
+	}
+	if agg.ShedSectionCounts["# TOOL GUIDES"] != 1 || agg.ShedSectionCounts["# PERSONA"] != 1 {
+		t.Fatalf("unexpected shed section counts: %#v", agg.ShedSectionCounts)
+	}
+	if _, exists := agg.ShedSectionCounts["legacy"]; exists {
+		t.Fatalf("legacy cold-build shedding leaked into fit telemetry: %#v", agg.ShedSectionCounts)
+	}
+}
+
+func TestPromptFitRingBufferAndConcurrentRecording(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	const workers = 8
+	const perWorker = 40
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		worker := worker
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < perWorker; i++ {
+				RecordPromptFit(PromptFitRecord{
+					Timestamp: time.Now(), CacheHit: i%2 == 0,
+					InputChars: 100 + worker, OutputChars: 90, TokenBudget: 50,
+					RemovedSections: []string{fmt.Sprintf("section-%d", worker)},
+				})
+			}
+		}()
+	}
+	wg.Wait()
+
+	agg := GetAggregatedStats()
+	if agg.RequestCount != workers*perWorker {
+		t.Fatalf("RequestCount = %d, want %d", agg.RequestCount, workers*perWorker)
+	}
+	if agg.FitCount != globalStats.maxSize {
+		t.Fatalf("FitCount = %d, want ring limit %d", agg.FitCount, globalStats.maxSize)
+	}
+	if len(agg.RecentFits) != 20 {
+		t.Fatalf("len(RecentFits) = %d, want 20", len(agg.RecentFits))
+	}
+	if agg.CacheHitCount+agg.ColdBuildCount != agg.RequestCount {
+		t.Fatalf("cache counters are not atomic: hits=%d cold=%d requests=%d",
+			agg.CacheHitCount, agg.ColdBuildCount, agg.RequestCount)
 	}
 }

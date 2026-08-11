@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -2584,6 +2585,85 @@ func TestPersonalityIDValidation(t *testing.T) {
 		if IsValidPersonalityID(invalid) {
 			t.Fatalf("invalid personality ID accepted: %q", invalid)
 		}
+	}
+}
+
+func TestResolvePersonalityIDNormalizesUnsafeValues(t *testing.T) {
+	validCustom := "custom_Profile-2"
+	tests := []struct {
+		name      string
+		input     string
+		want      string
+		wantValid bool
+	}{
+		{name: "empty legacy", input: "", want: "", wantValid: true},
+		{name: "valid custom", input: validCustom, want: validCustom, wantValid: true},
+		{name: "newline markdown", input: "neutral\n# INJECTED", want: "neutral"},
+		{name: "unix traversal", input: "../rules", want: "neutral"},
+		{name: "windows traversal", input: `..\rules`, want: "neutral"},
+		{name: "overlong", input: strings.Repeat("x", 65), want: "neutral"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, valid := ResolvePersonalityID(tt.input)
+			if got != tt.want || valid != tt.wantValid {
+				t.Fatalf("ResolvePersonalityID(%q) = (%q, %v), want (%q, %v)",
+					tt.input, got, valid, tt.want, tt.wantValid)
+			}
+		})
+	}
+}
+
+func TestUnsafePersonalityValuesUseNeutralForPromptAndFiles(t *testing.T) {
+	dir := t.TempDir()
+	personalitiesDir := filepath.Join(dir, "personalities")
+	if err := os.MkdirAll(personalitiesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	neutralBody := "NEUTRAL_ONLY_PERSONALITY_BODY"
+	if err := os.WriteFile(filepath.Join(personalitiesDir, "neutral.md"), []byte(neutralBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "rules.md"), []byte("TRAVERSAL_SENTINEL"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for _, unsafeID := range []string{"neutral\n# INJECTED", "../rules", `..\rules`, strings.Repeat("x", 65)} {
+		t.Run(strings.ReplaceAll(unsafeID, "\\", "_"), func(t *testing.T) {
+			if got := loadCorePersonalityContent(dir, unsafeID, logger); got != neutralBody {
+				t.Fatalf("unsafe personality loaded %q, want neutral body %q", got, neutralBody)
+			}
+			if got := GetCorePersonalityPromptSummary(dir, unsafeID, 300); got != "" {
+				t.Fatalf("unsafe personality summary = %q, want neutral summary", got)
+			}
+			result := BuildSystemPromptBaseDetailed(context.Background(), dir, &ContextFlags{
+				Tier: "minimal", CorePersonality: unsafeID,
+			}, "", logger)
+			if !strings.Contains(result.Text, "# PERSONA (ACTIVE PROFILE: NEUTRAL)") ||
+				!strings.Contains(result.Text, neutralBody) {
+				t.Fatalf("neutral personality was not used:\n%s", result.Text)
+			}
+			if strings.Contains(result.Text, "INJECTED") || strings.Contains(result.Text, unsafeID) {
+				t.Fatalf("unsafe personality data leaked into prompt:\n%s", result.Text)
+			}
+		})
+	}
+}
+
+func TestValidCustomPersonalityIsUsedUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	personalitiesDir := filepath.Join(dir, "personalities")
+	if err := os.MkdirAll(personalitiesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const profile = "custom_Profile-2"
+	const body = "CUSTOM_PERSONALITY_BODY"
+	if err := os.WriteFile(filepath.Join(personalitiesDir, profile+".md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadCorePersonalityContent(dir, profile, slog.Default()); got != body {
+		t.Fatalf("custom personality body = %q, want %q", got, body)
 	}
 }
 

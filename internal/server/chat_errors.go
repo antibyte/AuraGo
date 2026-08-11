@@ -36,10 +36,14 @@ func chatCompletionErrorMessage(lang string, err error) string {
 }
 
 func writeChatCompletionStreamError(w http.ResponseWriter, code, message string, status int) {
+	errorType := "invalid_request_error"
+	if status >= http.StatusInternalServerError {
+		errorType = "server_error"
+	}
 	payload := map[string]interface{}{
 		"error": map[string]interface{}{
 			"message": message,
-			"type":    "invalid_request_error",
+			"type":    errorType,
 			"code":    code,
 			"status":  status,
 		},

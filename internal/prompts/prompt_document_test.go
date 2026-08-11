@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"strings"
@@ -9,6 +10,17 @@ import (
 	"time"
 	"unicode/utf8"
 )
+
+type blockingPromptFitEncoder struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (e *blockingPromptFitEncoder) Encode(text string, _, _ []string) []int {
+	close(e.started)
+	<-e.release
+	return make([]int, maxInt(1, len(text)/4))
+}
 
 func TestBuildSystemPromptDetailedReturnsRevision(t *testing.T) {
 	result := BuildSystemPromptDetailed(context.Background(), t.TempDir(), &ContextFlags{
@@ -117,10 +129,13 @@ func TestFitSystemPromptCountsRequiredBudgetAddendumBeforeShedding(t *testing.T)
 		return charRatioEncoder{}, nil
 	}, time.Second, time.Second)
 	base := "# REQUIRED CORE\nKeep.\n\n# TOOL GUIDES\n" + strings.Repeat("optional guide ", 120)
-	result := FitSystemPromptToBudget(context.Background(), PromptFitRequest{
+	result, err := FitSystemPromptToBudget(context.Background(), PromptFitRequest{
 		Text: base, Tokens: -1, Model: "gpt-4o", TokenBudget: 30,
 		Addenda: []PromptAddendum{{ID: "budget_status", Text: "Only a small amount remains."}},
 	}, slog.Default())
+	if err != nil {
+		t.Fatalf("FitSystemPromptToBudget: %v", err)
+	}
 	if result.BudgetExceeded != nil {
 		t.Fatalf("fit failed: %v", result.BudgetExceeded)
 	}
@@ -132,6 +147,82 @@ func TestFitSystemPromptCountsRequiredBudgetAddendumBeforeShedding(t *testing.T)
 	}
 	if result.Tokens > 30 {
 		t.Fatalf("tokens = %d, want <= 30", result.Tokens)
+	}
+}
+
+func TestFitSystemPromptReturnsOriginalPromptWhenAlreadyCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	const base = "# REQUIRED SECURITY BOUNDARY\nKeep this prompt."
+	result, err := FitSystemPromptToBudget(ctx, PromptFitRequest{
+		Text: base, Tokens: 12, Model: "gpt-4o", TokenBudget: 10,
+	}, slog.Default())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	if result.Text != base || result.Text == "" {
+		t.Fatalf("fit returned unsafe prompt %q, want unchanged input", result.Text)
+	}
+	if result.BudgetExceeded != nil {
+		t.Fatalf("cancellation was misclassified as budget overflow: %v", result.BudgetExceeded)
+	}
+}
+
+func TestFitSystemPromptRejectsEmptySuccessfulResult(t *testing.T) {
+	result, err := FitSystemPromptToBudget(context.Background(), PromptFitRequest{
+		TokenBudget: 100,
+		Addenda:     []PromptAddendum{{ID: "budget_status", Text: "status only"}},
+	}, slog.Default())
+	if err == nil {
+		t.Fatal("empty security prompt unexpectedly succeeded")
+	}
+	if result.BudgetExceeded != nil {
+		t.Fatalf("unexpected empty-fit result: %+v", result)
+	}
+}
+
+func TestFitSystemPromptReturnsOriginalPromptWhenCanceledDuringTokenization(t *testing.T) {
+	encoder := &blockingPromptFitEncoder{started: make(chan struct{}), release: make(chan struct{})}
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return encoder, nil
+	}, time.Second, time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	const base = "# REQUIRED SECURITY BOUNDARY\nKeep this prompt."
+	type fitOutcome struct {
+		result PromptBuildResult
+		err    error
+	}
+	done := make(chan fitOutcome, 1)
+	go func() {
+		result, err := FitSystemPromptToBudget(ctx, PromptFitRequest{
+			Text: base, Tokens: -1, Model: "gpt-4o", TokenBudget: 10,
+		}, slog.Default())
+		done <- fitOutcome{result: result, err: err}
+	}()
+	<-encoder.started
+	cancel()
+	close(encoder.release)
+	outcome := <-done
+	if !errors.Is(outcome.err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", outcome.err)
+	}
+	if outcome.result.Text != base || outcome.result.Text == "" {
+		t.Fatalf("fit returned unsafe prompt %q, want unchanged input", outcome.result.Text)
+	}
+}
+
+func TestBuildSystemPromptDetailedPreservesSafePromptOnFitError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	result := BuildSystemPromptDetailed(ctx, t.TempDir(), &ContextFlags{
+		Tier: "minimal", Model: "gpt-4o", TokenBudget: 1,
+	}, "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !errors.Is(result.BuildError, context.Canceled) {
+		t.Fatalf("BuildError = %v, want context.Canceled", result.BuildError)
+	}
+	if result.Text == "" {
+		t.Fatal("compatibility wrapper returned an empty security prompt")
 	}
 }
 

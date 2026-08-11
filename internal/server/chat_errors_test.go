@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -95,6 +96,9 @@ func TestEmitStreamedContextBudgetErrorUsesErrorFrameAndTypedEvent(t *testing.T)
 	if !strings.Contains(body, `"code":"context_budget_exceeded"`) || !strings.Contains(body, `"status":413`) {
 		t.Fatalf("missing structured context error: %s", body)
 	}
+	if !strings.Contains(body, `"type":"invalid_request_error"`) {
+		t.Fatalf("413 frame has wrong error type: %s", body)
+	}
 	if !strings.HasSuffix(body, "data: [DONE]\n\n") {
 		t.Fatalf("stream does not end with DONE: %q", body)
 	}
@@ -111,5 +115,31 @@ func TestEmitStreamedContextBudgetErrorUsesErrorFrameAndTypedEvent(t *testing.T)
 	var envelope map[string]interface{}
 	if err := json.Unmarshal([]byte(strings.TrimPrefix(frames[0], "data: ")), &envelope); err != nil {
 		t.Fatalf("invalid SSE JSON frame: %v", err)
+	}
+}
+
+func TestEmitStreamedServerErrorUsesServerErrorFrameAndTypedEvent(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+	rec := httptest.NewRecorder()
+	broker := &streamedErrorCaptureBroker{}
+
+	emitStreamedAgentError(rec, rec, broker, "session-2", "en", errors.New("SECRET_PROMPT_CONTENT"))
+	body := rec.Body.String()
+	if !strings.Contains(body, `"code":"agent_execution_failed"`) ||
+		!strings.Contains(body, `"status":500`) ||
+		!strings.Contains(body, `"type":"server_error"`) {
+		t.Fatalf("missing structured server error: %s", body)
+	}
+	if !strings.HasSuffix(body, "data: [DONE]\n\n") {
+		t.Fatalf("stream does not end with DONE: %q", body)
+	}
+	if strings.Contains(body, "SECRET_PROMPT_CONTENT") || strings.Contains(body, `"choices"`) || strings.Contains(body, `"delta"`) {
+		t.Fatalf("stream leaked diagnostics or assistant delta: %s", body)
+	}
+	if broker.typedEvent != string(EventAgentError) || broker.typed.Code != "agent_execution_failed" || broker.typed.Status != http.StatusInternalServerError {
+		t.Fatalf("typed event = %q %+v", broker.typedEvent, broker.typed)
+	}
+	if !broker.done {
+		t.Fatal("legacy done event was not emitted")
 	}
 }

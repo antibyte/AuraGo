@@ -33,9 +33,12 @@ type PromptDocument struct {
 type PromptBuildResult struct {
 	Text            string
 	Tokens          int
+	InputChars      int
+	InputTokens     int
 	RemovedSections []string
 	Revision        string
 	BudgetExceeded  *PromptBudgetExceededError
+	BuildError      error `json:"-"`
 }
 
 // PromptBaseResult is the budget-independent output of the expensive source

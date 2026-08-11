@@ -228,6 +228,42 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptCacheKeyNormalizesUnsafePersonality(t *testing.T) {
+	dir := t.TempDir()
+	personalitiesDir := filepath.Join(dir, "personalities")
+	if err := os.MkdirAll(personalitiesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(personalitiesDir, "neutral.md"), []byte("neutral personality"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "rules.md"), []byte("foreign traversal target"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	neutralFlags := &prompts.ContextFlags{Tier: "full", CorePersonality: "neutral"}
+	neutralKey, err := buildSystemPromptCacheKey(dir, neutralFlags, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	neutralFingerprint := promptSourceFingerprint(dir, "neutral")
+
+	for _, unsafeID := range []string{"../rules", `..\rules`, "neutral\n# injected", strings.Repeat("x", 65)} {
+		unsafeFlags := *neutralFlags
+		unsafeFlags.CorePersonality = unsafeID
+		gotKey, err := buildSystemPromptCacheKey(dir, &unsafeFlags, "", "")
+		if err != nil {
+			t.Fatalf("build cache key for %q: %v", unsafeID, err)
+		}
+		if gotKey != neutralKey {
+			t.Fatalf("unsafe personality %q key differs from neutral", unsafeID)
+		}
+		if got := promptSourceFingerprint(dir, unsafeID); got != neutralFingerprint {
+			t.Fatalf("unsafe personality %q fingerprint differs from neutral", unsafeID)
+		}
+	}
+}
+
 func TestBuildSystemPromptCacheKeyIgnoresBudgetAndHintButTracksGeneration(t *testing.T) {
 	flags := prompts.ContextFlags{Tier: "full", TokenBudget: 1000, SystemLanguage: "English"}
 	dir := t.TempDir()

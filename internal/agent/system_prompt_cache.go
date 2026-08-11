@@ -82,6 +82,7 @@ type systemPromptCacheKey struct {
 
 func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
 	_ = budgetHint // request-local addendum; intentionally excluded from the base-prompt key
+	effectivePersonality, _ := prompts.ResolvePersonalityID(flags.CorePersonality)
 	enabledTools := collectEnabledTools(flags)
 	featureToggles := collectFeatureToggles(flags)
 
@@ -99,7 +100,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 
 	key := systemPromptCacheKey{
 		PromptsDir:               promptsDir,
-		PromptSourceFingerprint:  promptSourceFingerprint(promptsDir, flags.CorePersonality),
+		PromptSourceFingerprint:  promptSourceFingerprint(promptsDir, effectivePersonality),
 		PromptCacheGeneration:    prompts.PromptCacheGeneration(),
 		CoreMemory:               coreMemory,
 		EnabledTools:             enabledTools,
@@ -115,7 +116,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		IsErrorState:             flags.IsErrorState,
 		RequiresCoding:           flags.RequiresCoding,
 		SystemLanguage:           flags.SystemLanguage,
-		CorePersonality:          flags.CorePersonality,
+		CorePersonality:          effectivePersonality,
 		AdditionalPrompt:         flags.AdditionalPrompt,
 		InnerVoice:               flags.InnerVoice,
 		PredictedGuidesHash:      predictedGuidesHash,
@@ -211,7 +212,7 @@ func promptSourceFingerprint(promptsDir, profile string) string {
 	if cleanDir != "" {
 		cleanDir = filepath.Clean(cleanDir)
 	}
-	profile = strings.TrimSpace(profile)
+	profile, _ = prompts.ResolvePersonalityID(profile)
 	cacheKey := cleanDir + "\x00" + profile
 	now := time.Now()
 

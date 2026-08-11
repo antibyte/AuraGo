@@ -1083,9 +1083,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 // GetCorePersonalityMeta loads and parses just the metadata for a specific core personality.
 // Results are cached and invalidated when the personality file's ModTime changes.
 func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.PersonalityMeta {
-	if !IsValidPersonalityID(corePersonality) {
-		corePersonality = "neutral"
-	}
+	corePersonality, _ = ResolvePersonalityID(corePersonality)
 	defaultMeta := memory.PersonalityMeta{}.Normalized()
 
 	if corePersonality == "" {
@@ -1157,6 +1155,7 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 // prompt text (the markdown body without YAML frontmatter), truncated to maxLen runes.
 // Used to inject persona context into emotion/inner-voice LLM prompts.
 func GetCorePersonalityPromptSummary(promptsDir, corePersonality string, maxLen int) string {
+	corePersonality, _ = ResolvePersonalityID(corePersonality)
 	if corePersonality == "" || corePersonality == "neutral" {
 		return ""
 	}

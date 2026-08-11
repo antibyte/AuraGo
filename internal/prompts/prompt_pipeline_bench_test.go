@@ -36,7 +36,7 @@ func BenchmarkFitSystemPromptCacheHitPath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = FitSystemPromptToBudget(context.Background(), req, logger)
+		_, _ = FitSystemPromptToBudget(context.Background(), req, logger)
 	}
 }
 

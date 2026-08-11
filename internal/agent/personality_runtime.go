@@ -315,8 +315,8 @@ func applyPersonalityV2AnalysisResult(
 		TriggerType:     triggerType,
 		TriggerDetail:   triggerDetail,
 		InactivityHours: inactivityHours,
-		PersonaName:     cfg.Personality.CorePersonality,
-		PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
+		PersonaName:     effectivePersonalityID(cfg.Personality.CorePersonality),
+		PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, effectivePersonalityID(cfg.Personality.CorePersonality), 300),
 	}
 	esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	if state, err := emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput); err == nil && state != nil {
@@ -450,8 +450,8 @@ func launchAsyncPersonalityV2Analysis(
 				TriggerType:     triggerType,
 				TriggerDetail:   triggerDetail,
 				InactivityHours: inactivityHours,
-				PersonaName:     cfg.Personality.CorePersonality,
-				PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
+				PersonaName:     effectivePersonalityID(cfg.Personality.CorePersonality),
+				PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, effectivePersonalityID(cfg.Personality.CorePersonality), 300),
 			}
 			// Enrich with inner voice context only when rate/session/trigger gates pass
 			if shouldGenerateInnerVoice(sessionID, cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {

@@ -376,12 +376,16 @@ func BuildSystemPromptContext(ctx context.Context, promptsDir string, flags *Con
 func BuildSystemPromptDetailed(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) PromptBuildResult {
 	flags = normalizePromptFlags(flags)
 	base := BuildSystemPromptBaseDetailed(ctx, promptsDir, flags, coreMemory, logger)
-	return FitSystemPromptToBudget(ctx, PromptFitRequest{
+	result, err := FitSystemPromptToBudget(ctx, PromptFitRequest{
 		Text:        base.Text,
 		Tokens:      base.Tokens,
 		Model:       flags.Model,
 		TokenBudget: flags.TokenBudget,
 	}, logger)
+	if err != nil {
+		result.BuildError = err
+	}
+	return result
 }
 
 // BuildSystemPromptBaseDetailed performs source loading, filtering and prompt
@@ -392,6 +396,12 @@ func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags
 	logger = normalizePromptLogger(logger)
 	flags = normalizePromptFlags(flags)
 	baseFlags := *flags
+	resolvedPersonality, validPersonality := ResolvePersonalityID(baseFlags.CorePersonality)
+	if !validPersonality {
+		logger.Warn("[Personality] Invalid configured personality ID; using neutral",
+			"profile", baseFlags.CorePersonality)
+	}
+	baseFlags.CorePersonality = resolvedPersonality
 	baseFlags.TokenBudget = 0
 	ctx, cancel := context.WithTimeout(ctx, buildPromptTimeout)
 	defer cancel()
@@ -411,7 +421,7 @@ func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags
 
 // FitSystemPromptToBudget appends trusted request-local addenda and sheds only
 // optional sections. It never truncates required system instructions.
-func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *slog.Logger) PromptBuildResult {
+func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *slog.Logger) (PromptBuildResult, error) {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	text := req.Text
@@ -425,11 +435,32 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	}
 
 	tokens := req.Tokens
+	safeResult := func() PromptBuildResult {
+		return PromptBuildResult{
+			Text:        text,
+			Tokens:      tokens,
+			InputChars:  len(text),
+			InputTokens: tokens,
+			Revision:    PromptRevision(text),
+		}
+	}
+	if err := promptContextErr(ctx); err != nil {
+		return safeResult(), err
+	}
+	if strings.TrimSpace(req.Text) == "" {
+		return safeResult(), errors.New("system prompt fit input is empty")
+	}
 	if len(req.Addenda) > 0 || tokens < 0 {
 		tokens = countTokensWithModelContext(ctx, text, req.Model)
+		if err := promptContextErr(ctx); err != nil {
+			return safeResult(), err
+		}
 	}
+	inputChars, inputTokens := len(text), tokens
 	if req.TokenBudget <= 0 {
-		return PromptBuildResult{Text: text, Tokens: tokens, Revision: PromptRevision(text)}
+		return PromptBuildResult{
+			Text: text, Tokens: tokens, InputChars: inputChars, InputTokens: inputTokens, Revision: PromptRevision(text),
+		}, nil
 	}
 
 	collector := &promptBuildDetailsCollector{}
@@ -439,14 +470,19 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	var budgetErr *PromptBudgetExceededError
 	if err != nil && !errors.As(err, &budgetErr) {
 		logger.Warn("[Prompt] System prompt fit failed", "error", err)
+		return PromptBuildResult{
+			Text: text, Tokens: tokens, InputChars: inputChars, InputTokens: inputTokens, Revision: PromptRevision(text),
+		}, err
 	}
 	return PromptBuildResult{
 		Text:            result,
 		Tokens:          fittedTokens,
+		InputChars:      inputChars,
+		InputTokens:     inputTokens,
 		RemovedSections: append([]string(nil), collector.removed...),
 		Revision:        PromptRevision(result),
 		BudgetExceeded:  budgetErr,
-	}
+	}, nil
 }
 
 func promptAddendumHeading(id string) string {
@@ -586,6 +622,17 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	flags = normalizePromptFlags(flags)
+	configuredPersonality := flags.CorePersonality
+	resolvedPersonality, validPersonality := ResolvePersonalityID(configuredPersonality)
+	if resolvedPersonality != flags.CorePersonality {
+		flagsCopy := *flags
+		flagsCopy.CorePersonality = resolvedPersonality
+		flags = &flagsCopy
+	}
+	if !validPersonality {
+		logger.Warn("[Personality] Invalid configured personality ID; using neutral",
+			"profile", configuredPersonality)
+	}
 	if err := promptContextErr(ctx); err != nil {
 		return "", 0, err
 	}
@@ -2012,9 +2059,13 @@ func OptimizePrompt(raw string) (string, int) {
 // Checks disk first (user-overridden), then falls back to embedded defaults.
 func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger) string {
 	logger = normalizePromptLogger(logger)
-	if !IsValidPersonalityID(profile) {
+	resolvedProfile, valid := ResolvePersonalityID(profile)
+	if !valid {
 		logger.Warn("[Personality] Invalid configured personality ID; using neutral", "profile", profile)
-		profile = "neutral"
+	}
+	profile = resolvedProfile
+	if profile == "" {
+		return ""
 	}
 	profilePath := filepath.Join(promptsDir, "personalities", profile+".md")
 	cacheKey := filepath.Clean(promptsDir) + "\x00" + profile
@@ -2094,6 +2145,19 @@ func IsValidPersonalityID(name string) bool {
 		}
 	}
 	return true
+}
+
+// ResolvePersonalityID returns the only identifier that may be used in prompt
+// text, file paths, metadata and cache keys. Empty values remain empty for
+// legacy direct builders; invalid configured values resolve to neutral.
+func ResolvePersonalityID(name string) (string, bool) {
+	if name == "" {
+		return "", true
+	}
+	if IsValidPersonalityID(name) {
+		return name, true
+	}
+	return "neutral", false
 }
 
 func evictOldestPersonalityCacheEntryLocked() {

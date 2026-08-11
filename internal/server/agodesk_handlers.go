@@ -27,6 +27,7 @@ import (
 	"aurago/internal/agodesk"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	promptbuilder "aurago/internal/prompts"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -1144,6 +1145,7 @@ func handleAgodeskPersonaAssetsRequest(s *Server, conn *websocket.Conn, state *a
 		promptsDir = strings.TrimSpace(s.Cfg.Directories.PromptsDir)
 		s.CfgMu.RUnlock()
 	}
+	persona, _ = promptbuilder.ResolvePersonalityID(persona)
 	if persona == "" {
 		persona = "custom"
 	}

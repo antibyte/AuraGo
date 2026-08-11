@@ -511,6 +511,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 	}
 	state := resolveToolFeatureState(runCfg, policy)
 	flags := state.ToolFlags
+	corePersonality := effectivePersonalityID(cfg.Personality.CorePersonality)
 
 	return prompts.ContextFlags{
 		ActiveProcesses:          opts.ActiveProcesses,
@@ -518,7 +519,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		RequiresCoding:           opts.RequiresCoding,
 		SystemLanguage:           cfg.Agent.SystemLanguage,
 		IsMaintenanceMode:        opts.IsMaintenanceMode,
-		CorePersonality:          cfg.Personality.CorePersonality,
+		CorePersonality:          corePersonality,
 		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
 		IsDebugMode:              cfg.Agent.DebugMode || GetDebugMode(),
 		IsVoiceMode:              GetVoiceMode() && !isAutonomousAgentRun(runCfg, runCfg.SessionID) && !runCfg.IsMission,
@@ -628,6 +629,11 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		NativeToolsEnabled:       policy.UseNativeFunctions,
 		IsTextModeModel:          !policy.UseNativeFunctions && policy.Capabilities.DisableNativeFunctionCalling,
 	}
+}
+
+func effectivePersonalityID(value string) string {
+	resolved, _ := prompts.ResolvePersonalityID(value)
+	return resolved
 }
 
 func buildComposioServicesPromptContext(cfg *config.Config) string {

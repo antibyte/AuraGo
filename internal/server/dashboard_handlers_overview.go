@@ -602,12 +602,13 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		cfg := s.Cfg
 		s.CfgMu.RUnlock()
+		effectivePersonality, _ := prompts.ResolvePersonalityID(cfg.Personality.CorePersonality)
 
 		// ── Agent Info ─────────────────────────────────────────
 		agentInfo := map[string]interface{}{
 			"model":          cfg.LLM.Model,
 			"provider":       cfg.LLM.ProviderType,
-			"personality":    cfg.Personality.CorePersonality,
+			"personality":    effectivePersonality,
 			"context_window": cfg.Agent.ContextWindow,
 			"busy":           tools.IsBusy(),
 			"debug":          agent.GetDebugMode(),

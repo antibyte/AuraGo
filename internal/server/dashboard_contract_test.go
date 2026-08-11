@@ -37,8 +37,15 @@ func TestHandleDashboardPromptStatsContract(t *testing.T) {
 		ModulesUsed:   6,
 		GuidesCount:   2,
 	})
-	prompts.RecordPromptCacheResult(false)
-	prompts.RecordPromptCacheResult(true)
+	prompts.RecordPromptFit(prompts.PromptFitRecord{
+		Timestamp: time.Now(), InputChars: 900, OutputChars: 700,
+		InputTokens: 180, OutputTokens: 140, TokenBudget: 160,
+		RemovedSections: []string{"# TOOL GUIDES"},
+	})
+	prompts.RecordPromptFit(prompts.PromptFitRecord{
+		Timestamp: time.Now(), CacheHit: true, InputChars: 700, OutputChars: 700,
+		InputTokens: 140, OutputTokens: 140, TokenBudget: 160,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/prompt-stats", nil)
 	rec := httptest.NewRecorder()
@@ -54,7 +61,7 @@ func TestHandleDashboardPromptStatsContract(t *testing.T) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
-	for _, key := range []string{"total_builds", "request_count", "cold_build_count", "cache_hit_count", "cache_hit_rate_pct", "avg_raw_len", "avg_optimized_len", "avg_saved_chars", "tier_distribution", "recent"} {
+	for _, key := range []string{"total_builds", "request_count", "cold_build_count", "cache_hit_count", "fit_count", "budget_exceeded_count", "recent_fits", "cache_hit_rate_pct", "avg_raw_len", "avg_optimized_len", "avg_saved_chars", "tier_distribution", "recent"} {
 		if _, ok := body[key]; !ok {
 			t.Fatalf("prompt stats missing key %q", key)
 		}

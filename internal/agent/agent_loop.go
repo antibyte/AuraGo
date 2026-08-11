@@ -1258,7 +1258,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			cachedSysPrompt != "" &&
 			!cachedSysPromptAt.IsZero() &&
 			time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
-		prompts.RecordPromptCacheResult(cacheHit)
 
 		promptBuildStarted := time.Now()
 		sysPrompt := ""
@@ -1289,7 +1288,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if budgetHint != "" {
 			fitRequest.Addenda = []prompts.PromptAddendum{{ID: "budget_status", Text: budgetHint}}
 		}
-		promptResult := prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
+		promptResult, promptFitErr := prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
+		prompts.RecordPromptFit(prompts.PromptFitRecord{
+			Timestamp:       time.Now(),
+			CacheHit:        cacheHit,
+			InputChars:      promptResult.InputChars,
+			OutputChars:     len(promptResult.Text),
+			InputTokens:     promptResult.InputTokens,
+			OutputTokens:    promptResult.Tokens,
+			TokenBudget:     flags.TokenBudget,
+			RemovedSections: promptResult.RemovedSections,
+			BudgetExceeded:  promptResult.BudgetExceeded != nil,
+		})
+		if promptFitErr != nil {
+			return openai.ChatCompletionResponse{}, fmt.Errorf("fit system prompt: %w", promptFitErr)
+		}
 		sysPrompt, sysPromptTokens = promptResult.Text, promptResult.Tokens
 		builderPromptRevision = promptResult.Revision
 		removedPromptSections = len(promptResult.RemovedSections)
@@ -1939,8 +1952,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					Language:           cfg.Agent.SystemLanguage,
 					Traits:             traits,
 					PreviousEmotion:    previousEmotion,
-					PersonaName:        cfg.Personality.CorePersonality,
-					PersonaPrompt:      prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
+					PersonaName:        flags.CorePersonality,
+					PersonaPrompt:      prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, flags.CorePersonality, 300),
 					TriggerInfo:        moodTrigger(),
 					TriggerType:        userEmotionTrigger,
 					TriggerDetail:      userEmotionTriggerDetail,
