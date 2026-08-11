@@ -68,14 +68,11 @@ type ToolingPolicy struct {
 // Callers outside the agent package use this to supply dynamic context when
 // calling BuildPromptContextFlags.
 type PromptContextOptions struct {
-	IsErrorState          bool
-	RequiresCoding        bool
-	IsMaintenanceMode     bool
-	WebhooksDefinitions   string
-	ActiveProcesses       string
-	SpecialistsAvailable  bool
-	SpecialistsStatus     string
-	SpecialistsSuggestion string
+	IsErrorState        bool
+	RequiresCoding      bool
+	IsMaintenanceMode   bool
+	WebhooksDefinitions string
+	ActiveProcesses     string
 }
 
 // promptContextOptions is an alias kept for internal callers.
@@ -628,9 +625,6 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		ToolsDir:                 "",
 		SkillsDir:                "",
 		UnifiedMemoryBlock:       state.UnifiedMemoryBlock,
-		SpecialistsAvailable:     false,
-		SpecialistsStatus:        "",
-		SpecialistsSuggestion:    "",
 		NativeToolsEnabled:       policy.UseNativeFunctions,
 		IsTextModeModel:          !policy.UseNativeFunctions && policy.Capabilities.DisableNativeFunctionCalling,
 	}

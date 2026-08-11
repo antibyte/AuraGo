@@ -105,6 +105,7 @@
   "backend.handler_followup_circuit_breaker": "Disyuntor de seguimiento activado. Profundidad máxima de recursión.",
   "backend.handler_timeout_error": "La solicitud expiró. Intente de nuevo o cambie a un modelo más rápido.",
   "backend.handler_sync_error": "Ocurrió un error interno. Revise los registros del servidor.",
+  "backend.handler_context_budget_error": "La solicitud supera el límite de contexto del modelo. Acorte la conversación o reduzca las herramientas activadas.",
   "backend.handler_llm_quota_error": "El proveedor LLM rechazó la solicitud porque se superó la cuota del modelo o el límite de tasa. Espere un momento, reduzca contexto/herramientas o cambie de proveedor/modelo.",
   "backend.handler_llm_auth_error": "El proveedor LLM rechazó la autenticación. Revise la clave API y los permisos de la cuenta.",
   "backend.handler_llm_config_error": "El proveedor LLM rechazó la solicitud porque la configuración de proveedor/modelo es incompatible. Revise modelo, proveedor, herramientas y salida estructurada.",

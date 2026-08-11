@@ -3,14 +3,11 @@ package optimizer
 import (
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
-	promptsembed "aurago/prompts"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -136,8 +133,23 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 
 		if newSuccessRate >= baselineSuccessRate+0.1 {
 			// Promote!
-			w.db.db.ExecContext(ctx, "UPDATE prompt_overrides SET active = 0 WHERE tool_name = ? AND active = 1", toolName)
-			w.db.db.ExecContext(ctx, `UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
+			tx, txErr := w.db.db.BeginTx(ctx, nil)
+			if txErr != nil {
+				slog.Warn("[Optimizer] Failed to begin prompt promotion", "tool", toolName, "error", txErr)
+				continue
+			}
+			if _, txErr = tx.ExecContext(ctx, "UPDATE prompt_overrides SET active = 0 WHERE tool_name = ? AND active = 1", toolName); txErr == nil {
+				_, txErr = tx.ExecContext(ctx, `UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
+			}
+			if txErr == nil {
+				txErr = tx.Commit()
+			} else {
+				_ = tx.Rollback()
+			}
+			if txErr != nil {
+				slog.Warn("[Optimizer] Failed to persist prompt promotion", "tool", toolName, "error", txErr)
+				continue
+			}
 			prompts.ClearPromptCache()
 			slog.Info("[Optimizer] Promoted shadow prompt to active", "tool", toolName, "gain", newSuccessRate-baselineSuccessRate)
 		} else {
@@ -212,19 +224,8 @@ func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string)
 	}
 	rows.Close() // explicit close — must happen before any LLM call
 
-	// Load the current prompt content from embedded/disk
-	var currentManual string
-	safeToolName := filepath.Base(toolName)
-	data, err := os.ReadFile("prompts/tools_manuals/" + safeToolName + ".md")
-	if err != nil {
-		// fallback to embed
-		data, err = promptsembed.FS.ReadFile("tools_manuals/" + safeToolName + ".md")
-	}
-	if err == nil {
-		currentManual = string(data)
-	} else {
-		currentManual = "(No existing manual found)"
-	}
+	// Load from the runtime-configured prompt source with embedded fallback.
+	currentManual := w.db.loadCanonicalManual(toolName)
 
 	reflectionPrompt := fmt.Sprintf(`Rewrite the usage manual for the tool '%s'.
 Current manual:

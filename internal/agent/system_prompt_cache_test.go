@@ -228,6 +228,44 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptCacheKeyIgnoresBudgetAndHintButTracksGeneration(t *testing.T) {
+	flags := prompts.ContextFlags{Tier: "full", TokenBudget: 1000, SystemLanguage: "English"}
+	dir := t.TempDir()
+	first, err := buildSystemPromptCacheKey(dir, &flags, "", "first budget hint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags.TokenBudget = 250
+	second, err := buildSystemPromptCacheKey(dir, &flags, "", "different budget hint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatalf("budget-only change invalidated base prompt cache")
+	}
+	prompts.ClearPromptCache()
+	third, _ := buildSystemPromptCacheKey(dir, &flags, "", "different budget hint")
+	if third == second {
+		t.Fatalf("prompt generation change did not invalidate base prompt cache")
+	}
+}
+
+func TestPromptSourceFingerprintExcludesMissionPreparationTemplate(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "mission_preparation.md")
+	if err := os.WriteFile(path, []byte("mission template one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first := promptSourceFingerprint(dir, "")
+	if err := os.WriteFile(path, []byte("mission template version two"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	expirePromptSourceFingerprintForTest(dir, "")
+	if second := promptSourceFingerprint(dir, ""); second != first {
+		t.Fatalf("mission-only template changed main prompt fingerprint")
+	}
+}
+
 func TestBuildSystemPromptCacheKey_SkipIntegrationToolsOrderInsensitive(t *testing.T) {
 	flagsA := prompts.ContextFlags{
 		Tier:                 "full",
@@ -281,7 +319,7 @@ func TestRefreshCachedSystemPromptNowUpdatesNowLine(t *testing.T) {
 	if got == prompt {
 		t.Fatal("expected # NOW line to be refreshed")
 	}
-	if want := "# NOW\n2026-06-08 12:34\n"; !strings.Contains(got, want) {
+	if want := "# NOW\n2026-06-08T12:34:56Z\n"; !strings.Contains(got, want) {
 		t.Fatalf("refreshed prompt missing %q:\n%s", want, got)
 	}
 	if !strings.Contains(got, "> **Channel:** Web Chat") {
@@ -343,7 +381,7 @@ func TestRefreshCachedSystemPromptNowAndCountRecomputesTokens(t *testing.T) {
 	now := time.Date(2026, 6, 12, 14, 35, 0, 0, time.UTC)
 
 	refreshed, tokens := refreshCachedSystemPromptNowAndCount(prompt, now, "", cache)
-	if !strings.Contains(refreshed, "# NOW\n2026-06-12 14:35\n") {
+	if !strings.Contains(refreshed, "# NOW\n2026-06-12T14:35:00Z\n") {
 		t.Fatalf("prompt was not refreshed:\n%s", refreshed)
 	}
 	want := cache.Count(refreshed, "")

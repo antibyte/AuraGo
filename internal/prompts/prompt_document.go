@@ -35,8 +35,31 @@ type PromptBuildResult struct {
 	Tokens          int
 	RemovedSections []string
 	Revision        string
-	Document        PromptDocument
 	BudgetExceeded  *PromptBudgetExceededError
+}
+
+// PromptBaseResult is the budget-independent output of the expensive source
+// assembly stage. It is safe to cache only within the owning agent run.
+type PromptBaseResult struct {
+	Text     string
+	Tokens   int
+	Revision string
+}
+
+// PromptAddendum is trusted request-local system context appended before the
+// final budget fit. ID selects a stable required section heading.
+type PromptAddendum struct {
+	ID   string
+	Text string
+}
+
+// PromptFitRequest describes the cheap, request-local budget stage.
+type PromptFitRequest struct {
+	Text        string
+	Tokens      int
+	Model       string
+	TokenBudget int
+	Addenda     []PromptAddendum
 }
 
 // PromptBudgetExceededError reports that the mandatory system-prompt
@@ -55,10 +78,11 @@ func (e *PromptBudgetExceededError) Error() string {
 
 func (e *PromptBudgetExceededError) Code() string { return "prompt_budget_exceeded" }
 
-// DescribePromptDocument builds a section ledger for already-cached prompt
-// text without rebuilding any prompt sources.
-func DescribePromptDocument(text, model string, totalTokens int) PromptDocument {
-	return newPromptDocumentContext(context.Background(), text, model, totalTokens)
+// PromptRevision returns a stable, content-only revision without parsing or
+// tokenizing the prompt. Keep this cheap: cache-hit paths call it every turn.
+func PromptRevision(text string) string {
+	digest := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(digest[:8])
 }
 
 type promptBuildDetailsCollector struct {
@@ -97,34 +121,11 @@ func newPromptDocumentContext(ctx context.Context, text, model string, totalToke
 	for i := range sections {
 		sections[i].Tokens = countTokensWithModelContext(ctx, sections[i].Text, model)
 	}
-	digest := sha256.Sum256([]byte(text))
 	return PromptDocument{
 		Sections:    sections,
 		TotalTokens: totalTokens,
-		Revision:    hex.EncodeToString(digest[:8]),
+		Revision:    PromptRevision(text),
 	}
-}
-
-func (d PromptDocument) sectionTokenLedger() map[string][]int {
-	ledger := make(map[string][]int, len(d.Sections))
-	for _, section := range d.Sections {
-		ledger[section.ID] = append(ledger[section.ID], section.Tokens)
-	}
-	return ledger
-}
-
-func takeSectionTokens(ledger map[string][]int, id string) int {
-	entries := ledger[id]
-	if len(entries) == 0 {
-		return 0
-	}
-	value := entries[0]
-	if len(entries) == 1 {
-		delete(ledger, id)
-	} else {
-		ledger[id] = entries[1:]
-	}
-	return value
 }
 
 func splitPromptSections(text string) []PromptSection {
@@ -169,6 +170,9 @@ func splitPromptSections(text string) []PromptSection {
 			}
 			priority, required, known := promptSectionDirectPolicy(currentID)
 			groupID := currentID
+			if known {
+				groupID = canonicalPromptSectionID(currentID)
+			}
 			if !known && len(stack) > 0 && !stack[len(stack)-1].required {
 				parent := stack[len(stack)-1]
 				priority, required, groupID = parent.priority, false, parent.groupID
@@ -180,10 +184,6 @@ func splitPromptSections(text string) []PromptSection {
 	}
 	flush()
 	return sections
-}
-
-func isMarkdownHeading(line string) bool {
-	return markdownHeadingLevel(line) > 0
 }
 
 func markdownHeadingLevel(line string) int {
@@ -200,12 +200,8 @@ func markdownHeadingLevel(line string) int {
 	return 0
 }
 
-func promptSectionPolicy(id string) (int, bool) {
-	priority, required, _ := promptSectionDirectPolicy(id)
-	return priority, required
-}
-
 func promptSectionDirectPolicy(id string) (int, bool, bool) {
+	id = canonicalPromptSectionID(id)
 	for priority, header := range promptOptionalHeaders(false) {
 		if id == header {
 			return priority, false, true
@@ -216,10 +212,59 @@ func promptSectionDirectPolicy(id string) (int, bool, bool) {
 			return priority, false, true
 		}
 	}
-	if id == "# RETRIEVED MEMORIES" {
+	if id == promptSectionRetrievedMemories {
 		return 100, false, true
 	}
 	return 1000, true, false
+}
+
+const (
+	promptSectionToolGuides            = "# TOOL GUIDES"
+	promptSectionPredictedContext      = "# PREDICTED CONTEXT"
+	promptSectionRecentActivity        = "# LAST 7 DAYS OVERVIEW"
+	promptSectionUserProfiling         = "## USER PROFILING"
+	promptSectionUnifiedMemory         = "# UNIFIED MEMORY CONTEXT"
+	promptSectionRelevantKnowledge     = "# RELEVANT KNOWLEDGE"
+	promptSectionKnownErrors           = "# KNOWN ERROR PATTERNS"
+	promptSectionLearnedRules          = "# LEARNED RULES"
+	promptSectionReuseContext          = "# REUSE-FIRST CONTEXT"
+	promptSectionActiveReminders       = "### ACTIVE REMINDERS"
+	promptSectionPlannerContext        = "### PLANNER CONTEXT"
+	promptSectionDailyTodo             = "### DAILY TODO REMINDER"
+	promptSectionOperationalNotice     = "### REQUIRED USER NOTICE"
+	promptSectionActiveTasks           = "### ACTIVE TASK LIST"
+	promptSectionOutgoingWebhooks      = "# OUTGOING WEBHOOKS"
+	promptSectionTaskRules             = "# TASK RULES"
+	promptSectionHomepageDesign        = "# HOMEPAGE DESIGN SYSTEM"
+	promptSectionAgentSkills           = "# AGENT SKILLS CATALOG"
+	promptSectionPersonaSignals        = "### PERSONA SIGNALS"
+	promptSectionPersona               = "# PERSONA"
+	promptSectionAvailableContextIndex = "# AVAILABLE CONTEXT INDEX"
+	promptSectionRetrievedMemories     = "# RETRIEVED MEMORIES"
+	promptSectionBudgetStatus          = "# BUDGET STATUS"
+)
+
+// canonicalPromptSectionID maps the builder's display headings to stable
+// policy identifiers. Only known dynamic suffixes are accepted; arbitrary
+// headings remain required by default.
+func canonicalPromptSectionID(id string) string {
+	id = strings.TrimSpace(id)
+	switch {
+	case strings.HasPrefix(id, "# PERSONA (ACTIVE PROFILE:"):
+		return promptSectionPersona
+	case strings.HasPrefix(id, "### ACTIVE REMINDERS (high-priority notes)"):
+		return promptSectionActiveReminders
+	case id == "### PLANNER CONTEXT ###":
+		return promptSectionPlannerContext
+	case id == "### DAILY TODO REMINDER ###":
+		return promptSectionDailyTodo
+	case id == "### REQUIRED USER NOTICE ###":
+		return promptSectionOperationalNotice
+	case id == "### ACTIVE TASK LIST ###":
+		return promptSectionActiveTasks
+	default:
+		return id
+	}
 }
 
 type promptSectionGroup struct {
@@ -278,32 +323,29 @@ func (d PromptDocument) renderWithoutGroups(removed map[string]bool) string {
 }
 
 func promptOptionalHeaders(unifiedMemory bool) []string {
-	headers := []string{"# TOOL GUIDES"}
+	headers := []string{promptSectionToolGuides}
 	if unifiedMemory {
-		headers = append(headers, "## USER PROFILING", "# UNIFIED MEMORY CONTEXT")
+		headers = append(headers, promptSectionUserProfiling, promptSectionUnifiedMemory)
 	} else {
-		headers = append(headers, "# PREDICTED CONTEXT", "# LAST 7 DAYS OVERVIEW", "## USER PROFILING")
+		headers = append(headers, promptSectionPredictedContext, promptSectionRecentActivity, promptSectionUserProfiling)
 	}
 	return append(headers,
-		"# RELEVANT KNOWLEDGE",
-		"# KNOWN ERROR PATTERNS",
-		"# LEARNED RULES",
-		"# REUSE-FIRST CONTEXT",
-		"### ACTIVE REMINDERS",
-		"### PLANNER CONTEXT",
-		"### DAILY TODO REMINDER",
-		"### OPERATIONAL ISSUE REMINDER",
-		"### ACTIVE TASK LIST",
-		"# OUTGOING WEBHOOKS",
-		"# TASK RULES",
-		"# HOMEPAGE DESIGN SYSTEM",
-		"# AGENT SKILLS CATALOG",
-		"### PERSONA SIGNALS",
-		"### INNER VOICE",
-		"### CURRENT EMOTIONAL STATE & MOOD",
-		"### CURRENT PERSONALITY TRAITS",
-		"# PERSONA",
-		"# YOUR PERSONALITY",
+		promptSectionRelevantKnowledge,
+		promptSectionKnownErrors,
+		promptSectionLearnedRules,
+		promptSectionReuseContext,
+		promptSectionActiveReminders,
+		promptSectionPlannerContext,
+		promptSectionDailyTodo,
+		promptSectionOperationalNotice,
+		promptSectionActiveTasks,
+		promptSectionOutgoingWebhooks,
+		promptSectionTaskRules,
+		promptSectionHomepageDesign,
+		promptSectionAgentSkills,
+		promptSectionPersonaSignals,
+		promptSectionPersona,
+		promptSectionAvailableContextIndex,
 	)
 }
 

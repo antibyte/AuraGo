@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-func TestBuildSystemPromptDetailedReturnsLedgerAndRevision(t *testing.T) {
+func TestBuildSystemPromptDetailedReturnsRevision(t *testing.T) {
 	result := BuildSystemPromptDetailed(context.Background(), t.TempDir(), &ContextFlags{
 		Tier:           "full",
 		SystemLanguage: "English",
@@ -20,34 +20,8 @@ func TestBuildSystemPromptDetailedReturnsLedgerAndRevision(t *testing.T) {
 	if result.Text == "" || result.Tokens <= 0 || result.Revision == "" {
 		t.Fatalf("incomplete detailed result: %+v", result)
 	}
-	if result.Document.Revision != result.Revision || result.Document.TotalTokens != result.Tokens {
-		t.Fatalf("document metadata drift: result=%+v document=%+v", result, result.Document)
-	}
-	if len(result.Document.Sections) == 0 {
-		t.Fatal("expected typed prompt sections")
-	}
-	for _, section := range result.Document.Sections {
-		if section.Text != "" && section.Tokens <= 0 {
-			t.Fatalf("section %q has no precomputed tokens", section.ID)
-		}
-	}
-}
-
-func TestPromptDocumentSectionTokenLedgerKeepsDuplicateOrder(t *testing.T) {
-	document := PromptDocument{Sections: []PromptSection{
-		{ID: "# TOOL GUIDES", Tokens: 11},
-		{ID: "# REQUIRED", Tokens: 23},
-		{ID: "# TOOL GUIDES", Tokens: 37},
-	}}
-	ledger := document.sectionTokenLedger()
-	if got := takeSectionTokens(ledger, "# TOOL GUIDES"); got != 11 {
-		t.Fatalf("first duplicate tokens = %d, want 11", got)
-	}
-	if got := takeSectionTokens(ledger, "# TOOL GUIDES"); got != 37 {
-		t.Fatalf("second duplicate tokens = %d, want 37", got)
-	}
-	if got := takeSectionTokens(ledger, "# TOOL GUIDES"); got != 0 {
-		t.Fatalf("exhausted duplicate tokens = %d, want 0", got)
+	if got := PromptRevision(result.Text); got != result.Revision {
+		t.Fatalf("revision = %q, want %q", result.Revision, got)
 	}
 }
 
@@ -92,6 +66,72 @@ func TestBudgetShedUsesTypedGroupsAndPreservesRequiredSections(t *testing.T) {
 	}
 	if !containsString(shed, "# TOOL GUIDES") {
 		t.Fatalf("shed = %v, want tool-guide group", shed)
+	}
+}
+
+func TestBudgetShedRecognizesAllDynamicOptionalHeadings(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+	headings := []string{
+		"# PERSONA (ACTIVE PROFILE: NEUTRAL)",
+		"### ACTIVE REMINDERS (high-priority notes) ###",
+		"### PLANNER CONTEXT ###",
+		"### DAILY TODO REMINDER ###",
+		"### REQUIRED USER NOTICE ###",
+		"### ACTIVE TASK LIST ###",
+		"# AVAILABLE CONTEXT INDEX",
+	}
+	var prompt strings.Builder
+	prompt.WriteString("# REQUIRED SECURITY BOUNDARY\nNever remove this.\n\n")
+	for _, heading := range headings {
+		if _, required, known := promptSectionDirectPolicy(heading); !known || required {
+			t.Fatalf("dynamic heading %q has no optional policy", heading)
+		}
+		prompt.WriteString(heading + "\n" + strings.Repeat("optional context ", 80) + "\n\n")
+	}
+	prompt.WriteString("# REQUIRED TOOL PROTOCOL\nKeep this too.")
+
+	result, removed, err := budgetShedContext(context.Background(), prompt.String(), &ContextFlags{
+		TokenBudget: 24,
+		Model:       "gpt-4o",
+	}, "", "", time.Now(), slog.Default())
+	if err != nil {
+		t.Fatalf("budgetShedContext: %v", err)
+	}
+	if !strings.Contains(result, "# REQUIRED SECURITY BOUNDARY") || !strings.Contains(result, "# REQUIRED TOOL PROTOCOL") {
+		t.Fatalf("required sections disappeared:\n%s", result)
+	}
+	for _, heading := range headings {
+		if strings.Contains(result, heading) {
+			t.Fatalf("optional heading %q survived fit:\n%s", heading, result)
+		}
+	}
+	if len(removed) != len(headings) {
+		t.Fatalf("removed %d groups, want %d: %v", len(removed), len(headings), removed)
+	}
+}
+
+func TestFitSystemPromptCountsRequiredBudgetAddendumBeforeShedding(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+	base := "# REQUIRED CORE\nKeep.\n\n# TOOL GUIDES\n" + strings.Repeat("optional guide ", 120)
+	result := FitSystemPromptToBudget(context.Background(), PromptFitRequest{
+		Text: base, Tokens: -1, Model: "gpt-4o", TokenBudget: 30,
+		Addenda: []PromptAddendum{{ID: "budget_status", Text: "Only a small amount remains."}},
+	}, slog.Default())
+	if result.BudgetExceeded != nil {
+		t.Fatalf("fit failed: %v", result.BudgetExceeded)
+	}
+	if strings.Contains(result.Text, "# TOOL GUIDES") {
+		t.Fatalf("optional guide survived required addendum fit:\n%s", result.Text)
+	}
+	if !strings.Contains(result.Text, "# BUDGET STATUS") {
+		t.Fatalf("required budget addendum disappeared:\n%s", result.Text)
+	}
+	if result.Tokens > 30 {
+		t.Fatalf("tokens = %d, want <= 30", result.Tokens)
 	}
 }
 

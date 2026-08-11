@@ -29,6 +29,7 @@ type promptLogEntry struct {
 	VCSRevision     string                         `json:"vcs_revision"`
 	VCSModified     bool                           `json:"vcs_modified"`
 	PromptRevision  string                         `json:"prompt_revision"`
+	BuilderRevision string                         `json:"builder_prompt_revision"`
 	ToolsCount      int                            `json:"tools_count"`
 	ActiveTools     []string                       `json:"active_tools"`
 	ToolCatalogHash string                         `json:"tool_catalog_hash"`
@@ -36,7 +37,7 @@ type promptLogEntry struct {
 	Messages        []openai.ChatCompletionMessage `json:"messages"`
 }
 
-func newPromptLogEntry(req openai.ChatCompletionRequest, provider string, recovery toolRecoveryState, retry422Count, toolCallCount int) promptLogEntry {
+func newPromptLogEntry(req openai.ChatCompletionRequest, provider, builderRevision string, recovery toolRecoveryState, retry422Count, toolCallCount int) promptLogEntry {
 	build := buildinfo.Current()
 	activeTools := make([]string, 0, len(req.Tools))
 	toolsByName := append([]openai.Tool(nil), req.Tools...)
@@ -52,7 +53,8 @@ func newPromptLogEntry(req openai.ChatCompletionRequest, provider string, recove
 		Time: time.Now().UTC().Format(time.RFC3339), Provider: provider, Model: req.Model,
 		BuildID: build.BuildID, VCSRevision: build.VCSRevision, VCSModified: build.VCSModified,
 		PromptRevision: promptMessagesRevision(req.Messages), ToolsCount: len(req.Tools),
-		ActiveTools: activeTools, ToolCatalogHash: promptToolCatalogHash(toolsByName),
+		BuilderRevision: builderRevision,
+		ActiveTools:     activeTools, ToolCatalogHash: promptToolCatalogHash(toolsByName),
 		Recovery: promptLogRecovery{
 			ConsecutiveErrors: recovery.ConsecutiveErrorCount,
 			TotalErrors:       recovery.TotalErrorCount,

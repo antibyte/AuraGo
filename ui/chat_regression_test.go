@@ -3734,3 +3734,26 @@ func TestChatSessionSwitchLoadsSessionScopedPlan(t *testing.T) {
 		}
 	}
 }
+
+func TestChatHandlesTypedAgentErrorsOutsideAssistantStream(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{
+		filepath.Join("js", "chat", "chat-streaming.js"),
+		filepath.Join("js", "chat", "bundles", "chat-runtime.bundle.js"),
+	} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		js := string(content)
+		for _, marker := range []string{
+			"window.AuraSSE.on('agent_error'",
+			"appendMessage('system'",
+			"payload.message",
+		} {
+			if !strings.Contains(js, marker) {
+				t.Fatalf("%s missing typed agent-error marker %q", path, marker)
+			}
+		}
+	}
+}

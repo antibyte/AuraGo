@@ -37,6 +37,8 @@ func TestHandleDashboardPromptStatsContract(t *testing.T) {
 		ModulesUsed:   6,
 		GuidesCount:   2,
 	})
+	prompts.RecordPromptCacheResult(false)
+	prompts.RecordPromptCacheResult(true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/prompt-stats", nil)
 	rec := httptest.NewRecorder()
@@ -52,7 +54,7 @@ func TestHandleDashboardPromptStatsContract(t *testing.T) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
-	for _, key := range []string{"total_builds", "avg_raw_len", "avg_optimized_len", "avg_saved_chars", "tier_distribution", "recent"} {
+	for _, key := range []string{"total_builds", "request_count", "cold_build_count", "cache_hit_count", "cache_hit_rate_pct", "avg_raw_len", "avg_optimized_len", "avg_saved_chars", "tier_distribution", "recent"} {
 		if _, ok := body[key]; !ok {
 			t.Fatalf("prompt stats missing key %q", key)
 		}

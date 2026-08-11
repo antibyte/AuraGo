@@ -1258,44 +1258,49 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			cachedSysPrompt != "" &&
 			!cachedSysPromptAt.IsZero() &&
 			time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
+		prompts.RecordPromptCacheResult(cacheHit)
 
 		promptBuildStarted := time.Now()
 		sysPrompt := ""
 		sysPromptTokens := 0
-		promptRevision := ""
+		builderPromptRevision := ""
 		removedPromptSections := 0
+		basePrompt := ""
+		basePromptTokens := 0
 		if cacheHit {
-			sysPrompt, sysPromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
-			promptRevision = prompts.DescribePromptDocument(sysPrompt, req.Model, sysPromptTokens).Revision
+			basePrompt, basePromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
 		} else {
-			promptResult := prompts.BuildSystemPromptDetailed(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
-			sysPrompt, sysPromptTokens = promptResult.Text, promptResult.Tokens
-			promptRevision = promptResult.Revision
-			removedPromptSections = len(promptResult.RemovedSections)
-			if promptResult.BudgetExceeded != nil {
-				limitingRoute := requestBudget.Routes[0].Limits
-				for _, candidate := range requestBudget.Routes[1:] {
-					if requestBudget.inputLimit(candidate.Limits) < requestBudget.inputLimit(limitingRoute) {
-						limitingRoute = candidate.Limits
-					}
-				}
-				return openai.ChatCompletionResponse{}, requestBudget.exceededError(limitingRoute, promptResult.BudgetExceeded.RequiredTokens)
-			}
-			if budgetHint != "" {
-				sysPrompt += "\n\n" + budgetHint
-				sysPromptTokens += tokenCache.Count(budgetHint, req.Model) + 2
-				promptRevision = prompts.DescribePromptDocument(sysPrompt, req.Model, sysPromptTokens).Revision
-			}
-
+			baseResult := prompts.BuildSystemPromptBaseDetailed(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
+			basePrompt, basePromptTokens = baseResult.Text, baseResult.Tokens
 			if cacheKeyErr == nil && cacheKey != "" {
 				cachedSysPromptKey = cacheKey
-				cachedSysPrompt = sysPrompt
+				cachedSysPrompt = basePrompt
 				cachedSysPromptAt = time.Now()
 			} else {
 				cachedSysPromptKey = ""
 				cachedSysPrompt = ""
 				cachedSysPromptAt = time.Time{}
 			}
+		}
+
+		fitRequest := prompts.PromptFitRequest{
+			Text: basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget,
+		}
+		if budgetHint != "" {
+			fitRequest.Addenda = []prompts.PromptAddendum{{ID: "budget_status", Text: budgetHint}}
+		}
+		promptResult := prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
+		sysPrompt, sysPromptTokens = promptResult.Text, promptResult.Tokens
+		builderPromptRevision = promptResult.Revision
+		removedPromptSections = len(promptResult.RemovedSections)
+		if promptResult.BudgetExceeded != nil {
+			limitingRoute := requestBudget.Routes[0].Limits
+			for _, candidate := range requestBudget.Routes[1:] {
+				if requestBudget.inputLimit(candidate.Limits) < requestBudget.inputLimit(limitingRoute) {
+					limitingRoute = candidate.Limits
+				}
+			}
+			return openai.ChatCompletionResponse{}, requestBudget.exceededError(limitingRoute, promptResult.BudgetExceeded.RequiredTokens)
 		}
 		promptBuildDuration := time.Since(promptBuildStarted)
 
@@ -1453,7 +1458,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		for _, usage := range budgetUsage {
 			s.currentLogger.Info("[PromptBudget] Request ready",
 				"prompt_build_ms", promptBuildDuration.Milliseconds(),
-				"prompt_revision", promptRevision,
+				"builder_prompt_revision", builderPromptRevision,
+				"request_system_revision", promptMessagesRevision(req.Messages),
 				"removed_sections", removedPromptSections,
 				"system_cache_hit", cacheHit,
 				"probe_cache_hit", usage.ProbeCacheHit,
@@ -1473,7 +1479,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Prompt log: append full request JSON to prompts.log when enabled.
 		// Logged AFTER sanitization so the record reflects what is actually sent.
 		if cfg.Logging.EnablePromptLog {
-			entry := newPromptLogEntry(req, telemetryScope.ProviderType, recoveryState, retry422Count, s.toolCallCount)
+			entry := newPromptLogEntry(req, telemetryScope.ProviderType, builderPromptRevision, recoveryState, retry422Count, s.toolCallCount)
 			if err := loggerPkg.AppendPromptLogEntry(cfg.Logging.LogDir, entry); err != nil {
 				s.currentLogger.Warn("[PromptLog] Failed to write entry", "error", err)
 			}

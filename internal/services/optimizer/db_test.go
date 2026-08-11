@@ -3,9 +3,13 @@ package optimizer
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
+
+	promptbuilder "aurago/internal/prompts"
 
 	_ "modernc.org/sqlite"
 )
@@ -25,6 +29,25 @@ func openOptimizerTestDB(t *testing.T) (*OptimizerDB, string) {
 		versionCache.Delete("promote_tool")
 	})
 	return db, dbPath
+}
+
+func TestInitDBWithPromptsDirUsesConfiguredManualRoot(t *testing.T) {
+	root := t.TempDir()
+	manualDir := filepath.Join(root, "custom-prompts", "tools_manuals")
+	if err := os.MkdirAll(manualDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manualDir, "shell.md"), []byte("# shell\nCONFIGURED ROOT MANUAL"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := InitDBWithPromptsDir(filepath.Join(root, "optimizer.db"), filepath.Join(root, "custom-prompts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close(); defaultDB = nil })
+	if got := db.loadCanonicalManual("shell"); !strings.Contains(got, "CONFIGURED ROOT MANUAL") {
+		t.Fatalf("configured manual root ignored: %q", got)
+	}
 }
 
 func TestInitDBMigratesLegacyPromptOverrides(t *testing.T) {
@@ -126,7 +149,11 @@ func TestEvaluationCyclePromotesAndRollsBackShadowPrompts(t *testing.T) {
 	insertTraces(t, db, "rollback_tool", "v1", 5, 5)
 	insertTraces(t, db, "rollback_tool", "v2-shadow-"+itoa64(rollbackID), 5, 0)
 
+	generationBefore := promptbuilder.PromptCacheGeneration()
 	worker.runEvaluationCycle(ctx)
+	if generationAfter := promptbuilder.PromptCacheGeneration(); generationAfter <= generationBefore {
+		t.Fatalf("prompt generation = %d, want > %d after promotion", generationAfter, generationBefore)
+	}
 
 	var active, shadow bool
 	if err := db.db.QueryRow(`SELECT active, shadow FROM prompt_overrides WHERE id = ?`, promoteID).Scan(&active, &shadow); err != nil {

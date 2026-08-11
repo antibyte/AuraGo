@@ -894,7 +894,7 @@ func main() {
 
 	// Phase 36: Native Knowledge Graph (SQLite-backed with FTS5)
 	// Note: KG was already initialized earlier for ApplyPendingEmbeddingsReset
-	optDB, optErr := optimizer.InitDB(cfg.SQLite.OptimizationPath)
+	optDB, optErr := optimizer.InitDBWithPromptsDir(cfg.SQLite.OptimizationPath, cfg.Directories.PromptsDir)
 	if optErr != nil {
 		appLog.Warn("Failed to initialize optimizer trace database", "error", optErr)
 	} else {

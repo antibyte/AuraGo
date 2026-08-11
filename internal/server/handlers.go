@@ -629,10 +629,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			resp, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
-				errMsg := chatCompletionErrorMessage(s.Cfg.Server.UILanguage, err)
-				broker.SendLLMStreamDelta(errMsg, "", "", 0, "")
-				broker.SendLLMStreamDone("stop")
-				broker.Send("done", i18n.T(s.Cfg.Server.UILanguage, "backend.stream_done"))
+				emitStreamedAgentError(w, flusher, broker, sessionID, s.Cfg.Server.UILanguage, err)
 				return
 			}
 			if len(resp.Choices) > 0 {

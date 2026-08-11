@@ -333,11 +333,27 @@ function connectSSE() {
         }
     });
 
-    window.AuraSSE.on('operational_issue_notice', function (payload) {
+	window.AuraSSE.on('operational_issue_notice', function (payload) {
         if (!isCurrentSession(payload)) return;
         if (!payload || !payload.text) return;
         appendMessage('system', payload.text);
-    });
+	});
+
+	window.AuraSSE.on('agent_error', function (payload) {
+		if (!isCurrentSession(payload)) return;
+		const message = payload && payload.message ? payload.message : t('chat.sse_error_recovery');
+		appendMessage('system', '\u26a0\ufe0f ' + message);
+		flushStreamingBubbleNow();
+		_streamingRow = null;
+		_streamingContent = '';
+		_thinkingContent = '';
+		_thinkingDiv = null;
+		_inThinkingBlock = false;
+		_streamingNeedsFinalDecoration = false;
+		chatSetHidden(agentStatusDiv, true);
+		setStatusToolIcon(null);
+		stopBtn.disabled = true;
+	});
 
     window.AuraSSE.on('agent_action', function (payload) {
         if (!isCurrentSession(payload)) return;

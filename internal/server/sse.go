@@ -36,6 +36,7 @@ const (
 	EventTokenUpdate       SSEEventType = "token_update"
 	EventToolCallPreview   SSEEventType = "tool_call_preview"
 	EventAgentAction       SSEEventType = "agent_action"
+	EventAgentError        SSEEventType = "agent_error"
 	EventThinkingBlock     SSEEventType = "thinking_block"
 	EventCoAgentProgress   SSEEventType = "coagent_progress"
 	EventSpaceAgentMessage SSEEventType = "space_agent_message"
@@ -160,6 +161,13 @@ type LLMStreamDeltaPayload struct {
 type LLMStreamDonePayload struct {
 	SessionID    string `json:"session_id,omitempty"`
 	FinishReason string `json:"finish_reason,omitempty"`
+}
+
+type AgentErrorPayload struct {
+	SessionID string `json:"session_id,omitempty"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	Status    int    `json:"status"`
 }
 
 type ThinkingBlockPayload struct {

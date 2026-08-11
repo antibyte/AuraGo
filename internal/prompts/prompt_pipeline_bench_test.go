@@ -2,14 +2,16 @@ package prompts
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
 
-func BenchmarkBuildSystemPromptDetailedRepeated(b *testing.B) {
+func BenchmarkBuildSystemPromptDetailedCold(b *testing.B) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	flags := &ContextFlags{
 		Tier:           "full",
@@ -18,11 +20,23 @@ func BenchmarkBuildSystemPromptDetailedRepeated(b *testing.B) {
 		TokenBudget:    12000,
 	}
 	promptsDir := b.TempDir()
-	_ = BuildSystemPromptDetailed(context.Background(), promptsDir, flags, "", logger)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = BuildSystemPromptDetailed(context.Background(), promptsDir, flags, "", logger)
+		coldKey := filepath.Join(promptsDir, fmt.Sprintf("cold-%d", i))
+		_ = BuildSystemPromptDetailed(context.Background(), coldKey, flags, "", logger)
+	}
+}
+
+func BenchmarkFitSystemPromptCacheHitPath(b *testing.B) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	flags := &ContextFlags{Tier: "full", SystemLanguage: "English", Model: "gpt-4o"}
+	base := BuildSystemPromptBaseDetailed(context.Background(), b.TempDir(), flags, "", logger)
+	req := PromptFitRequest{Text: base.Text, Tokens: base.Tokens, Model: flags.Model, TokenBudget: 12000}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = FitSystemPromptToBudget(context.Background(), req, logger)
 	}
 }
 

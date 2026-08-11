@@ -225,6 +225,9 @@ func TestRecordAdaptiveToolUsage(t *testing.T) {
 func resetPromptStats() {
 	globalStats.mu.Lock()
 	globalStats.records = nil
+	globalStats.requestCount = 0
+	globalStats.coldBuildCount = 0
+	globalStats.cacheHitCount = 0
 	globalStats.mu.Unlock()
 }
 

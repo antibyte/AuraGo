@@ -31,6 +31,9 @@ type PromptBuildRecord struct {
 // PromptStatsAggregated is the JSON-friendly aggregate returned by the dashboard API.
 type PromptStatsAggregated struct {
 	TotalBuilds     int `json:"total_builds"`
+	RequestCount    int `json:"request_count"`
+	ColdBuildCount  int `json:"cold_build_count"`
+	CacheHitCount   int `json:"cache_hit_count"`
 	AvgRawLen       int `json:"avg_raw_len"`
 	AvgOptimizedLen int `json:"avg_optimized_len"`
 	// AvgSavedChars and TotalSavedChars represent true total savings (RawLen - OptimizedLen),
@@ -40,6 +43,7 @@ type PromptStatsAggregated struct {
 	AvgTokens       int   `json:"avg_tokens"`
 	// AvgOptimizationPct = avg((RawLen - OptimizedLen) / RawLen * 100) — true total reduction.
 	AvgOptimizationPct float64             `json:"avg_optimization_pct"`
+	CacheHitRatePct    float64             `json:"cache_hit_rate_pct"`
 	BudgetShedCount    int                 `json:"budget_shed_count"`
 	TierDistribution   map[string]int      `json:"tier_distribution"`
 	ShedSectionCounts  map[string]int      `json:"shed_section_counts"`
@@ -63,9 +67,25 @@ type PromptStatsAggregated struct {
 
 // promptStatsCollector is a package-level ring buffer for prompt build metrics.
 type promptStatsCollector struct {
-	mu      sync.RWMutex
-	records []PromptBuildRecord
-	maxSize int
+	mu             sync.RWMutex
+	records        []PromptBuildRecord
+	maxSize        int
+	requestCount   int
+	coldBuildCount int
+	cacheHitCount  int
+}
+
+// RecordPromptCacheResult records one fitted agent request without retaining
+// any request-specific prompt text.
+func RecordPromptCacheResult(hit bool) {
+	globalStats.mu.Lock()
+	defer globalStats.mu.Unlock()
+	globalStats.requestCount++
+	if hit {
+		globalStats.cacheHitCount++
+	} else {
+		globalStats.coldBuildCount++
+	}
 }
 
 var globalStats = &promptStatsCollector{
@@ -96,8 +116,14 @@ func GetAggregatedStats() PromptStatsAggregated {
 	n := len(globalStats.records)
 	agg := PromptStatsAggregated{
 		TotalBuilds:       n,
+		RequestCount:      globalStats.requestCount,
+		ColdBuildCount:    globalStats.coldBuildCount,
+		CacheHitCount:     globalStats.cacheHitCount,
 		TierDistribution:  make(map[string]int),
 		ShedSectionCounts: make(map[string]int),
+	}
+	if agg.RequestCount > 0 {
+		agg.CacheHitRatePct = float64(agg.CacheHitCount) / float64(agg.RequestCount) * 100
 	}
 	if n == 0 {
 		agg.Recent = []PromptBuildRecord{}

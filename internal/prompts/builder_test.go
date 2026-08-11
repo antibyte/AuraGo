@@ -44,7 +44,6 @@ func TestBalancedCorePromptModulesStayCompact(t *testing.T) {
 		"rules.md":                   10500,
 		"ctx_capability_creation.md": 2400,
 		"ctx_daemon_skills.md":       1400,
-		"ctx_personality_state.md":   450,
 	}
 
 	for filename, limit := range limits {
@@ -1463,7 +1462,7 @@ func TestBuildSystemPromptCompactsOversizedCoreMemory(t *testing.T) {
 	}
 }
 
-func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing.T) {
+func TestCompactCoreMemoryForPromptFiltersOnlyStructuralTransientDetails(t *testing.T) {
 	coreMemory := strings.Join([]string{
 		"[1] [preference:user_preferences] User prefers German",
 		"[2] [recent_operational_details] WebGL demo updated two weeks ago source:memory_analysis session:default",
@@ -1479,14 +1478,17 @@ func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing
 
 	got := compactCoreMemoryForPrompt(coreMemory)
 
-	if strings.Contains(got, "WebGL demo") {
+	if strings.Contains(got, "[recent_operational_details]") {
 		t.Fatalf("transient operational detail leaked into prompt core memory: %q", got)
 	}
 	if strings.Contains(got, "[user_goal]") {
 		t.Fatalf("transient user goal leaked into prompt core memory: %q", got)
 	}
-	if strings.Contains(got, "phaser-demo") || strings.Contains(got, "Test file created") || strings.Contains(got, "WebGL Galaxy") {
-		t.Fatalf("stale project/demo artifact leaked into prompt core memory: %q", got)
+	if strings.Contains(got, "phaser-demo") || strings.Contains(got, "Test file created") {
+		t.Fatalf("structurally marked project artifact leaked into prompt core memory: %q", got)
+	}
+	if !strings.Contains(got, "WebGL Galaxy") {
+		t.Fatalf("valid fact was removed by phrase-specific filtering: %q", got)
 	}
 	if strings.Contains(got, "KI-News") || strings.Contains(got, "Docker-Leichen") || strings.Contains(got, "ntfy") {
 		t.Fatalf("snapshot operational artifact leaked into prompt core memory: %q", got)
@@ -2268,14 +2270,14 @@ func TestBudgetShedRecountsAfterEachShedAndKeepsLaterSections(t *testing.T) {
 		return markerAwareEncoder{}, nil
 	}, time.Second, time.Millisecond)
 
-	prompt := "# TOOL GUIDES\nBIG_GUIDE\n\n### INNER VOICE\nKeep this once guide is gone.\n\n# FINAL\nsmall"
+	prompt := "# TOOL GUIDES\nBIG_GUIDE\n\n# PERSONA (ACTIVE PROFILE: NEUTRAL)\nKeep this once guide is gone.\n\n# FINAL\nsmall"
 	flags := &ContextFlags{TokenBudget: 100}
 	result, shed, err := budgetShedContext(context.Background(), prompt, flags, "", "", time.Now(), slog.Default())
 	if err != nil {
 		t.Fatalf("budgetShedContext: %v", err)
 	}
-	if !strings.Contains(result, "### INNER VOICE") {
-		t.Fatalf("inner voice should be kept after accurate recount:\n%s", result)
+	if !strings.Contains(result, "# PERSONA (ACTIVE PROFILE: NEUTRAL)") {
+		t.Fatalf("persona should be kept after accurate recount:\n%s", result)
 	}
 	if strings.Join(shed, ",") != "# TOOL GUIDES" {
 		t.Fatalf("shed = %v, want only tool guides", shed)
@@ -2496,6 +2498,60 @@ func TestBuildEnabledToolsOverviewCoversAuditTogglesAndExactSkips(t *testing.T) 
 	}
 }
 
+func TestBuildEnabledToolsOverviewIncludesNewDescriptorsAndSkipsInvasionByKey(t *testing.T) {
+	flags := &ContextFlags{
+		FrigateEnabled:         true,
+		Go2RTCEnabled:          true,
+		ThreeDPrinterEnabled:   true,
+		GrafanaEnabled:         true,
+		GolangciLintEnabled:    true,
+		MiniMaxTTSEnabled:      true,
+		InvasionControlEnabled: true,
+		SkipIntegrationTools:   []string{"invasion_control"},
+	}
+	overview := buildEnabledToolsOverview(flags)
+	for _, want := range []string{"frigate", "go2rtc", "three_d_printer", "grafana", "golangci_lint", "minimax_tts"} {
+		if !strings.Contains(overview, want) {
+			t.Fatalf("overview missing %q: %s", want, overview)
+		}
+	}
+	if strings.Contains(overview, "invasion_control") || strings.Contains(overview, "Egg/Nest") {
+		t.Fatalf("invasion_control was not skipped by canonical key: %s", overview)
+	}
+}
+
+func TestSanitizeDynamicToolGuideForNativeRemovesOnlyLegacyCalls(t *testing.T) {
+	input := "# filesystem Tool\n" +
+		"Keep business JSON: {\"action\":\"archive\",\"retention\":\"30d\"}\n" +
+		"Keep nested JSON: {\"event\":{\"action\":\"filesystem\"}}\n" +
+		"Keep invalid example: {\"action\":\"filesystem\",\n" +
+		"Remove this exact legacy call:\n" +
+		"{\"action\":\"filesystem\",\"operation\":\"list\"}\n" +
+		"Remove this explicit envelope:\n" +
+		"```json\n{\"tool_call\":{\"name\":\"filesystem\",\"arguments\":{}}}\n```\n" +
+		"<tool_call>{\"name\":\"filesystem\"}</tool_call>"
+	got := sanitizeDynamicToolGuideForNative(input)
+	for _, want := range []string{`{"action":"archive"`, `{"event":{"action":"filesystem"}}`, `Keep invalid example`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("sanitizer removed domain/example content %q:\n%s", want, got)
+		}
+	}
+	for _, forbidden := range []string{`"operation":"list"`, `"tool_call"`, `<tool_call>`} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("sanitizer retained legacy call %q:\n%s", forbidden, got)
+		}
+	}
+}
+
+func TestTextModeGuideDoesNotUseNativeSanitizer(t *testing.T) {
+	guide := "# filesystem\n{\"action\":\"filesystem\",\"operation\":\"list\"}"
+	flags := &ContextFlags{Tier: "full", PredictedGuides: []string{guide}, NativeToolsEnabled: false}
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), flags, "", slog.Default())
+	if !strings.Contains(prompt, `{"action":"filesystem"`) {
+		t.Fatalf("text-mode tool example was removed:\n%s", prompt)
+	}
+}
+
 func TestSpecialistPlaceholdersNeverLeak(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "specialists_awareness.md"), []byte(`---
@@ -2515,6 +2571,19 @@ Suggestion={{SPECIALISTS_SUGGESTION}}`), 0o644); err != nil {
 	}, "", slog.Default())
 	if strings.Contains(prompt, "{{SPECIALISTS_STATUS}}") || strings.Contains(prompt, "{{SPECIALISTS_SUGGESTION}}") {
 		t.Fatalf("specialist placeholders leaked:\n%s", prompt)
+	}
+}
+
+func TestPersonalityIDValidation(t *testing.T) {
+	for _, valid := range []string{"neutral", "punk_2", "calm-profile", strings.Repeat("a", 64)} {
+		if !IsValidPersonalityID(valid) {
+			t.Fatalf("valid personality ID rejected: %q", valid)
+		}
+	}
+	for _, invalid := range []string{"", "../neutral", "name with spaces", "x.md", strings.Repeat("a", 65)} {
+		if IsValidPersonalityID(invalid) {
+			t.Fatalf("invalid personality ID accepted: %q", invalid)
+		}
 	}
 }
 

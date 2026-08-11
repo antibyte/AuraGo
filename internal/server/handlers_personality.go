@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"aurago/internal/memory"
+	promptbuilder "aurago/internal/prompts"
 	promptsembed "aurago/prompts"
 )
 
@@ -152,8 +153,8 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if req.ID == "" {
-			jsonError(w, "Personality ID is required", http.StatusBadRequest)
+		if !isValidPersonalityName(req.ID) {
+			jsonError(w, "Invalid personality ID: use letters, digits, - and _ only (max 64 chars)", http.StatusBadRequest)
 			return
 		}
 
@@ -179,6 +180,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to persist configuration", http.StatusInternalServerError)
 			return
 		}
+		promptbuilder.ClearPromptCache()
 
 		s.Logger.Info("Core personality updated", "id", req.ID)
 
@@ -299,15 +301,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 
 // isValidPersonalityName checks that a personality name is safe (no path traversal, no special chars).
 func isValidPersonalityName(name string) bool {
-	if name == "" || len(name) > 64 {
-		return false
-	}
-	for _, c := range name {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
-			return false
-		}
-	}
-	return true
+	return promptbuilder.IsValidPersonalityID(name)
 }
 
 // handleGetPersonalityContent returns the markdown body and parsed meta of a personality file.
@@ -423,6 +417,7 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to save personality file", http.StatusInternalServerError)
 			return
 		}
+		promptbuilder.ClearPromptCache()
 		s.Logger.Info("Personality file saved", "name", req.Name)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "name": req.Name})
@@ -462,6 +457,7 @@ func handleDeletePersonalityFile(s *Server) http.HandlerFunc {
 			}
 			return
 		}
+		promptbuilder.ClearPromptCache()
 		s.Logger.Info("Personality file deleted", "name", name)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})

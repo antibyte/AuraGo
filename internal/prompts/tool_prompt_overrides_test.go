@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -117,5 +118,59 @@ func TestReadToolGuideUsesSanitizedActiveOverride(t *testing.T) {
 	}
 	if strings.Contains(guide, "<think>") || strings.Contains(guide, "hidden optimizer reasoning") {
 		t.Fatalf("expected hidden reasoning to be stripped from optimized guide, got: %q", guide)
+	}
+}
+
+func TestGuideCacheImmediatelySwitchesBetweenEmbedAndDisk(t *testing.T) {
+	clearGuideCacheForTest()
+	root := t.TempDir()
+	path := filepath.Join(root, "tools_manuals", "filesystem.md")
+	embedded, ok := ReadToolGuide(path)
+	if !ok || embedded == "" {
+		t.Fatal("expected embedded filesystem guide")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const override = "# filesystem\nIMMEDIATE DISK OVERRIDE"
+	if err := os.WriteFile(path, []byte(override), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := ReadToolGuide(path); !ok || !strings.Contains(got, "IMMEDIATE DISK OVERRIDE") {
+		t.Fatalf("embed-to-disk transition = %q, ok=%v", got, ok)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := ReadToolGuide(path); !ok || got != embedded {
+		t.Fatalf("disk-to-embed transition = %q, want embedded guide", got)
+	}
+}
+
+func TestGuideCacheIsBoundedLRU(t *testing.T) {
+	clearGuideCacheForTest()
+	dir := t.TempDir()
+	for i := 0; i < guideCacheLimit+12; i++ {
+		path := filepath.Join(dir, fmt.Sprintf("guide-%03d.md", i))
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("# guide_%03d\nbody", i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := ReadToolGuide(path); !ok {
+			t.Fatalf("guide %d was not read", i)
+		}
+	}
+	guideCacheMu.RLock()
+	count := len(guideCache)
+	guideCacheMu.RUnlock()
+	if count > guideCacheLimit {
+		t.Fatalf("guide cache size = %d, want <= %d", count, guideCacheLimit)
+	}
+}
+
+func TestClearPromptCacheAdvancesGeneration(t *testing.T) {
+	before := PromptCacheGeneration()
+	ClearPromptCache()
+	if after := PromptCacheGeneration(); after <= before {
+		t.Fatalf("generation = %d, want > %d", after, before)
 	}
 }

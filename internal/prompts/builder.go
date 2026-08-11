@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -44,6 +45,12 @@ var (
 	}
 	tiktokenWarnOnce sync.Once
 )
+
+var promptCacheGeneration atomic.Uint64
+
+// PromptCacheGeneration changes whenever an AuraGo-owned prompt mutation is
+// published. Agent-local cache keys include it for immediate invalidation.
+func PromptCacheGeneration() uint64 { return promptCacheGeneration.Load() }
 
 // promptModuleCache caches parsed prompt modules keyed by directory path.
 // Invalidated automatically when any file's ModTime changes.
@@ -97,7 +104,18 @@ type guideCacheEntry struct {
 	content    string
 	conditions []string
 	mtime      time.Time
+	size       int64
+	source     guideCacheSource
+	lastUsed   time.Time
 }
+
+type guideCacheSource uint8
+
+const (
+	guideSourceDisk guideCacheSource = iota + 1
+	guideSourceEmbed
+	guideCacheLimit = 64
+)
 
 // ContextFlags dictate which secondary prompt files are appended
 // to the core system identity.
@@ -353,47 +371,92 @@ func BuildSystemPromptContext(ctx context.Context, promptsDir string, flags *Con
 	return result.Text, result.Tokens
 }
 
-// BuildSystemPromptDetailed returns the built text together with its typed
-// section ledger, removed sections and stable content revision.
+// BuildSystemPromptDetailed preserves the legacy one-shot API while composing
+// the budget-independent build and request-local fit stages.
 func BuildSystemPromptDetailed(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) PromptBuildResult {
+	flags = normalizePromptFlags(flags)
+	base := BuildSystemPromptBaseDetailed(ctx, promptsDir, flags, coreMemory, logger)
+	return FitSystemPromptToBudget(ctx, PromptFitRequest{
+		Text:        base.Text,
+		Tokens:      base.Tokens,
+		Model:       flags.Model,
+		TokenBudget: flags.TokenBudget,
+	}, logger)
+}
+
+// BuildSystemPromptBaseDetailed performs source loading, filtering and prompt
+// assembly without budget shedding. The result can be reused within one agent
+// run and fitted independently as the route budget changes.
+func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) PromptBaseResult {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	flags = normalizePromptFlags(flags)
+	baseFlags := *flags
+	baseFlags.TokenBudget = 0
 	ctx, cancel := context.WithTimeout(ctx, buildPromptTimeout)
 	defer cancel()
-	collector := &promptBuildDetailsCollector{}
-	ctx = promptBuildContextWithCollector(ctx, collector)
 	if err := promptContextErr(ctx); err != nil {
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled before build, using fallback", "error", err)
-		prompt, tokens := fallbackSystemPromptContext(ctx, promptsDir, flags, coreMemory, logger)
-		document := newPromptDocumentContext(context.Background(), prompt, flags.Model, tokens)
-		return PromptBuildResult{Text: prompt, Tokens: tokens, Revision: document.Revision, Document: document}
+		prompt, tokens := fallbackSystemPromptContext(ctx, promptsDir, &baseFlags, coreMemory, logger)
+		return PromptBaseResult{Text: prompt, Tokens: tokens, Revision: PromptRevision(prompt)}
 	}
 
-	prompt, tokens, err := buildSystemPromptInnerContext(ctx, promptsDir, flags, coreMemory, logger)
+	prompt, tokens, err := buildSystemPromptInnerContext(ctx, promptsDir, &baseFlags, coreMemory, logger)
 	if err != nil {
-		var budgetErr *PromptBudgetExceededError
-		if errors.As(err, &budgetErr) {
-			document := newPromptDocumentContext(context.Background(), prompt, flags.Model, tokens)
-			return PromptBuildResult{
-				Text:            prompt,
-				Tokens:          tokens,
-				RemovedSections: append([]string(nil), collector.removed...),
-				Revision:        document.Revision,
-				Document:        document,
-				BudgetExceeded:  budgetErr,
-			}
-		}
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled, using fallback", "error", err)
-		prompt, tokens = fallbackSystemPromptContext(context.Background(), promptsDir, flags, coreMemory, logger)
+		prompt, tokens = fallbackSystemPromptContext(context.Background(), promptsDir, &baseFlags, coreMemory, logger)
 	}
-	document := newPromptDocumentContext(context.Background(), prompt, flags.Model, tokens)
+	return PromptBaseResult{Text: prompt, Tokens: tokens, Revision: PromptRevision(prompt)}
+}
+
+// FitSystemPromptToBudget appends trusted request-local addenda and sheds only
+// optional sections. It never truncates required system instructions.
+func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *slog.Logger) PromptBuildResult {
+	ctx = normalizePromptContext(ctx)
+	logger = normalizePromptLogger(logger)
+	text := req.Text
+	for _, addendum := range req.Addenda {
+		body := strings.TrimSpace(addendum.Text)
+		if body == "" {
+			continue
+		}
+		heading := promptAddendumHeading(addendum.ID)
+		text = strings.TrimRight(text, "\n") + "\n\n" + heading + "\n" + body
+	}
+
+	tokens := req.Tokens
+	if len(req.Addenda) > 0 || tokens < 0 {
+		tokens = countTokensWithModelContext(ctx, text, req.Model)
+	}
+	if req.TokenBudget <= 0 {
+		return PromptBuildResult{Text: text, Tokens: tokens, Revision: PromptRevision(text)}
+	}
+
+	collector := &promptBuildDetailsCollector{}
+	fitCtx := promptBuildContextWithCollector(ctx, collector)
+	flags := &ContextFlags{Model: req.Model, TokenBudget: req.TokenBudget}
+	result, _, fittedTokens, err := budgetShedDetailedContextWithTokens(fitCtx, text, flags, tokens, logger)
+	var budgetErr *PromptBudgetExceededError
+	if err != nil && !errors.As(err, &budgetErr) {
+		logger.Warn("[Prompt] System prompt fit failed", "error", err)
+	}
 	return PromptBuildResult{
-		Text:            prompt,
-		Tokens:          tokens,
+		Text:            result,
+		Tokens:          fittedTokens,
 		RemovedSections: append([]string(nil), collector.removed...),
-		Revision:        document.Revision,
-		Document:        document,
+		Revision:        PromptRevision(result),
+		BudgetExceeded:  budgetErr,
+	}
+}
+
+func promptAddendumHeading(id string) string {
+	switch strings.TrimSpace(id) {
+	case promptSectionBudgetStatus, "budget_status":
+		return promptSectionBudgetStatus
+	default:
+		// Unknown addenda remain required because their heading is not part of
+		// the optional policy table.
+		return "# REQUEST ADDENDUM"
 	}
 }
 
@@ -431,23 +494,19 @@ func promptContextErr(ctx context.Context) error {
 	}
 }
 
-// fallbackSystemPrompt returns a minimal system prompt when the full build
-// times out or fails catastrophically.
-func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
-	return fallbackSystemPromptContext(context.Background(), promptsDir, flags, coreMemory, logger)
-}
-
 func fallbackSystemPromptContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	flags = normalizePromptFlags(flags)
 	var sb strings.Builder
-	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
-	if instruction := antiChineseLanguageDriftInstruction(flags.SystemLanguage); instruction != "" {
-		sb.WriteString(instruction)
-		sb.WriteString("\n")
+	if strings.TrimSpace(flags.SystemLanguage) != "" {
+		sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
+		if instruction := antiChineseLanguageDriftInstruction(flags.SystemLanguage); instruction != "" {
+			sb.WriteString(instruction)
+			sb.WriteString("\n")
+		}
 	}
-	now := time.Now().Format(time.RFC1123)
+	now := time.Now().Format(time.RFC3339)
 	sb.WriteString("Current time: " + now + "\n")
 	if identity := loadCriticalFallbackModule(promptsDir, fallbackIdentityModule(flags), logger); identity != "" {
 		sb.WriteString("\n")
@@ -523,13 +582,6 @@ func writeActionLedgerReminder(finalPrompt *strings.Builder) {
 		"Final completion claims must be backed by completed tool results from this turn.\n\n")
 }
 
-// buildSystemPromptInner contains the actual prompt-building logic, extracted
-// from BuildSystemPrompt so it can run in a goroutine with a timeout.
-func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
-	prompt, tokens, _ := buildSystemPromptInnerContext(context.Background(), promptsDir, flags, coreMemory, logger)
-	return prompt, tokens
-}
-
 func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int, error) {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
@@ -567,7 +619,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	selectedModules := filterModules(modules, flags)
 
 	// 3. Sort by priority
-	sort.Slice(selectedModules, func(i, j int) bool {
+	sort.SliceStable(selectedModules, func(i, j int) bool {
 		return selectedModules[i].Metadata.Priority < selectedModules[j].Metadata.Priority
 	})
 
@@ -884,7 +936,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	sectionPersonality += finalPrompt.Len() - posBeforeVolatilePersonality
 
 	finalPrompt.WriteString("# NOW\n")
-	finalPrompt.WriteString(now.Format("2006-01-02 15:04"))
+	finalPrompt.WriteString(now.Format(time.RFC3339))
 	finalPrompt.WriteString("\n")
 
 	// Message source channel hint
@@ -991,7 +1043,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	var finalTokens int
 	if flags.TokenBudget > 0 {
 		var err error
-		optimized, shedSections, finalTokens, err = budgetShedDetailedContext(ctx, optimized, flags, corePersonalityContent, coreMemory, now, logger)
+		optimized, shedSections, finalTokens, err = budgetShedDetailedContextWithTokens(ctx, optimized, flags, -1, logger)
 		if err != nil {
 			return optimized, finalTokens, err
 		}
@@ -1032,7 +1084,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			"memories":    sectionMemories,
 			"guides":      sectionGuides,
 			"personality": sectionPersonality,
-			"context":     rawLen - sectionModules - sectionMemories - sectionGuides - sectionPersonality,
+			"context":     max(0, rawLen-sectionModules-sectionMemories-sectionGuides-sectionPersonality),
 		},
 	})
 
@@ -1077,9 +1129,10 @@ func stripTextJSONToolProtocolForNative(content string) string {
 }
 
 func sanitizeDynamicToolGuideForNative(content string) string {
+	expectedTool := toolNameFromGuideHeading(content)
 	content = stripLegacyToolCallTags(content)
-	content = stripLegacyToolJSONCodeFences(content)
-	content = stripLegacyToolJSONLines(content)
+	content = stripLegacyToolJSONCodeFences(content, expectedTool)
+	content = stripLegacyToolJSONLines(content, expectedTool)
 	return strings.TrimSpace(content)
 }
 
@@ -1089,7 +1142,7 @@ func stripLegacyToolCallTags(content string) string {
 	return legacyToolCallTagRx.ReplaceAllString(content, "")
 }
 
-func stripLegacyToolJSONCodeFences(content string) string {
+func stripLegacyToolJSONCodeFences(content, expectedTool string) string {
 	lines := strings.Split(content, "\n")
 	out := make([]string, 0, len(lines))
 	var fence []string
@@ -1104,7 +1157,7 @@ func stripLegacyToolJSONCodeFences(content string) string {
 			}
 			fence = append(fence, line)
 			block := strings.Join(fence, "\n")
-			if !looksLikeLegacyToolJSONExample(block) {
+			if !looksLikeLegacyToolJSONExample(block, expectedTool) {
 				out = append(out, fence...)
 			}
 			fence = nil
@@ -1117,17 +1170,17 @@ func stripLegacyToolJSONCodeFences(content string) string {
 		}
 		out = append(out, line)
 	}
-	if len(fence) > 0 && !looksLikeLegacyToolJSONExample(strings.Join(fence, "\n")) {
+	if len(fence) > 0 && !looksLikeLegacyToolJSONExample(strings.Join(fence, "\n"), expectedTool) {
 		out = append(out, fence...)
 	}
 	return strings.Join(out, "\n")
 }
 
-func stripLegacyToolJSONLines(content string) string {
+func stripLegacyToolJSONLines(content, expectedTool string) string {
 	lines := strings.Split(content, "\n")
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
-		if looksLikeLegacyToolJSONExample(line) {
+		if looksLikeLegacyToolJSONExample(line, expectedTool) {
 			continue
 		}
 		out = append(out, line)
@@ -1135,12 +1188,82 @@ func stripLegacyToolJSONLines(content string) string {
 	return strings.Join(out, "\n")
 }
 
-func looksLikeLegacyToolJSONExample(content string) bool {
-	lower := strings.ToLower(content)
-	return strings.Contains(lower, `"action"`) ||
-		strings.Contains(lower, `"tool_call"`) ||
-		strings.Contains(lower, "[tool_call]") ||
-		strings.Contains(lower, "<tool_call")
+func looksLikeLegacyToolJSONExample(content, expectedTool string) bool {
+	trimmed := strings.TrimSpace(content)
+	if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+		lines := strings.Split(trimmed, "\n")
+		if len(lines) >= 2 {
+			lines = lines[1:]
+			if last := len(lines) - 1; last >= 0 {
+				end := strings.TrimSpace(lines[last])
+				if strings.HasPrefix(end, "```") || strings.HasPrefix(end, "~~~") {
+					lines = lines[:last]
+				}
+			}
+			trimmed = strings.TrimSpace(strings.Join(lines, "\n"))
+		}
+	}
+	var envelope map[string]json.RawMessage
+	if trimmed == "" || json.Unmarshal([]byte(trimmed), &envelope) != nil {
+		return false
+	}
+	for _, key := range []string{"tool_call", "function_call"} {
+		if _, ok := envelope[key]; ok {
+			return true
+		}
+	}
+	if rawType, ok := envelope["type"]; ok {
+		var value string
+		if json.Unmarshal(rawType, &value) == nil && strings.EqualFold(strings.TrimSpace(value), "function") {
+			if _, hasFunction := envelope["function"]; hasFunction {
+				return true
+			}
+		}
+	}
+	rawAction, ok := envelope["action"]
+	if !ok || expectedTool == "" {
+		return false
+	}
+	var action string
+	return json.Unmarshal(rawAction, &action) == nil && canonicalToolName(action) == expectedTool
+}
+
+func toolNameFromGuideHeading(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "# ") {
+			continue
+		}
+		heading := strings.TrimSpace(strings.TrimPrefix(line, "# "))
+		if start := strings.Index(heading, "`"); start >= 0 {
+			if end := strings.Index(heading[start+1:], "`"); end >= 0 {
+				return canonicalToolName(heading[start+1 : start+1+end])
+			}
+		}
+		if strings.HasPrefix(strings.ToLower(heading), "tool:") {
+			heading = strings.TrimSpace(heading[len("tool:"):])
+		}
+		for _, separator := range []string{" — ", " - ", " ("} {
+			if idx := strings.Index(heading, separator); idx >= 0 {
+				heading = heading[:idx]
+			}
+		}
+		lowerHeading := strings.ToLower(heading)
+		for _, suffix := range []string{" tool manual", " tool"} {
+			if strings.HasSuffix(lowerHeading, suffix) {
+				heading = strings.TrimSpace(heading[:len(heading)-len(suffix)])
+				break
+			}
+		}
+		return canonicalToolName(heading)
+	}
+	return ""
+}
+
+func canonicalToolName(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.NewReplacer(" ", "_", "-", "_", "/", "_").Replace(value)
+	return strings.Trim(value, "_`:.()")
 }
 
 const (
@@ -1279,18 +1402,6 @@ func isTransientCoreMemoryPromptLine(line string) bool {
 	}
 	for _, marker := range transientMarkers {
 		if strings.Contains(lower, marker) {
-			return true
-		}
-	}
-	transientPhrases := []string{
-		"webgl demo",
-		"phaser-demo",
-		"test file created by homepage tool",
-		"reinitialized existing git repository",
-		"funny penguin pizza image",
-	}
-	for _, phrase := range transientPhrases {
-		if strings.Contains(lower, phrase) {
 			return true
 		}
 	}
@@ -1434,24 +1545,17 @@ func truncateWithEllipsis(text string, maxChars int) string {
 // sections, 4. planner/reminders/task rules/persona sections, then
 // per-entry Retrieved Memories trim, full Retrieved Memories drop if needed,
 // and a typed error when the mandatory document cannot fit.
-func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
-	result, shedList, _ := budgetShedContext(context.Background(), prompt, flags, personalityContent, coreMemory, now, logger)
-	return result, shedList
-}
-
-func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string, error) {
-	result, shedList, _, err := budgetShedDetailedContext(ctx, prompt, flags, personalityContent, coreMemory, now, logger)
-	return result, shedList, err
-}
-
-func budgetShedDetailedContext(ctx context.Context, prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string, int, error) {
+func budgetShedDetailedContextWithTokens(ctx context.Context, prompt string, flags *ContextFlags, initialTokens int, logger *slog.Logger) (string, []string, int, error) {
 	ctx = normalizePromptContext(ctx)
 	flags = normalizePromptFlags(flags)
 	if err := promptContextErr(ctx); err != nil {
 		return "", nil, 0, err
 	}
-	noteBudgetShedFullTokenization()
-	tokens := countTokensWithModelContext(ctx, prompt, flags.Model)
+	tokens := initialTokens
+	if tokens < 0 {
+		noteBudgetShedFullTokenization()
+		tokens = countTokensWithModelContext(ctx, prompt, flags.Model)
+	}
 	if tokens <= flags.TokenBudget {
 		recordRemovedPromptSections(ctx, nil)
 		return prompt, nil, tokens, nil
@@ -1534,252 +1638,6 @@ func budgetShedDetailedContext(ctx context.Context, prompt string, flags *Contex
 
 	recordRemovedPromptSections(ctx, shedList)
 	return result, shedList, tokens, nil
-}
-
-func hasSectionHeader(text, header string) bool {
-	searchStart := 0
-	for {
-		idx := strings.Index(text[searchStart:], header)
-		if idx < 0 {
-			return false
-		}
-		idx += searchStart
-		if (idx == 0 || text[idx-1] == '\n') && !isInsideCodeBlock(text, idx) {
-			lineEnd := strings.IndexByte(text[idx:], '\n')
-			line := text[idx:]
-			if lineEnd >= 0 {
-				line = text[idx : idx+lineEnd]
-			}
-			if strings.TrimSpace(strings.TrimRight(line, "\r")) == header {
-				return true
-			}
-		}
-		searchStart = idx + len(header)
-	}
-}
-
-// trimRetrievedMemoriesSection progressively removes individual memory entries (separated by \n---\n)
-// from the end of the RETRIEVED MEMORIES section until the prompt fits within the budget.
-// Entries are dropped from the back (lowest ranked) first. If all entries are removed, the section
-// header is also removed. Returns the (possibly trimmed) prompt, whether any trimming occurred, and
-// the token count after trimming.
-func trimRetrievedMemoriesSection(prompt string, budget int, model string, logger *slog.Logger) (string, bool, int) {
-	result, trimmed, tokens, _ := trimRetrievedMemoriesSectionContext(context.Background(), prompt, budget, model, logger)
-	return result, trimmed, tokens
-}
-
-func trimRetrievedMemoriesSectionContext(ctx context.Context, prompt string, budget int, model string, logger *slog.Logger) (string, bool, int, error) {
-	ctx = normalizePromptContext(ctx)
-	if err := promptContextErr(ctx); err != nil {
-		return "", false, 0, err
-	}
-	const header = "# RETRIEVED MEMORIES"
-	const sep = "\n---\n"
-
-	idx := strings.Index(prompt, header)
-	if idx < 0 {
-		return prompt, false, countTokensWithModelContext(ctx, prompt, model), nil
-	}
-
-	// Locate the section boundaries (same logic as removeSection)
-	rest := prompt[idx+len(header):]
-	nextHeader := -1
-	for i := 0; i < len(rest); i++ {
-		if rest[i] == '\n' && i+1 < len(rest) && rest[i+1] == '#' {
-			j := i + 1
-			for j < len(rest) && rest[j] == '#' {
-				j++
-			}
-			if j < len(rest) && rest[j] == ' ' {
-				nextHeader = i + 1
-				break
-			}
-		}
-	}
-
-	var sectionContent, afterSection string
-	if nextHeader >= 0 {
-		sectionContent = rest[:nextHeader]
-		afterSection = rest[nextHeader:]
-	} else {
-		sectionContent = rest
-		afterSection = ""
-	}
-
-	before := prompt[:idx]
-	entries := strings.Split(strings.TrimSpace(sectionContent), sep)
-	// Remove empty entries that may result from trimming
-	var nonEmpty []string
-	for _, e := range entries {
-		if strings.TrimSpace(e) != "" {
-			nonEmpty = append(nonEmpty, strings.TrimSpace(e))
-		}
-	}
-	entries = nonEmpty
-
-	trimmed := false
-	baseTokens := countTokensWithModelContext(ctx, before+afterSection, model) + countTokensWithModelContext(ctx, header, model) + countTokensWithModelContext(ctx, "\n\n", model)
-	sepTokens := countTokensWithModelContext(ctx, sep, model)
-	var entryTokens []int
-	// Compute total content tokens with a running sum (O(n) instead of O(n²))
-	totalContentTokens := 0
-	for i, e := range entries {
-		if err := promptContextErr(ctx); err != nil {
-			return "", false, 0, err
-		}
-		t := countTokensWithModelContext(ctx, e, model)
-		entryTokens = append(entryTokens, t)
-		if i > 0 {
-			totalContentTokens += sepTokens
-		}
-		totalContentTokens += t
-	}
-	currentEntryCount := len(entries)
-	for currentEntryCount > 0 {
-		if err := promptContextErr(ctx); err != nil {
-			return "", false, 0, err
-		}
-		tokens := baseTokens + totalContentTokens
-		if tokens <= budget {
-			if trimmed {
-				logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", currentEntryCount)
-			}
-			keptEntries := entries[:currentEntryCount]
-			content := header + "\n" + strings.Join(keptEntries, sep) + "\n\n"
-			candidate := before + content + afterSection
-			// Use the pre-computed running sum instead of re-counting the entire candidate.
-			return candidate, trimmed, tokens, nil
-		}
-		// Subtract the last entry (and its separator) from the running total
-		totalContentTokens -= entryTokens[currentEntryCount-1]
-		if currentEntryCount > 1 {
-			totalContentTokens -= sepTokens
-		}
-		currentEntryCount--
-		trimmed = true
-	}
-
-	// All entries removed — strip the section header too
-	finalPrompt := strings.TrimRight(before, "\n ") + "\n\n" + afterSection
-	logger.Debug("[Budget] Removed all retrieved memories entries")
-	return finalPrompt, true, countTokensWithModelContext(ctx, finalPrompt, model), nil
-}
-
-func hardTruncateToBudget(prompt string, budget int, model string) string {
-	result, _ := hardTruncateToBudgetContext(context.Background(), prompt, budget, model)
-	return result
-}
-
-func hardTruncateToBudgetContext(ctx context.Context, prompt string, budget int, model string) (string, error) {
-	ctx = normalizePromptContext(ctx)
-	if err := promptContextErr(ctx); err != nil {
-		return "", err
-	}
-	if budget <= 0 || prompt == "" {
-		return "", nil
-	}
-	if countTokensWithModelContext(ctx, prompt, model) <= budget {
-		return prompt, nil
-	}
-	result, _, err := hardTruncateKnownOverflowContext(ctx, prompt, budget, model)
-	return result, err
-}
-
-// hardTruncateKnownOverflowContext trims a document whose exact full token
-// count is already known to exceed budget. It excludes the full input from the
-// binary search, preserving the prompt builder's two-full-tokenization bound.
-func hardTruncateKnownOverflowContext(ctx context.Context, prompt string, budget int, model string) (string, int, error) {
-	ctx = normalizePromptContext(ctx)
-	if err := promptContextErr(ctx); err != nil {
-		return "", 0, err
-	}
-	if budget <= 0 || prompt == "" {
-		return "", 0, nil
-	}
-
-	// Tokenizers operate on UTF-8 bytes, but provider requests must remain valid
-	// UTF-8. The binary search below therefore considers only rune boundaries
-	// and still validates the exact token count for every candidate.
-	bytes := []byte(prompt)
-	marker := "\n\n[BUDGET TRUNCATED]"
-
-	bestWithMarker, bestTokens, ok, err := longestBytePrefixWithinBudgetDetailedContext(ctx, bytes, marker, budget, model, false)
-	if err != nil {
-		return "", 0, err
-	}
-	if ok {
-		return bestWithMarker, bestTokens, nil
-	}
-
-	bestWithoutMarker, bestTokens, ok, err := longestBytePrefixWithinBudgetDetailedContext(ctx, bytes, "", budget, model, false)
-	if err != nil {
-		return "", 0, err
-	}
-	if ok {
-		return bestWithoutMarker, bestTokens, nil
-	}
-
-	markerTokens := countTokensWithModelContext(ctx, marker, model)
-	if markerTokens <= budget {
-		return marker, markerTokens, nil
-	}
-	return "", 0, nil
-}
-
-// longestBytePrefixWithinBudget performs a binary search over valid UTF-8 rune
-// boundaries, appending suffix, and returns the longest fitting candidate.
-func longestBytePrefixWithinBudget(data []byte, suffix string, budget int, model string) (string, bool) {
-	result, ok, _ := longestBytePrefixWithinBudgetContext(context.Background(), data, suffix, budget, model)
-	return result, ok
-}
-
-func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suffix string, budget int, model string) (string, bool, error) {
-	result, _, ok, err := longestBytePrefixWithinBudgetDetailedContext(ctx, data, suffix, budget, model, true)
-	return result, ok, err
-}
-
-func longestBytePrefixWithinBudgetDetailedContext(ctx context.Context, data []byte, suffix string, budget int, model string, includeFull bool) (string, int, bool, error) {
-	ctx = normalizePromptContext(ctx)
-	if err := promptContextErr(ctx); err != nil {
-		return "", 0, false, err
-	}
-	valid := strings.ToValidUTF8(string(data), "�")
-	boundaries := make([]int, 1, utf8.RuneCountInString(valid)+1)
-	boundaries[0] = 0
-	for offset := 0; offset < len(valid); {
-		_, size := utf8.DecodeRuneInString(valid[offset:])
-		if size <= 0 {
-			break
-		}
-		offset += size
-		boundaries = append(boundaries, offset)
-	}
-	lo, hi := 0, len(boundaries)-1
-	if !includeFull && hi > 0 {
-		hi--
-	}
-	best := ""
-	bestTokens := 0
-	found := false
-
-	for lo <= hi {
-		if err := promptContextErr(ctx); err != nil {
-			return "", 0, false, err
-		}
-		mid := (lo + hi) / 2
-		candidate := valid[:boundaries[mid]] + suffix
-		candidateTokens := countTokensWithModelContext(ctx, candidate, model)
-		if candidateTokens <= budget {
-			best = candidate
-			bestTokens = candidateTokens
-			found = true
-			lo = mid + 1
-			continue
-		}
-		hi = mid - 1
-	}
-
-	return best, bestTokens, found, nil
 }
 
 func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
@@ -1906,41 +1764,6 @@ func appendBudgetedUnifiedMemorySection(current, title, body string, maxChars in
 		}
 	}
 	return current, false
-}
-
-// removeLineByPrefix removes all lines starting with the given prefix (and the following blank line).
-// It respects markdown code blocks: lines inside ``` or ~~~ fences are never removed.
-func removeLineByPrefix(text, prefix string) string {
-	lines := strings.Split(text, "\n")
-	var out []string
-	skipNext := false
-	inCodeBlock := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		// Track code-block boundaries (both ``` and ~~~)
-		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			inCodeBlock = !inCodeBlock
-			out = append(out, line)
-			continue
-		}
-		if inCodeBlock {
-			out = append(out, line)
-			skipNext = false
-			continue
-		}
-		if skipNext {
-			skipNext = false
-			if strings.TrimSpace(line) == "" {
-				continue // skip blank line after removed prefix line
-			}
-		}
-		if strings.HasPrefix(trimmed, prefix) {
-			skipNext = true
-			continue
-		}
-		out = append(out, line)
-	}
-	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
 // isInsideCodeBlock checks if position idx in text is inside a markdown code block (between ``` / ~~~ fences).
@@ -2189,6 +2012,10 @@ func OptimizePrompt(raw string) (string, int) {
 // Checks disk first (user-overridden), then falls back to embedded defaults.
 func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger) string {
 	logger = normalizePromptLogger(logger)
+	if !IsValidPersonalityID(profile) {
+		logger.Warn("[Personality] Invalid configured personality ID; using neutral", "profile", profile)
+		profile = "neutral"
+	}
 	profilePath := filepath.Join(promptsDir, "personalities", profile+".md")
 	cacheKey := filepath.Clean(promptsDir) + "\x00" + profile
 
@@ -2253,6 +2080,20 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 	personalityCacheMu.Unlock()
 
 	return content
+}
+
+// IsValidPersonalityID accepts the shared on-disk personality identifier
+// format and rejects path traversal and platform-specific separators.
+func IsValidPersonalityID(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	for _, c := range name {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 func evictOldestPersonalityCacheEntryLocked() {
@@ -2496,64 +2337,12 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	for _, t := range flags.SkipIntegrationTools {
 		skipSet[t] = true
 	}
-	var enabled []string
-	add := func(name string, on bool) {
-		if on && !skipSet[name] {
-			enabled = append(enabled, name)
+	enabled := make([]string, 0, len(enabledIntegrationDescriptors))
+	for _, descriptor := range enabledIntegrationDescriptors {
+		if descriptor.enabled(flags) && !skipSet[descriptor.key] {
+			enabled = append(enabled, descriptor.displayName)
 		}
 	}
-	add("docker", flags.DockerEnabled)
-	add("home_assistant", flags.HomeAssistantEnabled)
-	add("proxmox", flags.ProxmoxEnabled)
-	add("tailscale", flags.TailscaleEnabled)
-	add("ansible", flags.AnsibleEnabled)
-	add("github", flags.GitHubEnabled)
-	add("mqtt", flags.MQTTEnabled)
-	add("adguard", flags.AdGuardEnabled)
-	add("uptime_kuma", flags.UptimeKumaEnabled)
-	add("mcp", flags.MCPEnabled)
-	add("meshcentral", flags.MeshCentralEnabled)
-	add("homepage", flags.HomepageEnabled)
-	add("netlify", flags.NetlifyEnabled)
-	add("vercel", flags.VercelEnabled)
-	add("email", flags.EmailEnabled)
-	add("cloudflare_tunnel", flags.CloudflareTunnelEnabled)
-	add("google_workspace", flags.GoogleWorkspaceEnabled)
-	add("onedrive", flags.OneDriveEnabled)
-	add("virustotal", flags.VirusTotalEnabled)
-	add("brave_search", flags.BraveSearchEnabled)
-	add("image_generation", flags.ImageGenerationEnabled)
-	add("music_generation", flags.MusicGenerationEnabled)
-	add("video_generation", flags.VideoGenerationEnabled)
-	add("remote_control", flags.RemoteControlEnabled)
-	add("browser_automation", flags.BrowserAutomationEnabled)
-	add("webdav", flags.WebDAVEnabled)
-	add("koofr", flags.KoofrEnabled)
-	add("chromecast", flags.ChromecastEnabled)
-	add("bluetooth", flags.BluetoothEnabled)
-	add("network_shares", flags.NetworkSharesEnabled)
-	add("discord", flags.DiscordEnabled)
-	add("telegram", flags.TelegramEnabled)
-	add("truenas", flags.TrueNASEnabled)
-	add("jellyfin", flags.JellyfinEnabled)
-	add("obsidian", flags.ObsidianEnabled)
-	add("ollama", flags.OllamaEnabled)
-	add("sandbox", flags.SandboxEnabled)
-	add("webhooks", flags.WebhooksEnabled)
-	add("web_scraper", flags.WebScraperEnabled)
-	add("s3", flags.S3Enabled)
-	add("network_ping", flags.NetworkPingEnabled)
-	add("network_scan", flags.NetworkScanEnabled)
-	add("upnp_scan", flags.UPnPScanEnabled)
-	add("form_automation", flags.FormAutomationEnabled)
-	add("wol", flags.WOLEnabled)
-	add("fritzbox", flags.FritzBoxSystemEnabled || flags.FritzBoxNetworkEnabled || flags.FritzBoxSmartHomeEnabled)
-	add("telnyx", flags.TelnyxEnabled)
-	add("a2a", flags.A2AEnabled)
-	add("invasion_control (Egg/Nest remote agents)", flags.InvasionControlEnabled)
-	add("co_agents", flags.CoAgentEnabled)
-	add("paperless_ngx", flags.PaperlessNGXEnabled)
-	add("space_agent", flags.SpaceAgentEnabled)
 	if len(enabled) == 0 {
 		return ""
 	}
@@ -2563,6 +2352,77 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 		visible = append(visible, fmt.Sprintf("+%d more via discover_tools", len(enabled)-maxVisibleIntegrations))
 	}
 	return "[ENABLED INTEGRATIONS] " + strings.Join(visible, ", ") + ". Some may be hidden by adaptive tool filtering — if you need one not in your current tool list, use discover_tools with search or get_tool_info first."
+}
+
+type enabledIntegrationDescriptor struct {
+	key         string
+	displayName string
+	enabled     func(*ContextFlags) bool
+}
+
+// Order is product priority and therefore intentionally stable. The key is the
+// tool/schema identifier used by adaptive filtering; displayName is user-facing.
+var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
+	{"docker", "docker", func(f *ContextFlags) bool { return f.DockerEnabled }},
+	{"home_assistant", "home_assistant", func(f *ContextFlags) bool { return f.HomeAssistantEnabled }},
+	{"proxmox", "proxmox", func(f *ContextFlags) bool { return f.ProxmoxEnabled }},
+	{"frigate", "frigate", func(f *ContextFlags) bool { return f.FrigateEnabled }},
+	{"go2rtc", "go2rtc", func(f *ContextFlags) bool { return f.Go2RTCEnabled }},
+	{"three_d_printer", "three_d_printer", func(f *ContextFlags) bool { return f.ThreeDPrinterEnabled }},
+	{"tailscale", "tailscale", func(f *ContextFlags) bool { return f.TailscaleEnabled }},
+	{"ansible", "ansible", func(f *ContextFlags) bool { return f.AnsibleEnabled }},
+	{"github", "github", func(f *ContextFlags) bool { return f.GitHubEnabled }},
+	{"golangci_lint", "golangci_lint", func(f *ContextFlags) bool { return f.GolangciLintEnabled }},
+	{"mqtt", "mqtt", func(f *ContextFlags) bool { return f.MQTTEnabled }},
+	{"adguard", "adguard", func(f *ContextFlags) bool { return f.AdGuardEnabled }},
+	{"uptime_kuma", "uptime_kuma", func(f *ContextFlags) bool { return f.UptimeKumaEnabled }},
+	{"grafana", "grafana", func(f *ContextFlags) bool { return f.GrafanaEnabled }},
+	{"mcp", "mcp", func(f *ContextFlags) bool { return f.MCPEnabled }},
+	{"meshcentral", "meshcentral", func(f *ContextFlags) bool { return f.MeshCentralEnabled }},
+	{"homepage", "homepage", func(f *ContextFlags) bool { return f.HomepageEnabled }},
+	{"netlify", "netlify", func(f *ContextFlags) bool { return f.NetlifyEnabled }},
+	{"vercel", "vercel", func(f *ContextFlags) bool { return f.VercelEnabled }},
+	{"email", "email", func(f *ContextFlags) bool { return f.EmailEnabled }},
+	{"cloudflare_tunnel", "cloudflare_tunnel", func(f *ContextFlags) bool { return f.CloudflareTunnelEnabled }},
+	{"google_workspace", "google_workspace", func(f *ContextFlags) bool { return f.GoogleWorkspaceEnabled }},
+	{"onedrive", "onedrive", func(f *ContextFlags) bool { return f.OneDriveEnabled }},
+	{"virustotal", "virustotal", func(f *ContextFlags) bool { return f.VirusTotalEnabled }},
+	{"brave_search", "brave_search", func(f *ContextFlags) bool { return f.BraveSearchEnabled }},
+	{"image_generation", "image_generation", func(f *ContextFlags) bool { return f.ImageGenerationEnabled }},
+	{"music_generation", "music_generation", func(f *ContextFlags) bool { return f.MusicGenerationEnabled }},
+	{"video_generation", "video_generation", func(f *ContextFlags) bool { return f.VideoGenerationEnabled }},
+	{"minimax_tts", "minimax_tts", func(f *ContextFlags) bool { return f.MiniMaxTTSEnabled }},
+	{"remote_control", "remote_control", func(f *ContextFlags) bool { return f.RemoteControlEnabled }},
+	{"browser_automation", "browser_automation", func(f *ContextFlags) bool { return f.BrowserAutomationEnabled }},
+	{"webdav", "webdav", func(f *ContextFlags) bool { return f.WebDAVEnabled }},
+	{"koofr", "koofr", func(f *ContextFlags) bool { return f.KoofrEnabled }},
+	{"chromecast", "chromecast", func(f *ContextFlags) bool { return f.ChromecastEnabled }},
+	{"bluetooth", "bluetooth", func(f *ContextFlags) bool { return f.BluetoothEnabled }},
+	{"network_shares", "network_shares", func(f *ContextFlags) bool { return f.NetworkSharesEnabled }},
+	{"discord", "discord", func(f *ContextFlags) bool { return f.DiscordEnabled }},
+	{"telegram", "telegram", func(f *ContextFlags) bool { return f.TelegramEnabled }},
+	{"truenas", "truenas", func(f *ContextFlags) bool { return f.TrueNASEnabled }},
+	{"jellyfin", "jellyfin", func(f *ContextFlags) bool { return f.JellyfinEnabled }},
+	{"obsidian", "obsidian", func(f *ContextFlags) bool { return f.ObsidianEnabled }},
+	{"ollama", "ollama", func(f *ContextFlags) bool { return f.OllamaEnabled }},
+	{"sandbox", "sandbox", func(f *ContextFlags) bool { return f.SandboxEnabled }},
+	{"webhooks", "webhooks", func(f *ContextFlags) bool { return f.WebhooksEnabled }},
+	{"web_scraper", "web_scraper", func(f *ContextFlags) bool { return f.WebScraperEnabled }},
+	{"s3", "s3", func(f *ContextFlags) bool { return f.S3Enabled }},
+	{"network_ping", "network_ping", func(f *ContextFlags) bool { return f.NetworkPingEnabled }},
+	{"network_scan", "network_scan", func(f *ContextFlags) bool { return f.NetworkScanEnabled }},
+	{"upnp_scan", "upnp_scan", func(f *ContextFlags) bool { return f.UPnPScanEnabled }},
+	{"form_automation", "form_automation", func(f *ContextFlags) bool { return f.FormAutomationEnabled }},
+	{"wol", "wol", func(f *ContextFlags) bool { return f.WOLEnabled }},
+	{"fritzbox", "fritzbox", func(f *ContextFlags) bool {
+		return f.FritzBoxSystemEnabled || f.FritzBoxNetworkEnabled || f.FritzBoxSmartHomeEnabled
+	}},
+	{"telnyx", "telnyx", func(f *ContextFlags) bool { return f.TelnyxEnabled }},
+	{"a2a", "a2a", func(f *ContextFlags) bool { return f.A2AEnabled }},
+	{"invasion_control", "invasion_control (Egg/Nest remote agents)", func(f *ContextFlags) bool { return f.InvasionControlEnabled }},
+	{"co_agents", "co_agents", func(f *ContextFlags) bool { return f.CoAgentEnabled }},
+	{"paperless_ngx", "paperless_ngx", func(f *ContextFlags) bool { return f.PaperlessNGXEnabled }},
+	{"space_agent", "space_agent", func(f *ContextFlags) bool { return f.SpaceAgentEnabled }},
 }
 
 func buildSpaceAgentRuntimeContext(flags *ContextFlags) string {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/agent"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,8 @@ func chatCompletionErrorMessage(lang string, err error) string {
 	switch {
 	case err == nil:
 		return i18n.T(lang, "backend.handler_sync_error")
+	case agent.IsContextBudgetExceeded(err):
+		return i18n.T(lang, "backend.handler_context_budget_error")
 	case llm.IsImageNotSupportedError(err):
 		return i18n.T(lang, "backend.handler_image_not_supported")
 	case llm.IsQuotaExceeded(err):
@@ -30,6 +33,41 @@ func chatCompletionErrorMessage(lang string, err error) string {
 	default:
 		return i18n.T(lang, "backend.handler_sync_error")
 	}
+}
+
+func writeChatCompletionStreamError(w http.ResponseWriter, code, message string, status int) {
+	payload := map[string]interface{}{
+		"error": map[string]interface{}{
+			"message": message,
+			"type":    "invalid_request_error",
+			"code":    code,
+			"status":  status,
+		},
+	}
+	data, _ := json.Marshal(payload)
+	_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
+	_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
+}
+
+func emitStreamedAgentError(w http.ResponseWriter, flusher http.Flusher, broker agent.FeedbackBroker, sessionID, lang string, err error) {
+	message := chatCompletionErrorMessage(lang, err)
+	code := "agent_execution_failed"
+	status := http.StatusInternalServerError
+	if agent.IsContextBudgetExceeded(err) {
+		code = "context_budget_exceeded"
+		status = http.StatusRequestEntityTooLarge
+	}
+	if typed, ok := broker.(agent.TypedFeedbackBroker); ok {
+		_ = typed.SendTyped(string(EventAgentError), AgentErrorPayload{
+			SessionID: sessionID,
+			Code:      code,
+			Message:   message,
+			Status:    status,
+		})
+	}
+	writeChatCompletionStreamError(w, code, message, status)
+	flusher.Flush()
+	broker.Send("done", i18n.T(lang, "backend.stream_done"))
 }
 
 func writeChatCompletionErrorResponse(w http.ResponseWriter, sessionID, content string) {

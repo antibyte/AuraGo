@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,7 +22,8 @@ import (
 var defaultDB *OptimizerDB
 
 type OptimizerDB struct {
-	db *sql.DB
+	db         *sql.DB
+	promptsDir string
 }
 
 type versionCacheEntry struct {
@@ -34,6 +36,12 @@ type versionCacheEntry struct {
 var versionCache sync.Map
 
 func InitDB(dbPath string) (*OptimizerDB, error) {
+	return InitDBWithPromptsDir(dbPath, "prompts")
+}
+
+// InitDBWithPromptsDir initializes the optimizer against the same prompt
+// source directory used by the runtime prompt pipeline.
+func InitDBWithPromptsDir(dbPath, promptsDir string) (*OptimizerDB, error) {
 	if dbPath == "" {
 		dbPath = "data/optimization.db"
 	}
@@ -156,9 +164,27 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
 
-	defaultDB = &OptimizerDB{db: db}
+	if strings.TrimSpace(promptsDir) == "" {
+		promptsDir = "prompts"
+	}
+	defaultDB = &OptimizerDB{db: db, promptsDir: filepath.Clean(promptsDir)}
 	defaultDB.invalidateStaleOverrides()
 	return defaultDB, nil
+}
+
+func (o *OptimizerDB) loadCanonicalManual(toolName string) string {
+	safeToolName := filepath.Base(strings.TrimSpace(toolName))
+	if safeToolName == "." || safeToolName == "" {
+		return "(No existing manual found)"
+	}
+	data, err := os.ReadFile(filepath.Join(o.promptsDir, "tools_manuals", safeToolName+".md"))
+	if err != nil {
+		data, err = promptsembed.FS.ReadFile(filepath.ToSlash(filepath.Join("tools_manuals", safeToolName+".md")))
+	}
+	if err != nil {
+		return "(No existing manual found)"
+	}
+	return string(data)
 }
 
 func (o *OptimizerDB) invalidateStaleOverrides() {
@@ -177,18 +203,7 @@ func (o *OptimizerDB) invalidateStaleOverrides() {
 			continue
 		}
 
-		// Load current manual
-		var currentManual string
-		safeToolName := filepath.Base(toolName)
-		data, err := os.ReadFile("prompts/tools_manuals/" + safeToolName + ".md")
-		if err != nil {
-			data, err = promptsembed.FS.ReadFile("tools_manuals/" + safeToolName + ".md")
-		}
-		if err == nil {
-			currentManual = string(data)
-		} else {
-			currentManual = "(No existing manual found)"
-		}
+		currentManual := o.loadCanonicalManual(toolName)
 
 		hash := sha256.Sum256([]byte(currentManual))
 		currentHashStr := hex.EncodeToString(hash[:])

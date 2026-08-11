@@ -111,6 +111,7 @@
   "backend.handler_followup_circuit_breaker": "Follow-up-Schutzschalter ausgelöst. Maximale Rekursionstiefe erreicht.",
   "backend.handler_timeout_error": "Zeitüberschreitung. Bitte erneut versuchen oder ein schnelleres Modell wählen.",
   "backend.handler_sync_error": "Ein interner Fehler ist aufgetreten. Details in den Server-Logs.",
+  "backend.handler_context_budget_error": "Die Anfrage überschreitet das Kontextlimit des Modells. Kürze die Unterhaltung oder reduziere die aktivierten Tools.",
   "backend.handler_llm_quota_error": "Der LLM-Anbieter hat die Anfrage abgelehnt, weil Modell-Kontingent oder Rate-Limit überschritten ist. Warte kurz, reduziere Kontext/Tools oder wechsle Provider/Modell.",
   "backend.handler_llm_auth_error": "Der LLM-Anbieter hat die Authentifizierung abgelehnt. Prüfe API-Key und Kontoberechtigungen des Providers.",
   "backend.handler_llm_config_error": "Der LLM-Anbieter hat die Anfrage wegen inkompatibler Provider-/Modell-Konfiguration abgelehnt. Prüfe Modell, Provider, Tools und Structured-Output-Einstellungen.",

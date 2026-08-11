@@ -177,11 +177,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			"max_tool_guides", toolingPolicy.EffectiveMaxToolGuides)
 	}
 	flags := buildPromptContextFlags(runCfg, toolingPolicy, promptContextOptions{
-		IsMaintenanceMode:     isMaintenance,
-		WebhooksDefinitions:   webhooksDef.String(),
-		SpecialistsAvailable:  specialistsAvailable(cfg),
-		SpecialistsStatus:     buildSpecialistsStatus(cfg),
-		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
+		IsMaintenanceMode:   isMaintenance,
+		WebhooksDefinitions: webhooksDef.String(),
 	})
 	if !shouldInjectComposioContext(initialUserMsg, flags.ComposioServicesContext) {
 		flags.ComposioServicesContext = ""

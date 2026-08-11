@@ -85,7 +85,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		if strings.Contains(path, "/") || !strings.HasSuffix(path, ".md") {
 			return nil
 		}
-		if isRootToolPromptModule(path) {
+		if isExcludedRootPromptModule(path) {
 			return nil
 		}
 		data, err := fs.ReadFile(promptsembed.FS, path)
@@ -103,7 +103,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 				continue
 			}
-			if isRootToolPromptModule(file.Name()) {
+			if isExcludedRootPromptModule(file.Name()) {
 				continue
 			}
 			path := filepath.Join(dir, file.Name())
@@ -130,7 +130,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	}
 
 	// Sort modules by ID to ensure deterministic output
-	sort.Slice(modules, func(i, j int) bool {
+	sort.SliceStable(modules, func(i, j int) bool {
 		return modules[i].Metadata.ID < modules[j].Metadata.ID
 	})
 
@@ -180,6 +180,11 @@ func isRootToolPromptModule(name string) bool {
 	return strings.HasPrefix(base, "tools_") && strings.HasSuffix(base, ".md")
 }
 
+func isExcludedRootPromptModule(name string) bool {
+	base := strings.ToLower(filepath.Base(name))
+	return base == "mission_preparation.md" || isRootToolPromptModule(base)
+}
+
 // promptCacheStale returns true if any tracked file has a newer ModTime,
 // or if the directory now has different files than when the cache was built.
 func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
@@ -192,7 +197,7 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 			continue
 		}
-		if isRootToolPromptModule(file.Name()) {
+		if isExcludedRootPromptModule(file.Name()) {
 			continue
 		}
 		newCount++
@@ -208,7 +213,8 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 	return newCount != len(mtimes)
 }
 
-// ClearPromptCache empties the in-memory cache of parsed prompt modules.
+// ClearPromptCache invalidates every prompt-derived cache and advances the
+// process generation used by agent-local base-prompt caches.
 func ClearPromptCache() {
 	promptCacheMu.Lock()
 	promptCacheByDir = make(map[string]promptDirCache)
@@ -217,6 +223,16 @@ func ClearPromptCache() {
 	guideCacheMu.Lock()
 	guideCache = make(map[string]guideCacheEntry)
 	guideCacheMu.Unlock()
+
+	personalityCacheMu.Lock()
+	personalityCache = make(map[string]personalityCacheEntry)
+	personalityCacheMu.Unlock()
+
+	metaCacheMu.Lock()
+	metaCache = make(map[string]metaCacheEntry)
+	metaCacheMu.Unlock()
+
+	promptCacheGeneration.Add(1)
 }
 
 func parsePromptModule(raw string) (*PromptModule, error) {
@@ -516,17 +532,30 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 }
 
 func evictGuideCacheLocked() {
-	if len(guideCache) <= 1000 {
+	if len(guideCache) < guideCacheLimit {
 		return
 	}
-	// Coarse eviction: drop roughly half of the cache to avoid a full reset.
-	target := len(guideCache) / 2
-	for k := range guideCache {
-		delete(guideCache, k)
-		if len(guideCache) <= target {
-			break
+	oldestKey := ""
+	var oldest time.Time
+	for key, entry := range guideCache {
+		if oldestKey == "" || entry.lastUsed.Before(oldest) {
+			oldestKey = key
+			oldest = entry.lastUsed
 		}
 	}
+	if oldestKey != "" {
+		delete(guideCache, oldestKey)
+	}
+}
+
+func touchGuideCacheEntry(path string, now time.Time) {
+	guideCacheMu.Lock()
+	entry, ok := guideCache[path]
+	if ok {
+		entry.lastUsed = now
+		guideCache[path] = entry
+	}
+	guideCacheMu.Unlock()
 }
 
 func parseToolGuideRaw(raw string) (content string, conditions []string) {
@@ -543,37 +572,39 @@ func parseToolGuideRaw(raw string) (content string, conditions []string) {
 // to the embedded FS baked into the binary. When flags is nil, frontmatter
 // conditions are not enforced (used by explicit discover_tools lookups).
 func readToolGuide(path string, flags *ContextFlags) (string, bool) {
-	const maxGuideTokens = 2048
-
 	if content, ok := activeToolGuideOverride(path); ok {
 		if flags != nil {
-			conditions, sourceFound := loadToolGuideConditions(path)
+			source, sourceFound := canonicalToolGuide(path)
+			conditions := source.conditions
 			if !sourceFound || !guideConditionsAllow(conditions, flags) {
 				return "", false
 			}
 		}
-		return truncateGuide(content, maxGuideTokens), true
+		return truncateGuide(content, 2048), true
 	}
+	entry, ok := canonicalToolGuide(path)
+	if !ok || !guideConditionsAllow(entry.conditions, flags) {
+		return "", false
+	}
+	return entry.content, true
+}
 
+func canonicalToolGuide(path string) (guideCacheEntry, bool) {
 	guideCacheMu.RLock()
 	cached, ok := guideCache[path]
 	guideCacheMu.RUnlock()
 
 	if ok {
+		now := time.Now()
 		info, err := os.Stat(path)
-		if err == nil && info.ModTime().Equal(cached.mtime) {
-			if !guideConditionsAllow(cached.conditions, flags) {
-				return "", false
-			}
-			return cached.content, true
+		if err == nil && cached.source == guideSourceDisk && info.ModTime().Equal(cached.mtime) && info.Size() == cached.size {
+			touchGuideCacheEntry(path, now)
+			return cached, true
 		}
-		// If the disk file disappeared but we have a cache entry from embed,
-		// the zero mtime sentinel means "from embed, always valid".
-		if cached.mtime.IsZero() {
-			if !guideConditionsAllow(cached.conditions, flags) {
-				return "", false
-			}
-			return cached.content, true
+		// Embedded entries remain valid only while no disk override exists.
+		if os.IsNotExist(err) && cached.source == guideSourceEmbed {
+			touchGuideCacheEntry(path, now)
+			return cached, true
 		}
 	}
 
@@ -584,17 +615,20 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 		// 2. Fallback: extract relative embed path (e.g. "tools_manuals/docker.md")
 		data, ok = readToolGuideEmbed(path)
 		if !ok {
-			return "", false
+			return guideCacheEntry{}, false
 		}
 		fromEmbed = true
 	}
 
 	body, conditions := parseToolGuideRaw(string(data))
-	content := truncateGuide(body, maxGuideTokens)
-	entry := guideCacheEntry{content: content, conditions: conditions}
+	content := truncateGuide(body, 2048)
+	now := time.Now()
+	entry := guideCacheEntry{content: content, conditions: conditions, source: guideSourceEmbed, lastUsed: now}
 	if !fromEmbed {
+		entry.source = guideSourceDisk
 		if info, statErr := os.Stat(path); statErr == nil {
 			entry.mtime = info.ModTime()
+			entry.size = info.Size()
 		}
 	}
 	guideCacheMu.Lock()
@@ -602,20 +636,12 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 	guideCache[path] = entry
 	guideCacheMu.Unlock()
 
-	if !guideConditionsAllow(conditions, flags) {
-		return "", false
-	}
-	return content, true
+	return entry, true
 }
 
 func loadToolGuideConditions(path string) (conditions []string, found bool) {
-	if data, err := os.ReadFile(path); err == nil {
-		_, conditions = parseToolGuideRaw(string(data))
-		return conditions, true
-	}
-	if data, ok := readToolGuideEmbed(path); ok {
-		_, conditions = parseToolGuideRaw(string(data))
-		return conditions, true
+	if entry, ok := canonicalToolGuide(path); ok {
+		return append([]string(nil), entry.conditions...), true
 	}
 	return nil, false
 }
@@ -1057,6 +1083,9 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 // GetCorePersonalityMeta loads and parses just the metadata for a specific core personality.
 // Results are cached and invalidated when the personality file's ModTime changes.
 func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.PersonalityMeta {
+	if !IsValidPersonalityID(corePersonality) {
+		corePersonality = "neutral"
+	}
 	defaultMeta := memory.PersonalityMeta{}.Normalized()
 
 	if corePersonality == "" {

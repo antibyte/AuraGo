@@ -22,8 +22,8 @@ const systemPromptCacheTTL = 30 * time.Second
 type systemPromptCacheKey struct {
 	PromptsDir               string   `json:"prompts_dir"`
 	PromptSourceFingerprint  string   `json:"prompt_source_fingerprint"`
+	PromptCacheGeneration    uint64   `json:"prompt_cache_generation"`
 	CoreMemory               string   `json:"core_memory"`
-	BudgetHint               string   `json:"budget_hint"`
 	EnabledTools             []string `json:"enabled_tools"`
 	FeatureToggles           []string `json:"feature_toggles"`
 	SkipIntegrationTools     []string `json:"skip_integration_tools"`
@@ -31,7 +31,6 @@ type systemPromptCacheKey struct {
 	EnabledNativeTools       []string `json:"enabled_native_tools"`
 	AdaptiveFilteredTools    []string `json:"adaptive_filtered_tools"`
 	Tier                     string   `json:"tier"`
-	TokenBudget              int      `json:"token_budget"`
 	IsMission                bool     `json:"is_mission"`
 	IsCoAgent                bool     `json:"is_co_agent"`
 	IsEgg                    bool     `json:"is_egg"`
@@ -82,6 +81,7 @@ type systemPromptCacheKey struct {
 }
 
 func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
+	_ = budgetHint // request-local addendum; intentionally excluded from the base-prompt key
 	enabledTools := collectEnabledTools(flags)
 	featureToggles := collectFeatureToggles(flags)
 
@@ -100,8 +100,8 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 	key := systemPromptCacheKey{
 		PromptsDir:               promptsDir,
 		PromptSourceFingerprint:  promptSourceFingerprint(promptsDir, flags.CorePersonality),
+		PromptCacheGeneration:    prompts.PromptCacheGeneration(),
 		CoreMemory:               coreMemory,
-		BudgetHint:               budgetHint,
 		EnabledTools:             enabledTools,
 		FeatureToggles:           featureToggles,
 		SkipIntegrationTools:     sortedStringCopy(flags.SkipIntegrationTools),
@@ -109,7 +109,6 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		EnabledNativeTools:       sortedStringCopy(flags.EnabledNativeTools),
 		AdaptiveFilteredTools:    sortedStringCopy(flags.AdaptiveFilteredTools),
 		Tier:                     flags.Tier,
-		TokenBudget:              flags.TokenBudget,
 		IsMission:                flags.IsMission,
 		IsCoAgent:                flags.IsCoAgent,
 		IsEgg:                    flags.IsEgg,
@@ -179,7 +178,7 @@ func refreshCachedSystemPromptNow(prompt string, now time.Time) string {
 	} else {
 		valueEnd = len(prompt)
 	}
-	return prompt[:valueStart] + now.Format("2006-01-02 15:04") + prompt[valueEnd:]
+	return prompt[:valueStart] + now.Format(time.RFC3339) + prompt[valueEnd:]
 }
 
 func refreshCachedSystemPromptNowAndCount(prompt string, now time.Time, model string, tokenCache *tokenCountCache) (string, int) {
@@ -274,7 +273,7 @@ func computePromptSourceFingerprint(cleanDir, profile string) string {
 		}
 		var rootFiles []string
 		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") || isRootToolPromptCacheFile(entry.Name()) {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") || isExcludedRootPromptCacheFile(entry.Name()) {
 				continue
 			}
 			rootFiles = append(rootFiles, entry.Name())
@@ -323,7 +322,7 @@ func embeddedPromptSourceDigests() (string, map[string]string) {
 			}
 			sum := sha256.Sum256(data)
 			digest := hex.EncodeToString(sum[:])
-			if !strings.Contains(path, "/") && !isRootToolPromptCacheFile(path) {
+			if !strings.Contains(path, "/") && !isExcludedRootPromptCacheFile(path) {
 				rootParts = append(rootParts, path+"="+digest)
 			}
 			if strings.HasPrefix(path, "personalities/") {
@@ -348,7 +347,7 @@ func diskPromptSourceRevision(cleanDir, profile string) string {
 		if entries, err := os.ReadDir(cleanDir); err == nil {
 			names := make([]string, 0, len(entries))
 			for _, entry := range entries {
-				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") || isRootToolPromptCacheFile(entry.Name()) {
+				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") || isExcludedRootPromptCacheFile(entry.Name()) {
 					continue
 				}
 				names = append(names, entry.Name())
@@ -388,6 +387,11 @@ func evictOldestPromptFingerprintLocked() {
 func isRootToolPromptCacheFile(name string) bool {
 	base := strings.ToLower(filepath.Base(name))
 	return strings.HasPrefix(base, "tools_") && strings.HasSuffix(base, ".md")
+}
+
+func isExcludedRootPromptCacheFile(name string) bool {
+	base := strings.ToLower(filepath.Base(name))
+	return base == "mission_preparation.md" || isRootToolPromptCacheFile(base)
 }
 
 func hashStringForPromptCache(value string) string {

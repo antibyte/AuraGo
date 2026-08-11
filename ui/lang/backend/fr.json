@@ -105,6 +105,7 @@
   "backend.handler_followup_circuit_breaker": "Disjoncteur de suivi déclenché. Profondeur de récursion maximale atteinte.",
   "backend.handler_timeout_error": "La requête a expiré. Veuillez réessayer ou passer à un modèle plus rapide.",
   "backend.handler_sync_error": "Une erreur interne s'est produite. Consultez les journaux.",
+  "backend.handler_context_budget_error": "La requête dépasse la limite de contexte du modèle. Raccourcissez la conversation ou réduisez les outils activés.",
   "backend.handler_llm_quota_error": "Le fournisseur LLM a rejeté la demande car le quota du modèle ou la limite de débit est dépassé. Attendez un peu, réduisez le contexte/les outils ou changez de fournisseur/modèle.",
   "backend.handler_llm_auth_error": "Le fournisseur LLM a rejeté l'authentification. Vérifiez la clé API et les autorisations du compte.",
   "backend.handler_llm_config_error": "Le fournisseur LLM a rejeté la demande car la configuration fournisseur/modèle est incompatible. Vérifiez le modèle, le fournisseur, les outils et les réglages de sortie structurée.",
