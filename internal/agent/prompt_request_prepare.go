@@ -21,13 +21,14 @@ func applyPromptSecurityToRequest(req *openai.ChatCompletionRequest, cfg *config
 		return
 	}
 	structureEnabled := cfg.Guardian.PromptSec.Structure.Enabled
+	requestGuardian := guardian
 	if structureEnabled {
-		guardian.SetSystemPrompt(systemPrompt)
+		requestGuardian = guardian.WithSystemPrompt(systemPrompt)
 	}
 	if !cfg.Guardian.PromptSec.UseSanitizedOutput && !structureEnabled {
 		return
 	}
-	if updatedMessages, applied := applyPromptSecToLatestUserMessage(req.Messages, guardian); applied {
+	if updatedMessages, applied := applyPromptSecToLatestUserMessage(req.Messages, requestGuardian); applied {
 		req.Messages = updatedMessages
 		if logger != nil {
 			logger.Debug("[Guardian] Applied promptsec sanitized user message",
@@ -53,7 +54,7 @@ func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *Req
 
 	before := len(req.Messages)
 	sanitized, dropped := SanitizeToolMessages(req.Messages)
-	req.Messages = sanitizeReasoningForContinuation(sanitized, providerType, req.Model)
+	req.Messages = sanitizeReasoningForRequestRoutes(sanitized, budget.Routes, providerType, req.Model)
 	if dropped > 0 {
 		logger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
 			"dropped", dropped, "before", before, "after", len(req.Messages))

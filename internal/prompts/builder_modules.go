@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -28,6 +29,68 @@ const (
 	PromptSourceValidFrontmatter
 	PromptSourceMalformedFrontmatter
 )
+
+type loadedPromptSource struct {
+	module   PromptModule
+	source   promptSourceOrigin
+	revision promptFileRevision
+}
+
+func promptFileRevisionFor(data []byte, info fs.FileInfo) promptFileRevision {
+	revision := promptFileRevision{size: int64(len(data)), digest: sha256.Sum256(data)}
+	if info != nil {
+		revision.modTime = info.ModTime()
+		revision.size = info.Size()
+	}
+	return revision
+}
+
+func samePromptFileRevision(left, right promptFileRevision) bool {
+	return left.modTime.Equal(right.modTime) && left.size == right.size && left.digest == right.digest
+}
+
+func loadPromptSourceWithEmbeddedFallback(diskPath, embeddedPath string, logger *slog.Logger) (loadedPromptSource, bool) {
+	logger = normalizePromptLogger(logger)
+	var fallbackRevision promptFileRevision
+	fallbackFromDisk := false
+	if strings.TrimSpace(diskPath) != "" {
+		if data, err := os.ReadFile(diskPath); err == nil {
+			info, _ := os.Stat(diskPath)
+			module, status, parseErr := ParsePromptSource(diskPath, string(data), logger)
+			if parseErr == nil && status != PromptSourceMalformedFrontmatter {
+				return loadedPromptSource{
+					module: module, source: promptSourceDisk, revision: promptFileRevisionFor(data, info),
+				}, true
+			}
+			fallbackRevision = promptFileRevisionFor(data, info)
+			fallbackFromDisk = true
+		} else if !os.IsNotExist(err) {
+			logger.Warn("Skipping unreadable prompt source",
+				"file", filepath.Base(diskPath), "error_class", "read_error")
+		}
+	}
+
+	embeddedPath = strings.TrimPrefix(filepath.ToSlash(filepath.Clean(embeddedPath)), "./")
+	if embeddedPath == "" || embeddedPath == "." {
+		return loadedPromptSource{}, false
+	}
+	data, err := fs.ReadFile(promptsembed.FS, embeddedPath)
+	if err != nil {
+		return loadedPromptSource{}, false
+	}
+	module, status, parseErr := ParsePromptSource(embeddedPath, string(data), logger)
+	if parseErr != nil || status == PromptSourceMalformedFrontmatter {
+		return loadedPromptSource{}, false
+	}
+	loaded := loadedPromptSource{
+		module: module, source: promptSourceEmbed, revision: promptFileRevisionFor(data, nil),
+	}
+	if fallbackFromDisk {
+		loaded.source = promptSourceDiskFallbackEmbed
+		loaded.revision = fallbackRevision
+	}
+	return loaded, true
+}
 
 // ParsePromptSource parses one prompt source without allowing malformed
 // frontmatter to degrade into unconditional core instructions.
@@ -152,20 +215,20 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 				continue
 			}
 			path := filepath.Join(dir, file.Name())
-			info, err := file.Info()
-			if err == nil {
-				revisions[path] = promptFileRevision{modTime: info.ModTime(), size: info.Size()}
-			}
 			data, err := os.ReadFile(path)
 			if err != nil {
-				logger.Warn("Failed to read prompt file", "path", path, "error", err)
+				logger.Warn("Failed to read prompt file",
+					"file", filepath.Base(path), "error_class", "read_error")
 				continue
 			}
+			info, _ := file.Info()
+			revisions[path] = promptFileRevisionFor(data, info)
 			key := strings.ToLower(file.Name())
 			addPromptModule(moduleMap, key, file.Name(), string(data), logger)
 		}
 	} else if len(moduleMap) == 0 {
-		logger.Error("Failed to read prompts directory and no embedded modules loaded", "path", dir, "error", err)
+		logger.Error("Failed to read prompts directory and no embedded modules loaded",
+			"directory", filepath.Base(filepath.Clean(dir)), "error_class", "read_directory_error")
 	}
 
 	// Convert map to slice
@@ -230,8 +293,9 @@ func isExcludedRootPromptModule(name string) bool {
 	return base == "mission_preparation.md" || isRootToolPromptModule(base)
 }
 
-// promptCacheStale returns true if any tracked file has a newer ModTime,
-// or if the directory now has different files than when the cache was built.
+// promptCacheStale returns true if any tracked file has a different content
+// revision, or if the directory now has different files than when the cache
+// was built. The digest catches atomic rewrites that preserve metadata.
 func promptCacheStale(dir string, revisions map[string]promptFileRevision) bool {
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -251,7 +315,11 @@ func promptCacheStale(dir string, revisions map[string]promptFileRevision) bool 
 		if err != nil {
 			return true
 		}
-		if cached, ok := revisions[path]; !ok || !info.ModTime().Equal(cached.modTime) || info.Size() != cached.size {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return true
+		}
+		if cached, ok := revisions[path]; !ok || !samePromptFileRevision(cached, promptFileRevisionFor(data, info)) {
 			return true
 		}
 	}
@@ -635,29 +703,31 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 }
 
 func canonicalToolGuide(path string) (guideCacheEntry, bool) {
+	data, diskErr := os.ReadFile(path)
+	diskInfo, _ := os.Stat(path)
+	diskRevision := promptFileRevisionFor(data, diskInfo)
+
 	guideCacheMu.RLock()
 	cached, ok := guideCache[path]
 	guideCacheMu.RUnlock()
 
 	if ok {
 		now := time.Now()
-		info, err := os.Stat(path)
-		if err == nil && (cached.source == guideSourceDisk || cached.source == guideSourceDiskFallbackEmbed) && info.ModTime().Equal(cached.mtime) && info.Size() == cached.size {
+		cachedRevision := promptFileRevision{modTime: cached.mtime, size: cached.size, digest: cached.digest}
+		if diskErr == nil && (cached.source == guideSourceDisk || cached.source == guideSourceDiskFallbackEmbed) && samePromptFileRevision(cachedRevision, diskRevision) {
 			touchGuideCacheEntry(path, now)
 			return cached, true
 		}
 		// Embedded entries remain valid only while no disk override exists.
-		if os.IsNotExist(err) && cached.source == guideSourceEmbed {
+		if os.IsNotExist(diskErr) && cached.source == guideSourceEmbed {
 			touchGuideCacheEntry(path, now)
 			return cached, true
 		}
 	}
 
 	// 1. Try on-disk file first (user overrides)
-	data, diskErr := os.ReadFile(path)
 	fromEmbed := false
 	fallbackFromMalformedDisk := false
-	diskInfo, _ := os.Stat(path)
 	if diskErr != nil {
 		// 2. Fallback: extract relative embed path (e.g. "tools_manuals/docker.md")
 		data, ok = readToolGuideEmbed(path)
@@ -688,16 +758,14 @@ func canonicalToolGuide(path string) (guideCacheEntry, bool) {
 	entry := guideCacheEntry{content: content, conditions: conditions, source: guideSourceEmbed, lastUsed: now}
 	if fallbackFromMalformedDisk {
 		entry.source = guideSourceDiskFallbackEmbed
-		if diskInfo != nil {
-			entry.mtime = diskInfo.ModTime()
-			entry.size = diskInfo.Size()
-		}
+		entry.mtime = diskRevision.modTime
+		entry.size = diskRevision.size
+		entry.digest = diskRevision.digest
 	} else if !fromEmbed {
 		entry.source = guideSourceDisk
-		if diskInfo != nil {
-			entry.mtime = diskInfo.ModTime()
-			entry.size = diskInfo.Size()
-		}
+		entry.mtime = diskRevision.modTime
+		entry.size = diskRevision.size
+		entry.digest = diskRevision.digest
 	}
 	guideCacheMu.Lock()
 	evictGuideCacheLocked()
@@ -1149,7 +1217,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 }
 
 // GetCorePersonalityMeta loads and parses just the metadata for a specific core personality.
-// Results are cached and invalidated when the personality file's ModTime changes.
+// Results are cached against the validated source and its content revision.
 func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.PersonalityMeta {
 	corePersonality, _ = ResolvePersonalityID(corePersonality)
 	defaultMeta := memory.PersonalityMeta{}.Normalized()
@@ -1159,62 +1227,35 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 	}
 
 	profilePath := filepath.Join(promptsDir, "personalities", corePersonality+".md")
-
-	// Check cache
 	metaCacheMu.RLock()
 	cached, ok := metaCache[profilePath]
 	metaCacheMu.RUnlock()
-
-	if ok {
-		info, err := os.Stat(profilePath)
-		if err == nil && info.ModTime().Equal(cached.mtime) {
-			return cached.meta
-		}
-		if err != nil && cached.fromEmbed {
+	if ok && cached.source == promptSourceEmbed {
+		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
 			return cached.meta
 		}
 	}
 
-	data, err := os.ReadFile(profilePath)
-	if err != nil {
-		data, err = fs.ReadFile(promptsembed.FS, "personalities/"+corePersonality+".md")
-		if err != nil {
-			return defaultMeta
-		}
-		mod, err := parsePromptModule(string(data))
-		if err != nil {
-			return defaultMeta
-		}
-		m := mod.Metadata.Meta.Normalized()
-		if err := mod.Metadata.Meta.Validate(); err != nil {
-			slog.Warn("[Personality] Invalid embedded personality metadata detected",
-				"profile", corePersonality, "error", err)
-		}
-		metaCacheMu.Lock()
-		metaCache[profilePath] = metaCacheEntry{meta: m, fromEmbed: true}
-		metaCacheMu.Unlock()
-		return m
-	}
-
-	mod, err := parsePromptModule(string(data))
-	if err != nil {
+	loaded, found := loadPromptSourceWithEmbeddedFallback(
+		profilePath, "personalities/"+corePersonality+".md", slog.Default(),
+	)
+	if !found {
 		return defaultMeta
 	}
+	if ok && cached.source == loaded.source && samePromptFileRevision(cached.revision, loaded.revision) {
+		return cached.meta
+	}
 
-	m := mod.Metadata.Meta.Normalized()
+	m := loaded.module.Metadata.Meta.Normalized()
 
-	if err := mod.Metadata.Meta.Validate(); err != nil {
+	if err := loaded.module.Metadata.Meta.Validate(); err != nil {
 		slog.Warn("[Personality] Invalid personality metadata detected",
 			"profile", corePersonality, "error", err)
 	}
 
-	// Update cache
-	info, err := os.Stat(profilePath)
-	if err == nil {
-		metaCacheMu.Lock()
-		metaCache[profilePath] = metaCacheEntry{meta: m, mtime: info.ModTime()}
-		metaCacheMu.Unlock()
-	}
+	metaCacheMu.Lock()
+	metaCache[profilePath] = metaCacheEntry{meta: m, source: loaded.source, revision: loaded.revision}
+	metaCacheMu.Unlock()
 
 	return m
 }
@@ -1231,23 +1272,16 @@ func GetCorePersonalityPromptSummary(promptsDir, corePersonality string, maxLen 
 		maxLen = 300
 	}
 
-	profilePath := filepath.Join(promptsDir, "personalities", corePersonality+".md")
-
-	var raw string
-	if data, err := os.ReadFile(profilePath); err == nil {
-		raw = string(data)
-	} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+corePersonality+".md"); err == nil {
-		raw = string(data)
-	} else {
+	loaded, found := loadPromptSourceWithEmbeddedFallback(
+		filepath.Join(promptsDir, "personalities", corePersonality+".md"),
+		"personalities/"+corePersonality+".md",
+		slog.Default(),
+	)
+	if !found {
 		return ""
 	}
 
-	mod, err := parsePromptModule(raw)
-	if err != nil {
-		return ""
-	}
-
-	body := strings.TrimSpace(mod.Content)
+	body := strings.TrimSpace(loaded.module.Content)
 	// Strip leading markdown header (e.g. "# Core Personality: Punk\n\n")
 	if idx := strings.Index(body, "\n"); idx > 0 && strings.HasPrefix(body, "#") {
 		body = strings.TrimSpace(body[idx+1:])

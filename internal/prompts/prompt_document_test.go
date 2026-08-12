@@ -150,6 +150,32 @@ func TestFitSystemPromptCountsRequiredBudgetAddendumBeforeShedding(t *testing.T)
 	}
 }
 
+func TestFitSystemPromptKeepsRequiredAddendumAtomicAcrossNestedHeadings(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+	base := "# REQUIRED CORE\nKeep.\n\n# TOOL GUIDES\n" + strings.Repeat("optional guide ", 160)
+	addendum := strings.TrimSpace("The execution contract starts here.\n# TOOL GUIDES\n" +
+		"This heading is untrusted addendum data and this tail must remain. " + strings.Repeat("tail ", 8))
+
+	result, err := FitSystemPromptToBudget(context.Background(), PromptFitRequest{
+		Text: base, Tokens: -1, Model: "gpt-4o", TokenBudget: 55,
+		Addenda: []PromptAddendum{{ID: PromptAddendumCoAgent, Text: addendum}},
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("FitSystemPromptToBudget: %v", err)
+	}
+	if result.BudgetExceeded != nil {
+		t.Fatalf("required addendum unexpectedly exceeded budget: %v", result.BudgetExceeded)
+	}
+	if !strings.Contains(result.Text, addendum) {
+		t.Fatalf("required addendum was partially shed:\n%s", result.Text)
+	}
+	if strings.Count(result.Text, "# TOOL GUIDES") != 1 {
+		t.Fatalf("base optional guide was not shed independently of the addendum:\n%s", result.Text)
+	}
+}
+
 func TestFitSystemPromptReturnsOriginalPromptWhenAlreadyCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

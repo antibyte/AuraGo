@@ -157,6 +157,77 @@ func TestStaticPromptCachesObserveReplacementWithOlderModTime(t *testing.T) {
 	}
 }
 
+func TestStaticPromptCachesObserveSameMetadataContentChanges(t *testing.T) {
+	ClearPromptCache()
+	dir := t.TempDir()
+	personalityDir := filepath.Join(dir, "personalities")
+	if err := os.MkdirAll(personalityDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	modulePath := filepath.Join(dir, "same.md")
+	guidePath := filepath.Join(dir, "same-guide.md")
+	personalityPath := filepath.Join(personalityDir, "same.md")
+	first := map[string]string{
+		modulePath:      "# module\nCACHE ONE",
+		guidePath:       "# guide\nCACHE ONE",
+		personalityPath: "---\nid: same\ntags: [core]\nmeta:\n  conflict_response: submissive\n---\n\npersona one",
+	}
+	second := map[string]string{
+		modulePath:      "# module\nCACHE TWO",
+		guidePath:       "# guide\nCACHE TWO",
+		personalityPath: "---\nid: same\ntags: [core]\nmeta:\n  conflict_response: diplomatic\n---\n\npersona two",
+	}
+	mtimes := make(map[string]time.Time, len(first))
+	for path, content := range first {
+		if len(content) != len(second[path]) {
+			t.Fatalf("fixture sizes differ for %s", filepath.Base(path))
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mtimes[path] = info.ModTime()
+	}
+
+	if modules := loadPromptModules(dir, slog.Default()); !promptModulesContain(modules, "CACHE ONE") {
+		t.Fatal("initial module content missing")
+	}
+	if got, ok := readToolGuide(guidePath, nil); !ok || !strings.Contains(got, "CACHE ONE") {
+		t.Fatalf("initial guide = %q, ok=%v", got, ok)
+	}
+	if got := loadCorePersonalityContent(dir, "same", slog.Default()); got != "persona one" {
+		t.Fatalf("initial personality = %q", got)
+	}
+	if got := GetCorePersonalityMeta(dir, "same").ConflictResponse; got != "submissive" {
+		t.Fatalf("initial metadata = %q", got)
+	}
+
+	for path, content := range second {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, mtimes[path], mtimes[path]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if modules := loadPromptModules(dir, slog.Default()); !promptModulesContain(modules, "CACHE TWO") {
+		t.Fatal("same-metadata module replacement was not detected")
+	}
+	if got, ok := readToolGuide(guidePath, nil); !ok || !strings.Contains(got, "CACHE TWO") {
+		t.Fatalf("same-metadata guide replacement = %q, ok=%v", got, ok)
+	}
+	if got := loadCorePersonalityContent(dir, "same", slog.Default()); got != "persona two" {
+		t.Fatalf("same-metadata personality replacement = %q", got)
+	}
+	if got := GetCorePersonalityMeta(dir, "same").ConflictResponse; got != "diplomatic" {
+		t.Fatalf("same-metadata personality metadata = %q", got)
+	}
+}
+
 func promptModulesContain(modules []PromptModule, content string) bool {
 	for _, module := range modules {
 		if strings.Contains(module.Content, content) {

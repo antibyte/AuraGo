@@ -158,23 +158,31 @@ func TestMalformedDiskGuideFallsBackToEmbedAndRecoversAfterFix(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("---\nconditions: [filesystem_enabled]\n# missing delimiter\nMALFORMED GUIDE"), 0o644); err != nil {
+	broken := "---\nconditions: [filesystem_enabled]\n# missing delimiter\nMALFORMED GUIDE"
+	if err := os.WriteFile(path, []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	initialInfo, err := os.Stat(path)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if got, ok := ReadToolGuide(path); !ok || got != embedded {
 		t.Fatalf("malformed override = %q, ok=%v, want embedded fallback", got, ok)
 	}
 
-	const fixed = "# filesystem\nFIXED DISK GUIDE"
+	fixedBase := "# filesystem\nFIXED DISK GUIDE"
+	if len(fixedBase) > len(broken) {
+		t.Fatal("test fixture cannot preserve file size")
+	}
+	fixed := fixedBase + strings.Repeat(" ", len(broken)-len(fixedBase))
 	if err := os.WriteFile(path, []byte(fixed), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	future := time.Now().Add(2 * time.Second)
-	if err := os.Chtimes(path, future, future); err != nil {
+	if err := os.Chtimes(path, initialInfo.ModTime(), initialInfo.ModTime()); err != nil {
 		t.Fatal(err)
 	}
 	if got, ok := ReadToolGuide(path); !ok || !strings.Contains(got, "FIXED DISK GUIDE") {
-		t.Fatalf("corrected disk guide = %q, ok=%v", got, ok)
+		t.Fatalf("same-metadata corrected disk guide = %q, ok=%v", got, ok)
 	}
 }
 

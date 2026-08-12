@@ -311,6 +311,20 @@ func (d PromptDocument) optionalGroups() []promptSectionGroup {
 	return groups
 }
 
+func (d PromptDocument) hasOptionalGroup(id string) bool {
+	id = canonicalPromptSectionID(id)
+	for _, section := range d.Sections {
+		groupID := section.GroupID
+		if groupID == "" {
+			groupID = section.ID
+		}
+		if !section.Required && canonicalPromptSectionID(groupID) == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (d PromptDocument) estimatedTokens() int {
 	total := 0
 	for _, section := range d.Sections {

@@ -413,6 +413,45 @@ func TestMalformedDelegatedTemplateFallsBackAndRecoversAfterFix(t *testing.T) {
 	}
 }
 
+func TestDelegatedTemplateCacheDetectsSameMetadataCorrection(t *testing.T) {
+	coAgentTemplateMu.Lock()
+	coAgentTemplateCache = make(map[string]coAgentPromptTemplate)
+	coAgentTemplateMu.Unlock()
+	t.Cleanup(func() {
+		coAgentTemplateMu.Lock()
+		coAgentTemplateCache = make(map[string]coAgentPromptTemplate)
+		coAgentTemplateMu.Unlock()
+	})
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "coagent_system.md")
+	first := "Custom alpha contract for {{TASK}}"
+	second := "Custom bravo contract for {{TASK}}"
+	if len(first) != len(second) {
+		t.Fatal("test fixture sizes differ")
+	}
+	if err := os.WriteFile(path, []byte(first), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := loadPromptTemplate(path, "fallback"); got != first {
+		t.Fatalf("initial template = %q", got)
+	}
+
+	if err := os.WriteFile(path, []byte(second), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadPromptTemplate(path, "fallback"); got != second {
+		t.Fatalf("same-metadata template correction = %q, want %q", got, second)
+	}
+}
+
 func TestBuildWriterSpecialistSystemPromptIncludesDefaultHumanizerPrompt(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\nagent:\n  system_language: de\n"), 0o644); err != nil {

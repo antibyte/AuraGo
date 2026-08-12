@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -20,7 +19,6 @@ import (
 
 	"aurago/internal/memory"
 	"aurago/internal/security"
-	promptsembed "aurago/prompts"
 
 	tiktoken "github.com/pkoukk/tiktoken-go"
 )
@@ -71,7 +69,16 @@ type promptDirCache struct {
 type promptFileRevision struct {
 	modTime time.Time
 	size    int64
+	digest  [32]byte
 }
+
+type promptSourceOrigin uint8
+
+const (
+	promptSourceDisk promptSourceOrigin = iota + 1
+	promptSourceEmbed
+	promptSourceDiskFallbackEmbed
+)
 
 // personalityMetaCache caches parsed personality meta keyed by profile path.
 var (
@@ -80,9 +87,9 @@ var (
 )
 
 type metaCacheEntry struct {
-	meta      memory.PersonalityMeta
-	mtime     time.Time
-	fromEmbed bool
+	meta     memory.PersonalityMeta
+	source   promptSourceOrigin
+	revision promptFileRevision
 }
 
 // personalityContentCache caches loaded personality profile text keyed by profile name.
@@ -92,11 +99,11 @@ var (
 )
 
 type personalityCacheEntry struct {
-	content   string
-	mtime     time.Time
-	fromEmbed bool
-	checked   time.Time
-	lastUsed  time.Time
+	content  string
+	source   promptSourceOrigin
+	revision promptFileRevision
+	checked  time.Time
+	lastUsed time.Time
 }
 
 // toolGuideCache caches tool guide contents keyed by file path.
@@ -110,6 +117,7 @@ type guideCacheEntry struct {
 	conditions []string
 	mtime      time.Time
 	size       int64
+	digest     [32]byte
 	source     guideCacheSource
 	lastUsed   time.Time
 }
@@ -431,13 +439,27 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	text := req.Text
+	baseText := text
+	addendumSections := make([]PromptSection, 0, len(req.Addenda))
 	for _, addendum := range req.Addenda {
 		body := strings.TrimSpace(addendum.Text)
 		if body == "" {
 			continue
 		}
 		heading := promptAddendumHeading(addendum.ID)
-		text = strings.TrimRight(text, "\n") + "\n\n" + heading + "\n" + body
+		if len(addendumSections) == 0 {
+			text = strings.TrimRight(text, "\n")
+			baseText = text
+		}
+		sectionText := "\n\n" + heading + "\n" + body
+		text += sectionText
+		addendumSections = append(addendumSections, PromptSection{
+			ID:       heading,
+			GroupID:  fmt.Sprintf("required_addendum:%s:%d", strings.TrimSpace(addendum.ID), len(addendumSections)),
+			Text:     sectionText,
+			Priority: 1000,
+			Required: true,
+		})
 	}
 
 	tokens := req.Tokens
@@ -472,7 +494,21 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	collector := &promptBuildDetailsCollector{}
 	fitCtx := promptBuildContextWithCollector(ctx, collector)
 	flags := &ContextFlags{Model: req.Model, TokenBudget: req.TokenBudget}
-	result, _, fittedTokens, err := budgetShedDetailedContextWithTokens(fitCtx, text, flags, tokens, logger)
+	var result string
+	var fittedTokens int
+	var err error
+	if len(addendumSections) == 0 {
+		result, _, fittedTokens, err = budgetShedDetailedContextWithTokens(fitCtx, text, flags, tokens, logger)
+	} else {
+		document := newPromptDocumentContext(fitCtx, baseText, req.Model, 0)
+		for index := range addendumSections {
+			addendumSections[index].Tokens = countTokensWithModelContext(fitCtx, addendumSections[index].Text, req.Model)
+			document.Sections = append(document.Sections, addendumSections[index])
+		}
+		document.TotalTokens = tokens
+		document.Revision = PromptRevision(text)
+		result, _, fittedTokens, err = budgetShedPromptDocumentContextWithTokens(fitCtx, text, flags, tokens, logger, document)
+	}
 	var budgetErr *PromptBudgetExceededError
 	if err != nil && !errors.As(err, &budgetErr) {
 		logger.Warn("[Prompt] System prompt fit failed", "error", err)
@@ -593,33 +629,15 @@ func loadCriticalFallbackModule(promptsDir, filename string, logger *slog.Logger
 	if filename == "" {
 		return ""
 	}
-
+	diskPath := ""
 	if promptsDir != "" {
-		path := filepath.Join(promptsDir, filename)
-		if data, err := os.ReadFile(path); err == nil {
-			if mod, err := parsePromptModule(string(data)); err == nil {
-				return strings.TrimSpace(mod.Content)
-			}
-			if logger != nil {
-				logger.Debug("Fallback prompt module on disk has invalid frontmatter, using raw content",
-					"path", path)
-			}
-			return strings.TrimSpace(string(data))
-		}
+		diskPath = filepath.Join(promptsDir, filename)
 	}
-
-	if data, err := fs.ReadFile(promptsembed.FS, filename); err == nil {
-		if mod, err := parsePromptModule(string(data)); err == nil {
-			return strings.TrimSpace(mod.Content)
-		}
-		if logger != nil {
-			logger.Debug("Embedded fallback prompt module has invalid frontmatter, using raw content",
-				"file", filename)
-		}
-		return strings.TrimSpace(string(data))
+	loaded, ok := loadPromptSourceWithEmbeddedFallback(diskPath, filename, logger)
+	if !ok {
+		return ""
 	}
-
-	return ""
+	return strings.TrimSpace(loaded.module.Content)
 }
 
 func writeActionLedgerReminder(finalPrompt *strings.Builder) {
@@ -1622,6 +1640,17 @@ func budgetShedDetailedContextWithTokens(ctx context.Context, prompt string, fla
 		noteBudgetShedFullTokenization()
 		tokens = countTokensWithModelContext(ctx, prompt, flags.Model)
 	}
+	document := newPromptDocumentContext(ctx, prompt, flags.Model, tokens)
+	return budgetShedPromptDocumentContextWithTokens(ctx, prompt, flags, tokens, logger, document)
+}
+
+func budgetShedPromptDocumentContextWithTokens(ctx context.Context, prompt string, flags *ContextFlags, tokens int, logger *slog.Logger, document PromptDocument) (string, []string, int, error) {
+	ctx = normalizePromptContext(ctx)
+	flags = normalizePromptFlags(flags)
+	logger = normalizePromptLogger(logger)
+	if err := promptContextErr(ctx); err != nil {
+		return "", nil, 0, err
+	}
 	if tokens <= flags.TokenBudget {
 		recordRemovedPromptSections(ctx, nil)
 		return prompt, nil, tokens, nil
@@ -1630,7 +1659,6 @@ func budgetShedDetailedContextWithTokens(ctx context.Context, prompt string, fla
 	logger.Info("[Budget] Token budget exceeded, shedding content", "tokens", tokens, "budget", flags.TokenBudget)
 
 	var shedList []string
-	document := newPromptDocumentContext(ctx, prompt, flags.Model, tokens)
 	removedGroups := make(map[string]bool)
 	estimatedTokens := document.estimatedTokens()
 	appendShed := func(id string) {
@@ -1661,7 +1689,7 @@ func budgetShedDetailedContextWithTokens(ctx context.Context, prompt string, fla
 
 	// Token-aware Retrieved Memories trim uses per-entry ledger counts instead
 	// of repeatedly tokenizing the full prompt.
-	if estimatedTokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
+	if estimatedTokens > flags.TokenBudget && !flags.UnifiedMemoryBlock && document.hasOptionalGroup(promptSectionRetrievedMemories) {
 		var partial, full bool
 		var err error
 		result, partial, full, estimatedTokens, err = trimRetrievedMemoriesLedgerContext(ctx, result, flags.TokenBudget, estimatedTokens, flags.Model)
@@ -2089,64 +2117,52 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 	profilePath := filepath.Join(promptsDir, "personalities", profile+".md")
 	cacheKey := filepath.Clean(promptsDir) + "\x00" + profile
 
-	// Check cache
 	personalityCacheMu.RLock()
 	cached, ok := personalityCache[cacheKey]
 	personalityCacheMu.RUnlock()
 
 	now := time.Now()
-	if ok && now.Sub(cached.checked) < time.Minute {
+	if ok && cached.source == promptSourceEmbed {
+		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
+			personalityCacheMu.Lock()
+			entry := personalityCache[cacheKey]
+			entry.checked = now
+			entry.lastUsed = now
+			personalityCache[cacheKey] = entry
+			personalityCacheMu.Unlock()
+			return cached.content
+		}
+	}
+
+	loaded, found := loadPromptSourceWithEmbeddedFallback(profilePath, "personalities/"+profile+".md", logger)
+	if !found {
+		logger.Warn("Core personality profile not found", "profile", profile)
+		return ""
+	}
+	if ok && cached.source == loaded.source && samePromptFileRevision(cached.revision, loaded.revision) {
 		personalityCacheMu.Lock()
 		entry := personalityCache[cacheKey]
+		entry.checked = now
 		entry.lastUsed = now
 		personalityCache[cacheKey] = entry
 		personalityCacheMu.Unlock()
 		return cached.content
 	}
-	if ok {
-		if info, err := os.Stat(profilePath); err == nil && !cached.fromEmbed && info.ModTime().Equal(cached.mtime) {
-			personalityCacheMu.Lock()
-			entry := personalityCache[cacheKey]
-			entry.checked = now
-			entry.lastUsed = now
-			personalityCache[cacheKey] = entry
-			personalityCacheMu.Unlock()
-			return cached.content
-		} else if os.IsNotExist(err) && cached.fromEmbed {
-			personalityCacheMu.Lock()
-			entry := personalityCache[cacheKey]
-			entry.checked = now
-			entry.lastUsed = now
-			personalityCache[cacheKey] = entry
-			personalityCacheMu.Unlock()
-			return cached.content
-		}
-	}
 
-	var raw string
-	var mtime time.Time
-	var fromEmbed bool
-	if data, err := os.ReadFile(profilePath); err == nil {
-		raw = string(data)
-		if info, err := os.Stat(profilePath); err == nil {
-			mtime = info.ModTime()
-		}
+	if loaded.source == promptSourceDisk {
 		logger.Debug("Loaded core personality profile from disk", "profile", profile)
-	} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+profile+".md"); err == nil {
-		raw = string(data)
-		fromEmbed = true
-		logger.Debug("Loaded core personality profile from embed", "profile", profile)
 	} else {
-		logger.Warn("Core personality profile not found", "profile", profile)
-		return ""
+		logger.Debug("Loaded core personality profile from embed", "profile", profile)
 	}
 
-	content := compactCorePersonalityBody(raw)
+	content := compactCorePersonalityContent(loaded.module.Content)
 	personalityCacheMu.Lock()
 	if _, exists := personalityCache[cacheKey]; !exists && len(personalityCache) >= staticPromptCacheLimit {
 		evictOldestPersonalityCacheEntryLocked()
 	}
-	personalityCache[cacheKey] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed, checked: now, lastUsed: now}
+	personalityCache[cacheKey] = personalityCacheEntry{
+		content: content, source: loaded.source, revision: loaded.revision, checked: now, lastUsed: now,
+	}
 	personalityCacheMu.Unlock()
 
 	return content
@@ -2198,6 +2214,10 @@ func compactCorePersonalityBody(raw string) string {
 	if mod, err := parsePromptModule(raw); err == nil {
 		content = strings.TrimSpace(mod.Content)
 	}
+	return compactCorePersonalityContent(content)
+}
+
+func compactCorePersonalityContent(content string) string {
 	content = stripLeadingMarkdownHeading(content)
 	return truncateRunes(strings.TrimSpace(content), maxCorePersonalityRunes)
 }

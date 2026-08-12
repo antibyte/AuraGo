@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielthedm/promptsec"
@@ -119,6 +120,7 @@ type GuardianOptions struct {
 // It scans text for known injection patterns, wraps external data for isolation,
 // and strips dangerous role-impersonation markers from tool output.
 type Guardian struct {
+	mu                sync.RWMutex
 	logger            *slog.Logger
 	maxScanBytes      int
 	scanEdgeBytes     int
@@ -178,7 +180,7 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 
 	// If a judge client was supplied at construction time, wire it in now.
 	if opts.LLMJudge.Enabled && g.llmJudge != nil {
-		g.attachLLMJudge()
+		g.attachLLMJudgeLocked()
 	}
 
 	return g
@@ -189,20 +191,32 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 // LLM-as-Judge escalation layer. If opts.Enabled is false the judge is stored
 // but not activated.
 func (g *Guardian) AttachLLMJudge(judge promptsec.LLMJudge, opts PromptSecLLMJudgeOptions) {
-	if judge == nil {
+	if g == nil || judge == nil {
 		return
 	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	g.llmJudge = judge
 	g.llmJudgeOpts = opts
 	if opts.Enabled {
-		g.attachLLMJudge()
+		g.attachLLMJudgeLocked()
 	}
 }
 
 // SetSystemPrompt updates the trusted system prompt used by structure guards.
-// It rebuilds the protector only when structure enforcement is enabled. This
-// must be called before the first Analyze/ValidateOutput call in the agent loop.
+// It rebuilds the protector only when structure enforcement is enabled. New
+// request paths should use WithSystemPrompt so shared Guardian state stays
+// independent of concurrent requests.
 func (g *Guardian) SetSystemPrompt(systemPrompt string) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.setSystemPromptLocked(systemPrompt)
+}
+
+func (g *Guardian) setSystemPromptLocked(systemPrompt string) {
 	if !g.structureOpts.Enabled || g.systemPrompt == systemPrompt {
 		return
 	}
@@ -229,9 +243,38 @@ func (g *Guardian) SetSystemPrompt(systemPrompt string) {
 	}))
 	g.hasStructureGuard = true
 	g.protector = g.newProtector(scanOptions{})
-	if g.llmJudge != nil {
-		g.attachLLMJudge()
+	if g.llmJudge != nil && g.llmJudgeOpts.Enabled {
+		g.attachLLMJudgeLocked()
 	}
+}
+
+// WithSystemPrompt returns a request-local Guardian with the same immutable
+// configuration and a structure guard bound to systemPrompt. The shared
+// Guardian is never mutated.
+func (g *Guardian) WithSystemPrompt(systemPrompt string) *Guardian {
+	if g == nil {
+		return nil
+	}
+	g.mu.RLock()
+	clone := &Guardian{
+		logger:            g.logger,
+		maxScanBytes:      g.maxScanBytes,
+		scanEdgeBytes:     g.scanEdgeBytes,
+		useSanitized:      g.useSanitized,
+		psOpts:            append([]promptsec.Guard(nil), g.psOpts...),
+		taintOpts:         g.taintOpts,
+		llmJudgeOpts:      g.llmJudgeOpts,
+		llmJudge:          g.llmJudge,
+		llmJudgeGuard:     g.llmJudgeGuard,
+		structureOpts:     g.structureOpts,
+		systemPrompt:      g.systemPrompt,
+		hasStructureGuard: g.hasStructureGuard,
+	}
+	g.mu.RUnlock()
+
+	clone.protector = clone.newProtector(scanOptions{})
+	clone.setSystemPromptLocked(systemPrompt)
+	return clone
 }
 
 // buildPromptSecGuards assembles the core guard chain from configuration.
@@ -304,7 +347,7 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 	return psOpts
 }
 
-func (g *Guardian) attachLLMJudge() {
+func (g *Guardian) attachLLMJudgeLocked() {
 	if g.llmJudge == nil {
 		return
 	}
@@ -463,16 +506,22 @@ func (g *Guardian) SanitizeForLLM(text, source string) ScanResult {
 // before re-sanitizing the latest user message to avoid nesting the trusted
 // system prompt on every tool iteration.
 func (g *Guardian) HasPromptSecStructuredOutput(text string) bool {
-	if g == nil || !g.structureOpts.Enabled || strings.TrimSpace(g.systemPrompt) == "" {
+	if g == nil {
+		return false
+	}
+	g.mu.RLock()
+	structureOpts := g.structureOpts
+	systemPrompt := strings.TrimSpace(g.systemPrompt)
+	g.mu.RUnlock()
+	if !structureOpts.Enabled || systemPrompt == "" {
 		return false
 	}
 	text = strings.TrimSpace(text)
-	systemPrompt := strings.TrimSpace(g.systemPrompt)
 	if text == "" {
 		return false
 	}
 
-	switch strings.ToLower(g.structureOpts.Mode) {
+	switch strings.ToLower(structureOpts.Mode) {
 	case "post":
 		return strings.HasSuffix(text, "\n\n"+systemPrompt)
 	case "random":
@@ -500,20 +549,26 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 		return ScanResult{Level: ThreatNone}
 	}
 
-	scanWindows, chunked := prepareGuardianScanTexts(text, g.maxScanBytes, g.scanEdgeBytes)
+	g.mu.RLock()
+	maxScanBytes := g.maxScanBytes
+	scanEdgeBytes := g.scanEdgeBytes
+	useSanitized := g.useSanitized
+	protector := g.protector
+	if g.taintOpts.Enabled {
+		protector = g.newProtector(opts)
+	}
+	g.mu.RUnlock()
+
+	scanWindows, chunked := prepareGuardianScanTexts(text, maxScanBytes, scanEdgeBytes)
 	result := ScanResult{Level: ThreatNone}
 	var msgs []string
 
 	for _, scanText := range scanWindows {
-		protector := g.protector
-		if g.taintOpts.Enabled {
-			protector = g.newProtector(opts)
-		}
 		analysis := protector.Analyze(scanText)
 
 		// Collect sanitized output from the first window when requested.
 		// Some guards (e.g. structure) rewrite the output without adding threats.
-		if (g.useSanitized || opts.returnSanitized) && result.Sanitized == "" {
+		if (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
 			result.Sanitized = analysis.Output
 		}
 		if result.TaintSource == "" {
@@ -699,7 +754,10 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		}
 	}
 
-	validation := g.protector.ValidateOutput(output, nil)
+	g.mu.RLock()
+	protector := g.protector
+	g.mu.RUnlock()
+	validation := protector.ValidateOutput(output, nil)
 	if !validation.Safe {
 		var msgs []string
 		for _, thr := range validation.Threats {

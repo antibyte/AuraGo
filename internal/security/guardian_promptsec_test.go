@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/danielthedm/promptsec"
@@ -196,6 +197,50 @@ func TestGuardianSetSystemPromptStructure(t *testing.T) {
 	}
 	if !strings.Contains(res.Sanitized, "You are a secure assistant.") {
 		t.Fatalf("expected structured output to contain system prompt, got %q", res.Sanitized)
+	}
+}
+
+func TestGuardianWithSystemPromptIsRequestLocal(t *testing.T) {
+	shared := NewGuardianWithOptions(nil, GuardianOptions{
+		Structure:          PromptSecStructureOptions{Enabled: true, Mode: "sandwich"},
+		UseSanitizedOutput: true,
+		SystemPrompt:       "BASE SYSTEM PROMPT",
+	})
+	first := shared.WithSystemPrompt("FIRST REQUEST SYSTEM PROMPT")
+	second := shared.WithSystemPrompt("SECOND REQUEST SYSTEM PROMPT")
+
+	type outcome struct {
+		name string
+		text string
+	}
+	results := make(chan outcome, 2)
+	var wg sync.WaitGroup
+	for name, guardian := range map[string]*Guardian{"first": first, "second": second} {
+		name, guardian := name, guardian
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- outcome{name: name, text: guardian.SanitizeForLLM("user request", "user").Sanitized}
+		}()
+	}
+	wg.Wait()
+	close(results)
+
+	for result := range results {
+		switch result.name {
+		case "first":
+			if !strings.Contains(result.text, "FIRST REQUEST SYSTEM PROMPT") || strings.Contains(result.text, "SECOND REQUEST SYSTEM PROMPT") {
+				t.Fatalf("first request guardian crossed prompts: %q", result.text)
+			}
+		case "second":
+			if !strings.Contains(result.text, "SECOND REQUEST SYSTEM PROMPT") || strings.Contains(result.text, "FIRST REQUEST SYSTEM PROMPT") {
+				t.Fatalf("second request guardian crossed prompts: %q", result.text)
+			}
+		}
+	}
+	base := shared.SanitizeForLLM("user request", "user").Sanitized
+	if !strings.Contains(base, "BASE SYSTEM PROMPT") || strings.Contains(base, "FIRST REQUEST SYSTEM PROMPT") || strings.Contains(base, "SECOND REQUEST SYSTEM PROMPT") {
+		t.Fatalf("shared guardian was mutated by request clones: %q", base)
 	}
 }
 

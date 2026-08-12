@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -38,6 +39,7 @@ type coAgentPromptTemplate struct {
 	Content string
 	ModTime time.Time
 	Size    int64
+	Digest  [32]byte
 	Exists  bool
 }
 
@@ -544,40 +546,38 @@ var (
 
 // loadPromptTemplate reads a prompt template from the cache, populating it on first
 // access via os.ReadFile. If the file cannot be read, fallback is returned.
-// The cache invalidates automatically when the file timestamp changes.
+// The cache invalidates on content changes even when timestamp and size remain stable.
 func loadPromptTemplate(path, fallback string) string {
+	b, readErr := os.ReadFile(path)
 	stat, statErr := os.Stat(path)
+	digest := sha256.Sum256(b)
 
 	coAgentTemplateMu.RLock()
 	if cached, ok := coAgentTemplateCache[path]; ok {
 		coAgentTemplateMu.RUnlock()
-		if statErr != nil {
+		if readErr != nil || statErr != nil {
 			if !cached.Exists {
 				return fallback
 			}
-		} else if cached.Exists && cached.ModTime.Equal(stat.ModTime()) && cached.Size == stat.Size() {
+		} else if cached.Exists && cached.ModTime.Equal(stat.ModTime()) && cached.Size == stat.Size() && cached.Digest == digest {
 			return cached.Content
 		}
 	} else {
 		coAgentTemplateMu.RUnlock()
 	}
 
-	// Read outside any lock — multiple goroutines may do this redundantly,
-	// but the write is idempotent and far cheaper than holding a lock during I/O.
-	b, err := os.ReadFile(path)
-
 	coAgentTemplateMu.Lock()
 	defer coAgentTemplateMu.Unlock()
 	// Double-check: another goroutine may have populated the cache while we read.
 	if cached, ok := coAgentTemplateCache[path]; ok {
-		if statErr != nil && !cached.Exists {
+		if (readErr != nil || statErr != nil) && !cached.Exists {
 			return fallback
 		}
-		if statErr == nil && cached.Exists && cached.ModTime.Equal(stat.ModTime()) && cached.Size == stat.Size() {
+		if readErr == nil && statErr == nil && cached.Exists && cached.ModTime.Equal(stat.ModTime()) && cached.Size == stat.Size() && cached.Digest == digest {
 			return cached.Content
 		}
 	}
-	if err != nil {
+	if readErr != nil {
 		coAgentTemplateCache[path] = coAgentPromptTemplate{Exists: false}
 		return fallback
 	}
@@ -590,6 +590,7 @@ func loadPromptTemplate(path, fallback string) string {
 		Content: s,
 		ModTime: modTime,
 		Size:    int64(len(b)),
+		Digest:  digest,
 		Exists:  true,
 	}
 	return s

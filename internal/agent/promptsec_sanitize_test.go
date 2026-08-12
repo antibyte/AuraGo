@@ -4,10 +4,31 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sashabaranov/go-openai"
-
+	"aurago/internal/config"
 	"aurago/internal/security"
+
+	"github.com/sashabaranov/go-openai"
 )
+
+func TestApplyPromptSecurityUsesRequestLocalGuardian(t *testing.T) {
+	guardian := security.NewGuardianWithOptions(nil, security.GuardianOptions{
+		Structure:          security.PromptSecStructureOptions{Enabled: true, Mode: "sandwich"},
+		UseSanitizedOutput: true,
+		SystemPrompt:       "BASE SYSTEM PROMPT",
+	})
+	cfg := &config.Config{}
+	cfg.Guardian.PromptSec.Structure.Enabled = true
+	cfg.Guardian.PromptSec.UseSanitizedOutput = true
+	req := openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{{
+		Role: openai.ChatMessageRoleUser, Content: "user request",
+	}}}
+
+	applyPromptSecurityToRequest(&req, cfg, guardian, "REQUEST SYSTEM PROMPT", nil)
+	base := guardian.SanitizeForLLM("another request", "user").Sanitized
+	if !strings.Contains(base, "BASE SYSTEM PROMPT") || strings.Contains(base, "REQUEST SYSTEM PROMPT") {
+		t.Fatalf("shared guardian was mutated during request preparation: %q", base)
+	}
+}
 
 func TestApplyPromptSecToLatestUserMessageUsesSanitizedOutput(t *testing.T) {
 	guardian := security.NewGuardianWithOptions(nil, security.GuardianOptions{
