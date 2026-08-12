@@ -36,6 +36,3 @@ Structure your result as:
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}
-
-## Your Coding Task
-{{TASK}}

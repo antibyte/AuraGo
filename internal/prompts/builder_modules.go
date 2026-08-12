@@ -19,13 +19,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule {
+// PromptSourceStatus distinguishes compatible plain Markdown from valid and
+// malformed frontmatter-bearing prompt sources.
+type PromptSourceStatus uint8
+
+const (
+	PromptSourcePlain PromptSourceStatus = iota + 1
+	PromptSourceValidFrontmatter
+	PromptSourceMalformedFrontmatter
+)
+
+// ParsePromptSource parses one prompt source without allowing malformed
+// frontmatter to degrade into unconditional core instructions.
+func ParsePromptSource(filename, content string, logger *slog.Logger) (PromptModule, PromptSourceStatus, error) {
 	mod, err := parsePromptModule(content)
-	if err != nil {
-		if logger != nil {
-			logger.Debug("Prompt module has no valid YAML frontmatter, using raw content as fallback",
-				"file", filename, "error", err)
-		}
+	if err == nil {
+		return *mod, PromptSourceValidFrontmatter, nil
+	}
+	if !promptSourceStartsWithFrontmatter(content) {
 		return PromptModule{
 			Metadata: PromptMetadata{
 				ID:       strings.TrimSuffix(filepath.Base(filename), ".md"),
@@ -33,9 +44,47 @@ func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule
 				Tags:     []string{"core"},
 			},
 			Content: content,
-		}
+		}, PromptSourcePlain, nil
 	}
-	return *mod
+	if logger != nil {
+		logger.Warn("Skipping prompt source with malformed frontmatter",
+			"file", filepath.Base(filename), "error_class", "malformed_frontmatter")
+	}
+	return PromptModule{}, PromptSourceMalformedFrontmatter, err
+}
+
+// ReadEmbeddedPromptSource returns one validated immutable prompt source.
+func ReadEmbeddedPromptSource(path string, logger *slog.Logger) (PromptModule, bool) {
+	path = strings.TrimPrefix(filepath.ToSlash(filepath.Clean(path)), "./")
+	data, err := fs.ReadFile(promptsembed.FS, path)
+	if err != nil {
+		return PromptModule{}, false
+	}
+	module, status, err := ParsePromptSource(path, string(data), logger)
+	if err != nil || status == PromptSourceMalformedFrontmatter {
+		return PromptModule{}, false
+	}
+	return module, true
+}
+
+func promptSourceStartsWithFrontmatter(content string) bool {
+	content = strings.TrimPrefix(content, "\xEF\xBB\xBF")
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	content = strings.TrimLeft(content, "\r\n ")
+	return strings.HasPrefix(content, "---")
+}
+
+func parseOrFallback(filename, content string, logger *slog.Logger) (PromptModule, PromptSourceStatus, error) {
+	return ParsePromptSource(filename, content, logger)
+}
+
+func addPromptModule(moduleMap map[string]PromptModule, key, filename, content string, logger *slog.Logger) bool {
+	mod, status, err := parseOrFallback(filename, content, logger)
+	if err != nil || status == PromptSourceMalformedFrontmatter {
+		return false
+	}
+	moduleMap[key] = mod
+	return true
 }
 
 // GetActivePromptOverrides is a function hook to break import cycles.
@@ -50,11 +99,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	promptCacheMu.RUnlock()
 
 	if ok {
-		if now.Sub(cached.checked) < 60*time.Second {
-			touchPromptModuleCacheEntry(dir, now)
-			return cached.modules
-		}
-		if !promptCacheStale(dir, cached.mtimes) {
+		if !promptCacheStale(dir, cached.revisions) {
 			promptCacheMu.Lock()
 			c := promptCacheByDir[dir]
 			c.checked = now
@@ -92,12 +137,12 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		if err != nil {
 			return nil
 		}
-		moduleMap[strings.ToLower(path)] = parseOrFallback(path, string(data), logger)
+		addPromptModule(moduleMap, strings.ToLower(path), path, string(data), logger)
 		return nil
 	})
 
 	// 2. Overlay with on-disk files (user identity.md or custom prompts override the embedded versions)
-	mtimes := make(map[string]time.Time)
+	revisions := make(map[string]promptFileRevision)
 	if files, err := os.ReadDir(dir); err == nil {
 		for _, file := range files {
 			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
@@ -109,7 +154,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 			path := filepath.Join(dir, file.Name())
 			info, err := file.Info()
 			if err == nil {
-				mtimes[path] = info.ModTime()
+				revisions[path] = promptFileRevision{modTime: info.ModTime(), size: info.Size()}
 			}
 			data, err := os.ReadFile(path)
 			if err != nil {
@@ -117,7 +162,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 				continue
 			}
 			key := strings.ToLower(file.Name())
-			moduleMap[key] = parseOrFallback(file.Name(), string(data), logger)
+			addPromptModule(moduleMap, key, file.Name(), string(data), logger)
 		}
 	} else if len(moduleMap) == 0 {
 		logger.Error("Failed to read prompts directory and no embedded modules loaded", "path", dir, "error", err)
@@ -139,7 +184,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	if _, exists := promptCacheByDir[dir]; !exists && len(promptCacheByDir) >= staticPromptCacheLimit {
 		evictOldestPromptModuleCacheEntryLocked()
 	}
-	promptCacheByDir[dir] = promptDirCache{modules: modules, mtimes: mtimes, checked: now, lastUsed: now}
+	promptCacheByDir[dir] = promptDirCache{modules: modules, revisions: revisions, checked: now, lastUsed: now}
 	promptCacheMu.Unlock()
 
 	if ok {
@@ -187,7 +232,7 @@ func isExcludedRootPromptModule(name string) bool {
 
 // promptCacheStale returns true if any tracked file has a newer ModTime,
 // or if the directory now has different files than when the cache was built.
-func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
+func promptCacheStale(dir string, revisions map[string]promptFileRevision) bool {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return true
@@ -206,11 +251,11 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 		if err != nil {
 			return true
 		}
-		if cached, ok := mtimes[path]; !ok || !info.ModTime().Equal(cached) {
+		if cached, ok := revisions[path]; !ok || !info.ModTime().Equal(cached.modTime) || info.Size() != cached.size {
 			return true
 		}
 	}
-	return newCount != len(mtimes)
+	return newCount != len(revisions)
 }
 
 // ClearPromptCache invalidates every prompt-derived cache and advances the
@@ -558,12 +603,12 @@ func touchGuideCacheEntry(path string, now time.Time) {
 	guideCacheMu.Unlock()
 }
 
-func parseToolGuideRaw(raw string) (content string, conditions []string) {
-	mod, err := parsePromptModule(raw)
-	if err != nil {
-		return strings.TrimSpace(raw), nil
+func parseToolGuideRaw(filename, raw string, logger *slog.Logger) (content string, conditions []string, status PromptSourceStatus, err error) {
+	mod, status, err := ParsePromptSource(filename, raw, logger)
+	if err != nil || status == PromptSourceMalformedFrontmatter {
+		return "", nil, status, err
 	}
-	return mod.Content, mod.Metadata.Conditions
+	return mod.Content, mod.Metadata.Conditions, status, nil
 }
 
 // readToolGuide reads a tool guide file with caching.
@@ -597,7 +642,7 @@ func canonicalToolGuide(path string) (guideCacheEntry, bool) {
 	if ok {
 		now := time.Now()
 		info, err := os.Stat(path)
-		if err == nil && cached.source == guideSourceDisk && info.ModTime().Equal(cached.mtime) && info.Size() == cached.size {
+		if err == nil && (cached.source == guideSourceDisk || cached.source == guideSourceDiskFallbackEmbed) && info.ModTime().Equal(cached.mtime) && info.Size() == cached.size {
 			touchGuideCacheEntry(path, now)
 			return cached, true
 		}
@@ -609,9 +654,11 @@ func canonicalToolGuide(path string) (guideCacheEntry, bool) {
 	}
 
 	// 1. Try on-disk file first (user overrides)
-	data, err := os.ReadFile(path)
+	data, diskErr := os.ReadFile(path)
 	fromEmbed := false
-	if err != nil {
+	fallbackFromMalformedDisk := false
+	diskInfo, _ := os.Stat(path)
+	if diskErr != nil {
 		// 2. Fallback: extract relative embed path (e.g. "tools_manuals/docker.md")
 		data, ok = readToolGuideEmbed(path)
 		if !ok {
@@ -620,15 +667,36 @@ func canonicalToolGuide(path string) (guideCacheEntry, bool) {
 		fromEmbed = true
 	}
 
-	body, conditions := parseToolGuideRaw(string(data))
+	body, conditions, status, parseErr := parseToolGuideRaw(path, string(data), slog.Default())
+	if parseErr != nil || status == PromptSourceMalformedFrontmatter {
+		if fromEmbed {
+			return guideCacheEntry{}, false
+		}
+		embedded, embeddedOK := readToolGuideEmbed(path)
+		if !embeddedOK {
+			return guideCacheEntry{}, false
+		}
+		body, conditions, status, parseErr = parseToolGuideRaw(path, string(embedded), slog.Default())
+		if parseErr != nil || status == PromptSourceMalformedFrontmatter {
+			return guideCacheEntry{}, false
+		}
+		fromEmbed = true
+		fallbackFromMalformedDisk = true
+	}
 	content := truncateGuide(body, 2048)
 	now := time.Now()
 	entry := guideCacheEntry{content: content, conditions: conditions, source: guideSourceEmbed, lastUsed: now}
-	if !fromEmbed {
+	if fallbackFromMalformedDisk {
+		entry.source = guideSourceDiskFallbackEmbed
+		if diskInfo != nil {
+			entry.mtime = diskInfo.ModTime()
+			entry.size = diskInfo.Size()
+		}
+	} else if !fromEmbed {
 		entry.source = guideSourceDisk
-		if info, statErr := os.Stat(path); statErr == nil {
-			entry.mtime = info.ModTime()
-			entry.size = info.Size()
+		if diskInfo != nil {
+			entry.mtime = diskInfo.ModTime()
+			entry.size = diskInfo.Size()
 		}
 	}
 	guideCacheMu.Lock()

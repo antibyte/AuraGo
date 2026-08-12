@@ -1284,9 +1284,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		fitRequest := prompts.PromptFitRequest{
 			Text: basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget,
+			Addenda: append([]prompts.PromptAddendum(nil), s.runCfg.TrustedPromptAddenda...),
 		}
 		if budgetHint != "" {
-			fitRequest.Addenda = []prompts.PromptAddendum{{ID: "budget_status", Text: budgetHint}}
+			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "budget_status", Text: budgetHint})
 		}
 		promptResult, promptFitErr := prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
 		prompts.RecordPromptFit(prompts.PromptFitRecord{
@@ -1317,19 +1318,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		promptBuildDuration := time.Since(promptBuildStarted)
 
-		// Update the Guardian with the current trusted system prompt so that
-		// structure enforcement (sandwich defense) can frame user/external input.
-		if cfg.Guardian.PromptSec.Structure.Enabled && s.guardian != nil {
-			s.guardian.SetSystemPrompt(sysPrompt)
-		}
-		if s.guardian != nil && (cfg.Guardian.PromptSec.UseSanitizedOutput || cfg.Guardian.PromptSec.Structure.Enabled) {
-			if updatedMessages, applied := applyPromptSecToLatestUserMessage(req.Messages, s.guardian); applied {
-				req.Messages = updatedMessages
-				s.currentLogger.Debug("[Guardian] Applied promptsec sanitized user message",
-					"structure", cfg.Guardian.PromptSec.Structure.Enabled,
-					"use_sanitized_output", cfg.Guardian.PromptSec.UseSanitizedOutput)
-			}
-		}
+		applyPromptSecurityToRequest(&req, cfg, s.guardian, sysPrompt, s.currentLogger)
 
 		s.currentLogger.Debug("[Sync] System prompt ready",
 			"cache_hit", cacheHit,
@@ -1456,19 +1445,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Pre-send validation: ensure tool-call integrity before sending to the
 		// provider. This catches orphaned tool results that slipped through
 		// GetForLLM() or were introduced by context compression / trimming.
-		sanitizedMessages, droppedToolMessages = SanitizeToolMessages(req.Messages)
-		beforeSanitizeMessages = len(req.Messages)
-		req.Messages = sanitizedMessages
-		if droppedToolMessages > 0 {
-			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
-				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
+		finalizedRequest, finalizeErr := finalizePromptRequestForSend(&req, requestBudget, tokenCache, telemetryScope.ProviderType, s.currentLogger)
+		if finalizeErr != nil {
+			return openai.ChatCompletionResponse{}, finalizeErr
 		}
-		req.Messages = sanitizeReasoningForContinuation(req.Messages, telemetryScope.ProviderType, req.Model)
-		budgetUsage, budgetValidationErr := requestBudget.validate(req.Messages, req.Tools, tokenCache)
-		if budgetValidationErr != nil {
-			return openai.ChatCompletionResponse{}, budgetValidationErr
-		}
-		for _, usage := range budgetUsage {
+		for _, usage := range finalizedRequest.Usage {
 			s.currentLogger.Info("[PromptBudget] Request ready",
 				"prompt_build_ms", promptBuildDuration.Milliseconds(),
 				"builder_prompt_revision", builderPromptRevision,
@@ -1491,12 +1472,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Prompt log: append full request JSON to prompts.log when enabled.
 		// Logged AFTER sanitization so the record reflects what is actually sent.
-		if cfg.Logging.EnablePromptLog {
-			entry := newPromptLogEntry(req, telemetryScope.ProviderType, builderPromptRevision, recoveryState, retry422Count, s.toolCallCount)
-			if err := loggerPkg.AppendPromptLogEntry(cfg.Logging.LogDir, entry); err != nil {
-				s.currentLogger.Warn("[PromptLog] Failed to write entry", "error", err)
-			}
-		}
+		appendPreparedPromptLog(cfg, req, telemetryScope.ProviderType, builderPromptRevision, recoveryState, retry422Count, s.toolCallCount, s.currentLogger)
 
 		// ── Temperature: base from config + personality modulation ──
 		baseTemp := cfg.LLM.Temperature

@@ -18,6 +18,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -36,6 +37,7 @@ type CoAgentRequest struct {
 type coAgentPromptTemplate struct {
 	Content string
 	ModTime time.Time
+	Size    int64
 	Exists  bool
 }
 
@@ -275,7 +277,6 @@ func SpawnCoAgent(
 		llmReq := openai.ChatCompletionRequest{
 			Model: coModel,
 			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
 				{Role: openai.ChatMessageRoleUser, Content: req.Task},
 			},
 		}
@@ -299,11 +300,17 @@ func SpawnCoAgent(
 			CoAgentRegistry:   nil,
 			BudgetTracker:     budgetTracker,
 			SessionID:         sessionID,
+			UserIntent:        req.Task,
 			MessageSource:     "co_agent",
 			IsMaintenance:     false,
 			IsCoAgent:         true,
 			CoAgentSpecialist: req.Specialist,
 		}
+		addendumID := prompts.PromptAddendumCoAgent
+		if req.Specialist != "" {
+			addendumID = prompts.PromptAddendumSpecialist
+		}
+		runCfg.TrustedPromptAddenda = []prompts.PromptAddendum{{ID: addendumID, Text: systemPrompt}}
 
 		maxRetries := cfg.CoAgents.RetryPolicy.MaxRetries
 		delay := time.Duration(cfg.CoAgents.RetryPolicy.RetryDelaySeconds) * time.Second
@@ -548,7 +555,7 @@ func loadPromptTemplate(path, fallback string) string {
 			if !cached.Exists {
 				return fallback
 			}
-		} else if cached.Exists && cached.ModTime.Equal(stat.ModTime()) {
+		} else if cached.Exists && cached.ModTime.Equal(stat.ModTime()) && cached.Size == stat.Size() {
 			return cached.Content
 		}
 	} else {
@@ -566,7 +573,7 @@ func loadPromptTemplate(path, fallback string) string {
 		if statErr != nil && !cached.Exists {
 			return fallback
 		}
-		if statErr == nil && cached.Exists && cached.ModTime.Equal(stat.ModTime()) {
+		if statErr == nil && cached.Exists && cached.ModTime.Equal(stat.ModTime()) && cached.Size == stat.Size() {
 			return cached.Content
 		}
 	}
@@ -582,6 +589,7 @@ func loadPromptTemplate(path, fallback string) string {
 	coAgentTemplateCache[path] = coAgentPromptTemplate{
 		Content: s,
 		ModTime: modTime,
+		Size:    int64(len(b)),
 		Exists:  true,
 	}
 	return s
@@ -595,6 +603,22 @@ func loadPromptTemplateExists(path string) (string, bool) {
 		return "", false
 	}
 	return tmpl, true
+}
+
+func loadValidatedPromptTemplate(path, embeddedPath, fallback string, logger *slog.Logger) (string, bool) {
+	raw, ok := loadPromptTemplateExists(path)
+	if ok {
+		module, status, err := prompts.ParsePromptSource(path, raw, logger)
+		if err == nil && status != prompts.PromptSourceMalformedFrontmatter {
+			return module.Content, true
+		}
+	}
+	if strings.TrimSpace(embeddedPath) != "" {
+		if module, found := prompts.ReadEmbeddedPromptSource(embeddedPath, logger); found {
+			return module.Content, true
+		}
+	}
+	return fallback, false
 }
 
 type coAgentContextPolicy struct {
@@ -804,9 +828,9 @@ func isRetryableCoAgentError(cfg *config.Config, err error) bool {
 }
 
 func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
-	const coAgentFallbackTmpl = "You are a Co-Agent helper. Complete the task and return the result.\nLanguage: {{LANGUAGE}}\n\n{{CONTEXT_SNAPSHOT}}\n\nTask: {{TASK}}"
+	const coAgentFallbackTmpl = "You are a Co-Agent helper. Complete the user assignment and return the result.\nLanguage: {{LANGUAGE}}\n\n{{CONTEXT_SNAPSHOT}}"
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "coagent_system.md")
-	tmpl := stripYAMLFrontmatter(loadPromptTemplate(tmplPath, coAgentFallbackTmpl))
+	tmpl, _ := loadValidatedPromptTemplate(tmplPath, "templates/coagent_system.md", coAgentFallbackTmpl, slog.Default())
 
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
 	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
@@ -818,11 +842,10 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 // It loads the specialist-specific template, falling back to the generic co-agent template.
 func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory, cheatsheetDB *sql.DB) string {
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "specialist_"+role+".md")
-	rawTmpl, ok := loadPromptTemplateExists(tmplPath)
+	tmpl, ok := loadValidatedPromptTemplate(tmplPath, "templates/specialist_"+role+".md", "", slog.Default())
 	if !ok {
 		return buildCoAgentSystemPrompt(cfg, req, ltm, stm)
 	}
-	tmpl := stripYAMLFrontmatter(rawTmpl)
 
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
 	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
@@ -871,11 +894,11 @@ func loadSecuritySpecialistSkillPrompt(cfg *config.Config) string {
 	if path == "" {
 		return ""
 	}
-	raw, ok := loadPromptTemplateExists(path)
+	tmpl, ok := loadValidatedPromptTemplate(path, "", "", slog.Default())
 	if !ok {
 		return ""
 	}
-	return strings.TrimSpace(stripYAMLFrontmatter(raw))
+	return strings.TrimSpace(tmpl)
 }
 
 func securitySpecialistSkillPromptPath(cfg *config.Config) string {

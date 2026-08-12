@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -244,6 +245,38 @@ func TestExecuteAgentLoopPreservesIncomingSystemAddendum(t *testing.T) {
 	}
 	if !containsMessage(client.lastReq.Messages, openai.ChatMessageRoleUser, "hello") {
 		t.Fatalf("user message was not preserved: %#v", client.lastReq.Messages)
+	}
+}
+
+func TestExecuteAgentLoopFitsTrustedAddendumIntoSingleSystemMessage(t *testing.T) {
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "coagent-test", "co_agent")
+	defer cleanup()
+	runCfg.UserIntent = "immutable delegated task"
+	runCfg.TrustedPromptAddenda = []prompts.PromptAddendum{{
+		ID: prompts.PromptAddendumCoAgent, Text: "Use only the delegated execution contract.",
+	}}
+	req := openai.ChatCompletionRequest{
+		Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{
+			Role: openai.ChatMessageRoleUser, Content: "immutable delegated task",
+		}},
+	}
+
+	if _, err := ExecuteAgentLoop(context.Background(), req, runCfg, false, NoopBroker{}); err != nil {
+		t.Fatalf("ExecuteAgentLoop: %v", err)
+	}
+	systemCount := 0
+	for _, message := range client.lastReq.Messages {
+		if message.Role == openai.ChatMessageRoleSystem {
+			systemCount++
+		}
+	}
+	if systemCount != 1 {
+		t.Fatalf("system message count = %d, want 1: %#v", systemCount, client.lastReq.Messages)
+	}
+	system := client.lastReq.Messages[0].Content
+	if !strings.Contains(system, "# CO-AGENT ASSIGNMENT") || !strings.Contains(system, "Use only the delegated execution contract.") {
+		t.Fatalf("trusted addendum missing from fitted system prompt:\n%s", system)
 	}
 }
 

@@ -47,6 +47,3 @@ Structure your research result as:
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}
-
-## Your Research Task
-{{TASK}}

@@ -41,6 +41,3 @@ Deliver the written content directly, formatted appropriately for the medium (Ma
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}
-
-## Your Writing Task
-{{TASK}}

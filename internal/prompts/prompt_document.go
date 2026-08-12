@@ -56,6 +56,14 @@ type PromptAddendum struct {
 	Text string
 }
 
+// Stable IDs for trusted request-local execution contracts. These addenda are
+// required prompt sections and are included in final fitting and revisions.
+const (
+	PromptAddendumA2A        = "a2a_execution_contract"
+	PromptAddendumCoAgent    = "coagent_assignment"
+	PromptAddendumSpecialist = "specialist_assignment"
+)
+
 // PromptFitRequest describes the cheap, request-local budget stage.
 type PromptFitRequest struct {
 	Text        string

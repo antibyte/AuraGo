@@ -1110,15 +1110,19 @@ type RunConfig struct {
 	// UserIntent is the immutable human-authored request for this turn. Entry
 	// points should set it explicitly; direct callers retain the compatibility
 	// fallback to the last initial user message.
-	UserIntent        string
-	IsMaintenance     bool
-	IsCoAgent         bool
-	CoAgentSpecialist string
-	ParentSessionID   string
-	IsMission         bool   // true when triggered by a mission (skips RAG, personality, profiling)
-	MissionID         string // mission ID for logging/tracking
-	MessageSource     string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
-	VoiceOutputActive bool   // true when the user's speaker toggle is on
+	UserIntent string
+	// TrustedPromptAddenda contains request-local execution contracts that are
+	// fitted into the generated system prompt. Callers must never place user or
+	// external content here.
+	TrustedPromptAddenda []prompts.PromptAddendum
+	IsMaintenance        bool
+	IsCoAgent            bool
+	CoAgentSpecialist    string
+	ParentSessionID      string
+	IsMission            bool   // true when triggered by a mission (skips RAG, personality, profiling)
+	MissionID            string // mission ID for logging/tracking
+	MessageSource        string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
+	VoiceOutputActive    bool   // true when the user's speaker toggle is on
 	// SuppressTurnSideEffects disables derived memory, personality, journal,
 	// activity and reuse-first work for privacy-sensitive transient sessions.
 	// It preserves the historical behavior when false.

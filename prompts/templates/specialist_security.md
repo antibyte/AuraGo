@@ -43,6 +43,3 @@ Structure your security report as:
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}
-
-## Your Security Task
-{{TASK}}

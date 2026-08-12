@@ -13,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -57,21 +58,21 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		logger.Info("A2A Execute started", "context_id", execCtx.ContextID)
 
 		// Extract text from the incoming message parts
-		userText := extractTextFromMessage(execCtx.Message)
-		if userText == "" {
+		userIntent := extractTextFromMessage(execCtx.Message)
+		if userIntent == "" {
 			evt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateFailed,
 				a2a.NewMessage(a2a.MessageRoleAgent, a2a.NewTextPart("No text content in message")))
 			yield(evt, nil)
 			return
 		}
 
-		if shouldBlockA2APromptInjection(userText, e.deps.Guardian, logger, string(execCtx.TaskID)) {
+		if shouldBlockA2APromptInjection(userIntent, e.deps.Guardian, logger, string(execCtx.TaskID)) {
 			msg := a2a.NewMessage(a2a.MessageRoleAgent, a2a.NewTextPart("Message blocked by the security guardian."))
 			evt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateFailed, msg)
 			yield(evt, nil)
 			return
 		}
-		userText = security.IsolateExternalData(userText)
+		userText := security.IsolateExternalData(userIntent)
 
 		// Emit working status
 		workingEvt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateWorking, nil)
@@ -86,13 +87,7 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		// Build system prompt for A2A context
 		systemPrompt := buildA2ASystemPrompt(e.deps.Config)
 
-		llmReq := openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: userText},
-			},
-		}
+		llmReq, trustedAddenda := buildA2APromptRequest(model, userText, systemPrompt)
 
 		// Ephemeral history for A2A requests
 		historyMgr := memory.NewEphemeralHistoryManager()
@@ -112,25 +107,27 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		}
 
 		runCfg := agent.RunConfig{
-			Config:             &a2aCfg,
-			Logger:             logger,
-			LLMClient:          a2aClient,
-			ShortTermMem:       e.deps.ShortTermMem,
-			HistoryManager:     historyMgr,
-			LongTermMem:        e.deps.LongTermMem,
-			KG:                 e.deps.KG,
-			InventoryDB:        e.deps.InventoryDB,
-			Vault:              e.deps.Vault,
-			Registry:           e.deps.Registry,
-			Manifest:           e.deps.Manifest,
-			CronManager:        nil, // A2A agents cannot manage cron
-			CoAgentRegistry:    nil, // A2A agents cannot spawn co-agents
-			BudgetTracker:      e.deps.Budget,
-			PreparationService: nil,
-			SessionID:          sessionID,
-			IsMaintenance:      false,
-			IsCoAgent:          true,
-			MessageSource:      "a2a",
+			Config:               &a2aCfg,
+			Logger:               logger,
+			LLMClient:            a2aClient,
+			ShortTermMem:         e.deps.ShortTermMem,
+			HistoryManager:       historyMgr,
+			LongTermMem:          e.deps.LongTermMem,
+			KG:                   e.deps.KG,
+			InventoryDB:          e.deps.InventoryDB,
+			Vault:                e.deps.Vault,
+			Registry:             e.deps.Registry,
+			Manifest:             e.deps.Manifest,
+			CronManager:          nil, // A2A agents cannot manage cron
+			CoAgentRegistry:      nil, // A2A agents cannot spawn co-agents
+			BudgetTracker:        e.deps.Budget,
+			PreparationService:   nil,
+			SessionID:            sessionID,
+			UserIntent:           userIntent,
+			TrustedPromptAddenda: trustedAddenda,
+			IsMaintenance:        false,
+			IsCoAgent:            true,
+			MessageSource:        "a2a",
 		}
 
 		broker := &agent.NoopBroker{}
@@ -166,6 +163,15 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		completedEvt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateCompleted, completedMsg)
 		yield(completedEvt, nil)
 	}
+}
+
+func buildA2APromptRequest(model, userText, systemPrompt string) (openai.ChatCompletionRequest, []prompts.PromptAddendum) {
+	return openai.ChatCompletionRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{{
+			Role: openai.ChatMessageRoleUser, Content: userText,
+		}},
+	}, []prompts.PromptAddendum{{ID: prompts.PromptAddendumA2A, Text: systemPrompt}}
 }
 
 // Cancel handles a cancellation request for an A2A task.

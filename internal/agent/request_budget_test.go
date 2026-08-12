@@ -231,6 +231,9 @@ func TestRequiredToolSchemasIncludeHardChannelAndExpandedConfigTools(t *testing.
 	if required["shell"] {
 		t.Fatal("unexpanded shell alias was marked required instead of execute_shell")
 	}
+	if required["activate_tools"] {
+		t.Fatal("legacy activate_tools handler must not be reserved as a model-visible schema")
+	}
 }
 
 func TestValidateMinimumRequestBudgetUsesOnlyMandatoryNativeSchemas(t *testing.T) {

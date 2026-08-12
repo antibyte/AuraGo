@@ -147,6 +147,69 @@ func TestGuideCacheImmediatelySwitchesBetweenEmbedAndDisk(t *testing.T) {
 	}
 }
 
+func TestMalformedDiskGuideFallsBackToEmbedAndRecoversAfterFix(t *testing.T) {
+	clearGuideCacheForTest()
+	root := t.TempDir()
+	path := filepath.Join(root, "tools_manuals", "filesystem.md")
+	embedded, ok := ReadToolGuide(path)
+	if !ok || embedded == "" {
+		t.Fatal("expected embedded filesystem guide")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("---\nconditions: [filesystem_enabled]\n# missing delimiter\nMALFORMED GUIDE"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := ReadToolGuide(path); !ok || got != embedded {
+		t.Fatalf("malformed override = %q, ok=%v, want embedded fallback", got, ok)
+	}
+
+	const fixed = "# filesystem\nFIXED DISK GUIDE"
+	if err := os.WriteFile(path, []byte(fixed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(path, future, future); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := ReadToolGuide(path); !ok || !strings.Contains(got, "FIXED DISK GUIDE") {
+		t.Fatalf("corrected disk guide = %q, ok=%v", got, ok)
+	}
+}
+
+func TestMalformedCustomOnlyGuideIsUnavailable(t *testing.T) {
+	clearGuideCacheForTest()
+	path := filepath.Join(t.TempDir(), "custom_manuals", "phantom.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("---\nconditions: [shell_enabled]\n# missing delimiter\nMALFORMED GUIDE"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := ReadToolGuide(path); ok || got != "" {
+		t.Fatalf("malformed custom guide = %q, ok=%v, want unavailable", got, ok)
+	}
+}
+
+func TestMalformedDiskGuideFallbackKeepsEmbeddedConditions(t *testing.T) {
+	clearGuideCacheForTest()
+	path := filepath.Join(t.TempDir(), "tools_manuals", "execute_sudo.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("---\nconditions: [sudo_enabled]\n# missing delimiter\nMALFORMED SUDO GUIDE"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, ok := readToolGuide(path, &ContextFlags{SudoEnabled: false}); ok || got != "" {
+		t.Fatalf("embedded sudo condition was lost on fallback: %q, ok=%v", got, ok)
+	}
+	if got, ok := readToolGuide(path, &ContextFlags{SudoEnabled: true}); !ok || strings.Contains(got, "MALFORMED SUDO GUIDE") {
+		t.Fatalf("valid embedded sudo guide was not used: %q, ok=%v", got, ok)
+	}
+}
+
 func TestGuideCacheIsBoundedLRU(t *testing.T) {
 	clearGuideCacheForTest()
 	dir := t.TempDir()

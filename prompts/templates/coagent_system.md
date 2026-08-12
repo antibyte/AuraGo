@@ -33,6 +33,3 @@ Use `list_skills` first when you need to discover which skills are available.
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}
-
-## Your Task
-{{TASK}}

@@ -40,7 +40,8 @@ const defaultMaxToolRounds = 3
 //
 // If history is non-empty the conversation is continued; the systemPrompt is
 // only injected when history is empty so the caller can maintain a multi-turn
-// thread across loop steps.
+// thread across loop steps. Every request round is route-budgeted, fitted,
+// sanitized, atomically trimmed, validated, and optionally prompt-logged.
 //
 // opts is optional; a sensible default is used when nil.
 func ExecuteMinimalLoop(
@@ -64,6 +65,12 @@ func ExecuteMinimalLoop(
 	if dispatchCtx == nil {
 		return result, history, fmt.Errorf("dispatch context is required")
 	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if dispatchCtx.Logger == nil {
+		dispatchCtx.Logger = logger
+	}
 
 	maxRounds := defaultMaxToolRounds
 	noTools := false
@@ -84,10 +91,15 @@ func ExecuteMinimalLoop(
 	}
 
 	messages := make([]openai.ChatCompletionMessage, 0, len(history)+2)
+	baseSystemPrompt := ""
 	if len(history) == 0 && systemPrompt != "" {
+		baseSystemPrompt = systemPrompt
 		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: systemPrompt})
 	} else {
 		messages = append(messages, history...)
+		if len(history) > 0 && history[0].Role == openai.ChatMessageRoleSystem {
+			baseSystemPrompt = history[0].Content
+		}
 	}
 	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userPrompt})
 
@@ -96,8 +108,12 @@ func ExecuteMinimalLoop(
 		Messages: messages,
 		Tools:    reqTools,
 	}
+	tokenCache := newTokenCountCache(512)
 
 	for round := 0; round <= maxRounds; round++ {
+		if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls); err != nil {
+			return result, req.Messages, err
+		}
 		resp, err := client.CreateChatCompletion(ctx, req)
 		if err != nil {
 			return result, req.Messages, fmt.Errorf("llm call failed: %w", err)
@@ -148,11 +164,18 @@ func ExecuteMinimalLoop(
 	}
 	// Fallback: ask the LLM one more time without tools for a text summary
 	req.Tools = nil
-	resp, err := client.CreateChatCompletion(ctx, req)
-	if err == nil && len(resp.Choices) > 0 {
-		accumulateMinimalLoopUsage(&result, resp.Usage)
-		result.Response = security.StripThinkingTags(resp.Choices[0].Message.Content)
+	if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls); err != nil {
+		return result, req.Messages, err
 	}
+	resp, err := client.CreateChatCompletion(ctx, req)
+	if err != nil {
+		return result, req.Messages, fmt.Errorf("llm summary call failed: %w", err)
+	}
+	if len(resp.Choices) == 0 {
+		return result, req.Messages, fmt.Errorf("empty summary response from llm")
+	}
+	accumulateMinimalLoopUsage(&result, resp.Usage)
+	result.Response = security.StripThinkingTags(resp.Choices[0].Message.Content)
 	result.Duration = time.Since(start)
 	return result, req.Messages, nil
 }
@@ -264,51 +287,6 @@ func MinimalSystemPromptBuilder(availableTools []string) string {
 		b.WriteString("\n")
 	}
 	return b.String()
-}
-
-// TrimHistory keeps the history within a manageable token budget by truncating
-// long assistant and tool messages. The first message (system prompt) is always
-// preserved. maxChars is the total character budget for all non-system messages.
-func TrimHistory(history []openai.ChatCompletionMessage, maxChars int) []openai.ChatCompletionMessage {
-	if len(history) <= 1 {
-		return history
-	}
-
-	// Calculate total chars
-	total := 0
-	for _, m := range history {
-		total += len(m.Content)
-	}
-	if total <= maxChars {
-		return history
-	}
-
-	// Truncate from the oldest messages first, keeping system prompt and last N messages.
-	// We keep the first message (system) and the last 6 messages (recent context).
-	const keepRecent = 6
-	trimmed := make([]openai.ChatCompletionMessage, len(history))
-	copy(trimmed, history)
-
-	// Start trimming from index 1 (skip system prompt), up to len-keepRecent
-	for i := 1; i < len(trimmed)-keepRecent && total > maxChars; i++ {
-		msgLen := len(trimmed[i].Content)
-		if msgLen > 500 {
-			excess := msgLen - 500
-			trimmed[i].Content = trimmed[i].Content[:500] + fmt.Sprintf("\n... (%d more chars)", excess)
-			total -= excess
-		}
-	}
-
-	// If still too long, aggressively truncate middle messages
-	for i := 1; i < len(trimmed)-keepRecent && total > maxChars; i++ {
-		if len(trimmed[i].Content) > 200 {
-			excess := len(trimmed[i].Content) - 200
-			trimmed[i].Content = trimmed[i].Content[:200] + "..."
-			total -= excess
-		}
-	}
-
-	return trimmed
 }
 
 // ParseExitBoolean parses an LLM response into a boolean for loop exit conditions.

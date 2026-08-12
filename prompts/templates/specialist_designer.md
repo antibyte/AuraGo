@@ -44,6 +44,3 @@ Structure your result as:
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}
-
-## Your Design Task
-{{TASK}}

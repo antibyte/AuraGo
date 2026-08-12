@@ -548,7 +548,6 @@ func appendRecapWithinBudget(budget *RequestBudget, messages []openai.ChatComple
 func requiredToolSchemasForState(s *agentLoopState) map[string]bool {
 	required := map[string]bool{
 		"discover_tools": true,
-		"activate_tools": true,
 		"invoke_tool":    true,
 	}
 	if s == nil {

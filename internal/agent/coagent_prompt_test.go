@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -338,6 +339,77 @@ func TestBuildCoAgentSystemPromptAppendsOutputSchemaInstructions(t *testing.T) {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing %q: %q", want, prompt)
 		}
+	}
+}
+
+func TestDefaultDelegatedTemplatesDoNotDuplicateTask(t *testing.T) {
+	templateDir := filepath.Join("..", "..", "prompts", "templates")
+	files := []string{
+		"coagent_system.md",
+		"specialist_coder.md",
+		"specialist_designer.md",
+		"specialist_researcher.md",
+		"specialist_security.md",
+		"specialist_writer.md",
+	}
+	for _, name := range files {
+		raw, err := os.ReadFile(filepath.Join(templateDir, name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		if strings.Contains(string(raw), "{{TASK}}") {
+			t.Fatalf("default delegated template %s still duplicates the task", name)
+		}
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Directories.PromptsDir = t.TempDir()
+	prompt := buildCoAgentSystemPrompt(cfg, CoAgentRequest{Task: "TASK MUST STAY USER ONLY"}, nil, nil)
+	if strings.Contains(prompt, "TASK MUST STAY USER ONLY") {
+		t.Fatalf("fallback co-agent prompt duplicated the user task: %q", prompt)
+	}
+}
+
+func TestMalformedDelegatedTemplateFallsBackAndRecoversAfterFix(t *testing.T) {
+	coAgentTemplateMu.Lock()
+	coAgentTemplateCache = make(map[string]coAgentPromptTemplate)
+	coAgentTemplateMu.Unlock()
+	t.Cleanup(func() {
+		coAgentTemplateMu.Lock()
+		coAgentTemplateCache = make(map[string]coAgentPromptTemplate)
+		coAgentTemplateMu.Unlock()
+	})
+
+	promptsDir := t.TempDir()
+	templatesDir := filepath.Join(promptsDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(templatesDir, "coagent_system.md")
+	if err := os.WriteFile(path, []byte("---\nid: coagent_system\n# missing delimiter\nMALFORMED TEMPLATE {{TASK}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Directories.PromptsDir = promptsDir
+	req := CoAgentRequest{Task: "delegated task"}
+
+	prompt := buildCoAgentSystemPrompt(cfg, req, nil, nil)
+	if strings.Contains(prompt, "MALFORMED TEMPLATE") || !strings.Contains(prompt, "Co-Agent") {
+		t.Fatalf("malformed template did not fail closed to fallback: %q", prompt)
+	}
+
+	if err := os.WriteFile(path, []byte("Custom contract for {{TASK}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(path, future, future); err != nil {
+		t.Fatal(err)
+	}
+	prompt = buildCoAgentSystemPrompt(cfg, req, nil, nil)
+	if !strings.Contains(prompt, "Custom contract for delegated task") {
+		t.Fatalf("corrected custom template was not reloaded: %q", prompt)
 	}
 }
 
