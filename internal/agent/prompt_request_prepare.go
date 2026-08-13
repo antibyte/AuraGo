@@ -51,6 +51,15 @@ func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *Req
 	if logger == nil {
 		logger = slog.Default()
 	}
+	if len(req.Tools) == 0 && (req.ToolChoice != nil || req.ParallelToolCalls != nil) {
+		hadToolChoice := req.ToolChoice != nil
+		hadParallelToolCalls := req.ParallelToolCalls != nil
+		req.ToolChoice = nil
+		req.ParallelToolCalls = nil
+		logger.Debug("[PreSend] Removed tool request options because no tool schemas remain",
+			"tool_choice_removed", hadToolChoice,
+			"parallel_tool_calls_removed", hadParallelToolCalls)
+	}
 
 	before := len(req.Messages)
 	sanitized, dropped := SanitizeToolMessages(req.Messages)
