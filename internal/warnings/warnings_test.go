@@ -1,6 +1,7 @@
 package warnings
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -191,6 +192,9 @@ func TestCheckTokenBudgetFallbackWarnsOnlyForUnresolvedModelLimits(t *testing.T)
 		warnings := reg.Warnings()
 		if len(warnings) != 1 || warnings[0].ID != "token_budget_fallback" {
 			t.Fatalf("warnings = %+v, want one model-limit fallback warning", warnings)
+		}
+		if !strings.Contains(warnings[0].Description, "32768 context tokens and 4096 output tokens") {
+			t.Fatalf("description = %q, want 32768/4096 fallback limits", warnings[0].Description)
 		}
 	})
 

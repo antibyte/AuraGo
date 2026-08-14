@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	ConservativeContextWindow = 8192
+	ConservativeContextWindow = 32768
 	ConservativeOutputTokens  = 4096
 	ReasoningOutputTokens     = 8192
 

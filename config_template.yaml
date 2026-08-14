@@ -679,7 +679,7 @@ s3:
 #     type: manifest
 #     name: "Manifest Gateway"
 #     model: "manifest/auto"
-#     context_window: 0                                # optional override; 0 = registry/probe/unknown fallback
+#     context_window: 0                                # optional override; unknown models default to 32768
 #     max_output_tokens: 0                             # optional override; unknown models default to 4096
 #     capabilities:                                      # optional; omitted or auto=true enables per-model detection
 #       auto: true                                       # detect from provider metadata, models.dev registry, and safe heuristics

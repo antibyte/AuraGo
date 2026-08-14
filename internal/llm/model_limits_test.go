@@ -54,9 +54,9 @@ func TestResolveModelLimitsPrecedenceAndCaps(t *testing.T) {
 			wantCtxSource: "global_unknown_primary", wantOutSource: "conservative_default", wantUnknown: true,
 		},
 		{
-			name:      "unknown fallback stays conservative",
-			route:     ModelRoute{ProviderType: "custom", Model: "unknown-fallback"},
-			globalCap: 12000, wantContext: ConservativeContextWindow, wantOutput: ConservativeOutputTokens,
+			name:        "unknown fallback stays conservative",
+			route:       ModelRoute{ProviderType: "custom", Model: "unknown-fallback"},
+			wantContext: 32768, wantOutput: ConservativeOutputTokens,
 			wantCtxSource: "conservative_default", wantOutSource: "conservative_default", wantUnknown: true,
 		},
 		{
