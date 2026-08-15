@@ -249,6 +249,7 @@ const (
 	promptSectionHomepageDesign        = "# HOMEPAGE DESIGN SYSTEM"
 	promptSectionAgentSkills           = "# AGENT SKILLS CATALOG"
 	promptSectionPersonaSignals        = "### PERSONA SIGNALS"
+	promptSectionPersonaState          = "### PERSONA STATE"
 	promptSectionPersona               = "# PERSONA"
 	promptSectionAvailableContextIndex = "# AVAILABLE CONTEXT INDEX"
 	promptSectionRetrievedMemories     = "# RETRIEVED MEMORIES"
@@ -369,6 +370,7 @@ func promptOptionalHeaders(unifiedMemory bool) []string {
 		promptSectionHomepageDesign,
 		promptSectionAgentSkills,
 		promptSectionPersonaSignals,
+		promptSectionPersonaState,
 		promptSectionPersona,
 		promptSectionAvailableContextIndex,
 	)

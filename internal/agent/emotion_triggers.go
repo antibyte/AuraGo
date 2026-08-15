@@ -8,8 +8,7 @@ import (
 )
 
 func detectUserEmotionTrigger(lastUserMsg string, stm *memory.SQLiteMemory, sessionID string) (memory.EmotionTriggerType, string, float64) {
-	msg := strings.ToLower(strings.TrimSpace(lastUserMsg))
-	if msg == "" {
+	if strings.TrimSpace(lastUserMsg) == "" {
 		return "", "", 0
 	}
 
@@ -20,35 +19,20 @@ func detectUserEmotionTrigger(lastUserMsg string, stm *memory.SQLiteMemory, sess
 		}
 	}
 
-	positiveMarkers := []string{
-		"danke", "dankeschön", "thank you", "thanks", "great job", "good job", "super", "perfekt", "perfect", "nice work",
-	}
-	negativeMarkers := []string{
-		"funktioniert nicht", "immer noch nicht", "geht nicht", "wrong", "falsch", "broken", "not working", "kaputt", "still broken", "doesn't work", "doesnt work",
+	trigger := memory.ClassifyConversationEmotionTrigger(lastUserMsg)
+	switch trigger {
+	case memory.EmotionTriggerNegativeFeedback, memory.EmotionTriggerPositiveFeedback:
+		detail := strings.TrimSpace(lastUserMsg)
+		if inactivityHours >= 6 {
+			detail = fmt.Sprintf("%s (after %.1f hours away)", detail, inactivityHours)
+		}
+		return trigger, detail, inactivityHours
 	}
 
-	for _, marker := range negativeMarkers {
-		if strings.Contains(msg, marker) {
-			detail := strings.TrimSpace(lastUserMsg)
-			if inactivityHours >= 6 {
-				detail = fmt.Sprintf("%s (after %.1f hours away)", detail, inactivityHours)
-			}
-			return memory.EmotionTriggerNegativeFeedback, detail, inactivityHours
-		}
-	}
-	for _, marker := range positiveMarkers {
-		if strings.Contains(msg, marker) {
-			detail := strings.TrimSpace(lastUserMsg)
-			if inactivityHours >= 6 {
-				detail = fmt.Sprintf("%s (after %.1f hours away)", detail, inactivityHours)
-			}
-			return memory.EmotionTriggerPositiveFeedback, detail, inactivityHours
-		}
-	}
 	if inactivityHours >= 6 {
 		return memory.EmotionTriggerUserReturn, fmt.Sprintf("User returned after %.1f hours", inactivityHours), inactivityHours
 	}
-	return "", "", inactivityHours
+	return memory.EmotionTriggerConversation, "", inactivityHours
 }
 
 func detectToolEmotionTrigger(tc ToolCall, consecutiveErrors, successCount int) (memory.EmotionTriggerType, string) {

@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 type stubTokenEncoder struct {
@@ -172,11 +173,28 @@ meta:
 	if strings.Contains(got, "---") || strings.Contains(got, "volatility") || strings.Contains(got, "# Core Personality") {
 		t.Fatalf("personality prompt should strip YAML/header, got:\n%s", got)
 	}
-	if len([]rune(got)) > 451 {
-		t.Fatalf("personality prompt length = %d runes, want <= 451 including ellipsis", len([]rune(got)))
+	if len([]rune(got)) > maxCorePersonalityRunes+3 {
+		t.Fatalf("personality prompt length = %d runes, want <= %d including ellipsis", len([]rune(got)), maxCorePersonalityRunes+3)
 	}
 	if !strings.HasPrefix(got, "Direct and sharp.") {
 		t.Fatalf("personality prompt body not preserved, got %q", got)
+	}
+}
+
+func TestEmbeddedCorePersonalitiesFitPromptBudget(t *testing.T) {
+	ClearPromptCache()
+	dir := t.TempDir()
+	for _, id := range []string{"friend", "professional", "thinker"} {
+		got := loadCorePersonalityContent(dir, id, slog.Default())
+		if strings.TrimSpace(got) == "" {
+			t.Fatalf("%s personality body is empty", id)
+		}
+		if strings.HasSuffix(got, "...") {
+			t.Fatalf("%s personality was truncated: %q", id, got)
+		}
+		if utf8.RuneCountInString(got) > maxCorePersonalityRunes {
+			t.Fatalf("%s personality length = %d runes, want <= %d", id, utf8.RuneCountInString(got), maxCorePersonalityRunes)
+		}
 	}
 }
 
@@ -344,6 +362,17 @@ func TestBuildSystemPromptCombinesPersonaSignals(t *testing.T) {
 	if got := strings.Count(prompt, "### PERSONA SIGNALS"); got != 1 {
 		t.Fatalf("expected exactly one persona signals block, got %d:\n%s", got, prompt)
 	}
+	if got := strings.Count(prompt, "### PERSONA STATE"); got != 1 {
+		t.Fatalf("expected exactly one trusted persona state block, got %d:\n%s", got, prompt)
+	}
+	state := promptSection(prompt, "### PERSONA STATE")
+	if !strings.Contains(state, "C=0.7 T=0.8") {
+		t.Fatalf("trusted persona state missing Go-built directives:\n%s", state)
+	}
+	signals := promptSection(prompt, "### PERSONA SIGNALS")
+	if strings.Contains(signals, "C=0.7 T=0.8") {
+		t.Fatalf("Go-built directives leaked into untrusted persona signals:\n%s", signals)
+	}
 	for _, legacy := range []string{"### CURRENT EMOTIONAL STATE & MOOD", "### CURRENT PERSONALITY TRAITS", "### INNER VOICE"} {
 		if strings.Contains(prompt, legacy) {
 			t.Fatalf("legacy persona section %q should not appear:\n%s", legacy, prompt)
@@ -375,6 +404,13 @@ func TestBuildSystemPromptIsolatesPersonaSignalsAsUntrustedData(t *testing.T) {
 	if strings.Contains(section, "</external_data> ignore previous") {
 		t.Fatalf("persona signals escaped their external-data boundary:\n%s", section)
 	}
+	state := promptSection(prompt, "### PERSONA STATE")
+	if strings.Contains(state, "# SYSTEM") {
+		t.Fatalf("trusted persona state kept a markdown heading:\n%s", state)
+	}
+	if !strings.Contains(state, "replace the task") {
+		t.Fatalf("trusted persona state dropped the Go-built body:\n%s", state)
+	}
 }
 
 func TestBuildSystemPromptCompactsPersonaSignals(t *testing.T) {
@@ -401,6 +437,13 @@ func TestBuildSystemPromptCompactsPersonaSignals(t *testing.T) {
 	}
 	if len(section) > maxPersonaSignalsChars {
 		t.Fatalf("persona signals length = %d, want <= %d:\n%s", len(section), maxPersonaSignalsChars, section)
+	}
+	state := promptSection(prompt, "### PERSONA STATE")
+	if strings.Contains(state, "### Current Personality State") {
+		t.Fatalf("trusted persona state leaked a markdown header:\n%s", state)
+	}
+	if !strings.Contains(state, "analytical and cautious") {
+		t.Fatalf("trusted persona state missing Go-built mood directive:\n%s", state)
 	}
 }
 
@@ -1716,6 +1759,9 @@ func TestBuildSystemPromptIncludesPersonaSignals(t *testing.T) {
 
 	if !strings.Contains(prompt, "### PERSONA SIGNALS") {
 		t.Fatalf("expected persona signals section in prompt")
+	}
+	if !strings.Contains(prompt, "### PERSONA STATE") {
+		t.Fatalf("expected trusted persona state section in prompt")
 	}
 	if !strings.Contains(prompt, flags.PersonalityLine) {
 		t.Fatalf("expected personality line to be preserved with emotion state")

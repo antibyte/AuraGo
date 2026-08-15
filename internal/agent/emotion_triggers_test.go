@@ -36,6 +36,33 @@ func TestDetectToolEmotionTriggerRecognizesPlanEvents(t *testing.T) {
 	}
 }
 
+func TestDetectUserEmotionTriggerDefaultsToConversation(t *testing.T) {
+	trigger, detail, hours := detectUserEmotionTrigger("Kannst du den Container neu starten?", nil, "")
+	if trigger != memory.EmotionTriggerConversation {
+		t.Fatalf("trigger = %q, want %q", trigger, memory.EmotionTriggerConversation)
+	}
+	if detail != "" {
+		t.Fatalf("detail = %q, want empty for unlabeled conversation", detail)
+	}
+	if hours != 0 {
+		t.Fatalf("hours = %.1f, want 0", hours)
+	}
+}
+
+func TestDetectUserEmotionTriggerSharesDetectMoodPositiveKeyword(t *testing.T) {
+	trigger, _, _ := detectUserEmotionTrigger("Das war wirklich genial gelöst.", nil, "")
+	if trigger != memory.EmotionTriggerPositiveFeedback {
+		t.Fatalf("trigger = %q, want %q", trigger, memory.EmotionTriggerPositiveFeedback)
+	}
+}
+
+func TestDetectUserEmotionTriggerEmptyMessageHasNoTrigger(t *testing.T) {
+	trigger, detail, hours := detectUserEmotionTrigger("   ", nil, "")
+	if trigger != "" || detail != "" || hours != 0 {
+		t.Fatalf("empty message trigger = (%q, %q, %.1f), want empty", trigger, detail, hours)
+	}
+}
+
 func TestDetectToolEmotionTriggerRecognizesErrorAndSuccessStreaks(t *testing.T) {
 	trigger, _ := detectToolEmotionTrigger(ToolCall{Action: "filesystem"}, 2, 0)
 	if trigger != memory.EmotionTriggerToolErrorStreak {

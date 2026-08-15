@@ -87,6 +87,7 @@ func TestBudgetShedRecognizesAllDynamicOptionalHeadings(t *testing.T) {
 	}, time.Second, time.Second)
 	headings := []string{
 		"# PERSONA (ACTIVE PROFILE: NEUTRAL)",
+		"### PERSONA STATE",
 		"### ACTIVE REMINDERS (high-priority notes) ###",
 		"### PLANNER CONTEXT ###",
 		"### DAILY TODO REMINDER ###",

@@ -356,10 +356,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			return openai.ChatCompletionResponse{}, fmt.Errorf("agent loop exceeded maximum iterations: %d", maxLoopIterations)
 		}
 
-		emotionPolicy := emotionBehaviorPolicy{}
-		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
-			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer)
-		}
 		// Per-iteration flag: set when the XML fallback block has already appended an
 		// assistant message to req.Messages this turn.  Used below to avoid adding a
 		// duplicate assistant entry in the non-native tool-execution branch.
@@ -472,6 +468,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		var meta memory.PersonalityMeta
 		if personalityEnabled {
 			meta = prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, flags.CorePersonality)
+		}
+		emotionPolicy := emotionBehaviorPolicy{}
+		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
+			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer, meta)
 		}
 
 		// Circuit breaker - berechne Basis-Limit (Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist)
@@ -1201,9 +1201,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 		}
-		// When inner voice is active, suppress general emotion guidance while
-		// preserving trait-driven curiosity guidance.
-		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy, flags.InnerVoice != "")
+		// Trusted emotion/behavior hints stay active even when inner voice is
+		// injected. Inner voice is untrusted tone only; these hints are Go policy.
+		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy)
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
 		budgetMessages := req.Messages
 		if lastGeneratedSystemPrompt != "" && len(budgetMessages) > 0 &&

@@ -250,6 +250,27 @@ func TestDetectMoodShortFeedback(t *testing.T) {
 	}
 }
 
+func TestClassifyConversationEmotionTriggerUsesSharedMoodKeywords(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want EmotionTriggerType
+	}{
+		{name: "empty", msg: "   ", want: ""},
+		{name: "positive mood keyword", msg: "Das war wirklich genial.", want: EmotionTriggerPositiveFeedback},
+		{name: "negative mood keyword", msg: "Das ist falsch und nutzlos.", want: EmotionTriggerNegativeFeedback},
+		{name: "conversational failure phrase", msg: "Das funktioniert immer noch nicht.", want: EmotionTriggerNegativeFeedback},
+		{name: "neutral conversation", msg: "Kannst du den Container neu starten?", want: EmotionTriggerConversation},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ClassifyConversationEmotionTrigger(tc.msg); got != tc.want {
+				t.Fatalf("ClassifyConversationEmotionTrigger(%q) = %q, want %q", tc.msg, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGetPersonalityLine(t *testing.T) {
 	stm := newTestPersonalityDB(t)
 	line := stm.GetPersonalityLine(false)

@@ -1092,6 +1092,43 @@ var (
 	rxRelaxed     = buildKeywordRx(relaxedKeywords)
 )
 
+// conversational feedback phrases that are too situational for mood matching
+// but should still classify a user turn as praise or frustration.
+var (
+	rxConversationalNegative = buildKeywordRx([]string{
+		"funktioniert nicht", "immer noch nicht", "geht nicht",
+		"not working", "still broken", "doesn't work", "doesnt work",
+	})
+	rxConversationalPositive = buildKeywordRx([]string{
+		"great job", "good job", "nice work", "dankeschön",
+	})
+)
+
+const maxConversationTriggerInputLen = 10_000
+
+// ClassifyConversationEmotionTrigger maps a user message onto the conversation
+// emotion-trigger taxonomy using the same keyword and emoji sets as DetectMood.
+// Empty input returns an empty trigger so callers can skip synthesis.
+func ClassifyConversationEmotionTrigger(userMsg string) EmotionTriggerType {
+	userMsg = strings.TrimSpace(userMsg)
+	if userMsg == "" {
+		return ""
+	}
+	if utf8.RuneCountInString(userMsg) > maxConversationTriggerInputLen {
+		userMsg = string([]rune(userMsg)[:maxConversationTriggerInputLen])
+	}
+	lower := strings.ToLower(userMsg)
+	hasNegativeEmoji := containsAnyRuneSet(lower, negativeEmojiSet)
+	hasPositiveEmoji := containsAnyRuneSet(lower, positiveEmojiSet)
+	if rxFrustration.MatchString(lower) || rxNegative.MatchString(lower) || rxConversationalNegative.MatchString(lower) || hasNegativeEmoji {
+		return EmotionTriggerNegativeFeedback
+	}
+	if rxPositive.MatchString(lower) || rxConversationalPositive.MatchString(lower) || hasPositiveEmoji {
+		return EmotionTriggerPositiveFeedback
+	}
+	return EmotionTriggerConversation
+}
+
 // DetectMood analyses the user message + tool result to determine the agent's next mood.
 // Returns the detected mood and the trait adjustments to apply.
 func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[string]float64) {

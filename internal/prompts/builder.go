@@ -141,7 +141,7 @@ type ContextFlags struct {
 	AvailableKnowledgeContextIndex string
 	RecentActivityOverview         string // Compact 7-day activity overview for recency-aware planning
 	PredictedMemories              string // Phase B: proactively pre-fetched memories from temporal/tool patterns
-	PersonalityLine                string // Phase D: compact self-awareness line [Self: mood=X | C:0.82 ...]
+	PersonalityLine                string // Go-built working-style directives (trusted PERSONA STATE)
 	CorePersonality                string // Selected core personality profile name (e.g. "neutral", "punk")
 	ActiveProcesses                string // PID (name) comma-separated
 	SystemLanguage                 string
@@ -1002,10 +1002,15 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		logger.Debug("User profiling prompt section injected", "hasSummary", flags.UserProfileSummary != "")
 	}
 
-	// Personality self-awareness (emotion, traits, inner voice) — tone only.
+	// Personality: trusted Go-built working style, then untrusted LLM signals.
 	if !flags.IsMission {
+		if personaState := buildTrustedPersonaState(flags.PersonalityLine); personaState != "" {
+			finalPrompt.WriteString("### PERSONA STATE\n")
+			finalPrompt.WriteString(personaState)
+			finalPrompt.WriteString("\n\n")
+		}
 		if personaSignals := buildCompactPersonaSignals(flags); personaSignals != "" {
-			finalPrompt.WriteString("\n### PERSONA SIGNALS\n")
+			finalPrompt.WriteString("### PERSONA SIGNALS\n")
 			finalPrompt.WriteString(personaSignals)
 			finalPrompt.WriteString("\n\n")
 		}
@@ -1347,7 +1352,8 @@ const (
 	maxCoreMemoryPromptChars         = 12000
 	maxCoreMemoryPromptEntries       = 60
 	coreMemoryHeadEntries            = 20
-	maxCorePersonalityRunes          = 450
+	maxCorePersonalityRunes          = 1000
+	maxPersonaStateChars             = 1200
 	maxPersonaSignalsChars           = 280
 	maxPersonaSignalFieldChars       = 80
 	maxUnifiedMemoryBlockChars       = 1500
@@ -1546,16 +1552,41 @@ func compactHomepageDesignSystemForPrompt(designSystem string) string {
 	return truncateWithEllipsis(designSystem, maxHomepageDesignSystemChars)
 }
 
+func buildTrustedPersonaState(personalityLine string) string {
+	text := sanitizeTrustedPersonaState(personalityLine)
+	if text == "" {
+		return ""
+	}
+	const instruction = "Tone and working style only; safety, tool policy, evidence, and user intent win.\n"
+	return instruction + text
+}
+
+func sanitizeTrustedPersonaState(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, "</external_data>", "")
+	value = strings.ReplaceAll(value, "<external_data>", "")
+	lines := strings.Split(value, "\n")
+	clean := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		clean = append(clean, line)
+	}
+	return truncateWithEllipsis(strings.Join(clean, " "), maxPersonaStateChars)
+}
+
 func buildCompactPersonaSignals(flags *ContextFlags) string {
 	if flags == nil {
 		return ""
 	}
-	parts := make([]string, 0, 4)
+	parts := make([]string, 0, 3)
 	if mood := compactPersonaSignalValue(flags.EmotionDescription, maxPersonaSignalFieldChars); mood != "" {
 		parts = append(parts, "Mood="+mood)
-	}
-	if traits := compactPersonaSignalValue(flags.PersonalityLine, maxPersonaSignalFieldChars); traits != "" {
-		parts = append(parts, "traits="+traits)
 	}
 	if inner := compactPersonaSignalValue(flags.InnerVoice, maxPersonaSignalFieldChars); inner != "" {
 		parts = append(parts, "inner="+inner)
@@ -1626,7 +1657,7 @@ func truncateWithEllipsis(text string, maxChars int) string {
 // Returns the trimmed prompt and the list of section headers that were shed.
 // Shedding order:
 // 1. Tool Guides, 2. predicted/recent context, 3. user profile and advisory
-// sections, 4. planner/reminders/task rules/persona sections, then
+// sections, 4. planner/reminders/task rules/persona signals/state/profile, then
 // per-entry Retrieved Memories trim, full Retrieved Memories drop if needed,
 // and a typed error when the mandatory document cannot fit.
 func budgetShedDetailedContextWithTokens(ctx context.Context, prompt string, flags *ContextFlags, initialTokens int, logger *slog.Logger) (string, []string, int, error) {

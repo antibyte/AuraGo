@@ -50,7 +50,7 @@ func TestDeriveEmotionBehaviorPolicyUsesStructuredStateAndTraits(t *testing.T) {
 		t.Fatalf("InsertEmotionStateHistory: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil)
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
 
 	if policy.MaxToolCallsDelta != -1 {
 		t.Fatalf("MaxToolCallsDelta = %d, want -1", policy.MaxToolCallsDelta)
@@ -70,14 +70,14 @@ func TestDeriveEmotionBehaviorPolicyUsesStructuredStateAndTraits(t *testing.T) {
 	}
 }
 
-func TestDeriveEmotionBehaviorPolicyAddsCasualCuriosityHintAboveNeutral(t *testing.T) {
+func TestDeriveEmotionBehaviorPolicyAddsCasualCuriosityHintAboveHighThreshold(t *testing.T) {
 	stm := newTestEmotionBehaviorMemory(t)
 
-	if err := stm.SetTrait(memory.TraitCuriosity, 0.51); err != nil {
+	if err := stm.SetTrait(memory.TraitCuriosity, 0.81); err != nil {
 		t.Fatalf("SetTrait curiosity: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil)
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
 	hint := strings.ToLower(policy.CuriosityPromptHint)
 	for _, want := range []string{
 		"more curious",
@@ -99,9 +99,22 @@ func TestDeriveEmotionBehaviorPolicyDoesNotAddCuriosityHintAtNeutral(t *testing.
 		t.Fatalf("SetTrait curiosity: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil)
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
 	if policy.CuriosityPromptHint != "" {
 		t.Fatalf("CuriosityPromptHint = %q, want empty at neutral curiosity", policy.CuriosityPromptHint)
+	}
+}
+
+func TestDeriveEmotionBehaviorPolicyDoesNotAddCuriosityHintBelowHighThreshold(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+
+	if err := stm.SetTrait(memory.TraitCuriosity, 0.51); err != nil {
+		t.Fatalf("SetTrait curiosity: %v", err)
+	}
+
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
+	if policy.CuriosityPromptHint != "" {
+		t.Fatalf("CuriosityPromptHint = %q, want empty below HighCuriosity", policy.CuriosityPromptHint)
 	}
 }
 
@@ -114,20 +127,17 @@ func TestApplyEmotionRecoveryNudgeAppendsGuidance(t *testing.T) {
 	}
 }
 
-func TestMergeEmotionBehaviorPromptPreservesCuriosityWithInnerVoice(t *testing.T) {
+func TestMergeEmotionBehaviorPromptKeepsHintsWithInnerVoiceActive(t *testing.T) {
 	policy := emotionBehaviorPolicy{
 		PromptHint:          "general emotion guidance",
 		CuriosityPromptHint: "curiosity guidance",
 	}
 
-	got := mergeEmotionBehaviorPrompt("base prompt", policy, true)
-	for _, want := range []string{"base prompt", "curiosity guidance"} {
+	got := mergeEmotionBehaviorPrompt("base prompt", policy)
+	for _, want := range []string{"base prompt", "general emotion guidance", "curiosity guidance"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("mergeEmotionBehaviorPrompt() = %q, want %q", got, want)
 		}
-	}
-	if strings.Contains(got, "general emotion guidance") {
-		t.Fatalf("mergeEmotionBehaviorPrompt() = %q, should suppress general emotion guidance with inner voice", got)
 	}
 }
 
@@ -137,7 +147,7 @@ func TestMergeEmotionBehaviorPromptIncludesAllHintsWithoutInnerVoice(t *testing.
 		CuriosityPromptHint: "curiosity guidance",
 	}
 
-	got := mergeEmotionBehaviorPrompt("base prompt", policy, false)
+	got := mergeEmotionBehaviorPrompt("base prompt", policy)
 	for _, want := range []string{"base prompt", "general emotion guidance", "curiosity guidance"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("mergeEmotionBehaviorPrompt() = %q, want %q", got, want)

@@ -51,11 +51,12 @@ func latestEmotionDescription(stm *memory.SQLiteMemory, synthesizer *memory.Emot
 	return ""
 }
 
-func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer) emotionBehaviorPolicy {
+func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer, meta memory.PersonalityMeta) emotionBehaviorPolicy {
 	if stm == nil {
 		return emotionBehaviorPolicy{}
 	}
 
+	meta = meta.Normalized()
 	state := latestEmotionState(stm, synthesizer)
 	traits, _ := stm.GetTraits()
 
@@ -103,7 +104,7 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 	if len(hints) > 0 {
 		policy.PromptHint = "Emotion-aware runtime guidance: " + strings.Join(hints, " ")
 	}
-	if curiosityTrait > 0.5 {
+	if curiosityTrait > meta.Thresholds.HighCuriosity {
 		policy.CuriosityPromptHint = "Curiosity-aware runtime guidance: Be more curious and gather a little more context when it naturally fits. Ask casual, optional follow-up questions only when they would help the conversation, and do not interrogate the user. For example, if the user asks for the weather in a place, answer the request first and, if it feels natural, casually ask in the user's language whether they live there. Keep it relaxed and easy to ignore."
 	}
 	if tenseRecovery {
@@ -141,10 +142,7 @@ func mergeAdditionalPrompt(base, extra string) string {
 	}
 }
 
-func mergeEmotionBehaviorPrompt(base string, policy emotionBehaviorPolicy, innerVoiceActive bool) string {
-	if innerVoiceActive {
-		return mergeAdditionalPrompt(base, policy.CuriosityPromptHint)
-	}
+func mergeEmotionBehaviorPrompt(base string, policy emotionBehaviorPolicy) string {
 	return mergeAdditionalPrompt(mergeAdditionalPrompt(base, policy.PromptHint), policy.CuriosityPromptHint)
 }
 
