@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "Speech Lab ASR is niet gereed. Controleer Media → Speech Lab.",
   "chat.speech_lab_microphone_denied": "Toegang tot de microfoon is geweigerd.",
   "chat.speech_lab_recorder_start_failed": "Speech Lab kon de microfoonopname niet starten.",
-  "chat.speech_lab_no_audio": "Er is geen spraak opgenomen.",
+  "chat.speech_lab_no_audio": "Er is geen spraak herkend. Neem opnieuw op.",
   "chat.speech_lab_too_large": "De Speech Lab-opname is groter dan 8 MiB. Neem een korter bericht op.",
   "chat.speech_lab_transcription_failed": "De Speech Lab-transcriptie is mislukt.",
   "chat.speech_lab_transcribe": "Transcriberen",

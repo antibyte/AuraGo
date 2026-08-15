@@ -274,6 +274,12 @@ func handleSpeechLabStack(s *Server) http.Handler {
 }
 
 func writeSpeechLabError(w http.ResponseWriter, err error) {
+	if errors.Is(err, speechlab.ErrNoSpeechDetected) {
+		writeSpeechLabJSON(w, http.StatusUnprocessableEntity, map[string]string{
+			"error": speechlab.ErrorCode(err), "message": "No speech was detected. Please record again.",
+		})
+		return
+	}
 	var deploymentErr *deployer.Error
 	if errors.As(err, &deploymentErr) {
 		status := http.StatusBadGateway

@@ -61,7 +61,9 @@ images, and browser-oriented regression tests.
   or the agent inbound route/delay.
 - Speech Lab voice upload carries a single-use turn token into the next matching
   chat submit. Without AudioWorklet, use browser SpeechRecognition when
-  available; never feed MediaRecorder output to the WAV-only endpoint.
+  available; never feed MediaRecorder output to the WAV-only endpoint. Map the
+  `speech_lab_no_speech` response to the localized no-audio retry message rather
+  than showing a generic Speech Lab failure.
 - Realtime Speech consumes the answer from `final_response`; `done` is a
   contentless terminator. SIP Phone surfaces
   `outbound_policy_migration_required` as a localized setup blocker.

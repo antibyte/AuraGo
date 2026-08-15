@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "L’ASR di Speech Lab non è pronto. Controlla Media → Speech Lab.",
   "chat.speech_lab_microphone_denied": "L’autorizzazione al microfono è stata negata.",
   "chat.speech_lab_recorder_start_failed": "Speech Lab non ha potuto avviare la registrazione del microfono.",
-  "chat.speech_lab_no_audio": "Non è stato registrato alcun parlato.",
+  "chat.speech_lab_no_audio": "Non è stato rilevato alcun parlato. Registra di nuovo.",
   "chat.speech_lab_too_large": "La registrazione Speech Lab supera 8 MiB. Registra un messaggio più breve.",
   "chat.speech_lab_transcription_failed": "La trascrizione Speech Lab non è riuscita.",
   "chat.speech_lab_transcribe": "Trascrivi",

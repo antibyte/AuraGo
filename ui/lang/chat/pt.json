@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "O ASR do Speech Lab não está pronto. Verifique Multimédia → Speech Lab.",
   "chat.speech_lab_microphone_denied": "A permissão do microfone foi recusada.",
   "chat.speech_lab_recorder_start_failed": "O Speech Lab não conseguiu iniciar a gravação do microfone.",
-  "chat.speech_lab_no_audio": "Não foi gravada nenhuma fala.",
+  "chat.speech_lab_no_audio": "Nenhuma fala foi detectada. Grave novamente.",
   "chat.speech_lab_too_large": "A gravação do Speech Lab excede 8 MiB. Grave uma mensagem mais curta.",
   "chat.speech_lab_transcription_failed": "A transcrição do Speech Lab falhou.",
   "chat.speech_lab_transcribe": "Transcrever",

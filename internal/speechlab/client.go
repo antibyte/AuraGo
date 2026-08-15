@@ -38,6 +38,11 @@ const (
 	stackTimeout     = 180 * time.Second
 )
 
+// ErrNoSpeechDetected reports a successful ASR request that did not contain a
+// usable transcript. Callers may present this as a retryable user-input issue
+// instead of treating it as a Speech Lab outage.
+var ErrNoSpeechDetected = errors.New("speech lab ASR did not detect speech")
+
 // Ready is the stable s2s readiness response.
 type Ready struct {
 	Ready    bool   `json:"ready"`
@@ -112,6 +117,9 @@ func (e *NotReadyError) Unwrap() error {
 }
 
 func ErrorCode(err error) string {
+	if errors.Is(err, ErrNoSpeechDetected) {
+		return "speech_lab_no_speech"
+	}
 	var notReady *NotReadyError
 	if errors.As(err, &notReady) {
 		return "speech_lab_not_ready"
@@ -319,7 +327,7 @@ func (c *Client) Transcribe(ctx context.Context, wav []byte, language, expectedA
 	}
 	result.Text = strings.TrimSpace(result.Text)
 	if result.Text == "" {
-		return Transcript{}, fmt.Errorf("speech lab ASR returned an empty transcript")
+		return Transcript{}, ErrNoSpeechDetected
 	}
 	if expected := strings.TrimSpace(expectedASRID); expected != "" && result.ASRID != expected {
 		return Transcript{}, fmt.Errorf("speech lab ASR backend changed during operation")

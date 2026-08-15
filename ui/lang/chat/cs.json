@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "ASR Speech Lab není připraveno. Zkontrolujte Média → Speech Lab.",
   "chat.speech_lab_microphone_denied": "Přístup k mikrofonu byl zamítnut.",
   "chat.speech_lab_recorder_start_failed": "Speech Lab nemohl spustit záznam mikrofonu.",
-  "chat.speech_lab_no_audio": "Nebyl zaznamenán žádný hlasový zvuk.",
+  "chat.speech_lab_no_audio": "Nebyla rozpoznána žádná řeč. Nahrajte zprávu znovu.",
   "chat.speech_lab_too_large": "Nahrávka Speech Lab překračuje 8 MiB. Nahrajte kratší zprávu.",
   "chat.speech_lab_transcription_failed": "Přepis v Speech Lab se nezdařil.",
   "chat.speech_lab_transcribe": "Přepsat",

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -314,6 +315,59 @@ func TestSpeechLabChatUploadRejectsMoreThan120Seconds(t *testing.T) {
 	handleSpeechLabVoiceUpload(s, rec, req)
 	if rec.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("121-second upload = %d, want 413: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSpeechLabChatUploadMapsEmptyTranscriptToNoSpeech(t *testing.T) {
+	s, _ := speechLabServerForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ready":
+			_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-a", ASROK: true})
+		case "/v1/audio/transcriptions":
+			_ = json.NewEncoder(w).Encode(speechlab.Transcript{Text: "", ASRID: "asr-a"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	var logs bytes.Buffer
+	s.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+
+	wav := speechLabWAVForTest()
+	binary.LittleEndian.PutUint16(wav[44:46], uint16(16384))
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", `form-data; name="audio"; filename="speech.wav"`)
+	header.Set("Content-Type", "audio/wav")
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = part.Write(wav)
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/upload-voice", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+	handleSpeechLabVoiceUpload(s, rec, req)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("empty transcript response = %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); !strings.Contains(body, `"error":"speech_lab_no_speech"`) ||
+		!strings.Contains(body, "No speech was detected") {
+		t.Fatalf("empty transcript response is not actionable: %s", body)
+	}
+	for _, field := range []string{
+		"Speech Lab chat transcription found no speech",
+		"error_code=speech_lab_no_speech",
+		"audio_duration_ms=10",
+		"audio_sample_count=160",
+		"audio_peak_level=0.5",
+		"audio_rms_level=",
+	} {
+		if !strings.Contains(logs.String(), field) {
+			t.Fatalf("safe diagnostic log missing %q: %s", field, logs.String())
+		}
 	}
 }
 

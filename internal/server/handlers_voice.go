@@ -192,27 +192,53 @@ func handleSpeechLabVoiceUpload(s *Server, w http.ResponseWriter, r *http.Reques
 		}
 		break
 	}
-	duration, err := speechlab.PCM16WAVDuration(wav)
+	audioMetrics, err := speechlab.AnalyzePCM16WAV(wav)
 	if err != nil {
 		jsonError(w, "Speech Lab chat input requires mono PCM16 WAV at 16 kHz", http.StatusBadRequest)
 		return
 	}
-	if duration > 120*time.Second {
+	if audioMetrics.Duration > 120*time.Second {
 		jsonError(w, "Speech Lab chat input is limited to 120 seconds", http.StatusRequestEntityTooLarge)
 		return
 	}
 	ready, err := s.SpeechLab.Require(r.Context(), true, false)
 	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("Speech Lab chat readiness failed", "error", err, "error_code", speechlab.ErrorCode(err))
+		}
 		writeSpeechLabError(w, err)
 		return
 	}
 	result, err := s.SpeechLab.Transcribe(r.Context(), wav, s.ConfigSnapshot().SpeechLab.Language, ready.ASRID)
 	if err != nil {
+		if s.Logger != nil {
+			logArgs := []any{
+				"error", err,
+				"error_code", speechlab.ErrorCode(err),
+				"asr_id", ready.ASRID,
+				"audio_duration_ms", audioMetrics.Duration.Milliseconds(),
+				"audio_sample_count", audioMetrics.SampleCount,
+				"audio_peak_level", audioMetrics.PeakLevel,
+				"audio_rms_level", audioMetrics.RMSLevel,
+			}
+			if speechlab.ErrorCode(err) == "speech_lab_no_speech" {
+				s.Logger.Info("Speech Lab chat transcription found no speech", logArgs...)
+			} else {
+				s.Logger.Warn("Speech Lab chat transcription failed", logArgs...)
+			}
+		}
 		writeSpeechLabError(w, err)
 		return
 	}
 	if s.Logger != nil {
-		s.Logger.Info("Speech Lab chat transcription succeeded", "transcription_length", len(result.Text), "asr_id", result.ASRID)
+		s.Logger.Info("Speech Lab chat transcription succeeded",
+			"transcription_length", len(result.Text),
+			"asr_id", result.ASRID,
+			"audio_duration_ms", audioMetrics.Duration.Milliseconds(),
+			"audio_sample_count", audioMetrics.SampleCount,
+			"audio_peak_level", audioMetrics.PeakLevel,
+			"audio_rms_level", audioMetrics.RMSLevel,
+		)
 	}
 	sessionID := strings.TrimSpace(r.Header.Get("X-Session-ID"))
 	if sessionID == "" {
@@ -220,7 +246,7 @@ func handleSpeechLabVoiceUpload(s *Server, w http.ResponseWriter, r *http.Reques
 	}
 	turnToken := s.speechLabTokens().Issue(sessionID, result.Text)
 	writeSpeechLabJSON(w, http.StatusOK, VoiceUploadResponse{
-		Success: "true", Transcription: result.Text, Duration: int(duration / time.Second), SpeechLabTurnToken: turnToken,
+		Success: "true", Transcription: result.Text, Duration: int(audioMetrics.Duration / time.Second), SpeechLabTurnToken: turnToken,
 	})
 }
 

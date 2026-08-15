@@ -143,6 +143,8 @@ func TestSpeechLabChatRecorderIsPCMWorkletOnly(t *testing.T) {
 		"view.setUint16(20, 1, true)",
 		"view.setUint16(34, 16, true)",
 		"form.append('audio', wav, 'speech-lab.wav')",
+		"payload.error === 'speech_lab_no_speech'",
+		"this._t('speech_lab_no_audio'",
 		"href=\"/config#speech_lab\"",
 	} {
 		if !strings.Contains(recorder, wanted) {

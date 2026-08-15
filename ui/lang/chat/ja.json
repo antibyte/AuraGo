@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "Speech Lab ASR の準備ができていません。メディア → Speech Lab を確認してください。",
   "chat.speech_lab_microphone_denied": "マイクの使用が拒否されました。",
   "chat.speech_lab_recorder_start_failed": "Speech Lab でマイク録音を開始できませんでした。",
-  "chat.speech_lab_no_audio": "音声が録音されませんでした。",
+  "chat.speech_lab_no_audio": "音声を認識できませんでした。もう一度録音してください。",
   "chat.speech_lab_too_large": "Speech Lab の録音が 8 MiB を超えています。短いメッセージを録音してください。",
   "chat.speech_lab_transcription_failed": "Speech Lab の文字起こしに失敗しました。",
   "chat.speech_lab_transcribe": "文字起こし",

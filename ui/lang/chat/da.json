@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "Speech Lab ASR er ikke klar. Kontrollér Medier → Speech Lab.",
   "chat.speech_lab_microphone_denied": "Adgang til mikrofonen blev afvist.",
   "chat.speech_lab_recorder_start_failed": "Speech Lab kunne ikke starte mikrofonoptageren.",
-  "chat.speech_lab_no_audio": "Der blev ikke optaget nogen tale.",
+  "chat.speech_lab_no_audio": "Der blev ikke registreret tale. Optag igen.",
   "chat.speech_lab_too_large": "Speech Lab-optagelsen overstiger 8 MiB. Optag en kortere besked.",
   "chat.speech_lab_transcription_failed": "Speech Lab-transskriptionen mislykkedes.",
   "chat.speech_lab_transcribe": "Transskriber",

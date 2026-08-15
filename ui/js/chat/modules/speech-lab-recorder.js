@@ -116,6 +116,9 @@
                 if (!response.ok) {
                     const contentType = response.headers.get('content-type') || '';
                     const payload = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
+                    if (payload.error === 'speech_lab_no_speech') {
+                        throw new Error(this._t('speech_lab_no_audio', 'No speech was detected. Please record again.'));
+                    }
                     throw new Error(payload.message || ('HTTP ' + response.status + ': ' + this._t('speech_lab_transcription_failed', 'Speech Lab transcription failed.')));
                 }
                 const payload = await response.json();

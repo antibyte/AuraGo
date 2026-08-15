@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "Speech Lab ASR är inte redo. Kontrollera Media → Speech Lab.",
   "chat.speech_lab_microphone_denied": "Åtkomst till mikrofonen nekades.",
   "chat.speech_lab_recorder_start_failed": "Speech Lab kunde inte starta mikrofoninspelningen.",
-  "chat.speech_lab_no_audio": "Inget tal spelades in.",
+  "chat.speech_lab_no_audio": "Inget tal identifierades. Spela in igen.",
   "chat.speech_lab_too_large": "Speech Lab-inspelningen överstiger 8 MiB. Spela in ett kortare meddelande.",
   "chat.speech_lab_transcription_failed": "Speech Lab-transkriberingen misslyckades.",
   "chat.speech_lab_transcribe": "Transkribera",

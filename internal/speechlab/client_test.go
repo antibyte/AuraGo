@@ -124,6 +124,22 @@ func TestTranscribeRequiresCanonicalWAVAndChecksBackendID(t *testing.T) {
 	}
 }
 
+func TestTranscribeClassifiesEmptyTranscriptAsNoSpeech(t *testing.T) {
+	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != asrPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(Transcript{Text: "   ", ASRID: "asr-a"})
+	}))
+	_, err := client.Transcribe(context.Background(), testPCM16WAV(), "de", "asr-a")
+	if !errors.Is(err, ErrNoSpeechDetected) {
+		t.Fatalf("empty transcript error = %v, want ErrNoSpeechDetected", err)
+	}
+	if code := ErrorCode(err); code != "speech_lab_no_speech" {
+		t.Fatalf("empty transcript error code = %q", code)
+	}
+}
+
 func TestSynthesizeRequiresWAVAndChecksBackendAndVoice(t *testing.T) {
 	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "audio/wav")

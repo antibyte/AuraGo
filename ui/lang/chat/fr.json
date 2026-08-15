@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "L’ASR de Speech Lab n’est pas prêt. Vérifiez Média → Speech Lab.",
   "chat.speech_lab_microphone_denied": "L’accès au microphone a été refusé.",
   "chat.speech_lab_recorder_start_failed": "Speech Lab n’a pas pu démarrer l’enregistrement du microphone.",
-  "chat.speech_lab_no_audio": "Aucune parole n’a été enregistrée.",
+  "chat.speech_lab_no_audio": "Aucune parole n’a été détectée. Veuillez réessayer l’enregistrement.",
   "chat.speech_lab_too_large": "L’enregistrement Speech Lab dépasse 8 MiB. Enregistrez un message plus court.",
   "chat.speech_lab_transcription_failed": "La transcription Speech Lab a échoué.",
   "chat.speech_lab_transcribe": "Transcrire",

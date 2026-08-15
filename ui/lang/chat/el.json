@@ -259,7 +259,7 @@
   "chat.speech_lab_asr_not_ready": "Το ASR του Speech Lab δεν είναι έτοιμο. Ελέγξτε Πολυμέσα → Speech Lab.",
   "chat.speech_lab_microphone_denied": "Η πρόσβαση στο μικρόφωνο απορρίφθηκε.",
   "chat.speech_lab_recorder_start_failed": "Το Speech Lab δεν μπόρεσε να ξεκινήσει την εγγραφή μικροφώνου.",
-  "chat.speech_lab_no_audio": "Δεν καταγράφηκε ομιλία.",
+  "chat.speech_lab_no_audio": "Δεν αναγνωρίστηκε ομιλία. Ηχογραφήστε ξανά.",
   "chat.speech_lab_too_large": "Η εγγραφή Speech Lab υπερβαίνει τα 8 MiB. Ηχογραφήστε συντομότερο μήνυμα.",
   "chat.speech_lab_transcription_failed": "Η μεταγραφή Speech Lab απέτυχε.",
   "chat.speech_lab_transcribe": "Μεταγραφή",

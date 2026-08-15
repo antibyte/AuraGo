@@ -3,6 +3,7 @@ package speechlab
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -12,6 +13,15 @@ type wavMetadata struct {
 	sampleRate uint32
 	bits       uint16
 	dataBytes  uint64
+}
+
+// PCM16WAVMetrics contains privacy-safe signal measurements for diagnosing
+// browser recordings. Levels are normalized to the PCM16 full-scale range.
+type PCM16WAVMetrics struct {
+	Duration    time.Duration
+	SampleCount uint64
+	PeakLevel   float64
+	RMSLevel    float64
 }
 
 // ValidateWAV validates the RIFF/WAVE structure without constraining its PCM
@@ -91,4 +101,56 @@ func PCM16WAVDuration(data []byte) (time.Duration, error) {
 		return 0, fmt.Errorf("invalid WAV byte rate")
 	}
 	return time.Duration(metadata.dataBytes) * time.Second / time.Duration(bytesPerSecond), nil
+}
+
+// AnalyzePCM16WAV validates the canonical ASR wire format and returns duration
+// and aggregate signal levels without retaining or exposing audio samples.
+func AnalyzePCM16WAV(data []byte) (PCM16WAVMetrics, error) {
+	metadata, err := parseWAV(data)
+	if err != nil {
+		return PCM16WAVMetrics{}, err
+	}
+	if metadata.format != 1 || metadata.bits != 16 || metadata.channels != 1 || metadata.sampleRate != 16000 {
+		return PCM16WAVMetrics{}, fmt.Errorf("ASR requires mono PCM16 WAV at 16000 Hz")
+	}
+	bytesPerSecond := uint64(metadata.sampleRate) * uint64(metadata.channels) * uint64(metadata.bits) / 8
+	if bytesPerSecond == 0 {
+		return PCM16WAVMetrics{}, fmt.Errorf("invalid WAV byte rate")
+	}
+	if metadata.dataBytes%2 != 0 {
+		return PCM16WAVMetrics{}, fmt.Errorf("PCM16 WAV data must contain complete samples")
+	}
+
+	metrics := PCM16WAVMetrics{
+		Duration:    time.Duration(metadata.dataBytes) * time.Second / time.Duration(bytesPerSecond),
+		SampleCount: metadata.dataBytes / 2,
+	}
+	declared := int(binary.LittleEndian.Uint32(data[4:8])) + 8
+	var peak float64
+	var sumSquares float64
+	for offset := 12; offset+8 <= declared; {
+		chunkID := string(data[offset : offset+4])
+		chunkSize := int(binary.LittleEndian.Uint32(data[offset+4 : offset+8]))
+		start := offset + 8
+		end := start + chunkSize
+		if chunkID == "data" {
+			if chunkSize%2 != 0 {
+				return PCM16WAVMetrics{}, fmt.Errorf("PCM16 WAV data must contain complete samples")
+			}
+			for sampleOffset := start; sampleOffset < end; sampleOffset += 2 {
+				sample := float64(int16(binary.LittleEndian.Uint16(data[sampleOffset:sampleOffset+2]))) / 32768.0
+				magnitude := math.Abs(sample)
+				if magnitude > peak {
+					peak = magnitude
+				}
+				sumSquares += sample * sample
+			}
+		}
+		offset = end + chunkSize%2
+	}
+	metrics.PeakLevel = peak
+	if metrics.SampleCount > 0 {
+		metrics.RMSLevel = math.Sqrt(sumSquares / float64(metrics.SampleCount))
+	}
+	return metrics, nil
 }
