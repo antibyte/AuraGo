@@ -90,6 +90,7 @@
             const nameLocalized = moodNameMap[data.mood] || data.mood;
             if (badge) badge.textContent = '🎭 ' + nameLocalized;
             if (trigger && data.trigger) trigger.textContent = '"' + data.trigger + '"';
+            renderCharacterNotes(data);
 
             // Emotion Synthesizer display
             const emotionDisplay = document.getElementById('emotion-display');
@@ -123,6 +124,90 @@
                     dashSetHidden(emotionDisplay, true);
                 }
             }
+        }
+
+        async function characterNoteAction(payload) {
+            const resp = await fetch('/api/personality/character-notes', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            renderMoodBadge(data);
+            return data;
+        }
+
+        function renderCharacterNotes(data) {
+            const wrap = document.getElementById('character-notes');
+            const list = document.getElementById('character-notes-list');
+            const empty = document.getElementById('character-notes-empty');
+            const causeEl = document.getElementById('character-notes-cause');
+            const milestoneEl = document.getElementById('character-notes-milestones');
+            const toggle = document.getElementById('character-narrative-toggle');
+            if (!wrap || !list) return;
+            dashSetHidden(wrap, false);
+            if (toggle) {
+                toggle.checked = !!data.narrative_visible;
+                if (!toggle.dataset.bound) {
+                    toggle.dataset.bound = '1';
+                    toggle.addEventListener('change', async () => {
+                        await characterNoteAction({ action: 'narrative', visible: toggle.checked });
+                    });
+                }
+            }
+            if (causeEl) {
+                const cause = data.affect_cause || '';
+                causeEl.textContent = cause ? (t('dashboard.personality_notes_cause') + ': ' + cause) : '';
+                dashSetHidden(causeEl, !cause);
+            }
+            if (milestoneEl) {
+                const reviews = Array.isArray(data.needs_discussion) ? data.needs_discussion : [];
+                milestoneEl.replaceChildren();
+                reviews.forEach((label) => {
+                    const row = document.createElement('div');
+                    const text = document.createElement('span');
+                    text.textContent = t('dashboard.personality_notes_milestone') + ': ' + label;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'wh-btn wh-btn-sm';
+                    btn.textContent = t('dashboard.personality_notes_review');
+                    btn.addEventListener('click', () => characterNoteAction({ action: 'review_milestone', label }));
+                    row.append(text, btn);
+                    milestoneEl.appendChild(row);
+                });
+                dashSetHidden(milestoneEl, reviews.length === 0);
+            }
+            const notes = Array.isArray(data.character_notes) ? data.character_notes : [];
+            list.replaceChildren();
+            notes.forEach((note) => {
+                const item = document.createElement('li');
+                const text = document.createElement('span');
+                text.textContent = note.text || '';
+                const actions = document.createElement('div');
+                actions.className = 'character-notes-actions';
+                const pin = document.createElement('button');
+                pin.type = 'button';
+                pin.className = 'wh-btn wh-btn-sm';
+                pin.textContent = note.protected ? t('dashboard.personality_notes_unprotect') : t('dashboard.personality_notes_protect');
+                pin.addEventListener('click', () => characterNoteAction({ action: note.protected ? 'unprotect' : 'protect', id: note.id }));
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'wh-btn wh-btn-sm';
+                del.textContent = t('dashboard.personality_notes_delete');
+                del.addEventListener('click', async () => {
+                    const ok = typeof showConfirm === 'function'
+                        ? await showConfirm(t('dashboard.personality_notes_delete'), t('dashboard.personality_notes_delete_confirm'))
+                        : true;
+                    if (ok) await characterNoteAction({ action: 'delete', id: note.id });
+                });
+                actions.append(pin, del);
+                item.append(text, actions);
+                list.appendChild(item);
+            });
+            dashSetHidden(empty, notes.length > 0);
+            dashSetHidden(list, notes.length === 0);
         }
 
         function formatEmotionTriggerSummary(summary) {

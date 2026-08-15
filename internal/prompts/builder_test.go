@@ -1747,6 +1747,28 @@ func TestBuildSystemPromptSkipsChineseDriftGuardForChineseLanguage(t *testing.T)
 	}
 }
 
+func TestBuildSystemPromptIncludesTrustedCharacterNotes(t *testing.T) {
+	flags := ContextFlags{
+		Tier:           "full",
+		SystemLanguage: "en",
+		CharacterNotes: "- I verify changes with one concrete check before calling the work done.",
+	}
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	section := promptSection(prompt, "### PERSONA CHARACTER")
+	if section == "" {
+		t.Fatalf("missing persona character section:\n%s", prompt)
+	}
+	if !strings.Contains(section, "I verify changes") {
+		t.Fatalf("character notes missing from trusted block:\n%s", section)
+	}
+	if strings.Contains(section, "<external_data>") {
+		t.Fatalf("character notes must stay trusted, got:\n%s", section)
+	}
+	if !strings.Contains(section, "Do not announce") {
+		t.Fatalf("default narrative instruction missing:\n%s", section)
+	}
+}
+
 func TestBuildSystemPromptIncludesPersonaSignals(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",

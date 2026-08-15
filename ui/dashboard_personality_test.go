@@ -16,6 +16,17 @@ func TestDashboardPersonalityDisabledStateIsNotVisibleByDefault(t *testing.T) {
 	}
 }
 
+func TestDashboardPersonalityIncludesCharacterNotes(t *testing.T) {
+	t.Parallel()
+	html := readDesktopAssetText(t, "dashboard.html")
+	if !strings.Contains(html, `id="character-notes"`) {
+		t.Fatal("dashboard personality card must include character notes")
+	}
+	if !strings.Contains(html, `id="character-narrative-toggle"`) {
+		t.Fatal("dashboard personality card must include narrative toggle")
+	}
+}
+
 func TestDashboardAgentCardsUseMasonryColumnLayout(t *testing.T) {
 	t.Parallel()
 

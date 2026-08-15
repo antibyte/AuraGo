@@ -1086,6 +1086,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger)
 			}
 			flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
+			flags.CharacterNotes = shortTermMem.FormatCharacterNotesForPrompt(memory.MaxCharacterNotesInPrompt)
+			flags.NarrativeVisible = shortTermMem.NarrativeVisible()
 
 			// Emotion Synthesizer: inject latest emotional description
 			if emotionDescription := latestEmotionDescription(shortTermMem, emotionSynthesizer); emotionDescription != "" {

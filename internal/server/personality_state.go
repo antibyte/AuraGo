@@ -69,11 +69,27 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 	mood := s.ShortTermMem.GetCurrentMood()
 	trigger := s.ShortTermMem.GetLastMoodTrigger()
 
+	notes, _ := s.ShortTermMem.ListCharacterNotes()
+	if notes == nil {
+		notes = []memory.CharacterNote{}
+	}
+	milestones, _ := s.ShortTermMem.UnreviewedMilestones()
+	if milestones == nil {
+		milestones = []string{}
+	}
 	response := map[string]interface{}{
-		"enabled": true,
-		"mood":    string(mood),
-		"trigger": trigger,
-		"traits":  traits,
+		"enabled":           true,
+		"mood":              string(mood),
+		"trigger":           trigger,
+		"traits":            traits,
+		"character_notes":   notes,
+		"narrative_visible": s.ShortTermMem.NarrativeVisible(),
+		"needs_discussion":  milestones,
+	}
+	if affect, err := s.ShortTermMem.GetAffectState(); err == nil && affect.Active() {
+		response["affect_cause"] = affect.CauseCode
+		response["affect_valence"] = affect.Valence
+		response["affect_arousal"] = affect.Arousal
 	}
 
 	if s.Cfg.Personality.EmotionSynthesizer.Enabled {

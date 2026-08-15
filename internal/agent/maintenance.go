@@ -179,7 +179,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal
 	if cfg.Personality.Engine && shortTermMem != nil {
-		personalityMaintenance(cfg, shortTermMem, logger)
+		personalityMaintenance(taskCtx, cfg, shortTermMem, logger)
 	}
 
 	// User Profile cleanup: remove stale low-confidence entries
@@ -487,7 +487,7 @@ func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, l
 }
 
 // personalityMaintenance performs daily trait decay and appends a character journal entry.
-func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) {
+func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) {
 	// 1. Trait decay: nudge all traits toward 0.5, respecting the personality profile's decay rate
 	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality)
 	// Decay amount was previously 0.002 which is practically invisible (250 days to decay from 1.0 to 0.5).
@@ -515,6 +515,8 @@ func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger
 			logger.Info("[EmotionSynthesizer] Emotion history cleaned up", "deleted", deleted)
 		}
 	}
+
+	runCharacterReflection(ctx, cfg, stm, logger)
 
 	// 3. Character journal: append today's snapshot to data/character_journal.md
 	traits, err := stm.GetTraits()

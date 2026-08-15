@@ -98,6 +98,28 @@ func TestBuildPersonalityStatePayloadFallsBackWhenEmotionIsOnlyReasoning(t *test
 	}
 }
 
+func TestBuildPersonalityStatePayloadIncludesCharacterNotes(t *testing.T) {
+	s := newTestServerWithPersonalityState(t)
+	if _, err := s.ShortTermMem.InsertCharacterNote(memory.CharacterNote{
+		Category: memory.CharacterNoteCategoryHabit,
+		Text:     "I verify changes with one concrete check before calling the work done.",
+		Source:   memory.CharacterNoteSourceReflection,
+	}); err != nil {
+		t.Fatalf("InsertCharacterNote: %v", err)
+	}
+	payload := s.buildPersonalityStatePayload()
+	notes, ok := payload["character_notes"].([]memory.CharacterNote)
+	if !ok || len(notes) != 1 {
+		t.Fatalf("character_notes = %#v", payload["character_notes"])
+	}
+	if notes[0].Text == "" {
+		t.Fatal("expected note text")
+	}
+	if visible, _ := payload["narrative_visible"].(bool); visible {
+		t.Fatal("narrative should default off")
+	}
+}
+
 func TestBuildPersonalityStatePayloadKeepsEnabledWhenTraitsUnavailable(t *testing.T) {
 	s := newTestServerWithPersonalityState(t)
 	if err := s.ShortTermMem.Close(); err != nil {

@@ -78,6 +78,8 @@ type systemPromptCacheKey struct {
 	Model                    string   `json:"model"`
 	IsTextModeModel          bool     `json:"is_text_mode_model"`
 	PersonalityLine          string   `json:"personality_line"`
+	CharacterNotes           string   `json:"character_notes"`
+	NarrativeVisible         bool     `json:"narrative_visible"`
 }
 
 func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
@@ -157,6 +159,8 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		Model:                    flags.Model,
 		IsTextModeModel:          flags.IsTextModeModel,
 		PersonalityLine:          flags.PersonalityLine,
+		CharacterNotes:           flags.CharacterNotes,
+		NarrativeVisible:         flags.NarrativeVisible,
 	}
 	b, err := json.Marshal(key)
 	if err != nil {

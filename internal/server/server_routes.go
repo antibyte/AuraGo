@@ -506,6 +506,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/personalities", handleListPersonalities(s))
 	mux.HandleFunc("/api/personality", handleUpdatePersonality(s))
 	mux.HandleFunc("/api/personality/state", handlePersonalityState(s))
+	mux.HandleFunc("/api/personality/character-notes", handlePersonalityCharacterNotes(s))
 	mux.HandleFunc("/api/personality/feedback", handlePersonalityFeedback(s))
 	mux.HandleFunc("/api/agent/question-status", handleQuestionStatus(s))
 	mux.HandleFunc("/api/agent/question-response", handleQuestionResponse(s))

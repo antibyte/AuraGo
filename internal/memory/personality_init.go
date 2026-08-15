@@ -67,5 +67,9 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 		return fmt.Errorf("affect tables: %w", err)
 	}
 
+	if err := s.InitCharacterNoteTables(); err != nil {
+		return fmt.Errorf("character note tables: %w", err)
+	}
+
 	return nil
 }

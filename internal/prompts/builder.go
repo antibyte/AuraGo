@@ -142,6 +142,8 @@ type ContextFlags struct {
 	RecentActivityOverview         string // Compact 7-day activity overview for recency-aware planning
 	PredictedMemories              string // Phase B: proactively pre-fetched memories from temporal/tool patterns
 	PersonalityLine                string // Go-built working-style directives (trusted PERSONA STATE)
+	CharacterNotes                 string // Lived character ledger sentences (trusted)
+	NarrativeVisible               bool   // when true, notes may color tone more openly
 	CorePersonality                string // Selected core personality profile name (e.g. "neutral", "punk")
 	ActiveProcesses                string // PID (name) comma-separated
 	SystemLanguage                 string
@@ -1009,6 +1011,11 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			finalPrompt.WriteString(personaState)
 			finalPrompt.WriteString("\n\n")
 		}
+		if character := buildTrustedCharacterNotes(flags); character != "" {
+			finalPrompt.WriteString("### PERSONA CHARACTER\n")
+			finalPrompt.WriteString(character)
+			finalPrompt.WriteString("\n\n")
+		}
 		if personaSignals := buildCompactPersonaSignals(flags); personaSignals != "" {
 			finalPrompt.WriteString("### PERSONA SIGNALS\n")
 			finalPrompt.WriteString(personaSignals)
@@ -1550,6 +1557,21 @@ func compactHomepageDesignSystemForPrompt(designSystem string) string {
 		return ""
 	}
 	return truncateWithEllipsis(designSystem, maxHomepageDesignSystemChars)
+}
+
+func buildTrustedCharacterNotes(flags *ContextFlags) string {
+	if flags == nil {
+		return ""
+	}
+	notes := sanitizeTrustedPersonaState(flags.CharacterNotes)
+	if notes == "" {
+		return ""
+	}
+	instruction := "Lived identity notes. Use only for tone and working style. Do not announce them or mention milestones unless the user asks.\n"
+	if flags.NarrativeVisible {
+		instruction = "Lived identity notes. You may let them color tone subtly. Do not lecture about your personality unless asked.\n"
+	}
+	return instruction + notes
 }
 
 func buildTrustedPersonaState(personalityLine string) string {
