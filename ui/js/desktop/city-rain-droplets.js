@@ -36,6 +36,7 @@ let layoutObserver = null;
 let motionQuery = null;
 let wallpaperImage = null;
 let wallpaperLoad = null;
+let wallpaperBitmap = null;
 let startToken = 0;
 let starting = false;
 let retryTimers = [];
@@ -186,6 +187,32 @@ function loadWallpaperImage() {
   return wallpaperLoad;
 }
 
+function releaseWallpaperBitmap() {
+  if (wallpaperBitmap && typeof wallpaperBitmap.close === "function") {
+    try {
+      wallpaperBitmap.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  wallpaperBitmap = null;
+}
+
+async function wallpaperContent() {
+  const img = await loadWallpaperImage();
+  if (typeof createImageBitmap === "function") {
+    try {
+      const next = await createImageBitmap(img);
+      releaseWallpaperBitmap();
+      wallpaperBitmap = next;
+      return next;
+    } catch {
+      /* fall through to HTMLImageElement */
+    }
+  }
+  return img;
+}
+
 function layerSizeReady(host, output) {
   const hostRect = host.getBoundingClientRect();
   const outW = output.clientWidth || hostRect.width;
@@ -262,7 +289,7 @@ async function startDroplets() {
 
   let bitmap;
   try {
-    bitmap = await loadWallpaperImage();
+    bitmap = await wallpaperContent();
   } catch {
     starting = false;
     if (token !== startToken) return;

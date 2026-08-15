@@ -61,10 +61,16 @@ func TestCanvasUIAssetsAreEmbedded(t *testing.T) {
 		"hasContent()",
 		"contentReady",
 		"ALWAYS wins over experimental html-in-canvas",
+		"never paint gray procedural glass",
+		"document.createElement(\"canvas\")",
+		"contentUploaded",
 	} {
 		if !strings.Contains(droplets, want) {
 			t.Fatalf("droplets module missing bitmap-content marker %q", want)
 		}
+	}
+	if strings.Contains(droplets, "vec3(0.72)") {
+		t.Fatal("droplets must not keep the gray procedural glass fallback")
 	}
 	flame := string(mustReadUIFile(t, "js/vendor/canvasui/flame-wrap.js"))
 	if !strings.Contains(flame, "export function createFlameWrap") {
@@ -260,6 +266,8 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 		"MutationObserver",
 		"ResizeObserver",
 		"preloadWallpaperImage",
+		"createImageBitmap",
+		"wallpaperContent",
 		"scheduleBootstrapRetries",
 		"pageshow",
 		"prefers-reduced-motion",

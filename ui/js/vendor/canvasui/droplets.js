@@ -219,15 +219,9 @@ void main () {
   float focus = mix(back, 0.0, S(0.1, 0.2, c.x));
 
   if (uHasContent < 0.5) {
-    float mask = S(0.02, 0.14, c.x);
-    vec3 n3 = normalize(vec3(normal * 42.0, 1.0));
-    vec3 L = normalize(vec3(-0.35, 0.75, 0.55));
-    float spec = pow(max(dot(reflect(vec3(0.0, 0.0, -1.0), n3), L), 0.0), 34.0);
-    float rim = clamp(length(normal) * 26.0, 0.0, 1.0);
-    vec3 dropCol = mix(vec3(0.72), uTint, clamp(uTintStrength, 0.0, 1.0));
-    vec3 colF = dropCol * (0.12 + 0.5 * rim) + vec3(spec);
-    float alphaF = mask * clamp(0.1 + rim * 0.5 + spec * 0.9, 0.0, 1.0);
-    outColor = vec4(clamp(colF, 0.0, 1.0) * alphaF, alphaF);
+    // AuraGo: never paint gray procedural glass. Missing content stays
+    // transparent so the CSS wallpaper colors remain visible.
+    outColor = vec4(0.0);
     return;
   }
 
@@ -311,8 +305,13 @@ export function createDroplets(elements, options = {}) {
   });
   if (!gl || gl.isContextLost()) return null;
 
+  // Off-DOM blit canvas: visibility:hidden source canvases can fail 2d→WebGL
+  // uploads and leave uHasContent off (gray glass). Keep this detached.
+  const blit = document.createElement("canvas");
+  const blitCtx = blit.getContext("2d", { alpha: false });
+
   // Do not pass conflicting context attributes — a second getContext with
-  // different opts can return null and force the gray no-content path.
+  // different opts can return null and force the no-content path.
   const sourceCtx = source.getContext("2d");
   const paintable = source;
   const htmlInCanvasNative = Boolean(
@@ -320,7 +319,7 @@ export function createDroplets(elements, options = {}) {
     typeof sourceCtx.drawElementImage === "function" &&
     typeof paintable.requestPaint === "function",
   );
-  const allowBitmap = Boolean(sourceCtx);
+  const allowBitmap = Boolean(blitCtx);
   const useBitmap = () => allowBitmap && Boolean(bitmap);
   // Prefer wallpaper/static bitmap whenever present.
   const useHtmlInCanvas = () => htmlInCanvasNative && !useBitmap();
@@ -328,6 +327,7 @@ export function createDroplets(elements, options = {}) {
 
   let contentDirty = false;
   let contentReady = false;
+  let contentUploaded = false;
   let wake = () => {};
 
   if (htmlInCanvasNative) {
@@ -344,22 +344,21 @@ export function createDroplets(elements, options = {}) {
   }
 
   function paintBitmap() {
-    if (!useBitmap() || !sourceCtx) return false;
+    if (!useBitmap() || !blitCtx) return false;
     const width = Math.max(1, output.width || Math.round(output.clientWidth) || 1);
     const height = Math.max(1, output.height || Math.round(output.clientHeight) || 1);
-    if (source.width !== width || source.height !== height) {
-      source.width = width;
-      source.height = height;
+    if (blit.width !== width || blit.height !== height) {
+      blit.width = width;
+      blit.height = height;
     }
     const iw = bitmap.naturalWidth || bitmap.videoWidth || bitmap.width || 0;
     const ih = bitmap.naturalHeight || bitmap.videoHeight || bitmap.height || 0;
     if (iw < 2 || ih < 2) return false;
     try {
-      sourceCtx.setTransform(1, 0, 0, 1, 0, 0);
-      sourceCtx.globalCompositeOperation = "copy";
-      sourceCtx.clearRect(0, 0, width, height);
-      drawImageCover(sourceCtx, bitmap, width, height);
-      sourceCtx.globalCompositeOperation = "source-over";
+      blitCtx.setTransform(1, 0, 0, 1, 0, 0);
+      blitCtx.globalCompositeOperation = "copy";
+      drawImageCover(blitCtx, bitmap, width, height);
+      blitCtx.globalCompositeOperation = "source-over";
       contentDirty = true;
       contentReady = true;
       return true;
@@ -570,14 +569,14 @@ export function createDroplets(elements, options = {}) {
       gl.bindTexture(gl.TEXTURE_2D, contentTexture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
-      if (useBitmap() && source.width > 1 && source.height > 1) {
+      if (useBitmap() && blit.width > 1 && blit.height > 1) {
         gl.texImage2D(
           gl.TEXTURE_2D,
           0,
           gl.RGBA,
           gl.RGBA,
           gl.UNSIGNED_BYTE,
-          source,
+          blit,
         );
       } else if (useHtmlInCanvas()) {
         gl.texImage2D(
@@ -593,9 +592,11 @@ export function createDroplets(elements, options = {}) {
       }
       gl.generateMipmap(gl.TEXTURE_2D);
       contentDirty = false;
+      contentUploaded = true;
     } catch {
       // Keep dirty so the next frame retries (transient decode/GPU issues).
       contentDirty = true;
+      contentUploaded = false;
     }
   }
 
@@ -605,8 +606,10 @@ export function createDroplets(elements, options = {}) {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, contentTexture);
     gl.uniform1i(uniforms.uContent, 0);
-    // Only flip on the refracting path after content is actually ready.
-    const contentOn = hasContent() && (useHtmlInCanvas() || contentReady);
+    // Bitmap refraction requires a successful GPU upload, not just a 2d blit.
+    const contentOn = useBitmap()
+      ? contentUploaded
+      : useHtmlInCanvas() && contentReady;
     gl.uniform1f(uniforms.uHasContent, contentOn ? 1 : 0);
     gl.uniform2f(uniforms.uResolution, output.width, output.height);
     gl.uniform2f(
@@ -759,6 +762,7 @@ export function createDroplets(elements, options = {}) {
       if (!allowBitmap) return;
       bitmap = next || null;
       contentReady = false;
+      contentUploaded = false;
       if (paintBitmap()) uploadContent();
       start();
     },
@@ -768,7 +772,7 @@ export function createDroplets(elements, options = {}) {
       start();
     },
     hasContent() {
-      return hasContent() && contentReady;
+      return useBitmap() ? contentUploaded : hasContent() && contentReady;
     },
     destroy() {
       destroyed = true;

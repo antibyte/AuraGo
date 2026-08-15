@@ -90,6 +90,8 @@ images, and browser-oriented regression tests.
   `ui/js/desktop/city-rain-droplets.js`, painted on `#vd-wallpaper-fx`
   (`z-index: -1`) behind icons/widgets/windows, with graceful WebGL2 /
   reduced-motion fallbacks and no HTML capture of foreground UI.
+  Droplets must refract the `city_rain` wallpaper bitmap; missing content
+  stays transparent and must never fall back to gray procedural glass.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
 
