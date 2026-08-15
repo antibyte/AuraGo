@@ -136,6 +136,12 @@ func TestSpeechLabChatRecorderIsPCMWorkletOnly(t *testing.T) {
 		"const MAX_DURATION_MS = 120000",
 		"const TARGET_SAMPLE_RATE = 16000",
 		"const MAX_WAV_BYTES = 8 * 1024 * 1024",
+		"state: 'idle'",
+		"this.state = 'starting'",
+		"this.state = 'stopping'",
+		"this.audioContext = new AudioContext()",
+		"await this.audioContext.resume()",
+		"await this._ensureAudioContextRunning()",
 		"audioWorklet.addModule('/js/chat/modules/speech-lab-worklet.js')",
 		"new AudioWorkletNode",
 		"text(0, 'RIFF')",
@@ -151,15 +157,32 @@ func TestSpeechLabChatRecorderIsPCMWorkletOnly(t *testing.T) {
 			t.Fatalf("Speech Lab recorder missing %q", wanted)
 		}
 	}
-	for _, forbidden := range []string{"MediaRecorder", "audio/webm", "audio/mpeg", "SpeechRecognition"} {
+	for _, forbidden := range []string{"MediaRecorder", "createScriptProcessor", "audio/webm", "audio/mpeg", "SpeechRecognition"} {
 		if strings.Contains(recorder, forbidden) {
 			t.Fatalf("Speech Lab recorder contains forbidden fallback %q", forbidden)
 		}
 	}
+	start := strings.Index(recorder, "async start() {")
+	if start < 0 {
+		t.Fatal("Speech Lab recorder is missing start()")
+	}
+	contextStart := strings.Index(recorder[start:], "this.audioContext = new AudioContext()")
+	firstAwait := strings.Index(recorder[start:], "const status = await this.refreshStatus()")
+	if contextStart < 0 || firstAwait < 0 || contextStart > firstAwait {
+		t.Fatal("Speech Lab AudioContext must be created before the first status await in start()")
+	}
 
 	bootstrap := readSpeechLabUIFile(t, "js/chat/main/bootstrap.js")
-	if !strings.Contains(bootstrap, "const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText") {
+	if !strings.Contains(bootstrap, "const outcome = speechLabRecorder ? await speechLabRecorder.start() : 'browser'") ||
+		!strings.Contains(bootstrap, "if (browserSTT)") {
 		t.Fatal("browser speech recognition fallback is not selected explicitly")
+	}
+	if !strings.Contains(bootstrap, "if (outcome === 'failed' || outcome === 'busy') return") {
+		t.Fatal("failed Speech Lab starts must not silently switch providers")
+	}
+	if !strings.Contains(bootstrap, "await speechLabRecorder.send()") ||
+		!strings.Contains(bootstrap, "voiceBtn.setAttribute('aria-busy'") {
+		t.Fatal("Speech Lab start and stop transitions must lock the microphone action")
 	}
 	if !strings.Contains(bootstrap, "pendingSpeechLabTurnToken = String(turnToken || '')") {
 		t.Fatal("Speech Lab transcription does not retain the single-use turn token")

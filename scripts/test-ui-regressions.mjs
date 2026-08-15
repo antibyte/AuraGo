@@ -1403,6 +1403,204 @@ async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus(
   assert.equal(actionsEnabled, true, 'ready status must unlock remote actions');
 }
 
+function createSpeechLabRecorderHarness(options = {}) {
+  const source = read('ui/js/chat/modules/speech-lab-recorder.js');
+  const status = options.status || { enabled: true, chat_input_enabled: true, asr_ok: true };
+  const counters = {
+    contexts: 0,
+    resumes: 0,
+    closes: 0,
+    getUserMedia: 0,
+    trackStops: 0,
+    statusRequests: 0,
+    uploads: 0
+  };
+  const uploadedForms = [];
+  let lastNode = null;
+
+  class FakeAudioContext {
+    constructor() {
+      counters.contexts += 1;
+      if (options.failContext) throw new Error('AudioContext unavailable');
+      this.state = 'suspended';
+      this.sampleRate = 48000;
+      this.destination = {};
+      this.audioWorklet = {
+        addModule: async () => {
+          if (options.failAddModule) throw new Error('worklet load failed');
+          if (options.suspendAfterModule !== false) this.state = 'suspended';
+        }
+      };
+    }
+
+    async resume() {
+      counters.resumes += 1;
+      this.state = 'running';
+    }
+
+    async close() {
+      counters.closes += 1;
+      this.state = 'closed';
+    }
+
+    createMediaStreamSource() {
+      return { connect() {}, disconnect() {} };
+    }
+
+    createGain() {
+      return { gain: { value: 1 }, connect() {}, disconnect() {} };
+    }
+  }
+
+  class FakeAudioWorkletNode {
+    constructor() {
+      this.port = { onmessage: null };
+      lastNode = this;
+    }
+
+    connect() {}
+    disconnect() {}
+  }
+
+  class FakeFormData {
+    constructor() {
+      this.entries = [];
+    }
+
+    append(...args) {
+      this.entries.push(args);
+    }
+  }
+
+  const stream = {
+    getTracks: () => [{ stop: () => { counters.trackStops += 1; } }]
+  };
+  const navigator = {
+    mediaDevices: {
+      async getUserMedia() {
+        counters.getUserMedia += 1;
+        if (options.failGetUserMedia) {
+          const error = new Error('microphone unavailable');
+          error.name = options.mediaErrorName || 'NotReadableError';
+          throw error;
+        }
+        return stream;
+      }
+    }
+  };
+  const fetch = async (url, request = {}) => {
+    if (url === '/api/speech-lab/status') {
+      counters.statusRequests += 1;
+      if (options.statusError) throw new Error('status unavailable');
+      return { ok: options.statusOK !== false, json: async () => status };
+    }
+    if (url === '/api/upload-voice') {
+      counters.uploads += 1;
+      uploadedForms.push(request.body);
+      return {
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ transcription: 'test transcript', speech_lab_turn_token: 'turn-token' })
+      };
+    }
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  const window = {
+    AudioContext: FakeAudioContext,
+    AudioWorkletNode: options.workletSupported === false ? null : FakeAudioWorkletNode,
+    activeSessionId: () => 'session-1'
+  };
+  const context = {
+    window,
+    navigator,
+    document: { body: { appendChild() {}, style: {} } },
+    fetch,
+    AudioContext: FakeAudioContext,
+    AudioWorkletNode: FakeAudioWorkletNode,
+    FormData: FakeFormData,
+    Blob,
+    ArrayBuffer,
+    DataView,
+    Float32Array,
+    Math,
+    Date,
+    Error,
+    setInterval: () => 1,
+    clearInterval() {},
+    setTimeout: () => 2,
+    clearTimeout() {}
+  };
+  vm.runInNewContext(source, context);
+  const recorder = window.SpeechLabRecorder;
+  const errors = [];
+  const transcriptions = [];
+  recorder.onError = message => errors.push(message);
+  recorder.onTranscription = (text, token) => transcriptions.push({ text, token });
+  recorder._showUI = () => {};
+
+  return {
+    recorder,
+    counters,
+    errors,
+    transcriptions,
+    uploadedForms,
+    lastNode: () => lastNode
+  };
+}
+
+async function testSpeechLabRecorderLifecycleAndFallbacks() {
+  const active = createSpeechLabRecorderHarness();
+  const firstStart = active.recorder.start();
+  assert.equal(await active.recorder.start(), 'busy', 'a concurrent start must be ignored');
+  assert.equal(await firstStart, 'recording');
+  assert.equal(active.recorder.state, 'recording');
+  assert.equal(active.counters.contexts, 1);
+  assert.equal(active.counters.getUserMedia, 1);
+  assert.equal(active.counters.resumes, 2, 'the context must resume before and after worklet setup when suspended');
+
+  active.lastNode().port.onmessage({ data: new Float32Array([0.25, -0.25, 0.5, -0.5]) });
+  assert.equal(await active.recorder.send(), true);
+  assert.equal(active.recorder.state, 'idle');
+  assert.equal(active.counters.uploads, 1);
+  assert.equal(active.counters.trackStops, 1);
+  assert.equal(active.counters.closes, 1);
+  assert.deepEqual(active.transcriptions, [{ text: 'test transcript', token: 'turn-token' }]);
+  const upload = active.uploadedForms[0].entries[0];
+  assert.equal(upload[0], 'audio');
+  assert.equal(upload[1].type, 'audio/wav');
+  assert.ok(upload[1].size > 44, 'the uploaded WAV must contain PCM samples');
+  assert.equal(upload[2], 'speech-lab.wav');
+
+  const empty = createSpeechLabRecorderHarness({ suspendAfterModule: false });
+  assert.equal(await empty.recorder.start(), 'recording');
+  assert.equal(await empty.recorder.send(), false);
+  assert.equal(empty.counters.uploads, 0, 'zero samples must never be uploaded');
+  assert.match(empty.errors.at(-1), /No speech audio was recorded/);
+
+  const failed = createSpeechLabRecorderHarness({ failAddModule: true });
+  assert.equal(await failed.recorder.start(), 'failed');
+  assert.equal(failed.recorder.state, 'idle');
+  assert.equal(failed.counters.trackStops, 1, 'a partial microphone stream must be stopped');
+  assert.equal(failed.counters.closes, 1, 'a partial AudioContext must be closed');
+
+  const unsupported = createSpeechLabRecorderHarness({ workletSupported: false });
+  assert.equal(await unsupported.recorder.start(), 'browser');
+  assert.equal(unsupported.counters.contexts, 0);
+  assert.equal(unsupported.counters.getUserMedia, 0);
+
+  const noContext = createSpeechLabRecorderHarness({ failContext: true });
+  assert.equal(await noContext.recorder.start(), 'browser');
+  assert.equal(noContext.counters.getUserMedia, 0);
+
+  const disabled = createSpeechLabRecorderHarness({ status: { enabled: false, chat_input_enabled: false, asr_ok: false } });
+  assert.equal(await disabled.recorder.start(), 'browser');
+
+  const unavailable = createSpeechLabRecorderHarness({ statusError: true });
+  unavailable.recorder.status = { enabled: true, chat_input_enabled: true, asr_ok: true };
+  assert.equal(await unavailable.recorder.start(), 'failed', 'a known Speech Lab selection must fail closed');
+  assert.equal(unavailable.errors.length, 1);
+}
+
 const tests = [
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
@@ -1432,6 +1630,7 @@ const tests = [
   ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
+  ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

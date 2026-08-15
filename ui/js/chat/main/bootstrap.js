@@ -384,16 +384,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (window.showToast) { window.showToast(msg, 'error'); } else { await showAlert(msg, ''); }
             };
 
-			const speechLabSelected = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
-			const useSpeechLabSTT = speechLabSelected && window.SpeechLabRecorder.isSupported;
-			// Browser SpeechRecognition remains the default unless local Speech Lab
-			// chat input can capture an exact PCM/WAV stream. When AudioWorklet is
-			// unavailable, use browser recognition explicitly and never send a
-			// MediaRecorder format to the WAV-only Speech Lab endpoint.
-			const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText && window.SpeechToText.isSupported;
+			const speechLabRecorder = window.SpeechLabRecorder || null;
+			const browserSTT = window.SpeechToText && window.SpeechToText.isSupported ? window.SpeechToText : null;
+			let legacyRecorderInitialized = false;
+			let voiceActionPending = false;
 
-			if (useSpeechLabSTT) {
-				window.SpeechLabRecorder.init({
+			if (speechLabRecorder) {
+				speechLabRecorder.init({
 					onTranscription: (text, turnToken) => {
 						pendingSpeechLabTurnToken = String(turnToken || '');
 						voiceBtn.classList.remove('btn-active');
@@ -404,7 +401,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 						_showError(msg);
 					}
 				});
-			} else if (useBrowserSTT) {
+				// Prime the last-known selection without delaying button binding. Each
+				// actual start still performs its own authoritative readiness refresh.
+				speechLabRecorder.refreshStatus();
+			}
+
+			if (browserSTT) {
                 window.SpeechToText.init({
                     // Don't touch textarea during live recognition —
                     // the overlay displays the streaming transcript.
@@ -420,42 +422,83 @@ document.addEventListener('DOMContentLoaded', async () => {
                         _showError(msg);
                     }
                 });
-			} else if (speechLabSelected) {
-				voiceBtn.disabled = true;
-				voiceBtn.classList.add('btn-disabled');
-				voiceBtn.title = t('chat.speech_lab_capture_unavailable');
-				_showError(voiceBtn.title);
-			} else if (window.VoiceRecorder) {
-                window.VoiceRecorder.init({
-                    onTranscription: _populateInput,
-                    onError: _showError
-                });
             }
 
-            voiceBtn.addEventListener('click', () => {
-				if (useSpeechLabSTT) {
-					if (window.SpeechLabRecorder.isRecording) {
-						window.SpeechLabRecorder.send();
+			const _ensureLegacyRecorder = () => {
+				if (!window.VoiceRecorder) return null;
+				if (!legacyRecorderInitialized) {
+					window.VoiceRecorder.init({
+						onTranscription: _populateInput,
+						onError: _showError
+					});
+					legacyRecorderInitialized = true;
+				}
+				return window.VoiceRecorder;
+			};
+
+			const _setVoiceActionPending = (pending) => {
+				voiceActionPending = pending;
+				voiceBtn.disabled = pending;
+				voiceBtn.setAttribute('aria-busy', pending ? 'true' : 'false');
+			};
+
+			voiceBtn.addEventListener('click', async () => {
+				if (voiceActionPending || (speechLabRecorder && speechLabRecorder.isTransitioning)) return;
+				if (speechLabRecorder && speechLabRecorder.isRecording) {
+					_setVoiceActionPending(true);
+					try {
+						await speechLabRecorder.send();
 						voiceBtn.classList.remove('btn-active');
-					} else {
-						window.SpeechLabRecorder.start();
-						voiceBtn.classList.add('btn-active');
+					} finally {
+						_setVoiceActionPending(false);
 					}
-				} else if (useBrowserSTT) {
+					return;
+				}
+				if (browserSTT && browserSTT.isActive) {
                     if (window.SpeechToText.isActive) {
                         window.SpeechToText.stop();
                         voiceBtn.classList.remove('btn-active');
-                    } else {
-                        window.SpeechToText.start();
-                        voiceBtn.classList.add('btn-active');
                     }
-                } else if (window.VoiceRecorder) {
-                    if (window.VoiceRecorder.isRecording) {
-                        window.VoiceRecorder.send();
-                    } else {
-                        window.VoiceRecorder.start();
-                    }
-                }
+					return;
+				}
+				if (window.VoiceRecorder && window.VoiceRecorder.isRecording) {
+					_setVoiceActionPending(true);
+					try {
+						await window.VoiceRecorder.send();
+					} finally {
+						_setVoiceActionPending(false);
+					}
+					return;
+				}
+
+				_setVoiceActionPending(true);
+				try {
+					const outcome = speechLabRecorder ? await speechLabRecorder.start() : 'browser';
+					if (outcome === 'recording') {
+						voiceBtn.classList.add('btn-active');
+						return;
+					}
+					if (outcome === 'failed' || outcome === 'busy') return;
+
+					// Browser SpeechRecognition is the only fallback when Speech Lab is
+					// selected but AudioWorklet capture is unavailable. MediaRecorder
+					// output must never be sent as Speech Lab WAV input.
+					if (browserSTT) {
+						await browserSTT.start();
+						if (browserSTT.isActive) voiceBtn.classList.add('btn-active');
+						return;
+					}
+					const speechLabSelected = !!(speechLabRecorder && speechLabRecorder.status &&
+						speechLabRecorder.status.enabled && speechLabRecorder.status.chat_input_enabled);
+					if (speechLabSelected) {
+						_showError(t('chat.speech_lab_capture_unavailable'));
+						return;
+					}
+					const legacyRecorder = _ensureLegacyRecorder();
+					if (legacyRecorder) await legacyRecorder.start();
+				} finally {
+					_setVoiceActionPending(false);
+				}
             });
         }
     }
