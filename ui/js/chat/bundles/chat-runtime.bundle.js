@@ -2126,14 +2126,30 @@ if (typeof module !== 'undefined' && module.exports) {
     const TARGET_SAMPLE_RATE = 16000;
     const MAX_WAV_BYTES = 8 * 1024 * 1024;
 
+    const START_RECORDING = 'recording';
+    const START_BROWSER = 'browser';
+    const START_FAILED = 'failed';
+    const START_BUSY = 'busy';
+
     const SpeechLabRecorder = {
-        isSupported: !!(window.AudioContext && window.AudioWorkletNode && navigator.mediaDevices),
-        isRecording: false,
+        isSupported: !!(window.AudioContext && window.AudioWorkletNode && navigator.mediaDevices &&
+            typeof navigator.mediaDevices.getUserMedia === 'function'),
+        state: 'idle',
         status: null,
+        statusRequestOK: false,
+        statusRequestID: 0,
         chunks: [],
         totalFrames: 0,
-        onTranscription: null,
-        onError: null,
+        onTranscription: () => {},
+        onError: () => {},
+
+        get isRecording() {
+            return this.state === 'recording';
+        },
+
+        get isTransitioning() {
+            return this.state === 'starting' || this.state === 'stopping';
+        },
 
         init(options = {}) {
             this.onTranscription = options.onTranscription || (() => {});
@@ -2149,36 +2165,79 @@ if (typeof module !== 'undefined' && module.exports) {
         },
 
         async refreshStatus() {
+            const requestID = ++this.statusRequestID;
             try {
                 const response = await fetch('/api/speech-lab/status', { headers: { Accept: 'application/json' } });
-                this.status = response.ok ? await response.json() : null;
+                if (!response.ok) {
+                    if (requestID === this.statusRequestID) this.statusRequestOK = false;
+                    return null;
+                }
+                const status = await response.json();
+                if (requestID === this.statusRequestID) {
+                    this.status = status;
+                    this.statusRequestOK = true;
+                }
+                return status;
             } catch (_) {
-                this.status = null;
+                if (requestID === this.statusRequestID) this.statusRequestOK = false;
+                return null;
             }
-            return this.status;
         },
 
         async selected() {
             const status = await this.refreshStatus();
-            return !!(status && status.enabled && status.chat_input_enabled);
+            return this._statusSelectsSpeechLab(status);
         },
 
         async start() {
-            if (this.isRecording) return;
-            if (!this.isSupported) {
-                this._fail(this._t('speech_lab_audio_worklet_required', 'Local Speech Lab recording requires AudioWorklet support. Open Speech Lab settings to choose another input.'));
-                return;
+            if (this.state === 'recording') return START_RECORDING;
+            if (this.state !== 'idle') return START_BUSY;
+
+            this.state = 'starting';
+            const previouslySelected = this._statusSelectsSpeechLab(this.status);
+            let initialResume = Promise.resolve(null);
+            let contextError = null;
+
+            // Creating and resuming the context before the first await preserves
+            // the browser's user activation from the microphone button click.
+            if (this.isSupported) {
+                try {
+                    this.audioContext = new AudioContext();
+                    initialResume = this._ensureAudioContextRunning().then(() => null, error => error);
+                } catch (error) {
+                    contextError = error;
+                }
             }
+
             const status = await this.refreshStatus();
-            if (!status || !status.enabled || !status.chat_input_enabled || !status.asr_ok) {
+            const resumeError = await initialResume;
+            if (!status) {
+                await this._finishStartWithoutRecording();
+                if (previouslySelected) {
+                    this._fail(this._t('speech_lab_asr_not_ready', 'Speech Lab ASR is not ready. Check Media → Speech Lab.'));
+                    return START_FAILED;
+                }
+                return START_BROWSER;
+            }
+            if (!this._statusSelectsSpeechLab(status)) {
+                await this._finishStartWithoutRecording();
+                return START_BROWSER;
+            }
+            if (!this.isSupported || contextError || !this.audioContext || !this.audioContext.audioWorklet ||
+                typeof this.audioContext.audioWorklet.addModule !== 'function') {
+                await this._finishStartWithoutRecording();
+                return START_BROWSER;
+            }
+            if (!status.asr_ok) {
+                await this._finishStartWithoutRecording();
                 this._fail(this._t('speech_lab_asr_not_ready', 'Speech Lab ASR is not ready. Check Media → Speech Lab.'));
-                return;
+                return START_FAILED;
             }
             try {
+                if (resumeError) throw resumeError;
                 this.stream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 }
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
                 });
-                this.audioContext = new AudioContext();
                 await this.audioContext.audioWorklet.addModule('/js/chat/modules/speech-lab-worklet.js');
                 this.source = this.audioContext.createMediaStreamSource(this.stream);
                 this.node = new AudioWorkletNode(this.audioContext, 'aurago-speech-lab-recorder');
@@ -2187,41 +2246,47 @@ if (typeof module !== 'undefined' && module.exports) {
                 this.chunks = [];
                 this.totalFrames = 0;
                 this.node.port.onmessage = (event) => {
-                    if (!this.isRecording || !(event.data instanceof Float32Array)) return;
+                    if (this.state !== 'recording' || !(event.data instanceof Float32Array)) return;
                     this.chunks.push(event.data);
                     this.totalFrames += event.data.length;
                 };
+                await this._ensureAudioContextRunning();
+                this.state = 'recording';
                 this.source.connect(this.node);
                 this.node.connect(this.silence);
                 this.silence.connect(this.audioContext.destination);
-                this.isRecording = true;
                 this.startedAt = Date.now();
                 this._showUI();
                 this.timer = setInterval(() => this._updateTimer(), 250);
                 this.limitTimer = setTimeout(() => this.send(), MAX_DURATION_MS);
+                return START_RECORDING;
             } catch (error) {
+                this.state = 'stopping';
                 await this._cleanup();
+                this.state = 'idle';
                 this._fail(error && error.name === 'NotAllowedError'
                     ? this._t('speech_lab_microphone_denied', 'Microphone permission was denied.')
                     : this._t('speech_lab_recorder_start_failed', 'Speech Lab could not start the microphone recorder.'));
+                return START_FAILED;
             }
         },
 
         async send() {
-            if (!this.isRecording) return;
-            this.isRecording = false;
+            if (this.state !== 'recording') return false;
+            this.state = 'stopping';
             const sourceRate = this.audioContext ? this.audioContext.sampleRate : TARGET_SAMPLE_RATE;
             const samples = this._mergeChunks();
             await this._cleanup();
+            this.state = 'idle';
             if (!samples.length) {
                 this._fail(this._t('speech_lab_no_audio', 'No speech audio was recorded.'));
-                return;
+                return false;
             }
             const resampled = this._resample(samples, sourceRate, TARGET_SAMPLE_RATE);
             const wav = this._encodeWAV(resampled, TARGET_SAMPLE_RATE);
             if (wav.size > MAX_WAV_BYTES) {
                 this._fail(this._t('speech_lab_too_large', 'Speech Lab recording exceeds 8 MiB. Record a shorter message.'));
-                return;
+                return false;
             }
             const form = new FormData();
             form.append('audio', wav, 'speech-lab.wav');
@@ -2240,16 +2305,39 @@ if (typeof module !== 'undefined' && module.exports) {
                 }
                 const payload = await response.json();
                 this.onTranscription(payload.transcription || '', payload.speech_lab_turn_token || '');
+                return true;
             } catch (error) {
                 this._fail(error.message || this._t('speech_lab_transcription_failed', 'Speech Lab transcription failed.'));
+                return false;
             }
         },
 
         async cancel() {
-            this.isRecording = false;
+            this.state = 'stopping';
             this.chunks = [];
             this.totalFrames = 0;
             await this._cleanup();
+            this.state = 'idle';
+        },
+
+        _statusSelectsSpeechLab(status) {
+            return !!(status && status.enabled && status.chat_input_enabled);
+        },
+
+        async _ensureAudioContextRunning() {
+            if (!this.audioContext) throw new Error('speech_lab_audio_context_missing');
+            if (this.audioContext.state === 'suspended' || this.audioContext.state === 'interrupted') {
+                await this.audioContext.resume();
+            }
+            if (this.audioContext.state !== 'running') {
+                throw new Error('speech_lab_audio_context_not_running');
+            }
+        },
+
+        async _finishStartWithoutRecording() {
+            this.state = 'stopping';
+            await this._cleanup();
+            this.state = 'idle';
         },
 
         _mergeChunks() {
@@ -2343,9 +2431,9 @@ if (typeof module !== 'undefined' && module.exports) {
         async _cleanup() {
             clearInterval(this.timer);
             clearTimeout(this.limitTimer);
-            if (this.node) this.node.disconnect();
-            if (this.source) this.source.disconnect();
-            if (this.silence) this.silence.disconnect();
+            if (this.node) try { this.node.disconnect(); } catch (_) {}
+            if (this.source) try { this.source.disconnect(); } catch (_) {}
+            if (this.silence) try { this.silence.disconnect(); } catch (_) {}
             if (this.stream) this.stream.getTracks().forEach(track => track.stop());
             if (this.audioContext) await this.audioContext.close().catch(() => {});
             this.node = this.source = this.silence = this.stream = this.audioContext = null;
@@ -6080,16 +6168,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (window.showToast) { window.showToast(msg, 'error'); } else { await showAlert(msg, ''); }
             };
 
-			const speechLabSelected = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
-			const useSpeechLabSTT = speechLabSelected && window.SpeechLabRecorder.isSupported;
-			// Browser SpeechRecognition remains the default unless local Speech Lab
-			// chat input can capture an exact PCM/WAV stream. When AudioWorklet is
-			// unavailable, use browser recognition explicitly and never send a
-			// MediaRecorder format to the WAV-only Speech Lab endpoint.
-			const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText && window.SpeechToText.isSupported;
+			const speechLabRecorder = window.SpeechLabRecorder || null;
+			const browserSTT = window.SpeechToText && window.SpeechToText.isSupported ? window.SpeechToText : null;
+			let legacyRecorderInitialized = false;
+			let voiceActionPending = false;
 
-			if (useSpeechLabSTT) {
-				window.SpeechLabRecorder.init({
+			if (speechLabRecorder) {
+				speechLabRecorder.init({
 					onTranscription: (text, turnToken) => {
 						pendingSpeechLabTurnToken = String(turnToken || '');
 						voiceBtn.classList.remove('btn-active');
@@ -6100,7 +6185,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 						_showError(msg);
 					}
 				});
-			} else if (useBrowserSTT) {
+				// Prime the last-known selection without delaying button binding. Each
+				// actual start still performs its own authoritative readiness refresh.
+				speechLabRecorder.refreshStatus();
+			}
+
+			if (browserSTT) {
                 window.SpeechToText.init({
                     // Don't touch textarea during live recognition —
                     // the overlay displays the streaming transcript.
@@ -6116,42 +6206,83 @@ document.addEventListener('DOMContentLoaded', async () => {
                         _showError(msg);
                     }
                 });
-			} else if (speechLabSelected) {
-				voiceBtn.disabled = true;
-				voiceBtn.classList.add('btn-disabled');
-				voiceBtn.title = t('chat.speech_lab_capture_unavailable');
-				_showError(voiceBtn.title);
-			} else if (window.VoiceRecorder) {
-                window.VoiceRecorder.init({
-                    onTranscription: _populateInput,
-                    onError: _showError
-                });
             }
 
-            voiceBtn.addEventListener('click', () => {
-				if (useSpeechLabSTT) {
-					if (window.SpeechLabRecorder.isRecording) {
-						window.SpeechLabRecorder.send();
+			const _ensureLegacyRecorder = () => {
+				if (!window.VoiceRecorder) return null;
+				if (!legacyRecorderInitialized) {
+					window.VoiceRecorder.init({
+						onTranscription: _populateInput,
+						onError: _showError
+					});
+					legacyRecorderInitialized = true;
+				}
+				return window.VoiceRecorder;
+			};
+
+			const _setVoiceActionPending = (pending) => {
+				voiceActionPending = pending;
+				voiceBtn.disabled = pending;
+				voiceBtn.setAttribute('aria-busy', pending ? 'true' : 'false');
+			};
+
+			voiceBtn.addEventListener('click', async () => {
+				if (voiceActionPending || (speechLabRecorder && speechLabRecorder.isTransitioning)) return;
+				if (speechLabRecorder && speechLabRecorder.isRecording) {
+					_setVoiceActionPending(true);
+					try {
+						await speechLabRecorder.send();
 						voiceBtn.classList.remove('btn-active');
-					} else {
-						window.SpeechLabRecorder.start();
-						voiceBtn.classList.add('btn-active');
+					} finally {
+						_setVoiceActionPending(false);
 					}
-				} else if (useBrowserSTT) {
+					return;
+				}
+				if (browserSTT && browserSTT.isActive) {
                     if (window.SpeechToText.isActive) {
                         window.SpeechToText.stop();
                         voiceBtn.classList.remove('btn-active');
-                    } else {
-                        window.SpeechToText.start();
-                        voiceBtn.classList.add('btn-active');
                     }
-                } else if (window.VoiceRecorder) {
-                    if (window.VoiceRecorder.isRecording) {
-                        window.VoiceRecorder.send();
-                    } else {
-                        window.VoiceRecorder.start();
-                    }
-                }
+					return;
+				}
+				if (window.VoiceRecorder && window.VoiceRecorder.isRecording) {
+					_setVoiceActionPending(true);
+					try {
+						await window.VoiceRecorder.send();
+					} finally {
+						_setVoiceActionPending(false);
+					}
+					return;
+				}
+
+				_setVoiceActionPending(true);
+				try {
+					const outcome = speechLabRecorder ? await speechLabRecorder.start() : 'browser';
+					if (outcome === 'recording') {
+						voiceBtn.classList.add('btn-active');
+						return;
+					}
+					if (outcome === 'failed' || outcome === 'busy') return;
+
+					// Browser SpeechRecognition is the only fallback when Speech Lab is
+					// selected but AudioWorklet capture is unavailable. MediaRecorder
+					// output must never be sent as Speech Lab WAV input.
+					if (browserSTT) {
+						await browserSTT.start();
+						if (browserSTT.isActive) voiceBtn.classList.add('btn-active');
+						return;
+					}
+					const speechLabSelected = !!(speechLabRecorder && speechLabRecorder.status &&
+						speechLabRecorder.status.enabled && speechLabRecorder.status.chat_input_enabled);
+					if (speechLabSelected) {
+						_showError(t('chat.speech_lab_capture_unavailable'));
+						return;
+					}
+					const legacyRecorder = _ensureLegacyRecorder();
+					if (legacyRecorder) await legacyRecorder.start();
+				} finally {
+					_setVoiceActionPending(false);
+				}
             });
         }
     }
