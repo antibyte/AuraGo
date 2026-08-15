@@ -836,6 +836,7 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
 	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
+	prompt = appendCoAgentTemperament(prompt, cfg, stm)
 	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)
 }
 
@@ -887,7 +888,20 @@ func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentReq
 	if extras.Len() > 0 {
 		prompt += extras.String()
 	}
+	prompt = appendCoAgentTemperament(prompt, cfg, stm)
 	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)
+}
+
+func appendCoAgentTemperament(prompt string, cfg *config.Config, stm *memory.SQLiteMemory) string {
+	if cfg == nil || !cfg.Personality.Engine || stm == nil {
+		return prompt
+	}
+	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality)
+	line := temperamentSnapshot(stm, meta)
+	if line == "" {
+		return prompt
+	}
+	return strings.TrimSpace(prompt) + "\n\n" + line + "\n"
 }
 
 func loadSecuritySpecialistSkillPrompt(cfg *config.Config) string {

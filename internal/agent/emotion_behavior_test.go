@@ -50,7 +50,7 @@ func TestDeriveEmotionBehaviorPolicyUsesStructuredStateAndTraits(t *testing.T) {
 		t.Fatalf("InsertEmotionStateHistory: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "", "")
 
 	if policy.MaxToolCallsDelta != -1 {
 		t.Fatalf("MaxToolCallsDelta = %d, want -1", policy.MaxToolCallsDelta)
@@ -77,7 +77,7 @@ func TestDeriveEmotionBehaviorPolicyAddsCasualCuriosityHintAboveHighThreshold(t 
 		t.Fatalf("SetTrait curiosity: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "")
 	hint := strings.ToLower(policy.CuriosityPromptHint)
 	for _, want := range []string{
 		"more curious",
@@ -99,7 +99,7 @@ func TestDeriveEmotionBehaviorPolicyDoesNotAddCuriosityHintAtNeutral(t *testing.
 		t.Fatalf("SetTrait curiosity: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "")
 	if policy.CuriosityPromptHint != "" {
 		t.Fatalf("CuriosityPromptHint = %q, want empty at neutral curiosity", policy.CuriosityPromptHint)
 	}
@@ -112,7 +112,7 @@ func TestDeriveEmotionBehaviorPolicyDoesNotAddCuriosityHintBelowHighThreshold(t 
 		t.Fatalf("SetTrait curiosity: %v", err)
 	}
 
-	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{})
+	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "")
 	if policy.CuriosityPromptHint != "" {
 		t.Fatalf("CuriosityPromptHint = %q, want empty below HighCuriosity", policy.CuriosityPromptHint)
 	}
@@ -152,6 +152,75 @@ func TestMergeEmotionBehaviorPromptIncludesAllHintsWithoutInnerVoice(t *testing.
 		if !strings.Contains(got, want) {
 			t.Fatalf("mergeEmotionBehaviorPrompt() = %q, want %q", got, want)
 		}
+	}
+}
+
+func TestDeriveEmotionBehaviorPolicyUsesChannelTone(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+	telegram := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "telegram", "status?")
+	if !strings.Contains(telegram.PromptHint, "short and scannable") {
+		t.Fatalf("telegram hint = %q", telegram.PromptHint)
+	}
+	web := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "status?")
+	if strings.Contains(web.PromptHint, "short and scannable") || strings.Contains(web.PromptHint, "informal desktop") {
+		t.Fatalf("web_chat should stay neutral, got %q", web.PromptHint)
+	}
+}
+
+func TestDeriveEmotionBehaviorPolicyConfirmsOnlyWhenAmbiguous(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+	if err := stm.SetTrait(memory.TraitConfidence, 0.2); err != nil {
+		t.Fatalf("SetTrait: %v", err)
+	}
+	ambiguous := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "lösch das bitte")
+	if !strings.Contains(strings.ToLower(ambiguous.PromptHint), "confirmation question") {
+		t.Fatalf("ambiguous delete should ask confirmation: %q", ambiguous.PromptHint)
+	}
+	concrete := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "delete /tmp/cache.db")
+	if strings.Contains(strings.ToLower(concrete.PromptHint), "ask one brief confirmation") {
+		t.Fatalf("concrete path should not ask confirmation: %q", concrete.PromptHint)
+	}
+	if !strings.Contains(strings.ToLower(concrete.PromptHint), "exact target") {
+		t.Fatalf("concrete path should still verify the target: %q", concrete.PromptHint)
+	}
+}
+
+func TestDeriveEmotionBehaviorPolicySkipsCuriosityOnShortChannels(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+	if err := stm.SetTrait(memory.TraitCuriosity, 0.9); err != nil {
+		t.Fatalf("SetTrait: %v", err)
+	}
+	sms := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "sms", "wie ist das wetter in berlin?")
+	if sms.CuriosityPromptHint != "" {
+		t.Fatalf("sms should not add curiosity follow-ups: %q", sms.CuriosityPromptHint)
+	}
+}
+
+func TestCalculateEffectiveMaxCallsAddsOneForHighThoroughness(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+	if err := stm.SetTrait(memory.TraitThoroughness, 0.91); err != nil {
+		t.Fatalf("SetTrait: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.CircuitBreaker.MaxToolCalls = 10
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	got := calculateEffectiveMaxCalls(cfg, ToolCall{}, false, true, stm, logger)
+	if got != 11 {
+		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 11", got)
+	}
+}
+
+func TestTemperamentSnapshotPicksOneLine(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+	if err := stm.SetTrait(memory.TraitThoroughness, 0.91); err != nil {
+		t.Fatalf("SetTrait: %v", err)
+	}
+	got := temperamentSnapshot(stm, memory.PersonalityMeta{})
+	if !strings.Contains(got, "Temperament: thorough") {
+		t.Fatalf("snapshot = %q", got)
+	}
+	if strings.Contains(got, "\n") {
+		t.Fatalf("temperament must be one line, got %q", got)
 	}
 }
 

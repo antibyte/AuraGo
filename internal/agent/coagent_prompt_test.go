@@ -492,3 +492,32 @@ func TestBuildWriterSpecialistSystemPromptIncludesDefaultHumanizerPrompt(t *test
 		}
 	}
 }
+
+func TestBuildCoAgentSystemPromptIncludesTemperamentOnly(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+	if err := stm.SetTrait(memory.TraitThoroughness, 0.91); err != nil {
+		t.Fatalf("SetTrait: %v", err)
+	}
+	if _, err := stm.InsertCharacterNote(memory.CharacterNote{
+		Category: memory.CharacterNoteCategoryHabit,
+		Text:     "I verify changes with one concrete check before calling the work done.",
+		Source:   memory.CharacterNoteSourceReflection,
+	}); err != nil {
+		t.Fatalf("InsertCharacterNote: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Personality.Engine = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	prompt := buildCoAgentSystemPrompt(cfg, CoAgentRequest{Task: "Review the patch"}, nil, stm)
+	if !strings.Contains(prompt, "Temperament: thorough") {
+		t.Fatalf("missing temperament line:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "PERSONA CHARACTER") || strings.Contains(prompt, "I verify changes") {
+		t.Fatalf("co-agent prompt leaked character notes:\n%s", prompt)
+	}
+	if strings.Contains(strings.ToLower(prompt), "inner voice") {
+		t.Fatalf("co-agent prompt leaked inner voice:\n%s", prompt)
+	}
+}

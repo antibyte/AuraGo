@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/memory"
 )
@@ -70,7 +72,7 @@ func latestEmotionDescription(stm *memory.SQLiteMemory, synthesizer *memory.Emot
 	return ""
 }
 
-func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer, meta memory.PersonalityMeta) emotionBehaviorPolicy {
+func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer, meta memory.PersonalityMeta, messageSource, userMessage string) emotionBehaviorPolicy {
 	if stm == nil {
 		return emotionBehaviorPolicy{}
 	}
@@ -85,9 +87,10 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 	empathyTrait := traits[memory.TraitEmpathy]
 
 	lowConfidence := confidenceTrait > 0 && confidenceTrait < 0.35
-	highThoroughness := thoroughnessTrait > 0.78
-	highEmpathy := empathyTrait > 0.8
+	highThoroughness := thoroughnessTrait > meta.Thresholds.HighThoroughness
+	highEmpathy := empathyTrait > meta.Thresholds.HighEmpathy
 	tenseRecovery := false
+	ambiguousIntent := intentLooksAmbiguous(userMessage)
 
 	if state != nil {
 		if state.Confidence > 0 && state.Confidence < 0.45 {
@@ -105,9 +108,11 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 		}
 	}
 
-	hints := make([]string, 0, 4)
-	if lowConfidence {
+	hints := make([]string, 0, 5)
+	if lowConfidence && ambiguousIntent {
 		hints = append(hints, "When a step could modify or delete data, verify the target first and ask one brief confirmation question if the user intent is ambiguous.")
+	} else if lowConfidence {
+		hints = append(hints, "When a step could modify or delete data, verify the exact target first. Do not ask a confirmation question when the user already named a concrete target.")
 	}
 	if highThoroughness {
 		hints = append(hints, "After making changes, prefer one lightweight verification step such as a focused test, diff, stat, or read-back before declaring success.")
@@ -118,23 +123,95 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 	if highEmpathy {
 		hints = append(hints, "Keep explanations warm and supportive, but stay concise and practical.")
 	}
+	if channelHint := channelToneHint(messageSource); channelHint != "" {
+		hints = append(hints, channelHint)
+	}
 
 	policy := emotionBehaviorPolicy{}
 	if len(hints) > 0 {
 		policy.PromptHint = "Emotion-aware runtime guidance: " + strings.Join(hints, " ")
 	}
-	if curiosityTrait > meta.Thresholds.HighCuriosity {
+	shortChannel := isShortChannel(messageSource)
+	if curiosityTrait > meta.Thresholds.HighCuriosity && !shortChannel {
 		policy.CuriosityPromptHint = "Curiosity-aware runtime guidance: Be more curious and gather a little more context when it naturally fits. Ask casual, optional follow-up questions only when they would help the conversation, and do not interrogate the user. For example, if the user asks for the weather in a place, answer the request first and, if it feels natural, casually ask in the user's language whether they live there. Keep it relaxed and easy to ignore."
 	}
 	if tenseRecovery {
 		policy.RecoveryNudge = "Inspect the exact last error and make one concrete correction. Avoid speculative retries."
 		policy.MaxToolCallsDelta = -1
 	}
-	if lowConfidence && policy.RecoveryNudge == "" {
+	if highThoroughness && policy.MaxToolCallsDelta == 0 {
+		policy.MaxToolCallsDelta = 1
+	}
+	if lowConfidence && ambiguousIntent && policy.RecoveryNudge == "" {
 		policy.RecoveryNudge = "If the next step could modify or delete data and the request is ambiguous, ask one brief confirmation question instead of guessing."
 	}
 
 	return policy
+}
+
+var filenameLikeToken = regexp.MustCompile(`\S+\.\w{1,8}\b`)
+
+func intentLooksAmbiguous(userMsg string) bool {
+	msg := strings.ToLower(strings.TrimSpace(userMsg))
+	if msg == "" {
+		return true
+	}
+	destructive := []string{"delete", "remove", "rm ", "lösch", "losch", "entfernen", "drop ", "wipe", "format ", "truncate"}
+	hasDestructive := false
+	for _, marker := range destructive {
+		if strings.Contains(msg, marker) {
+			hasDestructive = true
+			break
+		}
+	}
+	if !hasDestructive {
+		return false
+	}
+	if strings.ContainsAny(msg, `/\\`) || filenameLikeToken.MatchString(msg) {
+		return false
+	}
+	return utf8.RuneCountInString(msg) < 80
+}
+
+func isShortChannel(source string) bool {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "telegram", "sms", "discord", "rocketchat", "telnyx":
+		return true
+	default:
+		return false
+	}
+}
+
+func channelToneHint(source string) string {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "telegram", "sms", "discord", "rocketchat", "telnyx":
+		return "Channel style: keep replies short and scannable. Do not change tools or safety rules."
+	case "virtual_desktop_chat":
+		return "Channel style: a slightly informal desktop tone is fine. Do not change tools or safety rules."
+	default:
+		return ""
+	}
+}
+
+func temperamentSnapshot(stm *memory.SQLiteMemory, meta memory.PersonalityMeta) string {
+	if stm == nil {
+		return ""
+	}
+	meta = meta.Normalized()
+	traits, err := stm.GetTraits()
+	if err != nil || traits == nil {
+		return ""
+	}
+	switch {
+	case traits[memory.TraitThoroughness] > meta.Thresholds.HighThoroughness:
+		return "Temperament: thorough. Prefer one verification step. Do not change safety or tool policy."
+	case traits[memory.TraitConfidence] > 0 && traits[memory.TraitConfidence] < meta.Thresholds.LowConfidence:
+		return "Temperament: cautious. Stay conservative and on-task. Do not ask the parent-chat user for confirmation."
+	case traits[memory.TraitCreativity] > meta.Thresholds.HighCreativity:
+		return "Temperament: creative. Offer at most one unconventional option if it stays on task. Do not change safety or tool policy."
+	default:
+		return ""
+	}
 }
 
 func applyEmotionRecoveryNudge(base string, policy emotionBehaviorPolicy) string {

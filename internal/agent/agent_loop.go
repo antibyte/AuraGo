@@ -477,7 +477,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		emotionPolicy := emotionBehaviorPolicy{}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
-			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer, meta)
+			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer, meta, flags.MessageSource, lastUserMsg)
 		}
 
 		// Circuit breaker - berechne Basis-Limit (Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist)

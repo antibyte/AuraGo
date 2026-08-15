@@ -2,8 +2,10 @@ package memory
 
 import (
 	"log/slog"
+	"math"
 	"os"
 	"testing"
+	"time"
 )
 
 func newTestPersonalityDB(t *testing.T) *SQLiteMemory {
@@ -247,6 +249,29 @@ func TestDetectMoodShortFeedback(t *testing.T) {
 	mood, _ := detectMoodDefault("ok", "")
 	if mood != MoodFocused {
 		t.Errorf("expected focused for short feedback 'ok', got %s", mood)
+	}
+}
+
+func TestGetTemperatureDeltaClampsAffectArousalNudge(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	if err := stm.LogMood(MoodCautious, "test"); err != nil {
+		t.Fatalf("LogMood: %v", err)
+	}
+	base := stm.GetTemperatureDelta()
+	if _, err := stm.ApplyAffectEvent(AffectEvent{
+		CauseCode: "high_arousal_test",
+		Valence:   -0.45,
+		Arousal:   0.95,
+		Weight:    0.6,
+	}, time.Now()); err != nil {
+		t.Fatalf("ApplyAffectEvent: %v", err)
+	}
+	got := stm.GetTemperatureDelta()
+	if got < -0.10 || got > 0.10 {
+		t.Fatalf("temperature delta = %.3f, want within ±0.10", got)
+	}
+	if math.Abs(got-base) > 0.021 {
+		t.Fatalf("arousal nudge too large: base=%.3f got=%.3f", base, got)
 	}
 }
 

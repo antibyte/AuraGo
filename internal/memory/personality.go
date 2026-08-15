@@ -742,6 +742,14 @@ func (s *SQLiteMemory) GetTemperatureDelta() float64 {
 		}
 	}
 
+	if affect, err := s.GetAffectState(); err == nil && affect.Active() {
+		if affect.Arousal >= 0.70 {
+			delta += 0.02
+		} else if affect.Arousal <= 0.25 {
+			delta -= 0.02
+		}
+	}
+
 	// Hard clamp to ±0.10
 	if delta > 0.10 {
 		delta = 0.10

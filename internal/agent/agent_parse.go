@@ -1837,12 +1837,14 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveI
 		effectiveMaxCalls = 10
 	}
 
-	// 1. Personality Engine V2: Thoroughness Trait
-	if personalityEnabled && cfg.Personality.EngineV2 && shortTermMem != nil {
+	// 1. High thoroughness may spend one extra call on a verify step.
+	if personalityEnabled && shortTermMem != nil {
 		if traits, err := shortTermMem.GetTraits(); err == nil {
 			if thoroughness, ok := traits[memory.TraitThoroughness]; ok && thoroughness > 0.8 {
-				effectiveMaxCalls = int(float64(effectiveMaxCalls) * 1.5)
-				logger.Debug("[Behavioral Tool Calling] Increased MaxToolCalls due to high Thoroughness", "new_max", effectiveMaxCalls)
+				effectiveMaxCalls++
+				if logger != nil {
+					logger.Debug("[Behavioral Tool Calling] Allowed one extra verify call for high Thoroughness", "new_max", effectiveMaxCalls)
+				}
 			}
 		}
 	}
