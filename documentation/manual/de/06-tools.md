@@ -56,7 +56,7 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung im Virtual Desktop |
 | **Workspace Search** | Residenter Pure-Go-Index für schnelle Suche im Agent-Workspace |
 | **Lokale Netzwerkfreigaben** | Read-only-Erkennung sowie kontrollierte SMB-/NFS-Verwaltung auf dem AuraGo-Host |
-| **Realtime Speech** | Live-Sprachsessions mit getrennten OpenAI-, xAI- oder Gemini-Profilen |
+| **Realtime Speech** | Live-Sprachsessions mit getrennten OpenAI-, xAI-, Gemini- oder Speech-Lab-Profilen |
 | **Virtual Computers** | Verwaltete Boring Computers mit VNC, Terminal, Volumes und Agent-Jobs |
 | **Manus** | Richtliniengeschützte asynchrone Aufgaben und kontrollierte Dateiübertragung |
 | **OmniRoute** | Verwaltetes oder externes OpenAI-kompatibles Gateway |

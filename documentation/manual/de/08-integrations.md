@@ -2233,7 +2233,7 @@ Die Standard-Docker-Bereitstellung meldet Host-Mutationen als nicht verfügbar, 
 
 ## Realtime Speech
 
-Realtime Speech bietet ein durchgehendes Live-Spracherlebnis in Webchat und Virtual Desktop. Es wird getrennt von der normalen `providers`-Liste konfiguriert und verwendet OpenAI-, xAI- oder Gemini-Live-Profile aus dem versionierten AuraGo-Katalog.
+Realtime Speech bietet ein durchgehendes Live-Spracherlebnis in Webchat und Virtual Desktop. Es wird getrennt von der normalen `providers`-Liste konfiguriert und verwendet OpenAI-, xAI-, Gemini- oder schlüssellose Speech-Lab-Profile aus dem versionierten AuraGo-Katalog. Speech Lab nutzt den verwalteten oder externen s2s-Container für ASR und TTS und ersetzt die Cloud-Streaming-Adapter nicht.
 
 ### Einrichtung und Datenschutz
 

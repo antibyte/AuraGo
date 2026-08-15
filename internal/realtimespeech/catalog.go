@@ -10,12 +10,15 @@ import (
 	"aurago/internal/config"
 )
 
-const CatalogVersion = "2026-07-17"
+const CatalogVersion = "2026-08-15"
 
 const (
-	ProviderOpenAI = "openai"
-	ProviderXAI    = "xai"
-	ProviderGemini = "gemini"
+	ProviderOpenAI       = "openai"
+	ProviderXAI          = "xai"
+	ProviderGemini       = "gemini"
+	ProviderSpeechLab    = "speech_lab"
+	SpeechLabStackModel  = "s2s-stack"
+	SpeechLabActiveVoice = "active"
 )
 
 // Model describes a realtime model exposed by AuraGo.
@@ -45,6 +48,7 @@ type Capabilities struct {
 	InputSampleRate       int    `json:"input_sample_rate"`
 	OutputSampleRate      int    `json:"output_sample_rate"`
 	DynamicVoiceDiscovery bool   `json:"dynamic_voice_discovery"`
+	RequiresAPIKey        bool   `json:"requires_api_key"`
 }
 
 // ProviderCatalog is the versioned public metadata for one provider.
@@ -92,6 +96,7 @@ var providerCatalogs = []ProviderCatalog{
 			FunctionCalling:     true,
 			InputSampleRate:     16000,
 			OutputSampleRate:    24000,
+			RequiresAPIKey:      true,
 		},
 	},
 	{
@@ -120,6 +125,7 @@ var providerCatalogs = []ProviderCatalog{
 			InputSampleRate:       16000,
 			OutputSampleRate:      24000,
 			DynamicVoiceDiscovery: true,
+			RequiresAPIKey:        true,
 		},
 	},
 	{
@@ -173,6 +179,29 @@ var providerCatalogs = []ProviderCatalog{
 			FunctionCalling:     true,
 			InputSampleRate:     16000,
 			OutputSampleRate:    24000,
+			RequiresAPIKey:      true,
+		},
+	},
+	{
+		ID:           ProviderSpeechLab,
+		Label:        "Speech Lab",
+		DefaultModel: SpeechLabStackModel,
+		DefaultVoice: SpeechLabActiveVoice,
+		Models: []Model{
+			{ID: SpeechLabStackModel, Label: "Active Speech Lab stack", Offered: true, Note: "Uses the managed or external s2s container selected in Media → Speech Lab."},
+		},
+		Voices: []Voice{
+			{ID: SpeechLabActiveVoice, Label: "Active stack voice", Description: "The voice currently selected on the Speech Lab /ready stack."},
+		},
+		Capabilities: Capabilities{
+			Transport:           "local_s2s",
+			ParkStrategy:        "warm_audio_gate",
+			SessionResumption:   false,
+			ManualTurnDetection: true,
+			FunctionCalling:     true,
+			InputSampleRate:     16000,
+			OutputSampleRate:    16000,
+			RequiresAPIKey:      false,
 		},
 	},
 }
@@ -245,7 +274,7 @@ func NormalizeAndValidateConfig(input config.RealtimeSpeechConfig, existing map[
 		if profile.Voice == "" {
 			profile.Voice = catalog.DefaultVoice
 		}
-		if profile.Provider != ProviderXAI && !voiceExists(catalog.Voices, profile.Voice) {
+		if profile.Provider != ProviderXAI && profile.Provider != ProviderSpeechLab && !voiceExists(catalog.Voices, profile.Voice) {
 			return input, fmt.Errorf("voice %q is not in the %s realtime catalog", profile.Voice, catalog.Label)
 		}
 	}

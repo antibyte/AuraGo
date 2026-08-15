@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "Lokale voorcontrole geslaagd.",
   "config.telephone_agent.loading": "Telefoonagent laden…",
   "config.telephone_agent.sip_summary": "Spraakgedrag en pipeline beheer je in Telefoonagent. SIP-account, netwerk, vertrouwenslijsten en browsertelefoon blijven hier.",
-  "config.telephone_agent.open_agent": "Telefoonagent openen"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / Lokaal testmodel",
+  "config.telephone_agent.open_agent": "Telefoonagent openen",
+  "config.section.local_llm.label": "AuraGo-Qwen / Lokaal testmodel",
   "config.section.local_llm.desc": "Beheerd klein lokaal model voor AuraGo-toolaanroepen.",
   "config.local_llm.purpose_title": "Test- en reservemodel",
   "config.local_llm.purpose": "AuraGo-Qwen vervangt geen groot lokaal of cloudmodel. Gebruik het voor tests of als reserve.",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "Opwarmen",
   "config.local_llm.cache_state_warm": "Warm",
   "config.local_llm.cache_state_rejected": "Afgewezen",
-  "config.local_llm.cache_state_degraded": "Beperkt"
+  "config.local_llm.cache_state_degraded": "Beperkt",
+  "config.realtime_speech.keyless": "Geen API-sleutel. Gebruikt de Speech Lab-container.",
+  "config.realtime_speech.speech_lab_help": "Dit profiel gebruikt de Speech Lab-/s2s-container voor ASR en TTS. Start of configureer hem onder Media → Speech Lab."
 }

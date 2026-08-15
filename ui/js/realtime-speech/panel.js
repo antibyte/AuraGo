@@ -35,7 +35,11 @@
     }
 
     function enabledProfiles() {
-        return ((runtime.config && runtime.config.profiles) || []).filter(profile => profile.enabled && profile.api_key_set);
+        return ((runtime.config && runtime.config.profiles) || []).filter(profile => {
+            if (!profile.enabled) return false;
+            if (profile.provider === 'speech_lab') return true;
+            return !!profile.api_key_set;
+        });
     }
 
     function updatePanel(root, options) {

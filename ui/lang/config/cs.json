@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "Místní kontrola byla úspěšná.",
   "config.telephone_agent.loading": "Načítání telefonního agenta…",
   "config.telephone_agent.sip_summary": "Hlasové chování a pipeline se spravují v Telefonním agentovi. Účet SIP, síť, seznamy důvěry a telefon v prohlížeči zůstávají zde.",
-  "config.telephone_agent.open_agent": "Otevřít telefonního agenta"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / Místní testovací model",
+  "config.telephone_agent.open_agent": "Otevřít telefonního agenta",
+  "config.section.local_llm.label": "AuraGo-Qwen / Místní testovací model",
   "config.section.local_llm.desc": "Spravovaný malý místní model pro volání nástrojů AuraGo.",
   "config.local_llm.purpose_title": "Testovací a záložní model",
   "config.local_llm.purpose": "AuraGo-Qwen nenahrazuje velký místní ani cloudový model. Používejte jej pro testy nebo jako zálohu.",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "Zahřívání",
   "config.local_llm.cache_state_warm": "Zahřátý",
   "config.local_llm.cache_state_rejected": "Odmítnuto",
-  "config.local_llm.cache_state_degraded": "Omezený"
+  "config.local_llm.cache_state_degraded": "Omezený",
+  "config.realtime_speech.keyless": "Bez API klíče. Používá kontejner Speech Lab.",
+  "config.realtime_speech.speech_lab_help": "Tento profil používá kontejner Speech Lab / s2s pro ASR a TTS. Spusť nebo nastav ho v Média → Speech Lab."
 }

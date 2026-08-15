@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "本地预检通过。",
   "config.telephone_agent.loading": "正在加载电话智能体…",
   "config.telephone_agent.sip_summary": "语音行为和管线在电话智能体中管理。SIP 帐户、网络、信任列表和浏览器电话仍在此处管理。",
-  "config.telephone_agent.open_agent": "打开电话智能体"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / 本地测试模型",
+  "config.telephone_agent.open_agent": "打开电话智能体",
+  "config.section.local_llm.label": "AuraGo-Qwen / 本地测试模型",
   "config.section.local_llm.desc": "面向 AuraGo 工具调用的托管小型本地模型。",
   "config.local_llm.purpose_title": "测试与备用模型",
   "config.local_llm.purpose": "AuraGo-Qwen 不能替代大型本地或云端模型。请仅用于测试或备用。",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "正在预热",
   "config.local_llm.cache_state_warm": "热缓存",
   "config.local_llm.cache_state_rejected": "已拒绝",
-  "config.local_llm.cache_state_degraded": "已降级"
+  "config.local_llm.cache_state_degraded": "已降级",
+  "config.realtime_speech.keyless": "无需 API 密钥。使用 Speech Lab 容器。",
+  "config.realtime_speech.speech_lab_help": "此配置使用 Speech Lab / s2s 容器进行识别和合成。请在 媒体 → Speech Lab 中启动或配置。"
 }

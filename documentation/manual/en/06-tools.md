@@ -56,7 +56,7 @@ The current version includes several powerful extensions:
 | **Game Maker Studio** | Isolated offline 2D/3D game development inside the Virtual Desktop |
 | **Workspace Search** | Resident Pure-Go index for fast searches across the agent workspace |
 | **Local network shares** | Read-only detection and controlled SMB/NFS management on the AuraGo host |
-| **Realtime Speech** | Live voice sessions with separate OpenAI, xAI, or Gemini profiles |
+| **Realtime Speech** | Live voice sessions with separate OpenAI, xAI, Gemini, or Speech Lab profiles |
 | **Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent tasks |
 | **Manus** | Policy-gated asynchronous tasks and controlled file transfers |
 | **OmniRoute** | Managed or external OpenAI-compatible gateway |

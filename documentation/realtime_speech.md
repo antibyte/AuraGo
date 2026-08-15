@@ -15,13 +15,14 @@ Existing AuraGo TTS is suppressed only through a request-local context value for
 
 ## Provider catalog
 
-Catalog version: `2026-07-17`.
+Catalog version: `2026-08-15`.
 
 | Provider | Offered models | Default | Browser transport | Park strategy |
 |---|---|---|---|---|
 | OpenAI | `gpt-realtime-2.1`, `gpt-realtime-2.1-mini`, `gpt-realtime-2`, `gpt-realtime-1.5`, `gpt-realtime`, `gpt-realtime-mini` | `gpt-realtime-2.1` | WebRTC with a server-side SDP exchange | Keep WebRTC and its data channel warm; gate the audio track |
 | xAI | `grok-voice-think-fast-1.0`, `grok-voice-latest` | `grok-voice-think-fast-1.0` | WebSocket with a short-lived client secret | Close and resume with `conversation_id` |
 | Gemini Developer API | `gemini-3.1-flash-live-preview`, `gemini-2.5-flash-native-audio-preview-12-2025` | `gemini-3.1-flash-live-preview` | Live API WebSocket with a constrained ephemeral token | Close and resume with the latest resumption handle |
+| Speech Lab | `s2s-stack` | `s2s-stack` | Keyless `local_s2s` through the managed or external s2s container | Keep the local VAD warm; no cloud session |
 
 `grok-voice-fast-1.0`, `gemini-live-2.5-flash-preview`, and `gemini-2.0-flash-live-001` may be retained when loading an older profile but cannot be selected for a new one. Translation- and transcription-only OpenAI realtime models are intentionally excluded from the voice-agent catalog.
 
@@ -47,7 +48,15 @@ realtime_speech:
       model: gpt-realtime-2.1
       voice: marin
       enabled: true
+    - id: speech-lab
+      name: "Speech Lab"
+      provider: speech_lab
+      model: s2s-stack
+      voice: active
+      enabled: true
 ```
+
+Speech Lab profiles are keyless. They use the stack selected under **Media → Speech Lab** and require that container to be ready before a Live Speech session starts.
 
 Profile IDs are immutable. API keys are never serialized into YAML. The Config UI stores each key under `realtime_speech_profile_<sanitized-profile-id>_api_key` in the encrypted Vault:
 

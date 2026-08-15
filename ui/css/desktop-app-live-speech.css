@@ -36,6 +36,31 @@
     line-height: 1.65;
 }
 
+.vd-live-speech-lab {
+    margin-top: 1.1rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--vd-accent, #2fc5a9) 28%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--vd-accent, #2fc5a9) 8%, transparent);
+}
+
+.vd-live-speech-lab p {
+    margin: 0 0 0.45rem;
+    color: var(--vd-text, #f3f7f8);
+    font-size: 0.9rem;
+}
+
+.vd-live-speech-lab-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.vd-live-speech-lab-actions a {
+    color: var(--vd-accent, #2fc5a9);
+}
+
 .vd-live-speech-app [data-live-speech-panel] {
     display: grid;
     align-items: center;

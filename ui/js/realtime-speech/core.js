@@ -248,7 +248,8 @@
             const profileId = options.profileId || this.config.default_profile;
             const profile = this.profileByID(profileId);
             if (!profile || !profile.enabled) throw new Error(text('chat.realtime_profile_unavailable', 'The selected live speech profile is unavailable.'));
-            if (!profile.api_key_set) throw new Error(text('chat.realtime_profile_key_missing', 'The selected profile has no API key.'));
+            const keyless = profile.provider === 'speech_lab';
+            if (!keyless && !profile.api_key_set) throw new Error(text('chat.realtime_profile_key_missing', 'The selected profile has no API key.'));
             const Adapter = window.AuraRealtimeProviders && window.AuraRealtimeProviders[profile.provider];
             if (!Adapter) throw new Error('Unsupported realtime speech provider: ' + profile.provider);
 
@@ -256,7 +257,7 @@
             this.chatSessionId = this.surface === 'desktop' ? 'virtual-desktop' : (options.chatSessionId || activeWebSessionID());
             this.profile = profile;
             this.setState('connecting');
-            this.adapter = new Adapter({ profile, state: 'connecting' });
+            this.adapter = new Adapter({ profile, state: 'connecting', clientId: this.clientId });
             this.bindAdapter(this.adapter);
             this.audioGate = new window.AuraRealtimeAudio.RealtimeAudioGate();
             this.bindAudioGate(this.audioGate);

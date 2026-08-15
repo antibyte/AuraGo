@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "Lokal förkontroll lyckades.",
   "config.telephone_agent.loading": "Läser in telefonagent…",
   "config.telephone_agent.sip_summary": "Röstbeteende och pipeline hanteras i Telefonagent. SIP-konto, nätverk, betrodda listor och webbläsartelefon finns kvar här.",
-  "config.telephone_agent.open_agent": "Öppna telefonagent"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / Lokal testmodell",
+  "config.telephone_agent.open_agent": "Öppna telefonagent",
+  "config.section.local_llm.label": "AuraGo-Qwen / Lokal testmodell",
   "config.section.local_llm.desc": "Hanterad liten lokal modell för AuraGo-verktygsanrop.",
   "config.local_llm.purpose_title": "Test- och reservmodell",
   "config.local_llm.purpose": "AuraGo-Qwen ersätter inte en stor lokal modell eller molnmodell. Använd den för test eller som reserv.",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "Värmer upp",
   "config.local_llm.cache_state_warm": "Varm",
   "config.local_llm.cache_state_rejected": "Avvisad",
-  "config.local_llm.cache_state_degraded": "Försämrad"
+  "config.local_llm.cache_state_degraded": "Försämrad",
+  "config.realtime_speech.keyless": "Ingen API-nyckel. Använder Speech Lab-containern.",
+  "config.realtime_speech.speech_lab_help": "Den här profilen använder Speech Lab-/s2s-containern för ASR och TTS. Starta eller konfigurera den under Media → Speech Lab."
 }

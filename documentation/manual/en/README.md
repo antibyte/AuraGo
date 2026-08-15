@@ -42,7 +42,7 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **☎️ Native SIP Phone** | Browser phone and optional telephone agent with explicit call policies |
 | **🎮 Game Maker Studio** | Isolated offline 2D/3D game creation in the Virtual Desktop |
 | **🖥️ Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent tasks |
-| **🗣️ Realtime Speech** | Live voice sessions with OpenAI, xAI, or Gemini profiles |
+| **🗣️ Realtime Speech** | Live voice sessions with OpenAI, xAI, Gemini, or Speech Lab profiles |
 | **🧪 Local LLM** | Managed AuraGo-Qwen test and fallback runtime |
 
 ---

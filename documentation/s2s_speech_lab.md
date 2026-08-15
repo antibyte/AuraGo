@@ -1,6 +1,6 @@
 # Speech Lab integration
 
-AuraGo can use the local s2s Speech Lab as an optional ASR and TTS provider. AuraGo continues to own the conversation, LLM, tools, Guardian, and memory. Browser Realtime Speech and cloud live providers are separate and are not changed by this integration.
+AuraGo can use the local s2s Speech Lab as an optional ASR and TTS provider. AuraGo continues to own the conversation, LLM, tools, Guardian, and memory. OpenAI, xAI, and Gemini realtime adapters stay unchanged. Desktop Live Speech may additionally select a keyless `speech_lab` profile that uses the managed or external s2s container for ASR and TTS.
 
 ## Configuration
 
@@ -40,6 +40,7 @@ Only credential-free HTTP(S) URLs without query or fragment are accepted. AuraGo
 - Chat input: `chat_input_enabled` selects an AudioWorklet recorder that creates mono PCM16/16 kHz RIFF/WAV in the browser. It does not run Web Speech in parallel and does not fall back automatically.
 - Speech-Lab-transcribed webchat: `chat_llm_provider_id` optionally selects a fast AuraGo provider for exactly that next chat turn. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their established providers. An unavailable selection fails with `speech_lab_llm_unavailable`; it never falls back to the main provider.
 - Chat output: `chat_output_enabled` selects Speech Lab TTS for chat responses. If readiness or synthesis fails, the text response remains and the stream reports a structured audio error.
+- Desktop Live Speech: create a Realtime Speech profile with provider `speech_lab`. The desktop app can start a managed container and then transcribe and speak through `/api/realtime-speech/transcribe` and `/api/realtime-speech/synthesize`. AuraGo never sends `llm_id`.
 
 Every telephone call snapshots its selected providers, language, the active Speech Lab voice, Speech Lab backend IDs, behavior, and tool scope before answer or INVITE. A required component that is not ready rejects inbound calls with SIP 480 and outgoing requests with HTTP 503 (`speech_lab_not_ready`). No cloud provider is selected automatically.
 
@@ -48,6 +49,9 @@ Every telephone call snapshots its selected providers, language, the active Spee
 | Method | Path | Access | Purpose |
 |---|---|---|---|
 | `GET` | `/api/speech-lab/status` | authenticated | Sanitized channel and readiness status |
+| `POST` | `/api/speech-lab/deployment/start` | administrator | Start a managed Speech Lab container (no extra confirm) |
+| `POST` | `/api/realtime-speech/transcribe` | authenticated live session | Desktop Live Speech WAV ASR for an active `speech_lab` session |
+| `POST` | `/api/realtime-speech/synthesize` | authenticated live session | Desktop Live Speech WAV TTS for an active `speech_lab` session |
 | `GET` | `/api/speech-lab/capability` | administrator | Fixed capability endpoint |
 | `GET` | `/api/speech-lab/catalog` | administrator | Available backend catalog |
 | `GET` | `/api/speech-lab/suggestions` | administrator | Heuristic recommendations |

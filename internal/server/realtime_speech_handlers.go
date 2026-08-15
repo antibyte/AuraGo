@@ -88,6 +88,8 @@ func registerRealtimeSpeechHandlers(mux *http.ServeMux, s *Server, sse *SSEBroad
 	mux.HandleFunc("/api/realtime-speech/actions", handleRealtimeSpeechActions(s, registry, webAction, desktopAction))
 	mux.HandleFunc("/api/realtime-speech/actions/", handleRealtimeSpeechActionByID(registry))
 	mux.HandleFunc("/api/realtime-speech/turns", handleRealtimeSpeechTurns(s, registry))
+	mux.HandleFunc("/api/realtime-speech/transcribe", handleRealtimeSpeechLabTranscribe(s, registry))
+	mux.HandleFunc("/api/realtime-speech/synthesize", handleRealtimeSpeechLabSynthesize(s, registry))
 }
 
 func handleRealtimeSpeechConfig(s *Server) http.HandlerFunc {
@@ -130,7 +132,7 @@ func writeRealtimeSpeechConfig(w http.ResponseWriter, cfg config.RealtimeSpeechC
 			Model:     profile.Model,
 			Voice:     profile.Voice,
 			Enabled:   profile.Enabled,
-			APIKeySet: strings.TrimSpace(profile.APIKey) != "",
+			APIKeySet: realtimeSpeechProfileReadyWithoutKey(profile) || strings.TrimSpace(profile.APIKey) != "",
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -352,11 +354,13 @@ func handleRealtimeSpeechTest(s *Server, client *realtimespeech.Client) http.Han
 		}
 		profile.Name = "Connection test"
 		profile.Enabled = true
-		if strings.TrimSpace(profile.APIKey) == "" {
+		if !realtimeSpeechProfileReadyWithoutKey(profile) && strings.TrimSpace(profile.APIKey) == "" {
 			jsonError(w, "API key is not configured", http.StatusBadRequest)
 			return
 		}
-		security.RegisterSensitive(profile.APIKey)
+		if profile.APIKey != "" {
+			security.RegisterSensitive(profile.APIKey)
+		}
 		validated, err := realtimespeech.NormalizeAndValidateConfig(config.RealtimeSpeechConfig{
 			ParkAfterSeconds: config.DefaultRealtimeSpeechParkAfterSeconds,
 			DefaultProfile:   profile.ID,
@@ -368,10 +372,28 @@ func handleRealtimeSpeechTest(s *Server, client *realtimespeech.Client) http.Han
 		}
 		profile = validated.Profiles[0]
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-		voices, err := client.TestProfile(ctx, profile)
+		if profile.Provider == realtimespeech.ProviderSpeechLab {
+			ready, readyErr := requireRealtimeSpeechLab(s, ctx, true, true)
+			cancel()
+			if readyErr != nil {
+				writeSpeechLabError(w, readyErr)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":   "ok",
+				"provider": profile.Provider,
+				"model":    profile.Model,
+				"voice":    ready.Voice,
+				"asr_id":   ready.ASRID,
+				"tts_id":   ready.TTSID,
+			})
+			return
+		}
+		voices, testErr := client.TestProfile(ctx, profile)
 		cancel()
-		if err != nil {
-			jsonError(w, security.Scrub(err.Error()), http.StatusBadGateway)
+		if testErr != nil {
+			jsonError(w, security.Scrub(testErr.Error()), http.StatusBadGateway)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -440,11 +462,13 @@ func handleRealtimeSpeechSessions(s *Server, registry *realtimespeech.Registry, 
 			jsonError(w, "Realtime speech profile is not available", http.StatusBadRequest)
 			return
 		}
-		if strings.TrimSpace(profile.APIKey) == "" {
+		if !realtimeSpeechProfileReadyWithoutKey(profile) && strings.TrimSpace(profile.APIKey) == "" {
 			jsonError(w, "Realtime speech profile has no API key", http.StatusBadRequest)
 			return
 		}
-		security.RegisterSensitive(profile.APIKey)
+		if profile.APIKey != "" {
+			security.RegisterSensitive(profile.APIKey)
+		}
 		surface, chatSessionID, err := normalizeRealtimeSpeechSurface(body.Surface, body.ChatSessionID, r.Header.Get("X-Session-ID"))
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
@@ -539,6 +563,20 @@ func handleRealtimeSpeechSessions(s *Server, registry *realtimespeech.Registry, 
 			response["new_session_expires_at"] = token.NewSessionExpiresAt
 			response["setup"] = setup
 			response["park_strategy"] = "resumption_handle"
+		case realtimespeech.ProviderSpeechLab:
+			ready, readyErr := requireRealtimeSpeechLab(s, ctx, true, true)
+			if readyErr != nil {
+				registry.Release(session.ID, clientID)
+				registry.RecordError()
+				writeSpeechLabError(w, readyErr)
+				return
+			}
+			response["transport"] = "local_s2s"
+			response["park_strategy"] = "warm_audio_gate"
+			response["asr_id"] = ready.ASRID
+			response["tts_id"] = ready.TTSID
+			response["voice"] = ready.Voice
+			response["language"] = s.ConfigSnapshot().SpeechLab.Language
 		default:
 			registry.Release(session.ID, clientID)
 			jsonError(w, "Unsupported realtime speech provider", http.StatusBadRequest)

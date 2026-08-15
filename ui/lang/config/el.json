@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "Ο τοπικός προέλεγχος πέτυχε.",
   "config.telephone_agent.loading": "Φόρτωση τηλεφωνικού πράκτορα…",
   "config.telephone_agent.sip_summary": "Η φωνητική συμπεριφορά και η ροή διαχειρίζονται στον Τηλεφωνικό πράκτορα. Ο λογαριασμός SIP, το δίκτυο, οι λίστες εμπιστοσύνης και το τηλέφωνο προγράμματος περιήγησης παραμένουν εδώ.",
-  "config.telephone_agent.open_agent": "Άνοιγμα τηλεφωνικού πράκτορα"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / Τοπικό μοντέλο δοκιμής",
+  "config.telephone_agent.open_agent": "Άνοιγμα τηλεφωνικού πράκτορα",
+  "config.section.local_llm.label": "AuraGo-Qwen / Τοπικό μοντέλο δοκιμής",
   "config.section.local_llm.desc": "Διαχειριζόμενο μικρό τοπικό μοντέλο για κλήσεις εργαλείων AuraGo.",
   "config.local_llm.purpose_title": "Μοντέλο δοκιμής και εφεδρείας",
   "config.local_llm.purpose": "Το AuraGo-Qwen δεν αντικαθιστά ένα μεγάλο τοπικό ή νεφοϋπολογιστικό μοντέλο. Χρησιμοποιήστε το για δοκιμές ή ως εφεδρεία.",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "Προθέρμανση",
   "config.local_llm.cache_state_warm": "Θερμή",
   "config.local_llm.cache_state_rejected": "Απορρίφθηκε",
-  "config.local_llm.cache_state_degraded": "Υποβαθμισμένη"
+  "config.local_llm.cache_state_degraded": "Υποβαθμισμένη",
+  "config.realtime_speech.keyless": "Χωρίς κλειδί API. Χρησιμοποιεί το container Speech Lab.",
+  "config.realtime_speech.speech_lab_help": "Αυτό το προφίλ χρησιμοποιεί το container Speech Lab / s2s για ASR και TTS. Ξεκίνα ή ρύθμισέ το στο Πολυμέσα → Speech Lab."
 }

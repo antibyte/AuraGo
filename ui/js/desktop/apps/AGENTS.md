@@ -68,6 +68,11 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   indicator plus a phase stepper), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
+- `live-speech.js` mounts the shared realtime-speech panel on the desktop.
+  OpenAI, xAI, and Gemini stay on their existing streaming adapters. Speech
+  Lab is a keyless `local_s2s` profile that transcribes and speaks through
+  the managed or external s2s container. The app shows `/api/speech-lab/status`
+  and may start a managed container through `/api/speech-lab/deployment/start`.
 - `sip-phone.js` implements the Phone app, an iPhone-inspired SIP softphone
   rendered as a realistic device (brushed titanium frame, separate mute/
   volume/power hardware buttons, glossy Dynamic Island, live status-bar

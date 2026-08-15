@@ -70,6 +70,12 @@ images, and browser-oriented regression tests.
   available; never feed MediaRecorder output to the WAV-only endpoint. Map the
   `speech_lab_no_speech` response to the localized no-audio retry message rather
   than showing a generic Speech Lab failure.
+- Desktop Live Speech may select a keyless `speech_lab` profile. That adapter
+  uses local VAD, `/api/realtime-speech/transcribe`, `aurago_execute`, and
+  `/api/realtime-speech/synthesize` against the managed or external s2s
+  container. It must not send `llm_id` or replace the OpenAI, xAI, or Gemini
+  streaming adapters. The app may poll `/api/speech-lab/status` and start a
+  managed container via `/api/speech-lab/deployment/start`.
 - Realtime Speech consumes the answer from `final_response`; `done` is a
   contentless terminator. SIP Phone surfaces
   `outbound_policy_migration_required` as a localized setup blocker.

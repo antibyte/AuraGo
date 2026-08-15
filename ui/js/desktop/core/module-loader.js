@@ -84,6 +84,7 @@
                 '/js/realtime-speech/provider-openai.js',
                 '/js/realtime-speech/provider-xai.js',
                 '/js/realtime-speech/provider-gemini.js',
+                '/js/realtime-speech/provider-speech-lab.js',
                 '/js/realtime-speech/core.js',
                 '/js/realtime-speech/panel.js',
                 '/js/desktop/apps/live-speech.js'

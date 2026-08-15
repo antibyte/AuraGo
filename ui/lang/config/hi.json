@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "स्थानीय पूर्व-जाँच सफल हुई।",
   "config.telephone_agent.loading": "टेलीफोन एजेंट लोड हो रहा है…",
   "config.telephone_agent.sip_summary": "वॉइस व्यवहार और पाइपलाइन टेलीफोन एजेंट में प्रबंधित होते हैं। SIP खाता, नेटवर्क, भरोसा सूचियाँ और ब्राउज़र फोन यहाँ रहते हैं।",
-  "config.telephone_agent.open_agent": "टेलीफोन एजेंट खोलें"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / स्थानीय परीक्षण मॉडल",
+  "config.telephone_agent.open_agent": "टेलीफोन एजेंट खोलें",
+  "config.section.local_llm.label": "AuraGo-Qwen / स्थानीय परीक्षण मॉडल",
   "config.section.local_llm.desc": "AuraGo टूल कॉल के लिए प्रबंधित छोटा स्थानीय मॉडल।",
   "config.local_llm.purpose_title": "परीक्षण और बैकअप मॉडल",
   "config.local_llm.purpose": "AuraGo-Qwen किसी बड़े स्थानीय या क्लाउड मॉडल का स्थान नहीं लेता। इसे परीक्षण या बैकअप के लिए उपयोग करें।",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "गर्म हो रहा है",
   "config.local_llm.cache_state_warm": "गर्म",
   "config.local_llm.cache_state_rejected": "अस्वीकृत",
-  "config.local_llm.cache_state_degraded": "सीमित"
+  "config.local_llm.cache_state_degraded": "सीमित",
+  "config.realtime_speech.keyless": "कोई API कुंजी नहीं। Speech Lab कंटेनर का उपयोग करता है।",
+  "config.realtime_speech.speech_lab_help": "यह प्रोफ़ाइल ASR और TTS के लिए Speech Lab / s2s कंटेनर का उपयोग करती है। इसे मीडिया → Speech Lab में शुरू या सेट करें।"
 }

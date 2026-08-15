@@ -61,9 +61,12 @@ function rsProfileCard(profile, index) {
     const providerOptions = (realtimeSpeechCatalog.providers || []).map(item =>
         `<option value="${rsEsc(item.id)}" ${item.id === profile.provider ? 'selected' : ''}>${rsEsc(item.label)}</option>`
     ).join('');
-    const keyState = profile.api_key_set
-        ? t('config.realtime_speech.key_stored')
-        : t('config.realtime_speech.key_missing');
+    const keyless = profile.provider === 'speech_lab' || provider.capabilities && provider.capabilities.requires_api_key === false;
+    const keyState = keyless
+        ? t('config.realtime_speech.keyless')
+        : (profile.api_key_set
+            ? t('config.realtime_speech.key_stored')
+            : t('config.realtime_speech.key_missing'));
     return `<article class="rs-profile-card" data-rs-profile="${index}">
         <div class="rs-profile-head">
             <div>
@@ -96,7 +99,10 @@ function rsProfileCard(profile, index) {
                 <span class="field-label">${rsEsc(t('config.realtime_speech.voice'))}</span>
                 <select class="field-input" data-rs-field="voice">${rsSelectOptions(provider.voices, profile.voice, true)}</select>
             </label>
-            <label class="field-group rs-key-field">
+            ${keyless ? `<div class="field-group rs-key-field">
+                <span class="field-label">${rsEsc(t('config.realtime_speech.api_key'))}</span>
+                <small>${rsEsc(t('config.realtime_speech.speech_lab_help'))}</small>
+            </div>` : `<label class="field-group rs-key-field">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.api_key'))}</span>
                 <input class="field-input" type="password" data-rs-field="api_key" value=""
                     placeholder="${rsEsc(profile.api_key_set ? t('config.realtime_speech.key_keep_placeholder') : t('config.realtime_speech.key_enter_placeholder'))}"
@@ -110,7 +116,7 @@ function rsProfileCard(profile, index) {
                     <span>${rsEsc(t('config.realtime_speech.clear_key'))}</span>
                 </label>
                 <small>${rsEsc(t('config.realtime_speech.clear_key_help'))}</small>
-            </div>
+            </div>`}
         </div>
         <div class="rs-profile-actions">
             ${profile.provider === 'xai' && profile.api_key_set

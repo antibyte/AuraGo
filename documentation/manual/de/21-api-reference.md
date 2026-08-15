@@ -2278,6 +2278,8 @@ POST   /api/realtime-speech/test
 POST   /api/realtime-speech/sessions
 PATCH  /api/realtime-speech/sessions/{id}
 DELETE /api/realtime-speech/sessions/{id}
+POST   /api/realtime-speech/transcribe
+POST   /api/realtime-speech/synthesize
 POST   /api/realtime-speech/actions
 DELETE /api/realtime-speech/actions/{request_id}
 POST   /api/realtime-speech/turns

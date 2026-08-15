@@ -9,20 +9,31 @@ import (
 
 func TestCatalogContainsOnlySupportedAgentModels(t *testing.T) {
 	providers := Catalog()
-	if len(providers) != 3 {
-		t.Fatalf("Catalog provider count = %d, want 3", len(providers))
+	if len(providers) != 4 {
+		t.Fatalf("Catalog provider count = %d, want 4", len(providers))
 	}
 	expectedDefaults := map[string]string{
-		ProviderOpenAI: "gpt-realtime-2.1",
-		ProviderXAI:    "grok-voice-think-fast-1.0",
-		ProviderGemini: "gemini-3.1-flash-live-preview",
+		ProviderOpenAI:    "gpt-realtime-2.1",
+		ProviderXAI:       "grok-voice-think-fast-1.0",
+		ProviderGemini:    "gemini-3.1-flash-live-preview",
+		ProviderSpeechLab: SpeechLabStackModel,
 	}
 	for _, provider := range providers {
 		if provider.DefaultModel != expectedDefaults[provider.ID] {
 			t.Fatalf("%s default model = %q, want %q", provider.ID, provider.DefaultModel, expectedDefaults[provider.ID])
 		}
-		if provider.Capabilities.InputSampleRate != 16000 || provider.Capabilities.OutputSampleRate != 24000 {
-			t.Fatalf("%s audio rates = %d/%d, want 16000/24000", provider.ID, provider.Capabilities.InputSampleRate, provider.Capabilities.OutputSampleRate)
+		if provider.Capabilities.InputSampleRate != 16000 {
+			t.Fatalf("%s input rate = %d, want 16000", provider.ID, provider.Capabilities.InputSampleRate)
+		}
+		if provider.ID == ProviderSpeechLab {
+			if provider.Capabilities.RequiresAPIKey {
+				t.Fatal("Speech Lab must be keyless")
+			}
+			if provider.Capabilities.Transport != "local_s2s" {
+				t.Fatalf("Speech Lab transport = %q", provider.Capabilities.Transport)
+			}
+		} else if provider.Capabilities.OutputSampleRate != 24000 {
+			t.Fatalf("%s output rate = %d, want 24000", provider.ID, provider.Capabilities.OutputSampleRate)
 		}
 		for _, model := range provider.Models {
 			if strings.Contains(model.ID, "translate") || strings.Contains(model.ID, "whisper") {

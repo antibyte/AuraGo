@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "Warming",
   "config.local_llm.cache_state_warm": "Warm",
   "config.local_llm.cache_state_rejected": "Rejected",
-  "config.local_llm.cache_state_degraded": "Degraded"
+  "config.local_llm.cache_state_degraded": "Degraded",
+  "config.realtime_speech.keyless": "No API key. Uses the Speech Lab container.",
+  "config.realtime_speech.speech_lab_help": "This profile uses the Speech Lab / s2s container for ASR and TTS. Start or configure it under Media → Speech Lab."
 }

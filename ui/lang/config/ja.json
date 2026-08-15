@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "ローカル事前確認に成功しました。",
   "config.telephone_agent.loading": "電話エージェントを読み込み中…",
   "config.telephone_agent.sip_summary": "音声動作とパイプラインは電話エージェントで管理します。SIP アカウント、ネットワーク、信頼リスト、ブラウザー電話はここで管理します。",
-  "config.telephone_agent.open_agent": "電話エージェントを開く"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / ローカルテストモデル",
+  "config.telephone_agent.open_agent": "電話エージェントを開く",
+  "config.section.local_llm.label": "AuraGo-Qwen / ローカルテストモデル",
   "config.section.local_llm.desc": "AuraGoのツール呼び出し向けに管理される小型ローカルモデルです。",
   "config.local_llm.purpose_title": "テスト・予備モデル",
   "config.local_llm.purpose": "AuraGo-Qwenは大型のローカル／クラウドモデルの代替ではありません。テストまたは予備として使用してください。",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "ウォームアップ中",
   "config.local_llm.cache_state_warm": "ウォーム",
   "config.local_llm.cache_state_rejected": "拒否",
-  "config.local_llm.cache_state_degraded": "低下"
+  "config.local_llm.cache_state_degraded": "低下",
+  "config.realtime_speech.keyless": "APIキー不要。Speech Lab コンテナを使います。",
+  "config.realtime_speech.speech_lab_help": "このプロファイルは ASR/TTS に Speech Lab / s2s コンテナを使います。メディア → Speech Lab で起動または設定してください。"
 }

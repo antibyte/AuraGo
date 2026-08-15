@@ -42,7 +42,7 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **☎️ Native SIP-Telefonie** | Browser-Telefon und optionaler Telefon-Agent mit expliziten Richtlinien |
 | **🎮 Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung im Virtual Desktop |
 | **🖥️ Virtual Computers** | Verwaltete Boring Computers mit VNC, Terminal, Volumes und Agent-Jobs |
-| **🗣️ Realtime Speech** | Live-Sprachsessions mit OpenAI-, xAI- oder Gemini-Profilen |
+| **🗣️ Realtime Speech** | Live-Sprachsessions mit OpenAI-, xAI-, Gemini- oder Speech-Lab-Profilen |
 | **🧪 Lokales LLM** | Verwaltete AuraGo-Qwen-Laufzeit für Tests und Fallback |
 
 ---

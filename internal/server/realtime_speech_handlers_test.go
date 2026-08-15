@@ -2,11 +2,14 @@ package server
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +20,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/realtimespeech"
 	"aurago/internal/security"
+	"aurago/internal/speechlab"
 )
 
 func newRealtimeSpeechTestServer(t *testing.T) (*Server, string) {
@@ -321,4 +325,174 @@ func TestRealtimeSpeechTurnsPersistOnce(t *testing.T) {
 	if len(messages) != 2 || messages[0].Content != "Wie geht es dir?" || messages[1].Content != "Mir geht es gut." {
 		t.Fatalf("persisted messages = %+v", messages)
 	}
+}
+
+func TestRealtimeSpeechSpeechLabSessionDoesNotNeedAPIKey(t *testing.T) {
+	server, _ := newRealtimeSpeechTestServer(t)
+	lab := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ready" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ready": true, "asr_id": "asr-a", "tts_id": "tts-a", "asr_ok": true, "tts_ok": true, "voice": "Serena",
+		})
+	}))
+	t.Cleanup(lab.Close)
+	server.Cfg.SpeechLab = config.SpeechLabConfig{Enabled: true, BaseURL: lab.URL, TimeoutSeconds: 2, Language: "de"}
+	client, err := speechlab.NewClient(server.Cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.SpeechLab = client
+	server.Cfg.RealtimeSpeech.Profiles = append(server.Cfg.RealtimeSpeech.Profiles, config.RealtimeSpeechProfile{
+		ID: "lab", Name: "Speech Lab", Provider: realtimespeech.ProviderSpeechLab,
+		Model: realtimespeech.SpeechLabStackModel, Voice: realtimespeech.SpeechLabActiveVoice, Enabled: true,
+	})
+	server.initConfigSnapshot()
+
+	getRec := httptest.NewRecorder()
+	handleRealtimeSpeechConfig(server).ServeHTTP(getRec, httptest.NewRequest(http.MethodGet, "/api/realtime-speech/config", nil))
+	if !strings.Contains(getRec.Body.String(), `"id":"lab"`) || !strings.Contains(getRec.Body.String(), `"api_key_set":true`) {
+		t.Fatalf("Speech Lab profile should appear keyless: %s", getRec.Body.String())
+	}
+
+	registry := realtimespeech.NewRegistry(nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/realtime-speech/sessions", strings.NewReader(
+		`{"client_id":"browser","profile_id":"lab","surface":"desktop","chat_session_id":"virtual-desktop"}`,
+	))
+	req.Header.Set("X-Realtime-Speech-Client-ID", "browser")
+	rec := httptest.NewRecorder()
+	handleRealtimeSpeechSessions(server, registry, realtimespeech.NewClient()).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("session status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"transport":"local_s2s"`) || !strings.Contains(rec.Body.String(), `"asr_id":"asr-a"`) {
+		t.Fatalf("session body = %s", rec.Body.String())
+	}
+}
+
+func TestRealtimeSpeechLabTranscribeAndSynthesizeUseSession(t *testing.T) {
+	server, registry, sessionID := newRealtimeSpeechLabSession(t)
+	wav := realtimeSpeechLabTestWAV()
+
+	missingReq := httptest.NewRequest(http.MethodPost, "/api/realtime-speech/transcribe", nil)
+	missingReq.Header.Set("X-Realtime-Speech-Client-ID", "browser")
+	missing := httptest.NewRecorder()
+	handleRealtimeSpeechLabTranscribe(server, registry).ServeHTTP(missing, missingReq)
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("transcribe without session status=%d body=%s", missing.Code, missing.Body.String())
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", `form-data; name="audio"; filename="speech.wav"`)
+	header.Set("Content-Type", "audio/wav")
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(wav); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/realtime-speech/transcribe?session_id="+sessionID, &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Realtime-Speech-Client-ID", "browser")
+	req.Header.Set("X-Realtime-Speech-Session-ID", sessionID)
+	rec := httptest.NewRecorder()
+	handleRealtimeSpeechLabTranscribe(server, registry).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"transcription":"hello lab"`) {
+		t.Fatalf("transcribe status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	synthReq := httptest.NewRequest(http.MethodPost, "/api/realtime-speech/synthesize", strings.NewReader(
+		`{"session_id":"`+sessionID+`","client_id":"browser","text":"Antwort"}`,
+	))
+	synthReq.Header.Set("Content-Type", "application/json")
+	synthReq.Header.Set("X-Realtime-Speech-Client-ID", "browser")
+	synthRec := httptest.NewRecorder()
+	handleRealtimeSpeechLabSynthesize(server, registry).ServeHTTP(synthRec, synthReq)
+	if synthRec.Code != http.StatusOK || synthRec.Header().Get("Content-Type") != "audio/wav" {
+		t.Fatalf("synthesize status=%d type=%s body=%s", synthRec.Code, synthRec.Header().Get("Content-Type"), synthRec.Body.String())
+	}
+	if synthRec.Body.Len() < 44 {
+		t.Fatalf("synthesize returned a truncated WAV: %d bytes", synthRec.Body.Len())
+	}
+}
+
+func newRealtimeSpeechLabSession(t *testing.T) (*Server, *realtimespeech.Registry, string) {
+	t.Helper()
+	server, _ := newRealtimeSpeechTestServer(t)
+	wav := realtimeSpeechLabTestWAV()
+	lab := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ready":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ready": true, "asr_id": "asr-a", "tts_id": "tts-a", "asr_ok": true, "tts_ok": true, "voice": "Serena",
+			})
+		case "/v1/audio/transcriptions":
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": "hello lab", "asr_id": "asr-a"})
+		case "/v1/audio/speech":
+			w.Header().Set("Content-Type", "audio/wav")
+			w.Header().Set("X-S2S-TTS-ID", "tts-a")
+			w.Header().Set("X-S2S-Voice", "Serena")
+			_, _ = w.Write(wav)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(lab.Close)
+	server.Cfg.SpeechLab = config.SpeechLabConfig{Enabled: true, BaseURL: lab.URL, TimeoutSeconds: 2, Language: "de"}
+	client, err := speechlab.NewClient(server.Cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.SpeechLab = client
+	server.Cfg.RealtimeSpeech.Profiles = append(server.Cfg.RealtimeSpeech.Profiles, config.RealtimeSpeechProfile{
+		ID: "lab", Name: "Speech Lab", Provider: realtimespeech.ProviderSpeechLab,
+		Model: realtimespeech.SpeechLabStackModel, Voice: realtimespeech.SpeechLabActiveVoice, Enabled: true,
+	})
+	server.initConfigSnapshot()
+
+	registry := realtimespeech.NewRegistry(nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/realtime-speech/sessions", strings.NewReader(
+		`{"client_id":"browser","profile_id":"lab","surface":"desktop","chat_session_id":"virtual-desktop"}`,
+	))
+	req.Header.Set("X-Realtime-Speech-Client-ID", "browser")
+	rec := httptest.NewRecorder()
+	handleRealtimeSpeechSessions(server, registry, realtimespeech.NewClient()).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("session status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	sessionID, _ := payload["session_id"].(string)
+	if sessionID == "" {
+		t.Fatalf("missing session_id: %s", rec.Body.String())
+	}
+	return server, registry, sessionID
+}
+
+func realtimeSpeechLabTestWAV() []byte {
+	data := make([]byte, 44+320)
+	copy(data[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+	copy(data[8:12], "WAVE")
+	copy(data[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(data[16:20], 16)
+	binary.LittleEndian.PutUint16(data[20:22], 1)
+	binary.LittleEndian.PutUint16(data[22:24], 1)
+	binary.LittleEndian.PutUint32(data[24:28], 16000)
+	binary.LittleEndian.PutUint32(data[28:32], 32000)
+	binary.LittleEndian.PutUint16(data[32:34], 2)
+	binary.LittleEndian.PutUint16(data[34:36], 16)
+	copy(data[36:40], "data")
+	binary.LittleEndian.PutUint32(data[40:44], uint32(len(data)-44))
+	return data
 }

@@ -523,8 +523,8 @@
   "config.telephone_agent.preflight_ok": "Verifica locale superata.",
   "config.telephone_agent.loading": "Caricamento agente telefonico…",
   "config.telephone_agent.sip_summary": "Comportamento vocale e pipeline sono gestiti in Agente telefonico. Account SIP, rete, liste fidate e telefono browser restano qui.",
-  "config.telephone_agent.open_agent": "Apri agente telefonico"
-  ,"config.section.local_llm.label": "AuraGo-Qwen / Modello locale di prova",
+  "config.telephone_agent.open_agent": "Apri agente telefonico",
+  "config.section.local_llm.label": "AuraGo-Qwen / Modello locale di prova",
   "config.section.local_llm.desc": "Piccolo modello locale gestito per le chiamate agli strumenti AuraGo.",
   "config.local_llm.purpose_title": "Modello di prova e riserva",
   "config.local_llm.purpose": "AuraGo-Qwen non sostituisce un grande modello locale o cloud. Usalo per prove o come riserva.",
@@ -603,5 +603,7 @@
   "config.local_llm.cache_state_warming": "Riscaldamento",
   "config.local_llm.cache_state_warm": "Calda",
   "config.local_llm.cache_state_rejected": "Rifiutata",
-  "config.local_llm.cache_state_degraded": "Degradata"
+  "config.local_llm.cache_state_degraded": "Degradata",
+  "config.realtime_speech.keyless": "Nessuna chiave API. Usa il contenitore Speech Lab.",
+  "config.realtime_speech.speech_lab_help": "Questo profilo usa il contenitore Speech Lab / s2s per ASR e TTS. Avvialo o configuralo in Media → Speech Lab."
 }
