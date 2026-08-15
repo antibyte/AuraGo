@@ -2414,6 +2414,48 @@ func TestPrecisionEntryLoginCSSFallbackRemainsAvailable(t *testing.T) {
 	}
 }
 
+func TestPrecisionEntryLoginViewportLocksAndCentersCard(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/login.css"))
+	startMarker := `/* === Precision Entry Login Adapter: start === */`
+	endMarker := `/* === Precision Entry Login Adapter: end === */`
+	start, end := strings.Index(css, startMarker), strings.Index(css, endMarker)
+	if start < 0 || end <= start {
+		t.Fatal("login.css missing delimited Precision entry adapter")
+	}
+	adapter := css[start:end]
+	prefix := `.pw-page.pw-entry-page[data-entry-page="login"]`
+
+	for _, want := range []string{
+		prefix + ` {`,
+		`align-items: center;`,
+		`justify-content: center;`,
+		`height: 100dvh;`,
+		`max-height: 100dvh;`,
+		`overflow: hidden;`,
+		`overscroll-behavior: none;`,
+		prefix + ` .login-card-wrap`,
+		`margin: 0;`,
+		`max-width: 100%;`,
+		`html:has(body.pw-page.pw-entry-page[data-entry-page="login"])`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("login viewport contract missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		`overflow: visible !important`,
+		`--login-flame-reach`,
+		`--login-flame-spread`,
+		`align-items: flex-start`,
+	} {
+		if strings.Contains(adapter, forbidden) {
+			t.Errorf("login adapter must not use layout-expanding rule %q", forbidden)
+		}
+	}
+}
+
 func assertPrecisionCSSScoped(t *testing.T, css string) {
 	t.Helper()
 

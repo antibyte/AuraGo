@@ -1,6 +1,13 @@
 /* AuraGo – login page styles */
 /* Extracted from login.html */
 
+        html:has(body.pw-page.pw-entry-page[data-entry-page="login"]) {
+            height: 100%;
+            max-height: 100dvh;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
         body {
             min-height: 100vh;
             min-height: 100dvh;
@@ -810,16 +817,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
-    /* Extra inset so Flame Wrap outline is not clipped by the viewport edge. */
+    height: 100dvh;
+    max-height: 100dvh;
     padding:
-        clamp(7rem, 14vh, 10rem)
-        max(3.5rem, env(safe-area-inset-right, 0px))
-        max(3.5rem, env(safe-area-inset-bottom, 0px))
-        max(3.5rem, env(safe-area-inset-left, 0px));
-    /* Must stay visible: base body { overflow:hidden } clips side/top flames. */
-    overflow: visible !important;
+        max(1.25rem, env(safe-area-inset-top, 0px))
+        max(1.25rem, env(safe-area-inset-right, 0px))
+        max(1.25rem, env(safe-area-inset-bottom, 0px))
+        max(1.25rem, env(safe-area-inset-left, 0px));
+    /* Viewport-locked: Flame Wrap may paint past the card, never grow the page. */
+    overflow: hidden;
+    overscroll-behavior: none;
     background: var(--pw-canvas);
     background-image: none;
     color: var(--pw-text);
@@ -901,9 +913,8 @@
     position: relative;
     z-index: 100;
     width: min(100%, 420px);
-    max-width: 420px;
-    /* Room for side/bottom flame outline without clipping the burn edge. */
-    margin: var(--login-flame-reach, 184px) var(--login-flame-spread, 58px) var(--login-flame-spread, 58px);
+    max-width: 100%;
+    margin: 0;
     overflow: visible;
     flex-shrink: 0;
 }
@@ -1034,19 +1045,17 @@
 
 @media (max-width: 768px) {
     .pw-page.pw-entry-page[data-entry-page="login"] {
-        align-items: flex-start;
+        align-items: center;
+        justify-content: center;
         padding:
-            calc(6.5rem + env(safe-area-inset-top, 0px))
-            max(2rem, env(safe-area-inset-right, 0px))
-            calc(2.5rem + env(safe-area-inset-bottom, 0px))
-            max(2rem, env(safe-area-inset-left, 0px));
+            max(1rem, env(safe-area-inset-top, 0px))
+            max(1rem, env(safe-area-inset-right, 0px))
+            max(1rem, env(safe-area-inset-bottom, 0px))
+            max(1rem, env(safe-area-inset-left, 0px));
     }
 
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card-wrap {
-        margin:
-            var(--login-flame-reach, 140px)
-            var(--login-flame-spread, 40px)
-            var(--login-flame-spread, 40px);
+        margin: 0;
     }
 }
 

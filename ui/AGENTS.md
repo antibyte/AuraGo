@@ -92,7 +92,9 @@ images, and browser-oriented regression tests.
   `ui/js/vendor/canvasui/` with committed `manifest.json`, `LICENSE.txt`, and
   pinned upstream provenance. They must not load remote assets at runtime and
   must not introduce React solely for effects. Login uses Flame Wrap on the
-  auth card. Droplets are desktop-only for the `city_rain` wallpaper via
+  auth card. The login shell stays viewport-locked and centered; Flame Wrap
+  must paint outside the card without expanding document scroll or uncentering
+  the form. Droplets are desktop-only for the `city_rain` wallpaper via
   `ui/js/desktop/city-rain-droplets.js`, painted on `#vd-wallpaper-fx`
   (`z-index: -1`) behind icons/widgets/windows, with graceful WebGL2 /
   reduced-motion fallbacks and no HTML capture of foreground UI.
