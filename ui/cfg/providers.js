@@ -834,17 +834,34 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             let html = `<div class="cfg-section active">
                 <div class="section-header">${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
-                <div class="prov-section-actions">
-                    <button class="btn-save prov-btn-sm" onclick="providerAdd()" ${providersLoaded ? '' : 'disabled'}>
-                        ＋ ${t('config.providers.new_provider')}
-                    </button>
+                <div class="prov-toolbar">
+                    <label class="prov-toolbar-search">
+                        <span class="cfg-visually-hidden">${escapeHtml(t('config.providers.search_placeholder'))}</span>
+                        <input id="prov-list-search" class="field-input" type="search" autocomplete="off"
+                               placeholder="${escapeAttr(t('config.providers.search_placeholder'))}">
+                    </label>
+                    <select id="prov-list-type" class="field-select" aria-label="${escapeAttr(t('config.providers.filter_type_all'))}">
+                        <option value="">${escapeHtml(t('config.providers.filter_type_all'))}</option>
+                    </select>
+                    <select id="prov-list-role" class="field-select" aria-label="${escapeAttr(t('config.providers.filter_role_all'))}">
+                        <option value="">${escapeHtml(t('config.providers.filter_role_all'))}</option>
+                    </select>
+                    <div class="prov-section-actions">
+                        <button class="btn-save prov-btn-sm" onclick="providerAdd()" ${providersLoaded ? '' : 'disabled'}>
+                            ＋ ${t('config.providers.new_provider')}
+                        </button>
+                    </div>
                 </div>
                 <div id="providers-list"></div>
+                <div id="providers-filter-empty" class="prov-empty-state is-hidden">
+                    ${t('config.providers.filter_no_results')}
+                </div>
                 <div id="providers-empty" class="prov-empty-state is-hidden">
                     ${t('config.providers.empty')}
                 </div>
             </div>`;
             document.getElementById('content').innerHTML = html;
+            providerBindListFilters();
             providerRenderCards();
             providerLoadCatalog().then(() => providerRenderCards());
         }
@@ -887,6 +904,180 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             });
         }
 
+        const PROVIDER_TYPE_DISPLAY = {
+            openrouter: 'OpenRouter',
+            openai: 'OpenAI',
+            ollama: 'Ollama',
+            anthropic: 'Anthropic',
+            google: 'Google',
+            huggingface: 'Hugging Face',
+            minimax: 'MiniMax',
+            agnes: 'Agnes AI',
+            'workers-ai': 'Workers AI',
+            manifest: 'Manifest',
+            omniroute: 'OmniRoute',
+            yepapi: 'YepAPI',
+            custom: 'Custom',
+            deepseek: 'DeepSeek',
+            groq: 'Groq',
+            mistral: 'Mistral',
+            xai: 'xAI',
+            moonshot: 'Moonshot',
+            qwen: 'Qwen',
+            zai: 'Z.ai',
+            llamacpp: 'llama.cpp',
+            lmstudio: 'LM Studio',
+            copilot: 'GitHub Copilot',
+            'opencode-go': 'OpenCode Go'
+        };
+
+        const PROVIDER_LOCAL_TYPES = new Set(['ollama', 'llamacpp', 'lmstudio']);
+
+        function providerCompactTokenCount(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n) || n <= 0) return '—';
+            if (n < 1000) return String(n);
+            const scaled = n / 1000;
+            const digits = Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1).replace(/\.0$/, '');
+            return digits + 'k';
+        }
+
+        function providerRoleLabel(role) {
+            const key = 'config.providers.role_' + String(role || '').trim();
+            const label = t(key);
+            return (label && label !== key) ? label : String(role || '').trim();
+        }
+
+        function providerCardRoles(p) {
+            const refs = Array.isArray(p.references) ? p.references : [];
+            const seen = new Set();
+            const roles = [];
+            refs.forEach(ref => {
+                const role = ref && ref.role ? String(ref.role).trim() : '';
+                if (!role || seen.has(role)) return;
+                seen.add(role);
+                roles.push(role);
+            });
+            return roles;
+        }
+
+        function providerAuthSummary(p, oauthPending) {
+            if (p.auth_type === 'oauth2') {
+                return {
+                    text: oauthPending ? t('config.providers.checking_status') : t('config.providers.auth_oauth_needed'),
+                    tone: oauthPending ? '' : 'is-warn'
+                };
+            }
+            if (p.type === 'copilot') {
+                return {
+                    text: p._copilotAuthorized ? t('config.providers.authorized') : t('config.providers.not_authorized'),
+                    tone: p._copilotAuthorized ? 'is-ok' : 'is-warn'
+                };
+            }
+            if (PROVIDER_LOCAL_TYPES.has(p.type) && !p.api_key) {
+                return { text: t('config.providers.auth_key_optional'), tone: '' };
+            }
+            if (p.api_key === '••••••••' || p.api_key) {
+                return { text: t('config.providers.auth_key_set'), tone: 'is-ok' };
+            }
+            return { text: t('config.providers.auth_key_missing'), tone: 'is-warn' };
+        }
+
+        function providerCardHost(p) {
+            const url = String(p.base_url || '').trim();
+            if (!url) return '';
+            if (p.type !== 'custom' && providerKnownBaseURLs().has(url)) return '';
+            try {
+                return new URL(url).host || url;
+            } catch (e) {
+                return url;
+            }
+        }
+
+        function providerCardSearchText(p) {
+            const roles = providerCardRoles(p).map(providerRoleLabel).join(' ');
+            return [p.name, p.id, p.model, p.type, providerTypeLabel(p.type), p.base_url, roles]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+        }
+
+        function providerListFilterState() {
+            const searchEl = document.getElementById('prov-list-search');
+            const typeEl = document.getElementById('prov-list-type');
+            const roleEl = document.getElementById('prov-list-role');
+            return {
+                q: searchEl ? String(searchEl.value || '').trim().toLowerCase() : '',
+                type: typeEl ? String(typeEl.value || '') : '',
+                role: roleEl ? String(roleEl.value || '') : ''
+            };
+        }
+
+        function providerPopulateListFilters() {
+            const typeEl = document.getElementById('prov-list-type');
+            const roleEl = document.getElementById('prov-list-role');
+            const prevType = typeEl ? typeEl.value : '';
+            const prevRole = roleEl ? roleEl.value : '';
+            const types = [];
+            const roles = [];
+            const seenTypes = new Set();
+            const seenRoles = new Set();
+            (providersCache || []).forEach(p => {
+                if (p && p.type && !seenTypes.has(p.type)) {
+                    seenTypes.add(p.type);
+                    types.push(p.type);
+                }
+                providerCardRoles(p).forEach(role => {
+                    if (seenRoles.has(role)) return;
+                    seenRoles.add(role);
+                    roles.push(role);
+                });
+            });
+            types.sort((a, b) => providerTypeLabel(a).localeCompare(providerTypeLabel(b)));
+            roles.sort((a, b) => providerRoleLabel(a).localeCompare(providerRoleLabel(b)));
+            if (typeEl) {
+                typeEl.innerHTML = `<option value="">${escapeHtml(t('config.providers.filter_type_all'))}</option>` +
+                    types.map(typ => `<option value="${escapeAttr(typ)}">${escapeHtml(providerTypeLabel(typ))}</option>`).join('');
+                if (prevType && seenTypes.has(prevType)) typeEl.value = prevType;
+            }
+            if (roleEl) {
+                roleEl.innerHTML = `<option value="">${escapeHtml(t('config.providers.filter_role_all'))}</option>` +
+                    roles.map(role => `<option value="${escapeAttr(role)}">${escapeHtml(providerRoleLabel(role))}</option>`).join('');
+                if (prevRole && seenRoles.has(prevRole)) roleEl.value = prevRole;
+            }
+        }
+
+        function providerApplyListFilter() {
+            const filter = providerListFilterState();
+            const cards = document.querySelectorAll('#providers-list .prov-provider-card');
+            let visible = 0;
+            cards.forEach(card => {
+                const haystack = card.getAttribute('data-search') || '';
+                const type = card.getAttribute('data-type') || '';
+                const roles = (card.getAttribute('data-roles') || '').split(/\s+/).filter(Boolean);
+                const matchQ = !filter.q || haystack.indexOf(filter.q) !== -1;
+                const matchType = !filter.type || type === filter.type;
+                const matchRole = !filter.role || roles.indexOf(filter.role) !== -1;
+                const match = matchQ && matchType && matchRole;
+                setHidden(card, !match);
+                if (match) visible++;
+            });
+            const emptyFilter = document.getElementById('providers-filter-empty');
+            if (emptyFilter) {
+                setHidden(emptyFilter, visible > 0 || cards.length === 0);
+            }
+        }
+
+        function providerBindListFilters() {
+            ['prov-list-search', 'prov-list-type', 'prov-list-role'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.bound === '1') return;
+                el.dataset.bound = '1';
+                el.addEventListener('input', providerApplyListFilter);
+                el.addEventListener('change', providerApplyListFilter);
+            });
+        }
+
         function providerRenderCards() {
             const wrap = document.getElementById('providers-list');
             const empty = document.getElementById('providers-empty');
@@ -912,28 +1103,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
             let html = '';
             providersCache.forEach((p, idx) => {
-                const typeBadge = p.type
-                    ? `<span class="prov-provider-pill">${escapeAttr(p.type)}</span>`
-                    : '';
                 const isOAuth = p.auth_type === 'oauth2';
-                const authBadge = isOAuth
-                    ? '<span class="prov-provider-pill prov-provider-pill-oauth">🔑 OAuth2</span>'
-                    : '';
-                const caps = p.effective_capabilities || p.capabilities || {};
-                const capPills = [
-                    caps.tool_calling ? `<span class="prov-provider-pill" title="${escapeAttr(t('config.providers.cap_tool_calling'))}">${escapeHtml(t('config.providers.cap_tool_short'))}</span>` : '',
-                    caps.structured_outputs ? `<span class="prov-provider-pill" title="${escapeAttr(t('config.providers.cap_structured_outputs'))}">${escapeHtml(t('config.providers.cap_structured_short'))}</span>` : '',
-                    caps.multimodal ? `<span class="prov-provider-pill" title="${escapeAttr(t('config.providers.cap_multimodal'))}">${escapeHtml(t('config.providers.cap_multimodal_short'))}</span>` : ''
-                ].filter(Boolean).join('');
-                let authInfo;
-                if (isOAuth) {
-                    authInfo = `<span class="prov-text-muted" id="oauth-status-${idx}">🔑 OAuth2</span>`;
-                } else {
-                    const maskedKey = p.api_key === '••••••••'
-                        ? '<span class="prov-text-muted">••••••••</span>'
-                        : (p.api_key ? '<span class="prov-text-success">' + t('config.providers.key_set') + '</span>' : '<span class="prov-text-muted">—</span>');
-                    authInfo = maskedKey;
-                }
+                const auth = providerAuthSummary(p, isOAuth);
+                const roles = providerCardRoles(p);
+                const roleChips = roles.length
+                    ? roles.map(role => `<span class="prov-role-chip">${escapeHtml(providerRoleLabel(role))}</span>`).join('')
+                    : `<span class="prov-role-unused">${escapeHtml(t('config.providers.unused'))}</span>`;
                 const oauthAction = isOAuth
                     ? `<button type="button" class="btn-save prov-btn-muted prov-btn-xs prov-oauth-card-btn" id="oauth-action-${idx}" onclick="providerStartOAuthConnect(providersCache[${idx}] && providersCache[${idx}].id)">
                             ${escapeHtml(t('config.providers.oauth_connect'))}
@@ -941,33 +1116,45 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     : '';
                 const contextLimit = providerLimitDisplay(p.context_window, p.effective_context_window, p.context_window_source);
                 const outputLimit = providerLimitDisplay(p.max_output_tokens, p.effective_max_output_tokens, p.max_output_tokens_source);
-                const modelLimitsWarning = p.model_limits_warning === 'unknown_model_conservative_limits'
-                    ? `<div class="prov-text-error">⚠ ${escapeHtml(t('config.providers.unknown_model_limits_warning'))}</div>`
-                    : '';
+                const compactLimits = t('config.providers.limit_compact', {
+                    context: providerCompactTokenCount(p.effective_context_window),
+                    output: providerCompactTokenCount(p.effective_max_output_tokens)
+                });
+                const warning = p.model_limits_warning === 'unknown_model_conservative_limits';
+                const host = providerCardHost(p);
                 html += `
-                <div class="provider-card prov-provider-card" data-idx="${idx}">
+                <article class="provider-card prov-provider-card" data-idx="${idx}" data-type="${escapeAttr(p.type || '')}" data-roles="${escapeAttr(roles.join(' '))}" data-search="${escapeAttr(providerCardSearchText(p))}">
                     <div class="prov-provider-head">
-                        <div class="prov-provider-title">
-                            ${escapeAttr(p.name || p.id)}${typeBadge}${authBadge}${capPills}
-                            <span class="prov-provider-id">ID: ${escapeAttr(p.id)}</span>
+                        <div class="prov-provider-identity">
+                            <div class="prov-provider-title-row">
+                                <h3 class="prov-provider-title">${escapeHtml(p.name || p.id)}</h3>
+                                <span class="prov-provider-id">${escapeHtml(t('config.providers.card_id'))} ${escapeHtml(p.id)}</span>
+                            </div>
+                            <div class="prov-provider-meta">
+                                <span class="prov-provider-type">${escapeHtml(providerTypeLabel(p.type))}</span>
+                                <span class="prov-provider-auth ${auth.tone}" id="oauth-status-${idx}">${escapeHtml(auth.text)}</span>
+                            </div>
                         </div>
                         <div class="prov-provider-head-actions">
                             ${oauthAction}
-                            <button onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="${t('config.providers.card_edit_tooltip')}">✏️</button>
-                            <button onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="${t('config.providers.card_delete_tooltip')}">🗑️</button>
+                            <button type="button" onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="${t('config.providers.card_edit_tooltip')}">✏️</button>
+                            <button type="button" onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="${t('config.providers.card_delete_tooltip')}">🗑️</button>
                         </div>
                     </div>
-                    <div class="prov-provider-grid">
-                        <div><span class="prov-text-muted">${t('config.providers.card_base_url')}</span> ${escapeAttr(p.base_url || '—')}</div>
-                        <div><span class="prov-text-muted">${t('config.providers.card_model')}</span> ${escapeAttr(p.model || '—')}</div>
-                        <div><span class="prov-text-muted">${isOAuth ? t('config.providers.card_auth') : t('config.providers.card_api_key')}</span> ${authInfo}</div>
-                        <div><span class="prov-text-muted">${t('config.providers.card_context_window')}</span> ${escapeHtml(contextLimit)}</div>
-                        <div><span class="prov-text-muted">${t('config.providers.card_max_output_tokens')}</span> ${escapeHtml(outputLimit)}</div>
+                    <div class="prov-provider-model">${escapeHtml(p.model || '—')}</div>
+                    ${host ? `<div class="prov-provider-host">${escapeHtml(host)}</div>` : ''}
+                    <div class="prov-provider-footer">
+                        <div class="prov-provider-roles" aria-label="${escapeAttr(t('config.providers.used_as'))}">${roleChips}</div>
+                        <div class="prov-provider-limits" title="${escapeAttr(t('config.providers.card_context_window') + ' ' + contextLimit + ' · ' + t('config.providers.card_max_output_tokens') + ' ' + outputLimit)}">
+                            <span>${escapeHtml(compactLimits)}</span>
+                            ${warning ? `<span class="prov-limit-warning" title="${escapeAttr(t('config.providers.unknown_model_limits_warning'))}" aria-describedby="prov-limit-warning-${idx}">${escapeHtml(t('config.providers.limits_uncertain'))}</span><span id="prov-limit-warning-${idx}" class="cfg-visually-hidden">${escapeHtml(t('config.providers.unknown_model_limits_warning'))}</span>` : ''}
+                        </div>
                     </div>
-                    ${modelLimitsWarning}
-                </div>`;
+                </article>`;
             });
             wrap.innerHTML = html;
+            providerPopulateListFilters();
+            providerApplyListFilter();
 
             // Async: fetch OAuth status for OAuth2 providers
             providersCache.forEach((p, idx) => {
@@ -1246,7 +1433,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
         function providerSetOAuthCardState(idx, st) {
             const statusEl = document.getElementById('oauth-status-' + idx);
-            if (statusEl) statusEl.innerHTML = providerOAuthStatusHTML(st);
+            if (statusEl) {
+                const status = providerOAuthStatusText(st);
+                statusEl.textContent = status.text;
+                statusEl.className = 'prov-provider-auth ' + status.cls;
+                statusEl.title = status.detail || '';
+            }
             const actionBtn = document.getElementById('oauth-action-' + idx);
             if (!actionBtn) return;
             actionBtn.textContent = providerOAuthActionLabel(st);
@@ -1569,11 +1761,14 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         function providerTypeLabel(typ) {
-            const key = 'config.providers.type_' + typ.replace('-', '_');
+            const slug = String(typ || '');
+            const key = 'config.providers.type_' + slug.replace(/-/g, '_');
             const label = t(key);
+            if (label && label !== key && label !== slug) return label;
+            if (PROVIDER_TYPE_DISPLAY[slug]) return PROVIDER_TYPE_DISPLAY[slug];
             if (label && label !== key) return label;
-            const provider = providerCatalogProvider(typ);
-            return (provider && provider.name) || typ;
+            const provider = providerCatalogProvider(slug);
+            return (provider && provider.name) || slug;
         }
 
         function providerCatalogModelCost(model) {
@@ -1609,6 +1804,23 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 modelInput.dispatchEvent(new Event('input', { bubbles: true }));
                 updateProviderModelCost(providerCatalogModelCost(picked));
             };
+        }
+
+        function providerBindModalTabs() {
+            const tabs = Array.from(document.querySelectorAll('#provider-modal-overlay [data-prov-tab]'));
+            const panels = Array.from(document.querySelectorAll('#provider-modal-overlay [data-prov-panel]'));
+            if (!tabs.length) return;
+            const activate = (id) => {
+                tabs.forEach(tab => {
+                    const active = tab.getAttribute('data-prov-tab') === id;
+                    tab.classList.toggle('is-active', active);
+                    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                panels.forEach(panel => setHidden(panel, panel.getAttribute('data-prov-panel') !== id));
+            };
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => activate(tab.getAttribute('data-prov-tab')));
+            });
         }
 
         function providerShowModal(title, data, onSave) {
@@ -1683,14 +1895,23 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div class="prov-modal-title">${title}</div>
                     <button type="button" id="provider-modal-close-btn" class="prov-modal-close-btn">✕</button>
                 </div>
+                <div class="prov-modal-tabs" role="tablist">
+                    <button type="button" class="prov-modal-tab is-active" role="tab" aria-selected="true" data-prov-tab="identity">${escapeHtml(t('config.providers.tab_identity'))}</button>
+                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="model">${escapeHtml(t('config.providers.tab_model'))}</button>
+                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="capabilities">${escapeHtml(t('config.providers.tab_capabilities'))}</button>
+                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="pricing">${escapeHtml(t('config.providers.tab_pricing'))}</button>
+                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="auth">${escapeHtml(t('config.providers.tab_auth'))}</button>
+                </div>
+                <div class="prov-modal-body">
+                <div class="prov-modal-panel-section" data-prov-panel="identity">
+                <div class="field-group">
+                    <div class="field-label">${t('config.providers.field_name')}</div>
+                    <input class="field-input" id="prov-name" value="${escapeAttr(data.name || '')}" placeholder="${t('config.providers.display_name')}">
+                </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_id_label')}</div>
                     <div class="field-help">${t('config.providers.id_help')}</div>
                     <input class="field-input ${data._editMode ? 'is-disabled' : ''}" id="prov-id" value="${escapeAttr(data.id || '')}" placeholder="${t('config.providers.id_placeholder')}" ${data._editMode ? 'disabled' : ''}>
-                </div>
-                <div class="field-group">
-                    <div class="field-label">${t('config.providers.field_name')}</div>
-                    <input class="field-input" id="prov-name" value="${escapeAttr(data.name || '')}" placeholder="${t('config.providers.display_name')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_type_label')}</div>
@@ -1713,6 +1934,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div class="field-help">${t('config.providers.account_id_help')}</div>
                     <input class="field-input" id="prov-account-id" value="${escapeAttr(data.account_id || '')}" placeholder="${t('config.providers.account_id_placeholder')}">
                 </div>
+                </div>
+                <div class="prov-modal-panel-section is-hidden" data-prov-panel="model">
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_model_label')}</div>
                     <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
@@ -1730,28 +1953,6 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div class="field-help">${t('config.providers.model_limit_override_help')}</div>
                     <input class="field-input" id="prov-max-output-tokens" type="number" min="0" step="1" value="${Number(data.max_output_tokens) > 0 ? Number(data.max_output_tokens) : 0}">
                     <div class="prov-field-hint">${providerLimitDisplay(data.max_output_tokens, data.effective_max_output_tokens, data.max_output_tokens_source)}</div>
-                </div>
-
-                <div class="field-group prov-group-divider" id="prov-capabilities-block">
-                    <div class="prov-model-pricing-head">
-                        <div class="field-label prov-model-pricing-title">🧩 ${t('config.providers.capabilities_title')}</div>
-                        <button type="button" class="btn-save prov-btn-muted prov-btn-xs" id="prov-cap-reset">
-                            ${t('config.providers.cap_use_detected')}
-                        </button>
-                    </div>
-                    <div class="prov-field-hint" id="prov-cap-source"></div>
-                    <label class="prov-cap-row">
-                        <input type="checkbox" id="prov-cap-tool-calling">
-                        <span>${t('config.providers.cap_tool_calling')}</span>
-                    </label>
-                    <label class="prov-cap-row">
-                        <input type="checkbox" id="prov-cap-structured-outputs">
-                        <span>${t('config.providers.cap_structured_outputs')}</span>
-                    </label>
-                    <label class="prov-cap-row">
-                        <input type="checkbox" id="prov-cap-multimodal">
-                        <span>${t('config.providers.cap_multimodal')}</span>
-                    </label>
                 </div>
 
                 <!-- Ollama model query (only visible when type = ollama) -->
@@ -1778,9 +1979,33 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         <span class="prov-inline-muted">${t('config.providers.browse_openrouter')}</span>
                     </div>
                 </div>
-
+                </div>
+                <div class="prov-modal-panel-section is-hidden" data-prov-panel="capabilities">
+                <div class="field-group" id="prov-capabilities-block">
+                    <div class="prov-model-pricing-head">
+                        <div class="field-label prov-model-pricing-title">🧩 ${t('config.providers.capabilities_title')}</div>
+                        <button type="button" class="btn-save prov-btn-muted prov-btn-xs" id="prov-cap-reset">
+                            ${t('config.providers.cap_use_detected')}
+                        </button>
+                    </div>
+                    <div class="prov-field-hint" id="prov-cap-source"></div>
+                    <label class="prov-cap-row">
+                        <input type="checkbox" id="prov-cap-tool-calling">
+                        <span>${t('config.providers.cap_tool_calling')}</span>
+                    </label>
+                    <label class="prov-cap-row">
+                        <input type="checkbox" id="prov-cap-structured-outputs">
+                        <span>${t('config.providers.cap_structured_outputs')}</span>
+                    </label>
+                    <label class="prov-cap-row">
+                        <input type="checkbox" id="prov-cap-multimodal">
+                        <span>${t('config.providers.cap_multimodal')}</span>
+                    </label>
+                </div>
+                </div>
+                <div class="prov-modal-panel-section is-hidden" data-prov-panel="pricing">
                 <!-- Model Pricing Table -->
-                <div class="field-group prov-group-divider">
+                <div class="field-group">
                     <div class="prov-model-pricing-head">
                         <div class="field-label prov-model-pricing-title">💰 ${t('config.providers.model_pricing')}</div>
                         <div class="prov-model-pricing-actions">
@@ -1815,9 +2040,10 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         </div>
                     </div>
                 </div>
-
+                </div>
+                <div class="prov-modal-panel-section is-hidden" data-prov-panel="auth">
                 <!-- Auth Type Toggle -->
-                <div class="field-group prov-group-divider">
+                <div class="field-group">
                     <div class="field-label">${t('config.providers.authentication')}</div>
                     <select class="field-select" id="prov-auth-type">
                         <option value="api_key"${currentAuthType !== 'oauth2' ? ' selected' : ''}>${t('config.providers.auth_type_api_key_option')}</option>
@@ -1974,6 +2200,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         </button>
                     </div>
                 </div>
+                </div>
+                </div>
 
                 <div class="prov-modal-actions">
                     <button type="button" id="provider-modal-cancel-btn" class="btn-save prov-btn-muted prov-btn-md">
@@ -1990,6 +2218,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             document.body.appendChild(overlay);
             document.getElementById('provider-modal-close-btn')?.addEventListener('click', requestCloseProviderModal);
             document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', requestCloseProviderModal);
+            providerBindModalTabs();
 
             // ── Initialize model pricing table ──
             providerInitModelsTable(data.models);

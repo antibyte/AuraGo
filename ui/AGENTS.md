@@ -49,8 +49,14 @@ images, and browser-oriented regression tests.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
 - Provider model-limit fields use `0` for automatic resolution. Provider cards
-  and the editor must show the effective context/output values, their source,
-  and the localized conservative-limit warning for unknown models.
+  show compact effective context/output values; the source and the full
+  configured/effective sentence belong in the card tooltip and in the editor.
+  Unknown-model warnings appear as a compact status badge on the card plus the
+  localized conservative-limit text in `title` / `aria-describedby` and in the
+  editor. Cards show name, type, model, auth state, usage roles from
+  `references`, and the internal ID. They must not dump Base URL, capability
+  pills, or raw key masks. Assignment of roles stays in the owning Config
+  sections.
 - Integration actions that depend on credentials remain locked until the
   authoritative saved runtime status is ready. After `aurago:config-saved`,
   visible integration sections refresh that status; independent catalog
