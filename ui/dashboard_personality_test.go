@@ -49,6 +49,9 @@ func TestDashboardPersonalityIncludesAffectPanel(t *testing.T) {
 	if !strings.Contains(js, "data.affect_events") {
 		t.Fatal("dashboard widgets must read affect_events from personality state")
 	}
+	if !strings.Contains(js, "function affectCauseLabel") {
+		t.Fatal("dashboard widgets must localize affect cause codes")
+	}
 }
 
 func TestConfigPersonalitySurfacesHelperBannerAndLivedNotes(t *testing.T) {
@@ -59,6 +62,9 @@ func TestConfigPersonalitySurfacesHelperBannerAndLivedNotes(t *testing.T) {
 	}
 	if !strings.Contains(mainJS, "config.personality.helper_required") {
 		t.Fatal("config personality section must show the helper-required banner")
+	}
+	if strings.Contains(mainJS, "pers.engine || pers.engine_v2") {
+		t.Fatal("helper banner must not fire for V1-only personality engine")
 	}
 	promptsJS := readDesktopAssetText(t, "cfg/prompts.js")
 	if !strings.Contains(promptsJS, `id="pers-lived-notes"`) {

@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/memory"
 	"aurago/internal/security"
@@ -16,10 +17,31 @@ func sanitizeEmotionPreview(text string, maxLen int) string {
 		}
 	}
 	text = strings.Join(strings.Fields(text), " ")
-	if maxLen > 0 && len(text) > maxLen {
-		text = strings.TrimSpace(text[:maxLen]) + "…"
+	return clampPreviewRunes(text, maxLen)
+}
+
+func clampPreviewRunes(text string, maxLen int) string {
+	if maxLen <= 0 || utf8.RuneCountInString(text) <= maxLen {
+		return text
 	}
-	return text
+	return strings.TrimSpace(string([]rune(text)[:maxLen])) + "…"
+}
+
+func affectEventExposesUserText(event memory.AffectEventRecord) bool {
+	switch strings.TrimSpace(event.CauseCode) {
+	case memory.AffectCauseConversation, memory.AffectCausePositiveFeedback, memory.AffectCauseNegativeFeedback:
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(event.Source), "chat")
+}
+
+func sanitizeAffectEventRecord(event memory.AffectEventRecord) memory.AffectEventRecord {
+	if affectEventExposesUserText(event) {
+		event.Detail = ""
+		return event
+	}
+	event.Detail = sanitizeEmotionPreview(event.Detail, 120)
+	return event
 }
 
 func fallbackEmotionPreview(mood, cause, style string) string {
@@ -96,7 +118,7 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 		events = []memory.AffectEventRecord{}
 	}
 	for i := range events {
-		events[i].Detail = sanitizeEmotionPreview(events[i].Detail, 120)
+		events[i] = sanitizeAffectEventRecord(events[i])
 	}
 	response["affect_events"] = events
 

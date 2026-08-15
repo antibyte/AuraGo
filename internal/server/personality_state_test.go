@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -120,6 +121,58 @@ func TestBuildPersonalityStatePayloadIncludesCharacterNotes(t *testing.T) {
 	}
 	if _, ok := payload["affect_events"].([]memory.AffectEventRecord); !ok {
 		t.Fatalf("affect_events missing: %#v", payload["affect_events"])
+	}
+}
+
+func TestBuildPersonalityStatePayloadStripsChatAffectDetails(t *testing.T) {
+	s := newTestServerWithPersonalityState(t)
+	if _, err := s.ShortTermMem.ApplyAffectEvent(memory.AffectEvent{
+		CauseCode: memory.AffectCausePositiveFeedback,
+		Valence:   0.4,
+		Arousal:   0.4,
+		Weight:    0.3,
+		Source:    "chat",
+		Detail:    "Danke, hier ist mein API-Schlüssel sk-test-secret",
+	}, time.Now()); err != nil {
+		t.Fatalf("ApplyAffectEvent: %v", err)
+	}
+	payload := s.buildPersonalityStatePayload()
+	events, ok := payload["affect_events"].([]memory.AffectEventRecord)
+	if !ok || len(events) == 0 {
+		t.Fatalf("affect_events = %#v", payload["affect_events"])
+	}
+	for _, event := range events {
+		if strings.Contains(event.Detail, "API-Schlüssel") || strings.Contains(event.Detail, "sk-test") || strings.Contains(event.Detail, "Danke") {
+			t.Fatalf("chat affect detail leaked user text: %#v", event)
+		}
+	}
+
+	if _, err := s.ShortTermMem.ApplyAffectEvent(memory.AffectEvent{
+		CauseCode: memory.AffectCauseOpsIssueOpened,
+		Valence:   -0.4,
+		Arousal:   0.6,
+		Weight:    0.3,
+		Source:    "ops",
+		Detail:    "open high-severity operational issue",
+	}, time.Now()); err != nil {
+		t.Fatalf("ApplyAffectEvent ops: %v", err)
+	}
+	payload = s.buildPersonalityStatePayload()
+	events, ok = payload["affect_events"].([]memory.AffectEventRecord)
+	if !ok {
+		t.Fatalf("affect_events after ops = %#v", payload["affect_events"])
+	}
+	foundOps := false
+	for _, event := range events {
+		if event.CauseCode == memory.AffectCauseOpsIssueOpened {
+			foundOps = true
+			if event.Detail == "" {
+				t.Fatal("ops affect detail should remain visible")
+			}
+		}
+	}
+	if !foundOps {
+		t.Fatal("expected ops affect event in payload")
 	}
 }
 

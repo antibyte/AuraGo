@@ -21,10 +21,16 @@ func detectUserEmotionTrigger(lastUserMsg string, stm *memory.SQLiteMemory, sess
 
 	trigger := memory.ClassifyConversationEmotionTrigger(lastUserMsg)
 	switch trigger {
-	case memory.EmotionTriggerNegativeFeedback, memory.EmotionTriggerPositiveFeedback:
-		detail := strings.TrimSpace(lastUserMsg)
+	case memory.EmotionTriggerPositiveFeedback:
+		detail := "positive user feedback"
 		if inactivityHours >= 6 {
-			detail = fmt.Sprintf("%s (after %.1f hours away)", detail, inactivityHours)
+			detail = "positive user feedback after absence"
+		}
+		return trigger, detail, inactivityHours
+	case memory.EmotionTriggerNegativeFeedback:
+		detail := "negative user feedback"
+		if inactivityHours >= 6 {
+			detail = "negative user feedback after absence"
 		}
 		return trigger, detail, inactivityHours
 	}

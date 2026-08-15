@@ -151,7 +151,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             const pers = (typeof configData === 'object' && configData.personality) || {};
             const syn = pers.emotion_synthesizer || {};
             const voice = pers.inner_voice || {};
-            const wantsHelper = !!(pers.engine || pers.engine_v2 || syn.enabled || voice.enabled);
+            const wantsHelper = !!(pers.engine_v2 || syn.enabled || voice.enabled);
             return wantsHelper && !(configData.llm && configData.llm.helper_enabled);
         }
 

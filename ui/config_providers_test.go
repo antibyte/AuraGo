@@ -45,8 +45,8 @@ func TestConfigCSSCacheBustForProviderContrast(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "config.html")
-	if !strings.Contains(html, `/css/config.css?v=20260815a`) {
-		t.Fatal("config.html must bust config.css cache for provider contrast styling")
+	if !strings.Contains(html, `/css/config.css?v=20260815b`) {
+		t.Fatal("config.html must bust config.css cache after personality lived-notes styles")
 	}
 }
 

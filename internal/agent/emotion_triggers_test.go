@@ -1,18 +1,23 @@
 package agent
 
 import (
+	"strings"
 	"testing"
 
 	"aurago/internal/memory"
 )
 
 func TestDetectUserEmotionTriggerRecognizesPositiveFeedback(t *testing.T) {
-	trigger, detail, hours := detectUserEmotionTrigger("Danke, das war perfekt gelöst.", nil, "")
+	msg := "Danke, das war perfekt gelöst."
+	trigger, detail, hours := detectUserEmotionTrigger(msg, nil, "")
 	if trigger != memory.EmotionTriggerPositiveFeedback {
 		t.Fatalf("trigger = %q, want %q", trigger, memory.EmotionTriggerPositiveFeedback)
 	}
 	if detail == "" {
 		t.Fatal("expected trigger detail")
+	}
+	if strings.Contains(detail, "perfekt") || strings.Contains(detail, msg) {
+		t.Fatalf("detail leaked user message: %q", detail)
 	}
 	if hours != 0 {
 		t.Fatalf("hours = %.1f, want 0", hours)

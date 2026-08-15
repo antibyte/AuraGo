@@ -89,7 +89,7 @@
             const trigger = document.getElementById('mood-trigger');
             const nameLocalized = moodNameMap[data.mood] || data.mood;
             if (badge) badge.textContent = '🎭 ' + nameLocalized;
-            if (trigger && data.trigger) trigger.textContent = '"' + data.trigger + '"';
+            if (trigger && data.trigger) trigger.textContent = '"' + affectCauseLabel(data.trigger) + '"';
             renderCharacterNotes(data);
             renderAffectPanel(data);
 
@@ -127,6 +127,20 @@
             }
         }
 
+        function affectCauseLabel(code) {
+            const key = 'dashboard.personality_affect_cause_' + String(code || '').trim();
+            const label = typeof tOr === 'function' ? tOr(key, '') : t(key);
+            if (label && label !== key) return label;
+            return code || t('dashboard.personality_no_trigger');
+        }
+
+        function affectSourceLabel(source) {
+            const key = 'dashboard.personality_affect_source_' + String(source || '').trim();
+            const label = typeof tOr === 'function' ? tOr(key, '') : t(key);
+            if (label && label !== key) return label;
+            return source || '';
+        }
+
         function renderAffectPanel(data) {
             const panel = document.getElementById('affect-panel');
             const list = document.getElementById('affect-event-list');
@@ -146,10 +160,11 @@
             events.slice(0, 8).forEach((event) => {
                 const item = document.createElement('li');
                 const cause = document.createElement('strong');
-                cause.textContent = event.cause_code || t('dashboard.personality_no_trigger');
+                cause.textContent = affectCauseLabel(event.cause_code);
                 const meta = document.createElement('span');
                 const bits = [];
-                if (event.source) bits.push(event.source);
+                const source = affectSourceLabel(event.source);
+                if (source) bits.push(source);
                 if (event.detail) bits.push(event.detail);
                 meta.textContent = bits.join(' · ');
                 item.append(cause, meta);
@@ -192,7 +207,7 @@
             }
             if (causeEl) {
                 const cause = data.affect_cause || '';
-                causeEl.textContent = cause ? (t('dashboard.personality_notes_cause') + ': ' + cause) : '';
+                causeEl.textContent = cause ? (t('dashboard.personality_notes_cause') + ': ' + affectCauseLabel(cause)) : '';
                 dashSetHidden(causeEl, !cause);
             }
             if (milestoneEl) {

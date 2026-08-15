@@ -77,7 +77,7 @@ images, and browser-oriented regression tests.
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
 - The Dashboard operational-issues view uses the sanitized admin API only, renders dynamic issue data with `textContent`, and requires an inline confirmation before archival or resolution. It must never decode or display internal fingerprints, raw logs, or unredacted error text.
-- The Dashboard personality card shows affect valence/arousal, recent sanitized affect events, and lived notes. Config Personality and Prompts warn when V2 mood, emotion synthesis, or lived notes need the Helper LLM; Prompts lists live notes as read-only and points management to the Dashboard. Note and event text use `textContent`.
+- The Dashboard personality card shows affect valence/arousal, recent sanitized affect events, and lived notes. Affect cause codes and sources are localized; chat-sourced event details never include the raw user message. Config Personality and Prompts warn when V2 mood, emotion synthesis, or inner voice need the Helper LLM; Prompts lists live notes as read-only and points management to the Dashboard. Note and event text use `textContent`.
 - Skill-card list fields must render in deterministic sorted order matching
   their DOM-diff snapshots so API-only reordering cannot leave stale cards.
 - The service worker caches only same-origin static assets, retains full

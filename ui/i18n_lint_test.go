@@ -605,6 +605,8 @@ func TestTranslations_WebUIReleaseFixKeysAreTranslated(t *testing.T) {
 		{relPath: filepath.Join("lang", "config", "prompts"), key: "config.prompts.lived_notes_title"},
 		{relPath: filepath.Join("lang", "dashboard"), key: "dashboard.personality_affect_title"},
 		{relPath: filepath.Join("lang", "dashboard"), key: "dashboard.personality_affect_empty"},
+		{relPath: filepath.Join("lang", "dashboard"), key: "dashboard.personality_affect_cause_ops_issue_opened"},
+		{relPath: filepath.Join("lang", "dashboard"), key: "dashboard.personality_affect_cause_positive_feedback"},
 		{relPath: filepath.Join("lang", "config", "sections"), key: "config.github.saving"},
 		{relPath: filepath.Join("lang", "config", "composio"), key: "config.composio.saving"},
 		{relPath: filepath.Join("lang", "config", "composio"), key: "config.composio.testing"},
