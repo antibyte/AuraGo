@@ -72,6 +72,9 @@ func resolveToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, logger *s
 	if _, err := planner.ResolveOperationalIssue(runCfg.PlannerDB, fingerprint, "The same tool operation completed successfully.", time.Now()); err != nil && logger != nil {
 		logger.Warn("[OperationalIssue] Failed to resolve internal issue", "tool", action, "error", err)
 	}
+	if runCfg.ShortTermMem != nil && runCfg.Config != nil {
+		syncOperationalIssueAffect(runCfg.ShortTermMem, runCfg.Config, runCfg.PlannerDB, logger)
+	}
 }
 
 func recordOperationalIssue(runCfg RunConfig, issue planner.OperationalIssue, logger *slog.Logger) {
@@ -80,6 +83,9 @@ func recordOperationalIssue(runCfg RunConfig, issue planner.OperationalIssue, lo
 	}
 	if _, err := planner.RecordOperationalIssue(runCfg.PlannerDB, issue); err != nil && logger != nil {
 		logger.Warn("[OperationalIssue] Failed to record internal issue", "source", issue.Source, "title", issue.Title, "error", err)
+	}
+	if runCfg.ShortTermMem != nil && runCfg.Config != nil {
+		syncOperationalIssueAffect(runCfg.ShortTermMem, runCfg.Config, runCfg.PlannerDB, logger)
 	}
 }
 

@@ -15,19 +15,20 @@ type emotionBehaviorPolicy struct {
 }
 
 func latestEmotionState(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer) *memory.EmotionState {
+	var state *memory.EmotionState
 	if synthesizer != nil {
-		if state := synthesizer.GetLastEmotion(); state != nil {
-			clone := *state
-			return &clone
+		if last := synthesizer.GetLastEmotion(); last != nil {
+			clone := *last
+			state = &clone
 		}
 	}
-	if stm != nil {
+	if state == nil && stm != nil {
 		if latest, err := stm.GetLatestEmotion(); err == nil && latest != nil {
 			var ts time.Time
 			if parsed, parseErr := time.Parse("2006-01-02 15:04:05", latest.Timestamp); parseErr == nil {
 				ts = parsed
 			}
-			return &memory.EmotionState{
+			state = &memory.EmotionState{
 				Description:              strings.TrimSpace(latest.Description),
 				PrimaryMood:              memory.Mood(latest.PrimaryMood),
 				SecondaryMood:            strings.TrimSpace(latest.SecondaryMood),
@@ -41,7 +42,25 @@ func latestEmotionState(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSyn
 			}
 		}
 	}
-	return nil
+	if stm != nil {
+		if affect, err := stm.GetAffectState(); err == nil && affect.Active() {
+			if state == nil {
+				state = &memory.EmotionState{
+					Description: "Current affect is driven by recent environment events.",
+					PrimaryMood: affect.Mood,
+					Valence:     affect.Valence,
+					Arousal:     affect.Arousal,
+					Confidence:  0.7,
+					Cause:       affect.CauseCode,
+					Source:      "affect_integrator",
+					Timestamp:   affect.UpdatedAt,
+				}
+			} else {
+				memory.OverlayAffectOnEmotion(state, affect)
+			}
+		}
+	}
+	return state
 }
 
 func latestEmotionDescription(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer) string {

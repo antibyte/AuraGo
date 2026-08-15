@@ -469,6 +469,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if personalityEnabled {
 			meta = prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, flags.CorePersonality)
 		}
+		if personalityEnabled && shortTermMem != nil {
+			syncEnvironmentAffect(shortTermMem, cfg, runCfg.PlannerDB, isAutonomousRun, userInactivityHours, s.currentLogger)
+			if userEmotionTrigger != "" {
+				emitAffectFromTrigger(shortTermMem, cfg, s.currentLogger, userEmotionTrigger, userEmotionTriggerDetail, "chat")
+			}
+		}
 		emotionPolicy := emotionBehaviorPolicy{}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer, meta)
@@ -1838,6 +1844,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		runTurnSideEffects := shouldRunTurnSideEffects(runCfg, sessionID, flags)
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && runTurnSideEffects
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
+
+		if isAutonomousRun && personalityEnabled && shortTermMem != nil {
+			emitAutonomousRunAffect(shortTermMem, cfg, s.currentLogger, recoveryState.ConsecutiveErrorCount, s.toolCallCount)
+		}
 
 		// Phase D: Final mood + trait update + milestone check at session end
 		// Skip personality side-effects for missions, heartbeats, and maintenance —

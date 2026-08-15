@@ -500,6 +500,12 @@ func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger
 		logger.Info("[Personality] Daily weighted trait decay applied", "amount", decayAmount, "decay_rate", meta.TraitDecayRate)
 	}
 
+	if deleted, err := stm.CleanupAffectEvents(30, 200); err != nil {
+		logger.Error("[Affect] Event log cleanup failed", "error", err)
+	} else if deleted > 0 {
+		logger.Info("[Affect] Event log cleaned up", "deleted", deleted)
+	}
+
 	// 2. Emotion history cleanup
 	if cfg.Personality.EmotionSynthesizer.Enabled {
 		deleted, err := stm.CleanupEmotionHistory(30, cfg.Personality.EmotionSynthesizer.MaxHistoryEntries)

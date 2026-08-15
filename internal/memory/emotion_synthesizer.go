@@ -42,17 +42,22 @@ type EmotionState struct {
 type EmotionTriggerType string
 
 const (
-	EmotionTriggerConversation      EmotionTriggerType = "conversation"
-	EmotionTriggerPositiveFeedback  EmotionTriggerType = "positive_feedback"
-	EmotionTriggerNegativeFeedback  EmotionTriggerType = "negative_feedback"
-	EmotionTriggerUserReturn        EmotionTriggerType = "user_return_after_absence"
-	EmotionTriggerPlanCreated       EmotionTriggerType = "plan_created"
-	EmotionTriggerPlanAdvanced      EmotionTriggerType = "plan_advanced"
-	EmotionTriggerPlanBlocked       EmotionTriggerType = "plan_blocked"
-	EmotionTriggerPlanUnblocked     EmotionTriggerType = "plan_unblocked"
-	EmotionTriggerPlanCompleted     EmotionTriggerType = "plan_completed"
-	EmotionTriggerToolErrorStreak   EmotionTriggerType = "tool_error_streak"
-	EmotionTriggerToolSuccessStreak EmotionTriggerType = "tool_success_streak"
+	EmotionTriggerConversation           EmotionTriggerType = "conversation"
+	EmotionTriggerPositiveFeedback       EmotionTriggerType = "positive_feedback"
+	EmotionTriggerNegativeFeedback       EmotionTriggerType = "negative_feedback"
+	EmotionTriggerUserReturn             EmotionTriggerType = "user_return_after_absence"
+	EmotionTriggerPlanCreated            EmotionTriggerType = "plan_created"
+	EmotionTriggerPlanAdvanced           EmotionTriggerType = "plan_advanced"
+	EmotionTriggerPlanBlocked            EmotionTriggerType = "plan_blocked"
+	EmotionTriggerPlanUnblocked          EmotionTriggerType = "plan_unblocked"
+	EmotionTriggerPlanCompleted          EmotionTriggerType = "plan_completed"
+	EmotionTriggerToolErrorStreak        EmotionTriggerType = "tool_error_streak"
+	EmotionTriggerToolSuccessStreak      EmotionTriggerType = "tool_success_streak"
+	EmotionTriggerOpsIssueOpened         EmotionTriggerType = "ops_issue_opened"
+	EmotionTriggerOpsIssueResolved       EmotionTriggerType = "ops_issue_resolved"
+	EmotionTriggerAutonomousRunFailed    EmotionTriggerType = "autonomous_run_failed"
+	EmotionTriggerAutonomousRunSucceeded EmotionTriggerType = "autonomous_run_succeeded"
+	EmotionTriggerQuietHours             EmotionTriggerType = "quiet_hours"
 )
 
 // InnerVoiceNudgeCategories is the canonical set of nudge categories for the inner voice system.
@@ -180,6 +185,11 @@ func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *Emoti
 	stateCopy := *state
 	if stateCopy.Timestamp.IsZero() {
 		stateCopy.Timestamp = time.Now()
+	}
+	if stm != nil {
+		if affect, affectErr := stm.GetAffectState(); affectErr == nil {
+			BindEmotionStateToAffect(&stateCopy, affect)
+		}
 	}
 	if err := validateEmotionState(&stateCopy); err != nil {
 		return fmt.Errorf("validate external emotion state: %w", err)

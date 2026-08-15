@@ -213,6 +213,9 @@ func applyPersonalityV2AnalysisResult(
 		previousEmotionHistoryID = latest.ID
 	}
 
+	if affect, affectErr := stm.GetAffectState(); affectErr == nil && affect.Active() && affect.Mood != "" {
+		result.Mood = affect.Mood
+	}
 	_ = stm.LogMood(result.Mood, triggerInfo)
 
 	// Fetch current traits so we can dampen deltas near the extremes.

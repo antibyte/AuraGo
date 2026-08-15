@@ -425,6 +425,11 @@ func executeAgentToolTurn(
 		}
 	}
 
+	toolEmotionTrigger, toolEmotionDetail := detectToolEmotionTrigger(tc, s.recoveryState.ConsecutiveErrorCount, s.toolCallCount-s.recoveryState.ConsecutiveErrorCount)
+	if s.personalityEnabled && shortTermMem != nil && toolEmotionTrigger != "" {
+		emitAffectFromTrigger(shortTermMem, cfg, currentLogger, toolEmotionTrigger, toolEmotionDetail, "tool")
+	}
+
 	// Skip personality side-effects for missions, heartbeats, co-agents, and maintenance.
 	if s.personalityEnabled && shortTermMem != nil && !isAutonomousAgentRun(s.runCfg, sessionID) && !s.runCfg.IsMission && !s.flags.IsMission && !s.runCfg.IsCoAgent && !s.runCfg.IsMaintenance && sessionID != "maintenance" {
 		triggerInfo := triggerValue
@@ -434,7 +439,6 @@ func executeAgentToolTurn(
 
 		if cfg.Personality.EngineV2 {
 			recentMsgs := s.req.Messages
-			toolEmotionTrigger, toolEmotionDetail := detectToolEmotionTrigger(tc, s.recoveryState.ConsecutiveErrorCount, s.toolCallCount-s.recoveryState.ConsecutiveErrorCount)
 			launchAsyncPersonalityV2Analysis(
 				sessionID,
 				cfg,
