@@ -118,6 +118,9 @@ func TestBuildPersonalityStatePayloadIncludesCharacterNotes(t *testing.T) {
 	if visible, _ := payload["narrative_visible"].(bool); visible {
 		t.Fatal("narrative should default off")
 	}
+	if _, ok := payload["affect_events"].([]memory.AffectEventRecord); !ok {
+		t.Fatalf("affect_events missing: %#v", payload["affect_events"])
+	}
 }
 
 func TestBuildPersonalityStatePayloadKeepsEnabledWhenTraitsUnavailable(t *testing.T) {

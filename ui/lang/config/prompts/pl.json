@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Ustawianie aktywnej...",
   "config.prompts.delete_confirm": "Na pewno usunąć osobowość \"{name}\"?",
   "config.prompts.deleting": "Usuwanie...",
-  "config.prompts.delete_confirm_title": "Usunąć osobowość?"
+  "config.prompts.delete_confirm_title": "Usunąć osobowość?",
+  "config.personality.helper_required": "Przeżyte notatki, analiza nastroju i synteza emocji potrzebują pomocniczego LLM. Włącz je w Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Otwórz pulpit",
+  "config.prompts.lived_notes_empty": "Nie ma jeszcze przeżytych notatek",
+  "config.prompts.lived_notes_hint": "Te notatki rosną z pracy i otoczenia. Usuń je lub zachowaj na pulpicie. Usunięte notatki same nie wrócą.",
+  "config.prompts.lived_notes_loading": "Wczytywanie przeżytych notatek…",
+  "config.prompts.lived_notes_title": "Przeżyte notatki"
 }

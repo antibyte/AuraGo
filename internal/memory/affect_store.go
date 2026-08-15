@@ -173,6 +173,47 @@ func (s *SQLiteMemory) insertAffectEvent(event AffectEvent, now time.Time) error
 	return err
 }
 
+// AffectEventRecord is a persisted world/conversation stimulus.
+type AffectEventRecord struct {
+	CauseCode string  `json:"cause_code"`
+	Valence   float64 `json:"valence"`
+	Arousal   float64 `json:"arousal"`
+	Weight    float64 `json:"weight"`
+	Source    string  `json:"source"`
+	Detail    string  `json:"detail"`
+	CreatedAt string  `json:"created_at"`
+}
+
+// ListAffectEvents returns the newest persisted affect events, newest first.
+func (s *SQLiteMemory) ListAffectEvents(limit int) ([]AffectEventRecord, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 12
+	}
+	rows, err := s.db.Query(
+		`SELECT cause_code, valence, arousal, weight, COALESCE(source, ''), COALESCE(detail, ''), created_at
+		 FROM affect_events
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT ?`,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list affect events: %w", err)
+	}
+	defer rows.Close()
+	var events []AffectEventRecord
+	for rows.Next() {
+		var e AffectEventRecord
+		if err := rows.Scan(&e.CauseCode, &e.Valence, &e.Arousal, &e.Weight, &e.Source, &e.Detail, &e.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan affect event: %w", err)
+		}
+		events = append(events, e)
+	}
+	if events == nil {
+		events = []AffectEventRecord{}
+	}
+	return events, rows.Err()
+}
+
 // CleanupAffectEvents removes old event-log rows beyond a time or count cap.
 func (s *SQLiteMemory) CleanupAffectEvents(maxAgeDays, maxEntries int) (int, error) {
 	if maxAgeDays <= 0 {

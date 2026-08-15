@@ -91,6 +91,7 @@
             if (badge) badge.textContent = '🎭 ' + nameLocalized;
             if (trigger && data.trigger) trigger.textContent = '"' + data.trigger + '"';
             renderCharacterNotes(data);
+            renderAffectPanel(data);
 
             // Emotion Synthesizer display
             const emotionDisplay = document.getElementById('emotion-display');
@@ -124,6 +125,38 @@
                     dashSetHidden(emotionDisplay, true);
                 }
             }
+        }
+
+        function renderAffectPanel(data) {
+            const panel = document.getElementById('affect-panel');
+            const list = document.getElementById('affect-event-list');
+            const empty = document.getElementById('affect-empty');
+            const valenceEl = document.getElementById('affect-valence');
+            const arousalEl = document.getElementById('affect-arousal');
+            if (!panel || !list) return;
+            dashSetHidden(panel, false);
+            if (valenceEl) {
+                valenceEl.textContent = data.affect_valence == null ? '—' : Number(data.affect_valence).toFixed(2);
+            }
+            if (arousalEl) {
+                arousalEl.textContent = data.affect_arousal == null ? '—' : Number(data.affect_arousal).toFixed(2);
+            }
+            const events = Array.isArray(data.affect_events) ? data.affect_events : [];
+            list.replaceChildren();
+            events.slice(0, 8).forEach((event) => {
+                const item = document.createElement('li');
+                const cause = document.createElement('strong');
+                cause.textContent = event.cause_code || t('dashboard.personality_no_trigger');
+                const meta = document.createElement('span');
+                const bits = [];
+                if (event.source) bits.push(event.source);
+                if (event.detail) bits.push(event.detail);
+                meta.textContent = bits.join(' · ');
+                item.append(cause, meta);
+                list.appendChild(item);
+            });
+            dashSetHidden(empty, events.length > 0);
+            dashSetHidden(list, events.length === 0);
         }
 
         async function characterNoteAction(payload) {

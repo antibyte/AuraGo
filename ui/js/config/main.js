@@ -1443,6 +1443,14 @@ function renderOptimizations() {
     return html;
 }
 
+function personalitySectionNeedsHelperLLM() {
+    const pers = (typeof configData === 'object' && configData.personality) || {};
+    const syn = pers.emotion_synthesizer || {};
+    const voice = pers.inner_voice || {};
+    const wantsHelper = !!(pers.engine || pers.engine_v2 || syn.enabled || voice.enabled);
+    return wantsHelper && !(configData.llm && configData.llm.helper_enabled);
+}
+
 async function renderSection(key) {
     if (key === 'overview') {
         renderConfigOverview();
@@ -1549,6 +1557,13 @@ async function renderSection(key) {
                     \u{26A0} ${t('config.llm.helper_disabled_banner')}
                 </div>`;
         }
+    }
+
+    // V2 mood, emotion synthesis, and lived notes need the Helper LLM.
+    if (key === 'personality' && personalitySectionNeedsHelperLLM()) {
+        html += `<div class="cfg-note-banner cfg-note-banner-warning" id="personality-helper-banner">
+                    \u{26A0} ${t('config.personality.helper_required')}
+                </div>`;
     }
 
     // Embeddings explanation

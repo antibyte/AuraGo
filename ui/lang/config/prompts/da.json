@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Sætter aktiv...",
   "config.prompts.delete_confirm": "Vil du virkelig slette personligheden \"{name}\"?",
   "config.prompts.deleting": "Sletter...",
-  "config.prompts.delete_confirm_title": "Slet personlighed?"
+  "config.prompts.delete_confirm_title": "Slet personlighed?",
+  "config.personality.helper_required": "Levede noter, stemningsanalyse og emotionsyntese kræver hjælpe-LLM. Slå det til under Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Åbn dashboard",
+  "config.prompts.lived_notes_empty": "Ingen levede noter endnu",
+  "config.prompts.lived_notes_hint": "Disse noter vokser ud af arbejde og omgivelser. Fjern eller behold dem på dashboardet. Slettede noter kommer ikke tilbage af sig selv.",
+  "config.prompts.lived_notes_loading": "Indlæser levede noter…",
+  "config.prompts.lived_notes_title": "Levede noter"
 }

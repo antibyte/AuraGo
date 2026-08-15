@@ -25,6 +25,11 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             let html = '<div class="cfg-section active">';
             html += '<div class="section-header">' + section.label + '</div>';
             html += '<div class="section-desc">' + section.desc + '</div>';
+            if (promptsPersonalityNeedsHelper()) {
+                html += `<div class="cfg-note-banner cfg-note-banner-warning" id="personality-helper-banner">
+                    \u{26A0} ${t('config.personality.helper_required')}
+                </div>`;
+            }
 
             // Additional Prompt
             html += `
@@ -124,9 +129,75 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                 </div>
             </div>`;
 
+            html += `
+            <div class="pers-section-title pers-section-title-spaced">
+                ${t('config.prompts.lived_notes_title')}
+            </div>
+            <p class="field-help">${t('config.prompts.lived_notes_hint')}</p>
+            <div id="pers-lived-notes" class="pers-lived-notes">
+                <div class="field-help">${t('config.prompts.lived_notes_loading')}</div>
+            </div>
+            <p class="field-help">
+                <a href="/dashboard" class="pers-lived-notes-link">${t('config.prompts.lived_notes_dashboard')}</a>
+            </p>`;
+
             html += '</div>';
             document.getElementById('content').innerHTML = html;
             attachChangeListeners();
+            hydratePromptsLivedNotes();
+        }
+
+        function promptsPersonalityNeedsHelper() {
+            const pers = (typeof configData === 'object' && configData.personality) || {};
+            const syn = pers.emotion_synthesizer || {};
+            const voice = pers.inner_voice || {};
+            const wantsHelper = !!(pers.engine || pers.engine_v2 || syn.enabled || voice.enabled);
+            return wantsHelper && !(configData.llm && configData.llm.helper_enabled);
+        }
+
+        async function hydratePromptsLivedNotes() {
+            const root = document.getElementById('pers-lived-notes');
+            if (!root) return;
+            try {
+                const resp = await fetch('/api/personality/state', { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                renderPromptsLivedNotes(root, data);
+            } catch (e) {
+                root.replaceChildren();
+                const err = document.createElement('div');
+                err.className = 'field-help';
+                err.textContent = t('config.prompts.lived_notes_empty');
+                root.appendChild(err);
+            }
+        }
+
+        function renderPromptsLivedNotes(root, data) {
+            root.replaceChildren();
+            if (!data || data.enabled === false) {
+                const empty = document.createElement('div');
+                empty.className = 'field-help';
+                empty.textContent = t('config.prompts.lived_notes_empty');
+                root.appendChild(empty);
+                return;
+            }
+            const notes = Array.isArray(data.character_notes) ? data.character_notes : [];
+            if (notes.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'field-help';
+                empty.id = 'pers-lived-notes-empty';
+                empty.textContent = t('config.prompts.lived_notes_empty');
+                root.appendChild(empty);
+                return;
+            }
+            const list = document.createElement('ul');
+            list.className = 'pers-lived-notes-list';
+            notes.forEach((note) => {
+                const item = document.createElement('li');
+                item.textContent = note && note.text ? String(note.text) : '';
+                list.appendChild(item);
+            });
+            root.appendChild(list);
         }
 
         function persSetMetaDefaults() {

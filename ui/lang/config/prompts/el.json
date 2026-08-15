@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Ορισμός ως ενεργό...",
   "config.prompts.delete_confirm": "Διαγραφή προσωπικότητας \"{name}\";",
   "config.prompts.deleting": "Διαγραφή...",
-  "config.prompts.delete_confirm_title": "Διαγραφή προσωπικότητας;"
+  "config.prompts.delete_confirm_title": "Διαγραφή προσωπικότητας;",
+  "config.personality.helper_required": "Οι βιωμένες σημειώσεις, η ανάλυση διάθεσης και η σύνθεση συναισθημάτων χρειάζονται το βοηθητικό LLM. Ενεργοποίησέ το στο Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Άνοιγμα πίνακα ελέγχου",
+  "config.prompts.lived_notes_empty": "Δεν υπάρχουν ακόμη βιωμένες σημειώσεις",
+  "config.prompts.lived_notes_hint": "Αυτές οι σημειώσεις μεγαλώνουν από τη δουλειά και το περιβάλλον. Αφαίρεσέ τες ή κράτησέ τες στον πίνακα ελέγχου. Οι διαγραμμένες δεν επιστρέφουν μόνες τους.",
+  "config.prompts.lived_notes_loading": "Φόρτωση βιωμένων σημειώσεων…",
+  "config.prompts.lived_notes_title": "Βιωμένες σημειώσεις"
 }

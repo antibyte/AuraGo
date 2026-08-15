@@ -4549,6 +4549,28 @@ select.cfg-input option {
     margin-top: 1.5rem;
 }
 
+.pers-lived-notes {
+    margin-top: 0.35rem;
+}
+
+.pers-lived-notes-list {
+    list-style: none;
+    margin: 0.35rem 0 0;
+    padding: 0;
+}
+
+.pers-lived-notes-list li {
+    padding: 0.35rem 0;
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    line-height: 1.45;
+}
+
+.pers-lived-notes-link {
+    color: var(--accent);
+}
+
 .pers-core-lock {
     opacity: 0.7;
     font-size: 0.7rem;

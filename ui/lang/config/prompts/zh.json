@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "设置活跃中...",
   "config.prompts.delete_confirm": "确定要删除个性 '{name}' 吗？",
   "config.prompts.deleting": "删除中...",
-  "config.prompts.delete_confirm_title": "确定删除个性吗？"
+  "config.prompts.delete_confirm_title": "确定删除个性吗？",
+  "config.personality.helper_required": "亲历笔记、情绪分析和情感合成需要辅助 LLM。请在 智能体与 AI → LLM 中启用。",
+  "config.prompts.lived_notes_dashboard": "打开仪表盘",
+  "config.prompts.lived_notes_empty": "还没有亲历笔记",
+  "config.prompts.lived_notes_hint": "这些笔记来自工作和环境。可在仪表盘删除或保留。已删除的笔记不会自己回来。",
+  "config.prompts.lived_notes_loading": "正在加载亲历笔记…",
+  "config.prompts.lived_notes_title": "亲历笔记"
 }

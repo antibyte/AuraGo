@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Actief instellen...",
   "config.prompts.delete_confirm": "Persoonlijkheid \" {name} \" echt verwijderen?",
   "config.prompts.deleting": "Verwijderen...",
-  "config.prompts.delete_confirm_title": "Persoonlijkheid verwijderen?"
+  "config.prompts.delete_confirm_title": "Persoonlijkheid verwijderen?",
+  "config.personality.helper_required": "Geleefde notities, stemmingsanalyse en emotiesynthese hebben de hulp-LLM nodig. Zet die aan onder Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Dashboard openen",
+  "config.prompts.lived_notes_empty": "Nog geen geleefde notities",
+  "config.prompts.lived_notes_hint": "Deze notities groeien uit werk en omgeving. Verwijder of bewaar ze op het dashboard. Verwijderde notities komen niet vanzelf terug.",
+  "config.prompts.lived_notes_loading": "Geleefde notities laden…",
+  "config.prompts.lived_notes_title": "Geleefde notities"
 }

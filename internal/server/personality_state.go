@@ -91,6 +91,14 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 		response["affect_valence"] = affect.Valence
 		response["affect_arousal"] = affect.Arousal
 	}
+	events, _ := s.ShortTermMem.ListAffectEvents(12)
+	if events == nil {
+		events = []memory.AffectEventRecord{}
+	}
+	for i := range events {
+		events[i].Detail = sanitizeEmotionPreview(events[i].Detail, 120)
+	}
+	response["affect_events"] = events
 
 	if s.Cfg.Personality.EmotionSynthesizer.Enabled {
 		if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil {

@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Setting active...",
   "config.prompts.delete_confirm": "Really delete personality \"{name}\"?",
   "config.prompts.deleting": "Deleting...",
-  "config.prompts.delete_confirm_title": "Delete personality?"
+  "config.prompts.delete_confirm_title": "Delete personality?",
+  "config.personality.helper_required": "Lived notes, mood analysis, and emotion synthesis need the Helper LLM. Enable it under Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Open Dashboard",
+  "config.prompts.lived_notes_empty": "No lived notes yet",
+  "config.prompts.lived_notes_hint": "These notes grow from work and environment. Remove or keep them on the Dashboard. Deleted notes do not return by themselves.",
+  "config.prompts.lived_notes_loading": "Loading lived notes…",
+  "config.prompts.lived_notes_title": "Lived notes"
 }

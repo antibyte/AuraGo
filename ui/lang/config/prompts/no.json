@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Setter aktiv...",
   "config.prompts.delete_confirm": "Vil du virkelig slette personligheten \" {name} \"?",
   "config.prompts.deleting": "Sletter...",
-  "config.prompts.delete_confirm_title": "Slette personlighet?"
+  "config.prompts.delete_confirm_title": "Slette personlighet?",
+  "config.personality.helper_required": "Levde notater, stemningsanalyse og emosjonssyntese trenger hjelpe-LLM. Slå det på under Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Åpne dashbordet",
+  "config.prompts.lived_notes_empty": "Ingen levde notater ennå",
+  "config.prompts.lived_notes_hint": "Disse notatene vokser ut av arbeid og omgivelser. Fjern eller behold dem på dashbordet. Slettede notater kommer ikke tilbake av seg selv.",
+  "config.prompts.lived_notes_loading": "Laster levde notater…",
+  "config.prompts.lived_notes_title": "Levde notater"
 }

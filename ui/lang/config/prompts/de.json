@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Setze aktiv...",
   "config.prompts.delete_confirm": "Persönlichkeit \"{name}\" wirklich löschen?",
   "config.prompts.deleting": "Lösche...",
-  "config.prompts.delete_confirm_title": "Persönlichkeit löschen?"
+  "config.prompts.delete_confirm_title": "Persönlichkeit löschen?",
+  "config.personality.helper_required": "Gelebte Notizen, Stimmungsanalyse und Emotionsynthese brauchen das Helper-LLM. Aktiviere es unter Agent & KI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Dashboard öffnen",
+  "config.prompts.lived_notes_empty": "Noch keine gelebten Notizen",
+  "config.prompts.lived_notes_hint": "Diese Notizen wachsen aus Arbeit und Umgebung. Entfernen oder behalten kannst du sie im Dashboard. Gelöschte Notizen kommen nicht von allein zurück.",
+  "config.prompts.lived_notes_loading": "Gelebte Notizen werden geladen…",
+  "config.prompts.lived_notes_title": "Gelebte Notizen"
 }

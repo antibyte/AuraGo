@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "設定を有効にします...",
   "config.prompts.delete_confirm": "本当にパーソナリティ「{name}」を削除しますか?",
   "config.prompts.deleting": "削除中...",
-  "config.prompts.delete_confirm_title": "パーソナリティを削除しますか？"
+  "config.prompts.delete_confirm_title": "パーソナリティを削除しますか？",
+  "config.personality.helper_required": "生きたメモ、気分分析、感情合成にはヘルパーLLMが必要です。Agent & AI → LLM で有効にしてください。",
+  "config.prompts.lived_notes_dashboard": "ダッシュボードを開く",
+  "config.prompts.lived_notes_empty": "まだ生きたメモはありません",
+  "config.prompts.lived_notes_hint": "これらのメモは仕事と環境から育ちます。削除や保持はダッシュボードで行えます。削除したメモは自動では戻りません。",
+  "config.prompts.lived_notes_loading": "生きたメモを読み込み中…",
+  "config.prompts.lived_notes_title": "生きたメモ"
 }

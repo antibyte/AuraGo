@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Définition active...",
   "config.prompts.delete_confirm": "Vraiment supprimer la personnalité \"{name}\" ?",
   "config.prompts.deleting": "Suppression...",
-  "config.prompts.delete_confirm_title": "Supprimer la personnalité ?"
+  "config.prompts.delete_confirm_title": "Supprimer la personnalité ?",
+  "config.personality.helper_required": "Les notes vécues, l'analyse d'humeur et la synthèse émotionnelle ont besoin du LLM auxiliaire. Active-le sous Agent & IA → LLM.",
+  "config.prompts.lived_notes_dashboard": "Ouvrir le tableau de bord",
+  "config.prompts.lived_notes_empty": "Pas encore de notes vécues",
+  "config.prompts.lived_notes_hint": "Ces notes naissent du travail et de l'environnement. Tu peux les retirer ou les garder dans le tableau de bord. Une note supprimée ne revient pas toute seule.",
+  "config.prompts.lived_notes_loading": "Chargement des notes vécues…",
+  "config.prompts.lived_notes_title": "Notes vécues"
 }

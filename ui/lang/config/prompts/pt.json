@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "A definir como ativo...",
   "config.prompts.delete_confirm": "Realmente excluir a personalidade \"{name}\"?",
   "config.prompts.deleting": "Excluindo...",
-  "config.prompts.delete_confirm_title": "Excluir personalidade?"
+  "config.prompts.delete_confirm_title": "Excluir personalidade?",
+  "config.personality.helper_required": "As notas vividas, a análise de humor e a síntese emocional precisam do LLM auxiliar. Ativa-o em Agente e IA → LLM.",
+  "config.prompts.lived_notes_dashboard": "Abrir o painel",
+  "config.prompts.lived_notes_empty": "Ainda não há notas vividas",
+  "config.prompts.lived_notes_hint": "Estas notas crescem a partir do trabalho e do ambiente. Remove-as ou mantém-nas no painel. Notas apagadas não voltam sozinhas.",
+  "config.prompts.lived_notes_loading": "A carregar notas vividas…",
+  "config.prompts.lived_notes_title": "Notas vividas"
 }

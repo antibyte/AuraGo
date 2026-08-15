@@ -36,5 +36,11 @@
   "config.prompts.setting_active": "Nastavování aktivní...",
   "config.prompts.delete_confirm": "Opravdu smazat osobnost \"{name}\"?",
   "config.prompts.deleting": "Mazání...",
-  "config.prompts.delete_confirm_title": "Smazat osobnost?"
+  "config.prompts.delete_confirm_title": "Smazat osobnost?",
+  "config.personality.helper_required": "Žité poznámky, analýza nálady a syntéza emocí potřebují pomocné LLM. Zapni ho v Agent & AI → LLM.",
+  "config.prompts.lived_notes_dashboard": "Otevřít dashboard",
+  "config.prompts.lived_notes_empty": "Zatím žádné žité poznámky",
+  "config.prompts.lived_notes_hint": "Tyto poznámky rostou z práce a okolí. Odstranit nebo ponechat je můžeš na dashboardu. Smazané poznámky se samy nevrátí.",
+  "config.prompts.lived_notes_loading": "Načítám žité poznámky…",
+  "config.prompts.lived_notes_title": "Žité poznámky"
 }

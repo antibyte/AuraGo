@@ -141,6 +141,31 @@ func TestApplyAffectEventPersistsAndLogsMood(t *testing.T) {
 	}
 }
 
+func TestListAffectEventsReturnsNewestFirst(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	first, _ := affectEventByCause(AffectCauseOpsIssueOpened)
+	first.Detail = "backup failed"
+	if _, err := stm.ApplyAffectEvent(first, now); err != nil {
+		t.Fatalf("first event: %v", err)
+	}
+	second, _ := affectEventByCause(AffectCausePositiveFeedback)
+	second.Detail = "thanks"
+	if _, err := stm.ApplyAffectEvent(second, now.Add(time.Minute)); err != nil {
+		t.Fatalf("second event: %v", err)
+	}
+	events, err := stm.ListAffectEvents(10)
+	if err != nil {
+		t.Fatalf("ListAffectEvents: %v", err)
+	}
+	if len(events) < 2 {
+		t.Fatalf("events = %#v, want at least 2", events)
+	}
+	if events[0].CauseCode != AffectCausePositiveFeedback {
+		t.Fatalf("newest cause = %q", events[0].CauseCode)
+	}
+}
+
 func TestAffectEventForTriggerRejectsEmpty(t *testing.T) {
 	if _, ok := AffectEventForTrigger("", "", "chat"); ok {
 		t.Fatal("empty trigger should not map")

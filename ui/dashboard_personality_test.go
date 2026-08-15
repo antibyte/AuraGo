@@ -27,6 +27,51 @@ func TestDashboardPersonalityIncludesCharacterNotes(t *testing.T) {
 	}
 }
 
+func TestDashboardPersonalityIncludesAffectPanel(t *testing.T) {
+	t.Parallel()
+	html := readDesktopAssetText(t, "dashboard.html")
+	for _, marker := range []string{
+		`id="affect-panel"`,
+		`id="affect-event-list"`,
+		`data-i18n="dashboard.personality_affect_title"`,
+		`data-i18n="dashboard.personality_affect_valence"`,
+		`data-i18n="dashboard.personality_affect_arousal"`,
+		`data-i18n="dashboard.personality_affect_empty"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("dashboard personality card must include affect timeline marker %q", marker)
+		}
+	}
+	js := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	if !strings.Contains(js, "function renderAffectPanel") {
+		t.Fatal("dashboard widgets must render the affect panel")
+	}
+	if !strings.Contains(js, "data.affect_events") {
+		t.Fatal("dashboard widgets must read affect_events from personality state")
+	}
+}
+
+func TestConfigPersonalitySurfacesHelperBannerAndLivedNotes(t *testing.T) {
+	t.Parallel()
+	mainJS := readDesktopAssetText(t, "js/config/main.js")
+	if !strings.Contains(mainJS, "personalitySectionNeedsHelperLLM") {
+		t.Fatal("config personality section must detect a missing helper LLM")
+	}
+	if !strings.Contains(mainJS, "config.personality.helper_required") {
+		t.Fatal("config personality section must show the helper-required banner")
+	}
+	promptsJS := readDesktopAssetText(t, "cfg/prompts.js")
+	if !strings.Contains(promptsJS, `id="pers-lived-notes"`) {
+		t.Fatal("prompts section must include the lived-notes panel")
+	}
+	if !strings.Contains(promptsJS, "hydratePromptsLivedNotes") {
+		t.Fatal("prompts section must load live character notes")
+	}
+	if !strings.Contains(promptsJS, "config.personality.helper_required") {
+		t.Fatal("prompts section must show the helper-required banner")
+	}
+}
+
 func TestDashboardAgentCardsUseMasonryColumnLayout(t *testing.T) {
 	t.Parallel()
 
