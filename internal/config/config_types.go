@@ -556,11 +556,30 @@ type VirtualComputersConfig struct {
 	BoringOpenRouterKey string                       `yaml:"-" json:"-" vault:"virtual_computers_openrouter_key"`
 	S3AccessKeyID       string                       `yaml:"-" json:"-" vault:"virtual_computers_s3_access_key_id"`
 	S3SecretKey         string                       `yaml:"-" json:"-" vault:"virtual_computers_s3_secret_key"`
+	// Managed Garage secrets (separate from external S3 so mode switches never reuse keys).
+	GarageAccessKeyID string `yaml:"-" json:"-" vault:"virtual_computers_garage_access_key_id"`
+	GarageSecretKey   string `yaml:"-" json:"-" vault:"virtual_computers_garage_secret_key"`
+	GarageRPCSecret   string `yaml:"-" json:"-" vault:"virtual_computers_garage_rpc_secret"`
 }
 
+// Virtual Computers storage modes.
+const (
+	VirtualComputersStorageModeManagedGarage = "managed_garage"
+	VirtualComputersStorageModeExternalS3    = "external_s3"
+	ManagedGarageEndpoint                    = "127.0.0.1:3900"
+	ManagedGarageBucket                      = "boring-volumes"
+	ManagedGarageRegion                      = "garage"
+	ManagedGarageContainerName               = "aurago-boring-garage"
+	ManagedGarageImage                       = "dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690"
+	ManagedGarageS3Port                      = 3900
+	ManagedGarageUID                         = 65532
+	ManagedGarageGID                         = 65532
+)
+
 type VirtualComputersStorage struct {
-	Endpoint string `yaml:"endpoint" json:"endpoint"` // S3-compatible host:port without scheme
-	Bucket   string `yaml:"bucket" json:"bucket"`
+	Mode     string `yaml:"mode" json:"mode"`         // managed_garage | external_s3
+	Endpoint string `yaml:"endpoint" json:"endpoint"` // external S3 host:port; ignored for managed_garage
+	Bucket   string `yaml:"bucket" json:"bucket"`     // external bucket; managed always uses ManagedGarageBucket
 	Region   string `yaml:"region" json:"region"`
 	UseSSL   bool   `yaml:"use_ssl" json:"use_ssl"`
 }

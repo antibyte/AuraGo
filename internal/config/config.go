@@ -34,6 +34,63 @@ func normalizeVirtualComputersBoringdURL(rawURL string) string {
 	}
 }
 
+// normalizeVirtualComputersStorage normalizes storage.mode and related fields.
+// Legacy configs without mode: non-empty endpoint => external_s3, else managed_garage.
+// Managed endpoint/bucket/region/ssl are derived at runtime; YAML may still hold
+// external fields for round-trip when switching modes.
+func normalizeVirtualComputersStorage(vc *VirtualComputersConfig) {
+	if vc == nil {
+		return
+	}
+	mode := strings.ToLower(strings.TrimSpace(vc.Storage.Mode))
+	endpoint := strings.TrimSpace(vc.Storage.Endpoint)
+	switch mode {
+	case VirtualComputersStorageModeManagedGarage, VirtualComputersStorageModeExternalS3:
+		vc.Storage.Mode = mode
+	case "":
+		if endpoint != "" {
+			vc.Storage.Mode = VirtualComputersStorageModeExternalS3
+		} else {
+			vc.Storage.Mode = VirtualComputersStorageModeManagedGarage
+		}
+	default:
+		// Unknown mode falls back based on endpoint presence.
+		if endpoint != "" {
+			vc.Storage.Mode = VirtualComputersStorageModeExternalS3
+		} else {
+			vc.Storage.Mode = VirtualComputersStorageModeManagedGarage
+		}
+	}
+	if strings.TrimSpace(vc.Storage.Bucket) == "" {
+		vc.Storage.Bucket = ManagedGarageBucket
+	}
+	vc.Storage.Endpoint = endpoint
+	vc.Storage.Region = strings.TrimSpace(vc.Storage.Region)
+}
+
+// EffectiveVirtualComputersStorage returns the runtime S3 settings boringd and
+// storage tests should use for the configured mode.
+func EffectiveVirtualComputersStorage(vc VirtualComputersConfig) (endpoint, bucket, region string, useSSL bool, accessKey, secretKey string) {
+	mode := strings.ToLower(strings.TrimSpace(vc.Storage.Mode))
+	if mode == "" {
+		if strings.TrimSpace(vc.Storage.Endpoint) != "" {
+			mode = VirtualComputersStorageModeExternalS3
+		} else {
+			mode = VirtualComputersStorageModeManagedGarage
+		}
+	}
+	if mode == VirtualComputersStorageModeManagedGarage {
+		// Managed always uses fixed loopback S3 coordinates for boringd volumes.
+		return ManagedGarageEndpoint, ManagedGarageBucket, ManagedGarageRegion, false, vc.GarageAccessKeyID, vc.GarageSecretKey
+	}
+	bucket = strings.TrimSpace(vc.Storage.Bucket)
+	if bucket == "" {
+		bucket = ManagedGarageBucket
+	}
+	region = strings.TrimSpace(vc.Storage.Region)
+	return strings.TrimSpace(vc.Storage.Endpoint), bucket, region, vc.Storage.UseSSL, vc.S3AccessKeyID, vc.S3SecretKey
+}
+
 // WriteFileAtomic writes a file via temp file + rename to avoid partial writes.
 func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
@@ -556,8 +613,9 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualComputers.ControlPlane.SSHPort = 22
 	cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
 	cfg.VirtualComputers.ControlPlane.BoringdURL = DefaultVirtualComputersBoringdURL
-	cfg.VirtualComputers.Storage.Bucket = "boring-volumes"
-	cfg.VirtualComputers.Storage.UseSSL = true
+	cfg.VirtualComputers.Storage.Mode = VirtualComputersStorageModeManagedGarage
+	cfg.VirtualComputers.Storage.Bucket = ManagedGarageBucket
+	cfg.VirtualComputers.Storage.UseSSL = false
 	cfg.VirtualComputers.DefaultTemplate = "python"
 	cfg.VirtualComputers.DefaultTTLSeconds = 600
 	cfg.VirtualComputers.MaxTTLSeconds = 900
@@ -879,6 +937,12 @@ func Load(path string) (*Config, error) {
 		_ = WriteFileAtomic(backupPath, data, 0o600)
 
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
+	}
+	// Defaults are applied before YAML decoding, so an omitted mode would otherwise
+	// be indistinguishable from an explicit managed_garage selection. Clear only the
+	// defaulted value here and let normalization preserve legacy endpoint-based S3.
+	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
+		cfg.VirtualComputers.Storage.Mode = ""
 	}
 	normalizeDeprecatedEmbeddingBackend(&cfg)
 	if cfg.Bluetooth.ScanTimeoutSeconds <= 0 {
@@ -1345,9 +1409,7 @@ func Load(path string) (*Config, error) {
 		cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
 	}
 	cfg.VirtualComputers.ControlPlane.BoringdURL = normalizeVirtualComputersBoringdURL(cfg.VirtualComputers.ControlPlane.BoringdURL)
-	if strings.TrimSpace(cfg.VirtualComputers.Storage.Bucket) == "" {
-		cfg.VirtualComputers.Storage.Bucket = "boring-volumes"
-	}
+	normalizeVirtualComputersStorage(&cfg.VirtualComputers)
 	if strings.TrimSpace(cfg.VirtualComputers.DefaultTemplate) == "" {
 		cfg.VirtualComputers.DefaultTemplate = "python"
 	}

@@ -590,8 +590,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "local-llm") {
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
 			}
+			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.BoringGarageOwner) {
+				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API."}`
+			}
 			if dockerRequestMountsProtectedLocalLLMVolume(req.Volumes) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`
+			}
+			if dockerRequestMountsProtectedGaragePath(req.Volumes) {
+				return `Tool Output: {"status":"error","message":"AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool."}`
 			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
@@ -599,10 +605,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if req.Operation == "compose" && dockerComposeReferencesProtectedLocalLLMVolume(dockerCfg, req.File) {
 				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
 			}
+			if req.Operation == "compose" && dockerComposeReferencesProtectedGarage(dockerCfg, req.File) {
+				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed Boring Computers Garage is blocked."}`
+			}
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, dockerutil.LocalLLMOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -1469,6 +1478,49 @@ func dockerRequestMountsProtectedLocalLLMVolume(volumes []string) bool {
 	for _, volume := range volumes {
 		source := strings.ToLower(strings.TrimSpace(strings.SplitN(volume, ":", 2)[0]))
 		if dockerProtectedLocalLLMVolumeName(source) {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerRequestMountsProtectedGaragePath(volumes []string) bool {
+	for _, volume := range volumes {
+		source := strings.TrimSpace(strings.SplitN(volume, ":", 2)[0])
+		if dockerutil.IsBoringGarageDataPath(source) || dockerutil.IsBoringGarageContainerName(source) {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerComposeReferencesProtectedGarage(cfg tools.DockerConfig, file string) bool {
+	base, err := filepath.Abs(cfg.WorkspaceDir)
+	if err != nil {
+		return true
+	}
+	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
+	if err != nil {
+		return true
+	}
+	relative, err := filepath.Rel(base, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return true
+	}
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	lower := strings.ToLower(string(payload))
+	for _, token := range []string{
+		dockerutil.BoringGarageContainerName,
+		"boring-garage",
+		"data/sidecars/garage",
+		`aurago.managed: boring-garage`,
+		`"aurago.managed":"boring-garage"`,
+		`aurago.managed=boring-garage`,
+	} {
+		if strings.Contains(lower, strings.ToLower(token)) {
 			return true
 		}
 	}

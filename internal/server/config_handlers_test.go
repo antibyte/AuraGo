@@ -1236,6 +1236,9 @@ func TestInjectVaultIndicatorsAddsVirtualComputerSecrets(t *testing.T) {
 		"virtual_computers_openrouter_key",
 		"virtual_computers_s3_access_key_id",
 		"virtual_computers_s3_secret_key",
+		"virtual_computers_garage_access_key_id",
+		"virtual_computers_garage_secret_key",
+		"virtual_computers_garage_rpc_secret",
 	} {
 		if err := vault.WriteSecret(key, "configured-secret"); err != nil {
 			t.Fatalf("WriteSecret(%q) error = %v", key, err)

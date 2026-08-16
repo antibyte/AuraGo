@@ -26,7 +26,14 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 			anthropicKey = provider.APIKey
 		}
 	}
-	for _, value := range []string{anthropicKey, openRouterKey, vc.S3AccessKeyID, vc.S3SecretKey} {
+	storage := EffectiveStorageFromConfig(vc)
+	accessKey, secretKey := EffectiveCredentials(vc)
+	for _, value := range []string{
+		anthropicKey, openRouterKey,
+		vc.S3AccessKeyID, vc.S3SecretKey,
+		vc.GarageAccessKeyID, vc.GarageSecretKey, vc.GarageRPCSecret,
+		accessKey, secretKey,
+	} {
 		security.RegisterSensitive(value)
 	}
 	return ToolConfig{
@@ -43,19 +50,15 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 			InstallDir:   vc.ControlPlane.InstallDir,
 			BoringdURL:   vc.ControlPlane.BoringdURL,
 		},
-		Storage: StorageConfig{
-			Endpoint: vc.Storage.Endpoint,
-			Bucket:   vc.Storage.Bucket,
-			Region:   vc.Storage.Region,
-			UseSSL:   vc.Storage.UseSSL,
-		},
+		Storage:             storage,
 		LedgerPath:          cfg.SQLite.VirtualComputersPath,
 		BoringdURL:          vc.ControlPlane.BoringdURL,
 		BoringToken:         vc.BoringToken,
 		BoringAnthropicKey:  anthropicKey,
 		BoringOpenRouterKey: openRouterKey,
-		S3AccessKeyID:       vc.S3AccessKeyID,
-		S3SecretKey:         vc.S3SecretKey,
+		S3AccessKeyID:       accessKey,
+		S3SecretKey:         secretKey,
+		GarageRPCSecret:     vc.GarageRPCSecret,
 		DefaultTemplate:     vc.DefaultTemplate,
 		DefaultTTLSeconds:   vc.DefaultTTLSeconds,
 		MaxTTLSeconds:       vc.MaxTTLSeconds,

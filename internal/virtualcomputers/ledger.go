@@ -69,22 +69,41 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 	if l == nil || l.db == nil {
 		return fmt.Errorf("virtual computers ledger is not open")
 	}
-	current, err := l.currentSchemaInstalled(ctx)
+	version, err := l.schemaVersion(ctx)
 	if err != nil {
 		return err
 	}
-	if current {
+	if version >= 3 {
 		return nil
 	}
-	needsBackup, err := l.needsV2Migration(ctx)
-	if err != nil {
-		return err
+	// Fresh DB or pre-v2: run full base schema as v2 first, then v3.
+	if version < 2 {
+		needsBackup, err := l.needsV2Migration(ctx)
+		if err != nil {
+			return err
+		}
+		if needsBackup {
+			if err := l.backupV1(ctx); err != nil {
+				return err
+			}
+		}
+		if err := l.migrateToV2(ctx); err != nil {
+			return err
+		}
+		version = 2
 	}
-	if needsBackup {
-		if err := l.backupV1(ctx); err != nil {
+	if version < 3 {
+		if err := l.backupBeforeV3(ctx); err != nil {
+			return err
+		}
+		if err := l.migrateToV3(ctx); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (l *Ledger) migrateToV2(ctx context.Context) error {
 	tx, err := l.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin virtual computers migration: %w", err)
@@ -203,23 +222,121 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 	return nil
 }
 
-func (l *Ledger) currentSchemaInstalled(ctx context.Context) (bool, error) {
+func (l *Ledger) migrateToV3(ctx context.Context) error {
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin virtual computers v3 migration: %w", err)
+	}
+	defer tx.Rollback()
+	for _, stmt := range []string{
+		`CREATE TABLE IF NOT EXISTS storage_epochs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			identity_hash TEXT NOT NULL UNIQUE,
+			mode TEXT NOT NULL DEFAULT '',
+			endpoint TEXT NOT NULL DEFAULT '',
+			bucket TEXT NOT NULL DEFAULT '',
+			region TEXT NOT NULL DEFAULT '',
+			use_ssl INTEGER NOT NULL DEFAULT 0,
+			control_plane_mode TEXT NOT NULL DEFAULT '',
+			control_plane_host TEXT NOT NULL DEFAULT '',
+			install_dir TEXT NOT NULL DEFAULT '',
+			active INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS storage_migration_jobs (
+			id TEXT PRIMARY KEY,
+			source_epoch_id INTEGER NOT NULL,
+			target_epoch_id INTEGER NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			error TEXT NOT NULL DEFAULT '',
+			volumes_total INTEGER NOT NULL DEFAULT 0,
+			volumes_done INTEGER NOT NULL DEFAULT 0,
+			objects_total INTEGER NOT NULL DEFAULT 0,
+			objects_done INTEGER NOT NULL DEFAULT 0,
+			bytes_done INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY(source_epoch_id) REFERENCES storage_epochs(id),
+			FOREIGN KEY(target_epoch_id) REFERENCES storage_epochs(id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS storage_migration_volume_checkpoints (
+			job_id TEXT NOT NULL,
+			volume_id TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			manifest_json TEXT NOT NULL DEFAULT '{}',
+			error TEXT NOT NULL DEFAULT '',
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY(job_id, volume_id),
+			FOREIGN KEY(job_id) REFERENCES storage_migration_jobs(id) ON DELETE CASCADE
+		)`,
+	} {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("migrate virtual computers ledger v3: %w", err)
+		}
+	}
+	for _, column := range []struct {
+		name       string
+		definition string
+	}{
+		{name: "storage_epoch_id", definition: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "availability", definition: "TEXT NOT NULL DEFAULT 'available'"},
+	} {
+		if err := ensureColumn(ctx, tx, "volumes", column.name, column.definition); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_meta(key, value) VALUES ('schema_version', '3')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
+		return fmt.Errorf("write virtual computers schema version v3: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit virtual computers v3 migration: %w", err)
+	}
+	return nil
+}
+
+func (l *Ledger) backupBeforeV3(ctx context.Context) error {
+	// Reuse backup path pattern from v1 when a real DB file exists.
+	if strings.TrimSpace(l.path) == "" || l.path == ":memory:" {
+		return nil
+	}
+	// Only backup when already at schema v2 with user data.
+	version, err := l.schemaVersion(ctx)
+	if err != nil || version != 2 {
+		return nil
+	}
+	return l.backupV1(ctx)
+}
+
+func (l *Ledger) schemaVersion(ctx context.Context) (int, error) {
 	var tableCount int
 	if err := l.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_meta'`).Scan(&tableCount); err != nil {
-		return false, fmt.Errorf("inspect virtual computers schema metadata: %w", err)
+		return 0, fmt.Errorf("inspect virtual computers schema metadata: %w", err)
 	}
 	if tableCount == 0 {
-		return false, nil
+		return 0, nil
 	}
 	var version string
 	err := l.db.QueryRowContext(ctx, `SELECT value FROM schema_meta WHERE key = 'schema_version'`).Scan(&version)
 	if err == sql.ErrNoRows {
-		return false, nil
+		return 0, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("read virtual computers schema version: %w", err)
+		return 0, fmt.Errorf("read virtual computers schema version: %w", err)
 	}
-	return version == "2", nil
+	n, convErr := strconv.Atoi(strings.TrimSpace(version))
+	if convErr != nil {
+		return 0, nil
+	}
+	return n, nil
+}
+
+func (l *Ledger) currentSchemaInstalled(ctx context.Context) (bool, error) {
+	version, err := l.schemaVersion(ctx)
+	if err != nil {
+		return false, err
+	}
+	return version >= 3, nil
 }
 
 func (l *Ledger) needsV2Migration(ctx context.Context) (bool, error) {
@@ -245,7 +362,11 @@ func (l *Ledger) needsV2Migration(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("read virtual computers schema version: %w", err)
 	}
-	return version != "2", nil
+	n, err := strconv.Atoi(strings.TrimSpace(version))
+	if err != nil {
+		return true, nil
+	}
+	return n < 2, nil
 }
 
 func (l *Ledger) backupV1(ctx context.Context) error {
@@ -559,9 +680,13 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 	if status == "" {
 		status = "tracked"
 	}
+	availability := strings.TrimSpace(volume.Availability)
+	if availability == "" {
+		availability = "available"
+	}
 	_, err := l.db.ExecContext(ctx, `INSERT INTO volumes
-		(id, name, size_bytes, created_at, expires_at, quota_mb, last_verified_at, verification_status, raw_json, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		(id, name, size_bytes, created_at, expires_at, quota_mb, last_verified_at, verification_status, storage_epoch_id, availability, raw_json, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			size_bytes = excluded.size_bytes,
@@ -570,10 +695,12 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 			quota_mb = excluded.quota_mb,
 			last_verified_at = excluded.last_verified_at,
 			verification_status = excluded.verification_status,
+			storage_epoch_id = excluded.storage_epoch_id,
+			availability = excluded.availability,
 			raw_json = excluded.raw_json,
 			updated_at = excluded.updated_at`,
 		volume.ID, volume.Name, volume.SizeBytes, timePtrText(volume.CreatedAt), timePtrText(volume.ExpiresAt),
-		volume.QuotaMB, timePtrText(volume.LastVerifiedAt), status, mustJSON(volume), nowText())
+		volume.QuotaMB, timePtrText(volume.LastVerifiedAt), status, volume.StorageEpochID, availability, mustJSON(volume), nowText())
 	if err != nil {
 		return fmt.Errorf("upsert virtual computer volume: %w", err)
 	}
@@ -582,7 +709,8 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 
 func (l *Ledger) ListVolumes(ctx context.Context) ([]Volume, error) {
 	rows, err := l.db.QueryContext(ctx, `SELECT id, name, size_bytes, created_at, expires_at, quota_mb,
-		last_verified_at, verification_status, raw_json FROM volumes ORDER BY updated_at DESC`)
+		last_verified_at, verification_status, COALESCE(storage_epoch_id, 0), COALESCE(availability, 'available'), raw_json
+		FROM volumes ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list tracked virtual computer volumes: %w", err)
 	}
@@ -592,7 +720,7 @@ func (l *Ledger) ListVolumes(ctx context.Context) ([]Volume, error) {
 		var volume Volume
 		var createdAt, expiresAt, verifiedAt, raw string
 		if err := rows.Scan(&volume.ID, &volume.Name, &volume.SizeBytes, &createdAt, &expiresAt,
-			&volume.QuotaMB, &verifiedAt, &volume.VerificationStatus, &raw); err != nil {
+			&volume.QuotaMB, &verifiedAt, &volume.VerificationStatus, &volume.StorageEpochID, &volume.Availability, &raw); err != nil {
 			return nil, fmt.Errorf("scan tracked virtual computer volume: %w", err)
 		}
 		volume.CreatedAt = parseStoredOptionalTime(createdAt)
@@ -620,6 +748,87 @@ func (l *Ledger) MarkVolumeStale(ctx context.Context, id string) error {
 		return fmt.Errorf("mark tracked virtual computer volume stale: %w", err)
 	}
 	return nil
+}
+
+// CountAvailableVolumes returns volumes that are still bound to the active store.
+func (l *Ledger) CountAvailableVolumes(ctx context.Context) (int, error) {
+	if l == nil || l.db == nil {
+		return 0, fmt.Errorf("virtual computers ledger is not open")
+	}
+	var n int
+	err := l.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM volumes
+		WHERE COALESCE(availability, 'available') IN ('', 'available')`).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count available virtual computer volumes: %w", err)
+	}
+	return n, nil
+}
+
+// MarkAvailableVolumesPreviousStore marks active volumes as belonging to a previous store
+// after a confirmed switch-without-migration. Source objects are retained.
+func (l *Ledger) MarkAvailableVolumesPreviousStore(ctx context.Context) (int64, error) {
+	if l == nil || l.db == nil {
+		return 0, fmt.Errorf("virtual computers ledger is not open")
+	}
+	now := nowText()
+	res, err := l.db.ExecContext(ctx, `UPDATE volumes
+		SET availability = 'previous_store', verification_status = 'previous_store', updated_at = ?
+		WHERE COALESCE(availability, 'available') IN ('', 'available')`, now)
+	if err != nil {
+		return 0, fmt.Errorf("mark volumes previous_store: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+// UpsertActiveStorageEpoch records the currently effective storage identity.
+func (l *Ledger) UpsertActiveStorageEpoch(ctx context.Context, id StorageIdentity) (int64, error) {
+	if l == nil || l.db == nil {
+		return 0, fmt.Errorf("virtual computers ledger is not open")
+	}
+	hash := id.Hash()
+	now := nowText()
+	ssl := 0
+	if id.UseSSL {
+		ssl = 1
+	}
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin storage epoch write: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `UPDATE storage_epochs SET active = 0 WHERE active = 1`); err != nil {
+		return 0, fmt.Errorf("deactivate storage epochs: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, `INSERT INTO storage_epochs
+		(identity_hash, mode, endpoint, bucket, region, use_ssl, control_plane_mode, control_plane_host, install_dir, active, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+		ON CONFLICT(identity_hash) DO UPDATE SET
+			mode = excluded.mode,
+			endpoint = excluded.endpoint,
+			bucket = excluded.bucket,
+			region = excluded.region,
+			use_ssl = excluded.use_ssl,
+			control_plane_mode = excluded.control_plane_mode,
+			control_plane_host = excluded.control_plane_host,
+			install_dir = excluded.install_dir,
+			active = 1`,
+		hash, NormalizeStorageMode(id.Mode, id.Endpoint), strings.TrimSpace(id.Endpoint), strings.TrimSpace(id.Bucket),
+		strings.TrimSpace(id.Region), ssl, strings.TrimSpace(id.ControlPlaneMode), strings.TrimSpace(id.ControlPlaneHost),
+		strings.TrimSpace(id.InstallDir), now)
+	if err != nil {
+		return 0, fmt.Errorf("upsert storage epoch: %w", err)
+	}
+	epochID, _ := res.LastInsertId()
+	if epochID == 0 {
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM storage_epochs WHERE identity_hash = ?`, hash).Scan(&epochID); err != nil {
+			return 0, fmt.Errorf("load storage epoch id: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit storage epoch: %w", err)
+	}
+	return epochID, nil
 }
 
 func (l *Ledger) RecordAction(ctx context.Context, action ActionRecord) error {

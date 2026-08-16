@@ -474,9 +474,17 @@ func redactDockerInspectEnv(value interface{}) interface{} {
 			redacted[i] = item
 			continue
 		}
-		if key, _, found := strings.Cut(text, "="); found && strings.EqualFold(strings.TrimSpace(key), "AURAGO_GO2RTC_API_PASSWORD") {
-			redacted[i] = key + "=••••••••"
-			continue
+		if key, _, found := strings.Cut(text, "="); found {
+			k := strings.TrimSpace(key)
+			upper := strings.ToUpper(k)
+			if strings.EqualFold(k, "AURAGO_GO2RTC_API_PASSWORD") ||
+				strings.EqualFold(k, "GARAGE_S3_ACCESS_KEY_ID") ||
+				strings.EqualFold(k, "GARAGE_S3_SECRET_ACCESS_KEY") ||
+				strings.EqualFold(k, "GARAGE_RPC_SECRET") ||
+				(strings.HasPrefix(upper, "GARAGE_") && strings.Contains(upper, "SECRET")) {
+				redacted[i] = key + "=••••••••"
+				continue
+			}
 		}
 		redacted[i] = text
 	}
@@ -487,6 +495,10 @@ func redactDockerInspectEnv(value interface{}) interface{} {
 func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
 	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
 		dockerutil.IsLocalLLMContainerName(containerID) {
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) &&
+		dockerutil.IsBoringGarageContainerName(containerID) {
 		return true
 	}
 	if validateDockerName(containerID) != nil {
@@ -503,6 +515,10 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 		if json.Unmarshal(data, &info) == nil {
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
 				dockerutil.IsLocalLLMContainerName(info.Name) {
+				return true
+			}
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) &&
+				dockerutil.IsBoringGarageContainerName(info.Name) {
 				return true
 			}
 			return dockerutil.ManagedBy(info.Config.Labels, owner)
@@ -576,15 +592,19 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 		if dockerutil.ManagedBy(labels, owner) {
 			return true
 		}
-		if !strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) {
-			continue
-		}
 		for _, name := range names {
-			if volume && dockerutil.IsLocalLLMVolumeName(name) {
-				return true
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) {
+				if volume && dockerutil.IsLocalLLMVolumeName(name) {
+					return true
+				}
+				if !volume && dockerutil.IsLocalLLMContainerName(name) {
+					return true
+				}
 			}
-			if !volume && dockerutil.IsLocalLLMContainerName(name) {
-				return true
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) {
+				if !volume && dockerutil.IsBoringGarageContainerName(name) {
+					return true
+				}
 			}
 		}
 	}

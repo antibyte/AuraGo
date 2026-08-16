@@ -13,6 +13,12 @@ const (
 	LocalLLMKeySeedName     = "aurago-local-llm-key-seed"
 	LocalLLMModelVolumeName = "aurago_models"
 	LocalLLMKeyVolumeName   = "aurago_local_llm_runtime"
+
+	// BoringGarageOwner is the canonical owner for managed Boring Computers Garage.
+	BoringGarageOwner         = "boring-garage"
+	BoringGarageContainerName = "aurago-boring-garage"
+	// BoringGarageDataPathSuffix is appended to control_plane.install_dir on the target host.
+	BoringGarageDataPathSuffix = "data/sidecars/garage"
 )
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
@@ -61,6 +67,26 @@ func IsLocalLLMVolumeName(name string) bool {
 		name == LocalLLMKeyVolumeName ||
 		strings.HasSuffix(name, "_"+LocalLLMModelVolumeName) ||
 		strings.HasSuffix(name, "_"+LocalLLMKeyVolumeName)
+}
+
+// IsBoringGarageContainerName recognizes the reserved managed Garage container.
+func IsBoringGarageContainerName(name string) bool {
+	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
+	if name == BoringGarageContainerName {
+		return true
+	}
+	return strings.Contains(name, "-"+BoringGarageContainerName+"-") ||
+		strings.Contains(name, "_"+BoringGarageContainerName+"_")
+}
+
+// IsBoringGarageDataPath reports whether path is under a managed Garage data root.
+func IsBoringGarageDataPath(path string) bool {
+	path = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/"))
+	if path == "" {
+		return false
+	}
+	marker := "/" + strings.ToLower(BoringGarageDataPathSuffix)
+	return strings.Contains(path, marker) || strings.HasSuffix(path, strings.TrimPrefix(marker, "/"))
 }
 
 // ParseNumericGroupIDs validates, deduplicates, and bounds host GPU group IDs.

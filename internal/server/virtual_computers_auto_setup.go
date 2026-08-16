@@ -209,7 +209,11 @@ func virtualComputersManagementRevisionMatches(baseURL string) bool {
 func runVirtualComputersAutoSetup(ctx context.Context, s *Server, cfg virtualcomputers.ToolConfig) error {
 	token, _, err := virtualComputersEnsureBoringToken(s, cfg)
 	if err != nil {
-		return errors.New("prepare automatic setup credentials: " + err.Error())
+		return err
+	}
+	cfg, err = virtualComputersEnsureGarageSecrets(s, cfg)
+	if err != nil {
+		return err
 	}
 	manager, err := virtualComputersSetupManager(s, cfg, token)
 	if err != nil {

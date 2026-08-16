@@ -191,6 +191,9 @@ func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *test
 	t.Parallel()
 	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
 	for _, want := range []string{
+		`data-path="virtual_computers.storage.mode"`,
+		`managed_garage`,
+		`external_s3`,
 		`data-path="virtual_computers.storage.endpoint"`,
 		`data-path="virtual_computers.storage.bucket"`,
 		`data-path="virtual_computers.storage.region"`,
@@ -198,6 +201,8 @@ func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *test
 		`virtual_computers_s3_access_key_id`,
 		`virtual_computers_s3_secret_key`,
 		`/api/virtual-computers/storage/test`,
+		`vcCfgStorageActionsLocked`,
+		`storage_test_dirty_lock`,
 	} {
 		if !strings.Contains(vcJS, want) {
 			t.Fatalf("virtual computer storage UI missing %q", want)
@@ -205,6 +210,9 @@ func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *test
 	}
 	if strings.Contains(vcJS, `data-path="virtual_computers.s3_secret_key"`) || strings.Contains(vcJS, `data-path="virtual_computers.s3_access_key_id"`) {
 		t.Fatal("S3 credentials must never be serialized into config data")
+	}
+	if strings.Contains(vcJS, `virtual_computers_garage_`) {
+		t.Fatal("managed Garage credentials must never be editable in the config UI")
 	}
 }
 
@@ -270,10 +278,15 @@ func TestVirtualComputersNewTranslationsExist(t *testing.T) {
 	t.Parallel()
 	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	configKeys := []string{
-		"config.virtual_computers.storage_title", "config.virtual_computers.storage_endpoint_label",
+		"config.virtual_computers.storage_title", "config.virtual_computers.storage_mode_label",
+		"config.virtual_computers.storage_mode_managed", "config.virtual_computers.storage_mode_external",
+		"config.virtual_computers.storage_managed_note", "config.virtual_computers.storage_managed_creds_note",
+		"config.virtual_computers.storage_test_dirty_lock",
+		"config.virtual_computers.storage_endpoint_label",
 		"config.virtual_computers.storage_bucket_label", "config.virtual_computers.storage_region_label",
 		"config.virtual_computers.storage_ssl_label", "config.virtual_computers.storage_test_button",
 		"config.virtual_computers.s3_access_key_label", "config.virtual_computers.s3_secret_key_label",
+		"help.virtual_computers.storage_mode",
 	}
 	desktopKeys := []string{
 		"desktop.virtual_computers_headless", "desktop.virtual_computers_task_start",

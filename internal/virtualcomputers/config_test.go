@@ -17,7 +17,7 @@ func TestFromAuraConfigMapsStorageAndLedgerPath(t *testing.T) {
 	cfg.VirtualComputers.Storage.UseSSL = true
 
 	got := FromAuraConfig(cfg)
-	if got.LedgerPath != "data/vc.db" || got.Storage.Endpoint != "minio.home:9000" || got.Storage.Bucket != "vc-data" || got.Storage.Region != "home-1" || !got.Storage.UseSSL {
+	if got.LedgerPath != "data/vc.db" || got.Storage.Mode != StorageModeExternalS3 || got.Storage.Endpoint != "minio.home:9000" || got.Storage.Bucket != "vc-data" || got.Storage.Region != "home-1" || !got.Storage.UseSSL {
 		t.Fatalf("tool config = %+v", got)
 	}
 }

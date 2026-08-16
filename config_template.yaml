@@ -1117,15 +1117,17 @@ virtual_computers:
     allow_agent_tasks: false
     agent_provider: ""                                    # ID of an Anthropic provider; its Vault key is used only when agent tasks are enabled
     storage:
-        endpoint: ""                                       # S3-compatible host:port without a URL scheme
-        bucket: boring-volumes
-        region: ""                                         # optional; blank uses us-east-1 for the read-only connection test
-        use_ssl: true
+        mode: managed_garage                               # managed_garage (default) or external_s3
+        endpoint: ""                                       # external_s3 only: host:port without scheme; managed uses 127.0.0.1:3900 on the control-plane host
+        bucket: boring-volumes                             # external_s3 bucket; managed always uses boring-volumes
+        region: ""                                         # external_s3 region; managed uses garage; blank external test falls back to us-east-1
+        use_ssl: false                                     # external_s3 TLS; managed Garage is loopback HTTP only
     # Vault-only fields saved via UI, never config.yaml:
     # boring_token: optional; AuraGo auto-generates this for managed setup. For an existing boringd, it must match BORING_TOKEN.
     # ssh_secret: optional SSH secret material
     # boring_anthropic_key / boring_openrouter_key: legacy Vault-only fields; use agent_provider for new setups
-    # s3_access_key_id / s3_secret_key: optional boring volume/template storage
+    # s3_access_key_id / s3_secret_key: external_s3 credentials
+    # garage_access_key_id / garage_secret_key / garage_rpc_secret: managed Garage; auto-generated, never shown in UI
 indexing:
     enabled: true
     directories:

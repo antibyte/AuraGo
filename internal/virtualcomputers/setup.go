@@ -25,7 +25,7 @@ type PreflightExecutor interface {
 type SSHExecutor = CommandExecutor
 type ScriptSSHExecutor = ScriptExecutor
 
-const remotePreflightCommand = "printf 'HOST_OS='; uname -s | tr '[:upper:]' '[:lower:]'; printf 'ARCH='; uname -m; printf 'HAS_KVM='; test -e /dev/kvm && echo 1 || echo 0; . /etc/os-release 2>/dev/null; printf 'OS_ID=%s\\n' \"$ID\"; printf 'OS_VERSION=%s\\n' \"$VERSION_ID\"; printf 'RUNNING_IN_DOCKER='; if [ -f /.dockerenv ] || { [ -r /proc/self/cgroup ] && grep -qiE 'docker|containerd|kubepods' /proc/self/cgroup; }; then echo 1; else echo 0; fi; printf 'HAS_SYSTEMD='; if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then echo 1; else echo 0; fi; printf 'HAS_SUDO_OR_ROOT='; if [ \"$(id -u)\" -eq 0 ] || sudo -n true >/dev/null 2>&1; then echo 1; else echo 0; fi"
+const remotePreflightCommand = "printf 'HOST_OS='; uname -s | tr '[:upper:]' '[:lower:]'; printf 'ARCH='; uname -m; printf 'HAS_KVM='; test -e /dev/kvm && echo 1 || echo 0; . /etc/os-release 2>/dev/null; printf 'OS_ID=%s\\n' \"$ID\"; printf 'OS_VERSION=%s\\n' \"$VERSION_ID\"; printf 'RUNNING_IN_DOCKER='; if [ -f /.dockerenv ] || { [ -r /proc/self/cgroup ] && grep -qiE 'docker|containerd|kubepods' /proc/self/cgroup; }; then echo 1; else echo 0; fi; printf 'HAS_SYSTEMD='; if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then echo 1; else echo 0; fi; printf 'HAS_SUDO_OR_ROOT='; if [ \"$(id -u)\" -eq 0 ] || sudo -n true >/dev/null 2>&1; then echo 1; else echo 0; fi; printf 'HAS_DOCKER='; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then echo 1; else echo 0; fi"
 const defaultBoringdURL = config.DefaultVirtualComputersBoringdURL
 
 type SetupManager struct {
@@ -61,6 +61,11 @@ func (m SetupManager) Preflight(ctx context.Context) (PreflightResult, error) {
 		// Persistent storage is optional. Report invalid storage configuration to
 		// the UI, but do not prevent repairing the core boringd installation.
 		result.Warnings = append(result.Warnings, validateManagedStorage(m.InstallOptions)...)
+		mode := NormalizeStorageMode(m.InstallOptions.StorageMode, m.InstallOptions.S3Endpoint)
+		if mode == StorageModeManagedGarage && result.Checks["HAS_DOCKER"] != "1" {
+			result.Warnings = append(result.Warnings,
+				"Docker is required for managed Garage volume storage but is not available; core boringd can still be installed")
+		}
 	}
 	return result, nil
 }
@@ -150,8 +155,10 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 			Preflight:    preflight,
 			ControlPlane: ComponentStatus{Configured: true, Healthy: true},
 			Management:   ComponentStatus{Configured: true, Healthy: false, Message: "management health check failed"},
+			Storage:      m.storageStatusAfterInstall(ctx, out),
 		}, nil
 	}
+	storage := m.storageStatusAfterInstall(ctx, out)
 	return SetupStatus{
 		Configured:   true,
 		Healthy:      true,
@@ -159,15 +166,71 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 		Preflight:    preflight,
 		ControlPlane: ComponentStatus{Configured: true, Healthy: true},
 		Management:   ComponentStatus{Configured: true, Healthy: true},
+		Storage:      storage,
 	}, nil
 }
 
+// storageStatusAfterInstall derives additive storage health from install output and,
+// when possible, a local HeadBucket check against effective credentials.
+func (m SetupManager) storageStatusAfterInstall(ctx context.Context, installOut string) StorageStatus {
+	opts := m.InstallOptions
+	mode := NormalizeStorageMode(opts.StorageMode, opts.S3Endpoint)
+	st := StorageStatus{Mode: mode}
+	if !opts.AllowVolumes {
+		st.Message = "volumes disabled"
+		return st
+	}
+	st.Configured = strings.TrimSpace(opts.S3AccessKeyID) != "" && strings.TrimSpace(opts.S3SecretKey) != ""
+	if mode == StorageModeManagedGarage {
+		st.Configured = st.Configured && strings.TrimSpace(opts.GarageRPCSecret) != ""
+		garageReady := strings.Contains(installOut, "managed Garage is ready") ||
+			strings.Contains(installOut, "managed Garage already running with matching fingerprint and Vault key") ||
+			strings.Contains(installOut, "Garage container is running with Vault key present")
+		st.Running = garageReady
+		if !garageReady {
+			st.Healthy = false
+			st.ErrorCode = "garage_unavailable"
+			st.Message = "managed Garage was not ready; core install continued without volume S3"
+			return st
+		}
+		// Local HeadBucket when install ran on this host; remote installs are verified via Admin storage test.
+		if strings.EqualFold(strings.TrimSpace(opts.ControlPlaneMode), ControlPlaneLocalHost) ||
+			strings.TrimSpace(opts.ControlPlaneMode) == "" && strings.TrimSpace(opts.ControlPlaneHost) == "" {
+			if err := TestStorageConnection(ctx, StorageTestConfig{
+				Endpoint: opts.S3Endpoint, Bucket: opts.S3Bucket, Region: opts.S3Region,
+				AccessKeyID: opts.S3AccessKeyID, SecretKey: opts.S3SecretKey, UseSSL: opts.S3UseSSL,
+			}); err != nil {
+				st.Healthy = false
+				st.Running = true
+				st.ErrorCode = "storage_head_failed"
+				st.Message = "Garage running but HeadBucket failed"
+				return st
+			}
+		}
+		st.Healthy = true
+		st.Message = "managed Garage ready"
+		return st
+	}
+	st.Message = "external_s3"
+	return st
+}
+
 func (m SetupManager) RedactInstallLog(log string) string {
-	return redactInstallLog(log, m.Token, m.SudoPassword, m.InstallOptions.Token, m.InstallOptions.AnthropicKey, m.InstallOptions.OpenRouterKey, m.InstallOptions.S3AccessKeyID, m.InstallOptions.S3SecretKey)
+	return redactInstallLog(log, m.Token, m.SudoPassword, m.InstallOptions.Token, m.InstallOptions.AnthropicKey, m.InstallOptions.OpenRouterKey, m.InstallOptions.S3AccessKeyID, m.InstallOptions.S3SecretKey, m.InstallOptions.GarageRPCSecret)
 }
 
 func validateManagedStorage(opts SetupInstallOptions) []string {
 	var issues []string
+	mode := NormalizeStorageMode(opts.StorageMode, opts.S3Endpoint)
+	if mode == StorageModeManagedGarage {
+		if strings.TrimSpace(opts.S3AccessKeyID) == "" || strings.TrimSpace(opts.S3SecretKey) == "" {
+			issues = append(issues, "managed Garage credentials are not ready yet; run Install/Repair to generate them")
+		}
+		if strings.TrimSpace(opts.GarageRPCSecret) == "" {
+			issues = append(issues, "managed Garage RPC secret is not ready yet; run Install/Repair to generate it")
+		}
+		return issues
+	}
 	endpoint := strings.TrimSpace(opts.S3Endpoint)
 	if endpoint == "" {
 		issues = append(issues, "S3 endpoint is required when virtual computer volumes are enabled")
@@ -261,6 +324,7 @@ BORING_OPENROUTER_KEY_VALUE=%s
 	BORING_S3_BUCKET_VALUE=%s
 	BORING_S3_REGION_VALUE=%s
 	BORING_S3_SSL_VALUE=%s
+	STORAGE_MODE_VALUE=%s
 	BORING_ADDR_VALUE=%s
 BORING_HEALTH_URL_VALUE=%s
 BORING_MAX_VALUE=%d
@@ -370,10 +434,14 @@ install -m0755 /root/infra/net-setup.sh /opt/boring/bin/net-setup.sh
 bash /opt/boring/bin/net-setup.sh
 cp /root/infra/boring-net.service /etc/systemd/system/ 2>/dev/null || true
 
-log "building boringd"
-cd /opt/boring/src
-CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o /usr/local/bin/boringd .
-cp /root/infra/boringd.service /etc/systemd/system/boringd.service
+	# Managed Garage (optional volumes). Failure must not abort core boringd install.
+	GARAGE_OK=0
+	__AURAGO_GARAGE_SNIPPET__
+
+	log "building boringd"
+	cd /opt/boring/src
+	CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o /usr/local/bin/boringd .
+	cp /root/infra/boringd.service /etc/systemd/system/boringd.service
 
 # Ensure the service cleans up leftover empty child cgroups when it stops.
 # Delegate=yes lets boringd manage its own cgroup subtree; systemd will not
@@ -462,8 +530,30 @@ if [ "${BORING_HEALTHY}" != "1" ]; then
 	echo "boringd did not become healthy at ${BORING_HEALTH_URL_VALUE} within 30 seconds" >&2
 	exit 1
 fi
-curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
-`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+	curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
+`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(envLine(NormalizeStorageMode(opts.StorageMode, opts.S3Endpoint))), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+	// Inject garage ensure fragment (may blank S3 projection on failure via GARAGE_OK).
+	script = strings.Replace(script, "__AURAGO_GARAGE_SNIPPET__", garageEnsureSnippet(opts), 1)
+	// When managed garage is not OK, rewrite projected S3 values to empty in the generated env block.
+	// Gate on STORAGE_MODE_VALUE only — never on endpoint heuristics (external S3 may also use loopback).
+	script = strings.Replace(script, `log "writing boringd environment"
+install -d -m0755 /etc/boring
+umask 077
+cat > /etc/boring/boringd.env <<EOF
+BORING_ADDR=${BORING_ADDR_VALUE}`, `log "writing boringd environment"
+install -d -m0755 /etc/boring
+umask 077
+if [ "${STORAGE_MODE_VALUE}" = "managed_garage" ] && [ "${GARAGE_OK:-0}" != "1" ]; then
+	BORING_S3_KEY_VALUE=""
+	BORING_S3_SECRET_VALUE=""
+	BORING_S3_ENDPOINT_VALUE=""
+	BORING_S3_BUCKET_VALUE=""
+	BORING_S3_REGION_VALUE=""
+	BORING_S3_SSL_VALUE="0"
+	log "omitting managed S3 projection because Garage is not healthy"
+fi
+cat > /etc/boring/boringd.env <<EOF
+BORING_ADDR=${BORING_ADDR_VALUE}`, 1)
 	return script + managementInstallScript(opts)
 }
 
@@ -529,6 +619,11 @@ var installSecretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(OPENROUTER_API_KEY=)([^\s]+)`),
 	regexp.MustCompile(`(?i)(AWS_ACCESS_KEY_ID=)([^\s]+)`),
 	regexp.MustCompile(`(?i)(AWS_SECRET_ACCESS_KEY=)([^\s]+)`),
+	regexp.MustCompile(`(?i)(BORING_S3_KEY=)([^\s]+)`),
+	regexp.MustCompile(`(?i)(BORING_S3_SECRET=)([^\s]+)`),
+	regexp.MustCompile(`(?i)(GARAGE_AK=)([^\s]+)`),
+	regexp.MustCompile(`(?i)(GARAGE_SK=)([^\s]+)`),
+	regexp.MustCompile(`(?i)(GARAGE_RPC=)([^\s]+)`),
 }
 
 func redactInstallLog(log string, secrets ...string) string {

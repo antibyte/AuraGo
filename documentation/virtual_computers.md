@@ -106,20 +106,53 @@ The REST API provides `GET|POST /api/virtual-computers/tasks` and `GET|DELETE /a
 
 ## Volume storage
 
-boringd intentionally has no global volume discovery endpoint. AuraGo keeps a local ledger of known unguessable volume IDs, verifies them with `GET /v1/volumes/{id}`, removes confirmed missing entries, and marks temporarily unreachable entries stale. `GET /api/virtual-computers/volumes/{id}` imports a known ID. Creation uses a TTL, save attaches a machine snapshot to a selected volume, and launch accepts at most one `volume_id`.
+boringd intentionally has no global volume discovery endpoint. AuraGo keeps a local ledger of known unguessable volume IDs, verifies them with `GET /v1/volumes/{id}`, removes confirmed missing entries, and marks temporarily unreachable entries stale. Volumes marked `previous_store` after a storage switch without migration are never auto-deleted on JSON 404. `GET /api/virtual-computers/volumes/{id}` imports a known ID. Creation uses a TTL, save attaches a machine snapshot to a selected volume, and launch accepts at most one `volume_id`.
 
-Managed volume storage uses:
+### Managed Garage (default)
+
+New setups default to `storage.mode: managed_garage`. AuraGo installs a pinned multi-arch Garage **v2.3.0** Docker sidecar (`dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690`, about 27–29 MB per platform) on the **same** `local_host` or `ssh_host` as boringd — not in the general AuraGo Compose stack.
+
+- Data path: `${control_plane.install_dir}/data/sidecars/garage/{config,meta,data,snapshots}`
+- Only S3 is published on `127.0.0.1:3900`. RPC/Admin/Web ports are not host-published.
+- Docker must already be available on the control-plane host; AuraGo does not install Docker. Missing Docker is a storage warning and does not block core boringd install.
+- Single-node Garage is for local availability, not multi-node redundancy. Keep host backups of the sidecar data directory.
+- Access key, secret key, and 32-byte RPC secret are auto-generated into Vault keys `virtual_computers_garage_*` and never shown in the UI or written to `config.yaml`.
+- Disabling volumes, switching to external S3, or stopping Garage stops the container but retains data and source objects.
+- Garage failure degrades storage only; boringd and the management app still install/repair.
+- The agent Docker tool cannot list, inspect, exec, or mount the managed Garage container/path.
 
 ```yaml
 virtual_computers:
   allow_volumes: true
   storage:
+    mode: managed_garage
+```
+
+### External S3
+
+```yaml
+virtual_computers:
+  allow_volumes: true
+  storage:
+    mode: external_s3
     endpoint: minio.local:9000
     bucket: boring-volumes
     region: ""
     use_ssl: true
 ```
 
-Store the S3 access and secret keys through the Virtual Computers Vault fields. AuraGo writes the corresponding `BORING_S3_*` environment values during managed setup and never serializes credentials into `config.yaml`. The Storage Test performs an authenticated, read-only bucket HEAD request and does not create buckets or objects.
+Store external S3 access/secret keys through the Virtual Computers Vault fields (`virtual_computers_s3_*`). AuraGo writes the corresponding `BORING_S3_*` environment values during managed setup and never serializes credentials into `config.yaml`. The Storage Test uses the **saved** runtime configuration only, performs an authenticated read-only bucket HEAD, and for managed Garage on `ssh_host` opens a short-lived local SSH forward to remote `127.0.0.1:3900`.
 
-The managed installer writes `BORING_S3_SSL` using boringd's required `1`/`0` contract. If boringd cannot initialize S3 at startup, it deliberately does not register its volume routes; AuraGo reports this as unavailable storage with instructions to verify the S3 settings and run **Install / Repair** instead of exposing the upstream `404 page not found` response.
+The installer writes `BORING_S3_SSL` using boringd's required `1`/`0` contract. If boringd cannot initialize S3 at startup, it deliberately does not register its volume routes; AuraGo reports this as unavailable storage with instructions to verify storage settings and run **Install / Repair** instead of exposing the upstream `404 page not found` response.
+
+### Storage identity and switch
+
+A storage identity includes mode, endpoint/bucket/region/SSL, and for managed Garage also control-plane mode, host, and install directory. Changing identity is a storage switch. Source objects are never deleted automatically when switching.
+
+When available ledger volumes still bind the previous store, config save returns **HTTP 409** (`storage_switch_required`) unless a single-use token is presented:
+
+1. `POST /api/virtual-computers/storage/switch/preview` — reports whether a token is required.
+2. `POST /api/virtual-computers/storage/switch/authorize` with `confirm_without_migration: true` plus the proposed target fields (`mode`, external S3 coordinates and/or control-plane coordinates). An optional `target_hash` must match those fields. The response issues a short-lived token bound to the computed target identity and session.
+3. Save config with header `X-AuraGo-Storage-Switch-Token: <token>`.
+
+Authorized switch-without-migration marks volumes `previous_store` (kept visible, not auto-deleted on JSON 404) and stops managed Garage when leaving that mode. Automated object-copy migration is not implemented yet; copy data externally before switching if you need it on the new store.

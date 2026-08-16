@@ -30,8 +30,15 @@ func TestVirtualComputersDefaults(t *testing.T) {
 	if cfg.VirtualComputers.ControlPlane.BoringdURL != "http://127.0.0.1:18082" {
 		t.Fatalf("boringd url = %q", cfg.VirtualComputers.ControlPlane.BoringdURL)
 	}
-	if cfg.VirtualComputers.Storage.Bucket != "boring-volumes" || !cfg.VirtualComputers.Storage.UseSSL {
+	if cfg.VirtualComputers.Storage.Mode != VirtualComputersStorageModeManagedGarage {
+		t.Fatalf("storage mode = %q", cfg.VirtualComputers.Storage.Mode)
+	}
+	if cfg.VirtualComputers.Storage.Bucket != "boring-volumes" || cfg.VirtualComputers.Storage.UseSSL {
 		t.Fatalf("storage defaults = %+v", cfg.VirtualComputers.Storage)
+	}
+	ep, bucket, region, useSSL, _, _ := EffectiveVirtualComputersStorage(cfg.VirtualComputers)
+	if ep != ManagedGarageEndpoint || bucket != ManagedGarageBucket || region != ManagedGarageRegion || useSSL {
+		t.Fatalf("effective managed storage = %s %s %s ssl=%v", ep, bucket, region, useSSL)
 	}
 	wantDB := filepath.Join(filepath.Dir(configPath), "data", "virtual_computers.db")
 	if cfg.SQLite.VirtualComputersPath != wantDB {
@@ -50,8 +57,26 @@ func TestVirtualComputersStorageConfigLoadsNonSecrets(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 	storage := cfg.VirtualComputers.Storage
+	if storage.Mode != VirtualComputersStorageModeExternalS3 {
+		t.Fatalf("legacy endpoint without mode should become external_s3, got %q", storage.Mode)
+	}
 	if storage.Endpoint != "minio.home:9000" || storage.Bucket != "vc-data" || storage.Region != "home-1" || storage.UseSSL {
 		t.Fatalf("storage = %+v", storage)
+	}
+}
+
+func TestVirtualComputersStorageModeManagedGarage(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	data := []byte("virtual_computers:\n  storage:\n    mode: managed_garage\n")
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.VirtualComputers.Storage.Mode != VirtualComputersStorageModeManagedGarage {
+		t.Fatalf("mode = %q", cfg.VirtualComputers.Storage.Mode)
 	}
 }
 
@@ -105,8 +130,11 @@ func TestApplyVaultSecretsLoadsVirtualComputersSecrets(t *testing.T) {
 		"virtual_computers_ssh_secret":       "ssh-secret",
 		"virtual_computers_anthropic_key":    "anthropic-key",
 		"virtual_computers_openrouter_key":   "openrouter-key",
-		"virtual_computers_s3_access_key_id": "s3-id",
-		"virtual_computers_s3_secret_key":    "s3-secret",
+		"virtual_computers_s3_access_key_id":     "s3-id",
+		"virtual_computers_s3_secret_key":        "s3-secret",
+		"virtual_computers_garage_access_key_id": "g-id",
+		"virtual_computers_garage_secret_key":    "g-secret",
+		"virtual_computers_garage_rpc_secret":    "g-rpc",
 	}})
 	if cfg.VirtualComputers.BoringToken != "boring-token" {
 		t.Fatalf("boring token not loaded")
@@ -122,5 +150,8 @@ func TestApplyVaultSecretsLoadsVirtualComputersSecrets(t *testing.T) {
 	}
 	if cfg.VirtualComputers.S3AccessKeyID != "s3-id" || cfg.VirtualComputers.S3SecretKey != "s3-secret" {
 		t.Fatalf("s3 secrets not loaded")
+	}
+	if cfg.VirtualComputers.GarageAccessKeyID != "g-id" || cfg.VirtualComputers.GarageSecretKey != "g-secret" || cfg.VirtualComputers.GarageRPCSecret != "g-rpc" {
+		t.Fatalf("garage secrets not loaded")
 	}
 }

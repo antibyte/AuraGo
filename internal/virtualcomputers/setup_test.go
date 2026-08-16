@@ -280,8 +280,10 @@ func TestSetupInstallUsesBoringdS3SSLFlagContract(t *testing.T) {
 
 func TestSetupPreflightReportsMissingManagedVolumeStorage(t *testing.T) {
 	manager := SetupManager{
-		Executor:       &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"},
-		InstallOptions: SetupInstallOptions{AllowVolumes: true, S3Bucket: "boring-volumes"},
+		Executor: &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"},
+		InstallOptions: SetupInstallOptions{
+			AllowVolumes: true, StorageMode: StorageModeExternalS3, S3Bucket: "boring-volumes",
+		},
 	}
 	result, err := manager.Preflight(context.Background())
 	if err != nil {
@@ -292,11 +294,33 @@ func TestSetupPreflightReportsMissingManagedVolumeStorage(t *testing.T) {
 	}
 }
 
+func TestSetupPreflightReportsMissingDockerForManagedGarage(t *testing.T) {
+	manager := SetupManager{
+		Executor: &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\nHAS_DOCKER=0\n"},
+		InstallOptions: SetupInstallOptions{
+			AllowVolumes: true, StorageMode: StorageModeManagedGarage,
+			S3AccessKeyID: "ak", S3SecretKey: "sk", GarageRPCSecret: "rpc",
+		},
+	}
+	result, err := manager.Preflight(context.Background())
+	if err != nil {
+		t.Fatalf("Preflight: %v", err)
+	}
+	if !result.Supported {
+		t.Fatalf("missing docker must not fail core preflight: %+v", result)
+	}
+	if !strings.Contains(strings.Join(result.Warnings, " "), "Docker") {
+		t.Fatalf("expected Docker storage warning: %+v", result)
+	}
+}
+
 func TestSetupInstallRepairsCoreWhenOptionalStorageIsIncomplete(t *testing.T) {
 	executor := &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"}
 	manager := SetupManager{
-		Executor:       executor,
-		InstallOptions: SetupInstallOptions{AllowVolumes: true, S3Bucket: "boring-volumes"},
+		Executor: executor,
+		InstallOptions: SetupInstallOptions{
+			AllowVolumes: true, StorageMode: StorageModeExternalS3, S3Bucket: "boring-volumes",
+		},
 	}
 
 	status, err := manager.Install(context.Background())

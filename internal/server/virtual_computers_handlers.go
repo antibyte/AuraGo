@@ -65,6 +65,7 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/virtual-computers/setup/install", handleVirtualComputersSetupInstall(s))
 	mux.HandleFunc("/api/virtual-computers/setup/repair", handleVirtualComputersSetupInstall(s))
 	mux.HandleFunc("/api/virtual-computers/storage/test", handleVirtualComputersStorageTest(s))
+	registerVirtualComputersStorageSwitchRoutes(mux, s)
 	mux.HandleFunc("/api/virtual-computers/status", handleVirtualComputersStatus(s))
 	mux.HandleFunc("/api/virtual-computers/templates", handleVirtualComputersTemplates(s))
 	mux.HandleFunc("/api/virtual-computers/volumes", handleVirtualComputersVolumes(s))
@@ -81,17 +82,101 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 
 func triggerStartupAutoSetupIfNeeded(s *Server) {
 	cfg := virtualComputersConfigSnapshot(s)
-	if !cfg.Enabled || !cfg.AutoSetup {
+	if !cfg.Enabled {
+		// Integration off: stop leftover managed Garage without deleting data.
+		go virtualComputersStopManagedGarageIfPresent(s, cfg)
 		return
 	}
-	// If boringd is already reachable, skip startup auto-setup entirely.
+	if !cfg.AutoSetup {
+		return
+	}
+	// If boringd is already reachable, skip full core auto-setup but still
+	// reconcile managed Garage when volumes are enabled.
 	if virtualComputersHealthOK(cfg.BoringdURL) {
 		if s.Logger != nil {
 			s.Logger.Info("[VirtualComputers] boringd is already healthy; skipping startup auto-setup")
 		}
+		if cfg.AllowVolumes && cfg.Storage.Mode == virtualcomputers.StorageModeManagedGarage {
+			go virtualComputersReconcileManagedGarage(s, cfg)
+		}
 		return
 	}
 	virtualComputersTriggerAutoSetup(s, cfg)
+}
+
+// virtualComputersStorageStatusSnapshot is passive: no SSH and no docker lifecycle.
+// Runtime health is confirmed only by explicit storage tests or install/repair.
+func virtualComputersStorageStatusSnapshot(_ *Server, cfg virtualcomputers.ToolConfig) virtualcomputers.StorageStatus {
+	mode := virtualcomputers.NormalizeStorageMode(cfg.Storage.Mode, cfg.Storage.Endpoint)
+	st := virtualcomputers.StorageStatus{Mode: mode}
+	if !cfg.AllowVolumes {
+		st.Message = "volumes disabled"
+		return st
+	}
+	st.Configured = strings.TrimSpace(cfg.S3AccessKeyID) != "" && strings.TrimSpace(cfg.S3SecretKey) != ""
+	if mode == virtualcomputers.StorageModeManagedGarage {
+		st.Configured = st.Configured && strings.TrimSpace(cfg.GarageRPCSecret) != ""
+		// Keep passive status non-blocking: do not run docker/SSH here.
+		st.ErrorCode = "runtime_unknown"
+		st.Message = "unknown"
+		return st
+	}
+	// external_s3: configured when endpoint + keys present; health not probed passively.
+	st.Configured = st.Configured && strings.TrimSpace(cfg.Storage.Endpoint) != ""
+	st.Message = "external_s3"
+	st.ErrorCode = "runtime_unknown"
+	return st
+}
+
+func virtualComputersStopManagedGarageIfPresent(s *Server, cfg virtualcomputers.ToolConfig) {
+	executor, err := virtualComputersSetupExecutor(s, cfg)
+	if err != nil {
+		// Missing SSH credentials or unsupported mode: nothing we can stop safely.
+		return
+	}
+	gm := virtualcomputers.GarageManager{
+		Executor:   executor,
+		InstallDir: cfg.ControlPlane.InstallDir,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if _, err := gm.Stop(ctx); err != nil && s != nil && s.Logger != nil {
+		s.Logger.Warn("[VirtualComputers] stop managed Garage", "error", err)
+	}
+}
+
+func virtualComputersReconcileManagedGarage(s *Server, cfg virtualcomputers.ToolConfig) {
+	cfg, err := virtualComputersEnsureGarageSecrets(s, cfg)
+	if err != nil {
+		if s != nil && s.Logger != nil {
+			s.Logger.Warn("[VirtualComputers] garage secrets", "error", err)
+		}
+		return
+	}
+	executor, err := virtualComputersSetupExecutor(s, cfg)
+	if err != nil {
+		return
+	}
+	gm := virtualcomputers.GarageManager{
+		Executor:    executor,
+		InstallDir:  cfg.ControlPlane.InstallDir,
+		AccessKeyID: cfg.S3AccessKeyID,
+		SecretKey:   cfg.S3SecretKey,
+		RPCSecret:   cfg.GarageRPCSecret,
+		Fingerprint: virtualcomputers.StorageIdentityFromConfig(func() config.VirtualComputersConfig {
+			if s == nil || s.Cfg == nil {
+				return config.VirtualComputersConfig{}
+			}
+			s.CfgMu.RLock()
+			defer s.CfgMu.RUnlock()
+			return s.Cfg.VirtualComputers
+		}()).Hash(),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	if out, err := gm.Ensure(ctx); err != nil && s != nil && s.Logger != nil {
+		s.Logger.Warn("[VirtualComputers] reconcile managed Garage failed", "error", err, "out", security.Scrub(out))
+	}
 }
 
 func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
@@ -107,6 +192,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 		configured := strings.TrimSpace(cfg.BoringdURL) != ""
 		controlPlaneHealthy := configured && virtualComputersHealthOK(cfg.BoringdURL)
 		managementHealthy := configured && virtualComputersManagementHealthy(s, cfg)
+		storageStatus := virtualComputersStorageStatusSnapshot(s, cfg)
 		payload := map[string]interface{}{
 			"status":               "ok",
 			"enabled":              cfg.Enabled,
@@ -118,6 +204,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"control_plane":        cfg.ControlPlane,
 			"control_plane_status": virtualcomputers.ComponentStatus{Configured: configured, Healthy: controlPlaneHealthy},
 			"management":           virtualcomputers.ComponentStatus{Configured: configured, Healthy: managementHealthy},
+			"storage":              storageStatus,
 			"tailscale":            virtualComputersTailscaleStatus(s),
 			"capabilities": map[string]bool{
 				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
@@ -203,6 +290,12 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
+		cfg, err = virtualComputersEnsureGarageSecrets(s, cfg)
+		if err != nil {
+			virtualComputersRecordSetupState(s, r, "install", "failed")
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		manager, err := virtualComputersSetupManager(s, cfg, token)
 		if err != nil {
 			virtualComputersRecordSetupState(s, r, "install", "failed")
@@ -254,17 +347,38 @@ func handleVirtualComputersStorageTest(s *Server) http.HandlerFunc {
 			jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-		err := virtualcomputers.TestStorageConnection(ctx, virtualcomputers.StorageTestConfig{
+		testCfg := virtualcomputers.StorageTestConfig{
 			Endpoint: cfg.Storage.Endpoint, Bucket: cfg.Storage.Bucket, Region: cfg.Storage.Region,
 			AccessKeyID: cfg.S3AccessKeyID, SecretKey: cfg.S3SecretKey, UseSSL: cfg.Storage.UseSSL,
-		})
+		}
+		// Managed Garage on ssh_host: open a short-lived local forward to remote 127.0.0.1:3900.
+		var cleanup func()
+		if cfg.Storage.Mode == virtualcomputers.StorageModeManagedGarage &&
+			virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneSSHHost {
+			localEP, closer, tunErr := virtualComputersOpenStorageTunnel(s, cfg, "127.0.0.1:3900")
+			if tunErr != nil {
+				writeVirtualComputersAPIError(w, "storage_unavailable", security.Scrub(tunErr.Error()), http.StatusServiceUnavailable)
+				return
+			}
+			cleanup = closer
+			testCfg.Endpoint = localEP
+			testCfg.UseSSL = false
+		}
+		if cleanup != nil {
+			defer cleanup()
+		}
+		err := virtualcomputers.TestStorageConnection(ctx, testCfg)
 		if err != nil {
 			writeVirtualComputersAPIError(w, "storage_unavailable", security.Scrub(err.Error()), http.StatusServiceUnavailable)
 			return
 		}
-		writeJSON(w, map[string]interface{}{"status": "ok", "message": "S3 bucket is reachable"})
+		writeJSON(w, map[string]interface{}{
+			"status":  "ok",
+			"message": "S3 bucket is reachable",
+			"mode":    cfg.Storage.Mode,
+		})
 	}
 }
 
@@ -1376,18 +1490,32 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 	if boringdURL == "" {
 		boringdURL = strings.TrimSpace(cfg.ControlPlane.BoringdURL)
 	}
+	mode := virtualcomputers.NormalizeStorageMode(cfg.Storage.Mode, cfg.Storage.Endpoint)
+	projectGarage := mode == virtualcomputers.StorageModeManagedGarage && cfg.AllowVolumes
+	s3Endpoint, s3Bucket, s3Region, s3UseSSL := cfg.Storage.Endpoint, cfg.Storage.Bucket, cfg.Storage.Region, cfg.Storage.UseSSL
+	if mode == virtualcomputers.StorageModeManagedGarage {
+		// Always project fixed managed coordinates into boringd.env (never user YAML leftovers).
+		s3Endpoint = config.ManagedGarageEndpoint
+		s3Bucket = config.ManagedGarageBucket
+		s3Region = config.ManagedGarageRegion
+		s3UseSSL = false
+	}
 	return virtualcomputers.SetupInstallOptions{
 		InstallDir:         cfg.ControlPlane.InstallDir,
 		BoringdURL:         boringdURL,
 		Token:              token,
 		AnthropicKey:       cfg.BoringAnthropicKey,
 		OpenRouterKey:      cfg.BoringOpenRouterKey,
+		StorageMode:        mode,
 		S3AccessKeyID:      cfg.S3AccessKeyID,
 		S3SecretKey:        cfg.S3SecretKey,
-		S3Endpoint:         cfg.Storage.Endpoint,
-		S3Bucket:           cfg.Storage.Bucket,
-		S3Region:           cfg.Storage.Region,
-		S3UseSSL:           cfg.Storage.UseSSL,
+		S3Endpoint:         s3Endpoint,
+		S3Bucket:           s3Bucket,
+		S3Region:           s3Region,
+		S3UseSSL:           s3UseSSL,
+		GarageRPCSecret:    cfg.GarageRPCSecret,
+		ControlPlaneMode:   cfg.ControlPlane.Mode,
+		ControlPlaneHost:   cfg.ControlPlane.Host,
 		MaxRunningMachines: cfg.MaxRunningMachines,
 		MaxForks:           cfg.MaxForks,
 		AllowInternet:      cfg.AllowInternet,
@@ -1395,7 +1523,96 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 		AllowPublish:       cfg.AllowPublish,
 		AllowVolumes:       cfg.AllowVolumes,
 		SkipDesktop:        req.SkipDesktop,
+		ProjectGarage:      projectGarage,
 	}
+}
+
+// virtualComputersOpenStorageTunnel opens a temporary local TCP listener forwarded to remoteAddr
+// on the control-plane SSH host. Returns local endpoint host:port and a cleanup func.
+func virtualComputersOpenStorageTunnel(s *Server, cfg virtualcomputers.ToolConfig, remoteAddr string) (string, func(), error) {
+	exec, err := virtualComputersSSHSetupExecutor(s, cfg)
+	if err != nil {
+		return "", nil, err
+	}
+	sshCfg, err := remote.GetSSHConfig(exec.User, exec.Secret)
+	if err != nil {
+		return "", nil, err
+	}
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", exec.Host, exec.Port), sshCfg)
+	if err != nil {
+		return "", nil, fmt.Errorf("ssh dial for storage tunnel: %w", err)
+	}
+	// Bind once and keep the listener — do not close/rebind (TOCTOU on ephemeral ports).
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		_ = client.Close()
+		return "", nil, fmt.Errorf("listen local storage tunnel: %w", err)
+	}
+	localAddr := listener.Addr().String()
+	var once sync.Once
+	closeFn := func() {
+		once.Do(func() {
+			_ = listener.Close()
+			_ = client.Close()
+		})
+	}
+	go serveVirtualComputersSSHTunnel(listener, client, remoteAddr, s)
+	return localAddr, closeFn, nil
+}
+
+// virtualComputersEnsureGarageSecrets generates and vault-stores managed Garage secrets when missing.
+func virtualComputersEnsureGarageSecrets(s *Server, cfg virtualcomputers.ToolConfig) (virtualcomputers.ToolConfig, error) {
+	mode := virtualcomputers.NormalizeStorageMode(cfg.Storage.Mode, cfg.Storage.Endpoint)
+	if mode != virtualcomputers.StorageModeManagedGarage || !cfg.AllowVolumes {
+		return cfg, nil
+	}
+	if strings.TrimSpace(cfg.S3AccessKeyID) != "" && strings.TrimSpace(cfg.S3SecretKey) != "" && strings.TrimSpace(cfg.GarageRPCSecret) != "" {
+		return cfg, nil
+	}
+	if s == nil || s.Vault == nil {
+		return cfg, fmt.Errorf("vault is required to create managed Garage credentials")
+	}
+	ak, sk, rpc := cfg.S3AccessKeyID, cfg.S3SecretKey, cfg.GarageRPCSecret
+	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" || strings.TrimSpace(rpc) == "" {
+		genAK, genSK, genRPC, err := virtualcomputers.GenerateGarageSecrets()
+		if err != nil {
+			return cfg, err
+		}
+		if strings.TrimSpace(ak) == "" {
+			ak = genAK
+		}
+		if strings.TrimSpace(sk) == "" {
+			sk = genSK
+		}
+		if strings.TrimSpace(rpc) == "" {
+			rpc = genRPC
+		}
+	}
+	if err := s.Vault.WriteSecret("virtual_computers_garage_access_key_id", ak); err != nil {
+		return cfg, fmt.Errorf("store garage access key: %w", err)
+	}
+	if err := s.Vault.WriteSecret("virtual_computers_garage_secret_key", sk); err != nil {
+		return cfg, fmt.Errorf("store garage secret key: %w", err)
+	}
+	if err := s.Vault.WriteSecret("virtual_computers_garage_rpc_secret", rpc); err != nil {
+		return cfg, fmt.Errorf("store garage rpc secret: %w", err)
+	}
+	security.RegisterSensitive(ak)
+	security.RegisterSensitive(sk)
+	security.RegisterSensitive(rpc)
+	s.CfgMu.Lock()
+	if s.Cfg != nil {
+		newCfg := *s.Cfg
+		newCfg.VirtualComputers.GarageAccessKeyID = ak
+		newCfg.VirtualComputers.GarageSecretKey = sk
+		newCfg.VirtualComputers.GarageRPCSecret = rpc
+		s.replaceConfigSnapshot(&newCfg)
+	}
+	s.CfgMu.Unlock()
+	cfg.S3AccessKeyID = ak
+	cfg.S3SecretKey = sk
+	cfg.GarageRPCSecret = rpc
+	return cfg, nil
 }
 
 func virtualComputersSetupExecutor(s *Server, cfg virtualcomputers.ToolConfig) (virtualcomputers.CommandExecutor, error) {

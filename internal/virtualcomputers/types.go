@@ -69,6 +69,7 @@ type ToolConfig struct {
 	BoringOpenRouterKey string
 	S3AccessKeyID       string
 	S3SecretKey         string
+	GarageRPCSecret     string
 	DefaultTemplate     string
 	DefaultTTLSeconds   int
 	MaxTTLSeconds       int
@@ -82,11 +83,18 @@ type ToolConfig struct {
 }
 
 type StorageConfig struct {
+	Mode     string // managed_garage | external_s3
 	Endpoint string
 	Bucket   string
 	Region   string
 	UseSSL   bool
 }
+
+// Storage component modes (mirrors config constants for package-local use).
+const (
+	StorageModeManagedGarage = "managed_garage"
+	StorageModeExternalS3    = "external_s3"
+)
 
 type Machine struct {
 	ID         string                 `json:"id"`
@@ -182,6 +190,8 @@ type Volume struct {
 	QuotaMB            int64                  `json:"quota_mb,omitempty"`
 	LastVerifiedAt     *time.Time             `json:"last_verified_at,omitempty"`
 	VerificationStatus string                 `json:"verification_status,omitempty"`
+	StorageEpochID     int64                  `json:"storage_epoch_id,omitempty"`
+	Availability       string                 `json:"availability,omitempty"` // available | previous_store | unavailable
 	Raw                map[string]interface{} `json:"raw,omitempty"`
 }
 
@@ -250,6 +260,7 @@ type SetupStatus struct {
 	Preflight    PreflightResult `json:"preflight,omitempty"`
 	ControlPlane ComponentStatus `json:"control_plane"`
 	Management   ComponentStatus `json:"management"`
+	Storage      StorageStatus   `json:"storage,omitempty"`
 }
 
 // ComponentStatus reports the health of one managed Virtual Computers component.
@@ -259,18 +270,33 @@ type ComponentStatus struct {
 	Message    string `json:"message,omitempty"`
 }
 
+// StorageStatus reports additive volume-object-store health without changing
+// the meaning of SetupStatus.Healthy for the boringd control plane core.
+type StorageStatus struct {
+	Mode       string `json:"mode,omitempty"`
+	Configured bool   `json:"configured"`
+	Running    bool   `json:"running,omitempty"`
+	Healthy    bool   `json:"healthy"`
+	ErrorCode  string `json:"error_code,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
 type SetupInstallOptions struct {
 	InstallDir         string
 	BoringdURL         string
 	Token              string
 	AnthropicKey       string
 	OpenRouterKey      string
+	StorageMode        string
 	S3AccessKeyID      string
 	S3SecretKey        string
 	S3Endpoint         string
 	S3Bucket           string
 	S3Region           string
 	S3UseSSL           bool
+	GarageRPCSecret    string
+	ControlPlaneMode   string
+	ControlPlaneHost   string
 	MaxRunningMachines int
 	MaxForks           int
 	AllowInternet      bool
@@ -278,6 +304,8 @@ type SetupInstallOptions struct {
 	AllowPublish       bool
 	AllowVolumes       bool
 	SkipDesktop        bool
+	// ProjectGarage when true runs managed Garage ensure before boringd.
+	ProjectGarage bool
 }
 
 func parseOptionalTime(value string) *time.Time {

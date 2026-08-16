@@ -504,6 +504,23 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Virtual Computers storage identity switch requires an explicit single-use token
+		// when available volumes still bind the previous store.
+		s.CfgMu.RLock()
+		oldCfgForVC := *s.Cfg
+		s.CfgMu.RUnlock()
+		if msg, code, ok := virtualComputersEnforceStorageSwitchGate(s, r, oldCfgForVC, validateCfg); !ok {
+			s.Logger.Warn("[Config] Virtual Computers storage switch blocked", "status", code, "message", msg)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(code)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"code":    "storage_switch_required",
+				"message": msg,
+			})
+			return
+		}
+
 		// Pre-flight: if HTTPS is being newly enabled or the port is changing, verify the
 		// configured port is actually bindable RIGHT NOW. Reject the save if not.
 		// Skip this check if HTTPS was already active on the same port — AuraGo itself
@@ -2120,8 +2137,11 @@ var vaultKeyMap = map[string]string{
 	"virtual_computers.boring_token":          "virtual_computers_boring_token",
 	"virtual_computers.boring_anthropic_key":  "virtual_computers_anthropic_key",
 	"virtual_computers.boring_openrouter_key": "virtual_computers_openrouter_key",
-	"virtual_computers.s3_access_key_id":      "virtual_computers_s3_access_key_id",
-	"virtual_computers.s3_secret_key":         "virtual_computers_s3_secret_key",
+	"virtual_computers.s3_access_key_id":         "virtual_computers_s3_access_key_id",
+	"virtual_computers.s3_secret_key":            "virtual_computers_s3_secret_key",
+	"virtual_computers.garage_access_key_id":     "virtual_computers_garage_access_key_id",
+	"virtual_computers.garage_secret_key":        "virtual_computers_garage_secret_key",
+	"virtual_computers.garage_rpc_secret":        "virtual_computers_garage_rpc_secret",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.

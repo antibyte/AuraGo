@@ -48,6 +48,18 @@ func ListTrackedVolumes(ctx context.Context, ledger *Ledger, client *Client) ([]
 			}
 			var restErr RESTError
 			if errors.As(getErr, &restErr) && restErr.StatusCode == http.StatusNotFound && looksLikeJSON(restErr.Body) {
+				// Volumes bound to a previous storage epoch must remain visible after a
+				// confirmed switch-without-migration; never auto-delete them on 404.
+				if volume.Availability == "previous_store" || volume.Availability == "unavailable" {
+					if err := ledger.MarkVolumeStale(ctx, volume.ID); err != nil {
+						errMu.Lock()
+						if firstErr == nil {
+							firstErr = err
+						}
+						errMu.Unlock()
+					}
+					return
+				}
 				if err := ledger.DeleteVolume(ctx, volume.ID); err != nil {
 					errMu.Lock()
 					if firstErr == nil {

@@ -866,6 +866,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("virtual_computers_openrouter_key", &c.VirtualComputers.BoringOpenRouterKey)
 	apply("virtual_computers_s3_access_key_id", &c.VirtualComputers.S3AccessKeyID)
 	apply("virtual_computers_s3_secret_key", &c.VirtualComputers.S3SecretKey)
+	apply("virtual_computers_garage_access_key_id", &c.VirtualComputers.GarageAccessKeyID)
+	apply("virtual_computers_garage_secret_key", &c.VirtualComputers.GarageSecretKey)
+	apply("virtual_computers_garage_rpc_secret", &c.VirtualComputers.GarageRPCSecret)
 
 	// ── API keys ──
 	apply("virustotal_api_key", &c.VirusTotal.APIKey)
