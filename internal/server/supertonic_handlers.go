@@ -2,11 +2,15 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"aurago/internal/tools"
 )
+
+var supertonicListStyles = tools.SupertonicListStyles
+var supertonicLifecycleStatus = tools.CurrentSupertonicLifecycle
 
 // handleSupertonicStatus returns the current health status of the Supertonic TTS sidecar.
 func handleSupertonicStatus(s *Server) http.HandlerFunc {
@@ -54,12 +58,31 @@ func handleSupertonicStyles(s *Server) http.HandlerFunc {
 		baseURL := s.Cfg.TTS.Supertonic.URL
 		s.CfgMu.RUnlock()
 
-		styles, err := tools.SupertonicListStyles(baseURL)
+		styles, err := supertonicListStyles(baseURL)
 		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			lifecycle := supertonicLifecycleStatus()
+			if lifecycle.State == "pulling" || lifecycle.State == "starting" {
+				retryAfter := lifecycle.RetryAfterSeconds
+				if retryAfter < 1 {
+					retryAfter = 2
+				}
+				w.Header().Set("Retry-After", fmt.Sprintf("%d", retryAfter))
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"code":                "supertonic_starting",
+					"error":               "Supertonic is still starting",
+					"runtime_state":       lifecycle.State,
+					"retry_after_seconds": retryAfter,
+				})
+				return
+			}
 			if s.Logger != nil {
 				s.Logger.Error("Failed to list Supertonic styles", "error", err)
 			}
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"code":  "supertonic_styles_failed",
 				"error": err.Error(),
 			})
 			return

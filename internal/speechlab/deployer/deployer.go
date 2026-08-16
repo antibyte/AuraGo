@@ -7,7 +7,9 @@ package deployer
 import (
 	"bufio"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -38,23 +40,69 @@ const (
 	OwnerLabel              = "speech-lab"
 )
 
+// speechLabManifestPublicKeyB64 may be injected at release build time with
+// -X aurago/internal/speechlab/deployer.speechLabManifestPublicKeyB64=...
+// The environment override is intended for development and private releases.
+var speechLabManifestPublicKeyB64 string
+
 type ImageSet struct {
-	Gateway   string `json:"gateway"`
-	ASR       string `json:"asr"`
-	TTS       string `json:"tts"`
-	LLM       string `json:"llm"`
-	Web       string `json:"web"`
-	ModelInit string `json:"model_init"`
+	Gateway       string `json:"gateway"`
+	Controller    string `json:"controller"`
+	ASR           string `json:"asr,omitempty"`
+	TTS           string `json:"tts,omitempty"`
+	LLM           string `json:"llm,omitempty"`
+	Whisper       string `json:"whisper,omitempty"`
+	ParakeetCPU   string `json:"parakeet_cpu,omitempty"`
+	ParakeetCUDA  string `json:"parakeet_cuda,omitempty"`
+	VoxtralCPU    string `json:"voxtral_cpu,omitempty"`
+	VoxtralCUDA   string `json:"voxtral_cuda,omitempty"`
+	QwenSYCLAOT   string `json:"qwen_sycl_aot,omitempty"`
+	QwenSYCLJIT   string `json:"qwen_sycl_jit,omitempty"`
+	QwenVulkan    string `json:"qwen_vulkan,omitempty"`
+	QwenCUDA      string `json:"qwen_cuda,omitempty"`
+	Kokoro        string `json:"kokoro,omitempty"`
+	VibeVoiceCPU  string `json:"vibevoice_cpu,omitempty"`
+	VibeVoiceCUDA string `json:"vibevoice_cuda,omitempty"`
+	HiggsCUDA     string `json:"higgs_cuda,omitempty"`
+	LlamaCPU      string `json:"llama_cpu,omitempty"`
+	LlamaCUDA     string `json:"llama_cuda,omitempty"`
+	Web           string `json:"web"`
+	ModelInit     string `json:"model_init"`
 }
 
 type BundleService struct {
-	Role        string   `json:"role"`
-	Image       string   `json:"image"`
-	Command     []string `json:"command,omitempty"`
-	Environment []string `json:"environment,omitempty"`
-	HealthPath  string   `json:"health_path,omitempty"`
-	Port        int      `json:"port,omitempty"`
-	Restart     string   `json:"restart,omitempty"`
+	Role         string   `json:"role"`
+	Image        string   `json:"image"`
+	Command      []string `json:"command,omitempty"`
+	Environment  []string `json:"environment,omitempty"`
+	HealthPath   string   `json:"health_path,omitempty"`
+	Port         int      `json:"port,omitempty"`
+	Restart      string   `json:"restart,omitempty"`
+	InternalOnly bool     `json:"internal_only,omitempty"`
+	DockerSocket bool     `json:"docker_socket,omitempty"`
+}
+
+type BundleRuntime struct {
+	BackendID              string            `json:"backend_id"`
+	VariantID              string            `json:"variant_id"`
+	Stage                  string            `json:"stage"`
+	Container              string            `json:"container"`
+	Image                  string            `json:"image"`
+	ImageKey               string            `json:"image_key,omitempty"`
+	ImageDownloadSizeBytes int64             `json:"image_download_size_bytes"`
+	Architectures          []string          `json:"architectures"`
+	Accelerator            string            `json:"accelerator"`
+	Experimental           bool              `json:"experimental,omitempty"`
+	Command                []string          `json:"command,omitempty"`
+	Environment            map[string]string `json:"environment,omitempty"`
+	Aliases                []string          `json:"aliases,omitempty"`
+	ModelMounts            []string          `json:"model_mounts,omitempty"`
+	Healthcheck            map[string]any    `json:"healthcheck"`
+	Volumes                []map[string]any  `json:"volumes"`
+	Network                map[string]any    `json:"network"`
+	Resources              map[string]any    `json:"resources"`
+	License                string            `json:"license,omitempty"`
+	AuthRequired           bool              `json:"auth_required,omitempty"`
 }
 
 type BundleManifest struct {
@@ -71,6 +119,7 @@ type BundleManifest struct {
 	StableBackends  map[string][]string `json:"stable_backends"`
 	Hardware        map[string]any      `json:"hardware"`
 	Models          map[string]any      `json:"models"`
+	Runtimes        []BundleRuntime     `json:"runtimes,omitempty"`
 }
 
 type State struct {
@@ -82,16 +131,18 @@ type State struct {
 	Digest        string `json:"digest,omitempty"`
 	// GPUBackend is the effective profile of the published containers. It may
 	// be CPU when the requested Auto profile could not receive GPU passthrough.
-	GPUBackend       string                 `json:"gpu_backend,omitempty"`
-	NetworkID        string                 `json:"network_id,omitempty"`
-	ContainerIDs     []string               `json:"container_ids,omitempty"`
-	DockerHost       string                 `json:"docker_host,omitempty"`
-	ReadinessBaseURL string                 `json:"readiness_base_url,omitempty"`
-	LastErrorCode    string                 `json:"last_error_code,omitempty"`
-	LastError        string                 `json:"last_error,omitempty"`
-	Progress         int                    `json:"progress"`
-	LastCheck        time.Time              `json:"last_check,omitempty"`
-	Transaction      *DeploymentTransaction `json:"transaction,omitempty"`
+	GPUBackend                string                 `json:"gpu_backend,omitempty"`
+	NetworkID                 string                 `json:"network_id,omitempty"`
+	ContainerIDs              []string               `json:"container_ids,omitempty"`
+	ModuleContainerIDs        []string               `json:"module_container_ids,omitempty"`
+	RunningModuleContainerIDs []string               `json:"running_module_container_ids,omitempty"`
+	DockerHost                string                 `json:"docker_host,omitempty"`
+	ReadinessBaseURL          string                 `json:"readiness_base_url,omitempty"`
+	LastErrorCode             string                 `json:"last_error_code,omitempty"`
+	LastError                 string                 `json:"last_error,omitempty"`
+	Progress                  int                    `json:"progress"`
+	LastCheck                 time.Time              `json:"last_check,omitempty"`
+	Transaction               *DeploymentTransaction `json:"transaction,omitempty"`
 }
 
 // DeploymentTransaction is persisted only in deployment.json. It records
@@ -206,6 +257,12 @@ func WithReadinessTimeout(timeout time.Duration) Option {
 	}
 }
 
+func WithManifestPublicKey(publicKey ed25519.PublicKey) Option {
+	return func(m *Manager) {
+		m.manifestPublicKey = append(ed25519.PublicKey(nil), publicKey...)
+	}
+}
+
 type Manager struct {
 	mu                      sync.Mutex
 	operationMu             sync.Mutex
@@ -218,6 +275,7 @@ type Manager struct {
 	persistEnabled          bool
 	manifestURL             string
 	requireManifestChecksum bool
+	manifestPublicKey       ed25519.PublicKey
 	httpClient              *http.Client
 	docker                  *dockerutil.Client
 	logger                  *slog.Logger
@@ -260,6 +318,15 @@ func NewManager(cfg config.SpeechLabConfig, runningInDocker, dockerEnabled, dock
 		stateWriter:      config.WriteFileAtomic,
 		state:            State{SchemaVersion: 2, Mode: cfg.Deployment.Mode, Managed: cfg.Deployment.Mode == "managed", State: "disabled"},
 	}
+	encodedPublicKey := strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_MANIFEST_PUBLIC_KEY_B64"))
+	if encodedPublicKey == "" {
+		encodedPublicKey = strings.TrimSpace(speechLabManifestPublicKeyB64)
+	}
+	if encoded := encodedPublicKey; encoded != "" {
+		if decoded, err := base64.StdEncoding.DecodeString(encoded); err == nil && len(decoded) == ed25519.PublicKeySize {
+			m.manifestPublicKey = ed25519.PublicKey(decoded)
+		}
+	}
 	for _, option := range options {
 		if option != nil {
 			option(m)
@@ -295,6 +362,8 @@ func (m *Manager) PublicStatus() PublicState {
 }
 func cloneState(in State) State {
 	in.ContainerIDs = append([]string(nil), in.ContainerIDs...)
+	in.ModuleContainerIDs = append([]string(nil), in.ModuleContainerIDs...)
+	in.RunningModuleContainerIDs = append([]string(nil), in.RunningModuleContainerIDs...)
 	if in.Transaction != nil {
 		copy := *in.Transaction
 		copy.PreviousContainerIDs = append([]string(nil), in.Transaction.PreviousContainerIDs...)
@@ -492,7 +561,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 			}
 		}
 	}()
-	for _, image := range uniqueImages(manifest.Images) {
+	for _, image := range serviceImages(manifest) {
 		if err := m.pull(ctx, op, image); err != nil {
 			m.fail(err)
 			return err
@@ -522,6 +591,8 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	}
 	m.mu.Lock()
 	m.state.Bundle, m.state.Digest, m.state.GPUBackend, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, speechLabActiveGPUBackend(gpuBackend, gpuHostConfig), append([]string(nil), ids...), op.dockerHost
+	m.state.ModuleContainerIDs = nil
+	m.state.RunningModuleContainerIDs = nil
 	m.state.ReadinessBaseURL = op.readinessBaseURL
 	m.state.State, m.state.Progress, m.state.LastErrorCode, m.state.LastError = "ready", 100, "", ""
 	if m.state.Transaction != nil {
@@ -566,6 +637,7 @@ func (m *Manager) startLocked(ctx context.Context, op operationSnapshot, previou
 		installedOp.readinessBaseURL = state.ReadinessBaseURL
 	}
 	ids := append([]string(nil), state.ContainerIDs...)
+	runningModuleIDs := append([]string(nil), state.RunningModuleContainerIDs...)
 	if len(ids) == 0 {
 		return m.installLocked(ctx, op, false, previous)
 	}
@@ -575,6 +647,25 @@ func (m *Manager) startLocked(ctx context.Context, op operationSnapshot, previou
 		return wrapped
 	}
 	for _, id := range ids {
+		if err := m.containerAction(ctx, installedOp, http.MethodPost, "/containers/"+url.PathEscape(id)+"/start"); err != nil {
+			m.fail(err)
+			return err
+		}
+	}
+	for _, id := range runningModuleIDs {
+		container, found, inspectErr := m.inspectContainer(ctx, installedOp, id)
+		if inspectErr != nil {
+			m.fail(inspectErr)
+			return inspectErr
+		}
+		if !found {
+			continue
+		}
+		if validationErr := validateManagedModule(container.Config.Image, container.Config.Labels, state.Bundle); validationErr != nil {
+			wrapped := &Error{Code: "speech_lab_start_failed", Err: fmt.Errorf("refusing to start module container %q: %w", id, validationErr)}
+			m.fail(wrapped)
+			return wrapped
+		}
 		if err := m.containerAction(ctx, installedOp, http.MethodPost, "/containers/"+url.PathEscape(id)+"/start"); err != nil {
 			m.fail(err)
 			return err
@@ -613,6 +704,25 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.mu.Unlock()
 	installedOp, closeInstalledOp := operationForDockerHost(op, installedHost)
 	defer closeInstalledOp()
+	modules, err := m.listOwnedModuleContainers(ctx, installedOp)
+	if err != nil {
+		m.fail(err)
+		return err
+	}
+	runningModules := make([]string, 0, len(modules))
+	for _, module := range modules {
+		ids = append(ids, module.ID)
+		if strings.EqualFold(module.State, "running") {
+			runningModules = append(runningModules, module.ID)
+		}
+	}
+	m.mu.Lock()
+	m.state.ModuleContainerIDs = make([]string, 0, len(modules))
+	for _, module := range modules {
+		m.state.ModuleContainerIDs = append(m.state.ModuleContainerIDs, module.ID)
+	}
+	m.state.RunningModuleContainerIDs = runningModules
+	m.mu.Unlock()
 	if err := m.persist(); err != nil {
 		wrapped := &Error{Code: "speech_lab_state_persist_failed", Err: err}
 		m.fail(wrapped)
@@ -658,6 +768,14 @@ func (m *Manager) Remove(ctx context.Context) error {
 	m.mu.Unlock()
 	installedOp, closeInstalledOp := operationForDockerHost(op, installedHost)
 	defer closeInstalledOp()
+	modules, listErr := m.listOwnedModuleContainers(ctx, installedOp)
+	if listErr != nil {
+		m.fail(listErr)
+		return listErr
+	}
+	for _, module := range modules {
+		ids = append(ids, module.ID)
+	}
 	if err := m.persist(); err != nil {
 		wrapped := &Error{Code: "speech_lab_state_persist_failed", Err: err}
 		m.fail(wrapped)
@@ -893,11 +1011,30 @@ func (m *Manager) fetchManifest(ctx context.Context) (BundleManifest, []byte, er
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return out, nil, &Error{Code: "speech_lab_bundle_incompatible", Err: err}
 	}
+	if out.SchemaVersion == 2 {
+		if len(m.manifestPublicKey) != ed25519.PublicKeySize {
+			return out, nil, &Error{Code: "speech_lab_bundle_signature_invalid", Err: fmt.Errorf("Speech Lab bundle public key is not configured")}
+		}
+		signatureReq, signatureErr := http.NewRequestWithContext(ctx, http.MethodGet, m.manifestURL+".sig", nil)
+		if signatureErr != nil {
+			return out, nil, &Error{Code: "speech_lab_bundle_unavailable", Err: signatureErr}
+		}
+		signatureResp, signatureErr := m.httpClient.Do(signatureReq)
+		if signatureErr != nil {
+			return out, nil, &Error{Code: "speech_lab_bundle_unavailable", Err: signatureErr}
+		}
+		signature, readErr := io.ReadAll(io.LimitReader(signatureResp.Body, ed25519.SignatureSize+1))
+		signatureResp.Body.Close()
+		if signatureResp.StatusCode != http.StatusOK || readErr != nil || len(signature) != ed25519.SignatureSize || !ed25519.Verify(m.manifestPublicKey, raw, signature) {
+			return out, nil, &Error{Code: "speech_lab_bundle_signature_invalid", Err: fmt.Errorf("Speech Lab bundle signature verification failed")}
+		}
+	}
 	return out, raw, nil
 }
 
 func validateManifest(m BundleManifest) error {
-	if m.SchemaVersion != 1 || strings.TrimSpace(m.ContractVersion) != "speech-lab/v1" {
+	if !((m.SchemaVersion == 1 && strings.TrimSpace(m.ContractVersion) == "speech-lab/v1") ||
+		(m.SchemaVersion == 2 && strings.TrimSpace(m.ContractVersion) == "speech-lab/v2")) {
 		return fmt.Errorf("unsupported bundle schema or contract")
 	}
 	publisher := strings.ToLower(strings.TrimSpace(m.Publisher))
@@ -915,8 +1052,95 @@ func validateManifest(m BundleManifest) error {
 	if len(m.Services) == 0 || len(m.StartOrder) == 0 {
 		return fmt.Errorf("bundle has no services")
 	}
+	seenServices := make(map[string]struct{}, len(m.Services))
+	for _, service := range m.Services {
+		if strings.TrimSpace(service.Role) == "" {
+			return fmt.Errorf("bundle service role is empty")
+		}
+		if _, exists := seenServices[service.Role]; exists {
+			return fmt.Errorf("duplicate bundle service %q", service.Role)
+		}
+		seenServices[service.Role] = struct{}{}
+		if image := imageByKey(m.Images, service.Image); image == "" {
+			return fmt.Errorf("bundle service %q has an unknown image key %q", service.Role, service.Image)
+		}
+	}
+	if m.SchemaVersion == 2 {
+		if len(m.Runtimes) == 0 || strings.TrimSpace(m.Images.Controller) == "" {
+			return fmt.Errorf("bundle v2 has no controller or module runtimes")
+		}
+		if len(m.Volumes) < 3 {
+			return fmt.Errorf("bundle v2 has no dedicated control volume")
+		}
+		controllerServices := 0
+		controlInitServices := 0
+		seenVariants := make(map[string]struct{}, len(m.Runtimes))
+		for _, service := range m.Services {
+			if service.DockerSocket && service.Role != "controller" {
+				return fmt.Errorf("service %q must not receive the Docker socket", service.Role)
+			}
+			if service.Role == "controller" {
+				controllerServices++
+				if !service.InternalOnly || !service.DockerSocket {
+					return fmt.Errorf("controller must be internal-only and own the Docker socket")
+				}
+			}
+			if service.Role == "control_init" {
+				controlInitServices++
+				if !service.InternalOnly || service.DockerSocket || service.Image != "controller" {
+					return fmt.Errorf("control_init must be internal-only, socket-free, and use the controller image")
+				}
+			}
+		}
+		if controllerServices != 1 {
+			return fmt.Errorf("bundle v2 must define exactly one controller")
+		}
+		if controlInitServices != 1 || roleIndex(m.StartOrder, "control_init") < 0 || roleIndex(m.StartOrder, "control_init") > roleIndex(m.StartOrder, "controller") {
+			return fmt.Errorf("bundle v2 must initialize the read-only controller token before controller startup")
+		}
+		for _, module := range m.Runtimes {
+			if strings.TrimSpace(module.BackendID) == "" || strings.TrimSpace(module.VariantID) == "" || strings.TrimSpace(module.Container) == "" {
+				return fmt.Errorf("module runtime identity is incomplete")
+			}
+			if _, exists := seenVariants[module.VariantID]; exists {
+				return fmt.Errorf("duplicate module runtime %q", module.VariantID)
+			}
+			seenVariants[module.VariantID] = struct{}{}
+			if module.Stage != "asr" && module.Stage != "tts" && module.Stage != "llm" {
+				return fmt.Errorf("module runtime %q has invalid stage", module.VariantID)
+			}
+			if err := validateImage(module.Image); err != nil {
+				return fmt.Errorf("module runtime %q: %w", module.VariantID, err)
+			}
+			if expected := imageByKey(m.Images, module.ImageKey); expected == "" || expected != module.Image {
+				return fmt.Errorf("module runtime %q image key does not match its digest", module.VariantID)
+			}
+			architectureOK := false
+			for _, architecture := range module.Architectures {
+				if architecture == runtime.GOARCH {
+					architectureOK = true
+				}
+			}
+			if !architectureOK {
+				return fmt.Errorf("module runtime %q is not published for %s", module.VariantID, runtime.GOARCH)
+			}
+			if module.ImageDownloadSizeBytes <= 0 || len(module.Healthcheck) == 0 || len(module.Volumes) == 0 || len(module.Network) == 0 || len(module.Resources) == 0 {
+				return fmt.Errorf("module runtime %q has incomplete v2 metadata", module.VariantID)
+			}
+		}
+	}
 	return nil
 }
+
+func roleIndex(roles []string, target string) int {
+	for index, role := range roles {
+		if role == target {
+			return index
+		}
+	}
+	return -1
+}
+
 func validateImage(ref string) error {
 	ref = strings.TrimSpace(ref)
 	if !strings.HasPrefix(strings.ToLower(ref), PublisherPrefix) || !strings.Contains(ref, "@sha256:") {
@@ -938,14 +1162,104 @@ func validateImage(ref string) error {
 }
 func uniqueImages(images ImageSet) []string {
 	seen := map[string]bool{}
-	out := make([]string, 0, 6)
-	for _, image := range []string{images.Gateway, images.ASR, images.TTS, images.LLM, images.Web, images.ModelInit} {
+	out := make([]string, 0, 20)
+	for _, image := range imageValues(images) {
 		if image != "" && !seen[image] {
 			seen[image] = true
 			out = append(out, image)
 		}
 	}
 	return out
+}
+
+func serviceImages(manifest BundleManifest) []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(manifest.Services))
+	for _, service := range manifest.Services {
+		image := imageByKey(manifest.Images, service.Image)
+		if image == "" {
+			image = imageByKey(manifest.Images, service.Role)
+		}
+		if image == "" {
+			continue
+		}
+		if _, exists := seen[image]; exists {
+			continue
+		}
+		seen[image] = struct{}{}
+		result = append(result, image)
+	}
+	return result
+}
+
+func imageValues(images ImageSet) []string {
+	return []string{
+		images.Gateway, images.Controller, images.ASR, images.TTS, images.LLM,
+		images.Whisper, images.ParakeetCPU, images.ParakeetCUDA, images.VoxtralCPU,
+		images.VoxtralCUDA, images.QwenSYCLAOT, images.QwenSYCLJIT, images.QwenVulkan,
+		images.QwenCUDA, images.Kokoro, images.VibeVoiceCPU, images.VibeVoiceCUDA,
+		images.HiggsCUDA, images.LlamaCPU, images.LlamaCUDA, images.Web, images.ModelInit,
+	}
+}
+
+func imageByKey(images ImageSet, key string) string {
+	switch key {
+	case "gateway":
+		return images.Gateway
+	case "tts":
+		if images.TTS != "" {
+			return images.TTS
+		}
+		return images.Gateway
+	case "controller":
+		return images.Controller
+	case "asr":
+		if images.ASR != "" {
+			return images.ASR
+		}
+		return images.Whisper
+	case "llm":
+		if images.LLM != "" {
+			return images.LLM
+		}
+		return images.LlamaCPU
+	case "whisper":
+		return images.Whisper
+	case "parakeet_cpu":
+		return images.ParakeetCPU
+	case "parakeet_cuda":
+		return images.ParakeetCUDA
+	case "voxtral_cpu":
+		return images.VoxtralCPU
+	case "voxtral_cuda":
+		return images.VoxtralCUDA
+	case "qwen_sycl_aot":
+		return images.QwenSYCLAOT
+	case "qwen_sycl_jit":
+		return images.QwenSYCLJIT
+	case "qwen_vulkan":
+		return images.QwenVulkan
+	case "qwen_cuda":
+		return images.QwenCUDA
+	case "kokoro":
+		return images.Kokoro
+	case "vibevoice_cpu":
+		return images.VibeVoiceCPU
+	case "vibevoice_cuda":
+		return images.VibeVoiceCUDA
+	case "higgs_cuda":
+		return images.HiggsCUDA
+	case "llama_cpu":
+		return images.LlamaCPU
+	case "llama_cuda":
+		return images.LlamaCUDA
+	case "web":
+		return images.Web
+	case "model_init":
+		return images.ModelInit
+	default:
+		return ""
+	}
 }
 
 func (m *Manager) pull(ctx context.Context, op operationSnapshot, image string) error {
@@ -1123,9 +1437,23 @@ func networkAliases(role string) []string {
 		return []string{"supertonic"}
 	case "llm":
 		return []string{"llama-fallback"}
+	case "controller":
+		return []string{"speech-lab-controller", "controller"}
 	default:
 		return nil
 	}
+}
+
+func controllerPolicy(manifest BundleManifest) (string, error) {
+	policy := struct {
+		BundleVersion string          `json:"bundle_version"`
+		Runtimes      []BundleRuntime `json:"runtimes"`
+	}{BundleVersion: manifest.BundleVersion, Runtimes: manifest.Runtimes}
+	raw, err := json.Marshal(policy)
+	if err != nil {
+		return "", fmt.Errorf("encode controller policy: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(raw), nil
 }
 
 const speechLabGPUGroupIDsEnv = "AURAGO_GPU_GROUP_IDS"
@@ -1283,7 +1611,6 @@ func speechLabGPUServiceRole(role string) bool {
 }
 
 func (m *Manager) matchingDeployment(ctx context.Context, op operationSnapshot, manifest BundleManifest, fingerprint string) ([]string, bool, error) {
-	images := map[string]string{"gateway": manifest.Images.Gateway, "asr": manifest.Images.ASR, "tts": manifest.Images.TTS, "llm": manifest.Images.LLM, "web": manifest.Images.Web, "model_init": manifest.Images.ModelInit}
 	ids := make([]string, 0, len(manifest.StartOrder))
 	matched := 0
 	for _, role := range manifest.StartOrder {
@@ -1298,9 +1625,9 @@ func (m *Manager) matchingDeployment(ctx context.Context, op operationSnapshot, 
 			continue
 		}
 		matched++
-		image := images[spec.Image]
+		image := imageByKey(manifest.Images, spec.Image)
 		if image == "" {
-			image = images[role]
+			image = imageByKey(manifest.Images, role)
 		}
 		name := "aurago-speech-lab-" + strings.ReplaceAll(role, "_", "-")
 		container, found, err := m.inspectContainer(ctx, op, name)
@@ -1323,9 +1650,29 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 		return nil, false, &Error{Code: "speech_lab_state_persist_failed", Err: fmt.Errorf("deployment transaction is unavailable")}
 	}
 	transactionID := state.Transaction.ID
-	images := map[string]string{"gateway": manifest.Images.Gateway, "asr": manifest.Images.ASR, "tts": manifest.Images.TTS, "llm": manifest.Images.LLM, "web": manifest.Images.Web, "model_init": manifest.Images.ModelInit}
 	ids := make([]string, 0, len(manifest.StartOrder))
 	allIdentical := true
+	modules, err := m.listOwnedModuleContainers(ctx, op)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, module := range modules {
+		inspected, found, inspectErr := m.inspectContainer(ctx, op, module.ID)
+		if inspectErr != nil {
+			return nil, false, inspectErr
+		}
+		if !found {
+			continue
+		}
+		name := strings.TrimPrefix(inspected.Name, "/")
+		if name == "" {
+			return nil, false, &Error{Code: "speech_lab_start_failed", Err: fmt.Errorf("managed module %q has no container name", module.ID)}
+		}
+		allIdentical = false
+		if err := m.backupContainer(ctx, op, manifest.Network, name, inspected); err != nil {
+			return nil, false, err
+		}
+	}
 	for _, role := range manifest.StartOrder {
 		var spec *BundleService
 		for i := range manifest.Services {
@@ -1337,9 +1684,9 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 		if spec == nil {
 			continue
 		}
-		image := images[spec.Image]
+		image := imageByKey(manifest.Images, spec.Image)
 		if image == "" {
-			image = images[role]
+			image = imageByKey(manifest.Images, role)
 		}
 		if image == "" {
 			return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: fmt.Errorf("service %q has no image", role)}
@@ -1381,11 +1728,39 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 				hostConfig[key] = value
 			}
 		}
-		if len(manifest.Volumes) > 0 && role != "web" {
+		if len(manifest.Volumes) > 0 && role != "web" && role != "controller" && role != "control_init" {
 			hostConfig["Binds"] = []string{manifest.Volumes[0] + ":/models"}
 			if len(manifest.Volumes) > 1 {
 				hostConfig["Binds"] = append(hostConfig["Binds"].([]string), manifest.Volumes[1]+":/data")
 			}
+		}
+		if manifest.SchemaVersion == 2 && role == "controller" {
+			if len(manifest.Volumes) < 3 {
+				return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: fmt.Errorf("bundle v2 control volume is missing")}
+			}
+			hostConfig["Binds"] = []string{
+				"/var/run/docker.sock:/var/run/docker.sock:ro",
+				manifest.Volumes[2] + ":/control:ro",
+			}
+			hostConfig["ReadonlyRootfs"] = true
+			hostConfig["CapDrop"] = []string{"ALL"}
+			hostConfig["SecurityOpt"] = []string{"no-new-privileges:true"}
+		}
+		if manifest.SchemaVersion == 2 && role == "control_init" {
+			if len(manifest.Volumes) < 3 {
+				return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: fmt.Errorf("bundle v2 control volume is missing")}
+			}
+			hostConfig["Binds"] = []string{manifest.Volumes[2] + ":/control"}
+			hostConfig["ReadonlyRootfs"] = true
+			hostConfig["CapDrop"] = []string{"ALL"}
+			hostConfig["SecurityOpt"] = []string{"no-new-privileges:true"}
+		}
+		if manifest.SchemaVersion == 2 && role == "gateway" {
+			if len(manifest.Volumes) < 3 {
+				return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: fmt.Errorf("bundle v2 control volume is missing")}
+			}
+			binds, _ := hostConfig["Binds"].([]string)
+			hostConfig["Binds"] = append(binds, manifest.Volumes[2]+":/control:ro")
 		}
 		containerPort := spec.Port
 		if containerPort > 0 && !op.runningInDocker && (role == "gateway" || role == "web") {
@@ -1402,8 +1777,30 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 		}
 		if role == "gateway" {
 			environment = append(environment, "S2S_BUNDLE_VERSION="+manifest.BundleVersion)
+			if manifest.SchemaVersion == 2 {
+				environment = append(environment,
+					"S2S_DOCKER_PROXY_URL=http://speech-lab-controller:2375",
+					"S2S_DOCKER_PROXY_TOKEN_FILE=/control/token",
+				)
+			}
+		}
+		if role == "controller" {
+			policy, policyErr := controllerPolicy(manifest)
+			if policyErr != nil {
+				return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: policyErr}
+			}
+			environment = append(environment,
+				"S2S_CONTROLLER_POLICY_B64="+policy,
+				"S2S_CONTROLLER_TOKEN_FILE=/control/token",
+				"S2S_CONTROLLER_TOKEN_READ_ONLY=true",
+				"S2S_CONTROLLER_NETWORK="+manifest.Network,
+				"S2S_CONTROLLER_MODELS_VOLUME="+manifest.Volumes[0],
+				"S2S_CONTROLLER_DATA_VOLUME="+manifest.Volumes[1],
+				"S2S_CONTROLLER_BUNDLE_DIGEST="+fingerprint,
+			)
 		}
 		labels := dockerutil.ManagedLabels(OwnerLabel, "speech-lab", role, fingerprint)
+		labels["aurago.bundle"] = manifest.BundleVersion
 		labels["aurago.transaction"] = transactionID
 		body := map[string]any{"Image": image, "Cmd": spec.Command, "Env": environment, "Labels": labels, "HostConfig": hostConfig, "NetworkingConfig": map[string]any{"EndpointsConfig": map[string]any{manifest.Network: map[string]any{"Aliases": aliases}}}}
 		var created struct {
@@ -1446,7 +1843,7 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 }
 
 func restartPolicy(role, requested string) string {
-	if role == "model_init" {
+	if role == "model_init" || role == "control_init" {
 		return "no"
 	}
 	switch strings.ToLower(strings.TrimSpace(requested)) {
@@ -1478,6 +1875,61 @@ type containerInspect struct {
 	NetworkSettings struct {
 		Networks map[string]json.RawMessage `json:"Networks"`
 	} `json:"NetworkSettings"`
+}
+
+type moduleContainer struct {
+	ID     string            `json:"Id"`
+	Names  []string          `json:"Names"`
+	Image  string            `json:"Image"`
+	State  string            `json:"State"`
+	Labels map[string]string `json:"Labels"`
+}
+
+func (m *Manager) listOwnedModuleContainers(ctx context.Context, op operationSnapshot) ([]moduleContainer, error) {
+	m.mu.Lock()
+	bundle := m.state.Bundle
+	m.mu.Unlock()
+	var containers []moduleContainer
+	status, err := op.docker.DoJSON(ctx, http.MethodGet, "/containers/json?all=1", nil, &containers)
+	if status == http.StatusNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, &Error{Code: "speech_lab_start_failed", Err: err}
+	}
+	result := make([]moduleContainer, 0)
+	for _, container := range containers {
+		if !dockerutil.ManagedBy(container.Labels, OwnerLabel) || container.Labels["aurago.role"] != "module" {
+			continue
+		}
+		if err := validateManagedModule(container.Image, container.Labels, bundle); err != nil {
+			return nil, &Error{Code: "speech_lab_start_failed", Err: fmt.Errorf("refusing malformed managed module %q: %w", container.ID, err)}
+		}
+		result = append(result, container)
+	}
+	return result, nil
+}
+
+func validateManagedModule(image string, labels map[string]string, bundle string) error {
+	if labels["aurago.component"] != "speech-lab" || labels["s2s.lab.managed"] != "true" {
+		return fmt.Errorf("ownership labels do not match")
+	}
+	if bundle == "" || labels["aurago.bundle"] != bundle {
+		return fmt.Errorf("bundle label does not match the installed deployment")
+	}
+	if labels["backend-id"] == "" || labels["variant-id"] == "" {
+		return fmt.Errorf("backend or variant label is missing")
+	}
+	if labels["stage"] != "asr" && labels["stage"] != "tts" && labels["stage"] != "llm" {
+		return fmt.Errorf("stage label is invalid")
+	}
+	if labels["s2s.image"] != image {
+		return fmt.Errorf("image label does not match the container image")
+	}
+	if err := validateImage(image); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) inspectContainer(ctx context.Context, op operationSnapshot, id string) (containerInspect, bool, error) {

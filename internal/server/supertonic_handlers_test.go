@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/tools"
 )
 
 func TestHandleSupertonicStatusMapsHealthOKToRunning(t *testing.T) {
@@ -47,6 +49,37 @@ func TestHandleSupertonicStatusMapsHealthOKToRunning(t *testing.T) {
 	}
 	if got["auto_start"] != true {
 		t.Fatalf("auto_start = %#v, want true", got["auto_start"])
+	}
+}
+
+func TestHandleSupertonicStylesReturnsStructuredStartingRetry(t *testing.T) {
+	oldList := supertonicListStyles
+	oldLifecycle := supertonicLifecycleStatus
+	t.Cleanup(func() {
+		supertonicListStyles = oldList
+		supertonicLifecycleStatus = oldLifecycle
+	})
+	supertonicListStyles = func(string) ([]tools.SupertonicStyle, error) {
+		return nil, errors.New("connection refused")
+	}
+	supertonicLifecycleStatus = func() tools.SupertonicLifecycleStatus {
+		return tools.SupertonicLifecycleStatus{State: "pulling", RetryAfterSeconds: 3}
+	}
+	s := &Server{Cfg: &config.Config{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	rec := httptest.NewRecorder()
+	handleSupertonicStyles(s)(rec, httptest.NewRequest(http.MethodGet, "/api/supertonic/styles", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Retry-After") != "3" {
+		t.Fatalf("Retry-After = %q", rec.Header().Get("Retry-After"))
+	}
+	var got map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["code"] != "supertonic_starting" || got["runtime_state"] != "pulling" {
+		t.Fatalf("response = %#v", got)
 	}
 }
 

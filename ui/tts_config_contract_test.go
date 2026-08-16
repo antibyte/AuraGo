@@ -26,3 +26,20 @@ func TestTTSConfigOffersMistralProvider(t *testing.T) {
 		}
 	}
 }
+
+func TestSupertonicStylesRetriesWhileManagedSidecarStarts(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("cfg", "tts.js"))
+	if err != nil {
+		t.Fatalf("read tts.js: %v", err)
+	}
+	src := string(data)
+	for _, want := range []string{
+		`res.code === 'supertonic_starting'`,
+		`response.headers.get('Retry-After')`,
+		`supertonicLoadStyles(list, attempt + 1)`,
+	} {
+		if !strings.Contains(src, want) {
+			t.Fatalf("tts.js missing Supertonic startup retry contract %q", want)
+		}
+	}
+}

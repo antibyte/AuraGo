@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -27,6 +28,33 @@ const (
 
 var supertonicHTTPClient = &http.Client{Timeout: 10 * time.Second}
 
+type SupertonicLifecycleStatus struct {
+	State             string `json:"state"`
+	RetryAfterSeconds int    `json:"retry_after_seconds"`
+}
+
+var supertonicLifecycle = struct {
+	sync.RWMutex
+	state string
+}{state: "idle"}
+
+func setSupertonicLifecycle(state string) {
+	supertonicLifecycle.Lock()
+	supertonicLifecycle.state = state
+	supertonicLifecycle.Unlock()
+}
+
+func CurrentSupertonicLifecycle() SupertonicLifecycleStatus {
+	supertonicLifecycle.RLock()
+	state := supertonicLifecycle.state
+	supertonicLifecycle.RUnlock()
+	retry := 0
+	if state == "pulling" || state == "starting" {
+		retry = 2
+	}
+	return SupertonicLifecycleStatus{State: state, RetryAfterSeconds: retry}
+}
+
 // SupertonicStyle describes one built-in or imported voice style returned by /v1/styles.
 type SupertonicStyle struct {
 	Name string `json:"name"`
@@ -41,6 +69,7 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 	}
 	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
 	if provider != "supertonic" {
+		setSupertonicLifecycle("idle")
 		if logger != nil {
 			logger.Info("[Supertonic TTS] Skipping auto-start (provider is not supertonic)")
 		}
@@ -48,11 +77,19 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 	}
 	st := cfg.TTS.Supertonic
 	if !st.AutoStart {
+		setSupertonicLifecycle("idle")
 		if logger != nil {
 			logger.Info("[Supertonic TTS] Skipping auto-start (disabled in config)")
 		}
 		return
 	}
+	ready := false
+	setSupertonicLifecycle("starting")
+	defer func() {
+		if !ready {
+			setSupertonicLifecycle("failed")
+		}
+	}()
 
 	dockerCfg := DockerConfig{Host: cfg.Docker.Host}
 	port := st.ContainerPort
@@ -110,7 +147,7 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 			if state, ok := info["State"].(map[string]interface{}); ok {
 				if running, _ := state["Running"].(bool); running {
 					logSupertonic(logger, slog.LevelInfo, "Container already running")
-					waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+					ready = waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
 					return
 				}
 			}
@@ -120,7 +157,7 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 				return
 			}
 			logSupertonic(logger, slog.LevelInfo, "Container started")
-			waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+			ready = waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
 			return
 		}
 	}
@@ -135,11 +172,12 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 		var containers []map[string]interface{}
 		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
 			logSupertonic(logger, slog.LevelInfo, "Container already running (external)", "count", len(containers))
-			waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+			ready = waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
 			return
 		}
 	}
 
+	setSupertonicLifecycle("pulling")
 	logSupertonic(logger, slog.LevelInfo, "Pulling image", "image", image)
 	_, pullCode, pullErr := dockerRequest(dockerCfg, "POST", "/images/create?fromImage="+url.QueryEscape(image), "")
 	if pullErr != nil {
@@ -161,8 +199,9 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 		logSupertonic(logger, slog.LevelError, "Failed to start new container", "code", startCode, "error", startErr)
 		return
 	}
+	setSupertonicLifecycle("starting")
 	logSupertonic(logger, slog.LevelInfo, "Container created and started", "image", image, "port", port, "model", model)
-	waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+	ready = waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
 }
 
 func buildSupertonicCreatePayload(image, model, portStr, absData, user string) map[string]interface{} {
@@ -336,18 +375,20 @@ func SupertonicListStyles(baseURL string) ([]SupertonicStyle, error) {
 	return styles, nil
 }
 
-func waitForSupertonicReady(baseURL string, logger *slog.Logger) {
+func waitForSupertonicReady(baseURL string, logger *slog.Logger) bool {
 	deadline := time.Now().Add(3 * time.Minute)
 	for time.Now().Before(deadline) {
 		health := SupertonicHealth(baseURL)
 		status, _ := health["status"].(string)
 		if status == "running" {
+			setSupertonicLifecycle("ready")
 			logSupertonic(logger, slog.LevelInfo, "HTTP server is ready", "url", baseURL, "status", status)
-			return
+			return true
 		}
 		time.Sleep(3 * time.Second)
 	}
 	logSupertonic(logger, slog.LevelWarn, "Timed out waiting for HTTP server", "url", baseURL)
+	return false
 }
 
 func supertonicBaseURL(raw string, port int) string {

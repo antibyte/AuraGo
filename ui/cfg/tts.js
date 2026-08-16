@@ -442,6 +442,45 @@ function supertonicCheckStatus() {
         .catch(() => supertonicSetBanner('danger', t('config.tts.supertonic_status_error')));
 }
 
+async function supertonicLoadStyles(list, attempt = 0) {
+    try {
+        const response = await fetch('/api/supertonic/styles', { cache: 'no-store' });
+        const res = await response.json();
+        if (res.code === 'supertonic_starting' && attempt < 90) {
+            const overlay = document.getElementById('supertonic-style-modal');
+            if (!overlay || !overlay.classList.contains('active')) return;
+            if (list) {
+                list.innerHTML = '<div class="tts-voice-loading">' + t('config.tts.supertonic_loading_voices') + '</div>';
+            }
+            const headerDelay = Number.parseInt(response.headers.get('Retry-After') || '', 10);
+            const bodyDelay = Number(res.retry_after_seconds || 0);
+            const delaySeconds = Math.min(10, Math.max(1, headerDelay || bodyDelay || 2));
+            window.setTimeout(() => supertonicLoadStyles(list, attempt + 1), delaySeconds * 1000);
+            return;
+        }
+        if (!response.ok || res.error) {
+            if (list) list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.supertonic_voice_error') + '</div>';
+            return;
+        }
+        const styles = res.styles || [];
+        if (styles.length === 0) {
+            if (list) list.innerHTML = '<div class="tts-voice-empty">' + t('config.tts.supertonic_no_voices') + '</div>';
+            return;
+        }
+        let html = '';
+        for (const style of styles) {
+            const kind = style.kind || '';
+            html += '<div class="tts-voice-item" data-style-name="' + escapeAttr(style.name || '') + '" onclick="supertonicSelectStyle(this.dataset.styleName)">';
+            html += '<div class="tts-voice-item-name">' + escapeHtml(style.name || '') + '</div>';
+            if (kind) html += '<div class="tts-voice-item-desc">' + escapeHtml(kind) + '</div>';
+            html += '</div>';
+        }
+        if (list) list.innerHTML = html;
+    } catch (_) {
+        if (list) list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.supertonic_voice_error') + '</div>';
+    }
+}
+
 function supertonicBrowseStyles() {
     const overlay = document.getElementById('supertonic-style-modal');
     if (!overlay) return;
@@ -449,32 +488,7 @@ function supertonicBrowseStyles() {
     const list = document.getElementById('supertonic-style-list');
     if (list) list.innerHTML = '<div class="tts-voice-loading">' + t('config.tts.supertonic_loading_voices') + '</div>';
 
-    fetch('/api/supertonic/styles')
-        .then(r => r.json())
-        .then(res => {
-            if (!list) return;
-            if (res.error) {
-                list.innerHTML = '<div class="tts-voice-error">' + escapeHtml(res.error) + '</div>';
-                return;
-            }
-            const styles = res.styles || [];
-            if (styles.length === 0) {
-                list.innerHTML = '<div class="tts-voice-empty">' + t('config.tts.supertonic_no_voices') + '</div>';
-                return;
-            }
-            let html = '';
-            for (const style of styles) {
-                const kind = style.kind || '';
-                html += '<div class="tts-voice-item" data-style-name="' + escapeAttr(style.name || '') + '" onclick="supertonicSelectStyle(this.dataset.styleName)">';
-                html += '<div class="tts-voice-item-name">' + escapeHtml(style.name || '') + '</div>';
-                if (kind) html += '<div class="tts-voice-item-desc">' + escapeHtml(kind) + '</div>';
-                html += '</div>';
-            }
-            list.innerHTML = html;
-        })
-        .catch(() => {
-            if (list) list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.supertonic_voice_error') + '</div>';
-        });
+    supertonicLoadStyles(list);
 }
 
 function supertonicSelectStyle(name) {

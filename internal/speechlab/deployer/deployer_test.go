@@ -2,6 +2,8 @@ package deployer
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -45,6 +48,92 @@ func validManifest() BundleManifest {
 		},
 		StartOrder: []string{"model_init", "asr", "llm", "tts", "gateway", "web"},
 		Services:   []BundleService{{Role: "gateway", Image: "gateway"}},
+	}
+}
+
+func validV2Manifest() BundleManifest {
+	manifest := validManifest()
+	manifest.SchemaVersion = 2
+	manifest.ContractVersion = "speech-lab/v2"
+	manifest.Images.Controller = manifest.Images.Gateway
+	manifest.Volumes = []string{"models", "data", "control"}
+	manifest.StartOrder = []string{"control_init", "controller", "gateway"}
+	manifest.Services = []BundleService{
+		{Role: "control_init", Image: "controller", InternalOnly: true, Environment: []string{"S2S_CONTROLLER_INIT_TOKEN_ONLY=true", "S2S_CONTROLLER_TOKEN_FILE=/control/token"}},
+		{Role: "controller", Image: "controller", InternalOnly: true, DockerSocket: true},
+		{Role: "gateway", Image: "gateway"},
+	}
+	manifest.Runtimes = []BundleRuntime{{
+		BackendID: "parakeet", VariantID: "parakeet-cpu", Stage: "asr",
+		Container: "s2s-parakeet-cpu", Image: manifest.Images.ASR, ImageKey: "asr",
+		ImageDownloadSizeBytes: 1, Architectures: []string{runtime.GOARCH}, Accelerator: "cpu",
+		Healthcheck: map[string]any{"path": "/health", "port": 8082},
+		Volumes:     []map[string]any{{"name": "models"}}, Network: map[string]any{"name": manifest.Network},
+		Resources: map[string]any{"memory_bytes": 1},
+	}}
+	return manifest
+}
+
+func TestFetchManifestV2RequiresValidEd25519Signature(t *testing.T) {
+	manifest := validV2Manifest()
+	raw, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signature := ed25519.Sign(privateKey, raw)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/manifest":
+			_, _ = w.Write(raw)
+		case "/manifest.sig":
+			_, _ = w.Write(signature)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	manager := NewManager(config.SpeechLabConfig{}, false, true, false, "", nil,
+		WithManifestURL(server.URL+"/manifest"), WithHTTPClient(server.Client()), WithManifestPublicKey(publicKey))
+	got, _, err := manager.fetchManifest(context.Background())
+	if err != nil {
+		t.Fatalf("valid signed bundle rejected: %v", err)
+	}
+	if got.SchemaVersion != 2 {
+		t.Fatalf("schema = %d", got.SchemaVersion)
+	}
+	signature[0] ^= 0xff
+	if _, _, err := manager.fetchManifest(context.Background()); Code(err) != "speech_lab_bundle_signature_invalid" {
+		t.Fatalf("tampered signature error = %v", err)
+	}
+}
+
+func TestValidateManifestV2RejectsSocketAndRuntimeDrift(t *testing.T) {
+	manifest := validV2Manifest()
+	if err := validateManifest(manifest); err != nil {
+		t.Fatalf("valid v2 manifest rejected: %v", err)
+	}
+	manifest.Services[2].DockerSocket = true
+	if err := validateManifest(manifest); err == nil {
+		t.Fatal("gateway Docker socket accepted")
+	}
+	manifest = validV2Manifest()
+	manifest.Services[0].InternalOnly = false
+	if err := validateManifest(manifest); err == nil {
+		t.Fatal("externally reachable control initializer accepted")
+	}
+	manifest = validV2Manifest()
+	manifest.Runtimes[0].Architectures = []string{"unsupported"}
+	if err := validateManifest(manifest); err == nil {
+		t.Fatal("unsupported runtime architecture accepted")
+	}
+	manifest = validV2Manifest()
+	manifest.Runtimes[0].ImageKey = "gateway"
+	if err := validateManifest(manifest); err == nil {
+		t.Fatal("runtime image-key drift accepted")
 	}
 }
 
@@ -101,22 +190,25 @@ type fakeResource struct {
 }
 
 type fakeDocker struct {
-	mu               sync.Mutex
-	server           *httptest.Server
-	manifest         []byte
-	ready            bool
-	pullError        string
-	pullStarted      chan struct{}
-	releasePull      chan struct{}
-	startNotModified bool
-	readyOnRollback  bool
-	nextID           int
-	containers       map[string]*fakeContainer
-	networks         map[string]*fakeResource
-	volumes          map[string]*fakeResource
-	pulls            int
-	creates          int
-	createPayloads   []map[string]any
+	mu                sync.Mutex
+	server            *httptest.Server
+	manifest          []byte
+	manifestSignature []byte
+	manifestPublicKey ed25519.PublicKey
+	ready             bool
+	pullError         string
+	pullStarted       chan struct{}
+	releasePull       chan struct{}
+	startNotModified  bool
+	readyOnRollback   bool
+	nextID            int
+	containers        map[string]*fakeContainer
+	networks          map[string]*fakeResource
+	volumes           map[string]*fakeResource
+	pulls             int
+	pullImages        []string
+	creates           int
+	createPayloads    []map[string]any
 }
 
 func newFakeDocker(t *testing.T, manifest BundleManifest) *fakeDocker {
@@ -131,6 +223,14 @@ func newFakeDocker(t *testing.T, manifest BundleManifest) *fakeDocker {
 			"aurago-speech-lab": {ID: "network-id", Name: "aurago-speech-lab", Labels: map[string]string{"aurago.managed": "speech-lab"}},
 		},
 		volumes: make(map[string]*fakeResource), nextID: 1,
+	}
+	if manifest.SchemaVersion == 2 {
+		publicKey, privateKey, keyErr := ed25519.GenerateKey(rand.Reader)
+		if keyErr != nil {
+			t.Fatal(keyErr)
+		}
+		fake.manifestPublicKey = publicKey
+		fake.manifestSignature = ed25519.Sign(privateKey, raw)
 	}
 	fake.server = httptest.NewServer(http.HandlerFunc(fake.serveHTTP))
 	t.Cleanup(fake.server.Close)
@@ -161,6 +261,10 @@ func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(f.manifest)
 		return
 	}
+	if r.URL.Path == "/manifest.sig" && len(f.manifestSignature) > 0 {
+		_, _ = w.Write(f.manifestSignature)
+		return
+	}
 	if r.URL.Path == "/ready" {
 		if !f.ready {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
@@ -171,8 +275,19 @@ func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/"+dockerutil.APIVersion)
 	switch {
+	case r.Method == http.MethodGet && path == "/containers/json":
+		rows := make([]map[string]any, 0, len(f.containers))
+		for _, container := range f.containers {
+			rows = append(rows, map[string]any{
+				"Id": container.ID, "Names": []string{"/" + container.Name}, "Image": container.Image,
+				"State": map[bool]string{true: "running", false: "exited"}[container.Running], "Labels": container.Labels,
+			})
+		}
+		_ = json.NewEncoder(w).Encode(rows)
+		return
 	case r.Method == http.MethodPost && path == "/images/create":
 		f.pulls++
+		f.pullImages = append(f.pullImages, r.URL.Query().Get("fromImage"))
 		if f.pullStarted != nil && f.pulls == 1 {
 			close(f.pullStarted)
 			<-f.releasePull
@@ -336,9 +451,14 @@ func (f *fakeDocker) serveContainer(w http.ResponseWriter, r *http.Request, path
 func (f *fakeDocker) manager(t *testing.T, cfg config.SpeechLabConfig, dataDir string) *Manager {
 	t.Helper()
 	host := "tcp://" + f.server.Listener.Addr().String()
-	return NewManager(cfg, false, true, false, dataDir, nil,
-		WithManifestURL(f.server.URL+"/manifest"), WithHTTPClient(f.server.Client()),
-		WithDockerClient(dockerutil.NewClient(host, time.Second)), WithReadinessTimeout(40*time.Millisecond))
+	options := []Option{
+		WithManifestURL(f.server.URL + "/manifest"), WithHTTPClient(f.server.Client()),
+		WithDockerClient(dockerutil.NewClient(host, time.Second)), WithReadinessTimeout(40 * time.Millisecond),
+	}
+	if len(f.manifestPublicKey) > 0 {
+		options = append(options, WithManifestPublicKey(f.manifestPublicKey))
+	}
+	return NewManager(cfg, false, true, false, dataDir, nil, options...)
 }
 
 func managedSpeechLabConfig(baseURL string) config.SpeechLabConfig {
@@ -462,6 +582,113 @@ func TestManagedDeploymentAppliesGPUEnvironmentOverlay(t *testing.T) {
 	if !reflect.DeepEqual(values, []string{"KEEP=1", "S2S_GPU=auto", "S2S_BUNDLE_VERSION=stable"}) {
 		t.Fatalf("managed environment = %#v", values)
 	}
+}
+
+func TestV2DeploymentIsolatesDockerSocketAndDoesNotPreinstallModules(t *testing.T) {
+	manifest := validV2Manifest()
+	fake := newFakeDocker(t, manifest)
+	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+	if err := manager.Install(context.Background()); err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	for _, image := range fake.pullImages {
+		if image == manifest.Runtimes[0].Image {
+			t.Fatalf("module runtime was preinstalled: %#v", fake.pullImages)
+		}
+	}
+	roles := make(map[string]map[string]any)
+	socketOwners := 0
+	for _, payload := range fake.createPayloads {
+		labels := payload["Labels"].(map[string]any)
+		role := labels["aurago.role"].(string)
+		roles[role] = payload
+		hostConfig := payload["HostConfig"].(map[string]any)
+		binds, _ := hostConfig["Binds"].([]any)
+		for _, bind := range binds {
+			if strings.HasPrefix(bind.(string), "/var/run/docker.sock:") {
+				socketOwners++
+				if role != "controller" {
+					t.Fatalf("Docker socket assigned to %s", role)
+				}
+			}
+		}
+	}
+	if socketOwners != 1 {
+		t.Fatalf("Docker socket owner count = %d", socketOwners)
+	}
+	for _, role := range []string{"control_init", "controller", "gateway"} {
+		if roles[role] == nil {
+			t.Fatalf("missing create payload for %s", role)
+		}
+	}
+	controllerHost := roles["controller"]["HostConfig"].(map[string]any)
+	if controllerHost["ReadonlyRootfs"] != true {
+		t.Fatal("controller root filesystem is writable")
+	}
+	assertEnvironmentContains(t, roles["controller"], "S2S_CONTROLLER_TOKEN_READ_ONLY=true")
+	assertEnvironmentContains(t, roles["gateway"], "S2S_DOCKER_PROXY_TOKEN_FILE=/control/token")
+}
+
+func TestManagedModuleContainersFollowStopStartAndRemove(t *testing.T) {
+	manifest := validManifest()
+	fake := newFakeDocker(t, manifest)
+	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+	if err := manager.Install(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	module := &fakeContainer{ID: "module-1", Name: "s2s-parakeet-cpu", Image: manifest.Images.ASR, Running: true, Attached: true, Labels: map[string]string{
+		"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module", "aurago.bundle": manifest.BundleVersion,
+		"s2s.lab.managed": "true", "stage": "asr", "backend-id": "parakeet", "variant-id": "parakeet-cpu", "s2s.image": manifest.Images.ASR,
+	}}
+	fake.addContainer(module)
+	if err := manager.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if module.Running {
+		t.Fatal("module remained running after Stop")
+	}
+	state := manager.Status()
+	if !reflect.DeepEqual(state.RunningModuleContainerIDs, []string{"module-1"}) {
+		t.Fatalf("running module snapshot = %#v", state.RunningModuleContainerIDs)
+	}
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !module.Running {
+		t.Fatal("previously running module was not restarted")
+	}
+	if err := manager.Remove(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if fake.find("module-1") != nil {
+		t.Fatal("managed module remained after Remove")
+	}
+}
+
+func TestStopRejectsManagedModuleWithImageDrift(t *testing.T) {
+	manifest := validManifest()
+	fake := newFakeDocker(t, manifest)
+	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+	if err := manager.Install(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	fake.addContainer(&fakeContainer{ID: "module-drift", Name: "s2s-parakeet-cpu", Image: manifest.Images.ASR, Running: true, Labels: map[string]string{
+		"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module", "aurago.bundle": manifest.BundleVersion,
+		"s2s.lab.managed": "true", "stage": "asr", "backend-id": "parakeet", "variant-id": "parakeet-cpu", "s2s.image": manifest.Images.TTS,
+	}})
+	if err := manager.Stop(context.Background()); Code(err) != "speech_lab_start_failed" {
+		t.Fatalf("Stop() error = %v", err)
+	}
+}
+
+func assertEnvironmentContains(t *testing.T, payload map[string]any, want string) {
+	t.Helper()
+	for _, value := range payload["Env"].([]any) {
+		if value == want {
+			return
+		}
+	}
+	t.Fatalf("environment does not contain %q: %#v", want, payload["Env"])
 }
 
 func TestUpdateRecreatesDeploymentWhenHardwareProfileChanges(t *testing.T) {

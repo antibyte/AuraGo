@@ -73,6 +73,10 @@ AuraGo uses these fixed paths:
 | `GET` | `/api/v1/capability` | Hardware capability profile |
 | `GET` | `/api/v1/catalog` | Backend metadata, availability, stability, languages, and voices |
 | `GET` | `/api/v1/suggestions` | Heuristic stable-first recommendations |
+| `POST` | `/api/v1/modules/{backend_id}/install` | Confirmed model and immutable runtime installation; returns an operation ID |
+| `GET` | `/api/v1/modules/{backend_id}/install` | Separate model, image, and runtime progress for the selected variant |
+| `DELETE` | `/api/v1/modules/{backend_id}/install` | Cancel an in-progress installation without changing the active stack |
+| `DELETE` | `/api/v1/modules/{backend_id}` | Remove only an inactive managed runtime and its model state |
 | `PUT` | `/api/v1/stack` | HTTP 200 only for `ok:true`; omitted `llm_id` preserves the s2s LLM |
 | `POST` | `/v1/audio/transcriptions` | Raw or multipart PCM-WAV, maximum 8 MiB; response includes `asr_id` |
 | `POST` | `/v1/audio/speech` | JSON speech request; WAV response includes `X-S2S-TTS-ID` |
@@ -81,14 +85,43 @@ AuraGo verifies the returned ASR/TTS backend IDs against the operation snapshot 
 
 ## Deployment
 
-New installations use the managed mode. The first image pull always requires
+New installations use the managed mode. Bundle v1 remains readable for the
+fixed legacy base stack. On-demand module management requires bundle v2. A v2
+release contains the complete catalog/runtime/image matrix and an Ed25519
+signature over the exact manifest bytes. Configure the corresponding public
+key as base64 in `AURAGO_SPEECH_LAB_MANIFEST_PUBLIC_KEY_B64`, or inject it at
+build time with
+`-X aurago/internal/speechlab/deployer.speechLabManifestPublicKeyB64=<base64>`.
+AuraGo fails closed when the key, signature, architecture, or immutable image
+digest does not match.
+
+The first image pull always requires
 an administrator confirmation in **Media → Speech Lab**; setting `enabled: true`
 alone never downloads images. AuraGo fetches the fixed s2s release asset and
-its detached SHA-256 checksum,
+its detached Ed25519 signature,
 accepts only `ghcr.io/antibyte/*@sha256:…` images, creates labeled resources,
 and waits for `/health` plus `/ready`. After a restart an already installed
 bundle may be started automatically. Updates remain explicit and roll back if
 the replacement does not become ready.
+
+Bundle v2 adds a private, host-port-free controller. The controller is the only
+Speech Lab container with a read-only Docker socket mount. A one-shot internal
+initializer creates the per-deployment bearer token; gateway and controller
+receive that token through read-only mounts. The controller accepts only the
+signed runtime variants and only pull, create, inspect, start, stop, and removal
+of exact managed module containers. It exposes no exec, logs, copy, or generic
+Docker API surface. Module images are pulled only after the Browser Lab shows
+the estimated image/model size and license or authentication requirements and
+the administrator confirms the selected variant.
+
+`PUT /api/v1/stack` performs provisioning checks before changing any stage. A
+missing runtime returns HTTP 409 with `module_not_provisioned`; failed activation
+restores the previous stack. A successful rollback keeps `/ready` available and
+reports the transition error separately. Only a failed rollback marks the whole
+service as failed. Remote variants become activatable only after their endpoint,
+server-side credentials, and health check are valid. Experimental variants
+remain hidden until explicitly enabled; host-only Windows variants report
+`host_module_delivery_pending` until their separate delivery exists.
 
 The status endpoint exposes deployment state (`pulling`, `starting`, `ready`,
 `stopped`, or `error`), bundle version, digest, progress, and a sanitized error
