@@ -40,10 +40,11 @@ const (
 	OwnerLabel              = "speech-lab"
 )
 
-// speechLabManifestPublicKeyB64 may be injected at release build time with
+// speechLabManifestPublicKeyB64 pins the official Speech Lab release signer.
+// It may be overridden at release build time with
 // -X aurago/internal/speechlab/deployer.speechLabManifestPublicKeyB64=...
 // The environment override is intended for development and private releases.
-var speechLabManifestPublicKeyB64 string
+var speechLabManifestPublicKeyB64 = "zNBMSpDXLlcTLrkRYAkIt095X5FN2SsxGI8zWPbOxZI="
 
 type ImageSet struct {
 	Gateway       string `json:"gateway"`

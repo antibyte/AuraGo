@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -24,6 +25,16 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/dockerutil"
 )
+
+func TestPinnedManifestPublicKeyIsValid(t *testing.T) {
+	decoded, err := base64.StdEncoding.DecodeString(speechLabManifestPublicKeyB64)
+	if err != nil {
+		t.Fatalf("decode pinned Speech Lab manifest public key: %v", err)
+	}
+	if len(decoded) != ed25519.PublicKeySize {
+		t.Fatalf("pinned Speech Lab manifest public key has %d bytes, want %d", len(decoded), ed25519.PublicKeySize)
+	}
+}
 
 func TestNetworkAliasesKeepWebProxyCompatibility(t *testing.T) {
 	got := networkAliases("gateway")
