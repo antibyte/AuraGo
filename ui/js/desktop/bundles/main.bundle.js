@@ -3657,10 +3657,27 @@
     function applySIPPhoneAudioVisualization() {
         const mic = sipPhoneShellState.muted ? 0 : sipPhoneShellState.vizMicLevel;
         const speaker = sipPhoneShellState.vizSpeakerLevel;
+        const micText = mic.toFixed(3);
+        const speakerText = speaker.toFixed(3);
+        const active = mic > 0.02 || speaker > 0.02;
         document.querySelectorAll('.sip-phone').forEach(phone => {
-            phone.style.setProperty('--sip-viz-mic', mic.toFixed(3));
-            phone.style.setProperty('--sip-viz-speaker', speaker.toFixed(3));
-            phone.classList.toggle('sip-phone-viz-active', mic > 0.02 || speaker > 0.02);
+            // The desktop gadget hides the visualization (display:none).
+            // Per-frame custom-property writes on its root would invalidate
+            // the whole scaled phone subtree for nothing (visible flicker).
+            if (phone.closest('.vd-sip-phone-gadget')) return;
+            // Only touch the DOM when a rounded level actually changed;
+            // plain JS expando cache, no attribute writes.
+            if (phone._sipVizMic !== micText) {
+                phone._sipVizMic = micText;
+                phone.style.setProperty('--sip-viz-mic', micText);
+            }
+            if (phone._sipVizSpeaker !== speakerText) {
+                phone._sipVizSpeaker = speakerText;
+                phone.style.setProperty('--sip-viz-speaker', speakerText);
+            }
+            if (phone.classList.contains('sip-phone-viz-active') !== active) {
+                phone.classList.toggle('sip-phone-viz-active', active);
+            }
         });
     }
 

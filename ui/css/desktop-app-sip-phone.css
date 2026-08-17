@@ -1267,6 +1267,7 @@
     flex-direction: column;
     min-height: 0;
     padding: 26px 22px 18px;
+    overflow-x: hidden;
     overflow-y: auto;
     text-align: center;
     animation: sip-phone-view-in 0.34s cubic-bezier(0.3, 0.7, 0.3, 1);
@@ -1309,24 +1310,32 @@
 
 .sip-phone-active-call > p {
     margin: 20px 0 6px;
+    max-width: 100%;
     color: var(--sip-green);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.14em;
+    overflow-wrap: anywhere;
     text-transform: uppercase;
 }
 
+/* Long names or raw SIP URIs must wrap inside the screen instead of
+   bleeding past the device edges (notably in the scaled desktop gadget). */
 .sip-phone-active-call > h1 {
     margin: 0;
+    max-width: 100%;
     font-size: 1.85rem;
     font-weight: 350;
     letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
 }
 
 .sip-phone-active-call > span {
     margin-top: 6px;
+    max-width: 100%;
     color: var(--sip-text-dim);
     font-size: 0.8rem;
+    overflow-wrap: anywhere;
 }
 
 .sip-phone-active-call > time {
@@ -1345,9 +1354,9 @@
 .sip-phone-call-controls button {
     display: grid;
     place-items: center;
-    width: 76px;
-    min-height: 76px;
-    padding: 8px;
+    width: 84px;
+    min-height: 84px;
+    padding: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     color: var(--sip-text);
@@ -1375,9 +1384,13 @@
 
 .sip-phone-call-controls button > span:last-child {
     margin-top: 4px;
-    font-size: 0.6rem;
+    max-width: 80px;
+    font-size: 0.54rem;
     font-weight: 650;
     letter-spacing: 0.03em;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    hyphens: auto;
 }
 
 .sip-phone-call-controls .sip-phone-glyph {
@@ -1392,6 +1405,12 @@
     margin-top: 22px;
     color: var(--sip-text-dim);
     font-size: 0.68rem;
+}
+
+.sip-phone-volume > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    hyphens: auto;
 }
 
 .sip-phone-volume input {
@@ -1502,8 +1521,12 @@
 }
 
 .sip-phone-call-action > span:last-child {
+    max-width: 84px;
     font-size: 0.72rem;
     font-weight: 600;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    hyphens: auto;
 }
 
 .sip-phone-call-action img,

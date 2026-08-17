@@ -626,7 +626,13 @@ registration lives in `internal/desktop/types.go`.
   `phone_gadget.*` (defaults in `desktop-foundation.js`, toggle in the
   Settings app), layer CSS in `ui/css/desktop-sip-phone-shell.css`, gadget
   overrides in `ui/css/desktop-app-sip-phone.css`. Exposes
-  `window.SipPhoneGadget { init, sync }`. No child DOX file needed.
+  `window.SipPhoneGadget { init, sync }`. The per-frame audio-visualization
+  writer must skip gadget-hosted phones (the viz is `display:none` there and
+  writes would invalidate the whole scaled subtree, visibly flickering the
+  screen) and only write custom properties when a rounded level changed.
+  Active-call texts (party name/URI, status, button and volume labels) must
+  wrap inside the screen via `overflow-wrap` and never bleed past the device
+  edges. No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -
   Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
