@@ -99,7 +99,13 @@ images, and browser-oriented regression tests.
   (`z-index: -1`) behind icons/widgets/windows, with graceful WebGL2 /
   reduced-motion fallbacks and no HTML capture of foreground UI.
   Droplets must refract the `city_rain` wallpaper bitmap; missing content
-  stays transparent and must never fall back to gray procedural glass.
+  stays transparent and must never fall back to gray procedural glass. The
+  refraction source is the fully decoded `HTMLImageElement` (no
+  `createImageBitmap` — freshly decoded bitmaps can rasterize black on some
+  Chrome GPU paths on first uncached load), and `paintBitmap()` must verify
+  via a pixel probe that the blit received non-black pixels, otherwise it
+  reports not-ready so the next frame retries instead of locking in a black
+  texture.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
 

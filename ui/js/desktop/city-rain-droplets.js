@@ -36,7 +36,6 @@ let layoutObserver = null;
 let motionQuery = null;
 let wallpaperImage = null;
 let wallpaperLoad = null;
-let wallpaperBitmap = null;
 let startToken = 0;
 let starting = false;
 let retryTimers = [];
@@ -187,30 +186,15 @@ function loadWallpaperImage() {
   return wallpaperLoad;
 }
 
-function releaseWallpaperBitmap() {
-  if (wallpaperBitmap && typeof wallpaperBitmap.close === "function") {
-    try {
-      wallpaperBitmap.close();
-    } catch {
-      /* ignore */
-    }
-  }
-  wallpaperBitmap = null;
-}
-
+/**
+ * Feed the decoded <img> element itself. An ImageBitmap from
+ * createImageBitmap() can rasterize black on some Chrome GPU paths when the
+ * image finished decoding only moments earlier (first uncached load), which
+ * locked the refraction texture to black until the next reload. A fully
+ * decoded (awaited img.decode()) HTMLImageElement is drawImage-reliable.
+ */
 async function wallpaperContent() {
-  const img = await loadWallpaperImage();
-  if (typeof createImageBitmap === "function") {
-    try {
-      const next = await createImageBitmap(img);
-      releaseWallpaperBitmap();
-      wallpaperBitmap = next;
-      return next;
-    } catch {
-      /* fall through to HTMLImageElement */
-    }
-  }
-  return img;
+  return loadWallpaperImage();
 }
 
 function layerSizeReady(host, output) {

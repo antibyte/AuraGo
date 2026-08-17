@@ -310,6 +310,29 @@ export function createDroplets(elements, options = {}) {
   const blit = document.createElement("canvas");
   const blitCtx = blit.getContext("2d", { alpha: false });
 
+  // Tiny probe used to verify the blit actually received pixels. Guards
+  // against a first-load race where drawing a just-decoded image rasterizes
+  // black on some GPU paths: an all-black blit is treated as "not ready" so
+  // the next frame retries instead of locking in a black texture.
+  const probe = document.createElement("canvas");
+  probe.width = 8;
+  probe.height = 8;
+  const probeCtx = probe.getContext("2d", { alpha: false, willReadFrequently: true });
+
+  function blitHasPixels() {
+    if (!probeCtx) return true;
+    try {
+      probeCtx.drawImage(blit, 0, 0, 8, 8);
+      const data = probeCtx.getImageData(0, 0, 8, 8).data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] > 0 || data[i + 1] > 0 || data[i + 2] > 0) return true;
+      }
+      return false;
+    } catch {
+      return true; // Cannot verify — do not block content.
+    }
+  }
+
   // Do not pass conflicting context attributes — a second getContext with
   // different opts can return null and force the no-content path.
   const sourceCtx = source.getContext("2d");
@@ -359,6 +382,7 @@ export function createDroplets(elements, options = {}) {
       blitCtx.globalCompositeOperation = "copy";
       drawImageCover(blitCtx, bitmap, width, height);
       blitCtx.globalCompositeOperation = "source-over";
+      if (!blitHasPixels()) return false;
       contentDirty = true;
       contentReady = true;
       return true;
