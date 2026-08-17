@@ -230,6 +230,10 @@
             styles: appStyles('/css/desktop-app-system-info.css'),
             scripts: ['/chart.min.js', '/js/desktop/apps/system-info.js']
         },
+        'log-viewer': {
+            styles: appStyles('/css/desktop-app-log-viewer.css'),
+            scripts: ['/js/desktop/apps/log-viewer-filters.js', '/js/desktop/apps/log-viewer.js']
+        },
         'quick-connect': {
             styles: appStyles('/css/desktop-app-quick-connect.css', '/css/xterm.css'),
             scripts: [

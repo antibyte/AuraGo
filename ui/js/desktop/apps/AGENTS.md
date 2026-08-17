@@ -8,6 +8,18 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
   meta-progression.
+- `log-viewer*.js` implements Log Viewer, a first-party desktop app for
+  browsing and tailing AuraGo log files. Load order is
+  `log-viewer-filters.js` then `log-viewer.js`. Exposes
+  `window.LogViewerApp = { render, dispose }` and
+  `window.LogViewerFilters = { create }`. Every window owns its
+  `EventSource` (or 2s tail poll fallback), ring buffer, keyboard
+  handlers, and timers and must close them in `dispose`. Styles are
+  scoped under `.vd-logviewer`. Visible strings use
+  `desktop.app_log_viewer` plus `desktop.log_viewer_*` in all 16
+  `ui/lang/desktop/*.json` files. Download is hidden when the desktop
+  is readonly; the backend also returns HTTP 403 for
+  `/api/desktop/logs/download` in that mode.
 - `chess*.js` implements Chess, a desktop chess app using `cm-chessboard`,
   `chess.js`, a local Stockfish WebWorker, and the optional AuraGo agent move
   endpoint. Features three opponent modes (Computer, Agent, Local 2P),
@@ -579,6 +591,11 @@ registration lives in `internal/desktop/types.go`.
   pairs, renders numeric values as range sliders with number inputs, and text
   values as plain inputs. Exposes `window.OpenSCADDefines { parse, render, toText }`.
   No child DOX file needed.
+- `log-viewer-filters.js` / `log-viewer.js` - Log Viewer: file sidebar,
+  virtualized tail list, level/search filters, dedicated per-window
+  EventSource to `/api/desktop/logs/stream`, readonly-gated download.
+  Exposes `window.LogViewerFilters` then `window.LogViewerApp`. No child
+  DOX file needed.
 - `noisemaker.js` - Noisemaker app entry: capability state, create view with AI
   enhancement helpers, synchronous generation flow with progress/result/error
   slots, onboarding for unconfigured music generation, tab shell. Exposes

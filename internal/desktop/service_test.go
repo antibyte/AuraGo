@@ -214,6 +214,22 @@ func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeLogViewerMetadata(t *testing.T) {
+	app := testFindApp(t, BuiltinApps(), "log-viewer")
+	if !app.Builtin || app.Deletable || !app.DockVisible || !app.StartVisible {
+		t.Fatalf("log-viewer visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", app.Builtin, app.Deletable, app.DockVisible, app.StartVisible)
+	}
+	if app.Name != "Log Viewer" {
+		t.Fatalf("log-viewer name = %q, want Log Viewer", app.Name)
+	}
+	if app.Icon != "monitor" || app.Entry != "builtin://log-viewer" || app.Runtime != BuiltinRuntime {
+		t.Fatalf("log-viewer manifest icon/entry/runtime = %q/%q/%q, want monitor/builtin://log-viewer/%q", app.Icon, app.Entry, app.Runtime, BuiltinRuntime)
+	}
+	if !strings.Contains(strings.ToLower(app.Description), "log") {
+		t.Fatalf("log-viewer description should mention logs, got %q", app.Description)
+	}
+}
+
 func TestBuiltinAppsExposeChessMetadata(t *testing.T) {
 	apps := BuiltinApps()
 

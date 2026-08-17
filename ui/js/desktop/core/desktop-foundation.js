@@ -148,6 +148,7 @@
         'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
+        'log-viewer': 'monitor',
         'virtual-computers': 'terminal',
         zipper: 'zipper',
         pixel: 'pixel',
@@ -545,7 +546,8 @@
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
             'system-world': 'SysWorldApp',
-            noisemaker: 'NoisemakerApp'
+            noisemaker: 'NoisemakerApp',
+            'log-viewer': 'LogViewerApp'
         }[appId] || '';
     }
 
@@ -992,6 +994,7 @@
         if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
+        if (win.appId === 'log-viewer') callAppDispose(window.LogViewerApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);

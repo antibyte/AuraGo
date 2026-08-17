@@ -1,0 +1,398 @@
+/* Virtual Desktop Log Viewer */
+.vd-logviewer {
+    --lv-row-h: 28px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    color: var(--vd-text);
+    background:
+        radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--vd-accent, #27c7a6) 18%, transparent), transparent 38%),
+        radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--vd-coral, #ff8066) 12%, transparent), transparent 28%),
+        rgba(8, 11, 16, 0.28);
+    overflow: hidden;
+}
+
+.vd-logviewer-toolbar,
+.vd-logviewer-sidebar,
+.vd-logviewer-list,
+.vd-logviewer-detail {
+    border: 1px solid var(--vd-border);
+    background: linear-gradient(180deg, rgba(31, 38, 50, 0.84), rgba(16, 20, 28, 0.78));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 42px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(16px);
+}
+
+.vd-logviewer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 10px 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+}
+
+.vd-logviewer-kicker {
+    display: block;
+    color: var(--vd-accent);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.vd-logviewer-search {
+    flex: 1 1 220px;
+    min-width: 160px;
+    height: 32px;
+    border: 1px solid var(--vd-border);
+    border-radius: 9px;
+    padding: 0 10px;
+    background: rgba(8, 11, 16, 0.45);
+    color: var(--vd-text);
+}
+
+.vd-logviewer-search:focus-visible,
+.vd-logviewer-toolbar button:focus-visible,
+.vd-logviewer-file:focus-visible,
+.vd-logviewer-row:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--vd-accent) 70%, transparent);
+    outline-offset: 2px;
+}
+
+.vd-logviewer-levels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.vd-logviewer-chip,
+.vd-logviewer-toolbar button,
+.vd-logviewer-jump {
+    border: 1px solid var(--vd-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.vd-logviewer-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 10px;
+}
+
+.vd-logviewer-chip.is-on {
+    color: var(--vd-text);
+    border-color: color-mix(in srgb, var(--vd-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--vd-accent) 14%, transparent);
+}
+
+.vd-logviewer-chip[data-level="DEBUG"].is-on { border-color: rgba(160, 176, 192, 0.4); }
+.vd-logviewer-chip[data-level="INFO"].is-on { border-color: color-mix(in srgb, var(--vd-accent) 45%, transparent); }
+.vd-logviewer-chip[data-level="WARN"].is-on { color: var(--vd-amber, #e0a23a); border-color: color-mix(in srgb, var(--vd-amber, #e0a23a) 45%, transparent); }
+.vd-logviewer-chip[data-level="ERROR"].is-on { color: var(--vd-coral, #ff8066); border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 45%, transparent); }
+
+.vd-logviewer-chip-count {
+    min-width: 1.4em;
+    opacity: 0.75;
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-logviewer-toolbar button {
+    min-height: 30px;
+    padding: 0 11px;
+}
+
+.vd-logviewer-toolbar button.is-on,
+.vd-logviewer-toolbar button[aria-pressed="true"] {
+    color: var(--vd-text);
+    background: color-mix(in srgb, var(--vd-accent) 16%, transparent);
+}
+
+.vd-logviewer-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    min-height: 28px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vd-accent) 12%, transparent);
+    color: var(--vd-accent);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.vd-logviewer-live::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--vd-accent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--vd-accent) 40%, transparent);
+    animation: vd-logviewer-pulse 1.6s ease-in-out infinite;
+}
+
+.vd-logviewer.is-paused .vd-logviewer-live {
+    color: var(--vd-amber, #e0a23a);
+    background: color-mix(in srgb, var(--vd-amber, #e0a23a) 12%, transparent);
+}
+
+.vd-logviewer.is-paused .vd-logviewer-live::before {
+    background: var(--vd-amber, #e0a23a);
+    animation: none;
+}
+
+.vd-logviewer-body {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    gap: 10px;
+    min-height: 0;
+    padding: 10px;
+}
+
+.vd-logviewer.is-detail-closed .vd-logviewer-body {
+    grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.vd-logviewer.is-detail-closed .vd-logviewer-detail {
+    display: none;
+}
+
+.vd-logviewer-sidebar,
+.vd-logviewer-list,
+.vd-logviewer-detail {
+    min-height: 0;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.vd-logviewer-pane-title {
+    padding: 10px 12px 6px;
+    color: var(--vd-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.vd-logviewer-files {
+    min-height: 0;
+    overflow: auto;
+    padding: 0 8px 10px;
+}
+
+.vd-logviewer-file {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    margin: 0 0 6px;
+    padding: 8px 9px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-logviewer-file.is-active {
+    border-color: color-mix(in srgb, var(--vd-accent) 35%, transparent);
+    background: color-mix(in srgb, var(--vd-accent) 12%, transparent);
+}
+
+.vd-logviewer-file-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.vd-logviewer-file-meta {
+    color: var(--vd-muted);
+    font-size: 0.68rem;
+}
+
+.vd-logviewer-file.is-live .vd-logviewer-file-name::after {
+    content: "●";
+    margin-left: 6px;
+    color: var(--vd-accent);
+    font-size: 0.6rem;
+}
+
+.vd-logviewer-list {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.vd-logviewer-scroller {
+    min-height: 0;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--lv-font, 12px);
+}
+
+.vd-logviewer.is-wrap .vd-logviewer-row-msg {
+    white-space: normal;
+}
+
+.vd-logviewer-row {
+    display: grid;
+    grid-template-columns: 64px 64px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    min-height: var(--lv-row-h);
+    padding: 4px 10px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--vd-border) 55%, transparent);
+    background: transparent;
+    color: inherit;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-logviewer-row:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.vd-logviewer-row.is-selected {
+    background: color-mix(in srgb, var(--vd-accent) 14%, transparent);
+}
+
+.vd-logviewer-row-no,
+.vd-logviewer-row-time {
+    color: var(--vd-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-logviewer-row-msg {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-logviewer-level {
+    display: inline-flex;
+    align-items: center;
+    min-width: 52px;
+    margin-right: 8px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.vd-logviewer-level.is-debug { color: var(--vd-muted); background: rgba(160, 176, 192, 0.12); }
+.vd-logviewer-level.is-info { color: var(--vd-accent); background: color-mix(in srgb, var(--vd-accent) 14%, transparent); }
+.vd-logviewer-level.is-warn { color: var(--vd-amber, #e0a23a); background: color-mix(in srgb, var(--vd-amber, #e0a23a) 16%, transparent); }
+.vd-logviewer-level.is-error { color: var(--vd-coral, #ff8066); background: color-mix(in srgb, var(--vd-coral, #ff8066) 16%, transparent); }
+
+.vd-logviewer-empty,
+.vd-logviewer-banner {
+    padding: 16px;
+    color: var(--vd-muted);
+    font-size: 0.86rem;
+}
+
+.vd-logviewer-jump {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    min-height: 32px;
+    padding: 0 12px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.vd-logviewer-detail {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.vd-logviewer-detail-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 0 12px 12px;
+}
+
+.vd-logviewer-kv {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 6px 10px;
+    margin: 0 0 10px;
+    font-size: 0.78rem;
+}
+
+.vd-logviewer-kv dt {
+    color: var(--vd-muted);
+    font-weight: 700;
+}
+
+.vd-logviewer-kv dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.vd-logviewer-raw {
+    margin: 0;
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--vd-text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.74rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.vd-logviewer-detail-actions {
+    padding: 10px 12px 12px;
+}
+
+.vd-logviewer-detail-actions button {
+    width: 100%;
+    min-height: 32px;
+    border: 0;
+    border-radius: 9px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--vd-accent) 80%, #000), var(--vd-accent));
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.vd-logviewer-font {
+    width: 92px;
+}
+
+@keyframes vd-logviewer-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+@media (max-width: 900px) {
+    .vd-logviewer-body,
+    .vd-logviewer.is-detail-closed .vd-logviewer-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 140px minmax(180px, 1fr) auto;
+    }
+
+    .vd-logviewer.is-detail-closed .vd-logviewer-detail {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-logviewer-live::before {
+        animation: none;
+    }
+}

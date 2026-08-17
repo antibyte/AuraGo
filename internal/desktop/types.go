@@ -509,6 +509,8 @@ var desktopIconAliases = map[string]string{
 	"launcher":         "launchpad",
 	"library":          "book",
 	"location":         "map",
+	"log-viewer":       "monitor",
+	"logs":             "monitor",
 	"mail":             "mail",
 	"map":              "map",
 	"maps":             "map",
@@ -732,6 +734,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Description: "Choose and manage your desktop pet companions."},
 		{ID: "system-world", Name: "System World", Version: "1.0.0", Icon: "network", Entry: "builtin://system-world", Runtime: BuiltinRuntime, Description: "Immersive 3D world visualizing the living AuraGo system — integrations, knowledge graph, memory, missions, and agents in realtime.", Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "noisemaker", Name: "Noisemaker", Version: "1.0.0", Icon: "audio", Entry: "builtin://noisemaker", Runtime: BuiltinRuntime, Description: "Create AI-generated songs Suno-style: ideas, styles, lyrics and covers.", Permissions: []string{"notifications"}},
+		{ID: "log-viewer", Name: "Log Viewer", Version: "1.0.0", Icon: "monitor", Entry: "builtin://log-viewer", Runtime: BuiltinRuntime, Description: "Browse and tail AuraGo log files with live streaming and filters."},
 	}
 	for i := range apps {
 		apps[i].Builtin = true

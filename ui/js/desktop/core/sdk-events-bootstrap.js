@@ -437,7 +437,8 @@
                 if (event.target.closest('button, input, a, .vd-start-menu')) return;
                 event.preventDefault();
                 showContextMenu(event.clientX, event.clientY, [
-                    { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') }
+                    { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') },
+                    { label: t('desktop.context_log_viewer'), icon: 'monitor', fallback: 'l', action: () => openApp('log-viewer') }
                 ]);
             });
         }

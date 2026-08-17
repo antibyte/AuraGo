@@ -1042,6 +1042,13 @@ if (appId === 'system-info') {
             }
             if (typeof window.SystemInfoApp.render === 'function') return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup}));
         }
+        if (appId === 'log-viewer') {
+            if (!window.LogViewerApp) {
+                window.AuraDesktopModules.loadAppScript('log-viewer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.LogViewerApp.render === 'function') return window.LogViewerApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup, api, readonly: desktopReadonly()}));
+        }
         if (appId === 'virtual-computers') {
             if (!window.VirtualComputersApp) {
                 window.AuraDesktopModules.loadAppScript('virtual-computers').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

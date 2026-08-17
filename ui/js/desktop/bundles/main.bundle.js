@@ -380,6 +380,7 @@
         'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
+        'log-viewer': 'monitor',
         'virtual-computers': 'terminal',
         zipper: 'zipper',
         pixel: 'pixel',
@@ -777,7 +778,8 @@
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
             'system-world': 'SysWorldApp',
-            noisemaker: 'NoisemakerApp'
+            noisemaker: 'NoisemakerApp',
+            'log-viewer': 'LogViewerApp'
         }[appId] || '';
     }
 
@@ -1224,6 +1226,7 @@
         if (win.appId === 'openscad') callAppDispose(window.OpenSCADApp, win.id);
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
+        if (win.appId === 'log-viewer') callAppDispose(window.LogViewerApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
@@ -4987,6 +4990,7 @@
 
     function windowTitle(appId) {
         if (appId === 'system-info') return t('desktop.system_info_title');
+        if (appId === 'log-viewer') return t('desktop.app_log_viewer');
         if (appId === 'virtual-computers') return t('desktop.virtual_computers_title');
         if (appId === 'people') return t('desktop.app_people');
         const app = allApps().find(item => item.id === appId);
@@ -5011,6 +5015,7 @@
             'code-studio': { width: 1280, height: 850 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
+            'log-viewer': { width: 920, height: 640 },
             'agent-chat': { width: 800, height: 620 },
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
@@ -5032,10 +5037,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -8755,6 +8760,13 @@ if (appId === 'system-info') {
             }
             if (typeof window.SystemInfoApp.render === 'function') return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup}));
         }
+        if (appId === 'log-viewer') {
+            if (!window.LogViewerApp) {
+                window.AuraDesktopModules.loadAppScript('log-viewer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.LogViewerApp.render === 'function') return window.LogViewerApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup, api, readonly: desktopReadonly()}));
+        }
         if (appId === 'virtual-computers') {
             if (!window.VirtualComputersApp) {
                 window.AuraDesktopModules.loadAppScript('virtual-computers').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -12182,7 +12194,8 @@ if (appId === 'pixel') {
                 if (event.target.closest('button, input, a, .vd-start-menu')) return;
                 event.preventDefault();
                 showContextMenu(event.clientX, event.clientY, [
-                    { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') }
+                    { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') },
+                    { label: t('desktop.context_log_viewer'), icon: 'monitor', fallback: 'l', action: () => openApp('log-viewer') }
                 ]);
             });
         }
