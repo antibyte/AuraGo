@@ -155,26 +155,27 @@ function loadWallpaperImage() {
     }
 
     const finishOk = () => {
-      if (img.naturalWidth > 0) {
-        wallpaperImage = img;
-        resolve(img);
-        return;
-      }
-      wallpaperLoad = null;
-      reject(new Error("city_rain wallpaper empty"));
+      // A cached image can be "complete" (bytes present) without being
+      // decoded. Always await decode() — otherwise the first drawImage may
+      // rasterize black on some GPU paths, leaving the drops gray until a
+      // hard reload bypasses every cache.
+      const decoded = typeof img.decode === "function" ? img.decode().catch(() => {}) : Promise.resolve();
+      decoded.then(() => {
+        if (img.naturalWidth > 0) {
+          wallpaperImage = img;
+          resolve(img);
+          return;
+        }
+        wallpaperLoad = null;
+        reject(new Error("city_rain wallpaper empty"));
+      });
     };
     const finishErr = () => {
       wallpaperLoad = null;
       reject(new Error("city_rain wallpaper failed to load"));
     };
 
-    img.onload = () => {
-      if (typeof img.decode === "function") {
-        img.decode().then(finishOk).catch(finishOk);
-      } else {
-        finishOk();
-      }
-    };
+    img.onload = finishOk;
     img.onerror = finishErr;
     img.src = WALLPAPER_URL;
 
