@@ -91,7 +91,13 @@ images, and browser-oriented regression tests.
 - CanvasUI components are vendored as local framework-free ESM under
   `ui/js/vendor/canvasui/` with committed `manifest.json`, `LICENSE.txt`, and
   pinned upstream provenance. They must not load remote assets at runtime and
-  must not introduce React solely for effects. Login uses Flame Wrap on the
+  must not introduce React solely for effects. Static ES-module imports of
+  vendored files (e.g. `from "/js/vendor/canvasui/droplets.js"`) carry no
+  `?v=` and would let the service worker / HTTP cache pin stale vendor builds
+  across server updates; each page that loads such a module must therefore
+  declare a `type="importmap"` entry mapping the bare URL to its
+  `?v={{.BuildVersion}}` form (desktop.html → droplets.js, login.html →
+  flame-wrap.js). Login uses Flame Wrap on the
   auth card. The login shell stays viewport-locked and centered; Flame Wrap
   must paint outside the card without expanding document scroll or uncentering
   the form. Droplets are desktop-only for the `city_rain` wallpaper via

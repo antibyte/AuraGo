@@ -27,6 +27,15 @@
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-animations.css">
     <link rel="stylesheet" href="/css/desktop-shell.bundle.css?v={{.BuildVersion}}">
+    <!-- Version vendored ES-module imports: without ?v= the service worker and
+         HTTP cache would pin stale vendor builds across server updates. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "/js/vendor/canvasui/droplets.js": "/js/vendor/canvasui/droplets.js?v={{.BuildVersion}}"
+        }
+    }
+    </script>
     <script defer src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/shared/lazy-assets.js?v={{.BuildVersion}}"></script>
 </head>

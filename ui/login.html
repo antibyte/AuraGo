@@ -32,6 +32,15 @@
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-entry.css?v={{.BuildVersion}}">
+    <!-- Version vendored ES-module imports: without ?v= the service worker and
+         HTTP cache would pin stale vendor builds across server updates. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "/js/vendor/canvasui/flame-wrap.js": "/js/vendor/canvasui/flame-wrap.js?v={{.BuildVersion}}"
+        }
+    }
+    </script>
 </head>
 
 <body class="pw-page pw-entry-page" data-entry-page="login">

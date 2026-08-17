@@ -190,6 +190,8 @@ func TestLoginFlameWrapUsesLocalCanvasUI(t *testing.T) {
 		`id="main-content"`,
 		`/js/login/flame-wrap.js?v={{.BuildVersion}}`,
 		`type="module"`,
+		`type="importmap"`,
+		`"/js/vendor/canvasui/flame-wrap.js": "/js/vendor/canvasui/flame-wrap.js?v={{.BuildVersion}}"`,
 		`id="bg-canvas"`,
 		`id="css-bg"`,
 		`/js/vendor/three.min.js`,
@@ -293,6 +295,8 @@ func TestDesktopCityRainDropletsStayOnWallpaper(t *testing.T) {
 		`id="vd-window-layer"`,
 		`/js/desktop/city-rain-droplets.js?v={{.BuildVersion}}`,
 		`type="module"`,
+		`type="importmap"`,
+		`"/js/vendor/canvasui/droplets.js": "/js/vendor/canvasui/droplets.js?v={{.BuildVersion}}"`,
 		`rel="preload"`,
 		`/img/wallpapers/city_rain.jpg`,
 	} {
