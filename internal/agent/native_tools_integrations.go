@@ -563,7 +563,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.DockerEnabled {
 		tools = append(tools, tool("docker",
-			"Manage Docker containers, images, networks, and volumes. List, inspect, start, stop, create, remove containers; pull/remove images; view logs; get system info.",
+			"Manage generic Docker containers, images, networks, and volumes. AuraGo-managed homepage resources are reserved; use homepage_project, homepage_file, or homepage_deploy for homepage work.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -571,9 +571,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"enum":        []string{"list_containers", "inspect", "start", "stop", "restart", "pause", "unpause", "remove", "logs", "create", "run", "list_images", "pull", "remove_image", "list_networks", "list_volumes", "info"},
 				},
 				"container_id": prop("string", "Container ID or name (for container operations)"),
-				"image":        prop("string", "Docker image name with optional tag (e.g. 'nginx:latest')"),
-				"name":         prop("string", "Container name (for create/run)"),
-				"command":      prop("string", "Command to run in the container"),
+				"image":        prop("string", "Docker image name with optional tag (e.g. 'nginx:latest'). The aurago-homepage repository is reserved."),
+				"name":         prop("string", "Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved."),
+				"command":      prop("string", "Command for exec, or a simple whitespace-separated legacy command for create/run. Shell quoting, pipes, redirections, chaining, and globbing are rejected for create/run; use command_args with an explicit shell instead."),
+				"command_args": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Exact exec-form command arguments for create/run, for example ['/bin/sh', '-lc', 'printf ...']. Cannot be combined with command."},
+				"auto_remove":  prop("boolean", "Remove the named container after it exits. Valid only for operation run when policy is no; default false."),
 				"env":          map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Environment variables (e.g. ['KEY=value'])"},
 				"ports":        map[string]interface{}{"type": "object", "description": "Port mappings: {'container_port': 'host_port'} (e.g. {'80': '8080'})"},
 				"volumes":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Volume binds (e.g. ['/host/path:/container/path'])"},

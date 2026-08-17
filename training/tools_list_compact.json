@@ -705,7 +705,7 @@
   },
   {
     "name": "docker",
-    "description": "Manage Docker containers, images, networks, and volumes. List, inspect, start, stop, create, remove containers; pull/remove images; view logs; get system info.",
+    "description": "Manage generic Docker containers, images, networks, and volumes. AuraGo-managed homepage resources are reserved; use homepage_project, homepage_file, or homepage_deploy for homepage work.",
     "required": [
       "operation"
     ],
@@ -2076,7 +2076,7 @@
   },
   {
     "name": "huggingface",
-    "description": "Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, and jobs remain blocked by AuraGo policy unless explicitly enabled.",
+    "description": "Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; inspect authenticated Jobs; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, Job access, and compute remain blocked by AuraGo policy unless explicitly enabled.",
     "required": [
       "operation"
     ],
@@ -4253,6 +4253,15 @@
     "tier": "extended"
   },
   {
+    "name": "request_vault_secret",
+    "description": "Ask the user to enter a secret through a secure client dialog. The value is stored directly in the vault and you will NEVER see it. Use this instead of asking the user to paste secrets into chat.",
+    "required": [
+      "prompt",
+      "vault_key"
+    ],
+    "tier": "extended"
+  },
+  {
     "name": "retrieve_original_output",
     "description": "Return archived original output for a compressed native tool result when details appear missing.",
     "required": [
@@ -4271,7 +4280,7 @@
   },
   {
     "name": "run_tool",
-    "description": "Run a saved custom Python tool from the agent tools directory. Requires agent.allow_python. Use name from discover_tools/list_tools and pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
+    "description": "Run only a saved custom Python tool from the agent tools directory. Requires agent.allow_python. The name must exactly match a custom tool returned by discover_tools/list_tools; never invent a name or use run_tool for built-in AuraGo tools. Pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
     "required": [
       "name"
     ],
@@ -4327,7 +4336,7 @@
   },
   {
     "name": "secrets_vault",
-    "description": "Store, retrieve, list, or delete secrets from the encrypted vault.",
+    "description": "Store, retrieve, list, or delete agent-created secrets from the encrypted vault. User-supplied values remain hidden and can only be referenced by key.",
     "required": [
       "operation"
     ],

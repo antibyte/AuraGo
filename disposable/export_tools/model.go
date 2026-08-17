@@ -23,7 +23,6 @@ const (
 	tierManifestVersion  = 1
 	contractVersion      = 2
 	targetScenarioCount  = 5000
-	targetChallengeCount = 404
 	maxToolsPerScenario  = 20
 	maxSchemaTokens      = 6500
 )

@@ -516,6 +516,8 @@ type ToolCall struct {
 	Env         []string          `json:"env"`
 	Ports       map[string]string `json:"ports"`
 	Volumes     []string          `json:"volumes"`
+	CommandArgs []string          `json:"command_args"`
+	AutoRemove  bool              `json:"auto_remove"`
 	Restart     string            `json:"restart"`
 	Force       bool              `json:"force"`
 	Tail        int               `json:"tail"`

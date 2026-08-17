@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "11cc1639448408cc44f1ca37366d7beabf105f2776524b90a8b04c94919b6d7c",
+  "schema_sha256": "f477678a4223f9d3445726725316a7fd5e034052bb6a0bf509eed9fcc47d8e35",
   "tools": {
     "activate_agent_skill": {
       "default_arguments": {
@@ -1507,12 +1507,18 @@
           "selector": "operation",
           "value": "create",
           "arguments": {
+            "image": "example",
+            "name": "example-name",
             "operation": "create"
           },
           "required_fields": [
+            "image",
+            "name",
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1523,7 +1529,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1534,7 +1542,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1545,7 +1555,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1556,7 +1568,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1567,7 +1581,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1578,7 +1594,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1589,7 +1607,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1600,7 +1620,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1611,7 +1633,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1622,7 +1646,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1633,7 +1659,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1644,15 +1672,21 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
           "value": "run",
           "arguments": {
+            "image": "example",
+            "name": "example-name",
             "operation": "run"
           },
           "required_fields": [
+            "image",
+            "name",
             "operation"
           ],
           "excluded_fields": []
@@ -1666,7 +1700,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1677,7 +1713,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         },
         {
           "selector": "operation",
@@ -1688,7 +1726,9 @@
           "required_fields": [
             "operation"
           ],
-          "excluded_fields": []
+          "excluded_fields": [
+            "auto_remove"
+          ]
         }
       ]
     },
@@ -9924,6 +9964,12 @@
       "default_arguments": {
         "command": "printf hello",
         "server_id": "example-id"
+      }
+    },
+    "request_vault_secret": {
+      "default_arguments": {
+        "prompt": "A calm landscape at sunset",
+        "vault_key": "1"
       }
     },
     "retrieve_original_output": {

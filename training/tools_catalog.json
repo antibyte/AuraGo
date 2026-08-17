@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
-  "tool_count": 202,
+  "tool_count": 203,
   "operation_count": 1041,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
@@ -3357,7 +3357,7 @@
     },
     {
       "name": "docker",
-      "description": "Manage Docker containers, images, networks, and volumes. List, inspect, start, stop, create, remove containers; pull/remove images; view logs; get system info.",
+      "description": "Manage generic Docker containers, images, networks, and volumes. AuraGo-managed homepage resources are reserved; use homepage_project, homepage_file, or homepage_deploy for homepage work.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -3369,9 +3369,20 @@
             "description": "Include stopped containers (for list_containers)",
             "type": "boolean"
           },
+          "auto_remove": {
+            "description": "Remove the named container after it exits. Valid only for operation run when policy is no; default false.",
+            "type": "boolean"
+          },
           "command": {
-            "description": "Command to run in the container",
+            "description": "Command for exec, or a simple whitespace-separated legacy command for create/run. Shell quoting, pipes, redirections, chaining, and globbing are rejected for create/run; use command_args with an explicit shell instead.",
             "type": "string"
+          },
+          "command_args": {
+            "description": "Exact exec-form command arguments for create/run, for example ['/bin/sh', '-lc', 'printf ...']. Cannot be combined with command.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "container_id": {
             "description": "Container ID or name (for container operations)",
@@ -3389,11 +3400,11 @@
             "type": "boolean"
           },
           "image": {
-            "description": "Docker image name with optional tag (e.g. 'nginx:latest')",
+            "description": "Docker image name with optional tag (e.g. 'nginx:latest'). The aurago-homepage repository is reserved.",
             "type": "string"
           },
           "name": {
-            "description": "Container name (for create/run)",
+            "description": "Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved.",
             "type": "string"
           },
           "operation": {
@@ -3456,9 +3467,20 @@
           "description": "Include stopped containers (for list_containers)",
           "type": "boolean"
         },
+        "auto_remove": {
+          "description": "Remove the named container after it exits. Valid only for operation run when policy is no; default false.",
+          "type": "boolean"
+        },
         "command": {
-          "description": "Command to run in the container",
+          "description": "Command for exec, or a simple whitespace-separated legacy command for create/run. Shell quoting, pipes, redirections, chaining, and globbing are rejected for create/run; use command_args with an explicit shell instead.",
           "type": "string"
+        },
+        "command_args": {
+          "description": "Exact exec-form command arguments for create/run, for example ['/bin/sh', '-lc', 'printf ...']. Cannot be combined with command.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "container_id": {
           "description": "Container ID or name (for container operations)",
@@ -3476,11 +3498,11 @@
           "type": "boolean"
         },
         "image": {
-          "description": "Docker image name with optional tag (e.g. 'nginx:latest')",
+          "description": "Docker image name with optional tag (e.g. 'nginx:latest'). The aurago-homepage repository is reserved.",
           "type": "string"
         },
         "name": {
-          "description": "Container name (for create/run)",
+          "description": "Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved.",
           "type": "string"
         },
         "operation": {
@@ -3598,7 +3620,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/docker.md",
-      "manual_snippet": "# Docker Management Tool\n\nManage Docker containers, images, networks, and volumes directly through the Docker Engine API.\n\n## Prerequisites\n- Docker must be running on the host\n- `docker.enabled: true` in config.yaml\n- Optional: `docker.host` — auto-detected if empty (Unix socket on Linux/Mac, TCP on Windows)\n\n## Operations\n\n### Container Operations\n\n#### list_containers — List running (or all) containers\n```json\n{\"action\": \"docker\", \"operation\": \"list_containers\"}\n{\"action\": \"docker\", \"operation\": \"list_containers\", \"all\": true}\n```\n\n#### inspect — Get detailed container info\n```json\n{\"action\": \"docker\", \"operation\": \"inspect\", \"container_id\": \"my_container\"}\n```\n\n#### start / stop / restart / pause / unpause\n```json\n{\"action\": \"docker\", \"operation\": \"start\", \"container_id\": \"my_con…"
+      "manual_snippet": "# Docker Management Tool\n\nManage generic Docker containers, images, networks, and volumes directly through the Docker Engine API. AuraGo's managed homepage containers and the `aurago-homepage` image repository are reserved; use `homepage_project`, `homepage_file`, or `homepage_deploy` for homepage work.\n\n## Prerequisites\n- Docker must be running on the host\n- `docker.enabled: true` in config.yaml\n- Optional: `docker.host` — auto-detected if empty (Unix socket on Linux/Mac, TCP on Windows)\n\n## Operations\n\n### Container Operations\n\n#### list_containers — List running (or all) containers\n```json\n{\"action\": \"docker\", \"operation\": \"list_containers\"}\n{\"action\": \"docker\", \"operation\": \"list_containers\", \"all\": true}\n```\n\n#### inspect — Get detailed container info\n```json\n{\"action\": \"docker\"…"
     },
     {
       "name": "document_creator",
@@ -3966,7 +3988,7 @@
             "type": "integer"
           },
           "vault_keys": {
-            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
             "items": {
               "type": "string"
             },
@@ -4014,7 +4036,7 @@
           "type": "integer"
         },
         "vault_keys": {
-          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
           "items": {
             "type": "string"
           },
@@ -4062,7 +4084,7 @@
             "type": "string"
           },
           "vault_keys": {
-            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
             "items": {
               "type": "string"
             },
@@ -4109,7 +4131,7 @@
           "type": "string"
         },
         "vault_keys": {
-          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
           "items": {
             "type": "string"
           },
@@ -4189,7 +4211,7 @@
             "type": "string"
           },
           "vault_keys": {
-            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
             "items": {
               "type": "string"
             },
@@ -4225,7 +4247,7 @@
           "type": "string"
         },
         "vault_keys": {
-          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
           "items": {
             "type": "string"
           },
@@ -8838,7 +8860,7 @@
     },
     {
       "name": "huggingface",
-      "description": "Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, and jobs remain blocked by AuraGo policy unless explicitly enabled.",
+      "description": "Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; inspect authenticated Jobs; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, Job access, and compute remain blocked by AuraGo policy unless explicitly enabled.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -8887,6 +8909,10 @@
           "image": {
             "description": "Container image for a container Job.",
             "type": "string"
+          },
+          "inject_token": {
+            "description": "Inject the Vault-backed HF_TOKEN into a started Job. Requires the separate allow_job_token_injection configuration opt-in.",
+            "type": "boolean"
           },
           "job_id": {
             "description": "Hugging Face Job ID.",
@@ -9072,6 +9098,10 @@
         "image": {
           "description": "Container image for a container Job.",
           "type": "string"
+        },
+        "inject_token": {
+          "description": "Inject the Vault-backed HF_TOKEN into a started Job. Requires the separate allow_job_token_injection configuration opt-in.",
+          "type": "boolean"
         },
         "job_id": {
           "description": "Hugging Face Job ID.",
@@ -9331,7 +9361,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/huggingface.md",
-      "manual_snippet": "# Hugging Face\n\nUse the `huggingface` tool for Hugging Face platform workflows, not only model inference.\n\nSupported read operations include Hub discovery (`search_models`, `get_model`, `search_datasets`, `get_dataset`, `search_spaces`, `get_space`, `list_files`), bounded workspace downloads, Dataset Viewer rows/search/filter/parquet/statistics, Papers, and Job status/log inspection with bounded snapshots via `tail`.\n\nWrite and compute operations are policy-gated. AuraGo starts with the integration disabled, read-only mode enabled, writes disabled, deletes disabled, and Jobs disabled. A Hugging Face token belongs in the Vault under `huggingface_token`; never put it in `config.yaml`, tool arguments, Python environment variables, or prompts.\n\nBefore a mutation, check the configured namespace…"
+      "manual_snippet": "# Hugging Face\n\nUse the `huggingface` tool for Hugging Face platform workflows, not only model inference.\n\nSupported read operations include Hub discovery (`search_models`, `get_model`, `search_datasets`, `get_dataset`, `search_spaces`, `get_space`, `list_files`), bounded workspace downloads, Dataset Viewer rows/search/filter/parquet/statistics, Papers, and Job status/log inspection with bounded snapshots via `tail`. Job inspection requires a Vault token and `allow_jobs=true`, but remains available in read-only mode.\n\nWrite and compute operations are policy-gated. AuraGo starts with the integration disabled, read-only mode enabled, writes disabled, deletes disabled, Jobs disabled, and Job token injection disabled. A Hugging Face token belongs in the Vault under `huggingface_token`; never p…"
     },
     {
       "name": "image_processing",
@@ -18225,6 +18255,69 @@
       "manual_snippet": "# REMOTE EXECUTION TOOLS\n\n\u003e ⚠️ **CRITICAL:** NEVER use `execute_python` or `execute_shell` to manage SSH connections, generate SSH keys, or run remote commands. This is wasteful and will fail. Always use the dedicated tools documented below: `query_inventory`, `execute_remote_shell`, `transfer_remote_file`, `register_device`.\n\n## Tool: Query Inventory (`query_inventory`)\n\nSearch the internal SQLite registry for saved network devices (like servers, Chromecasts, printers, etc.) by tag, device type, or name.\n\n| Parameter | Type | Required | Description |\n|---|---|---|---|\n| `tag` | string | no | Filter by tag (e.g., `\"prod\"`, `\"web\"`, `\"smart-home\"`) |\n| `device_type` | string | no | Filter by device type (e.g., `\"server\"`, `\"chromecast\"`) |\n| `hostname` | string | no | Partial device nam…"
     },
     {
+      "name": "request_vault_secret",
+      "description": "Ask the user to enter a secret through a secure client dialog. The value is stored directly in the vault and you will NEVER see it. Use this instead of asking the user to paste secrets into chat.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "prompt": {
+            "description": "Free text shown to the user explaining which secret to enter and why. Maximum 2000 characters.",
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "replace": {
+            "default": true,
+            "description": "Overwrite an existing value for vault_key. Defaults to true.",
+            "type": "boolean"
+          },
+          "vault_key": {
+            "description": "Uppercase key name used to reference the stored secret. Pattern [A-Z0-9_]{1,64}.",
+            "maxLength": 64,
+            "pattern": "^[A-Z0-9_]{1,64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt",
+          "vault_key"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "prompt",
+        "vault_key"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Free text shown to the user explaining which secret to enter and why. Maximum 2000 characters.",
+          "maxLength": 2000,
+          "type": "string"
+        },
+        "replace": {
+          "default": true,
+          "description": "Overwrite an existing value for vault_key. Defaults to true.",
+          "type": "boolean"
+        },
+        "vault_key": {
+          "description": "Uppercase key name used to reference the stored secret. Pattern [A-Z0-9_]{1,64}.",
+          "maxLength": 64,
+          "pattern": "^[A-Z0-9_]{1,64}$",
+          "type": "string"
+        }
+      },
+      "tier": "extended",
+      "manual_path": "prompts/tools_manuals/request_vault_secret.md",
+      "manual_snippet": "# request_vault_secret\n\nUse `request_vault_secret` when an interactive user must provide an API key,\ntoken, password, or other secret. The client opens a secure masked dialog and\nstores the value directly in AuraGo's encrypted Vault. The value is never\nreturned to you.\n\n## Parameters\n\n| Parameter | Required | Description |\n|-----------|----------|-------------|\n| `prompt` | yes | Plain-text explanation shown to the user. Maximum 2,000 characters. |\n| `vault_key` | yes | Named reference matching `[A-Z0-9_]{1,64}`. Lowercase input is normalized to uppercase. |\n| `replace` | no | Replace an existing value. Defaults to `true`. |\n\nThe prefixes `provider_`, `oauth_`, `remote_shared_key_`, and AuraGo's internal\nmetadata namespace are reserved.\n\n## Results\n\nThe result is intentionally value-free:\n…"
+    },
+    {
       "name": "retrieve_original_output",
       "description": "Return archived original output for a compressed native tool result when details appear missing.",
       "parameters": {
@@ -18332,7 +18425,7 @@
     },
     {
       "name": "run_tool",
-      "description": "Run a saved custom Python tool from the agent tools directory. Requires agent.allow_python. Use name from discover_tools/list_tools and pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
+      "description": "Run only a saved custom Python tool from the agent tools directory. Requires agent.allow_python. The name must exactly match a custom tool returned by discover_tools/list_tools; never invent a name or use run_tool for built-in AuraGo tools. Pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -18367,7 +18460,7 @@
             "type": "string"
           },
           "vault_keys": {
-            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+            "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
             "items": {
               "type": "string"
             },
@@ -18414,7 +18507,7 @@
           "type": "string"
         },
         "vault_keys": {
-          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only user/agent-created secrets are accessible.",
+          "description": "List of vault secret key names to inject as AURAGO_SECRET_\u003cKEY\u003e environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
           "items": {
             "type": "string"
           },
@@ -18615,7 +18708,7 @@
     },
     {
       "name": "secrets_vault",
-      "description": "Store, retrieve, list, or delete secrets from the encrypted vault.",
+      "description": "Store, retrieve, list, or delete agent-created secrets from the encrypted vault. User-supplied values remain hidden and can only be referenced by key.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -18694,7 +18787,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/secrets_vault.md",
-      "manual_snippet": "# Secrets Vault (`secrets_vault`)\n\nSecurely store and retrieve sensitive values using AES-256-GCM encryption. **NEVER leak secrets to the outside world.** Vault is encrypted with the `AURAGO_MASTER_KEY` environment variable.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `get` | Retrieve a secret value | `key` |\n| `set` | Store a secret value | `key`, `value` |\n| `delete` | Delete a secret | `key` |\n| `list` | List all secret keys (values never exposed) | — |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of: `get`, `set`, `delete`, `list` |\n| `key` | string | for get/set/delete | Secret key name (e.g. `GITHUB_TOKEN`, `MYSQL_PASSWORD`) |\n| `…"
+      "manual_snippet": "# Secrets Vault (`secrets_vault`)\n\nSecurely store and retrieve model-created values using AES-256-GCM encryption. **NEVER leak secrets to the outside world.** Vault is encrypted with the `AURAGO_MASTER_KEY` environment variable. User-provided, UI, system, and legacy values remain hidden from the agent.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `get` | Retrieve a model-created value; protected values return presence only | `key` |\n| `set` | Store a model-created value | `key`, `value` |\n| `delete` | Delete a model-created value | `key` |\n| `list` | List all secret keys (values never exposed) | — |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes…"
     },
     {
       "name": "send_agodesk_chat",
@@ -19203,7 +19296,9 @@
             "type": "string"
           },
           "digits": {
-            "description": "DTMF digits 0-9, *, #, or A-D.",
+            "description": "One RTP DTMF digit: 0-9, *, #, or A-D.",
+            "maxLength": 1,
+            "pattern": "^[0-9*#A-D]$",
             "type": "string"
           },
           "limit": {
@@ -19246,7 +19341,9 @@
           "type": "string"
         },
         "digits": {
-          "description": "DTMF digits 0-9, *, #, or A-D.",
+          "description": "One RTP DTMF digit: 0-9, *, #, or A-D.",
+          "maxLength": 1,
+          "pattern": "^[0-9*#A-D]$",
           "type": "string"
         },
         "limit": {
@@ -19303,7 +19400,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/sip_phone.md",
-      "manual_snippet": "# Native SIP phone\n\nInspect and operate AuraGo's native single-account SIP endpoint. The tool is\navailable only when SIP is enabled. Its operation enum is reduced at runtime\nto the actions permitted by the saved configuration.\n\n## Operations\n\n- `status`: Show registration and active-call state without credentials.\n- `list_calls`: Return privacy-safe call history. Set `limit` from 1 to 200.\n- `dial`: Start one outgoing call to a canonical `sip:user@domain` target.\n- `answer` / `reject`: Decide a pending manually routed incoming call.\n- `hangup`: End the active call.\n- `send_dtmf`: Send exactly one digit from `0-9`, `*`, `#`, or `A-D`.\n\nMutating operations disappear in read-only mode and remain subject to their\nindividual permission flags. Incoming callers must match both a trusted proxy\nsou…"
+      "manual_snippet": "# Native SIP phone\n\nInspect and operate AuraGo's native single-account SIP endpoint. The tool is\navailable only when SIP is enabled. Its operation enum is reduced at runtime\nto the actions permitted by the saved configuration.\n\n## Operations\n\n- `status`: Show registration and active-call state without credentials.\n- `list_calls`: Return privacy-safe call history. Set `limit` from 1 to 200.\n- `dial`: Asynchronously accept one outgoing call request to a canonical `sip:user@domain` target. Verify the result with `status` or `list_calls` and inspect `end_reason`.\n- `answer` / `reject`: Decide a pending manually routed incoming call.\n- `hangup`: End the active call.\n- `send_dtmf`: Send exactly one RTP-DTMF digit from `0-9`, `*`, `#`, or `A-D`; SIP INFO is not used.\n\nMutating operations disappea…"
     },
     {
       "name": "site_crawler",

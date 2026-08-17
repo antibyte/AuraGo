@@ -501,6 +501,10 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 		dockerutil.IsBoringGarageContainerName(containerID) {
 		return true
 	}
+	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
+		dockerutil.IsHomepageContainerName(containerID) {
+		return true
+	}
 	if validateDockerName(containerID) != nil {
 		return false
 	}
@@ -519,6 +523,10 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) &&
 				dockerutil.IsBoringGarageContainerName(info.Name) {
+				return true
+			}
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
+				dockerutil.IsHomepageContainerName(info.Name) {
 				return true
 			}
 			return dockerutil.ManagedBy(info.Config.Labels, owner)
@@ -600,6 +608,10 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 				if !volume && dockerutil.IsLocalLLMContainerName(name) {
 					return true
 				}
+			}
+			if !volume && strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
+				dockerutil.IsHomepageContainerName(name) {
+				return true
 			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) {
 				if !volume && dockerutil.IsBoringGarageContainerName(name) {

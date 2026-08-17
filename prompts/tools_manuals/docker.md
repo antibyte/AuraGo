@@ -1,6 +1,6 @@
 # Docker Management Tool
 
-Manage Docker containers, images, networks, and volumes directly through the Docker Engine API.
+Manage generic Docker containers, images, networks, and volumes directly through the Docker Engine API. AuraGo's managed homepage containers and the `aurago-homepage` image repository are reserved; use `homepage_project`, `homepage_file`, or `homepage_deploy` for homepage work.
 
 ## Prerequisites
 - Docker must be running on the host
@@ -41,6 +41,10 @@ Manage Docker containers, images, networks, and volumes directly through the Doc
 ```
 
 #### create — Create a new container (without starting)
+`name` and `image` are required.
+
+- **name** (required)
+- **image** (required)
 ```json
 {
   "action": "docker",
@@ -55,6 +59,10 @@ Manage Docker containers, images, networks, and volumes directly through the Doc
 ```
 
 #### run — Create AND start a container in one step
+`name` and `image` are required. Short-lived containers still need an explicit name. Set `auto_remove: true` only with restart policy `no`.
+
+- **name** (required)
+- **image** (required)
 ```json
 {
   "action": "docker",
@@ -65,6 +73,21 @@ Manage Docker containers, images, networks, and volumes directly through the Doc
   "restart": "always"
 }
 ```
+
+For exact command arguments, use `command_args`. This array is forwarded without shell parsing:
+```json
+{
+  "action": "docker",
+  "operation": "run",
+  "name": "one-shot-report",
+  "image": "alpine:latest",
+  "command_args": ["/bin/sh", "-lc", "printf '%s\\n' \"$REPORT\""],
+  "auto_remove": true,
+  "restart": "no"
+}
+```
+
+For `create` and `run`, the legacy `command` field accepts only simple whitespace-separated arguments. Quotes, pipes, redirections, command chaining, substitutions, and globbing are rejected. Do not provide both `command` and `command_args`.
 
 ### Container Operations
 
@@ -157,7 +180,10 @@ Requires `file` pointing to the `docker-compose.yml` path.
 
 ## Important Notes
 - `container_id` accepts both container IDs (short or full) and container names
+- `name` is mandatory for every `create` and `run`, including short-lived jobs
 - `run` = `create` + auto-`start` in a single call
+- `auto_remove` defaults to `false`, is valid only for `run`, and conflicts with every restart policy other than `no`
+- `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool
 - Logs are truncated to ~8000 chars to avoid flooding the context
 - `force: true` on remove will kill a running container before removing it
 - Port mapping format: `{"container_port": "host_port"}` — both as strings

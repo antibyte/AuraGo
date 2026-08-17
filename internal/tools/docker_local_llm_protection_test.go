@@ -71,3 +71,20 @@ func TestLocalLLMManagedContainerDetectionFailsClosedForReservedNameAndInspectPa
 		}
 	})
 }
+
+func TestHomepageManagedContainerDetectionRecognizesIDAndName(t *testing.T) {
+	if !DockerContainerManagedBy(DockerConfig{}, dockerutil.HomepageContainerName, dockerutil.HomepageOwner) {
+		t.Fatal("reserved homepage container name was not protected")
+	}
+
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/containers/abc123/json") {
+			_, _ = w.Write([]byte(`{"Name":"/aurago-homepage-web","Config":{"Labels":{}}}`))
+			return
+		}
+		t.Fatalf("unexpected Docker request %s", r.URL.Path)
+	})
+	if !DockerContainerManagedBy(DockerConfig{Host: host}, "abc123", dockerutil.HomepageOwner) {
+		t.Fatal("reserved homepage container reached through its ID was not protected")
+	}
+}

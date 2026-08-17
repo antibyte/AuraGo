@@ -10,7 +10,7 @@ Current generated inventory:
 - 202 tools and 1,041 schema-declared operations
 - 5,000 training scenarios: 3,000 German and 2,000 English
 - deterministic family-level train/validation/test splits
-- 404 permanently held-out challenge scenarios, two per tool
+- Permanently held-out challenge scenarios, exactly two per tool
 - equivalent native OpenAI function calls and textual `<tool_call>` calls
 
 The generated count follows the live checkout. A schema change intentionally

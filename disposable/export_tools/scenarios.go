@@ -594,8 +594,9 @@ func makeChallengeScenarios(tools []ToolExport, contracts OperationContractManif
 		}
 		challenge = append(challenge, negative)
 	}
-	if len(challenge) != targetChallengeCount {
-		return nil, fmt.Errorf("generated %d challenge rows, expected %d", len(challenge), targetChallengeCount)
+	expectedChallengeCount := len(tools) * 2
+	if len(challenge) != expectedChallengeCount {
+		return nil, fmt.Errorf("generated %d challenge rows, expected %d", len(challenge), expectedChallengeCount)
 	}
 	return challenge, nil
 }

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/dockerutil"
 	"aurago/internal/remote"
 
 	"github.com/pkg/sftp"
@@ -651,7 +652,8 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 
 	// Create Caddy container
 	payload := map[string]interface{}{
-		"Image": homepageWebImage,
+		"Image":  homepageWebImage,
+		"Labels": dockerutil.ManagedLabels(dockerutil.HomepageOwner, "homepage", "web", ""),
 		"ExposedPorts": map[string]interface{}{
 			fmt.Sprintf("%d/tcp", port): map[string]interface{}{},
 		},

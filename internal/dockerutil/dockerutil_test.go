@@ -96,6 +96,31 @@ func TestLocalLLMReservedNames(t *testing.T) {
 	}
 }
 
+func TestHomepageReservedResources(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"aurago-homepage", "/AURAGO-HOMEPAGE-WEB"} {
+		if !IsHomepageContainerName(name) {
+			t.Fatalf("homepage container name %q was not recognized", name)
+		}
+	}
+	for _, image := range []string{
+		"aurago-homepage",
+		"aurago-homepage:latest",
+		"registry.example.test/team/aurago-homepage:v1",
+		"aurago-homepage@sha256:0123456789abcdef",
+	} {
+		if !IsHomepageImageReference(image) {
+			t.Fatalf("homepage image %q was not recognized", image)
+		}
+	}
+	for _, value := range []string{"my-aurago-homepage", "caddy:2-alpine", "example/aurago-homepage-assets:latest"} {
+		if IsHomepageContainerName(value) || IsHomepageImageReference(value) {
+			t.Fatalf("unrelated resource %q was recognized as managed homepage", value)
+		}
+	}
+}
+
 func TestParseNumericGroupIDs(t *testing.T) {
 	t.Parallel()
 

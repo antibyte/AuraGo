@@ -54,6 +54,35 @@ func TestBuildDockerCreateContainerPayloadAppliesNetworkModeOption(t *testing.T)
 	}
 }
 
+func TestBuildDockerCreateContainerPayloadControlsAutoRemove(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		options ContainerCreateOptions
+		want    bool
+	}{
+		{name: "internal default remains disabled", options: ContainerCreateOptions{}, want: false},
+		{name: "agent option is forwarded", options: ContainerCreateOptions{AutoRemove: true}, want: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := buildDockerCreateContainerPayloadWithOptions(
+				"alpine:latest", nil, map[string]string{}, nil, nil, "no", nil, tt.options,
+			)
+			hostConfig, ok := payload["HostConfig"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("HostConfig = %#v", payload["HostConfig"])
+			}
+			got, present := hostConfig["AutoRemove"]
+			if tt.want {
+				if !present || got != true {
+					t.Fatalf("AutoRemove = %#v (present %v), want true", got, present)
+				}
+			} else if present {
+				t.Fatalf("AutoRemove = %#v, want omitted to preserve internal payloads", got)
+			}
+		})
+	}
+}
+
 func TestBuildDockerCreateContainerPayloadAppliesCapAddOption(t *testing.T) {
 	payload := buildDockerCreateContainerPayloadWithOptions(
 		"alpine:latest",

@@ -115,8 +115,9 @@ func validateBuildResult(result BuildResult) error {
 	if len(result.Tagged) != len(result.Scenarios) {
 		return fmt.Errorf("native/tagged scenario count mismatch")
 	}
-	if len(result.Challenge) != targetChallengeCount {
-		return fmt.Errorf("challenge scenario count is %d, expected %d", len(result.Challenge), targetChallengeCount)
+	expectedChallengeCount := len(result.Tools) * 2
+	if len(result.Challenge) != expectedChallengeCount {
+		return fmt.Errorf("challenge scenario count is %d, expected %d", len(result.Challenge), expectedChallengeCount)
 	}
 
 	toolByName := scoper(result.Tools)

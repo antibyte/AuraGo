@@ -577,6 +577,19 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Docker integration is not enabled. Set docker.enabled=true in config.yaml."}`
 			}
 			req := decodeDockerArgs(tc)
+			if dockerRequestTargetsManagedHomepage(req) {
+				return dockerAgentError("docker_managed_homepage_resource", "AuraGo-managed homepage containers and the aurago-homepage image repository cannot be managed through the generic docker tool. Use homepage_project, homepage_file, or homepage_deploy.")
+			}
+			var createCommand []string
+			var createRestart string
+			var createOptions tools.ContainerCreateOptions
+			if dockerCreateRunOperation(req.Operation) {
+				var validationError string
+				createCommand, createRestart, createOptions, validationError = validateAgentDockerCreateRun(req)
+				if validationError != "" {
+					return validationError
+				}
+			}
 			if cfg.Docker.ReadOnly && (dockerOperationMutates(req.Operation) ||
 				strings.EqualFold(strings.TrimSpace(req.Operation), "compose") &&
 					tools.DockerComposeCommandMutates(req.Command)) {
@@ -584,6 +597,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
+			if dockerOperationTargetsContainer(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.HomepageOwner) {
+				return dockerAgentError("docker_managed_homepage_resource", "AuraGo-managed homepage containers cannot be accessed through the generic docker tool. Use homepage_project, homepage_file, or homepage_deploy.")
+			}
 			if !go2RTCDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "go2rtc") {
 				return `Tool Output: {"status":"error","message":"Direct lifecycle, log, file, or process access to AuraGo's managed go2rtc container is blocked. Use the read-only go2rtc tool or the administrator API."}`
 			}
@@ -607,6 +623,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if req.Operation == "compose" && dockerComposeReferencesProtectedGarage(dockerCfg, req.File) {
 				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed Boring Computers Garage is blocked."}`
+			}
+			if req.Operation == "compose" && dockerComposeReferencesProtectedHomepage(dockerCfg, req.File) {
+				return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
 			}
 			switch req.Operation {
 			case "list_containers", "ps":
@@ -638,15 +657,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerContainerLogs(dockerCfg, containerID, req.Tail)
 			case "create", "create_container", "run":
 				logger.Info("LLM requested Docker create", "image", req.Image, "name", req.Name)
-				var cmd []string
-				if req.Command != "" {
-					cmd = strings.Fields(req.Command)
-				}
-				restart := req.Restart
-				if restart == "" {
-					restart = "no"
-				}
-				result := tools.DockerCreateContainer(dockerCfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, cmd, restart, nil)
+				result := tools.DockerCreateContainerWithOptions(dockerCfg, strings.TrimSpace(req.Name), req.Image, req.Env, req.Ports, req.Volumes, createCommand, createRestart, nil, createOptions)
 				// Auto-start if operation was "run"
 				if req.Operation == "run" {
 					var created map[string]interface{}
@@ -1459,6 +1470,85 @@ func dockerOperationMutates(operation string) bool {
 	}
 }
 
+func dockerCreateRunOperation(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "create", "create_container", "run":
+		return true
+	default:
+		return false
+	}
+}
+
+func dockerOperationTargetsContainer(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "inspect", "inspect_container", "start", "stop", "restart", "pause", "unpause",
+		"remove", "rm", "logs", "exec", "stats", "top", "port", "cp", "copy", "connect", "disconnect":
+		return true
+	default:
+		return false
+	}
+}
+
+func dockerAgentError(code, message string) string {
+	payload, _ := json.Marshal(map[string]string{
+		"status":  "error",
+		"code":    code,
+		"message": message,
+	})
+	return "Tool Output: " + string(payload)
+}
+
+func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
+	operation := strings.ToLower(strings.TrimSpace(req.Operation))
+	switch operation {
+	case "inspect", "inspect_container", "start", "stop", "restart", "pause", "unpause",
+		"remove", "rm", "logs", "exec", "stats", "top", "port", "cp", "copy",
+		"connect", "disconnect", "create", "create_container", "run":
+		if dockerutil.IsHomepageContainerName(req.targetContainerID()) {
+			return true
+		}
+	}
+	switch operation {
+	case "create", "create_container", "run", "pull_image", "pull", "remove_image", "rmi":
+		return dockerutil.IsHomepageImageReference(req.Image)
+	default:
+		return false
+	}
+}
+
+func validateAgentDockerCreateRun(req dockerArgs) ([]string, string, tools.ContainerCreateOptions, string) {
+	operation := strings.ToLower(strings.TrimSpace(req.Operation))
+	if strings.TrimSpace(req.Name) == "" {
+		return nil, "", tools.ContainerCreateOptions{}, dockerAgentError("docker_name_required", "name is required for docker create and run")
+	}
+	if len(req.CommandArgs) > 0 && strings.TrimSpace(req.Command) != "" {
+		return nil, "", tools.ContainerCreateOptions{}, dockerAgentError("docker_command_conflict", "command and command_args cannot be used together")
+	}
+
+	var command []string
+	if len(req.CommandArgs) > 0 {
+		command = append([]string(nil), req.CommandArgs...)
+	} else if strings.TrimSpace(req.Command) != "" {
+		if dockerLegacyCreateCommandAmbiguous(req.Command) {
+			return nil, "", tools.ContainerCreateOptions{}, dockerAgentError("docker_command_args_required", "command contains shell syntax that is ambiguous for docker create/run; use command_args with an explicit shell such as [\"/bin/sh\",\"-lc\",\"...\"]")
+		}
+		command = strings.Fields(req.Command)
+	}
+
+	restart := strings.ToLower(strings.TrimSpace(req.Restart))
+	if restart == "" {
+		restart = "no"
+	}
+	if req.AutoRemove && (operation != "run" || !strings.EqualFold(restart, "no")) {
+		return nil, "", tools.ContainerCreateOptions{}, dockerAgentError("docker_auto_remove_conflict", "auto_remove=true is valid only for docker run with restart policy no")
+	}
+	return command, restart, tools.ContainerCreateOptions{AutoRemove: req.AutoRemove}, ""
+}
+
+func dockerLegacyCreateCommandAmbiguous(command string) bool {
+	return strings.ContainsAny(command, "'\"\\\r\n;|&<>$`(){}*?[]#~")
+}
+
 func go2RTCDockerOperationSafe(operation string) bool {
 	switch strings.ToLower(strings.TrimSpace(operation)) {
 	case "inspect", "inspect_container", "stats", "port":
@@ -1525,6 +1615,29 @@ func dockerComposeReferencesProtectedGarage(cfg tools.DockerConfig, file string)
 		}
 	}
 	return false
+}
+
+func dockerComposeReferencesProtectedHomepage(cfg tools.DockerConfig, file string) bool {
+	base, err := filepath.Abs(cfg.WorkspaceDir)
+	if err != nil {
+		return true
+	}
+	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
+	if err != nil {
+		return true
+	}
+	relative, err := filepath.Rel(base, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return true
+	}
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	lower := strings.ToLower(string(payload))
+	return strings.Contains(lower, dockerutil.HomepageContainerName) ||
+		strings.Contains(lower, dockerutil.HomepageWebContainerName) ||
+		strings.Contains(lower, dockerutil.HomepageImageRepository)
 }
 
 func dockerProtectedLocalLLMVolumeName(name string) bool {

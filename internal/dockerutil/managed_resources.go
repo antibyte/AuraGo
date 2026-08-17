@@ -19,6 +19,12 @@ const (
 	BoringGarageContainerName = "aurago-boring-garage"
 	// BoringGarageDataPathSuffix is appended to control_plane.install_dir on the target host.
 	BoringGarageDataPathSuffix = "data/sidecars/garage"
+
+	// HomepageOwner is the canonical owner for AuraGo's managed homepage resources.
+	HomepageOwner            = "homepage"
+	HomepageContainerName    = "aurago-homepage"
+	HomepageWebContainerName = "aurago-homepage-web"
+	HomepageImageRepository  = "aurago-homepage"
 )
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
@@ -77,6 +83,32 @@ func IsBoringGarageContainerName(name string) bool {
 	}
 	return strings.Contains(name, "-"+BoringGarageContainerName+"-") ||
 		strings.Contains(name, "_"+BoringGarageContainerName+"_")
+}
+
+// IsHomepageContainerName recognizes AuraGo's reserved homepage containers.
+func IsHomepageContainerName(name string) bool {
+	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
+	return name == HomepageContainerName || name == HomepageWebContainerName
+}
+
+// IsHomepageImageReference recognizes the reserved homepage image repository,
+// including tagged, digested, and registry-qualified references.
+func IsHomepageImageReference(reference string) bool {
+	reference = strings.ToLower(strings.TrimSpace(reference))
+	if reference == "" {
+		return false
+	}
+	if digest := strings.IndexByte(reference, '@'); digest >= 0 {
+		reference = reference[:digest]
+	}
+	lastSlash := strings.LastIndexByte(reference, '/')
+	if tag := strings.LastIndexByte(reference, ':'); tag > lastSlash {
+		reference = reference[:tag]
+	}
+	if slash := strings.LastIndexByte(reference, '/'); slash >= 0 {
+		reference = reference[slash+1:]
+	}
+	return reference == HomepageImageRepository
 }
 
 // IsBoringGarageDataPath reports whether path is under a managed Garage data root.

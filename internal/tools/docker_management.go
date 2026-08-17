@@ -30,6 +30,7 @@ type ContainerCreateOptions struct {
 	CapDrop     []string
 	CapAdd      []string
 	NetworkMode string
+	AutoRemove  bool
 }
 
 // DockerCreateContainer creates a new container from a configuration.
@@ -105,6 +106,9 @@ func buildDockerCreateContainerPayloadWithOptions(image string, env []string, po
 		"Binds":         volumes,
 		"PortBindings":  portBindings,
 		"RestartPolicy": map[string]interface{}{"Name": restart},
+	}
+	if options.AutoRemove {
+		hostConfig["AutoRemove"] = true
 	}
 	if resources != nil {
 		if resources.MemoryMB > 0 {

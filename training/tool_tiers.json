@@ -125,6 +125,7 @@
     "remote_control_files",
     "remote_control_shell",
     "remote_execution",
+    "request_vault_secret",
     "run_agent_skill_script",
     "s3_storage",
     "secrets_vault",

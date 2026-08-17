@@ -58,6 +58,8 @@ type dockerArgs struct {
 	Ports       map[string]string
 	Volumes     []string
 	Command     string
+	CommandArgs []string
+	AutoRemove  bool
 	Restart     string
 	All         bool
 	Force       bool
@@ -332,12 +334,16 @@ func decodeDockerArgs(tc ToolCall) dockerArgs {
 		File:        firstNonEmptyToolString(tc.File, toolArgString(tc.Params, "file")),
 		All:         tc.All,
 		Force:       tc.Force,
+		AutoRemove:  tc.AutoRemove,
 	}
 	if all, ok := toolArgBool(tc.Params, "all"); ok {
 		req.All = all
 	}
 	if force, ok := toolArgBool(tc.Params, "force"); ok {
 		req.Force = force
+	}
+	if autoRemove, ok := toolArgBool(tc.Params, "auto_remove"); ok {
+		req.AutoRemove = autoRemove
 	}
 	if len(tc.Env) > 0 {
 		req.Env = append([]string(nil), tc.Env...)
@@ -356,6 +362,11 @@ func decodeDockerArgs(tc ToolCall) dockerArgs {
 		req.Volumes = append([]string(nil), tc.Volumes...)
 	} else {
 		req.Volumes = toolArgStringSlice(tc.Params, "volumes")
+	}
+	if len(tc.CommandArgs) > 0 {
+		req.CommandArgs = append([]string(nil), tc.CommandArgs...)
+	} else {
+		req.CommandArgs = toolArgStringSlice(tc.Params, "command_args")
 	}
 	return req
 }

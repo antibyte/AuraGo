@@ -2,7 +2,7 @@
 
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
-- Tools: **202**
+- Tools: **203**
 - Enumerated operations: **1041**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
@@ -556,7 +556,7 @@ Perform DNS record lookups for a hostname. Returns A, AAAA, MX, NS, TXT, CNAME, 
 
 ## `docker`
 
-Manage Docker containers, images, networks, and volumes. List, inspect, start, stop, create, remove containers; pull/remove images; view logs; get system info.
+Manage generic Docker containers, images, networks, and volumes. AuraGo-managed homepage resources are reserved; use homepage_project, homepage_file, or homepage_deploy for homepage work.
 
 - Tier: `extended`
 - Required: `operation`
@@ -567,12 +567,14 @@ Manage Docker containers, images, networks, and volumes. List, inspect, start, s
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `all` | `boolean` | Include stopped containers (for list_containers) |
-| `command` | `string` | Command to run in the container |
+| `auto_remove` | `boolean` | Remove the named container after it exits. Valid only for operation run when policy is no; default false. |
+| `command` | `string` | Command for exec, or a simple whitespace-separated legacy command for create/run. Shell quoting, pipes, redirections, chaining, and globbing are rejected for create/run; use command_args with an explicit shell instead. |
+| `command_args` | `array` | Exact exec-form command arguments for create/run, for example ['/bin/sh', '-lc', 'printf ...']. Cannot be combined with command. |
 | `container_id` | `string` | Container ID or name (for container operations) |
 | `env` | `array` | Environment variables (e.g. ['KEY=value']) |
 | `force` | `boolean` | Force removal (for remove/remove_image) |
-| `image` | `string` | Docker image name with optional tag (e.g. 'nginx:latest') |
-| `name` | `string` | Container name (for create/run) |
+| `image` | `string` | Docker image name with optional tag (e.g. 'nginx:latest'). The aurago-homepage repository is reserved. |
+| `name` | `string` | Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved. |
 | `operation` | `string` | Operation to perform |
 | `ports` | `string` | Port mappings: {'container_port': 'host_port'} (e.g. {'80': '8080'}). Provide as a JSON object string. |
 | `restart` | `string` | Restart policy: no, always, unless-stopped, on-failure |
@@ -638,7 +640,7 @@ Save and execute a Python script on the HOST system (unsandboxed). Use ONLY for 
 | `description` | `string` | Brief description of what this script does |
 | `enable_tool_bridge` | `boolean` | Allow this foreground Python run to import aurago and call allowlisted AuraGo tools through aurago.call_tool. Requires tools.python_tool_bridge.enabled and allowed_tools in config. Not supported with background=true. |
 | `tool_bridge_call_limit` | `integer` | Optional per-run limit for aurago.call_tool calls when enable_tool_bridge=true. Default 10, maximum 50. |
-| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible. |
+| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden. |
 
 ## `execute_sandbox`
 
@@ -655,7 +657,7 @@ Execute code in an isolated Docker sandbox. Supports multiple languages (Python,
 | `description` | `string` | Brief description of what this code does |
 | `libraries` | `array` | Optional packages to install before running (e.g. ['requests', 'pandas']) |
 | `sandbox_lang` | `string` | Programming language: python (default), javascript, go, java, cpp, r |
-| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible. |
+| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden. |
 
 ## `execute_shell`
 
@@ -685,7 +687,7 @@ Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wi
 | `credential_ids` | `array` | List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible. |
 | `skill` | `string` | Name of the skill to execute (e.g. 'ddg_search', 'web_scraper', 'pdf_extractor', 'virustotal_scan') |
 | `skill_args` | `string` | Arguments to pass to the skill as key-value pairs. Provide as a JSON object string. |
-| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible. |
+| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden. |
 
 ## `execute_sudo`
 
@@ -1416,7 +1418,7 @@ Track homepage/web projects, deploy history, project history, problems, metadata
 
 ## `huggingface`
 
-Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, and jobs remain blocked by AuraGo policy unless explicitly enabled.
+Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; inspect authenticated Jobs; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, Job access, and compute remain blocked by AuraGo policy unless explicitly enabled.
 
 - Tier: `extended`
 - Required: `operation`
@@ -1435,6 +1437,7 @@ Use Hugging Face as a platform integration: discover Hub models, datasets and Sp
 | `env` | `string` | Environment variables for a Job.. Provide as a JSON object string. |
 | `hardware` | `string` | Job hardware tier; must be in huggingface.allowed_hardware. |
 | `image` | `string` | Container image for a container Job. |
+| `inject_token` | `boolean` | Inject the Vault-backed HF_TOKEN into a started Job. Requires the separate allow_job_token_injection configuration opt-in. |
 | `job_id` | `string` | Hugging Face Job ID. |
 | `length` | `integer` | Dataset row count, bounded by huggingface.max_dataset_rows. |
 | `limit` | `integer` | Maximum number of results. |
@@ -2768,6 +2771,21 @@ Execute a command on a remote SSH server registered in the inventory.
 | `command` | `string` | Shell command to run on the remote server |
 | `server_id` | `string` | Server ID or hostname from the inventory |
 
+## `request_vault_secret`
+
+Ask the user to enter a secret through a secure client dialog. The value is stored directly in the vault and you will NEVER see it. Use this instead of asking the user to paste secrets into chat.
+
+- Tier: `extended`
+- Required: `prompt`, `vault_key`
+- Manual: `prompts/tools_manuals/request_vault_secret.md`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `prompt` | `string` | Free text shown to the user explaining which secret to enter and why. Maximum 2000 characters. |
+| `replace` | `boolean` | Overwrite an existing value for vault_key. Defaults to true. |
+| `vault_key` | `string` | Uppercase key name used to reference the stored secret. Pattern [A-Z0-9_]{1,64}. |
+
 ## `retrieve_original_output`
 
 Return archived original output for a compressed native tool result when details appear missing.
@@ -2799,7 +2817,7 @@ Run an approved Python script from an enabled Agent Skill package with JSON argu
 
 ## `run_tool`
 
-Run a saved custom Python tool from the agent tools directory. Requires agent.allow_python. Use name from discover_tools/list_tools and pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.
+Run only a saved custom Python tool from the agent tools directory. Requires agent.allow_python. The name must exactly match a custom tool returned by discover_tools/list_tools; never invent a name or use run_tool for built-in AuraGo tools. Pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.
 
 - Tier: `core`
 - Required: `name`
@@ -2813,7 +2831,7 @@ Run a saved custom Python tool from the agent tools directory. Requires agent.al
 | `credential_ids` | `array` | List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible. |
 | `name` | `string` | Custom tool filename or registered manifest name to run |
 | `params` | `string` | Optional structured parameters; forwarded to the tool as one JSON argument. Provide as a JSON string. |
-| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible. |
+| `vault_keys` | `array` | List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden. |
 
 ## `s3_storage`
 
@@ -2851,7 +2869,7 @@ Save a new Python tool/script to the tools directory and register it in the mani
 
 ## `secrets_vault`
 
-Store, retrieve, list, or delete secrets from the encrypted vault.
+Store, retrieve, list, or delete agent-created secrets from the encrypted vault. User-supplied values remain hidden and can only be referenced by key.
 
 - Tier: `extended`
 - Required: `operation`
@@ -3020,7 +3038,7 @@ Inspect and operate AuraGo's single-account SIP telephone endpoint. Runtime perm
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `call_id` | `string` | Active call ID for answer, reject, hangup, or send_dtmf. |
-| `digits` | `string` | DTMF digits 0-9, *, #, or A-D. |
+| `digits` | `string` | One RTP DTMF digit: 0-9, *, #, or A-D. |
 | `limit` | `integer` | Maximum call history records to return (1-200). |
 | `operation` | `string` | SIP phone operation to perform. |
 | `target` | `string` | Canonical sip: destination for dial. |

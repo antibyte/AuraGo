@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/dockerutil"
 )
 
 // HomepageConfig holds the configuration for the homepage dev environment.
@@ -30,9 +32,9 @@ type HomepageConfig struct {
 }
 
 const (
-	homepageContainerName  = "aurago-homepage"
-	homepageImageName      = "aurago-homepage:latest"
-	homepageWebContainer   = "aurago-homepage-web"
+	homepageContainerName  = dockerutil.HomepageContainerName
+	homepageImageName      = dockerutil.HomepageImageRepository + ":latest"
+	homepageWebContainer   = dockerutil.HomepageWebContainerName
 	homepageWebImage       = "caddy:2.11.2-alpine"
 	homepageWorkspaceMount = "/workspace"
 )
@@ -331,8 +333,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	// Docker Desktop bind mounts do not map host UID/GID in the same way.
 	workspaceMount := cfg.WorkspacePath + ":" + homepageWorkspaceMount
 	payload := map[string]interface{}{
-		"Image": homepageImageName,
-		"Tty":   false,
+		"Image":  homepageImageName,
+		"Tty":    false,
+		"Labels": dockerutil.ManagedLabels(dockerutil.HomepageOwner, "homepage", "development", ""),
 		"HostConfig": map[string]interface{}{
 			"Binds":         []string{workspaceMount},
 			"ExtraHosts":    []string{"host.docker.internal:host-gateway"},

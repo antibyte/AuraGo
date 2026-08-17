@@ -225,19 +225,21 @@ func TestDecodeDockerArgsUsesParamsFallback(t *testing.T) {
 			"ports": map[string]interface{}{
 				"80/tcp": "8080",
 			},
-			"volumes":     []interface{}{"/host/data:/data"},
-			"command":     "nginx -g 'daemon off;'",
-			"restart":     "unless-stopped",
-			"all":         true,
-			"force":       true,
-			"tail":        float64(25),
-			"user":        "root",
-			"source":      "/tmp/in.txt",
-			"destination": "/app/in.txt",
-			"direction":   "to_container",
-			"driver":      "bridge",
-			"network":     "frontend",
-			"file":        "compose.yml",
+			"volumes":      []interface{}{"/host/data:/data"},
+			"command":      "nginx -g 'daemon off;'",
+			"command_args": []interface{}{"/bin/sh", "-lc", "printf '%s' \"$VALUE\""},
+			"auto_remove":  true,
+			"restart":      "unless-stopped",
+			"all":          true,
+			"force":        true,
+			"tail":         float64(25),
+			"user":         "root",
+			"source":       "/tmp/in.txt",
+			"destination":  "/app/in.txt",
+			"direction":    "to_container",
+			"driver":       "bridge",
+			"network":      "frontend",
+			"file":         "compose.yml",
 		},
 	}
 
@@ -250,6 +252,12 @@ func TestDecodeDockerArgsUsesParamsFallback(t *testing.T) {
 	}
 	if req.Image != "nginx:latest" || req.Command != "nginx -g 'daemon off;'" {
 		t.Fatalf("unexpected image/command decode: %+v", req)
+	}
+	if len(req.CommandArgs) != 3 || req.CommandArgs[0] != "/bin/sh" || req.CommandArgs[2] != "printf '%s' \"$VALUE\"" {
+		t.Fatalf("CommandArgs = %#v, want byte-exact exec arguments", req.CommandArgs)
+	}
+	if !req.AutoRemove {
+		t.Fatal("AutoRemove = false, want true")
 	}
 	if len(req.Env) != 2 || req.Env[0] != "A=1" || req.Env[1] != "B=2" {
 		t.Fatalf("Env = %#v, want [A=1 B=2]", req.Env)

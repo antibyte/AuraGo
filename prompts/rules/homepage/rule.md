@@ -21,7 +21,7 @@ This rule is the default operating guide for homepage, website, landing page, re
 
 ## AuraGo Homepage Workflow
 
-Use focused homepage tools for homepage workspace projects: `homepage_project` for workspace/project lifecycle and diagnostics, `homepage_file` for project files, `homepage_quality` for checks, `homepage_deploy` for preview/publish/deploy, and `homepage_git` for repository actions. Do not inspect, create, edit, copy, move, delete, build, or deploy homepage project files with generic filesystem, file_editor, execute_shell, or execute_python tools.
+Use focused homepage tools for homepage workspace projects: `homepage_project` for workspace/project lifecycle and diagnostics, `homepage_file` for project files, `homepage_quality` for checks, `homepage_deploy` for preview/publish/deploy, and `homepage_git` for repository actions. Do not inspect, create, edit, copy, move, delete, build, or deploy homepage projects or their managed containers with generic filesystem, file_editor, execute_shell, execute_python, or docker tools.
 
 When the task is to create, recreate, delete, rebuild, redesign, publish, or deploy a website/page/site, treat it as a homepage workflow even if the user says only "Seite" or "site". Load and follow the `HOMEPAGE DESIGN SYSTEM` section before choosing colors, layout, cards, spacing, typography, or visual effects.
 
