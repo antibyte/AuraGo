@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab is disabled. Enable it under Media → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "Speech Lab is not ready. Start the container or check Media → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Speech Lab settings",
+  "desktop.live_speech_lab_activate": "Use in Live Speech",
   "desktop.live_speech_lab_ready": "Speech Lab container is ready",
   "desktop.live_speech_lab_start": "Start Speech Lab container",
   "desktop.live_speech_lab_starting": "Starting the Speech Lab container…",

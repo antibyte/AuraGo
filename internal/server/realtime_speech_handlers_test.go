@@ -372,6 +372,52 @@ func TestRealtimeSpeechSpeechLabSessionDoesNotNeedAPIKey(t *testing.T) {
 	}
 }
 
+func TestRealtimeSpeechLabActivationCreatesSelectableProfile(t *testing.T) {
+	server, _ := newRealtimeSpeechTestServer(t)
+	lab := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ready" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ready": true, "asr_id": "asr-a", "tts_id": "tts-a", "asr_ok": true, "tts_ok": true, "voice": "Serena",
+		})
+	}))
+	t.Cleanup(lab.Close)
+	server.Cfg.SpeechLab = config.SpeechLabConfig{Enabled: true, BaseURL: lab.URL, TimeoutSeconds: 2, Language: "de"}
+	client, err := speechlab.NewClient(server.Cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.SpeechLab = client
+	server.initConfigSnapshot()
+
+	rec := httptest.NewRecorder()
+	handleRealtimeSpeechLabActivate(server).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/realtime-speech/speech-lab/activate", strings.NewReader(`{}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("activate status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"profile_id":"speech-lab"`) {
+		t.Fatalf("activate body=%s", rec.Body.String())
+	}
+
+	cfg := realtimeSpeechConfigSnapshot(server)
+	if !cfg.Enabled || cfg.DefaultProfile != "main" || len(cfg.Profiles) != 2 {
+		t.Fatalf("activated config=%+v", cfg)
+	}
+	profile, ok := profileFromConfig(cfg, "speech-lab")
+	if !ok || !profile.Enabled || profile.Provider != realtimespeech.ProviderSpeechLab ||
+		profile.Model != realtimespeech.SpeechLabStackModel || profile.Voice != realtimespeech.SpeechLabActiveVoice {
+		t.Fatalf("activated Speech Lab profile=%+v exists=%v", profile, ok)
+	}
+
+	getRec := httptest.NewRecorder()
+	handleRealtimeSpeechConfig(server).ServeHTTP(getRec, httptest.NewRequest(http.MethodGet, "/api/realtime-speech/config", nil))
+	if !strings.Contains(getRec.Body.String(), `"id":"speech-lab"`) || !strings.Contains(getRec.Body.String(), `"api_key_set":true`) {
+		t.Fatalf("activated profile is not selectable: %s", getRec.Body.String())
+	}
+}
+
 func TestRealtimeSpeechLabTranscribeAndSynthesizeUseSession(t *testing.T) {
 	server, registry, sessionID := newRealtimeSpeechLabSession(t)
 	wav := realtimeSpeechLabTestWAV()

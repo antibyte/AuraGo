@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Το Speech Lab είναι απενεργοποιημένο. Ενεργοποίησέ το στο Πολυμέσα → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "Το Speech Lab δεν είναι έτοιμο. Ξεκίνα το container ή έλεγξε Πολυμέσα → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Ρυθμίσεις Speech Lab",
+  "desktop.live_speech_lab_activate": "Χρήση στο Live Speech",
   "desktop.live_speech_lab_ready": "Το container Speech Lab είναι έτοιμο",
   "desktop.live_speech_lab_start": "Εκκίνηση container Speech Lab",
   "desktop.live_speech_lab_starting": "Το container Speech Lab ξεκινά…",

@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab is uitgeschakeld. Zet het aan onder Media → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "Speech Lab is niet klaar. Start de container of controleer Media → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Speech Lab-instellingen",
+  "desktop.live_speech_lab_activate": "Gebruiken in Live Speech",
   "desktop.live_speech_lab_ready": "Speech Lab-container is klaar",
   "desktop.live_speech_lab_start": "Speech Lab-container starten",
   "desktop.live_speech_lab_starting": "Speech Lab-container wordt gestart…",

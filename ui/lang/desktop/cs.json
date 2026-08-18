@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab je vypnutý. Zapni ho v Média → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "Speech Lab není připraven. Spusť kontejner nebo zkontroluj Média → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Nastavení Speech Lab",
+  "desktop.live_speech_lab_activate": "Použít v Live Speech",
   "desktop.live_speech_lab_ready": "Kontejner Speech Lab je připraven",
   "desktop.live_speech_lab_start": "Spustit kontejner Speech Lab",
   "desktop.live_speech_lab_starting": "Kontejner Speech Lab se spouští…",

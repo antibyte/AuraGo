@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab は無効です。メディア → Speech Lab で有効にしてください。",
   "desktop.live_speech_lab_not_ready": "Speech Lab の準備ができていません。コンテナを起動するか、メディア → Speech Lab を確認してください。",
   "desktop.live_speech_lab_open_config": "Speech Lab 設定",
+  "desktop.live_speech_lab_activate": "Live Speech で使用",
   "desktop.live_speech_lab_ready": "Speech Lab コンテナの準備完了",
   "desktop.live_speech_lab_start": "Speech Lab コンテナを起動",
   "desktop.live_speech_lab_starting": "Speech Lab コンテナを起動しています…",

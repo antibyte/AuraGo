@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -35,6 +36,95 @@ func realtimeSpeechLabSession(registry *realtimespeech.Registry, sessionID, clie
 		return realtimespeech.Session{}, false
 	}
 	return session, true
+}
+
+func handleRealtimeSpeechLabActivate(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !sameOriginOrNoOrigin(r) {
+			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
+			return
+		}
+		if _, err := requireRealtimeSpeechLab(s, r.Context(), true, true); err != nil {
+			writeSpeechLabError(w, err)
+			return
+		}
+
+		next := realtimeSpeechConfigSnapshot(s)
+		existing := make(map[string]config.RealtimeSpeechProfile, len(next.Profiles))
+		profileIndex := -1
+		usedIDs := make(map[string]struct{}, len(next.Profiles))
+		for i, profile := range next.Profiles {
+			existing[profile.ID] = profile
+			usedIDs[profile.ID] = struct{}{}
+			if profileIndex < 0 && strings.EqualFold(strings.TrimSpace(profile.Provider), realtimespeech.ProviderSpeechLab) {
+				profileIndex = i
+			}
+		}
+
+		profileID := ""
+		if profileIndex >= 0 {
+			profile := &next.Profiles[profileIndex]
+			profile.Provider = realtimespeech.ProviderSpeechLab
+			profile.Model = realtimespeech.SpeechLabStackModel
+			profile.Voice = realtimespeech.SpeechLabActiveVoice
+			profile.Enabled = true
+			profileID = profile.ID
+		} else {
+			profileID = availableRealtimeSpeechProfileID("speech-lab", usedIDs)
+			if profileID == "" {
+				jsonError(w, "No profile ID is available for Speech Lab", http.StatusConflict)
+				return
+			}
+			next.Profiles = append(next.Profiles, config.RealtimeSpeechProfile{
+				ID:       profileID,
+				Name:     "Speech Lab",
+				Provider: realtimespeech.ProviderSpeechLab,
+				Model:    realtimespeech.SpeechLabStackModel,
+				Voice:    realtimespeech.SpeechLabActiveVoice,
+				Enabled:  true,
+			})
+		}
+		next.Enabled = true
+		if strings.TrimSpace(next.DefaultProfile) == "" {
+			next.DefaultProfile = profileID
+		}
+
+		normalized, err := realtimespeech.NormalizeAndValidateConfig(next, existing)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := persistRealtimeSpeechConfig(s, normalized, nil); err != nil {
+			if s != nil && s.Logger != nil {
+				s.Logger.Error("[RealtimeSpeech] Failed to activate Speech Lab profile", "error", err)
+			}
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":     "ok",
+			"profile_id": profileID,
+		})
+	}
+}
+
+func availableRealtimeSpeechProfileID(base string, used map[string]struct{}) string {
+	if _, exists := used[base]; !exists {
+		return base
+	}
+	for suffix := 2; suffix <= 999; suffix++ {
+		candidate := fmt.Sprintf("%s-%d", base, suffix)
+		if _, exists := used[candidate]; !exists {
+			return candidate
+		}
+	}
+	return ""
 }
 
 func handleRealtimeSpeechLabTranscribe(s *Server, registry *realtimespeech.Registry) http.HandlerFunc {

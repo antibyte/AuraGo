@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab बंद है। इसे मीडिया → Speech Lab में चालू करें।",
   "desktop.live_speech_lab_not_ready": "Speech Lab तैयार नहीं है। कंटेनर शुरू करें या मीडिया → Speech Lab जाँचें।",
   "desktop.live_speech_lab_open_config": "Speech Lab सेटिंग्स",
+  "desktop.live_speech_lab_activate": "Live Speech में उपयोग करें",
   "desktop.live_speech_lab_ready": "Speech Lab कंटेनर तैयार है",
   "desktop.live_speech_lab_start": "Speech Lab कंटेनर शुरू करें",
   "desktop.live_speech_lab_starting": "Speech Lab कंटेनर शुरू हो रहा है…",

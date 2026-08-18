@@ -18,8 +18,11 @@ func TestDesktopLiveSpeechLoadsSpeechLabProvider(t *testing.T) {
 	app := readDesktopAssetText(t, "js/desktop/apps/live-speech.js")
 	for _, marker := range []string{
 		"data-live-speech-lab",
+		"data-live-speech-lab-activate",
 		"/api/speech-lab/status",
 		"/api/speech-lab/deployment/start",
+		"/api/realtime-speech/speech-lab/activate",
+		"window.AuraRealtimeSpeech.initialize(true)",
 		"desktop.live_speech_lab_ready",
 	} {
 		if !strings.Contains(app, marker) {
@@ -47,6 +50,7 @@ func TestDesktopLiveSpeechLabTranslationsExist(t *testing.T) {
 	t.Parallel()
 
 	keys := []string{
+		"desktop.live_speech_lab_activate",
 		"desktop.live_speech_lab_disabled",
 		"desktop.live_speech_lab_not_ready",
 		"desktop.live_speech_lab_open_config",

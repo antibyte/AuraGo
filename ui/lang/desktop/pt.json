@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "O Speech Lab está desativado. Ativa-o em Media → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "O Speech Lab não está pronto. Inicia o contentor ou verifica Media → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Definições do Speech Lab",
+  "desktop.live_speech_lab_activate": "Usar no Live Speech",
   "desktop.live_speech_lab_ready": "O contentor Speech Lab está pronto",
   "desktop.live_speech_lab_start": "Iniciar contentor Speech Lab",
   "desktop.live_speech_lab_starting": "A iniciar o contentor Speech Lab…",

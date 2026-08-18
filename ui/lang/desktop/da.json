@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab er slået fra. Slå det til under Medier → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "Speech Lab er ikke klar. Start containeren eller tjek Medier → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Speech Lab-indstillinger",
+  "desktop.live_speech_lab_activate": "Brug i Live Speech",
   "desktop.live_speech_lab_ready": "Speech Lab-containeren er klar",
   "desktop.live_speech_lab_start": "Start Speech Lab-container",
   "desktop.live_speech_lab_starting": "Starter Speech Lab-containeren…",

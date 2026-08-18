@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab är avstängt. Aktivera det under Media → Speech Lab.",
   "desktop.live_speech_lab_not_ready": "Speech Lab är inte redo. Starta containern eller kontrollera Media → Speech Lab.",
   "desktop.live_speech_lab_open_config": "Speech Lab-inställningar",
+  "desktop.live_speech_lab_activate": "Använd i Live Speech",
   "desktop.live_speech_lab_ready": "Speech Lab-containern är redo",
   "desktop.live_speech_lab_start": "Starta Speech Lab-container",
   "desktop.live_speech_lab_starting": "Startar Speech Lab-containern…",

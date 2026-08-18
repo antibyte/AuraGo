@@ -88,6 +88,7 @@ func registerRealtimeSpeechHandlers(mux *http.ServeMux, s *Server, sse *SSEBroad
 	mux.HandleFunc("/api/realtime-speech/actions", handleRealtimeSpeechActions(s, registry, webAction, desktopAction))
 	mux.HandleFunc("/api/realtime-speech/actions/", handleRealtimeSpeechActionByID(registry))
 	mux.HandleFunc("/api/realtime-speech/turns", handleRealtimeSpeechTurns(s, registry))
+	mux.HandleFunc("/api/realtime-speech/speech-lab/activate", handleRealtimeSpeechLabActivate(s))
 	mux.HandleFunc("/api/realtime-speech/transcribe", handleRealtimeSpeechLabTranscribe(s, registry))
 	mux.HandleFunc("/api/realtime-speech/synthesize", handleRealtimeSpeechLabSynthesize(s, registry))
 }

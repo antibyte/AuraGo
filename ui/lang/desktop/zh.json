@@ -669,6 +669,7 @@
   "desktop.live_speech_lab_disabled": "Speech Lab 已关闭。请在 媒体 → Speech Lab 中启用。",
   "desktop.live_speech_lab_not_ready": "Speech Lab 尚未就绪。请启动容器或检查 媒体 → Speech Lab。",
   "desktop.live_speech_lab_open_config": "Speech Lab 设置",
+  "desktop.live_speech_lab_activate": "在 Live Speech 中使用",
   "desktop.live_speech_lab_ready": "Speech Lab 容器已就绪",
   "desktop.live_speech_lab_start": "启动 Speech Lab 容器",
   "desktop.live_speech_lab_starting": "正在启动 Speech Lab 容器…",
