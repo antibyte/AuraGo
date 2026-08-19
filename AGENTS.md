@@ -17,7 +17,7 @@
 
 | Component | Technology |
 |-----------|------------|
-| Language | Go 1.26.1+ |
+| Language | Go 1.26.6+ |
 | Web Framework | Standard library `net/http` with gorilla/mux patterns |
 | Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
 | Vector DB | chromem-go (embedded) |
@@ -115,7 +115,7 @@ AuraGo/
 
 ### Development Build
 ```bash
-# Build main binary (requires Go 1.26+)
+# Build main binary (requires Go 1.26.6+)
 go build -o aurago ./cmd/aurago
 
 # Build and start locally

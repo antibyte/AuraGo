@@ -28,6 +28,7 @@ const desktopMainParts = [
   'ui/js/desktop/apps/editor-filemenu.js',
   'ui/js/desktop/apps/planning-gallery-music.js',
   'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
+  'ui/js/desktop/apps/calendar.js',
   'ui/js/desktop/core/sdk-events-bootstrap.js'
 ];
 

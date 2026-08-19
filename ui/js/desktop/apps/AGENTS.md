@@ -39,6 +39,10 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   count in a status bar, find & replace overlay with match highlighting, an
   enhanced formatting toolbar (font, size, color, background, alignment,
   blockquote, code-block, image), and agent integration.
+- `calendar.js` implements the Calendar renderer, appointment menus, drag/drop,
+  recurring appointment creation, and modal lifecycle. It is a continuation
+  inside the shared Desktop IIFE and is bundled immediately before
+  `core/sdk-events-bootstrap.js`; it is not loaded lazily.
 - `cheater*.js` implements the Cheater app, a cheat-sheet manager with a
   textarea-based Markdown editor, live preview, Markdown toolbar, command
   palette (spotlight), and attachments side panel.
@@ -133,6 +137,10 @@ registration lives in `internal/desktop/types.go`.
 ## Local Contracts
 
 - Built-in app load order is defined in `ui/js/desktop/core/module-loader.js`.
+- `calendar.js` is the Calendar source of truth. `desktopMainParts` in
+  `scripts/build-ui-bundles.js` must place it after the split app continuations
+  and before `core/sdk-events-bootstrap.js` so `renderCalendar` stays inside
+  the shared Desktop runtime closure without duplication.
 - Game Maker Studio loads in the order `game-maker-studio-api.js`,
   `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
   overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
@@ -453,6 +461,9 @@ registration lives in `internal/desktop/types.go`.
   replace overlay with match highlighting, enhanced formatting toolbar (font,
   size, color, background, alignment, blockquote, code-block, image), and agent
   integration. Exposes `window.WriterApp`. No child DOX file needed.
+- `calendar.js` - Calendar renderer and appointment UI continuation bundled
+  inside the shared Desktop IIFE immediately before `sdk-events-bootstrap.js`.
+  No child DOX file needed.
 - `galaxa-demo.js` - AI pilot and demo lifecycle; reactive combat AI (aim, fire,
   dodge, collect powerups), menu auto-tap for shop/evo, and game-over
   auto-restart loop. Attaches `ctx.startDemo()` and `ctx.updateDemo(dt)` via

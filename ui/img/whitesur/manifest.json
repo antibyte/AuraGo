@@ -241,6 +241,8 @@
                     "launcher":  "launchpad",
                     "library":  "book",
                     "location":  "map",
+                    "log-viewer":  "monitor",
+                    "logs":  "monitor",
                     "mail":  "mail",
                     "map":  "map",
                     "maps":  "map",

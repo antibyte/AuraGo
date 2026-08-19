@@ -305,7 +305,9 @@
     }
 
     function calendarOptionalDateTime(value) {
-        return value ? new Date(value).toISOString() : '';
+        if (!value) return '';
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? '' : date.toISOString();
     }
 
     function shiftCalendarDate(value, repeat, amount) {

@@ -74,7 +74,7 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 | `github.com/xeipuuv/gojsonschema` | v1.2.0 | Apache-2.0 | https://github.com/xeipuuv/gojsonschema |
 | `github.com/xuri/excelize/v2` | v2.11.0 | BSD-3-Clause | https://github.com/qax-os/excelize |
 | `golang.org/x/crypto` | v0.54.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/crypto |
-| `golang.org/x/image` | v0.44.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |
+| `golang.org/x/image` | v0.45.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |
 | `golang.org/x/net` | v0.57.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/net |
 | `golang.org/x/sync` | v0.22.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sync |
 | `golang.org/x/sys` | v0.47.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sys |
