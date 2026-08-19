@@ -372,8 +372,12 @@
 
         bindAudioGate(gate) {
             gate.addEventListener('speechstart', event => void this.handleSpeechStart(event.detail.audio));
+            gate.addEventListener('level', event => this.emit('level', event.detail || {}));
             gate.addEventListener('audio', event => {
                 const detail = event.detail || {};
+                if (typeof detail.rms === 'number') {
+                    this.emit('level', { speech: detail.speech === true, probability: detail.speech === true ? 1 : 0, rms: detail.rms });
+                }
                 if (detail.speech === true) this.handleAudio(detail.audio);
             });
             gate.addEventListener('speechend', () => this.handleSpeechEnd());

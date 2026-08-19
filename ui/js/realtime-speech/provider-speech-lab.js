@@ -39,6 +39,10 @@
             this.busy = false;
             this.player = null;
             this.outputAudio = null;
+            this.outputContext = null;
+            this.outputAnalyser = null;
+            this.outputBuffer = null;
+            this.outputSource = null;
         }
 
         async connect(connectOptions) {
@@ -132,6 +136,43 @@
             }
         }
 
+        // attachOutputTap routes the utterance element through an AnalyserNode for
+        // output visualizations. MediaElementSource takes over the element's audio
+        // path, so the tap is only installed when the context is running — plain
+        // element playback remains the fallback otherwise.
+        async attachOutputTap(audio) {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass || !audio) return;
+                if (!this.outputContext) {
+                    this.outputContext = new AudioContextClass({ latencyHint: 'interactive' });
+                    this.outputAnalyser = this.outputContext.createAnalyser();
+                    this.outputAnalyser.fftSize = 256;
+                    this.outputAnalyser.smoothingTimeConstant = 0.55;
+                    this.outputAnalyser.connect(this.outputContext.destination);
+                    this.outputBuffer = new Float32Array(this.outputAnalyser.fftSize);
+                }
+                await this.outputContext.resume();
+                if (this.outputContext.state !== 'running') return;
+                this.detachOutputTap();
+                this.outputSource = this.outputContext.createMediaElementSource(audio);
+                this.outputSource.connect(this.outputAnalyser);
+            } catch (_) { /* the visualization tap is optional */ }
+        }
+
+        detachOutputTap() {
+            const source = this.outputSource;
+            this.outputSource = null;
+            if (source) {
+                try { source.disconnect(); } catch (_) { }
+            }
+        }
+
+        getOutputLevel() {
+            if (!this.outputAnalyser || !this.outputBuffer) return 0;
+            return Common.analyserLevel(this.outputAnalyser, this.outputBuffer);
+        }
+
         async speak(text) {
             this.interruptOutput();
             const sessionId = this.session && this.session.session_id;
@@ -157,6 +198,7 @@
             const url = URL.createObjectURL(blob);
             const audio = new Audio(url);
             this.outputAudio = audio;
+            await this.attachOutputTap(audio);
             this.emit('audio', { active: true });
             await new Promise((resolve, reject) => {
                 audio.onended = () => resolve();
@@ -164,6 +206,7 @@
                 void audio.play().catch(reject);
             });
             URL.revokeObjectURL(url);
+            this.detachOutputTap();
             if (this.outputAudio === audio) this.outputAudio = null;
             this.emit('audio', { active: false });
         }
@@ -173,6 +216,7 @@
                 try { this.outputAudio.pause(); } catch (_) { }
                 this.outputAudio = null;
             }
+            this.detachOutputTap();
             this.emit('audio', { active: false });
         }
 
@@ -192,6 +236,12 @@
             this.interruptOutput();
             this.chunks = [];
             this.sampleCount = 0;
+            if (this.outputContext && this.outputContext.state !== 'closed') {
+                try { await this.outputContext.close(); } catch (_) { }
+            }
+            this.outputContext = null;
+            this.outputAnalyser = null;
+            this.outputBuffer = null;
             this.setState('closed');
         }
     }

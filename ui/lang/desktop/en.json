@@ -675,6 +675,7 @@
   "desktop.live_speech_lab_starting": "Starting the Speech Lab container…",
   "desktop.live_speech_open": "Open Live Speech",
   "desktop.live_speech_title": "Live Speech",
+  "desktop.live_speech_fx_toggle": "Background effects",
   "desktop.loading": "Loading...",
   "desktop.log_viewer_attr": "Attributes",
   "desktop.log_viewer_autoscroll": "Auto-scroll",

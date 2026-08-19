@@ -1,60 +1,94 @@
 .vd-live-speech-app {
+    position: relative;
     box-sizing: border-box;
-    display: grid;
-    grid-template-columns: minmax(180px, .72fr) minmax(320px, 1.28fr);
-    gap: 24px;
+    display: flex;
+    flex-direction: column;
     min-height: 100%;
-    padding: clamp(18px, 4vw, 38px);
+    height: 100%;
+    overflow: hidden;
     color: var(--vd-text, #f3f7f8);
-    background:
-        radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--vd-accent, #2fc5a9) 12%, transparent), transparent 34%),
-        var(--vd-surface, #121920);
+    background: var(--vd-surface, #121920);
 }
 
-.vd-live-speech-intro {
-    align-self: center;
-    max-width: 390px;
+.vd-live-speech-fx {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
 }
 
-.vd-live-speech-kicker {
-    color: var(--vd-accent, #2fc5a9);
-    font-size: .72rem;
-    font-weight: 750;
-    letter-spacing: .12em;
-    text-transform: uppercase;
+.vd-live-speech-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 12px;
+    min-height: 0;
+    padding: 14px 16px 16px;
 }
 
-.vd-live-speech-intro h2 {
-    margin: 10px 0 8px;
-    font-size: clamp(1.75rem, 3vw, 2.7rem);
-    letter-spacing: -.035em;
+.vd-live-speech-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
 }
 
-.vd-live-speech-intro p {
+.vd-live-speech-header h2 {
     margin: 0;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.vd-live-speech-fx-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
     color: var(--vd-text-muted, #9dafb9);
-    line-height: 1.65;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.vd-live-speech-fx-toggle:hover {
+    color: var(--vd-accent, #2fc5a9);
+    background: color-mix(in srgb, var(--vd-accent, #2fc5a9) 10%, transparent);
+}
+
+.vd-live-speech-fx-toggle[aria-pressed="true"] {
+    color: var(--vd-accent, #2fc5a9);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vd-accent, #2fc5a9) 45%, transparent);
 }
 
 .vd-live-speech-lab {
-    margin-top: 1.1rem;
-    padding: 0.75rem 0.85rem;
+    padding: 0.6rem 0.75rem;
     border: 1px solid color-mix(in srgb, var(--vd-accent, #2fc5a9) 28%, transparent);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--vd-accent, #2fc5a9) 8%, transparent);
+    background: color-mix(in srgb, var(--vd-panel, #17202a) 72%, transparent);
+    backdrop-filter: blur(10px);
 }
 
 .vd-live-speech-lab p {
-    margin: 0 0 0.45rem;
+    margin: 0 0 0.4rem;
     color: var(--vd-text, #f3f7f8);
-    font-size: 0.9rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
 }
 
 .vd-live-speech-lab-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.55rem;
+    gap: 0.5rem;
     align-items: center;
+    font-size: 0.82rem;
 }
 
 .vd-live-speech-lab-actions a {
@@ -62,19 +96,23 @@
 }
 
 .vd-live-speech-app [data-live-speech-panel] {
-    display: grid;
-    align-items: center;
+    display: flex;
+    flex: 1;
+    align-items: flex-end;
+    min-height: 0;
 }
 
 .vd-live-speech-app .realtime-speech-panel {
     --rt-accent: var(--vd-accent, #2fc5a9);
-    --rt-surface: var(--vd-panel, #17202a);
-    margin: auto;
+    --rt-surface: color-mix(in srgb, var(--vd-panel, #17202a) 58%, transparent);
+    width: 100%;
+    margin: 0;
+    background: var(--rt-surface);
+    border-color: color-mix(in srgb, var(--vd-accent, #2fc5a9) 20%, transparent);
+    backdrop-filter: blur(14px);
 }
 
-@media (max-width: 720px) {
-    .vd-live-speech-app {
-        grid-template-columns: 1fr;
-        align-content: start;
-    }
+/* The full-window canvas replaces the decorative panel wave on this surface. */
+.vd-live-speech-app .realtime-speech-wave {
+    display: none;
 }

@@ -675,6 +675,7 @@
   "desktop.live_speech_lab_starting": "Iniciando el contenedor de Speech Lab…",
   "desktop.live_speech_open": "Abrir voz en vivo",
   "desktop.live_speech_title": "Voz en vivo",
+  "desktop.live_speech_fx_toggle": "Efectos de fondo",
   "desktop.loading": "Cargando...",
   "desktop.log_viewer_attr": "Atributos",
   "desktop.log_viewer_autoscroll": "Desplazamiento automático",

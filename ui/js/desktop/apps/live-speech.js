@@ -2,6 +2,11 @@
     'use strict';
 
     const instances = new Map();
+    const FX_STORAGE_KEY = 'aurago.desktop.livespeech.fx';
+
+    function fxEnabledDefault() {
+        try { return localStorage.getItem(FX_STORAGE_KEY) !== '0'; } catch (_) { return true; }
+    }
 
     function hostFor(windowId, context) {
         const runtime = context && context.__desktopRuntime;
@@ -15,30 +20,53 @@
         const host = hostFor(windowId, context || {});
         if (!host) throw new Error('Live Speech window content is not available');
         host.innerHTML = `<div class="vd-live-speech-app">
-            <div class="vd-live-speech-intro">
-                <span class="vd-live-speech-kicker" data-i18n="desktop.live_speech_kicker">AuraGo voice interface</span>
-                <h2 data-i18n="desktop.live_speech_title">Live Speech</h2>
-                <p data-i18n="desktop.live_speech_description">Talk naturally with AuraGo and carry out tasks without leaving the conversation.</p>
-            <div class="vd-live-speech-lab" data-live-speech-lab hidden>
-                <p data-live-speech-lab-status></p>
-                <div class="vd-live-speech-lab-actions">
-                    <button type="button" class="wh-btn wh-btn-sm" data-live-speech-lab-start hidden></button>
-                    <button type="button" class="wh-btn wh-btn-sm" data-live-speech-lab-activate hidden></button>
-                    <a href="/config#speech_lab" data-live-speech-lab-config></a>
+            <canvas class="vd-live-speech-fx" aria-hidden="true"></canvas>
+            <div class="vd-live-speech-content">
+                <header class="vd-live-speech-header">
+                    <h2 data-i18n="desktop.live_speech_title">Live Speech</h2>
+                    <button type="button" class="vd-live-speech-fx-toggle" data-live-speech-fx-toggle aria-pressed="true">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 4.6L18 9.3l-4.3 1.7L12 15.6l-1.7-4.6L6 9.3l4.3-1.7z"/><path d="M18.5 14.5l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z"/></svg>
+                    </button>
+                </header>
+                <div class="vd-live-speech-lab" data-live-speech-lab hidden>
+                    <p data-live-speech-lab-status></p>
+                    <div class="vd-live-speech-lab-actions">
+                        <button type="button" class="wh-btn wh-btn-sm" data-live-speech-lab-start hidden></button>
+                        <button type="button" class="wh-btn wh-btn-sm" data-live-speech-lab-activate hidden></button>
+                        <a href="/config#speech_lab" data-live-speech-lab-config></a>
+                    </div>
                 </div>
+                <div data-live-speech-panel></div>
             </div>
-            </div>
-            <div data-live-speech-panel></div>
         </div>`;
         if (typeof window.applyI18n === 'function') window.applyI18n(host);
+
+        const canvas = host.querySelector('.vd-live-speech-fx');
+        let fxEnabled = fxEnabledDefault();
+        const fx = window.LiveSpeechFX
+            ? window.LiveSpeechFX.create({ canvas, runtime: window.AuraRealtimeSpeech, enabled: fxEnabled })
+            : null;
+        const fxToggle = host.querySelector('[data-live-speech-fx-toggle]');
+        if (fxToggle) {
+            fxToggle.title = text('desktop.live_speech_fx_toggle', 'Background effects');
+            fxToggle.setAttribute('aria-label', text('desktop.live_speech_fx_toggle', 'Background effects'));
+            fxToggle.setAttribute('aria-pressed', String(fxEnabled));
+            fxToggle.addEventListener('click', () => {
+                fxEnabled = !fxEnabled;
+                try { localStorage.setItem(FX_STORAGE_KEY, fxEnabled ? '1' : '0'); } catch (_) { }
+                fxToggle.setAttribute('aria-pressed', String(fxEnabled));
+                if (fx) fx.setEnabled(fxEnabled);
+            });
+        }
+
         const panel = host.querySelector('[data-live-speech-panel]');
         const unmount = window.AuraRealtimeSpeechUI.mount(panel, {
             surface: 'desktop',
-            compact: false,
+            compact: true,
             chatSessionId: 'virtual-desktop'
         });
         const stopLab = bindSpeechLabStatus(host);
-        instances.set(String(windowId), { host, unmount, stopLab });
+        instances.set(String(windowId), { host, unmount, stopLab, fx });
     }
 
     function text(key, fallback) {
@@ -167,6 +195,9 @@
         }
         if (instance && typeof instance.unmount === 'function') {
             try { instance.unmount(); } catch (_) { }
+        }
+        if (instance && instance.fx && typeof instance.fx.dispose === 'function') {
+            try { instance.fx.dispose(); } catch (_) { }
         }
         instances.delete(key);
         if (!(options && options.keepSession) && window.AuraRealtimeSpeech && window.AuraRealtimeSpeech.sessionId) {

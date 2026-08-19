@@ -80,11 +80,22 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   indicator plus a phase stepper), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
-- `live-speech.js` mounts the shared realtime-speech panel on the desktop.
+- `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
+  compact single-column window (preset 440×600, min 340×460 in
+  `window-shell-runtime.js`; panel mounted with `compact: true`).
   OpenAI, xAI, and Gemini stay on their existing streaming adapters. Speech
   Lab is a keyless `local_s2s` profile that transcribes and speaks through
   the managed or external s2s container. The app shows `/api/speech-lab/status`
   and may start a managed container through `/api/speech-lab/deployment/start`.
+  `live-speech-fx.js` loads before `live-speech.js` and renders the
+  audio-reactive background canvas (`window.LiveSpeechFX.create`, per-window
+  instance with `setEnabled`/`dispose`, FX toggle persisted under
+  `aurago.desktop.livespeech.fx`). Reactivity comes from the runtime `level`
+  event (mic RMS emitted by `RealtimeAudioGate`) and the optional adapter
+  output taps `getOutputLevel()` / `getOutputSpectrum()` (PCMPlayer for
+  Gemini/xAI, zero-gain MediaStream tap for OpenAI, MediaElement tap for
+  Speech Lab); the FX must keep its pooled particles, DPR cap, and
+  `prefers-reduced-motion` static fallback.
 - `sip-phone.js` implements the Phone app, an iPhone-inspired SIP softphone
   rendered as a realistic device (brushed titanium frame, separate mute/
   volume/power hardware buttons, glossy Dynamic Island, live status-bar

@@ -675,6 +675,7 @@
   "desktop.live_speech_lab_starting": "正在启动 Speech Lab 容器…",
   "desktop.live_speech_open": "打开实时语音",
   "desktop.live_speech_title": "实时语音",
+  "desktop.live_speech_fx_toggle": "背景特效",
   "desktop.loading": "加载中...",
   "desktop.log_viewer_attr": "属性",
   "desktop.log_viewer_autoscroll": "自动滚动",

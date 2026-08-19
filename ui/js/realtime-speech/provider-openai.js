@@ -40,6 +40,8 @@
             this.peer = null;
             this.channel = null;
             this.remoteAudio = null;
+            this.outputContext = null;
+            this.outputTap = null;
             this.userTranscripts = new Map();
             this.assistantTranscripts = new Map();
         }
@@ -66,6 +68,7 @@
                 this.remoteAudio.autoplay = true;
                 this.remoteAudio.srcObject = stream;
                 void this.remoteAudio.play().catch(() => { });
+                this.attachOutputTap(stream);
             });
 
             const offer = await this.peer.createOffer();
@@ -87,6 +90,46 @@
             if (!this.channel || this.channel.readyState !== 'open') return false;
             this.channel.send(JSON.stringify(payload));
             return true;
+        }
+
+        // attachOutputTap hooks the remote MediaStream into an AnalyserNode for
+        // output visualizations. Audible playback stays on the <audio> element;
+        // the tap routes through a zero-gain node so the analyser is guaranteed
+        // to be pulled by the audio graph without producing a second output.
+        attachOutputTap(stream) {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass || !stream) return;
+                if (!this.outputContext) {
+                    this.outputContext = new AudioContextClass({ latencyHint: 'interactive' });
+                }
+                if (this.outputContext.state === 'suspended') void this.outputContext.resume().catch(() => { });
+                this.detachOutputTap();
+                const source = this.outputContext.createMediaStreamSource(stream);
+                const analyser = this.outputContext.createAnalyser();
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.55;
+                const mute = this.outputContext.createGain();
+                mute.gain.value = 0;
+                source.connect(analyser);
+                analyser.connect(mute);
+                mute.connect(this.outputContext.destination);
+                this.outputTap = { source, analyser, mute, buffer: new Float32Array(analyser.fftSize) };
+            } catch (_) { /* the visualization tap is optional */ }
+        }
+
+        detachOutputTap() {
+            const tap = this.outputTap;
+            this.outputTap = null;
+            if (!tap) return;
+            try { tap.source.disconnect(); } catch (_) { }
+            try { tap.analyser.disconnect(); } catch (_) { }
+            try { tap.mute.disconnect(); } catch (_) { }
+        }
+
+        getOutputLevel() {
+            if (!this.outputTap) return 0;
+            return Common.analyserLevel(this.outputTap.analyser, this.outputTap.buffer);
         }
 
         sendAudio(samples) {
@@ -218,6 +261,11 @@
                 try { this.remoteAudio.pause(); } catch (_) { }
                 this.remoteAudio.srcObject = null;
             }
+            this.detachOutputTap();
+            if (this.outputContext && this.outputContext.state !== 'closed') {
+                try { await this.outputContext.close(); } catch (_) { }
+            }
+            this.outputContext = null;
             this.channel = null;
             this.peer = null;
             this.remoteAudio = null;

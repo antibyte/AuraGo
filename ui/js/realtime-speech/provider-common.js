@@ -51,6 +51,17 @@
         try { return JSON.parse(value); } catch (_) { return null; }
     }
 
+    // analyserLevel reads the current time-domain RMS of an AnalyserNode into a
+    // reusable buffer and returns a normalized 0..1 level for visualizations.
+    function analyserLevel(analyser, buffer) {
+        if (!analyser || !buffer) return 0;
+        analyser.getFloatTimeDomainData(buffer);
+        let sum = 0;
+        for (let i = 0; i < buffer.length; i += 1) sum += buffer[i] * buffer[i];
+        const rms = Math.sqrt(sum / buffer.length);
+        return Math.min(1, rms * 2.4);
+    }
+
     function randomID(prefix) {
         if (window.crypto && typeof window.crypto.randomUUID === 'function') {
             return String(prefix || 'id') + '-' + window.crypto.randomUUID();
@@ -68,6 +79,9 @@
             this.nextStart = 0;
             this.sources = new Set();
             this.active = false;
+            this.analyser = null;
+            this.analyserTime = null;
+            this.analyserBins = null;
         }
 
         async ensureContext() {
@@ -76,6 +90,38 @@
                 this.context = new AudioContextClass({ latencyHint: 'interactive', sampleRate: this.sampleRate });
             }
             if (this.context.state === 'suspended') await this.context.resume();
+        }
+
+        ensureAnalyser() {
+            if (!this.context || this.analyser) return this.analyser;
+            try {
+                this.analyser = this.context.createAnalyser();
+                this.analyser.fftSize = 256;
+                this.analyser.smoothingTimeConstant = 0.55;
+                this.analyser.connect(this.context.destination);
+                this.analyserTime = new Float32Array(this.analyser.fftSize);
+                this.analyserBins = new Uint8Array(this.analyser.frequencyBinCount);
+            } catch (_) {
+                this.analyser = null;
+                this.analyserTime = null;
+                this.analyserBins = null;
+            }
+            return this.analyser;
+        }
+
+        getOutputLevel() {
+            if (!this.analyser || !this.active) return 0;
+            return analyserLevel(this.analyser, this.analyserTime);
+        }
+
+        getOutputSpectrum(target) {
+            if (!this.analyser || !target || !target.length) return false;
+            this.analyser.getByteFrequencyData(this.analyserBins);
+            const bins = this.analyserBins.length;
+            for (let i = 0; i < target.length; i += 1) {
+                target[i] = this.analyserBins[Math.min(bins - 1, Math.floor(i * bins / target.length))];
+            }
+            return true;
         }
 
         async appendBase64PCM16(base64, sampleRate) {
@@ -92,7 +138,7 @@
             buffer.copyToChannel(samples, 0);
             const source = this.context.createBufferSource();
             source.buffer = buffer;
-            source.connect(this.context.destination);
+            source.connect(this.ensureAnalyser() || this.context.destination);
             const now = this.context.currentTime;
             const startAt = Math.max(now + 0.01, this.nextStart);
             this.nextStart = startAt + buffer.duration;
@@ -136,6 +182,9 @@
                 try { await this.context.close(); } catch (_) { }
             }
             this.context = null;
+            this.analyser = null;
+            this.analyserTime = null;
+            this.analyserBins = null;
         }
     }
 
@@ -188,6 +237,7 @@
         base64ToBytes,
         floatToBase64PCM16,
         safeJSON,
-        randomID
+        randomID,
+        analyserLevel
     };
 })();

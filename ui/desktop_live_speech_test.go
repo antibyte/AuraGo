@@ -15,6 +15,11 @@ func TestDesktopLiveSpeechLoadsSpeechLabProvider(t *testing.T) {
 	if !strings.Contains(loader, "/js/realtime-speech/provider-speech-lab.js") {
 		t.Fatal("live-speech module must load the Speech Lab realtime adapter")
 	}
+	fxIndex := strings.Index(loader, "/js/desktop/apps/live-speech-fx.js")
+	appIndex := strings.Index(loader, "/js/desktop/apps/live-speech.js")
+	if fxIndex < 0 || appIndex < 0 || fxIndex > appIndex {
+		t.Fatal("live-speech module must load live-speech-fx.js before live-speech.js")
+	}
 	app := readDesktopAssetText(t, "js/desktop/apps/live-speech.js")
 	for _, marker := range []string{
 		"data-live-speech-lab",
@@ -24,9 +29,26 @@ func TestDesktopLiveSpeechLoadsSpeechLabProvider(t *testing.T) {
 		"/api/realtime-speech/speech-lab/activate",
 		"window.AuraRealtimeSpeech.initialize(true)",
 		"desktop.live_speech_lab_ready",
+		"window.LiveSpeechFX.create",
+		"vd-live-speech-fx",
+		"data-live-speech-fx-toggle",
+		"compact: true",
 	} {
 		if !strings.Contains(app, marker) {
-			t.Fatalf("live-speech app missing Speech Lab marker %q", marker)
+			t.Fatalf("live-speech app missing marker %q", marker)
+		}
+	}
+	fx := readDesktopAssetText(t, "js/desktop/apps/live-speech-fx.js")
+	for _, marker := range []string{
+		"window.LiveSpeechFX",
+		"prefers-reduced-motion",
+		"getOutputLevel",
+		"runtime.addEventListener('level'",
+		"removeEventListener",
+		"cancelAnimationFrame",
+	} {
+		if !strings.Contains(fx, marker) {
+			t.Fatalf("live-speech fx module missing marker %q", marker)
 		}
 	}
 	adapter := readDesktopAssetText(t, "js/realtime-speech/provider-speech-lab.js")
@@ -57,6 +79,7 @@ func TestDesktopLiveSpeechLabTranslationsExist(t *testing.T) {
 		"desktop.live_speech_lab_ready",
 		"desktop.live_speech_lab_start",
 		"desktop.live_speech_lab_starting",
+		"desktop.live_speech_fx_toggle",
 		"config.realtime_speech.keyless",
 		"config.realtime_speech.speech_lab_help",
 	}

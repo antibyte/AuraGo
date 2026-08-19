@@ -19,6 +19,12 @@
         return output;
     }
 
+    function frameRMS(frame) {
+        let sum = 0;
+        for (let i = 0; i < frame.length; i += 1) sum += frame[i] * frame[i];
+        return Math.sqrt(sum / frame.length);
+    }
+
     class RealtimeAudioGate extends EventTarget {
         constructor(options) {
             super();
@@ -112,19 +118,20 @@
         }
 
         async processFrame(frame) {
+            const rms = frameRMS(frame);
             const speech = !this.muted && await this.vad.isSpeech(frame);
             if (!this.speaking) {
                 if (!speech) {
                     this.candidate = [];
                     this.candidateSpeechSamples = 0;
                     this.appendPreRoll(frame);
-                    this.emit('level', { speech: false, probability: 0 });
+                    this.emit('level', { speech: false, probability: 0, rms });
                     return;
                 }
                 if (this.candidate.length === 0) this.candidate = this.preRoll.map(item => item.slice());
                 this.candidate.push(frame.slice());
                 this.candidateSpeechSamples += frame.length;
-                this.emit('level', { speech: true, probability: 1 });
+                this.emit('level', { speech: true, probability: 1, rms });
                 if (this.candidateSpeechSamples < CONFIRM_SAMPLES) return;
 
                 this.speaking = true;
@@ -141,7 +148,7 @@
                 return;
             }
 
-            this.emit('audio', { audio: frame.slice(), speech });
+            this.emit('audio', { audio: frame.slice(), speech, rms });
             if (speech) {
                 this.silenceSamples = 0;
                 return;

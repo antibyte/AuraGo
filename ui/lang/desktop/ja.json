@@ -675,6 +675,7 @@
   "desktop.live_speech_lab_starting": "Speech Lab コンテナを起動しています…",
   "desktop.live_speech_open": "ライブ音声を開く",
   "desktop.live_speech_title": "ライブ音声",
+  "desktop.live_speech_fx_toggle": "背景エフェクト",
   "desktop.loading": "読み込み中...",
   "desktop.log_viewer_attr": "属性",
   "desktop.log_viewer_autoscroll": "自動スクロール",

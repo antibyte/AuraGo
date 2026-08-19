@@ -87,6 +87,7 @@
                 '/js/realtime-speech/provider-speech-lab.js',
                 '/js/realtime-speech/core.js',
                 '/js/realtime-speech/panel.js',
+                '/js/desktop/apps/live-speech-fx.js',
                 '/js/desktop/apps/live-speech.js'
             ]
         },
