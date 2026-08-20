@@ -4349,6 +4349,12 @@ window.IntegrationsDrawer = (function () {
             const status = item.status || 'starting';
             const url = item.url || '';
             const meta = url || (item.message_key ? t(item.message_key) : (item.description || ''));
+            let action = '';
+            if (url) {
+                action = `<a class="integration-open" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('chat.integrations_open'))}</a>`;
+            } else if (item.id === 'speech_lab') {
+                action = `<a class="integration-open" href="/config#speech_lab">${escapeHtml(t('chat.speech_lab_settings'))}</a>`;
+            }
             return `
                 <div class="integration-item" data-integration-id="${escapeAttr(item.id)}">
                     <div class="integration-icon">${window.chatUiIconMarkup ? window.chatUiIconMarkup(item.icon || 'web') : ''}</div>
@@ -4359,7 +4365,7 @@ window.IntegrationsDrawer = (function () {
                             <span class="integration-url">${escapeHtml(meta)}</span>
                         </div>
                     </div>
-                    ${url ? `<a class="integration-open" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('chat.integrations_open'))}</a>` : ''}
+                    ${action}
                 </div>`;
         }).join('');
     }

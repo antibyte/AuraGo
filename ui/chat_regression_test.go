@@ -337,6 +337,9 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 		`<a class="integration-open"`,
 		`target="_blank"`,
 		`rel="noopener noreferrer"`,
+		`item.id === 'speech_lab'`,
+		`href="/config#speech_lab"`,
+		`t('chat.speech_lab_settings')`,
 	} {
 		if !strings.Contains(drawerJS, marker) {
 			t.Fatalf("integrations drawer JS missing marker %q", marker)
@@ -1124,6 +1127,7 @@ func TestChatFrontend_IntegrationsDrawerI18nKeysExist(t *testing.T) {
 		"chat.integrations_loading",
 		"chat.integrations_error",
 		"chat.aria_integrations",
+		"chat.speech_lab_settings",
 	}
 	files, err := filepath.Glob(filepath.Join("lang", "chat", "*.json"))
 	if err != nil {
