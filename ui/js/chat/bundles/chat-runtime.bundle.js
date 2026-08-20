@@ -4353,7 +4353,8 @@ window.IntegrationsDrawer = (function () {
             if (url) {
                 action = `<a class="integration-open" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('chat.integrations_open'))}</a>`;
             } else if (item.id === 'speech_lab') {
-                action = `<a class="integration-open" href="/config#speech_lab">${escapeHtml(t('chat.speech_lab_settings'))}</a>`;
+                const settingsLabel = escapeAttr(t('chat.speech_lab_settings'));
+                action = `<a class="integration-open" href="/config#speech_lab" aria-label="${settingsLabel}" title="${settingsLabel}">${escapeHtml(t('chat.integrations_open'))}</a>`;
             }
             return `
                 <div class="integration-item" data-integration-id="${escapeAttr(item.id)}">

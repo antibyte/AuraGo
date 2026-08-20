@@ -192,7 +192,8 @@
     justify-content: center;
     border: none;
     border-radius: 6px;
-    background: var(--accent, #6c63ff);
+    background: #334b3b;
+    background: color-mix(in srgb, var(--accent, #6c63ff) 40%, #0a120d);
     color: #fff;
     padding: 7px 10px;
     font-size: 0.82rem;

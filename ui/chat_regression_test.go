@@ -339,7 +339,9 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 		`rel="noopener noreferrer"`,
 		`item.id === 'speech_lab'`,
 		`href="/config#speech_lab"`,
-		`t('chat.speech_lab_settings')`,
+		`const settingsLabel = escapeAttr(t('chat.speech_lab_settings'))`,
+		`aria-label="${settingsLabel}"`,
+		`>${escapeHtml(t('chat.integrations_open'))}</a>`,
 	} {
 		if !strings.Contains(drawerJS, marker) {
 			t.Fatalf("integrations drawer JS missing marker %q", marker)
@@ -350,6 +352,26 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	}
 	if strings.Contains(drawerJS, "alert(") {
 		t.Fatal("integrations drawer must not introduce alert()")
+	}
+}
+
+func TestChatFrontend_IntegrationActionsRemainCompactAndReadable(t *testing.T) {
+	t.Parallel()
+
+	cssContent, err := os.ReadFile(filepath.Join("css", "integrations-drawer.css"))
+	if err != nil {
+		t.Fatalf("read integrations drawer CSS: %v", err)
+	}
+	css := string(cssContent)
+	for _, marker := range []string{
+		`background: #334b3b;`,
+		`background: color-mix(in srgb, var(--accent, #6c63ff) 40%, #0a120d);`,
+		`color: #fff;`,
+		`flex-shrink: 0;`,
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("integrations drawer CSS missing readable compact action marker %q", marker)
+		}
 	}
 }
 
