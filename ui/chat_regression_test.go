@@ -338,6 +338,10 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 		`target="_blank"`,
 		`rel="noopener noreferrer"`,
 		`item.id === 'speech_lab'`,
+		`function speechLabBrowserURL()`,
+		`new URL(window.location.href)`,
+		`url.port = '8766'`,
+		`item.url || (item.id === 'speech_lab' ? speechLabBrowserURL() : '')`,
 		`href="/config#speech_lab"`,
 		`const settingsLabel = escapeAttr(t('chat.speech_lab_settings'))`,
 		`aria-label="${settingsLabel}"`,
@@ -352,6 +356,9 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	}
 	if strings.Contains(drawerJS, "alert(") {
 		t.Fatal("integrations drawer must not introduce alert()")
+	}
+	if strings.Contains(drawerJS, `url.protocol = 'http:'`) {
+		t.Fatal("Speech Lab browser URL must preserve HTTPS for the embedded Tailscale TLS listener")
 	}
 }
 

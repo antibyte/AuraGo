@@ -73,7 +73,6 @@ function speechLabBrowserURL(configured) {
     try {
         const url = new URL(window.location.href);
         if (!/^https?:$/.test(url.protocol) || !url.hostname) return '';
-        url.protocol = 'http:';
         url.port = SPEECH_LAB_BROWSER_PORT;
         url.pathname = '/';
         url.search = '';

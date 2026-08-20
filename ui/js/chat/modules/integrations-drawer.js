@@ -30,6 +30,20 @@ window.IntegrationsDrawer = (function () {
         return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function speechLabBrowserURL() {
+        try {
+            const url = new URL(window.location.href);
+            if (!/^https?:$/.test(url.protocol) || !url.hostname) return '';
+            url.port = '8766';
+            url.pathname = '/';
+            url.search = '';
+            url.hash = '';
+            return url.toString();
+        } catch (_) {
+            return '';
+        }
+    }
+
     function hasFreshWebhosts() {
         return webhostsLoadedAt > 0 && Date.now() - webhostsLoadedAt < WEBHOSTS_CACHE_TTL_MS;
     }
@@ -90,7 +104,7 @@ window.IntegrationsDrawer = (function () {
         }
         listEl.innerHTML = webhosts.map(item => {
             const status = item.status || 'starting';
-            const url = item.url || '';
+            const url = item.url || (item.id === 'speech_lab' ? speechLabBrowserURL() : '');
             const meta = url || (item.message_key ? t(item.message_key) : (item.description || ''));
             let action = '';
             if (url) {

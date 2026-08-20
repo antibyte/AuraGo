@@ -53,6 +53,7 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"const SPEECH_LAB_BROWSER_PORT = '8766'",
 		"function speechLabBrowserURL(",
 		"new URL(window.location.href)",
+		"if (!/^https?:$/.test(url.protocol)",
 		"btn-speech-lab",
 		"function speechLabStage(",
 		"function speechLabIsASR(",
@@ -82,6 +83,9 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		if strings.Contains(strings.ToLower(module), forbidden) {
 			t.Fatalf("Speech Lab config module contains forbidden surface %q", forbidden)
 		}
+	}
+	if strings.Contains(module, `url.protocol = 'http:'`) {
+		t.Fatal("Speech Lab browser URL must preserve HTTPS for the embedded Tailscale TLS listener")
 	}
 }
 
