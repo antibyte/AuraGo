@@ -36,6 +36,7 @@
                             <option value="local">${esc(t('homepage_studio.target_local'))}</option>
                             <option value="vercel">${esc(t('homepage_studio.target_vercel'))}</option>
                             <option value="netlify">${esc(t('homepage_studio.target_netlify'))}</option>
+                            <option value="here_now">${esc(t('homepage_studio.target_here_now'))}</option>
                             <option value="remote">${esc(t('homepage_studio.target_remote'))}</option>
                         </select>
                         <span class="vd-hp-status-dot loading" id="hp-status-${windowId}" role="status" aria-live="polite" title="${esc(t('homepage_studio.checking_status'))}"></span>
@@ -370,12 +371,13 @@
                 local: ['local', 'homepage'],
                 vercel: ['vercel'],
                 netlify: ['netlify'],
+                here_now: ['here_now'],
                 remote: ['remote', 'sftp', 'scp', 'ssh']
             };
             const allowed = aliases[selected] || [selected];
             const exact = deploymentTargets.find(item => item && allowed.includes(item.provider) && item.url);
             if (exact) return exact.url;
-            const externalTargets = ['remote', 'vercel', 'netlify'];
+            const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];
             if (externalTargets.includes(selected)) {
                 const fallback = deploymentTargets.find(item => item && item.provider !== 'local' && item.url);
                 if (fallback) return fallback.url;
@@ -401,6 +403,8 @@
                     return firstPreviewURL(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'), externalURL);
                 case 'netlify':
                     return firstPreviewURL(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'), externalURL);
+                case 'here_now':
+                    return firstPreviewURL(data.here_now_url, data.site_url, data.verified_url, objectURL('here_now'), externalURL);
                 case 'remote':
                     return firstPreviewURL(data.remote_url, data.remote_deploy_url, objectURL('remote'), externalURL);
                 case 'local':

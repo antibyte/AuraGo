@@ -51,6 +51,8 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"google_workspace",
 		"gworkspace",
 		"home_assistant",
+		"here_now_site",
+		"here_now_sites",
 		"influxdb_query",
 		"jellyfin",
 		"joplin_note",

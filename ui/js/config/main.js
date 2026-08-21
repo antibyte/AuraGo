@@ -135,6 +135,7 @@ const SECTIONS = [
         group: t('config.group.web_publishing'),
         items: [
             { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
+            { key: 'here_now', icon: 'HN', label: t('config.section.here_now.label'), desc: t('config.section.here_now.desc') },
             { key: 'vercel', icon: '▲', label: t('config.section.vercel.label'), desc: t('config.section.vercel.desc') },
             { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') },
             { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') }
@@ -512,6 +513,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     webdav: 53,
     koofr: 54,
     netlify: 55,
+    here_now: 112,
     vercel: 56,
     cloudflare_tunnel: 57,
     homepage: 58,
@@ -631,6 +633,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     webdav: "<path d=\"M42 86h43a19 19 0 0 0 2-38 28 28 0 0 0-53 9 15 15 0 0 0 8 29z\" fill=\"#4f8ee8\" opacity=\".22\"/><path d=\"M42 86h43a19 19 0 0 0 2-38 28 28 0 0 0-53 9 15 15 0 0 0 8 29z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4f8ee8\"/><text x=\"64\" y=\"68\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"20\" font-weight=\"800\" fill=\"#35c7d3\">W</text>",
     koofr: "<path d=\"m64 25 36 20v38l-36 20-36-20V45z\" fill=\"#2d8be8\" opacity=\".2\"/><path d=\"m64 25 36 20v38l-36 20-36-20V45zM28 45l36 20 36-20M64 65v38\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#2d8be8\"/><text x=\"64\" y=\"65\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"20\" font-weight=\"800\" fill=\"#35c7d3\">K</text>",
     netlify: "<path d=\"m64 22 18 31 34 11-34 11-18 31-18-31-34-11 34-11z\" fill=\"#00c7b7\" opacity=\".28\"/><path d=\"M64 22v84M22 64h84M46 53l36 22M82 53 46 75\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#00c7b7\"/>",
+    here_now: "<rect x=\"23\" y=\"31\" width=\"82\" height=\"66\" rx=\"14\" fill=\"#84f35c\" opacity=\".2\"/><path d=\"M39 48v32M58 48v32M39 64h19M73 48l10 32 10-32\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"7\" stroke=\"#84f35c\"/>",
     vercel: "<path d=\"m64 28 42 72H22z\" fill=\"#f8fafc\"/><path d=\"m64 50 22 38H42z\" fill=\"#7da3c8\" opacity=\".5\"/>",
     cloudflare_tunnel: "<path d=\"M35 80h52c9 0 15-5 15-13 0-7-5-12-12-13-3-14-15-24-30-24-16 0-29 11-31 27-8 1-14 7-14 14 0 6 7 9 20 9z\" fill=\"#f38020\"/><path d=\"M52 91h38c9 0 17-6 19-14H70c-9 0-15 4-18 14z\" fill=\"#faae40\"/>",
     homepage: "<path d=\"M27 60 64 29l37 31v42H75V76H53v26H27z\" fill=\"#4f8ee8\" opacity=\".22\"/><path d=\"M27 60 64 29l37 31M37 57v45h16V76h22v26h16V57\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4f8ee8\"/>",
@@ -3004,6 +3007,7 @@ const SECTION_MODULES = {
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
+    here_now: { m: 'here_now', fn: 'renderHereNowSection' },
     vercel: { m: 'vercel', fn: 'renderVercelSection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     truenas: { m: 'truenas', fn: 'renderTrueNASSection' },

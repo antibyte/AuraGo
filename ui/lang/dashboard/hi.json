@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "खुली",
   "dashboard.operational_issues_status_in_progress": "प्रगति में",
   "dashboard.operational_issues_status_done": "समाधानित",
-  "dashboard.operational_issues_status_archived": "संग्रहित"
+  "dashboard.operational_issues_status_archived": "संग्रहित",
+  "dashboard.integration_here_now": "here.now"
 }

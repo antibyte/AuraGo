@@ -10,6 +10,8 @@ const MCP_VSCODE_BRIDGE_PRESET = [
     'context_memory',
     'homepage',
     'netlify',
+    'here_now_sites',
+    'here_now_site',
     'web_capture'
 ];
 

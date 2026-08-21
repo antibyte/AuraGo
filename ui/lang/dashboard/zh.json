@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "未解决",
   "dashboard.operational_issues_status_in_progress": "处理中",
   "dashboard.operational_issues_status_done": "已解决",
-  "dashboard.operational_issues_status_archived": "已归档"
+  "dashboard.operational_issues_status_archived": "已归档",
+  "dashboard.integration_here_now": "here.now"
 }

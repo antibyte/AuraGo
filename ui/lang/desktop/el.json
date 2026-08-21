@@ -2315,5 +2315,6 @@
   "zipper.open": "Άνοιγμα αρχείου",
   "zipper.size": "Μέγεθος",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} σύνολο"
+  "zipper.total_size": "{{size}} σύνολο",
+  "homepage_studio.target_here_now": "here.now"
 }

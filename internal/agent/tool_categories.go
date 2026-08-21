@@ -219,6 +219,8 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"network_shares", "Inspect and manage local SMB and NFS server shares"},
 		{"sip_phone", "Inspect and operate the native SIP telephone endpoint"},
 		{"netlify", "Deploy and manage sites on Netlify"},
+		{"here_now_sites", "Inspect authenticated here.now accounts, Sites, access policies, and versions"},
+		{"here_now_site", "Publish and administer authenticated permanent here.now Sites"},
 		{"vercel", "Deploy and manage sites on Vercel"},
 		{"homepage_project", "Manage homepage project lifecycle and dev servers"},
 		{"homepage_file", "Read, write, and edit homepage workspace files"},

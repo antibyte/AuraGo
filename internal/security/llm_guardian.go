@@ -452,6 +452,7 @@ var riskyTools = map[string]bool{
 	"netlify":              true,
 	"home_assistant":       true,
 	"homepage":             true,
+	"here_now_site":        true,
 	"tailscale":            true,
 	"cloudflare_tunnel":    true,
 	"network_ping":         true,

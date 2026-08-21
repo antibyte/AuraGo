@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">here.now deployment</title>
+  <path fill="#111827" d="M31 24h66a15 15 0 0 1 15 15v50a15 15 0 0 1-15 15H31a15 15 0 0 1-15-15V39a15 15 0 0 1 15-15Z"/>
+  <path fill="#77f25a" d="M41 45a8 8 0 0 1 8 8v5h30v-5a8 8 0 0 1 16 0v25a8 8 0 0 1-16 0v-5H49v5a8 8 0 0 1-16 0V53a8 8 0 0 1 8-8Z"/>
+  <circle cx="91" cy="36" r="9" fill="#38bdf8"/>
+</svg>

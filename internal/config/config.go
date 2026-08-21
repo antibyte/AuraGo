@@ -336,6 +336,7 @@ func Load(path string) (*Config, error) {
 
 	var cfg Config
 	ApplySIPDefaults(&cfg.SIP)
+	cfg.HereNow.ReadOnly = true
 	cfg.ModelCatalog.Enabled = true
 	cfg.ModelCatalog.CatalogOnlyVisible = true
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).

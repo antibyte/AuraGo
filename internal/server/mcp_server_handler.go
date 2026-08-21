@@ -414,6 +414,7 @@ func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		HomepageEnabled:              cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
 		HomepageAllowLocalServer:     cfg.Homepage.AllowLocalServer,
 		NetlifyEnabled:               cfg.Netlify.Enabled,
+		HereNowEnabled:               cfg.HereNow.Enabled,
 		FirewallEnabled:              cfg.Firewall.Enabled && cfg.Runtime.FirewallAccessOK,
 		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,

@@ -2315,5 +2315,6 @@
   "zipper.open": "アーカイブを開く",
   "zipper.size": "サイズ",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} 合計"
+  "zipper.total_size": "{{size}} 合計",
+  "homepage_studio.target_here_now": "here.now"
 }

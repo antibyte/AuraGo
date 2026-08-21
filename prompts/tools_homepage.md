@@ -22,13 +22,13 @@ You have expert-level web design and development capabilities through focused ho
 - `homepage_project`: `init`, `start`, `stop`, `status`, `rebuild`, `destroy`, `init_project`, `exec`, `install_deps`
 - `homepage_file`: `list_files`, `read_file`, `write_file`, `edit_file`
 - `homepage_quality`: `lint`, `check_js`, `optimize_images`, `lighthouse`, `screenshot`
-- `homepage_deploy`: `build`, `dev`, `publish_local`, `webserver_start`, `webserver_stop`, `webserver_status`, `deploy`, `deploy_netlify`, `deploy_vercel`, `test_connection`, `tunnel`
+- `homepage_deploy`: `build`, `dev`, `publish_local`, `webserver_start`, `webserver_stop`, `webserver_status`, `deploy`, `deploy_netlify`, `deploy_here_now`, `deploy_vercel`, `test_connection`, `tunnel`
 - `homepage_git`: `git_init`, `git_commit`, `git_status`, `git_diff`, `git_log`, `git_rollback`
 
 **Workflow:** Always initialize with `homepage_project`, develop with `homepage_file`, run `homepage_deploy` `build` (dependencies install automatically and referenced AuraGo generated assets are copied into the detected build output), test with `homepage_deploy`/`homepage_quality`, then deploy through `homepage_deploy`. Provider deploy operations now build, validate deploy candidates, deploy, and live-verify the final URL.
 
 **Existing project fast path:** For an already-created homepage project, do not re-discover through the generic filesystem. Use focused homepage tools directly:
-`homepage_file` `list_files` with `path: "."` -> `read_file` / `write_file` with a project-prefixed `path` like `my-site/index.html` -> `homepage_deploy` `build` or `deploy_netlify` / `deploy_vercel` with `project_dir: "my-site"` -> verify the deployed URL.
+`homepage_file` `list_files` with `path: "."` -> `read_file` / `write_file` with a project-prefixed `path` like `my-site/index.html` -> `homepage_deploy` `build` or `deploy_netlify` / `deploy_here_now` / `deploy_vercel` with `project_dir: "my-site"` -> verify the deployed URL.
 
 **Local publishing:** When using `webserver_start`, pass `project_dir` for the project that should appear at the root URL. If `project_dir` is omitted, AuraGo can restore the last published project or auto-detect one unambiguous servable project, including a plain HTML project with `index.html` at its root.
 
@@ -44,7 +44,9 @@ You have expert-level web design and development capabilities through focused ho
 
 **Vercel deployment:** Use `deploy_vercel` for homepage workspace publishing to Vercel. Projects with `package.json` such as Vite, React, Astro, and Next.js always deploy Vercel-native from the project root after a local build check, even if `build_dir` is set. Explicit static `build_dir` deploys are only for plain static projects without package metadata. Do not mutate Next.js into static export for Vercel.
 
-**Troubleshooting order:** If a homepage or Netlify action fails, do not blindly retry it. First inspect the exact error, then verify the project structure with `homepage_file` `list_files` / `read_file`, then choose a different approach. If `project_dir` is involved, it must be relative to the homepage workspace, never an absolute `/workspace/...` path.
+**here.now deployment:** Use `deploy_here_now` only for permanent authenticated publishing from the Homepage workspace. Leave `slug` empty to create a site or provide the exact existing slug to update it. AuraGo builds and validates the static output, streams missing files to verified upload URLs, finalizes the version, verifies the live URL, and records the deployment only after every verification succeeds. Never emulate an anonymous or claim-token flow.
+
+**Troubleshooting order:** If a homepage or provider deployment fails, do not blindly retry it. First inspect the exact error, then verify the project structure with `homepage_file` `list_files` / `read_file`, then choose a different approach. If `project_dir` is involved, it must be relative to the homepage workspace, never an absolute `/workspace/...` path.
 If `homepage.workspace_path` is configured in the UI, that is only the host mount path. Tool arguments still stay relative, for example `project_dir: "my-site"` and `path: "my-site/src/app/page.tsx"`.
 
 📖 See **tools_manuals/homepage_project.md**, **tools_manuals/homepage_file.md**, **tools_manuals/homepage_quality.md**, **tools_manuals/homepage_deploy.md**, and **tools_manuals/homepage_git.md** for detailed usage. The legacy `homepage` action remains accepted for compatibility when older prompts or clients use it.

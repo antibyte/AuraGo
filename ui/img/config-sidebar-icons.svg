@@ -447,4 +447,8 @@
     <title>speech_lab</title>
     <rect x="51" y="24" width="26" height="46" rx="13" fill="#35c7d3" opacity=".2"/><path d="M51 47v10a13 13 0 0 0 26 0V47M37 56a27 27 0 0 0 54 0M64 83v21M50 104h28" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3"/><path d="M26 42v28M35 50v12M93 50v12M102 42v28" fill="none" stroke-linecap="round" stroke-width="5" stroke="#9b7cf0"/>
   </g>
+  <g class="cfg-icon-cell" data-key="here_now" data-slot="112" transform="translate(256 1280)">
+    <title>here_now</title>
+    <rect x="23" y="31" width="82" height="66" rx="14" fill="#84f35c" opacity=".2"/><path d="M39 48v32M58 48v32M39 64h19M73 48l10 32 10-32" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7" stroke="#84f35c"/>
+  </g>
 </svg>

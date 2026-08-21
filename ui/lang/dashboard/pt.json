@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "Aberto",
   "dashboard.operational_issues_status_in_progress": "Em andamento",
   "dashboard.operational_issues_status_done": "Resolvido",
-  "dashboard.operational_issues_status_archived": "Arquivado"
+  "dashboard.operational_issues_status_archived": "Arquivado",
+  "dashboard.integration_here_now": "here.now"
 }

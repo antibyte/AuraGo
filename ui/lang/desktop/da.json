@@ -2315,5 +2315,6 @@
   "zipper.open": "Åbn arkiv",
   "zipper.size": "Størrelse",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} i alt"
+  "zipper.total_size": "{{size}} i alt",
+  "homepage_studio.target_here_now": "here.now"
 }

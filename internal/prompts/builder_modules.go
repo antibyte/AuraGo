@@ -525,6 +525,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.HomepageAllowLocalServer
 	case "netlify_enabled":
 		return flags.NetlifyEnabled
+	case "here_now_enabled":
+		return flags.HereNowEnabled
 	case "vercel_enabled":
 		return flags.VercelEnabled
 	case "image_generation_enabled":

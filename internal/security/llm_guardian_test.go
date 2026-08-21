@@ -190,6 +190,9 @@ func TestToolClassification(t *testing.T) {
 	if !isRiskyTool("docker") {
 		t.Error("docker should be risky")
 	}
+	if !isRiskyTool("here_now_site") {
+		t.Error("here_now_site should be risky")
+	}
 	if isRiskyTool("unknown_tool") {
 		t.Error("unknown_tool should not be risky")
 	}

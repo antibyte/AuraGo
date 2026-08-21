@@ -671,6 +671,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"video_generation": cfg.VideoGeneration.Enabled,
 			"google_workspace": cfg.GoogleWorkspace.Enabled,
 			"netlify":          cfg.Netlify.Enabled,
+			"here_now":         cfg.HereNow.Enabled,
 			"homepage":         cfg.Homepage.Enabled,
 			"virustotal":       cfg.VirusTotal.Enabled,
 			"brave_search":     cfg.BraveSearch.Enabled,

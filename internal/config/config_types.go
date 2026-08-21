@@ -1919,6 +1919,16 @@ type Config struct {
 		TeamSlug            string `yaml:"team_slug"`             // Netlify team/account slug
 		Token               string `yaml:"-" vault:"token"`       // Personal Access Token (from vault)
 	} `yaml:"netlify"`
+	HereNow struct {
+		Enabled               bool   `yaml:"enabled"`
+		ReadOnly              bool   `yaml:"readonly"`                // true = only list/get, block all mutations
+		AllowPublish          bool   `yaml:"allow_publish"`           // allow create/update/duplicate/restore
+		AllowSiteManagement   bool   `yaml:"allow_site_management"`   // allow metadata and SPA changes
+		AllowAccessManagement bool   `yaml:"allow_access_management"` // allow access policy and password changes
+		AllowDelete           bool   `yaml:"allow_delete"`            // allow confirmed permanent site/version deletion
+		DefaultAccount        string `yaml:"default_account"`         // personal account is empty; workspace subdomain or account UUID otherwise
+		APIKey                string `yaml:"-" vault:"api_key"`       // here.now API key (from vault)
+	} `yaml:"here_now"`
 	Vercel struct {
 		Enabled                bool   `yaml:"enabled"`
 		ReadOnly               bool   `yaml:"readonly"`                 // true = only list/get, block create/update/delete/deploy

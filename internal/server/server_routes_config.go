@@ -164,6 +164,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Netlify integration endpoints
 	mux.HandleFunc("/api/netlify/status", handleNetlifyStatus(s))
 	mux.HandleFunc("/api/netlify/test-connection", handleNetlifyTestConnection(s))
+	mux.HandleFunc("/api/here-now/status", handleHereNowStatus(s))
+	mux.HandleFunc("/api/here-now/test-connection", handleHereNowTestConnection(s))
+	mux.HandleFunc("/api/here-now/accounts", handleHereNowAccounts(s))
 	mux.HandleFunc("/api/vercel/status", handleVercelStatus(s))
 	mux.HandleFunc("/api/vercel/test-connection", handleVercelTestConnection(s))
 

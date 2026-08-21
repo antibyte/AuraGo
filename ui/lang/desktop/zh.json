@@ -2315,5 +2315,6 @@
   "zipper.open": "打开压缩包",
   "zipper.size": "大小",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} 总计"
+  "zipper.total_size": "{{size}} 总计",
+  "homepage_studio.target_here_now": "here.now"
 }

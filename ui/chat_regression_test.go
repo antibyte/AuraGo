@@ -2461,6 +2461,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 
 	iconsPath := filepath.Join("js", "chat", "tool-icons.js")
 	spritePath := filepath.Join("img", "tool-icons-sprite.png")
+	hereNowIconPath := filepath.Join("img", "tool-icons", "here-now.svg")
 	streamingPath := filepath.Join("js", "chat", "chat-streaming.js")
 	cssPath := filepath.Join("css", "chat.css")
 	indexPath := "index.html"
@@ -2472,6 +2473,10 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	spriteContent, err := os.ReadFile(spritePath)
 	if err != nil {
 		t.Fatalf("read %s: %v", spritePath, err)
+	}
+	hereNowIconContent, err := os.ReadFile(hereNowIconPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", hereNowIconPath, err)
 	}
 	streamingContent, err := os.ReadFile(streamingPath)
 	if err != nil {
@@ -2487,8 +2492,8 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 
 	iconsJS := string(iconsContent)
-	if got := strings.Count(iconsJS, "slot: "); got != 101 {
-		t.Fatalf("%s has %d icon definitions, want 101", iconsPath, got)
+	if got := strings.Count(iconsJS, "slot: "); got != 102 {
+		t.Fatalf("%s has %d icon definitions, want 102", iconsPath, got)
 	}
 	requiredIconMarkers := []string{
 		"key: 'execute_shell'",
@@ -2498,11 +2503,23 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"key: 'github'",
 		"key: 'cloudflare_tunnel'",
 		"key: 'truenas'",
+		"key: 'here_now'",
+		"asset: '/img/tool-icons/here-now.svg'",
+		"tool-icon-custom-asset",
 		"'virtual_desktop'",
 		"'send_youtube_video'",
 		"key: 'generic_tool'",
 		"window.AuraToolIcons",
 		"createIcon(toolName",
+	}
+	if strings.Contains(iconsJS, "key: 'here_now', label: 'here.now', row:") {
+		t.Fatalf("%s still maps here.now to an occupied sprite cell", iconsPath)
+	}
+	if !strings.Contains(string(hereNowIconContent), `<svg`) || !strings.Contains(string(hereNowIconContent), `viewBox="0 0 128 128"`) {
+		t.Fatalf("%s is not the dedicated transparent vector asset", hereNowIconPath)
+	}
+	if _, err := Content.ReadFile("img/tool-icons/here-now.svg"); err != nil {
+		t.Fatalf("embedded here.now icon unavailable: %v", err)
 	}
 	for _, marker := range requiredIconMarkers {
 		if !strings.Contains(iconsJS, marker) {

@@ -49,6 +49,32 @@ type netlifyArgs struct {
 	CustomDomain string
 }
 
+type hereNowArgs struct {
+	Operation          string
+	Account            string
+	Cursor             string
+	Query              string
+	Slug               string
+	VersionID          string
+	ProjectDir         string
+	BuildDir           string
+	WorkspaceLabel     string
+	DisplayName        string
+	DisplayDescription string
+	ViewerTitle        string
+	ViewerDescription  string
+	OGImagePath        string
+	SPAMode            *bool
+	Mode               string
+	AllowedEmails      []string
+	AllowedDomains     []string
+	AllowedEmailsSet   bool
+	AllowedDomainsSet  bool
+	Confirm            bool
+	All                bool
+	Limit              int
+}
+
 type vercelArgs struct {
 	Operation       string
 	ProjectID       string
@@ -622,6 +648,38 @@ func decodeNetlifyArgs(tc ToolCall) netlifyArgs {
 		Value:        firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
 		SiteName:     firstNonEmptyToolString(tc.SiteName, toolArgString(tc.Params, "site_name")),
 		CustomDomain: firstNonEmptyToolString(tc.CustomDomain, toolArgString(tc.Params, "custom_domain")),
+	}
+}
+
+func decodeHereNowArgs(tc ToolCall) hereNowArgs {
+	confirm, _ := toolArgBool(tc.Params, "confirm")
+	all, _ := toolArgBool(tc.Params, "all")
+	_, allowedEmailsSet := tc.Params["allowed_emails"]
+	_, allowedDomainsSet := tc.Params["allowed_domains"]
+	return hereNowArgs{
+		Operation:          firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Account:            toolArgString(tc.Params, "account"),
+		Cursor:             toolArgString(tc.Params, "cursor"),
+		Query:              firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query", "q")),
+		Slug:               firstNonEmptyToolString(toolArgString(tc.Params, "slug"), tc.SiteID),
+		VersionID:          firstNonEmptyToolString(toolArgString(tc.Params, "version_id"), tc.DeployID),
+		ProjectDir:         firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
+		BuildDir:           firstNonEmptyToolString(tc.BuildDir, toolArgString(tc.Params, "build_dir")),
+		WorkspaceLabel:     toolArgString(tc.Params, "workspace_label"),
+		DisplayName:        firstNonEmptyToolString(toolArgString(tc.Params, "display_name"), tc.Name),
+		DisplayDescription: firstNonEmptyToolString(toolArgString(tc.Params, "display_description"), tc.Description),
+		ViewerTitle:        toolArgString(tc.Params, "viewer_title"),
+		ViewerDescription:  toolArgString(tc.Params, "viewer_description"),
+		OGImagePath:        toolArgString(tc.Params, "og_image_path"),
+		SPAMode:            toolArgBoolPtr(tc.Params, "spa_mode"),
+		Mode:               toolArgString(tc.Params, "mode"),
+		AllowedEmails:      toolArgStringSlice(tc.Params, "allowed_emails"),
+		AllowedDomains:     toolArgStringSlice(tc.Params, "allowed_domains"),
+		AllowedEmailsSet:   allowedEmailsSet,
+		AllowedDomainsSet:  allowedDomainsSet,
+		Confirm:            confirm,
+		All:                all,
+		Limit:              toolArgInt(tc.Params, 0, "limit"),
 	}
 }
 

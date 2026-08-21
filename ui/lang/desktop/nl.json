@@ -2315,5 +2315,6 @@
   "zipper.open": "Archief openen",
   "zipper.size": "Grootte",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totaal"
+  "zipper.total_size": "{{size}} totaal",
+  "homepage_studio.target_here_now": "here.now"
 }

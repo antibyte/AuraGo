@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "Ανοιχτό",
   "dashboard.operational_issues_status_in_progress": "Σε εξέλιξη",
   "dashboard.operational_issues_status_done": "Επιλυμένο",
-  "dashboard.operational_issues_status_archived": "Αρχειοθετημένο"
+  "dashboard.operational_issues_status_archived": "Αρχειοθετημένο",
+  "dashboard.integration_here_now": "here.now"
 }

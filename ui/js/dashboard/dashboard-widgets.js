@@ -1240,7 +1240,7 @@
             if (name.includes('python') || name.includes('sandbox') || name.includes('skill') || name.includes('generate_image') || name === 'document_creator') return 'coding';
             if (name.includes('memory') || name === 'remember' || name === 'knowledge_graph' || name === 'cheatsheet' || name.includes('journal') || name.includes('notes')) return 'memory';
             if (name.includes('web_') || name === 'site_crawler' || name === 'api_request' || name === 'virustotal_scan' || name === 'form_automation') return 'web';
-            if (name.includes('homepage') || name === 'netlify' || name.includes('update') || name === 'cloudflare_tunnel') return 'deployment';
+            if (name.includes('homepage') || name === 'netlify' || name.startsWith('here_now_') || name.includes('update') || name === 'cloudflare_tunnel') return 'deployment';
             if (name.includes('network') || name.includes('dns_') || name.includes('port_') || name.includes('mdns_') || name.includes('whois') || name.includes('upnp') || name.includes('wake_on_lan') || name.includes('fritzbox')) return 'network';
             if (name === 'docker' || name === 'proxmox' || name === 'frigate' || name === 'tailscale' || name === 'ansible' || name === 'github' || name === 'mcp_call' || name.startsWith('sql_') || name === 'manage_sql_connections' || name.includes('meshcentral') || name.includes('remote_') || name === 'invasion_control' || name === 'home_assistant' || name === 'ollama' || name === 'adguard' || name.startsWith('mqtt_') || name === 's3_storage') return 'infra';
             if (name.includes('email') || name.includes('webhook') || name.includes('telnyx') || name === 'address_book') return 'communication';
@@ -2619,7 +2619,7 @@
                 memory_analysis: dashIcon('brain'), llm_guardian: dashIcon('shield'), security_proxy: dashIcon('lock'),
                 sandbox: dashIcon('box'), ai_gateway: dashIcon('globe'), image_generation: dashIcon('palette'),
                 evomap: dashIcon('globe'),
-                google_workspace: dashIcon('email'), netlify: dashIcon('rocket'),
+                google_workspace: dashIcon('email'), netlify: dashIcon('rocket'), here_now: dashIcon('rocket'),
                 homepage: dashIcon('home'), virustotal: dashIcon('virus'), brave_search: dashIcon('search'),
                 firewall: dashIcon('firewall'), remote_control: dashIcon('device'), web_scraper: dashIcon('spider'),
                 skill_manager: dashIcon('puzzle')
@@ -2653,7 +2653,7 @@
                 evomap: t('dashboard.integration_evomap'),
                 image_generation: t('dashboard.integration_image_generation'),
                 google_workspace: t('dashboard.integration_google_workspace'),
-                netlify: t('dashboard.integration_netlify'),
+                netlify: t('dashboard.integration_netlify'), here_now: t('dashboard.integration_here_now'),
                 homepage: t('dashboard.integration_homepage'), virustotal: t('dashboard.integration_virustotal'),
                 brave_search: t('dashboard.integration_brave_search'), firewall: t('dashboard.integration_firewall'),
                 remote_control: t('dashboard.integration_remote_control'),

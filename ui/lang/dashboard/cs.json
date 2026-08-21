@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "Otevřené",
   "dashboard.operational_issues_status_in_progress": "Probíhá",
   "dashboard.operational_issues_status_done": "Vyřešené",
-  "dashboard.operational_issues_status_archived": "Archivované"
+  "dashboard.operational_issues_status_archived": "Archivované",
+  "dashboard.integration_here_now": "here.now"
 }

@@ -104,6 +104,7 @@ func countAdaptivePromptBudgetIntegrations(cfg *Config) int {
 		cfg.Ansible.Enabled,
 		cfg.GitHub.Enabled,
 		cfg.Netlify.Enabled,
+		cfg.HereNow.Enabled,
 		cfg.AdGuard.Enabled,
 		cfg.UptimeKuma.Enabled,
 		cfg.Grafana.Enabled,

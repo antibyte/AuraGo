@@ -442,6 +442,13 @@ Tools are defined in `internal/tools/`:
 - AI Gateway status checks must stay local and non-token-consuming; live Workers AI connection tests validate the Cloudflare API token/account via `/ai/models/search` and include `cf-aig-gateway-id`.
 - The privacy-safe default is `log_mode: metadata_only`; metadata headers must never contain secrets.
 
+### here.now Integration Contract
+- here.now uses only the fixed `https://here.now` API origin, Vault key `here_now_api_key`, authenticated permanent Sites, and explicit personal or workspace account resolution. Never fall back to anonymous publishing or claim flows.
+- Homepage publishing snapshots a relative workspace directory into a private temporary tree before the first provider request. Reject traversal, symlinks/reparse points, special files, credential material, and more than 1,000 publishable files; upload only the snapshot and always remove it afterward.
+- Retry reads, presigned upload PUTs, and idempotent finalize calls only. Never automatically replay create, update, duplicate, restore, metadata, access, refresh, or deletion mutations; ambiguous outcomes must be structured as `here_now_outcome_unknown` with `retry_safe`.
+- API, upload, and Site verification traffic uses strict public DNS-pinned transports that ignore the loopback SSRF escape hatch. Upload redirects are blocked; Site verification validates and repins every bounded redirect hop before accepting a final `2xx`, `401`, or `403`.
+- Access mutations require a complete current provider policy and preserve omitted allowlist fields. Site-password Vault keys bind canonical account ID plus slug, never use slug-only fallback, and are deleted only after verified password removal or successful Site deletion. The generic Homepage ledger records here.now only after finalize and URL verification.
+
 ### Bluetooth Integration Contract
 - Linux Bluetooth uses BlueZ over the system D-Bus; startup detection must stay passive and must not start discovery, pair, connect, or alter audio defaults.
 - The native `bluetooth` tool exists only with a powered usable adapter. Pair/connect/disconnect require `bluetooth.readonly: false`; play/speak/status/stop require a usable PipeWire or PulseAudio backend and `bluetooth.allow_playback: true`.

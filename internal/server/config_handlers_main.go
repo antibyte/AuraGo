@@ -113,6 +113,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
+		injectHereNowDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -126,6 +127,24 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rawCfg)
 	}
+}
+
+func injectHereNowDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["here_now"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["here_now"] = section
+	}
+	section["enabled"] = cfg.HereNow.Enabled
+	section["readonly"] = cfg.HereNow.ReadOnly
+	section["allow_publish"] = cfg.HereNow.AllowPublish
+	section["allow_site_management"] = cfg.HereNow.AllowSiteManagement
+	section["allow_access_management"] = cfg.HereNow.AllowAccessManagement
+	section["allow_delete"] = cfg.HereNow.AllowDelete
+	section["default_account"] = cfg.HereNow.DefaultAccount
 }
 
 func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault *security.Vault) {
@@ -2105,6 +2124,7 @@ var vaultKeyMap = map[string]string{
 	"onedrive.client_secret":                  "onedrive_client_secret",
 	"paperless_ngx.api_token":                 "paperless_ngx_api_token",
 	"netlify.token":                           "netlify_token",
+	"here_now.api_key":                        "here_now_api_key",
 	"vercel.token":                            "vercel_token",
 	"telnyx.api_key":                          "telnyx_api_key",
 	"cloudflare_tunnel.token":                 "cloudflared_token",

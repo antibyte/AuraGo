@@ -6441,6 +6441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { slot: 98, key: 'cron_scheduler', label: 'Scheduler', row: 9, col: 8, aliases: Object.freeze(['manage_schedule']) },
         { slot: 99, key: 'generic_tool', label: 'Generic tool', row: 9, col: 9, aliases: Object.freeze(['_default', 'generic']) },
         { slot: 101, key: 'question_user', label: 'Question', row: 3, col: 3, aliases: Object.freeze([]) },
+        { slot: 102, key: 'here_now', label: 'here.now', asset: '/img/tool-icons/here-now.svg', aliases: Object.freeze(['here_now_sites', 'here_now_site']) },
     ]);
 
     const DEFAULT_TOOL_ICON_KEY = 'generic_tool';
@@ -6472,8 +6473,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.classList.add('tool-icon-sprite');
         el.dataset.toolIcon = definition.key;
         el.title = definition.label;
-        el.style.setProperty('--tool-icon-position-x', `${definition.col * (100 / 9)}%`);
-        el.style.setProperty('--tool-icon-position-y', `${definition.row * (100 / 9)}%`);
+        el.classList.toggle('tool-icon-custom-asset', Boolean(definition.asset));
+        if (definition.asset) {
+            const assetVersion = encodeURIComponent(window.BUILD_VERSION || 'dev');
+            el.style.backgroundImage = `url('${definition.asset}?v=${assetVersion}')`;
+            el.style.backgroundPosition = 'center';
+            el.style.backgroundRepeat = 'no-repeat';
+            el.style.backgroundSize = 'contain';
+            el.style.removeProperty('--tool-icon-position-x');
+            el.style.removeProperty('--tool-icon-position-y');
+        } else {
+            el.style.removeProperty('background-image');
+            el.style.removeProperty('background-position');
+            el.style.removeProperty('background-repeat');
+            el.style.removeProperty('background-size');
+            el.style.setProperty('--tool-icon-position-x', `${definition.col * (100 / 9)}%`);
+            el.style.setProperty('--tool-icon-position-y', `${definition.row * (100 / 9)}%`);
+        }
         return definition;
     }
 

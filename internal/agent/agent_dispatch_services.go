@@ -1086,6 +1086,44 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 				}
 				return "Tool Output: " + result
+			case "deploy_here_now":
+				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+					return validation
+				}
+				if !cfg.HereNow.Enabled {
+					return `Tool Output: {"status":"error","message":"here.now integration is not enabled. Set here_now.enabled=true in config.yaml."}`
+				}
+				if cfg.HereNow.ReadOnly || !cfg.HereNow.AllowPublish {
+					return `Tool Output: {"status":"error","message":"here.now publishing is disabled. Disable here_now.readonly and enable here_now.allow_publish."}`
+				}
+				hnKey, hnErr := vault.ReadSecret("here_now_api_key")
+				if hnErr != nil || strings.TrimSpace(hnKey) == "" {
+					return `Tool Output: {"status":"error","message":"here.now API key not found in Vault. Store it with key 'here_now_api_key' via the Config UI."}`
+				}
+				hnCfg := tools.HereNowConfig{
+					APIKey: hnKey, DefaultAccount: cfg.HereNow.DefaultAccount,
+					ReadOnly: cfg.HereNow.ReadOnly, AllowPublish: cfg.HereNow.AllowPublish,
+					AllowSiteManagement:   cfg.HereNow.AllowSiteManagement,
+					AllowAccessManagement: cfg.HereNow.AllowAccessManagement,
+					AllowDelete:           cfg.HereNow.AllowDelete,
+				}
+				logger.Info("LLM requested homepage deploy_here_now", "project", req.ProjectDir, "build_dir", req.BuildDir, "slug", req.Slug, "account", req.Account)
+				result := tools.HomepageDeployHereNow(ctx, homepageCfg, hnCfg, req.ProjectDir, req.BuildDir, tools.HereNowPublishOptions{
+					Account: req.Account, Slug: req.Slug, WorkspaceLabel: req.WorkspaceLabel, SPAMode: req.SPAMode,
+				}, logger)
+				verified := false
+				if homepageResultSuccess(result) {
+					var parsed map[string]interface{}
+					if json.Unmarshal([]byte(result), &parsed) == nil {
+						verified, _ = parsed["verified"].(bool)
+					}
+				}
+				if verified {
+					result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "here_now", req.BuildDir, result, logger)
+				} else if homepageResultSuccess(result) {
+					result = withHomepageLedgerWarnings(result, []string{"here.now result was not verified; deployment ledger was not updated"})
+				}
+				return "Tool Output: " + result
 			case "deploy_vercel":
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation
@@ -1238,7 +1276,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage revision_status", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageRevisionStatus(homepageCfg, homepageRegistryDB, req.ProjectDir, logger)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
+				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_here_now, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
 			}
 
 		case "webdav", "webdav_storage":

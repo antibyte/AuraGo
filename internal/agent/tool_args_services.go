@@ -110,6 +110,11 @@ type homepageArgs struct {
 	Reason       string
 	Count        int
 	RevisionID   int64
+
+	Slug           string
+	Account        string
+	WorkspaceLabel string
+	SPAMode        *bool
 }
 
 type manageSQLConnectionsArgs struct {
@@ -414,6 +419,11 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		Reason:       firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason")),
 		Count:        firstNonEmptyInt(tc.Count, toolArgInt(tc.Params, 0, "count")),
 		RevisionID:   toolArgInt64(tc.Params, "revision_id"),
+
+		Slug:           firstNonEmptyToolString(toolArgString(tc.Params, "slug"), tc.SiteID),
+		Account:        toolArgString(tc.Params, "account"),
+		WorkspaceLabel: toolArgString(tc.Params, "workspace_label"),
+		SPAMode:        toolArgOptionalBool(tc.Params, "spa_mode"),
 	}
 	if autoFix, ok := toolArgBool(tc.Params, "auto_fix"); ok {
 		req.AutoFix = autoFix

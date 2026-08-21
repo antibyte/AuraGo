@@ -48,7 +48,7 @@
         supertonic: 'ai', ai_gateway: 'ai', mcp: 'ai', mcp_server: 'ai',
         embeddings: 'ai', realtime_speech: 'ai',
         s3: 'storage', koofr: 'storage', webdav: 'storage', jellyfin: 'storage',
-        obsidian: 'storage', netlify: 'storage', vercel: 'storage', huggingface: 'storage',
+        obsidian: 'storage', netlify: 'storage', here_now: 'storage', vercel: 'storage', huggingface: 'storage',
         adguard: 'monitoring', uptime_kuma: 'monitoring', grafana: 'monitoring',
         budget: 'monitoring'
     };

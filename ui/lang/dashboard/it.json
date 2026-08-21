@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "Aperto",
   "dashboard.operational_issues_status_in_progress": "In corso",
   "dashboard.operational_issues_status_done": "Risolto",
-  "dashboard.operational_issues_status_archived": "Archiviato"
+  "dashboard.operational_issues_status_archived": "Archiviato",
+  "dashboard.integration_here_now": "here.now"
 }

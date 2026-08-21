@@ -766,9 +766,9 @@ func TestFocusedInvasionSchemasExposeAllDispatchOperations(t *testing.T) {
 }
 
 func TestFocusedHomepageSchemaPromptsMatchOperationEnums(t *testing.T) {
-	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
+	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true})
 	deployOps := focusedToolOperationEnum(t, schemas, "homepage_deploy")
-	for _, wantOp := range []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_vercel"} {
+	for _, wantOp := range []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel"} {
 		if !containsName(deployOps, wantOp) {
 			t.Fatalf("homepage_deploy operation enum missing prompted operation %s: %#v", wantOp, deployOps)
 		}

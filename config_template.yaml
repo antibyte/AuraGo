@@ -1597,6 +1597,14 @@ netlify:
     allow_env_management: false
     default_site_id: ""
     team_slug: ""
+here_now:
+    enabled: false
+    readonly: true
+    allow_publish: false
+    allow_site_management: false
+    allow_access_management: false
+    allow_delete: false
+    default_account: ""
 vercel:
     enabled: false
     readonly: false

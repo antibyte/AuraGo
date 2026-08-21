@@ -321,3 +321,87 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 	}
 	return client, nil
 }
+
+// NewStrictPublicHTTPClientForURL returns a DNS-pinned client for security-
+// sensitive provider URLs. Unlike the general SSRF client, it never honors the
+// AURAGO_SSRF_ALLOW_LOOPBACK development escape hatch and never follows
+// redirects. Callers that intentionally support redirects must validate every
+// hop and create a fresh client for that URL.
+func NewStrictPublicHTTPClientForURL(rawURL string, timeout time.Duration) (*http.Client, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("disallowed URL scheme %q", parsed.Scheme)
+	}
+	if parsed.User != nil || parsed.Fragment != "" {
+		return nil, fmt.Errorf("strict public URL must not contain credentials or fragments")
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		return nil, fmt.Errorf("URL has no host")
+	}
+
+	var pinnedIP net.IP
+	if literal := net.ParseIP(host); literal != nil {
+		if isPrivateIP(literal) {
+			return nil, fmt.Errorf("access to internal address %s is blocked (strict SSRF protection)", literal)
+		}
+		pinnedIP = literal
+	} else {
+		lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		addrs, lookupErr := net.DefaultResolver.LookupIPAddr(lookupCtx, host)
+		if lookupErr != nil {
+			return nil, fmt.Errorf("hostname resolution failed for %q: %w", host, lookupErr)
+		}
+		if len(addrs) == 0 {
+			return nil, fmt.Errorf("hostname resolution failed for %q: no A/AAAA records found", host)
+		}
+		for _, addr := range addrs {
+			if isPrivateIP(addr.IP) {
+				return nil, fmt.Errorf("access to internal address %s is blocked (strict SSRF protection)", addr.IP)
+			}
+		}
+		pinnedIP = addrs[0].IP
+	}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	dialer := &net.Dialer{Timeout: 15 * time.Second}
+	dialPinned := func(ctx context.Context, network, addr string) (net.Conn, string, error) {
+		dialHost, port, splitErr := net.SplitHostPort(addr)
+		if splitErr != nil {
+			return nil, "", fmt.Errorf("invalid target address %q: %w", addr, splitErr)
+		}
+		if !strings.EqualFold(strings.TrimSuffix(dialHost, "."), strings.TrimSuffix(host, ".")) {
+			return nil, "", fmt.Errorf("redirected target host %q is blocked by strict SSRF protection", dialHost)
+		}
+		conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(pinnedIP.String(), port))
+		return conn, dialHost, dialErr
+	}
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, _, dialErr := dialPinned(ctx, network, addr)
+		return conn, dialErr
+	}
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		rawConn, serverName, dialErr := dialPinned(ctx, network, addr)
+		if dialErr != nil {
+			return nil, dialErr
+		}
+		tlsConn := tls.Client(rawConn, &tls.Config{ServerName: serverName, MinVersion: tls.VersionTLS12})
+		if handshakeErr := tlsConn.HandshakeContext(ctx); handshakeErr != nil {
+			_ = rawConn.Close()
+			return nil, handshakeErr
+		}
+		return tlsConn, nil
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}, nil
+}

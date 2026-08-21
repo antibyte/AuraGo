@@ -22,7 +22,7 @@ type taskRulePromptContext struct {
 }
 
 var (
-	homepageWorkflowIntentPattern = regexp.MustCompile(`(?i)\b(?:homepage|website|webseite|startseite|landing\s*page|landingpage|web\s*app|netlify|vercel)\b`)
+	homepageWorkflowIntentPattern = regexp.MustCompile(`(?i)(?:\b(?:homepage|website|webseite|startseite|landing\s*page|landingpage|web\s*app|netlify|vercel)\b|\bhere(?:\.|\s+)now\b)`)
 	genericPageIntentPattern      = regexp.MustCompile(`(?i)\b(?:seite|site|page)\b`)
 	homepageActionIntentPattern   = regexp.MustCompile(`(?i)\b(?:erstelle|erstellen|baue|bauen|lösche|loesche|neubauen|neu\s+aufsetzen|aufsetzen|redesign|deploy|veröffentliche|veroeffentliche|publish|create|build|rebuild|delete|recreate|redesign|deploy|publish)\b`)
 )

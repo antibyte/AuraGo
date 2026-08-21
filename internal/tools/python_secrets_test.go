@@ -114,6 +114,7 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"boring_openrouter_key",
 		"tts_mistral_api_key",
 		"webhook_outgoing_hook_1_0123456789ab_secrets",
+		"here_now_api_key",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)
@@ -153,6 +154,7 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"credential_certificate_tls",
 		"vapid_private_key",
 		"homepage_api",
+		"here_now_site_password_0123456789abcdef",
 		"manifest_api_key",
 		"manifest_postgres_password",
 		"manifest_better_auth_secret",

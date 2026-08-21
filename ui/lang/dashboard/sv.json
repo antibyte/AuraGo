@@ -921,5 +921,6 @@
   "dashboard.operational_issues_status_open": "Öppen",
   "dashboard.operational_issues_status_in_progress": "Pågår",
   "dashboard.operational_issues_status_done": "Löst",
-  "dashboard.operational_issues_status_archived": "Arkiverat"
+  "dashboard.operational_issues_status_archived": "Arkiverat",
+  "dashboard.integration_here_now": "here.now"
 }

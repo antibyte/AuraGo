@@ -435,6 +435,12 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 		return result
 	}
 	provider = strings.ToLower(strings.TrimSpace(provider))
+	if provider == "here_now" {
+		verified, ok := parsed["verified"].(bool)
+		if !ok || !verified {
+			return result
+		}
+	}
 	if fallbackProjectDir := ledgerString(parsed, "fallback_project_dir"); fallbackProjectDir != "" {
 		projectDir = fallbackProjectDir
 	}
@@ -490,8 +496,14 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 			result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: %v", err))
 		}
 	}
-	targetID := firstLedgerString(parsed, "site_id", "new_site_id", "deploy_site_id", "project_id")
-	deployID := firstLedgerString(parsed, "deployment_id", "deploy_id", "id")
+	targetKeys := []string{"site_id", "new_site_id", "deploy_site_id", "project_id"}
+	deployKeys := []string{"deployment_id", "deploy_id", "id"}
+	if provider == "here_now" {
+		targetKeys = append(targetKeys, "slug")
+		deployKeys = []string{"current_version_id", "deployment_id", "deploy_id", "id"}
+	}
+	targetID := firstLedgerString(parsed, targetKeys...)
+	deployID := firstLedgerString(parsed, deployKeys...)
 	url := firstLedgerString(parsed, "verified_url", "deployment_url", "deploy_url", "url", "served_url", "deploy_ssl_url", "deploy_deploy_url")
 	remotePath := firstLedgerString(parsed, "path", "remote_path", "source_path")
 	status := firstLedgerString(parsed, "status")

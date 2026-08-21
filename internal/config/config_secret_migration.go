@@ -54,6 +54,7 @@ var plaintextSecretVaultPaths = map[string]string{
 	"homepage.deploy_password":         "homepage_deploy_password",
 	"homepage.deploy_key":              "homepage_deploy_key",
 	"netlify.token":                    "netlify_token",
+	"here_now.api_key":                 "here_now_api_key",
 	"vercel.token":                     "vercel_token",
 	"egg_mode.shared_key":              "egg_shared_key",
 	"google_workspace.client_secret":   "google_workspace_client_secret",

@@ -95,18 +95,22 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"project_dir": prop("string", "Required workspace-relative project subdirectory for lint or optimize_images."),
 		}, "operation")),
 		tool("homepage_deploy", "Deploy or publish homepage projects through configured deployment targets.", schema(map[string]interface{}{
-			"operation":   operationProperty("Deployment operation.", []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_vercel"}),
-			"project_dir": prop("string", "Required workspace-relative project subdirectory for project-scoped build, dev, publish_local, and deploy operations. Always pass the exact project_dir for deploy, deploy_netlify, and deploy_vercel."),
-			"build_dir":   prop("string", "Build output directory."),
-			"auto_fix":    prop("boolean", "Retry common build fixes when true."),
-			"port":        prop("integer", "Port for dev server, webserver_start, or tunnel."),
-			"site_id":     prop("string", "Netlify site ID."),
-			"draft":       prop("boolean", "Create Netlify draft deployment when true."),
-			"title":       prop("string", "Deploy message/title."),
-			"project_id":  prop("string", "Vercel project ID or name."),
-			"target":      prop("string", "Vercel target: preview or production."),
-			"alias":       prop("string", "Optional Vercel alias/domain."),
-			"domain":      prop("string", "Optional custom domain."),
+			"operation":       operationProperty("Deployment operation.", []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel"}),
+			"project_dir":     prop("string", "Required workspace-relative project subdirectory for project-scoped build, dev, publish_local, and deploy operations. Always pass the exact project_dir for external deploys."),
+			"build_dir":       prop("string", "Build output directory."),
+			"auto_fix":        prop("boolean", "Retry common build fixes when true."),
+			"port":            prop("integer", "Port for dev server, webserver_start, or tunnel."),
+			"site_id":         prop("string", "Netlify site ID."),
+			"draft":           prop("boolean", "Create Netlify draft deployment when true."),
+			"title":           prop("string", "Deploy message/title."),
+			"project_id":      prop("string", "Vercel project ID or name."),
+			"target":          prop("string", "Vercel target: preview or production."),
+			"alias":           prop("string", "Optional Vercel alias/domain."),
+			"domain":          prop("string", "Optional custom domain."),
+			"slug":            prop("string", "Existing here.now Site slug to update; omit to create a Site."),
+			"account":         prop("string", "Optional here.now personal/workspace account selector."),
+			"workspace_label": prop("string", "Optional exact here.now workspace Site label."),
+			"spa_mode":        prop("boolean", "Enable here.now SPA fallback routing."),
 		}, "operation")),
 		tool("homepage_git", "Manage homepage project git and revision history.", schema(map[string]interface{}{
 			"operation":   operationProperty("Git/revision operation.", []string{"git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"}),
@@ -626,7 +630,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 
 	if ff.HomepageEnabled {
-		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML. Required task rule: homepage. Before homepage/web/page planning, deleting, creating, editing, building or deploying, read and follow # TASK RULES and # HOMEPAGE DESIGN SYSTEM when present; if absent, use this homepage tool path so the runtime can inject them before execution. Use this tool for homepage/web project files and for Netlify/Vercel publishing; do not use filesystem for homepage workspace files."
+		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML. Required task rule: homepage. Before homepage/web/page planning, deleting, creating, editing, building or deploying, read and follow # TASK RULES and # HOMEPAGE DESIGN SYSTEM when present; if absent, use this homepage tool path so the runtime can inject them before execution. Use this tool for homepage/web project files and for Netlify/here.now/Vercel publishing; do not use filesystem for homepage workspace files."
 		if !ff.HomepageAllowLocalServer {
 			homepageDesc += " REQUIRES DOCKER: Local Python server fallback is disabled for security. Ensure Docker is running or enable homepage.allow_local_server in config."
 		}
@@ -635,13 +639,13 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Operation to perform. To publish a workspace project to Netlify or Vercel, use 'deploy_netlify' or 'deploy_vercel' — both build and package automatically inside the homepage workspace.",
-					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "check_js", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_vercel", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"},
+					"description": "Operation to perform. External provider deployments build and package automatically inside the homepage workspace.",
+					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "check_js", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"},
 				},
 				"command":       prop("string", "Shell command to execute (for 'exec'). Do not write directly into generated output directories such as /workspace/<project>/dist, build, or out; edit source files with write_file/edit_file and run build instead."),
 				"framework":     prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
 				"name":          prop("string", "Project name (for 'init_project')"),
-				"project_dir":   prop("string", "Required workspace-relative project directory for build, publish_local, deploy, deploy_netlify, and deploy_vercel. For webserver_start, pass it when selecting a project; omit only for restore/auto-detect."),
+				"project_dir":   prop("string", "Required workspace-relative project directory for build, publish_local, deploy, and external provider deployments. For webserver_start, pass it when selecting a project; omit only for restore/auto-detect."),
 				"build_dir":     prop("string", "Build output directory (auto-detected if empty)"),
 				"template":      prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
 				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
@@ -667,6 +671,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"site_id": prop("string", "Netlify site ID to deploy to (for 'deploy_netlify'). Leave empty to use the default site from config."),
 				"draft":   map[string]interface{}{"type": "boolean", "description": "Deploy as preview/draft, not as production (for 'deploy_netlify')"},
 				"title":   prop("string", "Deploy message shown in Netlify dashboard (for 'deploy_netlify')"),
+				// deploy_here_now specific fields
+				"slug":            prop("string", "Existing here.now Site slug to update; omit to create a permanent Site."),
+				"account":         prop("string", "Optional here.now personal/workspace account selector; uses default_account when omitted."),
+				"workspace_label": prop("string", "Optional exact DNS-safe workspace label for a new here.now Site."),
+				"spa_mode":        prop("boolean", "Enable here.now SPA fallback routing."),
 				// deploy_vercel specific fields
 				"project_id": prop("string", "Vercel project ID or name to deploy to (for 'deploy_vercel'). Leave empty to use default_project_id from config."),
 				"target":     prop("string", "Deployment target for Vercel: preview or production (for 'deploy_vercel')"),
@@ -746,6 +755,55 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"value":         prop("string", "Email address (for create_hook with type=email)"),
 			}, "operation"),
 		))
+	}
+
+	if ff.HereNowEnabled {
+		tools = append(tools,
+			tool("here_now_sites",
+				"Read authenticated here.now accounts, Sites, access policies, and version history. Anonymous Sites are unsupported.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"list_accounts", "list_sites", "search_sites", "get_site", "get_access", "list_versions"},
+					},
+					"account": prop("string", "Optional personal/workspace account selector; uses here_now.default_account when omitted."),
+					"slug":    prop("string", "here.now Site slug."),
+					"query":   prop("string", "Search query for search_sites."),
+					"cursor":  prop("string", "Opaque pagination cursor for list_sites."),
+					"limit":   prop("integer", "Optional bounded result limit."),
+					"all":     prop("boolean", "For list_sites, merge visible Sites across personal, shared, and workspace accounts; enables cursor pagination."),
+				}, "operation")),
+			tool("here_now_site",
+				"Publish and administer authenticated permanent here.now Sites. Source paths are restricted to the Homepage workspace. Password values must be entered with request_vault_secret using the exact key returned by set_password.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"publish", "update", "duplicate", "update_metadata", "update_access", "set_password", "remove_password", "restore_version", "delete_site", "delete_version"},
+					},
+					"account":             prop("string", "Optional personal/workspace account selector; uses here_now.default_account when omitted."),
+					"slug":                prop("string", "Exact here.now Site slug; required except for publish."),
+					"version_id":          prop("string", "Exact version ID for restore_version or delete_version."),
+					"project_dir":         prop("string", "Homepage workspace-relative project directory for publish/update."),
+					"build_dir":           prop("string", "Optional build output directory; auto-detected when omitted."),
+					"workspace_label":     prop("string", "Optional exact DNS-safe workspace label for a new Site."),
+					"display_name":        prop("string", "Owner-facing Site title, maximum 80 characters."),
+					"display_description": prop("string", "Owner-facing Site summary, maximum 280 characters."),
+					"viewer_title":        prop("string", "Viewer/OpenGraph title."),
+					"viewer_description":  prop("string", "Viewer/OpenGraph description."),
+					"og_image_path":       prop("string", "Site-relative OpenGraph image path."),
+					"spa_mode":            prop("boolean", "Enable or disable SPA fallback routing."),
+					"mode": map[string]interface{}{
+						"type": "string", "enum": []string{"anyone_with_link", "restricted", "account_members"},
+					},
+					"allowed_emails": map[string]interface{}{
+						"type": "array", "items": map[string]interface{}{"type": "string", "format": "email"}, "maxItems": 200,
+					},
+					"allowed_domains": map[string]interface{}{
+						"type": "array", "items": map[string]interface{}{"type": "string"}, "maxItems": 200,
+					},
+					"confirm": prop("boolean", "Must be true for permanent Site or version deletion."),
+				}, "operation")),
+		)
 	}
 
 	if ff.VercelEnabled {

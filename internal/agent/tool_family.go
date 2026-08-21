@@ -18,7 +18,7 @@ func classifyToolFamily(toolName string) string {
 		return "memory"
 	case strings.Contains(name, "web_") || name == "site_crawler" || name == "api_request" || name == "virustotal_scan" || name == "form_automation":
 		return "web"
-	case strings.Contains(name, "homepage") || name == "netlify" || strings.Contains(name, "update") || name == "cloudflare_tunnel":
+	case strings.Contains(name, "homepage") || name == "netlify" || strings.HasPrefix(name, "here_now_") || strings.Contains(name, "update") || name == "cloudflare_tunnel":
 		return "deployment"
 	case strings.Contains(name, "network") || strings.Contains(name, "dns_") || strings.Contains(name, "port_") || strings.Contains(name, "mdns_") || strings.Contains(name, "whois") || strings.Contains(name, "upnp") || strings.Contains(name, "wake_on_lan") || strings.Contains(name, "fritzbox"):
 		return "network"
@@ -49,6 +49,8 @@ func inferToolFamilyFromQuery(query string) string {
 		strings.Contains(q, "webseite") ||
 		strings.Contains(q, "web site") ||
 		strings.Contains(q, "netlify") ||
+		strings.Contains(q, "here.now") ||
+		strings.Contains(q, "here now") ||
 		strings.Contains(q, "deploy") ||
 		strings.Contains(q, "deployen") ||
 		strings.Contains(q, "publish") ||

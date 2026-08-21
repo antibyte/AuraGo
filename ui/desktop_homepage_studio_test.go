@@ -69,9 +69,11 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 		"previewPanel.insertBefore(iframe, previewLoading);",
 		"case 'vercel':",
 		"case 'netlify':",
+		"case 'here_now':",
 		"case 'remote':",
 		"data.vercel_url",
 		"data.netlify_url",
+		"data.here_now_url",
 		"data.remote_url",
 		"data.preview_url",
 		"data.web_container.browser_url",
@@ -144,7 +146,7 @@ func TestHomepageStudioCloudTargetsFallbackToKnownExternalURL(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
 	for _, want := range []string{
-		"const externalTargets = ['remote', 'vercel', 'netlify'];",
+		"const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];",
 		"externalTargets.includes(selected)",
 		"item.provider !== 'local'",
 	} {

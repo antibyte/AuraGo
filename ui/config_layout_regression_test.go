@@ -112,6 +112,7 @@ func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
 		"cfg/email.js":             {"/api/email-accounts/test", "emailAccountTestFromModal"},
 		"cfg/mqtt.js":              {"/api/mqtt/test", "mqttTestConnection"},
 		"cfg/netlify.js":           {"/api/netlify/test-connection", "nfTestConnection"},
+		"cfg/here_now.js":          {"/api/here-now/test-connection", "hereNowTestConnection"},
 		"cfg/vercel.js":            {"/api/vercel/test-connection", "vercelTestConnection"},
 	}
 	for file, markers := range checks {

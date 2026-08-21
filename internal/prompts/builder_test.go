@@ -2418,6 +2418,7 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"home_assistant_enabled":     func() *ContextFlags { return &ContextFlags{HomeAssistantEnabled: true} },
 		"homepage_enabled":           func() *ContextFlags { return &ContextFlags{HomepageEnabled: true} },
 		"homepage_registry_enabled":  func() *ContextFlags { return &ContextFlags{HomepageRegistryEnabled: true} },
+		"here_now_enabled":           func() *ContextFlags { return &ContextFlags{HereNowEnabled: true} },
 		"image_generation_enabled":   func() *ContextFlags { return &ContextFlags{ImageGenerationEnabled: true} },
 		"invasion_control_enabled":   func() *ContextFlags { return &ContextFlags{InvasionControlEnabled: true} },
 		"is_docker":                  func() *ContextFlags { return &ContextFlags{IsDocker: true} },

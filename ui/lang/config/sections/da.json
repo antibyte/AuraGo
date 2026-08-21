@@ -640,5 +640,7 @@
   "help.evomap.timeout": "Maximum seconds AuraGo waits for EvoMap HTTP requests.",
   "help.evomap.max_result": "Maximum response bytes accepted from EvoMap before the request is stopped.",
   "config.section.virtual_computers.label": "Virtuelle computere",
-  "config.section.virtual_computers.desc": "Engangs-microVM-computere med terminal, skrivebord, forhåndsvisninger og agentadgang."
+  "config.section.virtual_computers.desc": "Engangs-microVM-computere med terminal, skrivebord, forhåndsvisninger og agentadgang.",
+  "config.section.here_now.label": "here.now",
+  "config.section.here_now.desc": "Publicer og administrer godkendte permanente Sites"
 }

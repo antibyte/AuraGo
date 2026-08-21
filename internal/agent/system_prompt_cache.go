@@ -498,6 +498,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.NetlifyEnabled {
 		tools = append(tools, "netlify")
 	}
+	if flags.HereNowEnabled {
+		tools = append(tools, "here_now")
+	}
 	if flags.VercelEnabled {
 		tools = append(tools, "vercel")
 	}

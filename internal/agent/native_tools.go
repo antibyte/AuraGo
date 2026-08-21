@@ -149,6 +149,7 @@ type ToolFeatureFlags struct {
 	MeshCentralEnabled      bool
 	HomepageEnabled         bool
 	NetlifyEnabled          bool
+	HereNowEnabled          bool
 	VercelEnabled           bool
 	FirewallEnabled         bool
 	EmailEnabled            bool
@@ -722,7 +723,7 @@ var focusedHomepageToolOperations = map[string]map[string]bool{
 	"homepage_deploy": {
 		"build": true, "dev": true, "publish_local": true, "webserver_start": true, "webserver_stop": true,
 		"webserver_status": true, "test_connection": true, "tunnel": true, "deploy": true,
-		"deploy_netlify": true, "deploy_vercel": true,
+		"deploy_netlify": true, "deploy_here_now": true, "deploy_vercel": true,
 	},
 	"homepage_git": {
 		"git_init": true, "git_commit": true, "git_status": true, "git_diff": true, "git_log": true,

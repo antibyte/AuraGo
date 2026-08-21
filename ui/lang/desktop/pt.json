@@ -2315,5 +2315,6 @@
   "zipper.open": "Abrir arquivo",
   "zipper.size": "Tamanho",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} no total"
+  "zipper.total_size": "{{size}} no total",
+  "homepage_studio.target_here_now": "here.now"
 }

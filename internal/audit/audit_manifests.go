@@ -33,6 +33,8 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "filesystem", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 		{Name: "home_assistant", ConfigGate: "home_assistant.enabled", Capabilities: []Capability{CapabilityRead, CapabilityChange, CapabilityNetwork}},
 		{Name: "homepage", ConfigGate: "homepage.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork, CapabilityHost}},
+		{Name: "here_now_sites", ConfigGate: "here_now.enabled", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
+		{Name: "here_now_site", ConfigGate: "here_now.enabled + granular permissions", ReadOnlyGate: "here_now.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "invasion_control", ConfigGate: "invasion.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute, CapabilityNetwork, CapabilityHost}},
 		{Name: "json_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 		{Name: "manage_outgoing_webhooks", ConfigGate: "webhooks.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
