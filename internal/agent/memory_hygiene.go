@@ -209,6 +209,20 @@ func recordKnowledgeGraphQualityIssues(plannerDB *sql.DB, kg *memory.KnowledgeGr
 	}
 	if issue, ok := buildKnowledgeGraphDuplicateIssue(report); ok {
 		recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, issue, logger)
+	} else if plannerDB != nil {
+		resolved, resolveErr := planner.ResolveOperationalIssue(
+			plannerDB,
+			"maintenance|knowledge_graph|duplicates",
+			"No knowledge graph ID duplicate backlog above the operational threshold remains.",
+			time.Now(),
+		)
+		if resolveErr != nil {
+			if logger != nil {
+				logger.Warn("[MemoryHygiene] Failed to resolve knowledge graph ID duplicate issue", "error", resolveErr)
+			}
+		} else if resolved && logger != nil {
+			logger.Info("[MemoryHygiene] Resolved knowledge graph ID duplicate issue")
+		}
 	}
 	recordKnowledgeGraphDroppedAccessHitsIssue(plannerDB, kg, logger)
 }
@@ -217,11 +231,11 @@ func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityRepor
 	if report == nil {
 		return planner.OperationalIssue{}, false
 	}
-	if report.DuplicateGroups <= knowledgeGraphDuplicateIssueThreshold && report.IDDuplicateGroups <= knowledgeGraphDuplicateIssueThreshold {
+	if report.IDDuplicateGroups <= knowledgeGraphDuplicateIssueThreshold {
 		return planner.OperationalIssue{}, false
 	}
 	sampleIDs := make([]string, 0, 8)
-	for _, candidate := range append(report.DuplicateCandidates, report.IDDuplicateCandidates...) {
+	for _, candidate := range report.IDDuplicateCandidates {
 		for _, id := range candidate.IDs {
 			id = strings.TrimSpace(id)
 			if id == "" {
@@ -237,11 +251,11 @@ func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityRepor
 		}
 	}
 	detail := fmt.Sprintf(
-		"Knowledge graph has label_duplicate_groups=%d label_duplicate_nodes=%d id_duplicate_groups=%d id_duplicate_nodes=%d. Review and merge manually in the dashboard; no auto-merge is performed.",
-		report.DuplicateGroups,
-		report.DuplicateNodes,
+		"Knowledge graph has id_duplicate_groups=%d id_duplicate_nodes=%d. These normalized ID variants require a controlled dashboard review and merge; no auto-merge is performed. Separately, same-label review candidates remain review-only: label_review_candidate_groups=%d label_review_candidate_nodes=%d.",
 		report.IDDuplicateGroups,
 		report.IDDuplicateNodes,
+		report.DuplicateGroups,
+		report.DuplicateNodes,
 	)
 	if len(sampleIDs) > 0 {
 		detail += " Sample IDs: " + strings.Join(sampleIDs, ", ")
@@ -249,7 +263,7 @@ func buildKnowledgeGraphDuplicateIssue(report *memory.KnowledgeGraphQualityRepor
 	return planner.OperationalIssue{
 		Source:      "maintenance",
 		Context:     "knowledge_graph",
-		Title:       "Knowledge graph duplicates detected",
+		Title:       "Knowledge graph ID duplicates detected",
 		Detail:      detail,
 		Severity:    "warning",
 		Reference:   "kg_duplicates",

@@ -103,41 +103,49 @@
             `).join('');
         }
 
-        function renderKnowledgeGraphDuplicateCandidates(container, candidates, emptyKey) {
+        function renderKnowledgeGraphDuplicateCandidates(container, candidates, emptyKey, allowMerge) {
             if (!container) return;
             const rows = Array.isArray(candidates) ? candidates : [];
             if (!rows.length) {
                 container.innerHTML = `<div class="empty-state">${t(emptyKey)}</div>`;
                 return;
             }
-            let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
+            let html = '<div class="kg-table-wrap"><table class="kg-table kg-table-compact"><thead><tr>' +
                 `<th>${t('dashboard.kg_col_label')}</th>` +
                 `<th>${t('dashboard.kg_col_count')}</th>` +
                 `<th>${t('dashboard.kg_col_id')}</th>` +
-                `<th>${t('dashboard.kg_col_actions')}</th>` +
+                (allowMerge ? `<th>${t('dashboard.kg_col_actions')}</th>` : '') +
                 '</tr></thead><tbody>';
             rows.forEach(candidate => {
                 const rawIDs = Array.isArray(candidate.ids) ? candidate.ids.filter(id => String(id || '').trim()) : [];
                 const recommendedTargetID = String(candidate.recommended_target_id || '').trim();
-                const targetID = rawIDs.includes(recommendedTargetID) ? recommendedTargetID : (rawIDs[0] || '');
+                if (recommendedTargetID && rawIDs.includes(recommendedTargetID)) {
+                    rawIDs.sort((left, right) => Number(right === recommendedTargetID) - Number(left === recommendedTargetID));
+                }
                 const idLinks = rawIDs.map(id =>
                     `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
                 ).join(', ');
-                const mergeButtons = rawIDs.filter(id => id !== targetID).map(sourceID => `
-                    <button type="button" class="btn btn-secondary btn-sm"
-                        data-kg-merge-source="${esc(sourceID)}"
-                        data-kg-merge-target="${esc(targetID)}"
-                        data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}">
-                        ${t('dashboard.knowledge_quality_merge_btn')}
-                    </button>`).join(' ');
+                const mergeButtons = allowMerge ? rawIDs.flatMap(targetID =>
+                    rawIDs.filter(sourceID => sourceID !== targetID).map(sourceID => {
+                        const direction = `${sourceID} → ${targetID}`;
+                        return `
+                            <button type="button" class="btn btn-secondary btn-sm"
+                                data-kg-merge-source="${esc(sourceID)}"
+                                data-kg-merge-target="${esc(targetID)}"
+                                data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}"
+                                title="${esc(t('dashboard.knowledge_quality_merge_btn'))}: ${esc(direction)}">
+                                ${esc(direction)}
+                            </button>`;
+                    })
+                ).join(' ') : '';
                 html += `<tr>
                     <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
                     <td class="text-secondary">${Number(candidate.count || 0)}</td>
                     <td class="text-secondary">${idLinks || '—'}</td>
-                    <td class="kg-merge-actions">${mergeButtons || '—'}</td>
+                    ${allowMerge ? `<td class="kg-merge-actions">${mergeButtons || '—'}</td>` : ''}
                 </tr>`;
             });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         }
 
@@ -174,8 +182,8 @@
             renderKnowledgeGraphQualityNodeList(isolated, report?.isolated_sample, 'dashboard.knowledge_quality_empty_isolated');
             renderKnowledgeGraphQualityNodeList(untyped, report?.untyped_sample, 'dashboard.knowledge_quality_empty_untyped');
             renderKnowledgeGraphQualityNodeList(generic, report?.generic_sample, 'dashboard.knowledge_quality_empty_generic');
-            renderKnowledgeGraphDuplicateCandidates(duplicates, report?.duplicate_candidates, 'dashboard.knowledge_quality_empty_duplicates');
-            renderKnowledgeGraphDuplicateCandidates(idDuplicates, report?.id_duplicate_candidates, 'dashboard.knowledge_quality_empty_id_duplicates');
+            renderKnowledgeGraphDuplicateCandidates(duplicates, report?.duplicate_candidates, 'dashboard.knowledge_quality_empty_duplicates', false);
+            renderKnowledgeGraphDuplicateCandidates(idDuplicates, report?.id_duplicate_candidates, 'dashboard.knowledge_quality_empty_id_duplicates', true);
         }
 
         function renderKnowledgeGraphQualityNodeList(container, nodes, emptyKey) {

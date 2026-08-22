@@ -1,5 +1,5 @@
 // AuraGo Service Worker — versioned static assets and Web Push delivery.
-const CACHE_SCHEMA_VERSION = '2';
+const CACHE_SCHEMA_VERSION = '3';
 const SERVICE_WORKER_BUILD = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE_VERSION = `aurago-${CACHE_SCHEMA_VERSION}-${SERVICE_WORKER_BUILD}`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;

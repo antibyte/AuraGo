@@ -1226,14 +1226,14 @@ async function initPWA() {
     let registration;
     const swURL = serviceWorkerURL();
     try {
-        registration = await navigator.serviceWorker.register(swURL);
+        registration = await navigator.serviceWorker.register(swURL, { updateViaCache: 'none' });
         console.log('[PWA] Service Worker registered, scope:', registration.scope);
     } catch (firstError) {
         // A TLS proxy restart or brief network transition can make the initial
         // script fetch fail while the already-loaded page remains usable.
         await new Promise(resolve => setTimeout(resolve, 1500));
         try {
-            registration = await navigator.serviceWorker.register(swURL);
+            registration = await navigator.serviceWorker.register(swURL, { updateViaCache: 'none' });
             console.log('[PWA] Service Worker registered after retry, scope:', registration.scope);
         } catch (err) {
             console.error('[PWA] Service Worker registration failed:', err, 'initial error:', firstError);

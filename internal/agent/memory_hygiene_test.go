@@ -60,24 +60,19 @@ func TestBuildKnowledgeGraphDuplicateIssue(t *testing.T) {
 	if _, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{DuplicateGroups: 2, IDDuplicateGroups: 2}); ok {
 		t.Fatal("unexpected duplicate issue below threshold")
 	}
-	issue, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{
+	if _, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{
 		DuplicateGroups: 4,
 		DuplicateNodes:  9,
 		DuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{
 			{Label: "NAS", IDs: []string{"nas_a", "nas_b", "nas_c"}},
 		},
-	})
-	if !ok {
-		t.Fatal("expected duplicate issue above threshold")
-	}
-	if issue.Fingerprint != "maintenance|knowledge_graph|duplicates" {
-		t.Fatalf("fingerprint = %q, want duplicates fingerprint", issue.Fingerprint)
-	}
-	if !strings.Contains(issue.Detail, "label_duplicate_groups=4") || !strings.Contains(issue.Detail, "nas_a") {
-		t.Fatalf("issue detail = %q, want duplicate counts and sample IDs", issue.Detail)
+	}); ok {
+		t.Fatal("same-label review candidates must not create an operational issue")
 	}
 
 	idIssue, ok := buildKnowledgeGraphDuplicateIssue(&memory.KnowledgeGraphQualityReport{
+		DuplicateGroups:   12,
+		DuplicateNodes:    25,
 		IDDuplicateGroups: 4,
 		IDDuplicateNodes:  8,
 		IDDuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{
@@ -87,9 +82,82 @@ func TestBuildKnowledgeGraphDuplicateIssue(t *testing.T) {
 	if !ok {
 		t.Fatal("expected duplicate issue for id duplicate groups above threshold")
 	}
-	if !strings.Contains(idIssue.Detail, "id_duplicate_groups=4") || !strings.Contains(idIssue.Detail, "truenas") {
+	if idIssue.Fingerprint != "maintenance|knowledge_graph|duplicates" {
+		t.Fatalf("fingerprint = %q, want duplicates fingerprint", idIssue.Fingerprint)
+	}
+	if idIssue.Title != "Knowledge graph ID duplicates detected" {
+		t.Fatalf("title = %q, want explicit ID duplicate title", idIssue.Title)
+	}
+	if !strings.Contains(idIssue.Detail, "id_duplicate_groups=4") || !strings.Contains(idIssue.Detail, "same-label review candidates") || !strings.Contains(idIssue.Detail, "truenas") {
 		t.Fatalf("id issue detail = %q, want id duplicate counts and sample IDs", idIssue.Detail)
 	}
+}
+
+func TestRecordKnowledgeGraphQualityIssuesLifecycle(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	plannerDB, err := planner.InitDB(filepath.Join(t.TempDir(), "planner.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer plannerDB.Close()
+
+	kg, err := memory.NewKnowledgeGraph(filepath.Join(t.TempDir(), "knowledge_graph.db"), "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+
+	pairs := [][2]string{
+		{"alpha_service", "alphaservice"},
+		{"beta_tool", "betatool"},
+		{"gamma_agent", "gammaagent"},
+		{"delta_server", "deltaserver"},
+	}
+	for i, pair := range pairs {
+		properties := map[string]string{"type": "service", "source": fmt.Sprintf("pair-%d", i)}
+		if err := kg.AddNode(pair[0], fmt.Sprintf("Canonical %d", i), properties); err != nil {
+			t.Fatalf("AddNode target %s: %v", pair[0], err)
+		}
+		if err := kg.AddNode(pair[1], fmt.Sprintf("Variant %d", i), properties); err != nil {
+			t.Fatalf("AddNode source %s: %v", pair[1], err)
+		}
+	}
+
+	assertIssueStatus := func(wantStatus string, wantOccurrences int) {
+		t.Helper()
+		page, err := planner.ListOperationalIssues(plannerDB, planner.OperationalIssueListFilter{Status: "all", Limit: 20})
+		if err != nil {
+			t.Fatalf("ListOperationalIssues: %v", err)
+		}
+		for _, issue := range page.Items {
+			if issue.Fingerprint == "maintenance|knowledge_graph|duplicates" {
+				if issue.Status != wantStatus || issue.Occurrences != wantOccurrences {
+					t.Fatalf("issue status/occurrences = %s/%d, want %s/%d", issue.Status, issue.Occurrences, wantStatus, wantOccurrences)
+				}
+				return
+			}
+		}
+		t.Fatal("knowledge graph duplicate issue not found")
+	}
+
+	recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
+	assertIssueStatus("open", 1)
+
+	for _, pair := range pairs {
+		if err := kg.MergeNodes(pair[0], pair[1]); err != nil {
+			t.Fatalf("MergeNodes %s <- %s: %v", pair[0], pair[1], err)
+		}
+	}
+	recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
+	assertIssueStatus("done", 1)
+
+	for i, pair := range pairs {
+		if err := kg.AddNode(pair[1], fmt.Sprintf("Reopened Variant %d", i), map[string]string{"type": "service", "source": fmt.Sprintf("pair-%d", i)}); err != nil {
+			t.Fatalf("re-add source %s: %v", pair[1], err)
+		}
+	}
+	recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
+	assertIssueStatus("open", 2)
 }
 
 func TestKGDroppedAccessHitsBaselinePersists(t *testing.T) {

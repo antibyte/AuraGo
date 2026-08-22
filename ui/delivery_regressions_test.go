@@ -32,7 +32,7 @@ func TestServiceWorkerKeepsPushHandlersAndSecureStaticCachePolicy(t *testing.T) 
 		"self.addEventListener('notificationclose'",
 		"new URL(rawTarget, self.location.origin)",
 		"target.origin === self.location.origin",
-		"const CACHE_SCHEMA_VERSION",
+		"const CACHE_SCHEMA_VERSION = '3'",
 		"new URL(self.location.href).searchParams.get('v')",
 		"return request.url;",
 		"url.origin !== self.location.origin",
@@ -54,6 +54,10 @@ func TestServiceWorkerKeepsPushHandlersAndSecureStaticCachePolicy(t *testing.T) 
 		if strings.Contains(sw, forbidden) {
 			t.Fatalf("service worker must not keep unsafe cache behavior %q", forbidden)
 		}
+	}
+	shared := normalizeAssetText(mustReadUIFile(t, "js/shared/shared-core.js"))
+	if strings.Count(shared, "updateViaCache: 'none'") != 2 {
+		t.Fatal("service worker registration and retry must both bypass the HTTP cache")
 	}
 }
 
@@ -87,7 +91,7 @@ func TestPWARegistrationRetriesOneTransientScriptFetchFailure(t *testing.T) {
 	shared := normalizeAssetText(mustReadUIFile(t, "js/shared/shared-core.js"))
 	for _, marker := range []string{
 		"const swURL = serviceWorkerURL()",
-		"navigator.serviceWorker.register(swURL)",
+		"navigator.serviceWorker.register(swURL, { updateViaCache: 'none' })",
 		"setTimeout(resolve, 1500)",
 		"registered after retry",
 		"initial error:",

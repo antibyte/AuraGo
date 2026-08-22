@@ -54,6 +54,9 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		"knowledge_quality_id_duplicates",
 		"knowledge_quality_empty_generic",
 		"recommended_target_id",
+		"const mergeButtons = allowMerge ?",
+		"renderKnowledgeGraphDuplicateCandidates(duplicates, report?.duplicate_candidates, 'dashboard.knowledge_quality_empty_duplicates', false);",
+		"renderKnowledgeGraphDuplicateCandidates(idDuplicates, report?.id_duplicate_candidates, 'dashboard.knowledge_quality_empty_id_duplicates', true);",
 		"knowledge_health_needs_reindex",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
@@ -85,6 +88,10 @@ func TestDashboardKnowledgeGraphHealthTranslations(t *testing.T) {
 		"dashboard.knowledge_health_consistency_index_orphans",
 		"dashboard.knowledge_quality_generic_title",
 		"dashboard.knowledge_quality_empty_generic",
+		"dashboard.knowledge_quality_label_duplicates",
+		"dashboard.knowledge_quality_label_duplicates_title",
+		"dashboard.knowledge_quality_id_duplicates",
+		"dashboard.knowledge_quality_id_duplicates_title",
 	}
 	for _, lang := range langs {
 		lang := lang

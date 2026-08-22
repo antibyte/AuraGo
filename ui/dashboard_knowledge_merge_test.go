@@ -10,10 +10,14 @@ func TestDashboardKnowledgeGraphMergeContract(t *testing.T) {
 
 	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
+	dashboardHTML := readDesktopAssetText(t, "dashboard.html")
 	for _, marker := range []string{
 		"function mergeKnowledgeGraphNodes",
 		"/api/knowledge-graph/merge",
 		"data-kg-merge-source",
+		"kg-table-wrap",
+		"rawIDs.flatMap(targetID",
+		"sourceID !== targetID",
 		"showConfirm(",
 		"knowledge_quality_merge_btn",
 	} {
@@ -23,6 +27,9 @@ func TestDashboardKnowledgeGraphMergeContract(t *testing.T) {
 	}
 	if !strings.Contains(mainJS, "data-kg-merge-source") || !strings.Contains(mainJS, "mergeKnowledgeGraphNodes") {
 		t.Fatal("dashboard main JS missing knowledge graph merge handler")
+	}
+	if !strings.Contains(dashboardHTML, `/js/dashboard/widgets-knowledge.js?v={{.BuildVersion}}`) {
+		t.Fatal("dashboard knowledge widget must be cache-busted by the running build version")
 	}
 	if strings.Contains(widgetsJS+mainJS, "alert(") {
 		t.Fatal("dashboard knowledge merge UI must use modals/toasts instead of alert()")
