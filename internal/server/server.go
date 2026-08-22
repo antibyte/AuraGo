@@ -754,21 +754,37 @@ func Start(opts StartOptions) error {
 					setMissionError("Mission agent loop failed", output)
 					return
 				}
-				toolResultCount, _ := strconv.Atoi(resp.Header.Get("X-Aurago-Mission-Tool-Results"))
-				suspiciousCompletion := strings.EqualFold(resp.Header.Get("X-Aurago-Mission-Suspicious-Completion"), "true") ||
-					missionResponseLooksIncomplete(output, toolResultCount)
-				if suspiciousCompletion {
+				toolResults := missionToolResultCount{}
+				if rawCount := strings.TrimSpace(resp.Header.Get("X-Aurago-Mission-Tool-Results")); rawCount != "" {
+					if count, err := strconv.Atoi(rawCount); err == nil && count >= 0 {
+						toolResults = missionToolResultCount{Value: count, Known: true}
+					}
+				}
+				assessment := assessMissionCompletion(output, toolResults)
+				reportedSuspicious := strings.EqualFold(resp.Header.Get("X-Aurago-Mission-Suspicious-Completion"), "true")
+				reason := strings.TrimSpace(resp.Header.Get("X-Aurago-Mission-Suspicious-Reason"))
+				if reason == "" {
+					reason = assessment.Reason
+				}
+				if reportedSuspicious || assessment.Suspicious {
 					logger.Warn("[MissionV2] Mission response looked incomplete, refusing success",
 						"mission_id", missionID,
-						"tool_results", toolResultCount)
+						"tool_results", toolResults.Value,
+						"tool_results_known", toolResults.Known,
+						"reason", reason)
 					setMissionError(
 						"Mission response looked incomplete",
-						"Mission response looked incomplete: no executed tools were recorded and the final assistant reply resembled a progress update instead of a finished result.\n\n"+output,
+						missionSuspiciousCompletionDetail(reason, output),
 					)
 					return
 				} else {
-					logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID, "tool_results", toolResultCount)
+					logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID, "tool_results", toolResults.Value, "tool_results_known", toolResults.Known)
 					s.MissionManagerV2.SetResult(missionID, "success", output)
+					if s.PlannerDB != nil {
+						if _, err := planner.ResolveOperationalIssue(s.PlannerDB, "mission|"+missionID, "Mission completed successfully with a verified final response.", time.Now()); err != nil {
+							logger.Warn("[MissionV2] Failed to resolve mission operational issue", "mission_id", missionID, "error", err)
+						}
+					}
 				}
 			} else {
 				logger.Error("[MissionV2] Mission returned non-OK status", "status", resp.Status, "mission_id", missionID)

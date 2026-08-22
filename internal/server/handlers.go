@@ -510,14 +510,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}
 		}
 
-		missionToolResultsBefore := 0
-		if missionID != "" && s.ShortTermMem != nil {
-			if count, err := s.ShortTermMem.CountInternalToolResultMessages(sessionID); err == nil {
-				missionToolResultsBefore = count
-			} else {
-				s.Logger.Debug("Failed to read pre-run mission tool result count", "session_id", sessionID, "error", err)
-			}
-		}
+		missionToolResultsBefore := missionToolResultCount{}
 
 		finalMessages := append([]openai.ChatCompletionMessage{}, recentMessages...)
 		if sessionID == "default" {
@@ -573,7 +566,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			return
 		}
 		if missionID != "" && s.ShortTermMem != nil {
-			if err := s.ShortTermMem.ClearSession(sessionID); err != nil {
+			var err error
+			missionToolResultsBefore, err = resetMissionSessionToolResultBaseline(s.ShortTermMem, sessionID)
+			if err != nil {
 				s.Logger.Warn("Failed to clear stale mission session context", "session_id", sessionID, "mission_id", missionID, "error", err)
 			}
 			agent.ClearDiscoverToolsState(sessionID)
@@ -672,19 +667,19 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				maybeEmitChatVoiceOutputFallback(r.Context(), runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 			if missionID != "" && s.ShortTermMem != nil {
-				missionToolResultsAfter := missionToolResultsBefore
-				if count, err := s.ShortTermMem.CountInternalToolResultMessages(sessionID); err == nil {
-					missionToolResultsAfter = count
+				missionToolResultsAfter := readMissionToolResultCount(s.ShortTermMem, sessionID)
+				toolResultDelta := missionToolResultDelta(missionToolResultsBefore, missionToolResultsAfter)
+				if toolResultDelta.Known {
+					w.Header().Set("X-Aurago-Mission-Tool-Results", strconv.Itoa(toolResultDelta.Value))
 				} else {
-					s.Logger.Debug("Failed to read post-run mission tool result count", "session_id", sessionID, "error", err)
+					s.Logger.Debug("Mission tool result count is unknown", "session_id", sessionID, "mission_id", missionID)
 				}
-				toolResultDelta := missionToolResultsAfter - missionToolResultsBefore
-				if toolResultDelta < 0 {
-					toolResultDelta = 0
-				}
-				w.Header().Set("X-Aurago-Mission-Tool-Results", strconv.Itoa(toolResultDelta))
-				if len(resp.Choices) > 0 && missionResponseLooksIncomplete(resp.Choices[0].Message.Content, toolResultDelta) {
-					w.Header().Set("X-Aurago-Mission-Suspicious-Completion", "true")
+				if len(resp.Choices) > 0 {
+					assessment := assessMissionCompletion(resp.Choices[0].Message.Content, toolResultDelta)
+					if assessment.Suspicious {
+						w.Header().Set("X-Aurago-Mission-Suspicious-Completion", "true")
+						w.Header().Set("X-Aurago-Mission-Suspicious-Reason", assessment.Reason)
+					}
 				}
 			}
 			w.Header().Set("Content-Type", "application/json")
