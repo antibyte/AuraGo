@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 File Sync",
   "knowledge.tab_secrets": "🔐 Secrets",
   "knowledge.tab_todos": "✅ To-Dos",
+  "knowledge.tablist_label": "Knowledge categories",
   "knowledge.todos_add": "New To-Do",
   "knowledge.todos_delete_confirm": "Are you sure you want to delete the to-do \"{name}\"?",
   "knowledge.todos_desc_label": "Description",

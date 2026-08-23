@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 文件同步",
   "knowledge.tab_secrets": "🔐 密钥",
   "knowledge.tab_todos": "✅ 待办事项",
+  "knowledge.tablist_label": "知识分类",
   "knowledge.todos_add": "新建待办事项",
   "knowledge.todos_delete_confirm": "确定要删除待办事项\"{name}\"吗？",
   "knowledge.todos_desc_label": "描述",

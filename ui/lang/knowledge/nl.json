@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Bestandssync",
   "knowledge.tab_secrets": "🔐 Geheimen",
   "knowledge.tab_todos": "✅ Taken",
+  "knowledge.tablist_label": "Kenniscategorieën",
   "knowledge.todos_add": "Nieuwe taak",
   "knowledge.todos_delete_confirm": "Weet je zeker dat je taak \"{name}\" wilt verwijderen?",
   "knowledge.todos_desc_label": "Beschrijving",

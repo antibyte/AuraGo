@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Filsynkronisering",
   "knowledge.tab_secrets": "🔐 Hemmeligheder",
   "knowledge.tab_todos": "✅ Opgaver",
+  "knowledge.tablist_label": "Videnkategorier",
   "knowledge.todos_add": "Ny opgave",
   "knowledge.todos_delete_confirm": "Er du sikker på, at du vil slette opgaven \"{name}\"?",
   "knowledge.todos_desc_label": "Beskrivelse",

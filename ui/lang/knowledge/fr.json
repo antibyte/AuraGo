@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Sync. Fichiers",
   "knowledge.tab_secrets": "🔐 Secrets sécurisés",
   "knowledge.tab_todos": "✅ Tâches",
+  "knowledge.tablist_label": "Catégories de connaissances",
   "knowledge.todos_add": "Nouvelle tâche",
   "knowledge.todos_delete_confirm": "Êtes-vous sûr de vouloir supprimer la tâche \"{name}\" ?",
   "knowledge.todos_desc_label": "Description",

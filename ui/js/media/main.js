@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     updateMediaBulkToolbar();
+    bindMediaChrome();
 
     // Delegated change listener for document selection checkboxes so diff-rendered
     // rows do not need to be re-wired after every render.
@@ -99,6 +100,51 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+const MEDIA_PAGE_ACTIONS = {
+    'gallery-first': galleryFirst,
+    'gallery-prev': galleryPrev,
+    'gallery-next': galleryNext,
+    'gallery-last': galleryLast,
+    'audio-first': audioFirst,
+    'audio-prev': audioPrev,
+    'audio-next': audioNext,
+    'audio-last': audioLast,
+    'video-first': videoFirst,
+    'video-prev': videoPrev,
+    'video-next': videoNext,
+    'video-last': videoLast,
+    'doc-first': docFirst,
+    'doc-prev': docPrev,
+    'doc-next': docNext,
+    'doc-last': docLast,
+};
+
+function bindMediaChrome() {
+    document.querySelectorAll('[data-media-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.mediaTab));
+    });
+
+    const bulkActions = {
+        'toggle-selection': toggleMediaSelectionMode,
+        'select-visible': selectVisibleMediaItems,
+        'clear-selection': clearCurrentMediaSelection,
+        'delete-selected': deleteSelectedMediaItems,
+    };
+    document.querySelectorAll('[data-media-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const handler = bulkActions[btn.dataset.mediaAction];
+            if (typeof handler === 'function') handler();
+        });
+    });
+
+    document.querySelectorAll('[data-media-page]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const handler = MEDIA_PAGE_ACTIONS[btn.dataset.mediaPage];
+            if (typeof handler === 'function') handler();
+        });
+    });
+}
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 const MEDIA_TABS_ORDER = ['images', 'audio', 'videos', 'documents'];

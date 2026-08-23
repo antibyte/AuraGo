@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Sinc. Ficheiros",
   "knowledge.tab_secrets": "🔐 Segredos",
   "knowledge.tab_todos": "✅ Tarefas",
+  "knowledge.tablist_label": "Categorias de conhecimento",
   "knowledge.todos_add": "Nova tarefa",
   "knowledge.todos_delete_confirm": "Tem certeza de que deseja excluir a tarefa \"{name}\"?",
   "knowledge.todos_desc_label": "Descrição",

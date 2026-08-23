@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Parados",
   "containers.stat_total": "Total",
   "containers.subtitle": "Contentores",
+  "containers.tablist_label": "Filtros de contentores",
   "containers.terminal_closed": "Sessão encerrada",
   "containers.terminal_connected": "Conectado",
   "containers.terminal_connecting": "Conectando...",

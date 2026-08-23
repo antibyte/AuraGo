@@ -201,6 +201,7 @@
   "skills.subtitle": "Dovednosti",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python dovednosti",
+  "skills.tablist_label": "Typy dovedností",
   "skills.template_choose": "-- Vyberte šablonu --",
   "skills.template_desc_hint": "Co tento skill dělá?",
   "skills.template_description": "Popis",

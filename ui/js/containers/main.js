@@ -23,6 +23,7 @@ const cardRenderCache = new Map();
 // ── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+    bindContainersChrome();
     loadContainers();
     // Live updates pushed via SSE — no more polling.
     window.AuraSSE.on('container_update', function (containers) {
@@ -35,6 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
         renderContainers();
     });
 });
+
+function bindContainersChrome() {
+    document.querySelectorAll('.ct-filter-btn[data-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+    });
+    document.getElementById('ct-search')?.addEventListener('input', filterContainers);
+}
 
 // ── Data fetching ───────────────────────────────────────────────────────────
 

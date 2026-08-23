@@ -41,8 +41,44 @@ document.addEventListener('DOMContentLoaded', () => {
     initKeyboardNav();
     initSortableHeaders();
     initDropZone();
+    bindKnowledgeChrome();
     window.addEventListener('hashchange', onHashChange);
 });
+
+function bindKnowledgeChrome() {
+    document.querySelectorAll('[data-kc-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => switchKCTab(btn.dataset.kcTab));
+    });
+
+    const searchHandlers = {
+        contacts: debounceContactSearch,
+        files: filterFiles,
+        devices: filterDevices,
+        credentials: filterCredentials,
+        appointments: debounceAppointmentSearch,
+        todos: debounceTodoSearch,
+    };
+    document.querySelectorAll('[data-kc-search]').forEach((input) => {
+        const handler = searchHandlers[input.dataset.kcSearch];
+        if (typeof handler === 'function') {
+            input.addEventListener('input', handler);
+        }
+    });
+
+    const panelActions = {
+        'open-contact': openContactModal,
+        'open-device': openDeviceModal,
+        'open-credential': openCredentialModal,
+        'open-appointment': openAppointmentModal,
+        'open-todo': openTodoModal,
+    };
+    document.querySelectorAll('[data-kc-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const handler = panelActions[btn.dataset.kcAction];
+            if (typeof handler === 'function') handler();
+        });
+    });
+}
 
 // ═══════════════════════════════════════════════════════════════
 // TAB SWITCHING & NAVIGATION

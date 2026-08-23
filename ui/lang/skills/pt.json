@@ -201,6 +201,7 @@
   "skills.subtitle": "Habilidades",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Skills Python",
+  "skills.tablist_label": "Tipos de skills",
   "skills.template_choose": "-- Escolha um modelo --",
   "skills.template_desc_hint": "O que este skill faz?",
   "skills.template_description": "Descrição",

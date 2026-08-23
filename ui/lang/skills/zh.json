@@ -201,6 +201,7 @@
   "skills.subtitle": "技能",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python 技能",
+  "skills.tablist_label": "技能类型",
   "skills.template_choose": "-- 选择模板 --",
   "skills.template_desc_hint": "这个技能做什么？",
   "skills.template_description": "描述",

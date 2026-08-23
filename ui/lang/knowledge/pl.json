@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Sync Plików",
   "knowledge.tab_secrets": "🔐 Tajemnice",
   "knowledge.tab_todos": "✅ Zadania",
+  "knowledge.tablist_label": "Kategorie wiedzy",
   "knowledge.todos_add": "Nowe zadanie",
   "knowledge.todos_delete_confirm": "Czy na pewno chcesz usunąć zadanie \"{name}\"?",
   "knowledge.todos_desc_label": "Opis",

@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 ファイル同期",
   "knowledge.tab_secrets": "🔐 シークレット",
   "knowledge.tab_todos": "✅ ToDo一覧",
+  "knowledge.tablist_label": "ナレッジカテゴリ",
   "knowledge.todos_add": "新しいTo-Do",
   "knowledge.todos_delete_confirm": "To-Do「{name}」を削除してもよろしいですか？",
   "knowledge.todos_desc_label": "説明",

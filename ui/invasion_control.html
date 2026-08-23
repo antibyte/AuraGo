@@ -69,19 +69,18 @@
             </div>
         </header>
 
-        <div class="invasion-tabs pw-tabs" role="tablist" aria-label="Invasion categories">
+        <div class="invasion-tabs pw-tabs" role="tablist" data-i18n-aria-label="invasion.tablist_label">
             <button class="invasion-tab pw-tab active" type="button" id="tab-nests" data-tab="nests" role="tab" aria-selected="true" aria-controls="panel-nests" tabindex="0">
-                🪺 <span data-i18n="invasion.nests"></span>
+                <span data-i18n="invasion.nests"></span>
             </button>
             <button class="invasion-tab pw-tab" type="button" id="tab-eggs" data-tab="eggs" role="tab" aria-selected="false" aria-controls="panel-eggs" tabindex="-1">
-                🥚 <span data-i18n="invasion.eggs"></span>
+                <span data-i18n="invasion.eggs"></span>
             </button>
         </div>
 
         <div class="pw-toolbar invasion-toolbar">
             <input type="search" id="invasion-search" class="pw-search" autocomplete="off"
-                placeholder="" data-i18n-placeholder="invasion.search_placeholder"
-                oninput="filterInvasionItems()">
+                placeholder="" data-i18n-placeholder="invasion.search_placeholder">
         </div>
 
         <div id="panel-nests" class="tab-content invasion-panel" role="tabpanel" aria-labelledby="tab-nests" tabindex="0">
@@ -233,12 +232,12 @@
                 </div>
                 <div class="form-group">
                     <label for="egg-model" data-i18n="invasion.model"></label>
-                    <input type="text" id="egg-model" placeholder="gpt-4o-mini">
+                    <input type="text" id="egg-model" placeholder="" data-i18n-placeholder="invasion.ph_egg_model">
                 </div>
             </div>
             <div class="form-group">
                 <label for="egg-base-url" data-i18n="invasion.base_url"></label>
-                <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1">
+                <input type="text" id="egg-base-url" placeholder="" data-i18n-placeholder="invasion.ph_egg_base_url">
             </div>
             <div class="form-group">
                 <label for="egg-api-key" data-i18n="invasion.api_key"></label>

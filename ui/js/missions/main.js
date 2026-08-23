@@ -14,6 +14,7 @@ let gridRendered = false; // Track if grid has been rendered at least once (for 
 let viewMode = localStorage.getItem('missions-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs in grid view
 let lastRenderedDataHash = ''; // Used to skip re-renders when nothing changed
+let missionSearchQuery = '';
 let remoteTargets = [];
 
 const remoteAllowedTriggers = new Set(['system_startup', 'mqtt_message', 'home_assistant_state']);
@@ -124,6 +125,10 @@ function bindMissionUI() {
     }
 
     document.getElementById('open-mission-modal-btn')?.addEventListener('click', () => openMissionModal());
+    document.getElementById('missions-search')?.addEventListener('input', (event) => {
+        missionSearchQuery = (event.target.value || '').trim().toLowerCase();
+        renderMissions();
+    });
     document.getElementById('mission-form')?.addEventListener('submit', (event) => event.preventDefault());
     document.getElementById('cron-preset')?.addEventListener('change', (event) => applyCronPreset(event.target.value));
     document.getElementById('mission-modal-cancel-btn')?.addEventListener('click', () => closeModal('modal'));
@@ -263,7 +268,7 @@ function render() {
     // Build a hash of the current data to avoid unnecessary DOM re-renders.
     // renderStatusBar() and updateViewToggle() only patch textContent/classes (no flicker).
     // renderMissions() and renderQueue() replace innerHTML — skip them when nothing changed.
-    const dataHash = JSON.stringify(missions) + '||' + JSON.stringify(queue) + '||' + currentFilter;
+    const dataHash = JSON.stringify(missions) + '||' + JSON.stringify(queue) + '||' + currentFilter + '||' + missionSearchQuery;
     const dataChanged = dataHash !== lastRenderedDataHash;
     lastRenderedDataHash = dataHash;
 
@@ -403,17 +408,38 @@ function renderMissions() {
 
     let filtered = missions;
     if (currentFilter !== 'all') {
-        filtered = missions.filter(m => m.execution_type === currentFilter);
+        filtered = filtered.filter(m => m.execution_type === currentFilter);
+    }
+    if (missionSearchQuery) {
+        filtered = filtered.filter((m) => {
+            const name = (m.name || '').toLowerCase();
+            const prompt = (m.prompt || '').toLowerCase();
+            return name.includes(missionSearchQuery) || prompt.includes(missionSearchQuery);
+        });
     }
 
     if (filtered.length === 0) {
+        const isSearchEmpty = missionSearchQuery.length > 0;
+        const title = isSearchEmpty
+            ? t('missions.empty_search_title')
+            : (currentFilter === 'all' ? t('missions.empty_title') : t('missions.empty_no_missions_of_type'));
+        const desc = isSearchEmpty
+            ? t('missions.empty_search_desc')
+            : (currentFilter === 'all' ? t('missions.empty_desc') : t('missions.empty_no_missions_of_type'));
+        const cta = (!isSearchEmpty && currentFilter === 'all')
+            ? `<button class="btn btn-primary" type="button" id="missions-empty-create-btn">
+                    <span>+</span> <span>${t('missions.btn_new_mission')}</span>
+               </button>`
+            : '';
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">🚀</div>
-                <h3>${currentFilter === 'all' ? t('missions.empty_title') : t('missions.empty_no_missions_of_type')}</h3>
-                <p>${currentFilter === 'all' ? t('missions.empty_desc') : t('missions.empty_no_missions_of_type')}</p>
+                <h3>${title}</h3>
+                <p>${desc}</p>
+                ${cta}
             </div>
         `;
+        document.getElementById('missions-empty-create-btn')?.addEventListener('click', () => openMissionModal());
         return;
     }
 

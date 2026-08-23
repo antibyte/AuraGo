@@ -70,33 +70,26 @@
 
         <!-- Tab bar -->
         <div class="kc-tabs-wrap">
-            <div class="kc-tabs pw-tabs" role="tablist" aria-label="Knowledge categories">
-                <button class="kc-tab pw-tab active" id="tab-contacts" role="tab" aria-selected="true"
-                    aria-controls="panel-contacts" tabindex="0"
-                    onclick="switchKCTab('contacts')"><span data-i18n="knowledge.tab_contacts"></span>
+            <div class="kc-tabs pw-tabs" role="tablist" data-i18n-aria-label="knowledge.tablist_label">
+                <button class="kc-tab pw-tab active" type="button" id="tab-contacts" role="tab" aria-selected="true"
+                    aria-controls="panel-contacts" tabindex="0" data-kc-tab="contacts"><span data-i18n="knowledge.tab_contacts"></span>
                     <span class="kc-tab-count" id="count-contacts">0</span></button>
-                <button class="kc-tab pw-tab" id="tab-files" role="tab" aria-selected="false"
-                    aria-controls="panel-files" tabindex="-1"
-                    onclick="switchKCTab('files')"><span data-i18n="knowledge.tab_files"></span>
+                <button class="kc-tab pw-tab" type="button" id="tab-files" role="tab" aria-selected="false"
+                    aria-controls="panel-files" tabindex="-1" data-kc-tab="files"><span data-i18n="knowledge.tab_files"></span>
                     <span class="kc-tab-count" id="count-files">0</span></button>
-                <button class="kc-tab pw-tab" id="tab-devices" role="tab" aria-selected="false"
-                    aria-controls="panel-devices" tabindex="-1"
-                    onclick="switchKCTab('devices')"><span data-i18n="knowledge.tab_devices"></span>
+                <button class="kc-tab pw-tab" type="button" id="tab-devices" role="tab" aria-selected="false"
+                    aria-controls="panel-devices" tabindex="-1" data-kc-tab="devices"><span data-i18n="knowledge.tab_devices"></span>
                     <span class="kc-tab-count" id="count-devices">0</span></button>
-                <button class="kc-tab pw-tab" id="tab-credentials" role="tab" aria-selected="false"
-                    aria-controls="panel-credentials" tabindex="-1"
-                    onclick="switchKCTab('credentials')"><span data-i18n="knowledge.tab_credentials"></span>
+                <button class="kc-tab pw-tab" type="button" id="tab-credentials" role="tab" aria-selected="false"
+                    aria-controls="panel-credentials" tabindex="-1" data-kc-tab="credentials"><span data-i18n="knowledge.tab_credentials"></span>
                     <span class="kc-tab-count" id="count-credentials">0</span></button>
-                <button class="kc-tab pw-tab" id="tab-secrets" role="tab" aria-selected="false"
-                    aria-controls="panel-secrets" tabindex="-1"
-                    onclick="switchKCTab('secrets')"><span data-i18n="knowledge.tab_secrets"></span></button>
-                <button class="kc-tab pw-tab" id="tab-appointments" role="tab" aria-selected="false"
-                    aria-controls="panel-appointments" tabindex="-1"
-                    onclick="switchKCTab('appointments')"><span data-i18n="knowledge.tab_appointments"></span>
+                <button class="kc-tab pw-tab" type="button" id="tab-secrets" role="tab" aria-selected="false"
+                    aria-controls="panel-secrets" tabindex="-1" data-kc-tab="secrets"><span data-i18n="knowledge.tab_secrets"></span></button>
+                <button class="kc-tab pw-tab" type="button" id="tab-appointments" role="tab" aria-selected="false"
+                    aria-controls="panel-appointments" tabindex="-1" data-kc-tab="appointments"><span data-i18n="knowledge.tab_appointments"></span>
                     <span class="kc-tab-count" id="count-appointments">0</span></button>
-                <button class="kc-tab pw-tab" id="tab-todos" role="tab" aria-selected="false"
-                    aria-controls="panel-todos" tabindex="-1"
-                    onclick="switchKCTab('todos')"><span data-i18n="knowledge.tab_todos"></span>
+                <button class="kc-tab pw-tab" type="button" id="tab-todos" role="tab" aria-selected="false"
+                    aria-controls="panel-todos" tabindex="-1" data-kc-tab="todos"><span data-i18n="knowledge.tab_todos"></span>
                     <span class="kc-tab-count" id="count-todos">0</span></button>
             </div>
         </div>
@@ -107,8 +100,8 @@
                 <div class="kc-search-row pw-toolbar">
                     <input type="search" id="contacts-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.contacts_search_placeholder"
-                        oninput="debounceContactSearch()">
-                    <button class="btn btn-primary" onclick="openContactModal()">
+                        data-kc-search="contacts">
+                    <button class="btn btn-primary" type="button" data-kc-action="open-contact">
                         <span>+</span> <span data-i18n="knowledge.contacts_add"></span>
                     </button>
                 </div>
@@ -132,7 +125,7 @@
                 <div class="empty-icon">📇</div>
                 <h3 data-i18n="knowledge.contacts_empty_title"></h3>
                 <p data-i18n="knowledge.contacts_empty_desc"></p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openContactModal()" data-i18n="knowledge.contacts_add"></button>
+                <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-contact" data-i18n="knowledge.contacts_add"></button>
             </div>
         </div>
 
@@ -142,7 +135,7 @@
                 <div class="kc-search-row pw-toolbar">
                     <input type="search" id="files-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.files_search_placeholder"
-                        oninput="filterFiles()">
+                        data-kc-search="files">
                     <label class="btn btn-primary kc-upload-btn">
                         <span>⬆</span> <span data-i18n="knowledge.files_upload"></span>
                         <input type="file" id="file-upload-input" class="is-hidden" multiple onchange="uploadFiles(this)">
@@ -185,8 +178,8 @@
                 <div class="kc-search-row pw-toolbar">
                     <input type="search" id="devices-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.devices_search_placeholder"
-                        oninput="filterDevices()">
-                    <button class="btn btn-primary" onclick="openDeviceModal()">
+                        data-kc-search="devices">
+                    <button class="btn btn-primary" type="button" data-kc-action="open-device">
                         <span>+</span> <span data-i18n="knowledge.devices_add"></span>
                     </button>
                 </div>
@@ -222,7 +215,7 @@
                 <div class="empty-icon">📱</div>
                 <h3 data-i18n="knowledge.devices_empty_title"></h3>
                 <p data-i18n="knowledge.devices_empty_desc"></p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openDeviceModal()" data-i18n="knowledge.devices_add"></button>
+                <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-device" data-i18n="knowledge.devices_add"></button>
             </div>
         </div>
 
@@ -232,8 +225,8 @@
                 <div class="kc-search-row pw-toolbar">
                     <input type="search" id="credentials-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.credentials_search_placeholder"
-                        oninput="filterCredentials()">
-                    <button class="btn btn-primary" onclick="openCredentialModal()">
+                        data-kc-search="credentials">
+                    <button class="btn btn-primary" type="button" data-kc-action="open-credential">
                         <span>+</span> <span data-i18n="knowledge.credentials_add"></span>
                     </button>
                 </div>
@@ -259,7 +252,7 @@
                 <div class="empty-icon">🔑</div>
                 <h3 data-i18n="knowledge.credentials_empty_title"></h3>
                 <p data-i18n="knowledge.credentials_empty_desc"></p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openCredentialModal()" data-i18n="knowledge.credentials_add"></button>
+                <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-credential" data-i18n="knowledge.credentials_add"></button>
             </div>
         </div>
 
@@ -274,7 +267,7 @@
                 <div class="kc-search-row pw-toolbar">
                     <input type="search" id="appointments-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.appointments_search_placeholder"
-                        oninput="debounceAppointmentSearch()">
+                        data-kc-search="appointments">
                     <select id="appointments-filter" class="kc-filter-select" onchange="loadAppointments()">
                         <option value="" data-i18n="knowledge.appointments_filter_all"></option>
                         <option value="upcoming" data-i18n="knowledge.appointments_filter_upcoming"></option>
@@ -282,7 +275,7 @@
                         <option value="completed" data-i18n="knowledge.appointments_filter_completed"></option>
                         <option value="cancelled" data-i18n="knowledge.appointments_filter_cancelled"></option>
                     </select>
-                    <button class="btn btn-primary" onclick="openAppointmentModal()">
+                    <button class="btn btn-primary" type="button" data-kc-action="open-appointment">
                         <span>+</span> <span data-i18n="knowledge.appointments_add"></span>
                     </button>
                 </div>
@@ -292,7 +285,7 @@
                 <div class="empty-icon">📅</div>
                 <h3 data-i18n="knowledge.appointments_empty_title"></h3>
                 <p data-i18n="knowledge.appointments_empty_desc"></p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openAppointmentModal()" data-i18n="knowledge.appointments_add"></button>
+                <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-appointment" data-i18n="knowledge.appointments_add"></button>
             </div>
         </div>
 
@@ -302,14 +295,14 @@
                 <div class="kc-search-row pw-toolbar">
                     <input type="search" id="todos-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.todos_search_placeholder"
-                        oninput="debounceTodoSearch()">
+                        data-kc-search="todos">
                     <select id="todos-filter" class="kc-filter-select" onchange="loadTodos()">
                         <option value="" data-i18n="knowledge.todos_filter_all"></option>
                         <option value="open" data-i18n="knowledge.todos_filter_open"></option>
                         <option value="in_progress" data-i18n="knowledge.todos_filter_in_progress"></option>
                         <option value="done" data-i18n="knowledge.todos_filter_done"></option>
                     </select>
-                    <button class="btn btn-primary" onclick="openTodoModal()">
+                    <button class="btn btn-primary" type="button" data-kc-action="open-todo">
                         <span>+</span> <span data-i18n="knowledge.todos_add"></span>
                     </button>
                 </div>
@@ -320,7 +313,7 @@
                 <div class="empty-icon">✅</div>
                 <h3 data-i18n="knowledge.todos_empty_title"></h3>
                 <p data-i18n="knowledge.todos_empty_desc"></p>
-                <button class="btn btn-primary kc-empty-cta" onclick="openTodoModal()" data-i18n="knowledge.todos_add"></button>
+                <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-todo" data-i18n="knowledge.todos_add"></button>
             </div>
         </div>
     </main>

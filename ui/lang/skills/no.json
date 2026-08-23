@@ -201,6 +201,7 @@
   "skills.subtitle": "Ferdigheter",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python-skills",
+  "skills.tablist_label": "Ferdighetstyper",
   "skills.template_choose": "-- Velg en mal --",
   "skills.template_desc_hint": "Hva gjør denne skill?",
   "skills.template_description": "Beskrivelse",

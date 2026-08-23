@@ -505,6 +505,7 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
 				`id="view-toggle"`,
 				`data-view-mode="grid"`,
 				`data-view-mode="list"`,
+				`id="missions-search"`,
 				`id="queue-section"`,
 				`data-filter="scheduled"`,
 				`id="missions-grid"`,
@@ -521,7 +522,8 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
 			inlineStyleCount: 0,
 			hooks: []string{
 				`id="view-toggle"`,
-				`onclick="setViewMode('grid')"`,
+				`data-view-mode="grid"`,
+				`data-cheat-tab="user"`,
 				`id="tab-user"`,
 				`id="tab-agent"`,
 				`id="panel-user"`,
@@ -863,7 +865,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsIntegration(t *testing.T) {
 			pageStylesheet: `/css/skills.css`,
 			pageScript:     `/js/skills/main.js`,
 			hiddenHooks: []string{
-				`class="sk-toolbar-actions is-hidden" id="agent-toolbar-actions"`,
+				`id="agent-toolbar-actions"`,
 				`id="agent-file-upload-input" class="is-hidden"`,
 				`class="modal-overlay is-hidden" id="agent-resource-path-modal"`,
 				`id="upload-file" accept=".py" class="is-hidden"`,
@@ -2464,6 +2466,56 @@ func TestPrecisionEntryLoginViewportLocksAndCentersCard(t *testing.T) {
 		if strings.Contains(adapter, forbidden) {
 			t.Errorf("login adapter must not use layout-expanding rule %q", forbidden)
 		}
+	}
+}
+
+func TestPrecisionWorkspaceOperationalChromeContract(t *testing.T) {
+	t.Parallel()
+
+	tabPages := []struct {
+		file    string
+		marker  string
+		i18nKey string
+	}{
+		{"cheatsheets.html", `<div class="cheatsheet-tabs pw-tabs"`, `data-i18n-aria-label="cheatsheets.tablist_label"`},
+		{"media.html", `<div class="media-tabs pw-tabs"`, `data-i18n-aria-label="media.tablist_label"`},
+		{"invasion_control.html", `<div class="invasion-tabs pw-tabs"`, `data-i18n-aria-label="invasion.tablist_label"`},
+		{"missions_v2.html", `<div class="tabs pw-tabs"`, `data-i18n-aria-label="missions.tablist_label"`},
+		{"knowledge.html", `<div class="kc-tabs pw-tabs"`, `data-i18n-aria-label="knowledge.tablist_label"`},
+		{"containers.html", `<div class="tabs pw-tabs ct-tabs"`, `data-i18n-aria-label="containers.tablist_label"`},
+		{"skills.html", `<div class="sk-tabs pw-tabs"`, `data-i18n-aria-label="skills.tablist_label"`},
+	}
+
+	forbiddenTabEmoji := []string{"🖼", "🎵", "🎬", "📄", "🪺", "🥚", "👤", "🤖"}
+
+	for _, page := range tabPages {
+		page := page
+		t.Run(page.file, func(t *testing.T) {
+			t.Parallel()
+			html := normalizeAssetText(mustReadUIFile(t, page.file))
+			tabStart := strings.Index(html, page.marker)
+			if tabStart < 0 {
+				t.Fatalf("%s missing tab strip marker %q", page.file, page.marker)
+			}
+			tabEndRel := strings.Index(html[tabStart:], `</div>`)
+			if tabEndRel < 0 {
+				t.Fatalf("%s tab strip is not closed", page.file)
+			}
+			tabStrip := html[tabStart : tabStart+tabEndRel]
+			if !strings.Contains(tabStrip, page.i18nKey) {
+				t.Errorf("%s tab strip must include %q", page.file, page.i18nKey)
+			}
+			for _, emoji := range forbiddenTabEmoji {
+				if strings.Contains(tabStrip, emoji) {
+					t.Errorf("%s tab strip must not contain emoji %q", page.file, emoji)
+				}
+			}
+		})
+	}
+
+	skills := normalizeAssetText(mustReadUIFile(t, "skills.html"))
+	if strings.Contains(skills, `class="sk-filter-btn pw-tab`) || strings.Contains(skills, `sk-filter-btn pw-tab active`) {
+		t.Error("skills origin filter chips must not use pw-tab")
 	}
 }
 

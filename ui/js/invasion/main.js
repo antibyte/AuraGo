@@ -35,6 +35,7 @@ function bindInvasionUI() {
     document.getElementById('reconfigure-cancel-btn')?.addEventListener('click', () => closeModal('reconfigure-modal'));
     document.getElementById('reconfigure-apply-btn')?.addEventListener('click', applyReconfigure);
     document.getElementById('config-history-close-btn')?.addEventListener('click', () => closeModal('config-history-modal'));
+    document.getElementById('invasion-search')?.addEventListener('input', filterInvasionItems);
 
     document.addEventListener('click', (event) => {
         const tabBtn = event.target.closest('.invasion-tab[data-tab]');

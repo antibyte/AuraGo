@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Stoppade",
   "containers.stat_total": "Totalt",
   "containers.subtitle": "Containrar",
+  "containers.tablist_label": "Containerfilter",
   "containers.terminal_closed": "Sessionen stängd",
   "containers.terminal_connected": "Ansluten",
   "containers.terminal_connecting": "Ansluter...",

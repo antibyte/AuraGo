@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Σταματημένα",
   "containers.stat_total": "Σύνολο",
   "containers.subtitle": "Κοντέινερ",
+  "containers.tablist_label": "Φίλτρα κοντεϊνέρ",
   "containers.terminal_closed": "Η συνεδρία έκλεισε",
   "containers.terminal_connected": "Συνδέθηκε",
   "containers.terminal_connecting": "Σύνδεση...",

@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Zastavené",
   "containers.stat_total": "Celkem",
   "containers.subtitle": "Kontejnery",
+  "containers.tablist_label": "Filtry kontejnerů",
   "containers.terminal_closed": "Relace ukončena",
   "containers.terminal_connected": "Připojeno",
   "containers.terminal_connecting": "Připojování...",

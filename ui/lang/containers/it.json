@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Fermati",
   "containers.stat_total": "Totale",
   "containers.subtitle": "Container",
+  "containers.tablist_label": "Filtri container",
   "containers.terminal_closed": "Sessione chiusa",
   "containers.terminal_connected": "Connesso",
   "containers.terminal_connecting": "Connessione...",

@@ -201,6 +201,7 @@
   "skills.subtitle": "Vaardigheden",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python-skills",
+  "skills.tablist_label": "Skilltypen",
   "skills.template_choose": "-- Kies een sjabloon --",
   "skills.template_desc_hint": "Wat doet deze skill?",
   "skills.template_description": "Beschrijving",

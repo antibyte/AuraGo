@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Συγχρονισμός Αρχείων",
   "knowledge.tab_secrets": "🔐 Μυστικά",
   "knowledge.tab_todos": "✅ Εργασίες",
+  "knowledge.tablist_label": "Κατηγορίες γνώσης",
   "knowledge.todos_add": "Νέα εργασία",
   "knowledge.todos_delete_confirm": "Είστε σίγουροι ότι θέλετε να διαγράψετε την εργασία \"{name}\";",
   "knowledge.todos_desc_label": "Περιγραφή",

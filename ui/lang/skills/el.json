@@ -201,6 +201,7 @@
   "skills.subtitle": "Δεξιότητες",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python Skills",
+  "skills.tablist_label": "Τύποι δεξιοτήτων",
   "skills.template_choose": "-- Επιλέξτε πρότυπο --",
   "skills.template_desc_hint": "Τι κάνει αυτό το skill;",
   "skills.template_description": "Περιγραφή",

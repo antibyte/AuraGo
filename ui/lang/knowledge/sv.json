@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Filsynk",
   "knowledge.tab_secrets": "🔐 Hemligheter",
   "knowledge.tab_todos": "✅ Uppgifter",
+  "knowledge.tablist_label": "Kunskapskategorier",
   "knowledge.todos_add": "Ny uppgift",
   "knowledge.todos_delete_confirm": "Är du säker på att du vill ta bort uppgiften \"{name}\"?",
   "knowledge.todos_desc_label": "Beskrivning",

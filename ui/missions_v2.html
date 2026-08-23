@@ -102,19 +102,8 @@
             </div>
         </div>
 
-        <!-- Queue Section -->
-            <div class="queue-section is-hidden" id="queue-section">
-            <div class="queue-header">
-                <h3 data-i18n="missions.queue_title"></h3>
-                <span class="badge badge-running">
-                    <span data-i18n="missions.queue_serial_badge"></span>
-                </span>
-            </div>
-            <div class="queue-items" id="queue-items"></div>
-        </div>
-
         <!-- Tabs -->
-        <div class="tabs pw-tabs" role="tablist" aria-label="Mission filters">
+        <div class="tabs pw-tabs" role="tablist" data-i18n-aria-label="missions.tablist_label">
             <button class="tab pw-tab active" type="button" data-filter="all" id="tab-all" role="tab" aria-selected="true">
                 <span data-i18n="missions.filter_all"></span>
             </button>
@@ -127,6 +116,22 @@
             <button class="tab pw-tab" type="button" data-filter="triggered" id="tab-triggered" role="tab" aria-selected="false">
                 <span data-i18n="missions.filter_triggered"></span>
             </button>
+        </div>
+
+        <div class="pw-toolbar missions-toolbar">
+            <input type="search" id="missions-search" class="pw-search" autocomplete="off"
+                placeholder="" data-i18n-placeholder="missions.search_placeholder">
+        </div>
+
+        <!-- Queue Section -->
+        <div class="queue-section is-hidden" id="queue-section">
+            <div class="queue-header">
+                <h3 data-i18n="missions.queue_title"></h3>
+                <span class="badge badge-running">
+                    <span data-i18n="missions.queue_serial_badge"></span>
+                </span>
+            </div>
+            <div class="queue-items" id="queue-items"></div>
         </div>
 
         <!-- Missions Grid -->

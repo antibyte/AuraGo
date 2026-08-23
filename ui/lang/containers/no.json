@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Stoppet",
   "containers.stat_total": "Totalt",
   "containers.subtitle": "Containere",
+  "containers.tablist_label": "Containerfiltre",
   "containers.terminal_closed": "Økt lukket",
   "containers.terminal_connected": "Tilkoblet",
   "containers.terminal_connecting": "Kobler til...",

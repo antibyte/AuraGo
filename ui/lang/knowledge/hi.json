@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 फ़ाइल सिंक",
   "knowledge.tab_secrets": "🔐 रहस्य",
   "knowledge.tab_todos": "✅ कार्य",
+  "knowledge.tablist_label": "ज्ञान श्रेणियाँ",
   "knowledge.todos_add": "नया कार्य",
   "knowledge.todos_delete_confirm": "क्या आप वाकई कार्य \"{name}\" को हटाना चाहते हैं?",
   "knowledge.todos_desc_label": "विवरण",

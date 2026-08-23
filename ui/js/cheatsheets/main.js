@@ -15,7 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.title = t('cheatsheets.page_title');
     updateViewToggle();
     loadSheets();
+    bindCheatsheetChrome();
 });
+
+function bindCheatsheetChrome() {
+    document.getElementById('btn-create')?.addEventListener('click', () => openCreate());
+    document.getElementById('cheatsheets-search')?.addEventListener('input', () => filterCheatsheets());
+    document.querySelectorAll('#view-toggle [data-view-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => setViewMode(btn.dataset.viewMode));
+    });
+    document.querySelectorAll('[data-cheat-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => switchCheatTab(btn.dataset.cheatTab));
+    });
+}
 
 // ── API ──────────────────────────────────────────────────
 async function api(path, options = {}) {

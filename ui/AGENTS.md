@@ -30,7 +30,19 @@ images, and browser-oriented regression tests.
   plus density and theme toggles in `.header-actions`.
 - Search fields on operational pages use `pw-search` (often dual-classed with
   legacy ids such as `ct-search`, `sk-search`, `kc-search`, or
-  `gallery-search`).
+  `gallery-search`). List pages expose one page-level `pw-search` in the
+  page toolbar; Knowledge keeps panel-local search fields with `kc-search
+  pw-search`.
+- Operational tab labels are text-only. Dashboard may keep SVG tab icons for
+  scanability; other operational pages must not put emoji in tab labels.
+- Tab lists use `data-i18n-aria-label` for localized tablist labels, not hard-
+  coded English `aria-label` values.
+- Filter chips and origin/security pills use badge/chip styling (for example
+  `pw-badge`); they must not also carry `pw-tab`.
+- Operational chrome (tabs, filters, search, view toggles, heading CTAs,
+  pagination, bulk actions) binds through listeners or `data-action` /
+  `data-*` hooks — not inline `onclick`. Modal form logic may keep existing
+  handlers until migrated separately.
 - Empty states use `.empty-state` with `.empty-icon`, optional `h3`, `p`, and
   CTA buttons — not legacy `.icon` wrappers alone.
 - Every operational app header contains a density toggle

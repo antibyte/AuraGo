@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Detenidos",
   "containers.stat_total": "Total",
   "containers.subtitle": "Contenedores",
+  "containers.tablist_label": "Filtros de contenedores",
   "containers.terminal_closed": "Sesión cerrada",
   "containers.terminal_connected": "Conectado",
   "containers.terminal_connecting": "Conectando...",

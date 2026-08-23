@@ -64,32 +64,31 @@
             </div>
             <div class="header-actions pw-page-heading-actions">
                 <div class="view-toggle" id="view-toggle">
-                    <button type="button" onclick="setViewMode('grid')" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
+                    <button type="button" data-view-mode="grid" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
                         <span class="view-toggle-glyph" aria-hidden="true">▦</span>
                     </button>
-                    <button type="button" onclick="setViewMode('list')" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
+                    <button type="button" data-view-mode="list" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
                         <span class="view-toggle-glyph" aria-hidden="true">☰</span>
                     </button>
                 </div>
-                <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
+                <button class="btn btn-primary" type="button" id="btn-create">
                     <span>+</span> <span data-i18n="cheatsheets.create_new"></span>
                 </button>
             </div>
         </header>
 
-        <div class="cheatsheet-tabs pw-tabs" role="tablist" aria-label="Cheat sheet groups">
-            <button class="cheatsheet-tab pw-tab active" id="tab-user" role="tab" aria-selected="true"
-                aria-controls="panel-user" tabindex="0"
-                onclick="switchCheatTab('user')">👤 <span data-i18n="cheatsheets.group_user"></span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
-            <button class="cheatsheet-tab pw-tab" id="tab-agent" role="tab" aria-selected="false"
-                aria-controls="panel-agent" tabindex="-1"
-                onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent"></span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
+        <div class="cheatsheet-tabs pw-tabs" role="tablist" data-i18n-aria-label="cheatsheets.tablist_label">
+            <button class="cheatsheet-tab pw-tab active" type="button" id="tab-user" role="tab" aria-selected="true"
+                aria-controls="panel-user" tabindex="0" data-cheat-tab="user">
+                <span data-i18n="cheatsheets.group_user"></span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
+            <button class="cheatsheet-tab pw-tab" type="button" id="tab-agent" role="tab" aria-selected="false"
+                aria-controls="panel-agent" tabindex="-1" data-cheat-tab="agent">
+                <span data-i18n="cheatsheets.group_agent"></span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
         </div>
 
         <div class="pw-toolbar cheatsheet-toolbar">
             <input type="search" id="cheatsheets-search" class="pw-search" autocomplete="off"
-                placeholder="" data-i18n-placeholder="cheatsheets.search_placeholder"
-                oninput="filterCheatsheets()">
+                placeholder="" data-i18n-placeholder="cheatsheets.search_placeholder">
         </div>
 
         <div class="cheatsheet-panel active" id="panel-user" role="tabpanel" aria-labelledby="tab-user" tabindex="0">
@@ -120,7 +119,7 @@
             <input type="hidden" id="sheet-id">
             <div class="form-group">
                 <label data-i18n="cheatsheets.name"></label>
-                <input type="text" id="sheet-name" placeholder="e.g. Deploy Website" maxlength="200">
+                <input type="text" id="sheet-name" placeholder="" data-i18n-placeholder="cheatsheets.ph_name" maxlength="200">
             </div>
             <div class="form-group">
                 <label data-i18n="cheatsheets.content"></label>
@@ -128,12 +127,12 @@
                     <button class="editor-tab active" onclick="switchEditorTab('edit')" data-editor-tab="edit" data-i18n="cheatsheets.tab_edit"></button>
                     <button class="editor-tab" onclick="switchEditorTab('preview')" data-editor-tab="preview" data-i18n="cheatsheets.tab_preview"></button>
                 </div>
-                <textarea id="sheet-content" rows="16" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"></textarea>
+                <textarea id="sheet-content" rows="16" placeholder="" data-i18n-placeholder="cheatsheets.ph_content"></textarea>
                 <div id="sheet-preview" class="md-preview is-hidden"></div>
             </div>
             <div class="form-group">
                 <label data-i18n="cheatsheets.abstract"></label>
-                <input type="text" id="sheet-abstract" maxlength="280" placeholder="One sentence describing what this cheat sheet is for">
+                <input type="text" id="sheet-abstract" maxlength="280" placeholder="" data-i18n-placeholder="cheatsheets.ph_abstract">
             </div>
             <div class="form-row">
                 <div class="form-group">

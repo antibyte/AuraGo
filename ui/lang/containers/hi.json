@@ -31,6 +31,7 @@
   "containers.stat_stopped": "रुका हुआ",
   "containers.stat_total": "कुल",
   "containers.subtitle": "कंटेनर",
+  "containers.tablist_label": "कंटेनर फ़िल्टर",
   "containers.terminal_closed": "सत्र बंद",
   "containers.terminal_connected": "कनेक्टेड",
   "containers.terminal_connecting": "कनेक्ट हो रहा है...",

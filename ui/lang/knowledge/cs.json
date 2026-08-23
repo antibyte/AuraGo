@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Synchronizace souborů",
   "knowledge.tab_secrets": "🔐 Tajemství",
   "knowledge.tab_todos": "✅ Úkoly",
+  "knowledge.tablist_label": "Kategorie znalostí",
   "knowledge.todos_add": "Nový úkol",
   "knowledge.todos_delete_confirm": "Opravdu chcete smazat úkol \"{name}\"?",
   "knowledge.todos_desc_label": "Popis",

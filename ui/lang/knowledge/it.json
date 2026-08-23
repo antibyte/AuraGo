@@ -195,6 +195,7 @@
   "knowledge.tab_filesync": "📊 Sinc. File",
   "knowledge.tab_secrets": "🔐 Segreti",
   "knowledge.tab_todos": "✅ Attività",
+  "knowledge.tablist_label": "Categorie conoscenza",
   "knowledge.todos_add": "Nuova attività",
   "knowledge.todos_delete_confirm": "Sei sicuro di voler eliminare l'attività \"{name}\"?",
   "knowledge.todos_desc_label": "Descrizione",

@@ -31,6 +31,7 @@
   "containers.stat_stopped": "已停止",
   "containers.stat_total": "总计",
   "containers.subtitle": "容器",
+  "containers.tablist_label": "容器筛选",
   "containers.terminal_closed": "会话已关闭",
   "containers.terminal_connected": "已连接",
   "containers.terminal_connecting": "正在连接...",

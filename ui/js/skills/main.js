@@ -42,7 +42,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     initDropzone();
     applyPlaceholders();
     initDaemonSSE();
+    bindSkillChrome();
 });
+
+function bindSkillChrome() {
+    document.getElementById('sk-search')?.addEventListener('input', () => filterSkills());
+
+    document.querySelectorAll('[data-skill-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => switchSkillMode(btn.dataset.skillMode));
+    });
+    document.querySelectorAll('.sk-filter-btn[data-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => setSkillFilter(btn.dataset.filter));
+    });
+    document.querySelectorAll('.sk-pill[data-sec]').forEach((btn) => {
+        btn.addEventListener('click', () => setSecurityFilter(btn.dataset.sec));
+    });
+
+    document.addEventListener('click', (event) => {
+        const actionBtn = event.target.closest('[data-action]');
+        if (!actionBtn) return;
+        switch (actionBtn.dataset.action) {
+            case 'show-upload':
+                showUploadModal();
+                break;
+            case 'show-agent-create':
+                showAgentSkillCreateModal();
+                break;
+            case 'show-template':
+                showTemplateModal();
+                break;
+            case 'show-import':
+                showImportModal();
+                break;
+            case 'show-generate':
+                showGenerateModal();
+                break;
+            case 'show-agent-import':
+                showAgentSkillImportModal();
+                break;
+            default:
+                break;
+        }
+    });
+}
 
 function applyPlaceholders() {
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
@@ -362,6 +404,8 @@ function showDisabledState() {
         });
         document.getElementById('sk-toolbar-actions').style.display = currentSkillMode === 'python' ? '' : 'none';
         document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? 'flex' : 'none';
+        document.getElementById('sk-heading-create-python')?.classList.toggle('is-hidden', currentSkillMode !== 'python');
+        document.getElementById('sk-heading-create-agent')?.classList.toggle('is-hidden', currentSkillMode !== 'agent');
         const typeFilter = document.querySelector('.sk-filter-group');
         if (typeFilter) typeFilter.style.display = currentSkillMode === 'python' ? '' : 'none';
         document.getElementById('sk-disabled').style.display = 'none';

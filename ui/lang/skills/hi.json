@@ -201,6 +201,7 @@
   "skills.subtitle": "कौशल",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python Skills",
+  "skills.tablist_label": "स्किल प्रकार",
   "skills.template_choose": "-- एक टेम्पलेट चुनें --",
   "skills.template_desc_hint": "यह skill क्या करता है?",
   "skills.template_description": "विवरण",

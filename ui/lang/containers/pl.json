@@ -31,6 +31,7 @@
   "containers.stat_stopped": "Zatrzymane",
   "containers.stat_total": "Łącznie",
   "containers.subtitle": "Kontenery",
+  "containers.tablist_label": "Filtry kontenerów",
   "containers.terminal_closed": "Sesja zamknięta",
   "containers.terminal_connected": "Połączono",
   "containers.terminal_connecting": "Łączenie...",

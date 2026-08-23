@@ -201,6 +201,7 @@
   "skills.subtitle": "スキル",
   "skills.tab_agent": "Agent Skills",
   "skills.tab_python": "Python Skills",
+  "skills.tablist_label": "スキル種別",
   "skills.template_choose": "-- テンプレートを選択 --",
   "skills.template_desc_hint": "このスキルは何をしますか？",
   "skills.template_description": "説明",
