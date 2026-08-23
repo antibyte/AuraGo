@@ -118,6 +118,11 @@ func TestBuildTaskRulePromptContextSelectsVirtualDesktopRuleByKeyword(t *testing
 	if !strings.Contains(ctx.TaskRules, "Use `virtual_desktop_app_install` for generated apps") {
 		t.Fatalf("virtual desktop rule should include app creation guidance:\n%s", ctx.TaskRules)
 	}
+	guardIndex := strings.Index(ctx.TaskRules, "CURRENT-RUN GATE")
+	workflowIndex := strings.Index(ctx.TaskRules, "Generated App And Widget Creation Workflow")
+	if guardIndex < 0 || guardIndex >= 700 || workflowIndex < 0 || guardIndex > workflowIndex {
+		t.Fatalf("virtual desktop current-run gate must precede the workflow within the prompt compaction budget: guard=%d workflow=%d\n%s", guardIndex, workflowIndex, ctx.TaskRules)
+	}
 	for _, marker := range []string{
 		"`status` -> `virtual_desktop_app_install` -> `diagnose_app`",
 		"current user message explicitly requests a particular external channel",
