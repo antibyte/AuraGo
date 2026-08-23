@@ -2,11 +2,14 @@ package desktop
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -53,28 +56,51 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 	if manifest.Entry == "." || strings.HasPrefix(manifest.Entry, "..") || filepath.IsAbs(manifest.Entry) {
 		return fmt.Errorf("desktop app entry must be a relative file")
 	}
-	entryContent, ok := files[manifest.Entry]
-	if !ok {
-		return fmt.Errorf("desktop app entry file is missing")
+	normalizedFiles := make(map[string][]byte, len(files))
+	fileRels := make([]string, 0, len(files))
+	maxBytes := int64(cfg.MaxFileSizeMB) * 1024 * 1024
+	if maxBytes <= 0 {
+		maxBytes = 50 * 1024 * 1024
 	}
-	if err := requireNonEmptyDesktopFile("app entry", entryContent); err != nil {
-		return err
-	}
-	baseRel := filepath.ToSlash(filepath.Join("Apps", manifest.ID))
-	var fileRels []string
 	for rel, content := range files {
 		cleanRel := cleanDesktopPath(rel)
 		if cleanRel == "." || strings.HasPrefix(cleanRel, "..") || filepath.IsAbs(cleanRel) {
 			return fmt.Errorf("desktop app file path escapes app directory")
 		}
-		if err := s.WriteFile(ctx, filepath.ToSlash(filepath.Join(baseRel, cleanRel)), content, source); err != nil {
-			return err
+		if _, exists := normalizedFiles[cleanRel]; exists {
+			return fmt.Errorf("desktop app contains duplicate normalized file path %q", cleanRel)
 		}
+		data := []byte(content)
+		if int64(len(data)) > maxBytes {
+			return fmt.Errorf("desktop app file %q exceeds max size", cleanRel)
+		}
+		normalizedFiles[cleanRel] = data
 		fileRels = append(fileRels, cleanRel)
 	}
-	manifest.Integrity, err = s.buildDesktopIntegrity("app", manifest.ID, baseRel, fileRels)
+	entryContent, ok := normalizedFiles[manifest.Entry]
+	if !ok {
+		return fmt.Errorf("desktop app entry file is missing")
+	}
+	if err := requireNonEmptyDesktopFile("app entry", string(entryContent)); err != nil {
+		return err
+	}
+	sort.Strings(fileRels)
+	baseRel := filepath.ToSlash(filepath.Join("Apps", manifest.ID))
+	hashes := make(map[string]string, len(normalizedFiles))
+	for rel, data := range normalizedFiles {
+		sum := sha256.Sum256(data)
+		hashes[rel] = "sha256:" + hex.EncodeToString(sum[:])
+	}
+	signature, err := s.signDesktopIntegrity("app", manifest.ID, hashes)
 	if err != nil {
 		return fmt.Errorf("build desktop app integrity: %w", err)
+	}
+	manifest.Integrity = &IntegrityData{
+		Hashes: hashes,
+		Signature: &IntegritySignature{
+			Algorithm: "ed25519",
+			Value:     signature,
+		},
 	}
 	now := time.Now().UTC()
 	manifest.CreatedAt = now
@@ -83,8 +109,82 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 	if err != nil {
 		return fmt.Errorf("marshal desktop app manifest: %w", err)
 	}
+	appDir, err := s.resolveWorkspacePathNoSymlinks(baseRel, true)
+	if err != nil {
+		return err
+	}
+	appsDir := filepath.Dir(appDir)
+	workspaceRoot, err := filepath.Abs(cfg.WorkspaceDir)
+	if err != nil {
+		return fmt.Errorf("resolve desktop workspace: %w", err)
+	}
+
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
+	if err := os.MkdirAll(appsDir, 0o700); err != nil {
+		return fmt.Errorf("create desktop apps directory: %w", err)
+	}
+	if err := validateNoSymlinkComponents(workspaceRoot, appsDir, false); err != nil {
+		return err
+	}
+	stagingDir, err := os.MkdirTemp(appsDir, "."+manifest.ID+".install-")
+	if err != nil {
+		return fmt.Errorf("create desktop app staging directory: %w", err)
+	}
+	defer func() {
+		if stagingDir != "" {
+			_ = os.RemoveAll(stagingDir)
+		}
+	}()
+	_ = os.Chmod(stagingDir, 0o700)
+	for _, rel := range fileRels {
+		target := filepath.Join(stagingDir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+			return fmt.Errorf("create desktop app staging path %q: %w", rel, err)
+		}
+		if err := validateNoSymlinkComponents(stagingDir, filepath.Dir(target), false); err != nil {
+			return err
+		}
+		if _, err := secureWriteWorkspaceFile(target, normalizedFiles[rel]); err != nil {
+			return fmt.Errorf("stage desktop app file %q: %w", rel, err)
+		}
+	}
+
+	backupDir := appDir + ".replace-" + now.Format("20060102150405.000000000")
+	oldStaged := false
+	if _, err := os.Stat(appDir); err == nil {
+		if err := os.Rename(appDir, backupDir); err != nil {
+			return fmt.Errorf("stage previous desktop app files: %w", err)
+		}
+		oldStaged = true
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat previous desktop app files: %w", err)
+	}
+	rollbackFiles := func() error {
+		removeErr := os.RemoveAll(appDir)
+		if oldStaged {
+			if restoreErr := os.Rename(backupDir, appDir); restoreErr != nil {
+				return fmt.Errorf("remove replacement: %v; restore previous files: %w", removeErr, restoreErr)
+			}
+		}
+		return removeErr
+	}
+	if err := os.Rename(stagingDir, appDir); err != nil {
+		if oldStaged {
+			_ = os.Rename(backupDir, appDir)
+		}
+		return fmt.Errorf("activate desktop app files: %w", err)
+	}
+	stagingDir = ""
+
 	db := s.getDB()
-	_, err = db.ExecContext(ctx, `INSERT INTO desktop_apps(id, name, version, icon, entry, manifest_json, created_at, updated_at)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		_ = rollbackFiles()
+		return fmt.Errorf("begin desktop app install: %w", err)
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `INSERT INTO desktop_apps(id, name, version, icon, entry, manifest_json, created_at, updated_at)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
@@ -95,7 +195,20 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 			updated_at = excluded.updated_at`,
 		manifest.ID, manifest.Name, manifest.Version, manifest.Icon, manifest.Entry, string(manifestJSON), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
+		_ = rollbackFiles()
 		return fmt.Errorf("save desktop app manifest: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		rollbackErr := rollbackFiles()
+		if rollbackErr != nil {
+			return fmt.Errorf("commit desktop app manifest: %v; rollback files: %w", err, rollbackErr)
+		}
+		return fmt.Errorf("commit desktop app manifest: %w", err)
+	}
+	if oldStaged {
+		if err := os.RemoveAll(backupDir); err != nil {
+			return fmt.Errorf("desktop app installed but previous files could not be removed: %w", err)
+		}
 	}
 	_ = s.Audit(ctx, "install_app", manifest.ID, manifest, source)
 	s.InvalidateApps()

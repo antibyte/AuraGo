@@ -1340,6 +1340,49 @@ func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 	}
 }
 
+func TestServiceInstallAppAtomicallyReplacesCompleteFileSet(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{ID: "replace-app", Name: "Replace App", Icon: "apps", Entry: "index.html"}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{
+		"index.html": "<main>Old</main>",
+		"old.js":     "window.old = true;",
+	}, SourceAgent); err != nil {
+		t.Fatalf("initial InstallApp: %v", err)
+	}
+	if err := svc.WriteFile(ctx, "Apps/replace-app/BUG_REPORT.md", "stale report", SourceAgent); err != nil {
+		t.Fatalf("write stale app file: %v", err)
+	}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{
+		"index.html": "<main>New</main>",
+	}, SourceAgent); err != nil {
+		t.Fatalf("replacement InstallApp: %v", err)
+	}
+
+	entryPath, err := svc.ResolvePath("Apps/replace-app/index.html")
+	if err != nil {
+		t.Fatalf("resolve replacement entry: %v", err)
+	}
+	entry, err := os.ReadFile(entryPath)
+	if err != nil {
+		t.Fatalf("read replacement entry: %v", err)
+	}
+	if string(entry) != "<main>New</main>" {
+		t.Fatalf("replacement entry = %q", entry)
+	}
+	for _, stale := range []string{"Apps/replace-app/old.js", "Apps/replace-app/BUG_REPORT.md"} {
+		stalePath, err := svc.ResolvePath(stale)
+		if err != nil {
+			t.Fatalf("resolve stale path %q: %v", stale, err)
+		}
+		if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
+			t.Fatalf("stale file %q survived replacement or stat failed differently: %v", stale, err)
+		}
+	}
+}
+
 func TestServiceInstallAppAddsIntegrityAndDetectsTampering(t *testing.T) {
 	t.Parallel()
 
