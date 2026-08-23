@@ -1,12 +1,8 @@
 /* AuraGo – Media View Page Styles
-   Extends gallery.css for the tabbed Medienansicht (Images / Audio / Videos / Documents)
-   Uses standard components from shared.css where applicable.
-*/
-
-/* Uses from shared.css:
-   - .app-header
-   - .card, .card-bg variables
-   - Modal styling
+   Shared chrome (app header, buttons, cards, modals, toasts, empty states)
+   comes from the Precision Workspace layers; feature rules for the media
+   grids, players, lightbox and pagination live here. gallery.css is still
+   loaded for legacy gallery primitives and is neutralized where needed.
 */
 
 .pw-page[data-workspace-page="media"][data-density="compact"] .media-container {
@@ -14,40 +10,16 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-container {
-    max-width: 1400px;
-    margin: 0 auto;
     width: min(100%, var(--pw-content-max));
     margin-inline: auto;
     padding: clamp(1rem, 3vw, 2.5rem);
 }
 
-.pw-page[data-workspace-page="media"] .media-header, .pw-page[data-workspace-page="media"] .media-tabs, .pw-page[data-workspace-page="media"] .media-bulk-toolbar, .pw-page[data-workspace-page="media"] .media-extra-controls {
+.pw-page[data-workspace-page="media"] .media-tabs, .pw-page[data-workspace-page="media"] .media-bulk-toolbar, .pw-page[data-workspace-page="media"] .media-extra-controls {
     border-color: var(--pw-line);
     background: var(--pw-surface);
     background-image: none;
     box-shadow: none;
-}
-
-.pw-page[data-workspace-page="media"] .media-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-    padding-bottom: var(--space-5);
-    border-bottom: 1px solid var(--pw-line);
-}
-
-.pw-page[data-workspace-page="media"] .media-header h1 {
-    margin: 0;
-    font-family: 'Darker Grotesque', var(--font-sans);
-    font-size: clamp(1.85rem, 2.6vw + 0.6rem, 2.4rem);
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    line-height: 1.1;
-    color: var(--pw-text);
-    text-wrap: balance;
 }
 
 .pw-page[data-workspace-page="media"] .media-header-subtitle {
@@ -105,7 +77,6 @@
     padding: var(--space-2) var(--space-4);
     border: none;
     color: var(--pw-muted);
-    font-family: 'Darker Grotesque', var(--font-sans);
     font-size: var(--text-lg);
     font-weight: 500;
     letter-spacing: 0.005em;
@@ -174,13 +145,6 @@
     background-image: none;
 }
 
-.pw-page[data-workspace-page="media"] .app-header {
-    min-height: var(--pw-header-height);
-    border-bottom: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-canvas) 94%, transparent);
-    box-shadow: none;
-}
-
 .pw-page[data-workspace-page="media"] .media-card-selected {
     border-color: var(--pw-accent);
     background: color-mix(in srgb, var(--pw-accent) 10%, var(--pw-surface));
@@ -220,7 +184,7 @@
 
 .pw-page[data-workspace-page="media"] .media-bulk-toolbar .btn-gallery-nav.active {
     border-color: var(--pw-accent);
-    color: #fff;
+    color: var(--pw-canvas);
 }
 
 .pw-page[data-workspace-page="media"] .media-bulk-toolbar .btn-gallery-nav:disabled {
@@ -526,9 +490,9 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-doc-row-actions button.btn-danger:hover {
-    border-color: var(--danger);
-    background: color-mix(in srgb, #ef4444 10%, transparent);
-    color: var(--danger);
+    border-color: var(--pw-danger);
+    background: color-mix(in srgb, var(--pw-danger) 10%, transparent);
+    color: var(--pw-danger);
 }
 
 /* ── Modal overlay for audio details ── */
@@ -745,7 +709,7 @@
 .pw-page[data-workspace-page="media"] .audio-time {
     font-size: 0.7rem;
     color: var(--pw-muted);
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -813,7 +777,7 @@
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2);
-    color: var(--error, #ef4444);
+    color: var(--pw-danger);
     font-size: var(--text-sm);
 }
 

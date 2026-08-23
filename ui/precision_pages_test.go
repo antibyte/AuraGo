@@ -41,6 +41,14 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 		`.pw-page .pw-state-error`,
 		`.pw-page .pw-state-loading`,
 		`.pw-page .pw-modal`,
+		`.pw-page .app-header`,
+		`.pw-page .btn-secondary`,
+		`.pw-page .modal-overlay`,
+		`.pw-page .toast`,
+		`.pw-page .empty-state .icon`,
+		`.pw-page .view-toggle`,
+		`.pw-page .pw-badge`,
+		`.pw-page .pw-modal--lg`,
 		`@media (min-width: 1200px)`,
 		`@media (max-width: 899px)`,
 		`@media (max-width: 639px)`,
@@ -1013,8 +1021,6 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersSuppressLegacyDecoration(t *te
 			selectors: []string{
 				`.sk-daemon-settings-section`,
 				`.sk-dropzone:hover`,
-				`.empty-state .icon`,
-				`.sk-toast`,
 			},
 		},
 	}
@@ -1125,20 +1131,22 @@ func TestPrecisionWorkspaceSkillsFullscreenAndSemanticToasts(t *testing.T) {
 		}
 	}
 
+	// Semantic toast states are owned centrally by the Precision layer now.
+	shared := normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css"))
 	toastColors := map[string]string{
-		`.sk-toast-success`: `var(--pw-success)`,
-		`.sk-toast-error`:   `var(--pw-danger)`,
-		`.sk-toast-info`:    `var(--pw-accent)`,
+		`.toast.success`: `var(--pw-success)`,
+		`.toast.error`:   `var(--pw-danger)`,
+		`.toast.warning`: `var(--pw-warning)`,
 	}
 	for selector, color := range toastColors {
-		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` `+selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(styles)
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(`.pw-page `+selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(shared)
 		if len(rule) != 2 {
-			t.Errorf("Skills semantic toast rule missing for %s", selector)
+			t.Errorf("Precision shared toast rule missing for %s", selector)
 			continue
 		}
 		for _, declaration := range []string{color, `background-image: none;`, `box-shadow: none;`} {
 			if !strings.Contains(rule[1], declaration) {
-				t.Errorf("Skills %s toast rule missing %q", selector, declaration)
+				t.Errorf("Precision %s toast rule missing %q", selector, declaration)
 			}
 		}
 	}
@@ -1698,14 +1706,16 @@ func TestPrecisionWorkspaceOperationsSemanticStatesStayFlat(t *testing.T) {
 		selector   string
 		color      string
 	}{
-		{stylesheet: "css/containers.css", page: "containers", selector: ".ct-toast.success", color: "var(--pw-success)"},
-		{stylesheet: "css/containers.css", page: "containers", selector: ".ct-toast.error", color: "var(--pw-danger)"},
-		{stylesheet: "css/invasion.css", page: "invasion", selector: ".toast.success", color: "var(--pw-success)"},
-		{stylesheet: "css/invasion.css", page: "invasion", selector: ".toast.error", color: "var(--pw-danger)"},
+		{stylesheet: "css/precision-pages.css", page: "", selector: ".toast.success", color: "var(--pw-success)"},
+		{stylesheet: "css/precision-pages.css", page: "", selector: ".toast.error", color: "var(--pw-danger)"},
+		{stylesheet: "css/precision-pages.css", page: "", selector: ".toast.warning", color: "var(--pw-warning)"},
 	}
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		selector := `.pw-page[data-workspace-page="` + test.page + `"] ` + test.selector
+		selector := `.pw-page ` + test.selector
+		if test.page != "" {
+			selector = `.pw-page[data-workspace-page="` + test.page + `"] ` + test.selector
+		}
 		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
 		if len(rule) != 2 {
 			t.Errorf("%s missing flat semantic state %s", test.stylesheet, test.selector)

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.nav_media">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-title="media.page_title">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="AuraGo" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-    <title id="page-title">AuraGo - Media View</title>
+    <title></title>
     <meta name="description" content="AuraGo - Autonomous AI agent for home lab environments">
     <meta property="og:title" content="AuraGo">
     <meta property="og:description" content="Autonomous AI agent for home lab environments">
@@ -182,9 +182,9 @@
     </div>
 
     <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
-    <script src="/js/gallery/main.js"></script>
-    <script src="/js/chat/ui-icons.js?v=20260501a"></script>
-    <script src="/js/chat/audio-player.js"></script>
-    <script src="/js/media/main.js"></script>
+    <script src="/js/gallery/main.js?v={{.BuildVersion}}"></script>
+    <script src="/js/chat/ui-icons.js?v={{.BuildVersion}}"></script>
+    <script src="/js/chat/audio-player.js?v={{.BuildVersion}}"></script>
+    <script src="/js/media/main.js?v={{.BuildVersion}}"></script>
 </body>
 </html>

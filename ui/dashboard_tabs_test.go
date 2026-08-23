@@ -86,7 +86,7 @@ func TestDashboardMissionHistoryContrast(t *testing.T) {
     display: inline-flex;`,
 		`.pw-page[data-workspace-page="dashboard"] .mh-trigger {
     display: inline-flex;`,
-		`color: color-mix(in srgb, var(--success) 76%, white 24%);`,
+		`color: color-mix(in srgb, var(--pw-success) 76%, white 24%);`,
 		"white-space: nowrap;",
 		`color: color-mix(in srgb, var(--pw-text) 90%, white 10%);`,
 	} {

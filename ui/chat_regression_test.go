@@ -3413,7 +3413,7 @@ func TestMediaFrontend_ImageDeleteFlowUsesSharedConfirm(t *testing.T) {
 
 	for _, marker := range []string{
 		`<script src="/js/shared/shared-core.js`,
-		`<script src="/js/gallery/main.js"></script>`,
+		`<script src="/js/gallery/main.js?v={{.BuildVersion}}"></script>`,
 	} {
 		if !strings.Contains(string(mediaHTML), marker) {
 			t.Fatalf("%s is missing image delete dependency marker %q", mediaHTMLPath, marker)
@@ -3459,7 +3459,6 @@ func TestMediaFrontend_AudioPlayerIconsRemainWired(t *testing.T) {
 
 	mediaHTMLPath := "media.html"
 	audioPlayerJSPath := filepath.Join("js", "chat", "audio-player.js")
-	iconsJSPath := filepath.Join("js", "chat", "ui-icons.js")
 	mediaCSSPath := filepath.Join("css", "media.css")
 
 	mediaHTMLBytes, err := os.ReadFile(mediaHTMLPath)
@@ -3470,18 +3469,13 @@ func TestMediaFrontend_AudioPlayerIconsRemainWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", audioPlayerJSPath, err)
 	}
-	iconsJSBytes, err := os.ReadFile(iconsJSPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", iconsJSPath, err)
-	}
 	mediaCSSBytes, err := os.ReadFile(mediaCSSPath)
 	if err != nil {
 		t.Fatalf("read %s: %v", mediaCSSPath, err)
 	}
 
 	mediaHTML := string(mediaHTMLBytes)
-	iconVersion := extractJSStringConst(t, string(iconsJSBytes), "ICON_VERSION")
-	iconScript := `/js/chat/ui-icons.js?v=` + iconVersion
+	iconScript := `/js/chat/ui-icons.js?v={{.BuildVersion}}`
 	audioPlayerScript := `/js/chat/audio-player.js`
 	iconScriptIndex := strings.Index(mediaHTML, iconScript)
 	if iconScriptIndex < 0 {

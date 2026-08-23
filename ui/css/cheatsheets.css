@@ -1,17 +1,8 @@
-/* AuraGo – Cheat Sheets page styles */
-
-/* Uses standard components from shared.css:
-   - .app-header
-   - .page-header
-   - .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-sm
-   - .card, .card-title, .card-header, .card-meta
-   - .form-group, .form-row
-   - .modal-overlay, .modal, .modal-actions
-   - .toggle, .toggle-wrap
-   - .badge
-   - .empty-state
-   - .container
-*/
+/* AuraGo – Cheat Sheets page styles.
+   Shared chrome (app header, buttons, tabs, cards, modals, toasts, empty
+   states) comes from the Precision Workspace layers
+   (precision-workspace.css + precision-pages.css); only feature-specific
+   rules live here. */
 
 /* Page-specific styles only */
 
@@ -20,28 +11,18 @@
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .container {
-    margin: 0 auto;
-    overflow-x: hidden;
-    width: min(100%, 1320px);
-    max-width: none;
+    width: min(100%, var(--pw-content-max));
     margin-inline: auto;
     padding: clamp(1rem, 2.5vw, 2rem);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .page-header {
     margin-top: var(--space-2);
-    align-items: center;
-    gap: var(--pw-space-4);
-    margin-bottom: var(--pw-space-5);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .page-title-row h1 {
     min-width: 0;
     margin: 0;
-    color: var(--pw-text);
-    font-size: var(--pw-title-size);
-    font-weight: 720;
-    letter-spacing: -0.035em;
     overflow-wrap: anywhere;
 }
 
@@ -70,30 +51,6 @@
     align-items: center;
 }
 
-.pw-page[data-workspace-page="cheatsheets"] .view-toggle button {
-    min-width: 40px;
-    min-height: 40px;
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .view-toggle {
-    border-color: var(--pw-line);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .page-header .header-actions .view-toggle {
-    height: 44px;
-    padding: 3px 4px;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .page-header .header-actions #btn-create {
-    height: 44px;
-    padding: 0 18px;
-}
-
 /* ── Tab Bar ── */
 
 .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tabs, .pw-page[data-workspace-page="cheatsheets"] .editor-tabs {
@@ -119,12 +76,6 @@
 
 .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tabs::-webkit-scrollbar {
     display: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab::after {
-    content: none;
-    background: none;
-    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .cheatsheet-tab, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .editor-tab, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] button, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] input, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] select {
@@ -168,17 +119,6 @@
 
 .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab.active {
     font-weight: 600;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--pw-accent);
-    border-radius: 2px 2px 0 0;
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab-count {
@@ -377,13 +317,13 @@
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .badge-usage {
-    background: color-mix(in srgb, #3b82f6 12%, transparent);
-    color: #93c5fd;
+    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
+    color: var(--pw-accent-strong);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .badge-locked {
-    background: color-mix(in srgb, #f59e0b 14%, transparent);
-    color: #fbbf24;
+    background: color-mix(in srgb, var(--pw-warning) 14%, transparent);
+    color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .card-expanded .card-toggle {
@@ -523,7 +463,7 @@
     background: var(--pw-surface);
     padding: 2px var(--space-2);
     border-radius: var(--radius-sm);
-    font-family: monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.85em;
 }
 
@@ -636,9 +576,8 @@
 
 .pw-page[data-workspace-page="cheatsheets"] .attachment-pending {
     opacity: 0.8;
-    border-left: 3px solid var(--color-warning, #f59e0b);
+    border-left: 3px solid var(--pw-warning);
     padding-left: var(--space-2);
-    border-left-color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .attachments-actions {
@@ -683,7 +622,7 @@
     margin-bottom: var(--space-4);
 }
 
-.pw-page[data-workspace-page="cheatsheets"] .empty-state, .pw-page[data-workspace-page="cheatsheets"] .empty-state-inline, .pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-loading, .pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-empty, .pw-page[data-workspace-page="cheatsheets"] .attachments-empty {
+.pw-page[data-workspace-page="cheatsheets"] .empty-state-inline, .pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-loading, .pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-empty, .pw-page[data-workspace-page="cheatsheets"] .attachments-empty {
     min-height: 160px;
     padding: var(--pw-space-6);
     border: 1px dashed var(--pw-line-strong);
@@ -733,33 +672,10 @@
 /* Responsive */
 
 .pw-page[data-workspace-page="cheatsheets"] {
+    min-height: 100dvh;
     overflow-x: clip;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .app-header {
-    min-height: var(--pw-header-height);
-    padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
-    border-bottom: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
+    background: var(--pw-canvas);
     background-image: none;
-    box-shadow: none;
-    backdrop-filter: blur(18px);
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .btn:hover, .pw-page[data-workspace-page="cheatsheets"] .modal-close:hover {
-    box-shadow: none;
-    transform: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .btn, .pw-page[data-workspace-page="cheatsheets"] .modal-close {
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .btn-primary {
-    border-color: var(--pw-accent);
-    background: var(--pw-accent);
-    color: #07110e;
 }
 
 .pw-page[data-workspace-page="cheatsheets"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .pw-page[data-workspace-page="cheatsheets"] select, .pw-page[data-workspace-page="cheatsheets"] textarea {
@@ -773,29 +689,11 @@
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="cheatsheets"] .modal-overlay {
-    min-height: 100dvh;
-    padding: var(--pw-space-4);
-    background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
-    background-image: none;
-    backdrop-filter: blur(8px);
-}
-
 .pw-page[data-workspace-page="cheatsheets"] .modal {
     width: min(100%, 620px);
     max-width: calc(100vw - 1rem);
     max-height: calc(100dvh - 1rem);
     overflow-y: auto;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .modal-header, .pw-page[data-workspace-page="cheatsheets"] .modal-actions {
-    border-color: var(--pw-line);
-    background: var(--pw-surface);
     background-image: none;
 }
 

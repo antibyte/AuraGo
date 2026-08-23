@@ -5,9 +5,6 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .container {
-    max-width: 1320px;
-    margin: 0 auto;
-    overflow-x: hidden;
     width: min(100%, var(--pw-content-max));
     margin-inline: auto;
     padding: clamp(1rem, 3vw, 2.5rem);
@@ -23,75 +20,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 1rem;
-}
-
-/* Card enter animation — page-specific stagger */
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card {
-    position: relative;
-    overflow: hidden;
-    border-radius: calc(var(--radius) * 0.7);
-    transition: all var(--transition-slow) cubic-bezier(0.2, 1, 0.22, 1);
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card::before {
-    position: absolute;
-    top: 0;
-    left: 12%;
-    right: 12%;
-    height: 1px;
-    opacity: 0;
-    transition: opacity var(--transition-slow) ease;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card::after {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity var(--transition-slow) ease;
-    pointer-events: none;
-    border-radius: inherit;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:hover {
-    border-color: color-mix(in srgb, var(--pw-accent) 45%, var(--pw-line));
-    transform: translateY(-4px);
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:hover::before, .pw-page[data-workspace-page="invasion"] .cards-grid .card:hover::after {
-    opacity: 1;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(1) {
-    animation-delay: 0ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(2) {
-    animation-delay: 60ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(3) {
-    animation-delay: 120ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(4) {
-    animation-delay: 180ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(5) {
-    animation-delay: 240ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(6) {
-    animation-delay: 300ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(7) {
-    animation-delay: 360ms;
-}
-
-.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(8) {
-    animation-delay: 420ms;
 }
 
 /* Card content specific to invasion */
@@ -133,12 +61,6 @@
     background: var(--pw-surface);
 }
 
-.pw-page[data-workspace-page="invasion"] .card:hover, .pw-page[data-workspace-page="invasion"] .config-history-item:hover, .pw-page[data-workspace-page="invasion"] .card-actions .btn:hover {
-    border-color: var(--pw-line-strong);
-    box-shadow: none;
-    transform: none;
-}
-
 .pw-page[data-workspace-page="invasion"] .card-actions {
     display: flex;
     gap: var(--space-2);
@@ -163,34 +85,18 @@
     line-height: 1.4;
 }
 
-.pw-page[data-workspace-page="invasion"] .toast.error {
-    border-color: var(--pw-danger);
-    background: color-mix(in srgb, var(--pw-danger) 18%, var(--pw-surface));
-    background-image: none;
-    color: var(--pw-danger);
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="invasion"] .toast.success {
-    border-color: var(--pw-success);
-    background: color-mix(in srgb, var(--pw-success) 18%, var(--pw-surface));
-    background-image: none;
-    color: var(--pw-success);
-    box-shadow: none;
-}
-
 .pw-page[data-workspace-page="invasion"] .validate-result.success {
     display: block;
-    background: color-mix(in srgb, var(--success) 10%, transparent);
-    color: var(--success);
-    border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+    background: color-mix(in srgb, var(--pw-success) 10%, transparent);
+    color: var(--pw-success);
+    border: 1px solid color-mix(in srgb, var(--pw-success) 25%, transparent);
 }
 
 .pw-page[data-workspace-page="invasion"] .validate-result.error {
     display: block;
-    background: color-mix(in srgb, var(--danger) 10%, transparent);
-    color: var(--danger);
-    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+    background: color-mix(in srgb, var(--pw-danger) 10%, transparent);
+    color: var(--pw-danger);
+    border: 1px solid color-mix(in srgb, var(--pw-danger) 25%, transparent);
 }
 
 /* ── Delete Confirm ── */
@@ -199,9 +105,9 @@
     width: 100%;
     padding: var(--space-3) var(--space-4);
     margin-top: var(--space-3);
-    border: 1.5px solid color-mix(in srgb, var(--danger) 60%, var(--pw-line));
+    border: 1.5px solid color-mix(in srgb, var(--pw-danger) 60%, var(--pw-line));
     border-radius: var(--radius-xl);
-    background: color-mix(in srgb, var(--danger) 6%, var(--pw-surface-elevated));
+    background: color-mix(in srgb, var(--pw-danger) 6%, var(--pw-surface-elevated));
     color: var(--pw-text);
     font-size: var(--text-sm);
     font-family: inherit;
@@ -210,7 +116,7 @@
 
 .pw-page[data-workspace-page="invasion"] .delete-confirm-input:focus {
     outline: none;
-    border-color: var(--danger);
+    border-color: var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="invasion"] .resize-vertical {
@@ -218,7 +124,7 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .delete-modal-title {
-    color: var(--danger);
+    color: var(--pw-danger);
     letter-spacing: -0.01em;
 }
 
@@ -250,7 +156,7 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .inv-hatch-error {
-    color: var(--danger);
+    color: var(--pw-danger);
     font-weight: 500;
 }
 
@@ -272,7 +178,7 @@
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    margin-bottom: 22px;
+    margin-bottom: var(--pw-space-6);
     border-bottom: 1px solid var(--pw-line);
     position: relative;
     gap: 0.25rem;
@@ -283,15 +189,6 @@
     background: var(--pw-surface);
     background-image: none;
     box-shadow: none;
-}
-
-.pw-page[data-workspace-page="invasion"] .invasion-tabs::after {
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    width: 100%;
-    height: 1px;
-    opacity: 0.4;
 }
 
 .pw-page[data-workspace-page="invasion"] .invasion-tabs::-webkit-scrollbar {
@@ -330,10 +227,6 @@
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="invasion"] .invasion-tabs::after, .pw-page[data-workspace-page="invasion"] .invasion-tab.active::after, .pw-page[data-workspace-page="invasion"] .cards-grid .card::before, .pw-page[data-workspace-page="invasion"] .cards-grid .card::after, .pw-page[data-workspace-page="invasion"] .modal::before {
-    content: none;
-}
-
 .pw-page[data-workspace-page="invasion"] .invasion-tab:hover:not(.active) {
     color: var(--pw-text);
 }
@@ -346,65 +239,12 @@
     color: var(--pw-accent-strong);
 }
 
-.pw-page[data-workspace-page="invasion"] .invasion-tab.active::after {
-    position: absolute;
-    bottom: -1px;
-    left: 20%;
-    right: 20%;
-    height: 1px;
-    opacity: 0.7;
-}
-
 /* ── Modal Overrides ── */
 
-.pw-page[data-workspace-page="invasion"] .modal-overlay {
-    transition: opacity var(--transition-slow) ease;
-    align-items: center;
-    padding: 0.5rem;
-    background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="invasion"] .modal-overlay.open, .pw-page[data-workspace-page="invasion"] .modal-overlay.active {
-    opacity: 1;
-    pointer-events: all;
-}
-
 .pw-page[data-workspace-page="invasion"] .modal {
-    opacity: 0;
-    transition: all var(--transition-slow) cubic-bezier(0.22, 1, 0.36, 1);
-    position: relative;
     width: min(100%, 680px);
     max-height: calc(100dvh - 1rem);
     overflow: auto;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    transform: none;
-}
-
-.pw-page[data-workspace-page="invasion"] .modal-overlay.open .modal, .pw-page[data-workspace-page="invasion"] .modal-overlay.active .modal {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-}
-
-.pw-page[data-workspace-page="invasion"] .modal::before {
-    position: absolute;
-    top: 0;
-    left: 15%;
-    right: 15%;
-    height: 1px;
-    opacity: 0.7;
-}
-
-.pw-page[data-workspace-page="invasion"] .modal-header, .pw-page[data-workspace-page="invasion"] .modal-actions {
-    border-color: var(--pw-line);
-    background: var(--pw-surface);
     background-image: none;
 }
 
@@ -413,42 +253,12 @@
     border-bottom: 1px solid var(--pw-line);
 }
 
-.pw-page[data-workspace-page="invasion"] .modal-header h2 {
-    font-size: var(--text-lg);
-    font-weight: 700;
-    color: var(--pw-text);
-    margin: 0;
-    letter-spacing: -0.01em;
-}
-
-.pw-page[data-workspace-page="invasion"] .modal-close {
-    background: none;
-    border: none;
-    color: var(--pw-muted);
-    font-size: var(--text-xl);
-    cursor: pointer;
-    line-height: 1;
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-lg);
-    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.pw-page[data-workspace-page="invasion"] .modal-close:hover {
-    color: var(--pw-text);
-    background: var(--pw-surface);
-    transform: scale(1.08);
-}
-
 .pw-page[data-workspace-page="invasion"] .modal-body {
     padding: 0.85rem 1.25rem 1.1rem;
 }
 
 .pw-page[data-workspace-page="invasion"] .modal-actions {
-    display: flex;
-    gap: var(--space-3);
-    justify-content: flex-end;
     padding: 0.75rem 1.25rem 1rem;
-    border-top: 1px solid var(--pw-line);
 }
 
 .pw-page[data-workspace-page="invasion"] .modal-lg {
@@ -459,8 +269,8 @@
 /* ── Reconfigure ── */
 
 .pw-page[data-workspace-page="invasion"] .reconfigure-warning {
-    color: var(--warning, #f59e0b);
-    border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+    color: var(--pw-warning);
+    border: 1px solid color-mix(in srgb, var(--pw-warning) 25%, transparent);
     border-radius: var(--radius-xl);
     padding: var(--space-3) var(--space-4);
     margin-bottom: var(--space-4);
@@ -499,16 +309,16 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .badge-drift {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning, #f59e0b);
-    border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    color: var(--pw-warning);
+    border: 1px solid color-mix(in srgb, var(--pw-warning) 25%, transparent);
     font-weight: 600;
 }
 
 .pw-page[data-workspace-page="invasion"] .badge-synced {
-    background: color-mix(in srgb, var(--success) 10%, transparent);
-    color: var(--success, #22c55e);
-    border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+    background: color-mix(in srgb, var(--pw-success) 10%, transparent);
+    color: var(--pw-success);
+    border: 1px solid color-mix(in srgb, var(--pw-success) 20%, transparent);
     font-weight: 600;
 }
 
@@ -570,15 +380,15 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .config-history-item.rev-applied::before {
-    background: var(--success);
+    background: var(--pw-success);
 }
 
 .pw-page[data-workspace-page="invasion"] .config-history-item.rev-failed::before {
-    background: var(--danger);
+    background: var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="invasion"] .config-history-item.rev-pending::before {
-    background: var(--warning);
+    background: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="invasion"] .config-history-item.rev-rolled-back::before {
@@ -612,21 +422,21 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .rev-status.rev-applied {
-    background: color-mix(in srgb, var(--success) 12%, transparent);
-    color: var(--success, #22c55e);
-    border-color: color-mix(in srgb, var(--success) 22%, transparent);
+    background: color-mix(in srgb, var(--pw-success) 12%, transparent);
+    color: var(--pw-success);
+    border-color: color-mix(in srgb, var(--pw-success) 22%, transparent);
 }
 
 .pw-page[data-workspace-page="invasion"] .rev-status.rev-failed {
-    background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 22%, transparent);
+    background: color-mix(in srgb, var(--pw-danger) 12%, transparent);
+    color: var(--pw-danger);
+    border-color: color-mix(in srgb, var(--pw-danger) 22%, transparent);
 }
 
 .pw-page[data-workspace-page="invasion"] .rev-status.rev-pending {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning, #f59e0b);
-    border-color: color-mix(in srgb, var(--warning) 22%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    color: var(--pw-warning);
+    border-color: color-mix(in srgb, var(--pw-warning) 22%, transparent);
 }
 
 .pw-page[data-workspace-page="invasion"] .rev-status.rev-rolled-back {
@@ -660,7 +470,7 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .rev-error {
-    color: var(--danger);
+    color: var(--pw-danger);
     font-size: var(--text-xs);
     margin-bottom: var(--space-2);
     line-height: 1.4;
@@ -677,33 +487,6 @@
     font-size: var(--text-xs);
     color: var(--pw-muted);
     opacity: 0.7;
-}
-
-/* ── Empty States ── */
-
-.pw-page[data-workspace-page="invasion"] .empty-state {
-    text-align: center;
-    padding: 3rem 1.5rem;
-    color: var(--pw-muted);
-    position: relative;
-}
-
-.pw-page[data-workspace-page="invasion"] .empty-state .icon {
-    font-size: var(--text-2xl);
-    margin-bottom: 0.75rem;
-    line-height: 1;
-    filter: grayscale(0.2);
-    opacity: 0.8;
-}
-
-.pw-page[data-workspace-page="invasion"] .empty-state p {
-    font-size: var(--text-sm);
-    margin: 0 0 1rem;
-    line-height: 1.5;
-}
-
-.pw-page[data-workspace-page="invasion"] .empty-state .btn {
-    margin-top: var(--space-2);
 }
 
 /* ── Form enhancements ── */
@@ -731,25 +514,6 @@
     background: var(--pw-surface);
 }
 
-/* ── Toast ── */
-
-.pw-page[data-workspace-page="invasion"] .toast {
-    position: fixed;
-    bottom: var(--space-6);
-    right: var(--space-6);
-    padding: var(--space-3) var(--space-5);
-    border-radius: var(--radius-xl);
-    font-size: var(--text-sm);
-    color: #fff;
-    z-index: 10000;
-    animation: invToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1), invToastOut 0.3s ease 2.7s;
-    pointer-events: none;
-    font-weight: 500;
-    border: 1px solid currentColor;
-    background-image: none;
-    box-shadow: none;
-}
-
 .pw-page[data-workspace-page="invasion"] {
     min-height: 100dvh;
     overflow-x: clip;
@@ -757,29 +521,10 @@
     background-image: none;
 }
 
-.pw-page[data-workspace-page="invasion"] .app-header {
-    min-height: var(--pw-header-height);
-    border-bottom: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-canvas) 94%, transparent);
-    box-shadow: none;
-}
-
 .pw-page[data-workspace-page="invasion"] .card {
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-lg);
     padding: 1.25rem;
     animation: none;
     transform: none;
-}
-
-@keyframes invToastIn {
-    from { transform: translateY(20px) scale(0.96); opacity: 0; }
-        to   { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-@keyframes invToastOut {
-    from { opacity: 1; transform: translateY(0); }
-        to   { opacity: 0; transform: translateY(-10px); }
 }
 
 /* ── Responsive ── */
@@ -891,7 +636,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .pw-page[data-workspace-page="invasion"] .card, .pw-page[data-workspace-page="invasion"] .badge, .pw-page[data-workspace-page="invasion"] .config-history-item, .pw-page[data-workspace-page="invasion"] .modal, .pw-page[data-workspace-page="invasion"] .toast {
+    .pw-page[data-workspace-page="invasion"] .card, .pw-page[data-workspace-page="invasion"] .badge, .pw-page[data-workspace-page="invasion"] .config-history-item, .pw-page[data-workspace-page="invasion"] .modal {
         animation: none;
         transition: none;
         transform: none;

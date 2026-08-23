@@ -1,47 +1,22 @@
-/* AuraGo – missions_v2 page styles */
-
-/* Uses standard components from shared.css:
-   - .app-header
-   - .page-header
-   - .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-success, .btn-sm
-   - .card, .card-title
-   - .form-group, .form-row, .form-select, .form-textarea
-   - .modal-overlay, .modal, .modal-header, .modal-body, .modal-actions
-   - .toggle, .toggle-wrap
-   - .badge, .badge-running
-   - .tabs, .tab
-   - .empty-state
-   - .container
-*/
-
-/* Page-specific styles only */
+/* AuraGo – Missions page styles.
+   Shared chrome (app header, buttons, tabs, cards, modals, toasts, empty
+   states) comes from the Precision Workspace layers
+   (precision-workspace.css + precision-pages.css); only feature-specific
+   rules live here. */
 
 .pw-page[data-workspace-page="missions"][data-density="compact"] .container {
     padding-block: var(--pw-space-4);
 }
 
 .pw-page[data-workspace-page="missions"] .container {
-    margin: 0 auto;
     overflow-x: hidden;
-    width: min(100%, 1380px);
-    max-width: none;
+    width: min(100%, var(--pw-content-max));
     margin-inline: auto;
     padding: clamp(1rem, 2.5vw, 2rem);
 }
 
-.pw-page[data-workspace-page="missions"] .page-header h1 {
-    margin: 0;
-    color: var(--pw-text);
-    font-size: var(--pw-title-size);
-    font-weight: 720;
-    letter-spacing: -0.035em;
-}
-
 .pw-page[data-workspace-page="missions"] .page-header {
     margin-top: var(--space-2);
-    align-items: center;
-    gap: var(--pw-space-4);
-    margin-bottom: var(--pw-space-5);
 }
 
 /* Status Bar */
@@ -121,39 +96,13 @@
     transform: none;
 }
 
-.pw-page[data-workspace-page="missions"] .status-card::before {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pw-page[data-workspace-page="missions"] .status-card::after {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity var(--transition-base);
-    pointer-events: none;
-}
-
-.pw-page[data-workspace-page="missions"] .status-card:hover::before, .pw-page[data-workspace-page="missions"] .status-card:hover::after {
-    opacity: 1;
-}
-
 .pw-page[data-workspace-page="missions"] .status-card.running {
     border-left: 4px solid var(--pw-accent);
     animation: none;
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="missions"] .status-card.running::before, .pw-page[data-workspace-page="missions"] .status-card.running::after {
-    opacity: 1;
-}
-
-/* pulse keyframe moved to animations.css */
+/* Status icon */
 
 .pw-page[data-workspace-page="missions"] .status-icon {
     font-size: var(--text-xl);
@@ -194,28 +143,6 @@
     border-radius: var(--pw-radius-md);
 }
 
-.pw-page[data-workspace-page="missions"] .queue-section::before {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    opacity: 0;
-    transition: opacity var(--transition-base);
-}
-
-.pw-page[data-workspace-page="missions"] .queue-section::after {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity var(--transition-base);
-    pointer-events: none;
-}
-
-.pw-page[data-workspace-page="missions"] .queue-section:hover::before, .pw-page[data-workspace-page="missions"] .queue-section:hover::after {
-    opacity: 1;
-}
-
 .pw-page[data-workspace-page="missions"] .queue-header {
     display: flex;
     justify-content: space-between;
@@ -244,15 +171,15 @@
 }
 
 .pw-page[data-workspace-page="missions"] .queue-item.priority-high {
-    border-left-color: var(--danger);
+    border-left-color: var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="missions"] .queue-item.priority-medium {
-    border-left-color: var(--warning);
+    border-left-color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="missions"] .queue-item.priority-low {
-    border-left-color: var(--success);
+    border-left-color: var(--pw-success);
 }
 
 .pw-page[data-workspace-page="missions"] .queue-item-running {
@@ -308,83 +235,7 @@
     background: var(--pw-accent);
 }
 
-/* Mission filter tabs aligned with Knowledge Center */
-
-.pw-page[data-workspace-page="missions"] .tabs::before, .pw-page[data-workspace-page="missions"] .tab::before {
-    content: none;
-    background: none;
-}
-
-.pw-page[data-workspace-page="missions"] .tabs {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    border-bottom: 2px solid var(--pw-line);
-    position: static;
-    top: auto;
-    z-index: auto;
-    gap: var(--pw-space-1);
-    margin-bottom: var(--pw-space-5);
-    padding: var(--pw-space-1);
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="missions"] .tabs::-webkit-scrollbar {
-    display: none;
-}
-
-.pw-page[data-workspace-page="missions"] .tabs::before {
-    display: none;
-}
-
-.pw-page[data-workspace-page="missions"] .tab {
-    flex: 0 0 auto;
-    margin-bottom: -2px;
-    border-bottom: 2px solid transparent;
-    font-size: var(--text-base);
-    font-weight: 500;
-    text-align: center;
-    white-space: nowrap;
-    transition: color var(--transition-base), border-color var(--transition-base);
-    min-height: 40px;
-    padding: var(--pw-space-2) var(--pw-space-3);
-    border: 1px solid transparent;
-    border-radius: var(--pw-radius-sm);
-    background: transparent;
-    background-image: none;
-    color: var(--pw-muted);
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="missions"] .tab::before {
-    display: none;
-}
-
-.pw-page[data-workspace-page="missions"] .tab:hover:not(.active) {
-    transform: none;
-    border-color: transparent;
-    background: color-mix(in srgb, var(--pw-text) 4%, transparent);
-    color: var(--pw-text);
-}
-
-.pw-page[data-workspace-page="missions"] .tab.active {
-    border-bottom-color: var(--pw-accent);
-    font-weight: 600;
-    border-color: var(--pw-line-strong);
-    background: var(--pw-surface);
-    color: var(--pw-text);
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .tabs {
-    border-bottom-color: color-mix(in srgb, #475569 12%, transparent);
-}
+/* Mission filter tabs use the shared Precision tab chrome */
 
 /* Mission Grid */
 
@@ -398,31 +249,10 @@
 }
 
 .pw-page[data-workspace-page="missions"] {
+    min-height: 100dvh;
     overflow-x: clip;
-}
-
-.pw-page[data-workspace-page="missions"] .app-header {
-    min-height: var(--pw-header-height);
-    padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
-    border-bottom: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
+    background: var(--pw-canvas);
     background-image: none;
-    box-shadow: none;
-    backdrop-filter: blur(18px);
-}
-
-.pw-page[data-workspace-page="missions"] .view-toggle button {
-    min-height: 40px;
-    min-width: 40px;
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="missions"] .view-toggle {
-    border-color: var(--pw-line);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="missions"][data-density="compact"] .card-compact {
@@ -498,35 +328,17 @@
     visibility: visible;
 }
 
-.pw-page[data-workspace-page="missions"] .modal-overlay {
-    min-height: 100dvh;
-    padding: var(--pw-space-4);
-    background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
-    background-image: none;
-    backdrop-filter: blur(8px);
-}
-
 .pw-page[data-workspace-page="missions"] .modal {
     width: min(100%, 700px);
     max-width: min(700px, calc(100vw - 1rem)) !important;
     max-height: calc(100dvh - 1rem);
     overflow-y: auto;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
     background-image: none;
-    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="missions"] .modal-prep-context {
     width: min(100%, 700px);
     max-width: min(700px, calc(100vw - 1rem)) !important;
-}
-
-.pw-page[data-workspace-page="missions"] .modal-header, .pw-page[data-workspace-page="missions"] .modal-actions {
-    border-color: var(--pw-line);
-    background: var(--pw-surface);
-    background-image: none;
 }
 
 .pw-page[data-workspace-page="missions"][data-density="compact"] button, .pw-page[data-workspace-page="missions"][data-density="compact"] input, .pw-page[data-workspace-page="missions"][data-density="compact"] select {
@@ -548,7 +360,7 @@
     container-type: inline-size;
 }
 
-.pw-page[data-workspace-page="missions"] .missions-grid > .empty-state, .pw-page[data-workspace-page="missions"] .mission-trigger-empty, .pw-page[data-workspace-page="missions"] .cheatsheet-picker-empty {
+.pw-page[data-workspace-page="missions"] .mission-trigger-empty, .pw-page[data-workspace-page="missions"] .cheatsheet-picker-empty {
     min-height: 180px;
     padding: var(--pw-space-6);
     border: 1px dashed var(--pw-line-strong);
@@ -589,12 +401,8 @@
     column-span: none;
 }
 
-.pw-page[data-workspace-page="missions"] .mission-card.entering {
-    animation: card-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-}
-
 .pw-page[data-workspace-page="missions"] .mission-card.queued {
-    border-color: var(--warning);
+    border-color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="missions"] .mission-card.waiting {
@@ -627,40 +435,6 @@
 
 .pw-page[data-workspace-page="missions"] .font-medium {
     font-weight: 500;
-}
-
-/* card-enter keyframe moved to animations.css */
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(1) {
-    animation-delay: 0ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(2) {
-    animation-delay: 50ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(3) {
-    animation-delay: 100ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(4) {
-    animation-delay: 150ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(5) {
-    animation-delay: 200ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(6) {
-    animation-delay: 250ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(7) {
-    animation-delay: 300ms;
-}
-
-.pw-page[data-workspace-page="missions"] .missions-grid .mission-card.entering:nth-child(8) {
-    animation-delay: 350ms;
 }
 
 .pw-page[data-workspace-page="missions"] .mission-header {
@@ -745,7 +519,7 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mission-locked {
-    color: var(--warning);
+    color: var(--pw-warning);
     font-size: 0;
     display: inline-flex;
     align-items: center;
@@ -755,7 +529,7 @@
 .pw-page[data-workspace-page="missions"] .mission-locked svg {
     width: 14px;
     height: 14px;
-    color: var(--warning);
+    color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="missions"] .mission-body {
@@ -808,38 +582,38 @@
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip__priority[data-priority="low"], .pw-page[data-workspace-page="missions"] .badge-priority-low {
     background: var(--pw-success);
-    color: #07110e;
+    color: var(--pw-canvas);
 }
 
 .pw-page[data-workspace-page="missions"] .badge-priority-low {
-    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+    border-color: color-mix(in srgb, var(--pw-success) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip__priority[data-priority="medium"], .pw-page[data-workspace-page="missions"] .badge-priority-medium {
     background: var(--pw-warning);
-    color: #17120a;
+    color: var(--pw-canvas);
 }
 
 .pw-page[data-workspace-page="missions"] .badge-priority-medium {
-    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    border-color: color-mix(in srgb, var(--pw-warning) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip__priority[data-priority="high"], .pw-page[data-workspace-page="missions"] .badge-priority-high {
     background: var(--pw-danger);
-    color: #ffffff;
+    color: var(--pw-canvas);
     box-shadow: none;
 }
 
 .pw-page[data-workspace-page="missions"] .badge-priority-high {
-    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+    border-color: color-mix(in srgb, var(--pw-danger) 30%, transparent);
 }
 
 /* Type Badges — extend .badge base class; colors use CSS vars */
 
 .pw-page[data-workspace-page="missions"] .badge-type-manual {
-    background: color-mix(in srgb, #6366f1 12%, transparent);
-    color: #818cf8;
-    border-color: color-mix(in srgb, #6366f1 30%, transparent);
+    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
+    color: var(--pw-accent-strong);
+    border-color: color-mix(in srgb, var(--pw-accent) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .badge-type-scheduled {
@@ -849,9 +623,9 @@
 }
 
 .pw-page[data-workspace-page="missions"] .badge-type-triggered {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning);
-    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    color: var(--pw-warning);
+    border-color: color-mix(in srgb, var(--pw-warning) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip, .pw-page[data-workspace-page="missions"] .mc-trigger-pill, .pw-page[data-workspace-page="missions"] .mc-remote-badge, .pw-page[data-workspace-page="missions"] .mission-badges .badge {
@@ -924,15 +698,15 @@
 /* Priority accent border on mission cards */
 
 .pw-page[data-workspace-page="missions"] .mission-card[data-priority="high"] {
-    border-left: 3px solid var(--danger);
+    border-left: 3px solid var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="missions"] .mission-card[data-priority="medium"] {
-    border-left: 3px solid var(--warning);
+    border-left: 3px solid var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="missions"] .mission-card[data-priority="low"] {
-    border-left: 3px solid var(--success);
+    border-left: 3px solid var(--pw-success);
 }
 
 /* Mission card action buttons */
@@ -960,7 +734,7 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mc-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, #94a3b8 16%, transparent);
+    background: color-mix(in srgb, var(--pw-muted) 16%, transparent);
     color: var(--pw-text);
     border-color: var(--pw-accent);
 }
@@ -972,18 +746,18 @@
 .pw-page[data-workspace-page="missions"] .btn-primary, .pw-page[data-workspace-page="missions"] .mc-btn.mc-btn-run, .pw-page[data-workspace-page="missions"] .mc-cta-run {
     border-color: var(--pw-accent);
     background: var(--pw-accent);
-    color: #07110e;
+    color: var(--pw-canvas);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-btn.mc-btn-run:hover:not(:disabled) {
     transform: translateY(-1px);
-    color: white;
+    color: var(--pw-canvas);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-btn.mc-btn-danger:hover:not(:disabled) {
-    border-color: var(--danger);
-    color: var(--danger);
-    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border-color: var(--pw-danger);
+    color: var(--pw-danger);
+    background: color-mix(in srgb, var(--pw-danger) 10%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-btn:disabled {
@@ -1092,9 +866,9 @@
 }
 
 .pw-page[data-workspace-page="missions"] .badge-remote {
-    background: color-mix(in srgb, #38bdf8 14%, transparent);
-    border-color: color-mix(in srgb, #38bdf8 24%, transparent);
-    color: #7dd3fc;
+    background: color-mix(in srgb, var(--pw-accent) 14%, transparent);
+    border-color: color-mix(in srgb, var(--pw-accent) 24%, transparent);
+    color: var(--pw-accent-strong);
 }
 
 /* Trigger Config Sections */
@@ -1304,34 +1078,34 @@
 }
 
 .pw-page[data-workspace-page="missions"] .badge-prep-preparing {
-    background: color-mix(in srgb, #6366f1 12%, transparent);
-    color: #818cf8;
-    border-color: color-mix(in srgb, #6366f1 30%, transparent);
+    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
+    color: var(--pw-accent-strong);
+    border-color: color-mix(in srgb, var(--pw-accent) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .badge-prep-prepared {
-    background: color-mix(in srgb, var(--success) 12%, transparent);
-    color: var(--success);
-    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-success) 12%, transparent);
+    color: var(--pw-success);
+    border-color: color-mix(in srgb, var(--pw-success) 30%, transparent);
     box-shadow: none;
 }
 
 .pw-page[data-workspace-page="missions"] .badge-prep-stale {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning);
-    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    color: var(--pw-warning);
+    border-color: color-mix(in srgb, var(--pw-warning) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .badge-prep-error {
-    background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-danger) 12%, transparent);
+    color: var(--pw-danger);
+    border-color: color-mix(in srgb, var(--pw-danger) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .badge-prep-low_confidence {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning);
-    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    color: var(--pw-warning);
+    border-color: color-mix(in srgb, var(--pw-warning) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .prep-confidence {
@@ -1372,19 +1146,19 @@
 /* Priority rail on left — replaces the old inconspicuous 3px border */
 
 .pw-page[data-workspace-page="missions"] .mc-card[data-priority="high"] {
-    border-left: 4px solid var(--danger);
+    border-left: 4px solid var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-card[data-priority="medium"] {
-    border-left: 4px solid var(--warning);
+    border-left: 4px solid var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-card[data-priority="low"] {
-    border-left: 4px solid var(--success);
+    border-left: 4px solid var(--pw-success);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-card.queued {
-    border-color: var(--warning);
+    border-color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-card.waiting {
@@ -1499,9 +1273,9 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip--queued {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning);
-    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    color: var(--pw-warning);
+    border-color: color-mix(in srgb, var(--pw-warning) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip--waiting {
@@ -1511,9 +1285,9 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip--manual {
-    background: color-mix(in srgb, #6366f1 12%, transparent);
-    color: #818cf8;
-    border-color: color-mix(in srgb, #6366f1 30%, transparent);
+    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
+    color: var(--pw-accent-strong);
+    border-color: color-mix(in srgb, var(--pw-accent) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip--scheduled {
@@ -1523,9 +1297,9 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mc-status-chip--triggered {
-    background: color-mix(in srgb, var(--warning) 10%, transparent);
-    color: var(--warning);
-    border-color: color-mix(in srgb, var(--warning) 25%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 10%, transparent);
+    color: var(--pw-warning);
+    border-color: color-mix(in srgb, var(--pw-warning) 25%, transparent);
 }
 
 /* Remote badge inside header — kept compact */
@@ -1571,7 +1345,7 @@
 
 .pw-page[data-workspace-page="missions"] .mc-name-lock {
     flex-shrink: 0;
-    color: var(--warning);
+    color: var(--pw-warning);
     display: inline-flex;
     align-items: center;
     line-height: 1;
@@ -1589,10 +1363,10 @@
     align-self: flex-start;
     max-width: 100%;
     padding: var(--space-1) var(--space-3);
-    background: color-mix(in srgb, var(--warning) 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
+    background: color-mix(in srgb, var(--pw-warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pw-warning) 20%, transparent);
     border-radius: var(--radius-full);
-    color: var(--warning);
+    color: var(--pw-warning);
     font-size: var(--text-xs);
     font-weight: 500;
     overflow: hidden;
@@ -1649,11 +1423,11 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mc-meta-item--ok {
-    color: var(--success);
+    color: var(--pw-success);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-meta-item--error {
-    color: var(--danger);
+    color: var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="missions"] .mc-meta-icon {

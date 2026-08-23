@@ -45,22 +45,16 @@ func TestModalNoiseTextureStaysBelowModalLayer(t *testing.T) {
 func TestPageModalCSSSupportsActiveClass(t *testing.T) {
 	t.Parallel()
 
-	for _, pageCSS := range []string{
-		"css/containers.css",
-		"css/skills.css",
-		"css/invasion.css",
-	} {
-		t.Run(pageCSS, func(t *testing.T) {
-			t.Parallel()
-			css := normalizeAssetText(mustReadUIFile(t, pageCSS))
-			openBlock := cssBlock(t, css, ".modal-overlay.open,")
-			if !strings.Contains(openBlock, ".modal-overlay.active") {
-				t.Fatalf("%s missing .modal-overlay.active companion rule", pageCSS)
-			}
-			if !strings.Contains(openBlock, "pointer-events: all;") {
-				t.Fatalf("%s active/open modal state must enable pointer events", pageCSS)
-			}
-		})
+	// The active/open modal state is now centralized in the Precision
+	// operational component layer so individual page stylesheets do not
+	// duplicate it.
+	css := normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css"))
+	openBlock := cssBlock(t, css, ".modal-overlay.open,")
+	if !strings.Contains(openBlock, ".modal-overlay.active") {
+		t.Fatal("precision-pages.css missing .modal-overlay.active companion rule")
+	}
+	if !strings.Contains(openBlock, "pointer-events: all;") {
+		t.Fatal("precision-pages.css active/open modal state must enable pointer events")
 	}
 }
 
