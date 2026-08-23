@@ -474,13 +474,19 @@ function renderMissionGrid(mission, isFirstRender) {
         : '';
     const prepBadge = renderPrepBadge(mission);
 
-    let triggerPill = '';
-    if (mission.execution_type === 'triggered' && mission.trigger_config) {
-        const text = renderTriggerText(mission);
-        if (text) {
-            triggerPill = `<div class="mc-trigger-pill" title="${escapeAttr(text.replace(/<[^>]+>/g, ''))}">${svgIcons.bolt}<span>${text}</span></div>`;
-        }
+    // One execution pill on every card so all tiles share the same anatomy.
+    let execIcon = icons.manual;
+    let execText = t('missions.filter_manual');
+    if (mission.execution_type === 'scheduled') {
+        execIcon = icons.scheduled;
+        execText = mission.schedule ? mission.schedule : t('missions.filter_scheduled');
+    } else if (mission.execution_type === 'triggered') {
+        execIcon = icons.triggered;
+        execText = renderTriggerText(mission) || t('missions.filter_triggered');
     }
+    const execPillTitle = execText.replace(/<[^>]+>/g, '');
+    const triggerPill = `<div class="mc-trigger-pill" title="${escapeAttr(execPillTitle)}">${execIcon}<span>${execText}</span></div>`;
+    const hasTriggerDetails = mission.execution_type === 'triggered' && !!renderTriggerText(mission);
 
     const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
     const resultIcon = hasError ? svgIcons.xCircle : (mission.last_result === 'success' ? svgIcons.checkCircle : '');
@@ -539,7 +545,7 @@ function renderMissionGrid(mission, isFirstRender) {
             <div class="mc-expand">
                 <div class="mc-expand-inner">
                     ${mission.prompt ? `<div class="mc-prompt-full">${fullPrompt}</div>` : ''}
-                    ${triggerPill ? `<div class="mc-trigger-full">
+                    ${hasTriggerDetails ? `<div class="mc-trigger-full">
                         <div class="trigger-label">${t('missions.card_trigger_label')}</div>
                         <div class="trigger-value">${renderTriggerText(mission)}</div>
                     </div>` : ''}
