@@ -66,8 +66,9 @@
 
 .pw-page[data-workspace-page="containers"] .ct-grid {
     display: grid;
+    grid-auto-rows: 1fr;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-    gap: 1rem;
+    gap: var(--pw-space-4);
 }
 
 /* ── Container Card ── */
@@ -236,6 +237,8 @@
     gap: var(--space-2);
     flex-wrap: wrap;
     margin-top: auto;
+    min-height: 100px;
+    align-content: flex-start;
     padding-top: var(--space-3);
     border-top: 1px solid var(--pw-line);
 }
