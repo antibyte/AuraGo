@@ -79,6 +79,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	} else if s.recoveryState.handleDuplicateToolCall(ptc, &s.req, currentLogger, s.telemetryScope) {
 		pResultContent = blockedToolOutputFromRequest(&s.req)
 		actionBlocked = true
+	} else if precheckResult, prechecked := precheckVirtualDesktopAppOpen(ptc, &s.recoveryState); prechecked {
+		pResultContent = precheckResult
+		actionBlocked = true
 	} else if precheckResult, prechecked := precheckMessagingToolArgs(ptc, s.runCfg, sessionID); prechecked {
 		pResultContent = precheckResult
 	} else {
@@ -89,6 +92,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs, s.runCfg)
 	pResultContent = policyResult.Content
+	recordVirtualDesktopAppVerification(ptc, pResultContent, policyResult.Failed, &s.recoveryState)
 	deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
 	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Failed)
 	pEventContent := policyResult.EventContent
@@ -361,7 +365,9 @@ func executeAgentToolTurn(
 
 	dispatchCtx := s.makeDispatchContext(currentLogger)
 	var resultContent string
-	if precheckResult, prechecked := precheckMessagingToolArgs(tc, s.runCfg, sessionID); prechecked {
+	if precheckResult, prechecked := precheckVirtualDesktopAppOpen(tc, &s.recoveryState); prechecked {
+		resultContent = precheckResult
+	} else if precheckResult, prechecked := precheckMessagingToolArgs(tc, s.runCfg, sessionID); prechecked {
 		resultContent = precheckResult
 	} else {
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
@@ -369,6 +375,7 @@ func executeAgentToolTurn(
 	}
 	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
 	resultContent = policyResult.Content
+	recordVirtualDesktopAppVerification(tc, resultContent, policyResult.Failed, &s.recoveryState)
 	invalidateTurnSnapshotAfterTool(s, tc, policyResult.Failed)
 	eventContent := policyResult.EventContent
 	if eventContent == "" {
@@ -563,6 +570,9 @@ func executeAgentToolTurn(
 			} else if s.recoveryState.handleDuplicateToolCall(btc, &s.req, currentLogger, s.telemetryScope) {
 				bResult = blockedToolOutputFromRequest(&s.req)
 				batchedBlocked = true
+			} else if precheckResult, prechecked := precheckVirtualDesktopAppOpen(btc, &s.recoveryState); prechecked {
+				bResult = precheckResult
+				batchedBlocked = true
 			} else if precheckResult, prechecked := precheckMessagingToolArgs(btc, s.runCfg, sessionID); prechecked {
 				bResult = precheckResult
 			} else {
@@ -571,6 +581,7 @@ func executeAgentToolTurn(
 			}
 			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
 			bResult = policyResult.Content
+			recordVirtualDesktopAppVerification(btc, bResult, policyResult.Failed, &s.recoveryState)
 			deferredRecoveryMessages = append(deferredRecoveryMessages, detachNewSystemMessages(&s.req, recoveryMessageStart)...)
 			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Failed)
 			bEventContent := policyResult.EventContent

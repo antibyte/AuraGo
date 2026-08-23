@@ -33,6 +33,8 @@ type toolRecoveryState struct {
 	ProcessedToolCallIDs  map[string]struct{}
 	InstallFailures       map[string]int
 	InstallLastErrors     map[string]string
+	InstalledApps         map[string]bool
+	DiagnosedApps         map[string]bool
 }
 
 const maxTrackedToolCallSignatures = 512
@@ -53,6 +55,14 @@ func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 		ProcessedToolCallIDs:  make(map[string]struct{}),
 		InstallFailures:       make(map[string]int),
 		InstallLastErrors:     make(map[string]string),
+		InstalledApps:         make(map[string]bool),
+		DiagnosedApps:         make(map[string]bool),
+	}
+}
+
+func (s *toolRecoveryState) ensureMutex() {
+	if s != nil && s.mu == nil {
+		s.mu = &sync.RWMutex{}
 	}
 }
 
