@@ -518,6 +518,63 @@ clean_tracked_changes() {
     git -C "$DIR" diff --quiet && git -C "$DIR" diff --cached --quiet
 }
 
+prepare_untracked_merge_collisions() {
+    # Git refuses to fast-forward when an untracked file would become tracked.
+    # This commonly happens when a runtime asset was deployed manually before
+    # the same asset was added to the repository. Remove only byte-identical
+    # regular files; preserve a copy in the update backup for audit/rollback.
+    local collision_backup="$BACKUP_DIR/untracked_merge_collisions"
+    local rel abs backup_path
+    local cleared=0
+    declare -A untracked_paths=()
+
+    while IFS= read -r -d '' rel; do
+        untracked_paths["$rel"]=1
+    done < <(git -C "$DIR" ls-files -z --others --exclude-standard)
+
+    while IFS= read -r -d '' rel; do
+        [ -n "${untracked_paths[$rel]+present}" ] || continue
+        abs="$DIR/$rel"
+        if [ ! -f "$abs" ] || [ -L "$abs" ]; then
+            warn "Untracked path would be replaced by the update but is not a regular file: $rel"
+            return 1
+        fi
+        if ! git -C "$DIR" show "origin/main:$rel" | cmp -s -- "$abs" -; then
+            warn "Untracked file differs from the incoming tracked file: $rel"
+            warn "Move or rename it, then run the update again; AuraGo will not overwrite it."
+            return 1
+        fi
+
+        backup_path="$collision_backup/$rel"
+        mkdir -p "$(dirname "$backup_path")"
+        cp -p -- "$abs" "$backup_path" || return 1
+        rm -f -- "$abs" || return 1
+        cleared=$((cleared + 1))
+        ok "Prepared byte-identical untracked file for repository update: $rel"
+    done < <(git -C "$DIR" diff --name-only -z --diff-filter=A --no-renames HEAD..origin/main --)
+
+    if [ "$cleared" -gt 0 ]; then
+        info "Saved $cleared replaced untracked file(s) under $collision_backup"
+    fi
+}
+
+restore_untracked_merge_collisions_after_failure() {
+    local collision_backup="$BACKUP_DIR/untracked_merge_collisions"
+    local backup_path rel destination
+    [ -d "$collision_backup" ] || return 0
+
+    while IFS= read -r -d '' backup_path; do
+        rel="${backup_path#"$collision_backup/"}"
+        destination="$DIR/$rel"
+        if [ -e "$destination" ] || [ -L "$destination" ]; then
+            warn "Rollback kept existing path instead of overwriting it: $rel"
+            continue
+        fi
+        mkdir -p "$(dirname "$destination")"
+        cp -p -- "$backup_path" "$destination" || warn "Could not restore untracked merge collision: $rel"
+    done < <(find "$collision_backup" -type f -print0)
+}
+
 # ── Files & directories that must NEVER be touched ─────────────────────
 # These are backed up before git operations and restored afterwards.
 PROTECTED_FILES=(
@@ -1227,6 +1284,7 @@ abort_update() {
     if [ -n "${PRE_UPDATE_REF:-}" ] && [ -d "$DIR/.git" ]; then
         git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || warn "Could not reset git checkout to $PRE_UPDATE_REF during rollback."
     fi
+    restore_untracked_merge_collisions_after_failure
     restore_binary_update_resources_after_failure
     restore_critical_user_data_after_failure
     restore_tsnet_state_backup || warn "Could not restore the pre-update tsnet state automatically."
@@ -1384,18 +1442,21 @@ else
     # Git-based update.
     if ! $GIT_UP_TO_DATE; then
         PRE_UPDATE_REF="$(git -C "$DIR" rev-parse HEAD 2>/dev/null || true)"
+        if ! prepare_untracked_merge_collisions; then
+            abort_update "Update aborted because an untracked file conflicts with incoming repository content."
+        fi
         if ! git diff --quiet || ! git diff --cached --quiet; then
             info "Cleaning local tracked changes before update..."
             if ! clean_tracked_changes; then
                 warn "Automatic cleanup of tracked changes failed."
                 warn "Changed files still present:"
                 git -C "$DIR" status --porcelain --untracked-files=no | head -20 || true
-                die "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."
+                abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."
             fi
         fi
 
         if ! git fetch origin main --quiet; then
-            die "Failed to fetch updates from GitHub (network/connectivity issue)."
+            abort_update "Failed to fetch updates from GitHub (network/connectivity issue)."
         fi
 
         if ! git merge --ff-only origin/main; then
@@ -1414,12 +1475,12 @@ else
                     else
                         warn "Branches have diverged. AuraGo will not discard local commits automatically."
                         warn "Review local commits, merge/rebase manually, or rerun with --force-reset if you intentionally want origin/main to replace this checkout."
-                        die "Update aborted safely (no hard reset performed)."
+                        abort_update "Update aborted safely (no hard reset performed)."
                     fi
                 else
                     warn "Could not fast-forward automatically."
                     warn "Please ensure repository files are writable and no manual merge is required."
-                    die "Update aborted safely (no hard reset performed)."
+                    abort_update "Update aborted safely (no hard reset performed)."
                 fi
             fi
         fi
@@ -1430,7 +1491,7 @@ else
     # Restore user's config.yaml — git must never win over user's config.
     if [ -f "$BACKUP_DIR/config.yaml" ]; then
         safe_restore_file "$BACKUP_DIR/config.yaml" "$DIR/config.yaml" \
-            || die "Could not restore config.yaml (permission denied)."
+            || abort_update "Could not restore config.yaml (permission denied)."
     fi
 fi
 

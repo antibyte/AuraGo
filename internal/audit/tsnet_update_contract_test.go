@@ -308,3 +308,133 @@ restart_unchanged_after_failed_stop
 		})
 	}
 }
+
+func TestUpdaterPreparesOnlyIdenticalUntrackedMergeCollisions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("behavioral updater test requires a POSIX shell")
+	}
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash is unavailable")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is unavailable")
+	}
+
+	update := readRepoFile(t, "update.sh")
+	start := strings.Index(update, "prepare_untracked_merge_collisions() {")
+	if start < 0 {
+		t.Fatal("could not find prepare_untracked_merge_collisions in update.sh")
+	}
+	end := strings.Index(update[start:], "\n# ── Files & directories")
+	if end < 0 {
+		t.Fatal("could not extract prepare_untracked_merge_collisions from update.sh")
+	}
+	function := update[start : start+end]
+
+	for _, test := range []struct {
+		name         string
+		localContent string
+		wantSuccess  bool
+	}{
+		{name: "identical file is backed up and removed", localContent: "new manual\n", wantSuccess: true},
+		{name: "different file is preserved and rejected", localContent: "local customization\n", wantSuccess: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			backup := filepath.Join(root, "backup")
+			runGit := func(args ...string) {
+				t.Helper()
+				command := exec.Command("git", args...)
+				command.Dir = root
+				if output, err := command.CombinedOutput(); err != nil {
+					t.Fatalf("git %v failed: %v\n%s", args, err, output)
+				}
+			}
+			runGit("init", "-q")
+			runGit("config", "user.email", "updater-test@example.invalid")
+			runGit("config", "user.name", "Updater Test")
+			if err := os.WriteFile(filepath.Join(root, "base.txt"), []byte("base\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			runGit("add", "base.txt")
+			runGit("commit", "-qm", "base")
+			baseCommand := exec.Command("git", "rev-parse", "HEAD")
+			baseCommand.Dir = root
+			baseRaw, err := baseCommand.Output()
+			if err != nil {
+				t.Fatal(err)
+			}
+			baseRef := strings.TrimSpace(string(baseRaw))
+
+			manual := filepath.Join(root, "prompts", "tools_manuals", "new_tool.md")
+			if err := os.MkdirAll(filepath.Dir(manual), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(manual, []byte("new manual\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			runGit("add", "prompts/tools_manuals/new_tool.md")
+			runGit("commit", "-qm", "add manual")
+			runGit("branch", "-f", "origin/main", "HEAD")
+			runGit("reset", "--hard", "-q", baseRef)
+			if err := os.MkdirAll(filepath.Dir(manual), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(manual, []byte(test.localContent), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			harness := "#!/usr/bin/env bash\nset -euo pipefail\n" +
+				"DIR=\"$AURAGO_TEST_ROOT\"\nBACKUP_DIR=\"$AURAGO_TEST_BACKUP\"\n" +
+				"info() { :; }\nok() { :; }\nwarn() { :; }\n" + function +
+				"\nprepare_untracked_merge_collisions\n"
+			harnessPath := filepath.Join(root, "harness.sh")
+			if err := os.WriteFile(harnessPath, []byte(harness), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			command := exec.Command("bash", harnessPath)
+			command.Env = append(os.Environ(), "AURAGO_TEST_ROOT="+root, "AURAGO_TEST_BACKUP="+backup)
+			output, err := command.CombinedOutput()
+			if test.wantSuccess && err != nil {
+				t.Fatalf("collision preparation failed: %v\n%s", err, output)
+			}
+			if !test.wantSuccess && err == nil {
+				t.Fatalf("different collision was accepted:\n%s", output)
+			}
+
+			_, fileErr := os.Stat(manual)
+			backupPath := filepath.Join(backup, "untracked_merge_collisions", "prompts", "tools_manuals", "new_tool.md")
+			_, backupErr := os.Stat(backupPath)
+			if test.wantSuccess {
+				if !os.IsNotExist(fileErr) {
+					t.Fatalf("identical collision still exists: %v", fileErr)
+				}
+				if backupErr != nil {
+					t.Fatalf("identical collision was not backed up: %v", backupErr)
+				}
+			} else {
+				if fileErr != nil {
+					t.Fatalf("different collision was not preserved: %v", fileErr)
+				}
+				if !os.IsNotExist(backupErr) {
+					t.Fatalf("different collision unexpectedly created a replacement backup: %v", backupErr)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdaterGitFailuresAfterShutdownUseRollback(t *testing.T) {
+	update := readRepoFile(t, "update.sh")
+	for _, required := range []string{
+		`abort_update "Update aborted safely (no hard reset performed)."`,
+		`abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."`,
+		`abort_update "Failed to fetch updates from GitHub (network/connectivity issue)."`,
+		`abort_update "Could not restore config.yaml (permission denied)."`,
+		"restore_untracked_merge_collisions_after_failure",
+	} {
+		if !strings.Contains(update, required) {
+			t.Fatalf("post-shutdown git update failure must roll back and restart; missing %q", required)
+		}
+	}
+}
