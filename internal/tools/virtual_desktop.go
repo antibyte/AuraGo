@@ -332,6 +332,9 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
+		if err := validateVirtualDesktopAppRelativePaths(manifest, files); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
 		files = rewriteVirtualDesktopPrinterCameraURLsForFiles(cfg, files)
 		if err := svc.InstallApp(ctx, manifest, files, desktop.SourceAgent); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
@@ -1279,6 +1282,24 @@ func virtualDesktopFiles(args map[string]interface{}) (map[string]string, error)
 		return nil, fmt.Errorf("files are required")
 	}
 	return files, nil
+}
+
+func validateVirtualDesktopAppRelativePaths(manifest desktop.AppManifest, files map[string]string) error {
+	prefix := "Apps/app-id/"
+	if appID := strings.Trim(strings.ReplaceAll(strings.TrimSpace(manifest.ID), "\\", "/"), "/"); appID != "" {
+		prefix = "Apps/" + appID + "/"
+	}
+	entry := cleanVirtualDesktopSlashPath(manifest.Entry)
+	if strings.HasPrefix(strings.ToLower(entry), "apps/") {
+		return fmt.Errorf("manifest.entry must be app-relative, for example index.html, not %q; remove the %s prefix from manifest.entry and every files key", manifest.Entry, prefix)
+	}
+	for filePath := range files {
+		cleanPath := cleanVirtualDesktopSlashPath(filePath)
+		if strings.HasPrefix(strings.ToLower(cleanPath), "apps/") {
+			return fmt.Errorf("files keys must be app-relative, for example index.html, not %q; remove the %s prefix from manifest.entry and every files key", filePath, prefix)
+		}
+	}
+	return nil
 }
 
 func virtualDesktopErrDetail(err error) interface{} {

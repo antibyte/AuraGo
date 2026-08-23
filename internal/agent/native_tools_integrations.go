@@ -344,7 +344,7 @@ func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool
 				"properties": map[string]interface{}{
 					"id":          prop("string", "Stable lowercase app ID containing letters, numbers, hyphens, or underscores."),
 					"name":        prop("string", "User-facing app name."),
-					"entry":       prop("string", "App-relative entry file path. The exact path must be present in files with non-empty content."),
+					"entry":       prop("string", "App-relative entry file path such as index.html. Never prefix it with Apps/<app_id>/. The exact path must be present in files with non-empty content."),
 					"version":     prop("string", "App version. Defaults to 1.0.0."),
 					"icon":        prop("string", "Optional semantic icon from the desktop icon catalog. Omit it to infer an icon."),
 					"runtime":     prop("string", "Optional desktop runtime. Defaults to aura-desktop-sdk@1."),
@@ -357,7 +357,7 @@ func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool
 			},
 			"files": map[string]interface{}{
 				"type":                 "object",
-				"description":          "Complete generated app files keyed by app-relative path. Must include the exact manifest.entry path with non-empty content.",
+				"description":          "Complete generated app files keyed by app-relative path such as index.html or js/game.js. Never prefix keys with Apps/<app_id>/. Must include the exact manifest.entry path with non-empty content.",
 				"minProperties":        1,
 				"additionalProperties": map[string]interface{}{"type": "string"},
 			},

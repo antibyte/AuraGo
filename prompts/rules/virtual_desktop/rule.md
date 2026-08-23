@@ -32,7 +32,7 @@ Call `status` before creating or changing apps and widgets. Use it to inspect th
 
 Use stable lowercase IDs with letters, numbers, hyphens, or underscores. Choose semantic icons from `status.icon_catalog` and avoid emoji or unknown custom icon names. Keep app and widget names user-facing, short, and specific.
 
-Use `virtual_desktop_app_install` for generated apps that need a manifest, multiple files, SDK runtime, icon registration, permissions, menus, context menus, or an app-backed widget. Send one complete atomic payload: the manifest `entry` file must be an exact key in `files` and contain real non-empty HTML. Do not pre-write app files and then omit them from the install payload. If a needed file already exists, read it and include its content in `files`. Do not install placeholder apps, blank entry files, or broken shells.
+Use `virtual_desktop_app_install` for generated apps that need a manifest, multiple files, SDK runtime, icon registration, permissions, menus, context menus, or an app-backed widget. Send one complete atomic payload: the manifest `entry` file must be an exact app-relative key in `files` and contain real non-empty HTML. Use `index.html`, never `Apps/<app_id>/index.html`, in both places. Do not pre-write app files and then omit them from the install payload. If a needed file already exists, read it and include its content in `files`. Do not install placeholder apps, blank entry files, or broken shells.
 
 Use `write_file` to `Widgets/<widget_id>.html` or `Widgets/<widget_id>/index.html` for simple standalone widgets. For app-backed widgets, install the owning app first, create the widget entry file inside `Apps/<app_id>/`, then call `upsert_widget` with the correct `app_id`, `entry`, icon, title, size, and position.
 

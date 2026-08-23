@@ -1362,6 +1362,36 @@ func TestExecuteVirtualDesktopListAppsReturnsBuiltinAndInstalled(t *testing.T) {
 	}
 }
 
+func TestExecuteVirtualDesktopInstallRejectsWorkspacePrefixedAppPaths(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	tests := []struct {
+		name  string
+		entry string
+		files map[string]interface{}
+	}{
+		{name: "prefixed entry", entry: "Apps/space-invaders/index.html", files: map[string]interface{}{"Apps/space-invaders/index.html": "<main>Game</main>"}},
+		{name: "prefixed file", entry: "index.html", files: map[string]interface{}{"Apps/space-invaders/index.html": "<main>Game</main>", "index.html": "<main>Game</main>"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+				"operation": "install_app",
+				"manifest": map[string]interface{}{
+					"id": "space-invaders", "name": "Space Invaders", "entry": tt.entry,
+				},
+				"files": tt.files,
+			})
+			for _, want := range []string{`"status":"error"`, "must be app-relative", "remove the Apps/space-invaders/ prefix"} {
+				if !strings.Contains(result.Output, want) {
+					t.Fatalf("install result missing %q: %s", want, result.Output)
+				}
+			}
+		})
+	}
+}
+
 func TestExecuteVirtualDesktopGetAppFindsBuiltinAndInstalled(t *testing.T) {
 	t.Parallel()
 
