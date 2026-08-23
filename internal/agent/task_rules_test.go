@@ -118,6 +118,16 @@ func TestBuildTaskRulePromptContextSelectsVirtualDesktopRuleByKeyword(t *testing
 	if !strings.Contains(ctx.TaskRules, "Use `virtual_desktop_app_install` for generated apps") {
 		t.Fatalf("virtual desktop rule should include app creation guidance:\n%s", ctx.TaskRules)
 	}
+	for _, marker := range []string{
+		"`status` -> `virtual_desktop_app_install` -> `diagnose_app`",
+		"current user message explicitly requests a particular external channel",
+		"Heartbeat instructions and earlier user or assistant messages do not authorize notifications",
+		"successful current `virtual_desktop_app_install` call disproves any historical claim",
+	} {
+		if !strings.Contains(ctx.TaskRules, marker) {
+			t.Fatalf("virtual desktop rule missing current-run delivery guard %q:\n%s", marker, ctx.TaskRules)
+		}
+	}
 }
 
 func TestBuildTaskRulePromptContextSelectsSkillCreationRuleByKeyword(t *testing.T) {
