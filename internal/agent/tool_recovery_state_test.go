@@ -441,6 +441,77 @@ func TestToolRecoveryStateHintsVirtualDesktopInvalidIcon(t *testing.T) {
 	}
 }
 
+func TestToolRecoveryStateHintsFocusedVirtualDesktopInstallErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		error  string
+		needle string
+	}{
+		{name: "files required", error: `Tool Output: {"status":"error","message":"files are required"}`, needle: "atomic"},
+		{name: "files wrong type", error: `Tool Output: {"status":"error","message":"files must be an object of path to content"}`, needle: "non-empty files object"},
+		{name: "entry missing", error: `Tool Output: {"status":"error","message":"desktop app entry file is missing"}`, needle: "exactly equal to manifest.entry"},
+		{name: "app id missing", error: `Tool Output: {"status":"error","message":"app_id is required"}`, needle: "requires app_id"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hint := recoveryHintForToolFailure(ToolCall{Action: "virtual_desktop_app_install"}, tt.error)
+			if !strings.Contains(hint, tt.needle) {
+				t.Fatalf("hint = %q, want %q", hint, tt.needle)
+			}
+		})
+	}
+}
+
+func TestToolRecoveryStateBlocksFourthFailedInstallAcrossDifferentErrors(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	install := func(callID, marker string) ToolCall {
+		return ToolCall{
+			Action:       "virtual_desktop_app_install",
+			NativeCallID: callID,
+			Params: map[string]interface{}{
+				"manifest": map[string]interface{}{"id": "space-invaders", "name": "Space Invaders", "entry": "index.html"},
+				"files":    map[string]interface{}{marker: "content"},
+			},
+		}
+	}
+	errors := []string{
+		`Tool Output: {"status":"error","message":"files are required"}`,
+		`Tool Output: {"status":"error","message":"desktop app icon must use icon_catalog"}`,
+		`Tool Output: {"status":"error","message":"desktop app entry file is missing"}`,
+	}
+	for i, result := range errors {
+		tc := install(fmt.Sprintf("call-%d", i), fmt.Sprintf("file-%d.html", i))
+		if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+			t.Fatalf("install attempt %d blocked before three failures", i+1)
+		}
+		_ = state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 10)
+		list := ToolCall{Action: "virtual_desktop_apps", NativeCallID: fmt.Sprintf("list-%d", i), Params: map[string]interface{}{"operation": "list_apps"}}
+		_ = state.updateToolErrorState(list, `Tool Output: {"status":"success"}`, &req, nil, AgentTelemetryScope{}, "v1", 10)
+	}
+	if !state.handleDuplicateToolCall(install("call-four", "index.html"), &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("fourth install attempt was not blocked after three varied failures")
+	}
+	if len(req.Messages) == 0 || !strings.Contains(req.Messages[len(req.Messages)-1].Content, "manifest.entry") {
+		t.Fatalf("install breaker lost the latest concrete recovery guidance: %#v", req.Messages)
+	}
+}
+
+func TestToolRecoveryStateSuccessfulInstallResetsInstallBudget(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{Action: "virtual_desktop_apps", Operation: "install_app", Params: map[string]interface{}{"app_id": "demo"}}
+	for i := 0; i < 2; i++ {
+		tc.NativeCallID = fmt.Sprintf("failure-%d", i)
+		_ = state.updateToolErrorState(tc, `Tool Output: {"status":"error","message":"desktop app entry file is missing"}`, &req, nil, AgentTelemetryScope{}, "v1", 10)
+	}
+	tc.NativeCallID = "success"
+	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"success"}`, &req, nil, AgentTelemetryScope{}, "v1", 10)
+	if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("successful install did not reset the app-specific failure budget")
+	}
+}
+
 func TestToolRecoveryStateHandleDuplicateToolCallBoundsFrequencyMap(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

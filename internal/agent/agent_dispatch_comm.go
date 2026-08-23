@@ -970,15 +970,23 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				SessionID:   req.SessionID,
 			})
 
-		case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets":
+		case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets":
+			args := tc.Params
+			if tc.Action == "virtual_desktop_app_install" {
+				args = make(map[string]interface{}, len(tc.Params)+1)
+				for key, value := range tc.Params {
+					args[key] = value
+				}
+				args["operation"] = "install_app"
+			}
 			logger.Info("LLM requested virtual desktop operation",
-				"operation", tc.Operation,
-				"path", firstNonEmptyToolString(toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path")),
-				"app_id", toolArgString(tc.Params, "app_id"),
-				"widget_id", firstNonEmptyToolString(toolArgString(tc.Params, "widget_id"), toolArgString(tc.Params, "id")),
-				"content_bytes", len([]byte(toolArgString(tc.Params, "content"))),
+				"operation", toolArgString(args, "operation"),
+				"path", firstNonEmptyToolString(toolArgString(args, "path"), toolArgString(args, "file_path")),
+				"app_id", toolArgString(args, "app_id"),
+				"widget_id", firstNonEmptyToolString(toolArgString(args, "widget_id"), toolArgString(args, "id")),
+				"content_bytes", len([]byte(toolArgString(args, "content"))),
 			)
-			exec := tools.ExecuteVirtualDesktop(ctx, cfg, tc.Params)
+			exec := tools.ExecuteVirtualDesktop(ctx, cfg, args)
 			if exec.Event != nil && dc.Broker != nil {
 				payload, _ := json.Marshal(struct {
 					Type    string         `json:"type"`

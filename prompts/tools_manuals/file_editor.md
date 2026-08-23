@@ -32,7 +32,7 @@ All operations require `file_path` (relative to `agent_workspace/workdir`). Proj
 - **Hashline operations** require a recent `filesystem` `read_file` call with `include_hashes: true`; if the anchor content changed, they fail with `STALE CONTEXT` and you must re-read.
 - All writes are **atomic** (temp file + rename) to prevent data corruption.
 - Do not use `file_editor` for homepage projects; use `homepage_file` edit operations instead.
-- Do not use `file_editor` for Virtual Desktop files such as `Apps/...` or `Widgets/...`; those live in `virtual_desktop.workspace_dir`, not `agent_workspace/workdir`. Use `virtual_desktop_files`, `virtual_desktop_apps`, or `virtual_desktop_widgets` instead.
+- Do not use `file_editor` for Virtual Desktop files such as `Apps/...` or `Widgets/...`; those live in `virtual_desktop.workspace_dir`, not `agent_workspace/workdir`. Use `virtual_desktop_files`, `virtual_desktop_app_install`, `virtual_desktop_apps`, or `virtual_desktop_widgets` instead.
 
 ### Hashline Mode
 

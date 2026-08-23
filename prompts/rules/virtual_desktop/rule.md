@@ -3,7 +3,7 @@ id: virtual_desktop
 title: Virtual Desktop App And Widget Workflow
 enabled: true
 priority: 95
-tools: [virtual_desktop, virtual_desktop_files, virtual_desktop_apps, virtual_desktop_widgets, office_document, office_workbook]
+tools: [virtual_desktop, virtual_desktop_files, virtual_desktop_app_install, virtual_desktop_apps, virtual_desktop_widgets, office_document, office_workbook]
 workflows: [virtual_desktop, desktop_app, desktop_widget, generated_app, generated_widget]
 keywords:
   - virtual desktop
@@ -24,13 +24,13 @@ This rule applies when creating, editing, diagnosing, or launching generated app
 
 ## Generated App And Widget Creation Workflow
 
-Treat virtual desktop apps and widgets as first-party desktop workspace artifacts, not as host filesystem files. Use `virtual_desktop_files` for workspace files, `virtual_desktop_apps` for app install/open/diagnostics, and `virtual_desktop_widgets` for widgets and notifications. Route Office document and spreadsheet work to `office_document` or `office_workbook`. Do not use generic filesystem, shell, Python, or file editor tools for those workspace paths.
+Treat virtual desktop apps and widgets as first-party desktop workspace artifacts, not as host filesystem files. Use `virtual_desktop_files` for workspace files, `virtual_desktop_app_install` for atomic generated-app installation, `virtual_desktop_apps` for opening and diagnostics, and `virtual_desktop_widgets` for widgets and notifications. Route Office document and spreadsheet work to `office_document` or `office_workbook`. Do not use generic filesystem, shell, Python, or file editor tools for those workspace paths.
 
 Call `status` before creating or changing apps and widgets. Use it to inspect the desktop state, installed apps, pinned widgets, workspace folders, and `icon_catalog` before choosing IDs, icons, file paths, or layout.
 
 Use stable lowercase IDs with letters, numbers, hyphens, or underscores. Choose semantic icons from `status.icon_catalog` and avoid emoji or unknown custom icon names. Keep app and widget names user-facing, short, and specific.
 
-Use `install_app` for generated apps that need a manifest, multiple files, SDK runtime, icon registration, permissions, menus, context menus, or an app-backed widget. The manifest `entry` file must exist in `files` and contain real non-empty HTML. Do not install placeholder apps, blank entry files, or broken shells.
+Use `virtual_desktop_app_install` for generated apps that need a manifest, multiple files, SDK runtime, icon registration, permissions, menus, context menus, or an app-backed widget. Send one complete atomic payload: the manifest `entry` file must be an exact key in `files` and contain real non-empty HTML. Do not pre-write app files and then omit them from the install payload. If a needed file already exists, read it and include its content in `files`. Do not install placeholder apps, blank entry files, or broken shells.
 
 Use `write_file` to `Widgets/<widget_id>.html` or `Widgets/<widget_id>/index.html` for simple standalone widgets. For app-backed widgets, install the owning app first, create the widget entry file inside `Apps/<app_id>/`, then call `upsert_widget` with the correct `app_id`, `entry`, icon, title, size, and position.
 
@@ -51,5 +51,7 @@ Do not ship placeholder content, dead controls, blank iframes, layout overlap, u
 ## Verification And Delivery
 
 After installing or changing a generated app, call `diagnose_app` with the app ID. After creating or changing a widget, call `diagnose_widget` with the widget ID. Fix diagnosis errors before claiming the work is complete.
+
+Tool failures are captured automatically as internal operational issues. Unless the user explicitly requested a report or external notification, do not create `BUG_REPORT` files and do not call Telegram, Discord, push, or other messaging tools to escalate a failure. Never claim that a coding agent or another destination received a report unless a successful tool result identifies that exact destination.
 
 Launch the result with `open_app`, `open_in_app`, or the widget open path when appropriate. For apps with companion widgets, verify both the app entry and widget entry. If verification is impossible because the tool or desktop is disabled, report that limitation plainly and do not claim the app or widget is ready.

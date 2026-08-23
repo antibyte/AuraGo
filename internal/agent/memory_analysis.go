@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -623,7 +624,9 @@ func isTransientToolFailureClaim(text, category string) bool {
 	toolSubject := strings.Contains(text, "tool") ||
 		strings.Contains(text, "integration") ||
 		strings.Contains(text, "_tool") ||
-		strings.Contains(text, "yepapi_")
+		strings.Contains(text, "yepapi_") ||
+		transientToolIdentifierPattern.MatchString(text) ||
+		transientToolSubjectPattern.MatchString(text)
 	if !toolSubject {
 		return false
 	}
@@ -640,6 +643,9 @@ func isTransientToolFailureClaim(text, category string) bool {
 	}
 	return false
 }
+
+var transientToolIdentifierPattern = regexp.MustCompile(`\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b`)
+var transientToolSubjectPattern = regexp.MustCompile(`\b(?:api|endpoint|endpunkt|function|funktion|operation|methode|method)\b`)
 
 func isWeakOperationalLabel(text string) bool {
 	prefixes := []string{

@@ -35,7 +35,7 @@ priority: 10
 - **Package/filesystem safety.** Prefer read-only package-manager checks before installs/removals. For `Read-only file system`, try user-writable alternatives (`$HOME`, `$HOME/.local/bin`, `/tmp`, `/var/tmp`) and report the restricted path.
 - **Filesystem context.** Generic filesystem/shell tools operate in `agent_workspace/workdir`; use specialized editors for structured files and `query_memory` for known docs before manual lookup.
 - **Protected system files.** Do not read/write/move/delete `config.yaml`, `vault.bin`, database `*.db` files, or `.env` files through generic filesystem tools.
-- **Virtual Desktop paths.** For `Apps/...` or `Widgets/...`, use `virtual_desktop_files`, `virtual_desktop_apps`, or `virtual_desktop_widgets`, not generic filesystem/editors.
+- **Virtual Desktop paths.** For `Apps/...` or `Widgets/...`, use `virtual_desktop_files`, `virtual_desktop_app_install`, `virtual_desktop_apps`, or `virtual_desktop_widgets`, not generic filesystem/editors.
 - **Registries.** Register newly discovered devices/IPs with `register_device`; homepage edits/deploys with `homepage_registry`; user-visible media/docs with media/document tools.
 - **Manuals over source scraping.** Never use `execute_shell` to read AuraGo's own `internal/tools/*.go` for tool self-inspection; use `discover_tools` and manuals.
 - **No remote install pipes.** Never run `curl | sh`, `wget | sh`, or equivalent remote-code installer patterns.

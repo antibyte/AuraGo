@@ -56,10 +56,11 @@ var registry = map[string]Metadata{
 	"homepage_deploy":  {Name: "homepage_deploy", Family: "homepage", CompressionClass: CompressionClassAPI},
 	"homepage_git":     {Name: "homepage_git", Family: "homepage", CompressionClass: CompressionClassAPI},
 
-	"virtual_desktop":         {Name: "virtual_desktop", Family: "desktop", CompressionClass: CompressionClassAPI},
-	"virtual_desktop_files":   {Name: "virtual_desktop_files", Family: "desktop", CompressionClass: CompressionClassAPI},
-	"virtual_desktop_apps":    {Name: "virtual_desktop_apps", Family: "desktop", CompressionClass: CompressionClassAPI},
-	"virtual_desktop_widgets": {Name: "virtual_desktop_widgets", Family: "desktop", CompressionClass: CompressionClassAPI},
+	"virtual_desktop":             {Name: "virtual_desktop", Family: "desktop", CompressionClass: CompressionClassAPI},
+	"virtual_desktop_files":       {Name: "virtual_desktop_files", Family: "desktop", CompressionClass: CompressionClassAPI},
+	"virtual_desktop_app_install": {Name: "virtual_desktop_app_install", Family: "desktop", CompressionClass: CompressionClassAPI},
+	"virtual_desktop_apps":        {Name: "virtual_desktop_apps", Family: "desktop", CompressionClass: CompressionClassAPI},
+	"virtual_desktop_widgets":     {Name: "virtual_desktop_widgets", Family: "desktop", CompressionClass: CompressionClassAPI},
 
 	"remote_control":         {Name: "remote_control", Family: "remote", CompressionClass: CompressionClassAPI},
 	"remote_control_devices": {Name: "remote_control_devices", Family: "remote", CompressionClass: CompressionClassAPI},

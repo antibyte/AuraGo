@@ -532,20 +532,34 @@ func TestBuildNativeToolSchemasUsesSkillManifestParameters(t *testing.T) {
 
 func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *testing.T) {
 	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{VirtualDesktopEnabled: true}, nil)
-	var appsSchema, widgetsSchema *openai.FunctionDefinition
+	var installSchema, appsSchema, widgetsSchema *openai.FunctionDefinition
 	for _, item := range schemas {
 		if item.Function == nil {
 			continue
 		}
 		switch item.Function.Name {
+		case "virtual_desktop_app_install":
+			installSchema = item.Function
 		case "virtual_desktop_apps":
 			appsSchema = item.Function
 		case "virtual_desktop_widgets":
 			widgetsSchema = item.Function
 		}
 	}
-	if appsSchema == nil || widgetsSchema == nil {
-		t.Fatalf("missing focused virtual desktop schemas apps=%v widgets=%v", appsSchema != nil, widgetsSchema != nil)
+	if installSchema == nil || appsSchema == nil || widgetsSchema == nil {
+		t.Fatalf("missing focused virtual desktop schemas install=%v apps=%v widgets=%v", installSchema != nil, appsSchema != nil, widgetsSchema != nil)
+	}
+	installParams, _ := installSchema.Parameters.(map[string]interface{})
+	installProps, _ := installParams["properties"].(map[string]interface{})
+	manifest, _ := installProps["manifest"].(map[string]interface{})
+	manifestDescription, _ := manifest["description"].(string)
+	if !strings.Contains(manifestDescription, "id, name, and entry are required") {
+		t.Fatalf("install manifest description missing atomic requirements: %s", manifestDescription)
+	}
+	files, _ := installProps["files"].(map[string]interface{})
+	filesDescription, _ := files["description"].(string)
+	if !strings.Contains(filesDescription, "exact manifest.entry") {
+		t.Fatalf("install files description missing entry contract: %s", filesDescription)
 	}
 	params, _ := appsSchema.Parameters.(map[string]interface{})
 	props, _ := params["properties"].(map[string]interface{})
@@ -555,17 +569,14 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 			t.Fatalf("virtual_desktop_apps operation enum missing %s: %#v", wantOp, operation["enum"])
 		}
 	}
+	if containsInterfaceString(operation["enum"], "install_app") {
+		t.Fatalf("virtual_desktop_apps must not advertise install_app: %#v", operation["enum"])
+	}
 	appID, _ := props["app_id"].(map[string]interface{})
 	appIDDescription, _ := appID["description"].(string)
 	if !strings.Contains(appIDDescription, "Desktop app ID") {
 		t.Fatalf("app_id description missing concise app guidance: %s", appIDDescription)
 	}
-	manifest, _ := props["manifest"].(map[string]interface{})
-	manifestDescription, _ := manifest["description"].(string)
-	if !strings.Contains(manifestDescription, "App manifest") {
-		t.Fatalf("manifest description missing concise manifest guidance: %s", manifestDescription)
-	}
-
 	widgetParams, _ := widgetsSchema.Parameters.(map[string]interface{})
 	widgetProps, _ := widgetParams["properties"].(map[string]interface{})
 	widgetOperation, _ := widgetProps["operation"].(map[string]interface{})

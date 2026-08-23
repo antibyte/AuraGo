@@ -337,13 +337,36 @@ func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool
 			"format":         prop("string", "Export format."),
 			"output_path":    prop("string", "Export output path."),
 		}, "operation")),
-		tool("virtual_desktop_apps", "Install, open, inspect, and diagnose virtual desktop apps.", schema(map[string]interface{}{
-			"operation": operationProperty("App operation.", []string{"install_app", "open_app", "open_in_app", "list_apps", "get_app", "diagnose_app"}),
+		tool("virtual_desktop_app_install", "Atomically install or replace one generated virtual desktop app from a complete manifest and file set. Existing workspace files are not reused implicitly.", schema(map[string]interface{}{
+			"manifest": map[string]interface{}{
+				"type":        "object",
+				"description": "Writable app manifest. id, name, and entry are required; version, icon, runtime, description, permissions, and metadata are optional.",
+				"properties": map[string]interface{}{
+					"id":          prop("string", "Stable lowercase app ID containing letters, numbers, hyphens, or underscores."),
+					"name":        prop("string", "User-facing app name."),
+					"entry":       prop("string", "App-relative entry file path. The exact path must be present in files with non-empty content."),
+					"version":     prop("string", "App version. Defaults to 1.0.0."),
+					"icon":        prop("string", "Optional semantic icon from the desktop icon catalog. Omit it to infer an icon."),
+					"runtime":     prop("string", "Optional desktop runtime. Defaults to aura-desktop-sdk@1."),
+					"description": prop("string", "Short app description."),
+					"permissions": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Minimum required desktop permissions."},
+					"metadata":    map[string]interface{}{"type": "object", "additionalProperties": map[string]interface{}{"type": "string"}, "description": "Optional string metadata."},
+				},
+				"required":             []string{"id", "name", "entry"},
+				"additionalProperties": false,
+			},
+			"files": map[string]interface{}{
+				"type":                 "object",
+				"description":          "Complete generated app files keyed by app-relative path. Must include the exact manifest.entry path with non-empty content.",
+				"minProperties":        1,
+				"additionalProperties": map[string]interface{}{"type": "string"},
+			},
+		}, "manifest", "files")),
+		tool("virtual_desktop_apps", "Open, inspect, and diagnose virtual desktop apps. Use virtual_desktop_app_install for generated app installation.", schema(map[string]interface{}{
+			"operation": operationProperty("App operation.", []string{"open_app", "open_in_app", "list_apps", "get_app", "diagnose_app"}),
 			"path":      prop("string", "Workspace-relative app path."),
 			"file_path": prop("string", "Alias for path."),
 			"app_id":    prop("string", "Desktop app ID."),
-			"manifest":  map[string]interface{}{"type": "object", "description": "App manifest.", "additionalProperties": true},
-			"files":     map[string]interface{}{"type": "object", "description": "Generated app files.", "additionalProperties": map[string]interface{}{"type": "string"}},
 			"title":     prop("string", "Optional app/window title."),
 		}, "operation")),
 		tool("virtual_desktop_widgets", "Create, pin, inspect, and diagnose virtual desktop widgets and notifications.", schema(map[string]interface{}{

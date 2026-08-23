@@ -25,6 +25,41 @@ type fakeEmailContentEvaluator struct {
 	calls    int
 }
 
+func TestDispatchCommDedicatedVirtualDesktopInstallUsesAtomicLegacyOperation(t *testing.T) {
+	root := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = filepath.Join(root, "workspace")
+	cfg.Directories.DataDir = filepath.Join(root, "data")
+	cfg.SQLite.VirtualDesktopPath = filepath.Join(root, "desktop.db")
+	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.AllowAgentControl = true
+	cfg.VirtualDesktop.AllowGeneratedApps = true
+	cfg.VirtualDesktop.WorkspaceDir = filepath.Join(root, "desktop")
+	cfg.VirtualDesktop.MaxFileSizeMB = 1
+	cfg.Tools.VirtualDesktop.Enabled = true
+
+	params := map[string]interface{}{
+		"manifest": map[string]interface{}{"id": "atomic-demo", "name": "Atomic Demo", "entry": "index.html"},
+		"files":    map[string]interface{}{"index.html": "<main>ready</main>"},
+	}
+	out, handled := dispatchComm(context.Background(), ToolCall{Action: "virtual_desktop_app_install", Params: params}, &DispatchContext{Cfg: cfg, Logger: slog.Default()})
+	if !handled || !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("dedicated install handled=%v output=%s", handled, out)
+	}
+	if _, mutated := params["operation"]; mutated {
+		t.Fatalf("dedicated install mutated original params: %#v", params)
+	}
+
+	legacyOut, legacyHandled := dispatchComm(context.Background(), ToolCall{Action: "virtual_desktop_apps", Operation: "install_app", Params: map[string]interface{}{
+		"operation": "install_app",
+		"manifest":  map[string]interface{}{"id": "legacy-demo", "name": "Legacy Demo", "entry": "index.html"},
+		"files":     map[string]interface{}{"index.html": "<main>legacy</main>"},
+	}}, &DispatchContext{Cfg: cfg, Logger: slog.Default()})
+	if !legacyHandled || !strings.Contains(legacyOut, `"status":"ok"`) {
+		t.Fatalf("legacy install handled=%v output=%s", legacyHandled, legacyOut)
+	}
+}
+
 func (f *fakeEmailContentEvaluator) EvaluateContent(context.Context, string, string) security.GuardianResult {
 	f.calls++
 	return security.GuardianResult{Decision: f.decision, Reason: f.reason}

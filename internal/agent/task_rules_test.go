@@ -115,7 +115,7 @@ func TestBuildTaskRulePromptContextSelectsVirtualDesktopRuleByKeyword(t *testing
 	if !strings.Contains(ctx.TaskRules, "Generated App And Widget Creation Workflow") {
 		t.Fatalf("TaskRules missing virtual desktop rule for app/widget request:\n%s", ctx.TaskRules)
 	}
-	if !strings.Contains(ctx.TaskRules, "Use `install_app` for generated apps") {
+	if !strings.Contains(ctx.TaskRules, "Use `virtual_desktop_app_install` for generated apps") {
 		t.Fatalf("virtual desktop rule should include app creation guidance:\n%s", ctx.TaskRules)
 	}
 }

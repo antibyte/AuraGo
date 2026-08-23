@@ -788,7 +788,7 @@ func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff T
 	}
 	out = append(out, "question_user")
 	if ff.VirtualDesktopEnabled {
-		out = append(out, "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets")
+		out = append(out, "virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets")
 	}
 	if ff.OfficeDocumentEnabled {
 		out = append(out, "office_document")

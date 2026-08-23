@@ -203,7 +203,7 @@ func TestIsAPITool(t *testing.T) {
 		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
 		"list_processes", "read_process_logs", "manage_daemon", "manage_plan",
 		"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git",
-		"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets",
+		"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets",
 		"remote_control_devices", "remote_control_files", "remote_control_desktop",
 		"agentmail_inboxes", "agentmail_messages", "agentmail_threads", "agentmail_drafts",
 		"invasion_nests", "invasion_tasks", "invasion_artifacts"}

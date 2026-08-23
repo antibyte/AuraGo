@@ -1,6 +1,6 @@
 # virtual_desktop Legacy Compatibility
 
-Prefer `virtual_desktop_files`, `virtual_desktop_apps`, and `virtual_desktop_widgets` when they are visible. Route Office document and spreadsheet work to `office_document` and `office_workbook`. The legacy `virtual_desktop` action remains accepted for dispatch compatibility with older clients and prompts.
+Prefer `virtual_desktop_files`, `virtual_desktop_app_install`, `virtual_desktop_apps`, and `virtual_desktop_widgets` when they are visible. Route Office document and spreadsheet work to `office_document` and `office_workbook`. The legacy `virtual_desktop` action remains accepted for dispatch compatibility with older clients and prompts.
 
 The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place credentials or vault values in generated app files. If an app needs sensitive data, build a small backend or agent-mediated flow that retrieves only the minimum safe result.
 

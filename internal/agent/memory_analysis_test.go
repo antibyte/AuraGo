@@ -485,6 +485,30 @@ func TestShouldStoreExtractedMemory(t *testing.T) {
 			want:     false,
 		},
 		{
+			name:     "drops exact german install endpoint bug claim",
+			content:  "install_app Endpunkt hat einen Bug: verlangt files-Feld auch wenn Datei bereits existiert",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "drops english function failure claim",
+			content:  "install_app function is broken because it reports a missing field error.",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "keeps durable api configuration fact",
+			content:  "The weather API endpoint is configured at https://example.com/v1.",
+			category: "infrastructure",
+			want:     true,
+		},
+		{
+			name:     "keeps non tool word containing api substring",
+			content:  "The capital improvement project failed its first review.",
+			category: "project",
+			want:     true,
+		},
+		{
 			name:     "drops ephemeral playback success claim",
 			content:  "Song läuft auf dem Google Home Mini.",
 			category: "recent_operational_details",

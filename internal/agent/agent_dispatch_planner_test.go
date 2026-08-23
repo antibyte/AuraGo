@@ -538,3 +538,30 @@ func TestRecordToolFailureOperationalIssueOnlyForBackgroundRuns(t *testing.T) {
 		t.Fatalf("recorded issue = %#v, want tool and detail", issues[0])
 	}
 }
+
+func TestToolFailureOperationalIssuesAreScopedByOperationAndInstallAlias(t *testing.T) {
+	db := newPlannerTestDB(t)
+	defer db.Close()
+	runCfg := RunConfig{PlannerDB: db, IsMission: true, MissionID: "mission-desktop", MessageSource: "mission"}
+
+	install := ToolCall{Action: "virtual_desktop_apps", Operation: "install_app", Params: map[string]interface{}{"operation": "install_app"}}
+	recordToolFailureOperationalIssue(runCfg, install, `Tool Output: {"status":"error","message":"files are required"}`, slog.Default())
+	resolveToolFailureOperationalIssue(runCfg, ToolCall{Action: "virtual_desktop_apps", Operation: "list_apps", Params: map[string]interface{}{"operation": "list_apps"}}, slog.Default())
+
+	installFingerprint := "mission|mission-desktop|tool|virtual_desktop_apps:install_app"
+	var status string
+	if err := db.QueryRow(`SELECT status FROM operational_issues WHERE fingerprint=?`, installFingerprint).Scan(&status); err != nil {
+		t.Fatalf("query install issue: %v", err)
+	}
+	if status != "open" {
+		t.Fatalf("install issue status after list_apps success = %q, want open", status)
+	}
+
+	resolveToolFailureOperationalIssue(runCfg, ToolCall{Action: "virtual_desktop_app_install"}, slog.Default())
+	if err := db.QueryRow(`SELECT status FROM operational_issues WHERE fingerprint=?`, installFingerprint).Scan(&status); err != nil {
+		t.Fatalf("query resolved install issue: %v", err)
+	}
+	if status != "done" {
+		t.Fatalf("install issue status after dedicated install success = %q, want done", status)
+	}
+}

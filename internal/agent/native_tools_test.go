@@ -1461,7 +1461,6 @@ func TestBuiltinToolSchemasHomepageUsesFocusedTools(t *testing.T) {
 			t.Fatal("homepage_file properties missing")
 		}
 		homepageFileProps = props
-		break
 	}
 
 	if homepageFileProps == nil {
@@ -2316,13 +2315,21 @@ func TestBuiltinToolSchemasVirtualDesktopUsesFocusedTools(t *testing.T) {
 	if containsName(names, "virtual_desktop") {
 		t.Fatal("legacy virtual_desktop mega-tool should no longer be emitted as a native schema")
 	}
-	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
 		if !containsName(names, want) {
 			t.Fatalf("%s schema missing from focused virtual desktop set: %v", want, names)
 		}
 	}
 
+	var installParams map[string]interface{}
+	var appsParams map[string]interface{}
 	for _, s := range schemas {
+		if s.Function != nil && s.Function.Name == "virtual_desktop_app_install" {
+			installParams, _ = s.Function.Parameters.(map[string]interface{})
+		}
+		if s.Function != nil && s.Function.Name == "virtual_desktop_apps" {
+			appsParams, _ = s.Function.Parameters.(map[string]interface{})
+		}
 		if s.Function == nil || s.Function.Name != "virtual_desktop_files" {
 			continue
 		}
@@ -2344,9 +2351,33 @@ func TestBuiltinToolSchemasVirtualDesktopUsesFocusedTools(t *testing.T) {
 				t.Fatalf("virtual_desktop_files should route Office work to office tools, found %s in %v", forbidden, opProp["enum"])
 			}
 		}
-		return
 	}
-	t.Fatal("virtual_desktop_files schema not found")
+	if installParams == nil || appsParams == nil {
+		t.Fatalf("focused app schemas missing install=%v apps=%v", installParams != nil, appsParams != nil)
+	}
+	installRequired := fmt.Sprint(installParams["required"])
+	for _, want := range []string{"manifest", "files"} {
+		if !strings.Contains(installRequired, want) {
+			t.Fatalf("virtual_desktop_app_install required missing %s: %#v", want, installParams["required"])
+		}
+	}
+	installProps := installParams["properties"].(map[string]interface{})
+	manifest := installProps["manifest"].(map[string]interface{})
+	manifestRequired := fmt.Sprint(manifest["required"])
+	for _, want := range []string{"id", "name", "entry"} {
+		if !strings.Contains(manifestRequired, want) {
+			t.Fatalf("install manifest required missing %s: %#v", want, manifest["required"])
+		}
+	}
+	files := installProps["files"].(map[string]interface{})
+	if files["minProperties"] != 1 {
+		t.Fatalf("install files minProperties = %#v, want 1", files["minProperties"])
+	}
+	appsProps := appsParams["properties"].(map[string]interface{})
+	appsOperation := appsProps["operation"].(map[string]interface{})
+	if containsInterfaceString(appsOperation["enum"], "install_app") {
+		t.Fatalf("virtual_desktop_apps still advertises install_app: %#v", appsOperation["enum"])
+	}
 }
 
 func TestBuiltinToolSchemasIncludesOpenSCADRenderWhenEnabled(t *testing.T) {

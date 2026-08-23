@@ -106,7 +106,7 @@ func TestLoadCatalogIncludesEmbeddedVirtualDesktopRule(t *testing.T) {
 	for _, marker := range []string{
 		"Generated App And Widget Creation Workflow",
 		"Call `status` before creating",
-		"Use `install_app` for generated apps",
+		"Use `virtual_desktop_app_install` for generated apps",
 		"diagnose_app",
 		"diagnose_widget",
 		"Do not store secrets",

@@ -38,14 +38,12 @@ func recordToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, resultCont
 	}
 	source := operationalIssueSource(runCfg)
 	context := operationalIssueContext(runCfg)
-	action := strings.TrimSpace(tc.Action)
-	if action == "" {
-		action = "unknown_tool"
-	}
-	title := fmt.Sprintf("Tool %s failed during %s", action, source)
+	reference, legacyReference := operationalToolFailureReferences(tc)
+	title := fmt.Sprintf("Tool %s failed during %s", reference, source)
 	if context != "" {
-		title = fmt.Sprintf("Tool %s failed during %s %s", action, source, context)
+		title = fmt.Sprintf("Tool %s failed during %s %s", reference, source, context)
 	}
+	resolveSupersededToolFailureIssue(runCfg, source, context, reference, legacyReference, logger)
 
 	recordOperationalIssue(runCfg, planner.OperationalIssue{
 		Source:      source,
@@ -54,8 +52,8 @@ func recordToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, resultCont
 		Detail:      detail,
 		Severity:    "warning",
 		Kind:        planner.OperationalIssueKindToolFailure,
-		Reference:   action,
-		Fingerprint: strings.Join([]string{source, context, "tool", action}, "|"),
+		Reference:   reference,
+		Fingerprint: operationalToolFailureFingerprint(source, context, reference),
 		OccurredAt:  time.Now(),
 	}, logger)
 }
@@ -64,16 +62,49 @@ func resolveToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, logger *s
 	if !shouldRecordOperationalIssueForRun(runCfg) || runCfg.PlannerDB == nil {
 		return
 	}
-	action := strings.TrimSpace(tc.Action)
+	source := operationalIssueSource(runCfg)
+	context := operationalIssueContext(runCfg)
+	reference, legacyReference := operationalToolFailureReferences(tc)
+	fingerprint := operationalToolFailureFingerprint(source, context, reference)
+	if _, err := planner.ResolveOperationalIssue(runCfg.PlannerDB, fingerprint, "The same tool operation completed successfully.", time.Now()); err != nil && logger != nil {
+		logger.Warn("[OperationalIssue] Failed to resolve internal issue", "tool", reference, "error", err)
+	}
+	resolveSupersededToolFailureIssue(runCfg, source, context, reference, legacyReference, logger)
+	if runCfg.ShortTermMem != nil && runCfg.Config != nil {
+		syncOperationalIssueAffect(runCfg.ShortTermMem, runCfg.Config, runCfg.PlannerDB, logger)
+	}
+}
+
+func operationalToolFailureReferences(tc ToolCall) (string, string) {
+	action := strings.ToLower(strings.TrimSpace(tc.Action))
 	if action == "" {
 		action = "unknown_tool"
 	}
-	fingerprint := strings.Join([]string{operationalIssueSource(runCfg), operationalIssueContext(runCfg), "tool", action}, "|")
-	if _, err := planner.ResolveOperationalIssue(runCfg.PlannerDB, fingerprint, "The same tool operation completed successfully.", time.Now()); err != nil && logger != nil {
-		logger.Warn("[OperationalIssue] Failed to resolve internal issue", "tool", action, "error", err)
+	legacyReference := action
+	operation := strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(
+		tc.Operation,
+		toolArgString(tc.Params, "operation", "op"),
+	)))
+	if action == "virtual_desktop_app_install" {
+		return "virtual_desktop_apps:install_app", "virtual_desktop_apps"
 	}
-	if runCfg.ShortTermMem != nil && runCfg.Config != nil {
-		syncOperationalIssueAffect(runCfg.ShortTermMem, runCfg.Config, runCfg.PlannerDB, logger)
+	if operation == "" {
+		return action, legacyReference
+	}
+	return action + ":" + operation, legacyReference
+}
+
+func operationalToolFailureFingerprint(source, context, reference string) string {
+	return strings.Join([]string{source, context, "tool", reference}, "|")
+}
+
+func resolveSupersededToolFailureIssue(runCfg RunConfig, source, context, reference, legacyReference string, logger *slog.Logger) {
+	if runCfg.PlannerDB == nil || legacyReference == "" || legacyReference == reference {
+		return
+	}
+	legacyFingerprint := operationalToolFailureFingerprint(source, context, legacyReference)
+	if _, err := planner.ResolveOperationalIssue(runCfg.PlannerDB, legacyFingerprint, "Superseded by operation-scoped tool failure tracking.", time.Now()); err != nil && logger != nil {
+		logger.Warn("[OperationalIssue] Failed to resolve superseded internal issue", "tool", legacyReference, "error", err)
 	}
 }
 

@@ -47,14 +47,14 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if ptcJSON == "" {
 		ptcJSON = fmt.Sprintf(`{"action":"%s"}`, ptc.Action)
 	}
-	id, idErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, ptcJSON, false, true)
-	if idErr != nil {
-		currentLogger.Error("Failed to persist queued tool-call message", "error", idErr)
-	}
-	if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
-		if ptc.NativeCallID != "" {
-			historyManager.AddMessage(NativeToolCallHistoryMessage(ptc, ptcJSON), id, false, true)
-		} else {
+	var id int64
+	var idErr error
+	if ptc.NativeCallID == "" {
+		id, idErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, ptcJSON, false, true)
+		if idErr != nil {
+			currentLogger.Error("Failed to persist queued tool-call message", "error", idErr)
+		}
+		if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
 			historyManager.Add(openai.ChatMessageRoleAssistant, ptcJSON, id, false, true)
 		}
 	}
@@ -66,6 +66,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 
 	pResultContent := ""
 	actionBlocked := false
+	recoveryMessageStart := len(s.req.Messages)
 	if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
 		pResultContent = preload
 		actionBlocked = true
@@ -88,6 +89,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs, s.runCfg)
 	pResultContent = policyResult.Content
+	deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
 	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Failed)
 	pEventContent := policyResult.EventContent
 	if pEventContent == "" {
@@ -163,7 +165,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 			Content:    pResultContent,
 			ToolCallID: ptc.NativeCallID,
 		})
+		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {
+		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 		voiceModeActive := !s.voiceOutputSuppressed && (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
 		followUpContent := toolResultFollowUpContent(ptc, pResultContent, voiceModeActive)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
@@ -524,6 +528,7 @@ func executeAgentToolTurn(
 		})
 
 		var nativePendingSummaryBatch map[string]string
+		var deferredRecoveryMessages []openai.ChatCompletionMessage
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
 			if s.helperManager != nil && len(nativePendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
@@ -545,6 +550,7 @@ func executeAgentToolTurn(
 
 			bResult := ""
 			batchedBlocked := false
+			recoveryMessageStart := len(s.req.Messages)
 			if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
 				bResult = preload
 				batchedBlocked = true
@@ -565,6 +571,7 @@ func executeAgentToolTurn(
 			}
 			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
 			bResult = policyResult.Content
+			deferredRecoveryMessages = append(deferredRecoveryMessages, detachNewSystemMessages(&s.req, recoveryMessageStart)...)
 			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Failed)
 			bEventContent := policyResult.EventContent
 			if bEventContent == "" {
@@ -608,14 +615,6 @@ func executeAgentToolTurn(
 				}
 			}
 
-			bHistContent := fmt.Sprintf(`{"action": "%s"}`, btc.Action)
-			callID, callErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, bHistContent, false, true)
-			if callErr != nil {
-				currentLogger.Error("Failed to persist batched tool-call message", "error", callErr)
-			}
-			if sessionID == "default" && ShouldAppendHistoryMessage(callID, callErr) {
-				historyManager.AddMessage(NativeToolCallHistoryMessage(btc, bHistContent), callID, false, true)
-			}
 			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
 			if resultErr != nil {
 				currentLogger.Error("Failed to persist batched tool-result message", "error", resultErr)
@@ -634,6 +633,7 @@ func executeAgentToolTurn(
 				ToolCallID: btc.NativeCallID,
 			})
 		}
+		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {
 		if !xmlFallbackHandledThisTurn {
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
@@ -649,4 +649,22 @@ func executeAgentToolTurn(
 	case <-ctx.Done():
 		return resp, ctx.Err(), false
 	}
+}
+
+func detachNewSystemMessages(req *openai.ChatCompletionRequest, start int) []openai.ChatCompletionMessage {
+	if req == nil || start < 0 || start >= len(req.Messages) {
+		return nil
+	}
+	tail := req.Messages[start:]
+	deferred := make([]openai.ChatCompletionMessage, 0, len(tail))
+	kept := make([]openai.ChatCompletionMessage, 0, len(tail))
+	for _, msg := range tail {
+		if msg.Role == openai.ChatMessageRoleSystem {
+			deferred = append(deferred, msg)
+			continue
+		}
+		kept = append(kept, msg)
+	}
+	req.Messages = append(req.Messages[:start], kept...)
+	return deferred
 }

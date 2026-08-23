@@ -31,10 +31,13 @@ type toolRecoveryState struct {
 	BlockedToolSignatures map[string]struct{}
 	RecoveryHintFrequency map[string]int
 	ProcessedToolCallIDs  map[string]struct{}
+	InstallFailures       map[string]int
+	InstallLastErrors     map[string]string
 }
 
 const maxTrackedToolCallSignatures = 512
 const maxProcessedToolCallIDs = 1024
+const maxVirtualDesktopInstallFailures = 3
 
 func newToolRecoveryState() toolRecoveryState {
 	return newToolRecoveryStateWithPolicy(defaultRecoveryPolicy())
@@ -48,6 +51,44 @@ func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 		BlockedToolSignatures: make(map[string]struct{}),
 		RecoveryHintFrequency: make(map[string]int),
 		ProcessedToolCallIDs:  make(map[string]struct{}),
+		InstallFailures:       make(map[string]int),
+		InstallLastErrors:     make(map[string]string),
+	}
+}
+
+func virtualDesktopInstallKey(tc ToolCall) (string, bool) {
+	action := strings.ToLower(strings.TrimSpace(tc.Action))
+	operation := strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(
+		tc.Operation,
+		toolArgString(tc.Params, "operation", "op"),
+	)))
+	if action == "virtual_desktop_app_install" {
+		operation = "install_app"
+	} else if (action != "virtual_desktop" && action != "virtual_desktop_apps") || operation != "install_app" {
+		return "", false
+	}
+
+	appID := strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "app_id")))
+	if appID == "" {
+		switch manifest := tc.Params["manifest"].(type) {
+		case map[string]interface{}:
+			appID = strings.ToLower(strings.TrimSpace(toolArgString(manifest, "id")))
+		case map[string]string:
+			appID = strings.ToLower(strings.TrimSpace(manifest["id"]))
+		}
+	}
+	if appID == "" {
+		appID = "<unknown>"
+	}
+	return appID, true
+}
+
+func isVirtualDesktopToolAction(action string) bool {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -191,22 +232,28 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 		return "Check the homepage workspace first with homepage list_files/read_file. If files were created via the filesystem tool, recreate them with homepage write_file in the correct project directory."
 	case tc.Action == "filesystem" && strings.Contains(lower, "unknown filesystem operation"):
 		return "Use the exact filesystem operations read_file or write_file, not read or write. Correct the operation name before retrying."
-	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop app") && strings.Contains(lower, "not found"):
-		return "The requested app is not installed or built-in. Use virtual_desktop list_apps to see available apps, then use a valid app_id. If you want to run a generated app, first install it with install_app or write_file to Apps/<app_id>.html."
-	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop widget") && strings.Contains(lower, "not found"):
-		return "The requested widget is not registered. Use virtual_desktop list_widgets to see available widgets, or create a standalone widget by writing non-empty HTML to Widgets/<widget_id>.html or Widgets/<widget_id>/index.html."
-	case tc.Action == "virtual_desktop" && strings.Contains(lower, "entry file is unavailable"):
-		return "The app is registered but its entry file is missing or empty. Use virtual_desktop diagnose_app to inspect the issue, then reinstall or rewrite the entry file."
-	case tc.Action == "virtual_desktop" && strings.Contains(lower, "path is required"):
+	case isVirtualDesktopToolAction(tc.Action) && (strings.Contains(lower, "files are required") || strings.Contains(lower, "files must be an object")):
+		return "Generated app installation is atomic. Call virtual_desktop_app_install once with both manifest and a non-empty files object keyed by app-relative path. Do not point at or rely on a file already written in the workspace; read its content first and include it in files."
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "desktop app entry file is missing"):
+		return "The files object must contain a key exactly equal to manifest.entry, for example manifest.entry='index.html' with files={'index.html':'<non-empty HTML>'}. Send the complete manifest and file set through virtual_desktop_app_install."
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "app_id is required"):
+		return "Opening or diagnosing an app requires app_id. Use virtual_desktop_apps list_apps to find the installed ID, then retry with that exact app_id. Installation instead uses virtual_desktop_app_install with manifest.id."
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "desktop app") && strings.Contains(lower, "not found"):
+		return "The requested app is not installed or built-in. Use virtual_desktop_apps list_apps to see available apps, then use a valid app_id. Install a generated app atomically with virtual_desktop_app_install before opening it."
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "desktop widget") && strings.Contains(lower, "not found"):
+		return "The requested widget is not registered. Use virtual_desktop_widgets list_widgets to see available widgets, or create a standalone widget by writing non-empty HTML to Widgets/<widget_id>.html or Widgets/<widget_id>/index.html."
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "entry file is unavailable"):
+		return "The app is registered but its entry file is missing or empty. Use virtual_desktop_apps diagnose_app to inspect the issue, then reinstall it atomically with virtual_desktop_app_install."
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "path is required"):
 		return "Virtual desktop file operations require a workspace-relative path such as 'Apps/my-app/index.html' or 'Widgets/weather.html'. Do not use absolute paths like '/workspace/...' or host filesystem paths."
-	case tc.Action == "virtual_desktop" && strings.Contains(lower, "content is required"):
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "content is required"):
 		return "Apps/ and Widgets/ paths require non-empty content. Provide complete HTML or script content, or use patch_file for targeted edits."
-	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop widget html file must not be empty"):
+	case isVirtualDesktopToolAction(tc.Action) && strings.Contains(lower, "desktop widget html file must not be empty"):
 		return "Standalone widget HTML files must contain non-empty HTML. Rewrite the widget with valid HTML content."
-	case tc.Action == "virtual_desktop" && (strings.Contains(lower, "desktop path escapes workspace") || strings.Contains(lower, "absolute") || strings.Contains(lower, "/workspace") || strings.Contains(lower, "host filesystem")):
+	case isVirtualDesktopToolAction(tc.Action) && (strings.Contains(lower, "desktop path escapes workspace") || strings.Contains(lower, "absolute") || strings.Contains(lower, "/workspace") || strings.Contains(lower, "host filesystem")):
 		return "Virtual desktop file operations require a workspace-relative path such as 'Apps/my-app/index.html' or 'Widgets/weather.html'. Do not use absolute paths like '/workspace/...' or host filesystem paths. Use only the relative path inside the virtual desktop workspace."
-	case tc.Action == "virtual_desktop" && (strings.Contains(lower, "icon must use") || strings.Contains(lower, "icon_catalog")):
-		return "The specified desktop icon is not supported. Use virtual_desktop status to retrieve the icon_catalog, then choose a preferred or alias semantic name from the catalog. Do not use emoji icons or arbitrary icon strings."
+	case isVirtualDesktopToolAction(tc.Action) && (strings.Contains(lower, "icon must use") || strings.Contains(lower, "icon_catalog")):
+		return "The specified desktop icon is not supported. Use virtual_desktop_files status to retrieve the icon_catalog, then choose a preferred or alias semantic name, or omit manifest.icon so AuraGo infers one. Do not use emoji or arbitrary icon strings."
 	default:
 		return base
 	}
@@ -305,6 +352,21 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 	toolSig := buildToolSignature(tc)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if installKey, ok := virtualDesktopInstallKey(tc); ok && s.InstallFailures[installKey] >= maxVirtualDesktopInstallFailures {
+		RecordToolRecoveryEventForScope(scope, "virtual_desktop_install_budget_blocked")
+		if logger != nil {
+			logger.Warn("[Sync] Virtual desktop install failure budget exhausted",
+				"app_id", installKey, "failures", s.InstallFailures[installKey])
+		}
+		abortMsg := fmt.Sprintf(
+			"CIRCUIT BREAKER: Generated app installation for '%s' has already failed %d times in this turn. "+
+				"Do not attempt another installation in this turn. Report the latest concrete error without claiming the app is installed, and wait for a new user turn. Recovery guidance: %s",
+			installKey, s.InstallFailures[installKey], recoveryHintForToolFailure(tc, s.InstallLastErrors[installKey]))
+		if req != nil {
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: abortMsg})
+		}
+		return true
+	}
 	if toolSig == s.LastToolCallSig && !isGenericToolSignature(tc, toolSig) {
 		s.DuplicateToolCount++
 	} else {
@@ -403,6 +465,16 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 
 	if isToolError {
 		s.TotalErrorCount++
+		if installKey, ok := virtualDesktopInstallKey(tc); ok {
+			if s.InstallFailures == nil {
+				s.InstallFailures = make(map[string]int)
+			}
+			if s.InstallLastErrors == nil {
+				s.InstallLastErrors = make(map[string]string)
+			}
+			s.InstallFailures[installKey]++
+			s.InstallLastErrors[installKey] = resultContent
+		}
 		errorKey := normalizedToolErrorKey(tc.Action, resultContent)
 		if errorKey == s.LastToolErrorKey {
 			s.ConsecutiveErrorCount++
@@ -444,6 +516,10 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 		return false
 	}
 
+	if installKey, ok := virtualDesktopInstallKey(tc); ok {
+		delete(s.InstallFailures, installKey)
+		delete(s.InstallLastErrors, installKey)
+	}
 	s.ConsecutiveErrorCount = 0
 	s.LastToolError = ""
 	s.LastToolErrorKey = ""
