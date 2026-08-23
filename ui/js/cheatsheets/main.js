@@ -75,7 +75,7 @@ function switchCheatTab(tab) {
     currentCheatTab = tab;
     localStorage.setItem('cheatsheets-tab', tab);
 
-    document.querySelectorAll('.cheatsheet-tab').forEach(function (btn) {
+    document.querySelectorAll('.cheatsheet-tab, .pw-tab').forEach(function (btn) {
         btn.classList.remove('active');
         btn.setAttribute('aria-selected', 'false');
     });

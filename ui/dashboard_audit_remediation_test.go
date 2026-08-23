@@ -10,9 +10,9 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 
 	html := readDesktopAssetText(t, "dashboard.html")
 	for _, marker := range []string{
-		`class="dash-tab-panel is-hidden" id="tab-agent"`,
-		`class="dash-tab-panel is-hidden" id="tab-user"`,
-		`class="dash-tab-panel is-hidden" id="tab-system"`,
+		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-agent"`,
+		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-user"`,
+		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-system"`,
 		`<button type="button" class="collapse-toggle"`,
 		`aria-expanded="true"`,
 		`id="log-scroll-btn"`,

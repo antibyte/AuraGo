@@ -263,7 +263,7 @@ func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 	html := normalizeAssetText(mustReadUIFile(t, "dashboard.html"))
 	for _, marker := range []string{
 		`<body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">`,
-		`href="#tab-overview"`,
+		`href="#main-content"`,
 		`/css/dashboard.css?v={{.BuildVersion}}`,
 		`data-tab="overview" id="dash-tab-overview"`,
 		`data-tab="agent" id="dash-tab-agent"`,

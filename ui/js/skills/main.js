@@ -355,10 +355,11 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     function switchSkillMode(mode) {
         currentSkillMode = mode === 'agent' ? 'agent' : 'python';
-        document.getElementById('sk-tab-python').classList.toggle('active', currentSkillMode === 'python');
-        document.getElementById('sk-tab-agent').classList.toggle('active', currentSkillMode === 'agent');
-        document.getElementById('sk-tab-python').setAttribute('aria-selected', currentSkillMode === 'python' ? 'true' : 'false');
-        document.getElementById('sk-tab-agent').setAttribute('aria-selected', currentSkillMode === 'agent' ? 'true' : 'false');
+        document.querySelectorAll('.sk-tab, .pw-tab').forEach(function (btn) {
+            const active = btn.id === 'sk-tab-' + currentSkillMode;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
         document.getElementById('sk-toolbar-actions').style.display = currentSkillMode === 'python' ? '' : 'none';
         document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? 'flex' : 'none';
         const typeFilter = document.querySelector('.sk-filter-group');

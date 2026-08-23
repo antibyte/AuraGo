@@ -31,8 +31,8 @@ func TestDashboardTabButtonsHaveMatchingPanels(t *testing.T) {
 	if strings.Contains(html, `class="dash-tab-panel" id="main-content"`) {
 		t.Fatal("overview panel must use id=\"tab-overview\" so showTab can reveal it")
 	}
-	if !strings.Contains(html, `href="#tab-overview" class="skip-link"`) {
-		t.Fatal("dashboard skip link should target the overview tab panel")
+	if !strings.Contains(html, `href="#main-content" class="skip-link"`) {
+		t.Fatal("dashboard skip link should target the main content region")
 	}
 }
 

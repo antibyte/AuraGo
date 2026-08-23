@@ -64,12 +64,9 @@
 .pw-page[data-workspace-page="dashboard"] .dash-banner-always,
 .pw-page[data-workspace-page="dashboard"] .dash-tabs,
 .pw-page[data-workspace-page="dashboard"] .dash-grid {
-    width: min(calc(100% - 2rem), var(--pw-content-max));
-    max-width: var(--pw-content-max);
-    margin-inline: auto;
+    width: 100%;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-banner-always {
-    margin: 0 auto;
     padding: var(--pw-space-4) 0 0;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-tabs {

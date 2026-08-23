@@ -48,13 +48,13 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="container" id="main-content">
-        <div class="page-header">
-            <div class="page-title-row">
+    <main class="container pw-page-frame" id="main-content">
+        <header class="page-header pw-page-heading">
+            <div class="page-title-row pw-page-heading-copy">
                 <span class="page-title-badge" aria-hidden="true">📋</span>
-                <h1 data-i18n="cheatsheets.title"></h1>
+                <h1 class="pw-page-title" data-i18n="cheatsheets.title"></h1>
             </div>
-            <div class="header-actions">
+            <div class="header-actions pw-page-heading-actions">
                 <div class="view-toggle" id="view-toggle">
                     <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid" aria-label="Grid View">
                         <span class="view-toggle-glyph" aria-hidden="true">▦</span>
@@ -67,13 +67,13 @@
                     <span>+</span> <span data-i18n="cheatsheets.create_new"></span>
                 </button>
             </div>
-        </div>
+        </header>
 
-        <div class="cheatsheet-tabs" role="tablist" aria-label="Cheat sheet groups">
-            <button class="cheatsheet-tab active" id="tab-user" role="tab" aria-selected="true"
+        <div class="cheatsheet-tabs pw-tabs" role="tablist" aria-label="Cheat sheet groups">
+            <button class="cheatsheet-tab pw-tab active" id="tab-user" role="tab" aria-selected="true"
                 aria-controls="panel-user" tabindex="0"
                 onclick="switchCheatTab('user')">👤 <span data-i18n="cheatsheets.group_user"></span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
-            <button class="cheatsheet-tab" id="tab-agent" role="tab" aria-selected="false"
+            <button class="cheatsheet-tab pw-tab" id="tab-agent" role="tab" aria-selected="false"
                 aria-controls="panel-agent" tabindex="-1"
                 onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent"></span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
         </div>
@@ -98,7 +98,7 @@
                 <p data-i18n="cheatsheets.empty_agent"></p>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- Edit Modal -->
     <div class="modal-overlay" id="edit-modal">

@@ -699,12 +699,16 @@ function renderTriggerInfo(mission) {
 // Filter tabs
 function filterMissions(type) {
     currentFilter = type;
-    document.querySelectorAll('.tab').forEach(tab => {
+    document.querySelectorAll('.tab, .pw-tab').forEach(tab => {
         tab.classList.remove('active');
+        tab.setAttribute('aria-selected', 'false');
     });
     const tabId = 'tab-' + type;
     const activeTab = document.getElementById(tabId);
-    if (activeTab) activeTab.classList.add('active');
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.setAttribute('aria-selected', 'true');
+    }
     renderMissions();
 }
 

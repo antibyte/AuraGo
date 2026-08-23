@@ -52,7 +52,7 @@ const validTabs = ['contacts', 'files', 'devices', 'credentials', 'secrets', 'ap
 
 function switchKCTab(tab) {
     if (!tab || !validTabs.includes(tab)) return;
-    document.querySelectorAll('.kc-tab').forEach(t => {
+    document.querySelectorAll('.kc-tab, .pw-tab').forEach(t => {
         t.classList.remove('active');
         t.setAttribute('aria-selected', 'false');
         t.setAttribute('tabindex', '-1');

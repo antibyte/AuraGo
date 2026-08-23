@@ -48,29 +48,29 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="sk-container" id="main-content">
-        <div class="sk-tabs" role="tablist" aria-label="Skill systems">
-            <button id="sk-tab-python" type="button" class="sk-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python"></button>
-            <button id="sk-tab-agent" type="button" class="sk-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent"></button>
+    <main class="sk-container pw-page-frame" id="main-content">
+        <div class="sk-tabs pw-tabs" role="tablist" aria-label="Skill systems">
+            <button id="sk-tab-python" type="button" class="sk-tab pw-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python"></button>
+            <button id="sk-tab-agent" type="button" class="sk-tab pw-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent"></button>
         </div>
 
         <!-- Status bar -->
-        <div class="sk-status-bar" id="sk-status-bar">
-            <div class="sk-stat">
-                <span class="sk-stat-value" id="sk-total">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_total"></span>
+        <div class="sk-status-bar pw-status-strip" id="sk-status-bar">
+            <div class="sk-stat pw-status-item">
+                <span class="sk-stat-value pw-status-value" id="sk-total">0</span>
+                <span class="sk-stat-label pw-status-label" data-i18n="skills.stat_total"></span>
             </div>
-            <div class="sk-stat sk-stat-agent">
-                <span class="sk-stat-value" id="sk-agent">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_agent"></span>
+            <div class="sk-stat sk-stat-agent pw-status-item">
+                <span class="sk-stat-value pw-status-value" id="sk-agent">0</span>
+                <span class="sk-stat-label pw-status-label" data-i18n="skills.stat_agent"></span>
             </div>
-            <div class="sk-stat sk-stat-user">
-                <span class="sk-stat-value" id="sk-user">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_user"></span>
+            <div class="sk-stat sk-stat-user pw-status-item">
+                <span class="sk-stat-value pw-status-value" id="sk-user">0</span>
+                <span class="sk-stat-label pw-status-label" data-i18n="skills.stat_user"></span>
             </div>
-            <div class="sk-stat sk-stat-pending">
-                <span class="sk-stat-value" id="sk-pending">0</span>
-                <span class="sk-stat-label" data-i18n="skills.stat_pending"></span>
+            <div class="sk-stat sk-stat-pending pw-status-item">
+                <span class="sk-stat-value pw-status-value" id="sk-pending">0</span>
+                <span class="sk-stat-label pw-status-label" data-i18n="skills.stat_pending"></span>
             </div>
         </div>
 
@@ -122,7 +122,7 @@
             <h3 data-i18n="skills.disabled_title"></h3>
             <p data-i18n="skills.disabled_desc"></p>
         </div>
-    </div>
+    </main>
 
     <!-- AGENT SKILL CREATE / EDIT MODAL -->
     <div class="modal-overlay" id="agent-skill-modal" role="dialog" aria-modal="true" aria-labelledby="agent-skill-modal-title">

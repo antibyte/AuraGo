@@ -126,7 +126,7 @@ function switchTab(tab) {
     }
     currentTab = tab;
 
-    document.querySelectorAll('.media-tab').forEach(function (btn) {
+    document.querySelectorAll('.media-tab, .pw-tab').forEach(function (btn) {
         btn.classList.remove('active');
         btn.setAttribute('aria-selected', 'false');
     });

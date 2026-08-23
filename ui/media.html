@@ -49,39 +49,39 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="media-container" id="main-content">
-        <div class="page-header media-header">
-            <div class="media-header-text">
-                <h1 data-i18n="media.title">📁 Media View</h1>
+    <main class="media-container pw-page-frame" id="main-content">
+        <header class="page-header media-header pw-page-heading">
+            <div class="media-header-text pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="media.title">📁 Media View</h1>
                 <p class="media-header-subtitle" data-i18n="media.subtitle_description"></p>
             </div>
-            <div class="media-controls">
+            <div class="media-controls pw-page-heading-actions">
                 <input type="text" id="media-search" class="gallery-search"
                     placeholder="" data-i18n-placeholder="media.search_placeholder">
             </div>
         </div>
 
         <!-- Tab bar -->
-        <div class="media-tabs" role="tablist" aria-label="Media categories">
-            <button class="media-tab active" id="tab-images" role="tab" aria-selected="true"
+        <div class="media-tabs pw-tabs" role="tablist" aria-label="Media categories">
+            <button class="media-tab pw-tab active" id="tab-images" role="tab" aria-selected="true"
                 aria-controls="panel-images" tabindex="0"
                 onclick="switchTab('images')">
                 <span class="media-tab-icon" aria-hidden="true">🖼️</span>
                 <span data-i18n="media.tab_images"></span>
             </button>
-            <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
+            <button class="media-tab pw-tab" id="tab-audio" role="tab" aria-selected="false"
                 aria-controls="panel-audio" tabindex="-1"
                 onclick="switchTab('audio')">
                 <span class="media-tab-icon" aria-hidden="true">🎵</span>
                 <span data-i18n="media.tab_audio"></span>
             </button>
-            <button class="media-tab" id="tab-videos" role="tab" aria-selected="false"
+            <button class="media-tab pw-tab" id="tab-videos" role="tab" aria-selected="false"
                 aria-controls="panel-videos" tabindex="-1"
                 onclick="switchTab('videos')">
                 <span class="media-tab-icon" aria-hidden="true">🎬</span>
                 <span data-i18n="media.tab_videos"></span>
             </button>
-            <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
+            <button class="media-tab pw-tab" id="tab-documents" role="tab" aria-selected="false"
                 aria-controls="panel-documents" tabindex="-1"
                 onclick="switchTab('documents')">
                 <span class="media-tab-icon" aria-hidden="true">📄</span>
@@ -154,7 +154,7 @@
                 <button id="doc-last" class="btn-gallery-nav btn-gallery-nav-icon" onclick="docLast()" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last">⇥</button>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- Image lightbox -->
     <div id="lightbox" class="lightbox is-hidden" role="dialog" aria-modal="true" aria-labelledby="lightbox-meta" onclick="closeLightbox(event)">

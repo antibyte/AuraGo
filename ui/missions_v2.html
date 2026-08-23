@@ -51,11 +51,13 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="container" id="main-content">
+    <main class="container pw-page-frame" id="main-content">
         <!-- Page Header -->
-        <div class="page-header">
-            <h1 data-i18n="missions.heading"></h1>
-            <div class="header-actions">
+        <header class="page-header pw-page-heading">
+            <div class="pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="missions.heading"></h1>
+            </div>
+            <div class="header-actions pw-page-heading-actions">
                 <div class="view-toggle" id="view-toggle">
                     <button type="button" data-view-mode="grid" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
                         <span class="view-toggle-glyph" aria-hidden="true">▦</span>
@@ -69,29 +71,29 @@
                     <span data-i18n="missions.btn_new_mission"></span>
                 </button>
             </div>
-        </div>
+        </header>
 
         <!-- Status Bar -->
-        <div class="status-bar">
-            <div class="status-card" id="status-total">
+        <div class="status-bar pw-status-strip">
+            <div class="status-card pw-status-item" id="status-total">
                 <div class="status-icon">📋</div>
-                <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_total"></div>
+                <div class="status-value pw-status-value">-</div>
+                <div class="status-label pw-status-label" data-i18n="missions.status_total"></div>
             </div>
-            <div class="status-card" id="status-running">
+            <div class="status-card pw-status-item" id="status-running">
                 <div class="status-icon">▶️</div>
-                <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_running"></div>
+                <div class="status-value pw-status-value">-</div>
+                <div class="status-label pw-status-label" data-i18n="missions.status_running"></div>
             </div>
-            <div class="status-card" id="status-queued">
+            <div class="status-card pw-status-item" id="status-queued">
                 <div class="status-icon">⏳</div>
-                <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_queue"></div>
+                <div class="status-value pw-status-value">-</div>
+                <div class="status-label pw-status-label" data-i18n="missions.status_queue"></div>
             </div>
-            <div class="status-card" id="status-triggered">
+            <div class="status-card pw-status-item" id="status-triggered">
                 <div class="status-icon">⚡</div>
-                <div class="status-value">-</div>
-                <div class="status-label" data-i18n="missions.status_triggered"></div>
+                <div class="status-value pw-status-value">-</div>
+                <div class="status-label pw-status-label" data-i18n="missions.status_triggered"></div>
             </div>
         </div>
 
@@ -107,17 +109,17 @@
         </div>
 
         <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" type="button" data-filter="all" id="tab-all">
+        <div class="tabs pw-tabs" role="tablist" aria-label="Mission filters">
+            <button class="tab pw-tab active" type="button" data-filter="all" id="tab-all" role="tab" aria-selected="true">
                 <span data-i18n="missions.filter_all"></span>
             </button>
-            <button class="tab" type="button" data-filter="manual" id="tab-manual">
+            <button class="tab pw-tab" type="button" data-filter="manual" id="tab-manual" role="tab" aria-selected="false">
                 <span data-i18n="missions.filter_manual"></span>
             </button>
-            <button class="tab" type="button" data-filter="scheduled" id="tab-scheduled">
+            <button class="tab pw-tab" type="button" data-filter="scheduled" id="tab-scheduled" role="tab" aria-selected="false">
                 <span data-i18n="missions.filter_scheduled"></span>
             </button>
-            <button class="tab" type="button" data-filter="triggered" id="tab-triggered">
+            <button class="tab pw-tab" type="button" data-filter="triggered" id="tab-triggered" role="tab" aria-selected="false">
                 <span data-i18n="missions.filter_triggered"></span>
             </button>
         </div>
@@ -128,7 +130,7 @@
             <div class="mission-card skeleton mission-card-skeleton"></div>
             <div class="mission-card skeleton mission-card-skeleton"></div>
         </div>
-    </div>
+    </main>
 
     <!-- Modal -->
     <div class="modal-overlay" id="modal">

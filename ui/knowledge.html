@@ -51,34 +51,34 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="kc-container" id="main-content">
+    <main class="kc-container pw-page-frame" id="main-content">
         <!-- Tab bar -->
         <div class="kc-tabs-wrap">
-            <div class="kc-tabs" role="tablist" aria-label="Knowledge categories">
-                <button class="kc-tab active" id="tab-contacts" role="tab" aria-selected="true"
+            <div class="kc-tabs pw-tabs" role="tablist" aria-label="Knowledge categories">
+                <button class="kc-tab pw-tab active" id="tab-contacts" role="tab" aria-selected="true"
                     aria-controls="panel-contacts" tabindex="0"
                     onclick="switchKCTab('contacts')" data-i18n="knowledge.tab_contacts">📇 Address Book
                     <span class="kc-tab-count" id="count-contacts">0</span></button>
-                <button class="kc-tab" id="tab-files" role="tab" aria-selected="false"
+                <button class="kc-tab pw-tab" id="tab-files" role="tab" aria-selected="false"
                     aria-controls="panel-files" tabindex="-1"
                     onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files
                     <span class="kc-tab-count" id="count-files">0</span></button>
-                <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
+                <button class="kc-tab pw-tab" id="tab-devices" role="tab" aria-selected="false"
                     aria-controls="panel-devices" tabindex="-1"
                     onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices
                     <span class="kc-tab-count" id="count-devices">0</span></button>
-                <button class="kc-tab" id="tab-credentials" role="tab" aria-selected="false"
+                <button class="kc-tab pw-tab" id="tab-credentials" role="tab" aria-selected="false"
                     aria-controls="panel-credentials" tabindex="-1"
                     onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials
                     <span class="kc-tab-count" id="count-credentials">0</span></button>
-                <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
+                <button class="kc-tab pw-tab" id="tab-secrets" role="tab" aria-selected="false"
                     aria-controls="panel-secrets" tabindex="-1"
                     onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
-                <button class="kc-tab" id="tab-appointments" role="tab" aria-selected="false"
+                <button class="kc-tab pw-tab" id="tab-appointments" role="tab" aria-selected="false"
                     aria-controls="panel-appointments" tabindex="-1"
                     onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments
                     <span class="kc-tab-count" id="count-appointments">0</span></button>
-                <button class="kc-tab" id="tab-todos" role="tab" aria-selected="false"
+                <button class="kc-tab pw-tab" id="tab-todos" role="tab" aria-selected="false"
                     aria-controls="panel-todos" tabindex="-1"
                     onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos
                     <span class="kc-tab-count" id="count-todos">0</span></button>
@@ -308,7 +308,7 @@
                 <button class="btn btn-primary kc-empty-cta" onclick="openTodoModal()" data-i18n="knowledge.todos_add"></button>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- ═══════ DEVICE MODAL ═══════ -->
     <div class="modal-overlay" id="device-modal" role="dialog" aria-modal="true" aria-labelledby="device-modal-title">

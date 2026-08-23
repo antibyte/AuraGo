@@ -114,7 +114,11 @@ async function loadProviders() {
 // ── Tabs ─────────────────────────────────────────────────
 function switchTab(tab) {
     currentTab = tab;
-    document.querySelectorAll('.invasion-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.invasion-tab, .pw-tab').forEach(t => {
+        const active = t.dataset.tab === tab;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
     document.getElementById('content-nests').classList.toggle('is-hidden', tab !== 'nests');
     document.getElementById('content-eggs').classList.toggle('is-hidden', tab !== 'eggs');
 }
