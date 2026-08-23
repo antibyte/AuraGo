@@ -136,6 +136,7 @@ openspec/
 .openspec/
 .planning/
 .claude/
+.zcode/
 .serena/
 CLAUDE.md
 .github/
