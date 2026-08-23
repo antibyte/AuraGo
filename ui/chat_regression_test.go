@@ -543,12 +543,9 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 
 	knowledgeCSS := normalizeAssetText(knowledgeContent)
 	for _, marker := range []string{
-		"width: calc(100% + 24px);",
-		"overflow-y: hidden;",
+		"overflow-x: auto;",
 		"overscroll-behavior-x: contain;",
 		"touch-action: pan-x;",
-		"flex: 0 0 auto;",
-		"min-width: max-content;",
 		"white-space: nowrap;",
 	} {
 		if !strings.Contains(knowledgeCSS, marker) {
@@ -559,10 +556,6 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 	for _, marker := range []string{
 		`.pw-page[data-workspace-page="knowledge"][data-density="compact"] .kc-container {`,
 		"padding: var(--pw-space-3);",
-		"gap: var(--pw-space-2);",
-		"font-size: clamp(var(--text-sm), 1.1vw, var(--text-base));",
-		"min-height: 42px;",
-		"font-size: max(0.78rem, var(--text-sm));",
 	} {
 		if !strings.Contains(knowledgeCSS, marker) {
 			t.Fatalf("css/knowledge.css missing compact knowledge header marker %q", marker)

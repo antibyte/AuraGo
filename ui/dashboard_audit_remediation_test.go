@@ -108,7 +108,6 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
 	for _, marker := range []string{
 		"dash-card-shimmer",
-		".dash-page-heading",
 		".dash-tab-group-sep",
 		"max-height: 148px",
 		"width: var(--bar-width, 4%)",

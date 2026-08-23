@@ -10,16 +10,12 @@
     padding: clamp(1rem, 3vw, 2.5rem);
 }
 
-.pw-page[data-workspace-page="invasion"] .page-header {
-    margin-top: var(--space-2);
-}
-
 /* ── Cards Grid ── */
 
 .pw-page[data-workspace-page="invasion"] .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-    gap: 1rem;
+    gap: var(--pw-space-4);
 }
 
 /* Card content specific to invasion */
@@ -57,7 +53,7 @@
     padding: 0.75rem;
 }
 
-.pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .card, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .invasion-tabs, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .config-history-item, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .modal {
+.pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .card, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .config-history-item, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .modal {
     background: var(--pw-surface);
 }
 
@@ -173,28 +169,6 @@
 
 /* ── Invasion Tabs ── */
 
-.pw-page[data-workspace-page="invasion"] .invasion-tabs {
-    display: flex;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    margin-bottom: var(--pw-space-6);
-    border-bottom: 1px solid var(--pw-line);
-    position: relative;
-    gap: 0.25rem;
-    overflow-x: auto;
-    padding: 0.25rem;
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="invasion"] .invasion-tabs::-webkit-scrollbar {
-    display: none;
-}
-
 .pw-page[data-workspace-page="invasion"][data-density="compact"] .invasion-tab, .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn, .pw-page[data-workspace-page="invasion"][data-density="compact"] input, .pw-page[data-workspace-page="invasion"][data-density="compact"] select {
     min-height: 34px;
 }
@@ -206,37 +180,11 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .invasion-tab {
-    flex: 0 0 auto;
-    padding: var(--space-3) var(--space-5);
-    margin-bottom: -1px;
-    border-bottom: 2px solid transparent;
-    color: var(--pw-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    text-align: center;
     white-space: nowrap;
-    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
-    font-family: inherit;
-    position: relative;
-    min-height: 40px;
-    border: 1px solid transparent;
-    border-radius: var(--pw-radius-sm);
-    background: transparent;
-    background-image: none;
-    box-shadow: none;
 }
 
-.pw-page[data-workspace-page="invasion"] .invasion-tab:hover:not(.active) {
-    color: var(--pw-text);
-}
-
-.pw-page[data-workspace-page="invasion"] .invasion-tab.active {
-    border-bottom-color: var(--pw-accent);
-    font-weight: 600;
-    border-color: var(--pw-line-strong);
-    background: var(--pw-surface-elevated);
-    color: var(--pw-accent-strong);
+.pw-page[data-workspace-page="invasion"][data-density="compact"] .invasion-tabs {
+    margin-bottom: var(--pw-space-4);
 }
 
 /* ── Modal Overrides ── */
@@ -262,8 +210,8 @@
 }
 
 .pw-page[data-workspace-page="invasion"] .modal-lg {
-    max-width: 640px;
-    width: min(100%, 920px);
+    width: min(100%, 760px);
+    max-width: 100%;
 }
 
 /* ── Reconfigure ── */
@@ -531,10 +479,6 @@
 
 /* ── Light Theme Overrides ── */
 
-.pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .invasion-tabs {
-    border-bottom-color: color-mix(in srgb, var(--pw-line) 70%, transparent);
-}
-
 @media (max-width: 768px) {
     .pw-page[data-workspace-page="invasion"] .cards-grid {
         grid-template-columns: 1fr;
@@ -553,11 +497,6 @@
 
     .pw-page[data-workspace-page="invasion"] .container {
         padding: var(--space-5) var(--space-4) 48px;
-    }
-
-    .pw-page[data-workspace-page="invasion"] .invasion-tab {
-        padding: var(--space-2) var(--space-4);
-        font-size: var(--text-sm);
     }
 
     .pw-page[data-workspace-page="invasion"] .reconfigure-toggles {

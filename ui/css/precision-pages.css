@@ -97,6 +97,7 @@
     max-width: 100%;
     gap: var(--pw-space-1);
     overflow-x: auto;
+    margin-bottom: var(--pw-space-5);
     padding: var(--pw-space-1);
     border: 1px solid var(--pw-line);
     border-radius: var(--pw-radius-md);
@@ -119,6 +120,7 @@
     font: inherit;
     font-size: var(--pw-meta-size);
     font-weight: 650;
+    white-space: nowrap;
     cursor: pointer;
     transition:
         border-color var(--pw-duration-fast) var(--pw-ease),
@@ -159,7 +161,7 @@
 .pw-page .pw-status-label,
 .pw-page .pw-stat-label {
     display: block;
-    margin-bottom: var(--pw-space-1);
+    margin-top: var(--pw-space-1);
     color: var(--pw-muted);
     font-size: var(--pw-meta-size);
     font-weight: 600;

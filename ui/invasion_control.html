@@ -42,6 +42,14 @@
             </a>
         </div>
         <div class="header-actions">
+            <button id="invasion-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
+                data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
+                data-i18n-aria-label="common.workspace_density_toggle">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 7h14M5 12h14M5 17h14" />
+                </svg>
+                <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
+            </button>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
@@ -50,7 +58,9 @@
 
     <main class="container pw-page-frame" id="main-content">
         <header class="page-header pw-page-heading">
-            <h1 class="pw-page-title" data-i18n="invasion.title"></h1>
+            <div class="pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="invasion.title"></h1>
+            </div>
             <div class="header-actions pw-page-heading-actions">
                 <button class="btn btn-primary" id="btn-create" type="button">
                     <span>+</span> <span data-i18n="invasion.create_new"></span>
@@ -58,16 +68,16 @@
             </div>
         </header>
 
-        <div class="media-tabs invasion-tabs pw-tabs" role="tablist" aria-label="Invasion categories">
-            <button class="media-tab invasion-tab pw-tab active" type="button" data-tab="nests" role="tab" aria-selected="true">
+        <div class="invasion-tabs pw-tabs" role="tablist" aria-label="Invasion categories">
+            <button class="invasion-tab pw-tab active" type="button" id="tab-nests" data-tab="nests" role="tab" aria-selected="true" aria-controls="panel-nests" tabindex="0">
                 🪺 <span data-i18n="invasion.nests"></span>
             </button>
-            <button class="media-tab invasion-tab pw-tab" type="button" data-tab="eggs" role="tab" aria-selected="false">
+            <button class="invasion-tab pw-tab" type="button" id="tab-eggs" data-tab="eggs" role="tab" aria-selected="false" aria-controls="panel-eggs" tabindex="-1">
                 🥚 <span data-i18n="invasion.eggs"></span>
             </button>
         </div>
 
-        <div id="content-nests" class="tab-content">
+        <div id="panel-nests" class="tab-content invasion-panel" role="tabpanel" aria-labelledby="tab-nests" tabindex="0">
             <div class="cards-grid" id="nests-grid"></div>
             <div class="empty-state is-hidden" id="nests-empty">
                 <div class="icon">🪺</div>
@@ -78,7 +88,7 @@
             </div>
         </div>
 
-        <div id="content-eggs" class="tab-content is-hidden">
+        <div id="panel-eggs" class="tab-content invasion-panel is-hidden" role="tabpanel" aria-labelledby="tab-eggs" tabindex="0">
             <div class="cards-grid" id="eggs-grid"></div>
             <div class="empty-state is-hidden" id="eggs-empty">
                 <div class="icon">🥚</div>

@@ -119,8 +119,8 @@ function switchTab(tab) {
         t.classList.toggle('active', active);
         t.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    document.getElementById('content-nests').classList.toggle('is-hidden', tab !== 'nests');
-    document.getElementById('content-eggs').classList.toggle('is-hidden', tab !== 'eggs');
+    document.getElementById('panel-nests').classList.toggle('is-hidden', tab !== 'nests');
+    document.getElementById('panel-eggs').classList.toggle('is-hidden', tab !== 'eggs');
 }
 
 // ── API ──────────────────────────────────────────────────

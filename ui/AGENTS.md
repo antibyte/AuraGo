@@ -20,6 +20,21 @@ images, and browser-oriented regression tests.
 
 ## Local Contracts
 
+- Operational pages share one canonical skeleton inside `main.pw-page-frame`:
+  a page heading (`pw-page-heading` with `pw-page-heading-copy` and
+  `h1.pw-page-title`), then an optional status strip (`pw-status-strip` with
+  value before label), then the primary tab strip (`pw-tabs`/`pw-tab` with
+  tablist semantics), then an optional `pw-toolbar`, then content. Page
+  titles live in the content area, never in the app header.
+- Every operational app header contains a density toggle
+  (`[data-pw-density-toggle]`, styled `pw-density-toggle`) next to the theme
+  toggle; `js/precision/workspace.js` discovers it automatically.
+- Tab strips use the boxed Precision style only. Page tab classes
+  (`.kc-tab`, `.sk-tab`, `.media-tab`, `.dash-tab`, `.invasion-tab`,
+  `.cheatsheet-tab`, `.tab` with `.ct-filter-btn`) must not re-skin tabs with
+  underline indicators, pill shapes, or per-page tab backgrounds; shared tab
+  visuals belong to `precision-pages.css`. Knowledge has no tab indicator
+  element or indicator JS.
 - Never load Precision Workspace assets from `index.html`, `desktop.html`, or
   `gallery.html`.
 - Do not change Chat, Virtual Desktop, or an asset they share as a side effect

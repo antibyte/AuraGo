@@ -45,6 +45,14 @@
             </a>
         </div>
         <div class="header-actions">
+            <button id="containers-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
+                data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
+                data-i18n-aria-label="common.workspace_density_toggle">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 7h14M5 12h14M5 17h14" />
+                </svg>
+                <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
+            </button>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
@@ -52,6 +60,13 @@
     <div id="radialMenuAnchor"></div>
 
     <main class="ct-container pw-page-frame" id="main-content">
+        <!-- Page Header -->
+        <header class="page-header pw-page-heading">
+            <div class="pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="containers.page_title"></h1>
+            </div>
+        </header>
+
         <!-- Status bar -->
         <div class="ct-status-bar pw-status-strip" id="ct-status-bar">
             <div class="ct-stat pw-status-item">
@@ -68,16 +83,18 @@
             </div>
         </div>
 
-        <!-- Search + filter bar -->
-        <div class="ct-toolbar">
+        <!-- Filter tabs -->
+        <div class="tabs pw-tabs ct-tabs" role="tablist" aria-label="Container filters">
+            <button class="tab pw-tab ct-filter-btn active" type="button" data-filter="all" role="tab" aria-selected="true" onclick="setFilter('all')" data-i18n="containers.filter_all"></button>
+            <button class="tab pw-tab ct-filter-btn" type="button" data-filter="running" role="tab" aria-selected="false" onclick="setFilter('running')" data-i18n="containers.filter_running"></button>
+            <button class="tab pw-tab ct-filter-btn" type="button" data-filter="stopped" role="tab" aria-selected="false" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped"></button>
+        </div>
+
+        <!-- Search toolbar -->
+        <div class="ct-toolbar pw-toolbar">
             <input type="text" id="ct-search" class="ct-search"
                 placeholder="" data-i18n-placeholder="containers.search_placeholder"
                 oninput="filterContainers()">
-            <div class="ct-filter-group">
-                <button class="ct-filter-btn active" data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all"></button>
-                <button class="ct-filter-btn" data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running"></button>
-                <button class="ct-filter-btn" data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped"></button>
-            </div>
         </div>
 
         <!-- Container cards -->

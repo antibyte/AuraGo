@@ -43,6 +43,14 @@
             </a>
         </div>
         <div class="header-actions">
+            <button id="media-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
+                data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
+                data-i18n-aria-label="common.workspace_density_toggle">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 7h14M5 12h14M5 17h14" />
+                </svg>
+                <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
+            </button>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
@@ -55,11 +63,7 @@
                 <h1 class="pw-page-title" data-i18n="media.title">📁 Media View</h1>
                 <p class="media-header-subtitle" data-i18n="media.subtitle_description"></p>
             </div>
-            <div class="media-controls pw-page-heading-actions">
-                <input type="text" id="media-search" class="gallery-search"
-                    placeholder="" data-i18n-placeholder="media.search_placeholder">
-            </div>
-        </div>
+        </header>
 
         <!-- Tab bar -->
         <div class="media-tabs pw-tabs" role="tablist" aria-label="Media categories">
@@ -89,7 +93,10 @@
             </button>
         </div>
 
-        <div id="media-bulk-toolbar" class="media-bulk-toolbar" aria-live="polite">
+        <div id="media-bulk-toolbar" class="pw-toolbar media-bulk-toolbar" aria-live="polite">
+            <input type="text" id="media-search" class="gallery-search"
+                placeholder="" data-i18n-placeholder="media.search_placeholder">
+            <div class="pw-toolbar-spacer"></div>
             <button id="media-select-mode-btn" type="button" class="btn-gallery-nav" onclick="toggleMediaSelectionMode()" data-i18n="media.bulk_select"></button>
             <button id="media-select-visible-btn" type="button" class="btn-gallery-nav" onclick="selectVisibleMediaItems()" data-i18n="media.bulk_select_visible"></button>
             <button id="media-clear-selection-btn" type="button" class="btn-gallery-nav" onclick="clearCurrentMediaSelection()" data-i18n="media.bulk_clear_selection"></button>

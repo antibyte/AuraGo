@@ -1005,8 +1005,6 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersSuppressLegacyDecoration(t *te
 			page:       "knowledge",
 			selectors: []string{
 				`.kc-skeleton-cell::after`,
-				`.kc-tabs-wrap::before`,
-				`.kc-tabs-wrap::after`,
 				`.kc-preview-pdf-wrap canvas`,
 				`.kc-preview-fallback`,
 				`.kc-sync-card`,

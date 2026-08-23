@@ -16,10 +16,6 @@
     padding: clamp(1rem, 2.5vw, 2rem);
 }
 
-.pw-page[data-workspace-page="cheatsheets"] .page-header {
-    margin-top: var(--space-2);
-}
-
 .pw-page[data-workspace-page="cheatsheets"] .page-title-row h1 {
     min-width: 0;
     margin: 0;
@@ -53,72 +49,12 @@
 
 /* ── Tab Bar ── */
 
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tabs, .pw-page[data-workspace-page="cheatsheets"] .editor-tabs {
-    max-width: 100%;
-    gap: var(--pw-space-1);
-    overflow-x: auto;
-    padding: var(--pw-space-1);
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tabs {
-    display: flex;
-    margin-bottom: var(--space-5);
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    border-bottom: 2px solid var(--pw-line);
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tabs::-webkit-scrollbar {
-    display: none;
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .cheatsheet-tabs {
+    margin-bottom: var(--pw-space-4);
 }
 
 .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .cheatsheet-tab, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .editor-tab, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] button, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] input, .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] select {
     min-height: 36px;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab.active, .pw-page[data-workspace-page="cheatsheets"] .editor-tab.active {
-    border-color: var(--pw-line-strong);
-    background: var(--pw-surface);
-    color: var(--pw-text);
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab:hover, .pw-page[data-workspace-page="cheatsheets"] .editor-tab:hover {
-    background: color-mix(in srgb, var(--pw-text) 4%, transparent);
-    color: var(--pw-text);
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab, .pw-page[data-workspace-page="cheatsheets"] .editor-tab {
-    min-height: 40px;
-    flex: 0 0 auto;
-    padding: var(--pw-space-2) var(--pw-space-3);
-    border: 1px solid transparent;
-    border-radius: var(--pw-radius-sm);
-    background: transparent;
-    background-image: none;
-    color: var(--pw-muted);
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab {
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: color var(--transition-base), background var(--transition-base);
-    white-space: nowrap;
-    position: relative;
-    font-family: inherit;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab.active {
-    font-weight: 600;
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab-count {
@@ -186,7 +122,7 @@
 
 .pw-page[data-workspace-page="cheatsheets"] .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: var(--pw-space-4);
 }
 
@@ -194,8 +130,11 @@
     margin-bottom: 0;
     width: 100%;
     border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-lg);
     overflow: hidden;
-    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+        border-color var(--pw-duration-fast) var(--pw-ease),
+        box-shadow var(--pw-duration-fast) var(--pw-ease);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .cards-grid.list-view {
@@ -356,8 +295,8 @@
 /* Modal wide variant */
 
 .pw-page[data-workspace-page="cheatsheets"] .modal-wide {
-    max-width: 700px;
-    width: min(100%, 820px);
+    width: min(100%, 980px);
+    max-width: 100%;
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .metadata-panel {
@@ -405,16 +344,43 @@
 
 .pw-page[data-workspace-page="cheatsheets"] .editor-tabs {
     display: flex;
-    margin-bottom: -1px;
-    position: relative;
-    z-index: 1;
+    max-width: 100%;
+    gap: var(--pw-space-1);
+    overflow-x: auto;
+    margin-bottom: var(--pw-space-2);
+    padding: var(--pw-space-1);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .editor-tab {
-    border-bottom: none;
+    display: inline-flex;
+    min-height: 36px;
+    flex: 0 0 auto;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    background: transparent;
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    font-weight: 650;
+    white-space: nowrap;
     cursor: pointer;
-    font-size: var(--text-sm);
-    transition: all var(--transition-base);
+    transition:
+        border-color var(--pw-duration-fast) var(--pw-ease),
+        background var(--pw-duration-fast) var(--pw-ease),
+        color var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .editor-tab.active {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface);
+    color: var(--pw-text);
+    box-shadow: none;
 }
 
 /* Textarea */
@@ -779,10 +745,6 @@
 @media (max-width: 1024px) {
     .pw-page[data-workspace-page="cheatsheets"] .cards-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .pw-page[data-workspace-page="cheatsheets"] .modal-wide {
-        width: min(100%, 760px);
     }
 }
 

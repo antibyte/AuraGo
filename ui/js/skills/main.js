@@ -661,7 +661,9 @@ function showDisabledState() {
     function setSkillFilter(filter) {
         currentTypeFilter = filter;
         document.querySelectorAll('.sk-filter-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.filter === filter);
+            const active = btn.dataset.filter === filter;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
         if (currentSkillMode === 'agent') renderAgentSkills(); else renderSkills();
     }

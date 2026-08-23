@@ -21,24 +21,8 @@
 
 /* Status Bar */
 
-.pw-page[data-workspace-page="missions"][data-density="compact"] .missions-grid, .pw-page[data-workspace-page="missions"][data-density="compact"] .status-bar {
+.pw-page[data-workspace-page="missions"][data-density="compact"] .missions-grid {
     gap: var(--pw-space-2);
-}
-
-.pw-page[data-workspace-page="missions"] .status-bar {
-    display: flex;
-    flex-wrap: wrap;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1px;
-    overflow: hidden;
-    margin-bottom: var(--pw-space-5);
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
-    background: var(--pw-line);
-}
-
-.pw-page[data-workspace-page="missions"][data-density="compact"] .status-card {
-    min-height: 92px;
 }
 
 .pw-page[data-workspace-page="missions"] .status-card::before, .pw-page[data-workspace-page="missions"] .status-card::after, .pw-page[data-workspace-page="missions"] .queue-section::before, .pw-page[data-workspace-page="missions"] .queue-section::after {
@@ -50,10 +34,10 @@
 
 .pw-page[data-workspace-page="missions"] .mission-card, .pw-page[data-workspace-page="missions"] .mc-card {
     border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
+    border-radius: var(--pw-radius-lg);
 }
 
-.pw-page[data-workspace-page="missions"] .status-card.running, .pw-page[data-workspace-page="missions"] .mission-card.running, .pw-page[data-workspace-page="missions"] .mc-card.running {
+.pw-page[data-workspace-page="missions"] .mission-card.running, .pw-page[data-workspace-page="missions"] .mc-card.running {
     border-color: color-mix(in srgb, var(--pw-accent) 48%, var(--pw-line));
     background: color-mix(in srgb, var(--pw-accent) 7%, var(--pw-surface));
     box-shadow: none;
@@ -65,7 +49,7 @@
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="missions"] .status-card:hover, .pw-page[data-workspace-page="missions"] .queue-section:hover, .pw-page[data-workspace-page="missions"] .mission-card:hover, .pw-page[data-workspace-page="missions"] .mc-card:hover {
+.pw-page[data-workspace-page="missions"] .queue-section:hover, .pw-page[data-workspace-page="missions"] .mission-card:hover, .pw-page[data-workspace-page="missions"] .mc-card:hover {
     border-color: var(--pw-line-strong);
     background: var(--pw-surface-elevated);
     box-shadow: none;
@@ -81,25 +65,19 @@
 }
 
 .pw-page[data-workspace-page="missions"] .status-card {
-    position: relative;
-    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
-    max-width: 140px;
-    flex: 0 1 auto;
     min-height: 116px;
-    padding: var(--pw-space-4);
-    border: 0;
-    border-radius: 0;
-    transform: none;
 }
 
 .pw-page[data-workspace-page="missions"] .status-card.running {
-    border-left: 4px solid var(--pw-accent);
     animation: none;
     box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] .status-card {
+    min-height: 92px;
 }
 
 /* Status icon */
@@ -112,23 +90,9 @@
     display: block;
 }
 
-.pw-page[data-workspace-page="missions"] .status-value {
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: var(--space-1);
-    color: var(--pw-text);
-    font-size: clamp(1.25rem, 2.4vw, 1.8rem);
-}
-
 .pw-page[data-workspace-page="missions"] .status-label, .pw-page[data-workspace-page="missions"] .queue-meta, .pw-page[data-workspace-page="missions"] .mission-meta, .pw-page[data-workspace-page="missions"] .mc-meta {
     color: var(--pw-muted);
     font-size: var(--pw-meta-size);
-}
-
-.pw-page[data-workspace-page="missions"] .status-label {
-    font-variant: small-caps;
-    letter-spacing: 0.06em;
-    opacity: 0.85;
 }
 
 /* Queue Section */

@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initKeyboardNav();
     initSortableHeaders();
     initDropZone();
-    updateTabIndicator();
     window.addEventListener('hashchange', onHashChange);
 });
 
@@ -75,9 +74,6 @@ function switchKCTab(tab) {
     } catch (error) {
         console.debug('Failed to set hash:', error);
     }
-
-    updateTabIndicator();
-    updateTabFade();
 
     if (tab === 'appointments' && typeof loadAppointments === 'function') {
         loadAppointments();
@@ -129,28 +125,6 @@ function onHashChange() {
     if (hash && validTabs.includes(hash)) {
         switchKCTab(hash);
     }
-}
-
-function updateTabIndicator() {
-    const activeTab = document.querySelector('.kc-tab.active');
-    const indicator = document.getElementById('kc-tab-indicator');
-    if (!activeTab || !indicator) return;
-    const tabsContainer = activeTab.closest('.kc-tabs');
-    if (!tabsContainer) return;
-    const containerRect = tabsContainer.getBoundingClientRect();
-    const tabRect = activeTab.getBoundingClientRect();
-    indicator.style.left = (tabRect.left - containerRect.left + tabsContainer.scrollLeft) + 'px';
-    indicator.style.width = tabRect.width + 'px';
-}
-
-function updateTabFade() {
-    const wrap = document.querySelector('.kc-tabs-wrap');
-    const tabs = document.querySelector('.kc-tabs');
-    if (!wrap || !tabs) return;
-    const showStart = tabs.scrollLeft > 4;
-    const showEnd = tabs.scrollLeft < tabs.scrollWidth - tabs.clientWidth - 4;
-    wrap.classList.toggle('show-fade-start', showStart);
-    wrap.classList.toggle('show-fade-end', showEnd);
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -42,6 +42,14 @@
             </a>
         </div>
         <div class="header-actions">
+            <button id="skills-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
+                data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
+                data-i18n-aria-label="common.workspace_density_toggle">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 7h14M5 12h14M5 17h14" />
+                </svg>
+                <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
+            </button>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
@@ -49,10 +57,12 @@
     <div id="radialMenuAnchor"></div>
 
     <main class="sk-container pw-page-frame" id="main-content">
-        <div class="sk-tabs pw-tabs" role="tablist" aria-label="Skill systems">
-            <button id="sk-tab-python" type="button" class="sk-tab pw-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python"></button>
-            <button id="sk-tab-agent" type="button" class="sk-tab pw-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent"></button>
-        </div>
+        <!-- Page Header -->
+        <header class="page-header pw-page-heading">
+            <div class="pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="skills.page_title"></h1>
+            </div>
+        </header>
 
         <!-- Status bar -->
         <div class="sk-status-bar pw-status-strip" id="sk-status-bar">
@@ -74,16 +84,21 @@
             </div>
         </div>
 
+        <div class="sk-tabs pw-tabs" role="tablist" aria-label="Skill systems">
+            <button id="sk-tab-python" type="button" class="sk-tab pw-tab active" role="tab" aria-selected="true" onclick="switchSkillMode('python')" data-i18n="skills.tab_python"></button>
+            <button id="sk-tab-agent" type="button" class="sk-tab pw-tab" role="tab" aria-selected="false" onclick="switchSkillMode('agent')" data-i18n="skills.tab_agent"></button>
+        </div>
+
         <!-- Toolbar -->
-        <div class="sk-toolbar">
+        <div class="sk-toolbar pw-toolbar">
             <input type="text" id="sk-search" class="sk-search"
                 placeholder="" data-i18n-placeholder="skills.search_placeholder"
                 oninput="filterSkills()">
             <div class="sk-filter-group">
-                <button class="sk-filter-btn active" data-filter="all" onclick="setSkillFilter('all')" data-i18n="skills.filter_all"></button>
-                <button class="sk-filter-btn" data-filter="agent" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent"></button>
-                <button class="sk-filter-btn" data-filter="user" onclick="setSkillFilter('user')" data-i18n="skills.filter_user"></button>
-                <button class="sk-filter-btn" data-filter="daemon" onclick="setSkillFilter('daemon')" data-i18n="skills.filter_daemon"></button>
+                <button class="sk-filter-btn active" data-filter="all" aria-pressed="true" onclick="setSkillFilter('all')" data-i18n="skills.filter_all"></button>
+                <button class="sk-filter-btn" data-filter="agent" aria-pressed="false" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent"></button>
+                <button class="sk-filter-btn" data-filter="user" aria-pressed="false" onclick="setSkillFilter('user')" data-i18n="skills.filter_user"></button>
+                <button class="sk-filter-btn" data-filter="daemon" aria-pressed="false" onclick="setSkillFilter('daemon')" data-i18n="skills.filter_daemon"></button>
             </div>
             <div class="sk-toolbar-actions" id="sk-toolbar-actions">
                 <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload"></button>

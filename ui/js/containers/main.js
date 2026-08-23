@@ -257,7 +257,9 @@ function filterContainers() {
 function setFilter(filter) {
     currentFilter = filter;
     document.querySelectorAll('.ct-filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === filter);
+        const active = btn.dataset.filter === filter;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     renderContainers();
 }
