@@ -7,6 +7,7 @@ let eggsData = [];
 let providersData = [];
 let deleteTarget = null; // { type: 'nest'|'egg', id, name }
 let configHistoryData = [];
+let invasionSearchQuery = '';
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -153,16 +154,30 @@ async function loadEggs() {
 }
 
 // ── Render ───────────────────────────────────────────────
+function matchesInvasionQuery(item) {
+    const query = invasionSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const haystack = `${item.name || ''} ${item.notes || ''} ${item.host || ''} ${item.route || ''}`.toLowerCase();
+    return haystack.includes(query);
+}
+
+function filterInvasionItems() {
+    const input = document.getElementById('invasion-search');
+    invasionSearchQuery = input ? input.value : '';
+    if (currentTab === 'eggs') renderEggs(); else renderNests();
+}
+
 function renderNests() {
     const grid = document.getElementById('nests-grid');
     const empty = document.getElementById('nests-empty');
-    if (!nestsData || nestsData.length === 0) {
+    const visibleNests = (nestsData || []).filter(matchesInvasionQuery);
+    if (!visibleNests.length) {
         grid.innerHTML = '';
         empty.classList.remove('is-hidden');
         return;
     }
     empty.classList.add('is-hidden');
-    grid.innerHTML = nestsData.map(n => {
+    grid.innerHTML = visibleNests.map(n => {
         const eggName = n.egg_id ? (n.egg_name || eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
         const hs = n.hatch_status || 'idle';
         const showHatchBadge = !(hs === 'running' && !n.ws_connected);
@@ -231,13 +246,14 @@ function renderNests() {
 function renderEggs() {
     const grid = document.getElementById('eggs-grid');
     const empty = document.getElementById('eggs-empty');
-    if (!eggsData || eggsData.length === 0) {
+    const visibleEggs = (eggsData || []).filter(matchesInvasionQuery);
+    if (!visibleEggs.length) {
         grid.innerHTML = '';
         empty.classList.remove('is-hidden');
         return;
     }
     empty.classList.add('is-hidden');
-    grid.innerHTML = eggsData.map(e => `
+    grid.innerHTML = visibleEggs.map(e => `
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">${esc(e.name)}</div>

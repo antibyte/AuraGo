@@ -11,10 +11,6 @@
     filter: none;
 }
 
-.pw-page[data-workspace-page="knowledge"][data-density="compact"] .kc-container {
-    padding: var(--pw-space-3);
-}
-
 .pw-page[data-workspace-page="knowledge"][data-density="compact"] .kc-tab,
 .pw-page[data-workspace-page="knowledge"][data-density="compact"] .kc-search,
 .pw-page[data-workspace-page="knowledge"][data-density="compact"] .kc-filter-select,
@@ -42,8 +38,6 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-container {
-    width: min(100%, var(--pw-content-max));
-    margin-inline: auto;
     min-width: 0;
 }
 
@@ -157,7 +151,8 @@
 
 /* === Tables === */
 
-.pw-page[data-workspace-page="knowledge"] .kc-table-wrap {
+.pw-page[data-workspace-page="knowledge"] .kc-table-wrap,
+.pw-page[data-workspace-page="knowledge"] .pw-table-wrap {
     max-width: 100%;
     overflow-x: auto;
     border: 1px solid var(--pw-line);

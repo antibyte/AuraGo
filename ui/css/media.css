@@ -5,14 +5,8 @@
    loaded for legacy gallery primitives and is neutralized where needed.
 */
 
-.pw-page[data-workspace-page="media"][data-density="compact"] .media-container {
-    padding-block: 1.25rem;
-}
-
 .pw-page[data-workspace-page="media"] .media-container {
-    width: min(100%, var(--pw-content-max));
-    margin-inline: auto;
-    padding: clamp(1rem, 3vw, 2.5rem);
+    min-width: 0;
 }
 
 .pw-page[data-workspace-page="media"] .media-bulk-toolbar, .pw-page[data-workspace-page="media"] .media-extra-controls {
@@ -20,14 +14,6 @@
     background: var(--pw-surface);
     background-image: none;
     box-shadow: none;
-}
-
-.pw-page[data-workspace-page="media"] .media-header-subtitle {
-    margin: var(--space-1) 0 0;
-    color: var(--pw-muted);
-    font-size: 0.875rem;
-    max-width: 60ch;
-    line-height: 1.5;
 }
 
 /* ── Tab Bar ── */
@@ -51,6 +37,8 @@
     background: var(--pw-surface-elevated);
     background-image: none;
     box-shadow: none;
+    font: inherit;
+    font-weight: 650;
 }
 
 .pw-page[data-workspace-page="media"] .media-tab .media-tab-icon {
@@ -68,25 +56,7 @@
 
 .pw-page[data-workspace-page="media"] .gallery-search {
     flex: 1 1 240px;
-    min-height: 44px;
-    padding: 0.65rem 0.8rem;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    color: var(--pw-text);
-    font: inherit;
-    font-size: var(--pw-control-size);
-    outline: none;
-    box-shadow: none;
-    transition:
-        border-color var(--pw-duration-fast) var(--pw-ease),
-        box-shadow var(--pw-duration-fast) var(--pw-ease);
-}
-
-.pw-page[data-workspace-page="media"] .gallery-search:focus {
-    border-color: var(--pw-accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 20%, transparent);
+    min-width: min(100%, 200px);
 }
 
 .pw-page[data-workspace-page="media"] {

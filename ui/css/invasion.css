@@ -1,13 +1,7 @@
 /* Page-specific overrides only — base components live in shared-components.css */
 
-.pw-page[data-workspace-page="invasion"][data-density="compact"] .container {
-    padding-block: 1.25rem;
-}
-
 .pw-page[data-workspace-page="invasion"] .container {
-    width: min(100%, var(--pw-content-max));
-    margin-inline: auto;
-    padding: clamp(1rem, 3vw, 2.5rem);
+    min-width: 0;
 }
 
 /* ── Cards Grid ── */
@@ -493,10 +487,6 @@
         flex-direction: column;
         gap: var(--space-3);
         align-items: flex-start;
-    }
-
-    .pw-page[data-workspace-page="invasion"] .container {
-        padding: var(--space-5) var(--space-4) 48px;
     }
 
     .pw-page[data-workspace-page="invasion"] .reconfigure-toggles {

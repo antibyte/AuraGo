@@ -238,7 +238,8 @@ async function loadData() {
             console.error('Failed to render missions:', renderErr);
             document.getElementById('missions-grid').innerHTML = `
                 <div class="empty-state">
-                    <div class="icon">⚠️</div>
+                    <div class="empty-icon">⚠️</div>
+                    <h3>${t('missions.empty_title')}</h3>
                     <p>${t('missions.empty_load_error')}</p>
                 </div>`;
         }
@@ -248,7 +249,8 @@ async function loadData() {
             // Show error state on initial load failure
             document.getElementById('missions-grid').innerHTML = `
                         <div class="empty-state">
-                            <div class="icon">⚠️</div>
+                            <div class="empty-icon">⚠️</div>
+                            <h3>${t('missions.empty_title')}</h3>
                             <p>${t('missions.empty_load_error')}</p>
                         </div>
                     `;
@@ -407,8 +409,9 @@ function renderMissions() {
     if (filtered.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <div class="icon">🚀</div>
-                <p>${currentFilter === 'all' ? t('missions.empty_create_first') : t('missions.empty_no_missions_of_type')}</p>
+                <div class="empty-icon">🚀</div>
+                <h3>${currentFilter === 'all' ? t('missions.empty_title') : t('missions.empty_no_missions_of_type')}</h3>
+                <p>${currentFilter === 'all' ? t('missions.empty_desc') : t('missions.empty_no_missions_of_type')}</p>
             </div>
         `;
         return;

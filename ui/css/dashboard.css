@@ -67,7 +67,8 @@
     width: 100%;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-banner-always {
-    padding: var(--pw-space-4) 0 0;
+    padding: 0;
+    margin-bottom: var(--pw-space-5);
 }
 .pw-page[data-workspace-page="dashboard"] .dash-tabs {
     margin: 0 auto;
@@ -161,12 +162,6 @@
     min-width: 0;
     animation: none;
 }
-.pw-page[data-workspace-page="dashboard"] button {
-    border-radius: 10px;
-    background-image: none;
-    box-shadow: none;
-    font-family: inherit;
-}
 .pw-page[data-workspace-page="dashboard"] .audit-danger-btn,
 .pw-page[data-workspace-page="dashboard"] .audit-danger-btn:hover {
     border-color: color-mix(in srgb, var(--pw-danger) 38%, var(--pw-line)) !important;
@@ -214,7 +209,7 @@ to { transform: rotate(360deg); }
     position: relative;
     animation: card-enter 0.3s ease backwards;
     border: 1px solid var(--pw-line);
-    border-radius: 20px;
+    border-radius: var(--pw-radius-lg);
     background: var(--pw-surface);
     background-image: none;
     backdrop-filter: none;

@@ -4,19 +4,8 @@
    (precision-workspace.css + precision-pages.css); only feature-specific
    rules live here. */
 
-.pw-page[data-workspace-page="missions"][data-density="compact"] .container {
-    padding-block: var(--pw-space-4);
-}
-
 .pw-page[data-workspace-page="missions"] .container {
     overflow-x: hidden;
-    width: min(100%, var(--pw-content-max));
-    margin-inline: auto;
-    padding: clamp(1rem, 2.5vw, 2rem);
-}
-
-.pw-page[data-workspace-page="missions"] .page-header {
-    margin-top: var(--space-2);
 }
 
 /* Status Bar */
@@ -67,8 +56,9 @@
 .pw-page[data-workspace-page="missions"] .status-card {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    min-height: 116px;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
 }
 
 .pw-page[data-workspace-page="missions"] .status-card.running {
@@ -76,19 +66,8 @@
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="missions"][data-density="compact"] .status-card {
-    min-height: 92px;
-}
-
 /* Status icon */
 
-.pw-page[data-workspace-page="missions"] .status-icon {
-    font-size: var(--text-xl);
-    line-height: 1;
-    margin-bottom: var(--space-1);
-    opacity: 0.72;
-    display: block;
-}
 
 .pw-page[data-workspace-page="missions"] .status-label, .pw-page[data-workspace-page="missions"] .queue-meta, .pw-page[data-workspace-page="missions"] .mission-meta, .pw-page[data-workspace-page="missions"] .mc-meta {
     color: var(--pw-muted);
@@ -676,20 +655,27 @@
 /* Mission card action buttons */
 
 .pw-page[data-workspace-page="missions"] .mc-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--pw-line);
-    background: var(--pw-surface);
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: var(--pw-radius-sm);
+    border: 1px solid var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
     color: var(--pw-muted);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+        transform var(--pw-duration-fast) var(--pw-ease),
+        border-color var(--pw-duration-fast) var(--pw-ease),
+        background var(--pw-duration-fast) var(--pw-ease),
+        color var(--pw-duration-fast) var(--pw-ease);
     flex-shrink: 0;
     padding: 0;
     font-size: 0;
+    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="missions"] .mc-btn svg {
@@ -704,7 +690,7 @@
 }
 
 .pw-page[data-workspace-page="missions"] .mc-btn:active:not(:disabled) {
-    transform: translateY(0);
+    transform: scale(0.98);
 }
 
 .pw-page[data-workspace-page="missions"] .btn-primary, .pw-page[data-workspace-page="missions"] .mc-btn.mc-btn-run, .pw-page[data-workspace-page="missions"] .mc-cta-run {
@@ -1592,7 +1578,7 @@
     }
 
     .pw-page[data-workspace-page="missions"] .container {
-        padding: 18px 16px 48px;
+        overflow-x: hidden;
     }
 
     .pw-page[data-workspace-page="missions"] .page-header .header-actions {
@@ -1707,36 +1693,6 @@
 }
 
 @media (max-width: 480px) {
-    .pw-page[data-workspace-page="missions"] .status-bar {
-        gap: 8px;
-    }
-
-    .pw-page[data-workspace-page="missions"] .status-card {
-        padding: 10px 12px;
-        border-radius: 12px;
-        min-width: 80px;
-        max-width: none;
-        flex: 1 1 calc(50% - 4px);
-    }
-
-    .pw-page[data-workspace-page="missions"] .status-icon {
-        font-size: 1.2rem;
-        margin-bottom: 2px;
-    }
-
-    .pw-page[data-workspace-page="missions"] .status-value {
-        font-size: 1.6rem;
-    }
-
-    .pw-page[data-workspace-page="missions"] .status-label {
-        font-size: 0.62rem;
-        letter-spacing: 0.04em;
-    }
-
-    .pw-page[data-workspace-page="missions"] .container {
-        padding: 12px;
-        overflow-x: hidden;
-    }
 
     /* Stack headline above action buttons so "Neue Mission" doesn't overflow right */
 

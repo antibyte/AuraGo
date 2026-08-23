@@ -64,6 +64,7 @@
         <header class="page-header pw-page-heading">
             <div class="pw-page-heading-copy">
                 <h1 class="pw-page-title" data-i18n="knowledge.heading"></h1>
+                <p class="pw-page-description" data-i18n="knowledge.page_description"></p>
             </div>
         </header>
 
@@ -72,30 +73,30 @@
             <div class="kc-tabs pw-tabs" role="tablist" aria-label="Knowledge categories">
                 <button class="kc-tab pw-tab active" id="tab-contacts" role="tab" aria-selected="true"
                     aria-controls="panel-contacts" tabindex="0"
-                    onclick="switchKCTab('contacts')" data-i18n="knowledge.tab_contacts">📇 Address Book
+                    onclick="switchKCTab('contacts')"><span data-i18n="knowledge.tab_contacts"></span>
                     <span class="kc-tab-count" id="count-contacts">0</span></button>
                 <button class="kc-tab pw-tab" id="tab-files" role="tab" aria-selected="false"
                     aria-controls="panel-files" tabindex="-1"
-                    onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files
+                    onclick="switchKCTab('files')"><span data-i18n="knowledge.tab_files"></span>
                     <span class="kc-tab-count" id="count-files">0</span></button>
                 <button class="kc-tab pw-tab" id="tab-devices" role="tab" aria-selected="false"
                     aria-controls="panel-devices" tabindex="-1"
-                    onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices
+                    onclick="switchKCTab('devices')"><span data-i18n="knowledge.tab_devices"></span>
                     <span class="kc-tab-count" id="count-devices">0</span></button>
                 <button class="kc-tab pw-tab" id="tab-credentials" role="tab" aria-selected="false"
                     aria-controls="panel-credentials" tabindex="-1"
-                    onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials
+                    onclick="switchKCTab('credentials')"><span data-i18n="knowledge.tab_credentials"></span>
                     <span class="kc-tab-count" id="count-credentials">0</span></button>
                 <button class="kc-tab pw-tab" id="tab-secrets" role="tab" aria-selected="false"
                     aria-controls="panel-secrets" tabindex="-1"
-                    onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
+                    onclick="switchKCTab('secrets')"><span data-i18n="knowledge.tab_secrets"></span></button>
                 <button class="kc-tab pw-tab" id="tab-appointments" role="tab" aria-selected="false"
                     aria-controls="panel-appointments" tabindex="-1"
-                    onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments
+                    onclick="switchKCTab('appointments')"><span data-i18n="knowledge.tab_appointments"></span>
                     <span class="kc-tab-count" id="count-appointments">0</span></button>
                 <button class="kc-tab pw-tab" id="tab-todos" role="tab" aria-selected="false"
                     aria-controls="panel-todos" tabindex="-1"
-                    onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos
+                    onclick="switchKCTab('todos')"><span data-i18n="knowledge.tab_todos"></span>
                     <span class="kc-tab-count" id="count-todos">0</span></button>
             </div>
         </div>
@@ -103,8 +104,8 @@
         <!-- ═══════ CONTACTS PANEL ═══════ -->
         <div id="panel-contacts" class="kc-panel active" role="tabpanel" aria-labelledby="tab-contacts" tabindex="0">
             <div class="kc-panel-header">
-                <div class="kc-search-row">
-                    <input type="text" id="contacts-search" class="kc-search"
+                <div class="kc-search-row pw-toolbar">
+                    <input type="search" id="contacts-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.contacts_search_placeholder"
                         oninput="debounceContactSearch()">
                     <button class="btn btn-primary" onclick="openContactModal()">
@@ -112,7 +113,7 @@
                     </button>
                 </div>
             </div>
-            <div class="kc-table-wrap">
+            <div class="kc-table-wrap pw-table-wrap">
                 <table class="kc-table" id="contacts-table">
                     <thead>
                         <tr>
@@ -138,8 +139,8 @@
         <!-- ═══════ FILES PANEL ═══════ -->
         <div id="panel-files" class="kc-panel" role="tabpanel" aria-labelledby="tab-files" tabindex="0">
             <div class="kc-panel-header">
-                <div class="kc-search-row">
-                    <input type="text" id="files-search" class="kc-search"
+                <div class="kc-search-row pw-toolbar">
+                    <input type="search" id="files-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.files_search_placeholder"
                         oninput="filterFiles()">
                     <label class="btn btn-primary kc-upload-btn">
@@ -154,7 +155,7 @@
                     <p data-i18n="knowledge.files_drop_here"></p>
                 </div>
             </div>
-            <div class="kc-table-wrap">
+            <div class="kc-table-wrap pw-table-wrap">
                 <table class="kc-table" id="files-table">
                     <thead>
                         <tr>
@@ -181,8 +182,8 @@
         <!-- ═══════ DEVICES PANEL ═══════ -->
         <div id="panel-devices" class="kc-panel" role="tabpanel" aria-labelledby="tab-devices" tabindex="0">
             <div class="kc-panel-header">
-                <div class="kc-search-row">
-                    <input type="text" id="devices-search" class="kc-search"
+                <div class="kc-search-row pw-toolbar">
+                    <input type="search" id="devices-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.devices_search_placeholder"
                         oninput="filterDevices()">
                     <button class="btn btn-primary" onclick="openDeviceModal()">
@@ -190,7 +191,7 @@
                     </button>
                 </div>
             </div>
-            <div class="kc-table-wrap">
+            <div class="kc-table-wrap pw-table-wrap">
                 <table class="kc-table kc-table-fixed" id="devices-table">
                     <colgroup>
                         <col class="kc-col-device-name">
@@ -228,8 +229,8 @@
         <!-- ═══════ CREDENTIALS PANEL ═══════ -->
         <div id="panel-credentials" class="kc-panel" role="tabpanel" aria-labelledby="tab-credentials" tabindex="0">
             <div class="kc-panel-header">
-                <div class="kc-search-row">
-                    <input type="text" id="credentials-search" class="kc-search"
+                <div class="kc-search-row pw-toolbar">
+                    <input type="search" id="credentials-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.credentials_search_placeholder"
                         oninput="filterCredentials()">
                     <button class="btn btn-primary" onclick="openCredentialModal()">
@@ -237,7 +238,7 @@
                     </button>
                 </div>
             </div>
-            <div class="kc-table-wrap">
+            <div class="kc-table-wrap pw-table-wrap">
                 <table class="kc-table" id="credentials-table">
                     <thead>
                         <tr>
@@ -270,8 +271,8 @@
         <!-- ═══════ APPOINTMENTS PANEL ═══════ -->
         <div id="panel-appointments" class="kc-panel" role="tabpanel" aria-labelledby="tab-appointments" tabindex="0">
             <div class="kc-panel-header">
-                <div class="kc-search-row">
-                    <input type="text" id="appointments-search" class="kc-search"
+                <div class="kc-search-row pw-toolbar">
+                    <input type="search" id="appointments-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.appointments_search_placeholder"
                         oninput="debounceAppointmentSearch()">
                     <select id="appointments-filter" class="kc-filter-select" onchange="loadAppointments()">
@@ -298,8 +299,8 @@
         <!-- ═══════ TODOS PANEL ═══════ -->
         <div id="panel-todos" class="kc-panel" role="tabpanel" aria-labelledby="tab-todos" tabindex="0">
             <div class="kc-panel-header">
-                <div class="kc-search-row">
-                    <input type="text" id="todos-search" class="kc-search"
+                <div class="kc-search-row pw-toolbar">
+                    <input type="search" id="todos-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.todos_search_placeholder"
                         oninput="debounceTodoSearch()">
                     <select id="todos-filter" class="kc-filter-select" onchange="loadTodos()">

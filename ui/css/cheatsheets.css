@@ -6,41 +6,8 @@
 
 /* Page-specific styles only */
 
-.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .container {
-    padding-block: var(--pw-space-4);
-}
-
 .pw-page[data-workspace-page="cheatsheets"] .container {
-    width: min(100%, var(--pw-content-max));
-    margin-inline: auto;
-    padding: clamp(1rem, 2.5vw, 2rem);
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .page-title-row h1 {
     min-width: 0;
-    margin: 0;
-    overflow-wrap: anywhere;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .page-title-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.7rem;
-    min-width: 0;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .page-title-badge {
-    width: 2rem;
-    height: 2rem;
-    min-width: 2rem;
-    display: grid;
-    place-items: center;
-    font-size: var(--text-base);
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .page-header .header-actions {
@@ -666,10 +633,6 @@
 @media (max-width: 768px) {
     .pw-page[data-workspace-page="cheatsheets"] .cards-grid {
         grid-template-columns: 1fr;
-    }
-
-    .pw-page[data-workspace-page="cheatsheets"] .container {
-        padding: var(--space-5) var(--space-4) 48px;
     }
 
     .pw-page[data-workspace-page="cheatsheets"] .page-header {

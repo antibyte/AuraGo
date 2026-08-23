@@ -1,13 +1,7 @@
 /* Container */
 
-.pw-page[data-workspace-page="containers"][data-density="compact"] .ct-container {
-    padding-block: 1.25rem;
-}
-
 .pw-page[data-workspace-page="containers"] .ct-container {
-    width: min(100%, var(--pw-content-max));
-    margin-inline: auto;
-    padding: clamp(1rem, 3vw, 2.5rem);
+    min-width: 0;
 }
 
 /* ── Status Bar ── */
@@ -39,27 +33,6 @@
 .pw-page[data-workspace-page="containers"] .ct-search {
     flex: 1;
     min-width: 200px;
-    min-height: 44px;
-    padding: 0.65rem 0.8rem;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
-    color: var(--pw-text);
-    font: inherit;
-    font-size: var(--pw-control-size);
-    outline: none;
-    transition:
-        border-color var(--pw-duration-fast) var(--pw-ease),
-        box-shadow var(--pw-duration-fast) var(--pw-ease);
-}
-
-.pw-page[data-workspace-page="containers"] .ct-search:hover {
-    border-color: color-mix(in srgb, var(--pw-accent) 30%, var(--pw-line-strong));
-}
-
-.pw-page[data-workspace-page="containers"] .ct-search:focus {
-    border-color: var(--pw-accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 20%, transparent);
 }
 
 /* ── Container Card Grid ── */
@@ -453,12 +426,6 @@
 }
 
 @media (max-width: 768px) {
-    .pw-page[data-workspace-page="containers"] .ct-container {
-        padding: var(--space-4) var(--space-3) 60px;
-        padding-top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
-        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
-    }
-
     .pw-page[data-workspace-page="containers"] .ct-grid {
         grid-template-columns: 1fr;
         gap: 14px;

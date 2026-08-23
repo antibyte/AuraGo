@@ -663,6 +663,8 @@ function showDisabledState() {
         document.querySelectorAll('.sk-filter-btn').forEach(btn => {
             const active = btn.dataset.filter === filter;
             btn.classList.toggle('active', active);
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
             btn.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
         if (currentSkillMode === 'agent') renderAgentSkills(); else renderSkills();

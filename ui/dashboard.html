@@ -41,11 +41,13 @@
 
   <!-- Header -->
   <header class="app-header">
-    <a href="/" class="logo">
-      <div class="logo-icon"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" fill="currentColor" stroke="none"/><rect x="13" y="7" width="3" height="10" fill="currentColor" stroke="none"/></svg></div>
-      <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-      <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle"></span>
-    </a>
+    <div class="header-left">
+      <a href="/" class="logo">
+        <div class="logo-icon">🥚</div>
+        <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+        <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle"></span>
+      </a>
+    </div>
     <div class="header-actions">
       <button id="dash-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
           data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
@@ -60,6 +62,16 @@
   </header>
 
   <div id="radialMenuAnchor"></div>
+
+  <main class="container pw-page-frame" id="main-content">
+
+  <!-- Page Header -->
+  <header class="page-header pw-page-heading">
+    <div class="pw-page-heading-copy">
+      <h1 class="pw-page-title" data-i18n="dashboard.page_heading"></h1>
+      <p class="pw-page-description" data-i18n="dashboard.page_heading_sub"></p>
+    </div>
+  </header>
 
   <!-- Agent Status Banner – always visible above tabs -->
   <div class="dash-banner-always">
@@ -82,16 +94,6 @@
       </div>
     </div>
   </div><!-- .dash-banner-always -->
-
-  <main class="container pw-page-frame" id="main-content">
-
-  <!-- Page Header -->
-  <header class="page-header pw-page-heading">
-    <div class="pw-page-heading-copy">
-      <h1 class="pw-page-title" data-i18n="dashboard.page_heading"></h1>
-      <p class="pw-page-description" data-i18n="dashboard.page_heading_sub"></p>
-    </div>
-  </header>
 
   <!-- Tab Navigation: primary (health) · knowledge · ops -->
   <nav class="dash-tabs pw-tabs" id="dashTabs" role="tablist" data-i18n-aria-label="dashboard.tablist_label">

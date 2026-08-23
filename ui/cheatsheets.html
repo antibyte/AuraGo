@@ -58,16 +58,16 @@
 
     <main class="container pw-page-frame" id="main-content">
         <header class="page-header pw-page-heading">
-            <div class="page-title-row pw-page-heading-copy">
-                <span class="page-title-badge" aria-hidden="true">📋</span>
+            <div class="pw-page-heading-copy">
                 <h1 class="pw-page-title" data-i18n="cheatsheets.title"></h1>
+                <p class="pw-page-description" data-i18n="cheatsheets.page_description"></p>
             </div>
             <div class="header-actions pw-page-heading-actions">
                 <div class="view-toggle" id="view-toggle">
-                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid" aria-label="Grid View">
+                    <button type="button" onclick="setViewMode('grid')" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
                         <span class="view-toggle-glyph" aria-hidden="true">▦</span>
                     </button>
-                    <button onclick="setViewMode('list')" title="List View" data-mode="list" aria-label="List View">
+                    <button type="button" onclick="setViewMode('list')" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
                         <span class="view-toggle-glyph" aria-hidden="true">☰</span>
                     </button>
                 </div>
@@ -86,16 +86,17 @@
                 onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent"></span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
         </div>
 
-        <div class="empty-state is-hidden" id="sheets-empty">
-            <div class="empty-icon">📋</div>
-            <h3 data-i18n="cheatsheets.empty_title"></h3>
-            <p data-i18n="cheatsheets.empty_desc"></p>
+        <div class="pw-toolbar cheatsheet-toolbar">
+            <input type="search" id="cheatsheets-search" class="pw-search" autocomplete="off"
+                placeholder="" data-i18n-placeholder="cheatsheets.search_placeholder"
+                oninput="filterCheatsheets()">
         </div>
 
         <div class="cheatsheet-panel active" id="panel-user" role="tabpanel" aria-labelledby="tab-user" tabindex="0">
             <div class="cards-grid" id="sheets-grid-user"></div>
             <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
                 <div class="empty-icon">👤</div>
+                <h3 data-i18n="cheatsheets.empty_title"></h3>
                 <p data-i18n="cheatsheets.empty_user"></p>
             </div>
         </div>
@@ -103,6 +104,7 @@
             <div class="cards-grid" id="sheets-grid-agent"></div>
             <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
                 <div class="empty-icon">🤖</div>
+                <h3 data-i18n="cheatsheets.empty_title"></h3>
                 <p data-i18n="cheatsheets.empty_agent"></p>
             </div>
         </div>

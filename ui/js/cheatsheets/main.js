@@ -8,6 +8,7 @@ let currentAttachments = []; // Saved attachments for the currently edited sheet
 let pendingAttachments = [];  // Staged attachments for an unsaved new sheet
 let knowledgePickerSelection = new Set(); // Selected knowledge files in picker
 let currentCheatTab = localStorage.getItem('cheatsheets-tab') || 'user'; // 'user' | 'agent'
+let cheatsheetSearchQuery = '';
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -91,18 +92,15 @@ function switchCheatTab(tab) {
 
 // ── Render ───────────────────────────────────────────────
 function renderSheets() {
-    const empty = document.getElementById('sheets-empty');
     const mode = getEffectiveViewMode();
-    const userSheets = sheetsData.filter(s => s.created_by !== 'agent');
-    const agentSheets = sheetsData.filter(s => s.created_by === 'agent');
-
-    if (!sheetsData || sheetsData.length === 0) {
-        empty.classList.remove('is-hidden');
-        renderSheetGroup('user', [], mode);
-        renderSheetGroup('agent', [], mode);
-        return;
-    }
-    empty.classList.add('is-hidden');
+    const query = cheatsheetSearchQuery.trim().toLowerCase();
+    const matchesQuery = (sheet) => {
+        if (!query) return true;
+        const haystack = `${sheet.name || ''} ${sheet.content || ''}`.toLowerCase();
+        return haystack.includes(query);
+    };
+    const userSheets = sheetsData.filter(s => s.created_by !== 'agent').filter(matchesQuery);
+    const agentSheets = sheetsData.filter(s => s.created_by === 'agent').filter(matchesQuery);
 
     renderSheetGroup('user', userSheets, mode);
     renderSheetGroup('agent', agentSheets, mode);
@@ -111,6 +109,12 @@ function renderSheets() {
     updateViewToggle();
     switchCheatTab(currentCheatTab);
     bindSheetActionEvents();
+}
+
+function filterCheatsheets() {
+    const input = document.getElementById('cheatsheets-search');
+    cheatsheetSearchQuery = input ? input.value : '';
+    renderSheets();
 }
 
 function renderSheetGroup(groupKey, sheets, mode) {

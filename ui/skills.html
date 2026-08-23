@@ -61,6 +61,7 @@
         <header class="page-header pw-page-heading">
             <div class="pw-page-heading-copy">
                 <h1 class="pw-page-title" data-i18n="skills.heading"></h1>
+                <p class="pw-page-description" data-i18n="skills.page_description"></p>
             </div>
         </header>
 
@@ -91,14 +92,14 @@
 
         <!-- Toolbar -->
         <div class="sk-toolbar pw-toolbar">
-            <input type="text" id="sk-search" class="sk-search"
+            <input type="search" id="sk-search" class="sk-search pw-search"
                 placeholder="" data-i18n-placeholder="skills.search_placeholder"
                 oninput="filterSkills()">
             <div class="sk-filter-group">
-                <button class="sk-filter-btn active" data-filter="all" aria-pressed="true" onclick="setSkillFilter('all')" data-i18n="skills.filter_all"></button>
-                <button class="sk-filter-btn" data-filter="agent" aria-pressed="false" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent"></button>
-                <button class="sk-filter-btn" data-filter="user" aria-pressed="false" onclick="setSkillFilter('user')" data-i18n="skills.filter_user"></button>
-                <button class="sk-filter-btn" data-filter="daemon" aria-pressed="false" onclick="setSkillFilter('daemon')" data-i18n="skills.filter_daemon"></button>
+                <button class="sk-filter-btn pw-tab active" data-filter="all" aria-pressed="true" onclick="setSkillFilter('all')" data-i18n="skills.filter_all"></button>
+                <button class="sk-filter-btn pw-tab" data-filter="agent" aria-pressed="false" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent"></button>
+                <button class="sk-filter-btn pw-tab" data-filter="user" aria-pressed="false" onclick="setSkillFilter('user')" data-i18n="skills.filter_user"></button>
+                <button class="sk-filter-btn pw-tab" data-filter="daemon" aria-pressed="false" onclick="setSkillFilter('daemon')" data-i18n="skills.filter_daemon"></button>
             </div>
             <div class="sk-toolbar-actions" id="sk-toolbar-actions">
                 <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload"></button>
@@ -114,11 +115,11 @@
 
         <!-- Security filter pills -->
         <div class="sk-security-filters" id="sk-security-filters">
-            <button class="sk-pill active" data-sec="all" onclick="setSecurityFilter('all')" data-i18n="skills.sec_all"></button>
-            <button class="sk-pill" data-sec="clean" onclick="setSecurityFilter('clean')"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
-            <button class="sk-pill" data-sec="warning" onclick="setSecurityFilter('warning')"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
-            <button class="sk-pill" data-sec="dangerous" onclick="setSecurityFilter('dangerous')"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
-            <button class="sk-pill" data-sec="pending" onclick="setSecurityFilter('pending')"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
+            <button class="sk-pill pw-badge active" data-sec="all" onclick="setSecurityFilter('all')" data-i18n="skills.sec_all"></button>
+            <button class="sk-pill pw-badge" data-sec="clean" onclick="setSecurityFilter('clean')"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
+            <button class="sk-pill pw-badge" data-sec="warning" onclick="setSecurityFilter('warning')"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
+            <button class="sk-pill pw-badge" data-sec="dangerous" onclick="setSecurityFilter('dangerous')"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
+            <button class="sk-pill pw-badge" data-sec="pending" onclick="setSecurityFilter('pending')"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
         </div>
 
         <!-- Skill cards grid -->

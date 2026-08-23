@@ -59,9 +59,9 @@
 
     <main class="media-container pw-page-frame" id="main-content">
         <header class="page-header media-header pw-page-heading">
-            <div class="media-header-text pw-page-heading-copy">
-                <h1 class="pw-page-title" data-i18n="media.title">📁 Media View</h1>
-                <p class="media-header-subtitle" data-i18n="media.subtitle_description"></p>
+            <div class="pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="media.title"></h1>
+                <p class="pw-page-description" data-i18n="media.subtitle_description"></p>
             </div>
         </header>
 
@@ -94,13 +94,13 @@
         </div>
 
         <div id="media-bulk-toolbar" class="pw-toolbar media-bulk-toolbar" aria-live="polite">
-            <input type="text" id="media-search" class="gallery-search"
+            <input type="search" id="media-search" class="gallery-search pw-search"
                 placeholder="" data-i18n-placeholder="media.search_placeholder">
             <div class="pw-toolbar-spacer"></div>
-            <button id="media-select-mode-btn" type="button" class="btn-gallery-nav" onclick="toggleMediaSelectionMode()" data-i18n="media.bulk_select"></button>
-            <button id="media-select-visible-btn" type="button" class="btn-gallery-nav" onclick="selectVisibleMediaItems()" data-i18n="media.bulk_select_visible"></button>
-            <button id="media-clear-selection-btn" type="button" class="btn-gallery-nav" onclick="clearCurrentMediaSelection()" data-i18n="media.bulk_clear_selection"></button>
-            <button id="media-delete-selected-btn" type="button" class="btn-gallery-nav btn-danger" onclick="deleteSelectedMediaItems()" disabled data-i18n="media.bulk_delete_selected"></button>
+            <button id="media-select-mode-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" onclick="toggleMediaSelectionMode()" data-i18n="media.bulk_select"></button>
+            <button id="media-select-visible-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" onclick="selectVisibleMediaItems()" data-i18n="media.bulk_select_visible"></button>
+            <button id="media-clear-selection-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" onclick="clearCurrentMediaSelection()" data-i18n="media.bulk_clear_selection"></button>
+            <button id="media-delete-selected-btn" type="button" class="btn btn-danger btn-sm btn-gallery-nav" onclick="deleteSelectedMediaItems()" disabled data-i18n="media.bulk_delete_selected"></button>
             <span id="media-selected-count" class="media-selected-count" data-i18n="media.bulk_selected_none"></span>
         </div>
 

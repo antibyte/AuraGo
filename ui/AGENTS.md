@@ -22,10 +22,17 @@ images, and browser-oriented regression tests.
 
 - Operational pages share one canonical skeleton inside `main.pw-page-frame`:
   a page heading (`pw-page-heading` with `pw-page-heading-copy` and
-  `h1.pw-page-title`), then an optional status strip (`pw-status-strip` with
+  `h1.pw-page-title`, optional `p.pw-page-description`), then an optional status strip (`pw-status-strip` with
   value before label), then the primary tab strip (`pw-tabs`/`pw-tab` with
   tablist semantics), then an optional `pw-toolbar`, then content. Page
   titles live in the content area, never in the app header.
+- Every operational app header uses `.header-left` wrapping the logo link,
+  plus density and theme toggles in `.header-actions`.
+- Search fields on operational pages use `pw-search` (often dual-classed with
+  legacy ids such as `ct-search`, `sk-search`, `kc-search`, or
+  `gallery-search`).
+- Empty states use `.empty-state` with `.empty-icon`, optional `h3`, `p`, and
+  CTA buttons — not legacy `.icon` wrappers alone.
 - Every operational app header contains a density toggle
   (`[data-pw-density-toggle]`, styled `pw-density-toggle`) next to the theme
   toggle; `js/precision/workspace.js` discovers it automatically.
