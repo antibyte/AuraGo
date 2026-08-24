@@ -409,8 +409,24 @@ registration lives in `internal/desktop/types.go`.
   logic into the main app file.
 - OpenSCAD exposes `window.OpenSCADApp = { render, dispose }`. Every window
   instance owns its draft timer, SSE listeners, editor, and preview resources.
+- OpenSCAD uses an editor-first layout: a header bar with primary actions
+  (render, generate, cancel, download, save) and collapsible toggles for the
+  parameter sidebar and agent slide-over; the center column stacks the
+  inspector (editor pane with Source/Files/Log tabs plus an issues panel)
+  over the preview zone; the parameter sidebar holds exports with a
+  selected-count badge, defines sliders, segmented Render/Preview mode
+  control, and timeout; the agent panel hosts a streaming chat transcript
+  and an apply-changes bar that stages agent-proposed source instead of
+  silently overwriting.
+- OpenSCAD viewport controls include perspective/orthographic projection,
+  shaded/wireframe shading, auto-rotate (disabled under
+  `prefers-reduced-motion`), and double-click-to-reset.
+- OpenSCAD keyboard shortcuts (Ctrl+Enter render, Esc cancel, F fit view,
+  Ctrl+S save draft) are attached in `wireKeyboardShortcuts` and removed
+  in `dispose`.
 - OpenSCAD drafts persist per `windowId` under
-  `aurago.desktop.openscad.draft.<windowId>`.
+  `aurago.desktop.openscad.draft.<windowId>` and include additive viewport
+  preferences (projection, shading, auto-rotate) and panel collapse state.
 - OpenSCAD result events must filter on `window_id` when present; without it,
   idle multi-window instances must ignore global `openscad_result` events.
 - OpenSCAD readonly mode disables CodeMirror/`textarea` editing, defines
@@ -605,14 +621,16 @@ registration lives in `internal/desktop/types.go`.
   (`sw-sel-label`), slide-in info panel with badges/tone pills/sections/
   bars/relations (`createHud`). No child DOX file needed.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
-  syntax highlighting (using javascript()), error line highlighting, and
-  fallback textarea. Exposes `window.OpenSCADEditor { create, parse }`. The
-  `parse` function extracts line-numbered errors from OpenSCAD stderr output.
-  No child DOX file needed.
+  syntax highlighting (using javascript()), error line highlighting, fallback
+  textarea, and `revealLine(line)` for jumping to an issue. Exposes
+  `window.OpenSCADEditor { create, parse, revealLine }`. The `parse` function
+  extracts line-numbered errors from OpenSCAD stderr output. No child DOX
+  file needed.
 - `openscad-defines.js` - Parametric define slider panel: parses name=value
-  pairs, renders numeric values as range sliders with number inputs, and text
-  values as plain inputs. Exposes `window.OpenSCADDefines { parse, render, toText }`.
-  No child DOX file needed.
+  pairs, renders numeric values as range sliders (with negative-value support)
+  plus number inputs, text values as plain inputs, and per-row reset/remove
+  buttons with an add-define control. Exposes
+  `window.OpenSCADDefines { parse, render, toText }`. No child DOX file needed.
 - `log-viewer-filters.js` / `log-viewer.js` - Log Viewer: file sidebar,
   virtualized tail list, level/search filters, dedicated per-window
   EventSource to `/api/desktop/logs/stream`, readonly-gated download.

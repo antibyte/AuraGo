@@ -30,12 +30,20 @@
     function sliderRange(value) {
         var n = parseFloat(value);
         if (isNaN(n)) n = 0;
-        if (Number.isInteger(n)) {
-            var max = Math.max(100, Math.abs(n) * 4);
-            return { min: 0, max: max, step: 1 };
-        }
-        var max = Math.max(Math.abs(n) * 4, Math.abs(n) + 10);
-        return { min: 0, max: max, step: 0.1 };
+        var integer = Number.isInteger(n);
+        var mag = Math.abs(n);
+        var max = integer
+            ? Math.max(100, Math.ceil(mag * 4 / 10) * 10)
+            : Math.max(10, Math.ceil((mag * 4 + 1) * 10) / 10);
+        var step = integer ? 1 : 0.1;
+        var min = n < 0 ? -max : 0;
+        return { min: min, max: max, step: step };
+    }
+
+    function uniqueDefineName(used) {
+        var i = 1;
+        while (used.indexOf('param' + i) >= 0) i++;
+        return 'param' + i;
     }
 
     function translate(ctx, key, fallback) {
@@ -54,7 +62,8 @@
         var ctx = opts.ctx || null;
         var readOnly = !!opts.readonly;
         var mode = opts.mode === 'text' ? 'text' : 'sliders';
-        var rows = defines || [];
+        var rows = defines ? defines.map(function (r) { return { name: r.name, value: r.value }; }) : [];
+        var defaults = rows.map(function (r) { return String(r.value != null ? r.value : ''); });
         var disabledAttr = readOnly ? ' disabled' : '';
         var html = '<div class="oscad-defines-panel" data-oscad-defines-mode="' + esc(mode) + '">';
         html += '<div class="oscad-defines-mode-toggle">';
@@ -83,11 +92,28 @@
                 } else {
                     html += '<input type="text" class="oscad-define-text" data-oscad-text="' + esc(String(idx)) + '" value="' + esc(value) + '"' + disabledAttr + '>';
                 }
+                if (!readOnly) {
+                    html += '<button type="button" class="oscad-icon-btn oscad-define-reset" data-oscad-reset="' + esc(String(idx)) + '" title="' + esc(translate(ctx, 'desktop.openscad.reset_defaults', 'Reset to default')) + '" aria-label="' + esc(translate(ctx, 'desktop.openscad.reset_defaults', 'Reset to default')) + '">' + esc('⟲') + '</button>';
+                    html += '<button type="button" class="oscad-icon-btn oscad-define-remove" data-oscad-remove="' + esc(String(idx)) + '" title="' + esc(translate(ctx, 'desktop.openscad.remove_define', 'Remove define')) + '" aria-label="' + esc(translate(ctx, 'desktop.openscad.remove_define', 'Remove define')) + '">' + esc('−') + '</button>';
+                }
                 html += '</div>';
             });
         }
+        if (mode === 'sliders' && !readOnly) {
+            html += '<button type="button" class="oscad-btn oscad-add-define" data-oscad-add-define>' + esc('+ ') + esc(translate(ctx, 'desktop.openscad.add_define', 'Add define')) + '</button>';
+        }
         html += '</div>';
         container.innerHTML = html;
+
+        function emit() {
+            if (onChange) onChange(toText(rows));
+        }
+
+        function rerender() {
+            if (typeof opts.onModeChange === 'function') {
+                opts.onModeChange('sliders');
+            }
+        }
 
         container.querySelectorAll('[data-oscad-defines-mode-btn]').forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -106,7 +132,7 @@
             return;
         }
 
-        if (!rows.length || readOnly) return;
+        if (!rows.length) return;
 
         container.querySelectorAll('.oscad-define-slider').forEach(function (slider) {
             var idx = Number(slider.dataset.oscadSlider);
@@ -118,29 +144,68 @@
                 }
                 slider.title = formatRangeHint(ctx, rows[idx].name, slider.value);
                 rows[idx].value = slider.value;
-                if (onChange) onChange(toText(rows));
+                emit();
             });
         });
         container.querySelectorAll('.oscad-define-number').forEach(function (input) {
             var idx = Number(input.dataset.oscadNumber);
             input.addEventListener('input', function () {
                 var slider = container.querySelector('[data-oscad-slider="' + idx + '"]');
-                if (slider && document.activeElement !== slider) {
-                    slider.value = input.value;
-                    slider.title = formatRangeHint(ctx, rows[idx].name, input.value);
+                if (slider) {
+                    var v = parseFloat(input.value);
+                    if (isFinite(v)) {
+                        var min = parseFloat(slider.min);
+                        var max = parseFloat(slider.max);
+                        if (v < min) { slider.min = v; }
+                        if (v > max) { slider.max = v; }
+                        if (document.activeElement !== slider) slider.value = v;
+                        slider.title = formatRangeHint(ctx, rows[idx].name, input.value);
+                    }
                 }
                 input.title = formatRangeHint(ctx, rows[idx].name, input.value);
                 rows[idx].value = input.value;
-                if (onChange) onChange(toText(rows));
+                emit();
             });
         });
         container.querySelectorAll('.oscad-define-text').forEach(function (input) {
             var idx = Number(input.dataset.oscadText);
             input.addEventListener('input', function () {
                 rows[idx].value = input.value;
-                if (onChange) onChange(toText(rows));
+                emit();
             });
         });
+        if (!readOnly) {
+            container.querySelectorAll('[data-oscad-reset]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var idx = Number(btn.dataset.oscadReset);
+                    rows[idx].value = defaults[idx];
+                    var slider = container.querySelector('[data-oscad-slider="' + idx + '"]');
+                    var numberEl = container.querySelector('[data-oscad-number="' + idx + '"]');
+                    var textEl = container.querySelector('[data-oscad-text="' + idx + '"]');
+                    if (slider) slider.value = defaults[idx];
+                    if (numberEl) numberEl.value = defaults[idx];
+                    if (textEl) textEl.value = defaults[idx];
+                    emit();
+                });
+            });
+            container.querySelectorAll('[data-oscad-remove]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var idx = Number(btn.dataset.oscadRemove);
+                    rows.splice(idx, 1);
+                    emit();
+                    rerender();
+                });
+            });
+            var addBtn = container.querySelector('[data-oscad-add-define]');
+            if (addBtn) {
+                addBtn.addEventListener('click', function () {
+                    var used = rows.map(function (r) { return r.name; });
+                    rows.push({ name: uniqueDefineName(used), value: '1' });
+                    emit();
+                    rerender();
+                });
+            }
+        }
     }
 
     function esc(value) {

@@ -218,6 +218,39 @@
                 currentErrors = [];
                 if (!isFallback && editorView) applyErrorStyles();
             },
+            revealLine: function (line) {
+                var l = parseInt(line, 10);
+                if (!isFinite(l) || l < 1) return;
+                if (isFallback) {
+                    if (!fallbackTextarea) return;
+                    var text = fallbackTextarea.value || '';
+                    var idx = 0;
+                    var remaining = l - 1;
+                    var pos = 0;
+                    while (remaining > 0 && pos < text.length) {
+                        if (text.charAt(pos) === '\n') remaining--;
+                        pos++;
+                    }
+                    idx = remaining > 0 ? text.length : pos;
+                    try {
+                        fallbackTextarea.focus();
+                        fallbackTextarea.setSelectionRange(idx, idx);
+                        fallbackTextarea.scrollTop = Math.max(0, (l - 4) * 18);
+                    } catch (_) {}
+                    return;
+                }
+                if (!editorView || !cmModule) return;
+                try {
+                    var total = editorView.state.doc.lines;
+                    var target = Math.min(Math.max(1, l), total);
+                    var info = editorView.state.doc.line(target);
+                    editorView.dispatch({
+                        selection: { anchor: info.from },
+                        scrollIntoView: true
+                    });
+                    if (typeof editorView.focus === 'function') editorView.focus();
+                } catch (_) {}
+            },
             dispose: function () {
                 disposed = true;
                 if (isFallback) {
@@ -251,5 +284,11 @@
         return results;
     }
 
-    window.OpenSCADEditor = { create: create, parse: parseOpenSCADErrors };
+    window.OpenSCADEditor = { create: create, parse: parseOpenSCADErrors, revealLine: revealLineExternal };
+
+    function revealLineExternal(editor, line) {
+        if (editor && typeof editor.revealLine === 'function') {
+            editor.revealLine(line);
+        }
+    }
 })();
