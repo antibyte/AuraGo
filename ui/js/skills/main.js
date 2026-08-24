@@ -717,8 +717,10 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     function setSecurityFilter(filter) {
         currentSecFilter = filter;
-        document.querySelectorAll('.sk-pill').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.sec === filter);
+        document.querySelectorAll('.sk-pill[data-sec]').forEach((btn) => {
+            const active = btn.dataset.sec === filter;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
         if (currentSkillMode === 'agent') renderAgentSkills(); else renderSkills();
     }

@@ -506,6 +506,7 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
 				`data-view-mode="grid"`,
 				`data-view-mode="list"`,
 				`id="missions-search"`,
+				`missions-filter-group`,
 				`id="queue-section"`,
 				`data-filter="scheduled"`,
 				`id="missions-grid"`,
@@ -2480,9 +2481,9 @@ func TestPrecisionWorkspaceOperationalChromeContract(t *testing.T) {
 		{"cheatsheets.html", `<div class="cheatsheet-tabs pw-tabs"`, `data-i18n-aria-label="cheatsheets.tablist_label"`},
 		{"media.html", `<div class="media-tabs pw-tabs"`, `data-i18n-aria-label="media.tablist_label"`},
 		{"invasion_control.html", `<div class="invasion-tabs pw-tabs"`, `data-i18n-aria-label="invasion.tablist_label"`},
-		{"missions_v2.html", `<div class="tabs pw-tabs"`, `data-i18n-aria-label="missions.tablist_label"`},
+		{"missions_v2.html", `missions-filter-group`, `data-i18n-aria-label="missions.tablist_label"`},
 		{"knowledge.html", `<div class="kc-tabs pw-tabs"`, `data-i18n-aria-label="knowledge.tablist_label"`},
-		{"containers.html", `<div class="tabs pw-tabs ct-tabs"`, `data-i18n-aria-label="containers.tablist_label"`},
+		{"containers.html", `ct-filter-group`, `data-i18n-aria-label="containers.tablist_label"`},
 		{"skills.html", `<div class="sk-tabs pw-tabs"`, `data-i18n-aria-label="skills.tablist_label"`},
 	}
 

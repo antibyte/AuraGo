@@ -136,7 +136,7 @@ function bindMissionUI() {
     document.getElementById('prep-modal-cancel-btn')?.addEventListener('click', () => closeModal('prep-modal'));
 
     document.addEventListener('click', (event) => {
-        const filterBtn = event.target.closest('.tab[data-filter]');
+        const filterBtn = event.target.closest('.missions-filter-btn[data-filter]');
         if (filterBtn) {
             filterMissions(filterBtn.dataset.filter);
             return;
@@ -731,19 +731,14 @@ function renderTriggerInfo(mission) {
             `;
 }
 
-// Filter tabs
+// Filter chips
 function filterMissions(type) {
     currentFilter = type;
-    document.querySelectorAll('.tab, .pw-tab').forEach(tab => {
-        tab.classList.remove('active');
-        tab.setAttribute('aria-selected', 'false');
+    document.querySelectorAll('.missions-filter-btn[data-filter]').forEach((btn) => {
+        const active = btn.dataset.filter === type;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
-    const tabId = 'tab-' + type;
-    const activeTab = document.getElementById(tabId);
-    if (activeTab) {
-        activeTab.classList.add('active');
-        activeTab.setAttribute('aria-selected', 'true');
-    }
     renderMissions();
 }
 

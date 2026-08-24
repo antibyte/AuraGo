@@ -49,8 +49,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function makeStatusNode(icon, message) {
     const wrap = document.createElement('div');
-    wrap.className = 'gallery-empty';
-    wrap.innerHTML = '<div class="gallery-empty-icon">' + icon + '</div><div>' + escapeHtml(message) + '</div>';
+    wrap.className = 'empty-state gallery-empty';
+    wrap.innerHTML = '<div class="empty-icon gallery-empty-icon">' + icon + '</div><p>' + escapeHtml(message) + '</p>';
     return wrap;
 }
 

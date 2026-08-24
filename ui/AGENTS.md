@@ -38,7 +38,9 @@ images, and browser-oriented regression tests.
 - Tab lists use `data-i18n-aria-label` for localized tablist labels, not hard-
   coded English `aria-label` values.
 - Filter chips and origin/security pills use badge/chip styling (for example
-  `pw-badge`); they must not also carry `pw-tab`.
+  `pw-badge`); they must not also carry `pw-tab`. List filters belong in the
+  page toolbar as `pw-badge` chips inside a `role="group"`, not as a second
+  `pw-tabs` strip.
 - Operational chrome (tabs, filters, search, view toggles, heading CTAs,
   pagination, bulk actions) binds through listeners or `data-action` /
   `data-*` hooks — not inline `onclick`. Modal form logic may keep existing

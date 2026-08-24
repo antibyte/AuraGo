@@ -102,25 +102,24 @@
             </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="tabs pw-tabs" role="tablist" data-i18n-aria-label="missions.tablist_label">
-            <button class="tab pw-tab active" type="button" data-filter="all" id="tab-all" role="tab" aria-selected="true">
-                <span data-i18n="missions.filter_all"></span>
-            </button>
-            <button class="tab pw-tab" type="button" data-filter="manual" id="tab-manual" role="tab" aria-selected="false">
-                <span data-i18n="missions.filter_manual"></span>
-            </button>
-            <button class="tab pw-tab" type="button" data-filter="scheduled" id="tab-scheduled" role="tab" aria-selected="false">
-                <span data-i18n="missions.filter_scheduled"></span>
-            </button>
-            <button class="tab pw-tab" type="button" data-filter="triggered" id="tab-triggered" role="tab" aria-selected="false">
-                <span data-i18n="missions.filter_triggered"></span>
-            </button>
-        </div>
-
+        <!-- Toolbar -->
         <div class="pw-toolbar missions-toolbar">
             <input type="search" id="missions-search" class="pw-search" autocomplete="off"
                 placeholder="" data-i18n-placeholder="missions.search_placeholder">
+            <div class="missions-filter-group pw-toolbar-group" role="group" data-i18n-aria-label="missions.tablist_label">
+                <button class="missions-filter-btn pw-badge active" type="button" data-filter="all" id="filter-all" aria-pressed="true">
+                    <span data-i18n="missions.filter_all"></span>
+                </button>
+                <button class="missions-filter-btn pw-badge" type="button" data-filter="manual" id="filter-manual" aria-pressed="false">
+                    <span data-i18n="missions.filter_manual"></span>
+                </button>
+                <button class="missions-filter-btn pw-badge" type="button" data-filter="scheduled" id="filter-scheduled" aria-pressed="false">
+                    <span data-i18n="missions.filter_scheduled"></span>
+                </button>
+                <button class="missions-filter-btn pw-badge" type="button" data-filter="triggered" id="filter-triggered" aria-pressed="false">
+                    <span data-i18n="missions.filter_triggered"></span>
+                </button>
+            </div>
         </div>
 
         <!-- Queue Section -->

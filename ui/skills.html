@@ -102,7 +102,7 @@
         <div class="sk-toolbar pw-toolbar">
             <input type="search" id="sk-search" class="sk-search pw-search"
                 placeholder="" data-i18n-placeholder="skills.search_placeholder">
-            <div class="sk-filter-group pw-toolbar-group">
+            <div class="sk-filter-group pw-toolbar-group" role="group" data-i18n-aria-label="skills.filter_group_label">
                 <button class="sk-filter-btn pw-badge active" type="button" data-filter="all" aria-pressed="true" data-i18n="skills.filter_all"></button>
                 <button class="sk-filter-btn pw-badge" type="button" data-filter="agent" aria-pressed="false" data-i18n="skills.filter_agent"></button>
                 <button class="sk-filter-btn pw-badge" type="button" data-filter="user" aria-pressed="false" data-i18n="skills.filter_user"></button>
@@ -119,13 +119,14 @@
             </div>
         </div>
 
-        <!-- Security filter pills -->
-        <div class="sk-security-filters pw-toolbar-group" id="sk-security-filters">
-            <button class="sk-pill pw-badge active" type="button" data-sec="all" data-i18n="skills.sec_all"></button>
-            <button class="sk-pill pw-badge" type="button" data-sec="clean"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
-            <button class="sk-pill pw-badge" type="button" data-sec="warning"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
-            <button class="sk-pill pw-badge" type="button" data-sec="dangerous"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
-            <button class="sk-pill pw-badge" type="button" data-sec="pending"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
+        <div class="sk-toolbar sk-toolbar-secondary pw-toolbar">
+            <div class="sk-security-filters pw-toolbar-group" id="sk-security-filters" role="group" data-i18n-aria-label="skills.sec_filter_label">
+                <button class="sk-pill pw-badge active" type="button" data-sec="all" aria-pressed="true" data-i18n="skills.sec_all"></button>
+                <button class="sk-pill pw-badge" type="button" data-sec="clean" aria-pressed="false"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
+                <button class="sk-pill pw-badge" type="button" data-sec="warning" aria-pressed="false"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
+                <button class="sk-pill pw-badge" type="button" data-sec="dangerous" aria-pressed="false"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
+                <button class="sk-pill pw-badge" type="button" data-sec="pending" aria-pressed="false"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
+            </div>
         </div>
 
         <!-- Skill cards grid -->

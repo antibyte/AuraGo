@@ -264,10 +264,10 @@ function filterContainers() {
 // eslint-disable-next-line no-unused-vars
 function setFilter(filter) {
     currentFilter = filter;
-    document.querySelectorAll('.ct-filter-btn').forEach(btn => {
+    document.querySelectorAll('.ct-filter-btn[data-filter]').forEach((btn) => {
         const active = btn.dataset.filter === filter;
         btn.classList.toggle('active', active);
-        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     renderContainers();
 }

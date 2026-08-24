@@ -84,17 +84,15 @@
             </div>
         </div>
 
-        <!-- Filter tabs -->
-        <div class="tabs pw-tabs ct-tabs" role="tablist" data-i18n-aria-label="containers.tablist_label">
-            <button class="tab pw-tab ct-filter-btn active" type="button" data-filter="all" role="tab" aria-selected="true" data-i18n="containers.filter_all"></button>
-            <button class="tab pw-tab ct-filter-btn" type="button" data-filter="running" role="tab" aria-selected="false" data-i18n="containers.filter_running"></button>
-            <button class="tab pw-tab ct-filter-btn" type="button" data-filter="stopped" role="tab" aria-selected="false" data-i18n="containers.filter_stopped"></button>
-        </div>
-
         <!-- Search toolbar -->
         <div class="ct-toolbar pw-toolbar">
             <input type="search" id="ct-search" class="ct-search pw-search"
                 placeholder="" data-i18n-placeholder="containers.search_placeholder">
+            <div class="ct-filter-group pw-toolbar-group" role="group" data-i18n-aria-label="containers.tablist_label">
+                <button class="ct-filter-btn pw-badge active" type="button" data-filter="all" aria-pressed="true" data-i18n="containers.filter_all"></button>
+                <button class="ct-filter-btn pw-badge" type="button" data-filter="running" aria-pressed="false" data-i18n="containers.filter_running"></button>
+                <button class="ct-filter-btn pw-badge" type="button" data-filter="stopped" aria-pressed="false" data-i18n="containers.filter_stopped"></button>
+            </div>
         </div>
 
         <!-- Container cards -->

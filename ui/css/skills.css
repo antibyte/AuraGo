@@ -183,52 +183,50 @@
 
 .pw-page[data-workspace-page="skills"] .sk-filter-group {
     display: flex;
-    gap: var(--pw-space-1);
-    padding: var(--pw-space-1);
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-md);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    box-shadow: none;
+    flex-wrap: wrap;
+    gap: var(--pw-space-2);
+    align-items: center;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-filter-btn {
     display: inline-flex;
-    min-height: 34px;
+    min-height: 0;
     flex: 0 0 auto;
     align-items: center;
-    padding: 0.35rem 0.7rem;
-    border: 1px solid transparent;
-    border-radius: var(--pw-radius-sm);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     background: transparent;
-    color: var(--pw-muted);
-    font-size: var(--pw-meta-size);
-    font-weight: 650;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
     white-space: nowrap;
     cursor: pointer;
     font-family: inherit;
-    transition:
-        border-color var(--pw-duration-fast) var(--pw-ease),
-        background var(--pw-duration-fast) var(--pw-ease),
-        color var(--pw-duration-fast) var(--pw-ease);
 }
 
 .pw-page[data-workspace-page="skills"] .sk-filter-btn:hover {
-    color: var(--pw-text);
-    box-shadow: none;
-    filter: none;
-    transform: none;
+    color: inherit;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-filter-btn.active,
 .pw-page[data-workspace-page="skills"] .sk-filter-btn.is-active,
-.pw-page[data-workspace-page="skills"] .sk-filter-btn[aria-selected="true"] {
-    border-color: var(--pw-line-strong);
-    background: var(--pw-surface);
-    color: var(--pw-text);
-    box-shadow: none;
-    filter: none;
-    transform: none;
+.pw-page[data-workspace-page="skills"] .sk-filter-btn[aria-pressed="true"] {
+    border-color: inherit;
+    background: inherit;
+    color: inherit;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-toolbar-secondary {
+    margin-top: calc(-1 * var(--pw-space-3));
+    padding-top: 0;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-security-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pw-space-2);
+    margin-bottom: 0;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-toolbar-actions {
@@ -243,14 +241,6 @@
 
 .pw-page[data-workspace-page="skills"] .sk-toolbar-actions .btn:hover {
     transform: translateY(-1px);
-}
-
-/* ── Security Filter Pills ── */
-
-.pw-page[data-workspace-page="skills"] .sk-security-filters {
-    display: flex;
-    margin-bottom: var(--space-5);
-    flex-wrap: wrap;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-pill {
