@@ -42,9 +42,20 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-tab .media-tab-icon {
-    font-size: var(--pw-meta-size);
-    line-height: 1;
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
     opacity: 0.85;
+}
+
+.pw-page[data-workspace-page="media"] .media-tab .media-tab-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .pw-page[data-workspace-page="media"] .media-tab.active::after {

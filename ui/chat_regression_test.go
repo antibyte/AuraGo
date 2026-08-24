@@ -3572,9 +3572,9 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 	for _, prefix := range []string{"gallery", "audio", "video", "doc"} {
 		for _, marker := range []string{
 			`id="` + prefix + `-first"`,
-			`onclick="` + prefix + `First()"`,
+			`data-media-page="` + prefix + `-first"`,
 			`id="` + prefix + `-last"`,
-			`onclick="` + prefix + `Last()"`,
+			`data-media-page="` + prefix + `-last"`,
 			`data-i18n-title="common.pagination_first"`,
 			`data-i18n-title="common.pagination_last"`,
 			`data-i18n-aria-label="common.pagination_first"`,
@@ -3582,6 +3582,14 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 		} {
 			if !strings.Contains(mediaHTMLText, marker) {
 				t.Fatalf("media pagination %s missing marker %q", prefix, marker)
+			}
+		}
+		for _, forbidden := range []string{
+			`onclick="` + prefix + `First()"`,
+			`onclick="` + prefix + `Last()"`,
+		} {
+			if strings.Contains(mediaHTMLText, forbidden) {
+				t.Fatalf("media pagination %s must use delegated actions instead of %q", prefix, forbidden)
 			}
 		}
 	}

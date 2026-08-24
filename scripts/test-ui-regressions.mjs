@@ -103,7 +103,7 @@ function testVersionedServiceWorkerRegistration() {
   const initPWA = sourceBetween(shared, 'async function initPWA()', 'async function _subscribePush');
   // Registration uses a versioned URL helper and may retry once after a transient failure.
   assert.match(initPWA, /const swURL = serviceWorkerURL\(\);/);
-  assert.match(initPWA, /navigator\.serviceWorker\.register\(swURL\)/);
+  assert.match(initPWA, /navigator\.serviceWorker\.register\(swURL,\s*\{\s*updateViaCache:\s*'none'\s*\}\)/);
   assert.match(initPWA, /await new Promise\(resolve => setTimeout\(resolve, 1500\)\)/);
   assert.doesNotMatch(initPWA, /register\('\/sw\.js'\)/);
 
