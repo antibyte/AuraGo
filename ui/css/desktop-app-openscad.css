@@ -1,3 +1,6 @@
+/* OpenSCAD workbench — preview-first CAD layout.
+   Grid: [inspector | splitter | preview | splitter | params], agent as slide-over. */
+
 .openscad-app {
     --oscad-bg: var(--vd-bg, #071018);
     --oscad-surface: var(--vd-surface, rgba(16, 28, 43, 0.9));
@@ -8,6 +11,11 @@
     --oscad-accent: var(--vd-accent, #42d7c8);
     --oscad-warm: var(--vd-amber, #ffb85c);
     --oscad-danger: var(--vd-coral, #ff7180);
+    --oscad-glass: rgba(7, 14, 22, 0.72);
+    --oscad-glass-border: rgba(148, 184, 202, 0.22);
+    --oscad-accent-gradient: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    --oscad-icon-filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    --oscad-icon-filter-strong: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(900%) hue-rotate(140deg) brightness(95%) contrast(95%);
     position: relative;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -29,6 +37,9 @@
     --oscad-border: rgba(22, 42, 61, 0.16);
     --oscad-text: #152132;
     --oscad-muted: #617182;
+    --oscad-glass: rgba(255, 255, 255, 0.78);
+    --oscad-glass-border: rgba(22, 42, 61, 0.18);
+    --oscad-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(20%) saturate(1238%) hue-rotate(176deg) brightness(88%) contrast(86%);
     background: linear-gradient(145deg, #eef4f7, #dfeaf0);
 }
 
@@ -36,6 +47,8 @@
     --oscad-surface: rgba(18, 24, 34, 0.72);
     --oscad-surface-strong: rgba(21, 28, 39, 0.84);
     --oscad-border: rgba(255, 255, 255, 0.18);
+    --oscad-glass: rgba(18, 24, 34, 0.66);
+    --oscad-glass-border: rgba(255, 255, 255, 0.2);
 }
 
 .oscad-workbench {
@@ -43,35 +56,57 @@
     display: contents;
 }
 
+/* Themed icons render as-is on our dark glass, so retint them to the
+   foreground tone; primary buttons carry a dark glyph on the accent. */
+.openscad-app .vd-theme-icon,
+.openscad-app .vd-papirus-icon {
+    filter: var(--oscad-icon-filter);
+}
+
+.openscad-app .oscad-primary .vd-theme-icon,
+.openscad-app .oscad-primary .vd-papirus-icon,
+.openscad-app .oscad-brand-icon .vd-theme-icon,
+.openscad-app .oscad-brand-icon .vd-papirus-icon,
+.openscad-app .oscad-empty-icon .vd-theme-icon,
+.openscad-app .oscad-empty-icon .vd-papirus-icon {
+    filter: var(--oscad-icon-filter-strong);
+}
+
+.oscad-btn-icon {
+    flex-shrink: 0;
+}
+
+/* ---------- Header ---------- */
+
 .oscad-header {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 12px;
-    min-height: 56px;
-    padding: 10px 16px;
+    gap: 8px 12px;
+    min-height: 54px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--oscad-border);
-    background: rgba(5, 12, 19, 0.54);
+    background: var(--oscad-glass);
     backdrop-filter: blur(18px);
 }
 
 .oscad-brand {
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 34px minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     margin-right: auto;
 }
 
 .oscad-brand-icon {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border-radius: 10px;
     color: #061014;
     background: linear-gradient(135deg, var(--oscad-accent), #65c7ff 62%, var(--oscad-warm));
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
 }
 
 .oscad-brand h2 {
@@ -79,7 +114,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 17px;
+    font-size: 15px;
     line-height: 1.05;
     font-weight: 850;
 }
@@ -88,7 +123,7 @@
 .oscad-run-meta,
 .oscad-file small,
 .oscad-file em,
-.oscad-viewport-head span,
+.oscad-viewport-title span,
 .oscad-status {
     color: var(--oscad-muted);
 }
@@ -98,7 +133,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 720;
 }
 
@@ -106,7 +141,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    min-height: 28px;
+    min-height: 26px;
     align-items: center;
     font-size: 11px;
     font-weight: 760;
@@ -116,7 +151,7 @@
 .oscad-dirty {
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
+    min-height: 22px;
     max-width: 100%;
     padding: 0 8px;
     border: 1px solid var(--oscad-border);
@@ -137,35 +172,43 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
+.oscad-header-sep {
+    width: 1px;
+    height: 22px;
+    margin: 0 3px;
+    background: var(--oscad-border);
+}
+
+/* ---------- Main grid ---------- */
+
 .oscad-main {
+    position: relative;
     display: grid;
-    grid-template-columns: minmax(248px, 304px) minmax(0, 1fr) minmax(280px, 320px);
+    grid-template-columns: clamp(232px, var(--oscad-inspector-w, 340px), 560px) 5px minmax(0, 1fr) 5px clamp(232px, var(--oscad-sidebar-w, 288px), 440px);
     min-height: 0;
     overflow: hidden;
 }
 
-.openscad-app.params-collapsed .oscad-sidebar {
-    display: none;
+.openscad-app.inspector-collapsed .oscad-main {
+    grid-template-columns: 0 0 minmax(0, 1fr) 5px clamp(232px, var(--oscad-sidebar-w, 288px), 440px);
 }
 
 .openscad-app.params-collapsed .oscad-main {
-    grid-template-columns: 0 minmax(0, 1fr) minmax(280px, 320px);
+    grid-template-columns: clamp(232px, var(--oscad-inspector-w, 340px), 560px) 5px minmax(0, 1fr) 0 0;
 }
 
-.openscad-app.agent-collapsed .oscad-agent-panel {
-    transform: translateX(110%);
-    pointer-events: none;
+.openscad-app.inspector-collapsed.params-collapsed .oscad-main {
+    grid-template-columns: 0 0 minmax(0, 1fr) 0 0;
 }
 
-.openscad-app.agent-collapsed .oscad-main {
-    grid-template-columns: minmax(248px, 304px) minmax(0, 1fr) 0;
-}
-
-.openscad-app.params-collapsed.agent-collapsed .oscad-main {
-    grid-template-columns: 0 minmax(0, 1fr) 0;
+.openscad-app.inspector-collapsed .oscad-inspector,
+.openscad-app.inspector-collapsed .oscad-splitter[data-oscad-splitter="inspector"],
+.openscad-app.params-collapsed .oscad-sidebar,
+.openscad-app.params-collapsed .oscad-splitter[data-oscad-splitter="sidebar"] {
+    display: none;
 }
 
 .oscad-sidebar,
@@ -176,86 +219,92 @@
     min-height: 0;
 }
 
+/* Explicit tracks keep the preview in place when neighbors collapse. */
+.oscad-inspector {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.oscad-splitter[data-oscad-splitter="inspector"] {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.oscad-preview-zone {
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.oscad-splitter[data-oscad-splitter="sidebar"] {
+    grid-column: 4;
+    grid-row: 1;
+}
+
 .oscad-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding: 14px;
-    border-right: 1px solid var(--oscad-border);
-    background: rgba(5, 12, 19, 0.54);
-    backdrop-filter: blur(18px);
+    grid-column: 5;
+    grid-row: 1;
 }
 
-.oscad-section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+.oscad-splitter {
+    position: relative;
+    cursor: col-resize;
+    touch-action: none;
+    background: transparent;
+    outline: none;
 }
 
-.oscad-export-count {
-    display: inline-grid;
-    place-items: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 800;
-    color: #061014;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+.oscad-splitter::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 1px;
+    background: var(--oscad-border);
+    transition: background 0.15s ease, width 0.15s ease, left 0.15s ease;
 }
 
-.oscad-export-hint {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--oscad-muted);
+.oscad-splitter:hover::before,
+.oscad-splitter.dragging::before,
+.oscad-splitter:focus-visible::before {
+    left: 1px;
+    width: 3px;
+    background: var(--oscad-accent);
 }
 
-.oscad-export-hint span:first-child::after {
-    content: ": svg · pdf · dxf";
-    opacity: 0.7;
-}
-
-.oscad-export-hint span:last-child::after {
-    content: ": stl · 3mf · off";
-    opacity: 0.7;
-}
-
-.oscad-shortcuts {
-    margin: 4px 0 0;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1.5;
-    color: var(--oscad-muted);
-    opacity: 0.8;
-}
-
-.oscad-center {
-    display: grid;
-    grid-template-rows: minmax(140px, 0.65fr) minmax(300px, 1fr);
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-}
+/* ---------- Inspector (editor / files / log) ---------- */
 
 .oscad-inspector {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    border-right: 1px solid var(--oscad-border);
+    background: rgba(5, 12, 19, 0.42);
+}
+
+.desktop-body[data-theme="light"] .oscad-inspector {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.oscad-tabs {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 8px 8px 6px;
     border-bottom: 1px solid var(--oscad-border);
+}
+
+.oscad-tabs .oscad-icon-btn {
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+}
+
+.oscad-tabs .oscad-collapse-btn {
+    margin-left: 0;
 }
 
 .oscad-inspector-panel {
@@ -267,8 +316,7 @@
 
 .oscad-issues {
     flex: 0 0 auto;
-    max-height: 140px;
-    min-height: 28px;
+    max-height: 132px;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
@@ -277,16 +325,17 @@
     background: rgba(5, 12, 19, 0.42);
 }
 
-.oscad-issues-empty {
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 760;
-    color: var(--oscad-muted);
+.oscad-issues[hidden] {
+    display: none;
+}
+
+.desktop-body[data-theme="light"] .oscad-issues {
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .oscad-issues-head {
-    padding: 4px 12px;
-    font-size: 11px;
+    padding: 5px 12px;
+    font-size: 10.5px;
     font-weight: 820;
     text-transform: uppercase;
     letter-spacing: 0;
@@ -294,6 +343,10 @@
     position: sticky;
     top: 0;
     background: rgba(5, 12, 19, 0.85);
+}
+
+.desktop-body[data-theme="light"] .oscad-issues-head {
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .oscad-issue {
@@ -314,6 +367,11 @@
     background: rgba(255, 255, 255, 0.06);
 }
 
+.oscad-issue:focus-visible {
+    outline: 2px solid var(--oscad-accent);
+    outline-offset: -2px;
+}
+
 .oscad-issue-error {
     border-left-color: var(--oscad-danger);
 }
@@ -322,341 +380,34 @@
     border-left-color: var(--oscad-warm);
 }
 
+/* ---------- Preview zone ---------- */
+
 .oscad-preview-zone {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: 10px;
+    position: relative;
+    display: block;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
-    padding: 14px;
+    padding: 12px;
     background: rgba(5, 12, 19, 0.32);
 }
 
-.oscad-label {
-    color: var(--oscad-muted);
-    font-size: 11px;
-    font-weight: 820;
-    text-transform: uppercase;
-    letter-spacing: 0;
-}
-
-.oscad-chat,
-.oscad-source,
-.oscad-select,
-.oscad-input {
-    width: 100%;
-    min-width: 0;
-    border: 1px solid var(--oscad-border);
-    border-radius: 8px;
-    color: var(--oscad-text);
-    background: rgba(5, 11, 18, 0.68);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.desktop-body[data-theme="light"] .oscad-chat,
-.desktop-body[data-theme="light"] .oscad-source,
-.desktop-body[data-theme="light"] .oscad-defines,
-.desktop-body[data-theme="light"] .oscad-select,
-.desktop-body[data-theme="light"] .oscad-input {
-    background: rgba(255, 255, 255, 0.78);
-}
-
-.oscad-chat,
-.oscad-source,
-.oscad-defines,
-.oscad-select,
-.oscad-input {
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid var(--oscad-border);
-    background: rgba(7, 16, 24, 0.55);
-    color: var(--oscad-text);
-    font: inherit;
-}
-
-.oscad-defines {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    min-height: 4.5rem;
-    max-height: 10rem;
-    resize: vertical;
-    box-sizing: border-box;
-    overflow: auto;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 12px;
-    line-height: 1.45;
-    padding: 8px 10px;
-}
-
-.oscad-chat {
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-    resize: vertical;
-    min-height: 64px;
-    max-height: 120px;
-    padding: 8px 10px;
-}
-
-.oscad-source {
-    height: 100%;
-    min-height: 0;
-    overflow: auto;
-}
-
-.oscad-options {
-    display: grid;
-    gap: 10px;
-    min-width: 0;
-    max-width: 100%;
-    padding: 12px;
-    border: 1px solid var(--oscad-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.045);
-    box-sizing: border-box;
-}
-
-.oscad-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    min-width: 0;
-}
-
-.oscad-chips {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    min-width: 0;
-    width: 100%;
-}
-
-.oscad-primary-exports {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.oscad-more-exports {
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-}
-
-.oscad-more-exports summary {
-    cursor: pointer;
-    color: var(--oscad-muted);
-    font-size: 12px;
-    font-weight: 780;
-    list-style: none;
-}
-
-.oscad-more-exports summary::-webkit-details-marker {
-    display: none;
-}
-
-.oscad-more-exports[open] .oscad-chips {
-    margin-top: 8px;
-    max-height: min(220px, 40vh);
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding-right: 2px;
-}
-
-.oscad-chip {
-    cursor: pointer;
-}
-
-.oscad-chip input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.oscad-chip span {
-    display: grid;
-    place-items: center;
-    min-height: 32px;
-    border: 1px solid var(--oscad-border);
-    border-radius: 8px;
-    color: var(--oscad-muted);
-    background: rgba(255, 255, 255, 0.045);
-    font-size: 12px;
-    font-weight: 820;
-}
-
-.oscad-chip input:checked + span {
-    color: #061014;
-    border-color: transparent;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
-}
-
-.oscad-select,
-.oscad-input {
-    height: 38px;
-    padding: 0 10px;
-    font-size: 13px;
-    font-weight: 760;
-}
-
-.oscad-segmented {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    padding: 3px;
-    border: 1px solid var(--oscad-border);
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.22);
-}
-
-.oscad-seg {
-    display: grid;
-    place-items: center;
-    min-height: 34px;
-    border: 0;
-    border-radius: 8px;
-    color: var(--oscad-muted);
-    background: transparent;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 820;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.oscad-seg.active {
-    color: #061014;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
-}
-
-.oscad-seg:disabled {
-    cursor: not-allowed;
-    opacity: 0.46;
-}
-
-.oscad-mode-hint {
-    margin: -4px 0 0;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--oscad-muted);
-    opacity: 0.75;
-}
-
-.oscad-btn,
-.oscad-icon-btn,
-.oscad-tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 0;
-    border: 1px solid var(--oscad-border);
-    border-radius: 8px;
-    color: var(--oscad-text);
-    background: rgba(255, 255, 255, 0.06);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 820;
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.oscad-btn {
-    min-height: 40px;
-    padding: 8px 12px;
-    line-height: 1.15;
-}
-
-.oscad-btn span {
-    min-width: 0;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-    text-align: center;
-    white-space: normal;
-}
-
-.oscad-primary,
-.oscad-tab.active,
-.oscad-icon-btn.active {
-    color: #061014;
-    border-color: transparent;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
-}
-
-.oscad-cancel {
-    color: #fff;
-    border-color: rgba(255, 113, 128, 0.32);
-    background: rgba(255, 113, 128, 0.18);
-}
-
-.oscad-btn:hover:not(:disabled),
-.oscad-icon-btn:hover:not(:disabled),
-.oscad-tab:hover:not(:disabled) {
-    transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--oscad-accent) 70%, transparent);
-}
-
-.oscad-btn:disabled,
-.oscad-icon-btn:disabled,
-.oscad-tab:disabled {
-    cursor: not-allowed;
-    opacity: 0.46;
-}
-
-.oscad-viewport-head,
-.oscad-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    min-height: 44px;
-}
-
-.oscad-viewport-head > div:first-child {
-    display: grid;
-    min-width: 0;
-    gap: 2px;
-}
-
-.oscad-viewport-head span {
-    font-size: 11px;
-    font-weight: 820;
-    text-transform: uppercase;
-}
-
-.oscad-viewport-head strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 15px;
-}
-
-.oscad-viewport-toolbar,
-.oscad-actions,
-.oscad-file-actions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.oscad-viewport-toolbar,
-.oscad-actions {
-    justify-content: flex-end;
-}
-
-.oscad-icon-btn {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 auto;
+.oscad-preview-zone:fullscreen {
+    padding: 16px;
+    background:
+        radial-gradient(circle at 18% 8%, rgba(66, 215, 200, 0.12), transparent 34%),
+        linear-gradient(145deg, #071018, #101820);
 }
 
 .oscad-panel {
     position: relative;
+    width: 100%;
+    height: 100%;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--oscad-border);
-    border-radius: 10px;
+    border-radius: 14px;
     background: #050a10;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 42px rgba(0, 0, 0, 0.22);
 }
@@ -691,139 +442,681 @@
 }
 
 .oscad-stl canvas {
+    display: block;
     width: 100% !important;
     height: 100% !important;
 }
+
+/* Floating viewport chrome */
+
+.oscad-viewport-head {
+    position: absolute;
+    z-index: 5;
+    top: 22px;
+    left: 22px;
+    right: 22px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.oscad-viewport-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 46%;
+    padding: 6px 12px;
+    border: 1px solid var(--oscad-glass-border);
+    border-radius: 999px;
+    background: var(--oscad-glass);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    pointer-events: auto;
+}
+
+.oscad-viewport-title span {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 820;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.oscad-viewport-title strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.oscad-viewport-title strong:empty {
+    display: none;
+}
+
+.oscad-viewport-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 3px;
+    padding: 4px;
+    border: 1px solid var(--oscad-glass-border);
+    border-radius: 999px;
+    background: var(--oscad-glass);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    pointer-events: auto;
+}
+
+.oscad-viewport-toolbar .oscad-icon-btn {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+}
+
+.oscad-viewport-toolbar .oscad-icon-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.09);
+    transform: none;
+}
+
+.oscad-viewport-toolbar .oscad-icon-btn.active {
+    background: var(--oscad-accent-gradient);
+}
+
+.oscad-viewport-toolbar .oscad-icon-btn.active .vd-theme-icon,
+.oscad-viewport-toolbar .oscad-icon-btn.active .vd-papirus-icon {
+    filter: var(--oscad-icon-filter-strong);
+}
+
+.desktop-body[data-theme="light"] .oscad-viewport-toolbar .oscad-icon-btn:hover:not(:disabled) {
+    background: rgba(22, 42, 61, 0.08);
+}
+
+.oscad-toolbar-sep {
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background: var(--oscad-border);
+}
+
+.oscad-footer {
+    position: absolute;
+    z-index: 5;
+    left: 22px;
+    right: 22px;
+    bottom: 22px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.oscad-status {
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 12px;
+    border: 1px solid var(--oscad-glass-border);
+    border-radius: 999px;
+    background: var(--oscad-glass);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    font-size: 12px;
+    font-weight: 760;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: auto;
+}
+
+.oscad-status.error {
+    color: var(--oscad-danger);
+    border-color: color-mix(in srgb, var(--oscad-danger) 45%, transparent);
+}
+
+/* Busy overlay scoped to the preview so the editor stays usable. */
+
+.oscad-busy-overlay {
+    position: absolute;
+    inset: 12px;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 12px;
+    grid-template-columns: 1fr;
+    border-radius: 14px;
+    background: rgba(5, 11, 18, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.desktop-body[data-theme="light"] .oscad-busy-overlay {
+    background: rgba(238, 244, 247, 0.62);
+}
+
+.oscad-busy-overlay[hidden] {
+    display: none;
+}
+
+.oscad-busy-spinner {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 4px solid rgba(66, 215, 200, 0.2);
+    border-top-color: var(--oscad-accent);
+    animation: oscad-spin 780ms linear infinite;
+}
+
+.oscad-busy-text {
+    font-size: 14px;
+    font-weight: 820;
+    color: var(--oscad-text);
+}
+
+.desktop-body[data-theme="light"] .oscad-busy-text {
+    color: #152132;
+}
+
+.oscad-busy-elapsed {
+    min-height: 16px;
+    font-size: 11px;
+    font-weight: 780;
+    font-variant-numeric: tabular-nums;
+    color: var(--oscad-muted);
+}
+
+.oscad-busy-elapsed:empty {
+    display: none;
+}
+
+/* Empty state hero */
 
 .oscad-empty {
     display: grid;
     place-items: center;
     align-content: center;
-    gap: 8px;
+    gap: 10px;
     height: 100%;
     min-height: 220px;
     padding: 24px;
     color: var(--oscad-muted);
     text-align: center;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 740;
+    background:
+        radial-gradient(circle at 50% 32%, rgba(66, 215, 200, 0.08), transparent 42%),
+        repeating-linear-gradient(0deg, rgba(148, 184, 202, 0.05) 0 1px, transparent 1px 34px),
+        repeating-linear-gradient(90deg, rgba(148, 184, 202, 0.05) 0 1px, transparent 1px 34px);
+}
+
+.openscad-app.light-preview .oscad-empty {
+    background:
+        radial-gradient(circle at 50% 32%, rgba(66, 215, 200, 0.14), transparent 42%),
+        repeating-linear-gradient(0deg, rgba(22, 42, 61, 0.05) 0 1px, transparent 1px 34px),
+        repeating-linear-gradient(90deg, rgba(22, 42, 61, 0.05) 0 1px, transparent 1px 34px);
 }
 
 .oscad-empty strong {
     color: var(--oscad-text);
-    font-size: 17px;
-}
-
-.oscad-tabs {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-    overflow-x: auto;
-    padding: 8px 8px 0;
-    scrollbar-width: thin;
-}
-
-.oscad-tab {
-    min-height: 36px;
-    padding: 0 12px;
-}
-
-.oscad-tabs .oscad-icon-btn {
-    margin-left: auto;
-}
-
-.oscad-code {
-    height: 100%;
-    min-height: 0;
-    margin: 0;
-    padding: 14px;
-    overflow: auto;
-    color: var(--oscad-text);
-    background: rgba(0, 0, 0, 0.18);
-    font: 13px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    white-space: pre-wrap;
-}
-
-.oscad-file-list {
-    display: grid;
-    align-content: start;
-    gap: 10px;
-    height: 100%;
-    padding-right: 2px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.oscad-file {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    min-height: 62px;
-    padding: 10px;
-    border: 1px solid var(--oscad-border);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.055);
-}
-
-.oscad-file-main {
-    display: grid;
-    min-width: 0;
-    gap: 3px;
-}
-
-.oscad-file span,
-.oscad-file small,
-.oscad-file em,
-.oscad-status {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.oscad-file span {
+    font-size: 16px;
     font-weight: 820;
 }
 
-.oscad-file small,
-.oscad-file em {
-    font-size: 12px;
-    font-style: normal;
+.oscad-empty span {
+    max-width: 420px;
 }
 
-.oscad-status {
+.oscad-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    margin-bottom: 4px;
+    border: 1px solid var(--oscad-glass-border);
+    border-radius: 24px;
+    color: #061014;
+    background: linear-gradient(135deg, rgba(66, 215, 200, 0.9), rgba(101, 199, 255, 0.9));
+    box-shadow: 0 18px 44px rgba(66, 215, 200, 0.22);
+}
+
+.oscad-empty-cta {
+    margin-top: 6px;
+}
+
+.oscad-empty-kbd {
+    padding: 3px 8px;
+    border: 1px solid var(--oscad-border);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 780;
+    color: var(--oscad-muted);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.openscad-app.light-preview .oscad-empty {
+    color: #617182;
+}
+
+.openscad-app.light-preview .oscad-empty strong {
+    color: #152132;
+}
+
+.openscad-app.light-preview .oscad-empty-kbd {
+    color: #617182;
+    border-color: rgba(22, 42, 61, 0.2);
+    background: rgba(22, 42, 61, 0.05);
+}
+
+/* ---------- Buttons / tabs / chips ---------- */
+
+.oscad-btn,
+.oscad-icon-btn,
+.oscad-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     min-width: 0;
-    flex: 1;
+    border: 1px solid var(--oscad-border);
+    border-radius: 9px;
+    color: var(--oscad-text);
+    background: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 820;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.oscad-btn {
+    min-height: 36px;
+    padding: 7px 13px;
+    line-height: 1.15;
+}
+
+.oscad-btn span {
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: normal;
+}
+
+.oscad-primary,
+.oscad-tab.active {
+    color: #061014;
+    border-color: transparent;
+    background: var(--oscad-accent-gradient);
+}
+
+.oscad-primary:hover:not(:disabled) {
+    box-shadow: 0 8px 22px rgba(66, 215, 200, 0.3);
+}
+
+.oscad-icon-btn.active {
+    color: #061014;
+    border-color: transparent;
+    background: var(--oscad-accent-gradient);
+}
+
+.oscad-icon-btn.active .vd-theme-icon,
+.oscad-icon-btn.active .vd-papirus-icon {
+    filter: var(--oscad-icon-filter-strong);
+}
+
+.oscad-agent-btn {
+    border-color: color-mix(in srgb, var(--oscad-accent) 42%, transparent);
+    background: rgba(66, 215, 200, 0.1);
+}
+
+.oscad-cancel {
+    color: #fff;
+    border-color: rgba(255, 113, 128, 0.32);
+    background: rgba(255, 113, 128, 0.18);
+}
+
+.oscad-btn:hover:not(:disabled),
+.oscad-icon-btn:hover:not(:disabled),
+.oscad-tab:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--oscad-accent) 70%, transparent);
+}
+
+.oscad-btn:focus-visible,
+.oscad-icon-btn:focus-visible,
+.oscad-tab:focus-visible,
+.oscad-seg:focus-visible {
+    outline: 2px solid var(--oscad-accent);
+    outline-offset: 1px;
+}
+
+.oscad-btn:disabled,
+.oscad-icon-btn:disabled,
+.oscad-tab:disabled {
+    cursor: not-allowed;
+    opacity: 0.46;
+}
+
+.oscad-btn[hidden],
+.oscad-icon-btn[hidden] {
+    display: none;
+}
+
+.oscad-icon-btn {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    padding: 0;
+}
+
+.oscad-tab {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+/* ---------- Sidebar (parameters) ---------- */
+
+.oscad-sidebar {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    border-left: 1px solid var(--oscad-border);
+    background: var(--oscad-glass);
+    backdrop-filter: blur(18px);
+}
+
+.oscad-options {
+    display: grid;
+    gap: 0;
+    min-width: 0;
+    max-width: 100%;
+    padding: 4px 14px 14px;
+    box-sizing: border-box;
+}
+
+.oscad-section {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px 0;
+    border-top: 1px solid var(--oscad-border);
+}
+
+.oscad-section:first-child {
+    border-top: 0;
+}
+
+.oscad-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.oscad-label {
+    color: var(--oscad-muted);
+    font-size: 10.5px;
+    font-weight: 820;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.oscad-export-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #061014;
+    background: var(--oscad-accent-gradient);
+}
+
+.oscad-export-hint {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--oscad-muted);
+}
+
+.oscad-export-hint span:first-child::after {
+    content: ": svg · pdf · dxf";
+    opacity: 0.7;
+}
+
+.oscad-export-hint span:last-child::after {
+    content: ": stl · 3mf · off";
+    opacity: 0.7;
+}
+
+.oscad-shortcuts {
+    margin: 10px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--oscad-border);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.6;
+    color: var(--oscad-muted);
+    opacity: 0.8;
+}
+
+.oscad-chips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+}
+
+.oscad-primary-exports {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.oscad-more-exports {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.oscad-more-exports summary {
+    cursor: pointer;
+    color: var(--oscad-muted);
+    font-size: 11.5px;
+    font-weight: 780;
+    list-style: none;
+}
+
+.oscad-more-exports summary:hover {
+    color: var(--oscad-text);
+}
+
+.oscad-more-exports summary::-webkit-details-marker {
+    display: none;
+}
+
+.oscad-more-exports[open] .oscad-chips {
+    margin-top: 8px;
+    max-height: min(220px, 40vh);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-right: 2px;
+}
+
+.oscad-chip {
+    cursor: pointer;
+}
+
+.oscad-chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.oscad-chip span {
+    display: grid;
+    place-items: center;
+    min-height: 30px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 8px;
+    color: var(--oscad-muted);
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 11.5px;
+    font-weight: 820;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.oscad-chip:hover span {
+    border-color: color-mix(in srgb, var(--oscad-accent) 60%, transparent);
+    color: var(--oscad-text);
+}
+
+.oscad-chip input:checked + span {
+    color: #061014;
+    border-color: transparent;
+    background: var(--oscad-accent-gradient);
+}
+
+.oscad-chip input:focus-visible + span {
+    outline: 2px solid var(--oscad-accent);
+    outline-offset: 1px;
+}
+
+.oscad-select,
+.oscad-input {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 9px;
+    color: var(--oscad-text);
+    background: rgba(5, 11, 18, 0.68);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    font: inherit;
     font-size: 13px;
     font-weight: 760;
 }
 
-.oscad-status.error {
-    color: var(--oscad-danger);
+.desktop-body[data-theme="light"] .oscad-select,
+.desktop-body[data-theme="light"] .oscad-input,
+.desktop-body[data-theme="light"] .oscad-chat,
+.desktop-body[data-theme="light"] .oscad-defines,
+.desktop-body[data-theme="light"] .oscad-defines-text,
+.desktop-body[data-theme="light"] .oscad-define-number,
+.desktop-body[data-theme="light"] .oscad-define-text {
+    background: rgba(255, 255, 255, 0.78);
 }
 
+.oscad-segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.desktop-body[data-theme="light"] .oscad-segmented {
+    background: rgba(22, 42, 61, 0.06);
+}
+
+.oscad-seg {
+    display: grid;
+    place-items: center;
+    min-height: 32px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--oscad-muted);
+    background: transparent;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 820;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.oscad-seg.active {
+    color: #061014;
+    background: var(--oscad-accent-gradient);
+}
+
+.oscad-seg:disabled {
+    cursor: not-allowed;
+    opacity: 0.46;
+}
+
+.oscad-mode-hint {
+    margin: -2px 0 0;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--oscad-muted);
+    opacity: 0.75;
+}
+
+/* ---------- Agent slide-over ---------- */
+
 .oscad-agent-panel {
+    position: absolute;
+    z-index: 8;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-width: 0;
+    width: min(400px, calc(100% - 24px));
     min-height: 0;
     overflow: hidden;
     padding: 14px;
-    border-left: 1px solid var(--oscad-border);
-    background: rgba(5, 12, 19, 0.62);
-    backdrop-filter: blur(18px);
-    transition: transform 0.22s ease;
+    border: 1px solid var(--oscad-glass-border);
+    border-radius: 16px;
+    background: var(--oscad-glass);
+    backdrop-filter: blur(22px);
+    box-shadow: 0 26px 64px rgba(0, 0, 0, 0.42);
+    transition: transform 0.24s ease, opacity 0.24s ease;
+}
+
+.openscad-app.agent-collapsed .oscad-agent-panel {
+    transform: translateX(calc(100% + 16px));
+    opacity: 0;
+    pointer-events: none;
 }
 
 .oscad-agent-head {
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 10.5px;
     font-weight: 820;
     text-transform: uppercase;
-    letter-spacing: 0;
+    letter-spacing: 0.4px;
     color: var(--oscad-muted);
+}
+
+.oscad-agent-head .oscad-icon-btn {
+    width: 28px;
+    height: 28px;
 }
 
 .oscad-apply-bar {
@@ -867,15 +1160,19 @@
     padding: 6px 2px;
 }
 
-.oscad-transcript-empty:empty {
+.oscad-transcript-empty {
     min-height: 80px;
+    border: 1px dashed var(--oscad-border);
+    border-radius: 12px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(66, 215, 200, 0.06), transparent 60%);
 }
 
 .oscad-msg-user,
 .oscad-msg-assistant {
     max-width: 92%;
-    padding: 8px 10px;
-    border-radius: 12px;
+    padding: 8px 11px;
+    border-radius: 14px;
     font-size: 12.5px;
     line-height: 1.45;
     white-space: pre-wrap;
@@ -884,182 +1181,58 @@
 
 .oscad-msg-user {
     align-self: flex-end;
+    border-bottom-right-radius: 4px;
     color: #061014;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    background: var(--oscad-accent-gradient);
 }
 
 .oscad-msg-assistant {
     align-self: flex-start;
+    border-bottom-left-radius: 4px;
     border: 1px solid var(--oscad-border);
     background: rgba(255, 255, 255, 0.06);
 }
 
-.oscad-busy-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
+.desktop-body[data-theme="light"] .oscad-msg-assistant {
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.oscad-composer {
     display: grid;
-    place-items: center;
-    gap: 14px;
-    justify-items: center;
-    grid-template-columns: 1fr;
-    background: rgba(5, 11, 18, 0.55);
-    backdrop-filter: blur(3px);
+    gap: 8px;
 }
 
-.oscad-busy-overlay[hidden] {
-    display: none;
-}
-
-.oscad-busy-spinner {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 4px solid rgba(66, 215, 200, 0.2);
-    border-top-color: var(--oscad-accent);
-    animation: oscad-spin 780ms linear infinite;
-}
-
-.oscad-busy-text {
-    font-size: 14px;
-    font-weight: 820;
+.oscad-chat {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 62px;
+    max-height: 130px;
+    padding: 9px 11px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 12px;
     color: var(--oscad-text);
+    background: rgba(5, 11, 18, 0.68);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.45;
 }
 
-@media (max-width: 1120px) {
-    .oscad-main {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .openscad-app.params-collapsed .oscad-main {
-        grid-template-columns: 0 minmax(0, 1fr);
-    }
-
-    .oscad-agent-panel {
-        grid-column: 1 / -1;
-    }
-
-    .openscad-app.agent-collapsed .oscad-agent-panel {
-        display: none;
-    }
-
-    .openscad-app:not(.agent-collapsed) .oscad-main {
-        grid-template-rows: minmax(0, 1fr) minmax(220px, 0.4fr);
-    }
+.oscad-chat:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--oscad-accent) 60%, transparent);
+    box-shadow: 0 0 0 3px rgba(66, 215, 200, 0.14);
 }
 
-@media (max-width: 860px) {
-    .oscad-main {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(360px, 48%) minmax(260px, 1fr);
-        overflow: auto;
-    }
-
-    .oscad-header {
-        padding: 8px 10px;
-    }
-
-    .oscad-sidebar,
-    .oscad-agent-panel,
-    .oscad-inspector,
-    .oscad-preview-zone {
-        border-left: 0;
-        border-right: 0;
-    }
-
-    .oscad-sidebar {
-        max-height: min(48vh, 460px);
-        border-bottom: 1px solid var(--oscad-border);
-    }
-
-    .openscad-app.params-collapsed .oscad-sidebar {
-        display: none;
-    }
-
-    .openscad-app.params-collapsed .oscad-main {
-        grid-template-rows: 0 minmax(360px, 48%) minmax(260px, 1fr);
-    }
-
-    .oscad-agent-panel {
-        max-height: min(48vh, 480px);
-        border-top: 1px solid var(--oscad-border);
-    }
-
-    .openscad-app.agent-collapsed .oscad-agent-panel {
-        display: none;
-    }
-
-    .oscad-preview-zone {
-        min-height: 360px;
-        padding: 12px;
-    }
-
-    .oscad-center {
-        grid-template-rows: minmax(120px, 0.5fr) minmax(280px, 1fr);
-    }
+.oscad-send-btn {
+    justify-self: end;
+    min-width: 132px;
 }
 
-@media (max-width: 560px) {
-    .oscad-sidebar,
-    .oscad-preview-zone,
-    .oscad-agent-panel {
-        padding: 10px;
-    }
-
-    .oscad-row,
-    .oscad-footer {
-        grid-template-columns: 1fr;
-        display: grid;
-    }
-
-    .oscad-actions {
-        justify-content: stretch;
-    }
-
-    .oscad-actions .oscad-btn {
-        flex: 1;
-    }
-
-    .oscad-viewport-head {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .oscad-header-actions .oscad-btn span {
-        display: none;
-    }
-
-    .oscad-header-actions .oscad-btn {
-        min-width: 40px;
-        padding: 8px;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .oscad-btn,
-    .oscad-icon-btn,
-    .oscad-tab {
-        transition: none;
-    }
-
-    .openscad-app.busy .oscad-panel::after {
-        animation: none;
-    }
-
-    .oscad-busy-spinner {
-        animation: none;
-    }
-
-    .oscad-agent-panel {
-        transition: none;
-    }
-}
-
-@keyframes oscad-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
+/* ---------- Inspector content ---------- */
 
 .oscad-source {
     height: 100%;
@@ -1075,14 +1248,103 @@
     overflow: auto;
 }
 
+.oscad-code {
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 14px;
+    overflow: auto;
+    color: var(--oscad-text);
+    background: rgba(0, 0, 0, 0.18);
+    font: 13px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    white-space: pre-wrap;
+}
+
+.oscad-file-list {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    height: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.oscad-file {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 58px;
+    padding: 9px 10px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    transition: border-color 0.15s ease;
+}
+
+.oscad-file:hover {
+    border-color: color-mix(in srgb, var(--oscad-accent) 45%, transparent);
+}
+
+.oscad-file-main {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+.oscad-file span,
+.oscad-file small,
+.oscad-file em,
+.oscad-status {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.oscad-file span {
+    font-weight: 820;
+}
+
+.oscad-file small,
+.oscad-file em {
+    font-size: 11.5px;
+    font-style: normal;
+}
+
+.oscad-file-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.oscad-file-actions .oscad-icon-btn {
+    width: 30px;
+    height: 30px;
+}
+
+/* ---------- Defines panel ---------- */
+
 .oscad-defines-panel {
     display: grid;
     gap: 10px;
     padding: 10px;
-    background: rgba(5, 11, 18, 0.68);
+    background: rgba(5, 11, 18, 0.5);
+    border: 1px solid var(--oscad-border);
     border-radius: 10px;
-    max-height: 280px;
+    max-height: 300px;
     overflow-y: auto;
+}
+
+.desktop-body[data-theme="light"] .oscad-defines-panel {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.desktop-body[data-theme="light"] .oscad-code {
+    background: rgba(255, 255, 255, 0.55);
 }
 
 .oscad-defines-mode-toggle {
@@ -1153,7 +1415,7 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    background: var(--oscad-accent-gradient);
     border: none;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
     cursor: pointer;
@@ -1163,7 +1425,7 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    background: var(--oscad-accent-gradient);
     border: none;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
     cursor: pointer;
@@ -1206,6 +1468,8 @@
 .oscad-add-define {
     min-height: 36px;
 }
+
+/* ---------- Editor syntax / error lines ---------- */
 
 .oscad-error-line {
     background: rgba(255, 113, 128, 0.12) !important;
@@ -1267,4 +1531,141 @@
     resize: none;
     box-sizing: border-box;
     outline: none;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1120px) {
+    .oscad-main {
+        grid-template-columns: clamp(232px, var(--oscad-inspector-w, 300px), 460px) 5px minmax(0, 1fr) 5px clamp(220px, var(--oscad-sidebar-w, 252px), 360px);
+    }
+
+    .openscad-app.inspector-collapsed .oscad-main {
+        grid-template-columns: 0 0 minmax(0, 1fr) 5px clamp(220px, var(--oscad-sidebar-w, 252px), 360px);
+    }
+
+    .openscad-app.params-collapsed .oscad-main {
+        grid-template-columns: clamp(232px, var(--oscad-inspector-w, 300px), 460px) 5px minmax(0, 1fr) 0 0;
+    }
+
+    .oscad-brand p {
+        display: none;
+    }
+}
+
+@media (max-width: 860px) {
+    .oscad-main {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .oscad-splitter {
+        display: none;
+    }
+
+    .oscad-preview-zone {
+        order: 1;
+        flex: 0 0 auto;
+        height: max(340px, 46vh);
+        min-height: 340px;
+    }
+
+    .oscad-inspector {
+        order: 2;
+        flex: 0 0 auto;
+        min-height: 300px;
+        height: max(300px, 42vh);
+        border-right: 0;
+        border-top: 1px solid var(--oscad-border);
+    }
+
+    .openscad-app.inspector-collapsed .oscad-inspector {
+        display: none;
+    }
+
+    .oscad-sidebar {
+        order: 3;
+        flex: 0 0 auto;
+        overflow: visible;
+        border-left: 0;
+        border-top: 1px solid var(--oscad-border);
+    }
+
+    .openscad-app.params-collapsed .oscad-sidebar {
+        display: none;
+    }
+
+    .oscad-agent-panel {
+        top: 8px;
+        right: 8px;
+        bottom: 8px;
+        width: min(420px, calc(100% - 16px));
+    }
+}
+
+@media (max-width: 560px) {
+    .oscad-preview-zone {
+        padding: 8px;
+    }
+
+    .oscad-busy-overlay {
+        inset: 8px;
+    }
+
+    .oscad-viewport-head {
+        top: 14px;
+        left: 14px;
+        right: 14px;
+    }
+
+    .oscad-footer {
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+    }
+
+    .oscad-viewport-title span {
+        display: none;
+    }
+
+    .oscad-header-actions .oscad-btn span {
+        display: none;
+    }
+
+    .oscad-header-actions .oscad-btn {
+        min-width: 36px;
+        padding: 7px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .oscad-btn,
+    .oscad-icon-btn,
+    .oscad-tab {
+        transition: none;
+    }
+
+    .openscad-app.busy .oscad-panel::after {
+        animation: none;
+    }
+
+    .oscad-busy-spinner {
+        animation: none;
+    }
+
+    .oscad-agent-panel {
+        transition: none;
+    }
+
+    .oscad-splitter::before {
+        transition: none;
+    }
+}
+
+@keyframes oscad-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

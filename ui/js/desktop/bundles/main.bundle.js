@@ -5023,7 +5023,7 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
-            openscad: { width: 1120, height: 720 },
+            openscad: { width: 1240, height: 760 },
             teevee: { width: 1120, height: 720 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },

@@ -409,24 +409,46 @@ registration lives in `internal/desktop/types.go`.
   logic into the main app file.
 - OpenSCAD exposes `window.OpenSCADApp = { render, dispose }`. Every window
   instance owns its draft timer, SSE listeners, editor, and preview resources.
-- OpenSCAD uses an editor-first layout: a header bar with primary actions
-  (render, generate, cancel, download, save) and collapsible toggles for the
-  parameter sidebar and agent slide-over; the center column stacks the
-  inspector (editor pane with Source/Files/Log tabs plus an issues panel)
-  over the preview zone; the parameter sidebar holds exports with a
-  selected-count badge, defines sliders, segmented Render/Preview mode
-  control, and timeout; the agent panel hosts a streaming chat transcript
-  and an apply-changes bar that stages agent-proposed source instead of
-  silently overwriting.
-- OpenSCAD viewport controls include perspective/orthographic projection,
-  shaded/wireframe shading, auto-rotate (disabled under
-  `prefers-reduced-motion`), and double-click-to-reset.
+- OpenSCAD uses a preview-first workbench layout: a slim header bar with
+  primary actions (render, generate, cancel, download, save) and toggle
+  buttons for the three panels; the main grid is
+  `[inspector | splitter | preview | splitter | parameters]` with explicit
+  grid tracks so the preview keeps its column when panels collapse. The left
+  inspector column hosts the Source/Files/Log tabs plus an auto-hiding
+  issues bar (hidden when empty) and is resizable/collapsible; the center
+  preview zone is edge-to-edge with floating glass overlays (title chip,
+  viewport toolbar pill, status pill) so the viewport loses no space to
+  chrome; the right parameter sidebar holds exports with a selected-count
+  badge, segmented Render/Preview mode, timeout, and defines sliders; the
+  agent panel is an absolute slide-over (never squeezes the preview) hosting
+  the streaming chat transcript, a composer, and an apply-changes bar that
+  stages agent-proposed source instead of silently overwriting.
+- OpenSCAD viewport controls include zoom in/out, perspective/orthographic
+  projection, shaded/wireframe shading, auto-rotate (disabled under
+  `prefers-reduced-motion`), dark/light background, grid/axes, fit view,
+  double-click-to-reset, and fullscreen on the whole preview zone (overlays
+  stay visible). The busy overlay is scoped to the preview zone (editor
+  stays usable) and shows elapsed seconds.
+- OpenSCAD 3D preview uses a gradient canvas-texture background, a
+  ShadowMaterial contact-shadow plane plus a model-sized grid grounded at
+  the model's bounding box, `framePreviewCamera` bounding-sphere fit
+  targeting the box center, and a `ResizeObserver` that keeps renderer size
+  and camera aspect in sync (no stretched canvas on window/fullscreen
+  resize). `cleanupPreview` disposes geometry, materials, background
+  texture, and disconnects the observer.
 - OpenSCAD keyboard shortcuts (Ctrl+Enter render, Esc cancel, F fit view,
   Ctrl+S save draft) are attached in `wireKeyboardShortcuts` and removed
-  in `dispose`.
+  in `dispose`; splitters support pointer drag, double-click to collapse,
+  and ArrowLeft/ArrowRight resizing.
 - OpenSCAD drafts persist per `windowId` under
   `aurago.desktop.openscad.draft.<windowId>` and include additive viewport
-  preferences (projection, shading, auto-rotate) and panel collapse state.
+  preferences (projection, shading, auto-rotate), panel collapse state, and
+  inspector/sidebar widths.
+- OpenSCAD toolbar icons use themed manifest icons (`sliders`, `cube`,
+  `mesh`, `contrast` were added for this app to `ui/img/papirus`,
+  `ui/img/whitesur`, and the backend icon catalog in
+  `internal/desktop/types.go`); button icons are retinted via CSS
+  `--oscad-icon-filter` so they stay legible on dark glass.
 - OpenSCAD result events must filter on `window_id` when present; without it,
   idle multi-window instances must ignore global `openscad_result` events.
 - OpenSCAD readonly mode disables CodeMirror/`textarea` editing, defines

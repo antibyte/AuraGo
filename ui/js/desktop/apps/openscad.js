@@ -16,6 +16,8 @@ model();`;
     const OPENSCAD_DRAFT_KEY = 'aurago.desktop.openscad.draft';
     const OPENSCAD_DRAFT_MAX_SOURCE = 480 * 1024;
     const OPENSCAD_DRAFT_VERSION = 1;
+    const PANEL_MIN_WIDTH = 232;
+    const PANEL_MAX_WIDTH = 560;
 
     const stateByWindow = new Map();
 
@@ -136,6 +138,12 @@ model();`;
         }
     }
 
+    function clampPanelWidth(value) {
+        const px = Math.round(Number(value) || 0);
+        if (!px) return 0;
+        return Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, px));
+    }
+
     function openSCADDraftFromState(state) {
         const source = String(state.source || '');
         if (source.length > OPENSCAD_DRAFT_MAX_SOURCE) return null;
@@ -156,6 +164,9 @@ model();`;
             viewportAutoRotate: state.viewportAutoRotate !== false,
             paramsCollapsed: !!state.paramsCollapsed,
             agentCollapsed: state.agentCollapsed !== false,
+            inspectorCollapsed: !!state.inspectorCollapsed,
+            inspectorWidth: clampPanelWidth(state.inspectorWidth),
+            sidebarWidth: clampPanelWidth(state.sidebarWidth),
             savedAt: Date.now()
         };
     }
@@ -200,6 +211,11 @@ model();`;
         if (typeof draft.viewportAutoRotate === 'boolean') state.viewportAutoRotate = draft.viewportAutoRotate;
         if (typeof draft.paramsCollapsed === 'boolean') state.paramsCollapsed = draft.paramsCollapsed;
         if (typeof draft.agentCollapsed === 'boolean') state.agentCollapsed = draft.agentCollapsed;
+        if (typeof draft.inspectorCollapsed === 'boolean') state.inspectorCollapsed = draft.inspectorCollapsed;
+        const inspectorWidth = clampPanelWidth(draft.inspectorWidth);
+        if (inspectorWidth) state.inspectorWidth = inspectorWidth;
+        const sidebarWidth = clampPanelWidth(draft.sidebarWidth);
+        if (sidebarWidth) state.sidebarWidth = sidebarWidth;
     }
 
     function mergeOpenSCADLaunchContext(ctx, draft) {
@@ -239,6 +255,11 @@ model();`;
             viewportAutoRotate: true,
             paramsCollapsed: false,
             agentCollapsed: true,
+            inspectorCollapsed: false,
+            inspectorWidth: 0,
+            sidebarWidth: 0,
+            busyStartedAt: 0,
+            busyTicker: null,
             pendingAgentSource: null,
             pendingAgentSummary: '',
             agentHistory: [],
@@ -282,7 +303,7 @@ model();`;
             <div class="oscad-workbench" data-oscad-workbench>
                 <header class="oscad-header">
                     <div class="oscad-brand">
-                        <div class="oscad-brand-icon">${icon(ctx, 'openscad', 'O', 'oscad-icon', 22)}</div>
+                        <div class="oscad-brand-icon">${icon(ctx, 'openscad', 'O', 'oscad-icon', 20)}</div>
                         <div class="oscad-brand-text">
                             <h2>${esc(t(ctx, 'desktop.openscad.title', 'OpenSCAD'))}</h2>
                             <p>${esc(t(ctx, 'desktop.openscad.subtitle', 'Parametric CAD compiler'))}</p>
@@ -290,75 +311,96 @@ model();`;
                     </div>
                     <div class="oscad-run-meta" data-oscad-run-meta></div>
                     <div class="oscad-header-actions">
-                        <button type="button" class="oscad-btn oscad-primary" data-oscad-render>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.render', 'Render'))}</span></button>
-                        <button type="button" class="oscad-btn" data-oscad-agent>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.generate_render', 'Generate & render'))}</span></button>
-                        <button type="button" class="oscad-btn oscad-cancel" data-oscad-cancel hidden>${icon(ctx, 'x', 'X', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.cancel', 'Cancel'))}</span></button>
-                        <button type="button" class="oscad-btn" data-oscad-download>${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.primary_download', 'Download primary'))}</span></button>
-                        <button type="button" class="oscad-btn" data-oscad-save>${icon(ctx, 'save', 'S', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.save_all_desktop', 'Save all'))}</span></button>
+                        <button type="button" class="oscad-btn oscad-primary" data-oscad-render title="${esc(t(ctx, 'desktop.openscad.render', 'Render'))} (Ctrl+Enter)">${icon(ctx, 'run', 'R', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.render', 'Render'))}</span></button>
+                        <button type="button" class="oscad-btn oscad-agent-btn" data-oscad-agent>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.generate_render', 'Generate & render'))}</span></button>
+                        <button type="button" class="oscad-btn oscad-cancel" data-oscad-cancel hidden>${icon(ctx, 'stop', 'X', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.cancel', 'Cancel'))}</span></button>
+                        <span class="oscad-header-sep" aria-hidden="true"></span>
+                        <button type="button" class="oscad-icon-btn" data-oscad-download title="${esc(t(ctx, 'desktop.openscad.primary_download', 'Download primary'))}" aria-label="${esc(t(ctx, 'desktop.openscad.primary_download', 'Download primary'))}">${icon(ctx, 'download', 'D', 'oscad-btn-icon', 16)}</button>
+                        <button type="button" class="oscad-icon-btn" data-oscad-save title="${esc(t(ctx, 'desktop.openscad.save_all_desktop', 'Save all'))}" aria-label="${esc(t(ctx, 'desktop.openscad.save_all_desktop', 'Save all'))}">${icon(ctx, 'save', 'S', 'oscad-btn-icon', 16)}</button>
+                        <span class="oscad-header-sep" aria-hidden="true"></span>
+                        <button type="button" class="oscad-icon-btn" data-oscad-toggle-editor title="${esc(t(ctx, 'desktop.openscad.toggle_editor', 'Toggle editor panel'))}" aria-label="${esc(t(ctx, 'desktop.openscad.toggle_editor', 'Toggle editor panel'))}">${icon(ctx, 'code', 'E', 'oscad-btn-icon', 16)}</button>
                         <button type="button" class="oscad-icon-btn" data-oscad-toggle-params title="${esc(t(ctx, 'desktop.openscad.collapsed_parameters', 'Toggle parameters panel'))}" aria-label="${esc(t(ctx, 'desktop.openscad.collapsed_parameters', 'Toggle parameters panel'))}">${icon(ctx, 'sliders', 'P', 'oscad-btn-icon', 16)}</button>
                         <button type="button" class="oscad-icon-btn" data-oscad-toggle-agent title="${esc(t(ctx, 'desktop.openscad.collapsed_agent', 'Toggle agent panel'))}" aria-label="${esc(t(ctx, 'desktop.openscad.collapsed_agent', 'Toggle agent panel'))}">${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}</button>
                     </div>
                 </header>
                 <div class="oscad-main">
+                    <aside class="oscad-inspector" data-oscad-inspector>
+                        <div class="oscad-tabs">
+                            ${tabButton(state, 'source', t(ctx, 'desktop.openscad.tab_source', 'Source'))}
+                            ${tabButton(state, 'files', t(ctx, 'desktop.openscad.tab_files', 'Files'))}
+                            ${tabButton(state, 'log', t(ctx, 'desktop.openscad.tab_log', 'Log'))}
+                            <button type="button" class="oscad-icon-btn" data-oscad-refresh title="${esc(t(ctx, 'desktop.openscad.refresh', 'Refresh'))}" aria-label="${esc(t(ctx, 'desktop.openscad.refresh', 'Refresh'))}">${icon(ctx, 'refresh', 'R', 'oscad-btn-icon', 14)}</button>
+                            <button type="button" class="oscad-icon-btn oscad-collapse-btn" data-oscad-toggle-editor title="${esc(t(ctx, 'desktop.openscad.toggle_editor', 'Toggle editor panel'))}" aria-label="${esc(t(ctx, 'desktop.openscad.toggle_editor', 'Toggle editor panel'))}">${icon(ctx, 'chevron-left', '<', 'oscad-btn-icon', 14)}</button>
+                        </div>
+                        <div class="oscad-inspector-panel" data-oscad-inspector-panel></div>
+                        <div class="oscad-issues" data-oscad-issues hidden></div>
+                    </aside>
+                    <div class="oscad-splitter" data-oscad-splitter="inspector" role="separator" aria-orientation="vertical" tabindex="0"></div>
+                    <main class="oscad-preview-zone" data-oscad-preview-zone>
+                        <div class="oscad-panel" data-oscad-panel data-oscad-preview-panel></div>
+                        <div class="oscad-viewport-head">
+                            <div class="oscad-viewport-title">
+                                <span>${esc(t(ctx, 'desktop.openscad.tab_preview', 'Preview'))}</span>
+                                <strong data-oscad-primary-label></strong>
+                            </div>
+                            <div class="oscad-viewport-toolbar">
+                                <button type="button" class="oscad-icon-btn" data-oscad-zoom-out title="${esc(t(ctx, 'desktop.openscad.viewport_zoom_out', 'Zoom out'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_zoom_out', 'Zoom out'))}">${icon(ctx, 'zoom-out', '-', 'oscad-btn-icon', 15)}</button>
+                                <button type="button" class="oscad-icon-btn" data-oscad-zoom-in title="${esc(t(ctx, 'desktop.openscad.viewport_zoom_in', 'Zoom in'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_zoom_in', 'Zoom in'))}">${icon(ctx, 'zoom-in', '+', 'oscad-btn-icon', 15)}</button>
+                                <span class="oscad-toolbar-sep" aria-hidden="true"></span>
+                                <button type="button" class="oscad-icon-btn" data-oscad-projection title="${esc(t(ctx, 'desktop.openscad.viewport_ortho', 'Toggle perspective / orthographic'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_ortho', 'Toggle perspective / orthographic'))}">${icon(ctx, 'cube', 'O', 'oscad-btn-icon', 15)}</button>
+                                <button type="button" class="oscad-icon-btn" data-oscad-shading title="${esc(t(ctx, 'desktop.openscad.viewport_wireframe', 'Wireframe'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_shaded', 'Shaded surface'))}">${icon(ctx, 'mesh', 'W', 'oscad-btn-icon', 15)}</button>
+                                <button type="button" class="oscad-icon-btn" data-oscad-autorotate title="${esc(t(ctx, 'desktop.openscad.viewport_auto_rotate', 'Toggle auto-rotate'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_auto_rotate', 'Toggle auto-rotate'))}">${icon(ctx, 'redo', 'R', 'oscad-btn-icon', 15)}</button>
+                                <button type="button" class="oscad-icon-btn" data-oscad-background title="${esc(t(ctx, 'desktop.openscad.viewport_background', 'Toggle background'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_background', 'Toggle background'))}">${icon(ctx, 'contrast', 'B', 'oscad-btn-icon', 15)}</button>
+                                <button type="button" class="oscad-icon-btn" data-oscad-axes title="${esc(t(ctx, 'desktop.openscad.viewport_axes', 'Toggle grid and axes'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_axes', 'Toggle grid and axes'))}">${icon(ctx, 'grid', 'G', 'oscad-btn-icon', 15)}</button>
+                                <span class="oscad-toolbar-sep" aria-hidden="true"></span>
+                                <button type="button" class="oscad-icon-btn" data-oscad-fit title="${esc(t(ctx, 'desktop.openscad.viewport_fit', 'Fit view'))} (F)" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_fit', 'Fit view'))}">${icon(ctx, 'zoom-reset', 'F', 'oscad-btn-icon', 15)}</button>
+                                <button type="button" class="oscad-icon-btn" data-oscad-fullscreen title="${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}" aria-label="${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}">${icon(ctx, 'maximize', 'F', 'oscad-btn-icon', 15)}</button>
+                            </div>
+                        </div>
+                        <div class="oscad-footer">
+                            <div class="oscad-status" data-oscad-status role="status"></div>
+                        </div>
+                        <div class="oscad-busy-overlay" data-oscad-busy-label hidden><div class="oscad-busy-spinner"></div><span class="oscad-busy-text"></span><span class="oscad-busy-elapsed" data-oscad-busy-elapsed></span></div>
+                    </main>
+                    <div class="oscad-splitter" data-oscad-splitter="sidebar" role="separator" aria-orientation="vertical" tabindex="0"></div>
                     <aside class="oscad-sidebar" data-oscad-sidebar>
                         <div class="oscad-options">
-                            <div class="oscad-section-head">
-                                <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.exports', 'Exports'))}</label>
-                                <span class="oscad-export-count" data-oscad-export-count>0</span>
-                            </div>
-                            <div class="oscad-chips oscad-primary-exports" data-oscad-primary-exports></div>
-                            <div class="oscad-export-hint"><span>${esc(t(ctx, 'desktop.openscad.export_2d', '2D'))}</span><span>${esc(t(ctx, 'desktop.openscad.export_3d', '3D'))}</span></div>
-                            <details class="oscad-more-exports">
-                                <summary>${esc(t(ctx, 'desktop.openscad.more_exports', 'More exports'))}</summary>
-                                <div class="oscad-chips" data-oscad-more-exports></div>
-                            </details>
-                            <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.defines', 'Custom -D defines'))}</label>
-                            <div class="oscad-defines" data-oscad-defines></div>
-                            <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.mode', 'Mode'))}</label>
-                            <div class="oscad-segmented" role="group">
-                                <button type="button" class="oscad-seg" data-oscad-mode="render" ${ro ? 'disabled' : ''}>${esc(t(ctx, 'desktop.openscad.mode_render', 'Render'))}</button>
-                                <button type="button" class="oscad-seg" data-oscad-mode="preview" ${ro ? 'disabled' : ''}>${esc(t(ctx, 'desktop.openscad.mode_preview', 'Preview'))}</button>
-                            </div>
-                            <p class="oscad-mode-hint">${esc(t(ctx, 'desktop.openscad.mode_preview_hint', 'Preview is faster for iterating on the model.'))}</p>
-                            <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.timeout', 'Timeout'))}</label>
-                            <input class="oscad-input" data-oscad-timeout type="number" min="10" max="600" step="10" ${ro ? 'readonly' : ''}>
+                            <section class="oscad-section">
+                                <div class="oscad-section-head">
+                                    <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.exports', 'Exports'))}</label>
+                                    <span class="oscad-export-count" data-oscad-export-count>0</span>
+                                </div>
+                                <div class="oscad-chips oscad-primary-exports" data-oscad-primary-exports></div>
+                                <div class="oscad-export-hint"><span>${esc(t(ctx, 'desktop.openscad.export_2d', '2D'))}</span><span>${esc(t(ctx, 'desktop.openscad.export_3d', '3D'))}</span></div>
+                                <details class="oscad-more-exports">
+                                    <summary>${esc(t(ctx, 'desktop.openscad.more_exports', 'More exports'))}</summary>
+                                    <div class="oscad-chips" data-oscad-more-exports></div>
+                                </details>
+                            </section>
+                            <section class="oscad-section">
+                                <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.mode', 'Mode'))}</label>
+                                <div class="oscad-segmented" role="group">
+                                    <button type="button" class="oscad-seg" data-oscad-mode="render" ${ro ? 'disabled' : ''}>${esc(t(ctx, 'desktop.openscad.mode_render', 'Render'))}</button>
+                                    <button type="button" class="oscad-seg" data-oscad-mode="preview" ${ro ? 'disabled' : ''}>${esc(t(ctx, 'desktop.openscad.mode_preview', 'Preview'))}</button>
+                                </div>
+                                <p class="oscad-mode-hint">${esc(t(ctx, 'desktop.openscad.mode_preview_hint', 'Preview is faster for iterating on the model.'))}</p>
+                            </section>
+                            <section class="oscad-section">
+                                <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.timeout', 'Timeout'))}</label>
+                                <input class="oscad-input" data-oscad-timeout type="number" min="10" max="600" step="10" ${ro ? 'readonly' : ''}>
+                            </section>
+                            <section class="oscad-section">
+                                <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.defines', 'Custom -D defines'))}</label>
+                                <div class="oscad-defines" data-oscad-defines></div>
+                            </section>
                             <p class="oscad-shortcuts">${esc(t(ctx, 'desktop.openscad.shortcuts', 'Ctrl+Enter render · Esc cancel · F fit view · Ctrl+S save draft'))}</p>
                         </div>
                     </aside>
-                    <section class="oscad-center">
-                        <aside class="oscad-inspector" data-oscad-inspector>
-                            <div class="oscad-tabs">
-                                ${tabButton(state, 'source', t(ctx, 'desktop.openscad.tab_source', 'Source'))}
-                                ${tabButton(state, 'files', t(ctx, 'desktop.openscad.tab_files', 'Files'))}
-                                ${tabButton(state, 'log', t(ctx, 'desktop.openscad.tab_log', 'Log'))}
-                                <button type="button" class="oscad-icon-btn" data-oscad-refresh title="${esc(t(ctx, 'desktop.openscad.refresh', 'Refresh'))}">${icon(ctx, 'refresh', 'R', 'oscad-btn-icon', 16)}</button>
-                            </div>
-                            <div class="oscad-inspector-panel" data-oscad-inspector-panel></div>
-                            <div class="oscad-issues" data-oscad-issues></div>
-                        </aside>
-                        <main class="oscad-preview-zone">
-                            <div class="oscad-viewport-head">
-                                <div>
-                                    <span>${esc(t(ctx, 'desktop.openscad.tab_preview', 'Preview'))}</span>
-                                    <strong data-oscad-primary-label></strong>
-                                </div>
-                                <div class="oscad-viewport-toolbar">
-                                    <button type="button" class="oscad-icon-btn" data-oscad-projection title="${esc(t(ctx, 'desktop.openscad.viewport_ortho', 'Toggle perspective / orthographic'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_ortho', 'Toggle perspective / orthographic'))}">${icon(ctx, 'cube', 'O', 'oscad-btn-icon', 16)}</button>
-                                    <button type="button" class="oscad-icon-btn" data-oscad-shading title="${esc(t(ctx, 'desktop.openscad.viewport_wireframe', 'Wireframe'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_shaded', 'Shaded surface'))}">${icon(ctx, 'grid', 'W', 'oscad-btn-icon', 16)}</button>
-                                    <button type="button" class="oscad-icon-btn" data-oscad-autorotate title="${esc(t(ctx, 'desktop.openscad.viewport_auto_rotate', 'Toggle auto-rotate'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_auto_rotate', 'Toggle auto-rotate'))}">${icon(ctx, 'rotate', 'R', 'oscad-btn-icon', 16)}</button>
-                                    <button type="button" class="oscad-icon-btn" data-oscad-fit title="${esc(t(ctx, 'desktop.openscad.viewport_fit', 'Fit view'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_fit', 'Fit view'))}">${icon(ctx, 'zoom-fit', 'F', 'oscad-btn-icon', 16)}</button>
-                                    <button type="button" class="oscad-icon-btn" data-oscad-background title="${esc(t(ctx, 'desktop.openscad.viewport_background', 'Toggle background'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_background', 'Toggle background'))}">${icon(ctx, 'contrast', 'B', 'oscad-btn-icon', 16)}</button>
-                                    <button type="button" class="oscad-icon-btn" data-oscad-axes title="${esc(t(ctx, 'desktop.openscad.viewport_axes', 'Toggle grid and axes'))}" aria-label="${esc(t(ctx, 'desktop.openscad.viewport_axes', 'Toggle grid and axes'))}">${icon(ctx, 'grid', 'G', 'oscad-btn-icon', 16)}</button>
-                                    <button type="button" class="oscad-icon-btn" data-oscad-fullscreen title="${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}" aria-label="${esc(t(ctx, 'desktop.openscad.fullscreen', 'Fullscreen'))}">${icon(ctx, 'fullscreen', 'F', 'oscad-btn-icon', 16)}</button>
-                                </div>
-                            </div>
-                            <div class="oscad-panel" data-oscad-panel data-oscad-preview-panel></div>
-                            <div class="oscad-footer">
-                                <div class="oscad-status" data-oscad-status></div>
-                            </div>
-                        </main>
-                    </section>
                     <aside class="oscad-agent-panel" data-oscad-agent-panel>
+                        <div class="oscad-agent-head">
+                            <span>${esc(t(ctx, 'desktop.openscad.agent_history', 'Agent chat'))}</span>
+                            <button type="button" class="oscad-icon-btn" data-oscad-toggle-agent title="${esc(t(ctx, 'desktop.openscad.collapsed_agent', 'Toggle agent panel'))}" aria-label="${esc(t(ctx, 'desktop.openscad.collapsed_agent', 'Toggle agent panel'))}">${icon(ctx, 'x', 'X', 'oscad-btn-icon', 13)}</button>
+                        </div>
                         <div class="oscad-apply-bar" data-oscad-apply-bar hidden>
                             <div class="oscad-apply-summary" data-oscad-apply-summary></div>
                             <div class="oscad-apply-actions">
@@ -366,16 +408,15 @@ model();`;
                                 <button type="button" class="oscad-btn" data-oscad-discard-source>${esc(t(ctx, 'desktop.openscad.discard_changes', 'Discard'))}</button>
                             </div>
                         </div>
-                        <div class="oscad-agent-head">
-                            <span>${esc(t(ctx, 'desktop.openscad.agent_history', 'Agent chat'))}</span>
-                        </div>
                         <div class="oscad-transcript" data-oscad-transcript></div>
-                        <textarea class="oscad-chat" data-oscad-prompt rows="4" placeholder="${esc(t(ctx, 'desktop.openscad.prompt_placeholder', 'Describe the model you want...'))}"></textarea>
-                        <button type="button" class="oscad-btn oscad-primary" data-oscad-agent-send>${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 16)}<span>${esc(t(ctx, 'desktop.openscad.ask_agent', 'Ask agent'))}</span></button>
+                        <div class="oscad-composer">
+                            <textarea class="oscad-chat" data-oscad-prompt rows="3" placeholder="${esc(t(ctx, 'desktop.openscad.prompt_placeholder', 'Describe the model you want...'))}"></textarea>
+                            <button type="button" class="oscad-btn oscad-primary oscad-send-btn" data-oscad-agent-send title="${esc(t(ctx, 'desktop.openscad.ask_agent', 'Ask agent'))}">${icon(ctx, 'agent-chat', 'A', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.ask_agent', 'Ask agent'))}</span></button>
+                        </div>
                     </aside>
                 </div>
-                <div class="oscad-busy-overlay" data-oscad-busy-label hidden><div class="oscad-busy-spinner"></div><span class="oscad-busy-text"></span></div>
             </div>`;
+        applyShellSizing(state);
         const primary = state.host.querySelector('[data-oscad-primary-exports]');
         if (primary) {
             primary.innerHTML = exportChipHTML(state, 'png') + exportChipHTML(state, 'stl');
@@ -397,6 +438,7 @@ model();`;
         host.classList.toggle('light-preview', !!state.lightPreview);
         host.classList.toggle('params-collapsed', !!state.paramsCollapsed);
         host.classList.toggle('agent-collapsed', !!state.agentCollapsed);
+        host.classList.toggle('inspector-collapsed', !!state.inspectorCollapsed);
         host.setAttribute('aria-busy', state.busy ? 'true' : 'false');
         const meta = host.querySelector('[data-oscad-run-meta]');
         if (meta) {
@@ -440,10 +482,18 @@ model();`;
         }
         const rotBtn = host.querySelector('[data-oscad-autorotate]');
         if (rotBtn) rotBtn.classList.toggle('active', !!state.viewportAutoRotate);
-        const paramsToggle = host.querySelector('[data-oscad-toggle-params]');
-        if (paramsToggle) paramsToggle.setAttribute('aria-expanded', String(!state.paramsCollapsed));
-        const agentToggle = host.querySelector('[data-oscad-toggle-agent]');
-        if (agentToggle) agentToggle.setAttribute('aria-expanded', String(!state.agentCollapsed));
+        host.querySelectorAll('[data-oscad-toggle-editor]').forEach(btn => {
+            btn.setAttribute('aria-expanded', String(!state.inspectorCollapsed));
+            btn.classList.toggle('active', !state.inspectorCollapsed);
+        });
+        host.querySelectorAll('[data-oscad-toggle-params]').forEach(btn => {
+            btn.setAttribute('aria-expanded', String(!state.paramsCollapsed));
+            btn.classList.toggle('active', !state.paramsCollapsed);
+        });
+        host.querySelectorAll('[data-oscad-toggle-agent]').forEach(btn => {
+            btn.setAttribute('aria-expanded', String(!state.agentCollapsed));
+            btn.classList.toggle('active', !state.agentCollapsed);
+        });
         host.querySelectorAll('.oscad-tab').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.oscadTab === state.activeTab);
         });
@@ -451,6 +501,76 @@ model();`;
         renderAgentTranscript(state);
         renderApplyBar(state);
         setOpenSCADBusy(state, state.busy, state.busyMode);
+    }
+
+    function applyShellSizing(state) {
+        if (!state.host) return;
+        const inspector = clampPanelWidth(state.inspectorWidth);
+        const sidebar = clampPanelWidth(state.sidebarWidth);
+        state.host.style.setProperty('--oscad-inspector-w', inspector ? inspector + 'px' : '');
+        state.host.style.setProperty('--oscad-sidebar-w', sidebar ? sidebar + 'px' : '');
+    }
+
+    function toggleInspectorPanel(state) {
+        state.inspectorCollapsed = !state.inspectorCollapsed;
+        syncShellControls(state);
+        scheduleOpenSCADDraftSave(state);
+        if (!state.inspectorCollapsed) renderInspector(state);
+    }
+
+    function wireSplitters(state) {
+        state.host.querySelectorAll('[data-oscad-splitter]').forEach(splitter => {
+            const target = splitter.dataset.oscadSplitter === 'sidebar' ? 'sidebar' : 'inspector';
+            splitter.addEventListener('pointerdown', e => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                const main = splitter.parentElement;
+                const mainRect = main ? main.getBoundingClientRect() : null;
+                if (!mainRect) return;
+                splitter.setPointerCapture(e.pointerId);
+                splitter.classList.add('dragging');
+                const onMove = ev => {
+                    const px = target === 'sidebar'
+                        ? mainRect.right - ev.clientX
+                        : ev.clientX - mainRect.left;
+                    const clamped = clampPanelWidth(px);
+                    if (!clamped) return;
+                    if (target === 'sidebar') state.sidebarWidth = clamped;
+                    else state.inspectorWidth = clamped;
+                    applyShellSizing(state);
+                };
+                const onUp = () => {
+                    splitter.classList.remove('dragging');
+                    splitter.removeEventListener('pointermove', onMove);
+                    splitter.removeEventListener('pointerup', onUp);
+                    splitter.removeEventListener('pointercancel', onUp);
+                    scheduleOpenSCADDraftSave(state);
+                };
+                splitter.addEventListener('pointermove', onMove);
+                splitter.addEventListener('pointerup', onUp);
+                splitter.addEventListener('pointercancel', onUp);
+            });
+            splitter.addEventListener('dblclick', () => {
+                if (target === 'sidebar') {
+                    state.paramsCollapsed = !state.paramsCollapsed;
+                    syncShellControls(state);
+                    scheduleOpenSCADDraftSave(state);
+                } else {
+                    toggleInspectorPanel(state);
+                }
+            });
+            splitter.addEventListener('keydown', e => {
+                const step = e.key === 'ArrowLeft' ? -28 : e.key === 'ArrowRight' ? 28 : 0;
+                if (!step) return;
+                e.preventDefault();
+                const key = target === 'sidebar' ? 'sidebarWidth' : 'inspectorWidth';
+                const base = clampPanelWidth(state[key]) || (target === 'sidebar' ? 288 : 340);
+                const delta = target === 'sidebar' ? -step : step;
+                state[key] = clampPanelWidth(base + delta);
+                applyShellSizing(state);
+                scheduleOpenSCADDraftSave(state);
+            });
+        });
     }
 
     function draw(state) {
@@ -490,7 +610,7 @@ model();`;
 
     function primaryFileLabel(state) {
         const file = primaryFile(state);
-        return file ? `${file.name} · ${String(file.format || '').toUpperCase()}` : t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
+        return file ? `${file.name} · ${String(file.format || '').toUpperCase()}` : '';
     }
 
     function wire(state) {
@@ -524,19 +644,20 @@ model();`;
         host.querySelector('[data-oscad-download]').addEventListener('click', () => downloadPrimary(state));
         host.querySelector('[data-oscad-fullscreen]').addEventListener('click', () => fullscreenPreview(state));
         host.querySelector('[data-oscad-fit]').addEventListener('click', () => resetPreviewView(state));
+        host.querySelector('[data-oscad-zoom-in]').addEventListener('click', () => zoomPreview(state, 1.25));
+        host.querySelector('[data-oscad-zoom-out]').addEventListener('click', () => zoomPreview(state, 0.8));
         host.querySelector('[data-oscad-background]').addEventListener('click', () => togglePreviewBackground(state));
         host.querySelector('[data-oscad-axes]').addEventListener('click', () => togglePreviewAxes(state));
         host.querySelector('[data-oscad-projection]').addEventListener('click', () => togglePreviewProjection(state));
         host.querySelector('[data-oscad-shading]').addEventListener('click', () => togglePreviewShading(state));
         host.querySelector('[data-oscad-autorotate]').addEventListener('click', () => togglePreviewAutoRotate(state));
-        const paramsToggle = host.querySelector('[data-oscad-toggle-params]');
-        if (paramsToggle) paramsToggle.addEventListener('click', () => {
+        host.querySelectorAll('[data-oscad-toggle-editor]').forEach(btn => btn.addEventListener('click', () => toggleInspectorPanel(state)));
+        host.querySelectorAll('[data-oscad-toggle-params]').forEach(btn => btn.addEventListener('click', () => {
             state.paramsCollapsed = !state.paramsCollapsed;
             syncShellControls(state);
             scheduleOpenSCADDraftSave(state);
-        });
-        const agentToggle = host.querySelector('[data-oscad-toggle-agent]');
-        if (agentToggle) agentToggle.addEventListener('click', () => {
+        }));
+        host.querySelectorAll('[data-oscad-toggle-agent]').forEach(btn => btn.addEventListener('click', () => {
             state.agentCollapsed = !state.agentCollapsed;
             syncShellControls(state);
             scheduleOpenSCADDraftSave(state);
@@ -544,7 +665,8 @@ model();`;
                 const pe = host.querySelector('[data-oscad-prompt]');
                 if (pe) setTimeout(() => pe.focus(), 50);
             }
-        });
+        }));
+        wireSplitters(state);
         const applyBtn = host.querySelector('[data-oscad-apply-source]');
         if (applyBtn) applyBtn.addEventListener('click', () => applyAgentSource(state));
         const discardBtn = host.querySelector('[data-oscad-discard-source]');
@@ -986,8 +1108,26 @@ model();`;
     }
 
     function fullscreenPreview(state) {
-        const panel = state.host.querySelector('[data-oscad-preview-panel]');
-        if (panel && panel.requestFullscreen) panel.requestFullscreen();
+        const zone = state.host.querySelector('[data-oscad-preview-zone]');
+        const target = zone || state.host.querySelector('[data-oscad-preview-panel]');
+        if (target && target.requestFullscreen) target.requestFullscreen();
+    }
+
+    function zoomPreview(state, factor) {
+        const p3d = state.preview3D;
+        if (!p3d || !p3d.camera || !window.THREE) return;
+        const target = p3d.controls && p3d.controls.target ? p3d.controls.target : new THREE.Vector3(0, 0, 0);
+        if (p3d.camera.isOrthographicCamera) {
+            p3d.camera.zoom = Math.min(12, Math.max(0.08, (p3d.camera.zoom || 1) * factor));
+            p3d.camera.updateProjectionMatrix();
+        } else {
+            const offset = p3d.camera.position.clone().sub(target);
+            const length = offset.length();
+            const next = Math.min(20000, Math.max(2, length / Math.max(0.2, factor)));
+            offset.setLength(next);
+            p3d.camera.position.copy(target).add(offset);
+        }
+        if (p3d.controls && typeof p3d.controls.update === 'function') p3d.controls.update();
     }
 
     function renderPanel(state) {
@@ -1001,9 +1141,11 @@ model();`;
         if (!el) return;
         const errors = state.lastErrors && state.lastErrors.length ? state.lastErrors : [];
         if (!errors.length) {
-            el.innerHTML = '<div class="oscad-issues-empty">' + esc(t(state.ctx, 'desktop.openscad.no_issues', 'No issues')) + '</div>';
+            el.innerHTML = '';
+            el.hidden = true;
             return;
         }
+        el.hidden = false;
         el.innerHTML = '<div class="oscad-issues-head">' + esc(t(state.ctx, 'desktop.openscad.issues', 'Issues')) + ' · ' + errors.length + '</div>' +
             errors.map((err, idx) => {
                 const cls = err.severity === 'warning' ? 'oscad-issue-warning' : 'oscad-issue-error';
@@ -1014,6 +1156,10 @@ model();`;
             const err = errors[idx];
             if (!err || typeof err.line !== 'number') return;
             state.activeTab = 'source';
+            if (state.inspectorCollapsed) {
+                state.inspectorCollapsed = false;
+                scheduleOpenSCADDraftSave(state);
+            }
             syncShellControls(state);
             renderInspector(state);
             if (state.editor && typeof state.editor.revealLine === 'function') {
@@ -1150,12 +1296,13 @@ model();`;
         const file = primaryFile(state);
         if (!file) {
             state.previewStlURL = '';
-            panel.innerHTML = emptyPanel(state, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
+            renderPreviewEmptyState(state, panel);
             return;
         }
         const url = previewURL(file);
         if (!url) {
-            panel.innerHTML = emptyPanel(state, 'desktop.openscad.no_preview', 'Render a model to see the preview.');
+            state.previewStlURL = '';
+            renderPreviewEmptyState(state, panel);
             return;
         }
         if (file.format === 'png') {
@@ -1190,6 +1337,19 @@ model();`;
         panel.innerHTML = `<div class="oscad-empty"><strong>${esc(file.name)}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
     }
 
+    function renderPreviewEmptyState(state, panel) {
+        const ctx = state.ctx;
+        const ro = isOpenSCADReadOnly(ctx);
+        panel.innerHTML = `<div class="oscad-empty oscad-empty-hero">
+            <div class="oscad-empty-icon">${icon(ctx, 'openscad', 'O', 'oscad-empty-glyph', 44)}</div>
+            <strong>${esc(t(ctx, 'desktop.openscad.empty_preview_title', 'No preview yet'))}</strong>
+            <span>${esc(t(ctx, 'desktop.openscad.empty_preview_hint', 'Render your model to see an interactive preview here.'))}</span>
+            ${ro ? '' : `<button type="button" class="oscad-btn oscad-primary oscad-empty-cta" data-oscad-empty-render>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.render_now', 'Render now'))}</span></button><kbd class="oscad-empty-kbd">Ctrl+Enter</kbd>`}
+        </div>`;
+        const cta = panel.querySelector('[data-oscad-empty-render]');
+        if (cta) cta.addEventListener('click', () => renderSource(state));
+    }
+
     function bindPreviewLoadError(state, panel, element) {
         if (!element) return;
         element.addEventListener('error', () => {
@@ -1199,8 +1359,20 @@ model();`;
     }
 
     function setOpenSCADBusy(state, busy, mode) {
+        const wasBusy = state.busy;
         state.busy = !!busy;
         state.busyMode = state.busy ? (mode || state.busyMode || 'work') : '';
+        if (state.busy && !wasBusy) {
+            state.busyStartedAt = Date.now();
+            if (state.busyTicker) window.clearInterval(state.busyTicker);
+            state.busyTicker = window.setInterval(() => updateOpenSCADBusyElapsed(state), 500);
+        } else if (!state.busy && wasBusy) {
+            state.busyStartedAt = 0;
+            if (state.busyTicker) {
+                window.clearInterval(state.busyTicker);
+                state.busyTicker = null;
+            }
+        }
         if (!state.host) return;
         const ro = isOpenSCADReadOnly(state.ctx);
         state.host.classList.toggle('busy', state.busy);
@@ -1216,6 +1388,7 @@ model();`;
                     ? t(state.ctx, 'desktop.openscad.agent_working', 'Agent is working...')
                     : t(state.ctx, 'desktop.openscad.rendering', 'Rendering...');
             }
+            updateOpenSCADBusyElapsed(state);
         }
         const statusEl = state.host.querySelector('[data-oscad-status]');
         if (statusEl) {
@@ -1233,6 +1406,18 @@ model();`;
         setWindowMenus(state);
     }
 
+    function updateOpenSCADBusyElapsed(state) {
+        if (!state.host) return;
+        const elapsedEl = state.host.querySelector('[data-oscad-busy-elapsed]');
+        if (!elapsedEl) return;
+        if (!state.busy || !state.busyStartedAt) {
+            elapsedEl.textContent = '';
+            return;
+        }
+        const seconds = Math.max(0, (Date.now() - state.busyStartedAt) / 1000);
+        elapsedEl.textContent = seconds.toFixed(0) + 's';
+    }
+
     function renderRequestTimeoutMS(state) {
         const seconds = Math.max(10, Math.min(Number(state.timeout) || 120, 600));
         return (seconds + 45) * 1000;
@@ -1247,15 +1432,38 @@ model();`;
         setStatus(state, t(state.ctx, 'desktop.openscad.cancelled', 'Cancelled'), true);
     }
 
+    function framePreviewCamera(state, p3d, box) {
+        if (!p3d || !p3d.camera || !window.THREE) return;
+        const size = box.getSize(new THREE.Vector3()).length() || 80;
+        const radius = Math.max(1, size / 2);
+        const center = box.getCenter(new THREE.Vector3());
+        const dir = new THREE.Vector3(1, 0.72, 1).normalize();
+        if (p3d.camera.isOrthographicCamera) {
+            const el = p3d.renderer && p3d.renderer.domElement;
+            const aspect = (el && el.clientWidth ? el.clientWidth : 1) / Math.max(1, el && el.clientHeight ? el.clientHeight : 1);
+            const halfH = radius * 1.28;
+            p3d.camera.left = -halfH * aspect;
+            p3d.camera.right = halfH * aspect;
+            p3d.camera.top = halfH;
+            p3d.camera.bottom = -halfH;
+            p3d.camera.zoom = 1;
+            p3d.camera.updateProjectionMatrix();
+            p3d.camera.position.copy(center).add(dir.multiplyScalar(radius * 4));
+        } else {
+            const fov = (p3d.camera.fov || 30) * Math.PI / 180;
+            const dist = (radius / Math.tan(fov / 2)) * 1.28;
+            p3d.camera.position.copy(center).add(dir.multiplyScalar(dist));
+        }
+        p3d.camera.lookAt(center);
+        if (p3d.controls && p3d.controls.target) p3d.controls.target.copy(center);
+        if (p3d.controls && typeof p3d.controls.update === 'function') p3d.controls.update();
+    }
+
     function resetPreviewView(state) {
         const p3d = state.preview3D;
         if (p3d && p3d.mesh && p3d.camera && window.THREE) {
             const box = new THREE.Box3().setFromObject(p3d.mesh);
-            const size = box.getSize(new THREE.Vector3()).length() || 80;
-            p3d.camera.position.set(size, size * 0.75, size);
-            p3d.camera.lookAt(0, 0, 0);
-            if (p3d.controls && p3d.controls.target) p3d.controls.target.set(0, 0, 0);
-            if (p3d.controls && typeof p3d.controls.update === 'function') p3d.controls.update();
+            framePreviewCamera(state, p3d, box);
             return;
         }
         renderViewport(state);
@@ -1265,9 +1473,17 @@ model();`;
         state.lightPreview = !state.lightPreview;
         const p3d = state.preview3D;
         if (p3d && p3d.scene && window.THREE) {
-            p3d.scene.background = new THREE.Color(state.lightPreview ? 0xf2f6f8 : 0x071018);
+            const texture = previewBackgroundTexture(state);
+            if (p3d.bgTexture) {
+                try { p3d.bgTexture.dispose(); } catch (_) {}
+            }
+            p3d.bgTexture = texture;
+            p3d.scene.background = texture;
             if (p3d.mesh && p3d.mesh.material && p3d.mesh.material.color) {
-                p3d.mesh.material.color.set(state.lightPreview ? 0x6a8cab : 0x42d7c8);
+                p3d.mesh.material.color.set(state.lightPreview ? 0x5f87a8 : 0x2dd4bf);
+            }
+            if (p3d.shadowPlane && p3d.shadowPlane.material) {
+                p3d.shadowPlane.material.opacity = state.lightPreview ? 0.16 : 0.3;
             }
         }
         syncShellControls(state);
@@ -1466,24 +1682,88 @@ model();`;
             state.previewCleanup = null;
         }
         if (state.preview3D) {
-            if (state.preview3D.animId) {
-                try { cancelAnimationFrame(state.preview3D.animId); } catch (_) {}
-                state.preview3D.animId = null;
+            const p3d = state.preview3D;
+            if (p3d.resizeObserver) {
+                try { p3d.resizeObserver.disconnect(); } catch (_) {}
+                p3d.resizeObserver = null;
             }
-            if (state.preview3D.controls && typeof state.preview3D.controls.dispose === 'function') {
-                try { state.preview3D.controls.dispose(); } catch (_) {}
+            if (p3d.animId) {
+                try { cancelAnimationFrame(p3d.animId); } catch (_) {}
+                p3d.animId = null;
             }
-            if (state.preview3D.renderer && state.preview3D.renderer.domElement && state.preview3D.onDblClick) {
-                try { state.preview3D.renderer.domElement.removeEventListener('dblclick', state.preview3D.onDblClick); } catch (_) {}
+            if (p3d.controls && typeof p3d.controls.dispose === 'function') {
+                try { p3d.controls.dispose(); } catch (_) {}
             }
-            if (state.preview3D.renderer && !state.preview3D.renderer.disposed) {
-                try { state.preview3D.renderer.dispose(); } catch (_) {}
+            if (p3d.renderer && p3d.renderer.domElement && p3d.onDblClick) {
+                try { p3d.renderer.domElement.removeEventListener('dblclick', p3d.onDblClick); } catch (_) {}
+            }
+            if (p3d.mesh) {
+                try { p3d.mesh.geometry && p3d.mesh.geometry.dispose(); } catch (_) {}
+                try { p3d.mesh.material && p3d.mesh.material.dispose(); } catch (_) {}
+            }
+            if (p3d.shadowPlane) {
+                try { p3d.shadowPlane.geometry && p3d.shadowPlane.geometry.dispose(); } catch (_) {}
+                try { p3d.shadowPlane.material && p3d.shadowPlane.material.dispose(); } catch (_) {}
+            }
+            if (p3d.gridHelper) {
+                try { p3d.gridHelper.geometry && p3d.gridHelper.geometry.dispose(); } catch (_) {}
+                try { p3d.gridHelper.material && p3d.gridHelper.material.dispose(); } catch (_) {}
+            }
+            if (p3d.bgTexture) {
+                try { p3d.bgTexture.dispose(); } catch (_) {}
+            }
+            if (p3d.renderer && !p3d.renderer.disposed) {
+                try { p3d.renderer.dispose(); } catch (_) {}
+                p3d.renderer.disposed = true;
             }
             if (state.stl) {
                 try { state.stl.dispose && state.stl.dispose(); } catch (_) {}
                 state.stl = null;
             }
             state.preview3D = null;
+        }
+    }
+
+    function previewBackgroundTexture(state) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 256;
+        const g = canvas.getContext('2d');
+        const grad = g.createLinearGradient(0, 0, 0, 256);
+        if (state.lightPreview) {
+            grad.addColorStop(0, '#fcfeff');
+            grad.addColorStop(0.55, '#eef3f7');
+            grad.addColorStop(1, '#dce6ee');
+        } else {
+            grad.addColorStop(0, '#101d2d');
+            grad.addColorStop(0.55, '#0a1420');
+            grad.addColorStop(1, '#050b12');
+        }
+        g.fillStyle = grad;
+        g.fillRect(0, 0, 2, 256);
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    function resizePreviewRenderer(state, mount) {
+        const p3d = state.preview3D;
+        if (!p3d || !p3d.renderer || !mount) return;
+        const w = Math.round(mount.clientWidth || 0);
+        const h = Math.round(mount.clientHeight || 0);
+        if (!w || !h) return;
+        if (p3d.lastWidth === w && p3d.lastHeight === h) return;
+        p3d.lastWidth = w;
+        p3d.lastHeight = h;
+        p3d.renderer.setSize(w, h);
+        const aspect = w / Math.max(1, h);
+        if (p3d.camera.isPerspectiveCamera) {
+            p3d.camera.aspect = aspect;
+            p3d.camera.updateProjectionMatrix();
+        } else if (p3d.camera.isOrthographicCamera) {
+            const halfH = p3d.camera.top;
+            const halfW = halfH * aspect;
+            p3d.camera.left = -halfW;
+            p3d.camera.right = halfW;
+            p3d.camera.updateProjectionMatrix();
         }
     }
 
@@ -1494,11 +1774,18 @@ model();`;
         const width = mount.clientWidth || 400;
         const height = mount.clientHeight || 400;
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(state.lightPreview ? 0xf2f6f8 : 0x071018);
+        const bgTexture = previewBackgroundTexture(state);
+        scene.background = bgTexture;
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+        if (THREE.ACESFilmicToneMapping !== undefined) {
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+        }
         mount.appendChild(renderer.domElement);
         const aspect = width / Math.max(1, height);
         let camera;
@@ -1518,22 +1805,32 @@ model();`;
         controls.update();
         const onDblClick = () => resetPreviewView(state);
         renderer.domElement.addEventListener('dblclick', onDblClick);
-        const ambient = new THREE.AmbientLight(0x404060, 1.5);
-        scene.add(ambient);
-        const directional = new THREE.DirectionalLight(0xffeedd, 2.2);
-        directional.position.set(60, 90, 40);
-        scene.add(directional);
-        const fill = new THREE.DirectionalLight(0xaaccff, 0.9);
+        const hemi = new THREE.HemisphereLight(0xbdd7ff, 0x2a241a, 0.45);
+        scene.add(hemi);
+        const key = new THREE.DirectionalLight(0xfff1dd, 1.55);
+        key.position.set(60, 90, 40);
+        key.castShadow = true;
+        key.shadow.mapSize.set(2048, 2048);
+        key.shadow.bias = -0.0004;
+        scene.add(key);
+        scene.add(key.target);
+        const fill = new THREE.DirectionalLight(0x9fc4ff, 0.4);
         fill.position.set(-50, 30, -40);
         scene.add(fill);
-        const hemi = new THREE.HemisphereLight(0x8888ff, 0x444422, 0.7);
-        scene.add(hemi);
-        const gridHelper = new THREE.GridHelper(500, 25, 0x42d7c8, 0x42d7c840);
+        const rim = new THREE.DirectionalLight(0x5eead4, 0.32);
+        rim.position.set(-20, 40, 70);
+        scene.add(rim);
+        let gridHelper = new THREE.GridHelper(500, 25, 0x42d7c8, 0x42d7c8);
         gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.28;
+        gridHelper.material.opacity = 0.22;
         scene.add(gridHelper);
         if (!state.showAxes) gridHelper.visible = false;
-        state.preview3D = { scene, camera, renderer, controls, gridHelper, mesh: null, onDblClick };
+        state.preview3D = { scene, camera, renderer, controls, gridHelper, mesh: null, onDblClick, bgTexture, keyLight: key, shadowPlane: null, resizeObserver: null, lastWidth: width, lastHeight: height };
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(() => resizePreviewRenderer(state, mount));
+            resizeObserver.observe(mount);
+            state.preview3D.resizeObserver = resizeObserver;
+        }
         const loader = new THREE.STLLoader();
         state.stl = loader;
         fetch(url).then(res => {
@@ -1545,34 +1842,51 @@ model();`;
             if (!geometry) return;
             geometry.computeVertexNormals();
             const material = new THREE.MeshStandardMaterial({
-                color: state.lightPreview ? 0x6a8cab : 0x42d7c8,
-                roughness: 0.4,
-                metalness: 0.2,
+                color: state.lightPreview ? 0x5f87a8 : 0x2dd4bf,
+                roughness: 0.38,
+                metalness: 0.18,
                 flatShading: false,
                 transparent: false,
                 wireframe: state.viewportShading === 'wireframe'
             });
             const mesh = new THREE.Mesh(geometry, material);
             mesh.rotation.x = -Math.PI / 2;
+            mesh.castShadow = true;
             scene.add(mesh);
             state.preview3D.mesh = mesh;
             const box = new THREE.Box3().setFromObject(mesh);
             const size = box.getSize(new THREE.Vector3()).length() || 80;
-            if (state.viewportProjection === 'orthographic') {
-                const halfH = size * 0.75;
-                const halfW = halfH * aspect;
-                camera.left = -halfW;
-                camera.right = halfW;
-                camera.top = halfH;
-                camera.bottom = -halfH;
-                camera.updateProjectionMatrix();
-                camera.position.set(size, size * 0.75, size);
-            } else {
-                camera.position.set(size, size * 0.75, size);
-            }
-            camera.lookAt(0, 0, 0);
-            controls.target.set(0, 0, 0);
-            controls.update();
+            const center = box.getCenter(new THREE.Vector3());
+            const floorY = box.min.y;
+            scene.remove(gridHelper);
+            gridHelper.geometry.dispose();
+            gridHelper.material.dispose();
+            gridHelper = new THREE.GridHelper(Math.max(10, size * 3.2), 32, 0x42d7c8, 0x3b6f74);
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.22;
+            gridHelper.position.set(center.x, floorY - size * 0.002, center.z);
+            gridHelper.visible = state.showAxes !== false;
+            scene.add(gridHelper);
+            state.preview3D.gridHelper = gridHelper;
+            const shadowPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(size * 4, size * 4),
+                new THREE.ShadowMaterial({ color: 0x000000, opacity: state.lightPreview ? 0.16 : 0.3 })
+            );
+            shadowPlane.rotation.x = -Math.PI / 2;
+            shadowPlane.position.set(center.x, floorY - size * 0.004, center.z);
+            shadowPlane.receiveShadow = true;
+            scene.add(shadowPlane);
+            state.preview3D.shadowPlane = shadowPlane;
+            key.position.set(center.x + size * 0.9, floorY + size * 1.25, center.z + size * 0.6);
+            key.target.position.copy(center);
+            key.shadow.camera.left = -size;
+            key.shadow.camera.right = size;
+            key.shadow.camera.top = size;
+            key.shadow.camera.bottom = -size;
+            key.shadow.camera.near = Math.max(0.1, size * 0.1);
+            key.shadow.camera.far = size * 4;
+            key.shadow.camera.updateProjectionMatrix();
+            framePreviewCamera(state, state.preview3D, box);
             animatePreview(state);
         }).catch(err => {
             if (mount) {
@@ -1599,6 +1913,10 @@ model();`;
         if (state.draftSaveTimer) {
             window.clearTimeout(state.draftSaveTimer);
             state.draftSaveTimer = null;
+        }
+        if (state.busyTicker) {
+            window.clearInterval(state.busyTicker);
+            state.busyTicker = null;
         }
         if (state.editor && typeof state.editor.dispose === 'function') {
             try { state.editor.dispose(); } catch (_) {}

@@ -55,7 +55,7 @@ func TestDesktopOpenSCADLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 
 	windows := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
-		"openscad: { width: 1120, height: 720 }",
+		"openscad: { width: 1240, height: 760 }",
 		"openscad: true",
 	} {
 		if !strings.Contains(windows, want) {
@@ -127,6 +127,20 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"data-oscad-issues",
 		"data-oscad-toggle-params",
 		"data-oscad-toggle-agent",
+		"data-oscad-toggle-editor",
+		"data-oscad-splitter",
+		"data-oscad-preview-zone",
+		"data-oscad-zoom-in",
+		"data-oscad-zoom-out",
+		"wireSplitters",
+		"applyShellSizing",
+		"toggleInspectorPanel",
+		"renderPreviewEmptyState",
+		"previewBackgroundTexture",
+		"ResizeObserver",
+		"castShadow",
+		"ShadowMaterial",
+		"clampPanelWidth",
 		"data-oscad-projection",
 		"data-oscad-shading",
 		"data-oscad-autorotate",
@@ -181,7 +195,7 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		".oscad-more-exports[open]",
 		".oscad-preview-zone",
 		".oscad-inspector",
-		"grid-template-columns: minmax(248px, 304px) minmax(0, 1fr) minmax(280px, 320px);",
+		"grid-template-columns: clamp(232px, var(--oscad-inspector-w, 340px), 560px) 5px minmax(0, 1fr) 5px clamp(232px, var(--oscad-sidebar-w, 288px), 440px);",
 		".oscad-source",
 		".oscad-define-row",
 		".oscad-define-slider",
@@ -501,6 +515,12 @@ func TestDesktopOpenSCADTranslations(t *testing.T) {
 		"desktop.openscad.viewport_ortho",
 		"desktop.openscad.viewport_shaded",
 		"desktop.openscad.viewport_wireframe",
+		"desktop.openscad.toggle_editor",
+		"desktop.openscad.empty_preview_title",
+		"desktop.openscad.empty_preview_hint",
+		"desktop.openscad.render_now",
+		"desktop.openscad.viewport_zoom_in",
+		"desktop.openscad.viewport_zoom_out",
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
