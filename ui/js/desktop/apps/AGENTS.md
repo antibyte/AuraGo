@@ -407,6 +407,11 @@ registration lives in `internal/desktop/types.go`.
 - Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
   `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
   logic into the main app file.
+- Keep Homepage Studio split across `homepage-studio.js`,
+  `homepage-studio-preview.js`, `homepage-studio-sites.js`, and
+  `homepage-studio-history.js`; do not fold the preview chrome, sites, or
+  history panels into the main app file. Load order in
+  `module-loader.js`: preview, sites, history, then `homepage-studio.js`.
 - OpenSCAD exposes `window.OpenSCADApp = { render, dispose }`. Every window
   instance owns its draft timer, SSE listeners, editor, and preview resources.
 - OpenSCAD uses a preview-first workbench layout: a slim header bar with
@@ -455,6 +460,41 @@ registration lives in `internal/desktop/types.go`.
   inputs, and the agent prompt.
 - OpenSCAD visible UI strings use `desktop.openscad.*` keys in all
   `ui/lang/desktop/*.json` files.
+- `homepage-studio.js`, `homepage-studio-preview.js`,
+  `homepage-studio-sites.js`, and `homepage-studio-history.js` implement
+  Homepage Studio as a preview-first workbench: slim header (brand, status
+  pill with server/fallback/tunnel state, target selector, panel toggles),
+  main grid `[chat | splitter | preview | splitter | inspector]` with
+  explicit tracks, collapsible/resizable chat and inspector panels, a
+  floating viewport chrome (URL pill, desktop/tablet/mobile device
+  segmented, refresh, external, fullscreen), a site/drift pill and an
+  agent-busy pill with elapsed time, and an inspector with Sites (managed
+  site cards, drift badges, deploy targets/deployments/remote observations,
+  reconcile) and History (search, type filter, offset pagination) tabs.
+  The welcome hero offers localized prompt suggestion chips.
+- Homepage Studio exposes `window.HomepageStudioApp = { render, dispose }`;
+  every window instance owns its AbortControllers, busy/persist timers,
+  listeners, and sub-module instances and must release them in `dispose`.
+  Workbench state persists per `windowId` under
+  `aurago.desktop.homepage.draft.<windowId>` (target, device, panel
+  widths/collapse, inspector tab, history filters, selected site).
+- Homepage Studio URL validation and preview sandboxing
+  (`safeExternalURL`, `firstPreviewURL`, `homepageStatusPreviewURL`,
+  `updatePreviewUrl`, `showPreview`, `refreshPreview`; iframe
+  `allow-scripts allow-forms` + `referrerPolicy no-referrer`, never
+  `allow-same-origin`) stay in `homepage-studio.js` — they are pinned by
+  `ui/security_lint_test.go` and must not move into sub-modules.
+- `homepage-studio-preview.js` (`window.HomepageStudioPreview { create }`)
+  owns only the preview chrome (device widths, fullscreen); the sites panel
+  (`window.HomepageStudioSites { create }`) and history panel
+  (`window.HomepageStudioHistory { create }`) receive their dependencies
+  via a deps object like `NoisemakerLibrary`.
+- Homepage Studio honors `context.readonly` (composer, suggestion chips,
+  reconcile, and history delete disabled). Destructive history deletes use
+  the shell `confirmDialog` passed by `menus-and-routing.js`; native
+  `alert`/`confirm`/`prompt` are forbidden in all four modules.
+- Homepage Studio visible UI strings use `homepage_studio.*` keys in all
+  16 `ui/lang/desktop/*.json` files.
 - Keep Writer self-contained in `writer.js` below the 1100-line budget;
   if find/replace grows unwieldy, extract into `writer-search.js` and register
   in `module-loader.js` and `DESKTOP_APP_ASSETS`.
@@ -653,6 +693,15 @@ registration lives in `internal/desktop/types.go`.
   plus number inputs, text values as plain inputs, and per-row reset/remove
   buttons with an add-define control. Exposes
   `window.OpenSCADDefines { parse, render, toText }`. No child DOX file needed.
+- `homepage-studio.js`, `homepage-studio-preview.js`,
+  `homepage-studio-sites.js`, `homepage-studio-history.js` - Homepage Studio
+  workbench: assistant chat with suggestion chips, preview-first viewport
+  with device switcher and fullscreen, Sites inspector (drift badges,
+  deployments, reconcile) and History inspector (search/filter/pagination,
+  shell-dialog deletes). URL validation and the iframe sandbox contract stay
+  pinned in `homepage-studio.js`. Exposes `window.HomepageStudioApp` plus
+  `HomepageStudioPreview`/`HomepageStudioSites`/`HomepageStudioHistory`
+  factories. No child DOX file needed.
 - `log-viewer-filters.js` / `log-viewer.js` - Log Viewer: file sidebar,
   virtualized tail list, level/search filters, dedicated per-window
   EventSource to `/api/desktop/logs/stream`, readonly-gated download.

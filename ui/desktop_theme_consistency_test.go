@@ -39,6 +39,15 @@ func TestDesktopThemesShareShellAndAppMaterials(t *testing.T) {
 		"--radio-glass: var(--vd-theme-panel-bg) !important;",
 		"--cam-glass: var(--vd-theme-panel-bg) !important;",
 		"--cs-panel: var(--vd-theme-panel-bg) !important;",
+		"Chrome polish: physical edges, glass refraction, and theme-native chrome",
+		"--vd-chrome-highlight:",
+		"--vd-chrome-ring:",
+		".vd-window::after",
+		".vd-taskbar-apps::after",
+		"Surface polish: start menu content, wallpaper labels, and app interiors",
+		"App interior polish: toolbars, sidebars, lists, and settings surfaces",
+		".vd-start-search input",
+		".vd-icon-label",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop theme consistency CSS is missing marker %q", marker)
@@ -58,6 +67,9 @@ func TestDesktopThemeBundleContainsConsistencyBridge(t *testing.T) {
 		".vd-modal-backdrop",
 		".vd-file-dialog-backdrop",
 		".vd-toast",
+		"Chrome polish: physical edges, glass refraction, and theme-native chrome",
+		"--vd-chrome-highlight:",
+		"Surface polish: start menu content, wallpaper labels, and app interiors",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop shell bundle is missing theme consistency marker %q", marker)

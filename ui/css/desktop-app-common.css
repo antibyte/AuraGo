@@ -434,3 +434,148 @@
     outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
     outline-offset: var(--ds-focus-ring-offset);
 }
+
+/* === App interior polish: toolbars, sidebars, lists, and settings surfaces === */
+.desktop-body[data-theme="standard"] :where(
+    .fm-toolbar,
+    .cs-toolbar,
+    .vd-toolbar,
+    .vd-store-toolbar,
+    .vd-gallery-toolbar,
+    .vd-qc-toolbar,
+    .cheater-toolbar
+) {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.desktop-body[data-theme="fruity"] :where(
+    .fm-toolbar,
+    .cs-toolbar,
+    .vd-toolbar,
+    .vd-store-toolbar,
+    .vd-gallery-toolbar,
+    .vd-qc-toolbar,
+    .cheater-toolbar
+) {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .fm-sidebar,
+    .cs-sidebar,
+    .vd-settings-sidebar,
+    .vd-chat-sidebar,
+    .vd-store-sidebar,
+    .cheater-sidebar
+) {
+    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #000 10%) !important;
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="fruity"] :where(
+    .fm-sidebar,
+    .cs-sidebar,
+    .vd-settings-sidebar,
+    .vd-chat-sidebar,
+    .vd-store-sidebar,
+    .cheater-sidebar
+) {
+    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 8%) !important;
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.28);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] :where(
+    .fm-sidebar,
+    .cs-sidebar,
+    .vd-settings-sidebar,
+    .vd-chat-sidebar,
+    .vd-store-sidebar,
+    .cheater-sidebar
+) {
+    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #000 8%) !important;
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="standard"] .vd-settings-app {
+    background: transparent;
+}
+
+.desktop-body[data-theme="fruity"] .vd-settings-app {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-settings-app {
+    background: rgba(8, 10, 16, 0.16);
+}
+
+.desktop-body[data-theme="standard"] :where(.fm-search-input, .vd-settings-search-input, .vd-setting-select) {
+    background: rgba(0, 0, 0, 0.32) !important;
+    border-radius: 8px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.desktop-body[data-theme="fruity"] :where(.fm-search-input, .vd-settings-search-input, .vd-setting-select) {
+    background: rgba(255, 255, 255, 0.56) !important;
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] :where(.fm-search-input, .vd-settings-search-input, .vd-setting-select) {
+    background: rgba(0, 0, 0, 0.28) !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.desktop-body[data-theme="standard"] :where(.fm-list-row, .vd-file-row) {
+    border-radius: 8px;
+}
+
+.desktop-body[data-theme="fruity"] :where(.fm-list-row, .vd-file-row) {
+    border-radius: 10px;
+}
+
+.desktop-body[data-theme="fruity"] :where(.fm-list-row:hover, .vd-file-row:hover) {
+    background: rgba(10, 132, 255, 0.08) !important;
+}
+
+.desktop-body[data-theme="standard"] .vd-settings-nav {
+    border-radius: 10px;
+}
+
+.desktop-body[data-theme="standard"] .vd-settings-nav.active {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-settings-nav {
+    border-radius: 12px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-settings-nav:hover {
+    background: rgba(10, 132, 255, 0.1);
+}
+
+.desktop-body[data-theme="fruity"] .vd-settings-nav.active {
+    background: rgba(10, 132, 255, 0.14);
+    box-shadow: inset 3px 0 0 var(--vd-accent);
+}
+
+.desktop-body[data-theme="standard"] .vd-setting-row {
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="standard"] .vd-setting-row:hover {
+    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 8%) !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-setting-row {
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.desktop-body[data-theme="fruity"] .vd-setting-row:hover {
+    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 14%) !important;
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-setting-row {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}

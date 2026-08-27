@@ -234,7 +234,7 @@ Build and deploy marketing sites or personal homepages inside AuraGo’s dedicat
 2. Enable the integration; set workspace path and registry DB path if needed.
 3. Optionally enable **Allow local server** when Docker is unavailable (limited workflows).
 4. Save. Enable **Netlify** and/or **Vercel** integrations for one-shot deploy tools.
-5. Optional: **Virtual Desktop → Homepage Studio** for a guided UI on the same workspace.
+5. Optional: **Virtual Desktop → Homepage Studio** — a workbench UI on the same workspace: assistant chat with suggestion chips on the left, a preview-first live view with device-width switcher (desktop/tablet/mobile), fullscreen and external open in the center, and an inspector on the right with **Sites** (managed-site cards with drift status, deploy targets, deployments, remote observations, one-click reconcile) and **History** (search, type filter, pagination).
 
 ### Focused agent tools (preferred)
 

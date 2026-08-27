@@ -231,7 +231,7 @@ Marketing-Sites und persönliche Homepages liegen im **Homepage-Workspace** (`da
 1. **Config → Integrationen → Homepage** aktivieren.
 2. Workspace- und Registry-Pfade setzen; optional **Lokalen Server erlauben** ohne Docker.
 3. Speichern. Für Deploy: **Netlify** und/oder **Vercel** aktivieren.
-4. Optional: **Virtual Desktop → Homepage Studio**.
+4. Optional: **Virtual Desktop → Homepage Studio** — Workbench-UI auf demselben Workspace: links der Assistenten-Chat mit Vorschlags-Chips, mittig die Preview-first-Live-Ansicht mit Gerätebreiten (Desktop/Tablet/Mobil), Vollbild und externem Öffnen, rechts der Inspektor mit **Websites** (verwaltete Sites mit Drift-Status, Deploy-Zielen, Deployments, Remote-Beobachtungen und Abgleich per Klick) und **Verlauf** (Suche, Typfilter, Pagination).
 
 ### Fokussierte Agent-Tools (bevorzugt)
 

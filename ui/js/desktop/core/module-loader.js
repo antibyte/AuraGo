@@ -291,6 +291,9 @@
                 '/js/shared/chat-core.js',
                 '/js/shared/chat-stream-parser.js',
                 '/js/desktop/chat-renderer.js',
+                '/js/desktop/apps/homepage-studio-preview.js',
+                '/js/desktop/apps/homepage-studio-sites.js',
+                '/js/desktop/apps/homepage-studio-history.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]
         },

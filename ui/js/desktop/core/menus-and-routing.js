@@ -1214,7 +1214,7 @@ if (appId === 'pixel') {
                 window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+            if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), confirmDialog }));
         }
         if (appId === 'game-maker-studio') {
             if (!window.GameMakerStudioApp) {
