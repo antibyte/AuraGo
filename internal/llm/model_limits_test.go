@@ -42,6 +42,12 @@ func TestResolveModelLimitsPrecedenceAndCaps(t *testing.T) {
 			wantCtxSource: "model_registry", wantOutSource: "model_registry",
 		},
 		{
+			name:        "agnes registry supplies current limits",
+			route:       ModelRoute{ProviderType: "agnes", Model: "agnes-2.5-flash", Primary: true},
+			wantContext: 512000, wantOutput: 65536,
+			wantCtxSource: "model_registry", wantOutSource: "model_registry", wantReasoning: true,
+		},
+		{
 			name:      "global limit caps known model",
 			route:     ModelRoute{ProviderType: "openai", Model: "gpt-4o", Primary: true},
 			globalCap: 32000, wantContext: 32000, wantOutput: 16384,

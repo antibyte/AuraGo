@@ -54,17 +54,14 @@ func TestResolveProviderCapabilitiesDetectsAgnesFlash(t *testing.T) {
 	result := ResolveProviderCapabilities(config.ProviderEntry{
 		ID:    "main",
 		Type:  "agnes",
-		Model: "agnes-2.0-flash",
+		Model: "agnes-2.5-flash",
 	}, CapabilityFallback{})
 
-	if !result.Known || result.Source != CapabilitySourceHeuristic {
-		t.Fatalf("expected Agnes heuristic capabilities, got %+v", result)
+	if !result.Known || result.Source != CapabilitySourceModelsDev {
+		t.Fatalf("expected Agnes models.dev capabilities, got %+v", result)
 	}
-	if !result.ToolCalling || !result.Multimodal {
-		t.Fatalf("expected Agnes tool calling and multimodal support, got %+v", result)
-	}
-	if result.StructuredOutputs {
-		t.Fatalf("structured outputs are not documented for Agnes 2.0 Flash: %+v", result)
+	if !result.ToolCalling || !result.Multimodal || !result.StructuredOutputs || !result.Reasoning {
+		t.Fatalf("expected Agnes registry capabilities, got %+v", result)
 	}
 }
 

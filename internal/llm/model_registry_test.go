@@ -15,11 +15,11 @@ func TestGetModelInfo(t *testing.T) {
 	}{
 		{"openai", "gpt-4o", true, 128000},
 		{"anthropic", "claude-3-5-sonnet-20241022", true, 200000},
-		{"deepseek", "deepseek-chat", true, 1000000},
+		{"deepseek", "deepseek-v4-flash", true, 1000000},
+		{"agnes", "agnes-2.5-flash", true, 512000},
 		{"minimax", "MiniMax-M3", true, 1000000},
 		{"openrouter", "minimax/minimax-m3", true, 1048576},
 		{"openrouter", "stepfun/step-3.7-flash", true, 256000},
-		{"stepfun", "step-3.7-flash", true, 256000},
 		{"groq", "llama3-70b-8192", true, 8192},
 		{"nonexistent-provider", "gpt-4o", false, 0},
 		{"nonexistent", "unknown", false, 0},
@@ -91,12 +91,12 @@ func TestDetectContextWindowFromRegistry(t *testing.T) {
 	}{
 		{"openai", "gpt-4o", 128000, true},
 		{"anthropic", "claude-opus-4-0", 200000, true},
-		{"deepseek", "deepseek-chat", 1000000, true},
+		{"deepseek", "deepseek-v4-flash", 1000000, true},
+		{"agnes", "agnes-2.5-flash", 512000, true},
 		{"moonshot", "kimi-k2.5", 262144, true},
 		{"minimax", "MiniMax-M3", 1000000, true},
 		{"openrouter", "minimax/minimax-m3", 1048576, true},
 		{"openrouter", "stepfun/step-3.7-flash", 256000, true},
-		{"stepfun", "step-3.7-flash", 256000, true},
 		{"nonexistent", "unknown", 0, false},
 	}
 

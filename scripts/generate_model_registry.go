@@ -17,6 +17,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"go/format"
 	"io"
 	"net/http"
 	"os"
@@ -29,6 +30,7 @@ import (
 var providerMapping = map[string]string{
 	"openai":      "openai",
 	"anthropic":   "anthropic",
+	"agnes":       "agnes",
 	"google":      "google",
 	"deepseek":    "deepseek",
 	"groq":        "groq",
@@ -240,11 +242,16 @@ var KnownModelRegistry = map[string]ModelRegistryEntry{
 	b.WriteString("}\n")
 
 	outFile := "internal/llm/model_registry_data.go"
-	if err := os.WriteFile(outFile, []byte(b.String()), 0644); err != nil {
+	formatted, err := format.Source([]byte(b.String()))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error formatting generated registry:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(outFile, formatted, 0644); err != nil {
 		fmt.Fprintln(os.Stderr, "Error writing file:", err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "Wrote %d entries to %s (%d bytes)\n", len(allModels), outFile, b.Len())
+	fmt.Fprintf(os.Stderr, "Wrote %d entries to %s (%d bytes)\n", len(allModels), outFile, len(formatted))
 }
 
 func isMultimodalInput(value string) bool {
