@@ -84,6 +84,8 @@
         Music: 'audio',
         Photos: 'image',
         Videos: 'video',
+        Pets: 'heart',
+        Widgets: 'apps',
         Tools: 'tools',
         Weather: 'weather',
         Workflows: 'workflow',
@@ -469,7 +471,15 @@
         if (!app) app = {};
         return appIconKeys[app.id] || shortcut.icon || app.icon || '';
     }
-    function iconForDirectory(name) { return directoryIconKeys[name] || 'folder'; }
+    function iconForDirectory(name) {
+        const base = String(name || '').split(/[\\/]/).filter(Boolean).pop() || String(name || '');
+        if (directoryIconKeys[base]) return directoryIconKeys[base];
+        const lower = base.toLowerCase();
+        for (const key of Object.keys(directoryIconKeys)) {
+            if (key.toLowerCase() === lower) return directoryIconKeys[key];
+        }
+        return 'folder';
+    }
 
     function iconForFile(file) {
         if (file.type === 'directory') return iconForDirectory(file.name);

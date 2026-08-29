@@ -902,7 +902,7 @@
     function renderSidebarHtml() {
         const items = fm.directories.map(dir => {
             const isActive = fm.currentPath === dir || fm.currentPath.startsWith(dir + '/');
-            const iconKey = iconForDirectory(dir);
+            const iconKey = iconForDirectory(baseName(dir) || dir);
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''}" data-sidebar-path="${esc(dir)}" role="button" tabindex="0">
                 ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18)}
                 <span class="fm-sidebar-label">${esc(baseName(dir) || dir)}</span>

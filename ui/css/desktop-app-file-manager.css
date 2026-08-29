@@ -6,6 +6,8 @@
     min-height: 0;
     height: 100%;
     position: relative;
+    container-type: inline-size;
+    container-name: file-manager;
 }
 
 /* Toolbar */
@@ -65,6 +67,7 @@
 .fm-sidebar-icon {
     width: 18px;
     height: 18px;
+    flex-shrink: 0;
 }
 .fm-list-icon {
     width: 24px;
@@ -72,6 +75,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 .fm-sort-indicator {
     width: 12px;
@@ -83,8 +87,12 @@
     color: var(--ds-color-fg-primary);
 }
 .fm-toolbtn:disabled {
-    opacity: 0.3;
+    opacity: 1;
     cursor: default;
+}
+.fm-toolbtn:disabled .fm-btn-icon,
+.fm-toolbtn:disabled .vd-papirus-icon {
+    opacity: 0.45;
 }
 .fm-toolbtn.active {
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
@@ -234,6 +242,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    container-type: inline-size;
+    container-name: fm-pane;
 }
 .fm-main {
     flex: 1;
@@ -430,8 +440,6 @@
     border: 1px solid transparent;
     font-size: 0.82rem;
     transition: background 120ms ease, border-color 120ms ease;
-    content-visibility: auto;
-    contain-intrinsic-size: auto 36px;
 }
 .fm-list-row:hover {
     background: rgba(255,255,255,0.06);
@@ -448,6 +456,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.82rem;
+    min-width: 0;
 }
 .fm-thumb {
     display: inline-grid;
@@ -1185,6 +1194,38 @@
     .fm-selection-close {
         width: 32px;
         height: 32px;
+    }
+}
+
+@container file-manager (max-width: 640px) {
+    .fm-toolbar {
+        align-items: center;
+    }
+    .fm-breadcrumb-wrap {
+        order: 3;
+        width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+    }
+    .fm-toolbar-group,
+    .fm-toolbar-right,
+    .fm-toolbtn {
+        flex-shrink: 0;
+    }
+}
+
+@container fm-pane (max-width: 520px) {
+    .fm-list-header .fm-col-size,
+    .fm-list-header .fm-col-date,
+    .fm-list-header .fm-col-type,
+    .fm-list-row .fm-col-size,
+    .fm-list-row .fm-col-date,
+    .fm-list-row .fm-col-type {
+        display: none;
+    }
+    .fm-list-header,
+    .fm-list-row {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
