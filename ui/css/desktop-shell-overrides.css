@@ -681,6 +681,223 @@
     box-shadow: var(--vd-theme-shadow-modal), var(--vd-chrome-highlight);
 }
 
+/* === Detail polish: micro-chrome, menus, scrollbars, and tray type === */
+.desktop-body[data-theme="standard"] .vd-window:not(.active) {
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="standard"] .vd-window:not(.active) .vd-window-button {
+    opacity: 0.7;
+}
+
+.desktop-body[data-theme="standard"] .vd-window-title {
+    letter-spacing: -0.012em;
+}
+
+.desktop-body[data-theme="standard"] .vd-window-button:hover {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-menubar {
+    background: rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-menu-button:hover,
+.desktop-body[data-theme="standard"] .vd-window-menu.open > .vd-window-menu-button {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-title {
+    letter-spacing: -0.018em;
+    font-weight: 590;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menubar {
+    background: rgba(255, 255, 255, 0.1);
+    border-top-color: rgba(255, 255, 255, 0.22);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window-menubar {
+    background: rgba(255, 255, 255, 0.04);
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menu-button {
+    letter-spacing: -0.01em;
+}
+
+.desktop-body[data-theme="standard"] .vd-context-item:hover:not(:disabled),
+.desktop-body[data-theme="standard"] .vd-context-item:focus-visible:not(:disabled),
+.desktop-body[data-theme="standard"] .vd-window-menu-item:hover:not(:disabled),
+.desktop-body[data-theme="standard"] .vd-window-menu-item:focus-visible:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menu-item:hover:not(:disabled),
+.desktop-body[data-theme="fruity"] .vd-window-menu-item:focus-visible:not(:disabled) {
+    background: rgba(10, 132, 255, 0.12);
+}
+
+.desktop-body[data-theme="standard"] .vd-context-separator,
+.desktop-body[data-theme="fruity"] .vd-context-separator {
+    height: 1px;
+    margin: 5px 10px;
+    background: linear-gradient(90deg, transparent, currentColor 12%, currentColor 88%, transparent);
+    opacity: 0.18;
+}
+
+.desktop-body[data-theme="standard"] .vd-clock {
+    letter-spacing: 0.03em;
+    opacity: 0.92;
+}
+
+.desktop-body[data-theme="fruity"] .vd-clock {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    font-weight: 600;
+}
+
+.desktop-body[data-theme="standard"] .vd-task-button.active {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="standard"] .vd-show-desktop-btn {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-content,
+.desktop-body[data-theme="standard"] .vd-start-apps,
+.desktop-body[data-theme="fruity"] .vd-window-content,
+.desktop-body[data-theme="fruity"] .vd-start-apps {
+    scrollbar-width: thin;
+}
+
+.desktop-body[data-theme="standard"] .vd-window-content ::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="standard"] .vd-start-apps::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    background-clip: padding-box;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-content ::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="fruity"] .vd-start-apps::-webkit-scrollbar-thumb {
+    background: rgba(78, 92, 118, 0.28);
+    background-clip: padding-box;
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window-content ::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-start-apps::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    background-clip: padding-box;
+}
+
+.desktop-body[data-theme="standard"] .vd-start-apps::-webkit-scrollbar,
+.desktop-body[data-theme="fruity"] .vd-start-apps::-webkit-scrollbar {
+    width: 10px;
+}
+
+.desktop-body[data-theme="standard"] .vd-toast-title,
+.desktop-body[data-theme="fruity"] .vd-toast-title {
+    letter-spacing: -0.012em;
+}
+
+.desktop-body[data-theme="standard"] .vd-toast-close {
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.desktop-body[data-theme="fruity"] .vd-toast-close {
+    border-radius: 999px;
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.36);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-toast-close {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.desktop-body[data-theme="standard"] .vd-widget-title {
+    letter-spacing: -0.01em;
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-title {
+    letter-spacing: -0.016em;
+    font-weight: 620;
+}
+
+.desktop-body[data-theme="standard"] .vd-widget-kind,
+.desktop-body[data-theme="fruity"] .vd-widget-kind {
+    letter-spacing: 0.08em;
+    opacity: 0.72;
+}
+
+.desktop-body[data-theme="standard"] .vd-widget-head,
+.desktop-body[data-theme="fruity"] .vd-widget-head {
+    padding-bottom: 8px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-head {
+    border-bottom-color: rgba(255, 255, 255, 0.28);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-widget-head {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-switcher,
+.desktop-body[data-theme="fruity"] .vd-window-switcher {
+    box-shadow: var(--vd-theme-shadow-panel), var(--vd-chrome-highlight);
+}
+
+.desktop-body[data-theme="standard"] .vd-switcher-item,
+.desktop-body[data-theme="fruity"] .vd-switcher-item {
+    border-radius: 10px;
+}
+
+.desktop-body[data-theme="standard"] .vd-icon.selected .vd-icon-label {
+    background: rgba(10, 12, 16, 0.7);
+}
+
+.desktop-body[data-theme="fruity"] .vd-icon.selected .vd-icon-label {
+    box-shadow:
+        0 1px 2px rgba(52, 64, 84, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.desktop-body[data-theme="standard"] .vd-start-search input::placeholder {
+    opacity: 0.62;
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-search input::placeholder {
+    opacity: 0.55;
+}
+
+.desktop-body[data-theme="standard"] .vd-modal-title,
+.desktop-body[data-theme="standard"] .vd-file-dialog-title {
+    letter-spacing: -0.014em;
+    font-weight: 760;
+}
+
+.desktop-body[data-theme="fruity"] .vd-modal-title,
+.desktop-body[data-theme="fruity"] .vd-file-dialog-title {
+    letter-spacing: -0.02em;
+    font-weight: 620;
+}
+
+.desktop-body[data-theme="standard"] .vd-desktop-selection-marquee {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.desktop-body[data-theme="fruity"] .vd-desktop-selection-marquee {
+    border-color: rgba(10, 132, 255, 0.55);
+    background: rgba(10, 132, 255, 0.12);
+}
+
 @media (prefers-reduced-transparency: reduce) {
     .desktop-body[data-theme="standard"] .vd-window::after,
     .desktop-body[data-theme="fruity"] .vd-window::after,

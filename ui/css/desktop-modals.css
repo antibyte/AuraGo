@@ -49,7 +49,7 @@
 .vd-context-item {
     width: 100%;
     display: grid;
-    grid-template-columns: 24px 1fr auto;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 8px;
     min-height: 44px;
@@ -111,6 +111,25 @@
 
 .vd-context-arrow {
     opacity: 0.65;
+}
+
+.vd-context-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-context-shortcut,
+.vd-context-item kbd {
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 0.68rem;
+    white-space: nowrap;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    min-width: 0;
 }
 
 .vd-context-item:disabled {
@@ -221,6 +240,33 @@
     background: rgba(0, 0, 0, 0.18);
     color: var(--vd-text);
     font: inherit;
+}
+
+.vd-properties-modal {
+    width: min(460px, calc(100vw - 32px));
+}
+
+.vd-prop-body {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 16px;
+}
+
+.vd-prop-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 34%) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    font-size: 0.82rem;
+}
+
+.vd-prop-label {
+    color: var(--vd-muted);
+}
+
+.vd-prop-value {
+    color: var(--vd-text);
+    overflow-wrap: anywhere;
 }
 
 .vd-modal-actions {

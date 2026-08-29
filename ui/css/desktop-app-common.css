@@ -579,3 +579,29 @@
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-setting-row {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
+
+.desktop-body[data-theme="standard"] :where(.fm-statusbar, .cs-statusbar) {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="fruity"] :where(.fm-statusbar, .cs-statusbar) {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+.desktop-body[data-theme="standard"] .fm-breadcrumb-bar {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.desktop-body[data-theme="fruity"] .fm-breadcrumb-bar {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.desktop-body[data-theme="standard"] .fm-list-row.selected,
+.desktop-body[data-theme="standard"] .vd-file-row.selected {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.desktop-body[data-theme="fruity"] .fm-list-row.selected,
+.desktop-body[data-theme="fruity"] .vd-file-row.selected {
+    background: rgba(10, 132, 255, 0.12) !important;
+}

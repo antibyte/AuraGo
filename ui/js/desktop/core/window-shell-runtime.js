@@ -995,7 +995,7 @@
             });
             return;
         }
-        const existing = findExistingAppWindow(appId, context || {});
+        const existing = (context && context.forceNew) ? null : findExistingAppWindow(appId, context || {});
         if (existing) {
             focusWindow(existing.id);
             if (appId === 'files' && context && context.path != null) {
@@ -1004,7 +1004,9 @@
             }
             if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
-            if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context); return;
+            if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
+            if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            return;
         }
         const title = windowTitle(appId);
         const app = appById(appId);

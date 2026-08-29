@@ -40,6 +40,17 @@
         if (!state.selectedIconIds.has(state.selectedIconId)) state.selectedIconId = firstSelectedIconId();
     }
 
+    function selectAllDesktopIcons() {
+        ensureDesktopIconSelectionState();
+        state.selectedIconIds.clear();
+        document.querySelectorAll('.vd-icon[data-id]').forEach(icon => {
+            const id = icon.dataset.id || '';
+            if (id) state.selectedIconIds.add(id);
+        });
+        state.selectedIconId = firstSelectedIconId();
+        syncDesktopIconSelection();
+    }
+
     function selectDesktopIcon(btn, options) {
         ensureDesktopIconSelectionState();
         options = options || {};

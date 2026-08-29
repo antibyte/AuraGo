@@ -313,6 +313,64 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 	}
 }
 
+func TestDesktopContextMenuParityMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	css := readAllDesktopCSS(t)
+
+	for _, want := range []string{
+		"contextMenuShortcutMarkup(",
+		"<kbd class=\"vd-context-shortcut\">",
+		"buildDesktopOpenWithSubmenu(",
+		"desktop.fm.open_with",
+		"vd-properties-modal",
+		"vd-prop-row",
+		"showProperties(title, pathOrEntry)",
+		"desktopWallpaperMenuItems(",
+		"saveDesktopWallpaper(",
+		"selectAllDesktopIcons(",
+		"sortDesktopIconsByName(",
+		"openApp('settings', { category: 'appearance' })",
+		"openApp(appId, { forceNew: true })",
+		"setAppVisibility(appId, { dock_visible:",
+		"desktop.app_add_to_dock",
+		"desktop.app_remove_from_dock",
+		"context.forceNew) ? null : findExistingAppWindow",
+		"appId === 'settings' && context && context.category) renderAppContent",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop context menu parity missing marker %q", want)
+		}
+	}
+
+	if !strings.Contains(css, ".vd-context-shortcut") {
+		t.Fatal("desktop context menu shortcut styling is missing")
+	}
+	if !strings.Contains(css, ".vd-properties-modal") {
+		t.Fatal("desktop properties modal styling is missing")
+	}
+
+	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
+	if !strings.Contains(settingsText, "host.dataset.activeSettings = category") {
+		t.Fatal("settings app must honor context.category for active section")
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		text := rawDesktopAssetText(t, filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json")))
+		for _, key := range []string{
+			"desktop.context_settings",
+			"desktop.context_new_window",
+			"desktop.context_sort_by_name",
+			"desktop.fm.open_with",
+		} {
+			if !strings.Contains(text, `"`+key+`"`) {
+				t.Fatalf("%s desktop translations missing %q", lang, key)
+			}
+		}
+	}
+}
+
 func TestVirtualDesktopManualDocumentsContextMenuSDK(t *testing.T) {
 	t.Parallel()
 

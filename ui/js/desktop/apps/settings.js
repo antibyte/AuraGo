@@ -103,7 +103,8 @@
         ctx = renderCtx || {};
         host = hostEl;
         if (!host) return;
-        host.dataset.activeSettings = host.dataset.activeSettings || 'appearance';
+        const category = String((renderCtx && renderCtx.category) || host.dataset.activeSettings || 'appearance');
+        host.dataset.activeSettings = category;
         renderSettingsShell();
     }
 

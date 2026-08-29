@@ -40,7 +40,14 @@
                     }
                     actions.push(
                         { separator: true },
-                        { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(row.querySelector('.vd-file-name').textContent, row.dataset.path) }
+                        { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(row.querySelector('.vd-file-name').textContent, {
+                            name: row.querySelector('.vd-file-name') ? row.querySelector('.vd-file-name').textContent : row.dataset.path,
+                            path: row.dataset.path,
+                            type: row.dataset.type === 'directory' ? 'directory' : 'file',
+                            web_path: row.dataset.webPath || '',
+                            media_kind: row.dataset.mediaKind || '',
+                            mime_type: row.dataset.mimeType || ''
+                        }) }
                     );
                     showContextMenu(event.clientX, event.clientY, actions);
                 });

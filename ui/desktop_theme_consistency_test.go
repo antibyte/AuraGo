@@ -48,6 +48,7 @@ func TestDesktopThemesShareShellAndAppMaterials(t *testing.T) {
 		"App interior polish: toolbars, sidebars, lists, and settings surfaces",
 		".vd-start-search input",
 		".vd-icon-label",
+		"Detail polish: micro-chrome, menus, scrollbars, and tray type",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop theme consistency CSS is missing marker %q", marker)
@@ -70,6 +71,7 @@ func TestDesktopThemeBundleContainsConsistencyBridge(t *testing.T) {
 		"Chrome polish: physical edges, glass refraction, and theme-native chrome",
 		"--vd-chrome-highlight:",
 		"Surface polish: start menu content, wallpaper labels, and app interiors",
+		"Detail polish: micro-chrome, menus, scrollbars, and tray type",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop shell bundle is missing theme consistency marker %q", marker)

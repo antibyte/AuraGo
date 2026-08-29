@@ -48,6 +48,319 @@
         return window.innerHeight - 8;
     }
 
+    function contextMenuShortcutMarkup(shortcut) {
+        return shortcut ? `<kbd class="vd-context-shortcut">${esc(shortcut)}</kbd>` : '';
+    }
+
+    function formatDesktopDate(value) {
+        if (!value) return '\u2014';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString();
+    }
+
+    function desktopFileExtension(name) {
+        const parts = String(name || '').split('.');
+        return parts.length > 1 ? parts.pop().toLowerCase() : '';
+    }
+
+    function desktopIsImageFile(name) {
+        return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'tiff', 'tif', 'avif'].includes(desktopFileExtension(name));
+    }
+
+    function desktopIsMediaFile(name) {
+        return ['mp4', 'mkv', 'avi', 'mov', 'webm', 'mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(desktopFileExtension(name));
+    }
+
+    function desktopIconFileEntry(btn) {
+        const label = btn.querySelector('.vd-icon-label');
+        return {
+            name: label ? label.textContent : pathBaseName(btn.dataset.path),
+            path: btn.dataset.path || '',
+            type: btn.dataset.kind === 'directory' ? 'directory' : 'file',
+            web_path: btn.dataset.webPath || '',
+            media_kind: btn.dataset.mediaKind || '',
+            mime_type: btn.dataset.mimeType || ''
+        };
+    }
+
+    async function enrichDesktopFileEntry(entry) {
+        if (!entry || !entry.path) return entry || {};
+        try {
+            const parent = pathDir(entry.path);
+            const body = await api('/api/desktop/files?path=' + encodeURIComponent(parent || ''));
+            const match = (Array.isArray(body.files) ? body.files : []).find(file => file.path === entry.path);
+            if (match) return Object.assign({}, entry, match);
+        } catch (_) {}
+        return entry;
+    }
+
+    function buildDesktopOpenWithSubmenu(entry) {
+        if (!entry || entry.type !== 'file') return [];
+        const name = entry.name || pathBaseName(entry.path);
+        const apps = [];
+        const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
+        const isImage = desktopIsImageFile(name);
+        const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
+        if (isText) {
+            apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (isImage) {
+            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
+        } else if (isMedia) {
+            const ext = desktopFileExtension(name);
+            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_music_player'), appId: 'music-player' });
+            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
+            apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
+            apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (String(name || '').toLowerCase().endsWith('.zip')) {
+            apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
+        } else {
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
+        }
+        return apps.map(app => ({
+            label: app.label,
+            action: () => openApp(app.appId, { path: entry.path })
+        }));
+    }
+
+    async function copyDesktopPathToClipboard(paths) {
+        const text = Array.isArray(paths) ? paths.filter(Boolean).join('\n') : String(paths || '');
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.fm.path_copied') });
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+        }
+    }
+
+    async function duplicateDesktopPaths(paths) {
+        if (desktopReadonly()) return;
+        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
+        for (const filePath of cleanPaths) {
+            const name = pathBaseName(filePath);
+            const parent = pathDir(filePath);
+            const extIdx = name.lastIndexOf('.');
+            let base;
+            let ext;
+            if (extIdx > 0) {
+                base = name.slice(0, extIdx);
+                ext = name.slice(extIdx);
+            } else {
+                base = name;
+                ext = '';
+            }
+            const copySuffix = ' - ' + t('desktop.fm.copy');
+            let newName = base + copySuffix + ext;
+            let destPath = workspaceJoinPath(parent, newName);
+            let index = 2;
+            while (true) {
+                try {
+                    const body = await api('/api/desktop/files?path=' + encodeURIComponent(parent || ''));
+                    const exists = (Array.isArray(body.files) ? body.files : []).some(file => file.path === destPath);
+                    if (!exists) break;
+                    newName = base + copySuffix + ` (${index})` + ext;
+                    destPath = workspaceJoinPath(parent, newName);
+                    index += 1;
+                } catch (_) {
+                    break;
+                }
+            }
+            try {
+                await api('/api/desktop/copy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_path: filePath, dest_path: destPath })
+                });
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            }
+        }
+        await loadBootstrap();
+    }
+
+    async function compressDesktopPathsToZip(paths) {
+        if (desktopReadonly()) return;
+        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
+        if (!cleanPaths.length) return;
+        let defaultName = 'archive.zip';
+        if (cleanPaths.length === 1) {
+            const base = pathBaseName(cleanPaths[0]);
+            defaultName = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) + '.zip' : base + '.zip';
+        }
+        const zipName = await promptDialog(t('desktop.fm.compress_zip'), defaultName);
+        if (!zipName) return;
+        const destPath = workspaceJoinPath(pathDir(cleanPaths[0]), zipName);
+        try {
+            await api('/api/desktop/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paths: cleanPaths, dest: destPath })
+            });
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+        }
+    }
+
+    async function extractDesktopZip(entry, extractHere) {
+        if (desktopReadonly() || !entry || !entry.path) return;
+        let dest = pathDir(entry.path) || 'Desktop';
+        if (!extractHere) {
+            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), dest);
+            if (!destPrompt) return;
+            dest = destPrompt;
+        }
+        try {
+            await api('/api/desktop/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: entry.path, dest })
+            });
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+        }
+    }
+
+    async function createDesktopSymlink(entry) {
+        if (desktopReadonly() || !entry || !entry.path) return;
+        const defaultName = (entry.name || pathBaseName(entry.path)) + '_symlink';
+        const linkName = await promptDialog(t('desktop.fm.create_symlink_prompt'), defaultName);
+        if (!linkName) return;
+        const linkPath = workspaceJoinPath(pathDir(entry.path), linkName);
+        try {
+            await api('/api/desktop/symlink', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_path: entry.path, link_path: linkPath })
+            });
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.fm.symlink_created') });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+        }
+    }
+
+    function desktopWallpaperMenuItems() {
+        const current = settingValue('appearance.wallpaper') || 'groupshoot';
+        const options = [
+            ['groupshoot', 'desktop.settings_wallpaper_groupshoot'],
+            ['aurora', 'desktop.settings_wallpaper_aurora'],
+            ['midnight', 'desktop.settings_wallpaper_midnight'],
+            ['slate', 'desktop.settings_wallpaper_slate'],
+            ['ember', 'desktop.settings_wallpaper_ember'],
+            ['forest', 'desktop.settings_wallpaper_forest'],
+            ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'],
+            ['city_rain', 'desktop.settings_wallpaper_city_rain'],
+            ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
+            ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'],
+            ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
+            ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
+        ];
+        return options.map(([value, labelKey]) => ({
+            label: t(labelKey),
+            icon: current === value ? 'check-square' : 'square',
+            action: () => saveDesktopWallpaper(value)
+        }));
+    }
+
+    async function saveDesktopWallpaper(value) {
+        try {
+            const body = await api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'appearance.wallpaper', value })
+            });
+            if (!state.bootstrap) state.bootstrap = {};
+            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { 'appearance.wallpaper': value });
+            applyDesktopSettings();
+            renderStartButtonIcon();
+            renderIcons();
+            renderWidgets();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+        }
+    }
+
+    function sortDesktopIconsByName() {
+        const icons = $('vd-icons');
+        if (!icons) return;
+        const buttons = [...icons.querySelectorAll('.vd-icon[data-id]')];
+        buttons.sort((a, b) => {
+            const labelA = (a.querySelector('.vd-icon-label') && a.querySelector('.vd-icon-label').textContent || '').toLowerCase();
+            const labelB = (b.querySelector('.vd-icon-label') && b.querySelector('.vd-icon-label').textContent || '').toLowerCase();
+            return labelA.localeCompare(labelB);
+        });
+        buttons.forEach(btn => icons.appendChild(btn));
+        arrangeDesktopIconsToGrid();
+    }
+
+    function contextMenuReadonlyGuard(items) {
+        if (!desktopReadonly()) return items;
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app']);
+        return (items || []).map(item => {
+            if (!item || item.separator) return item;
+            if (!blocked.has(item.id)) return item;
+            return Object.assign({}, item, { disabled: true, action: () => {} });
+        });
+    }
+
+    async function showProperties(title, pathOrEntry) {
+        closeContextMenu();
+        let entry = typeof pathOrEntry === 'object' && pathOrEntry ? Object.assign({}, pathOrEntry) : {
+            name: title || pathBaseName(pathOrEntry),
+            path: String(pathOrEntry || ''),
+            type: 'file'
+        };
+        if (!entry.name && title) entry.name = title;
+        entry = await enrichDesktopFileEntry(entry);
+        const isDir = entry.type === 'directory';
+        let itemCount = '';
+        if (isDir && entry.path) {
+            try {
+                const result = await api('/api/desktop/files?path=' + encodeURIComponent(entry.path));
+                const count = Array.isArray(result.files) ? result.files.length : 0;
+                itemCount = `<div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_items'))}</span><span class="vd-prop-value">${esc(String(count))}</span></div>`;
+            } catch (_) {}
+        }
+        const mimeRow = entry.mime_type ? `<div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_mime'))}</span><span class="vd-prop-value">${esc(entry.mime_type)}</span></div>` : '';
+        const modeRow = entry.mode ? `<div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_permissions'))}</span><span class="vd-prop-value">${esc(entry.mode)}</span></div>` : '';
+        const createdRow = entry.created ? `<div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_created'))}</span><span class="vd-prop-value">${esc(formatDesktopDate(entry.created))}</span></div>` : '';
+        const overlay = document.createElement('div');
+        overlay.className = 'vd-modal-backdrop vd-properties-backdrop';
+        const typeLabel = isDir ? t('desktop.fm.prop_folder') : t('desktop.fm.prop_file');
+        overlay.innerHTML = `<div class="vd-modal vd-properties-modal" role="dialog" aria-modal="true">
+            <div class="vd-modal-title">${esc(t('desktop.fm.properties_title'))}</div>
+            <div class="vd-prop-body">
+                <div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_name'))}</span><span class="vd-prop-value">${esc(entry.name || pathBaseName(entry.path))}</span></div>
+                <div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_type'))}</span><span class="vd-prop-value">${esc(typeLabel)}</span></div>
+                <div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_size'))}</span><span class="vd-prop-value">${esc(isDir ? '\u2014' : fmtBytes(entry.size))}</span></div>
+                <div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_location'))}</span><span class="vd-prop-value">${esc(pathDir(entry.path) || '/')}</span></div>
+                ${mimeRow}
+                ${modeRow}
+                <div class="vd-prop-row"><span class="vd-prop-label">${esc(t('desktop.fm.prop_modified'))}</span><span class="vd-prop-value">${esc(formatDesktopDate(entry.modified))}</span></div>
+                ${createdRow}
+                ${itemCount}
+            </div>
+            <div class="vd-modal-actions">
+                <button type="button" class="vd-button vd-button-primary" data-close>${esc(t('desktop.ok'))}</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.querySelector('[data-close]').addEventListener('click', close);
+        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+    }
+
     function showContextMenu(x, y, items) {
         closeContextMenu(true);
         items = normalizeContextMenuItems(items);
@@ -57,17 +370,18 @@
             if (item.separator) return '<div class="vd-context-separator" role="separator"></div>';
             const actionKey = path.concat(String(item.id || index)).join('/');
             const icon = `<span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>`;
-            const label = `<span>${esc(item.label)}</span>`;
+            const label = `<span class="vd-context-label">${esc(item.label)}</span>`;
+            const shortcut = contextMenuShortcutMarkup(item.shortcut || '');
             const disabled = item.disabled ? 'disabled' : '';
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">&rsaquo;</span></button>
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">&rsaquo;</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
             actions.set(actionKey, item);
-            return `<button type="button" class="vd-context-item" role="menuitem" data-context-action="${esc(actionKey)}" ${disabled}>${icon}${label}</button>`;
+            return `<button type="button" class="vd-context-item" role="menuitem" data-context-action="${esc(actionKey)}" ${disabled}>${icon}${label}${shortcut}</button>`;
         }).join('');
         const menu = document.createElement('div');
         menu.className = 'vd-context-menu vd-scroll';
@@ -99,10 +413,16 @@
         if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
         event.preventDefault();
         selectDesktopIcon(null);
-        const items = [
-            { label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
-            { label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
-            { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
+        const items = contextMenuReadonlyGuard([
+            { id: 'new-file', label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
+            { id: 'new-folder', label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
+            { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', id: 'paste', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
+            { separator: true },
+            { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
+            { label: t('desktop.settings_wallpaper'), icon: 'image', fallback: 'W', items: desktopWallpaperMenuItems() },
+            { separator: true },
+            { label: t('desktop.fm.select_all'), icon: 'check-square', fallback: 'A', shortcut: 'Ctrl+A', action: () => selectAllDesktopIcons() },
+            { label: t('desktop.context_sort_by_name'), icon: 'sort', fallback: 'N', action: () => sortDesktopIconsByName() },
             { separator: true },
             { label: t('desktop.widget_manager'), icon: 'widgets', fallback: 'W', action: () => showWidgetManager() },
             { label: t('desktop.app_manager'), icon: 'apps', fallback: 'A', action: () => showAppManager() },
@@ -110,7 +430,7 @@
             { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
             { label: t('desktop.context_icon_grid'), icon: desktopIconGridEnabled() ? 'check-square' : 'square', fallback: 'G', action: toggleDesktopIconGrid },
             { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
-        ];
+        ]);
         showContextMenu(event.clientX, event.clientY, items);
     }
 
@@ -122,30 +442,53 @@
         const appId = btn.dataset.appId || '';
         const kind = btn.dataset.kind || '';
         const isDesktopEntry = btn.dataset.desktopEntry === 'true';
+        const batchPaths = desktopBatchPaths(btn);
+        const fileEntry = desktopIconFileEntry(btn);
+        const openWithItems = kind === 'file' ? buildDesktopOpenWithSubmenu(fileEntry) : [];
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => activateDesktopItems(commandIcons) }
         ];
+        if (openWithItems.length) {
+            items.push({ label: t('desktop.fm.open_with'), icon: 'apps', fallback: 'W', items: openWithItems });
+        }
         if (isTrashIcon(btn)) {
             items.push(
-                { label: t('desktop.context_empty_trash'), icon: 'trash', fallback: 'X', action: () => emptyTrash() },
+                { id: 'empty-trash', label: t('desktop.context_empty_trash'), icon: 'trash', fallback: 'X', action: () => emptyTrash() },
                 { separator: true },
-                { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
+                { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
             );
-            showContextMenu(event.clientX, event.clientY, items);
+            showContextMenu(event.clientX, event.clientY, contextMenuReadonlyGuard(items));
             return;
         }
-        if (isDesktopEntry || kind === 'file') {
+        if (isDesktopEntry || kind === 'file' || kind === 'directory') {
             if (kind === 'file') {
                 items.push({ separator: true }, { label: t('desktop.fm.add_to_chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
             }
             items.push(
                 { separator: true },
-                { label: t('desktop.fm.cut'), icon: 'scissors', fallback: 'X', action: () => setDesktopFileClipboard('cut', desktopBatchPaths(btn)) },
-                { label: t('desktop.fm.copy'), icon: 'copy', fallback: 'C', action: () => setDesktopFileClipboard('copy', desktopBatchPaths(btn)) },
-                { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', disabled: kind !== 'directory' || !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard(path) },
+                { id: 'cut', label: t('desktop.fm.cut'), icon: 'scissors', fallback: 'X', shortcut: 'Ctrl+X', action: () => setDesktopFileClipboard('cut', batchPaths) },
+                { id: 'copy', label: t('desktop.fm.copy'), icon: 'copy', fallback: 'C', shortcut: 'Ctrl+C', action: () => setDesktopFileClipboard('copy', batchPaths) },
+                { id: 'paste', label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', disabled: kind !== 'directory' || !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard(path) },
+                { label: t('desktop.fm.copy_path'), icon: 'text', fallback: 'P', shortcut: 'Ctrl+Shift+C', action: () => copyDesktopPathToClipboard(batchPaths.length ? batchPaths : [path]) },
+                { id: 'duplicate', label: t('desktop.fm.duplicate'), icon: 'copy', fallback: 'D', shortcut: 'Ctrl+D', disabled: !batchPaths.length, action: () => duplicateDesktopPaths(batchPaths) }
+            );
+            if (batchPaths.length === 1 || (batchPaths.length === 0 && path)) {
+                const zipPaths = batchPaths.length ? batchPaths : [path];
+                items.push({ id: 'compress', label: t('desktop.fm.compress_zip'), icon: 'archive', fallback: 'Z', action: () => compressDesktopPathsToZip(zipPaths) });
+                if (kind === 'file' && String(fileEntry.name || path).toLowerCase().endsWith('.zip')) {
+                    items.push(
+                        { id: 'extract', label: t('desktop.fm.extract_zip'), icon: 'archive', action: () => extractDesktopZip(fileEntry, true) },
+                        { label: t('desktop.fm.extract_zip_to'), icon: 'archive', action: () => extractDesktopZip(fileEntry, false) }
+                    );
+                }
+                if (kind === 'file') {
+                    items.push({ id: 'symlink', label: t('desktop.fm.create_symlink'), icon: 'link', action: () => createDesktopSymlink(fileEntry) });
+                }
+            }
+            items.push(
                 { separator: true },
-                { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(path) },
-                { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deleteDesktopPaths(desktopBatchPaths(btn)) }
+                { id: 'rename', label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', shortcut: 'F2', action: () => renamePath(path) },
+                { id: 'delete', label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', shortcut: 'Del', action: () => deleteDesktopPaths(batchPaths.length ? batchPaths : [path]) }
             );
             if (btn.dataset.webPath) {
                 items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
@@ -153,24 +496,31 @@
                 items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadDesktopPath(path, btn.querySelector('.vd-icon-label').textContent) });
             }
         } else {
-            items.push({ label: t('desktop.context_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => removeDesktopShortcuts(desktopBatchShortcutIds(btn)) });
+            items.push({ id: 'remove-shortcut', label: t('desktop.context_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => removeDesktopShortcuts(desktopBatchShortcutIds(btn)) });
         }
         if (appId) {
             const appIsBuiltin = isBuiltinApp(appId);
-            items.push({ label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
+            items.push({ id: 'delete-app', label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
         }
         items.push(
             { separator: true },
-            { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
+            { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
         );
-        showContextMenu(event.clientX, event.clientY, items);
+        showContextMenu(event.clientX, event.clientY, contextMenuReadonlyGuard(items));
     }
 
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
+        const app = appById(appId);
+        const inDock = !!(app && app.dock_visible !== false);
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
-            { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) }
+            { label: t('desktop.context_new_window'), icon: 'monitor', fallback: 'N', action: () => openApp(appId, { forceNew: true }) },
+            { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) },
+            { separator: true },
+            inDock
+                ? { label: t('desktop.app_remove_from_dock'), icon: 'pin', fallback: '-', action: () => setAppVisibility(appId, { dock_visible: false }) }
+                : { label: t('desktop.app_add_to_dock'), icon: 'pin', fallback: '+', action: () => setAppVisibility(appId, { dock_visible: true }) }
         ];
         if (!isBuiltinApp(appId)) {
             items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', action: () => deleteDesktopApp(appId) });
@@ -720,10 +1070,6 @@ function modalDialog(options) {
         overlay.querySelector('.vd-window-actions').addEventListener('click', event => event.stopPropagation());
         overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
         wireButtons();
-    }
-
-    function showProperties(title, body) {
-        showDesktopNotification({ title: title || t('desktop.context_properties'), message: body || '' });
     }
 
     function contentEl(id) {
