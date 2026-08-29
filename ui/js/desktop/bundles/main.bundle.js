@@ -8016,11 +8016,15 @@ function updateTaskbarSystemButtonsForMobile() {
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
             ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
         ];
-        return options.map(([value, labelKey]) => ({
-            label: t(labelKey),
-            icon: current === value ? 'check-square' : 'square',
-            action: () => saveDesktopWallpaper(value)
-        }));
+        return options.map(([value, labelKey]) => {
+            const selected = current === value;
+            return {
+                label: t(labelKey),
+                icon: selected ? 'check-square' : 'square',
+                fallback: selected ? '\u2713' : '\u2610',
+                action: () => saveDesktopWallpaper(value)
+            };
+        });
     }
 
     async function saveDesktopWallpaper(value) {
@@ -8178,7 +8182,7 @@ function updateTaskbarSystemButtonsForMobile() {
             { label: t('desktop.app_manager'), icon: 'apps', fallback: 'A', action: () => showAppManager() },
             { separator: true },
             { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
-            { label: t('desktop.context_icon_grid'), icon: desktopIconGridEnabled() ? 'check-square' : 'square', fallback: 'G', action: toggleDesktopIconGrid },
+            { label: t('desktop.context_icon_grid'), icon: desktopIconGridEnabled() ? 'check-square' : 'square', fallback: desktopIconGridEnabled() ? '\u2713' : '\u2610', action: toggleDesktopIconGrid },
             { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
         ]);
         showContextMenu(event.clientX, event.clientY, items);

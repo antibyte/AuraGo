@@ -331,6 +331,10 @@ func TestFileManagerHasTouchSelection(t *testing.T) {
 		"function renderSelectionToolbarHtml()",
 		"fm-selection-toolbar",
 		"selectionMode: false",
+		`t('desktop.fm.selected', { count: fm.selectedPaths.size })`,
+		"iconMarkup('folder-open'",
+		"'fm-btn-icon', 16)",
+		"iconMarkup('columns'",
 	} {
 		if !strings.Contains(render, want) {
 			t.Fatalf("file manager core-render.js missing touch selection marker %q", want)

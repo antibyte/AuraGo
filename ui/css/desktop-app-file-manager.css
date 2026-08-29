@@ -1135,6 +1135,11 @@
     align-items: center;
     gap: 4px;
 }
+.fm-selection-btn .fm-btn-icon,
+.fm-selection-close .fm-btn-icon {
+    width: 16px;
+    height: 16px;
+}
 .fm-selection-btn {
     display: inline-flex;
     align-items: center;

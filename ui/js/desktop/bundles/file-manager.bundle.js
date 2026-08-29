@@ -547,8 +547,14 @@
         if (selToolbar) {
             const hasSelection = fm.selectedPaths.size > 0;
             selToolbar.classList.toggle('active', hasSelection);
-            const countEl = selToolbar.querySelector('.fm-selection-count');
-            if (countEl) countEl.textContent = String(fm.selectedPaths.size);
+            const labelEl = selToolbar.querySelector('.fm-selection-label');
+            if (labelEl) labelEl.textContent = t('desktop.fm.selected', { count: fm.selectedPaths.size });
+            const downloadBtn = selToolbar.querySelector('[data-action="selection-download"]');
+            if (downloadBtn) {
+                const selected = typeof getSelectedFiles === 'function' ? getSelectedFiles() : [];
+                const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
+                downloadBtn.classList.toggle('is-hidden', !hasFile);
+            }
         }
         updateWindowMenus();
         updateToolbarState();
@@ -561,29 +567,28 @@
         return `<div class="fm-selection-toolbar">
             <div class="fm-selection-toolbar-left">
                 <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">
-                    ${iconMarkup('x', '\u00D7', '', 16)}
+                    ${iconMarkup('x', '\u00D7', 'fm-btn-icon', 16)}
                 </button>
-                <span class="fm-selection-count">0</span>
-                <span class="fm-selection-label">${esc(t('desktop.fm.selected'))}</span>
+                <span class="fm-selection-label">${esc(t('desktop.fm.selected', { count: fm.selectedPaths.size }))}</span>
             </div>
             <div class="fm-selection-toolbar-actions">
-                <button type="button" class="fm-selection-btn" data-action="selection-open" title="Open" aria-label="Open">
-                    ${iconMarkup('folder-open', '\u25B6', '', 16)}
+                <button type="button" class="fm-selection-btn" data-action="selection-open" title="${esc(t('desktop.context_open'))}" aria-label="${esc(t('desktop.context_open'))}">
+                    ${iconMarkup('folder-open', '\u25B6', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-copy" title="${esc(t('desktop.fm.copy'))}" aria-label="${esc(t('desktop.fm.copy'))}">
-                    ${iconMarkup('copy', '\u2398', '', 16)}
+                    ${iconMarkup('copy', '\u2398', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-cut" title="${esc(t('desktop.fm.cut'))}" aria-label="${esc(t('desktop.fm.cut'))}"${readonly ? ' disabled' : ''}>
-                    ${iconMarkup('scissors', '\u2702', '', 16)}
+                    ${iconMarkup('scissors', '\u2702', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download'))}" aria-label="${esc(t('desktop.fm.download'))}">
-                    ${iconMarkup('download', '\u2193', '', 16)}
+                    ${iconMarkup('download', '\u2193', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete'))}" aria-label="${esc(t('desktop.fm.delete'))}"${readonly ? ' disabled' : ''}>
-                    ${iconMarkup('trash', '\u267B', '', 16)}
+                    ${iconMarkup('trash', '\u267B', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-properties" title="${esc(t('desktop.fm.properties'))}" aria-label="${esc(t('desktop.fm.properties'))}">
-                    ${iconMarkup('info', 'i', '', 16)}
+                    ${iconMarkup('info', 'i', 'fm-btn-icon', 16)}
                 </button>
             </div>
         </div>`;
@@ -852,16 +857,16 @@
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
                 <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar'))}">
-                    ${iconMarkup('list', '\u2630', '', 16)}
+                    ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}"${backDisabled}>
-                    ${iconMarkup('chevron-left', '\u2039', '', 16)}
+                    ${iconMarkup('chevron-left', '\u2039', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward'))}"${fwdDisabled}>
-                    ${iconMarkup('chevron-right', '\u203A', '', 16)}
+                    ${iconMarkup('chevron-right', '\u203A', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up'))}">
-                    ${iconMarkup('arrow-up', '\u2191', '', 16)}
+                    ${iconMarkup('arrow-up', '\u2191', 'fm-btn-icon', 16)}
                 </button>
             </div>
             <div class="fm-toolbar-group fm-breadcrumb-wrap" data-fm-breadcrumb>
@@ -869,22 +874,22 @@
             </div>
             <div class="fm-toolbar-group fm-toolbar-right">
                 <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview'))}">
-                    ${iconMarkup('layout', '\u25EB', '', 16)}
+                    ${iconMarkup('layout', '\u25EB', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split'))}">
-                    ${iconMarkup('columns', '\u25EB', '', 16)}
+                    ${iconMarkup('columns', '\u25EB', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden'))}">
-                    ${iconMarkup(fm.showHidden ? 'eye' : 'eye-off', fm.showHidden ? '\uD83D\uDC41' : '\uD83D\uDC41\u0338', '', 16)}
+                    ${iconMarkup(fm.showHidden ? 'eye' : 'eye-off', fm.showHidden ? '\uD83D\uDC41' : '\uD83D\uDC41\u0338', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid'))}">
-                    ${iconMarkup('grid', '\u25A6', '', 16)}
+                    ${iconMarkup('grid', '\u25A6', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list'))}">
-                    ${iconMarkup('list', '\u2630', '', 16)}
+                    ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search'))} (Ctrl+F)">
-                    ${iconMarkup('search', '\u2315', '', 16)}
+                    ${iconMarkup('search', '\u2315', 'fm-btn-icon', 16)}
                 </button>
             </div>
         </div>`;
