@@ -541,7 +541,7 @@
         const selToolbar = root.querySelector('.fm-selection-toolbar');
         if (selToolbar) {
             const hasSelection = fm.selectedPaths.size > 0;
-            selToolbar.classList.toggle('active', hasSelection);
+            selToolbar.classList.toggle('active', !!(fm.selectionMode && hasSelection));
             const labelEl = selToolbar.querySelector('.fm-selection-label');
             if (labelEl) labelEl.textContent = t('desktop.fm.selected', { count: fm.selectedPaths.size });
             const downloadBtn = selToolbar.querySelector('[data-action="selection-download"]');

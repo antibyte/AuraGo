@@ -335,6 +335,7 @@ func TestFileManagerHasTouchSelection(t *testing.T) {
 		"iconMarkup('folder-open'",
 		"'fm-btn-icon', 16)",
 		"iconMarkup('columns'",
+		"selToolbar.classList.toggle('active', !!(fm.selectionMode && hasSelection))",
 	} {
 		if !strings.Contains(render, want) {
 			t.Fatalf("file manager core-render.js missing touch selection marker %q", want)
@@ -346,6 +347,7 @@ func TestFileManagerHasTouchSelection(t *testing.T) {
 		".fm-selection-toolbar",
 		".fm-selection-toolbar.active",
 		".fm-selection-btn",
+		"@media (max-width: 820px)",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("file manager CSS missing touch selection style %q", want)
@@ -366,6 +368,9 @@ func TestFileManagerSelectionToolbarAvoidsReadonlyShadowing(t *testing.T) {
 		}
 		if !strings.Contains(js, "const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;") {
 			t.Fatalf("%s missing safe readonly selection toolbar marker", file)
+		}
+		if !strings.Contains(js, "selToolbar.classList.toggle('active', !!(fm.selectionMode && hasSelection))") {
+			t.Fatalf("%s must show the mobile selection toolbar only in touch selection mode", file)
 		}
 	}
 }

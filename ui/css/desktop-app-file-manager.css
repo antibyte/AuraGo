@@ -1,8 +1,8 @@
 /* desktop-app-file-manager.css */
 /* ─── File Manager ─── */
 .file-manager {
-    display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     height: 100%;
     position: relative;
@@ -1093,10 +1093,15 @@
     padding: 6px 10px;
     border-bottom: 1px solid var(--ds-color-border-subtle);
     background: var(--ds-color-surface-2);
-    min-height: 0;
+    min-height: 40px;
 }
 .fm-selection-toolbar.active {
-    display: flex;
+    display: none;
+}
+@media (max-width: 820px) {
+    .fm-selection-toolbar.active {
+        display: flex;
+    }
 }
 .fm-selection-toolbar-left {
     display: flex;
