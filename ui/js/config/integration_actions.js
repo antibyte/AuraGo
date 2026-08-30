@@ -6,7 +6,7 @@
         {
             section: 'telegram',
             buttonId: 'integration-telegram-test-btn',
-            endpoint: '/api/telegram/test',
+            endpoint: '/api/telegram/test-connection',
             requiredPaths: [],
             credentialPaths: ['telegram.bot_token']
         },

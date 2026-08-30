@@ -21,7 +21,7 @@ func TestConfigGenericIntegrationTestRegistryStaysInSync(t *testing.T) {
 		button  string
 		path    string
 	}{
-		{"telegram", "integration-telegram-test-btn", "/api/telegram/test"},
+		{"telegram", "integration-telegram-test-btn", "/api/telegram/test-connection"},
 		{"discord", "integration-discord-test-btn", "/api/discord/test"},
 		{"rocketchat", "integration-rocketchat-test-btn", "/api/rocketchat/test"},
 		{"home_assistant", "integration-home-assistant-test-btn", "/api/home-assistant/test"},

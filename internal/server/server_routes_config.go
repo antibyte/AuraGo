@@ -111,7 +111,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Read-only integration connection checks. These probes use saved
 	// configuration and stored Vault credentials and therefore require admin
 	// authorization; they never send messages or execute remote actions.
-	mux.Handle("/api/telegram/test", requireAdmin(s, handleTelegramConnectionTest(s)))
+	// Keep the read-only connection probe separate from the legacy Telegram
+	// test-message route, which may be preserved by local updater commits.
+	mux.Handle("/api/telegram/test-connection", requireAdmin(s, handleTelegramConnectionTest(s)))
 	mux.Handle("/api/discord/test", requireAdmin(s, handleDiscordTest(s)))
 	mux.Handle("/api/rocketchat/test", requireAdmin(s, handleRocketChatTest(s)))
 	mux.Handle("/api/home-assistant/test", requireAdmin(s, handleHomeAssistantTest(s)))

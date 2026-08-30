@@ -58,7 +58,7 @@ func TestHandleConfiguredIntegrationTestRejectsDisabledIntegration(t *testing.T)
 func TestHandleConfiguredIntegrationTestRejectsNonPost(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	rec := httptest.NewRecorder()
-	handleTelegramConnectionTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/telegram/test", nil))
+	handleTelegramConnectionTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/telegram/test-connection", nil))
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want 405", rec.Code)
@@ -72,10 +72,13 @@ func TestIntegrationTestRoutesRequireAdminSession(t *testing.T) {
 	cfg.Auth.SessionSecret = "integration-test-session-secret"
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 	mux := http.NewServeMux()
+	// Local updater commits may retain the legacy Telegram test-message route.
+	// The read-only probe must therefore use a distinct pattern.
+	mux.HandleFunc("/api/telegram/test", func(http.ResponseWriter, *http.Request) {})
 	s.registerConfigAPIRoutes(mux, nil)
 
 	paths := []string{
-		"/api/telegram/test",
+		"/api/telegram/test-connection",
 		"/api/discord/test",
 		"/api/rocketchat/test",
 		"/api/home-assistant/test",
