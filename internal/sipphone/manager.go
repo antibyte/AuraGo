@@ -82,6 +82,11 @@ type persistRequest struct {
 	stage  string
 }
 
+const (
+	sipConnectionTestTimeout        = 15 * time.Second
+	sipConnectionTestCleanupTimeout = 5 * time.Second
+)
+
 type historyCommandKind uint8
 
 const (
@@ -1039,6 +1044,15 @@ func (m *Manager) SendDTMF(callID string, digit rune) error {
 }
 
 func (m *Manager) TestConnection(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	testCtx, cancel := context.WithTimeout(ctx, sipConnectionTestTimeout)
+	defer cancel()
+	if err := testCtx.Err(); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	endpoint := m.endpoint
 	cfg := m.cfg
@@ -1054,17 +1068,17 @@ func (m *Manager) TestConnection(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	tx, err := m.newRegistrationTransaction(ctx, endpoint, uri, registerOptions(cfg, nil))
+	tx, err := m.newRegistrationTransaction(testCtx, endpoint, uri, registerOptions(cfg, nil))
 	if err != nil {
 		return fmt.Errorf("prepare SIP registration test: %w", err)
 	}
-	if err := tx.Register(ctx); err != nil {
+	if err := tx.Register(testCtx); err != nil {
 		code, _ := classifyRegistrationError(err)
 		return fmt.Errorf("%s: %w", code, err)
 	}
 	defer func() {
-		unregisterCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		unregisterCtx, unregisterCancel := context.WithTimeout(testCtx, sipConnectionTestCleanupTimeout)
+		defer unregisterCancel()
 		_ = tx.Unregister(unregisterCtx)
 	}()
 	return nil

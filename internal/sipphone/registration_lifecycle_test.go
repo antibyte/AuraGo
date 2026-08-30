@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -189,5 +190,47 @@ func TestStopReportsForcedUnregisterTimeout(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("registration goroutine did not exit after forced shutdown")
+	}
+}
+
+func TestConnectionPassesBoundedContextToRegistration(t *testing.T) {
+	cfg := validTestSIPConfig()
+	manager := &Manager{cfg: cfg, endpoint: &diago.Diago{}}
+	var observedDeadline time.Time
+	manager.registrationFactory = func(ctx context.Context, _ sip.Uri, _ diago.RegisterOptions) (registrationTransaction, error) {
+		var ok bool
+		observedDeadline, ok = ctx.Deadline()
+		if !ok {
+			t.Fatal("SIP connection test context has no deadline")
+		}
+		return &scriptedRegistrationTransaction{registerErr: errors.New("stop registration test")}, nil
+	}
+
+	err := manager.TestConnection(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "stop registration test") {
+		t.Fatalf("connection test error = %v", err)
+	}
+	remaining := time.Until(observedDeadline)
+	if remaining <= 0 || remaining > sipConnectionTestTimeout {
+		t.Fatalf("connection test deadline has unexpected remaining duration %s", remaining)
+	}
+}
+
+func TestConnectionRejectsCanceledContextBeforePreparingRegistration(t *testing.T) {
+	cfg := validTestSIPConfig()
+	manager := &Manager{cfg: cfg, endpoint: &diago.Diago{}}
+	created := false
+	manager.registrationFactory = func(context.Context, sip.Uri, diago.RegisterOptions) (registrationTransaction, error) {
+		created = true
+		return &scriptedRegistrationTransaction{}, nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := manager.TestConnection(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled connection test error = %v, want context.Canceled", err)
+	}
+	if created {
+		t.Fatal("canceled connection test prepared a registration transaction")
 	}
 }

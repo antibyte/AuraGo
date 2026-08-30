@@ -778,9 +778,9 @@ async function sipApplyProvider() {
         sipWizardMessage = t('config.sip.testing');
         document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
         sipConnectionVerified = false;
-        await sipRequest('/api/sip/test', { method: 'POST' });
+        await sipRequest('/api/sip/test', { method: 'POST', timeoutMs: 20000 });
         sipConnectionVerified = true;
-        sipRuntimeStatus = await sipRequest('/api/sip/status').catch(() => ({ registered: false, state: 'unknown' }));
+        sipRuntimeStatus = await sipRequest('/api/sip/status', { timeoutMs: 5000 }).catch(() => ({ registered: false, state: 'unknown' }));
         sipWizardStep = 0;
         sipWizardMessage = sipNeedsRestart ? t('config.sip.restart_required') : t('config.sip.wizard.phone_enabled');
         sipRender();
@@ -826,16 +826,37 @@ function sipRead(options) {
 }
 
 async function sipRequest(path, options) {
-    const response = await fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        const error = new Error(body.message || body.error || ('HTTP ' + response.status));
-        error.code = body.code || '';
-        error.retryable = !!body.retryable;
-        error.body = body;
-        throw error;
+    const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
+    const timeoutMs = Number(requestOptions.timeoutMs || 0);
+    delete requestOptions.timeoutMs;
+    const controller = timeoutMs > 0 && typeof AbortController === 'function' ? new AbortController() : null;
+    let timeoutID = 0;
+    if (controller && !requestOptions.signal) {
+        requestOptions.signal = controller.signal;
+        timeoutID = setTimeout(() => controller.abort(), timeoutMs);
     }
-    return body;
+    try {
+        const response = await fetch(path, requestOptions);
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(body.message || body.error || ('HTTP ' + response.status));
+            error.code = body.code || '';
+            error.retryable = !!body.retryable;
+            error.body = body;
+            throw error;
+        }
+        return body;
+    } catch (error) {
+        if (controller && controller.signal.aborted) {
+            const timeoutError = new Error(t('config.sip.diagnostic.timeout'));
+            timeoutError.code = 'timeout';
+            timeoutError.retryable = true;
+            throw timeoutError;
+        }
+        throw error;
+    } finally {
+        if (timeoutID) clearTimeout(timeoutID);
+    }
 }
 
 async function sipSave() {
@@ -919,11 +940,13 @@ async function sipTestProfile() {
     const message = document.getElementById('sip-wizard-status');
     if (message) message.textContent = sipWizardMessage;
     try {
-        await sipRequest('/api/sip/test', { method: 'POST' });
+        await sipRequest('/api/sip/test', { method: 'POST', timeoutMs: 20000 });
         sipConnectionVerified = true;
         sipWizardTestCode = '';
         sipWizardMessage = t('config.sip.test_ok');
         await sipLoadStatus();
+        const currentMessage = document.getElementById('sip-wizard-status');
+        if (currentMessage) currentMessage.textContent = sipWizardMessage;
     } catch (error) {
         sipConnectionVerified = false;
         sipWizardTestCode = error.code || 'failed';
@@ -979,7 +1002,7 @@ async function sipLoadStatus() {
     const banner = document.getElementById('sip-status');
     if (!banner) return;
     try {
-        const status = await sipRequest('/api/sip/status');
+        const status = await sipRequest('/api/sip/status', { timeoutMs: 5000 });
         sipRuntimeStatus = status;
         if (status.registered) sipConnectionVerified = true;
         if (status.state === 'failed' || status.state === 'disabled') sipConnectionVerified = false;

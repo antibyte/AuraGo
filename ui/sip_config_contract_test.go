@@ -63,6 +63,34 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	}
 }
 
+func TestSIPConfigConnectionTestHasClientTimeout(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("cfg", "sip.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := normalizeSIPContractSource(data)
+	for _, marker := range []string{
+		"const timeoutMs = Number(requestOptions.timeoutMs || 0);",
+		"new AbortController()",
+		"timeoutID = setTimeout(() => controller.abort(), timeoutMs);",
+		"timeoutError.code = 'timeout';",
+		"const currentMessage = document.getElementById('sip-wizard-status');",
+		"if (currentMessage) currentMessage.textContent = sipWizardMessage;",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("SIP config connection test missing timeout marker %q", marker)
+		}
+	}
+	if strings.Count(source, "timeoutMs: 20000") != 2 {
+		t.Fatalf("SIP registration test timeout must be applied to setup and saved-profile tests")
+	}
+	if strings.Count(source, "timeoutMs: 5000") != 2 {
+		t.Fatalf("SIP status refresh timeout must be applied after setup and saved-profile tests")
+	}
+}
+
 func TestSIPConfigWiresGlobalSaveBar(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("js", "config", "main.js"))
 	if err != nil {
