@@ -678,6 +678,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 #### Temporary Files
 - **Always cleanup temporary files and logs** after use
 - Don't leave behind orphaned temporary resources
+- On Windows, run clean build and release checks through `scripts/invoke-clean-worktree.ps1`; do not create ad-hoc clones or worktrees under `%TEMP%`. The wrapper removes the worktree in `finally` and prunes stale Git metadata after both successful and failed commands.
 
 #### UI Components
 - **Do not use `alert()`**, use a modal instead

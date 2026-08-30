@@ -89,6 +89,7 @@ if (-not (Test-Path "bin")) {
 Write-Host "[1/5] Packing resources.dat ..." -ForegroundColor Yellow
 
 $tmpStage = Join-Path $env:TEMP "aurago-release-$([guid]::NewGuid().ToString().Substring(0,8))"
+try {
 $stagingDirs = @(
     "agent_workspace\skills",
     "agent_workspace\tools",
@@ -164,7 +165,13 @@ tar -czf $resourcesOut -C $tmpStage .
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to create deploy\resources.dat"
 }
-Remove-Item -Recurse -Force $tmpStage
+} finally {
+    if (Test-Path -LiteralPath $tmpStage) {
+        Get-ChildItem -LiteralPath $tmpStage -File -Force -Recurse -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.IsReadOnly = $false }
+        Remove-Item -LiteralPath $tmpStage -Recurse -Force -ErrorAction Stop
+    }
+}
 
 tar -tzf $resourcesOut | Out-Null
 if ($LASTEXITCODE -ne 0) {
