@@ -562,7 +562,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.Proxmox.ReadOnly {
 				switch req.Operation {
 				case "start", "stop", "shutdown", "reboot", "suspend", "resume", "reset", "create_snapshot", "snapshot":
-					return `Tool Output: {"status":"error","message":"Proxmox is in read-only mode. Disable proxmox.read_only to allow changes."}`
+					return `Tool Output: {"status":"error","message":"Proxmox is in read-only mode. Disable proxmox.readonly to allow changes."}`
 				}
 			}
 			if !cfg.Proxmox.AllowDestructive {

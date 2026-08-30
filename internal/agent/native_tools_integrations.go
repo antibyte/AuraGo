@@ -984,7 +984,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"overview", "list_nodes", "list_vms", "list_containers", "status", "start", "stop", "shutdown", "reboot", "suspend", "resume", "node_status", "cluster_resources", "storage", "create_snapshot", "list_snapshots", "task_log"},
+					"enum":        []string{"overview", "list_nodes", "list_vms", "list_containers", "status", "start", "stop", "shutdown", "reboot", "suspend", "resume", "reset", "node_status", "cluster_resources", "storage", "create_snapshot", "list_snapshots", "task_log"},
 				},
 				"node":          prop("string", "Node name (optional, uses default from config)"),
 				"vmid":          prop("string", "VM or container ID (e.g. '100')"),

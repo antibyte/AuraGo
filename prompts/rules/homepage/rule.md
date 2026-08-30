@@ -48,7 +48,7 @@ After meaningful homepage project changes, update the homepage registry with `ho
 
 ## Web Interface Quality Bar
 
-Before saying a homepage is done, review changed UI code against these rules. Fix material issues directly when they are in scope for the task. Keep the final report concise and grouped by file only when issues remain.
+Before saying a homepage is done, review changed UI code against every rule in this section and fix material issues directly when they are in scope for the task. A silent read-only pass is not enough: follow the mandatory Definition of Done below and report only what the tools actually confirmed. Keep the final report concise and grouped by file only when issues remain.
 
 ### Accessibility
 
@@ -187,3 +187,17 @@ Before saying a homepage is done, review changed UI code against these rules. Fi
 - Icon buttons without `aria-label`.
 - Hardcoded date, time, number, or currency formats.
 - Unclear button labels, generic errors, broken empty states, overlapping text, or placeholder-looking media.
+- Reporting a homepage task as finished, polished, or "production-ready" without actually running the Definition of Done checks below in this same task.
+
+## Definition of Done
+
+A homepage task is not complete until every applicable step below has actually run, not merely been reasoned about, and the outcome is reported truthfully, including partial failures or skipped steps.
+
+1. **Build succeeds.** Run `homepage_deploy` `build` (or `homepage_project` `build`) and confirm no errors. Do not report success from an edit alone.
+2. **Static checks pass.** Run `homepage_quality` `lint` and `check_js` on the changed project and fix reported errors before continuing. Warnings that cannot be fixed in scope must be logged with `homepage_registry` `log_problem`, not silently ignored.
+3. **Visual proof, not assumption.** Run `homepage_quality` `screenshot` against the built or preview URL at a desktop viewport (e.g. `1440x900`) and a mobile viewport (e.g. `390x844`). Inspect both images before claiming the page is finished. If the result does not visibly match Atmospheric Glass or the active project `DESIGN.md` — no blur, no translucent surfaces, generic flat cards, broken layout, overlapping text — fix it and re-screenshot instead of describing an unseen result as compliant.
+4. **Lighthouse before publishing.** Before deploying or publishing a project for real users, run `homepage_quality` `lighthouse` and address material accessibility or performance regressions it surfaces, or record them with `log_problem` when out of scope for the task.
+5. **Registry stays current.** Call `homepage_registry` `log_edit` for the change, or `log_problem` when something blocks completion. A task is not done while known problems remain unlogged.
+6. **Deploy verification.** For `deploy`, `deploy_netlify`, `deploy_vercel`, or `deploy_here_now`, report success only after the tool's own live-URL verification confirms the public page responds; the upload step alone is not proof of a working deploy.
+
+If a step was skipped because a capability was unavailable (Docker missing, `allow_local_server` fallback active, no deploy requested), say so explicitly instead of implying full verification happened.

@@ -48,7 +48,7 @@ For any VM or container that hosts important services:
 
 Power actions (`start`, `stop`, `shutdown`, `reboot`, `suspend`, `resume`, `reset`) are gated by permissions:
 
-- Respect the `read_only` flag: if Proxmox is configured read-only, refuse mutating operations and explain the constraint.
+- Respect the `readonly` flag: if `proxmox.readonly` is `true` in config, refuse mutating operations and explain the constraint.
 - Destructive actions (`stop`, `shutdown`, `reboot`, `suspend`, `reset`) require `allow_destructive=true` in config. If blocked, inform the user which config key is needed.
 - Prefer `shutdown` over `stop` for graceful termination. Use `stop` only when the guest is unresponsive or the user explicitly requests a hard stop.
 - Use `reset` only as a last resort for hung VMs.

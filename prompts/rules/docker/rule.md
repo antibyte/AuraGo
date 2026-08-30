@@ -29,11 +29,10 @@ Treat Docker as a production infrastructure layer, not a local convenience. Ever
 
 When creating or running containers, apply secure defaults unless the user explicitly overrides them:
 
-1. **Non-root execution.** Prefer running containers as non-root (`User`). If the image runs as root by default and no user is specified, document this choice.
-2. **Capability dropping.** Default to dropping all capabilities and adding back only what is required (`CapDrop: ["ALL"]`). 
-3. **Read-only root filesystem.** Use `SecurityOpt: ["no-new-privileges:true"]` where supported.
-4. **Port exposure minimization.** Only bind required ports. Never expose the Docker daemon socket (`/var/run/docker.sock`) into a container unless absolutely necessary and the user explicitly requests it.
-5. **Image provenance.** Prefer official or verified images. Avoid mutable tags like `:latest` for production workloads; use explicit version tags (e.g., `nginx:1.25.3`).
+1. **Non-root execution.** AuraGo's `docker` tool has no `user`/`cap_drop`/`security_opt` parameters for `create`/`run` today, so per-container hardening cannot be requested through this tool. Prefer images that already run as non-root by default (a `USER` directive baked into the image); if the image only supports root, say so plainly instead of claiming the container was hardened.
+2. **Capability dropping.** For the same reason, capability dropping and `no-new-privileges` are not configurable per-container through this tool. Do not tell the user a container was hardened with `CapDrop`/`SecurityOpt` unless that hardening is already baked into the image or applied outside AuraGo; treat this as a known tool limitation, not something to silently skip while implying it happened.
+3. **Port exposure minimization.** Only bind required ports with the `ports` parameter. Never expose the Docker daemon socket (`/var/run/docker.sock`) into a container unless absolutely necessary and the user explicitly requests it; the tool already blocks binding known system-critical host paths.
+4. **Image provenance.** Prefer official or verified images. Avoid mutable tags like `:latest` for production workloads; use explicit version tags (e.g., `nginx:1.25.3`).
 
 ### Volume and Bind Mount Safety
 
@@ -51,7 +50,7 @@ When creating or running containers, apply secure defaults unless the user expli
 
 - Before pulling an image, check if it already exists locally to avoid unnecessary network operations.
 - When building images, use multi-stage builds to minimize final image size.
-- Clean up dangling images and stopped containers periodically, but never auto-prune volumes or running containers without explicit user confirmation.
+- The `docker` tool has no bulk prune operation. Clean up dangling images and stopped containers individually with `remove_image`/`remove` after reviewing `list_images`/`list_containers` (`all: true` to include stopped containers), and never remove volumes or running containers without explicit user confirmation.
 
 ### Compose Stacks
 
@@ -64,7 +63,7 @@ When creating or running containers, apply secure defaults unless the user expli
 - **Inspect before mutate.** Call `inspect` or `list_containers` before stopping, removing, or modifying a container.
 - **Logs for diagnostics.** Use `logs` with a reasonable `tail` (default 100, increase to 500 for troubleshooting) before escalating to shell exec.
 - **Health awareness.** Check container health status in `list_containers` output when available.
-- **No blind prune.** `system_prune` is destructive. Confirm with the user before running it, and never use `all=true` and `volumes=true` together without explicit approval.
+- **No blind prune.** There is no `system_prune` operation exposed to the agent; do not tell the user one was run. Remove unused images/containers one at a time with `remove_image`/`remove`, and confirm with the user before removing anything that might hold state.
 
 ### Secrets and Configuration
 

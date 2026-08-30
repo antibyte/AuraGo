@@ -127,7 +127,7 @@ components:
     rounded: "{rounded.xl}"
     padding: 20px
     height: 48px
-  weather-display-large:
+  display-stat-large:
     textColor: "{colors.primary}"
     typography: "{typography.display-lg}"
   metric-label:
@@ -143,7 +143,7 @@ components:
 
 ## Brand & Style
 
-This design system centers on a high-fidelity Glassmorphism aesthetic designed to evoke a sense of clarity, depth, and modern sophistication. The brand personality is ethereal yet functional, transforming complex meteorological data into a serene visual experience.
+This design system centers on a high-fidelity Glassmorphism aesthetic designed to evoke a sense of clarity, depth, and modern sophistication. The brand personality is ethereal yet functional, transforming any homepage content — product, portfolio, service, or informational — into a serene visual experience.
 
 The UI relies on a "vibrant-minimalist" approach: the background provides the energy through multi-colored abstract gradients (pinks, purples, and blues), while the interface elements act as frosted crystalline lenses that focus the user's attention. The emotional response is intended to be calm and premium, utilizing transparency and blur to simulate physical layers of glass floating in a fluid, digital space.
 
@@ -153,14 +153,14 @@ The color strategy prioritizes luminosity and contrast. Because the background i
 
 - **Primary Canvas:** A multi-stop linear or radial gradient background featuring Deep Blue (#1E3A8A), Vivid Purple (#7E22CE), and Soft Pink (#DB2777).
 - **Surface Alpha:** Component backgrounds are never solid. They range from `rgba(255, 255, 255, 0.1)` for secondary depth to `0.2` for primary interaction areas.
-- **Accents:** Semantic colors for weather conditions (e.g., Warning Yellow, Rain Blue) should be applied with high saturation but low opacity fills to maintain the glass effect.
+- **Accents:** Semantic colors for states (e.g., success, warning, error, informational highlights) should be applied with high saturation but low opacity fills to maintain the glass effect.
 - **Text:** Strictly white (#FFFFFF) or high-tint silver (#E2E8F0) to ensure WCAG compliance against the vibrant background.
 
 ## Typography
 
 The design system utilizes **Inter** for its neutral, geometric clarity which balances the organic nature of the blurred backgrounds.
 
-- **Hierarchy:** Large display sizes are used for temperature readings to create a clear focal point.
+- **Hierarchy:** Large display sizes are used for hero statements, key numbers, or primary calls to action to create a clear focal point.
 - **Legibility:** On frosted glass, font weight is increased by one tier (e.g., using Medium instead of Regular) to counteract the visual noise of the background blur.
 - **Treatment:** Subtle text-shadows (`0px 2px 4px rgba(0,0,0,0.15)`) may be applied to small labels to ensure they "pop" against lighter areas of the background gradient.
 
@@ -169,7 +169,7 @@ The design system utilizes **Inter** for its neutral, geometric clarity which ba
 The layout follows a fluid, contextual model. Elements are grouped into "Glass Containers" that float within the safe areas of the viewport.
 
 - **Rhythm:** An 8px base grid governs all dimensions.
-- **Grouping:** Related weather metrics (humidity, wind, UV index) are housed in a CSS grid or flex layout with 16px gaps.
+- **Grouping:** Related metrics, features, or content cards are housed in a CSS grid or flex layout with 16px gaps.
 - **Negative Space:** Generous outer margins (24px+) are maintained to ensure the vibrant background is visible, reinforcing the "floating" nature of the interface.
 
 ## Elevation & Depth
@@ -189,7 +189,7 @@ The shape language is organic and approachable. This design system uses "Rounded
 
 - **Cards:** Use `1rem` (16px) for standard weather cards.
 - **Action Elements:** Buttons and search bars use `rounded-xl` (1.5rem / 24px) to create a soft, tactile feel.
-- **Icons:** Weather iconography should be line-based with rounded caps (2px stroke width) to match the border weights of the containers.
+- **Icons:** Iconography should be line-based with rounded caps (2px stroke width) to match the border weights of the containers.
 
 ## Components
 
@@ -207,13 +207,14 @@ Interactive list items and text inputs use subtle hover states and light blurs r
 
 ### Typography Application
 
-Large weather displays utilize subtle text shadows to maintain legibility against the unpredictable colors of the background gradient. Metric labels should remain secondary in hierarchy using the silver-tinted `on-surface-variant` color.
+Large stat or hero displays utilize subtle text shadows to maintain legibility against the unpredictable colors of the background gradient. Metric or supporting labels should remain secondary in hierarchy using the silver-tinted `on-surface-variant` color.
 
 ## Homepage Usage Guidelines
 
 - Treat Atmospheric Glass as the default homepage visual system unless the user supplies a more specific brand or project `DESIGN.md`.
 - The final homepage must visibly read as Atmospheric Glass: translucent glass cards or panels, layered luminous gradients, blur/backdrop-filter depth, 1px light borders, soft shadows, white/silver/blue accents, and Inter-based hierarchy.
 - Avoid generic opaque dark cards, flat purple hero gradients, and solid pill filters as the primary visual language unless a project `DESIGN.md` explicitly asks for them.
-- Adapt weather-specific component examples to the current homepage domain while preserving the glass container physics, translucent surfaces, luminous gradients, and Inter-based hierarchy.
+- Adapt the generic component examples (stat displays, metric labels, list items) to the current homepage's actual content and domain while preserving glass container physics, translucent surfaces, luminous gradients, and Inter-based hierarchy.
 - Keep accessibility and readability above decoration: glass blur, alpha surfaces, and gradient backgrounds must still produce clear text contrast on desktop and mobile.
+- Do not describe a page as compliant with this system from code alone. Confirm it with the homepage rule's Definition of Done screenshot step before reporting the design as applied.
 - Do not let this design system override AuraGo homepage workflow rules, security policy, deployment requirements, or tool permissions.

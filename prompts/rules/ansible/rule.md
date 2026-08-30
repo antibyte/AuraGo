@@ -58,7 +58,7 @@ Before running any mutating playbook or ad-hoc command:
 
 - If a playbook fails, inspect the stderr output and task failure details before retrying.
 - Do not retry the exact same playbook with the same variables after a failure without understanding the root cause.
-- Use `--diff` (`diff: true`) for configuration-file tasks to see exactly what changed.
+- The tool has no standalone `--diff` flag; a `check` (dry-run) call already includes `--diff` output automatically, so use `check` first on configuration-file tasks to see what would change before applying it for real.
 
 ### Documentation and Reuse
 
