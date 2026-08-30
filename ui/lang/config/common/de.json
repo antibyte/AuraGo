@@ -64,5 +64,11 @@
   "config.precision.validation_max": "Der Wert überschreitet das erlaubte Maximum.",
   "config.precision.validation_pattern": "Der Wert entspricht nicht dem erwarteten Format.",
   "config.precision.validation_option": "Wähle eine der verfügbaren Optionen.",
-  "config.precision.validation_url": "Gib eine gültige URL ein."
+  "config.precision.validation_url": "Gib eine gültige URL ein.",
+  "config.integration_test.title": "Verbindungstest",
+  "config.integration_test.description": "Verwendet die gespeicherte Konfiguration und führt eine Prüfung nur zum Lesen durch.",
+  "config.integration_test.button": "Verbindung testen",
+  "config.integration_test.testing": "Verbindung wird getestet…",
+  "config.integration_test.success": "Verbindung erfolgreich.",
+  "config.integration_test.failure": "Verbindungstest fehlgeschlagen."
 }

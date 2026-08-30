@@ -64,5 +64,11 @@
   "config.precision.validation_max": "La valeur dépasse le maximum autorisé.",
   "config.precision.validation_pattern": "La valeur ne respecte pas le format attendu.",
   "config.precision.validation_option": "Choisis l’une des options disponibles.",
-  "config.precision.validation_url": "Saisis une URL valide."
+  "config.precision.validation_url": "Saisis une URL valide.",
+  "config.integration_test.title": "Test de connexion",
+  "config.integration_test.description": "Utilise la configuration enregistrée et effectue un contrôle en lecture seule.",
+  "config.integration_test.button": "Tester la connexion",
+  "config.integration_test.testing": "Test de connexion en cours…",
+  "config.integration_test.success": "Connexion réussie.",
+  "config.integration_test.failure": "Échec du test de connexion."
 }

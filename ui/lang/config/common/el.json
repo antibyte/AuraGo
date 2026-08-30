@@ -64,5 +64,11 @@
   "config.precision.validation_max": "Η τιμή υπερβαίνει το επιτρεπόμενο μέγιστο.",
   "config.precision.validation_pattern": "Η τιμή δεν έχει την αναμενόμενη μορφή.",
   "config.precision.validation_option": "Επίλεξε μία από τις διαθέσιμες επιλογές.",
-  "config.precision.validation_url": "Εισήγαγε μια έγκυρη διεύθυνση URL."
+  "config.precision.validation_url": "Εισήγαγε μια έγκυρη διεύθυνση URL.",
+  "config.integration_test.title": "Έλεγχος σύνδεσης",
+  "config.integration_test.description": "Χρησιμοποιεί την αποθηκευμένη ρύθμιση και εκτελεί έλεγχο μόνο για ανάγνωση.",
+  "config.integration_test.button": "Έλεγχος σύνδεσης",
+  "config.integration_test.testing": "Γίνεται έλεγχος σύνδεσης…",
+  "config.integration_test.success": "Η σύνδεση ήταν επιτυχής.",
+  "config.integration_test.failure": "Ο έλεγχος σύνδεσης απέτυχε."
 }

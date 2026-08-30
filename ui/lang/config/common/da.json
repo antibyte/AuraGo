@@ -64,5 +64,11 @@
   "config.precision.validation_max": "Værdien overstiger det tilladte maksimum.",
   "config.precision.validation_pattern": "Værdien har ikke det forventede format.",
   "config.precision.validation_option": "Vælg en af de tilgængelige muligheder.",
-  "config.precision.validation_url": "Indtast en gyldig URL."
+  "config.precision.validation_url": "Indtast en gyldig URL.",
+  "config.integration_test.title": "Forbindelsestest",
+  "config.integration_test.description": "Bruger den gemte konfiguration og udfører en kontrol kun til læsning.",
+  "config.integration_test.button": "Test forbindelse",
+  "config.integration_test.testing": "Tester forbindelse…",
+  "config.integration_test.success": "Forbindelsen lykkedes.",
+  "config.integration_test.failure": "Forbindelsestesten mislykkedes."
 }

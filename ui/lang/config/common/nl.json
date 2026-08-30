@@ -64,5 +64,11 @@
   "config.precision.validation_max": "De waarde is hoger dan het toegestane maximum.",
   "config.precision.validation_pattern": "De waarde heeft niet het verwachte formaat.",
   "config.precision.validation_option": "Kies een van de beschikbare opties.",
-  "config.precision.validation_url": "Voer een geldige URL in."
+  "config.precision.validation_url": "Voer een geldige URL in.",
+  "config.integration_test.title": "Verbindingstest",
+  "config.integration_test.description": "Gebruikt de opgeslagen configuratie en voert een controle alleen-lezen uit.",
+  "config.integration_test.button": "Verbinding testen",
+  "config.integration_test.testing": "Verbinding wordt getest…",
+  "config.integration_test.success": "Verbinding geslaagd.",
+  "config.integration_test.failure": "Verbindingstest mislukt."
 }

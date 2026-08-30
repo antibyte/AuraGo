@@ -64,5 +64,11 @@
   "config.precision.validation_max": "値が許容される最大値を超えています。",
   "config.precision.validation_pattern": "値が想定された形式と一致しません。",
   "config.precision.validation_option": "利用可能な選択肢から選んでください。",
-  "config.precision.validation_url": "有効なURLを入力してください。"
+  "config.precision.validation_url": "有効なURLを入力してください。",
+  "config.integration_test.title": "接続テスト",
+  "config.integration_test.description": "保存済みの設定を使って読み取り専用の確認を行います。",
+  "config.integration_test.button": "接続をテスト",
+  "config.integration_test.testing": "接続を確認中…",
+  "config.integration_test.success": "接続に成功しました。",
+  "config.integration_test.failure": "接続テストに失敗しました。"
 }

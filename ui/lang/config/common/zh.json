@@ -64,5 +64,11 @@
   "config.precision.validation_max": "该值超过允许的最大值。",
   "config.precision.validation_pattern": "该值不符合预期格式。",
   "config.precision.validation_option": "请选择一个可用选项。",
-  "config.precision.validation_url": "请输入有效的网址。"
+  "config.precision.validation_url": "请输入有效的网址。",
+  "config.integration_test.title": "连接测试",
+  "config.integration_test.description": "使用已保存的配置执行只读检查。",
+  "config.integration_test.button": "测试连接",
+  "config.integration_test.testing": "正在测试连接…",
+  "config.integration_test.success": "连接成功。",
+  "config.integration_test.failure": "连接测试失败。"
 }

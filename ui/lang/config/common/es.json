@@ -64,5 +64,11 @@
   "config.precision.validation_max": "El valor supera el máximo permitido.",
   "config.precision.validation_pattern": "El valor no tiene el formato esperado.",
   "config.precision.validation_option": "Elige una de las opciones disponibles.",
-  "config.precision.validation_url": "Introduce una URL válida."
+  "config.precision.validation_url": "Introduce una URL válida.",
+  "config.integration_test.title": "Prueba de conexión",
+  "config.integration_test.description": "Usa la configuración guardada y realiza una comprobación de solo lectura.",
+  "config.integration_test.button": "Probar conexión",
+  "config.integration_test.testing": "Probando la conexión…",
+  "config.integration_test.success": "Conexión correcta.",
+  "config.integration_test.failure": "La prueba de conexión ha fallado."
 }

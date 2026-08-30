@@ -108,6 +108,15 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/embeddings/test", handleEmbeddingsTest(s))
 	mux.HandleFunc("/api/embeddings/status", handleEmbeddingsStatus(s))
 	mux.HandleFunc("/api/embeddings/benchmark", handleEmbeddingsBenchmark(s))
+	// Read-only integration connection checks. These probes use saved
+	// configuration and stored Vault credentials and therefore require admin
+	// authorization; they never send messages or execute remote actions.
+	mux.Handle("/api/telegram/test", requireAdmin(s, handleTelegramTest(s)))
+	mux.Handle("/api/discord/test", requireAdmin(s, handleDiscordTest(s)))
+	mux.Handle("/api/rocketchat/test", requireAdmin(s, handleRocketChatTest(s)))
+	mux.Handle("/api/home-assistant/test", requireAdmin(s, handleHomeAssistantTest(s)))
+	mux.Handle("/api/proxmox/test", requireAdmin(s, handleProxmoxTest(s)))
+	mux.Handle("/api/s3/test", requireAdmin(s, handleS3Test(s)))
 	mux.HandleFunc("/api/updates/check", handleUpdateCheck(s))
 	mux.HandleFunc("/api/updates/install", handleUpdateInstall(s))
 	mux.HandleFunc("/api/vault/status", handleVaultStatus(s))
@@ -214,7 +223,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/evomap/register", handleEvomapRegister(s))
 	mux.HandleFunc("/api/agentmail/status", handleAgentMailStatus(s))
 	mux.HandleFunc("/api/agentmail/test", handleAgentMailTest(s))
-	mux.HandleFunc("/api/frigate/test", handleFrigateTest(s))
+	mux.Handle("/api/frigate/test", requireAdmin(s, handleFrigateTest(s)))
 	mux.HandleFunc("/api/3d-printers/test", handleThreeDPrinterTest(s))
 	mux.HandleFunc("/api/3d-printers/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/camera/snapshot") {
@@ -268,6 +277,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/yepapi/test", handleYepAPITest(s))
 
 	// Ansible endpoints
+	mux.Handle("/api/ansible/test", requireAdmin(s, handleAnsibleTest(s)))
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
 
 	// Local TTS sidecar endpoints

@@ -64,5 +64,11 @@
   "config.precision.validation_max": "मान अनुमत अधिकतम से ज़्यादा है।",
   "config.precision.validation_pattern": "मान अपेक्षित प्रारूप से मेल नहीं खाता।",
   "config.precision.validation_option": "उपलब्ध विकल्पों में से एक चुनें।",
-  "config.precision.validation_url": "मान्य URL दर्ज करें।"
+  "config.precision.validation_url": "मान्य URL दर्ज करें।",
+  "config.integration_test.title": "कनेक्शन परीक्षण",
+  "config.integration_test.description": "सहेजे गए कॉन्फ़िगरेशन का उपयोग करके केवल-पठन जाँच की जाती है।",
+  "config.integration_test.button": "कनेक्शन जाँचें",
+  "config.integration_test.testing": "कनेक्शन जाँचा जा रहा है…",
+  "config.integration_test.success": "कनेक्शन सफल रहा।",
+  "config.integration_test.failure": "कनेक्शन परीक्षण विफल रहा।"
 }

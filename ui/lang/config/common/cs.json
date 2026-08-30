@@ -64,5 +64,11 @@
   "config.precision.validation_max": "Hodnota překračuje povolené maximum.",
   "config.precision.validation_pattern": "Hodnota nemá očekávaný formát.",
   "config.precision.validation_option": "Vyber jednu z dostupných možností.",
-  "config.precision.validation_url": "Zadej platnou adresu URL."
+  "config.precision.validation_url": "Zadej platnou adresu URL.",
+  "config.integration_test.title": "Test připojení",
+  "config.integration_test.description": "Použije uloženou konfiguraci a provede kontrolu pouze pro čtení.",
+  "config.integration_test.button": "Otestovat připojení",
+  "config.integration_test.testing": "Testuji připojení…",
+  "config.integration_test.success": "Připojení bylo úspěšné.",
+  "config.integration_test.failure": "Test připojení se nezdařil."
 }

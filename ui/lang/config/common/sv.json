@@ -64,5 +64,11 @@
   "config.precision.validation_max": "Värdet överstiger tillåtet maximum.",
   "config.precision.validation_pattern": "Värdet har inte förväntat format.",
   "config.precision.validation_option": "Välj ett av de tillgängliga alternativen.",
-  "config.precision.validation_url": "Ange en giltig URL."
+  "config.precision.validation_url": "Ange en giltig URL.",
+  "config.integration_test.title": "Anslutningstest",
+  "config.integration_test.description": "Använder den sparade konfigurationen och utför en skrivskyddad kontroll.",
+  "config.integration_test.button": "Testa anslutning",
+  "config.integration_test.testing": "Testar anslutningen…",
+  "config.integration_test.success": "Anslutningen lyckades.",
+  "config.integration_test.failure": "Anslutningstestet misslyckades."
 }

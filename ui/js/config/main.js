@@ -1661,6 +1661,9 @@ async function renderSection(key) {
         }
     }
 
+    const integrationActions = window.AuraConfigIntegrationActions;
+    if (integrationActions) html += integrationActions.render(key);
+
     // MeshCentral connection tester
     if (key === 'meshcentral') {
         await loadModule('providers');
@@ -1692,6 +1695,7 @@ async function renderSection(key) {
     document.getElementById('content').innerHTML = html;
 
     _initArrayChipFields();
+    if (integrationActions) integrationActions.bind(key);
 
     // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──
     if (key === 'embeddings') {

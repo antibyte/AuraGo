@@ -156,6 +156,9 @@ images, and browser-oriented regression tests.
 
 - Keep the generic Config UI state/action contracts in `ui/js/config/` and
   integration-specific behavior in `ui/cfg/`.
+- Schema-rendered integration connection tests use the shared registry in
+  `ui/js/config/integration_actions.js`; keep their saved-state/Vault gating,
+  inline status region, and all-locale translation coverage intact.
 - Preserve lazy section loading and existing REST request shapes.
 - Prefer semantic controls, visible focus, inline validation, and live status
   regions. Do not use native `alert()`, `confirm()`, or `prompt()`.
