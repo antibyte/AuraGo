@@ -78,7 +78,7 @@ func requireIntegrationValue(value, message string) error {
 	return nil
 }
 
-func handleTelegramTest(s *Server) http.HandlerFunc {
+func handleTelegramConnectionTest(s *Server) http.HandlerFunc {
 	return handleConfiguredIntegrationTest(s, integrationTestSpec{
 		name: "Telegram",
 		validate: func(cfg *config.Config) error {

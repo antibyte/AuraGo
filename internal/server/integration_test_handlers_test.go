@@ -58,7 +58,7 @@ func TestHandleConfiguredIntegrationTestRejectsDisabledIntegration(t *testing.T)
 func TestHandleConfiguredIntegrationTestRejectsNonPost(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	rec := httptest.NewRecorder()
-	handleTelegramTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/telegram/test", nil))
+	handleTelegramConnectionTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/telegram/test", nil))
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want 405", rec.Code)
