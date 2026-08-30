@@ -24,6 +24,9 @@ func TestDashboardMaintenanceStatusEndpoint(t *testing.T) {
 	finished := started.Add(8 * time.Minute)
 	if err := stm.InsertMaintenanceRun(started, finished, "completed", memory.MaintenancePhaseResults{
 		JournalRemoved: 1,
+		SkillsReviewed: 2,
+		SkillsDeleted:  1,
+		SkillActions:   []memory.MaintenanceSkillAction{{Name: "old-helper", Kind: "python", Action: "deleted", Confidence: 0.99, Reason: "placeholder"}},
 	}); err != nil {
 		t.Fatalf("InsertMaintenanceRun: %v", err)
 	}
@@ -50,5 +53,9 @@ func TestDashboardMaintenanceStatusEndpoint(t *testing.T) {
 	}
 	if maintenance["next_run"] == "" {
 		t.Fatal("expected next_run to be populated")
+	}
+	phaseResults := maintenance["phase_results"].(map[string]interface{})
+	if phaseResults["skills_reviewed"] != float64(2) || phaseResults["skills_deleted"] != float64(1) {
+		t.Fatalf("phase_results = %#v", phaseResults)
 	}
 }

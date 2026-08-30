@@ -77,6 +77,10 @@ print(json.dumps({"value": args.get("value")}))
 	if !strings.Contains(out, "<external_data type=\"agent_skill\"") || !strings.Contains(out, "# Demo") {
 		t.Fatalf("activate_agent_skill output = %s", out)
 	}
+	used, err := mgr.GetAgentSkill(entry.ID)
+	if err != nil || used.Usage.Attempts != 1 || used.Usage.Successes != 1 {
+		t.Fatalf("activation usage = %+v err=%v", used, err)
+	}
 
 	if exec.Command("python", "--version").Run() != nil && exec.Command("python3", "--version").Run() != nil {
 		t.Skip("system Python not available")
@@ -97,6 +101,10 @@ print(json.dumps({"value": args.get("value")}))
 	}
 	if strings.Count(out, `value`) != 1 {
 		t.Fatalf("run_agent_skill_script should include script output once, got %d copies in %s", strings.Count(out, `value`), out)
+	}
+	used, err = mgr.GetAgentSkill(entry.ID)
+	if err != nil || used.Usage.Attempts != 2 || used.Usage.Successes != 2 {
+		t.Fatalf("script usage = %+v err=%v", used, err)
 	}
 }
 

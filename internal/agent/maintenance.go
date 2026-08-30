@@ -26,7 +26,7 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
 	startPendingMemoryWriteRetryLoop(ctx, logger, shortTermMem, longTermMem)
 	if !cfg.Maintenance.Enabled {
 		logger.Info("Daily maintenance is disabled in config")
@@ -53,7 +53,7 @@ func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.
 
 			select {
 			case <-time.After(sleepDuration):
-				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, plannerDB, cheatsheetDB, missionManagerV2)
+				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, plannerDB, cheatsheetDB, missionManagerV2, guardian, daemonSupervisor)
 			case <-ctx.Done():
 				logger.Info("Maintenance loop shutting down")
 				return
@@ -81,7 +81,7 @@ func parseTime(t string) (int, int, error) {
 	return hour, minute, nil
 }
 
-func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
 	startedAt := time.Now()
 	ledger := newMaintenanceRunLedger()
 	if ctx == nil {
@@ -373,6 +373,18 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
+		return
+	}
+
+	// Deterministic skill quality review runs before the free-form maintenance
+	// agent. It is provenance-gated and never exposes source in the run ledger.
+	skillResult := runSkillQualityMaintenance(taskCtx, cfg, logger, client, guardian, daemonSupervisor, cronManager)
+	ledger.phaseResults.SkillsReviewed = skillResult.Reviewed
+	ledger.phaseResults.SkillsImproved = skillResult.Improved
+	ledger.phaseResults.SkillsDeleted = skillResult.Deleted
+	ledger.phaseResults.SkillsReviewRequired = skillResult.ReviewRequired
+	ledger.phaseResults.SkillActions = skillResult.Actions
+	if maintenanceContextDone(taskCtx, ledger, logger, "skill_quality") {
 		return
 	}
 

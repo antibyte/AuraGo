@@ -87,7 +87,10 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 		}
 
 		// Sync to registry
-		s.SkillManager.SyncFromDisk()
+		if err := s.SkillManager.SyncFromDiskWithOrigins(map[string]tools.SkillOrigin{req.SkillName: tools.OriginUser}); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to register skill", "Failed to register skill", err, "skill_name", req.SkillName)
+			return
+		}
 
 		// Look up the newly created skill to return its ID
 		var skillID string
@@ -99,7 +102,7 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 			}
 		}
 		if skillID != "" {
-			_ = s.SkillManager.EnsureInitialVersion(skillID, "system", "template creation")
+			_ = s.SkillManager.EnsureInitialVersion(skillID, "user", "template creation")
 			if req.Description != "" || req.Category != "" || len(req.Tags) > 0 {
 				if currentSkill, metaErr := s.SkillManager.GetSkill(skillID); metaErr == nil {
 					description := currentSkill.Description

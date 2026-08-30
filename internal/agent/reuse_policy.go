@@ -820,7 +820,7 @@ func applyReusableSkill(runCfg RunConfig, logger *slog.Logger, evaluation Reusab
 			return fmt.Errorf("create reusable skill: %w", err)
 		}
 		tools.ProvisionSkillDependencies(runCfg.Config.Directories.SkillsDir, runCfg.Config.Directories.WorkspaceDir, logger)
-		if err := manager.SyncFromDisk(); err != nil {
+		if err := manager.SyncFromDiskWithOrigins(map[string]tools.SkillOrigin{createName: tools.OriginAgent}); err != nil {
 			return fmt.Errorf("sync reusable skill registry: %w", err)
 		}
 		if skill := findSkillByName(manager, createName); skill != nil {

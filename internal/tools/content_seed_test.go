@@ -165,6 +165,9 @@ func TestSeedWelcomeSkills(t *testing.T) {
 	for _, s := range skills {
 		if s.Name == "Test Skill" {
 			found = true
+			if s.Origin != OriginSystem {
+				t.Fatalf("seeded skill origin = %q, want system", s.Origin)
+			}
 			break
 		}
 	}

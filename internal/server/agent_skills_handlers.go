@@ -637,6 +637,7 @@ func handleRunAgentSkillScript(s *Server) http.HandlerFunc {
 			req.Args = map[string]interface{}{}
 		}
 		if err := tools.ValidateAgentSkillScriptPolicy(s.Cfg, req.Script); err != nil {
+			_ = s.AgentSkillManager.RecordAgentSkillUsage(id, false)
 			writeAgentSkillJSON(w, http.StatusOK, map[string]interface{}{
 				"status":  "error",
 				"output":  "",
@@ -645,6 +646,7 @@ func handleRunAgentSkillScript(s *Server) http.HandlerFunc {
 			return
 		}
 		output, err := s.AgentSkillManager.RunAgentSkillScript(r.Context(), id, req.Script, req.Args)
+		_ = s.AgentSkillManager.RecordAgentSkillUsage(id, err == nil)
 		status := "ok"
 		message := ""
 		if err != nil {

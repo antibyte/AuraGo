@@ -107,4 +107,8 @@ func TestHandleTestSkillForbiddenWhenDisabled(t *testing.T) {
 	if body["status"] != "error" {
 		t.Fatalf("body=%v", body)
 	}
+	used, err := mgr.GetSkill(entry.ID)
+	if err != nil || used.Usage.Attempts != 1 || used.Usage.Failures != 1 {
+		t.Fatalf("usage=%+v err=%v", used, err)
+	}
 }

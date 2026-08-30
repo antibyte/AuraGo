@@ -15,6 +15,7 @@ The deterministic maintenance pipeline already runs before you start. Do **not**
 - **Compressed tool output retention** — reversible compressed outputs older than `agent.output_compression.reversible.max_age_hours` are deleted automatically.
 - **Inventory → Knowledge Graph sync** — SSH inventory devices are synced into the KG every night.
 - **Memory hygiene** — duplicate auto-generated journal errors, stale notes, and canonical vector names are processed automatically. Review-only or high-risk memory findings are **not** auto-deleted.
+- **Agent-created skill quality** — Python skills and `SKILL.md` packages with proven `agent` origin are already reviewed, staged, validated, improved, deleted, or flagged for review. Do not inspect or mutate skill files directly to repeat this phase.
 
 For review-pending memory hygiene findings, point the user to **Dashboard → Memory hygiene** instead of deleting them here.
 

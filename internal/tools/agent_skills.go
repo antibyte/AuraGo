@@ -66,26 +66,32 @@ type AgentSkillPackage struct {
 
 // AgentSkillRegistryEntry is the persisted Skill Manager row for Agent Skills.
 type AgentSkillRegistryEntry struct {
-	ID              string               `json:"id"`
-	Name            string               `json:"name"`
-	Description     string               `json:"description"`
-	License         string               `json:"license,omitempty"`
-	Compatibility   string               `json:"compatibility,omitempty"`
-	Metadata        map[string]string    `json:"metadata,omitempty"`
-	AllowedTools    string               `json:"allowed_tools,omitempty"`
-	Directory       string               `json:"directory"`
-	SkillPath       string               `json:"skill_path"`
-	Resources       []AgentSkillResource `json:"resources,omitempty"`
-	Scripts         []AgentSkillResource `json:"scripts,omitempty"`
-	Agents          []AgentSkillResource `json:"agents,omitempty"`
-	Enabled         bool                 `json:"enabled"`
-	WarningApproved bool                 `json:"warning_approved"`
-	SecurityStatus  SecurityStatus       `json:"security_status"`
-	SecurityReport  *SecurityReport      `json:"security_report,omitempty"`
-	PackageHash     string               `json:"package_hash"`
-	CreatedAt       time.Time            `json:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at"`
-	CreatedBy       string               `json:"created_by"`
+	ID                    string               `json:"id"`
+	Name                  string               `json:"name"`
+	Description           string               `json:"description"`
+	License               string               `json:"license,omitempty"`
+	Compatibility         string               `json:"compatibility,omitempty"`
+	Metadata              map[string]string    `json:"metadata,omitempty"`
+	AllowedTools          string               `json:"allowed_tools,omitempty"`
+	Directory             string               `json:"directory"`
+	SkillPath             string               `json:"skill_path"`
+	Resources             []AgentSkillResource `json:"resources,omitempty"`
+	Scripts               []AgentSkillResource `json:"scripts,omitempty"`
+	Agents                []AgentSkillResource `json:"agents,omitempty"`
+	Enabled               bool                 `json:"enabled"`
+	WarningApproved       bool                 `json:"warning_approved"`
+	SecurityStatus        SecurityStatus       `json:"security_status"`
+	SecurityReport        *SecurityReport      `json:"security_report,omitempty"`
+	PackageHash           string               `json:"package_hash"`
+	CreatedAt             time.Time            `json:"created_at"`
+	UpdatedAt             time.Time            `json:"updated_at"`
+	CreatedBy             string               `json:"created_by"`
+	Origin                SkillOrigin          `json:"origin"`
+	Usage                 SkillUsageStats      `json:"usage"`
+	LastQualityReviewAt   *time.Time           `json:"last_quality_review_at,omitempty"`
+	LastQualityVerdict    string               `json:"last_quality_verdict,omitempty"`
+	LastQualityConfidence float64              `json:"last_quality_confidence"`
+	LastQualityHash       string               `json:"-"`
 }
 
 type agentSkillFrontmatter struct {
@@ -99,10 +105,11 @@ type agentSkillFrontmatter struct {
 
 // AgentSkillManager manages Agent Skills packages independently from Python skills.
 type AgentSkillManager struct {
-	db             *sql.DB
-	agentSkillsDir string
-	workspaceDir   string
-	logger         *slog.Logger
+	db                *sql.DB
+	agentSkillsDir    string
+	workspaceDir      string
+	logger            *slog.Logger
+	qualityMutationMu sync.RWMutex
 }
 
 var (
@@ -179,9 +186,21 @@ func MigrateAgentSkillsDB(db *sql.DB) error {
 		details TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+	CREATE TABLE IF NOT EXISTS agent_skill_versions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		skill_id TEXT REFERENCES agent_skills_registry(id) ON DELETE CASCADE,
+		version_num INTEGER NOT NULL,
+		package_hash TEXT NOT NULL,
+		package_snapshot TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		created_by TEXT DEFAULT 'system',
+		change_note TEXT,
+		UNIQUE(skill_id, version_num)
+	);
 	CREATE INDEX IF NOT EXISTS idx_agent_skills_enabled ON agent_skills_registry(enabled);
 	CREATE INDEX IF NOT EXISTS idx_agent_skills_status ON agent_skills_registry(security_status);
 	CREATE INDEX IF NOT EXISTS idx_agent_skills_name ON agent_skills_registry(name);
+	CREATE INDEX IF NOT EXISTS idx_agent_skill_versions ON agent_skill_versions(skill_id, version_num DESC);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("failed to create agent skills schema: %w", err)
@@ -192,6 +211,12 @@ func MigrateAgentSkillsDB(db *sql.DB) error {
 		if !strings.Contains(err.Error(), "duplicate column") {
 			return fmt.Errorf("failed to migrate agent skills schema (agents column): %w", err)
 		}
+	}
+	if err := migrateSkillQualityColumns(db, "agent_skills_registry"); err != nil {
+		return err
+	}
+	if err := backfillAgentSkillOrigins(db); err != nil {
+		return err
 	}
 	return nil
 }
@@ -853,6 +878,13 @@ func agentSkillSamePath(a, b string) bool {
 }
 
 func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
+	return m.SyncFromDiskWithOrigins(ctx, nil, guardian, useGuardian, skillSpector...)
+}
+
+// SyncFromDiskWithOrigins assigns provenance only to package names whose
+// system/user/agent creator is known by the caller. Other discoveries remain
+// legacy_unknown and are excluded from automatic maintenance mutations.
+func (m *AgentSkillManager) SyncFromDiskWithOrigins(ctx context.Context, origins map[string]SkillOrigin, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
 	entries, err := os.ReadDir(m.agentSkillsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -872,6 +904,13 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 			continue
 		}
 		existing, _ := m.GetAgentSkillByName(pkg.Name)
+		explicitOrigin, hasExplicitOrigin := origins[pkg.Name]
+		if existing != nil && hasExplicitOrigin && existing.Origin == OriginLegacyUnknown {
+			if _, updateErr := m.db.Exec("UPDATE agent_skills_registry SET origin = ? WHERE id = ? AND origin = ?", string(explicitOrigin), existing.ID, string(OriginLegacyUnknown)); updateErr != nil {
+				return fmt.Errorf("update Agent Skill origin: %w", updateErr)
+			}
+			existing.Origin = explicitOrigin
+		}
 		if existing != nil && existing.PackageHash == pkg.PackageHash {
 			continue
 		}
@@ -885,7 +924,11 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 			warningApproved = existing.WarningApproved && status == SecurityWarning
 			enabled = existing.Enabled && (status == SecurityClean || (status == SecurityWarning && warningApproved))
 		}
-		if _, err := m.upsertAgentSkillPackage(pkg, "system:sync", report, status, enabled, warningApproved); err != nil && m.logger != nil {
+		actor := "system:sync"
+		if hasExplicitOrigin {
+			actor = string(explicitOrigin)
+		}
+		if _, err := m.upsertAgentSkillPackage(pkg, actor, report, status, enabled, warningApproved); err != nil && m.logger != nil {
 			m.logger.Warn("Failed to sync Agent Skill", "name", pkg.Name, "error", err)
 		}
 	}
@@ -921,6 +964,12 @@ func (m *AgentSkillManager) LoadCurrentAgentSkillPackage(entry *AgentSkillRegist
 	if m == nil || entry == nil {
 		return nil, fmt.Errorf("agent skill is missing")
 	}
+	m.qualityMutationMu.RLock()
+	defer m.qualityMutationMu.RUnlock()
+	return m.loadCurrentAgentSkillPackage(entry, actor)
+}
+
+func (m *AgentSkillManager) loadCurrentAgentSkillPackage(entry *AgentSkillRegistryEntry, actor string) (*AgentSkillPackage, error) {
 	if actor == "" {
 		actor = "system"
 	}
@@ -958,14 +1007,15 @@ func (m *AgentSkillManager) upsertAgentSkillPackage(pkg *AgentSkillPackage, acto
 	err := m.db.QueryRow("SELECT id FROM agent_skills_registry WHERE name = ?", pkg.Name).Scan(&existingID)
 	if err == sql.ErrNoRows {
 		existingID = fmt.Sprintf("%s_%d", pkg.Name, time.Now().UnixMilli())
+		origin := originForCreation(SkillTypeAgent, actor)
 		_, err = m.db.Exec(`INSERT INTO agent_skills_registry
 			(id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
-			 resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash, created_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash, created_by, origin)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			existingID, pkg.Name, pkg.Description, pkg.License, pkg.Compatibility, string(metadataJSON), pkg.AllowedTools,
 			pkg.Directory, pkg.SkillPath, string(resourcesJSON), string(scriptsJSON), string(agentsJSON),
 			boolInt(enabled), boolInt(warningApproved),
-			string(status), nullableJSON(reportJSON, report), pkg.PackageHash, actor)
+			string(status), nullableJSON(reportJSON, report), pkg.PackageHash, actor, string(origin))
 	} else if err == nil {
 		_, err = m.db.Exec(`UPDATE agent_skills_registry SET
 			description = ?, license = ?, compatibility = ?, metadata = ?, allowed_tools = ?, directory = ?, skill_path = ?,
@@ -1004,7 +1054,9 @@ func boolInt(v bool) int {
 func (m *AgentSkillManager) ListAgentSkills(enabledOnly bool, search string) ([]AgentSkillRegistryEntry, error) {
 	query := `SELECT id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
 		resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash,
-		created_at, updated_at, created_by FROM agent_skills_registry WHERE 1=1`
+		created_at, updated_at, created_by, COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0),
+		COALESCE(failure_count,0), last_used_at, last_quality_review_at, COALESCE(last_quality_verdict,''),
+		COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM agent_skills_registry WHERE 1=1`
 	var args []any
 	if enabledOnly {
 		query += " AND enabled = 1 AND security_status IN ('clean','warning')"
@@ -1034,14 +1086,18 @@ func (m *AgentSkillManager) ListAgentSkills(enabledOnly bool, search string) ([]
 func (m *AgentSkillManager) GetAgentSkill(id string) (*AgentSkillRegistryEntry, error) {
 	row := m.db.QueryRow(`SELECT id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
 		resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash,
-		created_at, updated_at, created_by FROM agent_skills_registry WHERE id = ?`, id)
+		created_at, updated_at, created_by, COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0),
+		COALESCE(failure_count,0), last_used_at, last_quality_review_at, COALESCE(last_quality_verdict,''),
+		COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM agent_skills_registry WHERE id = ?`, id)
 	return scanAgentSkillEntry(row)
 }
 
 func (m *AgentSkillManager) GetAgentSkillByName(name string) (*AgentSkillRegistryEntry, error) {
 	row := m.db.QueryRow(`SELECT id, name, description, license, compatibility, metadata, allowed_tools, directory, skill_path,
 		resources, scripts, agents, enabled, warning_approved, security_status, security_report, package_hash,
-		created_at, updated_at, created_by FROM agent_skills_registry WHERE name = ?`, name)
+		created_at, updated_at, created_by, COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0),
+		COALESCE(failure_count,0), last_used_at, last_quality_review_at, COALESCE(last_quality_verdict,''),
+		COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM agent_skills_registry WHERE name = ?`, name)
 	return scanAgentSkillEntry(row)
 }
 
@@ -1054,13 +1110,19 @@ func scanAgentSkillEntry(row rowScanner) (*AgentSkillRegistryEntry, error) {
 	var metadata, resources, scripts, agents string
 	var report sql.NullString
 	var enabled, warningApproved int
+	var rawOrigin string
+	var attempts, successes, failures int64
+	var lastUsed, lastReview sql.NullTime
 	if err := row.Scan(&entry.ID, &entry.Name, &entry.Description, &entry.License, &entry.Compatibility, &metadata,
 		&entry.AllowedTools, &entry.Directory, &entry.SkillPath, &resources, &scripts, &agents, &enabled, &warningApproved,
-		&entry.SecurityStatus, &report, &entry.PackageHash, &entry.CreatedAt, &entry.UpdatedAt, &entry.CreatedBy); err != nil {
+		&entry.SecurityStatus, &report, &entry.PackageHash, &entry.CreatedAt, &entry.UpdatedAt, &entry.CreatedBy,
+		&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &entry.LastQualityVerdict,
+		&entry.LastQualityConfidence, &entry.LastQualityHash); err != nil {
 		return nil, err
 	}
 	entry.Enabled = enabled != 0
 	entry.WarningApproved = warningApproved != 0
+	scanQualityMetadata(&entry.Origin, &entry.Usage, &entry.LastQualityReviewAt, rawOrigin, attempts, successes, failures, lastUsed, lastReview)
 	_ = json.Unmarshal([]byte(metadata), &entry.Metadata)
 	_ = json.Unmarshal([]byte(resources), &entry.Resources)
 	_ = json.Unmarshal([]byte(scripts), &entry.Scripts)
@@ -1311,6 +1373,8 @@ func validateAgentSkillEditablePath(relPath string) (string, error) {
 }
 
 func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptPath string, args map[string]interface{}) (string, error) {
+	m.qualityMutationMu.RLock()
+	defer m.qualityMutationMu.RUnlock()
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return "", err
@@ -1324,7 +1388,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	if entry.SecurityStatus == SecurityWarning && !entry.WarningApproved {
 		return "", fmt.Errorf("agent skill warning status requires approval")
 	}
-	pkg, err := m.LoadCurrentAgentSkillPackage(entry, "agent")
+	pkg, err := m.loadCurrentAgentSkillPackage(entry, "agent")
 	if err != nil {
 		return "", err
 	}

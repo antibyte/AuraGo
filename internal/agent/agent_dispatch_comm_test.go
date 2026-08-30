@@ -184,6 +184,10 @@ func TestExecuteSkillBlocksDisabledRegistrySkill(t *testing.T) {
 	if strings.Contains(out, "SECRET_OUTPUT") {
 		t.Fatalf("script ran despite disabled skill: %s", out)
 	}
+	used, err := mgr.GetSkill(entry.ID)
+	if err != nil || used.Usage.Attempts != 1 || used.Usage.Failures != 1 {
+		t.Fatalf("failed invocation usage = %+v err=%v", used, err)
+	}
 }
 
 func TestMergeSkillVaultKeysAcceptsPySuffix(t *testing.T) {

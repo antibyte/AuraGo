@@ -39,27 +39,33 @@ const (
 
 // SkillRegistryEntry extends SkillManifest with metadata for the Skill Manager.
 type SkillRegistryEntry struct {
-	ID             string                 `json:"id"`
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	Executable     string                 `json:"executable"`
-	Category       string                 `json:"category,omitempty"`
-	Tags           []string               `json:"tags,omitempty"`
-	Parameters     map[string]interface{} `json:"parameters,omitempty"`
-	Dependencies   []string               `json:"dependencies,omitempty"`
-	VaultKeys      []string               `json:"vault_keys,omitempty"`
-	InternalTools  []string               `json:"internal_tools,omitempty"`
-	Type           SkillType              `json:"type"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
-	CreatedBy      string                 `json:"created_by"` // "agent", "user", "system"
-	Enabled        bool                   `json:"enabled"`
-	SecurityStatus SecurityStatus         `json:"security_status"`
-	SecurityReport *SecurityReport        `json:"security_report,omitempty"`
-	LastScanAt     *time.Time             `json:"last_scan_at,omitempty"`
-	FilePath       string                 `json:"file_path"`
-	FileHash       string                 `json:"file_hash"`
-	IsDaemon       bool                   `json:"is_daemon,omitempty"`
+	ID                    string                 `json:"id"`
+	Name                  string                 `json:"name"`
+	Description           string                 `json:"description"`
+	Executable            string                 `json:"executable"`
+	Category              string                 `json:"category,omitempty"`
+	Tags                  []string               `json:"tags,omitempty"`
+	Parameters            map[string]interface{} `json:"parameters,omitempty"`
+	Dependencies          []string               `json:"dependencies,omitempty"`
+	VaultKeys             []string               `json:"vault_keys,omitempty"`
+	InternalTools         []string               `json:"internal_tools,omitempty"`
+	Type                  SkillType              `json:"type"`
+	CreatedAt             time.Time              `json:"created_at"`
+	UpdatedAt             time.Time              `json:"updated_at"`
+	CreatedBy             string                 `json:"created_by"` // "agent", "user", "system"
+	Origin                SkillOrigin            `json:"origin"`
+	Usage                 SkillUsageStats        `json:"usage"`
+	LastQualityReviewAt   *time.Time             `json:"last_quality_review_at,omitempty"`
+	LastQualityVerdict    string                 `json:"last_quality_verdict,omitempty"`
+	LastQualityConfidence float64                `json:"last_quality_confidence"`
+	LastQualityHash       string                 `json:"-"`
+	Enabled               bool                   `json:"enabled"`
+	SecurityStatus        SecurityStatus         `json:"security_status"`
+	SecurityReport        *SecurityReport        `json:"security_report,omitempty"`
+	LastScanAt            *time.Time             `json:"last_scan_at,omitempty"`
+	FilePath              string                 `json:"file_path"`
+	FileHash              string                 `json:"file_hash"`
+	IsDaemon              bool                   `json:"is_daemon,omitempty"`
 
 	// Documentation: optional Markdown manual that explains how the agent
 	// should call this skill (parameters, output schema, examples, gotchas).
@@ -73,9 +79,10 @@ type SkillRegistryEntry struct {
 
 // SkillManager manages the skill registry and lifecycle.
 type SkillManager struct {
-	db        *sql.DB
-	skillsDir string
-	logger    *slog.Logger
+	db                *sql.DB
+	skillsDir         string
+	logger            *slog.Logger
+	qualityMutationMu sync.RWMutex
 
 	// daemonSkillsCache is populated by SyncFromDisk and avoids re-reading
 	// manifests from disk on every ListSkillsFiltered call.
@@ -236,6 +243,14 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 			return nil, fmt.Errorf("failed to migrate skills schema: %w", err)
 		}
 	}
+	if err := migrateSkillQualityColumns(db, "skills_registry"); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := backfillPythonSkillOrigins(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 
 	// Create daemon wake-up log table
 	daemonTables := `
@@ -277,6 +292,13 @@ func NewSkillManager(db *sql.DB, skillsDir string, logger *slog.Logger) *SkillMa
 // Skills removed from disk are NOT automatically disabled — they remain in the
 // registry with their last-known state.
 func (m *SkillManager) SyncFromDisk() error {
+	return m.SyncFromDiskWithOrigins(nil)
+}
+
+// SyncFromDiskWithOrigins reconciles disk skills and assigns provenance only
+// for names whose creator is known by the caller. Unlisted discoveries remain
+// legacy_unknown and can never be automatically mutated by maintenance.
+func (m *SkillManager) SyncFromDiskWithOrigins(origins map[string]SkillOrigin) error {
 	manifests, err := ListSkills(m.skillsDir)
 	if err != nil {
 		return fmt.Errorf("listing skills from disk: %w", err)
@@ -324,6 +346,15 @@ func (m *SkillManager) SyncFromDisk() error {
 		if err == sql.ErrNoRows {
 			id := fmt.Sprintf("%s_%d", manifest.Name, time.Now().UnixMilli())
 			skillType := detectSkillType(manifest.Name, m.skillsDir)
+			origin := OriginLegacyUnknown
+			if skillType == SkillTypeBuiltIn {
+				origin = OriginSystem
+			} else if explicit, ok := origins[manifest.Name]; ok {
+				origin = explicit
+				if explicit == OriginUser {
+					skillType = SkillTypeUser
+				}
+			}
 
 			deps, depsErr := json.Marshal(manifest.Dependencies)
 			if depsErr != nil {
@@ -350,11 +381,11 @@ func (m *SkillManager) SyncFromDisk() error {
 
 			_, err := m.db.Exec(`INSERT INTO skills_registry 
 				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
-				 created_by, enabled, security_status, file_path, file_hash, cheatsheet_ids)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				 created_by, origin, enabled, security_status, file_path, file_hash, cheatsheet_ids)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				id, manifest.Name, string(skillType), manifest.Description,
 				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys), string(internalTools),
-				string(skillType), enabledByDefault, string(SecurityPending), manifest.Executable, fileHash, string(cheatsheetIDsJSON),
+				string(origin), string(origin), enabledByDefault, string(SecurityPending), manifest.Executable, fileHash, string(cheatsheetIDsJSON),
 			)
 			if err != nil {
 				m.logger.Warn("Failed to insert skill", "name", manifest.Name, "error", err)
@@ -367,6 +398,13 @@ func (m *SkillManager) SyncFromDisk() error {
 				m.syncDocumentationForSkill(id, manifest.Executable)
 			}
 		} else if err == nil {
+			if explicit, ok := origins[manifest.Name]; ok {
+				if explicit == OriginUser {
+					_, _ = m.db.Exec("UPDATE skills_registry SET origin = ?, type = ? WHERE id = ? AND origin = ?", string(explicit), string(SkillTypeUser), existingID, string(OriginLegacyUnknown))
+				} else {
+					_, _ = m.db.Exec("UPDATE skills_registry SET origin = ? WHERE id = ? AND origin = ?", string(explicit), existingID, string(OriginLegacyUnknown))
+				}
+			}
 			// Always refresh manifest-derived fields that are not user-editable
 			itJSON, _ := json.Marshal(manifest.InternalTools)
 			m.db.Exec("UPDATE skills_registry SET internal_tools = ? WHERE id = ?", string(itJSON), existingID)
@@ -464,7 +502,8 @@ func detectSkillType(name string, skillsDir string) SkillType {
 func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enabledFilter *bool) ([]SkillRegistryEntry, error) {
 	query := "SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools, " +
 		"created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at, " +
-		"file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,'') " +
+		"file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,''), " +
+		"COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0), COALESCE(failure_count,0), last_used_at, last_quality_review_at, COALESCE(last_quality_verdict,''), COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') " +
 		"FROM skills_registry WHERE 1=1"
 	var args []interface{}
 
@@ -505,15 +544,18 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 	for rows.Next() {
 		var s SkillRegistryEntry
 		var params, deps, vaultKeys, internalToolsRaw, secReport, tags, cheatsheetIDs sql.NullString
-		var lastScan sql.NullTime
+		var lastScan, lastUsed, lastReview sql.NullTime
 		var enabled int
+		var rawOrigin string
+		var attempts, successes, failures int64
 		var docPath, docHash string
 
 		err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
-			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs)
+			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs,
+			&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &s.LastQualityVerdict, &s.LastQualityConfidence, &s.LastQualityHash)
 		if err != nil {
 			m.logger.Warn("Failed to scan skill row", "error", err)
 			continue
@@ -522,6 +564,7 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 		s.DocumentationHash = docHash
 		s.HasDocumentation = docPath != ""
 		s.CheatsheetIDs = loadCheatsheetIDs(cheatsheetIDs)
+		scanQualityMetadata(&s.Origin, &s.Usage, &s.LastQualityReviewAt, rawOrigin, attempts, successes, failures, lastUsed, lastReview)
 		m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 		skills = append(skills, s)
 	}
@@ -555,19 +598,24 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	var s SkillRegistryEntry
 	var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
-	var lastScan sql.NullTime
+	var lastScan, lastUsed, lastReview sql.NullTime
 	var enabled int
+	var rawOrigin string
+	var attempts, successes, failures int64
 
 	var cheatsheetIDs sql.NullString
 	var docPath, docHash string
 	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
 		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
-		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,'') FROM skills_registry WHERE id = ?`, id).
+		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,''),
+		COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0), COALESCE(failure_count,0), last_used_at, last_quality_review_at,
+		COALESCE(last_quality_verdict,''), COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM skills_registry WHERE id = ?`, id).
 		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
-			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs)
+			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs,
+			&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &s.LastQualityVerdict, &s.LastQualityConfidence, &s.LastQualityHash)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("skill not found: %s", id)
 	}
@@ -579,6 +627,7 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	s.DocumentationHash = docHash
 	s.HasDocumentation = docPath != ""
 	s.CheatsheetIDs = loadCheatsheetIDs(cheatsheetIDs)
+	scanQualityMetadata(&s.Origin, &s.Usage, &s.LastQualityReviewAt, rawOrigin, attempts, successes, failures, lastUsed, lastReview)
 	m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 
 	// Enrich with daemon info from manifest
@@ -597,19 +646,24 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 func (m *SkillManager) GetSkillByName(name string) (*SkillRegistryEntry, error) {
 	var s SkillRegistryEntry
 	var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
-	var lastScan sql.NullTime
+	var lastScan, lastUsed, lastReview sql.NullTime
 	var enabled int
+	var rawOrigin string
+	var attempts, successes, failures int64
 
 	var cheatsheetIDs sql.NullString
 	var docPath, docHash string
 	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
 		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
-		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,'') FROM skills_registry WHERE name = ?`, name).
+		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,''),
+		COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0), COALESCE(failure_count,0), last_used_at, last_quality_review_at,
+		COALESCE(last_quality_verdict,''), COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM skills_registry WHERE name = ?`, name).
 		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
-			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs)
+			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs,
+			&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &s.LastQualityVerdict, &s.LastQualityConfidence, &s.LastQualityHash)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("skill not found: %s", name)
 	}
@@ -621,6 +675,7 @@ func (m *SkillManager) GetSkillByName(name string) (*SkillRegistryEntry, error) 
 	s.DocumentationHash = docHash
 	s.HasDocumentation = docPath != ""
 	s.CheatsheetIDs = loadCheatsheetIDs(cheatsheetIDs)
+	scanQualityMetadata(&s.Origin, &s.Usage, &s.LastQualityReviewAt, rawOrigin, attempts, successes, failures, lastUsed, lastReview)
 	m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 
 	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
@@ -965,12 +1020,13 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 
 	depsJSON, _ := json.Marshal(deps)
 	tagsJSON, _ := json.Marshal(tags)
+	origin := originForCreation(skillType, createdBy)
 	_, err = m.db.Exec(`INSERT INTO skills_registry 
 		(id, name, type, description, executable, category, tags, dependencies, created_at, updated_at,
-		 created_by, enabled, security_status, file_path, file_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+		 created_by, origin, enabled, security_status, file_path, file_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
 		id, name, string(skillType), description, name+".py", category, string(tagsJSON),
-		string(depsJSON), now, now, createdBy, string(SecurityPending),
+		string(depsJSON), now, now, createdBy, string(origin), string(SecurityPending),
 		name+".py", fileHash)
 	if err != nil {
 		os.Remove(pyPath)
@@ -998,6 +1054,7 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 		CreatedAt:      now,
 		UpdatedAt:      now,
 		CreatedBy:      createdBy,
+		Origin:         origin,
 		Enabled:        false,
 		SecurityStatus: SecurityPending,
 		FilePath:       name + ".py",

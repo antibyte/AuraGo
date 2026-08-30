@@ -349,12 +349,14 @@ func SeedWelcomeSkills(skillMgr *SkillManager, skillsDir, installDir string, log
 
 	srcDir := filepath.Dir(manifestPath)
 	copied := false
+	seedOrigins := make(map[string]SkillOrigin, len(entries))
 
 	for _, e := range entries {
 		if e.Executable == "" {
 			logger.Warn("SeedWelcomeSkills: skipping entry without executable")
 			continue
 		}
+		seedOrigins[e.Name] = OriginSystem
 
 		// Copy the executable
 		srcExec := filepath.Join(srcDir, e.Executable)
@@ -402,9 +404,11 @@ func SeedWelcomeSkills(skillMgr *SkillManager, skillsDir, installDir string, log
 		}
 	}
 
-	if copied && skillMgr != nil {
-		InvalidateSkillsCache(skillsDir)
-		if err := skillMgr.SyncFromDisk(); err != nil {
+	if skillMgr != nil && len(seedOrigins) > 0 {
+		if copied {
+			InvalidateSkillsCache(skillsDir)
+		}
+		if err := skillMgr.SyncFromDiskWithOrigins(seedOrigins); err != nil {
 			logger.Warn("SeedWelcomeSkills: SyncFromDisk failed after seeding", "error", err)
 		} else {
 			logger.Info("SeedWelcomeSkills: skill registry synced")

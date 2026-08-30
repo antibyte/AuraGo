@@ -72,12 +72,15 @@ func dispatchActivateAgentSkill(tc ToolCall, dc *DispatchContext) string {
 		return fmt.Sprintf("Tool Output: ERROR Agent Skill %q not found.", name)
 	}
 	if err := ensureAgentSkillUsable(entry); err != nil {
+		_ = mgr.RecordAgentSkillUsage(entry.ID, false)
 		return fmt.Sprintf("Tool Output: ERROR %v", err)
 	}
 	pkg, err := mgr.LoadCurrentAgentSkillPackage(entry, "agent")
 	if err != nil {
+		_ = mgr.RecordAgentSkillUsage(entry.ID, false)
 		return fmt.Sprintf("Tool Output: ERROR reading Agent Skill package: %v", err)
 	}
+	_ = mgr.RecordAgentSkillUsage(entry.ID, true)
 	instructionPayload := map[string]interface{}{
 		"name":            pkg.Name,
 		"security_status": entry.SecurityStatus,
@@ -124,6 +127,7 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 		return "Tool Output: ERROR script path is required."
 	}
 	if err := tools.ValidateAgentSkillScriptPolicy(cfg, script); err != nil {
+		_ = mgr.RecordAgentSkillUsageByName(name, false)
 		return "Tool Output: [PERMISSION DENIED] " + err.Error()
 	}
 	entry, err := mgr.GetAgentSkillByName(name)
@@ -131,6 +135,7 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 		return fmt.Sprintf("Tool Output: ERROR Agent Skill %q not found.", name)
 	}
 	if err := ensureAgentSkillUsable(entry); err != nil {
+		_ = mgr.RecordAgentSkillUsage(entry.ID, false)
 		return fmt.Sprintf("Tool Output: ERROR %v", err)
 	}
 	args := map[string]interface{}{}
@@ -143,6 +148,7 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 		}
 	}
 	output, err := mgr.RunAgentSkillScript(ctx, entry.ID, script, args)
+	_ = mgr.RecordAgentSkillUsage(entry.ID, err == nil)
 	status := "ok"
 	message := ""
 	if err != nil {

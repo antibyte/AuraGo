@@ -26,7 +26,7 @@ func TestRunMaintenanceTaskPersistsLedgerOnPromptFailure(t *testing.T) {
 	cfg.LLM.Model = "test-model"
 	cfg.Maintenance.Enabled = true
 
-	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, stm, nil, nil, nil, nil, nil, nil, nil)
+	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, stm, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	record, err := stm.GetLatestMaintenanceRun()
 	if err != nil {

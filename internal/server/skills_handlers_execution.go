@@ -57,12 +57,15 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 			jsonError(w, "Skill ID is required", http.StatusBadRequest)
 			return
 		}
+		releaseExecutionLease := s.SkillManager.AcquireSkillExecutionLease()
+		defer releaseExecutionLease()
 		skill, err := s.SkillManager.GetSkill(id)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 			return
 		}
 		if _, err := s.SkillManager.GetExecutableSkillByName(skill.Name); err != nil {
+			_ = s.SkillManager.RecordSkillUsage(skill.Name, false)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(map[string]any{"status": "error", "message": err.Error()})
@@ -89,6 +92,7 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 		} else {
 			output, err = tools.ExecuteSkill(r.Context(), s.Cfg.Directories.SkillsDir, s.Cfg.Directories.WorkspaceDir, skill.Name, req.Args)
 		}
+		_ = s.SkillManager.RecordSkillUsage(skill.Name, err == nil)
 		status := "ok"
 		message := ""
 		if err != nil {

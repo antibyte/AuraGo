@@ -412,6 +412,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR creating skill from template: %v", err)
 			}
+			if mgr := tools.DefaultSkillManager(); mgr != nil {
+				if syncErr := mgr.SyncFromDiskWithOrigins(map[string]tools.SkillOrigin{req.Name: tools.OriginAgent}); syncErr != nil {
+					return fmt.Sprintf("Tool Output: ERROR registering created skill: %v", syncErr)
+				}
+			}
 
 			// Provision dependencies immediately
 			tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, logger)
@@ -421,7 +426,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			docNote := ""
 			if strings.TrimSpace(req.Documentation) != "" {
 				if mgr := tools.DefaultSkillManager(); mgr != nil {
-					_ = mgr.SyncFromDisk()
+					_ = mgr.SyncFromDiskWithOrigins(map[string]tools.SkillOrigin{req.Name: tools.OriginAgent})
 					skills, _ := mgr.ListSkillsFiltered("", "", req.Name, nil)
 					var skillID string
 					for _, sk := range skills {
@@ -608,10 +613,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return wrongToolKindForExecuteSkill(entry)
 				}
 			}
+			var executionSkillManager *tools.SkillManager
 			if mgr := tools.DefaultSkillManager(); mgr != nil {
+				releaseExecutionLease := mgr.AcquireSkillExecutionLease()
+				defer releaseExecutionLease()
 				if _, err := mgr.GetExecutableSkillByName(cleanSkillName); err != nil {
+					_ = mgr.RecordSkillUsage(cleanSkillName, false)
 					return fmt.Sprintf("Tool Output: ERROR executing skill: %s", security.Scrub(err.Error()))
 				}
+				executionSkillManager = mgr
 			}
 			// Unwrap skill_args if the LLM nested the actual parameters under that key.
 			// e.g. {"skill_name": "ddg_search", "skill_args": {"query": "..."}} → {"query": "..."}
@@ -689,6 +699,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			// Generic Python skill fallback — gate on AllowPython
 			if !cfg.Agent.AllowPython {
+				if executionSkillManager != nil {
+					_ = executionSkillManager.RecordSkillUsage(cleanSkillName, false)
+				}
 				return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Skill '%s' requires Python execution which is disabled (agent.allow_python: false).", skillName)
 			}
 			// Resolve vault secrets: merge skill manifest vault_keys with tool call vault_keys.
@@ -731,6 +744,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Tools.SkillManager.RequireSandbox {
 				// Sandbox enforcement: skills must run in the container sandbox
 				if !tools.GetSandboxManager().IsReady() {
+					if executionSkillManager != nil {
+						_ = executionSkillManager.RecordSkillUsage(cleanSkillName, false)
+					}
 					return fmt.Sprintf("Tool Output: [SANDBOX REQUIRED] Skill '%s' requires sandbox execution but the sandbox is not available. Please enable the sandbox in settings (sandbox.enabled: true) or disable 'Require Sandbox' in skill manager settings.", skillName)
 				}
 				res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger, bridgeURL, bridgeToken, bridgeTools)
@@ -738,6 +754,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, cleanSkillName, args, secrets, creds, bridgeURL, bridgeToken, bridgeTools)
 			} else {
 				res, skillErr = tools.ExecuteSkill(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, cleanSkillName, args)
+			}
+			if executionSkillManager != nil {
+				_ = executionSkillManager.RecordSkillUsage(cleanSkillName, skillErr == nil)
 			}
 			if skillErr != nil {
 				msg := fmt.Sprintf("Tool Output: ERROR executing skill: %s\nOutput: %s", security.Scrub(skillErr.Error()), security.Scrub(res))

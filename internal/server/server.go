@@ -1404,7 +1404,11 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
 	}
 	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
 	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
-	if err := s.AgentSkillManager.SyncFromDisk(ctx, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian, skillSpectorConfig(s)); err != nil {
+	bundledOrigins := make(map[string]tools.SkillOrigin, len(installResult.Skills))
+	for _, bundledSkill := range installResult.Skills {
+		bundledOrigins[bundledSkill.Name] = tools.OriginSystem
+	}
+	if err := s.AgentSkillManager.SyncFromDiskWithOrigins(ctx, bundledOrigins, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian, skillSpectorConfig(s)); err != nil {
 		logger.Warn("Failed to sync Agent Skills from disk", "error", err)
 	}
 	s.gameMakerSkills, s.gameMakerSkillsReady = verifyGameMakerAgentSkills(s.AgentSkillManager, installResult, logger)

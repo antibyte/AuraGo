@@ -103,7 +103,7 @@ func TestRunMaintenanceTaskDoesNotSetGlobalMaintenanceLock(t *testing.T) {
 	cfg.Directories.PromptsDir = filepath.Join(t.TempDir(), "missing-prompts")
 	cfg.LLM.Model = "test-model"
 
-	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	if tools.IsBusy() {
 		t.Fatal("nightly maintenance must not set the global maintenance busy flag")

@@ -9,13 +9,28 @@ import (
 
 // MaintenancePhaseResults captures deterministic nightly maintenance outcomes.
 type MaintenancePhaseResults struct {
-	JournalRemoved     int      `json:"journal_removed"`
-	NotesArchived      int      `json:"notes_archived"`
-	ConsolidationFacts int      `json:"consolidation_facts"`
-	CompressedDeleted  int      `json:"compressed_deleted"`
-	KGFilesProcessed   int      `json:"kg_files_processed"`
-	KGNodesExtracted   int      `json:"kg_nodes_extracted"`
-	Errors             []string `json:"errors,omitempty"`
+	JournalRemoved       int                      `json:"journal_removed"`
+	NotesArchived        int                      `json:"notes_archived"`
+	ConsolidationFacts   int                      `json:"consolidation_facts"`
+	CompressedDeleted    int                      `json:"compressed_deleted"`
+	KGFilesProcessed     int                      `json:"kg_files_processed"`
+	KGNodesExtracted     int                      `json:"kg_nodes_extracted"`
+	SkillsReviewed       int                      `json:"skills_reviewed"`
+	SkillsImproved       int                      `json:"skills_improved"`
+	SkillsDeleted        int                      `json:"skills_deleted"`
+	SkillsReviewRequired int                      `json:"skills_review_required"`
+	SkillActions         []MaintenanceSkillAction `json:"skill_actions,omitempty"`
+	Errors               []string                 `json:"errors,omitempty"`
+}
+
+// MaintenanceSkillAction is a sanitized dashboard-safe summary. It never
+// includes skill source, model output, secrets, or filesystem paths.
+type MaintenanceSkillAction struct {
+	Name       string  `json:"name"`
+	Kind       string  `json:"kind"`
+	Action     string  `json:"action"`
+	Confidence float64 `json:"confidence"`
+	Reason     string  `json:"reason"`
 }
 
 // MaintenanceRunRecord is a persisted nightly maintenance run entry.

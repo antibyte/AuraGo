@@ -507,6 +507,16 @@ func TestAgentSkillSyncFromDiskKeepsExistingCleanSkillEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAgentSkillByName: %v", err)
 	}
+	if entry.Origin != OriginLegacyUnknown {
+		t.Fatalf("disk-synced Agent Skill origin = %q, want legacy_unknown", entry.Origin)
+	}
+	if err := mgr.SyncFromDiskWithOrigins(context.Background(), map[string]SkillOrigin{"keep-enabled": OriginSystem}, nil, false); err != nil {
+		t.Fatalf("SyncFromDiskWithOrigins: %v", err)
+	}
+	entry, err = mgr.GetAgentSkillByName("keep-enabled")
+	if err != nil || entry.Origin != OriginSystem {
+		t.Fatalf("explicit bundled origin entry=%+v err=%v", entry, err)
+	}
 	if err := mgr.EnableAgentSkill(entry.ID, true, "test"); err != nil {
 		t.Fatalf("EnableAgentSkill: %v", err)
 	}
