@@ -220,6 +220,7 @@
 .pw-page[data-workspace-page="skills"] .sk-toolbar-secondary {
     margin-top: calc(-1 * var(--pw-space-3));
     padding-top: 0;
+    padding-bottom: 0;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-security-filters {
