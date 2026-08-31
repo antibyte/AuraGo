@@ -1196,6 +1196,8 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			}
 		case "co_agent", "co_agents":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot spawn sub-agents."}`
+		case "virtual_workspace", "virtual_browser":
+			return `Tool Output: {"status": "error", "message": "Agent Workspaces are controlled only by the AuraGo main agent."}`
 		case "follow_up":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule follow-ups."}`
 		case "wait_for_event":

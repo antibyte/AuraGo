@@ -1,0 +1,90 @@
+diff --git a/boringd/machinevolume.go b/boringd/machinevolume.go
+index 97285d7..1aa57ae 100644
+--- a/boringd/machinevolume.go
++++ b/boringd/machinevolume.go
+@@ -55,9 +55,9 @@ func pullFromGuestCmd(console *Console, ip, guestCmd string) (net.Conn, error) {
+ 	return dialGuest(ip, port)
+ }
+ 
+-// attachVolume restores a volume's snapshot into the machine's /root. No-op if
+-// the volume has no snapshot yet.
+-func (s *Server) attachVolume(machineID, volumeID string) error {
++// attachVolume restores a volume snapshot into /root for legacy volumes or
++// /workspace for workspace_v2. No-op if the volume has no snapshot yet.
++func (s *Server) attachVolume(machineID, volumeID, format string) error {
+ 	if s.storage == nil {
+ 		return fmt.Errorf("storage not configured")
+ 	}
+@@ -73,10 +73,16 @@ func (s *Server) attachVolume(machineID, volumeID string) error {
+ 	if !ok {
+ 		return fmt.Errorf("volume needs a connected machine")
+ 	}
+-	return pushToGuestCmd(console, ip, "tar xzf - -C /root", obj)
++	target := "/root"
++	if format == "workspace_v2" {
++		target = "/workspace"
++	}
++	return pushToGuestCmd(console, ip, "mkdir -p "+target+" && tar xzf - -C "+target, obj)
+ }
+ 
+-// handleSaveVolume writes the machine's /root into the volume's snapshot.
++// handleSaveVolume writes /root for legacy callers and only /workspace when
++// format=workspace_v2. Runtime, browser profile, history and grants are never
++// beneath /workspace and therefore cannot enter a workspace_v2 snapshot.
+ func (s *Server) handleSaveVolume(w http.ResponseWriter, r *http.Request) {
+ 	volumeID := r.URL.Query().Get("volume")
+ 	if volumeID == "" {
+@@ -92,10 +98,15 @@ func (s *Server) handleSaveVolume(w http.ResponseWriter, r *http.Request) {
+ 		writeJSON(w, http.StatusConflict, map[string]any{"error": "save needs a connected machine (desktop, or a shell with net)"})
+ 		return
+ 	}
+-	// Tar /root in the guest and stream it straight into the volume snapshot,
+-	// skipping heavy cache dirs so snapshots stay small.
+-	conn, err := pullFromGuestCmd(console, ip,
+-		"cd /root && tar czf - --exclude=.npm --exclude=.cache --exclude=node_modules --exclude=.cargo --exclude=.local/share/cursor-agent . 2>/dev/null")
++	format := r.URL.Query().Get("format")
++	command := "cd /root && tar czf - --exclude=.npm --exclude=.cache --exclude=node_modules --exclude=.cargo --exclude=.local/share/cursor-agent . 2>/dev/null"
++	if format == "workspace_v2" {
++		command = "mkdir -p /workspace && cd /workspace && tar czf - . 2>/dev/null"
++	} else if format != "" && format != "legacy_root" {
++		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unsupported volume format"})
++		return
++	}
++	conn, err := pullFromGuestCmd(console, ip, command)
+ 	if err != nil {
+ 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't reach the machine"})
+ 		return
+diff --git a/boringd/server.go b/boringd/server.go
+index 17ce99e..18b2743 100644
+--- a/boringd/server.go
++++ b/boringd/server.go
+@@ -172,11 +172,12 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ type createRequest struct {
+-	Template   string `json:"template"`
+-	TTLSeconds int    `json:"ttl_seconds"`
+-	Net        bool   `json:"net"`        // request internet (forces a cold boot)
+-	Volume     string `json:"volume"`     // restore this volume into /root on boot
+-	Persistent bool   `json:"persistent"` // no TTL — run until stopped (needs BORING_ALLOW_PERSISTENT)
++	Template     string `json:"template"`
++	TTLSeconds   int    `json:"ttl_seconds"`
++	Net          bool   `json:"net"`           // request internet (forces a cold boot)
++	Volume       string `json:"volume"`        // restore this volume on boot
++	VolumeFormat string `json:"volume_format"` // empty/legacy_root or workspace_v2
++	Persistent   bool   `json:"persistent"`    // no TTL — run until stopped (needs BORING_ALLOW_PERSISTENT)
+ }
+ 
+ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
+@@ -201,9 +202,9 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
+ 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+ 		return
+ 	}
+-	// Restore a volume's snapshot into /root before the user connects (best-effort).
++	// Restore a volume snapshot before the user connects (best-effort).
+ 	if req.Volume != "" && s.storage != nil {
+-		if err := s.attachVolume(m.ID, req.Volume); err != nil {
++		if err := s.attachVolume(m.ID, req.Volume, req.VolumeFormat); err != nil {
+ 			log.Printf("machine %s: attach volume %s failed: %v", m.ID, req.Volume, err)
+ 		}
+ 	}

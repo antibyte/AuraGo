@@ -8,11 +8,15 @@ function vcCfgEnsureData() {
     if (!configData.virtual_computers) configData.virtual_computers = {};
     if (!configData.virtual_computers.control_plane) configData.virtual_computers.control_plane = {};
 	if (!configData.virtual_computers.storage) configData.virtual_computers.storage = {};
+	if (!configData.virtual_computers.agent_control) configData.virtual_computers.agent_control = {};
+	if (!configData.virtual_computers.agent_control.network) configData.virtual_computers.agent_control.network = {};
+	if (!configData.virtual_computers.agent_control.credentials) configData.virtual_computers.agent_control.credentials = {};
     if (!configData.tools) configData.tools = {};
     if (!configData.tools.virtual_computers) configData.tools.virtual_computers = {};
     const data = configData.virtual_computers;
     const cp = data.control_plane;
 	const storage = data.storage;
+	const agentControl = data.agent_control;
     if (!data.provider) data.provider = 'boring_computers';
     if (!data.default_template) data.default_template = 'python';
     if (!data.default_ttl_seconds) data.default_ttl_seconds = 600;
@@ -26,6 +30,18 @@ function vcCfgEnsureData() {
 	if (!storage.mode) storage.mode = 'managed_garage';
 	if (!storage.bucket) storage.bucket = 'boring-volumes';
 	if (typeof storage.use_ssl !== 'boolean') storage.use_ssl = storage.mode === 'external_s3';
+	if (!agentControl.default_template) agentControl.default_template = 'desktop';
+	if (!agentControl.max_active_workspaces) agentControl.max_active_workspaces = 2;
+	if (!agentControl.idle_ttl_seconds) agentControl.idle_ttl_seconds = 600;
+	if (!agentControl.max_workspace_seconds) agentControl.max_workspace_seconds = 7200;
+	if (!agentControl.max_job_seconds) agentControl.max_job_seconds = 3600;
+	if (!agentControl.max_job_output_mb) agentControl.max_job_output_mb = 4;
+	if (!agentControl.jobs_per_workspace) agentControl.jobs_per_workspace = 2;
+	if (!agentControl.browser_sessions_per_workspace) agentControl.browser_sessions_per_workspace = 1;
+	if (!agentControl.network.default_profile) agentControl.network.default_profile = 'internet_lan';
+	if (!Array.isArray(agentControl.network.allowed_private_cidrs)) agentControl.network.allowed_private_cidrs = [];
+	if (typeof agentControl.credentials.enabled !== 'boolean') agentControl.credentials.enabled = true;
+	if (!agentControl.credentials.grant_ttl_seconds) agentControl.credentials.grant_ttl_seconds = 900;
     return data;
 }
 
@@ -76,6 +92,48 @@ function renderVirtualComputersSection(section) {
     html += vcCfgToggleRow('config.virtual_computers.readonly_label', 'help.virtual_computers.readonly', data.readonly === true, 'virtual_computers.readonly');
     html += vcCfgToggleRow('config.virtual_computers.tool_enabled_label', 'help.virtual_computers.tool_enabled', configData.tools.virtual_computers.enabled === true, 'tools.virtual_computers.enabled');
     html += vcCfgToggleRow('config.virtual_computers.auto_setup_label', 'help.virtual_computers.auto_setup', data.auto_setup === true, 'virtual_computers.auto_setup');
+
+	const agentControl = data.agent_control || {};
+	const agentNetwork = agentControl.network || {};
+	const agentCredentials = agentControl.credentials || {};
+	html += '<div class="field-group">';
+	html += '<div class="field-group-title">' + t('config.virtual_computers.agent_control_title') + '</div>';
+	html += '<div class="field-group-desc">' + t('config.virtual_computers.agent_control_desc') + '</div>';
+	html += vcCfgToggleRow('config.virtual_computers.agent_control_enabled_label', 'help.virtual_computers.agent_control_enabled', agentControl.enabled === true, 'virtual_computers.agent_control.enabled', 'vcCfgToggleAgentControl(this)');
+	if (agentControl.enabled === true) {
+		html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.agent_control_gate_note') + '</div>';
+		html += '<div class="field-grid two-cols">';
+		html += vcCfgField('config.virtual_computers.agent_control_template_label', 'help.virtual_computers.agent_control_template',
+			'<select class="field-select" data-path="virtual_computers.agent_control.default_template"><option value="desktop"' + ((agentControl.default_template || 'desktop') === 'desktop' ? ' selected' : '') + '>desktop</option><option value="python"' + (agentControl.default_template === 'python' ? ' selected' : '') + '>python</option></select>');
+		html += vcCfgField('config.virtual_computers.agent_control_max_workspaces_label', 'help.virtual_computers.agent_control_max_workspaces',
+			'<input class="field-input" type="number" min="1" max="16" data-path="virtual_computers.agent_control.max_active_workspaces" value="' + escapeAttr(agentControl.max_active_workspaces || 2) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_idle_ttl_label', 'help.virtual_computers.agent_control_idle_ttl',
+			'<input class="field-input" type="number" min="30" max="900" data-path="virtual_computers.agent_control.idle_ttl_seconds" value="' + escapeAttr(agentControl.idle_ttl_seconds || 600) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_max_workspace_label', 'help.virtual_computers.agent_control_max_workspace',
+			'<input class="field-input" type="number" min="60" max="86400" data-path="virtual_computers.agent_control.max_workspace_seconds" value="' + escapeAttr(agentControl.max_workspace_seconds || 7200) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_max_job_label', 'help.virtual_computers.agent_control_max_job',
+			'<input class="field-input" type="number" min="1" max="86400" data-path="virtual_computers.agent_control.max_job_seconds" value="' + escapeAttr(agentControl.max_job_seconds || 3600) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_output_label', 'help.virtual_computers.agent_control_output',
+			'<input class="field-input" type="number" min="1" max="64" data-path="virtual_computers.agent_control.max_job_output_mb" value="' + escapeAttr(agentControl.max_job_output_mb || 4) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_jobs_label', 'help.virtual_computers.agent_control_jobs',
+			'<input class="field-input" type="number" min="1" max="2" data-path="virtual_computers.agent_control.jobs_per_workspace" value="' + escapeAttr(agentControl.jobs_per_workspace || 2) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_browsers_label', 'help.virtual_computers.agent_control_browsers',
+			'<input class="field-input" type="number" min="1" max="1" data-path="virtual_computers.agent_control.browser_sessions_per_workspace" value="' + escapeAttr(agentControl.browser_sessions_per_workspace || 1) + '">');
+		html += vcCfgField('config.virtual_computers.agent_control_network_label', 'help.virtual_computers.agent_control_network',
+			'<select class="field-select" data-path="virtual_computers.agent_control.network.default_profile"><option value="internet_lan" selected>internet_lan</option></select>');
+		html += '</div>';
+		html += vcCfgField('config.virtual_computers.agent_control_cidrs_label', 'help.virtual_computers.agent_control_cidrs',
+			'<textarea class="field-input" rows="3" data-path="virtual_computers.agent_control.network.allowed_private_cidrs" data-type="array-lines" placeholder="192.168.10.0/24">' + escapeHtml((agentNetwork.allowed_private_cidrs || []).join('\n')) + '</textarea>');
+		if (!agentNetwork.allowed_private_cidrs || agentNetwork.allowed_private_cidrs.length === 0) {
+			html += '<div class="cfg-note-banner cfg-note-banner-warning">' + t('config.virtual_computers.agent_control_no_lan_warning') + '</div>';
+		}
+		html += '<div class="field-grid two-cols">';
+		html += vcCfgToggleRow('config.virtual_computers.agent_control_credentials_label', 'help.virtual_computers.agent_control_credentials', agentCredentials.enabled === true, 'virtual_computers.agent_control.credentials.enabled');
+		html += vcCfgField('config.virtual_computers.agent_control_grant_ttl_label', 'help.virtual_computers.agent_control_grant_ttl',
+			'<input class="field-input" type="number" min="60" max="3600" data-path="virtual_computers.agent_control.credentials.grant_ttl_seconds" value="' + escapeAttr(agentCredentials.grant_ttl_seconds || 900) + '">');
+		html += '</div>';
+	}
+	html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-group-title">' + t('config.virtual_computers.control_plane_title') + '</div>';
@@ -374,6 +432,14 @@ function vcCfgToggleAgentTasks(el) {
     setNestedValue(configData, 'virtual_computers.allow_agent_tasks', enabled);
     renderVirtualComputersSection(null);
     setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
+}
+
+function vcCfgToggleAgentControl(el) {
+	toggleBool(el);
+	const enabled = Boolean(el && el.classList && el.classList.contains('on'));
+	setNestedValue(configData, 'virtual_computers.agent_control.enabled', enabled);
+	renderVirtualComputersSection(null);
+	setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
 }
 
 function vcCfgOnStorageModeChange(el) {

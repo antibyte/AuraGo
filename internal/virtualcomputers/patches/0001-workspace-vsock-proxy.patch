@@ -1,0 +1,125 @@
+diff --git a/boringd/server.go b/boringd/server.go
+index 9c0cd2f..17ce99e 100644
+--- a/boringd/server.go
++++ b/boringd/server.go
+@@ -88,6 +88,7 @@ func NewServer(cfg Config, mgr *Manager) *Server {
+ 	// WebSocket TTY + VNC. Auth is handled inside (accepts ?token= too).
+ 	s.mux.HandleFunc("GET /v1/machines/{id}/tty", s.handleTTY)
+ 	s.mux.HandleFunc("GET /v1/machines/{id}/vnc", s.handleVNC)
++	s.mux.Handle("GET /v1/machines/{id}/workspace", s.workspaceAuth(http.HandlerFunc(s.handleWorkspace)))
+ 
+ 	// Debug/agent: capture a PNG screenshot of a desktop machine.
+ 	s.mux.Handle("GET /v1/machines/{id}/screenshot", s.auth(http.HandlerFunc(s.handleScreenshot)))
+diff --git a/boringd/workspace.go b/boringd/workspace.go
+new file mode 100644
+index 0000000..cf3c333
+--- /dev/null
++++ b/boringd/workspace.go
+@@ -0,0 +1,107 @@
++package main
++
++import (
++	"context"
++	"errors"
++	"net"
++	"net/http"
++	"sync"
++	"time"
++
++	"github.com/gorilla/websocket"
++)
++
++const (
++	workspaceGuestPort  = 7331
++	workspaceMaxMessage = 8 << 20
++)
++
++var workspaceUpgrader = websocket.Upgrader{
++	ReadBufferSize:  32 << 10,
++	WriteBufferSize: 32 << 10,
++	CheckOrigin:     func(*http.Request) bool { return true },
++}
++
++// workspaceAuth intentionally rejects the query-token compatibility path used
++// by legacy browser channels. Workspace control is host-to-host only and keeps
++// the boringd token in the Authorization header.
++func (s *Server) workspaceAuth(next http.Handler) http.Handler {
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Query().Get("token") != "" {
++			http.Error(w, "query token is not accepted", http.StatusUnauthorized)
++			return
++		}
++		s.auth(next).ServeHTTP(w, r)
++	})
++}
++
++// handleWorkspace authenticates at boringd and bridges WebSocket frames to the
++// AuraGo workspace agent over the selected machine's private Firecracker vsock.
++func (s *Server) handleWorkspace(w http.ResponseWriter, r *http.Request) {
++	machineID := r.PathValue("id")
++	guestConn, err := s.mgr.DialVsock(machineID, workspaceGuestPort)
++	if errors.Is(err, ErrNotFound) {
++		http.Error(w, "machine not found", http.StatusNotFound)
++		return
++	}
++	if err != nil {
++		http.Error(w, "workspace agent unavailable", http.StatusUpgradeRequired)
++		return
++	}
++	used := false
++	dialer := websocket.Dialer{
++		HandshakeTimeout: 5 * time.Second,
++		ReadBufferSize:   32 << 10,
++		WriteBufferSize:  32 << 10,
++		NetDialContext: func(context.Context, string, string) (net.Conn, error) {
++			if used {
++				return nil, errors.New("workspace vsock connection already used")
++			}
++			used = true
++			return guestConn, nil
++		},
++	}
++	guestWS, response, err := dialer.DialContext(r.Context(), "ws://workspace/workspace", nil)
++	if err != nil {
++		_ = guestConn.Close()
++		if response != nil && response.Body != nil {
++			_ = response.Body.Close()
++		}
++		http.Error(w, "workspace agent handshake failed", http.StatusUpgradeRequired)
++		return
++	}
++	defer guestWS.Close()
++	clientWS, err := workspaceUpgrader.Upgrade(w, r, nil)
++	if err != nil {
++		return
++	}
++	defer clientWS.Close()
++	guestWS.SetReadLimit(workspaceMaxMessage)
++	clientWS.SetReadLimit(workspaceMaxMessage)
++
++	var once sync.Once
++	done := make(chan struct{})
++	bridge := func(dst, src *websocket.Conn) {
++		defer once.Do(func() { close(done) })
++		for {
++			messageType, payload, err := src.ReadMessage()
++			if err != nil {
++				return
++			}
++			if len(payload) > workspaceMaxMessage {
++				return
++			}
++			if err := dst.WriteMessage(messageType, payload); err != nil {
++				return
++			}
++		}
++	}
++	go bridge(guestWS, clientWS)
++	go bridge(clientWS, guestWS)
++	select {
++	case <-done:
++	case <-r.Context().Done():
++	}
++	_ = clientWS.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
++	_ = guestWS.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
++}

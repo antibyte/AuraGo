@@ -69,5 +69,20 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 		AllowPublish:        vc.AllowPublish,
 		AllowVolumes:        vc.AllowVolumes,
 		AllowAgentTasks:     vc.AllowAgentTasks,
+		AgentControl: AgentControlConfig{
+			Enabled:                     vc.AgentControl.Enabled,
+			DefaultTemplate:             vc.AgentControl.DefaultTemplate,
+			MaxActiveWorkspaces:         vc.AgentControl.MaxActiveWorkspaces,
+			IdleTTLSeconds:              vc.AgentControl.IdleTTLSeconds,
+			MaxWorkspaceSeconds:         vc.AgentControl.MaxWorkspaceSeconds,
+			MaxJobSeconds:               vc.AgentControl.MaxJobSeconds,
+			MaxJobOutputBytes:           int64(vc.AgentControl.MaxJobOutputMB) * 1024 * 1024,
+			JobsPerWorkspace:            vc.AgentControl.JobsPerWorkspace,
+			BrowserSessionsPerWorkspace: vc.AgentControl.BrowserSessionsPerWorkspace,
+			NetworkProfile:              vc.AgentControl.Network.DefaultProfile,
+			AllowedPrivateCIDRs:         append([]string(nil), vc.AgentControl.Network.AllowedPrivateCIDRs...),
+			CredentialsEnabled:          vc.AgentControl.Credentials.Enabled,
+			CredentialGrantTTLSeconds:   vc.AgentControl.Credentials.GrantTTLSeconds,
+		},
 	}
 }

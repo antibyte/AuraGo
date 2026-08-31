@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type CommandExecutor interface {
@@ -159,15 +160,82 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 		}, nil
 	}
 	storage := m.storageStatusAfterInstall(ctx, out)
+	workspaceAgent := ComponentStatus{Configured: true, Healthy: true, Message: "workspace verification skipped"}
+	if m.InstallOptions.VerifyWorkspace {
+		workspaceAgent = m.verifyWorkspaceAgent(ctx)
+		if !workspaceAgent.Healthy {
+			return SetupStatus{
+				Configured: true, Healthy: false, Message: workspaceAgent.Message, Preflight: preflight,
+				ControlPlane: ComponentStatus{Configured: true, Healthy: true},
+				Management:   ComponentStatus{Configured: true, Healthy: true}, Storage: storage, WorkspaceAgent: workspaceAgent,
+			}, nil
+		}
+	}
 	return SetupStatus{
-		Configured:   true,
-		Healthy:      true,
-		Message:      "boringd and management application installed and healthy: " + strings.TrimSpace(health) + " " + strings.TrimSpace(managementHealth),
-		Preflight:    preflight,
-		ControlPlane: ComponentStatus{Configured: true, Healthy: true},
-		Management:   ComponentStatus{Configured: true, Healthy: true},
-		Storage:      storage,
+		Configured:     true,
+		Healthy:        true,
+		Message:        "boringd and management application installed and healthy: " + strings.TrimSpace(health) + " " + strings.TrimSpace(managementHealth),
+		Preflight:      preflight,
+		ControlPlane:   ComponentStatus{Configured: true, Healthy: true},
+		Management:     ComponentStatus{Configured: true, Healthy: true},
+		Storage:        storage,
+		WorkspaceAgent: workspaceAgent,
 	}, nil
+}
+
+func (m SetupManager) verifyWorkspaceAgent(ctx context.Context) ComponentStatus {
+	client, err := NewClient(ClientConfig{BaseURL: m.InstallOptions.BoringdURL, Token: m.InstallOptions.Token, Timeout: 45 * time.Second})
+	if err != nil {
+		return ComponentStatus{Configured: true, Healthy: false, Message: "workspace client configuration failed"}
+	}
+	templates := []string{"python"}
+	if !m.InstallOptions.SkipDesktop {
+		templates = append(templates, "desktop")
+	}
+	for _, template := range templates {
+		machine, err := client.LaunchMachine(ctx, LaunchMachineRequest{Template: template, TTLSeconds: 60, AllowInternet: m.InstallOptions.AllowInternet})
+		if err != nil {
+			return ComponentStatus{Configured: true, Healthy: false, Message: "workspace verification launch failed for " + template}
+		}
+		verificationFailure := func(message string) ComponentStatus {
+			_ = client.DestroyMachine(context.Background(), machine.ID)
+			return ComponentStatus{Configured: true, Healthy: false, Message: message}
+		}
+		transport := NewWebSocketWorkspaceTransport(client)
+		verifyCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		capabilities, handshakeErr := WorkspaceHandshake(verifyCtx, transport, machine.ID, "")
+		cancel()
+		if handshakeErr != nil {
+			return verificationFailure("workspace agent handshake failed for " + template)
+		}
+		if capabilities.ProtocolVersion != WorkspaceProtocolVersion {
+			return verificationFailure("workspace agent protocol mismatch for " + template)
+		}
+		required := []string{"shell.exec", "job.pty", "file.workspace", "checkpoint.workspace_v2", "volume.legacy_import"}
+		if template == "desktop" {
+			required = append(required, "browser.headful")
+		}
+		for _, capability := range required {
+			if !containsWorkspaceCapability(capabilities.Capabilities, capability) {
+				return verificationFailure("workspace capability " + capability + " is missing for " + template)
+			}
+		}
+		var shellResult workspaceExecRPCResult
+		if err := transport.Call(ctx, machine.ID, "shell.exec", WorkspaceExecRequest{Command: "test \"$(id -u)\" = 0 && test -d /workspace && printf AURAGO_WORKSPACE_OK", TimeoutSeconds: 15}, &shellResult); err != nil || !strings.Contains(shellResult.Output, "AURAGO_WORKSPACE_OK") {
+			return verificationFailure("workspace root shell verification failed for " + template)
+		}
+		if template == "desktop" {
+			var browserResult BrowserActionResult
+			if err := transport.Call(ctx, machine.ID, "browser.open", BrowserActionRequest{Operation: "open", URL: "about:blank", TimeoutMS: 20000}, &browserResult); err != nil || browserResult.Session.State != BrowserStateOpen {
+				return verificationFailure("workspace headful browser verification failed for desktop")
+			}
+			_ = transport.Call(ctx, machine.ID, "browser.close", BrowserActionRequest{Operation: "close", SessionID: browserResult.Session.ID}, nil)
+		}
+		if err := client.DestroyMachine(context.Background(), machine.ID); err != nil {
+			return ComponentStatus{Configured: true, Healthy: false, Message: "workspace verification cleanup failed for " + template}
+		}
+	}
+	return ComponentStatus{Configured: true, Healthy: true, Message: "workspace agent verified for installed templates"}
 }
 
 // storageStatusAfterInstall derives additive storage health from install output and,
@@ -314,6 +382,7 @@ export DEBIAN_FRONTEND=noninteractive
 INSTALL_DIR=%s
 REPO_URL="https://github.com/michaelshimeles/boring-computers.git"
 BORING_REVISION=%s
+WORKSPACE_ASSET_FINGERPRINT=__AURAGO_WORKSPACE_ASSET_FINGERPRINT__
 GO_VERSION="1.25.0"
 BORING_TOKEN_VALUE=%s
 BORING_ANTHROPIC_KEY_VALUE=%s
@@ -382,6 +451,8 @@ else
 fi
 git -C "${REPO_DIR}" checkout --detach "${BORING_REVISION}"
 
+__AURAGO_WORKSPACE_PATCH_SNIPPET__
+
 log "copying boring-computers infra"
 cp "${REPO_DIR}"/infra/latitude/*.sh "${REPO_DIR}"/infra/latitude/*.service /root/infra/
 cp "${REPO_DIR}"/infra/latitude/Caddyfile /root/infra/ 2>/dev/null || true
@@ -395,6 +466,8 @@ if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go${GO_VERSION}"; then
 	rm -f /tmp/go.tgz
 fi
 /usr/local/go/bin/go version
+
+__AURAGO_WORKSPACE_GUEST_SNIPPET__
 
 ASSET_REVISION_FILE="/opt/boring/.aurago-assets-revision"
 ASSETS_READY=1
@@ -411,7 +484,7 @@ if [ "${SKIP_DESKTOP_VALUE}" != "1" ] && [ ! -s /opt/boring/rootfs/desktop.ext4 
 	ASSETS_READY=0
 fi
 ASSET_REVISION="$(cat "${ASSET_REVISION_FILE}" 2>/dev/null || true)"
-if [ -n "${ASSET_REVISION}" ] && [ "${ASSET_REVISION}" != "${BORING_REVISION}" ]; then
+if [ "${ASSET_REVISION}" != "${WORKSPACE_ASSET_FINGERPRINT}" ]; then
 	ASSETS_READY=0
 fi
 
@@ -420,14 +493,19 @@ if [ "${ASSETS_READY}" = "1" ]; then
 else
 	log "bootstrapping Firecracker assets"
 	bash /root/infra/bootstrap.sh
+	# The Python workspace agent must be alive before the memory snapshot is
+	# taken. Injecting only into rootfs.ext4 after build-template.sh leaves the
+	# restored VM without the respawn process that inittab started at boot.
+	inject_workspace_agent /opt/boring/rootfs/rootfs.ext4 python
 	bash /root/infra/build-template.sh python
 	if [ "${SKIP_DESKTOP_VALUE}" = "1" ]; then
 		log "skipping desktop image"
 	else
 		bash /root/infra/build-desktop-rootfs.sh
+		inject_workspace_agent /opt/boring/rootfs/desktop.ext4 desktop
 	fi
+	printf '%%s\n' "${WORKSPACE_ASSET_FINGERPRINT}" > "${ASSET_REVISION_FILE}"
 fi
-printf '%%s\n' "${BORING_REVISION}" > "${ASSET_REVISION_FILE}"
 
 log "configuring guest networking"
 install -m0755 /root/infra/net-setup.sh /opt/boring/bin/net-setup.sh
@@ -440,7 +518,7 @@ cp /root/infra/boring-net.service /etc/systemd/system/ 2>/dev/null || true
 
 	log "building boringd"
 	cd /opt/boring/src
-	CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o /usr/local/bin/boringd .
+	CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w -X main.workspaceAssetFingerprint=${WORKSPACE_ASSET_FINGERPRINT}" -o /usr/local/bin/boringd .
 	cp /root/infra/boringd.service /etc/systemd/system/boringd.service
 
 # Ensure the service cleans up leftover empty child cgroups when it stops.
@@ -532,6 +610,9 @@ if [ "${BORING_HEALTHY}" != "1" ]; then
 fi
 	curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
 `, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(envLine(NormalizeStorageMode(opts.StorageMode, opts.S3Endpoint))), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+	script = strings.Replace(script, "__AURAGO_WORKSPACE_ASSET_FINGERPRINT__", shellQuote(WorkspaceAssetFingerprint()), 1)
+	script = strings.Replace(script, "__AURAGO_WORKSPACE_PATCH_SNIPPET__", workspacePatchInstallSnippet(), 1)
+	script = strings.Replace(script, "__AURAGO_WORKSPACE_GUEST_SNIPPET__", workspaceGuestInstallSnippet(), 1)
 	// Inject garage ensure fragment (may blank S3 projection on failure via GARAGE_OK).
 	script = strings.Replace(script, "__AURAGO_GARAGE_SNIPPET__", garageEnsureSnippet(opts), 1)
 	// When managed garage is not OK, rewrite projected S3 values to empty in the generated env block.

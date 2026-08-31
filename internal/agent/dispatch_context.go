@@ -47,6 +47,7 @@ type DispatchContext struct {
 	Guardian             *security.Guardian
 	LLMGuardian          *security.LLMGuardian
 	SessionID            string
+	MissionID            string
 	IsCoAgent            bool
 	CoAgentSpecialist    string
 	ParentSessionID      string

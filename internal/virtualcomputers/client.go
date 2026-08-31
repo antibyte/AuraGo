@@ -75,6 +75,19 @@ func (c *Client) Status(ctx context.Context) (map[string]interface{}, error) {
 	return payload, nil
 }
 
+type WorkspaceControlPlaneStatus struct {
+	ProtocolVersion  string `json:"protocol_version"`
+	AssetFingerprint string `json:"asset_fingerprint"`
+}
+
+func (c *Client) WorkspaceCapabilities(ctx context.Context) (WorkspaceControlPlaneStatus, error) {
+	var status WorkspaceControlPlaneStatus
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/workspace/capabilities", nil, &status); err != nil {
+		return WorkspaceControlPlaneStatus{}, err
+	}
+	return status, nil
+}
+
 func (c *Client) ListMachines(ctx context.Context) ([]Machine, error) {
 	var machines []Machine
 	if err := c.doJSONFlexibleList(ctx, http.MethodGet, "/v1/machines", nil, "machines", &machines); err != nil {
@@ -100,11 +113,15 @@ func (c *Client) LaunchMachine(ctx context.Context, req LaunchMachineRequest) (M
 		volumeID = firstString(req.Volumes)
 	}
 	payload := launchMachineRequest{
-		Template:      req.Template,
-		TTLSeconds:    clampTTL(req.TTLSeconds, MaxTTLSeconds),
-		AllowInternet: req.AllowInternet,
-		Volume:        volumeID,
-		Persistent:    req.Persistent,
+		Template:            req.Template,
+		TTLSeconds:          clampTTL(req.TTLSeconds, MaxTTLSeconds),
+		AllowInternet:       req.AllowInternet,
+		Volume:              volumeID,
+		VolumeFormat:        req.VolumeFormat,
+		Persistent:          req.Persistent,
+		NetworkProfile:      req.NetworkProfile,
+		AllowedPrivateCIDRs: append([]string(nil), req.AllowedPrivateCIDRs...),
+		ProtectedCIDRs:      append([]string(nil), req.ProtectedCIDRs...),
 	}
 	var machine Machine
 	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines", payload, &machine); err != nil {
@@ -303,6 +320,10 @@ func (c *Client) DeleteVolume(ctx context.Context, id string) error {
 }
 
 func (c *Client) SaveMachine(ctx context.Context, id, volumeID string) (map[string]interface{}, error) {
+	return c.SaveMachineWithFormat(ctx, id, volumeID, "")
+}
+
+func (c *Client) SaveMachineWithFormat(ctx context.Context, id, volumeID, format string) (map[string]interface{}, error) {
 	volumeID = strings.TrimSpace(volumeID)
 	if volumeID == "" {
 		return nil, fmt.Errorf("volume_id is required")
@@ -311,6 +332,9 @@ func (c *Client) SaveMachine(ctx context.Context, id, volumeID string) (map[stri
 	u.Path = joinURLPath(u.Path, "/v1/machines/"+pathEscapeID(id)+"/save")
 	query := u.Query()
 	query.Set("volume", volumeID)
+	if strings.TrimSpace(format) != "" {
+		query.Set("format", strings.TrimSpace(format))
+	}
 	u.RawQuery = query.Encode()
 	var payload map[string]interface{}
 	if err := c.doJSON(ctx, http.MethodPost, u.String(), nil, &payload); err != nil {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/virtualcomputers"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,8 +19,35 @@ var (
 )
 
 type virtualComputersSetupState struct {
-	ConsecutiveFailures int       `json:"consecutive_failures"`
-	LastFailureAt       time.Time `json:"last_failure_at"`
+	ConsecutiveFailures       int       `json:"consecutive_failures"`
+	LastFailureAt             time.Time `json:"last_failure_at"`
+	WorkspaceAssetFingerprint string    `json:"workspace_asset_fingerprint,omitempty"`
+	WorkspaceVerifiedAt       time.Time `json:"workspace_verified_at,omitempty"`
+}
+
+func virtualComputersWorkspaceSetupVerified() bool {
+	state, err := virtualComputersLoadSetupState()
+	return err == nil && !state.WorkspaceVerifiedAt.IsZero() && state.WorkspaceAssetFingerprint == virtualcomputers.WorkspaceAssetFingerprint()
+}
+
+func virtualComputersRecordWorkspaceSetupVerified() error {
+	state, err := virtualComputersLoadSetupState()
+	if err != nil {
+		return err
+	}
+	state.WorkspaceAssetFingerprint = virtualcomputers.WorkspaceAssetFingerprint()
+	state.WorkspaceVerifiedAt = time.Now().UTC()
+	return virtualComputersSaveSetupState(state)
+}
+
+func virtualComputersClearWorkspaceSetupVerified() error {
+	state, err := virtualComputersLoadSetupState()
+	if err != nil {
+		return err
+	}
+	state.WorkspaceAssetFingerprint = ""
+	state.WorkspaceVerifiedAt = time.Time{}
+	return virtualComputersSaveSetupState(state)
 }
 
 func defaultVirtualComputersLoadSetupState() (virtualComputersSetupState, error) {

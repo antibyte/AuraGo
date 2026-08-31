@@ -456,6 +456,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, localLLMErr.Error(), http.StatusBadRequest)
 			return
 		}
+		if workspaceErr := config.ValidateVirtualComputersAgentControl(validateCfg.VirtualComputers.AgentControl); workspaceErr != nil {
+			s.Logger.Error("[Config] Invalid Virtual Computers agent-control settings — save rejected", "error", workspaceErr)
+			jsonError(w, workspaceErr.Error(), http.StatusBadRequest)
+			return
+		}
 		config.NormalizeSpeechLabConfig(&validateCfg.SpeechLab, out)
 		if speechLabErr := config.ValidateSpeechLabConfig(validateCfg.SpeechLab); speechLabErr != nil {
 			s.Logger.Error("[Config] Invalid Speech Lab settings — save rejected", "error", speechLabErr)
@@ -536,6 +541,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"status":  "error",
 				"code":    "storage_switch_required",
 				"message": msg,
+			})
+			return
+		}
+		if gateErr := virtualComputersEnforceAgentControlGate(s, oldCfgForVC, validateCfg); gateErr != nil {
+			s.Logger.Warn("[Config] Virtual Computers agent control blocked", "error", gateErr)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"code":    "workspace_agent_upgrade_required",
+				"message": gateErr.Error(),
 			})
 			return
 		}
@@ -2157,11 +2173,11 @@ var vaultKeyMap = map[string]string{
 	"virtual_computers.boring_token":          "virtual_computers_boring_token",
 	"virtual_computers.boring_anthropic_key":  "virtual_computers_anthropic_key",
 	"virtual_computers.boring_openrouter_key": "virtual_computers_openrouter_key",
-	"virtual_computers.s3_access_key_id":         "virtual_computers_s3_access_key_id",
-	"virtual_computers.s3_secret_key":            "virtual_computers_s3_secret_key",
-	"virtual_computers.garage_access_key_id":     "virtual_computers_garage_access_key_id",
-	"virtual_computers.garage_secret_key":        "virtual_computers_garage_secret_key",
-	"virtual_computers.garage_rpc_secret":        "virtual_computers_garage_rpc_secret",
+	"virtual_computers.s3_access_key_id":      "virtual_computers_s3_access_key_id",
+	"virtual_computers.s3_secret_key":         "virtual_computers_s3_secret_key",
+	"virtual_computers.garage_access_key_id":  "virtual_computers_garage_access_key_id",
+	"virtual_computers.garage_secret_key":     "virtual_computers_garage_secret_key",
+	"virtual_computers.garage_rpc_secret":     "virtual_computers_garage_rpc_secret",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.

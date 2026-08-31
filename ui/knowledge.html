@@ -515,6 +515,16 @@
                 </div>
                 <small class="form-hint" data-i18n="knowledge.credentials_allow_python_hint"></small>
             </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="credential-allow-virtual-computers">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="toggle-label">Grantable to Virtual Computers</span>
+                </div>
+                <small class="form-hint">Only makes this credential eligible for a short-lived, user-approved workspace grant.</small>
+            </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('credential-modal')" data-i18n="common.btn_cancel"></button>
                 <button class="btn btn-primary" onclick="saveCredential()" data-i18n="common.btn_save"></button>

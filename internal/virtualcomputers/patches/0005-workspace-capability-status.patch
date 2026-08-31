@@ -1,0 +1,32 @@
+diff --git a/boringd/server.go b/boringd/server.go
+index 613d212..b8f2e41 100644
+--- a/boringd/server.go
++++ b/boringd/server.go
+@@ -89,6 +89,7 @@ func NewServer(cfg Config, mgr *Manager) *Server {
+ 	s.mux.HandleFunc("GET /v1/machines/{id}/tty", s.handleTTY)
+ 	s.mux.HandleFunc("GET /v1/machines/{id}/vnc", s.handleVNC)
+ 	s.mux.Handle("GET /v1/machines/{id}/workspace", s.workspaceAuth(http.HandlerFunc(s.handleWorkspace)))
++	s.mux.Handle("GET /v1/workspace/capabilities", s.workspaceAuth(http.HandlerFunc(s.handleWorkspaceCapabilities)))
+ 
+ 	// Debug/agent: capture a PNG screenshot of a desktop machine.
+ 	s.mux.Handle("GET /v1/machines/{id}/screenshot", s.auth(http.HandlerFunc(s.handleScreenshot)))
+diff --git a/boringd/workspace.go b/boringd/workspace.go
+index cf3c333..43e6002 100644
+--- a/boringd/workspace.go
++++ b/boringd/workspace.go
+@@ -21,6 +21,15 @@ var workspaceUpgrader = websocket.Upgrader{
+ 	CheckOrigin:     func(*http.Request) bool { return true },
+ }
+ 
++var workspaceAssetFingerprint = "development"
++
++func (s *Server) handleWorkspaceCapabilities(w http.ResponseWriter, _ *http.Request) {
++	writeJSON(w, http.StatusOK, map[string]any{
++		"protocol_version": "aurago.workspace.v1",
++		"asset_fingerprint": workspaceAssetFingerprint,
++	})
++}
++
+ // workspaceAuth intentionally rejects the query-token compatibility path used
+ // by legacy browser channels. Workspace control is host-to-host only and keeps
+ // the boringd token in the Authorization header.

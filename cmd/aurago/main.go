@@ -1098,6 +1098,7 @@ func main() {
 	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, longTermMem, appLog)
 
 	virtualComputersLedger, err := virtualcomputers.OpenLedger(cfg.SQLite.VirtualComputersPath)
+	var virtualWorkspaceManager *virtualcomputers.WorkspaceManager
 	if err != nil {
 		appLog.Warn("Virtual computer agent task history is unavailable", "error", err)
 	} else {
@@ -1118,40 +1119,82 @@ func main() {
 				}
 			}()
 		}
+		credentialProvider := virtualcomputers.NewDatabaseWorkspaceCredentialProvider(inventoryDB, vault)
+		workspaceManager, workspaceErr := virtualcomputers.NewWorkspaceManager(virtualComputersLedger, appLog, virtualcomputers.WorkspaceManagerOptions{
+			CredentialProvider: credentialProvider,
+			IssueReporter: func(issue virtualcomputers.WorkspaceOperationalIssue) {
+				if plannerDB == nil {
+					return
+				}
+				contextID := strings.TrimSpace(issue.WorkspaceID)
+				fingerprint := "virtual_workspace|" + strings.TrimSpace(issue.Kind)
+				if contextID != "" {
+					fingerprint += "|" + contextID
+				}
+				if _, recordErr := planner.RecordOperationalIssue(plannerDB, planner.OperationalIssue{
+					Source: "virtual_workspace", Context: contextID,
+					Title:  "Virtual workspace " + strings.ReplaceAll(strings.TrimSpace(issue.Kind), "_", " "),
+					Detail: issue.Detail, Severity: issue.Severity, Kind: planner.OperationalIssueKindRuntimeFailure,
+					Reference: strings.TrimSpace(issue.Kind), Fingerprint: fingerprint, OccurredAt: time.Now(),
+				}); recordErr != nil {
+					appLog.Warn("Failed to record virtual workspace operational issue", "error", recordErr)
+				}
+			},
+		})
+		if workspaceErr != nil {
+			appLog.Warn("Virtual workspace manager is unavailable", "error", workspaceErr)
+		} else {
+			virtualWorkspaceManager = workspaceManager
+			virtualcomputers.SetDefaultWorkspaceManager(workspaceManager)
+			defer func() {
+				virtualcomputers.SetDefaultWorkspaceManager(nil)
+				if closeErr := workspaceManager.Close(); closeErr != nil {
+					appLog.Warn("Failed to close virtual workspace manager", "error", closeErr)
+				}
+			}()
+			if cfg.VirtualComputers.AgentControl.Enabled {
+				reconcileCtx, reconcileCancel := context.WithTimeout(context.Background(), 20*time.Second)
+				if reconcileErr := workspaceManager.Reconcile(reconcileCtx, virtualcomputers.FromAuraConfig(cfg)); reconcileErr != nil {
+					appLog.Warn("Virtual workspace restart reconciliation failed", "error", reconcileErr)
+				}
+				reconcileCancel()
+			}
+		}
 	}
 
 	if err := server.Start(server.StartOptions{
-		Cfg:                  cfg,
-		Logger:               appLog,
-		AccessLogger:         webAccessLog,
-		LLMClient:            llmClient,
-		LocalLLM:             localLLMManager,
-		ShortTermMem:         shortTermMem,
-		LongTermMem:          longTermMem,
-		Vault:                vault,
-		Registry:             registry,
-		CronManager:          cronManager,
-		HistoryManager:       historyManager,
-		KG:                   kg,
-		InventoryDB:          inventoryDB,
-		InvasionDB:           invasionDB,
-		CheatsheetDB:         cheatsheetDB,
-		ImageGalleryDB:       imageGalleryDB,
-		RemoteControlDB:      remoteControlDB,
-		MediaRegistryDB:      mediaRegistryDB,
-		HomepageRegistryDB:   homepageRegistryDB,
-		ContactsDB:           contactsDB,
-		PlannerDB:            plannerDB,
-		LaunchpadDB:          launchpadDB,
-		SQLConnectionsDB:     sqlConnectionsDB,
-		SQLConnectionPool:    sqlConnectionPool,
-		BackgroundTasks:      backgroundTaskManager,
-		VirtualComputersDB:   virtualComputersLedger,
-		EggMissionResultSink: eggMissionResultSink,
-		WarningsRegistry:     warningsRegistry,
-		IsFirstStart:         isFirstStart,
-		ShutdownCh:           shutdownCh,
-		InstallDir:           installDir,
+		Cfg:                     cfg,
+		Logger:                  appLog,
+		AccessLogger:            webAccessLog,
+		LLMClient:               llmClient,
+		LocalLLM:                localLLMManager,
+		ShortTermMem:            shortTermMem,
+		LongTermMem:             longTermMem,
+		Vault:                   vault,
+		Registry:                registry,
+		CronManager:             cronManager,
+		HistoryManager:          historyManager,
+		KG:                      kg,
+		InventoryDB:             inventoryDB,
+		InvasionDB:              invasionDB,
+		CheatsheetDB:            cheatsheetDB,
+		ImageGalleryDB:          imageGalleryDB,
+		RemoteControlDB:         remoteControlDB,
+		MediaRegistryDB:         mediaRegistryDB,
+		HomepageRegistryDB:      homepageRegistryDB,
+		ContactsDB:              contactsDB,
+		PlannerDB:               plannerDB,
+		LaunchpadDB:             launchpadDB,
+		SQLConnectionsDB:        sqlConnectionsDB,
+		SQLConnectionPool:       sqlConnectionPool,
+		BackgroundTasks:         backgroundTaskManager,
+		VirtualComputersDB:      virtualComputersLedger,
+		VirtualWorkspaceManager: virtualWorkspaceManager,
+		EggMissionResultSink:    eggMissionResultSink,
+		WarningsRegistry:        warningsRegistry,
+		IsFirstStart:            isFirstStart,
+		ShutdownCh:              shutdownCh,
+		InstallDir:              installDir,
 	}); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)

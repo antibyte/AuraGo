@@ -1,0 +1,12 @@
+diff --git a/boringd/templates.go b/boringd/templates.go
+index dacf600..2a41ed3 100644
+--- a/boringd/templates.go
++++ b/boringd/templates.go
+@@ -57,6 +57,7 @@ func (c Config) Template(name string) Template {
+ 			Rootfs:    c.BaseRootfs,
+ 			MemSizeMB: c.MemSizeMB,
+ 			VCPUs:     c.VCPUs,
++			Vsock:     true,
+ 			Snapshot:  true,
+ 			Display:   false,
+ 		}

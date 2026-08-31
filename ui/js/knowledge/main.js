@@ -950,6 +950,7 @@ function openCredentialModal(credential) {
     document.getElementById('credential-certificate-file').value = '';
     document.getElementById('credential-certificate-file-state').textContent = '';
     document.getElementById('credential-allow-python').checked = credential ? !!credential.allow_python : false;
+    document.getElementById('credential-allow-virtual-computers').checked = credential ? !!credential.allow_virtual_computers : false;
     pendingCredentialCertificateText = '';
 
     document.getElementById('credential-password-state').classList.toggle('is-hidden', !(credential && credential.has_password));
@@ -1031,6 +1032,7 @@ async function saveCredential() {
         password: document.getElementById('credential-password').value,
         token: document.getElementById('credential-token').value,
         allow_python: document.getElementById('credential-allow-python').checked,
+        allow_virtual_computers: !!document.getElementById('credential-allow-virtual-computers')?.checked,
         certificate_mode: mode,
         certificate_text: mode === 'upload'
             ? pendingCredentialCertificateText

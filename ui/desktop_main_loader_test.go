@@ -90,26 +90,30 @@ func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	}
 }
 
-func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
+func TestDesktopMainEmbedsCalendarAtTopLevelRuntimeBoundary(t *testing.T) {
 	t.Parallel()
 
 	main := readDesktopAssetText(t, "js/desktop/main.js")
+	widgetSysmonIndex := strings.Index(main, "/* ui/js/desktop/core/widget-sysmon-runtime.js */")
 	planningIndex := strings.Index(main, "/* ui/js/desktop/apps/planning-gallery-music.js */")
 	quickConnectIndex := strings.Index(main, "/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */")
 	calendarIndex := strings.Index(main, "/* ui/js/desktop/apps/calendar.js */")
+	menusIndex := strings.Index(main, "/* ui/js/desktop/core/menus-and-routing.js */")
 	sdkIndex := strings.Index(main, "/* ui/js/desktop/core/sdk-events-bootstrap.js */")
 	for name, index := range map[string]int{
+		"widget-sysmon-runtime":       widgetSysmonIndex,
 		"planning-gallery-music":      planningIndex,
 		"quickconnect-launchpad-chat": quickConnectIndex,
 		"calendar":                    calendarIndex,
+		"menus-and-routing":           menusIndex,
 		"sdk-events-bootstrap":        sdkIndex,
 	} {
 		if index < 0 {
 			t.Fatalf("desktop main loader missing %s module", name)
 		}
 	}
-	if !(planningIndex < quickConnectIndex && quickConnectIndex < calendarIndex && calendarIndex < sdkIndex) {
-		t.Fatalf("desktop main loader must keep split app continuations and calendar before sdk bootstrap: planning=%d quickconnect=%d calendar=%d sdk=%d", planningIndex, quickConnectIndex, calendarIndex, sdkIndex)
+	if !(widgetSysmonIndex < calendarIndex && calendarIndex < menusIndex && menusIndex < planningIndex && planningIndex < quickConnectIndex && quickConnectIndex < sdkIndex) {
+		t.Fatalf("desktop main loader must place calendar at the top-level boundary before fragmented menu/app continuations: widget=%d calendar=%d menus=%d planning=%d quickconnect=%d sdk=%d", widgetSysmonIndex, calendarIndex, menusIndex, planningIndex, quickConnectIndex, sdkIndex)
 	}
 
 	calendar := rawDesktopAssetText(t, "js/desktop/apps/calendar.js")

@@ -21,6 +21,45 @@ Install and Repair manage two components as one deployment:
 
 The installer verifies the pinned upstream source, applies AuraGo's reviewed base-path overlay, performs a locked npm build, and writes a revision marker used during startup reconciliation. Every run creates a unique immutable release and switches the `current` link atomically only after a successful build. The `boring-web.service` systemd unit runs with filesystem and privilege hardening. If activation fails, the distinct previous web release is restored. AuraGo installs Node.js privately below the configured Boring Computers install directory and does not replace the host's global `node`, `npm`, or `npx` commands.
 
+The same repair installs AuraGo's reviewed workspace extension. It applies only when the upstream revision and source-file hashes match, builds the embedded static `aurago-workspace-agent`, injects it into the Python and Desktop root filesystems, and verifies `aurago.workspace.v1` by booting both templates. A combined fingerprint covers the upstream commit, patch series, guest sources, and protocol. Agent Workspaces cannot be enabled until setup has recorded that verification and the running boringd reports the same fingerprint.
+
+## Agent Workspaces
+
+Agent Workspaces keep all reasoning in the AuraGo main agent. AuraGo opens an ephemeral Firecracker VM and controls a root shell, `/workspace` files, PTY jobs, and the visible Chromium in that same VM through a vsock-only guest service. VNC observes exactly that Chromium. The guest never receives the boringd bearer token or an LLM API key.
+
+```yaml
+virtual_computers:
+  allow_internet: true
+  agent_control:
+    enabled: false
+    default_template: desktop
+    max_active_workspaces: 2
+    idle_ttl_seconds: 600
+    max_workspace_seconds: 7200
+    max_job_seconds: 3600
+    max_job_output_mb: 4
+    jobs_per_workspace: 2
+    browser_sessions_per_workspace: 1
+    network:
+      default_profile: internet_lan
+      allowed_private_cidrs: []
+    credentials:
+      enabled: true
+      grant_ttl_seconds: 900
+```
+
+An empty LAN list permits public internet only. Entries must be IPv4 RFC1918 CIDRs. Per-VM source rules always block the KVM host, AuraGo interface addresses, the bridge, metadata and CGNAT ranges, loopback, and other guests before applying the LAN allowlist. `virtual_computers.allow_internet` remains the parent gate.
+
+The native `virtual_workspace` tool owns lifecycle, shell/PTY jobs, paginated output, `/workspace` file transfer, checkpoints, and credential-grant requests. `virtual_browser` owns tabs, navigation, compact DOM/accessibility inspection, reference/selector actions, visual coordinate fallbacks, screenshots, uploads, and downloads. Workspace ownership comes from AuraGo's trusted chat/mission dispatch context, never model arguments. Co-agents cannot use either tool.
+
+Only `workspace_v2` volumes may be attached. They persist `/workspace` and exclude `/root`, `/run`, browser profiles, history, and credential material. The browser profile is under `/run/aurago/chromium`. On close, AuraGo stops guest jobs and Chromium, revokes grants, destroys the VM, and retains only a checkpoint explicitly requested by the user.
+
+Legacy `/root` volumes are never attached to Agent Workspaces or migrated automatically. An administrator can start a two-step import with `POST /api/virtual-computers/legacy-volume-imports`, supplying `source_volume_id` and one to 32 relative `/root` paths. AuraGo boots a ten-minute migration VM, rejects traversal, links, special files, common credential locations/material, more than 50,000 files, or more than 512 MiB, and returns only a metadata preview. A separate authenticated `POST /api/virtual-computers/legacy-volume-imports/{id}/confirm` rechecks the content digest, copies the approved selection into `/workspace`, and creates a new `workspace_v2` volume. `DELETE` on the preview cancels it. Preview expiry or AuraGo shutdown destroys the migration VM.
+
+Credential metadata becomes visible to the agent only when the credential has `allow_virtual_computers`. A grant remains pending until an authenticated administrator approves it in the Agent Workspaces UI. Shell grants bind to one queued job and enter only that process environment; revocation or expiry cancels the job. Browser grants bind to one exact HTTP(S) origin and one fill action. Secret values never appear in tool output, workspace events, audit records, or checkpoints.
+
+The administrative API is rooted at `/api/virtual-computers/workspaces`, with job, browser-session, credential-grant, checkpoint, control, and event-WebSocket subresources. Human takeover pauses structured browser input for two minutes or until control is explicitly returned to the agent. Startup reconciliation keeps a job only when the same guest instance confirms it; missing machines, changed instance nonces, and unconfirmed jobs become explicit lost/interrupted records.
+
 ## Chat drawer and access
 
 When Virtual Computers is enabled, the right-hand integrations drawer in Chat contains **Boring Computers**. It opens:
@@ -88,9 +127,9 @@ The terminal uses the embedded xterm.js client with scrollback, responsive fitti
 
 TTY access is an interactive write channel. It requires Desktop write or admin access, and `virtual_computers.readonly=true` returns HTTP 403 before AuraGo dials boringd. The `allow_agent_tasks` switch applies only to the separate `agent` and `shell-agent` channels and does not disable a headless terminal. Selecting another machine or section, returning to the overview, opening VNC, requesting a screenshot, deleting the active machine, or closing the app disposes the WebSocket, xterm instance, resize observer, subscriptions, and timers. A normal refresh keeps the terminal connected while the same machine still exists with `display=false` and write access remains available.
 
-## Persistent agent tasks
+## Legacy persistent agent tasks
 
-Shell and desktop agent tasks use boringd's authenticated WebSocket channels with a URL-encoded `goal`. Starting a task returns its ID immediately. AuraGo stores task state and ordered `say`, `action`, `preview`, `done`, and `error` events in `virtual_computers.db`. At restart, unfinished tasks become `interrupted` and are not retried. Canceling closes the task context without rolling back already executed actions. Native-tool output wraps event text as untrusted external data.
+`run_shell_task`, `run_desktop_task`, and `agent_provider` are compatibility features for boringd's own LLM agent. New automation should use Agent Workspaces. Legacy shell and desktop agent tasks use boringd's authenticated WebSocket channels with a URL-encoded `goal`. Starting a task returns its ID immediately. AuraGo stores task state and ordered `say`, `action`, `preview`, `done`, and `error` events in `virtual_computers.db`. At restart, unfinished tasks become `interrupted` and are not retried. Canceling closes the task context without rolling back already executed actions. Native-tool output wraps event text as untrusted external data.
 
 Agent jobs require an API-key-based Anthropic provider because the pinned boringd agent channels use Anthropic directly. Configure that provider through AuraGo's normal provider system, enable agent jobs in Virtual Computers, select the provider, save, and run **Install / Repair**. AuraGo resolves the selected provider server-side and writes its Vault key as `BORING_ANTHROPIC_KEY` only while agent jobs are enabled. Disabling agent jobs prevents the key from being supplied to boringd. OpenRouter and OAuth providers are not offered because they cannot authenticate these pinned agent channels. The selected provider ID is stored in `config.yaml`; the key remains Vault-only and is never returned to the browser. Existing installations with a legacy Virtual Computers Anthropic Vault key continue to work until a provider is selected. Failed asynchronous jobs are retained in task history and written to AuraGo's structured log without their instruction text.
 

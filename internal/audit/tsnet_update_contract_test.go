@@ -429,7 +429,7 @@ func TestUpdaterGitFailuresAfterShutdownUseRollback(t *testing.T) {
 	for _, required := range []string{
 		`abort_update "Update aborted safely (no hard reset performed)."`,
 		`abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."`,
-		`abort_update "Failed to fetch updates from GitHub (network/connectivity issue)."`,
+		`abort_update "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL."`,
 		`abort_update "Could not restore config.yaml (permission denied)."`,
 		"restore_untracked_merge_collisions_after_failure",
 	} {

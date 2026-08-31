@@ -82,7 +82,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
 		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, VideoDownloadAllowDownload: true, VideoDownloadAllowTranscribe: true, SendYouTubeVideoEnabled: true,
 		WorkspaceSearchEnabled: true,
-		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true,
+		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true, VirtualWorkspaceEnabled: true,
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
@@ -201,6 +201,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("virtual_desktop", ff.VirtualDesktopEnabled)
 	appendToolFeatureKeyPart("game_maker", ff.GameMakerEnabled)
 	appendToolFeatureKeyPart("virtual_computers", ff.VirtualComputersEnabled)
+	appendToolFeatureKeyPart("virtual_workspace", ff.VirtualWorkspaceEnabled)
 	appendToolFeatureKeyPart("openscad", ff.OpenSCADEnabled)
 	appendToolFeatureKeyPart("office_document", ff.OfficeDocumentEnabled)
 	appendToolFeatureKeyPart("office_workbook", ff.OfficeWorkbookEnabled)

@@ -551,6 +551,7 @@ type VirtualComputersConfig struct {
 	AllowVolumes        bool                         `yaml:"allow_volumes" json:"allow_volumes"`               // allow volume creation/attachment
 	AllowAgentTasks     bool                         `yaml:"allow_agent_tasks" json:"allow_agent_tasks"`       // allow boringd agent task channels
 	AgentProvider       string                       `yaml:"agent_provider" json:"agent_provider"`             // Anthropic provider whose Vault API key is supplied to boringd
+	AgentControl        VirtualComputersAgentControl `yaml:"agent_control" json:"agent_control"`               // stateful shell and browser control inside boring-computers microVMs
 	BoringToken         string                       `yaml:"-" json:"-" vault:"virtual_computers_boring_token"`
 	BoringAnthropicKey  string                       `yaml:"-" json:"-" vault:"virtual_computers_anthropic_key"`
 	BoringOpenRouterKey string                       `yaml:"-" json:"-" vault:"virtual_computers_openrouter_key"`
@@ -560,6 +561,33 @@ type VirtualComputersConfig struct {
 	GarageAccessKeyID string `yaml:"-" json:"-" vault:"virtual_computers_garage_access_key_id"`
 	GarageSecretKey   string `yaml:"-" json:"-" vault:"virtual_computers_garage_secret_key"`
 	GarageRPCSecret   string `yaml:"-" json:"-" vault:"virtual_computers_garage_rpc_secret"`
+}
+
+// VirtualComputersAgentControl gates AuraGo-owned stateful workspaces. It is
+// intentionally separate from AllowAgentTasks: the latter starts the legacy
+// boringd LLM agent, while agent control keeps all reasoning in AuraGo.
+type VirtualComputersAgentControl struct {
+	Enabled                     bool                             `yaml:"enabled" json:"enabled"`
+	DefaultTemplate             string                           `yaml:"default_template" json:"default_template"`
+	MaxActiveWorkspaces         int                              `yaml:"max_active_workspaces" json:"max_active_workspaces"`
+	IdleTTLSeconds              int                              `yaml:"idle_ttl_seconds" json:"idle_ttl_seconds"`
+	MaxWorkspaceSeconds         int                              `yaml:"max_workspace_seconds" json:"max_workspace_seconds"`
+	MaxJobSeconds               int                              `yaml:"max_job_seconds" json:"max_job_seconds"`
+	MaxJobOutputMB              int                              `yaml:"max_job_output_mb" json:"max_job_output_mb"`
+	JobsPerWorkspace            int                              `yaml:"jobs_per_workspace" json:"jobs_per_workspace"`
+	BrowserSessionsPerWorkspace int                              `yaml:"browser_sessions_per_workspace" json:"browser_sessions_per_workspace"`
+	Network                     VirtualComputersAgentNetwork     `yaml:"network" json:"network"`
+	Credentials                 VirtualComputersAgentCredentials `yaml:"credentials" json:"credentials"`
+}
+
+type VirtualComputersAgentNetwork struct {
+	DefaultProfile      string   `yaml:"default_profile" json:"default_profile"`
+	AllowedPrivateCIDRs []string `yaml:"allowed_private_cidrs" json:"allowed_private_cidrs"`
+}
+
+type VirtualComputersAgentCredentials struct {
+	Enabled         bool `yaml:"enabled" json:"enabled"`
+	GrantTTLSeconds int  `yaml:"grant_ttl_seconds" json:"grant_ttl_seconds"`
 }
 
 // Virtual Computers storage modes.
@@ -881,11 +909,11 @@ type Config struct {
 	RealtimeSpeech RealtimeSpeechConfig `yaml:"realtime_speech" json:"realtime_speech"`
 	// SpeechLab integrates the external s2s-vulkan orchestrator for local ASR/TTS
 	// selection (catalog/suggestions) and stable gateway endpoints for chat/SIP.
-	SpeechLab    SpeechLabConfig    `yaml:"speech_lab" json:"speech_lab"`
-	SIP          SIPConfig          `yaml:"sip" json:"sip"`
-	ModelCatalog ModelCatalogConfig `yaml:"model_catalog" json:"model_catalog"`
-	EmailAccounts  []EmailAccount       `yaml:"email_accounts"`
-	Server         struct {
+	SpeechLab     SpeechLabConfig    `yaml:"speech_lab" json:"speech_lab"`
+	SIP           SIPConfig          `yaml:"sip" json:"sip"`
+	ModelCatalog  ModelCatalogConfig `yaml:"model_catalog" json:"model_catalog"`
+	EmailAccounts []EmailAccount     `yaml:"email_accounts"`
+	Server        struct {
 		Host                 string `yaml:"host"`
 		Port                 int    `yaml:"port"`
 		MaxBodyBytes         int64  `yaml:"max_body_bytes"`

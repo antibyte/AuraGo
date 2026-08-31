@@ -9,27 +9,28 @@ import (
 	"aurago/internal/uid"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 // Record stores non-secret metadata for a service credential.
 // Secret material is always stored in the vault and referenced by key.
 type Record struct {
-	ID                 string    `json:"id"`
-	Name               string    `json:"name"`
-	Type               string    `json:"type"`
-	Host               string    `json:"host"`
-	Username           string    `json:"username"`
-	Description        string    `json:"description"`
-	PasswordVaultID    string    `json:"-"`
-	CertificateVaultID string    `json:"-"`
-	TokenVaultID       string    `json:"-"`
-	CertificateMode    string    `json:"certificate_mode"`
-	AllowPython        bool      `json:"allow_python"`
-	HasPassword        bool      `json:"has_password"`
-	HasCertificate     bool      `json:"has_certificate"`
-	HasToken           bool      `json:"has_token"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                    string    `json:"id"`
+	Name                  string    `json:"name"`
+	Type                  string    `json:"type"`
+	Host                  string    `json:"host"`
+	Username              string    `json:"username"`
+	Description           string    `json:"description"`
+	PasswordVaultID       string    `json:"-"`
+	CertificateVaultID    string    `json:"-"`
+	TokenVaultID          string    `json:"-"`
+	CertificateMode       string    `json:"certificate_mode"`
+	AllowPython           bool      `json:"allow_python"`
+	AllowVirtualComputers bool      `json:"allow_virtual_computers"`
+	HasPassword           bool      `json:"has_password"`
+	HasCertificate        bool      `json:"has_certificate"`
+	HasToken              bool      `json:"has_token"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 func EnsureSchema(db *sql.DB) error {
@@ -50,6 +51,7 @@ func EnsureSchema(db *sql.DB) error {
 		token_vault_id TEXT,
 		certificate_mode TEXT NOT NULL DEFAULT 'text',
 		allow_python INTEGER NOT NULL DEFAULT 0,
+		allow_virtual_computers INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	);`
@@ -71,6 +73,13 @@ func EnsureSchema(db *sql.DB) error {
 	if !hasAllowPython {
 		if _, err := db.Exec("ALTER TABLE credentials ADD COLUMN allow_python INTEGER NOT NULL DEFAULT 0"); err != nil {
 			return fmt.Errorf("add allow_python column: %w", err)
+		}
+	}
+	var hasAllowVirtualComputers bool
+	_ = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('credentials') WHERE name='allow_virtual_computers'").Scan(&hasAllowVirtualComputers)
+	if !hasAllowVirtualComputers {
+		if _, err := db.Exec("ALTER TABLE credentials ADD COLUMN allow_virtual_computers INTEGER NOT NULL DEFAULT 0"); err != nil {
+			return fmt.Errorf("add allow_virtual_computers column: %w", err)
 		}
 	}
 
@@ -110,18 +119,22 @@ func Create(db *sql.DB, rec Record) (string, error) {
 	if rec.AllowPython {
 		allowPython = 1
 	}
+	allowVirtualComputers := 0
+	if rec.AllowVirtualComputers {
+		allowVirtualComputers = 1
+	}
 
 	_, err := db.Exec(`
 		INSERT INTO credentials (
 			id, name, type, host, username, description,
 			password_vault_id, certificate_vault_id, token_vault_id,
-			certificate_mode, allow_python,
+			certificate_mode, allow_python, allow_virtual_computers,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		rec.ID, rec.Name, rec.Type, rec.Host, rec.Username, rec.Description,
 		nullIfEmpty(rec.PasswordVaultID), nullIfEmpty(rec.CertificateVaultID), nullIfEmpty(rec.TokenVaultID),
-		rec.CertificateMode, allowPython,
+		rec.CertificateMode, allowPython, allowVirtualComputers,
 		rec.CreatedAt, rec.UpdatedAt,
 	)
 	if err != nil {
@@ -155,17 +168,21 @@ func Update(db *sql.DB, rec Record) error {
 	if rec.AllowPython {
 		allowPython = 1
 	}
+	allowVirtualComputers := 0
+	if rec.AllowVirtualComputers {
+		allowVirtualComputers = 1
+	}
 
 	res, err := db.Exec(`
 		UPDATE credentials
 		SET name = ?, type = ?, host = ?, username = ?, description = ?,
 			password_vault_id = ?, certificate_vault_id = ?, token_vault_id = ?,
-			certificate_mode = ?, allow_python = ?, updated_at = ?
+			certificate_mode = ?, allow_python = ?, allow_virtual_computers = ?, updated_at = ?
 		WHERE id = ?
 	`,
 		rec.Name, rec.Type, rec.Host, rec.Username, rec.Description,
 		nullIfEmpty(rec.PasswordVaultID), nullIfEmpty(rec.CertificateVaultID), nullIfEmpty(rec.TokenVaultID),
-		rec.CertificateMode, allowPython, rec.UpdatedAt, rec.ID,
+		rec.CertificateMode, allowPython, allowVirtualComputers, rec.UpdatedAt, rec.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update credential: %w", err)
@@ -200,7 +217,7 @@ func List(db *sql.DB) ([]Record, error) {
 		SELECT id, name, type, COALESCE(host, ''), username, COALESCE(description, ''),
 		       COALESCE(password_vault_id, ''), COALESCE(certificate_vault_id, ''),
 		       COALESCE(token_vault_id, ''), COALESCE(certificate_mode, 'text'),
-		       COALESCE(allow_python, 0), created_at, updated_at
+		       COALESCE(allow_python, 0), COALESCE(allow_virtual_computers, 0), created_at, updated_at
 		FROM credentials
 		ORDER BY lower(name), created_at
 	`)
@@ -216,18 +233,18 @@ func GetByID(db *sql.DB, id string) (Record, error) {
 		return Record{}, fmt.Errorf("database is nil")
 	}
 	var rec Record
-	var allowPython int
+	var allowPython, allowVirtualComputers int
 	err := db.QueryRow(`
 		SELECT id, name, type, COALESCE(host, ''), username, COALESCE(description, ''),
 		       COALESCE(password_vault_id, ''), COALESCE(certificate_vault_id, ''),
 		       COALESCE(token_vault_id, ''), COALESCE(certificate_mode, 'text'),
-		       COALESCE(allow_python, 0), created_at, updated_at
+		       COALESCE(allow_python, 0), COALESCE(allow_virtual_computers, 0), created_at, updated_at
 		FROM credentials
 		WHERE id = ?
 	`, id).Scan(
 		&rec.ID, &rec.Name, &rec.Type, &rec.Host, &rec.Username, &rec.Description,
 		&rec.PasswordVaultID, &rec.CertificateVaultID, &rec.TokenVaultID, &rec.CertificateMode,
-		&allowPython, &rec.CreatedAt, &rec.UpdatedAt,
+		&allowPython, &allowVirtualComputers, &rec.CreatedAt, &rec.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -239,6 +256,7 @@ func GetByID(db *sql.DB, id string) (Record, error) {
 	rec.HasCertificate = rec.CertificateVaultID != ""
 	rec.HasToken = rec.TokenVaultID != ""
 	rec.AllowPython = allowPython != 0
+	rec.AllowVirtualComputers = allowVirtualComputers != 0
 	rec.Type = normalizeType(rec.Type)
 	rec.CertificateMode = normalizeCertificateMode(rec.CertificateMode)
 	return rec, nil
@@ -248,11 +266,11 @@ func scanRows(rows *sql.Rows) ([]Record, error) {
 	var result []Record
 	for rows.Next() {
 		var rec Record
-		var allowPython int
+		var allowPython, allowVirtualComputers int
 		if err := rows.Scan(
 			&rec.ID, &rec.Name, &rec.Type, &rec.Host, &rec.Username, &rec.Description,
 			&rec.PasswordVaultID, &rec.CertificateVaultID, &rec.TokenVaultID, &rec.CertificateMode,
-			&allowPython, &rec.CreatedAt, &rec.UpdatedAt,
+			&allowPython, &allowVirtualComputers, &rec.CreatedAt, &rec.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan credential row: %w", err)
 		}
@@ -260,6 +278,7 @@ func scanRows(rows *sql.Rows) ([]Record, error) {
 		rec.HasCertificate = rec.CertificateVaultID != ""
 		rec.HasToken = rec.TokenVaultID != ""
 		rec.AllowPython = allowPython != 0
+		rec.AllowVirtualComputers = allowVirtualComputers != 0
 		rec.Type = normalizeType(rec.Type)
 		rec.CertificateMode = normalizeCertificateMode(rec.CertificateMode)
 		result = append(result, rec)
@@ -294,13 +313,35 @@ func ListPythonAccessible(db *sql.DB) ([]Record, error) {
 		SELECT id, name, type, COALESCE(host, ''), username, COALESCE(description, ''),
 		       COALESCE(password_vault_id, ''), COALESCE(certificate_vault_id, ''),
 		       COALESCE(token_vault_id, ''), COALESCE(certificate_mode, 'text'),
-		       COALESCE(allow_python, 0), created_at, updated_at
+		       COALESCE(allow_python, 0), COALESCE(allow_virtual_computers, 0), created_at, updated_at
 		FROM credentials
 		WHERE allow_python = 1
 		ORDER BY lower(name), created_at
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list python-accessible credentials: %w", err)
+	}
+	defer rows.Close()
+	return scanRows(rows)
+}
+
+// ListVirtualComputerAccessible returns grant metadata only. Vault values are
+// deliberately not part of this record and are resolved only after approval.
+func ListVirtualComputerAccessible(db *sql.DB) ([]Record, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database is nil")
+	}
+	rows, err := db.Query(`
+		SELECT id, name, type, COALESCE(host, ''), username, COALESCE(description, ''),
+		       COALESCE(password_vault_id, ''), COALESCE(certificate_vault_id, ''),
+		       COALESCE(token_vault_id, ''), COALESCE(certificate_mode, 'text'),
+		       COALESCE(allow_python, 0), COALESCE(allow_virtual_computers, 0), created_at, updated_at
+		FROM credentials
+		WHERE allow_virtual_computers = 1
+		ORDER BY lower(name), created_at
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list virtual-computer-accessible credentials: %w", err)
 	}
 	defer rows.Close()
 	return scanRows(rows)

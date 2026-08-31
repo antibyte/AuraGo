@@ -21,11 +21,13 @@
         const notify = typeof settings.notify === 'function' ? settings.notify : function () {};
         const onExpandedChange = typeof settings.onExpandedChange === 'function' ? settings.onExpandedChange : function () {};
         const onClose = typeof settings.onClose === 'function' ? settings.onClose : function () {};
+        const onInputActivity = typeof settings.onInputActivity === 'function' ? settings.onInputActivity : function () {};
+        const lockViewOnly = settings.lockViewOnly === true;
         let rfb = null;
         let lastError = '';
         let expanded = false;
         let fullscreenListening = false;
-        const preferences = { viewOnly: false, scaleMode: 'fit' };
+        const preferences = { viewOnly: settings.viewOnly === true, scaleMode: 'fit' };
 
         container.classList.add('vc-vnc-session');
         container.dataset.machineId = String(settings.machineId || '');
@@ -35,7 +37,7 @@
                 <div class="vc-vnc-toolbar-group">
                     <button type="button" class="vc-vnc-tool active" data-vnc-scale="fit" aria-pressed="true">${esc(t('desktop.virtual_computers_vnc_fit'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-scale="one-to-one" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_one_to_one'))}</button>
-                    <button type="button" class="vc-vnc-tool" data-vnc-action="view-only" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_view_only'))}</button>
+                    <button type="button" class="vc-vnc-tool ${preferences.viewOnly ? 'active' : ''}" data-vnc-action="view-only" aria-pressed="${preferences.viewOnly ? 'true' : 'false'}">${esc(t('desktop.virtual_computers_vnc_view_only'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-action="ctrl-alt-del">${esc(t('desktop.virtual_computers_vnc_ctrl_alt_del'))}</button>
                 </div>
                 <div class="vc-vnc-toolbar-group vc-vnc-session-actions">
@@ -55,6 +57,8 @@
         const message = container.querySelector('[data-role="vnc-message"]');
         const expandButton = container.querySelector('[data-vnc-action="expand"]');
         const fullscreenButton = container.querySelector('[data-vnc-action="fullscreen"]');
+        const viewOnlyButton = container.querySelector('[data-vnc-action="view-only"]');
+        if (viewOnlyButton && lockViewOnly) viewOnlyButton.disabled = true;
 
         function updateExpandButton() {
             if (!expandButton) return;
@@ -167,13 +171,20 @@
             });
         });
 
-        container.querySelector('[data-vnc-action="view-only"]')?.addEventListener('click', event => {
+        viewOnlyButton?.addEventListener('click', event => {
+            if (lockViewOnly) return;
             if (!rfb) return;
             preferences.viewOnly = !preferences.viewOnly;
             applyVNCPreferences(rfb, preferences);
             event.currentTarget.classList.toggle('active', preferences.viewOnly);
             event.currentTarget.setAttribute('aria-pressed', preferences.viewOnly ? 'true' : 'false');
         });
+        const reportInputActivity = () => {
+            if (!preferences.viewOnly) onInputActivity();
+        };
+        container.addEventListener('pointerdown', reportInputActivity, true);
+        container.addEventListener('keydown', reportInputActivity, true);
+        container.addEventListener('wheel', reportInputActivity, true);
         container.querySelector('[data-vnc-action="ctrl-alt-del"]')?.addEventListener('click', () => {
             if (rfb && typeof rfb.sendCtrlAltDel === 'function') rfb.sendCtrlAltDel();
         });
@@ -207,6 +218,9 @@
         function disconnect() {
             disconnectConnection();
             stopListeningForFullscreen();
+            container.removeEventListener('pointerdown', reportInputActivity, true);
+            container.removeEventListener('keydown', reportInputActivity, true);
+            container.removeEventListener('wheel', reportInputActivity, true);
             expanded = false;
             onExpandedChange(false);
             if (document.fullscreenElement === container && typeof document.exitFullscreen === 'function') {

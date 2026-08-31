@@ -251,6 +251,7 @@
                 '/js/vendor/novnc.min.js',
                 '/js/desktop/apps/virtual-computers-terminal.js',
                 '/js/desktop/apps/virtual-computers-vnc.js',
+                '/js/desktop/apps/virtual-computers-workspaces.js',
                 '/js/desktop/apps/virtual-computers.js'
             ]
         },

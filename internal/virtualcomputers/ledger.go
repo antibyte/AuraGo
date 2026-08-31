@@ -73,7 +73,7 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if version >= 3 {
+	if version >= 4 {
 		return nil
 	}
 	// Fresh DB or pre-v2: run full base schema as v2 first, then v3.
@@ -99,6 +99,146 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 		if err := l.migrateToV3(ctx); err != nil {
 			return err
 		}
+		version = 3
+	}
+	if version < 4 {
+		if err := l.backupBeforeV4(ctx); err != nil {
+			return err
+		}
+		if err := l.migrateToV4(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (l *Ledger) migrateToV4(ctx context.Context) error {
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin virtual computers v4 migration: %w", err)
+	}
+	defer tx.Rollback()
+	for _, stmt := range []string{
+		`CREATE TABLE IF NOT EXISTS workspaces (
+			id TEXT PRIMARY KEY,
+			owner_session_id TEXT NOT NULL,
+			mission_id TEXT NOT NULL DEFAULT '',
+			actor TEXT NOT NULL DEFAULT '',
+			machine_id TEXT NOT NULL UNIQUE,
+			state TEXT NOT NULL,
+			template TEXT NOT NULL,
+			network_profile TEXT NOT NULL,
+			volume_id TEXT NOT NULL DEFAULT '',
+			capabilities_json TEXT NOT NULL DEFAULT '[]',
+			instance_nonce TEXT NOT NULL DEFAULT '',
+			control_owner TEXT NOT NULL DEFAULT 'agent',
+			control_lease_expires_at TEXT NOT NULL DEFAULT '',
+			last_error TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			last_activity_at TEXT NOT NULL,
+			lease_expires_at TEXT NOT NULL,
+			max_expires_at TEXT NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_workspaces_owner ON workspaces(owner_session_id, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_workspaces_state ON workspaces(state, lease_expires_at)`,
+		`CREATE TABLE IF NOT EXISTS workspace_jobs (
+			id TEXT PRIMARY KEY,
+			workspace_id TEXT NOT NULL,
+			mode TEXT NOT NULL,
+			state TEXT NOT NULL,
+			command_hash TEXT NOT NULL DEFAULT '',
+			command_summary TEXT NOT NULL DEFAULT '',
+			exit_code INTEGER,
+			pid INTEGER NOT NULL DEFAULT 0,
+			process_group INTEGER NOT NULL DEFAULT 0,
+			output_cursor INTEGER NOT NULL DEFAULT 0,
+			output_truncated INTEGER NOT NULL DEFAULT 0,
+			error TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			started_at TEXT NOT NULL DEFAULT '',
+			completed_at TEXT NOT NULL DEFAULT '',
+			FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_workspace_jobs_workspace ON workspace_jobs(workspace_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS workspace_browser_sessions (
+			id TEXT PRIMARY KEY,
+			workspace_id TEXT NOT NULL,
+			state TEXT NOT NULL,
+			active_page_id TEXT NOT NULL DEFAULT '',
+			url_origin TEXT NOT NULL DEFAULT '',
+			control_owner TEXT NOT NULL DEFAULT 'agent',
+			control_lease_expires_at TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_workspace_browser_workspace ON workspace_browser_sessions(workspace_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS workspace_credential_grants (
+			id TEXT PRIMARY KEY,
+			workspace_id TEXT NOT NULL,
+			credential_id TEXT NOT NULL,
+			usage_type TEXT NOT NULL,
+			origin TEXT NOT NULL DEFAULT '',
+			job_id TEXT NOT NULL DEFAULT '',
+			field_names_json TEXT NOT NULL DEFAULT '[]',
+			purpose TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL,
+			requested_by TEXT NOT NULL DEFAULT '',
+			approved_by TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			expires_at TEXT NOT NULL,
+			revoked_at TEXT NOT NULL DEFAULT '',
+			FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_workspace_grants_workspace ON workspace_credential_grants(workspace_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS workspace_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			workspace_id TEXT NOT NULL,
+			event_type TEXT NOT NULL,
+			summary TEXT NOT NULL DEFAULT '',
+			metadata_json TEXT NOT NULL DEFAULT '{}',
+			created_at TEXT NOT NULL,
+			FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_workspace_events_workspace ON workspace_events(workspace_id, id DESC)`,
+	} {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("migrate virtual computers ledger v4: %w", err)
+		}
+	}
+	if err := ensureColumn(ctx, tx, "volumes", "format", "TEXT NOT NULL DEFAULT 'legacy_root'"); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_meta(key, value) VALUES ('schema_version', '4')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
+		return fmt.Errorf("write virtual computers schema version v4: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit virtual computers v4 migration: %w", err)
+	}
+	return nil
+}
+
+func (l *Ledger) backupBeforeV4(ctx context.Context) error {
+	if strings.TrimSpace(l.path) == "" || l.path == ":memory:" {
+		return nil
+	}
+	version, err := l.schemaVersion(ctx)
+	if err != nil || version != 3 {
+		return err
+	}
+	backupPath := l.path + ".v3.bak"
+	if _, err := os.Stat(backupPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect virtual computers v3 migration backup: %w", err)
+	}
+	escaped := strings.ReplaceAll(backupPath, "'", "''")
+	if _, err := l.db.ExecContext(ctx, "VACUUM INTO '"+escaped+"'"); err != nil {
+		return fmt.Errorf("backup virtual computers database before v4 migration: %w", err)
 	}
 	return nil
 }
@@ -336,7 +476,7 @@ func (l *Ledger) currentSchemaInstalled(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return version >= 3, nil
+	return version >= 4, nil
 }
 
 func (l *Ledger) needsV2Migration(ctx context.Context) (bool, error) {
@@ -684,9 +824,13 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 	if availability == "" {
 		availability = "available"
 	}
+	volumeFormat := strings.TrimSpace(volume.Format)
+	if volumeFormat == "" {
+		volumeFormat = "legacy_root"
+	}
 	_, err := l.db.ExecContext(ctx, `INSERT INTO volumes
-		(id, name, size_bytes, created_at, expires_at, quota_mb, last_verified_at, verification_status, storage_epoch_id, availability, raw_json, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		(id, name, size_bytes, created_at, expires_at, quota_mb, last_verified_at, verification_status, storage_epoch_id, availability, format, raw_json, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			size_bytes = excluded.size_bytes,
@@ -697,10 +841,11 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 			verification_status = excluded.verification_status,
 			storage_epoch_id = excluded.storage_epoch_id,
 			availability = excluded.availability,
+			format = excluded.format,
 			raw_json = excluded.raw_json,
 			updated_at = excluded.updated_at`,
 		volume.ID, volume.Name, volume.SizeBytes, timePtrText(volume.CreatedAt), timePtrText(volume.ExpiresAt),
-		volume.QuotaMB, timePtrText(volume.LastVerifiedAt), status, volume.StorageEpochID, availability, mustJSON(volume), nowText())
+		volume.QuotaMB, timePtrText(volume.LastVerifiedAt), status, volume.StorageEpochID, availability, volumeFormat, mustJSON(volume), nowText())
 	if err != nil {
 		return fmt.Errorf("upsert virtual computer volume: %w", err)
 	}
@@ -709,7 +854,7 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 
 func (l *Ledger) ListVolumes(ctx context.Context) ([]Volume, error) {
 	rows, err := l.db.QueryContext(ctx, `SELECT id, name, size_bytes, created_at, expires_at, quota_mb,
-		last_verified_at, verification_status, COALESCE(storage_epoch_id, 0), COALESCE(availability, 'available'), raw_json
+		last_verified_at, verification_status, COALESCE(storage_epoch_id, 0), COALESCE(availability, 'available'), COALESCE(format, 'legacy_root'), raw_json
 		FROM volumes ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list tracked virtual computer volumes: %w", err)
@@ -720,7 +865,7 @@ func (l *Ledger) ListVolumes(ctx context.Context) ([]Volume, error) {
 		var volume Volume
 		var createdAt, expiresAt, verifiedAt, raw string
 		if err := rows.Scan(&volume.ID, &volume.Name, &volume.SizeBytes, &createdAt, &expiresAt,
-			&volume.QuotaMB, &verifiedAt, &volume.VerificationStatus, &volume.StorageEpochID, &volume.Availability, &raw); err != nil {
+			&volume.QuotaMB, &verifiedAt, &volume.VerificationStatus, &volume.StorageEpochID, &volume.Availability, &volume.Format, &raw); err != nil {
 			return nil, fmt.Errorf("scan tracked virtual computer volume: %w", err)
 		}
 		volume.CreatedAt = parseStoredOptionalTime(createdAt)

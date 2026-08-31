@@ -13,16 +13,17 @@ import (
 )
 
 type credentialRequest struct {
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Host            string `json:"host"`
-	Username        string `json:"username"`
-	Description     string `json:"description"`
-	CertificateMode string `json:"certificate_mode"`
-	Password        string `json:"password"`
-	CertificateText string `json:"certificate_text"`
-	Token           string `json:"token"`
-	AllowPython     bool   `json:"allow_python"`
+	Name                  string `json:"name"`
+	Type                  string `json:"type"`
+	Host                  string `json:"host"`
+	Username              string `json:"username"`
+	Description           string `json:"description"`
+	CertificateMode       string `json:"certificate_mode"`
+	Password              string `json:"password"`
+	CertificateText       string `json:"certificate_text"`
+	Token                 string `json:"token"`
+	AllowPython           bool   `json:"allow_python"`
+	AllowVirtualComputers bool   `json:"allow_virtual_computers"`
 }
 
 func handleListCredentials(s *Server) http.HandlerFunc {
@@ -104,13 +105,14 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 		}
 
 		rec := credentials.Record{
-			Name:            strings.TrimSpace(req.Name),
-			Type:            strings.TrimSpace(req.Type),
-			Host:            strings.TrimSpace(req.Host),
-			Username:        strings.TrimSpace(req.Username),
-			Description:     strings.TrimSpace(req.Description),
-			CertificateMode: strings.TrimSpace(req.CertificateMode),
-			AllowPython:     req.AllowPython,
+			Name:                  strings.TrimSpace(req.Name),
+			Type:                  strings.TrimSpace(req.Type),
+			Host:                  strings.TrimSpace(req.Host),
+			Username:              strings.TrimSpace(req.Username),
+			Description:           strings.TrimSpace(req.Description),
+			CertificateMode:       strings.TrimSpace(req.CertificateMode),
+			AllowPython:           req.AllowPython,
+			AllowVirtualComputers: req.AllowVirtualComputers,
 		}
 		if err := validateCredentialRequest(rec); err != nil {
 			jsonError(w, credentialValidationMessage(err), http.StatusBadRequest)
@@ -219,6 +221,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 		existing.Description = strings.TrimSpace(req.Description)
 		existing.CertificateMode = strings.TrimSpace(req.CertificateMode)
 		existing.AllowPython = req.AllowPython
+		existing.AllowVirtualComputers = req.AllowVirtualComputers
 		if err := validateCredentialRequest(existing); err != nil {
 			jsonError(w, credentialValidationMessage(err), http.StatusBadRequest)
 			return

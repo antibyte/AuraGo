@@ -169,6 +169,15 @@ func TestSetupRepairReusesAssetsAndWaitsForBoringdHealth(t *testing.T) {
 	if strings.Contains(script, "sleep 2\nsystemctl is-active boringd") {
 		t.Fatal("install script must not fail while boringd is still activating")
 	}
+	inject := strings.Index(script, "inject_workspace_agent /opt/boring/rootfs/rootfs.ext4 python")
+	snapshot := strings.Index(script, "bash /root/infra/build-template.sh python")
+	if inject < 0 || snapshot < 0 || inject > snapshot {
+		t.Fatal("Python guest agent must be injected before the fast-start snapshot is built")
+	}
+	marker := strings.Index(script, `printf '%s\n' "${WORKSPACE_ASSET_FINGERPRINT}" > "${ASSET_REVISION_FILE}"`)
+	if marker < snapshot {
+		t.Fatal("workspace asset fingerprint must be written only after snapshot construction")
+	}
 }
 
 func TestSetupInstallUsesConfiguredBoringdURL(t *testing.T) {

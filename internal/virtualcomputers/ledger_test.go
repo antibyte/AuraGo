@@ -193,7 +193,11 @@ func TestListTrackedVolumesVerifiesKnownCapabilities(t *testing.T) {
 	}
 	defer ledger.Close()
 	for _, id := range []string{"vol-ok", "vol-missing", "vol-stale"} {
-		if err := ledger.UpsertVolume(context.Background(), Volume{ID: id}); err != nil {
+		volume := Volume{ID: id}
+		if id == "vol-ok" {
+			volume.Format = WorkspaceVolumeFormat
+		}
+		if err := ledger.UpsertVolume(context.Background(), volume); err != nil {
 			t.Fatalf("UpsertVolume(%s): %v", id, err)
 		}
 	}
@@ -207,6 +211,9 @@ func TestListTrackedVolumesVerifiesKnownCapabilities(t *testing.T) {
 	}
 	if len(byID) != 2 || byID["vol-ok"].VerificationStatus != "verified" || byID["vol-stale"].VerificationStatus != "stale" {
 		t.Fatalf("volumes = %+v", volumes)
+	}
+	if got := byID["vol-ok"].Format; got != WorkspaceVolumeFormat {
+		t.Fatalf("refreshed volume format = %q, want %q", got, WorkspaceVolumeFormat)
 	}
 	if _, ok := byID["vol-missing"]; ok {
 		t.Fatalf("missing volume remained tracked: %+v", volumes)

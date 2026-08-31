@@ -46,10 +46,9 @@ func loadVirtualComputersAutoSetupFailures() {
 }
 
 func saveVirtualComputersAutoSetupFailures() {
-	state := virtualComputersSetupState{
-		ConsecutiveFailures: virtualComputersAutoSetupState.consecutiveFailures,
-		LastFailureAt:       time.Now(),
-	}
+	state, _ := virtualComputersLoadSetupState()
+	state.ConsecutiveFailures = virtualComputersAutoSetupState.consecutiveFailures
+	state.LastFailureAt = time.Now()
 	_ = virtualComputersSaveSetupState(state)
 }
 
@@ -60,7 +59,7 @@ func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig
 func virtualComputersTriggerAutoSetupWithForce(s *Server, cfg virtualcomputers.ToolConfig, force bool) bool {
 	enabled := cfg.Enabled && cfg.AutoSetup
 	virtualComputersAutoSetupState.Lock()
-	configChanged := virtualComputersAutoSetupState.desiredConfig != cfg
+	configChanged := !reflect.DeepEqual(virtualComputersAutoSetupState.desiredConfig, cfg)
 	if !enabled {
 		virtualComputersAutoSetupState.generation++
 		virtualComputersAutoSetupState.desiredServer = s
@@ -220,12 +219,21 @@ func runVirtualComputersAutoSetup(ctx context.Context, s *Server, cfg virtualcom
 		return errors.New("prepare automatic setup: " + err.Error())
 	}
 	manager.InstallOptions = virtualComputersSetupOptions(cfg, token, virtualComputersSetupRequest{})
+	if err := virtualComputersClearWorkspaceSetupVerified(); err != nil {
+		return errors.New("clear previous workspace verification: " + err.Error())
+	}
 	status, err := manager.Install(ctx)
 	if err != nil {
 		return errors.New(manager.RedactInstallLog(err.Error()))
 	}
 	if !status.Healthy {
 		return errors.New(manager.RedactInstallLog(status.Message))
+	}
+	if !status.WorkspaceAgent.Healthy {
+		return errors.New("workspace agent verification did not pass")
+	}
+	if err := virtualComputersRecordWorkspaceSetupVerified(); err != nil {
+		return errors.New("record workspace verification: " + err.Error())
 	}
 	resetVirtualComputersManagementTunnel()
 	clearWebhostsCache()

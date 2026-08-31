@@ -25,6 +25,7 @@ import (
 	"aurago/internal/services"
 	"aurago/internal/tools"
 	"aurago/internal/vaultprompt"
+	"aurago/internal/virtualcomputers"
 )
 
 // resolveSkillBridgeTools returns the intersection of the skill manifest's InternalTools
@@ -74,6 +75,14 @@ func loggableToolArgKeys(args map[string]interface{}) []string {
 		keys = append(keys[:20], fmt.Sprintf("...(+%d)", len(keys)-20))
 	}
 	return keys
+}
+
+func virtualWorkspaceBrowserOrigin(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	return strings.ToLower(parsed.Scheme) + "://" + strings.ToLower(parsed.Host)
 }
 
 // toolBridgeURL constructs the loopback URL for the tool bridge endpoint.
@@ -1022,6 +1031,24 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				"template", toolArgString(tc.Params, "template"),
 			)
 			return "Tool Output: " + tools.ExecuteVirtualComputers(ctx, cfg, tc.Params)
+
+		case "virtual_workspace":
+			logger.Info("LLM requested virtual workspace operation",
+				"operation", tc.Operation,
+				"workspace_id", firstNonEmptyToolString(toolArgString(tc.Params, "workspace_id"), toolArgString(tc.Params, "id")),
+			)
+			identity := virtualcomputers.WorkspaceIdentity{SessionID: dc.SessionID, MissionID: dc.MissionID, Actor: "agent"}
+			return "Tool Output: " + tools.ExecuteVirtualWorkspace(ctx, cfg, identity, tc.Params)
+
+		case "virtual_browser":
+			logger.Info("LLM requested virtual workspace browser operation",
+				"operation", tc.Operation,
+				"workspace_id", firstNonEmptyToolString(toolArgString(tc.Params, "workspace_id"), toolArgString(tc.Params, "id")),
+				"origin", virtualWorkspaceBrowserOrigin(toolArgString(tc.Params, "url")),
+			)
+			identity := virtualcomputers.WorkspaceIdentity{SessionID: dc.SessionID, MissionID: dc.MissionID, Actor: "agent"}
+			output := tools.ExecuteVirtualBrowser(ctx, cfg, identity, tc.Params)
+			return "Tool Output: " + security.IsolateExternalData(output)
 
 		case "openscad_render":
 			logger.Info("LLM requested OpenSCAD render",

@@ -13,12 +13,13 @@ func TestVirtualComputersVNCAssetsLoadInDependencyOrder(t *testing.T) {
 	loader := normalizeAssetText(mustReadUIFile(t, "js/desktop/core/module-loader.js"))
 	novnc := strings.Index(loader, `'/js/vendor/novnc.min.js'`)
 	controller := strings.Index(loader, `'/js/desktop/apps/virtual-computers-vnc.js'`)
+	workspaceController := strings.Index(loader, `'/js/desktop/apps/virtual-computers-workspaces.js'`)
 	app := strings.Index(loader, `'/js/desktop/apps/virtual-computers.js'`)
-	if novnc < 0 || controller < 0 || app < 0 {
-		t.Fatalf("virtual computers loader missing VNC dependency: noVNC=%d controller=%d app=%d", novnc, controller, app)
+	if novnc < 0 || controller < 0 || workspaceController < 0 || app < 0 {
+		t.Fatalf("virtual computers loader missing VNC dependency: noVNC=%d controller=%d workspace=%d app=%d", novnc, controller, workspaceController, app)
 	}
-	if !(novnc < controller && controller < app) {
-		t.Fatalf("virtual computers VNC scripts must load noVNC, controller, then app: noVNC=%d controller=%d app=%d", novnc, controller, app)
+	if !(novnc < controller && controller < workspaceController && workspaceController < app) {
+		t.Fatalf("virtual computers VNC scripts must load noVNC, VNC controller, workspace controller, then app: noVNC=%d controller=%d workspace=%d app=%d", novnc, controller, workspaceController, app)
 	}
 
 	routing := normalizeAssetText(mustReadUIFile(t, "js/desktop/core/menus-and-routing.js"))
@@ -122,6 +123,51 @@ func TestVirtualComputersVNCLifecycleAndPermissionGating(t *testing.T) {
 	}
 	if strings.Contains(app, `toggleMaximize: state.context.toggleMaximize`) {
 		t.Fatal("live VNC must not receive the outer app-window maximize callback")
+	}
+}
+
+func TestVirtualComputerWorkspaceVNCIsSplitViewAndLeaseAware(t *testing.T) {
+	t.Parallel()
+
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	workspaceController := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers-workspaces.js"))
+	for _, want := range []string{
+		`window.VirtualComputersWorkspaces.renderPane`,
+	} {
+		if !strings.Contains(app, want) {
+			t.Errorf("workspace app integration missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		`data-role="workspace-vnc-mount"`,
+		`class="vc-workspace-live"`,
+		`lockViewOnly: takeControl !== true`,
+		`onInputActivity: () => renewControl(state, workspaceId, api)`,
+		`body: JSON.stringify({ owner: 'human' })`,
+		`body: JSON.stringify({ owner: 'agent' })`,
+		`now - state.workspaceControlRenewedAt < 30000`,
+	} {
+		if !strings.Contains(workspaceController, want) {
+			t.Errorf("workspace VNC split-view contract missing %q", want)
+		}
+	}
+
+	controller := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers-vnc.js"))
+	for _, want := range []string{
+		`const lockViewOnly = settings.lockViewOnly === true`,
+		`if (viewOnlyButton && lockViewOnly) viewOnlyButton.disabled = true`,
+		`if (!preferences.viewOnly) onInputActivity()`,
+	} {
+		if !strings.Contains(controller, want) {
+			t.Errorf("workspace VNC observation/lease contract missing %q", want)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/desktop-app-virtual-computers.css"))
+	for _, want := range []string{".vc-workspace-live", ".vc-workspace-vnc-panel", "min-height: 420px;"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("workspace VNC split-view CSS missing %q", want)
+		}
 	}
 }
 

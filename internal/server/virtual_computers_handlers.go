@@ -74,6 +74,7 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/virtual-computers/tasks/", handleVirtualComputersTask(s))
 	mux.HandleFunc("/api/virtual-computers/machines", handleVirtualComputersMachines(s))
 	mux.HandleFunc("/api/virtual-computers/machines/", handleVirtualComputersMachine(s))
+	registerVirtualWorkspaceRoutes(mux, s)
 	// Only trigger auto-setup at startup if boringd is not already installed and healthy.
 	// A routine AuraGo restart (e.g. via update.sh) must not re-run the full install/restart
 	// of boringd, because that accumulates leftover cgroups under boringd.service.
@@ -193,6 +194,25 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 		controlPlaneHealthy := configured && virtualComputersHealthOK(cfg.BoringdURL)
 		managementHealthy := configured && virtualComputersManagementHealthy(s, cfg)
 		storageStatus := virtualComputersStorageStatusSnapshot(s, cfg)
+		workspaceReady := false
+		workspaceInstallVerified := virtualComputersWorkspaceSetupVerified()
+		workspaceUpgradeRequired := cfg.AgentControl.Enabled
+		workspaceMessage := "agent control is disabled"
+		if controlPlaneHealthy {
+			if client, clientErr := virtualComputersClient(s); clientErr == nil {
+				probeCtx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+				workspaceStatus, probeErr := client.WorkspaceCapabilities(probeCtx)
+				cancel()
+				if probeErr == nil && workspaceInstallVerified && workspaceStatus.ProtocolVersion == virtualcomputers.WorkspaceProtocolVersion && workspaceStatus.AssetFingerprint == virtualcomputers.WorkspaceAssetFingerprint() {
+					workspaceReady = true
+					workspaceUpgradeRequired = false
+					workspaceMessage = "workspace control plane, rootfs templates, guest agent, and asset fingerprint verified"
+				} else {
+					workspaceUpgradeRequired = true
+					workspaceMessage = "workspace agent upgrade or repair required"
+				}
+			}
+		}
 		payload := map[string]interface{}{
 			"status":               "ok",
 			"enabled":              cfg.Enabled,
@@ -208,8 +228,14 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"tailscale":            virtualComputersTailscaleStatus(s),
 			"capabilities": map[string]bool{
 				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
-				"publish": cfg.AllowPublish, "persistent": cfg.AllowPersistent,
+				"publish": cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled,
 			},
+			"workspace_protocol":               virtualcomputers.WorkspaceProtocolVersion,
+			"workspace_asset_fingerprint":      virtualcomputers.WorkspaceAssetFingerprint(),
+			"workspace_ready":                  workspaceReady,
+			"workspace_install_verified":       workspaceInstallVerified,
+			"workspace_agent_upgrade_required": workspaceUpgradeRequired,
+			"workspace_message":                workspaceMessage,
 		}
 		for key, value := range virtualComputersSetupMetadata(s, cfg, nil) {
 			payload[key] = value
@@ -305,6 +331,11 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 		manager.InstallOptions = virtualComputersSetupOptions(cfg, token, req)
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Minute)
 		defer cancel()
+		if err := virtualComputersClearWorkspaceSetupVerified(); err != nil {
+			virtualComputersRecordSetupState(s, r, "install", "failed")
+			jsonError(w, "previous workspace verification could not be cleared", http.StatusInternalServerError)
+			return
+		}
 		status, err := manager.Install(ctx)
 		if err != nil {
 			virtualComputersRecordSetupState(s, r, "install", "failed")
@@ -315,6 +346,13 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 		state := "installed"
 		if !status.Healthy {
 			state = "unhealthy"
+		}
+		if status.Healthy && status.WorkspaceAgent.Healthy && !req.SkipDesktop {
+			if markerErr := virtualComputersRecordWorkspaceSetupVerified(); markerErr != nil {
+				virtualComputersRecordSetupState(s, r, "install", "failed")
+				jsonError(w, "workspace verification succeeded but could not be recorded", http.StatusInternalServerError)
+				return
+			}
 		}
 		virtualComputersRecordSetupState(s, r, "install", state)
 		virtualComputersRecordAction(s, r, "install", "setup", "", map[string]interface{}{"healthy": status.Healthy, "token_generated": generatedToken})
@@ -1523,6 +1561,7 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 		AllowPublish:       cfg.AllowPublish,
 		AllowVolumes:       cfg.AllowVolumes,
 		SkipDesktop:        req.SkipDesktop,
+		VerifyWorkspace:    true,
 		ProjectGarage:      projectGarage,
 	}
 }

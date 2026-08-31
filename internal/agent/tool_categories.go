@@ -233,6 +233,8 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_desktop_apps", "Open, inspect, and diagnose browser desktop apps"},
 		{"virtual_desktop_widgets", "Manage browser desktop widgets and notifications"},
 		{"virtual_computers", "Launch and operate short-lived private virtual computers through AuraGo"},
+		{"virtual_workspace", "Create and control stateful agent workspaces inside Firecracker virtual machines"},
+		{"virtual_browser", "Control the visible Chromium browser inside an agent workspace"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},

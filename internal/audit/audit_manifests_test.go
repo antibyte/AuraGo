@@ -424,6 +424,29 @@ func TestUpdateScriptHelperOrderAndVersionTiming(t *testing.T) {
 	}
 }
 
+func TestUpdateScriptGitFetchIsNonInteractive(t *testing.T) {
+	t.Parallel()
+
+	updateScript := readRepoFile(t, "update.sh")
+	for _, required := range []string{
+		"git_fetch_origin_main()",
+		"GIT_TERMINAL_PROMPT=0",
+		"GCM_INTERACTIVE=never",
+		"for attempt in 1 2 3; do",
+		`git -c credential.interactive=never -C "$DIR" fetch origin main --quiet`,
+	} {
+		if !strings.Contains(updateScript, required) {
+			t.Fatalf("update.sh must fetch without interactive Git authentication; missing %q", required)
+		}
+	}
+	if got := strings.Count(updateScript, "git_fetch_origin_main"); got != 3 {
+		t.Fatalf("update.sh must define the non-interactive fetch helper and use it at both fetch sites; got %d references", got)
+	}
+	if strings.Contains(updateScript, "\n    git fetch origin main --quiet") {
+		t.Fatal("update.sh must not invoke the initial Git fetch directly")
+	}
+}
+
 func TestUpdateScriptRestoresBinaryOnlyResourcesOnFailure(t *testing.T) {
 	t.Parallel()
 

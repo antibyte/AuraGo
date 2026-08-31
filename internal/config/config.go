@@ -622,6 +622,17 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualComputers.MaxTTLSeconds = 900
 	cfg.VirtualComputers.MaxRunningMachines = 3
 	cfg.VirtualComputers.MaxForks = 3
+	cfg.VirtualComputers.AgentControl.DefaultTemplate = "desktop"
+	cfg.VirtualComputers.AgentControl.MaxActiveWorkspaces = 2
+	cfg.VirtualComputers.AgentControl.IdleTTLSeconds = 600
+	cfg.VirtualComputers.AgentControl.MaxWorkspaceSeconds = 7200
+	cfg.VirtualComputers.AgentControl.MaxJobSeconds = 3600
+	cfg.VirtualComputers.AgentControl.MaxJobOutputMB = 4
+	cfg.VirtualComputers.AgentControl.JobsPerWorkspace = 2
+	cfg.VirtualComputers.AgentControl.BrowserSessionsPerWorkspace = 1
+	cfg.VirtualComputers.AgentControl.Network.DefaultProfile = "internet_lan"
+	cfg.VirtualComputers.AgentControl.Credentials.Enabled = true
+	cfg.VirtualComputers.AgentControl.Credentials.GrantTTLSeconds = 900
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
@@ -1431,6 +1442,10 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.VirtualComputers.MaxForks <= 0 {
 		cfg.VirtualComputers.MaxForks = 3
+	}
+	normalizeVirtualComputersAgentControl(&cfg.VirtualComputers.AgentControl)
+	if err := ValidateVirtualComputersAgentControl(cfg.VirtualComputers.AgentControl); err != nil {
+		return nil, fmt.Errorf("invalid virtual_computers.agent_control config: %w", err)
 	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
@@ -2442,6 +2457,118 @@ func Load(path string) (*Config, error) {
 	cfg.ConfigPath = absConfigPath
 
 	return &cfg, nil
+}
+
+func normalizeVirtualComputersAgentControl(agentControl *VirtualComputersAgentControl) {
+	if agentControl == nil {
+		return
+	}
+	if strings.TrimSpace(agentControl.DefaultTemplate) == "" {
+		agentControl.DefaultTemplate = "desktop"
+	}
+	if agentControl.MaxActiveWorkspaces <= 0 {
+		agentControl.MaxActiveWorkspaces = 2
+	}
+	if agentControl.IdleTTLSeconds <= 0 {
+		agentControl.IdleTTLSeconds = 600
+	}
+	if agentControl.MaxWorkspaceSeconds <= 0 {
+		agentControl.MaxWorkspaceSeconds = 7200
+	}
+	if agentControl.MaxWorkspaceSeconds < agentControl.IdleTTLSeconds {
+		agentControl.IdleTTLSeconds = agentControl.MaxWorkspaceSeconds
+	}
+	if agentControl.MaxJobSeconds <= 0 {
+		agentControl.MaxJobSeconds = 3600
+	}
+	if agentControl.MaxJobSeconds > agentControl.MaxWorkspaceSeconds {
+		agentControl.MaxJobSeconds = agentControl.MaxWorkspaceSeconds
+	}
+	if agentControl.MaxJobOutputMB <= 0 {
+		agentControl.MaxJobOutputMB = 4
+	}
+	if agentControl.JobsPerWorkspace <= 0 {
+		agentControl.JobsPerWorkspace = 2
+	}
+	if agentControl.BrowserSessionsPerWorkspace <= 0 {
+		agentControl.BrowserSessionsPerWorkspace = 1
+	}
+	if strings.TrimSpace(agentControl.Network.DefaultProfile) == "" {
+		agentControl.Network.DefaultProfile = "internet_lan"
+	}
+	for i := range agentControl.Network.AllowedPrivateCIDRs {
+		agentControl.Network.AllowedPrivateCIDRs[i] = strings.TrimSpace(agentControl.Network.AllowedPrivateCIDRs[i])
+	}
+	if agentControl.Credentials.GrantTTLSeconds <= 0 {
+		agentControl.Credentials.GrantTTLSeconds = 900
+	}
+}
+
+// ValidateVirtualComputersAgentControl rejects workspace settings that cannot
+// be enforced by the boringd IPv4 egress policy. In particular, the LAN list
+// is an allowlist of RFC1918 subnets rather than a general routing list.
+func ValidateVirtualComputersAgentControl(agentControl VirtualComputersAgentControl) error {
+	template := strings.ToLower(strings.TrimSpace(agentControl.DefaultTemplate))
+	if template != "" && template != "desktop" && template != "python" {
+		return fmt.Errorf("default_template must be desktop or python")
+	}
+	profile := strings.ToLower(strings.TrimSpace(agentControl.Network.DefaultProfile))
+	if profile != "" && profile != "internet_lan" {
+		return fmt.Errorf("network.default_profile must be internet_lan")
+	}
+	if agentControl.MaxActiveWorkspaces > 16 {
+		return fmt.Errorf("max_active_workspaces must not exceed 16")
+	}
+	if agentControl.IdleTTLSeconds > 900 {
+		return fmt.Errorf("idle_ttl_seconds must not exceed boringd's 900 second lease limit")
+	}
+	if agentControl.MaxWorkspaceSeconds > 86400 || agentControl.MaxJobSeconds > 86400 {
+		return fmt.Errorf("workspace and job runtimes must not exceed 86400 seconds")
+	}
+	if agentControl.MaxJobOutputMB > 64 {
+		return fmt.Errorf("max_job_output_mb must not exceed 64")
+	}
+	if agentControl.JobsPerWorkspace > 2 {
+		return fmt.Errorf("jobs_per_workspace must not exceed the guest limit of 2")
+	}
+	if agentControl.BrowserSessionsPerWorkspace > 1 {
+		return fmt.Errorf("browser_sessions_per_workspace must not exceed the guest limit of 1")
+	}
+	if agentControl.Credentials.GrantTTLSeconds > 3600 {
+		return fmt.Errorf("credentials.grant_ttl_seconds must not exceed 3600")
+	}
+	privateNetworks := []*net.IPNet{
+		mustParseConfigCIDR("10.0.0.0/8"),
+		mustParseConfigCIDR("172.16.0.0/12"),
+		mustParseConfigCIDR("192.168.0.0/16"),
+	}
+	if len(agentControl.Network.AllowedPrivateCIDRs) > 32 {
+		return fmt.Errorf("network.allowed_private_cidrs supports at most 32 entries")
+	}
+	for _, raw := range agentControl.Network.AllowedPrivateCIDRs {
+		ip, candidate, err := net.ParseCIDR(strings.TrimSpace(raw))
+		if err != nil || ip.To4() == nil {
+			return fmt.Errorf("network.allowed_private_cidrs contains invalid IPv4 CIDR %q", raw)
+		}
+		insidePrivate := false
+		candidatePrefix, candidateBits := candidate.Mask.Size()
+		for _, private := range privateNetworks {
+			privatePrefix, privateBits := private.Mask.Size()
+			if candidateBits == privateBits && candidatePrefix >= privatePrefix && private.Contains(candidate.IP) {
+				insidePrivate = true
+				break
+			}
+		}
+		if !insidePrivate {
+			return fmt.Errorf("network.allowed_private_cidrs entry %q is not contained in an RFC1918 network", raw)
+		}
+	}
+	return nil
+}
+
+func mustParseConfigCIDR(raw string) *net.IPNet {
+	_, network, _ := net.ParseCIDR(raw)
+	return network
 }
 
 func normalizeDeprecatedEmbeddingBackend(cfg *Config) {

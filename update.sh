@@ -68,6 +68,26 @@ confirm() {
     [[ "${REPLY:-n}" =~ ^[Yy]$ ]]
 }
 
+# Fetches must never stop an unattended updater to ask for Git credentials.
+# Cached non-interactive credentials remain usable for private forks, while
+# terminal and Git Credential Manager prompts are disabled explicitly.
+git_fetch_origin_main() {
+    local attempt
+    local retry_delay
+    for attempt in 1 2 3; do
+        if GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never \
+            git -c credential.interactive=never -C "$DIR" fetch origin main --quiet; then
+            return 0
+        fi
+        if [ "$attempt" -lt 3 ]; then
+            retry_delay=$((attempt * 3))
+            warn "Git fetch failed; retrying without interactive authentication in ${retry_delay}s..." >&2
+            sleep "$retry_delay"
+        fi
+    done
+    return 1
+}
+
 stat_owner() {
     local path="$1"
     if stat -c '%U' "$path" >/dev/null 2>&1; then
@@ -716,7 +736,9 @@ if $BINARY_ONLY; then
     echo ""
     confirm "Proceed with update to $RELEASE_TAG?" || { info "Update cancelled."; exit 0; }
 else
-    git fetch origin main --quiet
+    if ! git_fetch_origin_main; then
+        die "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL, then retry."
+    fi
 
     LOCAL_HASH=$(git rev-parse HEAD)
     REMOTE_HASH=$(git rev-parse origin/main)
@@ -1455,8 +1477,8 @@ else
             fi
         fi
 
-        if ! git fetch origin main --quiet; then
-            abort_update "Failed to fetch updates from GitHub (network/connectivity issue)."
+        if ! git_fetch_origin_main; then
+            abort_update "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL."
         fi
 
         if ! git merge --ff-only origin/main; then

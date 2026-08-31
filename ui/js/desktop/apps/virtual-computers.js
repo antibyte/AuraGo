@@ -49,6 +49,9 @@
             templatesFallback: false,
             volumes: [],
             tasks: [],
+            workspaces: [],
+            workspaceSummaries: [],
+            selectedWorkspaceId: null,
             status: null,
             selectedShot: null,
             selectedMachineId: null,
@@ -60,17 +63,21 @@
             modalReturnFocus: null,
             vncSession: null,
             vncMachineId: null,
+            vncWorkspaceId: null,
+            vncWorkspaceTakeover: false,
+            workspaceControlRenewedAt: 0,
             vncExpanded: false,
             terminalSession: null,
             terminalMachineId: null,
-            resourceErrors: { status: '', machines: '', templates: '', tasks: '', volumes: '' },
-            resourceLoading: { status: true, machines: true, templates: true, tasks: false, volumes: false },
+            resourceErrors: { status: '', machines: '', templates: '', tasks: '', volumes: '', workspaces: '' },
+            resourceLoading: { status: true, machines: true, templates: true, tasks: false, volumes: false, workspaces: false },
             pendingActions: new Set(),
             refreshGeneration: 0,
             clickHandler: null,
             changeHandler: null,
             keyHandler: null,
             taskRefreshTimer: null,
+            workspaceRefreshTimer: null,
             machineSnapshot: JSON.stringify([]),
             machinePollTimer: null,
             machinePollInFlight: false,
@@ -210,14 +217,24 @@
         statusRegion.hidden = statusRegion.innerHTML.trim() === '';
 
         let liveMount = null;
+        let workspaceLiveMount = null;
         if (state.activeSection === 'machines' && state.detailMode === 'vnc') {
             liveMount = content.querySelector('[data-role="vnc-mount"]');
         } else if (state.activeSection === 'machines' && state.detailMode === 'terminal') {
             liveMount = content.querySelector('[data-role="terminal-mount"]');
+        } else if (state.activeSection === 'workspaces' && state.vncWorkspaceId) {
+            workspaceLiveMount = content.querySelector('[data-role="workspace-vnc-mount"]');
         }
         if (liveMount) {
             const list = content.querySelector('[data-role="machine-list"]');
             if (list) list.innerHTML = machineList(state);
+        } else if (state.activeSection === 'workspaces') {
+            content.innerHTML = workspacePane(state);
+            if (workspaceLiveMount) {
+                const replacement = content.querySelector('[data-role="workspace-vnc-mount"]');
+                if (replacement) replacement.replaceWith(workspaceLiveMount);
+                else disconnectVNC(state);
+            }
         } else if (state.activeSection === 'tasks') {
             content.innerHTML = taskPane(state);
         } else if (state.activeSection === 'volumes') {
@@ -264,12 +281,13 @@
         const tabs = [
             { id: 'machines', key: 'desktop.virtual_computers_machines', icon: 'server' }
         ];
+        if (capabilities(state).agent_control) tabs.push({ id: 'workspaces', key: 'desktop.virtual_computers_agent_workspaces', icon: 'agent' });
         if (capabilities(state).agent_tasks) tabs.push({ id: 'tasks', key: 'desktop.virtual_computers_tasks', icon: 'run' });
         if (capabilities(state).volumes) tabs.push({ id: 'volumes', key: 'desktop.virtual_computers_volumes', icon: 'archive' });
         return `<div class="vc-tab-track" role="tablist">${tabs.map(tab => {
             const active = state.activeSection === tab.id;
-            const count = tab.id === 'machines' ? state.machines.length : tab.id === 'tasks' ? state.tasks.length : state.volumes.length;
-            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}</span><span class="vc-tab-count">${count}</span></button>`;
+            const count = tab.id === 'machines' ? state.machines.length : tab.id === 'workspaces' ? state.workspaces.length : tab.id === 'tasks' ? state.tasks.length : state.volumes.length;
+            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}${tab.id === 'tasks' ? ' · Legacy' : ''}</span><span class="vc-tab-count">${count}</span></button>`;
         }).join('')}</div>`;
     }
 
@@ -400,6 +418,11 @@
         return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(tx(c, 'desktop.virtual_computers_title'))}</span><h3>${esc(tx(c, 'desktop.virtual_computers_volumes'))}</h3></div></header>${controls}${state.resourceErrors.volumes ? `<div class="vc-inline-error">${esc(state.resourceErrors.volumes)}</div>` : ''}<section class="vc-ledger vc-volume-list">${rows}</section></section>`;
     }
 
+    function workspacePane(state) {
+        if (!window.VirtualComputersWorkspaces) return '';
+        return window.VirtualComputersWorkspaces.renderPane(state, { esc, tx, icon, skeletonRows, resourceErrorPane, formatExpiryCountdown, formatDate });
+    }
+
     function modalPane(state) {
         if (!state.modal) return '';
         const c = state.context;
@@ -453,6 +476,13 @@
             else if (action === 'close-modal') closeModal(state);
             else if (action === 'retry-resource') refreshResource(state, target.dataset.resource || 'status');
             else if (action === 'confirm-start-task') startTask(state);
+            else if (action === 'close-workspace') workspaceMutation(state, id, '', { method: 'DELETE' });
+            else if (action === 'checkpoint-workspace') workspaceMutation(state, id, '/checkpoint', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+            else if (action === 'observe-workspace') observeWorkspace(state, id, target.dataset.machineId || '', false);
+            else if (action === 'takeover-workspace') observeWorkspace(state, id, target.dataset.machineId || '', true);
+            else if (action === 'cancel-workspace-job') workspaceMutation(state, id, '/jobs/' + encodeURIComponent(target.dataset.jobId || ''), { method: 'DELETE' });
+			else if (action === 'approve-workspace-grant') workspaceMutation(state, id, '/credential-grants/' + encodeURIComponent(target.dataset.grantId || '') + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+            else if (action === 'revoke-workspace-grant') workspaceMutation(state, id, '/credential-grants/' + encodeURIComponent(target.dataset.grantId || '') + '/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         };
         state.changeHandler = event => {
             if (event.target.matches('[data-role="task-filter"]')) {
@@ -513,13 +543,15 @@
     }
 
     function switchSection(state, section) {
-        if (!['machines', 'tasks', 'volumes'].includes(section) || state.activeSection === section) return;
+        if (!['machines', 'workspaces', 'tasks', 'volumes'].includes(section) || state.activeSection === section) return;
         disconnectRemoteSessions(state);
         state.activeSection = section;
         state.modal = null;
         draw(state);
         if (section === 'tasks' && capabilities(state).agent_tasks) refreshResource(state, 'tasks');
         if (section === 'volumes' && capabilities(state).volumes) refreshResource(state, 'volumes');
+        if (section === 'workspaces' && capabilities(state).agent_control) refreshResource(state, 'workspaces');
+        scheduleWorkspaceRefresh(state);
     }
 
     function applyResourceResult(state, resource, result) {
@@ -533,6 +565,10 @@
                 state.templatesFallback = state.templates.length === 0;
             } else if (resource === 'tasks') state.tasks = Array.isArray(body.tasks) ? body.tasks : [];
             else if (resource === 'volumes') state.volumes = Array.isArray(body.volumes) ? body.volumes : [];
+            else if (resource === 'workspaces') {
+                state.workspaces = Array.isArray(body.workspaces) ? body.workspaces : [];
+                state.workspaceSummaries = Array.isArray(body.workspace_summaries) ? body.workspace_summaries : [];
+            }
             return;
         }
         state.resourceErrors[resource] = result.reason && result.reason.message ? result.reason.message : String(result.reason || '');
@@ -556,6 +592,8 @@
                 state.templates = [];
                 state.tasks = [];
                 state.volumes = [];
+                state.workspaces = [];
+                state.workspaceSummaries = [];
                 state.resourceLoading.machines = false;
                 state.resourceLoading.templates = false;
                 reconcileSection(state);
@@ -576,6 +614,10 @@
                 state.resourceLoading.volumes = true;
                 resources.push(['volumes', request('/api/virtual-computers/volumes')]);
             }
+            if (status.capabilities && status.capabilities.agent_control) {
+                state.resourceLoading.workspaces = true;
+                resources.push(['workspaces', request('/api/virtual-computers/workspaces')]);
+            }
             const results = await Promise.allSettled(resources.map(item => item[1]));
             if (state.disposed || generation !== state.refreshGeneration) return;
             results.forEach((result, index) => applyResourceResult(state, resources[index][0], result));
@@ -593,6 +635,7 @@
         reconcileTerminal(state);
         draw(state);
         scheduleTaskRefresh(state);
+        scheduleWorkspaceRefresh(state);
     }
 
     async function refreshResource(state, resource) {
@@ -602,7 +645,8 @@
         }
         const paths = {
             tasks: '/api/virtual-computers/tasks?limit=50',
-            volumes: '/api/virtual-computers/volumes'
+            volumes: '/api/virtual-computers/volumes',
+            workspaces: '/api/virtual-computers/workspaces'
         };
         const path = paths[resource];
         if (!path || state.resourceLoading[resource]) return;
@@ -613,6 +657,7 @@
         applyResourceResult(state, resource, result[0]);
         draw(state);
         scheduleTaskRefresh(state);
+        scheduleWorkspaceRefresh(state);
     }
 
     function reconcileSelection(state) {
@@ -628,7 +673,8 @@
     function reconcileSection(state) {
         const available = state.activeSection === 'machines'
             || (state.activeSection === 'tasks' && capabilities(state).agent_tasks)
-            || (state.activeSection === 'volumes' && capabilities(state).volumes);
+            || (state.activeSection === 'volumes' && capabilities(state).volumes)
+            || (state.activeSection === 'workspaces' && capabilities(state).agent_control);
         if (available) return;
         disconnectVNC(state);
         if (state.terminalSession) disconnectTerminal(state);
@@ -654,7 +700,7 @@
         if (root) root.classList.toggle('is-vnc-expanded', state.vncExpanded);
     }
 
-    function openVNC(state, id) {
+    function openVNC(state, id, viewOnly) {
         const machine = state.machines.find(item => item.id === id);
         if (!canUseVNC(state, machine) || !window.VirtualComputersVNC || typeof window.VirtualComputersVNC.mount !== 'function') {
             notify(state, tx(state.context, 'desktop.virtual_computers_vnc_unavailable'), 'error');
@@ -678,6 +724,7 @@
             state.vncSession = window.VirtualComputersVNC.mount(mountPoint, {
                 url,
                 machineId: machine.id,
+                viewOnly: viewOnly === true,
                 t: key => tx(state.context, key),
                 notify: (message, type) => notify(state, message, type),
                 onExpandedChange: expanded => setVNCExpanded(state, expanded),
@@ -695,13 +742,21 @@
         }
     }
 
-    function disconnectVNC(state) {
+    function disconnectVNC(state, preserveWorkspaceControl) {
         const session = state.vncSession;
+        const workspaceId = state.vncWorkspaceId;
+        const releaseControl = state.vncWorkspaceTakeover && preserveWorkspaceControl !== true;
         state.vncSession = null;
         state.vncMachineId = null;
+        state.vncWorkspaceId = null;
+        state.vncWorkspaceTakeover = false;
+        state.workspaceControlRenewedAt = 0;
         setVNCExpanded(state, false);
         if (session && typeof session.disconnect === 'function') {
             try { session.disconnect(); } catch (_) {}
+        }
+        if (releaseControl && workspaceId && window.VirtualComputersWorkspaces) {
+            window.VirtualComputersWorkspaces.releaseControl(state, workspaceId, { request, notify, tx });
         }
     }
 
@@ -771,8 +826,8 @@
         state.selectedShot = null;
     }
 
-    function disconnectRemoteSessions(state) {
-        disconnectVNC(state);
+    function disconnectRemoteSessions(state, preserveWorkspaceControl) {
+        disconnectVNC(state, preserveWorkspaceControl);
         disconnectTerminal(state);
     }
 
@@ -889,6 +944,16 @@
         if (id) await mutate(state, 'import-volume', 'volumes', '/api/virtual-computers/volumes/' + encodeURIComponent(id), { method: 'GET' });
     }
 
+    async function workspaceMutation(state, workspaceId, suffix, options) {
+        if (!workspaceId || isPending(state, 'workspace-' + workspaceId)) return false;
+        return mutate(state, 'workspace-' + workspaceId, 'workspaces', '/api/virtual-computers/workspaces/' + encodeURIComponent(workspaceId) + (suffix || ''), options || {});
+    }
+
+    async function observeWorkspace(state, workspaceId, machineId, takeControl) {
+        window.VirtualComputersWorkspaces.controlAndOpen(state, workspaceId, machineId, takeControl,
+            { request, notify, tx, canUseVNC, draw, workspaceMutation, disconnectRemoteSessions, disconnectVNC, setVNCExpanded });
+    }
+
     async function deleteVolume(state, id) {
         if (!id || isPending(state, 'delete-volume')) return;
         const ok = await mutate(state, 'delete-volume', 'volumes', '/api/virtual-computers/volumes/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -997,15 +1062,31 @@
         }, 2000);
     }
 
+    function scheduleWorkspaceRefresh(state) {
+        if (state.workspaceRefreshTimer) {
+            clearTimeout(state.workspaceRefreshTimer);
+            state.workspaceRefreshTimer = null;
+        }
+        if (state.disposed || state.activeSection !== 'workspaces' || !capabilities(state).agent_control) return;
+        const active = state.workspaces.some(workspace => workspace && ['opening', 'ready', 'closing'].includes(workspace.state));
+        if (!active) return;
+        state.workspaceRefreshTimer = setTimeout(() => {
+            state.workspaceRefreshTimer = null;
+            refreshResource(state, 'workspaces');
+        }, 3000);
+    }
+
     function dispose(windowId) {
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
         state.refreshGeneration++;
         if (state.taskRefreshTimer) clearTimeout(state.taskRefreshTimer);
+        if (state.workspaceRefreshTimer) clearTimeout(state.workspaceRefreshTimer);
         if (state.machinePollTimer) clearTimeout(state.machinePollTimer);
         if (state.expiryCountdownTimer) clearTimeout(state.expiryCountdownTimer);
         state.machinePollTimer = null;
+        state.workspaceRefreshTimer = null;
         state.expiryCountdownTimer = null;
         disconnectRemoteSessions(state);
         if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);

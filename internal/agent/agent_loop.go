@@ -224,6 +224,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		Guardian:             s.guardian,
 		LLMGuardian:          s.llmGuardian,
 		SessionID:            s.runCfg.SessionID,
+		MissionID:            s.runCfg.MissionID,
 		CoAgentRegistry:      s.runCfg.CoAgentRegistry,
 		IsCoAgent:            s.runCfg.IsCoAgent,
 		CoAgentSpecialist:    s.runCfg.CoAgentSpecialist,

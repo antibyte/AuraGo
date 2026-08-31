@@ -1062,7 +1062,6 @@
   "desktop.openscad.viewport_axes": "Alternar grelha e eixos",
   "desktop.openscad.viewport_background": "Alternar fundo",
   "desktop.openscad.viewport_fit": "Ajustar vista",
-
   "desktop.openscad.add_define": "Adicionar define",
   "desktop.openscad.agent_history": "Chat do agente",
   "desktop.openscad.apply_changes": "Aplicar ao editor",
@@ -2385,5 +2384,23 @@
   "zipper.size": "Tamanho",
   "zipper.title": "Zipper",
   "zipper.total_size": "{{size}} no total",
-  "homepage_studio.target_here_now": "here.now"
+  "homepage_studio.target_here_now": "here.now",
+  "desktop.virtual_computers_agent_workspaces": "Agent Workspaces",
+  "desktop.virtual_computers_agent_workspaces_empty": "No agent workspaces are active",
+  "desktop.virtual_computers_agent_workspaces_hint": "AuraGo opens these ephemeral Firecracker workspaces when the main agent needs an isolated shell or visible browser.",
+  "desktop.virtual_computers_observe": "Observe",
+  "desktop.virtual_computers_take_control": "Take control",
+  "desktop.virtual_computers_checkpoint": "Create checkpoint",
+  "desktop.virtual_computers_close_workspace": "Close workspace",
+  "desktop.virtual_computers_machine": "Machine",
+  "desktop.virtual_computers_control": "Control",
+  "desktop.virtual_computers_volume": "Volume",
+  "desktop.virtual_computers_current_job": "Current job",
+  "desktop.virtual_computers_job_output": "Job output",
+  "desktop.virtual_computers_no_active_job": "No active job",
+  "desktop.virtual_computers_activity": "Activity",
+  "desktop.virtual_computers_active_grants": "Active grants",
+  "desktop.virtual_computers_browser_url": "Browser origin",
+  "desktop.virtual_computers_approve_grant": "Approve",
+  "desktop.virtual_computers_revoke_grant": "Revoke"
 }

@@ -80,6 +80,23 @@ type ToolConfig struct {
 	AllowPublish        bool
 	AllowVolumes        bool
 	AllowAgentTasks     bool
+	AgentControl        AgentControlConfig
+}
+
+type AgentControlConfig struct {
+	Enabled                     bool
+	DefaultTemplate             string
+	MaxActiveWorkspaces         int
+	IdleTTLSeconds              int
+	MaxWorkspaceSeconds         int
+	MaxJobSeconds               int
+	MaxJobOutputBytes           int64
+	JobsPerWorkspace            int
+	BrowserSessionsPerWorkspace int
+	NetworkProfile              string
+	AllowedPrivateCIDRs         []string
+	CredentialsEnabled          bool
+	CredentialGrantTTLSeconds   int
 }
 
 type StorageConfig struct {
@@ -192,6 +209,7 @@ type Volume struct {
 	VerificationStatus string                 `json:"verification_status,omitempty"`
 	StorageEpochID     int64                  `json:"storage_epoch_id,omitempty"`
 	Availability       string                 `json:"availability,omitempty"` // available | previous_store | unavailable
+	Format             string                 `json:"format,omitempty"`       // legacy_root | workspace_v2
 	Raw                map[string]interface{} `json:"raw,omitempty"`
 }
 
@@ -216,22 +234,32 @@ func (v *Volume) UnmarshalJSON(data []byte) error {
 }
 
 type LaunchMachineRequest struct {
-	Template      string                 `json:"template,omitempty"`
-	Name          string                 `json:"name,omitempty"`
-	TTLSeconds    int                    `json:"ttl_seconds,omitempty"`
-	AllowInternet bool                   `json:"allow_internet,omitempty"`
-	Persistent    bool                   `json:"persistent,omitempty"`
-	VolumeID      string                 `json:"volume_id,omitempty"`
-	Volumes       []string               `json:"volumes,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Template            string                 `json:"template,omitempty"`
+	Name                string                 `json:"name,omitempty"`
+	TTLSeconds          int                    `json:"ttl_seconds,omitempty"`
+	AllowInternet       bool                   `json:"allow_internet,omitempty"`
+	Persistent          bool                   `json:"persistent,omitempty"`
+	VolumeID            string                 `json:"volume_id,omitempty"`
+	VolumeFormat        string                 `json:"volume_format,omitempty"`
+	Volumes             []string               `json:"volumes,omitempty"`
+	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+	NetworkProfile      string                 `json:"network_profile,omitempty"`
+	AllowedPrivateCIDRs []string               `json:"allowed_private_cidrs,omitempty"`
+	// ProtectedCIDRs is derived by AuraGo from its own interface addresses. It is
+	// intentionally not user configurable and always wins over LAN allow rules.
+	ProtectedCIDRs []string `json:"-"`
 }
 
 type launchMachineRequest struct {
-	Template      string `json:"template,omitempty"`
-	TTLSeconds    int    `json:"ttl_seconds,omitempty"`
-	AllowInternet bool   `json:"net,omitempty"`
-	Volume        string `json:"volume,omitempty"`
-	Persistent    bool   `json:"persistent,omitempty"`
+	Template            string   `json:"template,omitempty"`
+	TTLSeconds          int      `json:"ttl_seconds,omitempty"`
+	AllowInternet       bool     `json:"net,omitempty"`
+	Volume              string   `json:"volume,omitempty"`
+	VolumeFormat        string   `json:"volume_format,omitempty"`
+	Persistent          bool     `json:"persistent,omitempty"`
+	NetworkProfile      string   `json:"network_profile,omitempty"`
+	AllowedPrivateCIDRs []string `json:"allowed_private_cidrs,omitempty"`
+	ProtectedCIDRs      []string `json:"protected_cidrs,omitempty"`
 }
 
 type ExecRequest struct {
@@ -254,13 +282,14 @@ type Screenshot struct {
 }
 
 type SetupStatus struct {
-	Configured   bool            `json:"configured"`
-	Healthy      bool            `json:"healthy"`
-	Message      string          `json:"message,omitempty"`
-	Preflight    PreflightResult `json:"preflight,omitempty"`
-	ControlPlane ComponentStatus `json:"control_plane"`
-	Management   ComponentStatus `json:"management"`
-	Storage      StorageStatus   `json:"storage,omitempty"`
+	Configured     bool            `json:"configured"`
+	Healthy        bool            `json:"healthy"`
+	Message        string          `json:"message,omitempty"`
+	Preflight      PreflightResult `json:"preflight,omitempty"`
+	ControlPlane   ComponentStatus `json:"control_plane"`
+	Management     ComponentStatus `json:"management"`
+	Storage        StorageStatus   `json:"storage,omitempty"`
+	WorkspaceAgent ComponentStatus `json:"workspace_agent"`
 }
 
 // ComponentStatus reports the health of one managed Virtual Computers component.
@@ -304,6 +333,7 @@ type SetupInstallOptions struct {
 	AllowPublish       bool
 	AllowVolumes       bool
 	SkipDesktop        bool
+	VerifyWorkspace    bool
 	// ProjectGarage when true runs managed Garage ensure before boringd.
 	ProjectGarage bool
 }

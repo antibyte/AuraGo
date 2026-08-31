@@ -1116,6 +1116,22 @@ virtual_computers:
     allow_volumes: false
     allow_agent_tasks: false
     agent_provider: ""                                    # ID of an Anthropic provider; its Vault key is used only when agent tasks are enabled
+    agent_control:
+        enabled: false                                     # enable stateful AuraGo-controlled workspaces only after setup verifies the guest protocol
+        default_template: desktop                          # desktop for shell+browser; python for shell-only work
+        max_active_workspaces: 2
+        idle_ttl_seconds: 600
+        max_workspace_seconds: 7200
+        max_job_seconds: 3600
+        max_job_output_mb: 4
+        jobs_per_workspace: 2
+        browser_sessions_per_workspace: 1
+        network:
+            default_profile: internet_lan
+            allowed_private_cidrs: []                      # empty means public internet only; protected host/control-plane ranges always remain blocked
+        credentials:
+            enabled: true
+            grant_ttl_seconds: 900
     storage:
         mode: managed_garage                               # managed_garage (default) or external_s3
         endpoint: ""                                       # external_s3 only: host:port without scheme; managed uses 127.0.0.1:3900 on the control-plane host

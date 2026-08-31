@@ -34,6 +34,12 @@ func ListTrackedVolumes(ctx context.Context, ledger *Ledger, client *Client) ([]
 			}
 			fresh, getErr := client.GetVolume(ctx, volume.ID)
 			if getErr == nil {
+				// boringd's volume API predates AuraGo's workspace format marker.
+				// Preserve the locally tracked format instead of silently turning a
+				// workspace_v2 checkpoint back into a legacy /root volume on refresh.
+				if fresh.Format == "" {
+					fresh.Format = volume.Format
+				}
 				now := time.Now().UTC()
 				fresh.LastVerifiedAt = &now
 				fresh.VerificationStatus = "verified"
