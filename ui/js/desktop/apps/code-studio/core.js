@@ -4,6 +4,11 @@
     const DEFAULT_EDITOR_FONT_SIZE = 13;
     const MIN_EDITOR_FONT_SIZE = 10;
     const MAX_EDITOR_FONT_SIZE = 24;
+    const MIN_SIDEBAR_WIDTH = 180;
+    const MAX_SIDEBAR_WIDTH = 500;
+    const MIN_TERMINAL_HEIGHT = 80;
+    const MAX_TERMINAL_HEIGHT = 600;
+    const MAX_PERSISTED_PATHS = 20;
 
     const instances = new Map();
     let state = null;
@@ -122,6 +127,26 @@
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return DEFAULT_EDITOR_FONT_SIZE;
         return Math.min(MAX_EDITOR_FONT_SIZE, Math.max(MIN_EDITOR_FONT_SIZE, Math.round(numeric)));
+    }
+
+    function clampDimension(value, minimum, maximum, fallback) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return fallback;
+        return Math.min(maximum, Math.max(minimum, Math.round(numeric)));
+    }
+
+    function normalizePersistedPaths(values) {
+        const unique = [];
+        const seen = new Set();
+        for (const item of Array.isArray(values) ? values : []) {
+            const rawPath = typeof item === 'string' ? item : (item && item.path);
+            const path = normalizeCodeStudioPath(rawPath);
+            if (path === WORKSPACE_ROOT || seen.has(path)) continue;
+            seen.add(path);
+            unique.push(path);
+            if (unique.length >= MAX_PERSISTED_PATHS) break;
+        }
+        return unique;
     }
 
     function destroyTabView(tab) {
@@ -294,35 +319,41 @@
             const raw = localStorage.getItem(STATE_KEY);
             if (!raw) return;
             const saved = JSON.parse(raw);
-            state.activeTabIndex = Number(saved.activeTabIndex ?? -1);
+            const savedOpenPaths = normalizePersistedPaths(saved.openTabs);
+            const requestedActiveIndex = Number(saved.activeTabIndex);
             state.sidebarVisible = saved.sidebarVisible !== false;
-            state.sidebarWidth = Number(saved.sidebarWidth || 280);
+            state.sidebarWidth = clampDimension(saved.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280);
             state.editorFontSize = clampEditorFontSize(saved.editorFontSize);
             state.terminalVisible = saved.terminalVisible !== false;
-            state.terminalHeight = Number(saved.terminalHeight || 220);
-            state.recentFiles = Array.isArray(saved.recentFiles) ? saved.recentFiles.slice(0, 20) : [];
-            state.openTabs = Array.isArray(saved.openTabs) ? saved.openTabs.map(tab => ({
-                path: tab.path,
+            state.terminalHeight = clampDimension(saved.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220);
+            state.recentFiles = normalizePersistedPaths(saved.recentFiles);
+            state.openTabs = savedOpenPaths.map(path => ({
+                path,
                 content: '',
                 modified: false,
-                language: languageForPath(tab.path),
+                language: languageForPath(path),
                 view: null
-            })).filter(tab => tab.path) : [];
+            }));
+            state.activeTabIndex = state.openTabs.length && Number.isInteger(requestedActiveIndex)
+                ? Math.min(Math.max(requestedActiveIndex, 0), state.openTabs.length - 1)
+                : -1;
         } catch (err) {
             console.warn('Failed to load Code Studio state', err);
         }
     }
 
     function saveState() {
+        const openPaths = normalizePersistedPaths(state.openTabs);
+        const recentPaths = normalizePersistedPaths(state.recentFiles);
         const payload = {
-            openTabs: state.openTabs.map(tab => ({ path: tab.path })),
-            activeTabIndex: state.activeTabIndex,
+            openTabs: openPaths.map(path => ({ path })),
+            activeTabIndex: openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1,
             sidebarVisible: state.sidebarVisible,
-            sidebarWidth: state.sidebarWidth,
+            sidebarWidth: clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280),
             editorFontSize: state.editorFontSize,
             terminalVisible: state.terminalVisible,
-            terminalHeight: state.terminalHeight,
-            recentFiles: state.recentFiles.slice(0, 20)
+            terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
+            recentFiles: recentPaths
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(payload));
     }
@@ -383,9 +414,6 @@
         const instance = instances.get(windowId);
         if (!instance) return;
         closeTerminalSessionSockets(instance);
-        if (instance.ws && (typeof WebSocket === 'undefined' || instance.ws.readyState !== WebSocket.CLOSED)) {
-            instance.ws.close();
-        }
         for (const disposeFn of instance.disposers || []) {
             try { disposeFn(); } catch (_) {}
         }
@@ -396,12 +424,19 @@
     }
 
     function closeTerminalSessionSockets(instance) {
-        if (!instance || !Array.isArray(instance.terminalSessions)) return;
-        instance.terminalSessions.forEach(session => {
-            if (session && session.ws && (typeof WebSocket === 'undefined' || session.ws.readyState !== WebSocket.CLOSED)) {
-                session.ws.close();
-            }
+        if (!instance) return;
+        const sockets = new Set();
+        if (instance.ws) sockets.add(instance.ws);
+        if (Array.isArray(instance.terminalSessions)) {
+            instance.terminalSessions.forEach(session => {
+                if (session && session.ws) sockets.add(session.ws);
+            });
+        }
+        sockets.forEach(socket => {
+            if (typeof WebSocket === 'undefined' || socket.readyState !== WebSocket.CLOSED) socket.close();
         });
+        instance.ws = null;
+        if (Array.isArray(instance.terminalSessions)) instance.terminalSessions.forEach(session => { if (session) session.ws = null; });
     }
 
     async function prepareContainer(instance) {
@@ -485,8 +520,8 @@
     function renderShell() {
         const root = ensureShellRoot();
         if (state.context && typeof state.context.wireContextMenuBoundary === 'function') state.context.wireContextMenuBoundary(root);
-        root.style.setProperty('--cs-sidebar-width', Math.max(180, state.sidebarWidth) + 'px');
-        root.style.setProperty('--cs-terminal-height', Math.max(120, state.terminalHeight) + 'px');
+        root.style.setProperty('--cs-sidebar-width', clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280) + 'px');
+        root.style.setProperty('--cs-terminal-height', clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220) + 'px');
         root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
         root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';

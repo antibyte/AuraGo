@@ -93,11 +93,29 @@ func TestAgodeskWebSocketInvalidJSONReturnsChatError(t *testing.T) {
 	}
 }
 
-func TestAgodeskInsecureLoopbackDevRequiresLoopbackRemoteAddr(t *testing.T) {
+const agodeskTestDevToken = "agodesk-test-development-token-32-bytes"
+
+func TestAgodeskInsecureLoopbackDevRequiresTokenAndLoopbackRemoteAddr(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.agodeskDevToken = agodeskTestDevToken
 	req := httptest.NewRequest(http.MethodGet, "/api/agodesk/ws?insecure_loopback=1", nil)
 	req.RemoteAddr = "203.0.113.10:5555"
-	if isExplicitAgodeskLoopbackDev(req) {
+	req.Header.Set(agodeskDevTokenHeader, agodeskTestDevToken)
+	if isExplicitAgodeskLoopbackDev(s, req) {
 		t.Fatal("insecure_loopback=1 must not enable dev mode for non-loopback clients")
+	}
+	req.RemoteAddr = "127.0.0.1:5555"
+	req.Header.Del(agodeskDevTokenHeader)
+	if isExplicitAgodeskLoopbackDev(s, req) {
+		t.Fatal("query-only loopback request must not enable dev mode")
+	}
+	req.Header.Set(agodeskDevTokenHeader, "wrong-development-token-32-bytes")
+	if isExplicitAgodeskLoopbackDev(s, req) {
+		t.Fatal("wrong development token must not enable dev mode")
+	}
+	req.Header.Set(agodeskDevTokenHeader, agodeskTestDevToken)
+	if !isExplicitAgodeskLoopbackDev(s, req) {
+		t.Fatal("matching token from loopback should enable explicit dev mode")
 	}
 }
 
@@ -180,6 +198,38 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	decodeAgodeskTestPayload(t, resp, &payload)
 	if payload.RequestID != msg.ID || payload.Text != "agent says hello" || payload.Role != "assistant" {
 		t.Fatalf("chat response payload = %+v", payload)
+	}
+}
+
+func TestAgodeskWebSocketQueryOnlyKeepsNormalPairing(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.agodeskDevToken = agodeskTestDevToken
+	srv := httptest.NewServer(handleAgodeskWebSocket(s))
+	defer srv.Close()
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", nil)
+	if err != nil {
+		t.Fatalf("dial query-only websocket: %v", err)
+	}
+	defer conn.Close()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var payload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &payload)
+	if !payload.AuthRequired || !payload.PairingRequired {
+		t.Fatalf("query-only auth flags = auth:%v pairing:%v, want true/true", payload.AuthRequired, payload.PairingRequired)
+	}
+}
+
+func TestLoadAgodeskDevTokenRequiresMinimumLengthAndRegistersSecret(t *testing.T) {
+	t.Setenv(agodeskDevTokenEnv, "too-short")
+	if token := loadAgodeskDevToken(slog.Default()); token != "" {
+		t.Fatalf("short development token = %q, want disabled", token)
+	}
+	t.Setenv(agodeskDevTokenEnv, agodeskTestDevToken)
+	if token := loadAgodeskDevToken(slog.Default()); token != agodeskTestDevToken {
+		t.Fatalf("development token = %q, want configured token", token)
+	}
+	if scrubbed := security.Scrub("prefix " + agodeskTestDevToken + " suffix"); strings.Contains(scrubbed, agodeskTestDevToken) {
+		t.Fatal("AgoDesk development token was not registered with the secret scrubber")
 	}
 }
 
@@ -280,7 +330,10 @@ func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 
 	httpSrv := httptest.NewServer(agodeskAttachmentTestMux(s))
 	defer httpSrv.Close()
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(httpSrv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", nil)
+	s.agodeskDevToken = agodeskTestDevToken
+	header := http.Header{}
+	header.Set(agodeskDevTokenHeader, agodeskTestDevToken)
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(httpSrv.URL, "http")+"/api/agodesk/ws?insecure_loopback=1", header)
 	if err != nil {
 		t.Fatalf("dial agodesk websocket: %v", err)
 	}
@@ -3080,7 +3133,14 @@ func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.
 	t.Helper()
 	srv := httptest.NewServer(handleAgodeskWebSocket(s))
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + path
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	if strings.Contains(path, "insecure_loopback=1") {
+		if s.agodeskDevToken == "" {
+			s.agodeskDevToken = agodeskTestDevToken
+		}
+		header.Set(agodeskDevTokenHeader, s.agodeskDevToken)
+	}
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if err != nil {
 		srv.Close()
 		t.Fatalf("dial agodesk websocket: %v", err)

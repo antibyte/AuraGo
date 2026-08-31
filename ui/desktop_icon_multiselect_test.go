@@ -113,9 +113,10 @@ func TestDesktopIconGroupsMoveTogetherAndUseBatchContextActions(t *testing.T) {
 	for _, want := range []string{
 		"const commandIcons = selectedDesktopCommandIcons(btn)",
 		"activateDesktopItems(commandIcons)",
-		"setDesktopFileClipboard('cut', desktopBatchPaths(btn))",
-		"setDesktopFileClipboard('copy', desktopBatchPaths(btn))",
-		"deleteDesktopPaths(desktopBatchPaths(btn))",
+		"const batchPaths = desktopBatchPaths(btn)",
+		"setDesktopFileClipboard('cut', batchPaths)",
+		"setDesktopFileClipboard('copy', batchPaths)",
+		"deleteDesktopPaths(batchPaths.length ? batchPaths : [path])",
 		"removeDesktopShortcuts(desktopBatchShortcutIds(btn))",
 		"deleteDesktopApps(desktopBatchAppIds(btn))",
 	} {

@@ -3,6 +3,7 @@
 let _virtualComputersSection = null;
 let _vcSudoPasswordStored = null;
 let _vcSudoPasswordStatusGeneration = 0;
+let _vcActionsRoot = null;
 
 function vcCfgEnsureData() {
     if (!configData.virtual_computers) configData.virtual_computers = {};
@@ -75,7 +76,7 @@ function renderVirtualComputersSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += vcCfgToggleRow('config.virtual_computers.enabled_label', 'help.virtual_computers.enabled', enabled, 'virtual_computers.enabled', 'vcCfgToggleEnabled(this)');
+    html += vcCfgToggleRow('config.virtual_computers.enabled_label', 'help.virtual_computers.enabled', enabled, 'virtual_computers.enabled', 'toggle-enabled');
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>i</span><div>';
@@ -84,6 +85,7 @@ function renderVirtualComputersSection(section) {
         html += '</div></div>';
         html += '</div>';
         document.getElementById('content').innerHTML = html;
+        vcCfgWireActions(document.getElementById('content'));
         attachChangeListeners();
         return;
     }
@@ -99,7 +101,7 @@ function renderVirtualComputersSection(section) {
 	html += '<div class="field-group">';
 	html += '<div class="field-group-title">' + t('config.virtual_computers.agent_control_title') + '</div>';
 	html += '<div class="field-group-desc">' + t('config.virtual_computers.agent_control_desc') + '</div>';
-	html += vcCfgToggleRow('config.virtual_computers.agent_control_enabled_label', 'help.virtual_computers.agent_control_enabled', agentControl.enabled === true, 'virtual_computers.agent_control.enabled', 'vcCfgToggleAgentControl(this)');
+	html += vcCfgToggleRow('config.virtual_computers.agent_control_enabled_label', 'help.virtual_computers.agent_control_enabled', agentControl.enabled === true, 'virtual_computers.agent_control.enabled', 'toggle-agent-control');
 	if (agentControl.enabled === true) {
 		html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.agent_control_gate_note') + '</div>';
 		html += '<div class="field-grid two-cols">';
@@ -142,7 +144,7 @@ function renderVirtualComputersSection(section) {
     html += vcCfgField('config.virtual_computers.provider_label', 'help.virtual_computers.provider',
         '<select class="field-select" data-path="virtual_computers.provider"><option value="boring_computers" selected>boring_computers</option></select>');
     html += vcCfgField('config.virtual_computers.mode_label', 'help.virtual_computers.mode',
-        '<select class="field-select" data-path="virtual_computers.control_plane.mode" onchange="vcCfgOnModeChange(this)">' +
+        '<select class="field-select" data-path="virtual_computers.control_plane.mode" data-vc-change="mode">' +
         '<option value="ssh_host"' + (mode === 'ssh_host' ? ' selected' : '') + '>' + t('config.virtual_computers.mode_ssh_host') + '</option>' +
         '<option value="local_host"' + (isLocalHost ? ' selected' : '') + '>' + t('config.virtual_computers.mode_local_host') + '</option>' +
         '</select>');
@@ -155,9 +157,9 @@ function renderVirtualComputersSection(section) {
         html += '<div class="cfg-password-row">';
         html += '<div class="password-wrap cfg-password-input">';
         html += '<input class="field-input adg-password-input" type="password" id="vc-sudo-password-input" value="" autocomplete="off">';
-        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-        html += '<button type="button" class="btn-save adg-save-btn" onclick="vcCfgSaveSudoPassword()">' + t('config.virtual_computers.save_vault') + '</button>';
+        html += '<button type="button" class="btn-save adg-save-btn" data-vc-action="save-sudo-password">' + t('config.virtual_computers.save_vault') + '</button>';
         html += '</div>';
         html += '<div id="vc-sudo-password-status" class="adg-test-result' + (_vcSudoPasswordStored === true ? ' is-success' : '') + '">' +
             (_vcSudoPasswordStored === true ? t('config.virtual_computers.sudo_password_stored') : (_vcSudoPasswordStored === false ? t('config.virtual_computers.sudo_password_missing') : t('config.virtual_computers.status_loading'))) + '</div>';
@@ -186,7 +188,7 @@ function renderVirtualComputersSection(section) {
 	html += '<div class="field-group-desc">' + t('config.virtual_computers.storage_desc') + '</div>';
 	html += '<div class="field-grid two-cols">';
 	html += vcCfgField('config.virtual_computers.storage_mode_label', 'help.virtual_computers.storage_mode',
-		'<select class="field-select" data-path="virtual_computers.storage.mode" onchange="vcCfgOnStorageModeChange(this)">' +
+		'<select class="field-select" data-path="virtual_computers.storage.mode" data-vc-change="storage-mode">' +
 		'<option value="managed_garage"' + (storageMode === 'managed_garage' ? ' selected' : '') + '>' + escapeAttr(t('config.virtual_computers.storage_mode_managed')) + '</option>' +
 		'<option value="external_s3"' + (storageMode === 'external_s3' ? ' selected' : '') + '>' + escapeAttr(t('config.virtual_computers.storage_mode_external')) + '</option>' +
 		'</select>');
@@ -217,16 +219,16 @@ function renderVirtualComputersSection(section) {
 		html += '<div class="field-help">' + t('help.virtual_computers.s3_access_key') + '</div>';
 		html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
 		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-access-input" value="' + escapeAttr(cfgSecretValue(data.s3_access_key_id)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_access_key_id, 'access-key')) + '" autocomplete="off">';
-		html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
-		html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-s3-access-input\', \'virtual_computers_s3_access_key_id\', \'virtual_computers.s3_access_key_id\', \'vc-s3-access-status\')">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-access-status" class="adg-test-result"></div>';
+		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div>';
+		html += '<button class="btn-save adg-save-btn" data-vc-action="save-secret" data-input-id="vc-s3-access-input" data-vault-key="virtual_computers_s3_access_key_id" data-config-path="virtual_computers.s3_access_key_id" data-status-id="vc-s3-access-status">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-access-status" class="adg-test-result"></div>';
 		html += '<div class="field-label">' + t('config.virtual_computers.s3_secret_key_label') + '</div>';
 		html += '<div class="field-help">' + t('help.virtual_computers.s3_secret_key') + '</div>';
 		html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
 		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-secret-input" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
-		html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
-		html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-s3-secret-input\', \'virtual_computers_s3_secret_key\', \'virtual_computers.s3_secret_key\', \'vc-s3-secret-status\')">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-secret-status" class="adg-test-result"></div>';
+		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div>';
+		html += '<button class="btn-save adg-save-btn" data-vc-action="save-secret" data-input-id="vc-s3-secret-input" data-vault-key="virtual_computers_s3_secret_key" data-config-path="virtual_computers.s3_secret_key" data-status-id="vc-s3-secret-status">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-secret-status" class="adg-test-result"></div>';
 	}
-	html += '<button class="btn-save dc-test-btn" onclick="vcCfgTestStorage()" id="vc-storage-test-btn">' + t('config.virtual_computers.storage_test_button') + '</button>';
+	html += '<button class="btn-save dc-test-btn" data-vc-action="test-storage" id="vc-storage-test-btn">' + t('config.virtual_computers.storage_test_button') + '</button>';
 	html += '<span id="vc-storage-test-result" class="dc-test-result"></span>';
 	html += '<div id="vc-storage-test-lock" class="field-help"></div></div>';
 
@@ -256,7 +258,7 @@ function renderVirtualComputersSection(section) {
     html += vcCfgToggleRow('config.virtual_computers.allow_persistent_label', 'help.virtual_computers.allow_persistent', data.allow_persistent === true, 'virtual_computers.allow_persistent');
     html += vcCfgToggleRow('config.virtual_computers.allow_publish_label', 'help.virtual_computers.allow_publish', data.allow_publish === true, 'virtual_computers.allow_publish');
     html += vcCfgToggleRow('config.virtual_computers.allow_volumes_label', 'help.virtual_computers.allow_volumes', data.allow_volumes === true, 'virtual_computers.allow_volumes');
-    html += vcCfgToggleRow('config.virtual_computers.allow_agent_tasks_label', 'help.virtual_computers.allow_agent_tasks', data.allow_agent_tasks === true, 'virtual_computers.allow_agent_tasks', 'vcCfgToggleAgentTasks(this)');
+    html += vcCfgToggleRow('config.virtual_computers.allow_agent_tasks_label', 'help.virtual_computers.allow_agent_tasks', data.allow_agent_tasks === true, 'virtual_computers.allow_agent_tasks', 'toggle-agent-tasks');
     html += '</div>';
     html += '</div>';
 
@@ -275,21 +277,22 @@ function renderVirtualComputersSection(section) {
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="vc-boring-token-input" value="' + escapeAttr(cfgSecretValue(data.boring_token)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_token, 'boring-token')) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+    html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-boring-token-input\', \'virtual_computers_boring_token\', \'virtual_computers.boring_token\', \'vc-boring-token-status\')">' + t('config.virtual_computers.save_vault') + '</button>';
+    html += '<button class="btn-save adg-save-btn" data-vc-action="save-secret" data-input-id="vc-boring-token-input" data-vault-key="virtual_computers_boring_token" data-config-path="virtual_computers.boring_token" data-status-id="vc-boring-token-status">' + t('config.virtual_computers.save_vault') + '</button>';
     html += '</div><div id="vc-boring-token-status" class="adg-test-result"></div>';
     html += '</div>';
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.tailscale_note') + ' <a href="/config#tailscale">' + t('config.virtual_computers.open_tailscale_settings') + '</a></div>';
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="vcCfgCheckStatus()" id="vc-status-btn">' + t('config.virtual_computers.status_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="vcCfgPreflight()" id="vc-preflight-btn">' + t('config.virtual_computers.preflight_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="vcCfgInstall()" id="vc-install-btn">' + t('config.virtual_computers.install_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" data-vc-action="check-status" id="vc-status-btn">' + t('config.virtual_computers.status_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" data-vc-action="preflight" id="vc-preflight-btn">' + t('config.virtual_computers.preflight_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" data-vc-action="install" id="vc-install-btn">' + t('config.virtual_computers.install_button') + '</button>';
     html += '<span id="vc-cfg-result" class="dc-test-result"></span>';
     html += '</div></div>';
 
     document.getElementById('content').innerHTML = html;
+    vcCfgWireActions(document.getElementById('content'));
     attachChangeListeners();
     if (isLocalHost) void vcCfgRefreshSudoPasswordStatus();
 }
@@ -306,12 +309,12 @@ function vcCfgOnModeChange(el) {
     setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
 }
 
-function vcCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {
+function vcCfgToggleRow(labelKey, helpKey, enabled, path, action) {
     const helpText = t(helpKey);
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + t(labelKey) + '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="' + (onclick || 'toggleBool(this)') + '"></div>';
+    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" data-vc-action="' + escapeAttr(action || 'toggle') + '"></div>';
     html += '</div>';
     return html;
 }
@@ -432,6 +435,33 @@ function vcCfgToggleAgentTasks(el) {
     setNestedValue(configData, 'virtual_computers.allow_agent_tasks', enabled);
     renderVirtualComputersSection(null);
     setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
+}
+
+function vcCfgWireActions(root) {
+    if (!root || _vcActionsRoot === root) return;
+    _vcActionsRoot = root;
+    root.addEventListener('click', function(event) {
+        const target = event.target && event.target.closest ? event.target.closest('[data-vc-action]') : null;
+        if (!target || !root.contains(target) || target.disabled) return;
+        const action = target.dataset.vcAction;
+        if (action === 'toggle') toggleBool(target);
+        else if (action === 'toggle-enabled') vcCfgToggleEnabled(target);
+        else if (action === 'toggle-agent-control') vcCfgToggleAgentControl(target);
+        else if (action === 'toggle-agent-tasks') vcCfgToggleAgentTasks(target);
+        else if (action === 'toggle-password') togglePassword(target);
+        else if (action === 'save-sudo-password') void vcCfgSaveSudoPassword();
+        else if (action === 'save-secret') void vcCfgSaveSecret(target.dataset.inputId, target.dataset.vaultKey, target.dataset.configPath, target.dataset.statusId);
+        else if (action === 'test-storage') void vcCfgTestStorage();
+        else if (action === 'check-status') void vcCfgCheckStatus();
+        else if (action === 'preflight') void vcCfgPreflight();
+        else if (action === 'install') void vcCfgInstall();
+    });
+    root.addEventListener('change', function(event) {
+        const target = event.target && event.target.closest ? event.target.closest('[data-vc-change]') : null;
+        if (!target || !root.contains(target)) return;
+        if (target.dataset.vcChange === 'mode') vcCfgOnModeChange(target);
+        else if (target.dataset.vcChange === 'storage-mode') vcCfgOnStorageModeChange(target);
+    });
 }
 
 function vcCfgToggleAgentControl(el) {

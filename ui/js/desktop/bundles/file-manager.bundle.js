@@ -3650,22 +3650,18 @@
             const overlay = document.createElement('div');
             overlay.className = 'fm-modal-overlay';
 
-            function generatePreviews(prefix, suffix, findText, replaceText, numbering, startNum) {
+            let previewTimer = null;
+            let previewGeneration = 0;
+            let previewWorker = null;
+            let latestPreviews = [];
+            let previewValid = false;
+
+            function composePreviews(prefix, suffix, bases, numbering, startNum) {
                 return selected.map((file, idx) => {
                     const origName = file.name;
                     const extIndex = origName.lastIndexOf('.');
                     const ext = extIndex !== -1 ? origName.slice(extIndex) : '';
-                    let base = extIndex !== -1 ? origName.slice(0, extIndex) : origName;
-
-                    if (findText) {
-                        try {
-                            const regex = new RegExp(findText, 'g');
-                            base = base.replace(regex, replaceText);
-                        } catch (e) {
-                            base = base.replaceAll(findText, replaceText);
-                        }
-                    }
-
+                    const base = bases[idx];
                     let numberStr = '';
                     if (numbering) {
                         const num = parseInt(startNum || '1') + idx;
@@ -3677,15 +3673,29 @@
                 });
             }
 
-            function updatePreviewTable() {
-                const prefix = overlay.querySelector('[name="prefix"]').value;
-                const suffix = overlay.querySelector('[name="suffix"]').value;
-                const findText = overlay.querySelector('[name="find"]').value;
-                const replaceText = overlay.querySelector('[name="replace"]').value;
-                const numbering = overlay.querySelector('[name="numbering"]').checked;
-                const startNum = overlay.querySelector('[name="startNum"]').value;
+            function sourceBases() {
+                return selected.map(file => {
+                    const extIndex = file.name.lastIndexOf('.');
+                    return extIndex !== -1 ? file.name.slice(0, extIndex) : file.name;
+                });
+            }
 
-                const previews = generatePreviews(prefix, suffix, findText, replaceText, numbering, startNum);
+            function renderPreviewError(messageKey) {
+                const tableBody = overlay.querySelector('.fm-batch-rename-table-body');
+                if (tableBody) {
+                    tableBody.innerHTML = `<div class="fm-batch-rename-error" role="alert" style="padding:12px;color:var(--vd-danger,#ef4444)">${esc(t(messageKey))}</div>`;
+                }
+                const renameButton = overlay.querySelector('[data-rename]');
+                if (renameButton) renameButton.disabled = true;
+                previewValid = false;
+                latestPreviews = [];
+            }
+
+            function renderPreviews(previews) {
+                latestPreviews = previews;
+                previewValid = true;
+                const renameButton = overlay.querySelector('[data-rename]');
+                if (renameButton) renameButton.disabled = false;
                 const tableBody = overlay.querySelector('.fm-batch-rename-table-body');
                 if (tableBody) {
                     tableBody.innerHTML = previews.map(p => `
@@ -3695,6 +3705,71 @@
                         </div>
                     `).join('');
                 }
+            }
+
+            function updatePreviewTable() {
+                const generation = ++previewGeneration;
+                if (previewWorker) {
+                    previewWorker.terminate();
+                    previewWorker = null;
+                }
+                const prefix = overlay.querySelector('[name="prefix"]').value;
+                const suffix = overlay.querySelector('[name="suffix"]').value;
+                const findText = overlay.querySelector('[name="find"]').value;
+                const replaceText = overlay.querySelector('[name="replace"]').value;
+                const regexMode = overlay.querySelector('[name="regexMode"]').checked;
+                const numbering = overlay.querySelector('[name="numbering"]').checked;
+                const startNum = overlay.querySelector('[name="startNum"]').value;
+                const bases = sourceBases();
+                if (!findText) {
+                    renderPreviews(composePreviews(prefix, suffix, bases, numbering, startNum));
+                    return;
+                }
+                if (!regexMode) {
+                    renderPreviews(composePreviews(prefix, suffix, bases.map(base => base.replaceAll(findText, replaceText)), numbering, startNum));
+                    return;
+                }
+                if (findText.length > 256) {
+                    renderPreviewError('desktop.fm.batch_rename_regex_too_long');
+                    return;
+                }
+                previewValid = false;
+                const renameButton = overlay.querySelector('[data-rename]');
+                if (renameButton) renameButton.disabled = true;
+                const version = encodeURIComponent(window.BUILD_VERSION || 'dev');
+                const worker = new Worker('/js/desktop/workers/batch-rename-regex-worker.js?v=' + version);
+                previewWorker = worker;
+                const timeout = window.setTimeout(() => {
+                    worker.terminate();
+                    if (previewWorker === worker) previewWorker = null;
+                    if (generation === previewGeneration) renderPreviewError('desktop.fm.batch_rename_regex_timeout');
+                }, 200);
+                worker.onmessage = event => {
+                    window.clearTimeout(timeout);
+                    worker.terminate();
+                    if (previewWorker === worker) previewWorker = null;
+                    if (generation !== previewGeneration) return;
+                    const result = event && event.data ? event.data : {};
+                    if (!result.ok || !Array.isArray(result.bases) || result.bases.length !== bases.length) {
+                        renderPreviewError('desktop.fm.batch_rename_regex_invalid');
+                        return;
+                    }
+                    renderPreviews(composePreviews(prefix, suffix, result.bases, numbering, startNum));
+                };
+                worker.onerror = () => {
+                    window.clearTimeout(timeout);
+                    worker.terminate();
+                    if (previewWorker === worker) previewWorker = null;
+                    if (generation === previewGeneration) renderPreviewError('desktop.fm.batch_rename_regex_invalid');
+                };
+            }
+
+            function schedulePreview() {
+                window.clearTimeout(previewTimer);
+                previewValid = false;
+                const renameButton = overlay.querySelector('[data-rename]');
+                if (renameButton) renameButton.disabled = true;
+                previewTimer = window.setTimeout(updatePreviewTable, 120);
             }
 
             overlay.innerHTML = `<div class="fm-modal fm-batch-rename-modal" style="max-width: 650px; width: 90%">
@@ -3718,18 +3793,22 @@
                             <input type="text" name="replace" value="" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                         </div>
                         <div class="fm-field-group fm-checkbox-group" style="display:flex;align-items:center;gap:6px;margin:4px 0">
+                            <input type="checkbox" name="regexMode" id="fm-rename-regex" checked>
+                            <label for="fm-rename-regex" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_regex'))}</label>
+                        </div>
+                        <div class="fm-field-group fm-checkbox-group" style="display:flex;align-items:center;gap:6px;margin:4px 0">
                             <input type="checkbox" name="numbering" id="fm-rename-num">
                             <label for="fm-rename-num" style="font-size:0.75rem;user-select:none">${esc(t('desktop.fm.batch_rename_numbering'))}</label>
                         </div>
                         <div class="fm-field-group" style="display:none;flex-direction:column;gap:2px" id="fm-rename-start-group">
-                            <label style="font-size:0.7rem;color:var(--vd-muted)">Start Number</label>
+                            <label style="font-size:0.7rem;color:var(--vd-muted)">${esc(t('desktop.fm.batch_rename_start_number'))}</label>
                             <input type="number" name="startNum" value="1" min="1" step="1" style="width:100%;box-sizing:border-box">
                         </div>
                     </div>
                     <div class="fm-batch-rename-preview-panel" style="border:1px solid var(--vd-border);background:rgba(0,0,0,0.15);border-radius:6px;display:flex;flex-direction:column;height:240px;overflow:hidden">
                         <div class="fm-batch-rename-table-header" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--vd-border);font-size:0.75rem;color:var(--vd-muted);font-weight:600">
-                            <div>Original</div>
-                            <div>New Name</div>
+                            <div>${esc(t('desktop.fm.batch_rename_original'))}</div>
+                            <div>${esc(t('desktop.fm.batch_rename_new_name'))}</div>
                         </div>
                         <div class="fm-batch-rename-table-body" style="flex:1;overflow-y:auto;padding:2px 0"></div>
                     </div>
@@ -3744,30 +3823,30 @@
 
             const inputs = overlay.querySelectorAll('input');
             inputs.forEach(input => {
-                input.addEventListener('input', updatePreviewTable);
+                input.addEventListener('input', schedulePreview);
             });
 
             const numCheck = overlay.querySelector('[name="numbering"]');
             numCheck.addEventListener('change', e => {
                 const startGroup = overlay.querySelector('#fm-rename-start-group');
                 startGroup.style.display = e.target.checked ? 'flex' : 'none';
-                updatePreviewTable();
+                schedulePreview();
             });
 
             updatePreviewTable();
 
-            const cleanup = result => { overlay.remove(); resolve(result); };
+            const cleanup = result => {
+                window.clearTimeout(previewTimer);
+                previewGeneration += 1;
+                if (previewWorker) previewWorker.terminate();
+                previewWorker = null;
+                overlay.remove();
+                resolve(result);
+            };
             overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(null));
             overlay.querySelector('[data-rename]').addEventListener('click', () => {
-                const prefix = overlay.querySelector('[name="prefix"]').value;
-                const suffix = overlay.querySelector('[name="suffix"]').value;
-                const findText = overlay.querySelector('[name="find"]').value;
-                const replaceText = overlay.querySelector('[name="replace"]').value;
-                const numbering = numCheck.checked;
-                const startNum = overlay.querySelector('[name="startNum"]').value;
-
-                const previews = generatePreviews(prefix, suffix, findText, replaceText, numbering, startNum);
-                const payload = previews.map(p => ({
+                if (!previewValid) return;
+                const payload = latestPreviews.map(p => ({
                     old_path: p.file.path,
                     new_name: p.newName
                 }));

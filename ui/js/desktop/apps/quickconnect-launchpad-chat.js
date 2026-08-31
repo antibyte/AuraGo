@@ -759,7 +759,7 @@
 
         async function sftpRename(deviceId, oldPath, listEl, breadcrumbEl, statusEl) {
             const oldName = oldPath.split('/').pop();
-            const newName = prompt(t('desktop.qc_sftp_rename_prompt'), oldName);
+            const newName = await promptDialog(t('desktop.qc_sftp_rename_prompt'), oldName);
             if (!newName || newName === oldName) return;
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
             const newPath = dir + (dir === '/' ? '' : '/') + newName;
@@ -772,7 +772,7 @@
         }
 
         async function sftpMkdir(deviceId, currentPath, listEl, breadcrumbEl, statusEl) {
-            const dirName = prompt(t('desktop.qc_sftp_mkdir_prompt'));
+            const dirName = await promptDialog(t('desktop.qc_sftp_mkdir_prompt'), '');
             if (!dirName) return;
             const newPath = currentPath + (currentPath === '/' ? '' : '/') + dirName;
             try {
@@ -784,7 +784,7 @@
         }
 
         async function sftpCopy(deviceId, srcPath, listEl, breadcrumbEl, statusEl) {
-            const dstPath = prompt(t('desktop.qc_sftp_copy_prompt'), srcPath);
+            const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
                 await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
@@ -795,7 +795,7 @@
         }
 
         async function sftpMove(deviceId, srcPath, listEl, breadcrumbEl, statusEl) {
-            const dstPath = prompt(t('desktop.qc_sftp_move_prompt'), srcPath);
+            const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
                 await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });

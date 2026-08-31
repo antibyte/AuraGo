@@ -154,7 +154,7 @@
                 fileDialogText('desktop.file_dialog_overwrite_message', 'A file named "{{name}}" already exists. Replace it?', { name: fileDialogBaseName(path) })
             ));
         }
-        return window.confirm(fileDialogText('desktop.file_dialog_overwrite_message', 'A file named "{{name}}" already exists. Replace it?', { name: fileDialogBaseName(path) }));
+        return false;
     }
 
     function fileDialogTopPath(path) {

@@ -11,11 +11,11 @@ func TestVirtualComputersEnabledToggleSyncsPrecisionDraftState(t *testing.T) {
 	t.Parallel()
 
 	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
-	if !strings.Contains(vcJS, `'vcCfgToggleEnabled(this)'`) {
-		t.Fatal("virtual computers enabled toggle must pass the element to avoid nested quote syntax errors in onclick")
+	if !strings.Contains(vcJS, `'toggle-enabled'`) || !strings.Contains(vcJS, `vcCfgToggleEnabled(target)`) {
+		t.Fatal("virtual computers enabled toggle must use the delegated action dispatcher")
 	}
-	if strings.Contains(vcJS, `classList.contains("on")`) {
-		t.Fatal("virtual computers enabled toggle must not render nested double quotes inside onclick")
+	if strings.Contains(vcJS, `onclick=`) || strings.Contains(vcJS, `onchange=`) {
+		t.Fatal("virtual computers config must not render inline event handlers")
 	}
 	if !strings.Contains(vcJS, `window.AuraConfigState.set('virtual_computers.enabled', nextEnabled)`) {
 		t.Fatal("virtual computers enabled toggle must update AuraConfigState so saveConfig includes virtual_computers.enabled")
@@ -38,7 +38,7 @@ func TestVirtualComputersModeSelectOffersLocalHostAndHidesSSHFields(t *testing.T
 	if !strings.Contains(vcJS, `config.virtual_computers.local_host_note`) {
 		t.Fatal("virtual computers UI must show local host requirements")
 	}
-	if !strings.Contains(vcJS, `vcCfgOnModeChange(this)`) {
+	if !strings.Contains(vcJS, `data-vc-change="mode"`) || !strings.Contains(vcJS, `vcCfgOnModeChange(target)`) {
 		t.Fatal("virtual computers mode select must re-render when switching between local and SSH modes")
 	}
 }
@@ -224,7 +224,8 @@ func TestVirtualComputersAgentProviderUsesConfiguredProviderReference(t *testing
 		`data-path="virtual_computers.agent_provider"`,
 		`provider.type || '').trim().toLowerCase() === 'anthropic'`,
 		`provider.api_key`,
-		`vcCfgToggleAgentTasks(this)`,
+		`'toggle-agent-tasks'`,
+		`vcCfgToggleAgentTasks(target)`,
 	} {
 		if !strings.Contains(vcJS, want) {
 			t.Fatalf("virtual computer agent provider UI missing %q", want)

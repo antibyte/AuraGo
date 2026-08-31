@@ -185,6 +185,7 @@ type Server struct {
 	RemoteHub               *remote.RemoteHub
 	agodeskDesktopMu        sync.Mutex
 	agodeskDesktop          *agodeskDesktopBroker
+	agodeskDevToken         string // loopback-only AgoDesk development opt-in; never exposed to clients
 	ProxyManager            *proxy.Manager
 	TsNetManager            *tsnetnode.Manager
 	tsNetHandler            http.Handler // stored so the UI can restart tsnet without a full server restart
@@ -1345,6 +1346,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		EggHub:                  bridge.NewEggHub(logger),
 		WarningsRegistry:        opts.WarningsRegistry,
 	}
+	s.agodeskDevToken = loadAgodeskDevToken(logger)
 	speechCfg := effectiveSpeechLabConfig(cfg)
 	if speechLabClient, err := speechlab.NewClient(speechCfg); err != nil {
 		logger.Warn("Speech Lab client is unavailable", "error", err)

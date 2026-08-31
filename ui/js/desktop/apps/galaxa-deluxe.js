@@ -259,7 +259,7 @@
             state.disposed = true; cancelAnimationFrame(gameCtx.rafId); gameCtx.MusicEngine.stop(); if (gameCtx.GalagaMusic) gameCtx.GalagaMusic.stop(); gameCtx.G.pendingBooms = []; gameCtx.G.levelSkipTimer = 0;
             gameCtx.G.demoMode = false; if (gameCtx.G.ai) { Object.keys(gameCtx.G.ai).forEach(function(k) { gameCtx.G.ai[k] = false; }); }
             document.removeEventListener('keydown', gameCtx.onKey); document.removeEventListener('keyup', gameCtx.onKeyUp);
-            ro.disconnect(); gameCtx.radialGradientCache.clear(); gameCtx.spriteAtlasCache.delete.bind(gameCtx.spriteAtlasCache);
+            ro.disconnect(); gameCtx.radialGradientCache.clear(); if (gameCtx.clearSpriteAtlasCache) gameCtx.clearSpriteAtlasCache();
             if (gameCtx.reverbNode) try { gameCtx.reverbNode.disconnect(); } catch (_) {}
             if (gameCtx.reverbGain) try { gameCtx.reverbGain.disconnect(); } catch (_) {}
             if (gameCtx.actx) try { gameCtx.actx.close(); } catch (e) {}

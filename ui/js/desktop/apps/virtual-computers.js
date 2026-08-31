@@ -4,7 +4,6 @@
     const instances = new Map();
     const machinePollIntervalMs = 5000;
     const expiryCountdownIntervalMs = 1000;
-
     function esc(value) {
         return String(value == null ? '' : value).replace(/[&<>'"]/g, ch => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -14,19 +13,20 @@
     function tx(ctx, key) {
         return ctx && typeof ctx.t === 'function' ? ctx.t(key) : key;
     }
-
     function icon(state, key, fallback) {
         const renderIcon = state.context && state.context.iconMarkup;
         return typeof renderIcon === 'function'
             ? renderIcon(key, fallback || '', 'vc-button-icon', 18)
             : `<span class="vc-button-fallback" aria-hidden="true">${esc(fallback || '')}</span>`;
     }
-
     async function request(path, options) {
         const resp = await fetch(path, options || {});
-        const contentType = resp.headers.get('Content-Type') || '';
-        const body = contentType.includes('application/json') ? await resp.json() : await resp.text();
-        if (!resp.ok || (body && body.error)) throw new Error((body && (body.error || body.message)) || resp.statusText);
+        const raw = await resp.text();
+        let body = raw;
+        if ((resp.headers.get('Content-Type') || '').includes('application/json')) try { body = raw ? JSON.parse(raw) : {}; } catch (_) { body = raw; }
+        const structured = body && typeof body === 'object' ? (body.error || body.message) : '';
+        const textBody = typeof body === 'string' ? body.trim().slice(0, 4096) : '';
+        if (!resp.ok || (body && typeof body === 'object' && body.error)) throw new Error(String(structured || textBody || resp.statusText || ('HTTP ' + resp.status)));
         return body;
     }
 

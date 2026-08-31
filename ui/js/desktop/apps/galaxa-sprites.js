@@ -10,7 +10,7 @@
     } catch (_) {}
     GC.createSprites = function (ctx) {
         const radialGradientCache = new Map();
-        const spriteAtlasCache = new WeakMap();
+        let spriteAtlasCache = new WeakMap();
         const flashPixelColors = {};
 
         function cachedRadialGradient(ctx, key, x, y, innerR, outerR, stops) {
@@ -903,6 +903,10 @@
         ctx.cachedRadialGradient = cachedRadialGradient;
         ctx.radialGradientCache = radialGradientCache;
         ctx.spriteAtlasCache = spriteAtlasCache;
+        ctx.clearSpriteAtlasCache = function () {
+            spriteAtlasCache = new WeakMap();
+            ctx.spriteAtlasCache = spriteAtlasCache;
+        };
         ctx.flashPixelColors = flashPixelColors;
 
         if (_preloadedSheet) {

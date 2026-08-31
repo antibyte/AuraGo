@@ -732,7 +732,7 @@ GET /api/agodesk/ws
 GET /api/agodesk/media/{bucket}/{path}
 ```
 
-`/api/agodesk/ws` uses the AgoDesk JSON envelope protocol. Production clients must pair with `session.start`; loopback development may use `?insecure_loopback=1`. After `session.accepted`, store `advertised_capabilities` and use the accepted `session_id` as the transport session.
+`/api/agodesk/ws` uses the AgoDesk JSON envelope protocol. Production clients must pair with `session.start`. Loopback development additionally requires an `AURAGO_AGODESK_DEV_TOKEN` of at least 32 characters and the matching `X-AuraGo-Agodesk-Dev-Token` header together with `?insecure_loopback=1`. After `session.accepted`, store `advertised_capabilities` and use the accepted `session_id` as the transport session.
 
 Clients that negotiate `local.agent` can use `local.agent.remote_tool` for bounded Memory/query adapters, `local.agent.llm` for a Vault-backed direct provider completion, `local.agent.turn` for fire-and-forget history/activity synchronization, and `local.agent.handoff` for the only local-agent operation that starts the full AuraGo agent loop. LLM requests require a whole-second RFC3339 `client_timestamp`; omitted `provider_id` values select the active main provider. Prior assistant tool calls accept both the flat AuraGo form and OpenAI wire `function.arguments` JSON strings. LLM results preserve `request_id` and use `success`, `message`, `error_code`, and `error_message`; remote-tool failures keep their matching `.result` envelope.
 

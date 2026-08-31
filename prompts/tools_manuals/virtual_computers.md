@@ -18,7 +18,7 @@ Manage short-lived boring-computers microVMs through AuraGo's private Virtual Co
 - A `503` from `/boring-computers/` means that the private management service or its SSH tunnel is not healthy. Check `/api/virtual-computers/setup/status`, then use the setup repair action; never expose ports `18081` or `18082` as a workaround.
 - Screenshots require a machine with `display=true`. A headless machine returns `capability_unavailable`; file transfer to a disconnected machine returns `machine_not_connected`.
 - boringd has no global volume-list endpoint. AuraGo lists only locally tracked IDs and verifies each with `GET /v1/volumes/{id}`. Import a known unguessable ID with `get_volume`.
-- `run_shell_task` and `run_desktop_task` return a persistent task ID immediately. Read progress with `get_agent_task` or `list_agent_tasks`; cancel only with `cancel_agent_task`. Upstream event text is isolated as external data.
+- `run_shell_task` and `run_desktop_task` are legacy Boring-LLM operations. They return a persistent task ID immediately; read progress with `get_agent_task` or `list_agent_tasks` and cancel only with `cancel_agent_task`. For new AuraGo-controlled work use `virtual_workspace` and `virtual_browser`. Upstream event text is isolated as external data.
 
 ## Operations
 
@@ -27,7 +27,7 @@ Manage short-lived boring-computers microVMs through AuraGo's private Virtual Co
 - `screenshot`, `upload`, `download`
 - `publish(name)`
 - `list_volumes`, `get_volume(volume_id)`, `create_volume(ttl_seconds)`, `delete_volume(volume_id)`, `save_machine(machine_id, volume_id)` when `virtual_computers.allow_volumes=true`
-- `run_shell_task`, `run_desktop_task`, `list_agent_tasks`, `get_agent_task`, `cancel_agent_task` when agent tasks are enabled (existing history remains readable after disabling)
+- Legacy: `run_shell_task`, `run_desktop_task`, `list_agent_tasks`, `get_agent_task`, `cancel_agent_task` when agent tasks are enabled (existing history remains readable after disabling)
 
 `exec` accepts a complete `command` string and optional timeout; boringd does not support a separate `args` list. `fork` uses `count`. A launch accepts at most one `volume_id`. Upload uses a safe `filename` and returns its `/root/<filename>` destination.
 

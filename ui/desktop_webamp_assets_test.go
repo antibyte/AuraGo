@@ -117,7 +117,7 @@ func TestDesktopFiltersInternalAppsFromUserLaunchers(t *testing.T) {
 		"function userFacingApps()",
 		"return allApps().filter(app => app.internal !== true)",
 		"return userFacingApps().filter(app => app.start_visible !== false)",
-		"return userFacingApps().filter(app => app.dock_visible !== false)",
+		"return merged.length ? merged : userFacingApps().filter(app => app.dock_visible !== false)",
 		"return userFacingApps().map(app => {",
 	} {
 		if !strings.Contains(text, want) {

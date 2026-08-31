@@ -279,17 +279,14 @@
         }
 
         function sanitizeViewerHTML(html) {
-            var div = document.createElement('div');
-            div.innerHTML = html;
-            div.querySelectorAll('script, style, link, meta, base, iframe, object, embed, form, input, textarea, button, select').forEach(function(el) { el.remove(); });
-            div.querySelectorAll('*').forEach(function(el) {
-                Array.from(el.attributes).forEach(function(attr) {
-                    if (/^on/i.test(attr.name) || (/^href|^src|^action|^formaction|^data/i.test(attr.name) && /^javascript:/i.test(attr.value))) {
-                        el.removeAttribute(attr.name);
-                    }
-                });
+            if (!window.DOMPurify || typeof window.DOMPurify.sanitize !== 'function') {
+                return esc(html);
+            }
+            return window.DOMPurify.sanitize(html, {
+                USE_PROFILES: { html: true },
+                FORBID_TAGS: ['script', 'style', 'link', 'meta', 'base', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'button', 'select'],
+                FORBID_ATTR: ['srcdoc']
             });
-            return div.innerHTML;
         }
 
         function renderDocument(html) {

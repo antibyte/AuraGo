@@ -34,14 +34,15 @@
             if (typeof promptDialog === 'function') {
                 return promptDialog(title, value || '');
             }
-            // Fallback only if shell did not inject modal helper
-            return window.prompt(title, value || '');
+            if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_error') });
+            return null;
         };
         const askConfirm = async (title, message) => {
             if (typeof confirmDialog === 'function') {
                 return confirmDialog(title, message || '');
             }
-            return window.confirm(message || title);
+            if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_error') });
+            return false;
         };
 
         const state = {

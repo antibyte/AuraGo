@@ -7,7 +7,7 @@ This document is the backend contract for the agodesk desktop client.
 - URL: `/api/agodesk/ws`
 - Transport: WebSocket text frames with JSON envelopes.
 - Auth: the route bypasses browser session auth, but the socket performs its own pairing handshake.
-- Development fallback: unauthenticated chat is only allowed for loopback clients that connect with `?insecure_loopback=1`.
+- Development fallback: unauthenticated chat is only allowed when the server has an `AURAGO_AGODESK_DEV_TOKEN` of at least 32 characters and a loopback client connects with both `?insecure_loopback=1` and the matching `X-AuraGo-Agodesk-Dev-Token` header. Without all three conditions the connection follows normal pairing.
 
 Every frame uses this envelope:
 

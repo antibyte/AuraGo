@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -48,6 +49,9 @@ const (
 	agodeskMediaAssetTokenTTL      = 15 * time.Minute
 	agodeskMediaAssetExpParam      = "agodesk_exp"
 	agodeskMediaAssetSigParam      = "agodesk_sig"
+	agodeskDevTokenHeader          = "X-AuraGo-Agodesk-Dev-Token"
+	agodeskDevTokenEnv             = "AURAGO_AGODESK_DEV_TOKEN"
+	agodeskDevTokenMinBytes        = 32
 	agodeskFileAccessInlineLimit   = 8 * 1024 * 1024
 )
 
@@ -144,7 +148,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			sessionID:       "agodesk:temp:" + agodeskConnectionID(),
 			transportID:     "agodesk-transport:" + agodeskConnectionID(),
 			paired:          false,
-			devMode:         isExplicitAgodeskLoopbackDev(r),
+			devMode:         isExplicitAgodeskLoopbackDev(s, r),
 			capabilities:    make(map[string]struct{}),
 			activeRuns:      make(map[string]agodeskActiveChatRun),
 			transportCtx:    transportCtx,
@@ -3255,8 +3259,23 @@ func writeAgodeskEnvelopeLockedContext(ctx context.Context, conn *websocket.Conn
 	return writeAgodeskEnvelopeContext(ctx, conn, messageType, payload)
 }
 
-func isExplicitAgodeskLoopbackDev(r *http.Request) bool {
-	if r == nil || r.URL.Query().Get("insecure_loopback") != "1" {
+func loadAgodeskDevToken(logger *slog.Logger) string {
+	token := strings.TrimSpace(os.Getenv(agodeskDevTokenEnv))
+	if token == "" {
+		return ""
+	}
+	if len(token) < agodeskDevTokenMinBytes {
+		if logger != nil {
+			logger.Warn("AgoDesk loopback development mode is disabled because its token is too short", "environment", agodeskDevTokenEnv, "minimum_bytes", agodeskDevTokenMinBytes)
+		}
+		return ""
+	}
+	security.RegisterSensitive(token)
+	return token
+}
+
+func isExplicitAgodeskLoopbackDev(s *Server, r *http.Request) bool {
+	if s == nil || r == nil || r.URL.Query().Get("insecure_loopback") != "1" || len(s.agodeskDevToken) < agodeskDevTokenMinBytes {
 		return false
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -3264,7 +3283,11 @@ func isExplicitAgodeskLoopbackDev(r *http.Request) bool {
 		host = r.RemoteAddr
 	}
 	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	if ip == nil || !ip.IsLoopback() {
+		return false
+	}
+	presented := strings.TrimSpace(r.Header.Get(agodeskDevTokenHeader))
+	return len(presented) == len(s.agodeskDevToken) && subtle.ConstantTimeCompare([]byte(presented), []byte(s.agodeskDevToken)) == 1
 }
 
 func agodeskConnectionID() string {

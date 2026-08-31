@@ -90,33 +90,47 @@
 
         async function refresh() {
             try {
-                const [response, realtime] = await Promise.all([
+                const [statusResult, realtimeResult] = await Promise.allSettled([
                     fetch('/api/speech-lab/status', { credentials: 'same-origin', cache: 'no-store' }),
-                    window.AuraRealtimeSpeech.initialize().catch(() => null)
+                    window.AuraRealtimeSpeech.initialize()
                 ]);
-                const data = response.ok ? await response.json() : {};
+                if (statusResult.status !== 'fulfilled') throw statusResult.reason;
+                const response = statusResult.value;
+                if (!response.ok) {
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error(body.message || body.error || ('HTTP ' + response.status));
+                }
+                const data = await response.json();
                 box.hidden = false;
                 const managed = !!(data.deployment && data.deployment.managed);
                 const deployState = String((data.deployment && data.deployment.state) || '');
+                const realtime = realtimeResult.status === 'fulfilled' ? realtimeResult.value : null;
                 const realtimeConfig = realtime && realtime.config;
+                const configurationUnavailable = realtimeResult.status === 'rejected';
+                const configurationNotice = configurationUnavailable
+                    ? ' · ' + text('desktop.live_speech_config_unavailable', 'Live Speech configuration is unavailable.')
+                    : '';
                 const selectable = !!(realtimeConfig && realtimeConfig.enabled &&
                     (realtimeConfig.profiles || []).some(profile => profile.enabled && profile.provider === 'speech_lab'));
                 if (!data.enabled) {
-                    status.textContent = text('desktop.live_speech_lab_disabled', 'Speech Lab is disabled. Enable it under Media → Speech Lab.');
+                    status.textContent = text('desktop.live_speech_lab_disabled', 'Speech Lab is disabled. Enable it under Media → Speech Lab.') + configurationNotice;
                     if (start) start.hidden = true;
                     if (activate) activate.hidden = true;
                     return;
                 }
                 if (data.ready && data.asr_ok && data.tts_ok) {
                     const voice = data.voice ? ' · ' + data.voice : '';
-                    status.textContent = text('desktop.live_speech_lab_ready', 'Speech Lab container is ready') + voice;
+                    status.textContent = text('desktop.live_speech_lab_ready', 'Speech Lab container is ready') + voice + configurationNotice;
                     if (start) start.hidden = true;
-                    if (activate) activate.hidden = selectable || activating;
+                    if (activate) {
+                        activate.hidden = selectable || activating || configurationUnavailable;
+                        activate.disabled = configurationUnavailable;
+                    }
                     return;
                 }
                 status.textContent = starting
                     ? text('desktop.live_speech_lab_starting', 'Starting the Speech Lab container…')
-                    : text('desktop.live_speech_lab_not_ready', 'Speech Lab is not ready. Start the container or check Media → Speech Lab.');
+                    : text('desktop.live_speech_lab_not_ready', 'Speech Lab is not ready. Start the container or check Media → Speech Lab.') + configurationNotice;
                 if (start) start.hidden = !(managed && !starting && deployState !== 'running' && deployState !== 'starting');
                 if (activate) activate.hidden = true;
             } catch (_) {
