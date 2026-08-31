@@ -186,6 +186,20 @@
         return sipPhoneSnapshot();
     }
 
+    // These event types fire many times per second during an active call
+    // (bridge queue diagnostics, agent voice turns, DTMF tones) and never
+    // change the rendered call/registration state. Refreshing on them just
+    // forces a full app re-render per event, which flickers the phone UI.
+    const sipPhoneEventTypesWithoutUIImpact = new Set(['media_queue', 'voice', 'dtmf']);
+
+    function sipPhoneEventNeedsRefresh(rawEvent) {
+        try {
+            return !sipPhoneEventTypesWithoutUIImpact.has(JSON.parse(rawEvent).type);
+        } catch (_) {
+            return true;
+        }
+    }
+
     function connectSIPPhoneEvents() {
         if (sipPhoneShellState.eventSource) sipPhoneShellState.eventSource.close();
         const source = new EventSource('/api/sip/events', { withCredentials: true });
@@ -194,6 +208,7 @@
             refreshSIPPhoneState();
         });
         source.addEventListener('sip', event => {
+            if (!sipPhoneEventNeedsRefresh(event.data)) return;
             const terminalMessage = sipPhoneTerminalEventMessage(event.data, sipPhoneShellState.callID);
             refreshSIPPhoneState().then(() => {
                 if (!terminalMessage) return;
