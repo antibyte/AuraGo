@@ -100,6 +100,18 @@
                 '/js/desktop/bundles/code-studio.bundle.js'
             ]
         },
+        'terminal': {
+            styles: appStyles('/css/xterm.css'),
+            scripts: [
+                '/js/vendor/xterm.min.js',
+                '/js/vendor/xterm-addon-fit.min.js',
+                '/js/desktop/apps/terminal.js'
+            ]
+        },
+        'notes': {
+            styles: appStyles('/css/desktop-chrome.css'),
+            scripts: ['/js/desktop/apps/notes.js']
+        },
         'radio': {
             styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']

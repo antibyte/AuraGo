@@ -338,6 +338,7 @@
     }
 
     function showDesktopNotification(payload) {
+        pushNotificationRecord(payload || {});
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -533,40 +534,24 @@
     }
 
     function showWindowSwitcher() {
-        const wins = [...state.windows.values()];
-        if (wins.length === 0) return;
-        if (wins.length === 1) { focusWindow(wins[0].id); return; }
-        const existing = document.getElementById('vd-window-switcher');
-        if (existing) {
-            existing.remove();
-            const index = wins.findIndex(win => win.id === state.activeWindowId);
-            focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
-            return;
-        }
-        const overlay = document.createElement('div');
-        overlay.id = 'vd-window-switcher';
-        overlay.className = 'vd-window-switcher';
-        const index = wins.findIndex(win => win.id === state.activeWindowId);
-        const nextIndex = (index + 1 + wins.length) % wins.length;
-        overlay.innerHTML = wins.map((win, i) => {
-            const app = appById(win.appId);
-            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
-            const isActive = i === nextIndex;
-            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
-        }).join('');
-        overlay.addEventListener('click', e => {
-            const btn = e.target.closest('[data-window-id]');
-            if (btn) focusWindow(btn.dataset.windowId);
-            overlay.remove();
-        });
-        document.body.appendChild(overlay);
-        setTimeout(() => overlay.remove(), 3000);
+        beginWindowSwitcherHold(false);
     }
 
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
+        if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
+        if (event.ctrlKey && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            openSpotlight();
+            return;
+        }
+        if (event.key === 'F1') {
+            event.preventDefault();
+            showShortcutsHelp();
+            return;
+        }
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();
@@ -579,7 +564,7 @@
         }
         if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
             event.preventDefault();
-            showWindowSwitcher();
+            beginWindowSwitcherHold(false);
             return;
         }
         if (event.key === 'F11') {
@@ -590,7 +575,8 @@
         switch (event.key) {
         case 'Escape': {
             const shortcuts = document.getElementById('vd-shortcuts-help');
-            if (shortcuts) { shortcuts.remove(); return; }
+            if (shortcuts) { closeShortcutsHelp(); return; }
+            if (document.getElementById('vd-spotlight-backdrop')) { closeSpotlight(); return; }
             closeContextMenu();
             closeWindowMenu();
             closeStartMenu();
@@ -621,6 +607,7 @@
     }
 
     function handleDesktopKeyup(event) {
+        if (handleWindowSwitcherKeyup(event)) return;
         relayGeneratedFrameKeyboardEvent(event);
     }
 
@@ -677,6 +664,7 @@
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();
         wireChrome();
+        wireShellChromeControls();
         document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
@@ -699,6 +687,8 @@
         refreshPetRuntime();
         mark('first-render');
         openInitialDesktopApp();
+        const bootApp = new URLSearchParams(window.location.search || '').get('app');
+        if (!bootApp) restoreDesktopSession();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();

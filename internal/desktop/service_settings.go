@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -126,6 +127,18 @@ func validateFreeformDesktopSetting(key, value string) error {
 			return nil
 		}
 		if _, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err != nil {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		return nil
+	case "appearance.dock_pins", "files.default_apps", "session.windows":
+		if len(value) > 65536 {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		if value == "" {
+			return nil
+		}
+		var probe interface{}
+		if err := json.Unmarshal([]byte(value), &probe); err != nil {
 			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}
 		return nil

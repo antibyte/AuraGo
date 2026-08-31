@@ -365,6 +365,29 @@
             }
         }
 
+        function printDocument() {
+            const title = (titleInput && titleInput.value) || String(currentPath || '').split('/').pop() || t('desktop.app_writer');
+            const bodyHtml = editor && editor.root ? editor.root.innerHTML : esc(fallback.value || '').replace(/\n/g, '<br>');
+            const frame = document.createElement('iframe');
+            frame.className = 'vd-print-frame';
+            frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+            document.body.appendChild(frame);
+            const printDoc = frame.contentDocument;
+            const printWindow = frame.contentWindow;
+            if (!printDoc || !printWindow) {
+                frame.remove();
+                throw new Error('print frame unavailable');
+            }
+            printDoc.open();
+            printDoc.write(`<!doctype html><html><head><title>${esc(title)}</title><style>body{font-family:Georgia,serif;padding:24px;color:#111;line-height:1.5}</style></head><body>${bodyHtml}</body></html>`);
+            printDoc.close();
+            const cleanup = () => frame.remove();
+            printWindow.addEventListener('afterprint', cleanup, { once: true });
+            window.setTimeout(cleanup, 60000);
+            printWindow.focus();
+            printWindow.print();
+        }
+
         function setWindowMenus() {
             if (typeof ctx.setWindowMenus !== 'function') return;
             ctx.setWindowMenus(windowId, [
@@ -387,7 +410,9 @@
                         { type: 'separator' },
                         { id: 'download-docx', labelKey: 'desktop.writer_download_docx', icon: 'download', action: () => openExport('docx').catch(err => setStatus(err.message || String(err))) },
                         { id: 'export-html', labelKey: 'desktop.writer_export_html', icon: 'html', action: () => openExport('html').catch(err => setStatus(err.message || String(err))) },
-                        { id: 'export-md', labelKey: 'desktop.writer_export_md', icon: 'markdown', action: () => openExport('md').catch(err => setStatus(err.message || String(err))) }
+                        { id: 'export-md', labelKey: 'desktop.writer_export_md', icon: 'markdown', action: () => openExport('md').catch(err => setStatus(err.message || String(err))) },
+                        { type: 'separator' },
+                        { id: 'print', labelKey: 'viewer.print', icon: 'printer', shortcut: 'Ctrl+P', action: () => printDocument() }
                     ]
                 },
                 {

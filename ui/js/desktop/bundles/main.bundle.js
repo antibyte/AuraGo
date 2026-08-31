@@ -365,6 +365,7 @@
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'notes',
+        notes: 'notes',
         'agent-chat': 'agent-chat',
         'live-speech': 'audio',
         'sip-phone': 'phone',
@@ -508,6 +509,10 @@
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
         'windows.default_size': 'balanced',
+        'windows.restore_session': 'true',
+        'appearance.dock_pins': '["files","writer","code-studio","settings","calendar"]',
+        'session.windows': '',
+        'files.default_apps': '{}',
         'files.confirm_delete': 'true',
         'files.default_folder': 'Documents',
         'agent.show_chat_button': 'true',
@@ -754,7 +759,17 @@
     }
 
     function dockApps() {
-        return userFacingApps().filter(app => app.dock_visible !== false);
+        const pinned = dockPinIds().map(id => appById(id)).filter(Boolean);
+        const runningIds = new Set([...state.windows.values()].map(win => win.appId).filter(Boolean));
+        const running = userFacingApps().filter(app => runningIds.has(app.id) && !isAppDockPinned(app.id));
+        const seen = new Set();
+        const merged = [];
+        pinned.concat(running).forEach(app => {
+            if (!app || seen.has(app.id)) return;
+            seen.add(app.id);
+            merged.push(app);
+        });
+        return merged.length ? merged : userFacingApps().filter(app => app.dock_visible !== false).slice(0, 8);
     }
 
     function appById(appId) {
@@ -767,6 +782,8 @@
             writer: 'WriterApp',
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
+            terminal: 'TerminalApp',
+            notes: 'NotesApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
@@ -4870,6 +4887,14 @@
                 <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
             </button>`).join('');
         }
+        const recentFiles = query ? [] : readRecentFiles().slice(0, 5);
+        if (recentFiles.length > 0) {
+            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_files'))}</div>`;
+            html += recentFiles.map((entry, index) => `<button class="vd-start-item vd-start-recent-file" type="button" data-recent-path="${esc(entry.path)}" style="--start-index:${recentApps.length + index}">
+                ${iconMarkup('documents', entry.name.slice(0, 2), 'vd-sprite-start-item', 30)}
+                <span>${esc(entry.name)}</span>
+            </button>`).join('');
+        }
         html += nonRecentApps.map((app, index) => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${recentApps.length + index}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
@@ -4886,6 +4911,12 @@
                 openApp(appId);
             });
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
+         });
+        $('vd-start-apps').querySelectorAll('[data-recent-path]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                closeStartMenu();
+                openDesktopPath(btn.dataset.recentPath);
+            });
         });
     }
 
@@ -4939,23 +4970,69 @@
         const host = $('vd-taskbar-apps');
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
-        const seenWindowIds = new Set();
-        [...state.windows.values()].forEach((win, index) => {
-            seenWindowIds.add(win.id);
-            let btn = host.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+        let pinHost = host.querySelector('[data-taskbar-pins]');
+        if (!pinHost) {
+            pinHost = document.createElement('div');
+            pinHost.className = 'vd-taskbar-pins';
+            pinHost.dataset.taskbarPins = 'true';
+            host.prepend(pinHost);
+        }
+        const winHost = host.querySelector('[data-taskbar-windows]') || (() => {
+            const node = document.createElement('div');
+            node.className = 'vd-taskbar-windows';
+            node.dataset.taskbarWindows = 'true';
+            host.appendChild(node);
+            return node;
+        })();
+        const seenPinIds = new Set();
+        dockPinIds().forEach((appId, index) => {
+            const app = appById(appId);
+            if (!app) return;
+            seenPinIds.add(appId);
+            let btn = pinHost.querySelector(`[data-pin-app-id="${cssSel(appId)}"]`);
             if (!btn) {
                 btn = document.createElement('button');
                 btn.type = 'button';
-                host.insertBefore(btn, host.children[index] || null);
+                btn.className = 'vd-taskbar-pin';
+                btn.dataset.pinAppId = appId;
+                bindTaskbarPinButton(btn);
+                pinHost.appendChild(btn);
+            }
+            btn.style.setProperty('--dock-index', index);
+            btn.innerHTML = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
+            btn.title = appName(app);
+        });
+        pinHost.querySelectorAll('[data-pin-app-id]').forEach(btn => {
+            if (!seenPinIds.has(btn.dataset.pinAppId)) btn.remove();
+        });
+        const seenWindowIds = new Set();
+        [...state.windows.values()].forEach((win, index) => {
+            seenWindowIds.add(win.id);
+            let btn = winHost.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                winHost.insertBefore(btn, winHost.children[index] || null);
                 bindTaskbarButton(btn);
-            } else if (btn !== host.children[index]) {
-                host.insertBefore(btn, host.children[index] || null);
+            } else if (btn !== winHost.children[index]) {
+                winHost.insertBefore(btn, winHost.children[index] || null);
             }
             updateTaskbarButton(btn, win, index);
         });
-        host.querySelectorAll('[data-window-id]').forEach(btn => {
+        winHost.querySelectorAll('[data-window-id]').forEach(btn => {
             if (!seenWindowIds.has(btn.dataset.windowId)) btn.remove();
         });
+    }
+
+    function bindTaskbarPinButton(btn) {
+        if (btn.getAttribute('data-pin-bound') === 'true') return;
+        btn.setAttribute('data-pin-bound', 'true');
+        btn.addEventListener('click', () => {
+            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.pinAppId);
+            if (existing) focusWindow(existing.id);
+            else openApp(btn.dataset.pinAppId);
+        });
+        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.pinAppId));
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
@@ -5066,6 +5143,8 @@
             'quick-connect': { width: 960, height: 680 },
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
+            terminal: { width: 880, height: 520 },
+            notes: { width: 720, height: 560 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
             'log-viewer': { width: 920, height: 640 },
@@ -5092,7 +5171,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
@@ -5288,6 +5367,7 @@
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (context && context.path) recordRecentFile(context.path, appId);
             return;
         }
         const title = windowTitle(appId);
@@ -5313,8 +5393,13 @@
         }
 
         const requestedSize = appWindowSize(appId);
-        const size = clampWindowSize(requestedSize);
-        const position = nextWindowPosition(size);
+        const sessionRestore = context && context.sessionRestore;
+        const size = sessionRestore
+            ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
+            : clampWindowSize(requestedSize);
+        const position = sessionRestore
+            ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
+            : nextWindowPosition(size);
 
         if (isMobileMode && forceMaximized) {
             // Mobile forced maximized windows take full available space
@@ -5366,14 +5451,20 @@
         ${isResizable ? resizeHandleMarkup() : ''}`;
         $('vd-window-layer').appendChild(win);
         const windowContext = Object.assign({}, context || {});
+        if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
-        if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
+        else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
+        if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
         renderAppContent(id, appId, windowContext);
+        if (windowContext.path) recordRecentFile(windowContext.path, appId);
         renderTaskbar();
+        scheduleSessionPersist();
     }
 
     function resizeHandleMarkup() {
@@ -5724,6 +5815,7 @@ function wireWindow(win, id) {
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
+            scheduleSessionPersist();
         });
         bar.addEventListener('pointercancel', () => {
             cancelWindowPointerFrame(drag);
@@ -5928,6 +6020,7 @@ function wireWindow(win, id) {
         focusWindow(id);
         renderWindowMenus(id);
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
     }
 
     function wireWindowResize(win, id) {
@@ -5969,6 +6062,7 @@ function wireWindow(win, id) {
                 cancelWindowPointerFrame(resize, true);
                 resize = null;
                 win.classList.remove('resizing');
+                scheduleSessionPersist();
             });
             handle.addEventListener('pointercancel', event => {
                 if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
@@ -6059,6 +6153,7 @@ function wireWindow(win, id) {
         if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
         // Demote the SIP phone gadget so normal windows stay above it unless
         // the gadget is configured as always-on-top.
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.blur === 'function') {
@@ -6081,6 +6176,7 @@ function wireWindow(win, id) {
             state.windows.delete(id);
             renderTaskbar();
             scheduleFruityDockOcclusionCheck();
+            scheduleSessionPersist();
         });
     }
 
@@ -6924,6 +7020,654 @@ function wireWindow(win, id) {
         importHostFiles,
         exportWorkspaceFile
     };
+
+;
+/* ui/js/desktop/core/session-runtime.js */
+    const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
+    const SESSION_CONTEXT_KEYS = ['path', 'category'];
+    let sessionPersistTimer = 0;
+
+    function defaultDockPinIds() {
+        return ['files', 'writer', 'code-studio', 'settings', 'calendar'];
+    }
+
+    function parseDockPinsRaw() {
+        const raw = settingValue('appearance.dock_pins');
+        if (!raw) return defaultDockPinIds();
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter(id => typeof id === 'string' && id) : defaultDockPinIds();
+        } catch (_) {
+            return defaultDockPinIds();
+        }
+    }
+
+    function dockPinIds() {
+        const pins = parseDockPinsRaw();
+        const valid = pins.filter(id => userFacingApps().some(app => app.id === id));
+        return valid.length ? valid : defaultDockPinIds();
+    }
+
+    function isAppDockPinned(appId) {
+        return dockPinIds().includes(appId);
+    }
+
+    async function setDockPins(appIds) {
+        const json = JSON.stringify(appIds);
+        await saveSetting('appearance.dock_pins', json);
+        if (state.bootstrap) {
+            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'appearance.dock_pins': json });
+        }
+        renderTaskbar();
+    }
+
+    async function toggleDockPin(appId) {
+        const pins = dockPinIds().slice();
+        const idx = pins.indexOf(appId);
+        if (idx >= 0) pins.splice(idx, 1);
+        else pins.push(appId);
+        await setDockPins(pins);
+    }
+
+    function sessionRestoreEnabled() {
+        return settingBool('windows.restore_session');
+    }
+
+    function sanitizeSessionContext(context) {
+        if (!context || typeof context !== 'object') return {};
+        const out = {};
+        SESSION_CONTEXT_KEYS.forEach(key => {
+            if (context[key] != null && context[key] !== '') out[key] = context[key];
+        });
+        return out;
+    }
+
+    function captureSessionSnapshot() {
+        const windows = [];
+        state.windows.forEach(item => {
+            if (!item || !item.appId || item.isGadget || item.closing) return;
+            if (String(item.appId).startsWith('widget:')) return;
+            if (SESSION_SKIP_APP_IDS.has(item.appId)) return;
+            const el = item.element;
+            if (!el) return;
+            windows.push({
+                appId: item.appId,
+                left: parseInt(el.style.left, 10) || 0,
+                top: parseInt(el.style.top, 10) || 0,
+                width: parseInt(el.style.width, 10) || 800,
+                height: parseInt(el.style.height, 10) || 600,
+                maximized: !!item.maximized,
+                minimized: el.style.display === 'none',
+                z: parseInt(el.style.zIndex, 10) || 0,
+                context: sanitizeSessionContext(item.context)
+            });
+        });
+        return { version: 1, windows };
+    }
+
+    function scheduleSessionPersist() {
+        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
+        sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
+    }
+
+    async function persistSessionSnapshot() {
+        sessionPersistTimer = 0;
+        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        try {
+            const snapshot = captureSessionSnapshot();
+            const json = JSON.stringify(snapshot);
+            await saveSetting('session.windows', json);
+            if (state.bootstrap) {
+                state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
+            }
+        } catch (_) { /* ignore persist errors */ }
+    }
+
+    function parseSessionSnapshot() {
+        const raw = settingValue('session.windows');
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.windows)) return null;
+            return parsed;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    async function restoreDesktopSession() {
+        if (!sessionRestoreEnabled() || state._sessionRestored) return;
+        state._sessionRestored = true;
+        const snapshot = parseSessionSnapshot();
+        if (!snapshot || !snapshot.windows.length) return;
+        state.sessionRestoring = true;
+        const sorted = snapshot.windows.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
+        for (let i = 0; i < sorted.length; i++) {
+            const entry = sorted[i];
+            if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
+            if (!appById(entry.appId)) continue;
+            const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
+                sessionRestore: {
+                    left: entry.left,
+                    top: entry.top,
+                    width: entry.width,
+                    height: entry.height,
+                    maximized: !!entry.maximized,
+                    minimized: !!entry.minimized,
+                    z: entry.z || 0,
+                    active: i === sorted.length - 1
+                }
+            });
+            openApp(entry.appId, ctx);
+            await new Promise(resolve => window.setTimeout(resolve, 60));
+        }
+        state.sessionRestoring = false;
+        scheduleSessionPersist();
+    }
+
+    function parseDefaultAppsMap() {
+        const raw = settingValue('files.default_apps');
+        if (!raw) return {};
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    async function setDefaultAppForExtension(ext, appId) {
+        const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
+        if (!normalized || !appId) return;
+        const map = parseDefaultAppsMap();
+        map[normalized] = appId;
+        const json = JSON.stringify(map);
+        await saveSetting('files.default_apps', json);
+        if (state.bootstrap) {
+            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'files.default_apps': json });
+        }
+    }
+
+    function defaultAppForExtension(ext) {
+        const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
+        const map = parseDefaultAppsMap();
+        return map[normalized] || '';
+    }
+
+    const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v1';
+    const RECENT_FILES_MAX = 12;
+
+    function readRecentFiles() {
+        return readJSONStorage(RECENT_FILES_KEY, []).filter(entry => entry && entry.path).slice(0, RECENT_FILES_MAX);
+    }
+
+    function recordRecentFile(path, appId) {
+        const normalized = normalizeDesktopPath(path);
+        if (!normalized) return;
+        const name = pathBaseName(normalized);
+        const recent = readRecentFiles().filter(entry => entry.path !== normalized);
+        recent.unshift({ path: normalized, name, appId: appId || '', openedAt: Date.now() });
+        writeJSONStorage(RECENT_FILES_KEY, recent.slice(0, RECENT_FILES_MAX));
+    }
+
+;
+/* ui/js/desktop/core/shell-chrome-runtime.js */
+    state.notificationHistory = state.notificationHistory || [];
+    state.notificationUnread = state.notificationUnread || 0;
+    let windowSwitcherHold = null;
+
+    function pushNotificationRecord(payload) {
+        const entry = {
+            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+            title: String(payload.title || t('desktop.notification')),
+            message: String(payload.message || ''),
+            appId: payload.appId || '',
+            ts: Date.now(),
+            read: false
+        };
+        state.notificationHistory.unshift(entry);
+        if (state.notificationHistory.length > 40) state.notificationHistory.length = 40;
+        state.notificationUnread = Math.min(99, (state.notificationUnread || 0) + 1);
+        updateNotificationBadge();
+        return entry;
+    }
+
+    function updateNotificationBadge() {
+        const badge = document.getElementById('vd-notification-badge');
+        if (!badge) return;
+        const count = state.notificationUnread || 0;
+        badge.hidden = count <= 0;
+        badge.textContent = count > 9 ? '9+' : String(count);
+    }
+
+    function markAllNotificationsRead() {
+        state.notificationHistory.forEach(entry => { entry.read = true; });
+        state.notificationUnread = 0;
+        updateNotificationBadge();
+    }
+
+    function closeNotificationCenter() {
+        const panel = document.getElementById('vd-notification-center');
+        if (panel) panel.hidden = true;
+    }
+
+    function renderNotificationCenter() {
+        let panel = document.getElementById('vd-notification-center');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'vd-notification-center';
+            panel.className = 'vd-notification-center';
+            panel.hidden = true;
+            document.body.appendChild(panel);
+        }
+        const items = state.notificationHistory || [];
+        const list = items.length
+            ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
+                <div class="vd-notification-item-title">${esc(entry.title)}</div>
+                ${entry.message ? `<div class="vd-notification-item-message">${esc(entry.message)}</div>` : ''}
+                <div class="vd-notification-item-time">${esc(formatNotificationTime(entry.ts))}</div>
+            </button>`).join('')
+            : `<div class="vd-notification-empty">${esc(t('desktop.notifications_empty'))}</div>`;
+        panel.innerHTML = `<div class="vd-notification-header">
+            <div class="vd-notification-title">${esc(t('desktop.notifications_title'))}</div>
+            <button type="button" class="vd-notification-clear" data-action="clear-notifications">${esc(t('desktop.notifications_clear'))}</button>
+        </div>
+        <div class="vd-notification-list">${list}</div>`;
+        panel.querySelector('[data-action="clear-notifications"]').addEventListener('click', () => {
+            state.notificationHistory = [];
+            state.notificationUnread = 0;
+            updateNotificationBadge();
+            renderNotificationCenter();
+        });
+        panel.querySelectorAll('[data-notification-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const entry = state.notificationHistory.find(item => item.id === btn.dataset.notificationId);
+                if (entry) entry.read = true;
+                state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
+                updateNotificationBadge();
+                closeNotificationCenter();
+                if (btn.dataset.appId) openApp(btn.dataset.appId);
+            });
+        });
+    }
+
+    function toggleNotificationCenter(anchor) {
+        renderNotificationCenter();
+        const panel = document.getElementById('vd-notification-center');
+        if (!panel) return;
+        if (!panel.hidden) {
+            closeNotificationCenter();
+            return;
+        }
+        panel.hidden = false;
+        markAllNotificationsRead();
+        if (anchor && anchor.getBoundingClientRect) {
+            const rect = anchor.getBoundingClientRect();
+            panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+            panel.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
+        }
+    }
+
+    function formatNotificationTime(ts) {
+        const date = new Date(ts || Date.now());
+        return date.toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+    }
+
+    function closeClockPopup() {
+        const popup = document.getElementById('vd-clock-popup');
+        if (popup) popup.hidden = true;
+    }
+
+    async function openClockPopup(anchor) {
+        closeClockPopup();
+        let popup = document.getElementById('vd-clock-popup');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'vd-clock-popup';
+            popup.className = 'vd-clock-popup';
+            document.body.appendChild(popup);
+        }
+        popup.hidden = false;
+        popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
+        if (anchor && anchor.getBoundingClientRect) {
+            const rect = anchor.getBoundingClientRect();
+            popup.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+            popup.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
+        }
+        let appointments = [];
+        try {
+            appointments = await api('/api/appointments?status=all');
+        } catch (_) {
+            appointments = [];
+        }
+        const now = new Date();
+        const todayKey = now.toISOString().slice(0, 10);
+        const todayItems = (appointments || []).filter(item => String(item.date_time || '').startsWith(todayKey));
+        const events = todayItems.slice(0, 6).map(item => {
+            const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
+        }).join('');
+        popup.innerHTML = `<div class="vd-clock-popup-head">
+            <div class="vd-clock-popup-date">${esc(now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
+            <div class="vd-clock-popup-time">${esc(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</div>
+        </div>
+        <div class="vd-clock-popup-section">${esc(t('desktop.clock_today'))}</div>
+        ${events ? `<ul class="vd-clock-popup-events">${events}</ul>` : `<div class="vd-clock-popup-empty">${esc(t('desktop.clock_no_events'))}</div>`}
+        <button type="button" class="vd-clock-popup-open" data-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
+        popup.querySelector('[data-action="open-calendar"]').addEventListener('click', () => {
+            closeClockPopup();
+            openApp('calendar');
+        });
+    }
+
+    function closeShortcutsHelp() {
+        const help = document.getElementById('vd-shortcuts-help');
+        if (help) help.remove();
+    }
+
+    function showShortcutsHelp() {
+        closeShortcutsHelp();
+        const overlay = document.createElement('div');
+        overlay.id = 'vd-shortcuts-help';
+        overlay.className = 'vd-shortcuts-help';
+        const rows = [
+            ['Ctrl+Space / Win', t('desktop.shortcuts_start_menu')],
+            ['Ctrl+K', t('desktop.shortcuts_spotlight')],
+            ['Ctrl+Tab', t('desktop.shortcuts_window_switch')],
+            ['Ctrl+Alt+W', t('desktop.shortcuts_window_switch_alt')],
+            ['Alt+F4', t('desktop.close')],
+            ['F11', t('desktop.maximize')],
+            ['F1', t('desktop.shortcuts_title')]
+        ];
+        overlay.innerHTML = `<div class="vd-shortcuts-panel">
+            <div class="vd-shortcuts-heading">${esc(t('desktop.shortcuts_title'))}</div>
+            <ul class="vd-shortcuts-list">${rows.map(row => `<li><kbd>${esc(row[0])}</kbd><span>${esc(row[1])}</span></li>`).join('')}</ul>
+            <button type="button" class="vd-shortcuts-close">${esc(t('desktop.close'))}</button>
+        </div>`;
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeShortcutsHelp();
+        });
+        overlay.querySelector('.vd-shortcuts-close').addEventListener('click', closeShortcutsHelp);
+        document.body.appendChild(overlay);
+    }
+
+    function windowSwitcherWindows() {
+        return [...state.windows.values()].filter(win => win && win.element && win.element.style.display !== 'none' && !win.isGadget);
+    }
+
+    function renderWindowSwitcherOverlay(nextIndex) {
+        const wins = windowSwitcherWindows();
+        if (!wins.length) return;
+        let overlay = document.getElementById('vd-window-switcher');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'vd-window-switcher';
+            overlay.className = 'vd-window-switcher';
+            document.body.appendChild(overlay);
+        }
+        overlay.innerHTML = wins.map((win, i) => {
+            const app = appById(win.appId);
+            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
+            const isActive = i === nextIndex;
+            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
+        }).join('');
+    }
+
+    function beginWindowSwitcherHold(reverse) {
+        const wins = windowSwitcherWindows();
+        if (wins.length <= 1) {
+            if (wins.length === 1) focusWindow(wins[0].id);
+            return;
+        }
+        const currentIndex = wins.findIndex(win => win.id === state.activeWindowId);
+        const step = reverse ? -1 : 1;
+        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + wins.length) % wins.length;
+        windowSwitcherHold = { index: nextIndex, winsLength: wins.length };
+        renderWindowSwitcherOverlay(nextIndex);
+    }
+
+    function cycleWindowSwitcherHold(reverse) {
+        if (!windowSwitcherHold) return;
+        const wins = windowSwitcherWindows();
+        if (!wins.length) {
+            endWindowSwitcherHold(false);
+            return;
+        }
+        const step = reverse ? -1 : 1;
+        windowSwitcherHold.index = (windowSwitcherHold.index + step + wins.length) % wins.length;
+        renderWindowSwitcherOverlay(windowSwitcherHold.index);
+    }
+
+    function endWindowSwitcherHold(applyFocus) {
+        const overlay = document.getElementById('vd-window-switcher');
+        const wins = windowSwitcherWindows();
+        if (applyFocus && windowSwitcherHold && wins[windowSwitcherHold.index]) {
+            focusWindow(wins[windowSwitcherHold.index].id);
+        }
+        windowSwitcherHold = null;
+        if (overlay) overlay.remove();
+    }
+
+    function handleWindowSwitcherKeydown(event) {
+        const ctrl = event.ctrlKey || event.metaKey;
+        if (!ctrl || event.altKey) return false;
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            if (!windowSwitcherHold) beginWindowSwitcherHold(event.shiftKey);
+            else cycleWindowSwitcherHold(event.shiftKey);
+            return true;
+        }
+        if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
+            event.preventDefault();
+            if (!windowSwitcherHold) beginWindowSwitcherHold(false);
+            else cycleWindowSwitcherHold(false);
+            return true;
+        }
+        return false;
+    }
+
+    function handleWindowSwitcherKeyup(event) {
+        if (!windowSwitcherHold) return false;
+        if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Alt') {
+            endWindowSwitcherHold(true);
+            return true;
+        }
+        return false;
+    }
+
+    function wireShellChromeControls() {
+        const clock = document.getElementById('vd-clock');
+        if (clock && !clock.dataset.shellChromeWired) {
+            clock.dataset.shellChromeWired = 'true';
+            clock.style.cursor = 'pointer';
+            clock.title = t('desktop.clock_open_calendar');
+            clock.addEventListener('click', event => {
+                event.stopPropagation();
+                openClockPopup(clock);
+            });
+        }
+        const notifyBtn = document.getElementById('vd-notification-button');
+        if (notifyBtn && !notifyBtn.dataset.shellChromeWired) {
+            notifyBtn.dataset.shellChromeWired = 'true';
+            notifyBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                toggleNotificationCenter(notifyBtn);
+            });
+        }
+        document.addEventListener('click', event => {
+            if (!event.target.closest('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button')) {
+                closeClockPopup();
+                closeNotificationCenter();
+            }
+        });
+    }
+
+;
+/* ui/js/desktop/core/spotlight-runtime.js */
+    let spotlightOpen = false;
+
+    function closeSpotlight() {
+        const backdrop = document.getElementById('vd-spotlight-backdrop');
+        if (backdrop) backdrop.remove();
+        spotlightOpen = false;
+    }
+
+    function spotlightSettingsEntries() {
+        return [
+            { id: 'settings-appearance', title: t('desktop.settings_category_appearance'), action: () => openApp('settings', { category: 'appearance' }) },
+            { id: 'settings-desktop', title: t('desktop.settings_category_desktop'), action: () => openApp('settings', { category: 'desktop' }) },
+            { id: 'settings-windows', title: t('desktop.settings_category_windows'), action: () => openApp('settings', { category: 'windows' }) },
+            { id: 'settings-files', title: t('desktop.settings_category_files'), action: () => openApp('settings', { category: 'files' }) },
+            { id: 'settings-agent', title: t('desktop.settings_category_agent'), action: () => openApp('settings', { category: 'agent' }) }
+        ];
+    }
+
+    function spotlightAppEntries(query) {
+        const q = String(query || '').trim().toLowerCase();
+        return startMenuApps()
+            .filter(app => !q || appName(app).toLowerCase().includes(q) || String(app.id || '').includes(q))
+            .slice(0, 8)
+            .map(app => ({
+                id: 'app-' + app.id,
+                title: appName(app),
+                subtitle: t('desktop.spotlight_apps'),
+                action: () => openApp(app.id)
+            }));
+    }
+
+    function spotlightRecentFileEntries(query) {
+        const q = String(query || '').trim().toLowerCase();
+        return readRecentFiles()
+            .filter(entry => !q || entry.name.toLowerCase().includes(q) || entry.path.toLowerCase().includes(q))
+            .slice(0, 6)
+            .map(entry => ({
+                id: 'recent-' + entry.path,
+                title: entry.name,
+                subtitle: t('desktop.spotlight_recent_files'),
+                action: () => openDesktopPath(entry.path)
+            }));
+    }
+
+    function openDesktopPath(path) {
+        const normalized = normalizeDesktopPath(path);
+        if (!normalized) return;
+        const ext = normalized.split('.').pop().toLowerCase();
+        const defaultApp = defaultAppForExtension(ext);
+        if (defaultApp) {
+            openApp(defaultApp, { path: normalized });
+            return;
+        }
+        openApp('files', { path: pathDir(normalized) || '' });
+        openApp('viewer', { path: normalized });
+    }
+
+    async function spotlightFileEntries(query) {
+        const q = String(query || '').trim();
+        if (q.length < 2) return [];
+        try {
+            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q));
+            return (body.files || body.results || []).slice(0, 8).map(file => ({
+                id: 'file-' + file.path,
+                title: file.name || pathBaseName(file.path),
+                subtitle: t('desktop.spotlight_files'),
+                action: () => openDesktopPath(file.path)
+            }));
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function renderSpotlightResults(entries, activeIndex) {
+        const host = document.querySelector('#vd-spotlight-backdrop [data-spotlight-results]');
+        if (!host) return;
+        if (!entries.length) {
+            host.innerHTML = `<div class="vd-spotlight-empty">${esc(t('desktop.spotlight_empty'))}</div>`;
+            return;
+        }
+        host.innerHTML = entries.map((entry, index) => `<button type="button" class="vd-spotlight-item${index === activeIndex ? ' active' : ''}" data-spotlight-index="${index}">
+            <span class="vd-spotlight-item-title">${esc(entry.title)}</span>
+            ${entry.subtitle ? `<span class="vd-spotlight-item-sub">${esc(entry.subtitle)}</span>` : ''}
+        </button>`).join('');
+    }
+
+    async function refreshSpotlightResults(input, stateObj) {
+        const query = input.value || '';
+        const settings = spotlightSettingsEntries().filter(entry => !query || entry.title.toLowerCase().includes(query.toLowerCase()));
+        const apps = spotlightAppEntries(query);
+        const recent = spotlightRecentFileEntries(query);
+        const files = await spotlightFileEntries(query);
+        stateObj.entries = []
+            .concat(settings.map(entry => ({ id: entry.id, title: entry.title, subtitle: t('desktop.spotlight_settings'), action: entry.action })))
+            .concat(recent)
+            .concat(apps)
+            .concat(files)
+            .slice(0, 16);
+        if (stateObj.activeIndex >= stateObj.entries.length) stateObj.activeIndex = Math.max(0, stateObj.entries.length - 1);
+        renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+    }
+
+    function activateSpotlightIndex(stateObj) {
+        const entry = stateObj.entries[stateObj.activeIndex];
+        if (!entry || typeof entry.action !== 'function') return;
+        closeSpotlight();
+        entry.action();
+    }
+
+    function openSpotlight() {
+        if (spotlightOpen) return;
+        closeStartMenu();
+        spotlightOpen = true;
+        const backdrop = document.createElement('div');
+        backdrop.id = 'vd-spotlight-backdrop';
+        backdrop.className = 'vd-spotlight-backdrop';
+        backdrop.innerHTML = `<div class="vd-spotlight">
+            <label class="vd-spotlight-label">${esc(t('desktop.spotlight_title'))}</label>
+            <input type="search" class="vd-spotlight-input" placeholder="${esc(t('desktop.spotlight_placeholder'))}" autocomplete="off" spellcheck="false">
+            <div class="vd-spotlight-results" data-spotlight-results></div>
+        </div>`;
+        document.body.appendChild(backdrop);
+        const input = backdrop.querySelector('.vd-spotlight-input');
+        const stateObj = { entries: [], activeIndex: 0 };
+        let timer = 0;
+        const scheduleRefresh = () => {
+            if (timer) window.clearTimeout(timer);
+            timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
+        };
+        input.addEventListener('input', scheduleRefresh);
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeSpotlight();
+                return;
+            }
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                stateObj.activeIndex = Math.min(stateObj.entries.length - 1, stateObj.activeIndex + 1);
+                renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+                return;
+            }
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                stateObj.activeIndex = Math.max(0, stateObj.activeIndex - 1);
+                renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+                return;
+            }
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                activateSpotlightIndex(stateObj);
+            }
+        });
+        backdrop.addEventListener('click', event => {
+            if (event.target === backdrop) closeSpotlight();
+            const btn = event.target.closest('[data-spotlight-index]');
+            if (!btn) return;
+            stateObj.activeIndex = Number(btn.dataset.spotlightIndex);
+            activateSpotlightIndex(stateObj);
+        });
+        refreshSpotlightResults(input, stateObj);
+        input.focus();
+    }
 
 ;
 /* ui/js/desktop/core/desktop-file-drops.js */
@@ -8277,6 +9021,10 @@ function updateTaskbarSystemButtonsForMobile() {
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (String(name || '').toLowerCase().endsWith('.md')) {
+            apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
+            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.zip')) {
@@ -8284,10 +9032,22 @@ function updateTaskbarSystemButtonsForMobile() {
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
-        return apps.map(app => ({
+        const ext = desktopFileExtension(name);
+        const openItems = apps.map(app => ({
             label: app.label,
-            action: () => openApp(app.appId, { path: entry.path })
+            action: () => {
+                recordRecentFile(entry.path, app.appId);
+                openApp(app.appId, { path: entry.path });
+            }
         }));
+        const defaultItems = apps.map(app => ({
+            label: t('desktop.set_default_app_for', { app: app.label }),
+            action: () => {
+                setDefaultAppForExtension(ext, app.appId);
+                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+            }
+        }));
+        return openItems.concat([{ separator: true }]).concat(defaultItems);
     }
 
     async function copyDesktopPathToClipboard(paths) {
@@ -8677,15 +9437,15 @@ function updateTaskbarSystemButtonsForMobile() {
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
         const app = appById(appId);
-        const inDock = !!(app && app.dock_visible !== false);
+        const pinned = isAppDockPinned(appId);
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
             { label: t('desktop.context_new_window'), icon: 'monitor', fallback: 'N', action: () => openApp(appId, { forceNew: true }) },
             { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) },
             { separator: true },
-            inDock
-                ? { label: t('desktop.app_remove_from_dock'), icon: 'pin', fallback: '-', action: () => setAppVisibility(appId, { dock_visible: false }) }
-                : { label: t('desktop.app_add_to_dock'), icon: 'pin', fallback: '+', action: () => setAppVisibility(appId, { dock_visible: true }) }
+            pinned
+                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', action: () => toggleDockPin(appId) }
+                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', action: () => toggleDockPin(appId) }
         ];
         if (!isBuiltinApp(appId)) {
             items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', action: () => deleteDesktopApp(appId) });
@@ -9601,6 +10361,27 @@ if (appId === 'system-info') {
         } if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+        }
+        if (appId === 'terminal') {
+            if (!window.TerminalApp) {
+                window.AuraDesktopModules.loadAppScript('terminal').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.TerminalApp.render === 'function') {
+                return window.TerminalApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, registerWindowCleanup, readonly: desktopReadonly() }));
+            }
+        }
+        if (appId === 'notes') {
+            if (!window.NotesApp) {
+                window.AuraDesktopModules.loadAppScript('notes').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.NotesApp.render === 'function') {
+                return window.NotesApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(),
+                    recordRecentFile, openFileDialog: options => openDesktopFileDialog(options || {})
+                }));
+            }
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {
@@ -12895,6 +13676,7 @@ if (appId === 'pixel') {
     }
 
     function showDesktopNotification(payload) {
+        pushNotificationRecord(payload || {});
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -13090,40 +13872,24 @@ if (appId === 'pixel') {
     }
 
     function showWindowSwitcher() {
-        const wins = [...state.windows.values()];
-        if (wins.length === 0) return;
-        if (wins.length === 1) { focusWindow(wins[0].id); return; }
-        const existing = document.getElementById('vd-window-switcher');
-        if (existing) {
-            existing.remove();
-            const index = wins.findIndex(win => win.id === state.activeWindowId);
-            focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
-            return;
-        }
-        const overlay = document.createElement('div');
-        overlay.id = 'vd-window-switcher';
-        overlay.className = 'vd-window-switcher';
-        const index = wins.findIndex(win => win.id === state.activeWindowId);
-        const nextIndex = (index + 1 + wins.length) % wins.length;
-        overlay.innerHTML = wins.map((win, i) => {
-            const app = appById(win.appId);
-            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
-            const isActive = i === nextIndex;
-            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
-        }).join('');
-        overlay.addEventListener('click', e => {
-            const btn = e.target.closest('[data-window-id]');
-            if (btn) focusWindow(btn.dataset.windowId);
-            overlay.remove();
-        });
-        document.body.appendChild(overlay);
-        setTimeout(() => overlay.remove(), 3000);
+        beginWindowSwitcherHold(false);
     }
 
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
+        if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
+        if (event.ctrlKey && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            openSpotlight();
+            return;
+        }
+        if (event.key === 'F1') {
+            event.preventDefault();
+            showShortcutsHelp();
+            return;
+        }
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();
@@ -13136,7 +13902,7 @@ if (appId === 'pixel') {
         }
         if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
             event.preventDefault();
-            showWindowSwitcher();
+            beginWindowSwitcherHold(false);
             return;
         }
         if (event.key === 'F11') {
@@ -13147,7 +13913,8 @@ if (appId === 'pixel') {
         switch (event.key) {
         case 'Escape': {
             const shortcuts = document.getElementById('vd-shortcuts-help');
-            if (shortcuts) { shortcuts.remove(); return; }
+            if (shortcuts) { closeShortcutsHelp(); return; }
+            if (document.getElementById('vd-spotlight-backdrop')) { closeSpotlight(); return; }
             closeContextMenu();
             closeWindowMenu();
             closeStartMenu();
@@ -13178,6 +13945,7 @@ if (appId === 'pixel') {
     }
 
     function handleDesktopKeyup(event) {
+        if (handleWindowSwitcherKeyup(event)) return;
         relayGeneratedFrameKeyboardEvent(event);
     }
 
@@ -13234,6 +14002,7 @@ if (appId === 'pixel') {
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();
         wireChrome();
+        wireShellChromeControls();
         document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
@@ -13256,6 +14025,8 @@ if (appId === 'pixel') {
         refreshPetRuntime();
         mark('first-render');
         openInitialDesktopApp();
+        const bootApp = new URLSearchParams(window.location.search || '').get('app');
+        if (!bootApp) restoreDesktopSession();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();

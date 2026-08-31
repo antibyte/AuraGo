@@ -133,6 +133,7 @@
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'notes',
+        notes: 'notes',
         'agent-chat': 'agent-chat',
         'live-speech': 'audio',
         'sip-phone': 'phone',
@@ -276,6 +277,10 @@
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
         'windows.default_size': 'balanced',
+        'windows.restore_session': 'true',
+        'appearance.dock_pins': '["files","writer","code-studio","settings","calendar"]',
+        'session.windows': '',
+        'files.default_apps': '{}',
         'files.confirm_delete': 'true',
         'files.default_folder': 'Documents',
         'agent.show_chat_button': 'true',
@@ -522,7 +527,17 @@
     }
 
     function dockApps() {
-        return userFacingApps().filter(app => app.dock_visible !== false);
+        const pinned = dockPinIds().map(id => appById(id)).filter(Boolean);
+        const runningIds = new Set([...state.windows.values()].map(win => win.appId).filter(Boolean));
+        const running = userFacingApps().filter(app => runningIds.has(app.id) && !isAppDockPinned(app.id));
+        const seen = new Set();
+        const merged = [];
+        pinned.concat(running).forEach(app => {
+            if (!app || seen.has(app.id)) return;
+            seen.add(app.id);
+            merged.push(app);
+        });
+        return merged.length ? merged : userFacingApps().filter(app => app.dock_visible !== false).slice(0, 8);
     }
 
     function appById(appId) {
@@ -535,6 +550,8 @@
             writer: 'WriterApp',
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
+            terminal: 'TerminalApp',
+            notes: 'NotesApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',

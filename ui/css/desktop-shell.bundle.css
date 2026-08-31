@@ -8119,3 +8119,349 @@
         animation: none !important;
     }
 }
+
+/* ui/css/desktop-chrome.css */
+/* desktop-chrome.css — spotlight, notifications, clock popup, shortcuts, terminal/notes apps */
+
+.vd-notification-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: var(--ds-color-surface-2);
+    color: var(--vd-text);
+    cursor: pointer;
+}
+
+.vd-notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--vd-accent, #27c7a6);
+    color: #fff;
+    font-size: 0.62rem;
+    line-height: 16px;
+    text-align: center;
+}
+
+.vd-notification-center,
+.vd-clock-popup {
+    position: fixed;
+    z-index: calc(var(--ds-z-dock, 1200) + 4);
+    width: min(360px, calc(100vw - 24px));
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-bg-modal);
+    box-shadow: var(--ds-elevation-4);
+    backdrop-filter: var(--ds-blur-fine);
+}
+
+.vd-notification-header,
+.vd-clock-popup-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-notification-list {
+    max-height: 320px;
+    overflow: auto;
+}
+
+.vd-notification-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--vd-border);
+    background: transparent;
+    color: var(--vd-text);
+    cursor: pointer;
+}
+
+.vd-notification-item.unread {
+    background: color-mix(in srgb, var(--vd-accent) 10%, transparent);
+}
+
+.vd-notification-empty,
+.vd-clock-popup-empty {
+    padding: 14px 12px;
+    color: var(--vd-muted);
+}
+
+.vd-clock-popup {
+    padding-bottom: 10px;
+}
+
+.vd-clock-popup-time {
+    font-size: 1.35rem;
+    font-weight: 600;
+}
+
+.vd-clock-popup-section {
+    padding: 8px 12px 4px;
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.vd-clock-popup-events {
+    list-style: none;
+    margin: 0;
+    padding: 0 12px;
+}
+
+.vd-clock-popup-events li {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--vd-border-subtle, var(--vd-border));
+}
+
+.vd-clock-popup-open {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px 12px 0;
+}
+
+.vd-spotlight-backdrop,
+.vd-shortcuts-help {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--ds-z-modal, 1400));
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: min(12vh, 96px) 16px 16px;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.vd-spotlight,
+.vd-shortcuts-panel {
+    width: min(640px, 100%);
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-lg);
+    background: var(--ds-color-bg-modal);
+    box-shadow: var(--ds-elevation-4);
+    overflow: hidden;
+}
+
+.vd-spotlight-label,
+.vd-shortcuts-heading {
+    padding: 12px 14px 0;
+    font-weight: 600;
+}
+
+.vd-spotlight-input {
+    width: calc(100% - 28px);
+    margin: 10px 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: var(--ds-color-control-bg);
+    color: var(--vd-text);
+}
+
+.vd-spotlight-results {
+    max-height: 360px;
+    overflow: auto;
+    border-top: 1px solid var(--vd-border);
+}
+
+.vd-spotlight-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--vd-border-subtle, var(--vd-border));
+    background: transparent;
+    color: var(--vd-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-spotlight-item.active,
+.vd-spotlight-item:hover {
+    background: color-mix(in srgb, var(--vd-accent) 12%, transparent);
+}
+
+.vd-spotlight-item-sub {
+    font-size: 0.78rem;
+    color: var(--vd-muted);
+}
+
+.vd-shortcuts-list {
+    list-style: none;
+    margin: 0;
+    padding: 12px 14px;
+}
+
+.vd-shortcuts-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--vd-border-subtle, var(--vd-border));
+}
+
+.vd-shortcuts-list kbd {
+    font-family: ui-monospace, monospace;
+    font-size: 0.78rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--vd-border);
+    background: var(--ds-color-surface-2);
+}
+
+.vd-shortcuts-close {
+    display: block;
+    margin: 0 14px 14px auto;
+}
+
+.vd-taskbar-pins {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 8px;
+    padding-right: 8px;
+    border-right: 1px solid var(--vd-border);
+}
+
+.vd-taskbar-windows {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.vd-taskbar-pin {
+    width: 34px;
+    height: 34px;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--vd-text);
+    cursor: pointer;
+}
+
+.vd-terminal-app,
+.vd-notes-app {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+    min-height: 0;
+}
+
+.vd-terminal-screen {
+    min-height: 0;
+    background: #0f172a;
+}
+
+.vd-terminal-toolbar,
+.vd-notes-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vd-border);
+    background: var(--ds-color-surface-2);
+}
+
+.vd-notes-editor {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    resize: none;
+    padding: 12px 14px;
+    background: var(--ds-color-bg-canvas);
+    color: var(--vd-text);
+    font: 0.92rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.vd-notes-path {
+    margin-left: auto;
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+}
+
+.vd-window-switcher {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--ds-z-dock, 1200) + 6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px;
+    background: color-mix(in srgb, var(--ds-color-bg-modal) 72%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.vd-switcher-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+    max-width: 180px;
+    padding: 12px 10px;
+    border: 2px solid transparent;
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-surface-2);
+    color: var(--vd-text);
+    cursor: pointer;
+    box-shadow: var(--ds-elevation-2);
+}
+
+.vd-switcher-item.active {
+    border-color: var(--vd-accent, #27c7a6);
+    transform: translateY(-2px);
+}
+
+.vd-switcher-label {
+    font-size: 0.78rem;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+
+@media print {
+    .vd-taskbar,
+    .vd-start-menu,
+    .vd-window-titlebar,
+    .vd-window-menubar,
+    .office-toolbar,
+    .office-statusbar,
+    .sheets-toolbar,
+    .sheets-formula-bar,
+    .sheets-tabs,
+    .sheets-statusbar {
+        display: none !important;
+    }
+    .vd-window {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        box-shadow: none !important;
+    }
+}

@@ -20,6 +20,9 @@ const desktopMainParts = [
   'ui/js/desktop/core/widget-autosize-runtime.js',
   'ui/js/desktop/core/shortcut-runtime.js',
   'ui/js/desktop/core/file-dialog-runtime.js',
+  'ui/js/desktop/core/session-runtime.js',
+  'ui/js/desktop/core/shell-chrome-runtime.js',
+  'ui/js/desktop/core/spotlight-runtime.js',
   'ui/js/desktop/core/desktop-file-drops.js',
   'ui/js/desktop/core/desktop-window-file-drops.js',
   'ui/js/desktop/core/widget-drawer-runtime.js',
@@ -137,7 +140,8 @@ const cssBundles = [
       'ui/css/desktop-shell-overrides.css',
       'ui/css/desktop-pet.css',
       'ui/css/desktop-realtime-speech.css',
-      'ui/css/desktop-sip-phone-shell.css'
+      'ui/css/desktop-sip-phone-shell.css',
+      'ui/css/desktop-chrome.css'
     ]
   },
   {

@@ -128,6 +128,7 @@ function wireWindow(win, id) {
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
+            scheduleSessionPersist();
         });
         bar.addEventListener('pointercancel', () => {
             cancelWindowPointerFrame(drag);
@@ -332,6 +333,7 @@ function wireWindow(win, id) {
         focusWindow(id);
         renderWindowMenus(id);
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
     }
 
     function wireWindowResize(win, id) {
@@ -373,6 +375,7 @@ function wireWindow(win, id) {
                 cancelWindowPointerFrame(resize, true);
                 resize = null;
                 win.classList.remove('resizing');
+                scheduleSessionPersist();
             });
             handle.addEventListener('pointercancel', event => {
                 if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
@@ -463,6 +466,7 @@ function wireWindow(win, id) {
         if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
         // Demote the SIP phone gadget so normal windows stay above it unless
         // the gadget is configured as always-on-top.
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.blur === 'function') {
@@ -485,6 +489,7 @@ function wireWindow(win, id) {
             state.windows.delete(id);
             renderTaskbar();
             scheduleFruityDockOcclusionCheck();
+            scheduleSessionPersist();
         });
     }
 

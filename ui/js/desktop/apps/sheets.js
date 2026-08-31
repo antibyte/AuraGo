@@ -1010,6 +1010,31 @@
             if (typeof ctx.openAgentChatForFile === 'function') ctx.openAgentChatForFile(currentFileEntry(), { sourceApp: 'sheets' });
         }
 
+        function printWorkbook() {
+            const table = gridHost && gridHost.querySelector('table');
+            if (!table) return;
+            const title = String(currentPath || '').split('/').pop() || t('desktop.app_sheets');
+            const frame = document.createElement('iframe');
+            frame.className = 'vd-print-frame';
+            frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+            document.body.appendChild(frame);
+            const printDoc = frame.contentDocument;
+            const printWindow = frame.contentWindow;
+            if (!printDoc || !printWindow) {
+                frame.remove();
+                throw new Error('print frame unavailable');
+            }
+            printDoc.open();
+            printDoc.write(`<!doctype html><html><head><title>${esc(title)}</title><style>body{font-family:Segoe UI,sans-serif;padding:16px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 8px;font-size:12px}</style></head><body></body></html>`);
+            printDoc.close();
+            printDoc.body.appendChild(table.cloneNode(true));
+            const cleanup = () => frame.remove();
+            printWindow.addEventListener('afterprint', cleanup, { once: true });
+            window.setTimeout(cleanup, 60000);
+            printWindow.focus();
+            printWindow.print();
+        }
+
         function setWindowMenus() {
             if (typeof ctx.setWindowMenus !== 'function') return;
             ctx.setWindowMenus(windowId, [
@@ -1022,7 +1047,9 @@
                         { id: 'save-as', labelKey: 'desktop.sheets_save_as', icon: 'save', disabled: readonly, action: () => saveAs().catch(err => setStatus(err.message || String(err))) },
                         { type: 'separator' },
                         { id: 'download-xlsx', labelKey: 'desktop.sheets_download_xlsx', icon: 'download', action: () => openExport('xlsx').catch(err => setStatus(err.message || String(err))) },
-                        { id: 'export-csv', labelKey: 'desktop.sheets_export_csv', icon: 'spreadsheet', action: () => openExport('csv').catch(err => setStatus(err.message || String(err))) }
+                        { id: 'export-csv', labelKey: 'desktop.sheets_export_csv', icon: 'spreadsheet', action: () => openExport('csv').catch(err => setStatus(err.message || String(err))) },
+                        { type: 'separator' },
+                        { id: 'print', labelKey: 'viewer.print', icon: 'printer', shortcut: 'Ctrl+P', action: () => printWorkbook() }
                     ]
                 },
                 {

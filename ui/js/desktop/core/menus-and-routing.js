@@ -116,6 +116,10 @@
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (String(name || '').toLowerCase().endsWith('.md')) {
+            apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
+            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.zip')) {
@@ -123,10 +127,22 @@
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
-        return apps.map(app => ({
+        const ext = desktopFileExtension(name);
+        const openItems = apps.map(app => ({
             label: app.label,
-            action: () => openApp(app.appId, { path: entry.path })
+            action: () => {
+                recordRecentFile(entry.path, app.appId);
+                openApp(app.appId, { path: entry.path });
+            }
         }));
+        const defaultItems = apps.map(app => ({
+            label: t('desktop.set_default_app_for', { app: app.label }),
+            action: () => {
+                setDefaultAppForExtension(ext, app.appId);
+                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+            }
+        }));
+        return openItems.concat([{ separator: true }]).concat(defaultItems);
     }
 
     async function copyDesktopPathToClipboard(paths) {
@@ -516,15 +532,15 @@
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
         const app = appById(appId);
-        const inDock = !!(app && app.dock_visible !== false);
+        const pinned = isAppDockPinned(appId);
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
             { label: t('desktop.context_new_window'), icon: 'monitor', fallback: 'N', action: () => openApp(appId, { forceNew: true }) },
             { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) },
             { separator: true },
-            inDock
-                ? { label: t('desktop.app_remove_from_dock'), icon: 'pin', fallback: '-', action: () => setAppVisibility(appId, { dock_visible: false }) }
-                : { label: t('desktop.app_add_to_dock'), icon: 'pin', fallback: '+', action: () => setAppVisibility(appId, { dock_visible: true }) }
+            pinned
+                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', action: () => toggleDockPin(appId) }
+                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', action: () => toggleDockPin(appId) }
         ];
         if (!isBuiltinApp(appId)) {
             items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', action: () => deleteDesktopApp(appId) });
@@ -1440,6 +1456,27 @@ if (appId === 'system-info') {
         } if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+        }
+        if (appId === 'terminal') {
+            if (!window.TerminalApp) {
+                window.AuraDesktopModules.loadAppScript('terminal').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.TerminalApp.render === 'function') {
+                return window.TerminalApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, registerWindowCleanup, readonly: desktopReadonly() }));
+            }
+        }
+        if (appId === 'notes') {
+            if (!window.NotesApp) {
+                window.AuraDesktopModules.loadAppScript('notes').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.NotesApp.render === 'function') {
+                return window.NotesApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(),
+                    recordRecentFile, openFileDialog: options => openDesktopFileDialog(options || {})
+                }));
+            }
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {

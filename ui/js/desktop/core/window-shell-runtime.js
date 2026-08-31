@@ -588,6 +588,14 @@
                 <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
             </button>`).join('');
         }
+        const recentFiles = query ? [] : readRecentFiles().slice(0, 5);
+        if (recentFiles.length > 0) {
+            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_files'))}</div>`;
+            html += recentFiles.map((entry, index) => `<button class="vd-start-item vd-start-recent-file" type="button" data-recent-path="${esc(entry.path)}" style="--start-index:${recentApps.length + index}">
+                ${iconMarkup('documents', entry.name.slice(0, 2), 'vd-sprite-start-item', 30)}
+                <span>${esc(entry.name)}</span>
+            </button>`).join('');
+        }
         html += nonRecentApps.map((app, index) => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${recentApps.length + index}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
@@ -604,6 +612,12 @@
                 openApp(appId);
             });
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
+         });
+        $('vd-start-apps').querySelectorAll('[data-recent-path]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                closeStartMenu();
+                openDesktopPath(btn.dataset.recentPath);
+            });
         });
     }
 
@@ -657,23 +671,69 @@
         const host = $('vd-taskbar-apps');
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
-        const seenWindowIds = new Set();
-        [...state.windows.values()].forEach((win, index) => {
-            seenWindowIds.add(win.id);
-            let btn = host.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+        let pinHost = host.querySelector('[data-taskbar-pins]');
+        if (!pinHost) {
+            pinHost = document.createElement('div');
+            pinHost.className = 'vd-taskbar-pins';
+            pinHost.dataset.taskbarPins = 'true';
+            host.prepend(pinHost);
+        }
+        const winHost = host.querySelector('[data-taskbar-windows]') || (() => {
+            const node = document.createElement('div');
+            node.className = 'vd-taskbar-windows';
+            node.dataset.taskbarWindows = 'true';
+            host.appendChild(node);
+            return node;
+        })();
+        const seenPinIds = new Set();
+        dockPinIds().forEach((appId, index) => {
+            const app = appById(appId);
+            if (!app) return;
+            seenPinIds.add(appId);
+            let btn = pinHost.querySelector(`[data-pin-app-id="${cssSel(appId)}"]`);
             if (!btn) {
                 btn = document.createElement('button');
                 btn.type = 'button';
-                host.insertBefore(btn, host.children[index] || null);
+                btn.className = 'vd-taskbar-pin';
+                btn.dataset.pinAppId = appId;
+                bindTaskbarPinButton(btn);
+                pinHost.appendChild(btn);
+            }
+            btn.style.setProperty('--dock-index', index);
+            btn.innerHTML = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
+            btn.title = appName(app);
+        });
+        pinHost.querySelectorAll('[data-pin-app-id]').forEach(btn => {
+            if (!seenPinIds.has(btn.dataset.pinAppId)) btn.remove();
+        });
+        const seenWindowIds = new Set();
+        [...state.windows.values()].forEach((win, index) => {
+            seenWindowIds.add(win.id);
+            let btn = winHost.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                winHost.insertBefore(btn, winHost.children[index] || null);
                 bindTaskbarButton(btn);
-            } else if (btn !== host.children[index]) {
-                host.insertBefore(btn, host.children[index] || null);
+            } else if (btn !== winHost.children[index]) {
+                winHost.insertBefore(btn, winHost.children[index] || null);
             }
             updateTaskbarButton(btn, win, index);
         });
-        host.querySelectorAll('[data-window-id]').forEach(btn => {
+        winHost.querySelectorAll('[data-window-id]').forEach(btn => {
             if (!seenWindowIds.has(btn.dataset.windowId)) btn.remove();
         });
+    }
+
+    function bindTaskbarPinButton(btn) {
+        if (btn.getAttribute('data-pin-bound') === 'true') return;
+        btn.setAttribute('data-pin-bound', 'true');
+        btn.addEventListener('click', () => {
+            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.pinAppId);
+            if (existing) focusWindow(existing.id);
+            else openApp(btn.dataset.pinAppId);
+        });
+        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.pinAppId));
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
@@ -784,6 +844,8 @@
             'quick-connect': { width: 960, height: 680 },
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
+            terminal: { width: 880, height: 520 },
+            notes: { width: 720, height: 560 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
             'log-viewer': { width: 920, height: 640 },
@@ -810,7 +872,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
@@ -1006,6 +1068,7 @@
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (context && context.path) recordRecentFile(context.path, appId);
             return;
         }
         const title = windowTitle(appId);
@@ -1031,8 +1094,13 @@
         }
 
         const requestedSize = appWindowSize(appId);
-        const size = clampWindowSize(requestedSize);
-        const position = nextWindowPosition(size);
+        const sessionRestore = context && context.sessionRestore;
+        const size = sessionRestore
+            ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
+            : clampWindowSize(requestedSize);
+        const position = sessionRestore
+            ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
+            : nextWindowPosition(size);
 
         if (isMobileMode && forceMaximized) {
             // Mobile forced maximized windows take full available space
@@ -1084,14 +1152,20 @@
         ${isResizable ? resizeHandleMarkup() : ''}`;
         $('vd-window-layer').appendChild(win);
         const windowContext = Object.assign({}, context || {});
+        if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
-        if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
+        else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
+        if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
         renderAppContent(id, appId, windowContext);
+        if (windowContext.path) recordRecentFile(windowContext.path, appId);
         renderTaskbar();
+        scheduleSessionPersist();
     }
 
     function resizeHandleMarkup() {

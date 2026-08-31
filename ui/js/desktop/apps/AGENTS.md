@@ -5,6 +5,15 @@
 This subtree owns built-in virtual desktop app modules that are loaded lazily by
 `ui/js/desktop/core/module-loader.js`.
 
+Shell chrome helpers live in the main desktop bundle (not lazy apps):
+`core/session-runtime.js` (session restore, dock pins, recent files, default
+apps), `core/shell-chrome-runtime.js` (notification center, clock popup,
+hold window switcher, shortcuts overlay), and `core/spotlight-runtime.js`
+(Ctrl+K mixed search). Styles: `ui/css/desktop-chrome.css` (bundled into
+`desktop-shell.bundle.css`). Persisted keys:
+`windows.restore_session`, `appearance.dock_pins`, `session.windows`, and
+`files.default_apps` via `/api/desktop/settings`.
+
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
   meta-progression.
@@ -505,6 +514,7 @@ registration lives in `internal/desktop/types.go`.
 
 ## Verification
 
+- `go test ./ui/ -run TestDesktopFeeling`
 - `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go test ./ui/ -run TestGalaxaDeluxeCachesCanvasResources`
@@ -751,3 +761,10 @@ registration lives in `internal/desktop/types.go`.
   classic set), 21-filter catalog gallery with live thumbnails and strength
   slider, layers, click-to-jump history panel, AI generate/enhance. Exposes
   `window.PixelApp`. No child DOX file needed.
+- `terminal.js` - Standalone workspace terminal: one xterm.js session to
+  `/api/code-studio/terminal`. Exposes `window.TerminalApp`. No child DOX file
+  needed.
+- `notes.js` - Lightweight markdown notes under `Documents/Notes/` with open/
+  save via desktop file APIs. Exposes `window.NotesApp`. Visible strings use
+  `desktop.notes_*` and `desktop.app_notes` in all 16 `ui/lang/desktop/*.json`
+  files. No child DOX file needed.
