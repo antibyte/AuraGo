@@ -25,9 +25,26 @@
         });
     }
 
+    function usesLightEditorTheme() {
+        const body = document.body;
+        if (!body) return false;
+        if (body.dataset.theme === 'fruity') return body.dataset.fruityMode !== 'dark';
+        return body.dataset.theme === 'light';
+    }
+
+    function codeMirrorHighlightExtensions(cm) {
+        if (usesLightEditorTheme()) {
+            return cm.syntaxHighlighting && cm.defaultHighlightStyle
+                ? [cm.syntaxHighlighting(cm.defaultHighlightStyle)]
+                : [];
+        }
+        return cm.oneDark ? [cm.oneDark] : [];
+    }
+
     function createCodeMirrorEditor(container, tab) {
         const cm = state.cmModule;
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab);
+        const light = usesLightEditorTheme();
         const extensions = [
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
@@ -39,13 +56,12 @@
             cm.EditorState.allowMultipleSelections && cm.EditorState.allowMultipleSelections.of(true),
             cm.indentUnit && cm.indentUnit.of('    '),
             cm.EditorView.lineWrapping,
-            cm.oneDark,
+            ...codeMirrorHighlightExtensions(cm),
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
             cm.rectangularSelection && cm.rectangularSelection(),
             cm.crosshairCursor && cm.crosshairCursor(),
             cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
-            cm.syntaxHighlighting && cm.defaultHighlightStyle && cm.syntaxHighlighting(cm.defaultHighlightStyle),
             languageExtension(cm, tab.language),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
@@ -61,13 +77,16 @@
             cm.EditorView.theme({
                 '&': {
                     fontSize: 'var(--cs-editor-font-size, 13px)',
-                    fontFamily: 'var(--cs-mono-font)'
+                    fontFamily: 'var(--cs-mono-font)',
+                    backgroundColor: 'var(--cs-panel-soft)',
+                    color: 'var(--cs-text)'
                 },
                 '.cm-scroller': {
                     fontFamily: 'var(--cs-mono-font)'
                 },
                 '.cm-gutters': {
                     background: 'var(--cs-panel)',
+                    color: 'var(--cs-muted)',
                     borderRight: '1px solid var(--cs-border-subtle)'
                 },
                 '.cm-activeLineGutter': {
@@ -93,7 +112,7 @@
                 '.cm-indentGuide': {
                     borderLeft: '1px solid var(--cs-border-subtle)'
                 }
-            }),
+            }, { dark: !light }),
             cm.EditorView.updateListener.of(bind(update => {
                 if (!update.docChanged) return;
                 tab.modified = true;

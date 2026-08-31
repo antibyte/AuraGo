@@ -18,7 +18,7 @@
     --cheater-pill-bg: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
     --cheater-selected-bg: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
     --cheater-code-bg: rgba(5, 9, 15, 0.55);
-    --cheater-code-fg: var(--cheater-text);
+    --cheater-code-fg: #e8eef6;
     --cheater-code-inline-bg: rgba(255, 255, 255, 0.09);
     --cheater-toast-bg: rgba(8, 12, 20, 0.94);
     --cheater-toast-fg: #f8fafc;

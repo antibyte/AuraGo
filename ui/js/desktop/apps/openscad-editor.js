@@ -93,8 +93,8 @@
                     '&': {
                         fontSize: '13px',
                         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                        backgroundColor: 'rgba(5,11,18,0.68)',
-                        color: '#eef7f7',
+                        backgroundColor: 'var(--oscad-surface)',
+                        color: 'var(--oscad-text)',
                         height: '100%'
                     },
                     '.cm-scroller': {
@@ -102,9 +102,9 @@
                         overflow: 'auto'
                     },
                     '.cm-gutters': {
-                        backgroundColor: 'rgba(5,11,18,0.68)',
-                        borderRight: '1px solid rgba(148,184,202,0.18)',
-                        color: '#9fb0bd'
+                        backgroundColor: 'var(--oscad-surface)',
+                        borderRight: '1px solid var(--oscad-border)',
+                        color: 'var(--oscad-muted)'
                     },
                     '.cm-activeLineGutter': { backgroundColor: 'rgba(66,215,200,0.08)' },
                     '.cm-activeLine': { backgroundColor: 'rgba(66,215,200,0.06)' },

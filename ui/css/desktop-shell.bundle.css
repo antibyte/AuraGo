@@ -747,6 +747,9 @@
     --ds-color-fg-disabled: #6b7785;
 
     --ds-color-bg-canvas: #1c1c1e;
+    --ds-color-bg-raised: rgba(52, 52, 58, 0.74);
+    --ds-color-bg-overlay: rgba(64, 64, 72, 0.88);
+    --ds-color-bg-modal: rgba(64, 64, 72, 0.92);
     --ds-color-surface-0: #1c1c1e;
     --ds-color-surface-1: rgba(40, 40, 44, 0.55);
     --ds-color-surface-2: rgba(52, 52, 58, 0.72);
@@ -1875,6 +1878,9 @@
         --ds-color-fg-disabled: #6b7785;
 
         --ds-color-bg-canvas: #1c1c1e;
+        --ds-color-bg-raised: rgba(52, 52, 58, 0.74);
+        --ds-color-bg-overlay: rgba(64, 64, 72, 0.88);
+        --ds-color-bg-modal: rgba(64, 64, 72, 0.92);
         --ds-color-surface-0: #1c1c1e;
         --ds-color-surface-1: rgba(40, 40, 44, 0.55);
         --ds-color-surface-2: rgba(52, 52, 58, 0.72);

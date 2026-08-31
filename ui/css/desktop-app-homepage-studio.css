@@ -47,11 +47,31 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-hp-studio {
+    --hp-bg: var(--vd-bg, #f4f8fc);
+    --hp-surface: var(--vd-surface, rgba(255, 255, 255, 0.55));
+    --hp-surface-strong: var(--vd-surface-strong, rgba(255, 255, 255, 0.74));
+    --hp-border: var(--vd-border, rgba(78, 92, 118, 0.12));
+    --hp-text: var(--vd-text, #1a2030);
+    --hp-muted: var(--vd-muted, #4f5a73);
+    --hp-glass: var(--fruity-window-chrome, rgba(249, 251, 255, 0.74));
+    --hp-glass-border: var(--vd-border, rgba(78, 92, 118, 0.2));
+    --hp-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(20%) saturate(1238%) hue-rotate(176deg) brightness(88%) contrast(86%);
+    background: linear-gradient(145deg, var(--hp-bg), #e8eef6);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-hp-studio {
     --hp-surface: rgba(18, 24, 34, 0.72);
     --hp-surface-strong: rgba(21, 28, 39, 0.84);
     --hp-border: rgba(255, 255, 255, 0.18);
+    --hp-text: var(--vd-text, #f5f5f7);
+    --hp-muted: var(--vd-muted, #a1a1aa);
     --hp-glass: rgba(18, 24, 34, 0.66);
     --hp-glass-border: rgba(255, 255, 255, 0.2);
+    --hp-icon-filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    background:
+        radial-gradient(circle at 14% 6%, color-mix(in srgb, var(--hp-accent) 12%, transparent), transparent 34%),
+        radial-gradient(circle at 86% 84%, rgba(255, 184, 92, 0.07), transparent 30%),
+        linear-gradient(145deg, var(--hp-bg), #101820);
 }
 
 /* Themed icons render as-is on dark glass; retint them to the foreground

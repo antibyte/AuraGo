@@ -58,8 +58,26 @@
     background: var(--cs-bg);
 }
 
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .code-studio {
+    --cs-bg: #12161d;
+    --cs-panel: #171d26;
+    --cs-panel-soft: #1d2530;
+    --cs-panel-glass: rgba(23, 29, 38, 0.72);
+    --cs-panel-elevated: #212a36;
+    --cs-border: rgba(172, 185, 204, 0.18);
+    --cs-border-subtle: rgba(172, 185, 204, 0.08);
+    --cs-text: #edf2f8;
+    --cs-muted: #9baabc;
+    --cs-accent: #3ec6b5;
+    --cs-accent-soft: rgba(62, 198, 181, 0.12);
+    --cs-accent-glow: rgba(62, 198, 181, 0.25);
+    --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
+    --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.14);
+    --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.32), 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
 @media (prefers-color-scheme: dark) {
-    .desktop-body[data-theme="fruity"] .code-studio {
+    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .code-studio {
         --cs-bg: #12161d;
         --cs-panel: #171d26;
         --cs-panel-soft: #1d2530;
@@ -747,6 +765,13 @@
 .code-studio-editor .cm-editor {
     height: 100%;
     font-size: var(--cs-editor-font-size, 13px);
+    background: var(--cs-panel-soft);
+    color: var(--cs-text);
+}
+
+.code-studio-editor .cm-gutters {
+    background: var(--cs-panel);
+    color: var(--cs-muted);
 }
 
 .code-studio-editor .cm-scroller {
