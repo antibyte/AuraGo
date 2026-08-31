@@ -121,6 +121,7 @@
   "chat.stt_processing": "Processando...",
   "chat.stt_tap_to_stop": "Toque para parar",
   "chat.system_briefing_prefix": "🌅 **Informações do sistema:**",
+  "chat.system_notification_prefix": "ℹ️ **Aviso do sistema:**\n\n",
   "chat.thinking_label": "Raciocínio",
   "chat.question_waiting": "O agente está aguardando sua resposta...",
   "chat.question_timeout": "A pergunta expirou.",

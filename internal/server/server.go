@@ -268,6 +268,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.WarningsRegistry != nil {
+		// Provider metadata probes may perform bounded network I/O. Keep config
+		// publication non-blocking while still reconciling stale warnings.
+		go warnings.RefreshTokenBudgetWarnings(s.WarningsRegistry, cfg, s.Logger)
+	}
 	speechCfg := effectiveSpeechLabConfig(cfg)
 	if s.SpeechLab != nil {
 		s.SpeechLab.Reconfigure(speechCfg)

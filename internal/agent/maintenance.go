@@ -84,6 +84,7 @@ func parseTime(t string) (int, int, error) {
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
 	startedAt := time.Now()
 	ledger := newMaintenanceRunLedger()
+	ledger.beginPhase("short_term_cleanup")
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -94,13 +95,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	taskCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	defer func() {
-		finishedAt := time.Now()
-		memory.RecordMaintenanceRunCompleted(finishedAt)
-		if shortTermMem != nil {
-			if err := shortTermMem.InsertMaintenanceRun(startedAt, finishedAt, ledger.status(), ledger.results()); err != nil {
-				logger.Warn("[Maintenance] Failed to persist maintenance run ledger", "error", err)
-			}
-		}
+		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
 	}()
 
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
@@ -171,11 +166,13 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			ledger.addError("compressed_output_cleanup: " + err.Error())
 		} else {
 			ledger.phaseResults.CompressedDeleted = int(deleted)
+			ledger.addProcessed("short_term_cleanup", int(deleted))
 		}
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "short_term_cleanup") {
 		return
 	}
+	ledger.beginPhase("profile_cleanup")
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal
 	if cfg.Personality.Engine && shortTermMem != nil {
@@ -218,6 +215,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if maintenanceContextDone(taskCtx, ledger, logger, "profile_cleanup") {
 		return
 	}
+	ledger.beginPhase("daily_summary")
 
 	maintenanceBatchDone := false
 	if shortTermMem != nil && kg != nil && cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
@@ -243,6 +241,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if maintenanceContextDone(taskCtx, ledger, logger, "daily_summary") {
 		return
 	}
+	ledger.beginPhase("knowledge_graph")
 
 	if ran, err := runWeeklyReflectionJob(taskCtx, cfg, logger, client, shortTermMem, kg, longTermMem, plannerDB); err != nil {
 		logger.Warn("[Memory Reflection] Weekly reflection failed during maintenance", "error", err)
@@ -265,6 +264,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		hygieneStats := runAutomaticMemoryHygiene(cfg, logger, shortTermMem, longTermMem)
 		ledger.phaseResults.JournalRemoved = hygieneStats.JournalRemoved
 		ledger.phaseResults.NotesArchived = hygieneStats.NotesArchived
+		ledger.addProcessed("knowledge_graph", hygieneStats.JournalRemoved+hygieneStats.NotesArchived)
 	}
 
 	// Knowledge Graph: Garbage collection and semantic reindex
@@ -333,6 +333,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if maintenanceContextDone(taskCtx, ledger, logger, "knowledge_graph") {
 		return
 	}
+	ledger.beginPhase("entity_extraction")
 
 	// Knowledge Graph: incremental file-based KG sync
 	if kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
@@ -346,6 +347,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		logFileKGSyncResult(logger, kgResult)
 		ledger.phaseResults.KGFilesProcessed = kgResult.FilesProcessed
 		ledger.phaseResults.KGNodesExtracted = kgResult.NodesExtracted
+		ledger.addProcessed("entity_extraction", kgResult.FilesProcessed)
 		for _, syncErr := range kgResult.Errors {
 			ledger.addError("file_kg_sync: " + syncErr)
 		}
@@ -358,11 +360,13 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if maintenanceContextDone(taskCtx, ledger, logger, "entity_extraction") {
 		return
 	}
+	ledger.beginPhase("consolidation")
 
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
-		totalStored, _ := consolidateSTMtoLTMWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
+		totalStored, messagesConsolidated := consolidateSTMtoLTMWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
 		ledger.phaseResults.ConsolidationFacts = totalStored
+		ledger.addProcessed("consolidation", messagesConsolidated)
 		memoryMaintenanceResult := runNightlyMemoryMaintenanceWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
 		if memoryMaintenanceResult.KGOptimizeErr != nil {
 			ledger.addError("kg_optimize: " + memoryMaintenanceResult.KGOptimizeErr.Error())
@@ -372,9 +376,18 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		}
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 	}
+	if shortTermMem != nil {
+		if deferred, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
+			ledger.addDeferred("consolidation", deferred)
+			if deferred > 0 {
+				ledger.finishPhase("consolidation", true)
+			}
+		}
+	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
 		return
 	}
+	ledger.beginPhase("agent_loop")
 
 	// Deterministic skill quality review runs before the free-form maintenance
 	// agent. It is provenance-gated and never exposes source in the run ledger.
@@ -450,7 +463,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	resp, err := ExecuteAgentLoop(taskCtx, req, runCfg, false, broker)
 	if err != nil {
 		logger.Error("[Maintenance] Agent loop failed", "error", err)
-		ledger.markFailed()
 		ledger.addError("agent_loop: " + err.Error())
 		recordOperationalIssue(runCfg, planner.OperationalIssue{
 			Source:     "maintenance",
@@ -479,6 +491,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			OccurredAt: time.Now(),
 		}, logger)
 	}
+	ledger.finishPhase("agent_loop", false)
 }
 
 func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, logger *slog.Logger, phase string) bool {
@@ -490,10 +503,16 @@ func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, l
 			logger.Warn("[Maintenance] Stopping after context cancellation", "phase", phase, "error", err)
 		}
 		if ledger != nil {
-			ledger.markFailed()
 			ledger.addError(phase + ": " + err.Error())
+			if ledger.phaseDeferred(phase) == 0 {
+				ledger.addDeferred(phase, 1)
+			}
+			ledger.finishPhase(phase, true)
 		}
 		return true
+	}
+	if ledger != nil {
+		ledger.finishPhase(phase, false)
 	}
 	return false
 }
@@ -976,6 +995,12 @@ Conversation:
 				{Role: openai.ChatMessageRoleUser, Content: prompt},
 			},
 			MaxTokens: 1000,
+			ResponseFormat: func() *openai.ChatCompletionResponseFormat {
+				if caps, ok := llm.CapabilitiesFromRegistry("", model); ok {
+					return llm.JSONResponseFormat(caps.StructuredOutputs)
+				}
+				return nil
+			}(),
 		},
 		logger,
 		nil,
@@ -983,14 +1008,15 @@ Conversation:
 	if err != nil {
 		return nil, fmt.Errorf("llm extraction failed: %w", err)
 	}
-	if len(resp.Choices) == 0 {
-		return nil, fmt.Errorf("llm extraction returned no choices")
+	raw, err := llm.JSONContentFromResponse(resp)
+	if err != nil {
+		return nil, fmt.Errorf("json completion failed: %w", err)
 	}
 
 	var extracted struct {
 		Facts []helperConsolidationFact `json:"facts"`
 	}
-	if err := json.Unmarshal([]byte(trimJSONResponse(resp.Choices[0].Message.Content)), &extracted); err != nil {
+	if err := json.Unmarshal([]byte(raw), &extracted); err != nil {
 		return nil, fmt.Errorf("json parse failed: %w", err)
 	}
 	return extracted.Facts, nil
@@ -1300,11 +1326,27 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 	return consolidateSTMtoLTMWithContext(context.Background(), cfg, logger, client, stm, ltm, kg)
 }
 
+type consolidationRunBudget struct {
+	remaining int
+}
+
+type consolidationRunBudgetContextKey struct{}
+
 func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (totalStored int, messagesConsolidated int) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	defer cleanConsolidationArchivedMessages(cfg, logger, stm)
+	budget, _ := ctx.Value(consolidationRunBudgetContextKey{}).(*consolidationRunBudget)
+	rootClaim := budget == nil
+	if rootClaim {
+		maxMessages := cfg.Consolidation.MaxBatchMessages
+		if maxMessages <= 0 {
+			maxMessages = 200
+		}
+		budget = &consolidationRunBudget{remaining: maxMessages}
+		ctx = context.WithValue(ctx, consolidationRunBudgetContextKey{}, budget)
+		defer cleanConsolidationArchivedMessages(cfg, logger, stm)
+	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: maintenance context canceled", "error", err)
 		return 0, 0
@@ -1316,14 +1358,23 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		return 0, 0
 	}
 
-	if reclaimed, reclaimErr := stm.ReclaimStaleConsolidationClaims(30 * time.Minute); reclaimErr != nil {
-		logger.Warn("[Consolidation] Failed to reclaim stale in_progress rows", "error", reclaimErr)
-	} else if reclaimed > 0 {
-		logger.Info("[Consolidation] Reclaimed stale in_progress rows", "count", reclaimed)
+	if rootClaim {
+		if reclaimed, reclaimErr := stm.ReclaimStaleConsolidationClaims(30 * time.Minute); reclaimErr != nil {
+			logger.Warn("[Consolidation] Failed to reclaim stale in_progress rows", "error", reclaimErr)
+		} else if reclaimed > 0 {
+			logger.Info("[Consolidation] Reclaimed stale in_progress rows", "count", reclaimed)
+		}
 	}
 
 	// Atomically claim rows so concurrent runs cannot process the same messages.
-	archived, err := stm.ClaimConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
+	claimLimit := budget.remaining
+	if claimLimit > 40 {
+		claimLimit = 40
+	}
+	if claimLimit <= 0 {
+		return 0, 0
+	}
+	archived, err := stm.ClaimConsolidationCandidates(claimLimit, 3)
 	if err != nil {
 		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
 		return 0, 0
@@ -1332,6 +1383,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		logger.Debug("[Consolidation] No unconsolidated archived messages")
 		return 0, 0
 	}
+	budget.remaining -= len(archived)
 
 	logger.Info("[Consolidation] Starting STM→LTM consolidation", "messages", len(archived))
 
@@ -1364,7 +1416,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 	processWorkItem := func(item consolidationWorkItem, batchIndex int) {
 		if err := ctx.Err(); err != nil {
 			logger.Warn("[Consolidation] Batch skipped: maintenance context canceled", "batch", batchIndex, "error", err)
-			_ = stm.MarkConsolidationFailure(item.messageIDs, err.Error())
+			_ = stm.ReleaseConsolidationClaims(item.messageIDs)
 			return
 		}
 		facts, err := extractConsolidationFactsWithLLM(ctx, logger, consolidationClient, consolidationModel, item.conversation)
@@ -1389,7 +1441,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		if err := ctx.Err(); err != nil {
 			logger.Warn("[Consolidation] Stopping STM->LTM consolidation: maintenance context canceled", "error", err)
 			for _, item := range workItems[i:] {
-				_ = stm.MarkConsolidationFailure(item.messageIDs, err.Error())
+				_ = stm.ReleaseConsolidationClaims(item.messageIDs)
 			}
 			break
 		}
@@ -1418,9 +1470,31 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		consolidationCancel()
 		if err != nil {
 			helperManager.ObserveFallback("consolidation_batches", err.Error())
-			logger.Warn("[HelperLLM] Consolidation batch failed, falling back", "start_batch", i+1, "error", err)
+			logger.Warn("[HelperLLM] Consolidation batch failed, splitting into single batches", "start_batch", i+1, "error", err)
 			for offset, item := range group {
-				processWorkItem(item, i+offset+1)
+				if ctx.Err() != nil {
+					_ = stm.ReleaseConsolidationClaims(item.messageIDs)
+					continue
+				}
+				singleCtx, singleCancel := context.WithTimeout(ctx, 45*time.Second)
+				singleResult, singleErr := helperManager.AnalyzeConsolidationBatches(singleCtx, []helperConsolidationBatchInput{{
+					BatchID: item.batchID, Conversation: item.conversation,
+				}})
+				singleCancel()
+				if singleErr != nil {
+					_ = stm.MarkConsolidationFailure(item.messageIDs, singleErr.Error())
+					continue
+				}
+				facts := singleResult.Batches[0].Facts
+				stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
+				if storeErr != nil {
+					_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+					continue
+				}
+				if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
+					totalStored += storedCount
+					messagesConsolidated += len(item.messageIDs)
+				}
 			}
 			i = end
 			continue
@@ -1446,8 +1520,14 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		i = end
 	}
 
-	// Create journal entry for the consolidation run
-	if cfg.Tools.Journal.Enabled && totalStored > 0 {
+	if budget.remaining > 0 && len(archived) == claimLimit && maintenanceContextHasAtLeast(ctx, 75*time.Second) {
+		moreStored, moreMessages := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, ltm, kg)
+		totalStored += moreStored
+		messagesConsolidated += moreMessages
+	}
+
+	// Create one journal entry for the complete consolidation run.
+	if rootClaim && cfg.Tools.Journal.Enabled && totalStored > 0 {
 		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
 			EntryType: "system",
 			Title:     "Nightly STM→LTM Consolidation",
@@ -1456,11 +1536,24 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		})
 	}
 
-	logger.Info("[Consolidation] STM→LTM consolidation complete",
-		"messages_processed", messagesConsolidated,
-		"facts_stored", totalStored,
-		"batches", len(batches))
+	if rootClaim {
+		logger.Info("[Consolidation] STM→LTM consolidation complete",
+			"messages_processed", messagesConsolidated,
+			"facts_stored", totalStored,
+			"remaining_claim_budget", budget.remaining)
+	}
 	return totalStored, messagesConsolidated
+}
+
+func maintenanceContextHasAtLeast(ctx context.Context, minimum time.Duration) bool {
+	if ctx == nil {
+		return true
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return true
+	}
+	return time.Until(deadline) >= minimum
 }
 
 func resolveConsolidationModel(cfg *config.Config) string {

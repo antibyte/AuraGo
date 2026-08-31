@@ -254,9 +254,7 @@ Retention windows for deterministic nightly cleanups. Defaults match the previou
 | `done_notes_days` | `7` | Completed notes marked done |
 | `operational_issues_days` | `30` | Planner operational issues |
 
-The 03:00 daily reflection loop skips its LLM pass when nightly maintenance recently produced a daily summary, avoiding duplicate work on the same archive data.
-
-Each nightly run is recorded in the `maintenance_runs` SQLite table (status, timestamps, phase results JSON). The dashboard overview and `/api/dashboard/maintenance/status` expose `last_run`, `last_status`, and `next_run`.
+Each nightly run is recorded in the `maintenance_runs` SQLite table with sanitized per-phase durations, processed/deferred counts, errors, and current local integration checks. After the ledger is persisted, AuraGo creates one typed, idempotent morning briefing for that run. Persistent chat summaries remain owned exclusively by chat context compression. The dashboard overview and `/api/dashboard/maintenance/status` expose `last_run`, `last_status`, `next_run`, phase results, and integration checks.
 
 ---
 

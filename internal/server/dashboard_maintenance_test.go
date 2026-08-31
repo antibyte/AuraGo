@@ -24,6 +24,13 @@ func TestDashboardMaintenanceStatusEndpoint(t *testing.T) {
 	finished := started.Add(8 * time.Minute)
 	if err := stm.InsertMaintenanceRun(started, finished, "completed", memory.MaintenancePhaseResults{
 		JournalRemoved: 1,
+		Processed:      4,
+		Phases: []memory.MaintenancePhaseResult{{
+			Name: "knowledge_graph", Status: "completed", DurationMS: 125, Processed: 4,
+		}},
+		IntegrationChecks: []memory.IntegrationCheckResult{{
+			ID: "sandbox", Status: "passed", CheckedAt: finished.Format(time.RFC3339),
+		}},
 		SkillsReviewed: 2,
 		SkillsDeleted:  1,
 		SkillActions:   []memory.MaintenanceSkillAction{{Name: "old-helper", Kind: "python", Action: "deleted", Confidence: 0.99, Reason: "placeholder"}},
@@ -55,7 +62,10 @@ func TestDashboardMaintenanceStatusEndpoint(t *testing.T) {
 		t.Fatal("expected next_run to be populated")
 	}
 	phaseResults := maintenance["phase_results"].(map[string]interface{})
+	if len(phaseResults["phases"].([]interface{})) != 1 || len(phaseResults["integration_checks"].([]interface{})) != 1 {
+		t.Fatalf("extended maintenance status = %#v", phaseResults)
+	}
 	if phaseResults["skills_reviewed"] != float64(2) || phaseResults["skills_deleted"] != float64(1) {
-		t.Fatalf("phase_results = %#v", phaseResults)
+		t.Fatalf("skill phase results = %#v", phaseResults)
 	}
 }

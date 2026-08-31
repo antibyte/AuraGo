@@ -59,6 +59,10 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE TABLE IF NOT EXISTS system_notifications (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		content TEXT,
+		notification_type TEXT NOT NULL DEFAULT 'legacy',
+		title TEXT NOT NULL DEFAULT '',
+		data_json TEXT NOT NULL DEFAULT '{}',
+		source_id TEXT NOT NULL DEFAULT '',
 		is_read BOOLEAN DEFAULT 0,
 		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
@@ -500,6 +504,14 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	var errs []error
 	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_pinned", "BOOLEAN DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_internal", "BOOLEAN DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "notification_type", "TEXT NOT NULL DEFAULT 'legacy'"))
+	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "title", "TEXT NOT NULL DEFAULT ''"))
+	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "data_json", "TEXT NOT NULL DEFAULT '{}'"))
+	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "source_id", "TEXT NOT NULL DEFAULT ''"))
+	if _, err := db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_system_notifications_source ON system_notifications(source_id) WHERE source_id <> ''"); err != nil {
+		logger.Warn("Failed to create idx_system_notifications_source", "error", err)
+		errs = append(errs, err)
+	}
 	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_tool_output", `BOOLEAN GENERATED ALWAYS AS (
 		is_internal = 1 AND (
 			role = 'tool'

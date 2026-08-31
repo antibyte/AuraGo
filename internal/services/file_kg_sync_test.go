@@ -323,6 +323,53 @@ func TestFileKGSyncer_SyncFileKeepsExistingKGDataWhenReplacementMergeFails(t *te
 	}
 }
 
+func TestFileKGSyncer_SegmentFailureKeepsExistingFileEntities(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+	path := "/docs/large.md"
+	if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-large"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocs: %v", err)
+	}
+	if err := kg.BulkMergeExtractedEntities([]memory.Node{{
+		ID: "existing", Label: "Existing", Properties: map[string]string{"source": "file_sync", "source_file": path},
+	}}, nil); err != nil {
+		t.Fatalf("seed existing entity: %v", err)
+	}
+	vectorDB := &fakeFileKGVectorDB{docs: map[string]string{
+		"doc-large": strings.Repeat("document content with entities and relations. ", maxContentBytes/20),
+	}}
+	client := &fakeFileKGLLM{contents: []string{
+		`{"nodes":[{"id":"new-first","label":"New First"}],"edges":[]}`,
+		`{"nodes":[`,
+		`still invalid`,
+	}}
+
+	result := NewFileKGSyncer(cfg, logger, client, vectorDB, stm, kg).SyncFile(path, IndexerCollection, FileKGSyncOptions{})
+	if len(result.Errors) == 0 {
+		t.Fatal("expected a segment extraction failure")
+	}
+	if result.FilesProcessed != 0 || result.NodesExtracted != 0 {
+		t.Fatalf("partial extraction was published: %#v", result)
+	}
+	if node, err := kg.GetNode("existing"); err != nil || node == nil {
+		t.Fatalf("existing file entity changed after segment failure: node=%#v err=%v", node, err)
+	}
+	if node, err := kg.GetNode("new-first"); err != nil || node != nil {
+		t.Fatalf("partial new entity was published: node=%#v err=%v", node, err)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Content preparation tests
 // ---------------------------------------------------------------------------
@@ -681,13 +728,24 @@ func (f *fakeFileKGVectorDB) DeleteCheatsheet(id string) error {
 func (f *fakeFileKGVectorDB) RegisterCollections(collections []string) {}
 
 type fakeFileKGLLM struct {
-	content string
+	content  string
+	contents []string
+	calls    int
 }
 
 func (f *fakeFileKGLLM) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	content := f.content
+	if len(f.contents) > 0 {
+		index := f.calls
+		if index >= len(f.contents) {
+			index = len(f.contents) - 1
+		}
+		content = f.contents[index]
+	}
+	f.calls++
 	return openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
-			{Message: openai.ChatCompletionMessage{Content: f.content}},
+			{Message: openai.ChatCompletionMessage{Content: content}},
 		},
 	}, nil
 }

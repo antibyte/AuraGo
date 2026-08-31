@@ -76,7 +76,7 @@ func TestCheckUpdatesGitCountsPendingCommits(t *testing.T) {
 		case strings.Contains(joined, "fetch"):
 			return nil, nil
 		case strings.Contains(joined, "rev-list"):
-			return []byte("3\n"), nil
+			return []byte("0 3\n"), nil
 		case strings.Contains(joined, "log"):
 			return []byte("abc123 fix updater\n"), nil
 		default:
@@ -96,6 +96,86 @@ func TestCheckUpdatesGitCountsPendingCommits(t *testing.T) {
 	}
 	if !strings.Contains(got.Changelog, "fix updater") {
 		t.Fatalf("missing changelog: %+v", got)
+	}
+}
+
+func TestCheckUpdatesGitReportsAndPreservesLocalCommits(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"tag_name":"v2.0.0"}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, test := range []struct {
+		name            string
+		counts          string
+		wantAvailable   bool
+		wantRemote      int
+		wantLocal       int
+		wantMessageText string
+	}{
+		{name: "local ahead only", counts: "4 0", wantLocal: 4, wantMessageText: "4 local commit(s) are preserved"},
+		{name: "diverged", counts: "4 2", wantAvailable: true, wantRemote: 2, wantLocal: 4, wantMessageText: "4 local commit(s) will be preserved"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+				t.Fatalf("mkdir .git: %v", err)
+			}
+			runner := func(dir, name string, args ...string) ([]byte, error) {
+				joined := strings.Join(args, " ")
+				switch {
+				case strings.Contains(joined, "describe"):
+					return []byte("local-build\n"), nil
+				case strings.Contains(joined, "fetch"):
+					return nil, nil
+				case strings.Contains(joined, "rev-list"):
+					return []byte(test.counts + "\n"), nil
+				case strings.Contains(joined, "log"):
+					return []byte("abc123 upstream change\n"), nil
+				default:
+					return nil, errors.New("unexpected command: " + name + " " + joined)
+				}
+			}
+
+			got := CheckUpdates(context.Background(), CheckOptions{
+				InstallDir:    dir,
+				ReleaseAPIURL: srv.URL,
+				HTTPClient:    srv.Client(),
+				RunCommand:    runner,
+			})
+			if got.UpdateAvailable != test.wantAvailable || got.CommitCount != test.wantRemote || got.LocalCommitCount != test.wantLocal {
+				t.Fatalf("unexpected git relationship result: %+v", got)
+			}
+			if !strings.Contains(got.Message, test.wantMessageText) {
+				t.Fatalf("Message = %q, want %q", got.Message, test.wantMessageText)
+			}
+		})
+	}
+}
+
+func TestCheckUpdatesGitRejectsMalformedRelationship(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	runner := func(dir, name string, args ...string) ([]byte, error) {
+		joined := strings.Join(args, " ")
+		switch {
+		case strings.Contains(joined, "describe"):
+			return []byte("local-build\n"), nil
+		case strings.Contains(joined, "fetch"):
+			return nil, nil
+		case strings.Contains(joined, "rev-list"):
+			return []byte("not-a-count\n"), nil
+		default:
+			return nil, errors.New("unexpected command: " + name + " " + joined)
+		}
+	}
+
+	got := CheckUpdates(context.Background(), CheckOptions{InstallDir: dir, RunCommand: runner})
+	if got.Error != "Failed to determine pending updates" || got.UpdateAvailable {
+		t.Fatalf("malformed git relationship was not rejected: %+v", got)
 	}
 }
 

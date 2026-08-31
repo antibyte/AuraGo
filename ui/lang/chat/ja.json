@@ -121,6 +121,7 @@
   "chat.stt_processing": "処理中...",
   "chat.stt_tap_to_stop": "タップして停止",
   "chat.system_briefing_prefix": "🌅 **システムブリーフィング：**",
+  "chat.system_notification_prefix": "ℹ️ **システム通知：**\n\n",
   "chat.thinking_label": "推論",
   "chat.question_waiting": "エージェントが回答を待っています...",
   "chat.question_timeout": "質問がタイムアウトしました。",

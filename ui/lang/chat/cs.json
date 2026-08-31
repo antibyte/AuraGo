@@ -121,6 +121,7 @@
   "chat.stt_processing": "Zpracování...",
   "chat.stt_tap_to_stop": "Klepněte pro zastavení",
   "chat.system_briefing_prefix": "🌅 **Systémové informace:**",
+  "chat.system_notification_prefix": "ℹ️ **Systémové upozornění:**\n\n",
   "chat.thinking_label": "Úvaha",
   "chat.question_waiting": "Agent čeká na vaši odpověď...",
   "chat.question_timeout": "Platnost otázky vypršela.",

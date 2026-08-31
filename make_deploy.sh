@@ -50,6 +50,22 @@ else
 fi
 GO_DIST_TARGETS="$(go tool dist list)"
 
+# Capture release identity before any generated assets are refreshed. Go's
+# automatic VCS stamping can resolve the enclosing repository instead of the
+# active linked worktree, and generated UI files can make an otherwise clean
+# release appear dirty during compilation.
+BUILD_ID="$(git rev-parse --verify HEAD 2>/dev/null || true)"
+BUILD_VCS_TIME="$(git show -s --format=%cI HEAD 2>/dev/null || true)"
+BUILD_VCS_MODIFIED=false
+if [ -z "$BUILD_ID" ] || [ -z "$BUILD_VCS_TIME" ]; then
+  echo "Unable to resolve release VCS metadata." >&2
+  exit 1
+fi
+if [ -n "$(git status --porcelain --untracked-files=normal)" ]; then
+  BUILD_VCS_MODIFIED=true
+fi
+MAIN_LDFLAGS="-s -w -X aurago/internal/buildinfo.BuildID=$BUILD_ID -X aurago/internal/buildinfo.BuildVCSRevision=$BUILD_ID -X aurago/internal/buildinfo.BuildVCSTime=$BUILD_VCS_TIME -X aurago/internal/buildinfo.BuildVCSModified=$BUILD_VCS_MODIFIED"
+
 normalize_targets() {
   local target_set="$1"
   shift
@@ -223,7 +239,7 @@ for target in "${TARGETS[@]}"; do
     
     OUT_AURAGO="bin/aurago_linux"
     echo "    → $OUT_AURAGO"
-    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT_AURAGO" ./cmd/aurago/
+    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -buildvcs=false -trimpath -ldflags="$MAIN_LDFLAGS" -o "$OUT_AURAGO" ./cmd/aurago/
 
     OUT_MERGER="bin/config-merger_linux"
     echo "    → $OUT_MERGER"
@@ -233,7 +249,7 @@ for target in "${TARGETS[@]}"; do
     mkdir -p bin
 
     echo "    → bin/aurago_linux_arm64"
-    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "bin/aurago_linux_arm64" ./cmd/aurago/
+    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -buildvcs=false -trimpath -ldflags="$MAIN_LDFLAGS" -o "bin/aurago_linux_arm64" ./cmd/aurago/
 
     echo "    → bin/config-merger_linux_arm64"
     CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "bin/config-merger_linux_arm64" ./cmd/config-merger/
@@ -244,7 +260,7 @@ for target in "${TARGETS[@]}"; do
     
     OUT="$DEPLOY_DIR/aurago_${OS}_${ARCH}${EXT}"
     echo "    → $OUT"
-    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/aurago/
+    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -buildvcs=false -trimpath -ldflags="$MAIN_LDFLAGS" -o "$OUT" ./cmd/aurago/
   fi
 done
 

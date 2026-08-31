@@ -260,6 +260,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		if retErr == nil {
 			ScheduleProactiveHistoryCompression(runCfg)
+		} else if IsContextBudgetExceeded(retErr) {
+			recordContextBudgetFailure(runCfg, req.Model, retErr)
 		}
 	}()
 
@@ -1570,6 +1572,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		cancelResp()
+		resolveContextBudgetFailure(runCfg, req.Model)
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 
 		retry422Count = 0 // reset on successful LLM response

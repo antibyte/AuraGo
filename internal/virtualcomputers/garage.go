@@ -13,12 +13,12 @@ import (
 // GarageManager ensures/stops the managed Garage sidecar on the control-plane host
 // via CommandExecutor (local or SSH).
 type GarageManager struct {
-	Executor     CommandExecutor
-	InstallDir   string
-	AccessKeyID  string
-	SecretKey    string
-	RPCSecret    string
-	Fingerprint  string
+	Executor    CommandExecutor
+	InstallDir  string
+	AccessKeyID string
+	SecretKey   string
+	RPCSecret   string
+	Fingerprint string
 }
 
 // GenerateGarageSecrets returns cryptographically random Garage credentials.
@@ -258,9 +258,11 @@ common_run() {
 }
 
 if [ "${NEED_BOOTSTRAP}" = "1" ]; then
-	log "phase-1 bootstrap with single-node defaults"
-	# Temporary layout bootstrap only; Vault keys are imported explicitly afterwards.
-	# garage v2.3 single-node creates layout + default bucket.
+	log "phase-1 bootstrap with single-node layout"
+	# Configure only the layout at server start. Garage v2.3's --default-bucket
+	# is a boolean flag backed by GARAGE_DEFAULT_* environment variables; passing
+	# the bucket as a positional argument prevents startup, while supplying Vault
+	# credentials as container environment would expose them through inspect.
 	docker run -d \
 		--name "${GARAGE_NAME}" \
 		--restart unless-stopped \
@@ -287,7 +289,7 @@ if [ "${NEED_BOOTSTRAP}" = "1" ]; then
 		--tmpfs /tmp:rw,noexec,nosuid,size=64m \
 		-p 127.0.0.1:3900:3900 \
 		"${GARAGE_IMAGE}" \
-		/garage -c /etc/garage/garage.toml server --single-node --default-bucket "${GARAGE_BUCKET}"
+		/garage -c /etc/garage/garage.toml server --single-node
 	# Wait until the node answers admin status (layout ready).
 	READY=0
 	for _ in $(seq 1 60); do
@@ -318,13 +320,17 @@ if [ "${NEED_BOOTSTRAP}" = "1" ]; then
 			log "Vault access key already present in Garage after import attempt"
 		fi
 	fi
-	if ! docker exec "${GARAGE_NAME}" /garage -c /etc/garage/garage.toml bucket allow --read --write --owner "${GARAGE_BUCKET}" --key aurago >/dev/null 2>&1; then
-		# --default-bucket may already own the key; still fail closed if allow is rejected.
-		if ! docker exec "${GARAGE_NAME}" /garage -c /etc/garage/garage.toml bucket info "${GARAGE_BUCKET}" >/dev/null 2>&1; then
-			echo "Garage bucket ${GARAGE_BUCKET} is missing after bootstrap" >&2
+	if ! docker exec "${GARAGE_NAME}" /garage -c /etc/garage/garage.toml bucket info "${GARAGE_BUCKET}" >/dev/null 2>&1; then
+		if ! docker exec "${GARAGE_NAME}" /garage -c /etc/garage/garage.toml bucket create "${GARAGE_BUCKET}" >/dev/null 2>&1; then
+			echo "Garage bucket ${GARAGE_BUCKET} could not be created" >&2
 			docker rm -f "${GARAGE_NAME}" >/dev/null 2>&1 || true
 			exit 16
 		fi
+	fi
+	if ! docker exec "${GARAGE_NAME}" /garage -c /etc/garage/garage.toml bucket allow --read --write --owner "${GARAGE_BUCKET}" --key aurago >/dev/null 2>&1; then
+		echo "Garage bucket permissions could not be granted to the Vault key" >&2
+		docker rm -f "${GARAGE_NAME}" >/dev/null 2>&1 || true
+		exit 16
 	fi
 	printf '1\n' > "${BOOTSTRAPPED_MARKER}"
 	chown "${GARAGE_UID}:${GARAGE_GID}" "${BOOTSTRAPPED_MARKER}" 2>/dev/null || true

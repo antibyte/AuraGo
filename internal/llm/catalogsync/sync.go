@@ -68,7 +68,11 @@ func BuildSnapshot(modelsJSON, descriptorsTS []byte, metadata PackageMetadata) (
 		return Snapshot{}, err
 	}
 	sort.SliceStable(models, func(i, j int) bool {
-		return modelSortKey(models[i]) < modelSortKey(models[j])
+		left, right := modelSortKey(models[i]), modelSortKey(models[j])
+		if left != right {
+			return left < right
+		}
+		return deterministicModelTieKey(models[i]) < deterministicModelTieKey(models[j])
 	})
 	sort.SliceStable(providers, func(i, j int) bool {
 		return providers[i].ID < providers[j].ID
@@ -457,6 +461,11 @@ func modelSortKey(model catalog.Model) string {
 		fmt.Sprintf("%020d", model.ContextWindow),
 		fmt.Sprintf("%020d", model.MaxTokens),
 	}, "\x00")
+}
+
+func deterministicModelTieKey(model catalog.Model) string {
+	payload, _ := json.Marshal(model)
+	return string(payload)
 }
 
 func apiSupportsStructuredOutputs(api, provider string) bool {

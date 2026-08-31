@@ -279,9 +279,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 	}()
 
-	// Phase 34: Start the background daily reflection loop
-	tools.StartDailyReflectionLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.HistoryManager, s.ShortTermMem)
-
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
 	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor)
@@ -416,6 +413,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// System warnings — returns runtime health warnings.
 	mux.HandleFunc("/api/warnings", handleWarnings(s))
 	mux.HandleFunc("/api/warnings/acknowledge", handleWarningsAcknowledge(s))
+	mux.HandleFunc("/api/telegram/status", handleTelegramStatus(s))
+	mux.Handle("/api/telegram/test", requireAdmin(s, handleTelegramTest(s)))
 
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
 	registerRealtimeSpeechHandlers(mux, s, sse)
@@ -654,7 +653,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
+		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 
 		// Discord Bot: listen for messages and relay to the agent
 		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
@@ -770,6 +769,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	}
 
 	// Phase 34: Notifications endpoints
+	mux.HandleFunc("/api/system/notifications", handleSystemNotifications(s))
+	mux.HandleFunc("/api/system/notifications/read", handleSystemNotificationsRead(s))
 	mux.HandleFunc("/notifications", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

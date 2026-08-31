@@ -428,3 +428,29 @@ func TestReclaimStaleConsolidationClaims(t *testing.T) {
 		t.Fatalf("status = %q, want pending", status)
 	}
 }
+
+func TestReleaseConsolidationClaimsDoesNotConsumeRetry(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+	_, err := stm.db.Exec(`
+		INSERT INTO archived_messages (session_id, role, content, original_timestamp, consolidated, consolidation_status, consolidation_retries)
+		VALUES ('s1', 'user', 'deferred claim', CURRENT_TIMESTAMP, 0, 'pending', 2)
+	`)
+	if err != nil {
+		t.Fatalf("insert claim candidate: %v", err)
+	}
+	claimed, err := stm.ClaimConsolidationCandidates(40, 3)
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("ClaimConsolidationCandidates = %#v, err:%v", claimed, err)
+	}
+	if err := stm.ReleaseConsolidationClaims([]int64{claimed[0].ID}); err != nil {
+		t.Fatalf("ReleaseConsolidationClaims: %v", err)
+	}
+	var status string
+	var retries int
+	if err := stm.db.QueryRow(`SELECT consolidation_status, consolidation_retries FROM archived_messages WHERE id = ?`, claimed[0].ID).Scan(&status, &retries); err != nil {
+		t.Fatalf("query released claim: %v", err)
+	}
+	if status != "pending" || retries != 2 {
+		t.Fatalf("released claim status/retries = %s/%d, want pending/2", status, retries)
+	}
+}

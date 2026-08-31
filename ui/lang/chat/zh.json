@@ -121,6 +121,7 @@
   "chat.stt_processing": "处理中...",
   "chat.stt_tap_to_stop": "点击停止",
   "chat.system_briefing_prefix": "🌅 **系统简介：**",
+  "chat.system_notification_prefix": "ℹ️ **系统通知：**\n\n",
   "chat.thinking_label": "推理",
   "chat.question_waiting": "代理正在等待你的回答...",
   "chat.question_timeout": "问题已超时。",

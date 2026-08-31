@@ -74,6 +74,26 @@ func TestHelperLLMManagerAnalyzeTurnUsesCacheForIdenticalInput(t *testing.T) {
 	}
 }
 
+func TestHelperLLMManagerDiscardsInvalidCachedJSONBeforeRequest(t *testing.T) {
+	client := &mockChatClient{response: `{"abstract":"fresh response"}`}
+	manager := &helperLLMManager{
+		client:        client,
+		model:         "helper-model",
+		responseCache: map[string]string{"cache-key": "truncated {"},
+		cacheKeys:     []string{"cache-key"},
+	}
+	got, err := manager.requestJSONResponse(context.Background(), "test", "cache-key", "system", "user", 100)
+	if err != nil {
+		t.Fatalf("requestJSONResponse: %v", err)
+	}
+	if got != `{"abstract":"fresh response"}` || client.calls != 1 {
+		t.Fatalf("response/calls = %q/%d", got, client.calls)
+	}
+	if cached, ok := manager.getCachedResponse("cache-key"); !ok || cached != got {
+		t.Fatalf("replacement cache = %q/%v", cached, ok)
+	}
+}
+
 func TestHelperLLMManagerAnalyzeTurnPromptUsesCanonicalMoodOptions(t *testing.T) {
 	client := &mockChatClient{
 		response: `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{"intent":"Investigate alert","user_goal":"Investigate alert","actions_taken":["Checked recent events"],"outcomes":["Found the alert source"],"important_points":["Alert came from the NAS"],"pending_items":[],"importance":2,"entities":["nas"]},"personality_analysis":{"mood_analysis":{"user_sentiment":"alert","agent_appropriate_response_mood":"focused","relationship_delta":0.01,"trait_deltas":{"thoroughness":0.02},"user_profile_updates":[]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"","valence":0.0,"arousal":0.3,"confidence":0.7,"cause":"clear troubleshooting task","recommended_response_style":"calm_and_clear"}}}`,

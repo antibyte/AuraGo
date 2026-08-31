@@ -93,6 +93,7 @@
   "chat.stt_processing": "Processing...",
   "chat.stt_tap_to_stop": "Tap to stop",
   "chat.system_briefing_prefix": "🌅 **System Briefing:**\n\n",
+  "chat.system_notification_prefix": "ℹ️ **System Notice:**\n\n",
   "chat.thinking_label": "Reasoning",
   "chat.question_waiting": "The agent is waiting for your answer...",
   "chat.question_timeout": "The question timed out.",

@@ -30,14 +30,15 @@ var (
 
 // CheckResult is the shared payload returned by update checks.
 type CheckResult struct {
-	Mode            string `json:"mode"` // "git" or "binary"
-	UpdateAvailable bool   `json:"update_available"`
-	CurrentVersion  string `json:"current_version"`
-	LatestVersion   string `json:"latest_version"`
-	CommitCount     int    `json:"commit_count,omitempty"`
-	Changelog       string `json:"changelog,omitempty"`
-	Message         string `json:"message"`
-	Error           string `json:"error,omitempty"`
+	Mode             string `json:"mode"` // "git" or "binary"
+	UpdateAvailable  bool   `json:"update_available"`
+	CurrentVersion   string `json:"current_version"`
+	LatestVersion    string `json:"latest_version"`
+	CommitCount      int    `json:"commit_count,omitempty"`
+	LocalCommitCount int    `json:"local_commit_count,omitempty"`
+	Changelog        string `json:"changelog,omitempty"`
+	Message          string `json:"message"`
+	Error            string `json:"error,omitempty"`
 }
 
 type CommandRunner func(dir string, name string, args ...string) ([]byte, error)
@@ -158,33 +159,62 @@ func checkUpdatesGit(ctx context.Context, opts CheckOptions) CheckResult {
 		return CheckResult{Mode: "git", Error: "Could not reach GitHub", Message: "Update check failed."}
 	}
 
-	countOut, err := run(dir, "git", "-c", safeDir, "rev-list", "HEAD..origin/main", "--count")
+	countOut, err := run(dir, "git", "-c", safeDir, "rev-list", "--left-right", "--count", "HEAD...origin/main")
 	if err != nil {
 		return CheckResult{Mode: "git", Error: "Failed to determine pending updates", Message: "Update check failed."}
 	}
-	count, _ := strconv.Atoi(strings.TrimSpace(string(countOut)))
+	localCount, count, err := parseGitRelationship(countOut)
+	if err != nil {
+		return CheckResult{Mode: "git", Error: "Failed to determine pending updates", Message: "Update check failed."}
+	}
 	latest, _, _ := fetchLatestRelease(ctx, opts)
 
 	if count == 0 {
+		message := "AuraGo is up to date."
+		if localCount > 0 {
+			message = fmt.Sprintf("AuraGo is up to date; %d local commit(s) are preserved.", localCount)
+		}
 		return CheckResult{
-			Mode:            "git",
-			UpdateAvailable: false,
-			CurrentVersion:  current,
-			LatestVersion:   latest,
-			Message:         "AuraGo is up to date.",
+			Mode:             "git",
+			UpdateAvailable:  false,
+			CurrentVersion:   current,
+			LatestVersion:    latest,
+			LocalCommitCount: localCount,
+			Message:          message,
 		}
 	}
 
 	logOut, _ := run(dir, "git", "-c", safeDir, "log", "HEAD..origin/main", "--oneline", "-n", "10")
-	return CheckResult{
-		Mode:            "git",
-		UpdateAvailable: true,
-		CurrentVersion:  current,
-		LatestVersion:   latest,
-		CommitCount:     count,
-		Changelog:       strings.TrimSpace(string(logOut)),
-		Message:         fmt.Sprintf("%d update(s) available.", count),
+	message := fmt.Sprintf("%d update(s) available.", count)
+	if localCount > 0 {
+		message = fmt.Sprintf("%d update(s) available; %d local commit(s) will be preserved.", count, localCount)
 	}
+	return CheckResult{
+		Mode:             "git",
+		UpdateAvailable:  true,
+		CurrentVersion:   current,
+		LatestVersion:    latest,
+		CommitCount:      count,
+		LocalCommitCount: localCount,
+		Changelog:        strings.TrimSpace(string(logOut)),
+		Message:          message,
+	}
+}
+
+func parseGitRelationship(raw []byte) (local, remote int, err error) {
+	fields := strings.Fields(string(raw))
+	if len(fields) != 2 {
+		return 0, 0, fmt.Errorf("unexpected git relationship output")
+	}
+	local, err = strconv.Atoi(fields[0])
+	if err != nil || local < 0 {
+		return 0, 0, fmt.Errorf("invalid local commit count")
+	}
+	remote, err = strconv.Atoi(fields[1])
+	if err != nil || remote < 0 {
+		return 0, 0, fmt.Errorf("invalid remote commit count")
+	}
+	return local, remote, nil
 }
 
 func fetchLatestRelease(ctx context.Context, opts CheckOptions) (tag string, body string, err error) {

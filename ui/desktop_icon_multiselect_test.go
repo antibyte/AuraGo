@@ -112,8 +112,8 @@ func TestDesktopIconGroupsMoveTogetherAndUseBatchContextActions(t *testing.T) {
 	contextBody := jsFunctionBodyInWindowMenuTest(t, menus, "function showIconContextMenu(event, btn)")
 	for _, want := range []string{
 		"const commandIcons = selectedDesktopCommandIcons(btn)",
-		"activateDesktopItems(commandIcons)",
 		"const batchPaths = desktopBatchPaths(btn)",
+		"activateDesktopItems(commandIcons)",
 		"setDesktopFileClipboard('cut', batchPaths)",
 		"setDesktopFileClipboard('copy', batchPaths)",
 		"deleteDesktopPaths(batchPaths.length ? batchPaths : [path])",

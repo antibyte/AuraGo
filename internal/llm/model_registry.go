@@ -147,5 +147,6 @@ func catalogModelToRegistryEntry(model catalog.Model) ModelRegistryEntry {
 		OutputPricePer1M:         model.Cost.Output,
 		CacheReadPricePer1M:      model.Cost.CacheRead,
 		CacheWritePricePer1M:     model.Cost.CacheWrite,
+		MetadataSource:           model.Source,
 	}
 }

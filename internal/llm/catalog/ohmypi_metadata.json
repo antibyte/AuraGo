@@ -1,11 +1,11 @@
 {
   "package_name": "@oh-my-pi/pi-catalog",
-  "version": "16.1.10",
-  "tarball_url": "https://registry.npmjs.org/@oh-my-pi/pi-catalog/-/pi-catalog-16.1.10.tgz",
-  "synced_at": "2026-06-21T15:00:53Z",
+  "version": "18.0.11",
+  "tarball_url": "https://registry.npmjs.org/@oh-my-pi/pi-catalog/-/pi-catalog-18.0.11.tgz",
+  "synced_at": "2026-08-31T23:02:49Z",
   "repository_url": "https://github.com/can1357/oh-my-pi",
   "license": "MIT",
-  "copyright": "Can Boluk and oh-my-pi contributors",
+  "copyright": "Stencil Labs, Inc. and oh-my-pi contributors",
   "source_files": [
     "package/src/models.json",
     "package/src/provider-models/descriptors.ts",

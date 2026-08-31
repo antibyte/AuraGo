@@ -22,8 +22,9 @@ func TestGarageEnsureScriptFailClosedKeyImport(t *testing.T) {
 		"aurago.managed=boring-garage",
 		"127.0.0.1:3900:3900",
 		"--single-node",
-		"--default-bucket",
 		"key import",
+		"bucket create",
+		"bucket allow",
 		"garage_key_present",
 		"metadata_fsync = true",
 		"db_engine = \"sqlite\"",
@@ -39,6 +40,9 @@ func TestGarageEnsureScriptFailClosedKeyImport(t *testing.T) {
 	}
 	if strings.Contains(script, `/garage -c /etc/garage/garage.toml key new`) {
 		t.Fatal("ensure script must never create unmanaged keys via key new")
+	}
+	if strings.Contains(script, "server --single-node --default-bucket") || strings.Contains(script, "-e GARAGE_DEFAULT_") {
+		t.Fatal("bootstrap must not expose Vault credentials through Garage default-bucket environment variables")
 	}
 	if !strings.Contains(script, "NEED_BOOTSTRAP=1") {
 		t.Fatal("ensure script must force bootstrap when Vault key is missing")

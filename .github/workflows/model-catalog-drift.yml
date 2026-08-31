@@ -1,0 +1,23 @@
+name: Model catalog drift
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Check models.dev snapshot
+        run: go run scripts/generate_model_registry.go --check
+      - name: Check oh-my-pi snapshot
+        run: go run scripts/sync_ohmypi_catalog.go --check

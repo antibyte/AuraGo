@@ -496,6 +496,45 @@ func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) erro
 	return err
 }
 
+// ReleaseConsolidationClaims returns work that was claimed but never attempted
+// to pending without consuming a retry.
+func (s *SQLiteMemory) ReleaseConsolidationClaims(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(`UPDATE archived_messages
+		SET consolidation_status = 'pending',
+		    consolidation_claimed_at = NULL
+		WHERE consolidated = 0
+		  AND consolidation_status = 'in_progress'
+		  AND id IN (%s)`, strings.Join(placeholders, ","))
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
+// CountConsolidationCandidates reports retryable deferred work.
+func (s *SQLiteMemory) CountConsolidationCandidates(maxRetries int) (int, error) {
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM archived_messages
+		WHERE consolidated = 0
+		  AND (
+		    consolidation_status = 'pending'
+		    OR (consolidation_status = 'failed' AND consolidation_retries < ?)
+		    OR consolidation_status = 'in_progress'
+		  )`, maxRetries).Scan(&count)
+	return count, err
+}
+
 // ReclaimStaleConsolidationClaims resets long-running in_progress consolidation rows
 // back to pending so a crashed or interrupted maintenance run can retry them.
 func (s *SQLiteMemory) ReclaimStaleConsolidationClaims(maxAge time.Duration) (int64, error) {
@@ -641,61 +680,9 @@ func (s *SQLiteMemory) GetRecentArchiveEvents(hours int) ([]string, error) {
 	return concepts, nil
 }
 
-// AddNotification stores a new system notification (e.g. Morning Briefing).
-func (s *SQLiteMemory) AddNotification(content string) error {
-	stmt := `INSERT INTO system_notifications(content) VALUES(?)`
-	_, err := s.db.Exec(stmt, content)
-	if err != nil {
-		s.logger.Error("Failed to store system notification", "error", err)
-		return err
-	}
-	return nil
-}
-
-// GetUnreadNotifications returns all unread notifications.
-func (s *SQLiteMemory) GetUnreadNotifications() ([]string, error) {
-	query := `SELECT id, content FROM system_notifications WHERE is_read = 0 ORDER BY timestamp ASC;`
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get unread notifications: %w", err)
-	}
-	defer rows.Close()
-
-	var notes []string
-	var internalIDs []int64
-	for rows.Next() {
-		var id int64
-		var content string
-		if err := rows.Scan(&id, &content); err != nil {
-			return nil, fmt.Errorf("scan notification: %w", err)
-		}
-		if isInternalSystemNotification(content) {
-			internalIDs = append(internalIDs, id)
-			continue
-		}
-		notes = append(notes, content)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration: %w", err)
-	}
-	for _, id := range internalIDs {
-		if _, err := s.db.Exec(`UPDATE system_notifications SET is_read = 1 WHERE id = ?`, id); err != nil {
-			return nil, fmt.Errorf("mark internal notification read: %w", err)
-		}
-	}
-	return notes, nil
-}
-
 func isInternalSystemNotification(content string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(content))
 	return strings.HasPrefix(normalized, "weekly memory reflection:")
-}
-
-// MarkNotificationsRead marks all system notifications as read.
-func (s *SQLiteMemory) MarkNotificationsRead() error {
-	stmt := `UPDATE system_notifications SET is_read = 1 WHERE is_read = 0`
-	_, err := s.db.Exec(stmt)
-	return err
 }
 
 // ArchivedMessage represents a message that was archived before deletion from STM.

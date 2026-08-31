@@ -24,9 +24,18 @@ func RegisterBuiltinProducers(reg *Registry, cfg *config.Config, vdb VectorDBHea
 // checkTokenBudgetFallback emits a warning when either model limit could not be
 // resolved through an override, the registry, or the provider probe.
 func checkTokenBudgetFallback(reg *Registry, cfg *config.Config, logger *slog.Logger) {
+	RefreshTokenBudgetWarnings(reg, cfg, logger)
+}
+
+// RefreshTokenBudgetWarnings recomputes route-specific limit warnings. It is
+// safe to call after every provider/model change: resolved warnings are removed
+// instead of lingering until the next process restart.
+func RefreshTokenBudgetWarnings(reg *Registry, cfg *config.Config, logger *slog.Logger) {
 	if reg == nil || cfg == nil {
 		return
 	}
+	reg.Remove("token_budget_fallback")
+	reg.Remove("token_budget_context_cap")
 
 	route := llm.ModelRoute{
 		ProviderID:   cfg.LLM.Provider,
@@ -44,24 +53,32 @@ func checkTokenBudgetFallback(reg *Registry, cfg *config.Config, logger *slog.Lo
 		}
 	}
 	limits := llm.ResolveModelLimits(context.Background(), route, cfg.Agent.ContextWindow, logger)
-	if !limits.Unknown {
-		return
+	if limits.ContextCapApplied {
+		reg.Add(Warning{
+			ID:          "token_budget_context_cap",
+			Severity:    SeverityInfo,
+			Title:       "Model Context Cap Applied",
+			Description: fmt.Sprintf("The configured agent.context_window cap limits %q to %d context tokens.", route.Model, limits.ContextWindow),
+			Category:    CategoryPerformance,
+		})
 	}
-
-	reg.Add(Warning{
-		ID:       "token_budget_fallback",
-		Severity: SeverityWarning,
-		Title:    "Model Limit Fallback",
-		Description: fmt.Sprintf(
-			"Model limits for %q could not be fully resolved. Unresolved values use conservative defaults of %d context tokens and %d output tokens. "+
-				"Set provider-level context_window and max_output_tokens overrides if the provider does not expose reliable metadata.",
-			route.Model, llm.ConservativeContextWindow, llm.ConservativeOutputTokens,
-		),
-		Category: CategoryPerformance,
-	})
-	if logger != nil {
-		logger.Warn("Registered warning: conservative model limits", "model", route.Model,
-			"context_source", limits.ContextSource, "output_source", limits.OutputSource)
+	if limits.Unknown {
+		reg.Add(Warning{
+			ID:       "token_budget_fallback",
+			Severity: SeverityWarning,
+			Title:    "Model Limit Fallback",
+			Description: fmt.Sprintf(
+				"Model limits for %q could not be fully resolved. Unresolved values use conservative defaults of %d context tokens and %d output tokens. "+
+					"Set provider-level context_window and max_output_tokens overrides if the provider does not expose reliable metadata.",
+				route.Model, llm.ConservativeContextWindow, llm.ConservativeOutputTokens,
+			),
+			Category: CategoryPerformance,
+		})
+		if logger != nil {
+			logger.Warn("Registered warning: conservative model limits", "model", route.Model,
+				"context_source", limits.ContextSource, "output_source", limits.OutputSource,
+				"metadata_source", limits.MetadataSource)
+		}
 	}
 }
 

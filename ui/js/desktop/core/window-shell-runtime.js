@@ -1167,9 +1167,7 @@
         renderTaskbar();
         scheduleSessionPersist();
     }
-
     function resizeHandleMarkup() {
         return ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
-            .map(edge => `<span class="vd-resize-handle vd-resize-${edge}" data-resize="${edge}"></span>`)
-            .join('');
+            .map(edge => `<span class="vd-resize-handle vd-resize-${edge}" data-resize="${edge}"></span>`).join('');
     }

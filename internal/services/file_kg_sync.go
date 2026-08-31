@@ -286,16 +286,16 @@ func (s *FileKGSyncer) SyncFileWithContext(ctx context.Context, path, collection
 		if err != nil {
 			s.logger.Warn("[FileKGSync] KG extraction failed", "path", path, "segment", i+1, "segments", len(segments), "error", err)
 			result.Errors = append(result.Errors, fmt.Sprintf("extraction %s segment %d/%d: %v", path, i+1, len(segments), err))
-			continue
+			// File replacement is atomic: a single failed segment invalidates
+			// this extraction attempt. Existing file entities stay untouched and
+			// the file remains eligible for a complete retry.
+			return result
 		}
 		nodes = append(nodes, segmentNodes...)
 		edges = append(edges, segmentEdges...)
 	}
 	nodes = mergeNodesByID(nodes)
 	edges = mergeEdgesByKey(edges)
-	if len(result.Errors) > 0 && len(nodes) == 0 && len(edges) == 0 {
-		return result
-	}
 	if len(nodes) == 0 && len(edges) == 0 {
 		result.FilesSkipped++
 		s.logger.Debug("[FileKGSync] No entities extracted", "path", path)

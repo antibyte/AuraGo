@@ -121,6 +121,7 @@
   "chat.stt_processing": "Επεξεργασία...",
   "chat.stt_tap_to_stop": "Πατήστε για διακοπή",
   "chat.system_briefing_prefix": "🌅 **Ενημέρωση συστήματος:**",
+  "chat.system_notification_prefix": "ℹ️ **Ειδοποίηση συστήματος:**\n\n",
   "chat.thinking_label": "Συλλογισμός",
   "chat.question_waiting": "Ο πράκτορας περιμένει την απάντησή σας...",
   "chat.question_timeout": "Το χρονικό όριο της ερώτησης έληξε.",

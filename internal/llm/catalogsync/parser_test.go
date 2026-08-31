@@ -148,6 +148,40 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 	}
 }
 
+func TestBuildSnapshotUsesDeterministicOrderForDuplicateModelKeys(t *testing.T) {
+	modelsA := []byte(`{
+		"provider-b":{"same":{"id":"same","name":"Same","api":"openai-completions","provider":"shared","contextWindow":100,"maxTokens":10,"cost":{"input":2,"output":1}}},
+		"provider-a":{"same":{"id":"same","name":"Same","api":"openai-completions","provider":"shared","contextWindow":100,"maxTokens":10,"cost":{"input":1,"output":1}}}
+	}`)
+	modelsB := []byte(`{
+		"provider-a":{"same":{"id":"same","name":"Same","api":"openai-completions","provider":"shared","contextWindow":100,"maxTokens":10,"cost":{"input":1,"output":1}}},
+		"provider-b":{"same":{"id":"same","name":"Same","api":"openai-completions","provider":"shared","contextWindow":100,"maxTokens":10,"cost":{"input":2,"output":1}}}
+	}`)
+	descriptors := []byte(`export const CATALOG_PROVIDERS = [{id:"shared", catalogDiscovery:{label:"Shared"}}];`)
+	metadata := PackageMetadata{Name: "@oh-my-pi/pi-catalog", Version: "test", License: "MIT"}
+	first, err := BuildSnapshot(modelsA, descriptors, metadata)
+	if err != nil {
+		t.Fatalf("BuildSnapshot first: %v", err)
+	}
+	second, err := BuildSnapshot(modelsB, descriptors, metadata)
+	if err != nil {
+		t.Fatalf("BuildSnapshot second: %v", err)
+	}
+	first.Metadata.SyncedAt = ""
+	second.Metadata.SyncedAt = ""
+	firstModels, _, _, err := MarshalSnapshotFiles(first)
+	if err != nil {
+		t.Fatalf("MarshalSnapshotFiles first: %v", err)
+	}
+	secondModels, _, _, err := MarshalSnapshotFiles(second)
+	if err != nil {
+		t.Fatalf("MarshalSnapshotFiles second: %v", err)
+	}
+	if string(firstModels) != string(secondModels) {
+		t.Fatalf("model order is not deterministic:\n%s\n---\n%s", firstModels, secondModels)
+	}
+}
+
 func TestBuildSnapshotRejectsMissingLicenseMetadata(t *testing.T) {
 	_, err := BuildSnapshot([]byte(`{}`), []byte(`export const CATALOG_PROVIDERS = [];`), PackageMetadata{
 		Name:       "@oh-my-pi/pi-catalog",

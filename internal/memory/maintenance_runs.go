@@ -15,12 +15,36 @@ type MaintenancePhaseResults struct {
 	CompressedDeleted    int                      `json:"compressed_deleted"`
 	KGFilesProcessed     int                      `json:"kg_files_processed"`
 	KGNodesExtracted     int                      `json:"kg_nodes_extracted"`
+	Errors               []string                 `json:"errors,omitempty"`
+	Processed            int                      `json:"processed"`
+	Deferred             int                      `json:"deferred"`
+	Phases               []MaintenancePhaseResult `json:"phases,omitempty"`
+	IntegrationChecks    []IntegrationCheckResult `json:"integration_checks,omitempty"`
 	SkillsReviewed       int                      `json:"skills_reviewed"`
 	SkillsImproved       int                      `json:"skills_improved"`
 	SkillsDeleted        int                      `json:"skills_deleted"`
 	SkillsReviewRequired int                      `json:"skills_review_required"`
 	SkillActions         []MaintenanceSkillAction `json:"skill_actions,omitempty"`
-	Errors               []string                 `json:"errors,omitempty"`
+}
+
+// MaintenancePhaseResult is a sanitized per-phase ledger entry.
+type MaintenancePhaseResult struct {
+	Name       string   `json:"name"`
+	Status     string   `json:"status"`
+	DurationMS int64    `json:"duration_ms"`
+	Processed  int      `json:"processed"`
+	Deferred   int      `json:"deferred"`
+	ErrorCodes []string `json:"error_codes,omitempty"`
+}
+
+// IntegrationCheckResult describes one current, local, non-mutating check.
+type IntegrationCheckResult struct {
+	ID        string                 `json:"id"`
+	Status    string                 `json:"status"`
+	CheckedAt string                 `json:"checked_at"`
+	Code      string                 `json:"code,omitempty"`
+	Detail    string                 `json:"detail,omitempty"`
+	Data      map[string]interface{} `json:"data,omitempty"`
 }
 
 // MaintenanceSkillAction is a sanitized dashboard-safe summary. It never

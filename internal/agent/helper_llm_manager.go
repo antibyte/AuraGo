@@ -251,6 +251,7 @@ type helperLLMManager struct {
 	client        llm.ChatClient
 	model         string
 	providerID    string
+	providerType  string
 	logger        *slog.Logger
 	cacheMu       sync.RWMutex
 	responseCache map[string]string
@@ -457,6 +458,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 		client:        client,
 		model:         newInstCfg.Model,
 		providerID:    newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
+		providerType:  newInstCfg.ProviderType,
 		logger:        logger,
 		responseCache: make(map[string]string),
 		cacheKeys:     make([]string, 0, helperResponseCacheMaxSize),
@@ -558,6 +560,21 @@ func (m *helperLLMManager) setCachedResponse(cacheKey, value string) {
 	m.cacheKeys = append(m.cacheKeys, cacheKey)
 }
 
+func (m *helperLLMManager) deleteCachedResponse(cacheKey string) {
+	if m == nil || cacheKey == "" {
+		return
+	}
+	m.cacheMu.Lock()
+	defer m.cacheMu.Unlock()
+	delete(m.responseCache, cacheKey)
+	for i, key := range m.cacheKeys {
+		if key == cacheKey {
+			m.cacheKeys = append(m.cacheKeys[:i], m.cacheKeys[i+1:]...)
+			break
+		}
+	}
+}
+
 func (m *helperLLMManager) observeStat(operation string, mutate func(*HelperLLMOperationStats)) {
 	if m == nil || operation == "" {
 		return
@@ -624,14 +641,19 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		stat.Requests++
 	})
 	if cached, ok := m.getCachedResponse(cacheKey); ok {
-		m.observeStat(operation, func(stat *HelperLLMOperationStats) {
-			stat.CacheHits++
-			stat.LastDetail = "cache_hit"
-		})
-		if m.logger != nil {
-			m.logger.Debug("[HelperLLM] Cache hit", "operation", operation)
+		normalized, validationErr := llm.NormalizeJSONContent(cached)
+		if validationErr != nil {
+			m.deleteCachedResponse(cacheKey)
+		} else {
+			m.observeStat(operation, func(stat *HelperLLMOperationStats) {
+				stat.CacheHits++
+				stat.LastDetail = "cache_hit"
+			})
+			if m.logger != nil {
+				m.logger.Debug("[HelperLLM] Cache hit", "operation", operation)
+			}
+			return normalized, nil
 		}
-		return cached, nil
 	}
 
 	if m.sem != nil {
@@ -667,14 +689,19 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 			}
 		}
 
+		structured := false
+		if caps, ok := llm.CapabilitiesFromRegistry(m.providerType, m.model); ok {
+			structured = caps.StructuredOutputs
+		}
 		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 			Model: m.model,
 			Messages: []openai.ChatCompletionMessage{
 				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
 				{Role: openai.ChatMessageRoleUser, Content: userPrompt},
 			},
-			Temperature: 0.1,
-			MaxTokens:   maxTokens,
+			Temperature:    0.1,
+			MaxTokens:      maxTokens,
+			ResponseFormat: llm.JSONResponseFormat(structured),
 		})
 		if err != nil {
 			lastErr = err
@@ -683,16 +710,16 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 			}
 			continue
 		}
-		if len(resp.Choices) == 0 || strings.TrimSpace(resp.Choices[0].Message.Content) == "" {
-			return "", fmt.Errorf("helper llm returned empty content")
-		}
-
 		m.observeStat(operation, func(stat *HelperLLMOperationStats) {
 			stat.LLMCalls++
 			stat.LastDetail = "llm_call"
 		})
 
-		raw := strings.TrimSpace(resp.Choices[0].Message.Content)
+		raw, validationErr := llm.JSONContentFromResponse(resp)
+		if validationErr != nil {
+			lastErr = validationErr
+			continue
+		}
 		m.setCachedResponse(cacheKey, raw)
 		return raw, nil
 	}

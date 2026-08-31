@@ -121,6 +121,7 @@
   "chat.stt_processing": "Behandler...",
   "chat.stt_tap_to_stop": "Tryk for at stoppe",
   "chat.system_briefing_prefix": "🌅 **Systembriefing:**",
+  "chat.system_notification_prefix": "ℹ️ **Systemmeddelelse:**\n\n",
   "chat.thinking_label": "Ræsonnement",
   "chat.question_waiting": "Agenten venter på dit svar...",
   "chat.question_timeout": "Spørgsmålet udløb.",

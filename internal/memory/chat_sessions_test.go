@@ -51,6 +51,44 @@ func TestGetUnreadNotificationsHidesWeeklyMemoryReflection(t *testing.T) {
 	}
 }
 
+func TestSystemNotificationsAreTypedIdempotentAndReadByID(t *testing.T) {
+	stm := newTestSTM(t)
+	note := SystemNotification{
+		Type:     "morning_briefing",
+		Title:    "Morning briefing",
+		Message:  "Maintenance completed",
+		Data:     map[string]interface{}{"status": "completed"},
+		SourceID: "maintenance:2026-08-29T04:00:00Z",
+	}
+	firstID, created, err := stm.AddSystemNotification(note)
+	if err != nil || !created {
+		t.Fatalf("first AddSystemNotification = id:%d created:%v err:%v", firstID, created, err)
+	}
+	secondID, created, err := stm.AddSystemNotification(note)
+	if err != nil || created || secondID != firstID {
+		t.Fatalf("idempotent AddSystemNotification = id:%d created:%v err:%v", secondID, created, err)
+	}
+	legacyID, _, err := stm.AddSystemNotification(SystemNotification{Type: "legacy", Message: "legacy notice"})
+	if err != nil {
+		t.Fatalf("add legacy notification: %v", err)
+	}
+
+	all, err := stm.GetUnreadSystemNotifications()
+	if err != nil || len(all) != 2 {
+		t.Fatalf("unread typed notifications = %#v, err:%v", all, err)
+	}
+	if all[0].Type != "morning_briefing" || all[0].Data["status"] != "completed" {
+		t.Fatalf("typed notification = %#v", all[0])
+	}
+	if err := stm.MarkNotificationsReadByIDs([]int64{firstID}); err != nil {
+		t.Fatalf("MarkNotificationsReadByIDs: %v", err)
+	}
+	remaining, err := stm.GetUnreadSystemNotifications()
+	if err != nil || len(remaining) != 1 || remaining[0].ID != legacyID {
+		t.Fatalf("remaining notifications = %#v, err:%v", remaining, err)
+	}
+}
+
 func TestCreateChatSession(t *testing.T) {
 	stm := newTestSTM(t)
 

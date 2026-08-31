@@ -60,7 +60,12 @@ type SandboxManager struct {
 	pythonBin    string
 	env          map[string]string
 	connFactory  sandboxConnFactory
+	// transportGrace lets the MCP server tear down its container after the
+	// execution deadline. The execution timeout itself is passed separately.
+	transportGrace time.Duration
 }
+
+const sandboxMCPTransportGrace = 15 * time.Second
 
 var (
 	globalSandboxMgr *SandboxManager
@@ -72,10 +77,11 @@ var (
 // so the agent can fall back to execute_python.
 func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Logger) *SandboxManager {
 	mgr := &SandboxManager{
-		logger:       logger,
-		status:       SandboxStatus{Backend: cfg.Backend},
-		cfg:          cfg,
-		workspaceDir: workspaceDir,
+		logger:         logger,
+		status:         SandboxStatus{Backend: cfg.Backend},
+		cfg:            cfg,
+		workspaceDir:   workspaceDir,
+		transportGrace: sandboxMCPTransportGrace,
 	}
 
 	// Warn about config options that are parsed but not yet implemented, so users
@@ -350,8 +356,12 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 	if timeoutSecs <= 0 {
 		timeoutSecs = int(GetSandboxTimeout().Seconds())
 	}
+	// Keep the MCP server's own execution deadline aligned with AuraGo's limit.
+	// The outer transport deadline includes a bounded grace period because the
+	// MCP response is sent only after its short-lived container is removed.
+	args["timeout"] = timeoutSecs
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSecs)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSecs)*time.Second+m.transportGrace)
 	defer cancel()
 
 	out, err := conn.callTool(ctx, "execute_code", args)

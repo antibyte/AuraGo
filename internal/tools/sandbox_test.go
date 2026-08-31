@@ -19,6 +19,7 @@ type fakeSandboxConn struct {
 	closeCnt       int
 	languageOutput string
 	lastTool       string
+	lastArguments  map[string]interface{}
 	activeCalls    int
 	maxActiveCalls int
 	blockExecute   bool
@@ -45,6 +46,10 @@ func (f *fakeSandboxConn) callTool(ctx context.Context, toolName string, argumen
 	f.mu.Lock()
 	f.callCnt++
 	f.lastTool = toolName
+	f.lastArguments = make(map[string]interface{}, len(arguments))
+	for key, value := range arguments {
+		f.lastArguments[key] = value
+	}
 	f.activeCalls++
 	if f.activeCalls > f.maxActiveCalls {
 		f.maxActiveCalls = f.activeCalls
@@ -151,6 +156,29 @@ func TestSandboxManagerExecuteCodeWithoutKeepAliveCreatesFreshConnection(t *test
 		if conn.lastTool != "execute_code" {
 			t.Fatalf("conn %d last tool = %q, want execute_code", i, conn.lastTool)
 		}
+	}
+}
+
+func TestSandboxManagerExecuteCodePassesTimeoutToMCP(t *testing.T) {
+	conn := &fakeSandboxConn{}
+	mgr := &SandboxManager{
+		logger: testSandboxLogger(),
+		status: SandboxStatus{Ready: true},
+		cfg:    SandboxConfig{KeepAlive: true},
+		connFactory: func() (sandboxConn, error) {
+			return conn, nil
+		},
+	}
+
+	if _, err := mgr.ExecuteCode(`print("hi")`, "python", nil, 10); err != nil {
+		t.Fatalf("ExecuteCode returned error: %v", err)
+	}
+
+	conn.mu.Lock()
+	timeout := conn.lastArguments["timeout"]
+	conn.mu.Unlock()
+	if timeout != 10 {
+		t.Fatalf("MCP timeout argument = %#v, want 10", timeout)
 	}
 }
 

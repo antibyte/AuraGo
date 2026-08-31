@@ -44,7 +44,7 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 | **Agent Loop** | Die Haupt-Schleife, in der der Agent arbeitet: Empfangen → Verarbeiten → Antworten |
 | **Co-Agent** | Paralleler Sub-Agent für komplexe Aufgaben |
 | **Function Calling** | LLM-Feature zum Strukturierten Tool-Aufruf |
-| **Maintenance Loop** | Nächtlicher Wartungslauf (um 03:00 Uhr) |
+| **Maintenance Loop** | Nächtlicher Wartungslauf (standardmäßig um 04:00 Uhr) |
 | **Native Functions** | OpenAI-kompatible Funktionsaufrufe (vs. Text-Parsing) |
 | **Orchestrator** | Der Haupt-Agent, der Co-Agenten verwaltet |
 | **Session** | Ein einzelner Chat-Verlauf mit Kontext |

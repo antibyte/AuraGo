@@ -20,6 +20,48 @@ func TestNewRegistry(t *testing.T) {
 	}
 }
 
+func TestRefreshTokenBudgetWarningsReplacesFallbackWithCapAndThenClears(t *testing.T) {
+	reg := NewRegistry()
+	cfg := &config.Config{}
+	cfg.LLM.Provider = "main"
+	cfg.LLM.ProviderType = "custom"
+	cfg.LLM.Model = "unknown-model-with-no-metadata"
+	cfg.Agent.ContextWindow = 256000
+	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "custom", Model: cfg.LLM.Model}}
+
+	RefreshTokenBudgetWarnings(reg, cfg, nil)
+	if !warningPresent(reg.Warnings(), "token_budget_fallback") {
+		t.Fatal("expected fallback warning for unknown model")
+	}
+
+	cfg.LLM.ProviderType = "agnes"
+	cfg.LLM.Model = "agnes-2.5-flash"
+	cfg.Providers[0].Type = "agnes"
+	cfg.Providers[0].Model = "agnes-2.5-flash"
+	RefreshTokenBudgetWarnings(reg, cfg, nil)
+	if warningPresent(reg.Warnings(), "token_budget_fallback") {
+		t.Fatal("resolved model fallback warning was not removed")
+	}
+	if !warningPresent(reg.Warnings(), "token_budget_context_cap") {
+		t.Fatal("expected separate context cap notice")
+	}
+
+	cfg.Agent.ContextWindow = 512000
+	RefreshTokenBudgetWarnings(reg, cfg, nil)
+	if warningPresent(reg.Warnings(), "token_budget_context_cap") {
+		t.Fatal("obsolete context cap notice was not removed")
+	}
+}
+
+func warningPresent(all []Warning, id string) bool {
+	for _, warning := range all {
+		if warning.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func TestAdd(t *testing.T) {
 	r := NewRegistry()
 	w := Warning{ID: "test1", Severity: SeverityWarning, Title: "Test", Description: "desc", Category: CategorySystem}

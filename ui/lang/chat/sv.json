@@ -121,6 +121,7 @@
   "chat.stt_processing": "Bearbetar...",
   "chat.stt_tap_to_stop": "Tryck för att stoppa",
   "chat.system_briefing_prefix": "🌅 **Systemgenomgång:**",
+  "chat.system_notification_prefix": "ℹ️ **Systemmeddelande:**\n\n",
   "chat.thinking_label": "Resonemang",
   "chat.question_waiting": "Agenten väntar på ditt svar...",
   "chat.question_timeout": "Frågan tog timeout.",

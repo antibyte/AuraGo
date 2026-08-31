@@ -1,5 +1,17 @@
 [
   {
+    "id": "aiand",
+    "aura_provider_type": "aiand",
+    "name": "ai\u0026",
+    "default_model": "moonshotai/kimi-k2.7-code",
+    "env_vars": [
+      "AIAND_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "aimlapi",
     "aura_provider_type": "aimlapi",
     "name": "AIML API",
@@ -23,6 +35,19 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "alibaba-token-plan",
+    "aura_provider_type": "alibaba-token-plan",
+    "name": "QwenCloud Token Plan",
+    "default_model": "qwen3.7-plus",
+    "env_vars": [
+      "ALIBABA_TOKEN_PLAN_API_KEY",
+      "BAILIAN_TOKEN_PLAN_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "amazon-bedrock",
     "aura_provider_type": "amazon-bedrock",
     "name": "Amazon Bedrock",
@@ -35,6 +60,9 @@
     "aura_provider_type": "anthropic",
     "name": "Anthropic",
     "default_model": "claude-opus-4-8",
+    "env_vars": [
+      "ANTHROPIC_API_KEY"
+    ],
     "catalog_only": false,
     "source": "oh-my-pi"
   },
@@ -46,6 +74,30 @@
     "env_vars": [
       "AZURE_OPENAI_API_KEY"
     ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "baseten",
+    "aura_provider_type": "baseten",
+    "name": "Baseten",
+    "default_model": "moonshotai/Kimi-K2.7-Code",
+    "env_vars": [
+      "BASETEN_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "bedrock-mantle",
+    "aura_provider_type": "bedrock-mantle",
+    "name": "Bedrock Mantle",
+    "default_model": "openai.gpt-5.6-terra",
+    "env_vars": [
+      "AWS_BEARER_TOKEN_BEDROCK"
+    ],
+    "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -72,6 +124,19 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "coreweave",
+    "aura_provider_type": "coreweave",
+    "name": "CoreWeave Serverless Inference",
+    "default_model": "openai/gpt-oss-120b",
+    "env_vars": [
+      "COREWEAVE_API_KEY",
+      "WANDB_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "cursor",
     "aura_provider_type": "cursor",
     "name": "Cursor",
@@ -84,6 +149,19 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "deepinfra",
+    "aura_provider_type": "deepinfra",
+    "name": "DeepInfra",
+    "default_model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+    "env_vars": [
+      "DEEPINFRA_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "deepseek",
     "aura_provider_type": "deepseek",
     "name": "DeepSeek",
@@ -92,6 +170,19 @@
       "DEEPSEEK_API_KEY"
     ],
     "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "devin",
+    "aura_provider_type": "devin",
+    "name": "Devin",
+    "default_model": "swe-1-6",
+    "env_vars": [
+      "DEVIN_API_KEY"
+    ],
+    "oauth_provider": "devin",
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
     "source": "oh-my-pi"
   },
   {
@@ -135,6 +226,30 @@
     "env_vars": [
       "GITLAB_TOKEN"
     ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "gitlab-duo-agent",
+    "aura_provider_type": "gitlab-duo-agent",
+    "name": "Gitlab Duo Agent",
+    "default_model": "claude_sonnet_4_6_vertex",
+    "env_vars": [
+      "GITLAB_TOKEN"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "gmi-cloud",
+    "aura_provider_type": "gmi-cloud",
+    "name": "GMI Cloud",
+    "default_model": "deepseek-ai/DeepSeek-V4-Flash",
+    "env_vars": [
+      "GMI_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -183,6 +298,27 @@
     "aura_provider_type": "google-gemini-cli",
     "name": "Google Gemini Cli",
     "default_model": "gemini-3.1-pro-preview",
+    "oauth_setup": {
+      "source": "oh-my-pi",
+      "source_package": "@oh-my-pi/pi-ai",
+      "source_provider": "google-gemini-cli",
+      "flow": "authorization_code_pkce",
+      "setup_url": "https://console.cloud.google.com/apis/credentials",
+      "docs_url": "https://goo.gle/gemini-cli-auth-docs#workspace-gca",
+      "console_label": "Google Cloud Credentials",
+      "redirect_uri_field": "Authorized redirect URIs",
+      "client_id_field": "Client ID",
+      "client_secret_field": "Client secret",
+      "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+      "token_url": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile"
+      ],
+      "callback_port": 8085,
+      "callback_path": "/oauth2callback"
+    },
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -266,6 +402,18 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "meta",
+    "aura_provider_type": "meta",
+    "name": "Meta Model API",
+    "default_model": "muse-spark-1.1",
+    "env_vars": [
+      "MODEL_API_KEY",
+      "META_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "minimax",
     "aura_provider_type": "minimax",
     "name": "Minimax",
@@ -329,6 +477,19 @@
     "env_vars": [
       "NANO_GPT_API_KEY"
     ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "novita",
+    "aura_provider_type": "novita",
+    "name": "Novita",
+    "default_model": "moonshotai/kimi-k2.7-code",
+    "env_vars": [
+      "NOVITA_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -397,6 +558,7 @@
     "env_vars": [
       "OPENCODE_API_KEY"
     ],
+    "dynamic_models_authoritative": true,
     "catalog_only": false,
     "source": "oh-my-pi"
   },
@@ -408,6 +570,7 @@
     "env_vars": [
       "OPENCODE_API_KEY"
     ],
+    "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -448,10 +611,47 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "sakana",
+    "aura_provider_type": "sakana",
+    "name": "Sakana AI",
+    "default_model": "fugu",
+    "env_vars": [
+      "SAKANA_API_KEY",
+      "FUGU_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "siliconflow",
+    "aura_provider_type": "siliconflow",
+    "name": "Siliconflow",
+    "default_model": "zai-org/GLM-5.1",
+    "env_vars": [
+      "SILICONFLOW_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "siliconflow-cn",
+    "aura_provider_type": "siliconflow-cn",
+    "name": "Siliconflow Cn",
+    "default_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "env_vars": [
+      "SILICONFLOW_CN_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "synthetic",
     "aura_provider_type": "synthetic",
     "name": "Synthetic",
-    "default_model": "hf:zai-org/GLM-5.1",
+    "default_model": "hf:zai-org/GLM-5.2",
     "env_vars": [
       "SYNTHETIC_API_KEY"
     ],
@@ -535,10 +735,35 @@
     "id": "xai",
     "aura_provider_type": "xai",
     "name": "Xai",
-    "default_model": "grok-4-fast-non-reasoning",
+    "default_model": "grok-4.6",
     "env_vars": [
       "XAI_API_KEY"
     ],
+    "oauth_setup": {
+      "source": "oh-my-pi",
+      "source_package": "@oh-my-pi/pi-ai",
+      "source_provider": "xai-oauth",
+      "flow": "authorization_code_pkce",
+      "setup_url": "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+      "docs_url": "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+      "console_label": "xAI Grok OAuth guide",
+      "redirect_uri_field": "Loopback callback URL",
+      "client_id_field": "Client ID",
+      "client_secret_field": "Client secret",
+      "client_id": "b1a00492-073a-47ea-816f-4c329264a828",
+      "auth_url": "https://auth.x.ai/oauth2/authorize",
+      "token_url": "https://auth.x.ai/oauth2/token",
+      "scopes": [
+        "openid",
+        "profile",
+        "email",
+        "offline_access",
+        "grok-cli:access",
+        "api:access"
+      ],
+      "callback_port": 56121,
+      "callback_path": "/callback"
+    },
     "catalog_only": false,
     "source": "oh-my-pi"
   },
@@ -546,7 +771,7 @@
     "id": "xai-oauth",
     "aura_provider_type": "xai-oauth",
     "name": "xAI Grok OAuth (SuperGrok)",
-    "default_model": "grok-4.3",
+    "default_model": "grok-4.6",
     "env_vars": [
       "XAI_OAUTH_TOKEN",
       "XAI_API_KEY"
@@ -584,7 +809,7 @@
     "id": "xiaomi",
     "aura_provider_type": "xiaomi",
     "name": "Xiaomi",
-    "default_model": "mimo-v2-flash",
+    "default_model": "mimo-v2.5",
     "env_vars": [
       "XIAOMI_API_KEY"
     ],
@@ -625,10 +850,22 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "yolo-auto",
+    "aura_provider_type": "yolo-auto",
+    "name": "Yolo-Auto",
+    "default_model": "deepseek-flash-v4",
+    "env_vars": [
+      "YOLO_AUTO_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "zai",
     "aura_provider_type": "zai",
     "name": "zAI",
-    "default_model": "glm-5.2",
+    "default_model": "glm-5.3",
     "env_vars": [
       "ZAI_API_KEY"
     ],
@@ -643,6 +880,7 @@
     "env_vars": [
       "ZENMUX_API_KEY"
     ],
+    "allow_unauthenticated": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -650,10 +888,11 @@
     "id": "zhipu-coding-plan",
     "aura_provider_type": "zhipu-coding-plan",
     "name": "Zhipu Coding Plan",
-    "default_model": "glm-5.2",
+    "default_model": "glm-5.1",
     "env_vars": [
       "ZHIPU_API_KEY"
     ],
+    "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   }

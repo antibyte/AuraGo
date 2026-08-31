@@ -14,32 +14,34 @@ import (
 
 // providerJSON is the API representation of a provider entry.
 type providerJSON struct {
-	ID                       string                     `json:"id"`
-	Name                     string                     `json:"name"`
-	Type                     string                     `json:"type"`
-	BaseURL                  string                     `json:"base_url"`
-	APIKey                   string                     `json:"api_key"`
-	Model                    string                     `json:"model"`
-	ContextWindow            int                        `json:"context_window"`
-	MaxOutputTokens          int                        `json:"max_output_tokens"`
-	EffectiveContextWindow   int                        `json:"effective_context_window"`
-	EffectiveMaxOutputTokens int                        `json:"effective_max_output_tokens"`
-	ContextWindowSource      string                     `json:"context_window_source"`
-	MaxOutputTokensSource    string                     `json:"max_output_tokens_source"`
-	ModelLimitsWarning       string                     `json:"model_limits_warning,omitempty"`
-	ModelLimitsProbeStatus   string                     `json:"model_limits_probe_status,omitempty"`
-	AccountID                string                     `json:"account_id"`
-	AuthType                 string                     `json:"auth_type"`
-	OAuthAuthURL             string                     `json:"oauth_auth_url"`
-	OAuthTokenURL            string                     `json:"oauth_token_url"`
-	OAuthClientID            string                     `json:"oauth_client_id"`
-	OAuthClientSecret        string                     `json:"oauth_client_secret"`
-	OAuthScopes              string                     `json:"oauth_scopes"`
-	Models                   []config.ModelCost         `json:"models,omitempty"`
-	Capabilities             *providerCapabilitiesJSON  `json:"capabilities,omitempty"`
-	EffectiveCapabilities    providerCapabilitiesJSON   `json:"effective_capabilities,omitempty"`
-	References               []providerReferencePayload `json:"references,omitempty"`
-	RuntimeChat              speechLabRuntimeChatStatus `json:"runtime_chat"`
+	ID                        string                     `json:"id"`
+	Name                      string                     `json:"name"`
+	Type                      string                     `json:"type"`
+	BaseURL                   string                     `json:"base_url"`
+	APIKey                    string                     `json:"api_key"`
+	Model                     string                     `json:"model"`
+	ContextWindow             int                        `json:"context_window"`
+	MaxOutputTokens           int                        `json:"max_output_tokens"`
+	EffectiveContextWindow    int                        `json:"effective_context_window"`
+	EffectiveMaxOutputTokens  int                        `json:"effective_max_output_tokens"`
+	ContextWindowSource       string                     `json:"context_window_source"`
+	MaxOutputTokensSource     string                     `json:"max_output_tokens_source"`
+	ModelLimitsWarning        string                     `json:"model_limits_warning,omitempty"`
+	ModelLimitsProbeStatus    string                     `json:"model_limits_probe_status,omitempty"`
+	ModelLimitsMetadataSource string                     `json:"model_limits_metadata_source,omitempty"`
+	ContextCapApplied         bool                       `json:"context_cap_applied,omitempty"`
+	AccountID                 string                     `json:"account_id"`
+	AuthType                  string                     `json:"auth_type"`
+	OAuthAuthURL              string                     `json:"oauth_auth_url"`
+	OAuthTokenURL             string                     `json:"oauth_token_url"`
+	OAuthClientID             string                     `json:"oauth_client_id"`
+	OAuthClientSecret         string                     `json:"oauth_client_secret"`
+	OAuthScopes               string                     `json:"oauth_scopes"`
+	Models                    []config.ModelCost         `json:"models,omitempty"`
+	Capabilities              *providerCapabilitiesJSON  `json:"capabilities,omitempty"`
+	EffectiveCapabilities     providerCapabilitiesJSON   `json:"effective_capabilities,omitempty"`
+	References                []providerReferencePayload `json:"references,omitempty"`
+	RuntimeChat               speechLabRuntimeChatStatus `json:"runtime_chat"`
 }
 
 type providerCapabilitiesJSON struct {
@@ -259,34 +261,38 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 		runtimeChat, _ := speechLabRuntimeChatProvider(&p, s.Vault)
 		out[i] = providerJSON{
-			ID:                       p.ID,
-			Name:                     p.Name,
-			Type:                     p.Type,
-			BaseURL:                  p.BaseURL,
-			APIKey:                   apiKey,
-			Model:                    p.Model,
-			ContextWindow:            p.ContextWindow,
-			MaxOutputTokens:          p.MaxOutputTokens,
-			EffectiveContextWindow:   limits.ContextWindow,
-			EffectiveMaxOutputTokens: limits.MaxOutputTokens,
-			ContextWindowSource:      limits.ContextSource,
-			MaxOutputTokensSource:    limits.OutputSource,
-			ModelLimitsProbeStatus:   limits.ProbeStatus,
-			AccountID:                p.AccountID,
-			AuthType:                 authType,
-			OAuthAuthURL:             p.OAuthAuthURL,
-			OAuthTokenURL:            p.OAuthTokenURL,
-			OAuthClientID:            p.OAuthClientID,
-			OAuthClientSecret:        clientSecret,
-			OAuthScopes:              p.OAuthScopes,
-			Models:                   p.Models,
-			Capabilities:             &providerCapabilitiesJSON{},
-			EffectiveCapabilities:    providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
-			References:               providerReferences(&cfgSnapshot, p.ID),
-			RuntimeChat:              runtimeChat,
+			ID:                        p.ID,
+			Name:                      p.Name,
+			Type:                      p.Type,
+			BaseURL:                   p.BaseURL,
+			APIKey:                    apiKey,
+			Model:                     p.Model,
+			ContextWindow:             p.ContextWindow,
+			MaxOutputTokens:           p.MaxOutputTokens,
+			EffectiveContextWindow:    limits.ContextWindow,
+			EffectiveMaxOutputTokens:  limits.MaxOutputTokens,
+			ContextWindowSource:       limits.ContextSource,
+			MaxOutputTokensSource:     limits.OutputSource,
+			ModelLimitsProbeStatus:    limits.ProbeStatus,
+			ModelLimitsMetadataSource: limits.MetadataSource,
+			ContextCapApplied:         limits.ContextCapApplied,
+			AccountID:                 p.AccountID,
+			AuthType:                  authType,
+			OAuthAuthURL:              p.OAuthAuthURL,
+			OAuthTokenURL:             p.OAuthTokenURL,
+			OAuthClientID:             p.OAuthClientID,
+			OAuthClientSecret:         clientSecret,
+			OAuthScopes:               p.OAuthScopes,
+			Models:                    p.Models,
+			Capabilities:              &providerCapabilitiesJSON{},
+			EffectiveCapabilities:     providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
+			References:                providerReferences(&cfgSnapshot, p.ID),
+			RuntimeChat:               runtimeChat,
 		}
 		if limits.Unknown {
 			out[i].ModelLimitsWarning = "unknown_model_conservative_limits"
+		} else if limits.ContextCapApplied {
+			out[i].ModelLimitsWarning = "context_cap_applied"
 		}
 		caps := providerCapabilitiesToJSON(p.Capabilities)
 		out[i].Capabilities = &caps

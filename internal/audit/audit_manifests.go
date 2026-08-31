@@ -156,6 +156,10 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/clear", Methods: []string{"DELETE"}, Auth: "session", Category: "chat"},
 		{Pattern: "/notifications", Methods: []string{"GET"}, Auth: "session", Category: "notifications"},
 		{Pattern: "/notifications/read", Methods: []string{"POST"}, Auth: "session", Category: "notifications"},
+		{Pattern: "/api/system/notifications", Methods: []string{"GET"}, Auth: "session", Category: "notifications"},
+		{Pattern: "/api/system/notifications/read", Methods: []string{"POST"}, Auth: "session", Category: "notifications"},
+		{Pattern: "/api/telegram/status", Methods: []string{"GET"}, Auth: "session", Category: "notifications"},
+		{Pattern: "/api/telegram/test", Methods: []string{"POST"}, Auth: "admin", Category: "notifications"},
 		{Pattern: "/v1/chat/completions", Methods: []string{"POST"}, Auth: "session-or-api-key", Category: "llm", ContentTypes: []string{"application/json"}},
 	}
 }

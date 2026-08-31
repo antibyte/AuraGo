@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"context"
 	"testing"
 
 	"aurago/internal/config"
@@ -19,7 +20,7 @@ func TestGetModelInfo(t *testing.T) {
 		{"agnes", "agnes-2.5-flash", true, 512000},
 		{"minimax", "MiniMax-M3", true, 1000000},
 		{"openrouter", "minimax/minimax-m3", true, 1048576},
-		{"openrouter", "stepfun/step-3.7-flash", true, 256000},
+		{"openrouter", "stepfun/step-3.7-flash", true, 262144},
 		{"groq", "llama3-70b-8192", true, 8192},
 		{"nonexistent-provider", "gpt-4o", false, 0},
 		{"nonexistent", "unknown", false, 0},
@@ -41,6 +42,44 @@ func TestGetModelInfo(t *testing.T) {
 				t.Error("ID should not be empty")
 			}
 		})
+	}
+}
+
+func TestResolveAgnes25FlashLimitsAndMetadataSource(t *testing.T) {
+	limits := ResolveModelLimits(context.Background(), ModelRoute{
+		ProviderID:   "agnesai",
+		ProviderType: "agnes",
+		Model:        "agnes-2.5-flash",
+		Primary:      true,
+	}, 512000, nil)
+	if limits.ContextWindow != 512000 || limits.MaxOutputTokens != 65536 {
+		t.Fatalf("Agnes limits = %d/%d, want 512000/65536", limits.ContextWindow, limits.MaxOutputTokens)
+	}
+	if limits.Unknown {
+		t.Fatal("Agnes limits must be resolved")
+	}
+	if limits.MetadataSource != "models.dev" {
+		t.Fatalf("metadata source = %q, want models.dev", limits.MetadataSource)
+	}
+	if limits.ContextCapApplied {
+		t.Fatal("equal global context limit must not be reported as an applied cap")
+	}
+}
+
+func TestResolveKnownModelReportsGlobalCapSeparately(t *testing.T) {
+	limits := ResolveModelLimits(context.Background(), ModelRoute{
+		ProviderType: "agnes",
+		Model:        "agnes-2.5-flash",
+		Primary:      true,
+	}, 256000, nil)
+	if limits.Unknown {
+		t.Fatal("known model with a global cap must not become unknown")
+	}
+	if !limits.ContextCapApplied || limits.ContextWindow != 256000 {
+		t.Fatalf("cap state = applied:%v context:%d", limits.ContextCapApplied, limits.ContextWindow)
+	}
+	if limits.MetadataSource != "models.dev+global_cap" {
+		t.Fatalf("metadata source = %q, want models.dev+global_cap", limits.MetadataSource)
 	}
 }
 
@@ -96,7 +135,7 @@ func TestDetectContextWindowFromRegistry(t *testing.T) {
 		{"moonshot", "kimi-k2.5", 262144, true},
 		{"minimax", "MiniMax-M3", 1000000, true},
 		{"openrouter", "minimax/minimax-m3", 1048576, true},
-		{"openrouter", "stepfun/step-3.7-flash", 256000, true},
+		{"openrouter", "stepfun/step-3.7-flash", 262144, true},
 		{"nonexistent", "unknown", 0, false},
 	}
 

@@ -18,9 +18,11 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/commands"
 	"aurago/internal/config"
+	"aurago/internal/integrationstatus"
 	"aurago/internal/llm"
 	"aurago/internal/media"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -48,14 +50,17 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
 	if cfg.Telegram.BotToken == "" {
+		integrationstatus.SetTelegramConfigured(false, false)
 		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
 		return
 	}
+	integrationstatus.SetTelegramConfigured(true, cfg.Telegram.UserID != 0)
 
 	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.BotToken)
 	if err != nil {
+		integrationstatus.MarkTelegramUnavailable("telegram_init_failed", time.Now())
 		logger.Error("Failed to initialize Telegram bot", "error", err)
 		return
 	}
@@ -73,8 +78,6 @@ func StartLongPolling(cfg *config.Config, logger *slog.Logger, client llm.ChatCl
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates := bot.GetUpdatesChan(u)
-
 	// Worker pool to limit concurrent message processing
 	maxWorkers := cfg.Telegram.MaxConcurrentWorkers
 	if maxWorkers <= 0 {
@@ -82,35 +85,137 @@ func StartLongPolling(cfg *config.Config, logger *slog.Logger, client llm.ChatCl
 	}
 	workerSem := make(chan struct{}, maxWorkers)
 
-	go func() {
-		for update := range updates {
-			if update.Message == nil {
-				continue
-			}
-
-			senderID := update.Message.From.ID
-
-			// [Silent ID Discovery Mode]
-			if cfg.Telegram.UserID == 0 {
-				fmt.Printf("\n[SECURITY] Incoming message from unauthorized ID: %d. Add this to config.yaml under telegram_user_id to authorize.\n\n", senderID)
-				logger.Warn("Unauthorized Telegram ID discovered", "id", senderID, "username", update.Message.From.UserName)
-				continue
-			}
-
-			// [Authorization Check]
-			if senderID != cfg.Telegram.UserID {
-				logger.Warn("Blocked unauthorized Telegram message", "id", senderID)
-				continue
-			}
-
-			// Acquire worker slot (blocks if all slots are busy)
-			workerSem <- struct{}{}
-			go func(upd tgbotapi.Update) {
-				defer func() { <-workerSem }()
-				processUpdate(bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian)
-			}(update)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	integrationstatus.MarkTelegramPolling()
+	go runPollingLoop(ctx, bot, u, plannerDB, logger, func(update tgbotapi.Update) {
+		if update.Message == nil {
+			return
 		}
-	}()
+
+		senderID := update.Message.From.ID
+
+		// [Silent ID Discovery Mode]
+		if cfg.Telegram.UserID == 0 {
+			fmt.Printf("\n[SECURITY] Incoming message from unauthorized ID: %d. Add this to config.yaml under telegram_user_id to authorize.\n\n", senderID)
+			logger.Warn("Unauthorized Telegram ID discovered", "id", senderID, "username", update.Message.From.UserName)
+			return
+		}
+
+		// [Authorization Check]
+		if senderID != cfg.Telegram.UserID {
+			logger.Warn("Blocked unauthorized Telegram message", "id", senderID)
+			return
+		}
+
+		// Acquire worker slot (blocks if all slots are busy)
+		workerSem <- struct{}{}
+		go func(upd tgbotapi.Update) {
+			defer func() { <-workerSem }()
+			processUpdate(bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian)
+		}(update)
+	})
+}
+
+const telegramPollingIssueFingerprint = "telegram|long_polling"
+
+var telegramPollingInitialBackoff = time.Second
+
+type telegramUpdatePoller interface {
+	GetUpdates(config tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
+}
+
+func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update)) {
+	backoff := telegramPollingInitialBackoff
+	for {
+		if err := ctx.Err(); err != nil {
+			return
+		}
+		updates, err := poller.GetUpdates(updateCfg)
+		now := time.Now()
+		if err != nil {
+			code := telegramPollErrorCode(err)
+			failures := integrationstatus.MarkTelegramPollFailure(code, now)
+			if failures >= 3 && plannerDB != nil {
+				_, recordErr := planner.RecordOperationalIssue(plannerDB, planner.OperationalIssue{
+					Source: "telegram", Context: "long_polling", Title: "Telegram polling is repeatedly failing",
+					Detail:   "Telegram long polling failed repeatedly. Runtime diagnostics expose only the sanitized error code.",
+					Severity: "warning", Kind: planner.OperationalIssueKindRuntimeFailure,
+					Reference: code, Fingerprint: telegramPollingIssueFingerprint, OccurredAt: now,
+				})
+				if recordErr != nil && logger != nil {
+					logger.Warn("Failed to record Telegram polling issue", "error", recordErr)
+				}
+			}
+			if logger != nil {
+				logger.Warn("Telegram long poll failed", "error_code", code, "consecutive_failures", failures, "retry_in", backoff)
+			}
+			timer := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
+			if backoff < 30*time.Second {
+				backoff *= 2
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
+				}
+			}
+			continue
+		}
+		integrationstatus.MarkTelegramPollSuccess(now)
+		if plannerDB != nil {
+			_, _ = planner.ResolveOperationalIssue(plannerDB, telegramPollingIssueFingerprint, "Telegram polling completed successfully.", now)
+		}
+		backoff = telegramPollingInitialBackoff
+		for _, update := range updates {
+			if update.UpdateID >= updateCfg.Offset {
+				updateCfg.Offset = update.UpdateID + 1
+			}
+			if handle != nil {
+				handle(update)
+			}
+		}
+	}
+}
+
+func telegramPollErrorCode(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "429"), strings.Contains(message, "rate limit"):
+		return "telegram_poll_rate_limited"
+	case strings.Contains(message, "timeout"), strings.Contains(message, "deadline"):
+		return "telegram_poll_timeout"
+	default:
+		return "telegram_poll_failed"
+	}
+}
+
+// SendTestMessage sends exactly one fixed, manually triggered test message.
+func SendTestMessage(cfg *config.Config, now time.Time) error {
+	if cfg == nil || strings.TrimSpace(cfg.Telegram.BotToken) == "" || cfg.Telegram.UserID == 0 {
+		return fmt.Errorf("telegram is not configured")
+	}
+	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.BotToken)
+	if err != nil {
+		return fmt.Errorf("initialize telegram test client: %w", err)
+	}
+	text := telegramTestMessage(now)
+	if _, err := bot.Send(tgbotapi.NewMessage(cfg.Telegram.UserID, text)); err != nil {
+		return fmt.Errorf("send telegram test message: %w", err)
+	}
+	integrationstatus.MarkTelegramTest(now)
+	return nil
+}
+
+func telegramTestMessage(now time.Time) string {
+	return "AuraGo Telegram test (manual) — " + now.UTC().Format(time.RFC3339)
 }
 
 func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {

@@ -6,6 +6,7 @@ package kgextraction
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -39,7 +40,8 @@ func ExtractKGFromTextWithContext(ctx context.Context, cfg *config.Config, logge
 		return nil, nil, fmt.Errorf("input text too short for extraction")
 	}
 
-	prompt := fmt.Sprintf(`Extract entities and relationships from this conversation.
+	buildPrompt := func(text string) string {
+		return fmt.Sprintf(`Extract entities and relationships from this conversation.
 Return ONLY valid JSON with this exact structure:
 {
   "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|device|service|software|location|project|concept|event|file|tool"}}],
@@ -69,7 +71,8 @@ JSON:
 }
 
 Inputs:
-%s%s`, existingNodesString, inputText)
+%s%s`, existingNodesString, text)
+	}
 
 	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if kgClient == nil || kgModel == "" {
@@ -79,25 +82,55 @@ Inputs:
 	kgCtx, kgCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer kgCancel()
 
-	resp, err := llm.ExecuteWithRetry(
-		kgCtx,
-		kgClient,
-		openai.ChatCompletionRequest{
-			Model: kgModel,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
-				{Role: openai.ChatMessageRoleUser, Content: prompt},
-			},
-			MaxTokens: 1500,
-		},
-		logger,
-		nil,
-	)
-	if err != nil || len(resp.Choices) == 0 {
-		return nil, nil, fmt.Errorf("LLM call failed: %w", err)
+	providerType := cfg.LLM.ProviderType
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model == kgModel {
+		providerType = helperCfg.ProviderType
+	}
+	structured := false
+	if caps, ok := llm.CapabilitiesFromRegistry(providerType, kgModel); ok {
+		structured = caps.StructuredOutputs
 	}
 
-	rawJSON := trimJSONResponse(resp.Choices[0].Message.Content)
+	var rawJSON string
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		attemptInput := inputText
+		if attempt == 1 {
+			runes := []rune(attemptInput)
+			if len(runes) > 1200 {
+				runes = runes[:max(1200, len(runes)/2)]
+				attemptInput = string(runes)
+			}
+		}
+		resp, err := llm.ExecuteWithRetry(
+			kgCtx,
+			kgClient,
+			openai.ChatCompletionRequest{
+				Model: kgModel,
+				Messages: []openai.ChatCompletionMessage{
+					{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
+					{Role: openai.ChatMessageRoleUser, Content: buildPrompt(attemptInput)},
+				},
+				MaxTokens:      1500,
+				ResponseFormat: llm.JSONResponseFormat(structured),
+			},
+			logger,
+			nil,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("LLM call failed: %w", err)
+		}
+		rawJSON, lastErr = llm.JSONContentFromResponse(resp)
+		if lastErr == nil {
+			break
+		}
+		if logger != nil {
+			logger.Warn("[KGExtraction] Invalid JSON completion; retrying smaller batch", "attempt", attempt+1, "error_code", maintenanceJSONErrorCode(lastErr))
+		}
+	}
+	if lastErr != nil {
+		return nil, nil, fmt.Errorf("JSON completion failed: %w", lastErr)
+	}
 
 	var extracted struct {
 		Nodes []memory.Node `json:"nodes"`
@@ -109,6 +142,17 @@ Inputs:
 
 	nodes, edges := normalizeExtractedKG(extracted.Nodes, extracted.Edges)
 	return nodes, edges, nil
+}
+
+func maintenanceJSONErrorCode(err error) string {
+	switch {
+	case errors.Is(err, llm.ErrJSONCompletionEmpty):
+		return "json_empty"
+	case errors.Is(err, llm.ErrJSONCompletionTruncated):
+		return "json_truncated"
+	default:
+		return "json_invalid"
+	}
 }
 
 var kgIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)

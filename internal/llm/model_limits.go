@@ -43,6 +43,7 @@ type ModelLimits struct {
 	MaxOutputTokens   int
 	ContextSource     string
 	OutputSource      string
+	MetadataSource    string
 	Reasoning         bool
 	ContextCapApplied bool
 	Unknown           bool
@@ -236,6 +237,7 @@ func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 		limits.OutputSource = "conservative_default"
 	}
 
+	contextMetadataSource := limits.ContextSource
 	if globalContextCap > 0 && limits.ContextWindow > globalContextCap {
 		limits.ContextWindow = globalContextCap
 		limits.ContextSource = "global_cap"
@@ -247,7 +249,32 @@ func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 	if limits.Unknown {
 		limits.Warning = "unknown model limits; unresolved values use conservative defaults and agent.context_window may cap the primary route"
 	}
+	limits.MetadataSource = resolvedModelMetadataSource(limits, registry, registryOK, contextMetadataSource)
 	return limits
+}
+
+func resolvedModelMetadataSource(limits ModelLimits, registry ModelRegistryEntry, registryOK bool, contextSource string) string {
+	normalize := func(source string) string {
+		if source == "model_registry" && registryOK && strings.TrimSpace(registry.MetadataSource) != "" {
+			return strings.TrimSpace(registry.MetadataSource)
+		}
+		return source
+	}
+	sources := []string{normalize(contextSource), normalize(limits.OutputSource)}
+	if limits.ContextCapApplied {
+		sources = append(sources, "global_cap")
+	}
+	seen := make(map[string]bool, len(sources))
+	unique := make([]string, 0, len(sources))
+	for _, source := range sources {
+		source = strings.TrimSpace(source)
+		if source == "" || seen[source] {
+			continue
+		}
+		seen[source] = true
+		unique = append(unique, source)
+	}
+	return strings.Join(unique, "+")
 }
 
 func resolveRegistryModelMetadata(provider, model string) (ModelRegistryEntry, bool) {

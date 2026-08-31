@@ -121,6 +121,7 @@
   "chat.stt_processing": "Traitement...",
   "chat.stt_tap_to_stop": "Appuyez pour arrêter",
   "chat.system_briefing_prefix": "🌅 **Briefing système :**",
+  "chat.system_notification_prefix": "ℹ️ **Avis système :**\n\n",
   "chat.thinking_label": "Raisonnement",
   "chat.question_waiting": "L'agent attend votre réponse...",
   "chat.question_timeout": "La question a expiré.",

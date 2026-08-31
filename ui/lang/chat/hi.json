@@ -121,6 +121,7 @@
   "chat.stt_processing": "प्रसंस्करण...",
   "chat.stt_tap_to_stop": "रोकने के लिए टैप करें",
   "chat.system_briefing_prefix": "🌅 **सिस्टम ब्रीफिंग:**",
+  "chat.system_notification_prefix": "ℹ️ **सिस्टम सूचना:**\n\n",
   "chat.thinking_label": "तर्क",
   "chat.question_waiting": "एजेंट आपके उत्तर की प्रतीक्षा कर रहा है...",
   "chat.question_timeout": "प्रश्न का समय समाप्त हो गया.",

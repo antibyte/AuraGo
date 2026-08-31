@@ -66,6 +66,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 
 	pResultContent := ""
 	actionBlocked := false
+	circuitBreakerOpen := false
 	recoveryMessageStart := len(s.req.Messages)
 	if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
 		pResultContent = preload
@@ -79,6 +80,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	} else if s.recoveryState.handleDuplicateToolCall(ptc, &s.req, currentLogger, s.telemetryScope) {
 		pResultContent = blockedToolOutputFromRequest(&s.req)
 		actionBlocked = true
+		circuitBreakerOpen = true
 	} else if precheckResult, prechecked := precheckVirtualDesktopAppOpen(ptc, &s.recoveryState); prechecked {
 		pResultContent = precheckResult
 		actionBlocked = true
@@ -169,6 +171,11 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 			Content:    pResultContent,
 			ToolCallID: ptc.NativeCallID,
 		})
+		if circuitBreakerOpen {
+			appendCircuitBreakerSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker)
+			s.req.Tools = nil
+			s.req.ToolChoice = "none"
+		}
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
@@ -182,6 +189,11 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		s.pendingTCs = nil
 		s.req.ToolChoice = "none"
 		s.flags.CurrentToolRoute = ""
+	}
+	if circuitBreakerOpen {
+		s.pendingTCs = nil
+		s.req.Tools = nil
+		s.req.ToolChoice = "none"
 	}
 	s.lastResponseWasTool = true
 	return true
@@ -318,8 +330,10 @@ func executeAgentToolTurn(
 		return resp, nil, true
 	}
 
+	recoveryMessageStart := len(s.req.Messages)
 	if s.recoveryState.handleDuplicateToolCall(tc, &s.req, currentLogger, s.telemetryScope) {
 		syntheticResult := blockedToolOutputFromRequest(&s.req)
+		deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
 		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, syntheticResult)
 		if useNativePath && tc.NativeCallID != "" {
 			s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
@@ -339,7 +353,24 @@ func executeAgentToolTurn(
 					ToolCallID: tc.NativeCallID,
 				}, resultID, false, true)
 			}
+			appendCircuitBreakerSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker)
+		} else {
+			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, syntheticResult, false, true)
+			if resultErr != nil {
+				currentLogger.Error("Failed to persist duplicate-tool synthetic result", "error", resultErr)
+			}
+			if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
+				historyManager.Add(openai.ChatMessageRoleUser, syntheticResult, resultID, false, true)
+			}
+			s.req.Messages = append(s.req.Messages,
+				openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: histContent},
+				openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: syntheticResult},
+			)
 		}
+		s.pendingTCs = nil
+		s.req.Tools = nil
+		s.req.ToolChoice = "none"
+		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 		broker.Send("tool_output", syntheticResult)
 		broker.Send("tool_end", tc.Action)
 		s.lastResponseWasTool = false
@@ -536,6 +567,7 @@ func executeAgentToolTurn(
 
 		var nativePendingSummaryBatch map[string]string
 		var deferredRecoveryMessages []openai.ChatCompletionMessage
+		circuitBreakerOpen := false
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
 			if s.helperManager != nil && len(nativePendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
@@ -557,8 +589,13 @@ func executeAgentToolTurn(
 
 			bResult := ""
 			batchedBlocked := false
+			notExecuted := false
 			recoveryMessageStart := len(s.req.Messages)
-			if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
+			if circuitBreakerOpen {
+				bResult = notExecutedDueToCircuitBreakerResult()
+				batchedBlocked = true
+				notExecuted = true
+			} else if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
 				bResult = preload
 				batchedBlocked = true
 			} else if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
@@ -570,6 +607,7 @@ func executeAgentToolTurn(
 			} else if s.recoveryState.handleDuplicateToolCall(btc, &s.req, currentLogger, s.telemetryScope) {
 				bResult = blockedToolOutputFromRequest(&s.req)
 				batchedBlocked = true
+				circuitBreakerOpen = true
 			} else if precheckResult, prechecked := precheckVirtualDesktopAppOpen(btc, &s.recoveryState); prechecked {
 				bResult = precheckResult
 				batchedBlocked = true
@@ -579,7 +617,10 @@ func executeAgentToolTurn(
 				batchedAction = startAgentToolAction(currentLogger, batchedLedger, batchedAction)
 				bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
 			}
-			policyResult := finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
+			policyResult := toolExecutionResult{Content: bResult, Failed: true, Outcome: ExecutionOutcomeFailed}
+			if !notExecuted {
+				policyResult = finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
+			}
 			bResult = policyResult.Content
 			recordVirtualDesktopAppVerification(btc, bResult, policyResult.Failed, &s.recoveryState)
 			deferredRecoveryMessages = append(deferredRecoveryMessages, detachNewSystemMessages(&s.req, recoveryMessageStart)...)
@@ -588,7 +629,10 @@ func executeAgentToolTurn(
 			if bEventContent == "" {
 				bEventContent = bResult
 			}
-			if policyResult.Failed {
+			if notExecuted {
+				// A declared native call still needs one protocol result, but it
+				// was never dispatched and must not create a tool-failure issue.
+			} else if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
 			} else {
 				resolveToolFailureOperationalIssue(s.runCfg, btc, currentLogger)
@@ -644,6 +688,11 @@ func executeAgentToolTurn(
 				ToolCallID: btc.NativeCallID,
 			})
 		}
+		if circuitBreakerOpen {
+			s.pendingTCs = nil
+			s.req.Tools = nil
+			s.req.ToolChoice = "none"
+		}
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {
 		if !xmlFallbackHandledThisTurn {
@@ -659,6 +708,31 @@ func executeAgentToolTurn(
 		return resp, nil, true
 	case <-ctx.Done():
 		return resp, ctx.Err(), false
+	}
+}
+
+func notExecutedDueToCircuitBreakerResult() string {
+	return `{"status":"error","code":"not_executed_due_to_circuit_breaker","message":"Tool call was declared but not executed because the duplicate-call circuit breaker terminated this tool chain."}`
+}
+
+func appendCircuitBreakerSkippedNativeResults(s *agentLoopState, stm *memory.SQLiteMemory, history *memory.HistoryManager, sessionID string, broker FeedbackBroker) {
+	for len(s.pendingTCs) > 0 && strings.TrimSpace(s.pendingTCs[0].NativeCallID) != "" {
+		tc := s.pendingTCs[0]
+		s.pendingTCs = s.pendingTCs[1:]
+		content := notExecutedDueToCircuitBreakerResult()
+		resultID, resultErr := stm.InsertMessage(sessionID, openai.ChatMessageRoleTool, content, false, true)
+		if resultErr != nil && s.currentLogger != nil {
+			s.currentLogger.Error("Failed to persist circuit-breaker skipped tool result", "error", resultErr)
+		}
+		if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
+			history.AddMessage(openai.ChatCompletionMessage{Role: openai.ChatMessageRoleTool, Content: content, ToolCallID: tc.NativeCallID}, resultID, false, true)
+		}
+		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleTool, Content: content, ToolCallID: tc.NativeCallID,
+		})
+		broker.Send("tool_start", tc.Action)
+		broker.Send("tool_output", content)
+		broker.Send("tool_end", tc.Action)
 	}
 }
 

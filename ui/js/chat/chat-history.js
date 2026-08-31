@@ -229,9 +229,10 @@ async function initPage() {
     }
     await loadActivePlanForSession(getActiveSessionId());
     try {
-        const res = await fetch('/notifications');
+        const res = await fetch('/api/system/notifications');
         if (res.ok) {
-            const notes = await res.json();
+            const payload = await res.json();
+            const notes = Array.isArray(payload.notifications) ? payload.notifications : [];
             if (notes && notes.length > 0) {
                 const greet = chatContent.querySelector('[data-greeting]');
                 if (greet && window.ChatRobotMascot && typeof window.ChatRobotMascot.launchToAnchor === 'function') {
@@ -239,9 +240,20 @@ async function initPage() {
                 }
                 if (greet) greet.remove();
                 notes.forEach(note => {
-                    appendMessage('assistant', t('chat.system_briefing_prefix') + note);
+                    const prefix = note.type === 'morning_briefing'
+                        ? t('chat.system_briefing_prefix')
+                        : t('chat.system_notification_prefix');
+                    const title = note.title ? `**${note.title}**\n\n` : '';
+                    appendMessage('assistant', prefix + title + note.message);
                 });
-                fetch('/notifications/read', { method: 'POST' });
+                const ids = notes.map(note => Number(note.id)).filter(id => Number.isInteger(id) && id > 0);
+                if (ids.length > 0) {
+                    fetch('/api/system/notifications/read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids })
+                    });
+                }
             }
         }
     } catch (err) {

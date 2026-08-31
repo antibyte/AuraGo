@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"regexp"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -10,17 +12,28 @@ import (
 type maintenanceRunLedger struct {
 	phaseResults memory.MaintenancePhaseResults
 	failed       bool
+	currentPhase string
+	phaseStarted time.Time
 }
 
 func newMaintenanceRunLedger() *maintenanceRunLedger {
-	return &maintenanceRunLedger{}
+	return &maintenanceRunLedger{phaseStarted: time.Now()}
 }
 
 func (l *maintenanceRunLedger) addError(msg string) {
 	if l == nil || msg == "" {
 		return
 	}
-	l.phaseResults.Errors = append(l.phaseResults.Errors, msg)
+	code := sanitizeMaintenanceErrorCode(msg)
+	if code == "" {
+		return
+	}
+	l.phaseResults.Errors = append(l.phaseResults.Errors, code)
+	for i := range l.phaseResults.Phases {
+		if l.phaseResults.Phases[i].Name == l.currentPhase {
+			l.phaseResults.Phases[i].ErrorCodes = appendUniqueMaintenanceCode(l.phaseResults.Phases[i].ErrorCodes, code)
+		}
+	}
 }
 
 func (l *maintenanceRunLedger) markFailed() {
@@ -40,7 +53,108 @@ func (l *maintenanceRunLedger) status() string {
 	if len(l.phaseResults.Errors) > 0 {
 		return "partial"
 	}
+	if l.phaseResults.Deferred > 0 {
+		return "partial"
+	}
 	return "completed"
+}
+
+func (l *maintenanceRunLedger) beginPhase(name string) {
+	if l == nil {
+		return
+	}
+	name = sanitizeMaintenanceErrorCode(name)
+	l.currentPhase = name
+	l.phaseStarted = time.Now()
+	for _, phase := range l.phaseResults.Phases {
+		if phase.Name == name {
+			return
+		}
+	}
+	l.phaseResults.Phases = append(l.phaseResults.Phases, memory.MaintenancePhaseResult{Name: name, Status: "running"})
+}
+
+func (l *maintenanceRunLedger) addProcessed(phase string, count int) {
+	if l == nil || count <= 0 {
+		return
+	}
+	l.phaseResults.Processed += count
+	for i := range l.phaseResults.Phases {
+		if l.phaseResults.Phases[i].Name == phase {
+			l.phaseResults.Phases[i].Processed += count
+		}
+	}
+}
+
+func (l *maintenanceRunLedger) addDeferred(phase string, count int) {
+	if l == nil || count <= 0 {
+		return
+	}
+	l.phaseResults.Deferred += count
+	for i := range l.phaseResults.Phases {
+		if l.phaseResults.Phases[i].Name == phase {
+			l.phaseResults.Phases[i].Deferred += count
+		}
+	}
+}
+
+func (l *maintenanceRunLedger) phaseDeferred(name string) int {
+	if l == nil {
+		return 0
+	}
+	for _, phase := range l.phaseResults.Phases {
+		if phase.Name == name {
+			return phase.Deferred
+		}
+	}
+	return 0
+}
+
+func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
+	if l == nil {
+		return
+	}
+	now := time.Now()
+	for i := range l.phaseResults.Phases {
+		phase := &l.phaseResults.Phases[i]
+		if phase.Name != name {
+			continue
+		}
+		if phase.DurationMS == 0 {
+			phase.DurationMS = now.Sub(l.phaseStarted).Milliseconds()
+		}
+		switch {
+		case deferred || phase.Deferred > 0:
+			phase.Status = "partial"
+		case len(phase.ErrorCodes) > 0:
+			phase.Status = "partial"
+		default:
+			phase.Status = "completed"
+		}
+		break
+	}
+	l.currentPhase = ""
+}
+
+var maintenanceErrorCodePattern = regexp.MustCompile(`[^a-z0-9_]+`)
+
+func sanitizeMaintenanceErrorCode(message string) string {
+	code := strings.TrimSpace(message)
+	if colon := strings.IndexByte(code, ':'); colon >= 0 {
+		code = code[:colon]
+	}
+	code = strings.ToLower(strings.TrimSpace(code))
+	code = maintenanceErrorCodePattern.ReplaceAllString(code, "_")
+	return strings.Trim(code, "_")
+}
+
+func appendUniqueMaintenanceCode(codes []string, code string) []string {
+	for _, existing := range codes {
+		if existing == code {
+			return codes
+		}
+	}
+	return append(codes, code)
 }
 
 func (l *maintenanceRunLedger) results() memory.MaintenancePhaseResults {

@@ -121,6 +121,7 @@
   "chat.stt_processing": "Przetwarzanie...",
   "chat.stt_tap_to_stop": "Dotknij, aby zatrzymać",
   "chat.system_briefing_prefix": "🌅 **Informacja o systemie:**",
+  "chat.system_notification_prefix": "ℹ️ **Powiadomienie systemowe:**\n\n",
   "chat.thinking_label": "Rozumowanie",
   "chat.question_waiting": "Agent czeka na Twoją odpowiedź...",
   "chat.question_timeout": "Pytanie wygasło.",

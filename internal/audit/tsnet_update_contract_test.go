@@ -14,7 +14,9 @@ func TestTsNetUpdaterLifecycleContract(t *testing.T) {
 	for _, required := range []string{
 		"--rebuild",
 		`[ "$INSTALLED_RELEASE" = "$RELEASE_TAG" ] && ! $REBUILD`,
-		`[ "$LOCAL_HASH" = "$REMOTE_HASH" ]`,
+		"refresh_git_relationship",
+		`[ "$GIT_REMOTE_AHEAD" -eq 0 ]`,
+		"integrate_origin_main",
 		"--healthcheck-timeout 60s",
 		"--healthcheck-timeout 210s --healthcheck-require-tsnet",
 		"--print-tsnet-state-dir",
@@ -132,54 +134,67 @@ func TestUpdaterNoOpDoesNotInvokeSystemctlOrSudo(t *testing.T) {
 		t.Skip("bash is unavailable")
 	}
 
-	root := t.TempDir()
-	script := filepath.Join(root, "update.sh")
-	if err := os.WriteFile(script, []byte(readRepoFile(t, "update.sh")), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module updater-test\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(root, ".git"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	fakeBin := filepath.Join(root, "fake-bin")
-	if err := os.Mkdir(fakeBin, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	marker := filepath.Join(root, "privileged-command-used")
-	writeExecutable := func(name, body string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(fakeBin, name), []byte("#!/usr/bin/env bash\n"+body+"\n"), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	writeExecutable("git", `
+	for _, test := range []struct {
+		name   string
+		counts string
+		want   string
+	}{
+		{name: "identical checkout", counts: "0 0", want: "already at the latest version"},
+		{name: "local rollout commits ahead", counts: "3 0", want: "preserves 3 local commit(s)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			script := filepath.Join(root, "update.sh")
+			if err := os.WriteFile(script, []byte(readRepoFile(t, "update.sh")), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module updater-test\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(filepath.Join(root, ".git"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			fakeBin := filepath.Join(root, "fake-bin")
+			if err := os.Mkdir(fakeBin, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(root, "privileged-command-used")
+			writeExecutable := func(name, body string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(fakeBin, name), []byte("#!/usr/bin/env bash\n"+body+"\n"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeExecutable("git", `
+if [ "${1:-}" = "-C" ]; then shift 2; fi
 case "${1:-}" in
   fetch) exit 0 ;;
-  rev-parse) echo "same-commit"; exit 0 ;;
+  rev-list) printf '%s\n' "$AURAGO_TEST_COUNTS"; exit 0 ;;
   log) echo "same-commit already current"; exit 0 ;;
   remote) echo "https://example.invalid/AuraGo.git"; exit 0 ;;
 esac
 exit 0`)
-	writeExecutable("sudo", `printf 'sudo\n' >> "$AURAGO_TEST_MARKER"; exit 99`)
-	writeExecutable("systemctl", `printf 'systemctl\n' >> "$AURAGO_TEST_MARKER"; exit 99`)
+			writeExecutable("sudo", `printf 'sudo\n' >> "$AURAGO_TEST_MARKER"; exit 99`)
+			writeExecutable("systemctl", `printf 'systemctl\n' >> "$AURAGO_TEST_MARKER"; exit 99`)
 
-	command := exec.Command("bash", script, "--yes")
-	command.Dir = root
-	command.Env = append(os.Environ(),
-		"PATH="+fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"AURAGO_TEST_MARKER="+marker,
-	)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("no-op updater failed: %v\n%s", err, output)
-	}
-	if !strings.Contains(string(output), "no files or services were changed") {
-		t.Fatalf("no-op updater did not report an unchanged installation:\n%s", output)
-	}
-	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		t.Fatalf("no-op updater invoked a privileged/service command; stat error = %v", err)
+			command := exec.Command("bash", script, "--yes")
+			command.Dir = root
+			command.Env = append(os.Environ(),
+				"PATH="+fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"AURAGO_TEST_MARKER="+marker,
+				"AURAGO_TEST_COUNTS="+test.counts,
+			)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("no-op updater failed: %v\n%s", err, output)
+			}
+			if !strings.Contains(string(output), test.want) || !strings.Contains(string(output), "no files or services were changed") {
+				t.Fatalf("no-op updater did not report the expected relationship:\n%s", output)
+			}
+			if _, err := os.Stat(marker); !os.IsNotExist(err) {
+				t.Fatalf("no-op updater invoked a privileged/service command; stat error = %v", err)
+			}
+		})
 	}
 }
 
@@ -342,6 +357,13 @@ func TestUpdaterPreparesOnlyIdenticalUntrackedMergeCollisions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			root := t.TempDir()
 			backup := filepath.Join(root, "backup")
+			privateRuntime := filepath.Join(root, ".cache", "rod", "browser", "extensions")
+			if err := os.MkdirAll(privateRuntime, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(privateRuntime, "private.txt"), []byte("runtime\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
 			runGit := func(args ...string) {
 				t.Helper()
 				command := exec.Command("git", args...)
@@ -383,6 +405,10 @@ func TestUpdaterPreparesOnlyIdenticalUntrackedMergeCollisions(t *testing.T) {
 			if err := os.WriteFile(manual, []byte(test.localContent), 0o600); err != nil {
 				t.Fatal(err)
 			}
+			if err := os.Chmod(privateRuntime, 0); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(privateRuntime, 0o700) })
 
 			harness := "#!/usr/bin/env bash\nset -euo pipefail\n" +
 				"DIR=\"$AURAGO_TEST_ROOT\"\nBACKUP_DIR=\"$AURAGO_TEST_BACKUP\"\n" +
@@ -424,10 +450,201 @@ func TestUpdaterPreparesOnlyIdenticalUntrackedMergeCollisions(t *testing.T) {
 	}
 }
 
+func TestUpdaterIntegratesOriginMainWithoutDiscardingLocalCommits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("behavioral updater test requires a POSIX shell")
+	}
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash is unavailable")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is unavailable")
+	}
+
+	update := readRepoFile(t, "update.sh")
+	start := strings.Index(update, "GIT_LOCAL_AHEAD=0")
+	if start < 0 {
+		t.Fatal("could not find updater git integration helpers")
+	}
+	end := strings.Index(update[start:], "\nprepare_untracked_merge_collisions() {")
+	if end < 0 {
+		t.Fatal("could not extract updater git integration helpers")
+	}
+	functions := update[start : start+end]
+
+	for _, test := range []struct {
+		name              string
+		localChange       bool
+		remoteChange      bool
+		conflict          bool
+		forceReset        bool
+		wantSuccess       bool
+		wantMerge         bool
+		wantError         string
+		wantLocalPreserve bool
+	}{
+		{name: "remote only fast forwards", remoteChange: true, wantSuccess: true},
+		{name: "local only is already current", localChange: true, wantSuccess: true, wantLocalPreserve: true},
+		{name: "clean divergence creates merge", localChange: true, remoteChange: true, wantSuccess: true, wantMerge: true, wantLocalPreserve: true},
+		{name: "real conflict aborts and restores checkout", localChange: true, remoteChange: true, conflict: true, wantError: "merge_conflict"},
+		{name: "explicit force reset still discards local commits", localChange: true, remoteChange: true, forceReset: true, wantSuccess: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			runGit := func(args ...string) string {
+				t.Helper()
+				command := exec.Command("git", args...)
+				command.Dir = root
+				output, err := command.CombinedOutput()
+				if strings.Contains(strings.ToLower(string(output)), "permission denied") {
+					t.Fatalf("collision preparation scanned an unrelated private runtime directory:\n%s", output)
+				}
+				if err != nil {
+					t.Fatalf("git %v failed: %v\n%s", args, err, output)
+				}
+				return strings.TrimSpace(string(output))
+			}
+			writeFile := func(name, content string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			runGit("init", "-q", "-b", "local")
+			runGit("config", "user.email", "fixture@example.invalid")
+			runGit("config", "user.name", "Updater Fixture")
+			writeFile("shared.txt", "base\n")
+			runGit("add", "shared.txt")
+			runGit("commit", "-qm", "base")
+			baseRef := runGit("rev-parse", "HEAD")
+
+			if test.localChange {
+				if test.conflict {
+					writeFile("shared.txt", "local\n")
+				} else {
+					writeFile("local.txt", "local rollout\n")
+				}
+				runGit("add", ".")
+				runGit("commit", "-qm", "local rollout")
+			}
+			preUpdateRef := runGit("rev-parse", "HEAD")
+
+			runGit("switch", "-q", "-c", "incoming", baseRef)
+			if test.remoteChange {
+				if test.conflict {
+					writeFile("shared.txt", "remote\n")
+				} else {
+					writeFile("remote.txt", "remote update\n")
+				}
+				runGit("add", ".")
+				runGit("commit", "-qm", "remote update")
+			}
+			remoteRef := runGit("rev-parse", "HEAD")
+			runGit("branch", "-f", "origin/main", remoteRef)
+			runGit("switch", "-q", "local")
+
+			resultPath := filepath.Join(root, "integration-result")
+			harness := `#!/usr/bin/env bash
+set -euo pipefail
+DIR="$AURAGO_TEST_ROOT"
+PRE_UPDATE_REF="$AURAGO_TEST_PRE_UPDATE_REF"
+FORCE_RESET=false
+[ "${AURAGO_TEST_FORCE_RESET:-0}" != "1" ] || FORCE_RESET=true
+info() { :; }
+warn() { :; }
+ok() { :; }
+` + functions + `
+if integrate_origin_main; then
+    printf 'ok:%s\n' "$GIT_INTEGRATION_ERROR" > "$AURAGO_TEST_RESULT"
+else
+    rc=$?
+    printf 'error:%s\n' "$GIT_INTEGRATION_ERROR" > "$AURAGO_TEST_RESULT"
+    exit "$rc"
+fi
+`
+			harnessPath := filepath.Join(root, "harness.sh")
+			if err := os.WriteFile(harnessPath, []byte(harness), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			forceReset := "0"
+			if test.forceReset {
+				forceReset = "1"
+			}
+			command := exec.Command("bash", harnessPath)
+			command.Env = append(os.Environ(),
+				"AURAGO_TEST_ROOT="+root,
+				"AURAGO_TEST_PRE_UPDATE_REF="+preUpdateRef,
+				"AURAGO_TEST_FORCE_RESET="+forceReset,
+				"AURAGO_TEST_RESULT="+resultPath,
+			)
+			output, err := command.CombinedOutput()
+			if test.wantSuccess && err != nil {
+				t.Fatalf("integration failed: %v\n%s", err, output)
+			}
+			if !test.wantSuccess && err == nil {
+				t.Fatalf("integration unexpectedly succeeded:\n%s", output)
+			}
+			result, readErr := os.ReadFile(resultPath)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if test.wantError != "" && !strings.Contains(string(result), test.wantError) {
+				t.Fatalf("integration result = %q, want error %q", result, test.wantError)
+			}
+
+			head := runGit("rev-parse", "HEAD")
+			if !test.wantSuccess {
+				if head != preUpdateRef {
+					t.Fatalf("conflicted merge left HEAD at %s, want %s", head, preUpdateRef)
+				}
+				if status := runGit("status", "--porcelain", "--untracked-files=no"); status != "" {
+					t.Fatalf("conflicted merge left tracked changes: %s", status)
+				}
+				verify := exec.Command("git", "rev-parse", "-q", "--verify", "MERGE_HEAD")
+				verify.Dir = root
+				if verify.Run() == nil {
+					t.Fatal("conflicted merge left MERGE_HEAD behind")
+				}
+				return
+			}
+
+			if test.forceReset {
+				if head != remoteRef {
+					t.Fatalf("force reset left HEAD at %s, want %s", head, remoteRef)
+				}
+				return
+			}
+			if test.wantLocalPreserve {
+				ancestor := exec.Command("git", "merge-base", "--is-ancestor", preUpdateRef, head)
+				ancestor.Dir = root
+				if err := ancestor.Run(); err != nil {
+					t.Fatalf("local commit %s was not preserved by %s", preUpdateRef, head)
+				}
+			}
+			if test.remoteChange {
+				ancestor := exec.Command("git", "merge-base", "--is-ancestor", remoteRef, head)
+				ancestor.Dir = root
+				if err := ancestor.Run(); err != nil {
+					t.Fatalf("remote commit %s was not integrated by %s", remoteRef, head)
+				}
+			}
+			parents := strings.Fields(runGit("rev-list", "--parents", "-n", "1", "HEAD"))
+			if test.wantMerge && len(parents) != 3 {
+				t.Fatalf("clean divergence produced %d parent(s), want 2: %v", len(parents)-1, parents)
+			}
+			if !test.wantMerge && len(parents) > 2 {
+				t.Fatalf("non-diverged update unexpectedly created a merge: %v", parents)
+			}
+		})
+	}
+}
+
 func TestUpdaterGitFailuresAfterShutdownUseRollback(t *testing.T) {
 	update := readRepoFile(t, "update.sh")
 	for _, required := range []string{
-		`abort_update "Update aborted safely (no hard reset performed)."`,
+		`abort_update "Update aborted safely because conflicting local and remote edits require review."`,
+		`abort_update "Update aborted safely; local commits were not discarded."`,
 		`abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."`,
 		`abort_update "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL."`,
 		`abort_update "Could not restore config.yaml (permission denied)."`,

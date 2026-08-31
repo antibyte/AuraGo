@@ -91,6 +91,7 @@ async function updatesCheck() {
                     ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong class="updates-latest-version">${data.latest_version}</strong></span>` : ''}
                     ${data.commit_count ? `<span>${data.commit_count} commit(s)</span>` : ''}
                 </div>
+                ${data.message ? `<div class="updates-result-detail">${escapeHtml(data.message)}</div>` : ''}
                 ${changelogHtml}
             </div>`;
             if (installBtn) installBtn.classList.remove('is-hidden');

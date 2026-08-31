@@ -3,6 +3,8 @@
 #  AuraGo Update Script (Linux)
 #
 #  Usage:  ./update.sh [--yes] [--no-restart] [--force-reset] [--rebuild]
+#  Diverged local deployment commits are merged automatically. --force-reset
+#  explicitly replaces them with origin/main instead.
 #
 #  What it does:
 #    1. Fetches the latest commit from GitHub (no clobber of user data)
@@ -53,7 +55,7 @@ for arg in "$@"; do
             echo "Usage: $0 [--yes] [--no-restart] [--force-reset] [--rebuild]"
             echo "  --yes          Skip confirmation prompts"
             echo "  --no-restart   Do not restart the service after update"
-            echo "  --force-reset  Reset a diverged git install to origin/main"
+            echo "  --force-reset  Replace diverged local commits with origin/main instead of preserving them"
             echo "  --rebuild      Rebuild/reinstall even when the version is unchanged"
             exit 0 ;;
         *) warn "Unknown argument: $arg" ;;
@@ -538,23 +540,100 @@ clean_tracked_changes() {
     git -C "$DIR" diff --quiet && git -C "$DIR" diff --cached --quiet
 }
 
+GIT_LOCAL_AHEAD=0
+GIT_REMOTE_AHEAD=0
+GIT_INTEGRATION_ERROR=""
+
+refresh_git_relationship() {
+    local counts
+    counts="$(git -C "$DIR" rev-list --left-right --count HEAD...origin/main 2>/dev/null)" || return 1
+    read -r GIT_LOCAL_AHEAD GIT_REMOTE_AHEAD <<< "$counts"
+    case "$GIT_LOCAL_AHEAD:$GIT_REMOTE_AHEAD" in
+        *[!0-9:]*|:*|*:) return 1 ;;
+    esac
+}
+
+integrate_origin_main() {
+    GIT_INTEGRATION_ERROR=""
+    if ! refresh_git_relationship; then
+        GIT_INTEGRATION_ERROR="relationship_unavailable"
+        return 1
+    fi
+
+    # The checkout already contains origin/main. Local rollout commits are
+    # intentional and must not force a rebuild or be discarded.
+    if [ "$GIT_REMOTE_AHEAD" -eq 0 ]; then
+        return 0
+    fi
+
+    # Normal installations still use a strict fast-forward whenever possible.
+    if [ "$GIT_LOCAL_AHEAD" -eq 0 ]; then
+        if git -C "$DIR" merge --ff-only origin/main; then
+            return 0
+        fi
+        GIT_INTEGRATION_ERROR="fast_forward_failed"
+        return 1
+    fi
+
+    if $FORCE_RESET; then
+        warn "Branches have diverged. --force-reset was supplied; resetting tracked files to origin/main."
+        if git -C "$DIR" reset --hard origin/main; then
+            ok "Hard reset complete."
+            return 0
+        fi
+        GIT_INTEGRATION_ERROR="force_reset_failed"
+        return 1
+    fi
+
+    # A local deployment branch and origin/main naturally diverge after the
+    # next upstream commit. Preserve both histories with an explicit merge.
+    # The updater runs from a temporary copy, so an incoming update.sh can be
+    # merged safely while this process continues using the reviewed script.
+    if ! git -C "$DIR" merge-base HEAD origin/main >/dev/null 2>&1; then
+        GIT_INTEGRATION_ERROR="unrelated_histories"
+        return 1
+    fi
+
+    local remote_short
+    remote_short="$(git -C "$DIR" rev-parse --short origin/main 2>/dev/null || printf 'origin-main')"
+    info "Preserving ${GIT_LOCAL_AHEAD} local commit(s) and merging ${GIT_REMOTE_AHEAD} remote commit(s)."
+    if git -C "$DIR" \
+        -c user.name="AuraGo Updater" \
+        -c user.email="updater@localhost" \
+        -c commit.gpgSign=false \
+        -c merge.gpgSign=false \
+        -c core.hooksPath=/dev/null \
+        merge --no-ff --no-edit --no-verify \
+        -m "chore(update): merge origin/main at ${remote_short}" origin/main; then
+        ok "Remote changes merged; local commits were preserved."
+        return 0
+    fi
+
+    if git -C "$DIR" rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+        git -C "$DIR" merge --abort >/dev/null 2>&1 || \
+            git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || true
+        GIT_INTEGRATION_ERROR="merge_conflict"
+    else
+        GIT_INTEGRATION_ERROR="merge_failed"
+    fi
+    return 1
+}
+
 prepare_untracked_merge_collisions() {
-    # Git refuses to fast-forward when an untracked file would become tracked.
+    # Git refuses to update when an untracked file would become tracked.
     # This commonly happens when a runtime asset was deployed manually before
     # the same asset was added to the repository. Remove only byte-identical
     # regular files; preserve a copy in the update backup for audit/rollback.
     local collision_backup="$BACKUP_DIR/untracked_merge_collisions"
     local rel abs backup_path
     local cleared=0
-    declare -A untracked_paths=()
 
     while IFS= read -r -d '' rel; do
-        untracked_paths["$rel"]=1
-    done < <(git -C "$DIR" ls-files -z --others --exclude-standard)
-
-    while IFS= read -r -d '' rel; do
-        [ -n "${untracked_paths[$rel]+present}" ] || continue
         abs="$DIR/$rel"
+        # The diff already contains only paths added by origin/main and absent
+        # from HEAD. Inspect those concrete paths instead of scanning every
+        # untracked runtime directory, some of which are intentionally private.
+        [ -e "$abs" ] || [ -L "$abs" ] || continue
         if [ ! -f "$abs" ] || [ -L "$abs" ]; then
             warn "Untracked path would be replaced by the update but is not a regular file: $rel"
             return 1
@@ -740,30 +819,36 @@ else
         die "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL, then retry."
     fi
 
-    LOCAL_HASH=$(git rev-parse HEAD)
-    REMOTE_HASH=$(git rev-parse origin/main)
     GIT_UP_TO_DATE=false
 
-    if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
-        ok "Code is already at the latest version ($(git log --format='%h %s' -1))"
+    if ! refresh_git_relationship; then
+        die "Could not compare the local checkout with origin/main."
+    fi
+
+    if [ "$GIT_REMOTE_AHEAD" -eq 0 ]; then
         GIT_UP_TO_DATE=true
+        if [ "$GIT_LOCAL_AHEAD" -eq 0 ]; then
+            ok "Code is already at the latest version ($(git log --format='%h %s' -1))"
+        else
+            ok "Local checkout already contains origin/main and preserves ${GIT_LOCAL_AHEAD} local commit(s)."
+        fi
         if ! $REBUILD; then
             ok "No rebuild requested; no files or services were changed."
             exit 0
         fi
     else
-        AHEAD_COUNT=$(git rev-list HEAD..origin/main --count)
         info "Local:  $(git log --format='%h  %s  (%cd)' --date=short -1)"
         info "Remote: $(git log --format='%h  %s  (%cd)' --date=short -1 origin/main)"
         echo ""
-        info "$AHEAD_COUNT commit(s) available to pull."
+        info "$GIT_REMOTE_AHEAD commit(s) available from origin/main."
+        if [ "$GIT_LOCAL_AHEAD" -gt 0 ]; then
+            info "$GIT_LOCAL_AHEAD local commit(s) will be preserved by an automatic merge."
+        fi
         echo ""
 
-        if [ "$AHEAD_COUNT" -gt 0 ]; then
-            section "Changelog"
-            git log HEAD..origin/main --oneline --no-decorate -n 20
-            echo ""
-        fi
+        section "Changelog"
+        git log HEAD..origin/main --oneline --no-decorate -n 20
+        echo ""
     fi
 
     confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
@@ -1481,30 +1566,20 @@ else
             abort_update "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL."
         fi
 
-        if ! git merge --ff-only origin/main; then
-            warn "Fast-forward merge failed — retrying after tracked-change cleanup..."
-            clean_tracked_changes || true
-            if ! git merge --ff-only origin/main; then
-                # Check if branches have diverged (force-push scenario)
-                LOCAL=$(git rev-parse HEAD)
-                REMOTE=$(git rev-parse origin/main)
-                BASE=$(git merge-base HEAD origin/main)
-                if [ "$LOCAL" != "$BASE" ] && [ "$REMOTE" != "$BASE" ]; then
-                    if $FORCE_RESET; then
-                        warn "Branches have diverged. --force-reset was supplied; resetting tracked files to origin/main."
-                        git reset --hard origin/main
-                        ok "Hard reset complete."
-                    else
-                        warn "Branches have diverged. AuraGo will not discard local commits automatically."
-                        warn "Review local commits, merge/rebase manually, or rerun with --force-reset if you intentionally want origin/main to replace this checkout."
-                        abort_update "Update aborted safely (no hard reset performed)."
-                    fi
-                else
-                    warn "Could not fast-forward automatically."
-                    warn "Please ensure repository files are writable and no manual merge is required."
-                    abort_update "Update aborted safely (no hard reset performed)."
-                fi
-            fi
+        if ! integrate_origin_main; then
+            case "$GIT_INTEGRATION_ERROR" in
+                merge_conflict)
+                    warn "Automatic merge found real file conflicts; the pre-update checkout was restored."
+                    abort_update "Update aborted safely because conflicting local and remote edits require review."
+                    ;;
+                unrelated_histories)
+                    abort_update "Update aborted safely because the local checkout and origin/main have no common ancestor."
+                    ;;
+                *)
+                    warn "Repository integration failed with code: ${GIT_INTEGRATION_ERROR:-unknown}."
+                    abort_update "Update aborted safely; local commits were not discarded."
+                    ;;
+            esac
         fi
         ok "Code updated to $(git log --format='%h  %s' -1)"
         GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
