@@ -1036,6 +1036,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window-button,
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button {
+    position: relative;
     width: 14px;
     height: 14px;
     padding: 0;
@@ -1053,8 +1054,13 @@
 .desktop-body[data-theme="fruity"] .vd-window-button::after,
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button::after {
     content: "";
+    position: absolute;
+    top: calc(50% + 0.5px);
+    left: 50%;
+    display: block;
     width: 8px;
     height: 8px;
+    transform: translate(-50%, -50%);
     background: var(--fruity-window-glyph, rgba(32, 38, 53, 0.68));
     opacity: 0;
     transition: opacity 120ms var(--ds-motion-ease-standard);

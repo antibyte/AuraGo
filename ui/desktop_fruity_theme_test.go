@@ -157,6 +157,16 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 			wants:    []string{"position: absolute;", "left: 18px;", "transform: translateY(-50%);"},
 		},
 		{
+			name:     "window control positioning context",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button,",
+			wants:    []string{"position: relative;", "width: 14px;", "height: 14px;"},
+		},
+		{
+			name:     "window control glyph centering",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button::after,",
+			wants:    []string{"position: absolute;", "top: calc(50% + 0.5px);", "left: 50%;", "transform: translate(-50%, -50%);"},
+		},
+		{
 			name:     "close dot order",
 			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"close\"]",
 			wants:    []string{"order: 1;", "background: var(--fruity-window-close);"},
