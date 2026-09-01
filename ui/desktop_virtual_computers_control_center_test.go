@@ -27,8 +27,11 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 		`role="dialog" aria-modal="true"`,
 		`'confirm-destroy'`,
 		`'confirm-delete-volume'`,
-		`capabilities(state).legacy_agent_tasks_ready`,
-		`state.context.openApp('agent-chat')`,
+		`function openAgentRequest(state)`,
+		`state.agentRequestDraft =`,
+		`chat_autosend: true`,
+		`chat_source_app: 'virtual-computers'`,
+		`Use virtual_workspace and virtual_browser for this request.`,
 		`aria-live="polite"`,
 	} {
 		if !strings.Contains(app, marker) {
@@ -40,8 +43,13 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 	}
 
 	workspaces := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers-workspaces.js"))
-	if !strings.Contains(workspaces, `data-action="ask-agent"`) || !strings.Contains(workspaces, `desktop.agent_chat`) {
-		t.Fatal("agent workspaces must offer the AuraGo main agent without a legacy provider")
+	if !strings.Contains(workspaces, `data-action="ask-agent"`) || !strings.Contains(workspaces, `data-role="agent-request"`) {
+		t.Fatal("agent workspaces must accept a request for the AuraGo main agent")
+	}
+	for _, legacyStart := range []string{`data-action="start-task"`, `data-role="task-instruction"`, `function startTask(state)`} {
+		if strings.Contains(app, legacyStart) {
+			t.Errorf("normal Virtual Computers UI still exposes legacy task start %q", legacyStart)
+		}
 	}
 }
 
@@ -129,6 +137,7 @@ func TestVirtualComputersDesktopUsesThemeAndContainerContracts(t *testing.T) {
 		"white-space: nowrap;",
 		"overflow-x: auto;",
 		"min-height: 44px;",
+		".vc-agent-request",
 		"@media (prefers-reduced-motion: reduce)",
 	} {
 		if !strings.Contains(css, marker) {
@@ -142,6 +151,9 @@ func TestVirtualComputersControlCenterTranslations(t *testing.T) {
 
 	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	keys := []string{
+		"desktop.agent_task_for_agent",
+		"desktop.chat_placeholder",
+		"desktop.send",
 		"desktop.virtual_computers_machines",
 		"desktop.virtual_computers_new",
 		"desktop.virtual_computers_health_operational",

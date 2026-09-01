@@ -210,6 +210,7 @@
         const content = state.host.querySelector('[data-role="content"]');
         const modal = state.host.querySelector('[data-role="modal-host"]');
         if (!toolbar || !sections || !statusRegion || !content || !modal) return;
+        state.agentRequestDraft = content.querySelector('[data-role="agent-request"]')?.value ?? state.agentRequestDraft ?? '';
         toolbar.innerHTML = toolbarPane(state);
         sections.innerHTML = sectionTabs(state);
         statusRegion.innerHTML = statusPane(state);
@@ -351,7 +352,6 @@
             return `<div class="vc-empty-state vc-empty-detail"><span class="vc-empty-icon">${icon(state, 'monitor', '▣')}</span><strong>${esc(tx(c, 'desktop.virtual_computers_select_machine'))}</strong><p>${esc(tx(c, 'desktop.virtual_computers_status'))}</p></div>`;
         }
         const mutable = isMutable(state);
-        const allowLegacyTasks = capabilities(state).legacy_agent_tasks_ready && mutable;
         const ports = Array.isArray(machine.web_ports) ? machine.web_ports : [];
         const portLinks = ports.length ? ports.map(port => `<a class="vc-link" href="/api/virtual-computers/machines/${encodeURIComponent(machine.id)}/web/${Number(port)}/" target="_blank" rel="noopener">${icon(state, 'external', '↗')} ${esc(String(port))}</a>`).join('') : '—';
         let viewer = `<div class="vc-machine-hero"><span class="vc-machine-hero-icon">${icon(state, machine.display ? 'monitor' : 'server', '▣')}</span><p>${esc(machine.display ? tx(c, 'desktop.virtual_computers_vnc_live') : tx(c, 'desktop.virtual_computers_headless'))}</p></div>`;
@@ -369,7 +369,6 @@
                 ${machine.display === true ? `<button type="button" class="vc-btn vc-icon-label" data-action="screenshot" data-id="${esc(machine.id)}">${icon(state, 'image', '▧')}<span>${esc(tx(c, 'desktop.virtual_computers_screenshot'))}</span></button>` : ''}
                 ${canUseVNC(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="vnc" data-id="${esc(machine.id)}">${icon(state, 'monitor', '▣')}<span>${esc(tx(c, 'desktop.virtual_computers_vnc_live'))}</span></button>` : ''}
                 ${canUseTerminal(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="terminal" data-id="${esc(machine.id)}">${icon(state, 'terminal', '>_')}<span>${esc(tx(c, 'desktop.virtual_computers_terminal'))}</span></button>` : ''}
-                ${allowLegacyTasks ? `<button type="button" class="vc-btn vc-icon-label" data-action="start-task" data-id="${esc(machine.id)}">${icon(state, 'run', '▶')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))} · Legacy</span></button>` : ''}
                 ${mutable ? `<button type="button" class="vc-btn danger vc-icon-label" data-action="destroy" data-id="${esc(machine.id)}">${icon(state, 'stop', '■')}<span>${esc(tx(c, 'desktop.virtual_computers_destroy'))}</span></button>` : ''}
             </div></header>
             <dl class="vc-meta-grid">
@@ -434,9 +433,6 @@
             const unlimited = capabilities(state).persistent ? `<option value="persistent">${esc(tx(c, 'desktop.virtual_computers_unlimited'))}</option>` : '';
             return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="vc-launch-title"><header><h3 id="vc-launch-title">${esc(tx(c, 'desktop.virtual_computers_new'))}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header>${error}<label><span>${esc(tx(c, 'desktop.virtual_computers_template'))}</span><select data-role="template" autofocus>${options}</select></label>${state.templatesFallback ? `<p class="vc-form-note">${esc(tx(c, 'desktop.virtual_computers_templates_fallback'))}</p>` : ''}<label><span>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</span><select data-role="ttl"><option value="300">${esc(formatDuration(300))}</option><option value="600" selected>${esc(formatDuration(600))}</option><option value="900">${esc(formatDuration(900))}</option>${unlimited}</select></label>${capabilities(state).volumes ? `<label><span>${esc(tx(c, 'desktop.virtual_computers_volumes'))}</span><select data-role="launch-volume"><option value="">${esc(tx(c, 'desktop.virtual_computers_volume_none'))}</option>${volumes}</select></label>` : ''}<div class="vc-actions"><button type="button" class="vc-btn" data-action="close-modal">${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn vc-primary" data-action="confirm-launch" ${isPending(state, 'launch') ? 'disabled aria-busy="true"' : ''}>${esc(tx(c, 'desktop.virtual_computers_launch'))}</button></div></div></div>`;
         }
-        if (modal.type === 'start') {
-            return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="vc-task-title"><header><h3 id="vc-task-title">${esc(tx(c, 'desktop.virtual_computers_task_start'))}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header>${error}<label><span>${esc(tx(c, 'desktop.virtual_computers_template'))}</span><select data-role="task-kind"><option value="shell">shell</option><option value="desktop">desktop</option></select></label><label><span>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</span><textarea data-role="task-instruction" maxlength="400" autofocus></textarea></label><div class="vc-actions"><button type="button" class="vc-btn" data-action="close-modal">${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn vc-primary" data-action="confirm-start-task" ${isPending(state, 'start-task') ? 'disabled' : ''}>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</button></div></div></div>`;
-        }
         const definitions = {
             cancel: ['desktop.virtual_computers_modal_cancel_task', 'desktop.virtual_computers_modal_cancel_task_desc', 'confirm-cancel-task', 'desktop.virtual_computers_task_cancel'],
             destroy: ['desktop.virtual_computers_confirm_destroy', 'desktop.virtual_computers_confirm_destroy_desc', 'confirm-destroy', 'desktop.virtual_computers_destroy'],
@@ -465,8 +461,7 @@
             else if (action === 'screenshot') screenshot(state, id);
             else if (action === 'vnc') openVNC(state, id);
             else if (action === 'terminal') openTerminal(state, id);
-            else if (action === 'ask-agent' && typeof state.context.openApp === 'function') state.context.openApp('agent-chat');
-            else if (action === 'start-task') openModal(state, { type: 'start', machineId: id }, target);
+            else if (action === 'ask-agent') openAgentRequest(state);
             else if (action === 'cancel_agent_task') openModal(state, { type: 'cancel', id, label: id }, target);
             else if (action === 'confirm-cancel-task') cancelTask(state);
             else if (action === 'delete-volume') openModal(state, { type: 'delete-volume', id, label: id }, target);
@@ -475,7 +470,6 @@
             else if (action === 'import-volume') importVolume(state);
             else if (action === 'close-modal') closeModal(state);
             else if (action === 'retry-resource') refreshResource(state, target.dataset.resource || 'status');
-            else if (action === 'confirm-start-task') startTask(state);
             else if (action === 'close-workspace') workspaceMutation(state, id, '', { method: 'DELETE' });
             else if (action === 'checkpoint-workspace') workspaceMutation(state, id, '/checkpoint', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
             else if (action === 'observe-workspace') observeWorkspace(state, id, target.dataset.machineId || '', false);
@@ -530,6 +524,27 @@
     function machineLabel(state, id) {
         const machine = state.machines.find(item => item.id === id);
         return machine ? machine.name || machine.id : id;
+    }
+
+    function openAgentRequest(state) {
+        const input = state.host.querySelector('[data-role="agent-request"]');
+        const requestText = input ? input.value.trim() : '';
+        if (!requestText || typeof state.context.openApp !== 'function') {
+            if (input) input.focus();
+            return;
+        }
+        state.context.openApp('agent-chat', {
+            chat_prefill: requestText,
+            chat_autosend: true,
+            chat_source_app: 'virtual-computers',
+            window_context: {
+                app_id: 'virtual-computers',
+                label: tx(state.context, 'desktop.virtual_computers_title'),
+                purpose: 'Control isolated Firecracker workspaces with the AuraGo main agent.',
+                guide: 'Use virtual_workspace and virtual_browser for this request. Do not use legacy agent task tools.'
+            }
+        });
+        input.value = '';
     }
 
     function selectMachine(state, id) {
@@ -901,26 +916,6 @@
         state.modalReturnFocus = null;
         draw(state);
         if (restoreFocus && returnFocus && typeof returnFocus.focus === 'function') returnFocus.focus();
-    }
-
-    async function startTask(state) {
-        const modal = state.modal;
-        if (!modal || modal.type !== 'start' || isPending(state, 'start-task')) return;
-        const kind = state.host.querySelector('[data-role="task-kind"]')?.value || 'shell';
-        const instruction = state.host.querySelector('[data-role="task-instruction"]')?.value.trim() || '';
-        if (!instruction) {
-            modal.error = tx(state.context, 'desktop.virtual_computers_section_error');
-            draw(state);
-            return;
-        }
-        const ok = await mutate(state, 'start-task', 'tasks', '/api/virtual-computers/tasks', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ machine_id: modal.machineId, kind, instruction })
-        });
-        if (ok) {
-            state.activeSection = 'tasks';
-            closeModal(state, false);
-        }
     }
 
     async function cancelTask(state) {
