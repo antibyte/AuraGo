@@ -425,7 +425,7 @@ fi
 
 log "installing host dependencies"
 NEED_APT_UPDATE=0
-for pkg in ca-certificates curl git rsync build-essential; do
+for pkg in ca-certificates curl git rsync build-essential binutils; do
 	if ! dpkg -l "${pkg}" 2>/dev/null | grep -qE "^ii"; then
 		NEED_APT_UPDATE=1
 		break
@@ -433,7 +433,7 @@ for pkg in ca-certificates curl git rsync build-essential; do
 done
 if [ "${NEED_APT_UPDATE}" = "1" ]; then
 	apt-get update -y
-	apt-get install -y ca-certificates curl git rsync build-essential
+	apt-get install -y ca-certificates curl git rsync build-essential binutils
 else
 	log "host dependencies already present"
 fi
@@ -470,21 +470,44 @@ fi
 __AURAGO_WORKSPACE_GUEST_SNIPPET__
 
 ASSET_REVISION_FILE="/opt/boring/.aurago-assets-revision"
+asset_is_secure_regular() {
+	asset="$1"
+	[ -f "${asset}" ] && [ ! -L "${asset}" ] && [ -s "${asset}" ] || return 1
+	[ "$(stat -c '%%u' "${asset}" 2>/dev/null)" = "0" ] || return 1
+	if find "${asset}" -maxdepth 0 -perm /022 -print -quit 2>/dev/null | grep -q .; then
+		return 1
+	fi
+}
+asset_is_host_elf() {
+	asset_is_secure_regular "$1" || return 1
+	machine="$(LC_ALL=C readelf -h "$1" 2>/dev/null | awk -F: '/Machine:/{gsub(/^[[:space:]]+/, "", $2); print $2; exit}')"
+	case "${GOARCH}:${machine}" in
+		amd64:*X86-64*|arm64:AArch64) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+asset_is_ext4() {
+	asset_is_secure_regular "$1" || return 1
+	[ "$(stat -c '%%s' "$1" 2>/dev/null)" -ge 67108864 ] || return 1
+	[ "$(od -An -tx1 -j 1080 -N 2 "$1" 2>/dev/null | tr -d '[:space:]')" = "53ef" ]
+}
+validate_runtime_assets() {
+	asset_is_host_elf /opt/boring/bin/firecracker || return 1
+	[ -x /opt/boring/bin/firecracker ] || return 1
+	asset_is_host_elf /opt/boring/kernel/vmlinux || return 1
+	asset_is_ext4 /opt/boring/rootfs/rootfs.ext4 || return 1
+	asset_is_secure_regular /opt/boring/templates/python/snapshot_file || return 1
+	asset_is_secure_regular /opt/boring/templates/python/mem_file || return 1
+	asset_is_ext4 /opt/boring/templates/python/rootfs.ext4 || return 1
+	if [ "${SKIP_DESKTOP_VALUE}" != "1" ]; then
+		asset_is_ext4 /opt/boring/rootfs/desktop.ext4 || return 1
+		[ ! /opt/boring/rootfs/rootfs.ext4 -ef /opt/boring/rootfs/desktop.ext4 ] || return 1
+	fi
+}
 ASSETS_READY=1
-for asset in \
-	/opt/boring/bin/firecracker \
-	/opt/boring/kernel/vmlinux \
-	/opt/boring/rootfs/rootfs.ext4 \
-	/opt/boring/templates/python/snapshot_file \
-	/opt/boring/templates/python/mem_file \
-	/opt/boring/templates/python/rootfs.ext4; do
-	[ -s "${asset}" ] || ASSETS_READY=0
-done
-if [ "${SKIP_DESKTOP_VALUE}" != "1" ] && [ ! -s /opt/boring/rootfs/desktop.ext4 ]; then
-	ASSETS_READY=0
-fi
+validate_runtime_assets || ASSETS_READY=0
 ASSET_REVISION="$(cat "${ASSET_REVISION_FILE}" 2>/dev/null || true)"
-if [ "${ASSET_REVISION}" != "${WORKSPACE_ASSET_FINGERPRINT}" ]; then
+if [ "${ASSET_REVISION}" != "${WORKSPACE_ASSET_FINGERPRINT}" ] || ! asset_is_secure_regular "${ASSET_REVISION_FILE}"; then
 	ASSETS_READY=0
 fi
 
@@ -504,7 +527,12 @@ else
 		bash /root/infra/build-desktop-rootfs.sh
 		inject_workspace_agent /opt/boring/rootfs/desktop.ext4 desktop
 	fi
+	if ! validate_runtime_assets; then
+		echo "Firecracker runtime asset validation failed after rebuild" >&2
+		exit 1
+	fi
 	printf '%%s\n' "${WORKSPACE_ASSET_FINGERPRINT}" > "${ASSET_REVISION_FILE}"
+	chmod 0644 "${ASSET_REVISION_FILE}"
 fi
 
 log "configuring guest networking"

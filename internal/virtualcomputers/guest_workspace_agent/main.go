@@ -48,8 +48,12 @@ const (
 	maxOutputBytes           = 4 * 1024 * 1024
 	maxConfiguredOutputBytes = 64 * 1024 * 1024
 	maxJobs                  = 2
+	maxConcurrentConnections = 16
+	maxConcurrentOperations  = 8
 	maxLegacyFiles           = 50000
 	maxLegacyBytes           = 512 * 1024 * 1024
+	initialFrameTimeout      = 10 * time.Second
+	responseWriteTimeout     = 3 * time.Second
 )
 
 type rpcRequest struct {
@@ -286,6 +290,8 @@ type service struct {
 	jobs          map[string]*job
 	grants        map[string]map[string]string
 	browser       *browserController
+	connections   chan struct{}
+	operations    chan struct{}
 }
 
 func newService() (*service, error) {
@@ -304,6 +310,8 @@ func newService() (*service, error) {
 		jobs:          make(map[string]*job),
 		grants:        make(map[string]map[string]string),
 		browser:       &browserController{},
+		connections:   make(chan struct{}, maxConcurrentConnections),
+		operations:    make(chan struct{}, maxConcurrentOperations),
 	}, nil
 }
 
@@ -352,17 +360,28 @@ var upgrader = websocket.Upgrader{
 }
 
 func (s *service) handleRPC(w http.ResponseWriter, r *http.Request) {
+	if !tryAcquire(s.connections) {
+		http.Error(w, "workspace connection capacity reached", http.StatusServiceUnavailable)
+		return
+	}
+	defer release(s.connections)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
 	conn.SetReadLimit(maxMessageBytes)
+	_ = conn.SetReadDeadline(time.Now().Add(initialFrameTimeout))
+	firstRequest := true
 	var lastSequence uint64
 	for {
 		var request rpcRequest
 		if err := conn.ReadJSON(&request); err != nil {
 			return
+		}
+		if firstRequest {
+			_ = conn.SetReadDeadline(time.Time{})
+			firstRequest = false
 		}
 		response := rpcResponse{JSONRPC: "2.0", Protocol: protocolVersion, ID: request.ID, Sequence: request.Sequence}
 		if request.JSONRPC != "2.0" || request.Protocol != protocolVersion {
@@ -371,27 +390,47 @@ func (s *service) handleRPC(w http.ResponseWriter, r *http.Request) {
 			response.Error = &rpcError{Code: "invalid_request", Message: "request id and method are required"}
 		} else if request.Sequence <= lastSequence {
 			response.Error = &rpcError{Code: "invalid_sequence", Message: "request sequence must increase monotonically"}
+		} else if !tryAcquire(s.operations) {
+			response.Error = &rpcError{Code: "workspace_busy", Message: "workspace operation capacity reached", Data: map[string]interface{}{"retry_after_seconds": 1}}
 		} else {
 			lastSequence = request.Sequence
-			ctx := r.Context()
-			if request.Deadline != "" {
-				deadline, err := time.Parse(time.RFC3339Nano, request.Deadline)
-				if err != nil {
-					response.Error = &rpcError{Code: "invalid_deadline", Message: "deadline must be RFC3339Nano"}
+			func() {
+				defer release(s.operations)
+				ctx := r.Context()
+				if request.Deadline != "" {
+					deadline, err := time.Parse(time.RFC3339Nano, request.Deadline)
+					if err != nil {
+						response.Error = &rpcError{Code: "invalid_deadline", Message: "deadline must be RFC3339Nano"}
+					} else {
+						var cancel context.CancelFunc
+						ctx, cancel = context.WithDeadline(ctx, deadline)
+						response.Result, response.Error = s.dispatch(ctx, request.Method, request.Params)
+						cancel()
+					}
 				} else {
-					var cancel context.CancelFunc
-					ctx, cancel = context.WithDeadline(ctx, deadline)
 					response.Result, response.Error = s.dispatch(ctx, request.Method, request.Params)
-					cancel()
 				}
-			} else {
-				response.Result, response.Error = s.dispatch(ctx, request.Method, request.Params)
-			}
+			}()
 		}
+		_ = conn.SetWriteDeadline(time.Now().Add(responseWriteTimeout))
 		if err := conn.WriteJSON(response); err != nil {
 			return
 		}
+		_ = conn.SetWriteDeadline(time.Time{})
 	}
+}
+
+func tryAcquire(slots chan struct{}) bool {
+	select {
+	case slots <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func release(slots chan struct{}) {
+	<-slots
 }
 
 func (s *service) dispatch(ctx context.Context, method string, raw json.RawMessage) (interface{}, *rpcError) {

@@ -1,6 +1,5 @@
 (function () {
     'use strict';
-
     const instances = new Map();
     const machinePollIntervalMs = 5000;
     const expiryCountdownIntervalMs = 1000;
@@ -352,7 +351,7 @@
             return `<div class="vc-empty-state vc-empty-detail"><span class="vc-empty-icon">${icon(state, 'monitor', '▣')}</span><strong>${esc(tx(c, 'desktop.virtual_computers_select_machine'))}</strong><p>${esc(tx(c, 'desktop.virtual_computers_status'))}</p></div>`;
         }
         const mutable = isMutable(state);
-        const allowTasks = capabilities(state).agent_tasks && mutable;
+        const allowLegacyTasks = capabilities(state).legacy_agent_tasks_ready && mutable;
         const ports = Array.isArray(machine.web_ports) ? machine.web_ports : [];
         const portLinks = ports.length ? ports.map(port => `<a class="vc-link" href="/api/virtual-computers/machines/${encodeURIComponent(machine.id)}/web/${Number(port)}/" target="_blank" rel="noopener">${icon(state, 'external', '↗')} ${esc(String(port))}</a>`).join('') : '—';
         let viewer = `<div class="vc-machine-hero"><span class="vc-machine-hero-icon">${icon(state, machine.display ? 'monitor' : 'server', '▣')}</span><p>${esc(machine.display ? tx(c, 'desktop.virtual_computers_vnc_live') : tx(c, 'desktop.virtual_computers_headless'))}</p></div>`;
@@ -370,7 +369,7 @@
                 ${machine.display === true ? `<button type="button" class="vc-btn vc-icon-label" data-action="screenshot" data-id="${esc(machine.id)}">${icon(state, 'image', '▧')}<span>${esc(tx(c, 'desktop.virtual_computers_screenshot'))}</span></button>` : ''}
                 ${canUseVNC(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="vnc" data-id="${esc(machine.id)}">${icon(state, 'monitor', '▣')}<span>${esc(tx(c, 'desktop.virtual_computers_vnc_live'))}</span></button>` : ''}
                 ${canUseTerminal(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="terminal" data-id="${esc(machine.id)}">${icon(state, 'terminal', '>_')}<span>${esc(tx(c, 'desktop.virtual_computers_terminal'))}</span></button>` : ''}
-                ${allowTasks ? `<button type="button" class="vc-btn vc-icon-label" data-action="start-task" data-id="${esc(machine.id)}">${icon(state, 'run', '▶')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</span></button>` : ''}
+                ${allowLegacyTasks ? `<button type="button" class="vc-btn vc-icon-label" data-action="start-task" data-id="${esc(machine.id)}">${icon(state, 'run', '▶')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))} · Legacy</span></button>` : ''}
                 ${mutable ? `<button type="button" class="vc-btn danger vc-icon-label" data-action="destroy" data-id="${esc(machine.id)}">${icon(state, 'stop', '■')}<span>${esc(tx(c, 'desktop.virtual_computers_destroy'))}</span></button>` : ''}
             </div></header>
             <dl class="vc-meta-grid">
@@ -466,6 +465,7 @@
             else if (action === 'screenshot') screenshot(state, id);
             else if (action === 'vnc') openVNC(state, id);
             else if (action === 'terminal') openTerminal(state, id);
+            else if (action === 'ask-agent' && typeof state.context.openApp === 'function') state.context.openApp('agent-chat');
             else if (action === 'start-task') openModal(state, { type: 'start', machineId: id }, target);
             else if (action === 'cancel_agent_task') openModal(state, { type: 'cancel', id, label: id }, target);
             else if (action === 'confirm-cancel-task') cancelTask(state);

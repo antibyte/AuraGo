@@ -27,6 +27,8 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 		`role="dialog" aria-modal="true"`,
 		`'confirm-destroy'`,
 		`'confirm-delete-volume'`,
+		`capabilities(state).legacy_agent_tasks_ready`,
+		`state.context.openApp('agent-chat')`,
 		`aria-live="polite"`,
 	} {
 		if !strings.Contains(app, marker) {
@@ -35,6 +37,11 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 	}
 	if strings.Contains(app, "alert(") || strings.Contains(app, "confirm(") {
 		t.Fatal("virtual computers control center must use accessible app dialogs")
+	}
+
+	workspaces := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers-workspaces.js"))
+	if !strings.Contains(workspaces, `data-action="ask-agent"`) || !strings.Contains(workspaces, `desktop.agent_chat`) {
+		t.Fatal("agent workspaces must offer the AuraGo main agent without a legacy provider")
 	}
 }
 

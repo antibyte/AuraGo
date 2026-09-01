@@ -40,9 +40,9 @@
         const esc = ui.esc;
         if (state.resourceLoading.workspaces && !state.workspaces.length) return `<section class="vc-section-page">${ui.skeletonRows()}</section>`;
         if (state.resourceErrors.workspaces && !state.workspaces.length) return `<section class="vc-section-page">${ui.resourceErrorPane(state, 'workspaces')}</section>`;
-        if (!state.workspaces.length) return `<section class="vc-section-page"><div class="vc-empty-state"><span class="vc-empty-icon">${ui.icon(state, 'agent', 'A')}</span><strong>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces_empty'))}</strong><p>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces_hint'))}</p></div></section>`;
+        if (!state.workspaces.length) return `<section class="vc-section-page"><div class="vc-empty-state"><span class="vc-empty-icon">${ui.icon(state, 'agent', 'A')}</span><strong>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces_empty'))}</strong><p>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces_hint'))}</p><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${esc(ui.tx(c, 'desktop.agent_chat'))}</button></div></section>`;
         const summaries = new Map(state.workspaceSummaries.map(item => [item.workspace && item.workspace.id, item]));
-        return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(ui.tx(c, 'desktop.virtual_computers_title'))}</span><h3>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces'))}</h3></div></header>
+        return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(ui.tx(c, 'desktop.virtual_computers_title'))}</span><h3>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces'))}</h3></div><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${esc(ui.tx(c, 'desktop.agent_chat'))}</button></header>
             ${state.resourceErrors.workspaces ? `<div class="vc-inline-error">${esc(state.resourceErrors.workspaces)}</div>` : ''}
             <div class="vc-workspace-grid">${state.workspaces.map(workspace => workspaceCard(state, workspace, summaries.get(workspace.id) || {}, ui)).join('')}</div></section>`;
     }

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	workspacePatchVersion        = "aurago-workspace-patches-v1"
+	workspacePatchVersion        = "aurago-workspace-patches-v2"
 	workspaceRootfsLayoutVersion = "aurago-workspace-rootfs-v2"
 	// These hashes cover the LF-normalized files stored by Git at the pinned
 	// upstream revision. Do not calculate them from a Windows CRLF checkout.
@@ -77,8 +77,8 @@ printf '%s  %s\n' \
     '` + workspaceMachineVolumeSHA256 + `' "${REPO_DIR}/boringd/machinevolume.go" \
     '` + workspaceMachineSHA256 + `' "${REPO_DIR}/boringd/machine.go" | sha256sum -c -
 for patch in "${PATCH_DIR}"/*.patch; do
-  git -C "${REPO_DIR}" apply --check "${patch}"
-  git -C "${REPO_DIR}" apply "${patch}"
+  git -C "${REPO_DIR}" apply --unidiff-zero --check "${patch}"
+  git -C "${REPO_DIR}" apply --unidiff-zero "${patch}"
 done
 `)
 	return script.String()

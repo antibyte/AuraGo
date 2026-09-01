@@ -36,6 +36,7 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	patchScript := workspacePatchInstallSnippet()
 	for _, required := range []string{
 		`git -C "${REPO_DIR}" reset --hard "${BORING_REVISION}"`,
+		`apply --unidiff-zero --check`,
 		`"${REPO_DIR}/boringd/workspace.go"`,
 		`"${REPO_DIR}/boringd/workspace_network.go"`,
 	} {
@@ -65,9 +66,25 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	if err != nil || !strings.Contains(string(proxyPatch), "query token is not accepted") {
 		t.Fatalf("workspace proxy patch does not enforce header-only authentication: %v", err)
 	}
+	for _, required := range []string{"workspaceMaxOperations", "workspaceMaxMachineOperations", "Retry-After", "workspaceWriteTimeout"} {
+		if !strings.Contains(string(proxyPatch), required) {
+			t.Fatalf("workspace proxy patch is missing bounded-operation marker %q", required)
+		}
+	}
 	networkPatch, err := workspaceAssets.ReadFile("patches/0004-per-workspace-network-policy.patch")
 	if err != nil || !strings.Contains(string(networkPatch), `"--dport", "25"`) || !strings.Contains(string(networkPatch), `"--hashlimit-name", rateName`) {
 		t.Fatalf("workspace LAN policy does not retain SMTP and connection-rate protections: %v", err)
+	}
+	for _, required := range []string{
+		`"-I", "BORING_FWD", "3", "-i", tap, "-j", "DROP"`,
+		`"-A", chain, "!", "-s", guestIP+"/32", "-j", "DROP"`,
+		`"-I", "BORING_FWD", "3", "-i", tap, "-j", chain`,
+		`"198.18.0.0/15"`,
+		`enumerate protected host addresses`,
+	} {
+		if !strings.Contains(string(networkPatch), required) {
+			t.Fatalf("workspace LAN policy is missing Nehemiah hardening marker %q", required)
+		}
 	}
 
 	guestScript := workspaceGuestInstallSnippet()

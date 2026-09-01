@@ -21,11 +21,13 @@ Install and Repair manage two components as one deployment:
 
 The installer verifies the pinned upstream source, applies AuraGo's reviewed base-path overlay, performs a locked npm build, and writes a revision marker used during startup reconciliation. Every run creates a unique immutable release and switches the `current` link atomically only after a successful build. The `boring-web.service` systemd unit runs with filesystem and privilege hardening. If activation fails, the distinct previous web release is restored. AuraGo installs Node.js privately below the configured Boring Computers install directory and does not replace the host's global `node`, `npm`, or `npx` commands.
 
-The same repair installs AuraGo's reviewed workspace extension. It applies only when the upstream revision and source-file hashes match, builds the embedded static `aurago-workspace-agent`, injects it into the Python and Desktop root filesystems, and verifies `aurago.workspace.v1` by booting both templates. A combined fingerprint covers the upstream commit, patch series, guest sources, and protocol. Agent Workspaces cannot be enabled until setup has recorded that verification and the running boringd reports the same fingerprint.
+The same repair installs AuraGo's reviewed workspace extension. It applies only when the upstream revision and source-file hashes match, builds the embedded static `aurago-workspace-agent`, injects it into the Python and Desktop root filesystems, and verifies `aurago.workspace.v1` by booting both templates. Before reuse and after every rebuild it rejects symlinked, non-root-owned, group/world-writable, architecture-mismatched, or invalid ELF/ext4 runtime assets. A combined fingerprint covers the upstream commit, patch series, guest sources, and protocol. Agent Workspaces cannot be enabled until setup has recorded that verification and the running boringd reports the same fingerprint.
 
 ## Agent Workspaces
 
 Agent Workspaces keep all reasoning in the AuraGo main agent. AuraGo opens an ephemeral Firecracker VM and controls a root shell, `/workspace` files, PTY jobs, and the visible Chromium in that same VM through a vsock-only guest service. VNC observes exactly that Chromium. The guest never receives the boringd bearer token or an LLM API key.
+
+No separate Virtual Computers LLM provider is required. When no legacy `agent_provider` is configured, use the normal AuraGo agent chat; it inherits AuraGo's standard chat provider and operates the VM through `virtual_workspace` and `virtual_browser`.
 
 ```yaml
 virtual_computers:
@@ -48,7 +50,7 @@ virtual_computers:
       grant_ttl_seconds: 900
 ```
 
-An empty LAN list permits public internet only. Entries must be IPv4 RFC1918 CIDRs. Per-VM source rules always block the KVM host, AuraGo interface addresses, the bridge, metadata and CGNAT ranges, loopback, and other guests before applying the LAN allowlist. `virtual_computers.allow_internet` remains the parent gate.
+An empty LAN list permits public internet only. Entries must be IPv4 RFC1918 CIDRs. Per-VM tap rules bind each guest to its assigned source IP, stay fail-closed while policies change, and always block the KVM host, AuraGo interface addresses, the bridge, metadata, benchmarking and CGNAT ranges, loopback, and other guests before applying the LAN allowlist. `virtual_computers.allow_internet` remains the parent gate.
 
 The native `virtual_workspace` tool owns lifecycle, shell/PTY jobs, paginated output, `/workspace` file transfer, checkpoints, and credential-grant requests. `virtual_browser` owns tabs, navigation, compact DOM/accessibility inspection, reference/selector actions, visual coordinate fallbacks, screenshots, uploads, and downloads. Workspace ownership comes from AuraGo's trusted chat/mission dispatch context, never model arguments. Co-agents cannot use either tool.
 

@@ -121,3 +121,21 @@ func TestWebSocketWorkspaceTransportUsesBearerDeadlinesAndMonotonicSequences(t *
 		t.Fatalf("workspace sequences = %v, want consecutive non-zero values", sequences)
 	}
 }
+
+func TestWebSocketWorkspaceTransportReportsCapacityWithoutRetrying(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "busy", http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{BaseURL: server.URL, Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	err = NewWebSocketWorkspaceTransport(client).Call(context.Background(), "vm-1", "system.health", nil, nil)
+	rpcErr, ok := err.(WorkspaceRPCError)
+	if !ok || rpcErr.Code != "workspace_busy" {
+		t.Fatalf("capacity error = %#v, want workspace_busy", err)
+	}
+}

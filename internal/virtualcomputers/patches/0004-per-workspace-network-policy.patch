@@ -1,52 +1,39 @@
 diff --git a/boringd/machine.go b/boringd/machine.go
-index 53517c1..65b4acb 100644
+index 53517c1..b065100 100644
 --- a/boringd/machine.go
 +++ b/boringd/machine.go
-@@ -42,7 +42,8 @@ type Machine struct {
- 	ParentID string
- 
- 	// creatorIP holds the limiter slot to release when the machine dies.
+@@ -45 +45,3 @@ type Machine struct {
 -	creatorIP string
 +	creatorIP              string
 +	workspaceFirewallChain string
- 
- 	// pooled: pre-booted, waiting in the warm pool (not yet handed to a user).
- 	pooled bool
-@@ -642,6 +643,7 @@ func (mgr *Manager) teardown(m *Machine) {
- 	if m.timer != nil {
- 		m.timer.Stop()
- 	}
-+	removeWorkspaceFirewall(m.workspaceFirewallChain)
- 	if m.driver != nil {
- 		m.driver.Close()
- 	}
++	workspaceFirewallTap   string
+@@ -644,0 +647 @@ func (mgr *Manager) teardown(m *Machine) {
++	removeWorkspaceFirewall(m.workspaceFirewallChain, m.workspaceFirewallTap)
 diff --git a/boringd/server.go b/boringd/server.go
-index 18b2743..613d212 100644
+index c722c57..ac9b22e 100644
 --- a/boringd/server.go
 +++ b/boringd/server.go
-@@ -176,5 +176,8 @@ type createRequest struct {
- 	Net          bool   `json:"net"`           // request internet (forces a cold boot)
- 	Volume       string `json:"volume"`        // restore this volume on boot
- 	VolumeFormat string `json:"volume_format"` // empty/legacy_root or workspace_v2
+@@ -175,6 +175,9 @@ type createRequest struct {
+-	Template     string `json:"template"`
+-	TTLSeconds   int    `json:"ttl_seconds"`
+-	Net          bool   `json:"net"`           // request internet (forces a cold boot)
+-	Volume       string `json:"volume"`        // restore this volume on boot
+-	VolumeFormat string `json:"volume_format"` // empty/legacy_root or workspace_v2
+-	Persistent   bool   `json:"persistent"`    // no TTL — run until stopped (needs BORING_ALLOW_PERSISTENT)
++	Template            string   `json:"template"`
++	TTLSeconds          int      `json:"ttl_seconds"`
++	Net                 bool     `json:"net"`           // request internet (forces a cold boot)
++	Volume              string   `json:"volume"`        // restore this volume on boot
++	VolumeFormat        string   `json:"volume_format"` // empty/legacy_root or workspace_v2
 +	NetworkProfile      string   `json:"network_profile"`
 +	AllowedPrivateCIDRs []string `json:"allowed_private_cidrs"`
 +	ProtectedCIDRs      []string `json:"protected_cidrs"`
- 	Persistent   bool   `json:"persistent"`    // no TTL — run until stopped (needs BORING_ALLOW_PERSISTENT)
- }
-@@ -190,7 +192,8 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
- 		req.Template = "python"
- 	}
- 
++	Persistent          bool     `json:"persistent"` // no TTL — run until stopped (needs BORING_ALLOW_PERSISTENT)
+@@ -195 +198,2 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 -	m, err := s.mgr.Create(req.Template, req.TTLSeconds, req.Net, req.Persistent, clientIP(r, s.cfg.TrustProxy))
 +	requesterIP := clientIP(r, s.cfg.TrustProxy)
 +	m, err := s.mgr.Create(req.Template, req.TTLSeconds, req.Net, req.Persistent, requesterIP)
- 	if err != nil {
- 		if errors.Is(err, ErrTooManyMachines) || errors.Is(err, ErrRateLimited) {
- 			writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": err.Error()})
-@@ -202,6 +205,18 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
- 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
- 		return
- 	}
+@@ -204,0 +209,12 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 +	if len(req.AllowedPrivateCIDRs) > 0 || req.NetworkProfile != "" {
 +		if !req.Net || req.NetworkProfile != "internet_lan" {
 +			s.mgr.Destroy(m.ID)
@@ -59,15 +46,12 @@ index 18b2743..613d212 100644
 +			return
 +		}
 +	}
- 	// Restore a volume snapshot before the user connects (best-effort).
- 	if req.Volume != "" && s.storage != nil {
- 		if err := s.attachVolume(m.ID, req.Volume, req.VolumeFormat); err != nil {
 diff --git a/boringd/workspace_network.go b/boringd/workspace_network.go
 new file mode 100644
-index 0000000..53fed8d
+index 0000000..eb2c2d9
 --- /dev/null
 +++ b/boringd/workspace_network.go
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,228 @@
 +package main
 +
 +import (
@@ -174,40 +158,61 @@ index 0000000..53fed8d
 +	if err != nil {
 +		return err
 +	}
-+	var guestIP string
++	var guestIP, tap string
 +	for attempt := 0; attempt < 50; attempt++ {
 +		if value, ok := mgr.machineIP(machineID); ok {
 +			guestIP = value
-+			break
++			mgr.mu.Lock()
++			if machine := mgr.machines[machineID]; machine != nil && machine.driver != nil {
++				tap = machine.driver.tap
++			}
++			mgr.mu.Unlock()
++			if tap != "" {
++				break
++			}
 +		}
 +		time.Sleep(100 * time.Millisecond)
 +	}
 +	if net.ParseIP(guestIP).To4() == nil {
 +		return fmt.Errorf("workspace guest IP unavailable")
 +	}
++	if !strings.HasPrefix(tap, "bt") || len(tap) > 15 {
++		return fmt.Errorf("workspace guest tap unavailable")
++	}
 +	digest := sha256.Sum256([]byte(machineID))
 +	chain := "AW" + strings.ToUpper(hex.EncodeToString(digest[:5]))
-+	removeWorkspaceFirewall(chain)
++	removeWorkspaceFirewall(chain, tap)
 +	if err := iptables("-N", chain); err != nil {
++		return err
++	}
++	// Keep the tap fail-closed while the replacement chain is assembled. The
++	// policy jump is inserted ahead of this DROP only after every rule exists.
++	if err := iptables("-I", "BORING_FWD", "3", "-i", tap, "-j", "DROP"); err != nil {
++		removeWorkspaceFirewall(chain, tap)
 +		return err
 +	}
 +	fail := true
 +	defer func() {
 +		if fail {
-+			removeWorkspaceFirewall(chain)
++			removeWorkspaceFirewall(chain, tap)
 +		}
 +	}()
-+	protected := []string{"10.200.0.0/24", "169.254.0.0/16", "100.64.0.0/10", "127.0.0.0/8"}
++	if err := iptables("-A", chain, "!", "-s", guestIP+"/32", "-j", "DROP"); err != nil {
++		return err
++	}
++	protected := []string{"0.0.0.0/8", "10.200.0.0/24", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16", "192.0.0.0/24", "198.18.0.0/15", "224.0.0.0/4", "240.0.0.0/4"}
 +	protected = append(protected, protectedAuraGo...)
 +	if parsed := net.ParseIP(strings.TrimSpace(auraGoIP)); parsed != nil && parsed.To4() != nil && !parsed.IsLoopback() {
 +		protected = append(protected, parsed.String()+"/32")
 +	}
-+	if addresses, err := net.InterfaceAddrs(); err == nil {
-+		for _, address := range addresses {
-+			ip, _, parseErr := net.ParseCIDR(address.String())
-+			if parseErr == nil && ip.To4() != nil {
-+				protected = append(protected, ip.String()+"/32")
-+			}
++	addresses, err := net.InterfaceAddrs()
++	if err != nil {
++		return fmt.Errorf("enumerate protected host addresses: %w", err)
++	}
++	for _, address := range addresses {
++		ip, _, parseErr := net.ParseCIDR(address.String())
++		if parseErr == nil && ip.To4() != nil {
++			protected = append(protected, ip.String()+"/32")
 +		}
 +	}
 +	for _, destination := range protected {
@@ -230,25 +235,37 @@ index 0000000..53fed8d
 +	if err := iptables("-A", chain, "-j", "RETURN"); err != nil {
 +		return err
 +	}
-+	if err := iptables("-I", "BORING_FWD", "3", "-s", guestIP+"/32", "-j", chain); err != nil {
++	if err := iptables("-I", "BORING_FWD", "3", "-i", tap, "-j", chain); err != nil {
++		return err
++	}
++	if err := iptables("-D", "BORING_FWD", "-i", tap, "-j", "DROP"); err != nil {
 +		return err
 +	}
 +	mgr.mu.Lock()
 +	if machine := mgr.machines[machineID]; machine != nil {
 +		machine.workspaceFirewallChain = chain
++		machine.workspaceFirewallTap = tap
 +	}
 +	mgr.mu.Unlock()
 +	fail = false
 +	return nil
 +}
 +
-+func removeWorkspaceFirewall(chain string) {
++func removeWorkspaceFirewall(chain, tap string) {
 +	chain = strings.TrimSpace(chain)
++	tap = strings.TrimSpace(tap)
++	if tap != "" {
++		for attempt := 0; attempt < 128; attempt++ {
++			if err := iptables("-D", "BORING_FWD", "-i", tap, "-j", "DROP"); err != nil {
++				break
++			}
++		}
++	}
 +	if chain == "" {
 +		return
 +	}
-+	for {
-+		if err := iptables("-D", "BORING_FWD", "-j", chain); err != nil {
++	for attempt := 0; attempt < 128; attempt++ {
++		if err := iptables("-D", "BORING_FWD", "-i", tap, "-j", chain); err != nil {
 +			break
 +		}
 +	}

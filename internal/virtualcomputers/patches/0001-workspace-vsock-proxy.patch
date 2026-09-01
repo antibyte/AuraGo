@@ -1,5 +1,5 @@
 diff --git a/boringd/server.go b/boringd/server.go
-index 9c0cd2f..17ce99e 100644
+index 9c0cd2f..2da9996 100644
 --- a/boringd/server.go
 +++ b/boringd/server.go
 @@ -88,6 +88,7 @@ func NewServer(cfg Config, mgr *Manager) *Server {
@@ -12,10 +12,10 @@ index 9c0cd2f..17ce99e 100644
  	s.mux.Handle("GET /v1/machines/{id}/screenshot", s.auth(http.HandlerFunc(s.handleScreenshot)))
 diff --git a/boringd/workspace.go b/boringd/workspace.go
 new file mode 100644
-index 0000000..cf3c333
+index 0000000..57bd734
 --- /dev/null
 +++ b/boringd/workspace.go
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,150 @@
 +package main
 +
 +import (
@@ -30,9 +30,43 @@ index 0000000..cf3c333
 +)
 +
 +const (
-+	workspaceGuestPort  = 7331
-+	workspaceMaxMessage = 8 << 20
++	workspaceGuestPort            = 7331
++	workspaceMaxMessage           = 8 << 20
++	workspaceMaxOperations        = 32
++	workspaceMaxMachineOperations = 4
++	workspaceWriteTimeout         = 3 * time.Second
 +)
++
++type workspaceOperationLimiter struct {
++	mu        sync.Mutex
++	total     int
++	byMachine map[string]int
++}
++
++var workspaceOperations = &workspaceOperationLimiter{byMachine: make(map[string]int)}
++
++func (l *workspaceOperationLimiter) tryAcquire(machineID string) (func(), bool) {
++	l.mu.Lock()
++	if l.total >= workspaceMaxOperations || l.byMachine[machineID] >= workspaceMaxMachineOperations {
++		l.mu.Unlock()
++		return nil, false
++	}
++	l.total++
++	l.byMachine[machineID]++
++	l.mu.Unlock()
++	var once sync.Once
++	return func() {
++		once.Do(func() {
++			l.mu.Lock()
++			l.total--
++			l.byMachine[machineID]--
++			if l.byMachine[machineID] == 0 {
++				delete(l.byMachine, machineID)
++			}
++			l.mu.Unlock()
++		})
++	}, true
++}
 +
 +var workspaceUpgrader = websocket.Upgrader{
 +	ReadBufferSize:  32 << 10,
@@ -57,6 +91,13 @@ index 0000000..cf3c333
 +// AuraGo workspace agent over the selected machine's private Firecracker vsock.
 +func (s *Server) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 +	machineID := r.PathValue("id")
++	release, ok := workspaceOperations.tryAcquire(machineID)
++	if !ok {
++		w.Header().Set("Retry-After", "1")
++		http.Error(w, "workspace operation capacity reached", http.StatusTooManyRequests)
++		return
++	}
++	defer release()
 +	guestConn, err := s.mgr.DialVsock(machineID, workspaceGuestPort)
 +	if errors.Is(err, ErrNotFound) {
 +		http.Error(w, "machine not found", http.StatusNotFound)
@@ -109,9 +150,11 @@ index 0000000..cf3c333
 +			if len(payload) > workspaceMaxMessage {
 +				return
 +			}
++			_ = dst.SetWriteDeadline(time.Now().Add(workspaceWriteTimeout))
 +			if err := dst.WriteMessage(messageType, payload); err != nil {
 +				return
 +			}
++			_ = dst.SetWriteDeadline(time.Time{})
 +		}
 +	}
 +	go bridge(guestWS, clientWS)

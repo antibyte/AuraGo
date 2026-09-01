@@ -194,6 +194,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 		controlPlaneHealthy := configured && virtualComputersHealthOK(cfg.BoringdURL)
 		managementHealthy := configured && virtualComputersManagementHealthy(s, cfg)
 		storageStatus := virtualComputersStorageStatusSnapshot(s, cfg)
+		legacyAgentTasksReady := cfg.AllowAgentTasks && strings.TrimSpace(cfg.BoringAnthropicKey) != ""
 		workspaceReady := false
 		workspaceInstallVerified := virtualComputersWorkspaceSetupVerified()
 		workspaceUpgradeRequired := cfg.AgentControl.Enabled
@@ -228,7 +229,8 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"tailscale":            virtualComputersTailscaleStatus(s),
 			"capabilities": map[string]bool{
 				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
-				"publish": cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled,
+				"legacy_agent_tasks_ready": legacyAgentTasksReady,
+				"publish":                  cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled,
 			},
 			"workspace_protocol":               virtualcomputers.WorkspaceProtocolVersion,
 			"workspace_asset_fingerprint":      virtualcomputers.WorkspaceAssetFingerprint(),

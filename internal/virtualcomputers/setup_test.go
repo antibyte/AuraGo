@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"reflect"
 	"runtime"
 	"strings"
@@ -154,6 +155,11 @@ func TestSetupRepairReusesAssetsAndWaitsForBoringdHealth(t *testing.T) {
 
 	for _, want := range []string{
 		`ASSET_REVISION_FILE="/opt/boring/.aurago-assets-revision"`,
+		`asset_is_secure_regular()`,
+		`asset_is_host_elf()`,
+		`asset_is_ext4()`,
+		`validate_runtime_assets || ASSETS_READY=0`,
+		`Firecracker runtime asset validation failed after rebuild`,
 		`log "reusing existing Firecracker assets"`,
 		`for attempt in $(seq 1 30); do`,
 		`systemctl is-active --quiet boringd`,
@@ -177,6 +183,18 @@ func TestSetupRepairReusesAssetsAndWaitsForBoringdHealth(t *testing.T) {
 	marker := strings.Index(script, `printf '%s\n' "${WORKSPACE_ASSET_FINGERPRINT}" > "${ASSET_REVISION_FILE}"`)
 	if marker < snapshot {
 		t.Fatal("workspace asset fingerprint must be written only after snapshot construction")
+	}
+}
+
+func TestSetupInstallScriptParsesAsBash(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is unavailable")
+	}
+	command := exec.Command(bash, "-n")
+	command.Stdin = strings.NewReader((SetupManager{}).installScript())
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("generated install script is invalid bash: %v\n%s", err, output)
 	}
 }
 

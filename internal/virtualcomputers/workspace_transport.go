@@ -15,7 +15,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const workspaceMaxWireMessageBytes = 8 * 1024 * 1024
+const (
+	workspaceMaxWireMessageBytes   = 8 * 1024 * 1024
+	workspaceTransportWriteTimeout = 3 * time.Second
+)
 
 type WorkspaceTransport interface {
 	Call(ctx context.Context, machineID, method string, params interface{}, result interface{}) error
@@ -89,6 +92,9 @@ func (t *WebSocketWorkspaceTransport) Call(ctx context.Context, machineID, metho
 	if err != nil {
 		if response != nil {
 			_ = response.Body.Close()
+			if response.StatusCode == http.StatusTooManyRequests || response.StatusCode == http.StatusServiceUnavailable {
+				return WorkspaceRPCError{Code: "workspace_busy", Message: "workspace operation capacity reached"}
+			}
 			if response.StatusCode == http.StatusNotFound || response.StatusCode == http.StatusUpgradeRequired || response.StatusCode == http.StatusNotImplemented {
 				return WorkspaceRPCError{Code: "workspace_agent_upgrade_required", Message: "boringd does not expose the AuraGo workspace capability"}
 			}
@@ -109,11 +115,15 @@ func (t *WebSocketWorkspaceTransport) Call(ctx context.Context, machineID, metho
 		Sequence: t.sequence.Add(1),
 		Params:   params,
 	}
+	writeDeadline := time.Now().Add(workspaceTransportWriteTimeout)
 	if deadline, ok := ctx.Deadline(); ok {
 		request.Deadline = deadline.UTC().Format(time.RFC3339Nano)
-		_ = conn.SetWriteDeadline(deadline)
+		if deadline.Before(writeDeadline) {
+			writeDeadline = deadline
+		}
 		_ = conn.SetReadDeadline(deadline)
 	}
+	_ = conn.SetWriteDeadline(writeDeadline)
 	if err := conn.WriteJSON(request); err != nil {
 		return fmt.Errorf("send workspace request: %w", err)
 	}

@@ -678,6 +678,36 @@ func TestVirtualComputersSetupStatusReportsMissingSudoPassword(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersSetupStatusOnlyMarksConfiguredLegacyAgentReady(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		key  string
+		want bool
+	}{
+		{name: "main agent needs no legacy provider", want: false},
+		{name: "native legacy provider configured", key: "anthropic-key", want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+			cfg.VirtualComputers.AllowAgentTasks = true
+			cfg.VirtualComputers.BoringAnthropicKey = tc.key
+			rec := httptest.NewRecorder()
+
+			handleVirtualComputersSetupStatus(&Server{Cfg: cfg}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil))
+
+			var body struct {
+				Capabilities map[string]bool `json:"capabilities"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if got := body.Capabilities["legacy_agent_tasks_ready"]; got != tc.want {
+				t.Fatalf("legacy_agent_tasks_ready = %v, want %v; body=%s", got, tc.want, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestVirtualComputersSetupOptionsCarriesConfiguredBoringdURL(t *testing.T) {
 	cfg := virtualcomputers.ToolConfig{
 		ControlPlane: virtualcomputers.ControlPlaneConfig{
