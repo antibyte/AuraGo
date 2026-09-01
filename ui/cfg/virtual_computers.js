@@ -49,8 +49,10 @@ function vcCfgEnsureData() {
 function vcCfgAgentProviderOptions(selectedProvider) {
     const providers = (typeof providersCache !== 'undefined' && Array.isArray(providersCache) ? providersCache : [])
         .filter(function(provider) {
+            const baseURL = String(provider.base_url || '').trim().replace(/\/+$/, '').toLowerCase();
             return String(provider.type || '').trim().toLowerCase() === 'anthropic' &&
-                String(provider.auth_type || 'api_key').trim().toLowerCase() !== 'oauth2';
+                String(provider.auth_type || 'api_key').trim().toLowerCase() !== 'oauth2' &&
+                (baseURL === '' || baseURL === 'https://api.anthropic.com' || baseURL === 'https://api.anthropic.com/v1');
         });
     let html = '<option value="">' + escapeAttr(t('config.virtual_computers.agent_provider_none')) + '</option>';
     providers.forEach(function(provider) {

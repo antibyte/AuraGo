@@ -7,6 +7,24 @@ import (
 )
 
 func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
+	wantSourceHashes := map[string]string{
+		"server.go":        "1119d90cc3932a7beba47592ccdba336b519b91e87a594e01e1f34a0b8badf14",
+		"templates.go":     "b48d9702ec3ea5b05db5b241af37b07a3e2a2a2d641234cfbdcf90bf69b38d92",
+		"machinevolume.go": "6a6a9e58cd5cebb8def27a25722245ed546530a3eb3770bed81bcf8048551e15",
+		"machine.go":       "eb294a8e665cfe7d9e1855afb5edc4b829ca6ab7cbc149ca38f33d915fab22f9",
+	}
+	gotSourceHashes := map[string]string{
+		"server.go":        workspaceServerSHA256,
+		"templates.go":     workspaceTemplateSHA256,
+		"machinevolume.go": workspaceMachineVolumeSHA256,
+		"machine.go":       workspaceMachineSHA256,
+	}
+	for name, want := range wantSourceHashes {
+		if got := gotSourceHashes[name]; got != want {
+			t.Fatalf("pinned LF source hash for %s = %q, want %q", name, got, want)
+		}
+	}
+
 	fingerprint := WorkspaceAssetFingerprint()
 	if len(fingerprint) != 64 {
 		t.Fatalf("fingerprint length = %d, want 64", len(fingerprint))
@@ -16,6 +34,18 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	}
 
 	patchScript := workspacePatchInstallSnippet()
+	for _, required := range []string{
+		`git -C "${REPO_DIR}" reset --hard "${BORING_REVISION}"`,
+		`"${REPO_DIR}/boringd/workspace.go"`,
+		`"${REPO_DIR}/boringd/workspace_network.go"`,
+	} {
+		if !strings.Contains(patchScript, required) {
+			t.Fatalf("patch install script is missing deterministic reset marker %q", required)
+		}
+	}
+	if strings.Contains(patchScript, "git clean") || strings.Contains(patchScript, "apply --reverse --check") {
+		t.Fatal("patch install script must reset only its known files and apply the ordered series afresh")
+	}
 	for _, required := range []string{
 		workspaceServerSHA256,
 		workspaceTemplateSHA256,

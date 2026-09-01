@@ -236,6 +236,11 @@ func TestVirtualComputersAgentProviderUsesConfiguredProviderReference(t *testing
 			t.Fatalf("virtual computer UI must reuse provider Vault credentials, found legacy field %q", forbidden)
 		}
 	}
+	for _, required := range []string{`baseURL === 'https://api.anthropic.com'`, `baseURL === 'https://api.anthropic.com/v1'`} {
+		if !strings.Contains(vcJS, required) {
+			t.Fatalf("legacy agent provider picker must restrict custom Anthropic-compatible endpoints; missing %q", required)
+		}
+	}
 
 	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	keys := []string{

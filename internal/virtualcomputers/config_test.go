@@ -36,7 +36,7 @@ func TestFromAuraConfigRegistersStorageCredentialsAsSensitive(t *testing.T) {
 func TestFromAuraConfigResolvesSelectedAnthropicProvider(t *testing.T) {
 	cfg := &config.Config{
 		Providers: []config.ProviderEntry{{
-			ID: "agent-claude", Type: "anthropic", APIKey: "provider-anthropic-key",
+			ID: "agent-claude", Type: "anthropic", BaseURL: "https://api.anthropic.com/v1", APIKey: "provider-anthropic-key",
 		}},
 	}
 	cfg.VirtualComputers.AllowAgentTasks = true
@@ -66,15 +66,22 @@ func TestFromAuraConfigDoesNotExposeAgentProviderWithoutOptIn(t *testing.T) {
 }
 
 func TestFromAuraConfigRejectsIncompatibleAgentProvider(t *testing.T) {
-	cfg := &config.Config{
-		Providers: []config.ProviderEntry{{ID: "router", Type: "openrouter", APIKey: "router-key"}},
-	}
-	cfg.VirtualComputers.AllowAgentTasks = true
-	cfg.VirtualComputers.AgentProvider = "router"
+	for _, provider := range []config.ProviderEntry{
+		{ID: "router", Type: "openrouter", APIKey: "router-key"},
+		{ID: "kimi", Type: "anthropic", BaseURL: "https://api.kimi.com/coding/v1", APIKey: "kimi-key"},
+		{ID: "oauth", Type: "anthropic", BaseURL: "https://api.anthropic.com/v1", AuthType: "oauth2", APIKey: "oauth-token"},
+		{ID: "userinfo", Type: "anthropic", BaseURL: "https://user@api.anthropic.com/v1", APIKey: "provider-key"},
+	} {
+		t.Run(provider.ID, func(t *testing.T) {
+			cfg := &config.Config{Providers: []config.ProviderEntry{provider}}
+			cfg.VirtualComputers.AllowAgentTasks = true
+			cfg.VirtualComputers.AgentProvider = provider.ID
 
-	got := FromAuraConfig(cfg)
-	if got.BoringAnthropicKey != "" || got.BoringOpenRouterKey != "" {
-		t.Fatalf("incompatible provider credentials exposed: %+v", got)
+			got := FromAuraConfig(cfg)
+			if got.BoringAnthropicKey != "" || got.BoringOpenRouterKey != "" {
+				t.Fatalf("incompatible provider credentials exposed: %+v", got)
+			}
+		})
 	}
 }
 

@@ -925,7 +925,7 @@ func handleVirtualComputersTasks(s *Server) http.HandlerFunc {
 				return
 			}
 			if strings.TrimSpace(cfg.BoringAnthropicKey) == "" {
-				writeVirtualComputersAPIError(w, "provider_unavailable", "select a configured Anthropic provider in Virtual Computers settings and run Install / Repair", http.StatusServiceUnavailable)
+				writeVirtualComputersAPIError(w, "provider_unavailable", "select a configured native Anthropic API provider (api.anthropic.com) in Virtual Computers settings and run Install / Repair", http.StatusServiceUnavailable)
 				return
 			}
 			var req struct {

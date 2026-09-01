@@ -1,11 +1,35 @@
 package virtualcomputers
 
 import (
+	"net/url"
 	"strings"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
 )
+
+// IsNativeAnthropicAgentProvider reports whether boringd's legacy embedded
+// agent can use the provider directly. The pinned upstream agent accepts only
+// an Anthropic API key and always calls Anthropic's own endpoint; custom
+// Anthropic-compatible gateways cannot be represented in its environment.
+func IsNativeAnthropicAgentProvider(provider *config.ProviderEntry) bool {
+	if provider == nil || !strings.EqualFold(strings.TrimSpace(provider.Type), "anthropic") ||
+		strings.EqualFold(strings.TrimSpace(provider.AuthType), "oauth2") {
+		return false
+	}
+	rawBaseURL := strings.TrimSpace(provider.BaseURL)
+	if rawBaseURL == "" {
+		return true
+	}
+	parsed, err := url.Parse(rawBaseURL)
+	if err != nil || !strings.EqualFold(parsed.Scheme, "https") ||
+		!strings.EqualFold(parsed.Hostname(), "api.anthropic.com") || parsed.User != nil ||
+		(parsed.Port() != "" && parsed.Port() != "443") || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return false
+	}
+	path := strings.TrimRight(parsed.EscapedPath(), "/")
+	return path == "" || path == "/v1"
+}
 
 func FromAuraConfig(cfg *config.Config) ToolConfig {
 	if cfg == nil {
@@ -20,9 +44,7 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 			// Preserve installations configured before provider references were added.
 			anthropicKey = vc.BoringAnthropicKey
 			openRouterKey = vc.BoringOpenRouterKey
-		} else if provider := cfg.FindProvider(providerID); provider != nil &&
-			strings.EqualFold(strings.TrimSpace(provider.Type), "anthropic") &&
-			!strings.EqualFold(strings.TrimSpace(provider.AuthType), "oauth2") {
+		} else if provider := cfg.FindProvider(providerID); IsNativeAnthropicAgentProvider(provider) {
 			anthropicKey = provider.APIKey
 		}
 	}

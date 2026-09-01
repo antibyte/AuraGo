@@ -14,10 +14,12 @@ import (
 const (
 	workspacePatchVersion        = "aurago-workspace-patches-v1"
 	workspaceRootfsLayoutVersion = "aurago-workspace-rootfs-v2"
-	workspaceServerSHA256        = "3b24278fc4e82af254942243633e0e40a334e5139589f24481758183cda89a70"
-	workspaceTemplateSHA256      = "846aa08a2f52249b7087609005e5b81dc8f4363aa242ddfa707c3375d43ac2ad"
-	workspaceMachineVolumeSHA256 = "0ca0507644a72ec2aa9a55572179dabea0f082161026a48f0d4d5fd020349335"
-	workspaceMachineSHA256       = "9a8e05a83cdb95b260bfea933483f6b91d05f032ee8063573982a6890e99eaae"
+	// These hashes cover the LF-normalized files stored by Git at the pinned
+	// upstream revision. Do not calculate them from a Windows CRLF checkout.
+	workspaceServerSHA256        = "1119d90cc3932a7beba47592ccdba336b519b91e87a594e01e1f34a0b8badf14"
+	workspaceTemplateSHA256      = "b48d9702ec3ea5b05db5b241af37b07a3e2a2a2d641234cfbdcf90bf69b38d92"
+	workspaceMachineVolumeSHA256 = "6a6a9e58cd5cebb8def27a25722245ed546530a3eb3770bed81bcf8048551e15"
+	workspaceMachineSHA256       = "eb294a8e665cfe7d9e1855afb5edc4b829ca6ab7cbc149ca38f33d915fab22f9"
 )
 
 // The guest sources compile in the AuraGo module for tests. module.txt and
@@ -62,24 +64,22 @@ install -d -m0755 "${PATCH_DIR}"
 		data, _ := workspaceAssets.ReadFile("patches/" + entry.Name())
 		fmt.Fprintf(&script, "printf '%%s' '%s' | base64 -d > \"${PATCH_DIR}/%s\"\n", base64.StdEncoding.EncodeToString(data), entry.Name())
 	}
-	script.WriteString(`PATCH_STATE_FILE="${REPO_DIR}/.aurago-workspace-patches"
-if [ "$(cat "${PATCH_STATE_FILE}" 2>/dev/null || true)" = "${WORKSPACE_ASSET_FINGERPRINT}" ]; then
-  for patch in "${PATCH_DIR}"/*.patch; do
-    git -C "${REPO_DIR}" apply --reverse --check "${patch}"
-  done
-  log "reusing verified AuraGo boringd workspace patches"
-else
-  printf '%s  %s\n' \
+	script.WriteString(`git -C "${REPO_DIR}" reset --hard "${BORING_REVISION}"
+# checkout/reset intentionally preserves untracked files. Remove only files
+# created by this AuraGo patch series before applying it again.
+rm -f \
+  "${REPO_DIR}/boringd/workspace.go" \
+  "${REPO_DIR}/boringd/workspace_network.go" \
+  "${REPO_DIR}/.aurago-workspace-patches"
+printf '%s  %s\n' \
     '` + workspaceServerSHA256 + `' "${REPO_DIR}/boringd/server.go" \
     '` + workspaceTemplateSHA256 + `' "${REPO_DIR}/boringd/templates.go" \
     '` + workspaceMachineVolumeSHA256 + `' "${REPO_DIR}/boringd/machinevolume.go" \
     '` + workspaceMachineSHA256 + `' "${REPO_DIR}/boringd/machine.go" | sha256sum -c -
-  for patch in "${PATCH_DIR}"/*.patch; do
-    git -C "${REPO_DIR}" apply --check "${patch}"
-    git -C "${REPO_DIR}" apply "${patch}"
-  done
-  printf '%s\n' "${WORKSPACE_ASSET_FINGERPRINT}" > "${PATCH_STATE_FILE}"
-fi
+for patch in "${PATCH_DIR}"/*.patch; do
+  git -C "${REPO_DIR}" apply --check "${patch}"
+  git -C "${REPO_DIR}" apply "${patch}"
+done
 `)
 	return script.String()
 }
