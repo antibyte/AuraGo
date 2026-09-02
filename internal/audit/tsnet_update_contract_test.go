@@ -646,7 +646,6 @@ func TestUpdaterGitFailuresAfterShutdownUseRollback(t *testing.T) {
 		`abort_update "Update aborted safely because conflicting local and remote edits require review."`,
 		`abort_update "Update aborted safely; local commits were not discarded."`,
 		`abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."`,
-		`abort_update "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL."`,
 		`abort_update "Could not restore config.yaml (permission denied)."`,
 		"restore_untracked_merge_collisions_after_failure",
 	} {

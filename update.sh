@@ -1562,10 +1562,9 @@ else
             fi
         fi
 
-        if ! git_fetch_origin_main; then
-            abort_update "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL."
-        fi
-
+        # Integrate the origin/main state already fetched and shown in the
+        # changelog. Refetching after shutdown can fail independently and
+        # must not leave a reviewed update dependent on a second network call.
         if ! integrate_origin_main; then
             case "$GIT_INTEGRATION_ERROR" in
                 merge_conflict)

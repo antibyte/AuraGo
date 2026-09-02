@@ -424,7 +424,7 @@ func TestUpdateScriptHelperOrderAndVersionTiming(t *testing.T) {
 	}
 }
 
-func TestUpdateScriptGitFetchIsNonInteractive(t *testing.T) {
+func TestUpdateScriptGitFetchIsNonInteractiveAndBeforeShutdown(t *testing.T) {
 	t.Parallel()
 
 	updateScript := readRepoFile(t, "update.sh")
@@ -439,11 +439,16 @@ func TestUpdateScriptGitFetchIsNonInteractive(t *testing.T) {
 			t.Fatalf("update.sh must fetch without interactive Git authentication; missing %q", required)
 		}
 	}
-	if got := strings.Count(updateScript, "git_fetch_origin_main"); got != 3 {
-		t.Fatalf("update.sh must define the non-interactive fetch helper and use it at both fetch sites; got %d references", got)
+	if got := strings.Count(updateScript, "git_fetch_origin_main"); got != 2 {
+		t.Fatalf("update.sh must define the non-interactive fetch helper and call it once before shutdown; got %d references", got)
 	}
 	if strings.Contains(updateScript, "\n    git fetch origin main --quiet") {
 		t.Fatal("update.sh must not invoke the initial Git fetch directly")
+	}
+	fetch := strings.Index(updateScript, "if ! git_fetch_origin_main; then")
+	shutdown := strings.Index(updateScript, `section "Stopping running instances"`)
+	if fetch < 0 || shutdown < 0 || fetch > shutdown {
+		t.Fatal("update.sh must complete its only remote fetch before stopping AuraGo")
 	}
 }
 
