@@ -214,8 +214,8 @@
   "setup.local_llm_probing": "Vérification du matériel et de Docker sans modification…",
   "setup.local_llm_probe_result": "Compatibilité : {compatibility} ; backend : {backend}.",
   "setup.local_llm_probe_error": "Échec de la vérification de compatibilité",
-  "setup.local_llm_job_running": "AuraGo-Qwen est installé après l’enregistrement du fournisseur normal.",
-  "setup.local_llm_job_complete": "AuraGo-Qwen a réussi les tests et le rôle choisi est actif.",
-  "setup.local_llm_job_failed": "Échec de l’installation d’AuraGo-Qwen ; le fournisseur normal reste principal",
-  "setup.local_llm_job_progress": "Installation d’AuraGo-Qwen : {progress} %"
+  "setup.local_llm_job_running": "{model} est installé après l’enregistrement du fournisseur normal.",
+  "setup.local_llm_job_complete": "{model} a réussi les tests et le rôle choisi est actif.",
+  "setup.local_llm_job_failed": "Échec de l’installation d’{model} ; le fournisseur normal reste principal",
+  "setup.local_llm_job_progress": "Installation d’{model} : {progress} %"
 }

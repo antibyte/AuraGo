@@ -126,12 +126,13 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 	if draft != nil {
 		draftSHA256 = draft.SHA256
 	}
-	perf := performanceProfileFor(profile)
+	perf := performanceProfileFor(profile, cfg)
 	env := []string{
 		"AURAGO_MODEL=/models/" + model.Name,
 		"AURAGO_HOST=0.0.0.0",
 		"AURAGO_PORT=8080",
-		"AURAGO_ALIAS=aurago-qwen",
+		"AURAGO_ALIAS=" + cfg.ModelAlias(),
+		"AURAGO_MODEL_FAMILY=" + cfg.Family(),
 		"AURAGO_BACKEND=" + profile.SelectedBackend,
 		"AURAGO_API_KEY_FILE=/run/aurago-local-llm/api-key",
 		"AURAGO_FIT=off",

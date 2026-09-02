@@ -49,7 +49,7 @@ func withDownloadClient(client *http.Client) Option {
 	return func(options *managerOptions) { options.httpClient = client }
 }
 
-// Manager owns AuraGo-Qwen artifacts, the hardened sidecar, and request/idle lifetime.
+// Manager owns local model artifacts, the hardened sidecar, and request/idle lifetime.
 type Manager struct {
 	mu        sync.Mutex
 	cond      *sync.Cond
@@ -156,7 +156,7 @@ func NewManager(cfg *config.Config, secrets vault, logger *slog.Logger, options 
 	manager.cond = sync.NewCond(&manager.mu)
 	manager.status = Status{
 		State: "disabled", ContextSize: localCfg.ContextSize,
-		ReleaseManifestReady: opts.manifest.ReleaseReady,
+		ReleaseManifestReady: manager.manifestFor(localCfg).ReleaseReady,
 		PromptCache:          PromptCacheStatus{State: "disabled"},
 	}
 	manager.cleanupRuntimeKey()
@@ -423,8 +423,8 @@ func (m *Manager) Probe(ctx context.Context) HardwareProfile {
 	ctx, cancel := operationContext(ctx, desiredCtx)
 	defer cancel()
 	dockerOnline, nvidiaToolkit := m.probeDocker(ctx)
-	profile := m.probeHardwareForBackend(ctx, cfg.Backend, dockerOnline, nvidiaToolkit)
-	profile = m.applyManifestCompatibility(profile)
+	profile := m.probeHardwareForBackend(ctx, cfg.Backend, dockerOnline, nvidiaToolkit, cfg)
+	profile = m.applyManifestCompatibility(profile, cfg)
 	fingerprint := m.computeDesiredFingerprint(cfg, profile)
 	m.mu.Lock()
 	if generation != m.generation {
@@ -440,11 +440,11 @@ func (m *Manager) Probe(ctx context.Context) HardwareProfile {
 	m.status.Warnings = append([]string(nil), profile.Warnings...)
 	m.status.Backend = profile.SelectedBackend
 	m.status.PhysicalDevice = profile.SelectedDevice
-	m.status.ResolvedProfile = m.manifest.profileFor(profile)
+	m.status.ResolvedProfile = m.manifestFor(cfg).profileFor(profile)
 	m.status.HardwareFingerprint = profile.Fingerprint
 	m.status.AcknowledgementDue = profile.AcknowledgementDue && !m.acknowledged(profile.Fingerprint)
 	m.status.DesiredFingerprint = fingerprint
-	perf := performanceProfileFor(profile)
+	perf := performanceProfileFor(profile, cfg)
 	m.status.PerformanceProfile = perf.Name
 	m.status.PromptCache.CacheRAMMiB = perf.CacheRAMMiB
 	m.status.PromptCache.CheckpointProfile = "32x2048"
@@ -457,7 +457,7 @@ func (m *Manager) Probe(ctx context.Context) HardwareProfile {
 	if !cfg.Enabled {
 		m.status.State = "disabled"
 		m.status.PromptCache.State = "disabled"
-	} else if !m.manifest.ReleaseReady {
+	} else if !m.manifestFor(cfg).ReleaseReady {
 		m.setErrorLocked("release_artifacts_unavailable")
 	} else if profile.Compatibility == "unsupported" {
 		m.setErrorLocked("hardware_unsupported")
@@ -471,22 +471,31 @@ func (m *Manager) Probe(ctx context.Context) HardwareProfile {
 
 // ProbeBackend performs the same passive probe for a not-yet-saved setup
 // backend without publishing or mutating the manager's desired state.
-func (m *Manager) ProbeBackend(ctx context.Context, backend string) HardwareProfile {
+func (m *Manager) ProbeBackend(ctx context.Context, backend string, families ...string) HardwareProfile {
+	cfg := config.LocalLLMConfig{}
+	if len(families) > 0 {
+		cfg.ModelFamily = families[0]
+	}
 	dockerOnline, nvidiaToolkit := m.probeDocker(ctx)
-	return m.applyManifestCompatibility(m.probeHardwareForBackend(ctx, backend, dockerOnline, nvidiaToolkit))
+	return m.applyManifestCompatibility(m.probeHardwareForBackend(ctx, backend, dockerOnline, nvidiaToolkit, cfg), cfg)
 }
 
-func (m *Manager) probeHardwareForBackend(ctx context.Context, backend string, dockerOnline, nvidiaToolkit bool) HardwareProfile {
+func (m *Manager) probeHardwareForBackend(ctx context.Context, backend string, dockerOnline, nvidiaToolkit bool, configs ...config.LocalLLMConfig) HardwareProfile {
+	cfg := config.LocalLLMConfig{}
+	if len(configs) > 0 {
+		cfg = configs[0]
+	}
+	manifest := m.manifestFor(cfg)
 	if !strings.EqualFold(strings.TrimSpace(backend), "auto") && strings.TrimSpace(backend) != "" {
 		return probeHardware(ctx, backend, dockerOnline, nvidiaToolkit)
 	}
 	allowed := make(map[string]bool)
-	if m.manifest.ReleaseReady {
-		for name, image := range m.manifest.Images {
+	if manifest.ReleaseReady {
+		for name, image := range manifest.Images {
 			if !image.Supported {
 				continue
 			}
-			for _, profile := range m.manifest.HardwareProfiles {
+			for _, profile := range manifest.HardwareProfiles {
 				if profile.Backend == name && profile.Status == "validated-linux" {
 					allowed[name] = true
 					break
@@ -501,12 +510,17 @@ func (m *Manager) probeHardwareForBackend(ctx context.Context, backend string, d
 	return profile
 }
 
-func (m *Manager) applyManifestCompatibility(profile HardwareProfile) HardwareProfile {
+func (m *Manager) applyManifestCompatibility(profile HardwareProfile, configs ...config.LocalLLMConfig) HardwareProfile {
+	cfg := config.LocalLLMConfig{}
+	if len(configs) > 0 {
+		cfg = configs[0]
+	}
+	manifest := m.manifestFor(cfg)
 	if profile.Compatibility == "unsupported" || profile.SelectedBackend == "cpu" {
 		return profile
 	}
-	image, supported := m.manifest.Images[profile.SelectedBackend]
-	resolved := m.manifest.profileFor(profile)
+	image, supported := manifest.Images[profile.SelectedBackend]
+	resolved := m.manifestFor(cfg).profileFor(profile)
 	validated := strings.HasSuffix(resolved, ":validated-linux")
 	gpu, gpuErr := profile.selectedGPU()
 	recommended := profile.DockerAvailable && supported && image.Supported && validated && gpuErr == nil &&
@@ -572,7 +586,7 @@ func (m *Manager) AcknowledgeSavedHardware(ctx context.Context, fingerprint stri
 	ctx, cancel := operationContext(ctx, desiredCtx)
 	defer cancel()
 	dockerOnline, nvidiaToolkit := m.probeDocker(ctx)
-	profile := m.applyManifestCompatibility(m.probeHardwareForBackend(ctx, cfg.Backend, dockerOnline, nvidiaToolkit))
+	profile := m.applyManifestCompatibility(m.probeHardwareForBackend(ctx, cfg.Backend, dockerOnline, nvidiaToolkit, cfg), cfg)
 	if fingerprint == "" || profile.Fingerprint != fingerprint {
 		return fmt.Errorf("hardware_fingerprint_changed")
 	}
@@ -641,15 +655,15 @@ func (m *Manager) Install(ctx context.Context) error {
 }
 
 func (m *Manager) install(parent context.Context) error {
-	if err := m.manifest.validate(); err != nil {
-		return m.fail(errorCode(err), err)
-	}
 	cfg, generation, desiredCtx, err := m.desiredSnapshot()
 	if err != nil {
 		return m.fail(errorCode(err), err)
 	}
 	ctx, cancel := operationContext(parent, desiredCtx)
 	defer cancel()
+	if err := m.manifestFor(cfg).validate(); err != nil {
+		return m.fail(errorCode(err), err)
+	}
 	plan, err := m.resolveRuntimePlan(ctx, cfg, generation)
 	if err != nil {
 		return m.failGeneration(generation, errorCode(err), err)
@@ -855,7 +869,7 @@ func (m *Manager) startWithPlan(ctx context.Context, plan runtimePlan) error {
 }
 
 func (m *Manager) startPlan(parent context.Context, plan runtimePlan) error {
-	if err := m.manifest.validate(); err != nil {
+	if err := m.manifestFor(plan.Config).validate(); err != nil {
 		return &UnavailableError{Code: errorCode(err), Err: err}
 	}
 	if !plan.Config.Enabled {
@@ -1057,7 +1071,7 @@ func (m *Manager) smokeTestPlan(ctx context.Context, plan runtimePlan) error {
 		return err
 	}
 	request := map[string]any{
-		"model":    config.LocalLLMModelAlias,
+		"model":    plan.Config.ModelAlias(),
 		"messages": []map[string]string{{"role": "user", "content": "Call report_status with status ok."}},
 		"tools": []map[string]any{{
 			"type": "function",
@@ -1111,6 +1125,10 @@ func (m *Manager) smokeTestPlan(ctx context.Context, plan runtimePlan) error {
 }
 
 type startupManifest struct {
+	VulkanDisableF16      string   `json:"vulkan_disable_f16"`
+	PrefillBatchSize      int      `json:"prefill_batch_size"`
+	PrefillUBatchSize     int      `json:"prefill_ubatch_size"`
+	KVFlashTokens         int      `json:"kvflash_tokens"`
 	GPUOffload            bool     `json:"gpu_offload"`
 	KVOffload             bool     `json:"kv_offload"`
 	MemoryProfileVerified bool     `json:"memory_profile_verified"`
@@ -1178,9 +1196,25 @@ func validateStartupManifest(plan runtimePlan, startup startupManifest) error {
 		expectedDraft = plan.Draft.SHA256
 	}
 	expectedDigest := plan.Image.Reference[strings.LastIndex(plan.Image.Reference, "@sha256:")+1:]
-	perf := performanceProfileFor(plan.Profile)
+	perf := performanceProfileFor(plan.Profile, plan.Config)
+	if plan.Config.Family() == "ling" {
+		vulkanDisableF16 := ""
+		if perf.Name == "ling-vulkan-b580-full-context-v1" {
+			vulkanDisableF16 = "1"
+		}
+		if startup.VulkanDisableF16 != vulkanDisableF16 {
+			return fmt.Errorf("startup_manifest_performance_mismatch")
+		}
+		prefill := 0
+		if plan.Profile.SelectedBackend == "cuda" {
+			prefill = 2048
+		}
+		if startup.PrefillBatchSize != prefill || startup.PrefillUBatchSize != prefill || startup.KVFlashTokens != 0 {
+			return fmt.Errorf("startup_manifest_performance_mismatch")
+		}
+	}
 	if startup.ImageDigest != expectedDigest ||
-		startup.LlamaCPPCommit != LlamaCPPCommit ||
+		startup.LlamaCPPCommit != engineCommit(plan.Config) ||
 		startup.TargetSHA256 != plan.Model.SHA256 ||
 		startup.DraftSHA256 != expectedDraft ||
 		startup.PhysicalDevice != plan.Profile.SelectedDevice ||
@@ -1356,6 +1390,9 @@ func (m *Manager) benchmark(ctx context.Context) (MTPDecision, error) {
 	default:
 		return MTPDecision{}, fmt.Errorf("invalid_mtp_mode")
 	}
+	if cfg.Family() == "ling" {
+		return decision, nil // Ling keeps its full 16K profile during this benchmark.
+	}
 	if err := m.verify32KCapability(ctx, plan); err != nil {
 		return decision, err
 	}
@@ -1423,7 +1460,7 @@ func (m *Manager) benchmarkMTPAuto(ctx context.Context, plan runtimePlan) (MTPDe
 		selectedSamples = speculative
 	}
 	decision.Runtime = &RuntimeBenchmark{
-		PerformanceProfile: performanceProfileFor(plan.Profile).Name,
+		PerformanceProfile: performanceProfileFor(plan.Profile, plan.Config).Name,
 		ContextSize:        benchmarkPlan.Config.ContextSize,
 		GenerationTPS:      median(selectedSamples, func(v BenchmarkSample) float64 { return v.GenerationTokensS }),
 		TTFTMilliseconds:   median(selectedSamples, func(v BenchmarkSample) float64 { return v.TTFTMilliseconds }),
@@ -1541,7 +1578,7 @@ func (m *Manager) benchmarkSample(ctx context.Context, cfg config.LocalLLMConfig
 		return BenchmarkSample{}, err
 	}
 	request := map[string]any{
-		"model": config.LocalLLMModelAlias,
+		"model": cfg.ModelAlias(),
 		"messages": []map[string]string{{
 			"role": "user",
 			"content": strings.Repeat("Use the report_status tool after checking this fixed test context. ", 180) +
@@ -1820,6 +1857,11 @@ func (m *Manager) Status() Status {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	status := m.status
+	status.ModelFamily = m.cfg.Family()
+	status.ModelAlias = m.cfg.ModelAlias()
+	status.ModelName = m.cfg.ModelName()
+	status.EngineCommit = engineCommit(m.cfg)
+	status.ReleaseManifestReady = m.manifestFor(m.cfg).ReleaseReady
 	status.Warnings = append([]string(nil), status.Warnings...)
 	status.ResolvedParameters = append([]string(nil), status.ResolvedParameters...)
 	status.ActiveRequests = m.activeRequests
@@ -1834,16 +1876,20 @@ func (m *Manager) selectedArtifacts() (Artifact, *Artifact, error) {
 }
 
 func (m *Manager) selectedArtifactsFor(cfg config.LocalLLMConfig) (Artifact, *Artifact, error) {
+	manifest := m.manifestFor(cfg)
+	if cfg.Family() == "ling" && (cfg.MTP != "off" || cfg.ModelVariant != "q4_k_l") {
+		return Artifact{}, nil, fmt.Errorf("model_variant_unavailable")
+	}
 	suffix := cfg.ModelVariant
 	if cfg.MTP == "off" {
-		artifact, ok := m.manifest.Artifacts["normal_"+suffix]
+		artifact, ok := manifest.Artifacts["normal_"+suffix]
 		if !ok {
 			return Artifact{}, nil, fmt.Errorf("model_variant_unavailable")
 		}
 		return artifact, nil, nil
 	}
-	target, targetOK := m.manifest.Artifacts["mtp_target_"+suffix]
-	sidecar, sidecarOK := m.manifest.Artifacts["mtp_sidecar_"+suffix]
+	target, targetOK := manifest.Artifacts["mtp_target_"+suffix]
+	sidecar, sidecarOK := manifest.Artifacts["mtp_sidecar_"+suffix]
 	if !targetOK || !sidecarOK {
 		return Artifact{}, nil, fmt.Errorf("mtp_pair_unavailable")
 	}
@@ -1852,8 +1898,9 @@ func (m *Manager) selectedArtifactsFor(cfg config.LocalLLMConfig) (Artifact, *Ar
 }
 
 func (m *Manager) resolveRuntimePlan(ctx context.Context, cfg config.LocalLLMConfig, generation uint64) (runtimePlan, error) {
+	manifest := m.manifestFor(cfg)
 	dockerOnline, nvidiaToolkit := m.probeDocker(ctx)
-	profile := m.applyManifestCompatibility(m.probeHardwareForBackend(ctx, cfg.Backend, dockerOnline, nvidiaToolkit))
+	profile := m.applyManifestCompatibility(m.probeHardwareForBackend(ctx, cfg.Backend, dockerOnline, nvidiaToolkit, cfg), cfg)
 	fingerprint := m.computeDesiredFingerprint(cfg, profile)
 	model, downloadDraft, err := m.selectedArtifactsFor(cfg)
 	if err != nil {
@@ -1865,7 +1912,7 @@ func (m *Manager) resolveRuntimePlan(ctx context.Context, cfg config.LocalLLMCon
 		// device is mounted and startup attestation must report actual_device=cpu.
 		imageBackend = "vulkan"
 	}
-	image, ok := m.manifest.Images[imageBackend]
+	image, ok := manifest.Images[imageBackend]
 	if !ok {
 		return runtimePlan{}, fmt.Errorf("backend_not_supported")
 	}
@@ -1901,11 +1948,11 @@ func (m *Manager) resolveRuntimePlan(ctx context.Context, cfg config.LocalLLMCon
 	m.status.Warnings = append([]string(nil), profile.Warnings...)
 	m.status.Backend = profile.SelectedBackend
 	m.status.PhysicalDevice = profile.SelectedDevice
-	m.status.ResolvedProfile = m.manifest.profileFor(profile)
+	m.status.ResolvedProfile = m.manifestFor(cfg).profileFor(profile)
 	m.status.HardwareFingerprint = profile.Fingerprint
 	m.status.AcknowledgementDue = profile.AcknowledgementDue && !m.acknowledged(profile.Fingerprint)
 	m.status.ContextSize = cfg.ContextSize
-	perf := performanceProfileFor(profile)
+	perf := performanceProfileFor(profile, cfg)
 	m.status.PerformanceProfile = perf.Name
 	m.status.PromptCache.CacheRAMMiB = perf.CacheRAMMiB
 	m.status.PromptCache.CheckpointProfile = "32x2048"
@@ -2083,7 +2130,7 @@ func (m *Manager) computeDesiredFingerprint(cfg config.LocalLLMConfig, profile H
 		Profile     string
 		Performance runtimePerformanceProfile
 		Manifest    Manifest
-	}{cfg, profile.Fingerprint, performanceProfileFor(profile), m.manifest})
+	}{cfg, profile.Fingerprint, performanceProfileFor(profile, cfg), m.manifestFor(cfg)})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
 }
@@ -2208,7 +2255,7 @@ func recommendation(code string) string {
 	case "experimental_hardware_acknowledgement_required":
 		return "Review and acknowledge that iGPU or CPU performance may be unsatisfactory."
 	case "model_not_installed", "draft_not_installed":
-		return "Run the explicit install action before selecting AuraGo-Qwen for chat routing."
+		return "Run the explicit install action before selecting the managed local model for chat routing."
 	case "gpu_offload_not_verified":
 		return "Select a supported GPU backend and verify device access, VRAM, and container runtime support."
 	case "listen_port_unavailable":
@@ -2220,7 +2267,7 @@ func recommendation(code string) string {
 
 func resolvedParameters(cfg config.LocalLLMConfig, mtp bool) []string {
 	values := []string{
-		"--alias=aurago-qwen",
+		"--alias=" + cfg.ModelAlias(),
 		"--fit=off",
 		"--kv-offload=on",
 		"--reasoning=off",

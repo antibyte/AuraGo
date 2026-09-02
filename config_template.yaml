@@ -441,7 +441,8 @@ fallback_llm:
 local_llm:
     enabled: false
     backend: auto                  # auto, cuda, sycl, vulkan, cpu (CPU is never automatic)
-    model_variant: q4_k_m          # q4_k_m, q8_0
+    model_family: qwen             # qwen or ling; one managed model at a time
+    model_variant: q4_k_m          # Qwen: q4_k_m, q8_0; Ling: q4_k_l
     mtp: off                       # off, auto, mtp2
     context_size: 16384            # 16384 or 32768; 32K requires sufficient GPU memory
     idle_timeout_minutes: 15       # 1-1440

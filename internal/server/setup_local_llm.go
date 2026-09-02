@@ -188,14 +188,19 @@ func handleSetupLocalLLMProbe(s *Server) http.HandlerFunc {
 			return
 		}
 		var request struct {
-			Backend string `json:"backend"`
+			Backend     string `json:"backend"`
+			ModelFamily string `json:"model_family"`
 		}
 		if err := decodeLocalLLMBody(w, r, &request); err != nil {
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
-		profile := s.LocalLLM.ProbeBackend(ctx, request.Backend)
+		if request.ModelFamily != "" && request.ModelFamily != "qwen" && request.ModelFamily != "ling" {
+			jsonError(w, "Invalid local model family", http.StatusBadRequest)
+			return
+		}
+		profile := s.LocalLLM.ProbeBackend(ctx, request.Backend, request.ModelFamily)
 		writeLocalLLMJSON(w, http.StatusOK, map[string]any{
 			"compatibility":            profile.Compatibility,
 			"backend":                  profile.SelectedBackend,

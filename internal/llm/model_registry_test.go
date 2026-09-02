@@ -280,16 +280,18 @@ func TestResolveProviderCapabilitiesUsesLegacyFallbackForUnknownModel(t *testing
 
 func TestResolveManagedLocalProviderCapabilitiesAreImmutable(t *testing.T) {
 	manual := false
-	caps := ResolveProviderCapabilities(config.ProviderEntry{
-		ID: config.LocalLLMProviderID, Type: "aurago-local", Model: config.LocalLLMModelAlias,
-		Capabilities: config.ProviderCapabilities{
-			Auto:              &manual,
-			ToolCalling:       false,
-			StructuredOutputs: true,
-			Multimodal:        true,
-		},
-	}, CapabilityFallback{StructuredOutputs: true, Multimodal: true})
-	if !caps.Known || !caps.ToolCalling || caps.StructuredOutputs || caps.Multimodal || caps.Reasoning {
-		t.Fatalf("managed local capabilities = %#v", caps)
+	for _, model := range []string{config.LocalLLMModelAlias, "aurago-ling"} {
+		caps := ResolveProviderCapabilities(config.ProviderEntry{
+			ID: config.LocalLLMProviderID, Type: "aurago-local", Model: model,
+			Capabilities: config.ProviderCapabilities{
+				Auto:              &manual,
+				ToolCalling:       false,
+				StructuredOutputs: true,
+				Multimodal:        true,
+			},
+		}, CapabilityFallback{StructuredOutputs: true, Multimodal: true})
+		if !caps.Known || !caps.ToolCalling || caps.StructuredOutputs || caps.Multimodal || caps.Reasoning || caps.DetectedModel != model {
+			t.Fatalf("managed local capabilities = %#v", caps)
+		}
 	}
 }

@@ -214,8 +214,8 @@
   "setup.local_llm_probing": "बिना बदलाव हार्डवेयर और Docker जाँचा जा रहा है…",
   "setup.local_llm_probe_result": "अनुकूलता: {compatibility}; बैकएंड: {backend}।",
   "setup.local_llm_probe_error": "अनुकूलता जाँच विफल",
-  "setup.local_llm_job_running": "सामान्य प्रदाता सहेजने के बाद AuraGo-Qwen स्थापित किया जा रहा है।",
-  "setup.local_llm_job_complete": "AuraGo-Qwen ने जाँच पूरी की और चुनी हुई भूमिका सक्रिय है।",
-  "setup.local_llm_job_failed": "AuraGo-Qwen स्थापना विफल; सामान्य प्रदाता मुख्य बना रहेगा",
-  "setup.local_llm_job_progress": "AuraGo-Qwen स्थापना: {progress}%"
+  "setup.local_llm_job_running": "सामान्य प्रदाता सहेजने के बाद {model} स्थापित किया जा रहा है।",
+  "setup.local_llm_job_complete": "{model} ने जाँच पूरी की और चुनी हुई भूमिका सक्रिय है।",
+  "setup.local_llm_job_failed": "{model} स्थापना विफल; सामान्य प्रदाता मुख्य बना रहेगा",
+  "setup.local_llm_job_progress": "{model} स्थापना: {progress}%"
 }

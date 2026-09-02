@@ -1,4 +1,4 @@
-// cfg/local_llm.js — AuraGo-Qwen managed local test/fallback model
+// cfg/local_llm.js — Managed local test/fallback models
 
 let _localLLMSection = null;
 let _localLLMStatus = null;
@@ -8,8 +8,9 @@ let _localLLMInstallPending = false;
 function localLLMEnsureData() {
     if (!configData.local_llm) configData.local_llm = {};
     const data = configData.local_llm;
+    if (!data.model_family) data.model_family = 'qwen';
     if (!data.backend) data.backend = 'auto';
-    if (!data.model_variant) data.model_variant = 'q4_k_m';
+    if (!data.model_variant) data.model_variant = data.model_family === 'ling' ? 'q4_k_l' : 'q4_k_m';
     if (!data.mtp) data.mtp = 'off';
     if (!data.context_size || Number(data.context_size) === 2048 || Number(data.context_size) === 8192) {
         data.context_size = 16384;
@@ -23,6 +24,7 @@ function renderLocalLLMSection(section) {
     if (section) _localLLMSection = section;
     section = section || _localLLMSection;
     const data = localLLMEnsureData();
+    const ling = data.model_family === 'ling';
     const status = _localLLMStatus || {};
     const providers = (configData.providers || []).filter(provider => provider && provider.id && provider.id !== 'aurago-qwen-local');
     const displayedRole = data.enabled === false ? 'test_only' : (status.role || 'test_only');
@@ -33,24 +35,27 @@ function renderLocalLLMSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-warning"><strong>' + t('config.local_llm.purpose_title') + '</strong><br>' + t('config.local_llm.purpose') + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.local_llm.hardware') + '</div>';
-    html += '<div class="cfg-note-banner">' + t('config.local_llm.quality') + '</div>';
+    html += '<div class="cfg-note-banner">' + t(ling ? 'config.local_llm.ling_quality' : 'config.local_llm.quality') + '</div>';
 
     html += localLLMEnabledToggle(data.enabled === true, 'config.local_llm.enabled');
+    html += localLLMSelect('local_llm.model_family', data.model_family, 'config.local_llm.model_family', [
+        ['qwen', 'AuraGo-Qwen'], ['ling', 'AuraGo-Ling']
+    ]);
     html += localLLMSelect('local_llm.backend', data.backend, 'config.local_llm.backend', [
         ['auto', t('config.local_llm.backend_auto')], ['cuda', 'CUDA'], ['sycl', 'SYCL / Intel Arc'],
         ['vulkan', 'Vulkan'], ['cpu', 'CPU (' + t('config.local_llm.experimental') + ')']
     ]);
-    html += localLLMSelect('local_llm.model_variant', data.model_variant, 'config.local_llm.model_variant', [
+    html += localLLMSelect('local_llm.model_variant', data.model_variant, 'config.local_llm.model_variant', ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [
         ['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']
     ]);
-    html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', [
+    html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', ling ? [['16384', '16K']] : [
         ['16384', '16K'], ['32768', '32K']
     ], 'number');
-    html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', [
+    html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', ling ? [['off', t('config.local_llm.mtp_off')]] : [
         ['off', t('config.local_llm.mtp_off')], ['auto', t('config.local_llm.mtp_auto')],
         ['mtp2', 'MTP-2 (' + t('config.local_llm.experimental') + ')']
     ]);
-    html += '<div class="field-help">' + t('config.local_llm.mtp_storage_note') + '</div>';
+    if (!ling) html += '<div class="field-help">' + t('config.local_llm.mtp_storage_note') + '</div>';
     html += localLLMNumber('local_llm.idle_timeout_minutes', data.idle_timeout_minutes, 'config.local_llm.idle_timeout', 1, 1440);
     if (typeof isDockerRuntime !== 'function' || !isDockerRuntime()) {
         html += localLLMNumber('local_llm.listen_port', data.listen_port, 'config.local_llm.listen_port', 1, 65535);
@@ -90,9 +95,19 @@ function renderLocalLLMSection(section) {
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    document.querySelector('[data-path="local_llm.model_family"]').addEventListener('change', event => localLLMChangeFamily(event.target.value));
     localLLMRenderRoutingPreview();
     localLLMUpdateSavedActionState();
     localLLMRefreshStatus();
+}
+
+function localLLMChangeFamily(family) {
+    if (family !== 'qwen' && family !== 'ling') return;
+    localLLMSetDraftValue('local_llm.model_family', family);
+    localLLMSetDraftValue('local_llm.model_variant', family === 'ling' ? 'q4_k_l' : 'q4_k_m');
+    localLLMSetDraftValue('local_llm.mtp', 'off');
+    if (family === 'ling') localLLMSetDraftValue('local_llm.context_size', 16384);
+    renderLocalLLMSection(null);
 }
 
 function localLLMEnabledToggle(checked, labelKey) {
@@ -185,7 +200,7 @@ function localLLMToggle(path, checked, labelKey) {
 
 function localLLMSelect(path, value, labelKey, options, dataType) {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><select class="field-select" data-path="' +
-        escapeAttr(path) + '"' + (dataType ? ' data-type="' + escapeAttr(dataType) + '"' : '') + '>' +
+        escapeAttr(path) + '" aria-label="' + escapeAttr(t(labelKey)) + '"' + (dataType ? ' data-type="' + escapeAttr(dataType) + '"' : '') + '>' +
         options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
         (String(value) === String(option[0]) ? ' selected' : '') + (option[2] ? ' disabled' : '') + '>' +
         escapeHtml(option[1]) + '</option>').join('') +
@@ -231,6 +246,7 @@ function localLLMStatusText(status) {
         .replace('{state}', state)
         .replace('{compatibility}', compatibility)
         .replace('{backend}', status.backend || '—');
+    if (status.model_name) text = escapeHtml(status.model_name) + ' · ' + text;
     if (status.error_code) text += ' · ' + t('config.local_llm.error_prefix') + ': ' + status.error_code;
     if (status.resolved_profile) text += ' · ' + t('config.local_llm.resolved_profile') + ': ' + status.resolved_profile;
     if (status.active_requests) text += ' · ' + t('config.local_llm.active_requests') + ': ' + status.active_requests;

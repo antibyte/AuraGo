@@ -28,6 +28,9 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"['16384', '16K']",
 		"['32768', '32K']",
 		"localLLMLocalizedRuntimeValue",
+		"escapeHtml(status.model_name)",
+		"local_llm.model_family",
+		"config.local_llm.ling_quality",
 		"cache.qualified",
 		"cache.decision_persisted",
 		"localLLMCacheErrorText",
@@ -76,6 +79,8 @@ func TestLocalLLMSetupIsOptionalAndInstallRunsAfterSetupSave(t *testing.T) {
 		`data-i18n="config.local_llm.hardware"`,
 		`data-i18n="config.local_llm.quality"`,
 		`id="setup-local-llm-ack"`,
+		`id="setup-local-llm-family"`,
+		`data-i18n="config.local_llm.ling_quality"`,
 	} {
 		if !strings.Contains(html, required) {
 			t.Fatalf("setup Local LLM step missing %q", required)

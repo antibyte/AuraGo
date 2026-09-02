@@ -214,8 +214,8 @@
   "setup.local_llm_probing": "Kontrollerer maskinvare og Docker uten endringer…",
   "setup.local_llm_probe_result": "Kompatibilitet: {compatibility}; backend: {backend}.",
   "setup.local_llm_probe_error": "Kompatibilitetskontrollen mislyktes",
-  "setup.local_llm_job_running": "AuraGo-Qwen installeres etter at vanlig leverandør er lagret.",
-  "setup.local_llm_job_complete": "AuraGo-Qwen bestod testene, og valgt rolle er aktiv.",
-  "setup.local_llm_job_failed": "Installasjon av AuraGo-Qwen mislyktes; vanlig leverandør forblir primær",
-  "setup.local_llm_job_progress": "Installasjon av AuraGo-Qwen: {progress}%"
+  "setup.local_llm_job_running": "{model} installeres etter at vanlig leverandør er lagret.",
+  "setup.local_llm_job_complete": "{model} bestod testene, og valgt rolle er aktiv.",
+  "setup.local_llm_job_failed": "Installasjon av {model} mislyktes; vanlig leverandør forblir primær",
+  "setup.local_llm_job_progress": "Installasjon av {model}: {progress}%"
 }

@@ -214,8 +214,8 @@
   "setup.local_llm_probing": "Kontrola hardwaru a Dockeru bez změn…",
   "setup.local_llm_probe_result": "Kompatibilita: {compatibility}; backend: {backend}.",
   "setup.local_llm_probe_error": "Kontrola kompatibility selhala",
-  "setup.local_llm_job_running": "AuraGo-Qwen se instaluje po uložení běžného poskytovatele.",
-  "setup.local_llm_job_complete": "AuraGo-Qwen prošel testy a zvolená role je aktivní.",
-  "setup.local_llm_job_failed": "Instalace AuraGo-Qwen selhala; běžný poskytovatel zůstává hlavní",
-  "setup.local_llm_job_progress": "Instalace AuraGo-Qwen: {progress}%"
+  "setup.local_llm_job_running": "{model} se instaluje po uložení běžného poskytovatele.",
+  "setup.local_llm_job_complete": "{model} prošel testy a zvolená role je aktivní.",
+  "setup.local_llm_job_failed": "Instalace {model} selhala; běžný poskytovatel zůstává hlavní",
+  "setup.local_llm_job_progress": "Instalace {model}: {progress}%"
 }

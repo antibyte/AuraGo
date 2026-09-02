@@ -84,6 +84,10 @@ images, and browser-oriented regression tests.
   directly.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
+- Config and Setup share the managed local model choices: Qwen remains the
+  default for missing `model_family`; Ling selects Q4_K_L, MTP off, and 16K.
+  Model changes reset incompatible options; Setup also resets its probe acknowledgement.
+  runtime status and setup progress display the selected model name.
 - Provider model-limit fields use `0` for automatic resolution. Provider cards
   show compact effective context/output values; the source and the full
   configured/effective sentence belong in the card tooltip and in the editor.

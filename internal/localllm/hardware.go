@@ -17,14 +17,15 @@ import (
 
 // GPUDevice is a sanitized physical-device record.
 type GPUDevice struct {
-	ID         string `json:"id"`
-	Vendor     string `json:"vendor"`
-	Device     string `json:"device"`
-	Driver     string `json:"driver,omitempty"`
-	RenderNode string `json:"render_node,omitempty"`
-	VRAMBytes  int64  `json:"vram_bytes,omitempty"`
-	Discrete   bool   `json:"discrete"`
-	DockerID   string `json:"-"`
+	ComputeCapability string `json:"compute_capability,omitempty"`
+	ID                string `json:"id"`
+	Vendor            string `json:"vendor"`
+	Device            string `json:"device"`
+	Driver            string `json:"driver,omitempty"`
+	RenderNode        string `json:"render_node,omitempty"`
+	VRAMBytes         int64  `json:"vram_bytes,omitempty"`
+	Discrete          bool   `json:"discrete"`
+	DockerID          string `json:"-"`
 }
 
 // HardwareProfile is the passive compatibility result.
@@ -68,7 +69,7 @@ func probeHardwareAllowed(parent context.Context, requestedBackend string, docke
 		ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 		defer cancel()
 		if output, err := exec.CommandContext(ctx, "nvidia-smi",
-			"--query-gpu=pci.bus_id,uuid,memory.total,driver_version",
+			"--query-gpu=pci.bus_id,uuid,memory.total,driver_version,compute_cap",
 			"--format=csv,noheader,nounits").Output(); err == nil {
 			opts.nvidiaSMI = string(output)
 		}
@@ -206,7 +207,7 @@ func vulkan12OrNewer(summary string) bool {
 func enrichNVIDIADevices(devices []GPUDevice, output string) {
 	for _, line := range strings.Split(output, "\n") {
 		fields := strings.Split(line, ",")
-		if len(fields) != 3 && len(fields) != 4 {
+		if len(fields) < 3 || len(fields) > 5 {
 			continue
 		}
 		pci := normalizePCIID(fields[0])
@@ -219,8 +220,11 @@ func enrichNVIDIADevices(devices []GPUDevice, output string) {
 				devices[index].DockerID = strings.TrimSpace(fields[1])
 				devices[index].VRAMBytes = memoryMB << 20
 				devices[index].Discrete = true
-				if len(fields) == 4 {
+				if len(fields) >= 4 {
 					devices[index].Driver = "nvidia:" + strings.TrimSpace(fields[3])
+				}
+				if len(fields) == 5 {
+					devices[index].ComputeCapability = strings.TrimSpace(fields[4])
 				}
 			}
 		}

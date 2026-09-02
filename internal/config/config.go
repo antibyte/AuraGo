@@ -472,6 +472,7 @@ func Load(path string) (*Config, error) {
 
 	// AuraGo-Qwen is opt-in and intentionally conservative. CPU is never selected automatically.
 	cfg.LocalLLM.Backend = "auto"
+	cfg.LocalLLM.ModelFamily = "qwen"
 	cfg.LocalLLM.ModelVariant = "q4_k_m"
 	cfg.LocalLLM.MTP = "off"
 	cfg.LocalLLM.ContextSize = 16384
@@ -1081,6 +1082,10 @@ func Load(path string) (*Config, error) {
 	cfg.LocalLLM.Backend = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.Backend))
 	if cfg.LocalLLM.Backend == "" {
 		cfg.LocalLLM.Backend = "auto"
+	}
+	cfg.LocalLLM.ModelFamily = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.ModelFamily))
+	if cfg.LocalLLM.ModelFamily == "" {
+		cfg.LocalLLM.ModelFamily = "qwen"
 	}
 	cfg.LocalLLM.ModelVariant = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.ModelVariant))
 	if cfg.LocalLLM.ModelVariant == "" {
@@ -2871,6 +2876,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
 		{[]string{"local_llm", "enabled"}, c.LocalLLM.Enabled},
 		{[]string{"local_llm", "backend"}, c.LocalLLM.Backend},
+		{[]string{"local_llm", "model_family"}, c.LocalLLM.ModelFamily},
 		{[]string{"local_llm", "model_variant"}, c.LocalLLM.ModelVariant},
 		{[]string{"local_llm", "mtp"}, c.LocalLLM.MTP},
 		{[]string{"local_llm", "context_size"}, c.LocalLLM.ContextSize},

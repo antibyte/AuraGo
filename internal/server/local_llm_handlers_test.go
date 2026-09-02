@@ -203,6 +203,18 @@ func TestSetupLocalLLMProbeRequiresCSRFBeforeManagerAccess(t *testing.T) {
 	}
 }
 
+func TestSetupLocalLLMProbeRejectsUnknownModelBeforeHardwareAccess(t *testing.T) {
+	server := &Server{Cfg: &config.Config{}, LocalLLM: &localllm.Manager{}}
+	addSetupCSRFTokenForTest(server, "family-test-token")
+	request := httptest.NewRequest(http.MethodPost, "/api/setup/local-llm/probe", strings.NewReader(`{"backend":"cuda","model_family":"unknown"}`))
+	request.Header.Set("X-CSRF-Token", "family-test-token")
+	recorder := httptest.NewRecorder()
+	handleSetupLocalLLMProbe(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 type testLocalLLMError struct{ message string }
 
 func (e *testLocalLLMError) Error() string { return e.message }

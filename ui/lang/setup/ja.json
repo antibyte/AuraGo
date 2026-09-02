@@ -214,8 +214,8 @@
   "setup.local_llm_probing": "変更せずにハードウェアとDockerを確認中…",
   "setup.local_llm_probe_result": "互換性: {compatibility}、バックエンド: {backend}。",
   "setup.local_llm_probe_error": "互換性確認に失敗しました",
-  "setup.local_llm_job_running": "通常プロバイダーの保存後にAuraGo-Qwenをインストールしています。",
-  "setup.local_llm_job_complete": "AuraGo-Qwenは検査に合格し、選択した役割が有効です。",
-  "setup.local_llm_job_failed": "AuraGo-Qwenのインストールに失敗しました。通常プロバイダーがメインのままです",
-  "setup.local_llm_job_progress": "AuraGo-Qwenインストール: {progress}%"
+  "setup.local_llm_job_running": "通常プロバイダーの保存後に{model}をインストールしています。",
+  "setup.local_llm_job_complete": "{model}は検査に合格し、選択した役割が有効です。",
+  "setup.local_llm_job_failed": "{model}のインストールに失敗しました。通常プロバイダーがメインのままです",
+  "setup.local_llm_job_progress": "{model}インストール: {progress}%"
 }

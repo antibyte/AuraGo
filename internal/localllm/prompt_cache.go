@@ -384,7 +384,7 @@ func (m *Manager) rememberPromptSeed(seed *promptCacheSeed) {
 	copySeed.ApplyTemplateBody = append([]byte(nil), seed.ApplyTemplateBody...)
 	m.promptSeed = &copySeed
 	m.promptCacheQualified = false
-	perf := performanceProfileFor(m.profile)
+	perf := performanceProfileFor(m.profile, m.cfg)
 	m.status.PerformanceProfile = perf.Name
 	m.status.PromptCache = PromptCacheStatus{
 		State: "cold", SeedFingerprint: seed.Fingerprint,
@@ -1118,7 +1118,7 @@ func (m *Manager) promptCacheFingerprintLocked() string {
 		return ""
 	}
 	payload := m.desiredFingerprint + "\x00" + m.promptSeed.Fingerprint + "\x00" +
-		LlamaCPPCommit + "\x00" + m.status.PerformanceProfile + "\x00schema=3"
+		engineCommit(m.cfg) + "\x00" + m.status.PerformanceProfile + "\x00schema=3"
 	sum := sha256.Sum256([]byte(payload))
 	return hex.EncodeToString(sum[:])
 }

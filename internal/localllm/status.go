@@ -27,6 +27,10 @@ type PromptCacheStatus struct {
 
 // Status is the sanitized manager state returned by the admin API.
 type Status struct {
+	ModelFamily           string            `json:"model_family"`
+	ModelAlias            string            `json:"model_alias"`
+	ModelName             string            `json:"model_name"`
+	EngineCommit          string            `json:"engine_commit"`
 	State                 string            `json:"state"`
 	Progress              float64           `json:"progress"`
 	Compatibility         string            `json:"compatibility"`

@@ -1,4 +1,56 @@
-# AuraGo-Qwen managed local test model
+# AuraGo managed local test models
+
+AuraGo manages one local model at a time: **AuraGo-Qwen** or **AuraGo-Ling**.
+Config and Setup select the family; the existing manager owns downloads,
+Docker lifecycle, authentication, hardware checks and provider routing.
+Switching families uses the regular restart/recreate flow and invalidates
+model/engine verification and RAM prompt caches. Downloaded Qwen files remain.
+
+## AuraGo-Ling
+
+Ling uses `antibyte/AuraGo-Ling`, file `AuraGo-Ling-3.0-tiny-Q4_K_L.gguf`
+(5,096,544,352 bytes; SHA256
+`4c25f349d6ea6872907c6fbd827d4b90abfd420320394a8cf420ce9b60abee68`).
+It is an experimental tool-call fine-tune of the MIT-licensed Ling-3.0-tiny.
+The existing export scored 68/76 corrective cases and 49/49 replay cases;
+general framework knowledge remains unreliable. These synthetic results do
+not establish live agent reliability or qualify the new engine.
+
+```yaml
+local_llm:
+  model_family: ling
+  model_variant: q4_k_l
+  mtp: off
+  context_size: 16384
+```
+
+The API model alias is `aurago-ling`; the internal provider ID remains
+`aurago-qwen-local` for compatibility. Missing `model_family` selects Qwen.
+Ling rejects other quantizations, draft modes and 32K until separately qualified.
+Both UIs choose valid dependent settings when changing the family.
+
+Ling pins `antibyte/llama-wackMall-hybrid` at
+`f37a34cd4e502284ca297e141a6c4013bd151b18`; Qwen retains its existing engine/images.
+CUDA uses prompt/decode batches 2048/64, Q8 KV, flash attention and full GPU
+offload. SM75 kernel tuning applies only to detected compute capability 7.5.
+SYCL/Vulkan use batch 512, F16 KV and automatic flash attention without CUDA
+tuning. All Ling profiles use the GGUF chat template, Thinking off, one slot,
+no MTP/DFlash, no KVFlash eviction and no `--fit` context reduction.
+The complete 16K context must remain available.
+
+The Intel Arc B580 (`0xe20b`) Vulkan profile disables F16 compute kernels with
+`GGML_VK_DISABLE_F16=1`; KV storage stays F16. Default F16 compute reproduced
+truncated slash-only responses in both tested engines. The workaround is
+restricted to Ling/Vulkan/B580 and does not qualify the Linux backend.
+
+The release manifest stays closed until the public HF commit and all three
+image digests are verified. An image without native Linux GPU qualification
+remains experimental and cannot be selected automatically. Windows/WSL tests
+do not qualify Linux. The historical report of over 100 tokens/s is not a
+benchmark for this Q4_K_L export. The engine's Apache-2.0 license is separate
+from the model's MIT license.
+
+## AuraGo-Qwen
 
 AuraGo-Qwen is a small Qwen 3.5 model trained specifically for AuraGo tool-call shapes. It is an optional test and fallback runtime. It is **not** intended to replace a capable large local model or a cloud model.
 
@@ -15,6 +67,7 @@ A modern integrated GPU may work, but generation can be unsatisfactorily slow. E
 ```yaml
 local_llm:
   enabled: false
+  model_family: qwen
   backend: auto
   model_variant: q4_k_m
   mtp: off
@@ -60,7 +113,7 @@ number of tokens occupying the selected 16K or 32K context window. If template
 rendering, warm-up, or cache verification fails, the request continues
 uncached and the status reports a sanitized degraded or rejected state.
 
-AMD Vulkan devices use the tested `vulkan-amd-fast-v1` profile. It enables the
+Qwen on AMD Vulkan devices uses the tested `vulkan-amd-fast-v1` profile. It enables the
 RADV `nogttspill` optimization, full GPU offload, batch/uBatch 2048/512, eight
 prompt/decode threads, flash attention, one slot, F16 KV caches, and a bounded
 2,048 MiB prompt cache on integrated/shared-memory GPUs. These parameters are

@@ -126,7 +126,7 @@ func DefaultManifest() Manifest {
 }
 
 func (m Manifest) validate() error {
-	if m.Version != ReleaseManifestVersion || m.LlamaCPPCommit != LlamaCPPCommit {
+	if m.Version != ReleaseManifestVersion || (m.LlamaCPPCommit != LlamaCPPCommit && m.LlamaCPPCommit != LingEngineCommit) {
 		return fmt.Errorf("release_manifest_invalid")
 	}
 	if !m.ReleaseReady {

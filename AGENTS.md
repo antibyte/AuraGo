@@ -446,6 +446,12 @@ Tools are defined in `internal/tools/`:
 - Managed camera mutations publish a fully loaded and validated YAML/Vault desired state before runtime reconciliation. Pre-publication failures roll back Vault changes; post-publication reconciliation failures retain the desired state and return HTTP 202 for background retry. Reserve ONVIF setup tokens until publication and keep private ONVIF SOAP traffic proxy-free.
 - Enabling go2rtc must actively verify readable Docker container/image endpoints, the network endpoint when AuraGo runs in Docker, and mutation permission through a random nonexistent-container start probe that cannot create a resource.
 
+### Managed Local Model Contract
+- `local_llm.model_family` defaults to `qwen`; `ling` selects AuraGo-Ling Q4_K_L with MTP off and the full 16K context. Ling 32K requires separate qualification. Keep the reserved provider ID `aurago-qwen-local`; resolve display name and API model alias from the selected family.
+- Reuse the single local-model manager and its Vault credential, isolated container, resumable hash-verified downloads and routing gates. Family/engine changes invalidate attestation and prompt caches but preserve downloaded models.
+- Qwen runtime pins remain independent. Ling pins hybrid engine `f37a34cd4e502284ca297e141a6c4013bd151b18`; CUDA uses 2048/64 phase batches and Q8 KV, while SYCL/Vulkan use conservative F16 profiles. Apply SM75 tuning only to compute capability 7.5. Disable KVFlash, Thinking, draft decoding and context fitting for Ling.
+- Model publication requires an anonymously verified HF revision/hash/size and digest-pinned images. A backend without native Linux GPU acceptance stays experimental and unavailable to automatic selection; Windows/WSL results never grant that qualification.
+
 ### AI Gateway Contract
 - Cloudflare AI Gateway routing must use provider-native segments where supported. In `auto` mode, unsupported providers must skip gateway routing and report a warning instead of silently falling back to `/openai`.
 - Workers AI uses the Cloudflare REST base (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`; provider-native routes use `cf-aig-authorization` for the optional authenticated-gateway token.

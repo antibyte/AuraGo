@@ -1601,7 +1601,54 @@ async function testSpeechLabRecorderLifecycleAndFallbacks() {
   assert.equal(unavailable.errors.length, 1);
 }
 
+function testLocalLLMFamilySelection() {
+  const saved = {};
+  let renders = 0;
+  const config = {
+    localLLMSetDraftValue(key, value) { saved[key] = value; },
+    renderLocalLLMSection() { renders++; }
+  };
+  vm.runInNewContext(sourceBetween(read('ui/cfg/local_llm.js'),
+    'function localLLMChangeFamily(', 'function localLLMEnabledToggle('), config);
+  config.localLLMChangeFamily('ling');
+  assert.deepEqual(saved, {
+    'local_llm.model_family': 'ling', 'local_llm.model_variant': 'q4_k_l',
+    'local_llm.mtp': 'off', 'local_llm.context_size': 16384
+  });
+  config.localLLMChangeFamily('qwen');
+  assert.equal(saved['local_llm.model_variant'], 'q4_k_m');
+  assert.equal(saved['local_llm.mtp'], 'off');
+  config.localLLMChangeFamily('invalid');
+  assert.equal(saved['local_llm.model_family'], 'qwen');
+  assert.equal(renders, 2);
+
+  const elements = {};
+  let invalidations = 0;
+  const setup = {
+    Option: function(label, value) { this.text = label; this.value = value; },
+    document: { getElementById(id) {
+      return elements[id] ||= { value: '', disabled: false,
+        classList: { toggle() {} }, replaceChildren(...options) { this.options = options; } };
+    } },
+    onSetupLocalLLMBackendChange() { invalidations++; }
+  };
+  vm.runInNewContext(sourceBetween(read('ui/js/setup/main.js'),
+    'function onSetupLocalLLMFamilyChange(', "document.addEventListener('change'"), setup);
+  setup.document.getElementById('setup-local-llm-family').value = 'ling';
+  setup.onSetupLocalLLMFamilyChange();
+  assert.equal(elements['setup-local-llm-model'].options.length, 1);
+  assert.equal(elements['setup-local-llm-model'].options[0].value, 'q4_k_l');
+  assert.equal(elements['setup-local-llm-mtp'].value, 'off');
+  assert.equal(elements['setup-local-llm-mtp'].disabled, true);
+  elements['setup-local-llm-family'].value = 'qwen';
+  setup.onSetupLocalLLMFamilyChange();
+  assert.equal(elements['setup-local-llm-model'].options.length, 2);
+  assert.equal(elements['setup-local-llm-mtp'].disabled, false);
+  assert.equal(invalidations, 2);
+}
+
 const tests = [
+  ['local LLM family selection keeps model, context and draft settings valid', testLocalLLMFamilySelection],
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['Game Maker preview loading ignores stale frame settlement', testGameMakerPreviewLoadingIgnoresStaleFrameSettlement],

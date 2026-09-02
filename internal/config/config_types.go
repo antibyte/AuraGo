@@ -331,17 +331,40 @@ const (
 	LocalLLMRuntimeAPIKeyVaultKey = "local_llm_runtime_api_key"
 )
 
-// LocalLLMConfig controls AuraGo's managed AuraGo-Qwen test/fallback model.
+// LocalLLMConfig controls AuraGo's managed local test/fallback model.
 // Paths, container arguments, images and model URLs are deliberately not user-configurable.
 type LocalLLMConfig struct {
 	Enabled            bool   `yaml:"enabled" json:"enabled"`
 	Backend            string `yaml:"backend" json:"backend"`
+	ModelFamily        string `yaml:"model_family" json:"model_family"`
 	ModelVariant       string `yaml:"model_variant" json:"model_variant"`
 	MTP                string `yaml:"mtp" json:"mtp"`
 	ContextSize        int    `yaml:"context_size" json:"context_size"`
 	IdleTimeoutMinutes int    `yaml:"idle_timeout_minutes" json:"idle_timeout_minutes"`
 	ListenPort         int    `yaml:"listen_port" json:"listen_port"`
 	RuntimeAPIKey      string `yaml:"-" json:"-"`
+}
+
+// Family preserves Qwen for configurations written before model selection existed.
+func (c LocalLLMConfig) Family() string {
+	if c.ModelFamily == "" {
+		return "qwen"
+	}
+	return c.ModelFamily
+}
+
+func (c LocalLLMConfig) ModelAlias() string {
+	if c.Family() == "ling" {
+		return "aurago-ling"
+	}
+	return LocalLLMModelAlias
+}
+
+func (c LocalLLMConfig) ModelName() string {
+	if c.Family() == "ling" {
+		return "AuraGo-Ling"
+	}
+	return "AuraGo-Qwen"
 }
 
 // Endpoint returns the private OpenAI-compatible endpoint used for the current deployment mode.

@@ -34,7 +34,10 @@ type runtimePerformanceProfile struct {
 	SlotsEndpoint      bool
 }
 
-func performanceProfileFor(profile HardwareProfile) runtimePerformanceProfile {
+func performanceProfileFor(profile HardwareProfile, configs ...config.LocalLLMConfig) runtimePerformanceProfile {
+	if len(configs) > 0 && configs[0].Family() == "ling" {
+		return lingPerformanceProfile(profile)
+	}
 	result := runtimePerformanceProfile{
 		Name: performanceProfileGeneric, CacheRAMMiB: 8192,
 		BatchSize: 2048, UBatchSize: 512, FlashAttention: "auto",
@@ -78,7 +81,7 @@ func performanceProfileFor(profile HardwareProfile) runtimePerformanceProfile {
 }
 
 func performanceParameters(cfg config.LocalLLMConfig, profile HardwareProfile) []string {
-	perf := performanceProfileFor(profile)
+	perf := performanceProfileFor(profile, cfg)
 	values := []string{
 		"--cache-type-k=" + perf.CacheTypeK,
 		"--cache-type-v=" + perf.CacheTypeV,
@@ -88,6 +91,15 @@ func performanceParameters(cfg config.LocalLLMConfig, profile HardwareProfile) [
 		fmt.Sprintf("--cache-reuse=%d", perf.CacheReuse),
 		"--cache-idle-slots",
 		"--no-slots",
+	}
+	if cfg.Family() == "ling" {
+		values = append(values, "--no-cpu-moe", "--chat-template-kwargs={\"enable_thinking\":false}", "LLAMA_KVFLASH=0")
+		if perf.Name == "ling-vulkan-b580-full-context-v1" {
+			values = append(values, "GGML_VK_DISABLE_F16=1")
+		}
+		if profile.SelectedBackend == "cuda" {
+			values = append(values, "--backend-sampling", "LLAMA_CMOE_PREFILL_BATCH=2048", "LLAMA_CMOE_PREFILL_UBATCH=2048", "LLAMA_CMOE_DECODE_BATCH=64", "LLAMA_CMOE_DECODE_UBATCH=64")
+		}
 	}
 	if perf.BatchSize > 0 {
 		values = append(values, fmt.Sprintf("--batch-size=%d", perf.BatchSize))

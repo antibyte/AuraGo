@@ -12,7 +12,7 @@ import (
 )
 
 func (c *Config) FindProvider(id string) *ProviderEntry {
-	// AuraGo-Qwen is synthetic and may only occupy the primary/fallback slots.
+	// The managed local provider is synthetic and may only occupy the primary/fallback slots.
 	if strings.EqualFold(strings.TrimSpace(id), LocalLLMProviderID) {
 		return nil
 	}
@@ -273,7 +273,7 @@ func (c *Config) ResolveProviders() {
 		c.LLM.ProviderType = "aurago-local"
 		c.LLM.BaseURL = c.LocalLLM.Endpoint(probeDockerContainer())
 		c.LLM.APIKey = c.LocalLLM.RuntimeAPIKey
-		c.LLM.Model = LocalLLMModelAlias
+		c.LLM.Model = c.LocalLLM.ModelAlias()
 		c.LLM.AccountID = ""
 	} else if p := c.FindProvider(c.LLM.Provider); p != nil {
 		c.LLM.ProviderType = p.Type
@@ -310,7 +310,7 @@ func (c *Config) ResolveProviders() {
 		c.FallbackLLM.ProviderType = "aurago-local"
 		c.FallbackLLM.BaseURL = c.LocalLLM.Endpoint(probeDockerContainer())
 		c.FallbackLLM.APIKey = c.LocalLLM.RuntimeAPIKey
-		c.FallbackLLM.Model = LocalLLMModelAlias
+		c.FallbackLLM.Model = c.LocalLLM.ModelAlias()
 		c.FallbackLLM.AccountID = ""
 	} else if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {
 		c.FallbackLLM.ProviderType = p.Type

@@ -83,7 +83,7 @@ func ResolveProviderCapabilities(provider config.ProviderEntry, fallback Capabil
 		strings.EqualFold(strings.TrimSpace(provider.ID), config.LocalLLMProviderID) {
 		return ProviderCapabilityResult{
 			ToolCalling: true, StructuredOutputs: false, Multimodal: false, Reasoning: false,
-			DetectedModel: config.LocalLLMModelAlias, Source: CapabilitySourceManual, Known: true,
+			DetectedModel: firstNonEmpty(model, config.LocalLLMModelAlias), Source: CapabilitySourceManual, Known: true,
 		}
 	}
 	caps := provider.Capabilities

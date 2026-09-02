@@ -25,6 +25,42 @@ func validLocalLLMTestConfig() *Config {
 	return cfg
 }
 
+func TestLocalLLMModelFamilyValidationAndRouting(t *testing.T) {
+	for _, tc := range []struct {
+		family, variant, mtp string
+		valid                bool
+	}{
+		{"", "q4_k_m", "off", true}, {"qwen", "q8_0", "mtp2", true},
+		{"ling", "q4_k_l", "off", true}, {"ling", "q4_k_m", "off", false},
+		{"ling", "q4_k_l", "auto", false}, {"qwen", "q4_k_l", "off", false},
+		{"other", "q4_k_l", "off", false},
+	} {
+		cfg := validLocalLLMTestConfig()
+		cfg.LocalLLM.ModelFamily, cfg.LocalLLM.ModelVariant, cfg.LocalLLM.MTP = tc.family, tc.variant, tc.mtp
+		if err := ValidateLocalLLMConfig(cfg); (err == nil) != tc.valid {
+			t.Fatalf("%+v: %v", tc, err)
+		}
+		if tc.valid {
+			cfg.Providers = []ProviderEntry{{ID: "regular", Type: "openai", Model: "cloud-model"}}
+			cfg.LLM.Provider = LocalLLMProviderID
+			cfg.FallbackLLM.Provider = "regular"
+			cfg.ResolveProviders()
+			want := "aurago-qwen"
+			if tc.family == "ling" {
+				want = "aurago-ling"
+			}
+			if cfg.LLM.Model != want {
+				t.Fatalf("wrong model alias for %s", tc.family)
+			}
+			cfg.LLM.Provider, cfg.FallbackLLM.Provider = "regular", LocalLLMProviderID
+			cfg.ResolveProviders()
+			if cfg.FallbackLLM.Model != want {
+				t.Fatalf("wrong fallback model alias for %s", tc.family)
+			}
+		}
+	}
+}
+
 func TestValidateLocalLLMConfigContextSizes(t *testing.T) {
 	for _, size := range []int{16384, 32768} {
 		cfg := validLocalLLMTestConfig()
@@ -39,6 +75,12 @@ func TestValidateLocalLLMConfigContextSizes(t *testing.T) {
 		if err := ValidateLocalLLMConfig(cfg); err == nil {
 			t.Fatalf("obsolete context size %d was accepted", size)
 		}
+	}
+	cfg := validLocalLLMTestConfig()
+	cfg.LocalLLM.ModelFamily, cfg.LocalLLM.ModelVariant = "ling", "q4_k_l"
+	cfg.LocalLLM.ContextSize = 32768
+	if err := ValidateLocalLLMConfig(cfg); err == nil {
+		t.Fatal("unqualified Ling 32K profile accepted")
 	}
 }
 

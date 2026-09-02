@@ -214,8 +214,8 @@
   "setup.local_llm_probing": "Έλεγχος υλικού και Docker χωρίς αλλαγές…",
   "setup.local_llm_probe_result": "Συμβατότητα: {compatibility}· υποσύστημα: {backend}.",
   "setup.local_llm_probe_error": "Ο έλεγχος συμβατότητας απέτυχε",
-  "setup.local_llm_job_running": "Το AuraGo-Qwen εγκαθίσταται αφού αποθηκευτεί ο κανονικός πάροχος.",
-  "setup.local_llm_job_complete": "Το AuraGo-Qwen πέρασε τους ελέγχους και ο επιλεγμένος ρόλος είναι ενεργός.",
-  "setup.local_llm_job_failed": "Η εγκατάσταση AuraGo-Qwen απέτυχε· ο κανονικός πάροχος παραμένει κύριος",
-  "setup.local_llm_job_progress": "Εγκατάσταση AuraGo-Qwen: {progress}%"
+  "setup.local_llm_job_running": "Το {model} εγκαθίσταται αφού αποθηκευτεί ο κανονικός πάροχος.",
+  "setup.local_llm_job_complete": "Το {model} πέρασε τους ελέγχους και ο επιλεγμένος ρόλος είναι ενεργός.",
+  "setup.local_llm_job_failed": "Η εγκατάσταση {model} απέτυχε· ο κανονικός πάροχος παραμένει κύριος",
+  "setup.local_llm_job_progress": "Εγκατάσταση {model}: {progress}%"
 }

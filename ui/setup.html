@@ -455,13 +455,13 @@
             <!-- ═══ Optional AuraGo-Qwen local test model ═══ -->
             <div class="setup-section" id="step-local-llm">
                 <div class="section-header">
-                    <div class="section-badge">◈ AuraGo-Qwen</div>
+                    <div class="section-badge">◈ AuraGo-Qwen / AuraGo-Ling</div>
                     <h2 class="section-title" data-i18n="config.section.local_llm.label"></h2>
                     <p class="section-desc" data-i18n="config.local_llm.purpose"></p>
                 </div>
                 <div class="setup-inner-card">
                     <div class="setup-embedding-warning" data-i18n="config.local_llm.hardware"></div>
-                    <div class="field-hint" data-i18n="config.local_llm.quality"></div>
+                    <div id="setup-local-llm-qwen-quality" class="field-hint" data-i18n="config.local_llm.quality"></div>
                     <div class="toggle-row">
                         <div>
                             <div class="toggle-label" data-i18n="config.local_llm.enabled"></div>
@@ -473,6 +473,14 @@
                         </label>
                     </div>
                     <div id="setup-local-llm-fields" class="is-hidden">
+                        <div class="field-group">
+                            <label class="field-label" for="setup-local-llm-family" data-i18n="config.local_llm.model_family"></label>
+                            <select class="field-select" id="setup-local-llm-family">
+                                <option value="qwen">AuraGo-Qwen</option>
+                                <option value="ling">AuraGo-Ling</option>
+                            </select>
+                            <div id="setup-local-llm-ling-quality" class="field-hint is-hidden" data-i18n="config.local_llm.ling_quality"></div>
+                        </div>
                         <div class="field-group">
                             <label class="field-label" data-i18n="config.local_llm.backend"></label>
                             <select class="field-select" id="setup-local-llm-backend" onchange="onSetupLocalLLMBackendChange()">

@@ -1051,6 +1051,23 @@ function onSetupLocalLLMToggle() {
 let setupLocalLLMProbeFingerprint = '';
 let setupLocalLLMAcknowledgementRequired = false;
 
+function onSetupLocalLLMFamilyChange() {
+    const ling = document.getElementById('setup-local-llm-family').value === 'ling';
+    const model = document.getElementById('setup-local-llm-model');
+    model.replaceChildren(...(ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']])
+        .map(([value, label]) => new Option(label, value)));
+    const mtp = document.getElementById('setup-local-llm-mtp');
+    mtp.value = 'off';
+    mtp.disabled = ling;
+    document.getElementById('setup-local-llm-ling-quality').classList.toggle('is-hidden', !ling);
+    document.getElementById('setup-local-llm-qwen-quality').classList.toggle('is-hidden', ling);
+    onSetupLocalLLMBackendChange();
+}
+
+document.addEventListener('change', event => {
+    if (event.target.id === 'setup-local-llm-family') onSetupLocalLLMFamilyChange();
+});
+
 function onSetupLocalLLMBackendChange() {
     setupLocalLLMProbeFingerprint = '';
     setupLocalLLMAcknowledgementRequired = false;
@@ -1069,7 +1086,8 @@ async function probeSetupLocalLLM() {
         const response = await fetch('/api/setup/local-llm/probe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-            body: JSON.stringify({ backend: document.getElementById('setup-local-llm-backend').value }),
+            body: JSON.stringify({ backend: document.getElementById('setup-local-llm-backend').value,
+                model_family: document.getElementById('setup-local-llm-family').value }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
@@ -1097,6 +1115,7 @@ function applySetupLocalLLMPatch(patch) {
     patch.local_llm = {
         enabled,
         backend: document.getElementById('setup-local-llm-backend').value,
+        model_family: document.getElementById('setup-local-llm-family').value,
         model_variant: document.getElementById('setup-local-llm-model').value,
         mtp: document.getElementById('setup-local-llm-mtp').value,
         context_size: 16384,
@@ -1747,8 +1766,10 @@ async function saveConfig() {
 
 async function pollSetupLocalLLMJob(id, token) {
     const target = document.getElementById('local-llm-job-notice');
+    const modelName = document.getElementById('setup-local-llm-family')?.value === 'ling' ? 'AuraGo-Ling' : 'AuraGo-Qwen';
+    const modelText = key => t(key).replace('{model}', modelName);
     setupSetHidden(target, false);
-    target.textContent = t('setup.local_llm_job_running');
+    target.textContent = modelText('setup.local_llm_job_running');
     for (let attempt = 0; attempt < 720; attempt++) {
         try {
             const response = await fetch('/api/setup/local-llm/job?id=' + encodeURIComponent(id), {
@@ -1757,16 +1778,16 @@ async function pollSetupLocalLLMJob(id, token) {
             const job = await response.json();
             if (!response.ok) throw new Error(job.message || job.error || ('HTTP ' + response.status));
             if (job.state === 'completed') {
-                target.textContent = t('setup.local_llm_job_complete');
+                target.textContent = modelText('setup.local_llm_job_complete');
                 return;
             }
             if (job.state === 'failed') {
-                target.textContent = t('setup.local_llm_job_failed') + ' (' + (job.error_code || 'local_llm_error') + ')';
+                target.textContent = modelText('setup.local_llm_job_failed') + ' (' + (job.error_code || 'local_llm_error') + ')';
                 return;
             }
-            target.textContent = t('setup.local_llm_job_progress').replace('{progress}', Math.round((job.progress || 0) * 100));
+            target.textContent = modelText('setup.local_llm_job_progress').replace('{progress}', Math.round((job.progress || 0) * 100));
         } catch (error) {
-            target.textContent = t('setup.local_llm_job_failed') + ': ' + error.message;
+            target.textContent = modelText('setup.local_llm_job_failed') + ': ' + error.message;
             return;
         }
         await new Promise(resolve => setTimeout(resolve, 5000));
