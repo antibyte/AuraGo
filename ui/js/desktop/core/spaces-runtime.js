@@ -65,13 +65,7 @@
             const label = t('desktop.space_n').replace('{{n}}', id);
             return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(id)}</span></button>`;
         }).join('');
-        if (pager.dataset.spacesWired === 'true') return;
-        pager.dataset.spacesWired = 'true';
-        pager.addEventListener('click', event => {
-            const btn = event.target.closest('[data-space-id]');
-            if (!btn) return;
-            switchSpace(btn.dataset.spaceId);
-        });
+        wireSpacePagerOverview(pager);
     }
 
     function switchSpace(id) {
@@ -126,6 +120,7 @@
     }
 
     function refreshSpacesForViewport() {
+        if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
         if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
         applySpaceVisibility();

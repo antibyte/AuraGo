@@ -77,23 +77,49 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
-    function buildTaskbarThumbnailMarkup(win) {
+    function windowPreviewBodyMarkup(win, options) {
+        options = options || {};
+        const maxW = options.maxW || THUMB_MAX_W;
+        const maxH = options.maxH || THUMB_MAX_H;
         const app = appById(win.appId);
-        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-taskbar-thumb-icon', 18);
         const content = win.element.querySelector('.vd-window-content');
         const sourceW = Math.max(win.element.offsetWidth || 640, 320);
         const sourceH = Math.max(content ? content.offsetHeight : 420, 240);
-        const scale = Math.min(THUMB_MAX_W / sourceW, THUMB_MAX_H / sourceH, 1);
+        const scale = Math.min(maxW / sourceW, maxH / sourceH, 1);
         const viewW = Math.max(128, Math.round(sourceW * scale));
         const viewH = Math.max(80, Math.round(sourceH * scale));
         const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
-        let body = '';
+        const viewportClass = options.viewportClass || 'vd-taskbar-thumb-viewport';
+        const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
+        const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
+        const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
         if (hasIframe || !content) {
-            body = `<div class="vd-taskbar-thumb-fallback">${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-taskbar-thumb-fallback-icon', 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
-        } else {
-            body = `<div class="vd-taskbar-thumb-viewport" style="width:${viewW}px;height:${viewH}px"><div class="vd-taskbar-thumb-scale" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+            return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="vd-taskbar-thumb-title">${icon}<span class="vd-taskbar-thumb-label">${esc(win.title)}</span></div>${body}`;
+        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+    }
+
+    function windowPreviewMarkup(win, options) {
+        options = options || {};
+        const app = appById(win.appId);
+        const iconSize = options.iconSize || 18;
+        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), options.iconClass || 'vd-taskbar-thumb-icon', iconSize);
+        const titleClass = options.titleClass || 'vd-taskbar-thumb-title';
+        const labelClass = options.labelClass || 'vd-taskbar-thumb-label';
+        const title = `<div class="${titleClass}">${icon}<span class="${labelClass}">${esc(win.title)}</span></div>`;
+        if (options.bodyOnly) return windowPreviewBodyMarkup(win, options);
+        return title + windowPreviewBodyMarkup(win, options);
+    }
+
+    function buildTaskbarThumbnailMarkup(win) {
+        return windowPreviewMarkup(win, {
+            maxW: THUMB_MAX_W,
+            maxH: THUMB_MAX_H,
+            titleClass: 'vd-taskbar-thumb-title',
+            labelClass: 'vd-taskbar-thumb-label',
+            iconClass: 'vd-taskbar-thumb-icon',
+            iconSize: 18
+        });
     }
 
     function showTaskbarThumbnail(windowId, anchor) {

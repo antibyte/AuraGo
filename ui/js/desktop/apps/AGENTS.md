@@ -32,6 +32,24 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Compact viewport (`isCompactViewport()`) keeps single-space behavior and hides
   the pager.
 
+### Spaces overview contract
+
+- UI label is **Flächenübersicht / Spaces overview** — never reuse the Mission
+  Control app name.
+- Exactly three columns (`1`, `2`, `3`); overview does not create spaces.
+- Window cards reuse `windowPreviewMarkup()` from the taskbar thumbnail helper;
+  minimized windows stay visible as dimmed cards.
+- Click column background switches space; click card switches, focuses, and
+  closes; drag card to another column calls `moveWindowToSpace()` and re-renders.
+- Shortcuts: `Ctrl+Alt+ArrowUp` and `F3` toggle; `Ctrl+Alt+ArrowDown` closes;
+  `Ctrl+Alt+ArrowLeft/Right` keep cycling spaces.
+- Pager: short click switches; ~400ms hold or second click on the active space
+  opens overview.
+- Show Desktop uses `toggleShowDesktop()` peek/restore for visible windows on the
+  active space only; peek set clears on focus or `openApp()`.
+- Compact viewport disables overview and keeps legacy single-window Show Desktop.
+- Snap left/right entries in the window context menu call `applyWindowSnap()`.
+
 ### Desktop Phase 3 contract
 
 - Standard-theme taskbar window buttons show a hover/focus thumbnail preview

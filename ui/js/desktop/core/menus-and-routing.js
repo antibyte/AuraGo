@@ -569,6 +569,25 @@
         ];
         if (spacesEnabled() && !item.isGadget) {
             items.push({ separator: true });
+            items.push({
+                label: t('desktop.snap_left'),
+                icon: 'grid',
+                fallback: 'L',
+                action: () => applyWindowSnap(item.element, 'left-half')
+            });
+            items.push({
+                label: t('desktop.snap_right'),
+                icon: 'grid',
+                fallback: 'R',
+                action: () => applyWindowSnap(item.element, 'right-half')
+            });
+            items.push({
+                label: t('desktop.spaces_overview_show'),
+                icon: 'grid',
+                fallback: 'O',
+                action: () => openSpacesOverviewForWindow(id)
+            });
+            items.push({ separator: true });
             SPACE_IDS.forEach(spaceId => {
                 const current = windowSpaceId(item) === spaceId;
                 items.push({

@@ -37,9 +37,9 @@
 
 .vd-snap-overlay {
     position: absolute;
-    border: 2px solid color-mix(in srgb, var(--ds-color-accent-500) 55%, transparent);
-    border-radius: var(--ds-radius-md);
-    background: color-mix(in srgb, var(--ds-color-accent-500) 8%, transparent);
+    border: 2px solid color-mix(in srgb, var(--vd-theme-accent-border, var(--vd-accent, #27c7a6)) 55%, transparent);
+    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
+    background: color-mix(in srgb, var(--vd-theme-accent-soft, var(--vd-accent, #27c7a6)) 18%, transparent);
     pointer-events: none;
     z-index: calc(var(--ds-z-window) - 1);
     transition:
@@ -48,7 +48,7 @@
         top var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized),
         width var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized),
         height var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized);
-    box-shadow: var(--ds-elevation-4);
+    box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-4));
 }
 
 .vd-snap-overlay[hidden] {

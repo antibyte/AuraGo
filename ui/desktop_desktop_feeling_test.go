@@ -84,6 +84,7 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		"function wireTaskbarThumbnailHover(",
 		"function hideTaskbarThumbnail(",
 		"function taskbarThumbnailsEnabled(",
+		"function windowPreviewMarkup(",
 	} {
 		if !strings.Contains(thumbs, want) {
 			t.Fatalf("taskbar thumbnails runtime missing %q", want)
@@ -99,6 +100,24 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		if !strings.Contains(mediaKeys, want) {
 			t.Fatalf("media keys runtime missing %q", want)
 		}
+	}
+
+	overview := readDesktopAssetText(t, "js/desktop/core/spaces-overview-runtime.js")
+	for _, want := range []string{
+		"function openSpacesOverview(",
+		"#vd-spaces-overview",
+		".vd-space-column",
+		"function handleSpacesOverviewShortcut(",
+		"function spacesOverviewEnabled(",
+	} {
+		if !strings.Contains(overview, want) {
+			t.Fatalf("spaces overview runtime missing %q", want)
+		}
+	}
+
+	interactions := readDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
+	if !strings.Contains(interactions, "function toggleShowDesktop(") {
+		t.Fatalf("window interactions must expose toggleShowDesktop")
 	}
 
 	bootstrap := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
@@ -141,6 +160,8 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		".vd-notification-center",
 		".vd-window-switcher",
 		".vd-space-pager",
+		".vd-spaces-overview",
+		".vd-space-column",
 		"vd-space-hidden",
 		".vd-taskbar-thumbnail",
 		"--vd-theme-panel-bg-strong",
@@ -177,6 +198,7 @@ func TestDesktopFeelingBundlesIncludeChromeModules(t *testing.T) {
 	for _, want := range []string{
 		"session-runtime.js",
 		"spaces-runtime.js",
+		"spaces-overview-runtime.js",
 		"taskbar-thumbnails-runtime.js",
 		"media-keys-runtime.js",
 		"shell-chrome-runtime.js",
@@ -210,6 +232,8 @@ func TestDesktopTerminalAndNotesApps(t *testing.T) {
 		"appId === 'notes'",
 		"toggleDockPin",
 		"setDefaultAppForExtension",
+		"desktop.snap_left",
+		"openSpacesOverviewForWindow",
 	} {
 		if !strings.Contains(routing, want) {
 			t.Fatalf("menus-and-routing missing %q", want)

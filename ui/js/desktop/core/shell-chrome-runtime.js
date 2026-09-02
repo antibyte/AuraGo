@@ -162,6 +162,8 @@
             ['Ctrl+Tab', t('desktop.shortcuts_window_switch')],
             ['Ctrl+Alt+W', t('desktop.shortcuts_window_switch_alt')],
             ['Ctrl+Alt+← / →', t('desktop.spaces_help')],
+            ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
+            ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]

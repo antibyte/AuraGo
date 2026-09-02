@@ -50,8 +50,57 @@
         window.setTimeout(() => win.classList.remove('vd-window-bounds-animated'), 240);
     }
 
+    function clearShowDesktopPeek() {
+        state.showDesktopPeekIds = null;
+        const btn = document.getElementById('vd-show-desktop-btn');
+        if (btn) {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-pressed', 'false');
+            btn.title = t('desktop.show_desktop');
+        }
+    }
+
+    function toggleShowDesktop() {
+        if (isCompactViewport()) {
+            minimizeAllWindows();
+            return;
+        }
+        const btn = document.getElementById('vd-show-desktop-btn');
+        if (state.showDesktopPeekIds && state.showDesktopPeekIds.length) {
+            const ids = state.showDesktopPeekIds.filter(id => state.windows.has(id));
+            state.showDesktopPeekIds = null;
+            if (btn) {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+                btn.title = t('desktop.show_desktop');
+            }
+            ids.forEach(id => {
+                const win = state.windows.get(id);
+                if (!win || !win.element) return;
+                win.minimizing = false;
+                win.element.style.display = '';
+            });
+            if (ids.length) focusWindow(ids[ids.length - 1], { fromShowDesktopRestore: true });
+            renderTaskbar();
+            scheduleSessionPersist();
+            return;
+        }
+        const ids = taskbarWindows()
+            .filter(win => win.element && win.element.style.display !== 'none')
+            .map(win => win.id);
+        if (!ids.length) return;
+        state.showDesktopPeekIds = ids.slice();
+        ids.forEach(id => minimizeWindow(id));
+        if (btn) {
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            btn.title = t('desktop.show_desktop_restore');
+        }
+    }
+
     function minimizeAllWindows() {
         state.windows.forEach((item, id) => minimizeWindow(id));
+        clearShowDesktopPeek();
     }
 
     function scheduleWindowPointerFrame(target, callback) {
@@ -442,9 +491,10 @@ function wireWindow(win, id) {
         }, 60);
     }
 
-    function focusWindow(id) {
+    function focusWindow(id, options) {
         const win = state.windows.get(id);
         if (!win) return;
+        if (!options || !options.fromShowDesktopRestore) clearShowDesktopPeek();
 
         const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
 

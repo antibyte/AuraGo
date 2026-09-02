@@ -1061,6 +1061,7 @@
     }
 
     function openApp(appId, context) {
+        clearShowDesktopPeek();
         if (context && context.path && isStandaloneWidgetPath(context.path) && !appById(appId)) {
             openStandaloneWidget(context.path, context.widgetId || appId, context);
             return;

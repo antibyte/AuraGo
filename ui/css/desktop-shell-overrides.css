@@ -918,6 +918,31 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
+.desktop-body[data-theme="standard"] .vd-spaces-overview-panel,
+.desktop-body[data-theme="fruity"] .vd-spaces-overview-panel,
+.desktop-body[data-theme="standard"] .vd-space-column,
+.desktop-body[data-theme="fruity"] .vd-space-column,
+.desktop-body[data-theme="standard"] .vd-space-window-card,
+.desktop-body[data-theme="fruity"] .vd-space-window-card {
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-panel-bg-strong);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
+}
+
+.desktop-body[data-theme="standard"] .vd-space-column,
+.desktop-body[data-theme="fruity"] .vd-space-column {
+    background: var(--vd-theme-control-bg);
+}
+
+.desktop-body[data-theme="standard"] .vd-snap-overlay,
+.desktop-body[data-theme="fruity"] .vd-snap-overlay {
+    border-color: color-mix(in srgb, var(--vd-theme-accent-border) 55%, transparent);
+    background: color-mix(in srgb, var(--vd-theme-accent-soft) 18%, transparent);
+    box-shadow: var(--vd-theme-shadow-panel);
+}
+
 .desktop-body[data-theme="standard"] .vd-icon.selected .vd-icon-label {
     background: rgba(10, 12, 16, 0.7);
 }

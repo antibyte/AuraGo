@@ -378,7 +378,7 @@
         const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
-        if (showDesktopBtn) showDesktopBtn.addEventListener('click', minimizeAllWindows);
+        if (showDesktopBtn) showDesktopBtn.addEventListener('click', toggleShowDesktop);
 
         // Hide shortcuts and widgets buttons on mobile (they make little sense on phones)
         updateTaskbarSystemButtonsForMobile();
@@ -541,6 +541,7 @@
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
+        if (handleSpacesOverviewShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
@@ -578,6 +579,7 @@
         case 'Escape': {
             const shortcuts = document.getElementById('vd-shortcuts-help');
             if (shortcuts) { closeShortcutsHelp(); return; }
+            if (isSpacesOverviewOpen()) { closeSpacesOverview(); return; }
             if (document.getElementById('vd-spotlight-backdrop')) { closeSpotlight(); return; }
             closeContextMenu();
             closeWindowMenu();
@@ -685,6 +687,7 @@
         mark('parallel-fetch-done');
         renderDesktop();
         initSpacesRuntime();
+        initSpacesOverviewRuntime();
         initTaskbarThumbnailsRuntime();
         initDesktopMediaKeysRuntime();
         initSIPPhoneShellRuntime();

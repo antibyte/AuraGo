@@ -5361,6 +5361,7 @@
     }
 
     function openApp(appId, context) {
+        clearShowDesktopPeek();
         if (context && context.path && isStandaloneWidgetPath(context.path) && !appById(appId)) {
             openStandaloneWidget(context.path, context.widgetId || appId, context);
             return;
@@ -5571,23 +5572,49 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
-    function buildTaskbarThumbnailMarkup(win) {
+    function windowPreviewBodyMarkup(win, options) {
+        options = options || {};
+        const maxW = options.maxW || THUMB_MAX_W;
+        const maxH = options.maxH || THUMB_MAX_H;
         const app = appById(win.appId);
-        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-taskbar-thumb-icon', 18);
         const content = win.element.querySelector('.vd-window-content');
         const sourceW = Math.max(win.element.offsetWidth || 640, 320);
         const sourceH = Math.max(content ? content.offsetHeight : 420, 240);
-        const scale = Math.min(THUMB_MAX_W / sourceW, THUMB_MAX_H / sourceH, 1);
+        const scale = Math.min(maxW / sourceW, maxH / sourceH, 1);
         const viewW = Math.max(128, Math.round(sourceW * scale));
         const viewH = Math.max(80, Math.round(sourceH * scale));
         const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
-        let body = '';
+        const viewportClass = options.viewportClass || 'vd-taskbar-thumb-viewport';
+        const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
+        const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
+        const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
         if (hasIframe || !content) {
-            body = `<div class="vd-taskbar-thumb-fallback">${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-taskbar-thumb-fallback-icon', 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
-        } else {
-            body = `<div class="vd-taskbar-thumb-viewport" style="width:${viewW}px;height:${viewH}px"><div class="vd-taskbar-thumb-scale" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+            return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="vd-taskbar-thumb-title">${icon}<span class="vd-taskbar-thumb-label">${esc(win.title)}</span></div>${body}`;
+        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+    }
+
+    function windowPreviewMarkup(win, options) {
+        options = options || {};
+        const app = appById(win.appId);
+        const iconSize = options.iconSize || 18;
+        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), options.iconClass || 'vd-taskbar-thumb-icon', iconSize);
+        const titleClass = options.titleClass || 'vd-taskbar-thumb-title';
+        const labelClass = options.labelClass || 'vd-taskbar-thumb-label';
+        const title = `<div class="${titleClass}">${icon}<span class="${labelClass}">${esc(win.title)}</span></div>`;
+        if (options.bodyOnly) return windowPreviewBodyMarkup(win, options);
+        return title + windowPreviewBodyMarkup(win, options);
+    }
+
+    function buildTaskbarThumbnailMarkup(win) {
+        return windowPreviewMarkup(win, {
+            maxW: THUMB_MAX_W,
+            maxH: THUMB_MAX_H,
+            titleClass: 'vd-taskbar-thumb-title',
+            labelClass: 'vd-taskbar-thumb-label',
+            iconClass: 'vd-taskbar-thumb-icon',
+            iconSize: 18
+        });
     }
 
     function showTaskbarThumbnail(windowId, anchor) {
@@ -5897,8 +5924,57 @@ function windowOverlapsFruityDock(win, dockRect) {
         window.setTimeout(() => win.classList.remove('vd-window-bounds-animated'), 240);
     }
 
+    function clearShowDesktopPeek() {
+        state.showDesktopPeekIds = null;
+        const btn = document.getElementById('vd-show-desktop-btn');
+        if (btn) {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-pressed', 'false');
+            btn.title = t('desktop.show_desktop');
+        }
+    }
+
+    function toggleShowDesktop() {
+        if (isCompactViewport()) {
+            minimizeAllWindows();
+            return;
+        }
+        const btn = document.getElementById('vd-show-desktop-btn');
+        if (state.showDesktopPeekIds && state.showDesktopPeekIds.length) {
+            const ids = state.showDesktopPeekIds.filter(id => state.windows.has(id));
+            state.showDesktopPeekIds = null;
+            if (btn) {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+                btn.title = t('desktop.show_desktop');
+            }
+            ids.forEach(id => {
+                const win = state.windows.get(id);
+                if (!win || !win.element) return;
+                win.minimizing = false;
+                win.element.style.display = '';
+            });
+            if (ids.length) focusWindow(ids[ids.length - 1], { fromShowDesktopRestore: true });
+            renderTaskbar();
+            scheduleSessionPersist();
+            return;
+        }
+        const ids = taskbarWindows()
+            .filter(win => win.element && win.element.style.display !== 'none')
+            .map(win => win.id);
+        if (!ids.length) return;
+        state.showDesktopPeekIds = ids.slice();
+        ids.forEach(id => minimizeWindow(id));
+        if (btn) {
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            btn.title = t('desktop.show_desktop_restore');
+        }
+    }
+
     function minimizeAllWindows() {
         state.windows.forEach((item, id) => minimizeWindow(id));
+        clearShowDesktopPeek();
     }
 
     function scheduleWindowPointerFrame(target, callback) {
@@ -6289,9 +6365,10 @@ function wireWindow(win, id) {
         }, 60);
     }
 
-    function focusWindow(id) {
+    function focusWindow(id, options) {
         const win = state.windows.get(id);
         if (!win) return;
+        if (!options || !options.fromShowDesktopRestore) clearShowDesktopPeek();
 
         const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
 
@@ -7460,13 +7537,7 @@ function wireWindow(win, id) {
             const label = t('desktop.space_n').replace('{{n}}', id);
             return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(id)}</span></button>`;
         }).join('');
-        if (pager.dataset.spacesWired === 'true') return;
-        pager.dataset.spacesWired = 'true';
-        pager.addEventListener('click', event => {
-            const btn = event.target.closest('[data-space-id]');
-            if (!btn) return;
-            switchSpace(btn.dataset.spaceId);
-        });
+        wireSpacePagerOverview(pager);
     }
 
     function switchSpace(id) {
@@ -7521,6 +7592,7 @@ function wireWindow(win, id) {
     }
 
     function refreshSpacesForViewport() {
+        if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
         if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
         applySpaceVisibility();
@@ -7551,6 +7623,234 @@ function wireWindow(win, id) {
             return true;
         }
         return false;
+    }
+
+;
+/* ui/js/desktop/core/spaces-overview-runtime.js */
+    let spacesOverviewOpen = false;
+    let pagerHoldTimer = 0;
+    let pagerHoldTriggered = false;
+
+    function spacesOverviewEnabled() {
+        return spacesEnabled();
+    }
+
+    function isSpacesOverviewOpen() {
+        return spacesOverviewOpen;
+    }
+
+    function windowsForSpace(spaceId) {
+        return [...state.windows.values()].filter(win => {
+            if (!win || win.isGadget || !win.element) return false;
+            return windowSpaceId(win) === normalizeSpaceId(spaceId);
+        });
+    }
+
+    function closeSpacesOverview() {
+        spacesOverviewOpen = false;
+        const overlay = document.getElementById('vd-spaces-overview');
+        if (overlay) {
+            overlay.hidden = true;
+            overlay.replaceChildren();
+        }
+        document.body.classList.remove('vd-spaces-overview-open');
+    }
+
+    function renderSpacesOverview() {
+        let overlay = document.getElementById('vd-spaces-overview');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'vd-spaces-overview';
+            overlay.className = 'vd-spaces-overview';
+            overlay.hidden = true;
+            document.body.appendChild(overlay);
+        }
+        const activeId = normalizeSpaceId(state.activeSpaceId);
+        overlay.innerHTML = `<div class="vd-spaces-overview-backdrop" data-action="close-overview"></div>
+            <div class="vd-spaces-overview-panel" role="dialog" aria-modal="true" aria-label="${esc(t('desktop.spaces_overview'))}">
+                <div class="vd-spaces-overview-header">
+                    <div class="vd-spaces-overview-title">${esc(t('desktop.spaces_overview'))}</div>
+                    <button type="button" class="vd-spaces-overview-close" data-action="close-overview">${esc(t('desktop.close'))}</button>
+                </div>
+                <div class="vd-spaces-overview-columns">${SPACE_IDS.map(id => renderSpaceOverviewColumn(id, activeId)).join('')}</div>
+            </div>`;
+        wireSpacesOverviewEvents(overlay);
+    }
+
+    function renderSpaceOverviewColumn(spaceId, activeId) {
+        const wins = windowsForSpace(spaceId);
+        const isActive = normalizeSpaceId(spaceId) === activeId;
+        const cards = wins.length
+            ? wins.map(win => renderSpaceOverviewCard(win)).join('')
+            : `<div class="vd-space-column-empty">${esc(t('desktop.spaces_overview_empty'))}</div>`;
+        return `<section class="vd-space-column${isActive ? ' active' : ''}" data-space-id="${esc(spaceId)}" aria-current="${isActive ? 'true' : 'false'}">
+            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}">${esc(t('desktop.space_n').replace('{{n}}', spaceId))}</button>
+            <div class="vd-space-column-body">${cards}</div>
+        </section>`;
+    }
+
+    function renderSpaceOverviewCard(win) {
+        const minimized = win.element.style.display === 'none';
+        const preview = windowPreviewMarkup(win, {
+            maxW: 180,
+            maxH: 110,
+            titleClass: 'vd-overview-card-title',
+            labelClass: 'vd-overview-card-label',
+            iconClass: 'vd-overview-card-icon',
+            iconSize: 16,
+            fallbackIconSize: 36,
+            viewportClass: 'vd-overview-card-viewport',
+            scaleClass: 'vd-overview-card-scale',
+            fallbackClass: 'vd-overview-card-fallback',
+            fallbackIconClass: 'vd-overview-card-fallback-icon'
+        });
+        return `<button type="button" class="vd-space-window-card${minimized ? ' minimized' : ''}" data-window-id="${esc(win.id)}" draggable="true">${preview}</button>`;
+    }
+
+    function wireSpacesOverviewEvents(overlay) {
+        overlay.querySelectorAll('[data-action="close-overview"]').forEach(node => {
+            node.addEventListener('click', closeSpacesOverview);
+        });
+        overlay.querySelectorAll('[data-space-target]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const spaceId = btn.dataset.spaceTarget;
+                if (normalizeSpaceId(spaceId) !== normalizeSpaceId(state.activeSpaceId)) switchSpace(spaceId);
+                closeSpacesOverview();
+            });
+        });
+        overlay.querySelectorAll('[data-window-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const win = state.windows.get(btn.dataset.windowId);
+                if (!win) return;
+                const targetSpace = windowSpaceId(win);
+                if (targetSpace !== normalizeSpaceId(state.activeSpaceId)) switchSpace(targetSpace);
+                focusWindow(win.id);
+                closeSpacesOverview();
+            });
+            btn.addEventListener('dragstart', event => {
+                event.dataTransfer.setData('text/plain', btn.dataset.windowId);
+                event.dataTransfer.effectAllowed = 'move';
+                btn.classList.add('dragging');
+            });
+            btn.addEventListener('dragend', () => btn.classList.remove('dragging'));
+        });
+        overlay.querySelectorAll('.vd-space-column-body').forEach(body => {
+            body.addEventListener('dragover', event => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                body.closest('.vd-space-column')?.classList.add('drop-target');
+            });
+            body.addEventListener('dragleave', () => {
+                body.closest('.vd-space-column')?.classList.remove('drop-target');
+            });
+            body.addEventListener('drop', event => {
+                event.preventDefault();
+                const column = body.closest('.vd-space-column');
+                column?.classList.remove('drop-target');
+                const windowId = event.dataTransfer.getData('text/plain');
+                const spaceId = column && column.dataset.spaceId;
+                if (!windowId || !spaceId) return;
+                moveWindowToSpace(windowId, spaceId);
+                renderSpacesOverview();
+            });
+        });
+    }
+
+    function openSpacesOverview() {
+        if (!spacesOverviewEnabled()) return;
+        hideTaskbarThumbnail();
+        spacesOverviewOpen = true;
+        document.body.classList.add('vd-spaces-overview-open');
+        renderSpacesOverview();
+        const overlay = document.getElementById('vd-spaces-overview');
+        if (overlay) overlay.hidden = false;
+    }
+
+    function toggleSpacesOverview() {
+        if (spacesOverviewOpen) closeSpacesOverview();
+        else openSpacesOverview();
+    }
+
+    function openSpacesOverviewForWindow(windowId) {
+        const win = state.windows.get(windowId);
+        if (!win || !spacesOverviewEnabled()) return;
+        const spaceId = windowSpaceId(win);
+        if (spaceId !== normalizeSpaceId(state.activeSpaceId)) switchSpace(spaceId);
+        openSpacesOverview();
+    }
+
+    function handleSpacesOverviewShortcut(event) {
+        if (!spacesOverviewEnabled() || isEditableTarget(event.target)) return false;
+        if (event.key === 'F3') {
+            event.preventDefault();
+            toggleSpacesOverview();
+            return true;
+        }
+        if (!event.ctrlKey || !event.altKey || event.metaKey) return false;
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            toggleSpacesOverview();
+            return true;
+        }
+        if (event.key === 'ArrowDown' && spacesOverviewOpen) {
+            event.preventDefault();
+            closeSpacesOverview();
+            return true;
+        }
+        return false;
+    }
+
+    function cancelPagerHoldTimer() {
+        if (pagerHoldTimer) {
+            window.clearTimeout(pagerHoldTimer);
+            pagerHoldTimer = 0;
+        }
+    }
+
+    function wireSpacePagerOverview(pager) {
+        if (!pager || pager.dataset.overviewWired === 'true') return;
+        pager.dataset.overviewWired = 'true';
+        pager.addEventListener('pointerdown', event => {
+            const btn = event.target.closest('[data-space-id]');
+            if (!btn || !spacesOverviewEnabled()) return;
+            cancelPagerHoldTimer();
+            pagerHoldTriggered = false;
+            pagerHoldTimer = window.setTimeout(() => {
+                pagerHoldTimer = 0;
+                pagerHoldTriggered = true;
+                openSpacesOverview();
+            }, 400);
+        });
+        pager.addEventListener('pointerup', cancelPagerHoldTimer);
+        pager.addEventListener('pointercancel', cancelPagerHoldTimer);
+        pager.addEventListener('pointerleave', cancelPagerHoldTimer);
+        pager.addEventListener('click', event => {
+            if (pagerHoldTriggered) {
+                event.preventDefault();
+                event.stopPropagation();
+                pagerHoldTriggered = false;
+                return;
+            }
+            const btn = event.target.closest('[data-space-id]');
+            if (!btn || !spacesOverviewEnabled()) return;
+            if (normalizeSpaceId(btn.dataset.spaceId) === normalizeSpaceId(state.activeSpaceId)) {
+                event.preventDefault();
+                event.stopPropagation();
+                openSpacesOverview();
+                return;
+            }
+            switchSpace(btn.dataset.spaceId);
+        }, true);
+    }
+
+    function initSpacesOverviewRuntime() {
+        closeSpacesOverview();
+        const pager = document.getElementById('vd-space-pager');
+        if (pager) wireSpacePagerOverview(pager);
+        window.addEventListener('resize', () => {
+            if (!spacesOverviewEnabled()) closeSpacesOverview();
+            else if (spacesOverviewOpen) renderSpacesOverview();
+        });
     }
 
 ;
@@ -7719,6 +8019,8 @@ function wireWindow(win, id) {
             ['Ctrl+Tab', t('desktop.shortcuts_window_switch')],
             ['Ctrl+Alt+W', t('desktop.shortcuts_window_switch_alt')],
             ['Ctrl+Alt+← / →', t('desktop.spaces_help')],
+            ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
+            ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -9816,6 +10118,25 @@ function updateTaskbarSystemButtonsForMobile() {
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
         if (spacesEnabled() && !item.isGadget) {
+            items.push({ separator: true });
+            items.push({
+                label: t('desktop.snap_left'),
+                icon: 'grid',
+                fallback: 'L',
+                action: () => applyWindowSnap(item.element, 'left-half')
+            });
+            items.push({
+                label: t('desktop.snap_right'),
+                icon: 'grid',
+                fallback: 'R',
+                action: () => applyWindowSnap(item.element, 'right-half')
+            });
+            items.push({
+                label: t('desktop.spaces_overview_show'),
+                icon: 'grid',
+                fallback: 'O',
+                action: () => openSpacesOverviewForWindow(id)
+            });
             items.push({ separator: true });
             SPACE_IDS.forEach(spaceId => {
                 const current = windowSpaceId(item) === spaceId;
@@ -14198,7 +14519,7 @@ if (appId === 'pixel') {
         const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
-        if (showDesktopBtn) showDesktopBtn.addEventListener('click', minimizeAllWindows);
+        if (showDesktopBtn) showDesktopBtn.addEventListener('click', toggleShowDesktop);
 
         // Hide shortcuts and widgets buttons on mobile (they make little sense on phones)
         updateTaskbarSystemButtonsForMobile();
@@ -14361,6 +14682,7 @@ if (appId === 'pixel') {
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
+        if (handleSpacesOverviewShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
@@ -14398,6 +14720,7 @@ if (appId === 'pixel') {
         case 'Escape': {
             const shortcuts = document.getElementById('vd-shortcuts-help');
             if (shortcuts) { closeShortcutsHelp(); return; }
+            if (isSpacesOverviewOpen()) { closeSpacesOverview(); return; }
             if (document.getElementById('vd-spotlight-backdrop')) { closeSpotlight(); return; }
             closeContextMenu();
             closeWindowMenu();
@@ -14505,6 +14828,7 @@ if (appId === 'pixel') {
         mark('parallel-fetch-done');
         renderDesktop();
         initSpacesRuntime();
+        initSpacesOverviewRuntime();
         initTaskbarThumbnailsRuntime();
         initDesktopMediaKeysRuntime();
         initSIPPhoneShellRuntime();
