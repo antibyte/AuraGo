@@ -25,10 +25,14 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"cfg:section-leave",
 		"setTimeout(localLLMRefreshStatus, 2000)",
 		"_localLLMInstallPending",
+		"localLLMUpdateStatusDOM()",
+		"status.operation_in_progress",
+		"status.progress",
+		`id="local-llm-prompt-cache"`,
 		"['16384', '16K']",
 		"['32768', '32K']",
 		"localLLMLocalizedRuntimeValue",
-		"escapeHtml(status.model_name)",
+		"escapeHtml(localLLMStatusText(status))",
 		"local_llm.model_family",
 		"config.local_llm.ling_quality",
 		"cache.qualified",
@@ -47,6 +51,9 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		if !strings.Contains(module, required) {
 			t.Fatalf("Local LLM config module missing %q", required)
 		}
+	}
+	if strings.Contains(module, "if (changed && document.getElementById('local-llm-status')) renderLocalLLMSection(null)") {
+		t.Fatal("Local LLM status polling still re-renders the complete section for progress-only changes")
 	}
 	for _, obsolete := range []string{"['2048', '2K']", "['8192', '8K']"} {
 		if strings.Contains(module, obsolete) {

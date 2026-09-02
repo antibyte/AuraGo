@@ -433,7 +433,7 @@ func TestUpdateScriptGitFetchIsNonInteractiveAndBeforeShutdown(t *testing.T) {
 		"GIT_TERMINAL_PROMPT=0",
 		"GCM_INTERACTIVE=never",
 		"for attempt in 1 2 3; do",
-		`git -c credential.interactive=never -C "$DIR" fetch origin main --quiet`,
+		`git -c credential.interactive=never -c http.version=HTTP/1.1 -C "$DIR" fetch origin main --quiet`,
 	} {
 		if !strings.Contains(updateScript, required) {
 			t.Fatalf("update.sh must fetch without interactive Git authentication; missing %q", required)

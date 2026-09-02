@@ -26,6 +26,7 @@ func TestManagementInstallScriptContainsManagedDeploymentContract(t *testing.T) 
 		"chmod 0600 /etc/boring/boring-web.env",
 		"BORING_URL=${BORING_WEB_BORING_URL}",
 		"BORING_TOKEN=${BORING_TOKEN_VALUE}",
+		`git -c http.version=HTTP/1.1 -C "${REPO_DIR}" fetch`,
 		"boring-web.service",
 		"127.0.0.1:18081",
 		"ProtectSystem=strict",

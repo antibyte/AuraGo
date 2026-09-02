@@ -63,7 +63,7 @@ function renderLocalLLMSection(section) {
     html += '<div class="field-help">' + t('config.local_llm.storage_note') + '</div>';
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.local_llm.compatibility') + '</div>';
-    html += '<div id="local-llm-status" class="cfg-note-banner ' + localLLMStatusClass(status) + '">' + localLLMStatusText(status) + '</div>';
+    html += '<div id="local-llm-status" class="cfg-note-banner ' + localLLMStatusClass(status) + '">' + escapeHtml(localLLMStatusText(status)) + '</div>';
     html += localLLMPromptCacheStatus(status);
     if (status.acknowledgement_required) {
         html += '<div class="cfg-note-banner cfg-note-banner-warning">' + t('config.local_llm.ack_warning') + '</div>';
@@ -228,7 +228,8 @@ function localLLMActionButton(action, labelKey, disabled) {
 
 function localLLMUpdateSavedActionState() {
     document.querySelectorAll('[data-local-llm-saved-action]').forEach(button => {
-        button.disabled = isDirty || button.dataset.policyDisabled === 'true';
+        button.disabled = isDirty || button.dataset.policyDisabled === 'true' || _localLLMInstallPending ||
+            Boolean(_localLLMStatus && _localLLMStatus.operation_in_progress);
     });
 }
 
@@ -246,10 +247,13 @@ function localLLMStatusText(status) {
         .replace('{state}', state)
         .replace('{compatibility}', compatibility)
         .replace('{backend}', status.backend || '—');
-    if (status.model_name) text = escapeHtml(status.model_name) + ' · ' + text;
+    if (status.model_name) text = status.model_name + ' · ' + text;
     if (status.error_code) text += ' · ' + t('config.local_llm.error_prefix') + ': ' + status.error_code;
     if (status.resolved_profile) text += ' · ' + t('config.local_llm.resolved_profile') + ': ' + status.resolved_profile;
     if (status.active_requests) text += ' · ' + t('config.local_llm.active_requests') + ': ' + status.active_requests;
+    if (status.operation_in_progress && Number.isFinite(Number(status.progress))) {
+        text += ' · ' + (Math.max(0, Math.min(1, Number(status.progress))) * 100).toFixed(1) + ' %';
+    }
     return text;
 }
 
@@ -279,7 +283,7 @@ function localLLMPromptCacheStatus(status) {
     if (cache.error_code) {
         text += '<br>' + escapeHtml(t('config.local_llm.error_prefix') + ': ' + localLLMCacheErrorText(cache.error_code));
     }
-    return '<div class="cfg-note-banner">' + text + '</div>';
+    return '<div id="local-llm-prompt-cache" class="cfg-note-banner">' + text + '</div>';
 }
 
 function localLLMCacheErrorText(errorCode) {
@@ -323,18 +327,39 @@ async function localLLMRefreshStatus() {
         const response = await fetch('/api/local-llm/status');
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || ('HTTP ' + response.status));
-        const changed = !_localLLMStatus || JSON.stringify(_localLLMStatus) !== JSON.stringify(data);
+        const previous = _localLLMStatus;
+        const changed = !previous || JSON.stringify(previous) !== JSON.stringify(data);
+        const structureChanged = !previous || previous.acknowledgement_required !== data.acknowledgement_required ||
+            previous.release_manifest_ready !== data.release_manifest_ready || previous.role !== data.role;
         _localLLMStatus = data;
         if (_localLLMInstallPending &&
             (data.state === 'running' && Number(data.progress) >= 1 || data.state === 'error')) {
             _localLLMInstallPending = false;
         }
-        if (changed && document.getElementById('local-llm-status')) renderLocalLLMSection(null);
+        if (changed && document.getElementById('local-llm-status')) {
+            if (structureChanged) {
+                renderLocalLLMSection(null);
+                return;
+            }
+            localLLMUpdateStatusDOM();
+        }
         localLLMSchedulePolling();
     } catch (error) {
         const target = document.getElementById('local-llm-status');
         if (target) target.textContent = t('config.local_llm.error_prefix') + ': ' + error.message;
     }
+}
+
+function localLLMUpdateStatusDOM() {
+    const status = _localLLMStatus || {};
+    const target = document.getElementById('local-llm-status');
+    if (target) {
+        target.textContent = localLLMStatusText(status);
+        target.className = 'cfg-note-banner ' + localLLMStatusClass(status);
+    }
+    const cache = document.getElementById('local-llm-prompt-cache');
+    if (cache) cache.outerHTML = localLLMPromptCacheStatus(status);
+    localLLMUpdateSavedActionState();
 }
 
 function localLLMSchedulePolling() {
@@ -355,7 +380,10 @@ async function localLLMAction(action) {
     const body = action === 'probe' || action === 'install' ? {} : { action };
     const target = document.getElementById('local-llm-status');
     if (target) target.textContent = t('config.local_llm.working');
-    if (action === 'install') _localLLMInstallPending = true;
+    if (action === 'install') {
+        _localLLMInstallPending = true;
+        localLLMUpdateSavedActionState();
+    }
     if (_localLLMPollTimer) clearTimeout(_localLLMPollTimer);
     _localLLMPollTimer = setTimeout(localLLMRefreshStatus, 500);
     try {
@@ -365,6 +393,7 @@ async function localLLMAction(action) {
         await localLLMRefreshStatus();
     } catch (error) {
         if (action === 'install') _localLLMInstallPending = false;
+        localLLMUpdateSavedActionState();
         if (_localLLMPollTimer) {
             clearTimeout(_localLLMPollTimer);
             _localLLMPollTimer = null;

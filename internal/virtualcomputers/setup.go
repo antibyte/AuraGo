@@ -379,6 +379,8 @@ func (m SetupManager) installScript() string {
 
 	script := fmt.Sprintf(`set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
+export GIT_TERMINAL_PROMPT=0
+export GCM_INTERACTIVE=never
 INSTALL_DIR=%s
 REPO_URL="https://github.com/michaelshimeles/boring-computers.git"
 BORING_REVISION=%s
@@ -442,12 +444,12 @@ REPO_DIR="${INSTALL_DIR}/boring-computers"
 mkdir -p "${INSTALL_DIR}" /root/infra /opt/boring/src
 if [ -d "${REPO_DIR}/.git" ]; then
 	log "updating boring-computers source"
-	git -C "${REPO_DIR}" fetch --depth=1 origin "${BORING_REVISION}"
+	git -c http.version=HTTP/1.1 -C "${REPO_DIR}" fetch --depth=1 origin "${BORING_REVISION}"
 else
 	log "cloning boring-computers source"
 	rm -rf "${REPO_DIR}"
-	git clone --filter=blob:none --no-checkout "${REPO_URL}" "${REPO_DIR}"
-	git -C "${REPO_DIR}" fetch --depth=1 origin "${BORING_REVISION}"
+	git -c http.version=HTTP/1.1 clone --filter=blob:none --no-checkout "${REPO_URL}" "${REPO_DIR}"
+	git -c http.version=HTTP/1.1 -C "${REPO_DIR}" fetch --depth=1 origin "${BORING_REVISION}"
 fi
 git -C "${REPO_DIR}" checkout --detach "${BORING_REVISION}"
 

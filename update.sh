@@ -78,7 +78,7 @@ git_fetch_origin_main() {
     local retry_delay
     for attempt in 1 2 3; do
         if GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never \
-            git -c credential.interactive=never -C "$DIR" fetch origin main --quiet; then
+            git -c credential.interactive=never -c http.version=HTTP/1.1 -C "$DIR" fetch origin main --quiet; then
             return 0
         fi
         if [ "$attempt" -lt 3 ]; then

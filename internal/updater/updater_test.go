@@ -68,12 +68,14 @@ func TestCheckUpdatesGitCountsPendingCommits(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
+	var fetchArgs string
 	runner := func(dir, name string, args ...string) ([]byte, error) {
 		joined := strings.Join(args, " ")
 		switch {
 		case strings.Contains(joined, "describe"):
 			return []byte("v1.0.0\n"), nil
 		case strings.Contains(joined, "fetch"):
+			fetchArgs = joined
 			return nil, nil
 		case strings.Contains(joined, "rev-list"):
 			return []byte("0 3\n"), nil
@@ -96,6 +98,9 @@ func TestCheckUpdatesGitCountsPendingCommits(t *testing.T) {
 	}
 	if !strings.Contains(got.Changelog, "fix updater") {
 		t.Fatalf("missing changelog: %+v", got)
+	}
+	if !strings.Contains(fetchArgs, "-c http.version=HTTP/1.1 fetch origin main --quiet") {
+		t.Fatalf("git fetch must avoid the failing HTTP/2 upload-pack path: %q", fetchArgs)
 	}
 }
 

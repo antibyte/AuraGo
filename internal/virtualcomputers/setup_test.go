@@ -118,7 +118,7 @@ func TestSetupInstallRunsScriptAndHealthCheck(t *testing.T) {
 		t.Fatalf("expected one install script, got %d", len(executor.scripts))
 	}
 	script := executor.scripts[0]
-	for _, want := range []string{"BORING_ADDR_VALUE='127.0.0.1:18082'", "BORING_ADDR=${BORING_ADDR_VALUE}", "BORING_MAX_VALUE=3", "BORING_MAX_FORKS_VALUE=2", "SKIP_DESKTOP_VALUE=1", PinnedUpstreamRevision, "boring-web.service"} {
+	for _, want := range []string{"BORING_ADDR_VALUE='127.0.0.1:18082'", "BORING_ADDR=${BORING_ADDR_VALUE}", "BORING_MAX_VALUE=3", "BORING_MAX_FORKS_VALUE=2", "SKIP_DESKTOP_VALUE=1", PinnedUpstreamRevision, "boring-web.service", "export GIT_TERMINAL_PROMPT=0", `git -c http.version=HTTP/1.1 clone`, `git -c http.version=HTTP/1.1 -C "${REPO_DIR}" fetch`} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("install script missing %q", want)
 		}

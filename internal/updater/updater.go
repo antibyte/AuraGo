@@ -155,7 +155,7 @@ func checkUpdatesGit(ctx context.Context, opts CheckOptions) CheckResult {
 		}
 	}
 
-	if _, err := run(dir, "git", "-c", safeDir, "fetch", "origin", "main", "--quiet"); err != nil {
+	if _, err := run(dir, "git", "-c", safeDir, "-c", "http.version=HTTP/1.1", "fetch", "origin", "main", "--quiet"); err != nil {
 		return CheckResult{Mode: "git", Error: "Could not reach GitHub", Message: "Update check failed."}
 	}
 

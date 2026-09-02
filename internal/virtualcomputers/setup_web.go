@@ -31,7 +31,7 @@ RELEASE_DIR="${INSTALL_DIR}/releases/${RELEASE_ID}"
 STAGING_DIR="${RELEASE_DIR}.staging"
 CURRENT_LINK="${INSTALL_DIR}/current"
 
-git -C "${REPO_DIR}" fetch --depth=1 origin ${BORING_WEB_REVISION}
+git -c http.version=HTTP/1.1 -C "${REPO_DIR}" fetch --depth=1 origin ${BORING_WEB_REVISION}
 git -C "${REPO_DIR}" checkout --detach ${BORING_WEB_REVISION}
 
 apt-get install -y xz-utils python3
