@@ -57,9 +57,25 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		"function dockPinIds()",
 		"function recordRecentFile(",
 		"SESSION_SKIP_APP_IDS",
+		"version: 2",
+		"activeSpaceId",
+		"spaceId",
 	} {
 		if !strings.Contains(session, want) {
 			t.Fatalf("session runtime missing %q", want)
+		}
+	}
+
+	spaces := readDesktopAssetText(t, "js/desktop/core/spaces-runtime.js")
+	for _, want := range []string{
+		"function switchSpace(",
+		"function applySpaceVisibility(",
+		"SPACE_IDS = ['1', '2', '3']",
+		"function renderSpacePager(",
+		"function handleSpaceShortcut(",
+	} {
+		if !strings.Contains(spaces, want) {
+			t.Fatalf("spaces runtime missing %q", want)
 		}
 	}
 
@@ -102,9 +118,22 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		".vd-spotlight-backdrop",
 		".vd-notification-center",
 		".vd-window-switcher",
+		".vd-space-pager",
+		"vd-space-hidden",
+		"--vd-theme-panel-bg-strong",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chrome css missing %q", want)
+		}
+	}
+
+	overrides := readDesktopAssetText(t, "css/desktop-shell-overrides.css")
+	for _, want := range []string{
+		".vd-space-pager-btn",
+		".vd-notification-center",
+	} {
+		if !strings.Contains(overrides, want) {
+			t.Fatalf("desktop shell overrides missing spaces/chrome bridge %q", want)
 		}
 	}
 
@@ -124,6 +153,7 @@ func TestDesktopFeelingBundlesIncludeChromeModules(t *testing.T) {
 	buildScript := string(buildScriptBytes)
 	for _, want := range []string{
 		"session-runtime.js",
+		"spaces-runtime.js",
 		"shell-chrome-runtime.js",
 		"spotlight-runtime.js",
 		"desktop-chrome.css",

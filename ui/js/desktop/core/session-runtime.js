@@ -74,10 +74,15 @@
                 maximized: !!item.maximized,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
+                spaceId: windowSpaceId(item),
                 context: sanitizeSessionContext(item.context)
             });
         });
-        return { version: 1, windows };
+        return {
+            version: 2,
+            activeSpaceId: normalizeSpaceId(state.activeSpaceId),
+            windows
+        };
     }
 
     function scheduleSessionPersist() {
@@ -117,6 +122,8 @@
         const snapshot = parseSessionSnapshot();
         if (!snapshot || !snapshot.windows.length) return;
         state.sessionRestoring = true;
+        restoreActiveSpaceFromSnapshot(snapshot);
+        renderSpacePager();
         const sorted = snapshot.windows.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
         for (let i = 0; i < sorted.length; i++) {
             const entry = sorted[i];
@@ -131,6 +138,7 @@
                     maximized: !!entry.maximized,
                     minimized: !!entry.minimized,
                     z: entry.z || 0,
+                    spaceId: entry.spaceId,
                     active: i === sorted.length - 1
                 }
             });
@@ -138,6 +146,18 @@
             await new Promise(resolve => window.setTimeout(resolve, 60));
         }
         state.sessionRestoring = false;
+        applySpaceVisibility();
+        const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
+        if (visibleOnSpace.length) {
+            const top = visibleOnSpace.reduce((best, win) => {
+                const z = parseInt(win.element.style.zIndex, 10) || 0;
+                const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
+                return z >= bestZ ? win : best;
+            });
+            focusWindow(top.id);
+        } else {
+            state.activeWindowId = '';
+        }
         scheduleSessionPersist();
     }
 

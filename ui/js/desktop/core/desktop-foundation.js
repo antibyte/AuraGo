@@ -32,7 +32,8 @@
         openWindowMenu: null,
         webampMusic: null,
         fruityDockOcclusionFrame: 0,
-        fruityDockFootprint: null
+        fruityDockFootprint: null,
+        activeSpaceId: '1'
     };
     let bootstrapReloadPromise = null;
 

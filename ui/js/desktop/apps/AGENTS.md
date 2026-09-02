@@ -7,12 +7,30 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 
 Shell chrome helpers live in the main desktop bundle (not lazy apps):
 `core/session-runtime.js` (session restore, dock pins, recent files, default
-apps), `core/shell-chrome-runtime.js` (notification center, clock popup,
-hold window switcher, shortcuts overlay), and `core/spotlight-runtime.js`
-(Ctrl+K mixed search). Styles: `ui/css/desktop-chrome.css` (bundled into
-`desktop-shell.bundle.css`). Persisted keys:
-`windows.restore_session`, `appearance.dock_pins`, `session.windows`, and
-`files.default_apps` via `/api/desktop/settings`.
+apps), `core/spaces-runtime.js` (three virtual desktops / Spaces v1: window
+`spaceId`, hide-without-dispose, session snapshot v2, taskbar pager, Ctrl+Alt
+arrows; disabled on compact viewport), `core/shell-chrome-runtime.js`
+(notification center, clock popup, hold window switcher, shortcuts overlay),
+and `core/spotlight-runtime.js` (Ctrl+K mixed search). Styles:
+`ui/css/desktop-chrome.css` (bundled into `desktop-shell.bundle.css`).
+Persisted keys: `windows.restore_session`, `appearance.dock_pins`,
+`session.windows` (snapshot v2 with `activeSpaceId` and per-window `spaceId`),
+and `files.default_apps` via `/api/desktop/settings`.
+
+### Spaces v1 contract
+
+- Exactly three spaces (`1`, `2`, `3`); no create/delete in v1.
+- Normal windows get `spaceId` from the active space at open time; session
+  restore reads stored `spaceId` (fallback space `1`).
+- Space switch hides other windows (`vd-space-hidden` / `data-space-hidden`) but
+  does not dispose them; minimize and space-hide stay independent.
+- Desktop icons, widgets, wallpaper, and gadgets stay global across spaces.
+- Taskbar/dock pins stay global; running window buttons and Ctrl+Tab switcher
+  list only the active space.
+- `findExistingAppWindow` prefers the current space; a match in another space
+  triggers `switchSpace` then focus (no duplicate window).
+- Compact viewport (`isCompactViewport()`) keeps single-space behavior and hides
+  the pager.
 
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent

@@ -859,6 +859,55 @@
     border-radius: 10px;
 }
 
+.desktop-body[data-theme="standard"] :where(
+    .vd-notification-center,
+    .vd-clock-popup,
+    .vd-spotlight,
+    .vd-shortcuts-panel
+),
+.desktop-body[data-theme="fruity"] :where(
+    .vd-notification-center,
+    .vd-clock-popup,
+    .vd-spotlight,
+    .vd-shortcuts-panel
+) {
+    border-color: var(--vd-theme-border);
+    border-radius: var(--vd-theme-radius-panel);
+    background: var(--vd-theme-panel-bg-strong);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher),
+.desktop-body[data-theme="fruity"] :where(.vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher) {
+    background: var(--vd-theme-overlay-bg);
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .vd-notification-button,
+    .vd-spotlight-input,
+    .vd-space-pager-btn,
+    .vd-switcher-item
+),
+.desktop-body[data-theme="fruity"] :where(
+    .vd-notification-button,
+    .vd-spotlight-input,
+    .vd-space-pager-btn,
+    .vd-switcher-item
+) {
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
+}
+
+.desktop-body[data-theme="standard"] .vd-space-pager-btn.active,
+.desktop-body[data-theme="fruity"] .vd-space-pager-btn.active,
+.desktop-body[data-theme="standard"] .vd-space-pager-btn[aria-pressed="true"],
+.desktop-body[data-theme="fruity"] .vd-space-pager-btn[aria-pressed="true"] {
+    border-color: var(--vd-theme-accent-border);
+    background: var(--vd-theme-accent-soft);
+}
+
 .desktop-body[data-theme="standard"] .vd-icon.selected .vd-icon-label {
     background: rgba(10, 12, 16, 0.7);
 }

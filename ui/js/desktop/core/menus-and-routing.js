@@ -562,13 +562,28 @@
         event.preventDefault();
         const item = state.windows.get(id);
         if (!item) return;
-        showContextMenu(event.clientX, event.clientY, [
+        const items = [
             { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
-            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) },
+            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
+        ];
+        if (spacesEnabled() && !item.isGadget) {
+            items.push({ separator: true });
+            SPACE_IDS.forEach(spaceId => {
+                const current = windowSpaceId(item) === spaceId;
+                items.push({
+                    label: t('desktop.move_to_space').replace('{{n}}', spaceId) + (current ? ' ✓' : ''),
+                    icon: 'grid',
+                    fallback: spaceId,
+                    action: () => moveWindowToSpace(id, spaceId)
+                });
+            });
+        }
+        items.push(
             { separator: true },
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
-        ]);
+        );
+        showContextMenu(event.clientX, event.clientY, items);
     }
 
     function autoArrangeIcons() {

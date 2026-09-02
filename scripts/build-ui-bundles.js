@@ -21,6 +21,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/shortcut-runtime.js',
   'ui/js/desktop/core/file-dialog-runtime.js',
   'ui/js/desktop/core/session-runtime.js',
+  'ui/js/desktop/core/spaces-runtime.js',
   'ui/js/desktop/core/shell-chrome-runtime.js',
   'ui/js/desktop/core/spotlight-runtime.js',
   'ui/js/desktop/core/desktop-file-drops.js',

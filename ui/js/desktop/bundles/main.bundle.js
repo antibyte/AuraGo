@@ -264,7 +264,8 @@
         openWindowMenu: null,
         webampMusic: null,
         fruityDockOcclusionFrame: 0,
-        fruityDockFootprint: null
+        fruityDockFootprint: null,
+        activeSpaceId: '1'
     };
     let bootstrapReloadPromise = null;
 
@@ -5006,7 +5007,7 @@
             if (!seenPinIds.has(btn.dataset.pinAppId)) btn.remove();
         });
         const seenWindowIds = new Set();
-        [...state.windows.values()].forEach((win, index) => {
+        taskbarWindows().forEach((win, index) => {
             seenWindowIds.add(win.id);
             let btn = winHost.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
             if (!btn) {
@@ -5028,7 +5029,7 @@
         if (btn.getAttribute('data-pin-bound') === 'true') return;
         btn.setAttribute('data-pin-bound', 'true');
         btn.addEventListener('click', () => {
-            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.pinAppId);
+            const existing = findExistingAppWindow(btn.dataset.pinAppId, {});
             if (existing) focusWindow(existing.id);
             else openApp(btn.dataset.pinAppId);
         });
@@ -5086,7 +5087,7 @@
         if (btn.getAttribute('data-dock-bound') === 'true') return;
         btn.setAttribute('data-dock-bound', 'true');
         btn.addEventListener('click', () => {
-            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.appId);
+            const existing = findExistingAppWindow(btn.dataset.appId, {});
             if (existing) focusWindow(existing.id);
             else openApp(btn.dataset.appId);
         });
@@ -5096,7 +5097,7 @@
 
     function reconcileFruityDock() {
         const host = $('vd-taskbar-apps');
-        const runningWindows = [...state.windows.values()];
+        const runningWindows = taskbarWindows();
         const track = ensureFruityDockShell(host);
         if (!track) return;
         const seenDockAppIds = new Set();
@@ -5227,6 +5228,15 @@
         if (win.context.path != null) win.context.path = normalizeDesktopPath(win.context.path);
     }
 
+    function matchesExistingAppWindow(win, appId, context) {
+        if (win.appId !== appId) return false;
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
+            const requestedPath = normalizeDesktopPath(context.path);
+            return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
+        }
+        return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
+    }
+
     function findExistingAppWindow(appId, context) {
         const dead = [];
         state.windows.forEach((win, id) => {
@@ -5241,14 +5251,15 @@
             if (state.activeWindowId === id) state.activeWindowId = '';
         });
         if (appId === 'virtual-computers') return undefined;
-        return [...state.windows.values()].find(win => {
-            if (win.appId !== appId) return false;
-            if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
-                const requestedPath = normalizeDesktopPath(context.path);
-                return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
-            }
-            return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
-        });
+        const ctx = context || {};
+        const inActive = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && isWindowOnActiveSpace(win));
+        if (inActive) return inActive;
+        const inOther = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && !isWindowOnActiveSpace(win));
+        if (inOther) {
+            switchSpace(windowSpaceId(inOther));
+            return inOther;
+        }
+        return undefined;
     }
 
     function isStandaloneWidgetPath(path) {
@@ -5296,6 +5307,7 @@
         const win = document.createElement('section');
         win.className = 'vd-window';
         win.dataset.windowId = id;
+        assignWindowSpace({ element: win }, state.activeSpaceId);
         const size = clampWindowSize({ width: 900, height: 650 });
         const position = nextWindowPosition(size);
         win.style.left = position.left + 'px';
@@ -5321,10 +5333,11 @@
         ${resizeHandleMarkup()}`;
         $('vd-window-layer').appendChild(win);
         const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
-        state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '' });
+        state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '', spaceId: win.dataset.spaceId });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         focusWindow(id);
+        applySpaceVisibility();
         renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
         renderTaskbar();
     }
@@ -5381,6 +5394,10 @@
         win.className = 'vd-window';
         win.dataset.windowId = id;
         win.dataset.appId = appId;
+        const sessionRestore = context && context.sessionRestore;
+        assignWindowSpace({ element: win }, sessionRestore && sessionRestore.spaceId != null
+            ? sessionRestore.spaceId
+            : state.activeSpaceId);
 
         const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
         const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
@@ -5393,7 +5410,6 @@
         }
 
         const requestedSize = appWindowSize(appId);
-        const sessionRestore = context && context.sessionRestore;
         const size = sessionRestore
             ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
             : clampWindowSize(requestedSize);
@@ -5453,7 +5469,7 @@
         const windowContext = Object.assign({}, context || {});
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
+        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
@@ -5461,6 +5477,7 @@
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
         if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
+        applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
         if (windowContext.path) recordRecentFile(windowContext.path, appId);
         renderTaskbar();
@@ -7097,10 +7114,15 @@ function wireWindow(win, id) {
                 maximized: !!item.maximized,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
+                spaceId: windowSpaceId(item),
                 context: sanitizeSessionContext(item.context)
             });
         });
-        return { version: 1, windows };
+        return {
+            version: 2,
+            activeSpaceId: normalizeSpaceId(state.activeSpaceId),
+            windows
+        };
     }
 
     function scheduleSessionPersist() {
@@ -7140,6 +7162,8 @@ function wireWindow(win, id) {
         const snapshot = parseSessionSnapshot();
         if (!snapshot || !snapshot.windows.length) return;
         state.sessionRestoring = true;
+        restoreActiveSpaceFromSnapshot(snapshot);
+        renderSpacePager();
         const sorted = snapshot.windows.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
         for (let i = 0; i < sorted.length; i++) {
             const entry = sorted[i];
@@ -7154,6 +7178,7 @@ function wireWindow(win, id) {
                     maximized: !!entry.maximized,
                     minimized: !!entry.minimized,
                     z: entry.z || 0,
+                    spaceId: entry.spaceId,
                     active: i === sorted.length - 1
                 }
             });
@@ -7161,6 +7186,18 @@ function wireWindow(win, id) {
             await new Promise(resolve => window.setTimeout(resolve, 60));
         }
         state.sessionRestoring = false;
+        applySpaceVisibility();
+        const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
+        if (visibleOnSpace.length) {
+            const top = visibleOnSpace.reduce((best, win) => {
+                const z = parseInt(win.element.style.zIndex, 10) || 0;
+                const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
+                return z >= bestZ ? win : best;
+            });
+            focusWindow(top.id);
+        } else {
+            state.activeWindowId = '';
+        }
         scheduleSessionPersist();
     }
 
@@ -7207,6 +7244,167 @@ function wireWindow(win, id) {
         const recent = readRecentFiles().filter(entry => entry.path !== normalized);
         recent.unshift({ path: normalized, name, appId: appId || '', openedAt: Date.now() });
         writeJSONStorage(RECENT_FILES_KEY, recent.slice(0, RECENT_FILES_MAX));
+    }
+
+;
+/* ui/js/desktop/core/spaces-runtime.js */
+    const SPACE_IDS = ['1', '2', '3'];
+    const DEFAULT_SPACE_ID = '1';
+
+    if (!state.activeSpaceId) state.activeSpaceId = DEFAULT_SPACE_ID;
+
+    function spacesEnabled() {
+        return !isCompactViewport();
+    }
+
+    function normalizeSpaceId(id) {
+        const value = String(id || DEFAULT_SPACE_ID);
+        return SPACE_IDS.includes(value) ? value : DEFAULT_SPACE_ID;
+    }
+
+    function windowSpaceId(win) {
+        if (!win) return DEFAULT_SPACE_ID;
+        if (win.spaceId) return normalizeSpaceId(win.spaceId);
+        if (win.element && win.element.dataset.spaceId) return normalizeSpaceId(win.element.dataset.spaceId);
+        return DEFAULT_SPACE_ID;
+    }
+
+    function assignWindowSpace(win, spaceId) {
+        if (!win) return;
+        const normalized = normalizeSpaceId(spaceId);
+        win.spaceId = normalized;
+        if (win.element) win.element.dataset.spaceId = normalized;
+    }
+
+    function isWindowOnActiveSpace(win) {
+        if (!spacesEnabled()) return true;
+        return windowSpaceId(win) === normalizeSpaceId(state.activeSpaceId);
+    }
+
+    function taskbarWindows() {
+        return [...state.windows.values()].filter(win => win && !win.isGadget && isWindowOnActiveSpace(win));
+    }
+
+    function applySpaceVisibility() {
+        state.windows.forEach(win => {
+            if (!win || !win.element || win.isGadget) return;
+            const onActive = isWindowOnActiveSpace(win);
+            win.element.classList.toggle('vd-space-hidden', !onActive);
+            if (onActive) win.element.removeAttribute('data-space-hidden');
+            else win.element.setAttribute('data-space-hidden', 'true');
+        });
+    }
+
+    function renderSpacePager() {
+        let pager = document.getElementById('vd-space-pager');
+        const system = document.querySelector('.vd-taskbar-system');
+        if (!pager && system) {
+            pager = document.createElement('div');
+            pager.id = 'vd-space-pager';
+            pager.className = 'vd-space-pager';
+            pager.setAttribute('role', 'group');
+            const notifyBtn = document.getElementById('vd-notification-button');
+            if (notifyBtn) system.insertBefore(pager, notifyBtn);
+            else system.prepend(pager);
+        }
+        if (!pager) return;
+        pager.hidden = !spacesEnabled();
+        pager.setAttribute('aria-label', t('desktop.space'));
+        pager.innerHTML = SPACE_IDS.map(id => {
+            const active = normalizeSpaceId(state.activeSpaceId) === id;
+            const label = t('desktop.space_n').replace('{{n}}', id);
+            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(id)}</span></button>`;
+        }).join('');
+        if (pager.dataset.spacesWired === 'true') return;
+        pager.dataset.spacesWired = 'true';
+        pager.addEventListener('click', event => {
+            const btn = event.target.closest('[data-space-id]');
+            if (!btn) return;
+            switchSpace(btn.dataset.spaceId);
+        });
+    }
+
+    function switchSpace(id) {
+        if (!spacesEnabled()) return;
+        const next = normalizeSpaceId(id);
+        if (next === normalizeSpaceId(state.activeSpaceId)) return;
+        state.activeSpaceId = next;
+        applySpaceVisibility();
+        renderSpacePager();
+        renderTaskbar();
+        const visible = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
+        if (visible.length) {
+            const top = visible.reduce((best, win) => {
+                const z = parseInt(win.element.style.zIndex, 10) || 0;
+                const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
+                return z >= bestZ ? win : best;
+            });
+            focusWindow(top.id);
+        } else {
+            state.activeWindowId = '';
+            state.windows.forEach(item => {
+                if (item.element) item.element.classList.remove('active');
+            });
+        }
+        scheduleSessionPersist();
+    }
+
+    function cycleSpace(direction) {
+        if (!spacesEnabled()) return;
+        const ids = SPACE_IDS;
+        const current = normalizeSpaceId(state.activeSpaceId);
+        const idx = ids.indexOf(current);
+        const next = ids[(idx + direction + ids.length) % ids.length];
+        switchSpace(next);
+    }
+
+    function moveWindowToSpace(windowId, spaceId) {
+        if (!spacesEnabled()) return;
+        const win = state.windows.get(windowId);
+        if (!win || win.isGadget) return;
+        assignWindowSpace(win, spaceId);
+        applySpaceVisibility();
+        renderTaskbar();
+        scheduleSessionPersist();
+        if (normalizeSpaceId(spaceId) === normalizeSpaceId(state.activeSpaceId)) focusWindow(windowId);
+    }
+
+    function restoreActiveSpaceFromSnapshot(snapshot) {
+        if (!snapshot || snapshot.version < 2 || !snapshot.activeSpaceId) return;
+        state.activeSpaceId = normalizeSpaceId(snapshot.activeSpaceId);
+    }
+
+    function refreshSpacesForViewport() {
+        renderSpacePager();
+        if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
+        applySpaceVisibility();
+        renderTaskbar();
+    }
+
+    function initSpacesRuntime() {
+        renderSpacePager();
+        applySpaceVisibility();
+        if (!state._spacesViewportWired) {
+            state._spacesViewportWired = true;
+            window.addEventListener('resize', refreshSpacesForViewport);
+            if (window.visualViewport) window.visualViewport.addEventListener('resize', refreshSpacesForViewport);
+        }
+    }
+
+    function handleSpaceShortcut(event) {
+        if (!spacesEnabled() || isEditableTarget(event.target)) return false;
+        if (!event.ctrlKey || !event.altKey || event.metaKey) return false;
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            cycleSpace(-1);
+            return true;
+        }
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            cycleSpace(1);
+            return true;
+        }
+        return false;
     }
 
 ;
@@ -7374,6 +7572,7 @@ function wireWindow(win, id) {
             ['Ctrl+K', t('desktop.shortcuts_spotlight')],
             ['Ctrl+Tab', t('desktop.shortcuts_window_switch')],
             ['Ctrl+Alt+W', t('desktop.shortcuts_window_switch_alt')],
+            ['Ctrl+Alt+← / →', t('desktop.spaces_help')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -7391,7 +7590,7 @@ function wireWindow(win, id) {
     }
 
     function windowSwitcherWindows() {
-        return [...state.windows.values()].filter(win => win && win.element && win.element.style.display !== 'none' && !win.isGadget);
+        return taskbarWindows().filter(win => win && win.element && win.element.style.display !== 'none');
     }
 
     function renderWindowSwitcherOverlay(nextIndex) {
@@ -9465,13 +9664,28 @@ function updateTaskbarSystemButtonsForMobile() {
         event.preventDefault();
         const item = state.windows.get(id);
         if (!item) return;
-        showContextMenu(event.clientX, event.clientY, [
+        const items = [
             { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
-            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) },
+            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
+        ];
+        if (spacesEnabled() && !item.isGadget) {
+            items.push({ separator: true });
+            SPACE_IDS.forEach(spaceId => {
+                const current = windowSpaceId(item) === spaceId;
+                items.push({
+                    label: t('desktop.move_to_space').replace('{{n}}', spaceId) + (current ? ' ✓' : ''),
+                    icon: 'grid',
+                    fallback: spaceId,
+                    action: () => moveWindowToSpace(id, spaceId)
+                });
+            });
+        }
+        items.push(
             { separator: true },
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
-        ]);
+        );
+        showContextMenu(event.clientX, event.clientY, items);
     }
 
     function autoArrangeIcons() {
@@ -13875,6 +14089,7 @@ if (appId === 'pixel') {
 
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
+        if (handleSpaceShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
@@ -14018,6 +14233,7 @@ if (appId === 'pixel') {
         ]);
         mark('parallel-fetch-done');
         renderDesktop();
+        initSpacesRuntime();
         initSIPPhoneShellRuntime();
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();
         refreshPetRuntime();

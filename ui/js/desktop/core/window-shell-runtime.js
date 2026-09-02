@@ -707,7 +707,7 @@
             if (!seenPinIds.has(btn.dataset.pinAppId)) btn.remove();
         });
         const seenWindowIds = new Set();
-        [...state.windows.values()].forEach((win, index) => {
+        taskbarWindows().forEach((win, index) => {
             seenWindowIds.add(win.id);
             let btn = winHost.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
             if (!btn) {
@@ -729,7 +729,7 @@
         if (btn.getAttribute('data-pin-bound') === 'true') return;
         btn.setAttribute('data-pin-bound', 'true');
         btn.addEventListener('click', () => {
-            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.pinAppId);
+            const existing = findExistingAppWindow(btn.dataset.pinAppId, {});
             if (existing) focusWindow(existing.id);
             else openApp(btn.dataset.pinAppId);
         });
@@ -787,7 +787,7 @@
         if (btn.getAttribute('data-dock-bound') === 'true') return;
         btn.setAttribute('data-dock-bound', 'true');
         btn.addEventListener('click', () => {
-            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.appId);
+            const existing = findExistingAppWindow(btn.dataset.appId, {});
             if (existing) focusWindow(existing.id);
             else openApp(btn.dataset.appId);
         });
@@ -797,7 +797,7 @@
 
     function reconcileFruityDock() {
         const host = $('vd-taskbar-apps');
-        const runningWindows = [...state.windows.values()];
+        const runningWindows = taskbarWindows();
         const track = ensureFruityDockShell(host);
         if (!track) return;
         const seenDockAppIds = new Set();
@@ -928,6 +928,15 @@
         if (win.context.path != null) win.context.path = normalizeDesktopPath(win.context.path);
     }
 
+    function matchesExistingAppWindow(win, appId, context) {
+        if (win.appId !== appId) return false;
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
+            const requestedPath = normalizeDesktopPath(context.path);
+            return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
+        }
+        return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
+    }
+
     function findExistingAppWindow(appId, context) {
         const dead = [];
         state.windows.forEach((win, id) => {
@@ -942,14 +951,15 @@
             if (state.activeWindowId === id) state.activeWindowId = '';
         });
         if (appId === 'virtual-computers') return undefined;
-        return [...state.windows.values()].find(win => {
-            if (win.appId !== appId) return false;
-            if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
-                const requestedPath = normalizeDesktopPath(context.path);
-                return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
-            }
-            return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
-        });
+        const ctx = context || {};
+        const inActive = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && isWindowOnActiveSpace(win));
+        if (inActive) return inActive;
+        const inOther = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && !isWindowOnActiveSpace(win));
+        if (inOther) {
+            switchSpace(windowSpaceId(inOther));
+            return inOther;
+        }
+        return undefined;
     }
 
     function isStandaloneWidgetPath(path) {
@@ -997,6 +1007,7 @@
         const win = document.createElement('section');
         win.className = 'vd-window';
         win.dataset.windowId = id;
+        assignWindowSpace({ element: win }, state.activeSpaceId);
         const size = clampWindowSize({ width: 900, height: 650 });
         const position = nextWindowPosition(size);
         win.style.left = position.left + 'px';
@@ -1022,10 +1033,11 @@
         ${resizeHandleMarkup()}`;
         $('vd-window-layer').appendChild(win);
         const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
-        state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '' });
+        state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '', spaceId: win.dataset.spaceId });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         focusWindow(id);
+        applySpaceVisibility();
         renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
         renderTaskbar();
     }
@@ -1082,6 +1094,10 @@
         win.className = 'vd-window';
         win.dataset.windowId = id;
         win.dataset.appId = appId;
+        const sessionRestore = context && context.sessionRestore;
+        assignWindowSpace({ element: win }, sessionRestore && sessionRestore.spaceId != null
+            ? sessionRestore.spaceId
+            : state.activeSpaceId);
 
         const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
         const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
@@ -1094,7 +1110,6 @@
         }
 
         const requestedSize = appWindowSize(appId);
-        const sessionRestore = context && context.sessionRestore;
         const size = sessionRestore
             ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
             : clampWindowSize(requestedSize);
@@ -1154,7 +1169,7 @@
         const windowContext = Object.assign({}, context || {});
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
+        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
@@ -1162,6 +1177,7 @@
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
         if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
+        applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
         if (windowContext.path) recordRecentFile(windowContext.path, appId);
         renderTaskbar();

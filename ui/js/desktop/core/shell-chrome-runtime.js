@@ -161,6 +161,7 @@
             ['Ctrl+K', t('desktop.shortcuts_spotlight')],
             ['Ctrl+Tab', t('desktop.shortcuts_window_switch')],
             ['Ctrl+Alt+W', t('desktop.shortcuts_window_switch_alt')],
+            ['Ctrl+Alt+← / →', t('desktop.spaces_help')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -178,7 +179,7 @@
     }
 
     function windowSwitcherWindows() {
-        return [...state.windows.values()].filter(win => win && win.element && win.element.style.display !== 'none' && !win.isGadget);
+        return taskbarWindows().filter(win => win && win.element && win.element.style.display !== 'none');
     }
 
     function renderWindowSwitcherOverlay(nextIndex) {
