@@ -22,16 +22,33 @@ func (m *Manager) manifestFor(cfg config.LocalLLMConfig) Manifest {
 	return m.manifest
 }
 
-// LingManifest stays closed until the public model revision and all image digests
-// have been verified. An unpublished artifact must never use a mutable URL.
+// LingManifest pins the publicly verified model and runtime images. Hardware
+// profiles remain experimental until their native Linux qualification passes.
 func LingManifest() Manifest {
 	return Manifest{
-		Version: ReleaseManifestVersion, LlamaCPPCommit: LingEngineCommit,
+		Version: ReleaseManifestVersion, ReleaseReady: true, LlamaCPPCommit: LingEngineCommit,
 		Artifacts: map[string]Artifact{
 			"normal_q4_k_l": {
 				Name: "AuraGo-Ling-3.0-tiny-Q4_K_L.gguf", Path: "AuraGo-Ling-3.0-tiny-Q4_K_L.gguf",
-				Repository: "antibyte/AuraGo-Ling", Revision: "5d27cac224e0f9e708cff2f4e413b2f96194c6c1", Size: 5096544352,
+				Repository: "antibyte/AuraGo-Ling", Revision: "c9d1e3fc16984c6b5c3d4a7838665e0c591143c3", Size: 5096544352,
 				SHA256: "4c25f349d6ea6872907c6fbd827d4b90abfd420320394a8cf420ce9b60abee68",
+			},
+		},
+		Images: map[string]Image{
+			"cuda": {
+				Backend: "cuda",
+				Reference: "ghcr.io/antibyte/aurago-llm-cuda@" +
+					"sha256:fa54bad3acc9a9d3dd85c9ce2a7def19d8730c13c99a73aad35142667227c0e4",
+			},
+			"sycl": {
+				Backend: "sycl",
+				Reference: "ghcr.io/antibyte/aurago-llm-sycl@" +
+					"sha256:94cffa92588b7d087dabffe4aa425ad30475eea43a884031a3789b16e4c6449e",
+			},
+			"vulkan": {
+				Backend: "vulkan",
+				Reference: "ghcr.io/antibyte/aurago-llm-vulkan@" +
+					"sha256:feae8bfdb9a9c6613dc3a8529acff3618cc0c5866de69a8d172c58098a1f8aea",
 			},
 		},
 	}

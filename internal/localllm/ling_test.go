@@ -9,6 +9,23 @@ import (
 	"aurago/internal/config"
 )
 
+func TestLingPublishedManifestKeepsHardwareExperimental(t *testing.T) {
+	manifest := LingManifest()
+	if err := manifest.validate(); err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Images) != 3 || len(manifest.Artifacts) != 1 {
+		t.Fatal("Ling release must contain one model and all three runtime backends")
+	}
+	for _, backend := range []string{"cuda", "sycl", "vulkan"} {
+		image, ok := manifest.Images[backend]
+		if !ok || image.Backend != backend || image.Supported ||
+			!strings.HasPrefix(image.Reference, "ghcr.io/antibyte/aurago-llm-"+backend+"@sha256:") {
+			t.Fatalf("invalid or automatically enabled Ling backend: %+v", image)
+		}
+	}
+}
+
 func TestLingSelectionProfilesAndCacheIsolation(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = t.TempDir()

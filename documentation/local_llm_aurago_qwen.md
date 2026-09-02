@@ -45,9 +45,14 @@ The Intel Arc B580 (`0xe20b`) Vulkan profile disables F16 compute kernels with
 truncated slash-only responses in both tested engines. The workaround is
 restricted to Ling/Vulkan/B580 and does not qualify the Linux backend.
 
-The release manifest stays closed until the public HF commit and all three
-image digests are verified. An image without native Linux GPU qualification
-remains experimental and cannot be selected automatically. Windows/WSL tests
+The release manifest pins the public HF commit and all three verified image
+digests. Ling uses separate `ling-sha-` tags in the existing public
+`aurago-llm-{cuda,sycl,vulkan}` packages; Qwen tags remain independent.
+A native Linux Vulkan run on an AMD Lucienne APU passed all 140 turns without
+new regressions, both long-context probes, authenticated tools and cache reuse.
+The Windows B580 run had two additional knowledge failures. Native CUDA, SYCL
+and Linux B580 qualification remains outstanding, so automatic backend selection
+stays disabled. Windows/WSL tests
 do not qualify Linux. The historical report of over 100 tokens/s is not a
 benchmark for this Q4_K_L export. The engine's Apache-2.0 license is separate
 from the model's MIT license.
@@ -88,15 +93,15 @@ The provider ID `aurago-qwen-local` is reserved. Do not add it to `providers`. A
 
 Supported roles are:
 
-- `test_only`: the regular provider remains primary and AuraGo-Qwen is reached only by explicit tests.
-- `fallback`: the selected regular provider is primary and AuraGo-Qwen replaces the configured fallback.
-- `primary`: AuraGo-Qwen is primary and exactly one regular provider remains its fallback.
+- `test_only`: the regular provider remains primary and the local model is reached only by explicit tests.
+- `fallback`: the selected regular provider is primary and the local model replaces the configured fallback.
+- `primary`: the local model is primary and exactly one regular provider remains its fallback.
 
-Primary or fallback routing is activated only after health, native tool-call, memory-profile, and GPU/KV-offload checks succeed. A regular fallback is mandatory when AuraGo-Qwen is primary.
+Primary or fallback routing is activated only after health, native tool-call, memory-profile, and GPU/KV-offload checks succeed. A regular fallback is mandatory when the local model is primary.
 
 ## Stable tools and RAM prefix cache
 
-AuraGo-Qwen uses a deterministic core tool profile with at most 16 direct
+Both local models use a deterministic core tool profile with at most 16 direct
 tools and 4,096 tool-schema tokens. Other permitted tools remain available
 through `discover_tools` followed by `invoke_tool`. Restricted runtimes such as
 SIP, missions, Game Maker, and co-agents keep their narrower allowlists; the
