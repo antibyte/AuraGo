@@ -37,7 +37,7 @@
 
     function agentRequest(state, ui) {
         const c = state.context;
-        return `<div class="vc-agent-request"><label><span>${ui.esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="4000" placeholder="${ui.esc(ui.tx(c, 'desktop.chat_placeholder'))}">${ui.esc(state.agentRequestDraft || '')}</textarea></label><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'send', '→')}${ui.esc(ui.tx(c, 'desktop.send'))}</button></div>`;
+        return `<div class="vc-agent-request"><label><span>${ui.esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="4000" placeholder="${ui.esc(ui.tx(c, 'desktop.chat_placeholder'))}">${ui.esc(state.agentRequestDraft || '')}</textarea></label><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${ui.esc(ui.tx(c, 'desktop.virtual_computers_task_start'))}</button></div>`;
     }
 
     function renderPane(state, ui) {

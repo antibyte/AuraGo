@@ -264,12 +264,12 @@ func TestVirtualComputersAgentProviderUsesConfiguredProviderReference(t *testing
 	}
 }
 
-func TestVirtualComputersDesktopUsesCapabilitiesTasksVolumesAndModal(t *testing.T) {
+func TestVirtualComputersDesktopUsesMainAgentVolumesAndModal(t *testing.T) {
 	t.Parallel()
 	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
 	for _, want := range []string{
-		`machine.display === true`, `/api/virtual-computers/tasks`, `/api/virtual-computers/volumes`,
-		`volume_id`, `ttl_seconds`, `data-role="modal"`, `cancel_agent_task`,
+		`machine.display === true`, `/api/virtual-computers/volumes`, `data-action="new-agent-job"`,
+		`volume_id`, `ttl_seconds`, `data-role="modal"`,
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("virtual computer desktop app missing %q", want)
@@ -277,6 +277,9 @@ func TestVirtualComputersDesktopUsesCapabilitiesTasksVolumesAndModal(t *testing.
 	}
 	if strings.Contains(app, "alert(") || strings.Contains(app, "confirm(") {
 		t.Fatal("virtual computer desktop app must use its modal instead of native alert/confirm")
+	}
+	if strings.Contains(app, `/api/virtual-computers/tasks`) || strings.Contains(app, `cancel_agent_task`) {
+		t.Fatal("virtual computer desktop app must not expose legacy agent jobs")
 	}
 }
 

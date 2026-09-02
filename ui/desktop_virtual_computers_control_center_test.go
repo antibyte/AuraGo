@@ -20,8 +20,8 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 		`role="tab"`,
 		`role="tabpanel"`,
 		`id: 'machines'`,
-		`id: 'tasks'`,
 		`id: 'volumes'`,
+		`data-action="new-agent-job"`,
 		`/api/virtual-computers/templates`,
 		`function fallbackTemplates()`,
 		`role="dialog" aria-modal="true"`,
@@ -46,9 +46,9 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 	if !strings.Contains(workspaces, `data-action="ask-agent"`) || !strings.Contains(workspaces, `data-role="agent-request"`) {
 		t.Fatal("agent workspaces must accept a request for the AuraGo main agent")
 	}
-	for _, legacyStart := range []string{`data-action="start-task"`, `data-role="task-instruction"`, `function startTask(state)`} {
-		if strings.Contains(app, legacyStart) {
-			t.Errorf("normal Virtual Computers UI still exposes legacy task start %q", legacyStart)
+	for _, legacyUI := range []string{`id: 'tasks'`, `data-action="start-task"`, `data-role="task-instruction"`, `function startTask(state)`, `cancel_agent_task`, `/api/virtual-computers/tasks`} {
+		if strings.Contains(app, legacyUI) {
+			t.Errorf("normal Virtual Computers UI still exposes legacy agent jobs via %q", legacyUI)
 		}
 	}
 }

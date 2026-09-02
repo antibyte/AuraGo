@@ -47,7 +47,6 @@
             templates: [],
             templatesFallback: false,
             volumes: [],
-            tasks: [],
             workspaces: [],
             workspaceSummaries: [],
             selectedWorkspaceId: null,
@@ -57,7 +56,6 @@
             screenshotLoading: false,
             screenshotRequestID: 0,
             detailMode: 'overview',
-            taskMachineFilter: '',
             modal: null,
             modalReturnFocus: null,
             vncSession: null,
@@ -68,14 +66,12 @@
             vncExpanded: false,
             terminalSession: null,
             terminalMachineId: null,
-            resourceErrors: { status: '', machines: '', templates: '', tasks: '', volumes: '', workspaces: '' },
-            resourceLoading: { status: true, machines: true, templates: true, tasks: false, volumes: false, workspaces: false },
+            resourceErrors: { status: '', machines: '', templates: '', volumes: '', workspaces: '' },
+            resourceLoading: { status: true, machines: true, templates: true, volumes: false, workspaces: false },
             pendingActions: new Set(),
             refreshGeneration: 0,
             clickHandler: null,
-            changeHandler: null,
             keyHandler: null,
-            taskRefreshTimer: null,
             workspaceRefreshTimer: null,
             machineSnapshot: JSON.stringify([]),
             machinePollTimer: null,
@@ -235,8 +231,6 @@
                 if (replacement) replacement.replaceWith(workspaceLiveMount);
                 else disconnectVNC(state);
             }
-        } else if (state.activeSection === 'tasks') {
-            content.innerHTML = taskPane(state);
         } else if (state.activeSection === 'volumes') {
             content.innerHTML = volumePane(state);
         } else {
@@ -272,6 +266,7 @@
             <div class="vc-actions vc-toolbar-actions">
                 <button type="button" class="vc-btn vc-icon-label" data-action="refresh" ${refreshing ? 'disabled aria-busy="true"' : ''}>${icon(state, 'refresh', '↻')}<span>${esc(tx(c, 'desktop.virtual_computers_refresh'))}</span></button>
                 <button type="button" class="vc-btn vc-icon-label" data-action="config">${icon(state, 'settings', '⚙')}<span>${esc(tx(c, 'desktop.virtual_computers_open_config'))}</span></button>
+                <button type="button" class="vc-btn vc-primary vc-icon-label" data-action="new-agent-job" title="${esc(tx(c, capabilities(state).agent_control ? 'desktop.virtual_computers_agent_workspaces_hint' : 'desktop.virtual_computers_state_disabled'))}" ${capabilities(state).agent_control && isMutable(state) ? '' : 'disabled'}>${icon(state, 'agent', 'A')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</span></button>
                 <button type="button" class="vc-btn vc-primary vc-icon-label" data-action="new-machine" ${isMutable(state) && !isPending(state, 'launch') ? '' : 'disabled'}>${icon(state, 'plus', '+')}<span>${esc(tx(c, 'desktop.virtual_computers_new'))}</span></button>
             </div>`;
     }
@@ -282,12 +277,11 @@
             { id: 'machines', key: 'desktop.virtual_computers_machines', icon: 'server' }
         ];
         if (capabilities(state).agent_control) tabs.push({ id: 'workspaces', key: 'desktop.virtual_computers_agent_workspaces', icon: 'agent' });
-        if (capabilities(state).agent_tasks) tabs.push({ id: 'tasks', key: 'desktop.virtual_computers_tasks', icon: 'run' });
         if (capabilities(state).volumes) tabs.push({ id: 'volumes', key: 'desktop.virtual_computers_volumes', icon: 'archive' });
         return `<div class="vc-tab-track" role="tablist">${tabs.map(tab => {
             const active = state.activeSection === tab.id;
-            const count = tab.id === 'machines' ? state.machines.length : tab.id === 'workspaces' ? state.workspaces.length : tab.id === 'tasks' ? state.tasks.length : state.volumes.length;
-            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}${tab.id === 'tasks' ? ' · Legacy' : ''}</span><span class="vc-tab-count">${count}</span></button>`;
+            const count = tab.id === 'machines' ? state.machines.length : tab.id === 'workspaces' ? state.workspaces.length : state.volumes.length;
+            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}</span><span class="vc-tab-count">${count}</span></button>`;
         }).join('')}</div>`;
     }
 
@@ -382,30 +376,6 @@
         </article>`;
     }
 
-    function taskRows(state, tasks) {
-        const c = state.context;
-        if (!tasks.length) return `<div class="vc-empty compact">${esc(tx(c, 'desktop.virtual_computers_tasks_empty'))}</div>`;
-        return tasks.map(task => {
-            const running = task.status === 'queued' || task.status === 'running';
-            return `<article class="vc-ledger-row"><div class="vc-task-summary"><span class="vc-task-title"><strong>${esc(task.kind || 'task')}</strong><span class="vc-state-chip" data-state="${esc(task.status || '')}">${esc(task.status || '—')}</span></span><span>${esc(task.machine_id || '—')} · ${esc(formatDate(task.updated_at || task.created_at))}</span>${task.error ? `<small class="vc-task-error">${esc(task.error)}</small>` : ''}</div>${running && isMutable(state) ? `<button type="button" class="vc-icon-btn danger" data-action="cancel_agent_task" data-id="${esc(task.id)}" aria-label="${esc(tx(c, 'desktop.virtual_computers_task_cancel'))}">${icon(state, 'stop', '■')}</button>` : ''}</article>`;
-        }).join('');
-    }
-
-    function taskPane(state) {
-        const c = state.context;
-        if (state.resourceLoading.tasks && !state.tasks.length) return `<section class="vc-section-page">${skeletonRows()}</section>`;
-        if (state.resourceErrors.tasks && !state.tasks.length) return `<section class="vc-section-page">${resourceErrorPane(state, 'tasks')}</section>`;
-        const filtered = state.taskMachineFilter ? state.tasks.filter(task => task.machine_id === state.taskMachineFilter) : state.tasks;
-        const active = filtered.filter(task => task.status === 'queued' || task.status === 'running');
-        const completed = filtered.filter(task => task.status !== 'queued' && task.status !== 'running');
-        const machineOptions = state.machines.map(machine => `<option value="${esc(machine.id)}" ${state.taskMachineFilter === machine.id ? 'selected' : ''}>${esc(machine.name || machine.id)}</option>`).join('');
-        return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(tx(c, 'desktop.virtual_computers_title'))}</span><h3>${esc(tx(c, 'desktop.virtual_computers_tasks'))}</h3></div><label class="vc-task-filter"><span>${esc(tx(c, 'desktop.virtual_computers_machines'))}</span><select data-role="task-filter"><option value="">${esc(tx(c, 'desktop.virtual_computers_machines'))}</option>${machineOptions}</select></label></header>
-            ${state.resourceErrors.tasks ? `<div class="vc-inline-error">${esc(state.resourceErrors.tasks)}</div>` : ''}
-            <section class="vc-ledger"><h4 class="vc-ledger-title">${esc(tx(c, 'desktop.virtual_computers_active_jobs'))}<span class="vc-ledger-count">${active.length}</span></h4>${taskRows(state, active)}</section>
-            <section class="vc-ledger"><h4 class="vc-ledger-title">${esc(tx(c, 'desktop.virtual_computers_completed_jobs'))}<span class="vc-ledger-count">${completed.length}</span></h4>${taskRows(state, completed)}</section>
-        </section>`;
-    }
-
     function volumePane(state) {
         const c = state.context;
         if (state.resourceLoading.volumes && !state.volumes.length) return `<section class="vc-section-page">${skeletonRows()}</section>`;
@@ -434,7 +404,6 @@
             return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="vc-launch-title"><header><h3 id="vc-launch-title">${esc(tx(c, 'desktop.virtual_computers_new'))}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header>${error}<label><span>${esc(tx(c, 'desktop.virtual_computers_template'))}</span><select data-role="template" autofocus>${options}</select></label>${state.templatesFallback ? `<p class="vc-form-note">${esc(tx(c, 'desktop.virtual_computers_templates_fallback'))}</p>` : ''}<label><span>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</span><select data-role="ttl"><option value="300">${esc(formatDuration(300))}</option><option value="600" selected>${esc(formatDuration(600))}</option><option value="900">${esc(formatDuration(900))}</option>${unlimited}</select></label>${capabilities(state).volumes ? `<label><span>${esc(tx(c, 'desktop.virtual_computers_volumes'))}</span><select data-role="launch-volume"><option value="">${esc(tx(c, 'desktop.virtual_computers_volume_none'))}</option>${volumes}</select></label>` : ''}<div class="vc-actions"><button type="button" class="vc-btn" data-action="close-modal">${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn vc-primary" data-action="confirm-launch" ${isPending(state, 'launch') ? 'disabled aria-busy="true"' : ''}>${esc(tx(c, 'desktop.virtual_computers_launch'))}</button></div></div></div>`;
         }
         const definitions = {
-            cancel: ['desktop.virtual_computers_modal_cancel_task', 'desktop.virtual_computers_modal_cancel_task_desc', 'confirm-cancel-task', 'desktop.virtual_computers_task_cancel'],
             destroy: ['desktop.virtual_computers_confirm_destroy', 'desktop.virtual_computers_confirm_destroy_desc', 'confirm-destroy', 'desktop.virtual_computers_destroy'],
             'delete-volume': ['desktop.virtual_computers_confirm_delete_volume', 'desktop.virtual_computers_confirm_delete_volume_desc', 'confirm-delete-volume', 'desktop.virtual_computers_volume_delete']
         };
@@ -452,6 +421,10 @@
             if (action === 'refresh') refresh(state);
             else if (action === 'config') window.location.href = '/config#virtual_computers';
             else if (action === 'section') switchSection(state, target.dataset.section || 'machines');
+            else if (action === 'new-agent-job') {
+                switchSection(state, 'workspaces');
+                state.host.querySelector('[data-role="agent-request"]')?.focus();
+            }
             else if (action === 'new-machine') openModal(state, { type: 'launch' }, target);
             else if (action === 'select-machine') selectMachine(state, id);
             else if (action === 'overview') showOverview(state);
@@ -462,8 +435,6 @@
             else if (action === 'vnc') openVNC(state, id);
             else if (action === 'terminal') openTerminal(state, id);
             else if (action === 'ask-agent') openAgentRequest(state);
-            else if (action === 'cancel_agent_task') openModal(state, { type: 'cancel', id, label: id }, target);
-            else if (action === 'confirm-cancel-task') cancelTask(state);
             else if (action === 'delete-volume') openModal(state, { type: 'delete-volume', id, label: id }, target);
             else if (action === 'confirm-delete-volume') deleteVolume(state, state.modal && state.modal.id);
             else if (action === 'create-volume') createVolume(state);
@@ -477,12 +448,6 @@
             else if (action === 'cancel-workspace-job') workspaceMutation(state, id, '/jobs/' + encodeURIComponent(target.dataset.jobId || ''), { method: 'DELETE' });
 			else if (action === 'approve-workspace-grant') workspaceMutation(state, id, '/credential-grants/' + encodeURIComponent(target.dataset.grantId || '') + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
             else if (action === 'revoke-workspace-grant') workspaceMutation(state, id, '/credential-grants/' + encodeURIComponent(target.dataset.grantId || '') + '/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-        };
-        state.changeHandler = event => {
-            if (event.target.matches('[data-role="task-filter"]')) {
-                state.taskMachineFilter = event.target.value || '';
-                draw(state);
-            }
         };
         state.keyHandler = event => {
             if (state.modal) {
@@ -517,7 +482,6 @@
             state.host.querySelector(`#${nextTab.id}`)?.focus();
         };
         state.host.addEventListener('click', state.clickHandler);
-        state.host.addEventListener('change', state.changeHandler);
         state.host.addEventListener('keydown', state.keyHandler);
     }
 
@@ -558,12 +522,11 @@
     }
 
     function switchSection(state, section) {
-        if (!['machines', 'workspaces', 'tasks', 'volumes'].includes(section) || state.activeSection === section) return;
+        if (!['machines', 'workspaces', 'volumes'].includes(section) || state.activeSection === section) return;
         disconnectRemoteSessions(state);
         state.activeSection = section;
         state.modal = null;
         draw(state);
-        if (section === 'tasks' && capabilities(state).agent_tasks) refreshResource(state, 'tasks');
         if (section === 'volumes' && capabilities(state).volumes) refreshResource(state, 'volumes');
         if (section === 'workspaces' && capabilities(state).agent_control) refreshResource(state, 'workspaces');
         scheduleWorkspaceRefresh(state);
@@ -578,8 +541,7 @@
             else if (resource === 'templates') {
                 state.templates = Array.isArray(body.templates) ? body.templates : [];
                 state.templatesFallback = state.templates.length === 0;
-            } else if (resource === 'tasks') state.tasks = Array.isArray(body.tasks) ? body.tasks : [];
-            else if (resource === 'volumes') state.volumes = Array.isArray(body.volumes) ? body.volumes : [];
+            } else if (resource === 'volumes') state.volumes = Array.isArray(body.volumes) ? body.volumes : [];
             else if (resource === 'workspaces') {
                 state.workspaces = Array.isArray(body.workspaces) ? body.workspaces : [];
                 state.workspaceSummaries = Array.isArray(body.workspace_summaries) ? body.workspace_summaries : [];
@@ -605,7 +567,6 @@
             if (!status.enabled) {
                 storeMachines(state, []);
                 state.templates = [];
-                state.tasks = [];
                 state.volumes = [];
                 state.workspaces = [];
                 state.workspaceSummaries = [];
@@ -621,10 +582,6 @@
                 ['machines', request('/api/virtual-computers/machines')],
                 ['templates', request('/api/virtual-computers/templates')]
             ];
-            if (status.capabilities && status.capabilities.agent_tasks) {
-                state.resourceLoading.tasks = true;
-                resources.push(['tasks', request('/api/virtual-computers/tasks?limit=50')]);
-            }
             if (status.capabilities && status.capabilities.volumes) {
                 state.resourceLoading.volumes = true;
                 resources.push(['volumes', request('/api/virtual-computers/volumes')]);
@@ -649,7 +606,6 @@
         reconcileVNC(state);
         reconcileTerminal(state);
         draw(state);
-        scheduleTaskRefresh(state);
         scheduleWorkspaceRefresh(state);
     }
 
@@ -659,7 +615,6 @@
             return;
         }
         const paths = {
-            tasks: '/api/virtual-computers/tasks?limit=50',
             volumes: '/api/virtual-computers/volumes',
             workspaces: '/api/virtual-computers/workspaces'
         };
@@ -671,7 +626,6 @@
         if (state.disposed) return;
         applyResourceResult(state, resource, result[0]);
         draw(state);
-        scheduleTaskRefresh(state);
         scheduleWorkspaceRefresh(state);
     }
 
@@ -687,7 +641,6 @@
 
     function reconcileSection(state) {
         const available = state.activeSection === 'machines'
-            || (state.activeSection === 'tasks' && capabilities(state).agent_tasks)
             || (state.activeSection === 'volumes' && capabilities(state).volumes)
             || (state.activeSection === 'workspaces' && capabilities(state).agent_control);
         if (available) return;
@@ -918,13 +871,6 @@
         if (restoreFocus && returnFocus && typeof returnFocus.focus === 'function') returnFocus.focus();
     }
 
-    async function cancelTask(state) {
-        const taskId = state.modal && state.modal.id;
-        if (!taskId || isPending(state, 'cancel')) return;
-        const ok = await mutate(state, 'cancel', 'tasks', '/api/virtual-computers/tasks/' + encodeURIComponent(taskId), { method: 'DELETE' });
-        if (ok) closeModal(state, false);
-    }
-
     async function createVolume(state) {
         if (isPending(state, 'create-volume')) return;
         const ttl_seconds = Number(state.host.querySelector('[data-role="volume-ttl"]')?.value || 86400);
@@ -1041,22 +987,6 @@
         }, machinePollIntervalMs);
     }
 
-    function hasActiveTasks(tasks) {
-        return Array.isArray(tasks) && tasks.some(task => task && (task.status === 'queued' || task.status === 'running'));
-    }
-
-    function scheduleTaskRefresh(state) {
-        if (state.taskRefreshTimer) {
-            clearTimeout(state.taskRefreshTimer);
-            state.taskRefreshTimer = null;
-        }
-        if (state.disposed || !hasActiveTasks(state.tasks)) return;
-        state.taskRefreshTimer = setTimeout(() => {
-            state.taskRefreshTimer = null;
-            refreshResource(state, 'tasks');
-        }, 2000);
-    }
-
     function scheduleWorkspaceRefresh(state) {
         if (state.workspaceRefreshTimer) {
             clearTimeout(state.workspaceRefreshTimer);
@@ -1076,7 +1006,6 @@
         if (!state) return;
         state.disposed = true;
         state.refreshGeneration++;
-        if (state.taskRefreshTimer) clearTimeout(state.taskRefreshTimer);
         if (state.workspaceRefreshTimer) clearTimeout(state.workspaceRefreshTimer);
         if (state.machinePollTimer) clearTimeout(state.machinePollTimer);
         if (state.expiryCountdownTimer) clearTimeout(state.expiryCountdownTimer);
@@ -1085,7 +1014,6 @@
         state.expiryCountdownTimer = null;
         disconnectRemoteSessions(state);
         if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);
-        if (state.changeHandler) state.host.removeEventListener('change', state.changeHandler);
         if (state.keyHandler) state.host.removeEventListener('keydown', state.keyHandler);
         instances.delete(windowId);
     }
