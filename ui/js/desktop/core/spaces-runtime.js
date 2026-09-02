@@ -79,6 +79,7 @@
         const next = normalizeSpaceId(id);
         if (next === normalizeSpaceId(state.activeSpaceId)) return;
         state.activeSpaceId = next;
+        hideTaskbarThumbnail();
         applySpaceVisibility();
         renderSpacePager();
         renderTaskbar();

@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Živé metriky nejsou dostupné",
   "desktop.system_info_updated": "Aktualizováno {{time}}",
   "desktop.system_info_uptime": "Doba běhu",
+  "desktop.taskbar_thumb": "Náhled okna",
+  "desktop.taskbar_thumb_live": "Živé okno",
   "desktop.teevee_add_favorite": "Přidat do oblíbených",
   "desktop.teevee_catalog_error": "Televizní katalog se nepodařilo načíst",
   "desktop.teevee_cors_error": "Stream blokován zabezpečením prohlížeče.",

@@ -368,6 +368,65 @@
     }
 }
 
+.vd-taskbar-thumbnail {
+    position: fixed;
+    z-index: calc(var(--ds-z-dock, 1200) + 5);
+    min-width: 148px;
+    max-width: min(240px, calc(100vw - 24px));
+    padding: 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
+    background: var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal));
+    box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-4));
+    backdrop-filter: var(--vd-theme-blur, var(--ds-blur-fine));
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.vd-taskbar-thumb-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    min-width: 0;
+}
+
+.vd-taskbar-thumb-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.vd-taskbar-thumb-viewport {
+    overflow: hidden;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+}
+
+.vd-taskbar-thumb-scale {
+    transform-origin: top left;
+    pointer-events: none;
+}
+
+.vd-taskbar-thumb-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 88px;
+    padding: 12px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: 0.74rem;
+    text-align: center;
+}
+
 @media print {
     .vd-taskbar,
     .vd-start-menu,

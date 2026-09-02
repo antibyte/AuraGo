@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Οι ζωντανές μετρήσεις δεν είναι διαθέσιμες",
   "desktop.system_info_updated": "Ενημερώθηκε {{time}}",
   "desktop.system_info_uptime": "Χρόνος λειτουργίας",
+  "desktop.taskbar_thumb": "Προεπισκόπηση παραθύρου",
+  "desktop.taskbar_thumb_live": "Ζωντανό παράθυρο",
   "desktop.teevee_add_favorite": "Προσθήκη στα αγαπημένα",
   "desktop.teevee_catalog_error": "Δεν ήταν δυνατή η φόρτωση του καταλόγου TV",
   "desktop.teevee_cors_error": "Ροή μπλοκαρισμένη από την ασφάλεια του προγράμματος περιήγησης.",

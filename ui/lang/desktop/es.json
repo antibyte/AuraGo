@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Métricas en vivo no disponibles",
   "desktop.system_info_updated": "Actualizado {{time}}",
   "desktop.system_info_uptime": "Tiempo activo",
+  "desktop.taskbar_thumb": "Vista previa de ventana",
+  "desktop.taskbar_thumb_live": "Ventana en vivo",
   "desktop.teevee_add_favorite": "Añadir a favoritos",
   "desktop.teevee_catalog_error": "No se pudo cargar el catálogo de TV",
   "desktop.teevee_cors_error": "Corriente bloqueada por seguridad del navegador.",

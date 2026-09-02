@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Live-målinger utilgjengelige",
   "desktop.system_info_updated": "Oppdatert {{time}}",
   "desktop.system_info_uptime": "Oppetid",
+  "desktop.taskbar_thumb": "Vindusforhåndsvisning",
+  "desktop.taskbar_thumb_live": "Live-vindu",
   "desktop.teevee_add_favorite": "Legg til i favoritter",
   "desktop.teevee_catalog_error": "Kunne ikke laste TV-katalogen",
   "desktop.teevee_cors_error": "Strøm blokkert av nettlesersikkerhet.",

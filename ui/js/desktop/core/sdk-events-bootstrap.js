@@ -539,6 +539,7 @@
 
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
+        if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
@@ -684,6 +685,8 @@
         mark('parallel-fetch-done');
         renderDesktop();
         initSpacesRuntime();
+        initTaskbarThumbnailsRuntime();
+        initDesktopMediaKeysRuntime();
         initSIPPhoneShellRuntime();
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();
         refreshPetRuntime();

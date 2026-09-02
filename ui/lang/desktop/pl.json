@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Metryki na żywo niedostępne",
   "desktop.system_info_updated": "Zaktualizowano {{time}}",
   "desktop.system_info_uptime": "Czas działania",
+  "desktop.taskbar_thumb": "Podgląd okna",
+  "desktop.taskbar_thumb_live": "Aktywne okno",
   "desktop.teevee_add_favorite": "Dodaj do ulubionych",
   "desktop.teevee_catalog_error": "Nie udało się załadować katalogu TV",
   "desktop.teevee_cors_error": "Strumień zablokowany przez bezpieczeństwo przeglądarki.",

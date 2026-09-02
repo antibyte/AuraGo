@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "ライブメトリクスを利用できません",
   "desktop.system_info_updated": "{{time}} 更新",
   "desktop.system_info_uptime": "稼働時間",
+  "desktop.taskbar_thumb": "ウィンドウプレビュー",
+  "desktop.taskbar_thumb_live": "ライブウィンドウ",
   "desktop.teevee_add_favorite": "お気に入りに追加",
   "desktop.teevee_catalog_error": "TVカタログを読み込めませんでした",
   "desktop.teevee_cors_error": "ブラウザのセキュリティによってブロックされるストリーム。",

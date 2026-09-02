@@ -908,6 +908,16 @@
     background: var(--vd-theme-accent-soft);
 }
 
+.desktop-body[data-theme="standard"] .vd-taskbar-thumbnail,
+.desktop-body[data-theme="fruity"] .vd-taskbar-thumbnail {
+    border-color: var(--vd-theme-border);
+    border-radius: var(--vd-theme-radius-panel);
+    background: var(--vd-theme-panel-bg-strong);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
+}
+
 .desktop-body[data-theme="standard"] .vd-icon.selected .vd-icon-label {
     background: rgba(10, 12, 16, 0.7);
 }

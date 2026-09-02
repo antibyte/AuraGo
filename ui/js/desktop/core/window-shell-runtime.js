@@ -665,9 +665,11 @@
         btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
         btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
         wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+        wireTaskbarThumbnailHover(btn);
     }
 
     function reconcileStandardTaskbar() {
+        hideTaskbarThumbnail();
         const host = $('vd-taskbar-apps');
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();

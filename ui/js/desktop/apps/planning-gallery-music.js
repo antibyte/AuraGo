@@ -492,6 +492,7 @@
             }
         }
         state.webampMusic = null;
+        notifyWebampMediaSessionStopped();
         const host = $('vd-webamp-host');
         if (host) host.remove();
     }
@@ -541,6 +542,7 @@
             if (typeof current.instance.setTracksToPlay === 'function') {
                 current.instance.setTracksToPlay(tracks);
                 if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.done'));
+                notifyWebampMediaSessionChanged();
                 return true;
             }
             disposeWebampMusic(ownerWindowId || current.windowId);
@@ -558,6 +560,7 @@
         }
         await webamp.renderWhenReady(webampHostNode());
         if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.done'));
+        notifyWebampMediaSessionChanged();
         return true;
     }
 

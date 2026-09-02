@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Live-Metriken nicht verfügbar",
   "desktop.system_info_updated": "Aktualisiert {{time}}",
   "desktop.system_info_uptime": "Laufzeit",
+  "desktop.taskbar_thumb": "Fenstervorschau",
+  "desktop.taskbar_thumb_live": "Live-Fenster",
   "desktop.teevee_add_favorite": "Zu Favoriten hinzufügen",
   "desktop.teevee_catalog_error": "TV-Katalog konnte nicht geladen werden",
   "desktop.teevee_cors_error": "Stream durch Browsersicherheit blockiert.",

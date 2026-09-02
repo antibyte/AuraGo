@@ -32,6 +32,16 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Compact viewport (`isCompactViewport()`) keeps single-space behavior and hides
   the pager.
 
+### Desktop Phase 3 contract
+
+- Standard-theme taskbar window buttons show a hover/focus thumbnail preview
+  (`.vd-taskbar-thumbnail`) for windows on the active space only; Fruity dock,
+  compact viewport, and coarse-pointer layouts disable previews.
+- Thumbnails clone DOM window content when possible; iframe-heavy windows show
+  a live-window fallback instead of a blank capture.
+- Media keys and `navigator.mediaSession` route to the active Webamp music
+  player only while `state.webampMusic` is alive; no global OS volume control.
+
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
   meta-progression.

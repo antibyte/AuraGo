@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Live metrieken niet beschikbaar",
   "desktop.system_info_updated": "Bijgewerkt {{time}}",
   "desktop.system_info_uptime": "Updatetime",
+  "desktop.taskbar_thumb": "Venstervoorbeeld",
+  "desktop.taskbar_thumb_live": "Live venster",
   "desktop.teevee_add_favorite": "Toevoegen aan favorieten",
   "desktop.teevee_catalog_error": "TV-catalogus laden mislukt",
   "desktop.teevee_cors_error": "Stream geblokkeerd door browserbeveiliging.",

@@ -13,6 +13,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/sip-phone-runtime.js',
   'ui/js/desktop/core/sip-phone-gadget-runtime.js',
   'ui/js/desktop/core/window-shell-runtime.js',
+  'ui/js/desktop/core/taskbar-thumbnails-runtime.js',
   'ui/js/desktop/core/fruity-dock-scroll.js',
   'ui/js/desktop/core/window-interactions-runtime.js',
   'ui/js/desktop/core/window-ai-context.js',
@@ -32,6 +33,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/menus-and-routing.js',
   'ui/js/desktop/apps/editor-filemenu.js',
   'ui/js/desktop/apps/planning-gallery-music.js',
+  'ui/js/desktop/core/media-keys-runtime.js',
   'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
   'ui/js/desktop/core/sdk-events-bootstrap.js'
 ];

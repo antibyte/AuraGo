@@ -4965,9 +4965,11 @@
         btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
         btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
         wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+        wireTaskbarThumbnailHover(btn);
     }
 
     function reconcileStandardTaskbar() {
+        hideTaskbarThumbnail();
         const host = $('vd-taskbar-apps');
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
@@ -5486,6 +5488,149 @@
     function resizeHandleMarkup() {
         return ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
             .map(edge => `<span class="vd-resize-handle vd-resize-${edge}" data-resize="${edge}"></span>`).join('');
+    }
+
+;
+/* ui/js/desktop/core/taskbar-thumbnails-runtime.js */
+    const THUMB_MAX_W = 220;
+    const THUMB_MAX_H = 140;
+    const THUMB_SHOW_DELAY_MS = 360;
+    const THUMB_HIDE_DELAY_MS = 140;
+    let thumbShowTimer = 0;
+    let thumbHideTimer = 0;
+    let activeThumbWindowId = '';
+
+    function taskbarThumbnailsEnabled() {
+        if (isCompactViewport() || isFruityTheme()) return false;
+        if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return false;
+        return true;
+    }
+
+    function cancelTaskbarThumbnailTimers() {
+        if (thumbShowTimer) {
+            window.clearTimeout(thumbShowTimer);
+            thumbShowTimer = 0;
+        }
+        if (thumbHideTimer) {
+            window.clearTimeout(thumbHideTimer);
+            thumbHideTimer = 0;
+        }
+    }
+
+    function ensureTaskbarThumbnailPanel() {
+        let panel = document.getElementById('vd-taskbar-thumbnail');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'vd-taskbar-thumbnail';
+            panel.className = 'vd-taskbar-thumbnail';
+            panel.hidden = true;
+            panel.setAttribute('role', 'tooltip');
+            document.body.appendChild(panel);
+            panel.addEventListener('mouseenter', () => {
+                if (thumbHideTimer) {
+                    window.clearTimeout(thumbHideTimer);
+                    thumbHideTimer = 0;
+                }
+            });
+            panel.addEventListener('mouseleave', scheduleHideTaskbarThumbnail);
+            panel.addEventListener('click', () => {
+                if (activeThumbWindowId) focusWindow(activeThumbWindowId);
+                hideTaskbarThumbnail();
+            });
+        }
+        return panel;
+    }
+
+    function hideTaskbarThumbnail() {
+        cancelTaskbarThumbnailTimers();
+        activeThumbWindowId = '';
+        const panel = document.getElementById('vd-taskbar-thumbnail');
+        if (panel) {
+            panel.hidden = true;
+            panel.replaceChildren();
+        }
+    }
+
+    function scheduleHideTaskbarThumbnail() {
+        if (thumbHideTimer) window.clearTimeout(thumbHideTimer);
+        thumbHideTimer = window.setTimeout(hideTaskbarThumbnail, THUMB_HIDE_DELAY_MS);
+    }
+
+    function positionTaskbarThumbnail(panel, anchor) {
+        if (!panel || !anchor || !anchor.getBoundingClientRect) return;
+        const rect = anchor.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const margin = 8;
+        let left = rect.left + (rect.width / 2) - (panelRect.width / 2);
+        left = Math.max(margin, Math.min(left, window.innerWidth - panelRect.width - margin));
+        const taskbar = document.querySelector('.vd-taskbar');
+        const taskbarTop = taskbar ? taskbar.getBoundingClientRect().top : window.innerHeight;
+        let top = taskbarTop - panelRect.height - margin;
+        if (top < margin) top = margin;
+        panel.style.left = Math.round(left) + 'px';
+        panel.style.top = Math.round(top) + 'px';
+    }
+
+    function buildTaskbarThumbnailMarkup(win) {
+        const app = appById(win.appId);
+        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-taskbar-thumb-icon', 18);
+        const content = win.element.querySelector('.vd-window-content');
+        const sourceW = Math.max(win.element.offsetWidth || 640, 320);
+        const sourceH = Math.max(content ? content.offsetHeight : 420, 240);
+        const scale = Math.min(THUMB_MAX_W / sourceW, THUMB_MAX_H / sourceH, 1);
+        const viewW = Math.max(128, Math.round(sourceW * scale));
+        const viewH = Math.max(80, Math.round(sourceH * scale));
+        const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
+        let body = '';
+        if (hasIframe || !content) {
+            body = `<div class="vd-taskbar-thumb-fallback">${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-taskbar-thumb-fallback-icon', 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
+        } else {
+            body = `<div class="vd-taskbar-thumb-viewport" style="width:${viewW}px;height:${viewH}px"><div class="vd-taskbar-thumb-scale" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        }
+        return `<div class="vd-taskbar-thumb-title">${icon}<span class="vd-taskbar-thumb-label">${esc(win.title)}</span></div>${body}`;
+    }
+
+    function showTaskbarThumbnail(windowId, anchor) {
+        if (!taskbarThumbnailsEnabled()) return;
+        const win = state.windows.get(windowId);
+        if (!win || !win.element || win.isGadget) return;
+        if (win.element.style.display === 'none' || win.element.classList.contains('vd-space-hidden')) return;
+        if (!isWindowOnActiveSpace(win)) return;
+        const panel = ensureTaskbarThumbnailPanel();
+        activeThumbWindowId = windowId;
+        panel.innerHTML = buildTaskbarThumbnailMarkup(win);
+        panel.hidden = false;
+        panel.setAttribute('aria-label', t('desktop.taskbar_thumb'));
+        positionTaskbarThumbnail(panel, anchor);
+    }
+
+    function scheduleShowTaskbarThumbnail(windowId, anchor) {
+        if (!taskbarThumbnailsEnabled()) return;
+        if (thumbHideTimer) {
+            window.clearTimeout(thumbHideTimer);
+            thumbHideTimer = 0;
+        }
+        if (thumbShowTimer) window.clearTimeout(thumbShowTimer);
+        thumbShowTimer = window.setTimeout(() => {
+            thumbShowTimer = 0;
+            showTaskbarThumbnail(windowId, anchor);
+        }, THUMB_SHOW_DELAY_MS);
+    }
+
+    function wireTaskbarThumbnailHover(btn) {
+        if (!taskbarThumbnailsEnabled()) return;
+        if (btn.getAttribute('data-thumb-wired') === 'true') return;
+        btn.setAttribute('data-thumb-wired', 'true');
+        btn.addEventListener('mouseenter', () => scheduleShowTaskbarThumbnail(btn.dataset.windowId, btn));
+        btn.addEventListener('mouseleave', scheduleHideTaskbarThumbnail);
+        btn.addEventListener('focus', () => scheduleShowTaskbarThumbnail(btn.dataset.windowId, btn));
+        btn.addEventListener('blur', scheduleHideTaskbarThumbnail);
+    }
+
+    function initTaskbarThumbnailsRuntime() {
+        hideTaskbarThumbnail();
+        window.addEventListener('resize', hideTaskbarThumbnail);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', hideTaskbarThumbnail);
     }
 
 ;
@@ -7329,6 +7474,7 @@ function wireWindow(win, id) {
         const next = normalizeSpaceId(id);
         if (next === normalizeSpaceId(state.activeSpaceId)) return;
         state.activeSpaceId = next;
+        hideTaskbarThumbnail();
         applySpaceVisibility();
         renderSpacePager();
         renderTaskbar();
@@ -11723,6 +11869,7 @@ if (appId === 'pixel') {
             }
         }
         state.webampMusic = null;
+        notifyWebampMediaSessionStopped();
         const host = $('vd-webamp-host');
         if (host) host.remove();
     }
@@ -11772,6 +11919,7 @@ if (appId === 'pixel') {
             if (typeof current.instance.setTracksToPlay === 'function') {
                 current.instance.setTracksToPlay(tracks);
                 if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.done'));
+                notifyWebampMediaSessionChanged();
                 return true;
             }
             disposeWebampMusic(ownerWindowId || current.windowId);
@@ -11789,6 +11937,7 @@ if (appId === 'pixel') {
         }
         await webamp.renderWhenReady(webampHostNode());
         if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.done'));
+        notifyWebampMediaSessionChanged();
         return true;
     }
 
@@ -12109,6 +12258,127 @@ if (appId === 'pixel') {
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
             }
+
+;
+/* ui/js/desktop/core/media-keys-runtime.js */
+    let desktopMediaKeysWired = false;
+
+    function webampMusicActive() {
+        return !!(state.webampMusic && state.webampMusic.instance);
+    }
+
+    function dispatchWebampMediaAction(type) {
+        const current = state.webampMusic;
+        if (!current || !current.instance) return false;
+        const store = current.instance.store;
+        if (store && typeof store.dispatch === 'function') {
+            try {
+                store.dispatch({ type: type });
+                return true;
+            } catch (_) { /* fall through */ }
+        }
+        const instance = current.instance;
+        const map = {
+            PLAY: 'play',
+            PAUSE: 'pause',
+            NEXT: 'nextTrack',
+            PREVIOUS: 'previousTrack',
+            STOP: 'stop'
+        };
+        const method = map[type];
+        if (method && typeof instance[method] === 'function') {
+            try {
+                instance[method]();
+                return true;
+            } catch (_) { /* ignore */ }
+        }
+        return false;
+    }
+
+    function updateWebampMediaSessionMetadata() {
+        if (!('mediaSession' in navigator) || !webampMusicActive()) return;
+        try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: t('desktop.app_music_player'),
+                artist: 'AuraGo',
+                album: t('desktop.winamp_tracks')
+            });
+        } catch (_) { /* ignore metadata errors */ }
+    }
+
+    function bindDesktopMediaSessionAction(action, handler) {
+        if (!('mediaSession' in navigator)) return;
+        try {
+            navigator.mediaSession.setActionHandler(action, handler);
+        } catch (_) { /* unsupported action */ }
+    }
+
+    function clearDesktopMediaSessionHandlers() {
+        if (!('mediaSession' in navigator)) return;
+        ['play', 'pause', 'previoustrack', 'nexttrack', 'stop'].forEach(action => {
+            try {
+                navigator.mediaSession.setActionHandler(action, null);
+            } catch (_) { /* ignore */ }
+        });
+        try {
+            navigator.mediaSession.metadata = null;
+        } catch (_) { /* ignore */ }
+    }
+
+    function refreshDesktopMediaSessionHandlers() {
+        if (!('mediaSession' in navigator)) return;
+        if (!webampMusicActive()) {
+            clearDesktopMediaSessionHandlers();
+            return;
+        }
+        bindDesktopMediaSessionAction('play', () => { dispatchWebampMediaAction('PLAY'); });
+        bindDesktopMediaSessionAction('pause', () => { dispatchWebampMediaAction('PAUSE'); });
+        bindDesktopMediaSessionAction('stop', () => { dispatchWebampMediaAction('STOP'); });
+        bindDesktopMediaSessionAction('previoustrack', () => { dispatchWebampMediaAction('PREVIOUS'); });
+        bindDesktopMediaSessionAction('nexttrack', () => { dispatchWebampMediaAction('NEXT'); });
+        updateWebampMediaSessionMetadata();
+    }
+
+    function handleDesktopMediaKeydown(event) {
+        if (!webampMusicActive() || isEditableTarget(event.target)) return false;
+        let type = '';
+        switch (event.code) {
+        case 'MediaPlayPause':
+            type = 'PLAY';
+            break;
+        case 'MediaPause':
+            type = 'PAUSE';
+            break;
+        case 'MediaTrackNext':
+            type = 'NEXT';
+            break;
+        case 'MediaTrackPrevious':
+            type = 'PREVIOUS';
+            break;
+        case 'MediaStop':
+            type = 'STOP';
+            break;
+        default:
+            return false;
+        }
+        event.preventDefault();
+        dispatchWebampMediaAction(type === 'PLAY' ? 'PLAY' : type);
+        return true;
+    }
+
+    function initDesktopMediaKeysRuntime() {
+        if (desktopMediaKeysWired) return;
+        desktopMediaKeysWired = true;
+        refreshDesktopMediaSessionHandlers();
+    }
+
+    function notifyWebampMediaSessionChanged() {
+        refreshDesktopMediaSessionHandlers();
+    }
+
+    function notifyWebampMediaSessionStopped() {
+        clearDesktopMediaSessionHandlers();
+    }
 
 ;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
@@ -14089,6 +14359,7 @@ if (appId === 'pixel') {
 
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
+        if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
@@ -14234,6 +14505,8 @@ if (appId === 'pixel') {
         mark('parallel-fetch-done');
         renderDesktop();
         initSpacesRuntime();
+        initTaskbarThumbnailsRuntime();
+        initDesktopMediaKeysRuntime();
         initSIPPhoneShellRuntime();
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();
         refreshPetRuntime();

@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "实时指标不可用",
   "desktop.system_info_updated": "已更新 {{time}}",
   "desktop.system_info_uptime": "运行时间",
+  "desktop.taskbar_thumb": "窗口预览",
+  "desktop.taskbar_thumb_live": "实时窗口",
   "desktop.teevee_add_favorite": "添加到收藏",
   "desktop.teevee_catalog_error": "无法加载电视目录",
   "desktop.teevee_cors_error": "被浏览器安全屏蔽的流 。",

@@ -79,6 +79,28 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		}
 	}
 
+	thumbs := readDesktopAssetText(t, "js/desktop/core/taskbar-thumbnails-runtime.js")
+	for _, want := range []string{
+		"function wireTaskbarThumbnailHover(",
+		"function hideTaskbarThumbnail(",
+		"function taskbarThumbnailsEnabled(",
+	} {
+		if !strings.Contains(thumbs, want) {
+			t.Fatalf("taskbar thumbnails runtime missing %q", want)
+		}
+	}
+
+	mediaKeys := readDesktopAssetText(t, "js/desktop/core/media-keys-runtime.js")
+	for _, want := range []string{
+		"function dispatchWebampMediaAction(",
+		"function handleDesktopMediaKeydown(",
+		"notifyWebampMediaSessionChanged",
+	} {
+		if !strings.Contains(mediaKeys, want) {
+			t.Fatalf("media keys runtime missing %q", want)
+		}
+	}
+
 	bootstrap := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
 	if !strings.Contains(bootstrap, "restoreDesktopSession()") {
 		t.Fatalf("bootstrap must restore session after init")
@@ -120,6 +142,7 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		".vd-window-switcher",
 		".vd-space-pager",
 		"vd-space-hidden",
+		".vd-taskbar-thumbnail",
 		"--vd-theme-panel-bg-strong",
 	} {
 		if !strings.Contains(css, want) {
@@ -154,6 +177,8 @@ func TestDesktopFeelingBundlesIncludeChromeModules(t *testing.T) {
 	for _, want := range []string{
 		"session-runtime.js",
 		"spaces-runtime.js",
+		"taskbar-thumbnails-runtime.js",
+		"media-keys-runtime.js",
 		"shell-chrome-runtime.js",
 		"spotlight-runtime.js",
 		"desktop-chrome.css",

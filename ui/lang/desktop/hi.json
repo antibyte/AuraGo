@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "लाइव मेट्रिक्स उपलब्ध नहीं",
   "desktop.system_info_updated": "अपडेट {{time}}",
   "desktop.system_info_uptime": "अपटाइम",
+  "desktop.taskbar_thumb": "विंडो पूर्वावलोकन",
+  "desktop.taskbar_thumb_live": "सक्रिय विंडो",
   "desktop.teevee_add_favorite": "पसंदीदा में जोड़ें",
   "desktop.teevee_catalog_error": "TV कैटलॉग लोड नहीं हो सका",
   "desktop.teevee_cors_error": "ब्राउज़र सुरक्षा द्वारा अवरुद्ध स्ट्रीम करें।",

@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Métriques en direct indisponibles",
   "desktop.system_info_updated": "Mis à jour {{time}}",
   "desktop.system_info_uptime": "Disponibilité",
+  "desktop.taskbar_thumb": "Aperçu de fenêtre",
+  "desktop.taskbar_thumb_live": "Fenêtre active",
   "desktop.teevee_add_favorite": "Ajouter aux favoris",
   "desktop.teevee_catalog_error": "Impossible de charger le catalogue TV",
   "desktop.teevee_cors_error": "Stream bloqué par la sécurité du navigateur.",

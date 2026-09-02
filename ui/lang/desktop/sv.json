@@ -1570,6 +1570,8 @@
   "desktop.system_info_unavailable": "Live-mätvärden ej tillgängliga",
   "desktop.system_info_updated": "Uppdaterad {{time}}",
   "desktop.system_info_uptime": "Drifttid",
+  "desktop.taskbar_thumb": "Fönsterförhandsvisning",
+  "desktop.taskbar_thumb_live": "Live-fönster",
   "desktop.teevee_add_favorite": "Lägg till i favoriter",
   "desktop.teevee_catalog_error": "Kunde inte läsa in TV-katalogen",
   "desktop.teevee_cors_error": "Stream blockerad av webbläsarens säkerhet.",
