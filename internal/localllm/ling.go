@@ -30,7 +30,7 @@ func LingManifest() Manifest {
 		Artifacts: map[string]Artifact{
 			"normal_q4_k_l": {
 				Name: "AuraGo-Ling-3.0-tiny-Q4_K_L.gguf", Path: "AuraGo-Ling-3.0-tiny-Q4_K_L.gguf",
-				Repository: "antibyte/AuraGo-Ling", Revision: "9ba7fb67a5cf43d9599e84b08cd17c1f9c537a35", Size: 5096544352,
+				Repository: "antibyte/AuraGo-Ling", Revision: "5d27cac224e0f9e708cff2f4e413b2f96194c6c1", Size: 5096544352,
 				SHA256: "4c25f349d6ea6872907c6fbd827d4b90abfd420320394a8cf420ce9b60abee68",
 			},
 		},

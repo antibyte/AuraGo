@@ -90,6 +90,30 @@ func TestResolveModelLimitsPrecedenceAndCaps(t *testing.T) {
 	}
 }
 
+func TestManagedLingLimitsBeforeRuntimeStarts(t *testing.T) {
+	var probes atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		probes.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	for _, primary := range []bool{true, false} {
+		for _, globalCap := range []int{131072, 8192} {
+			route := ModelRoute{ProviderType: "aurago-local", Model: "aurago-ling", BaseURL: server.URL, Primary: primary}
+			limits := ResolveModelLimits(context.Background(), route, globalCap, nil)
+			if limits.ContextWindow != min(16384, globalCap) || limits.MaxOutputTokens != 4096 || limits.Unknown || limits.Reasoning {
+				t.Fatalf("wrong managed Ling limits: %+v", limits)
+			}
+			if !strings.Contains(limits.MetadataSource, "managed_runtime") || limits.ProbeStatus != "not_needed" {
+				t.Fatalf("managed runtime depended on a probe: %+v", limits)
+			}
+		}
+	}
+	if probes.Load() != 0 {
+		t.Fatal("budgeting a stopped managed model contacted the inference server")
+	}
+}
+
 func TestResolveModelLimitsUsesAndCachesProviderProbe(t *testing.T) {
 	InvalidateModelLimitCache()
 	defer InvalidateModelLimitCache()

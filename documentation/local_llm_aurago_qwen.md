@@ -37,6 +37,8 @@ SYCL/Vulkan use batch 512, F16 KV and automatic flash attention without CUDA
 tuning. All Ling profiles use the GGUF chat template, Thinking off, one slot,
 no MTP/DFlash, no KVFlash eviction and no `--fit` context reduction.
 The complete 16K context must remain available.
+Request budgeting knows this 16K limit before the runtime starts, on both primary
+and fallback routes; a larger global context cap cannot expand it.
 
 The Intel Arc B580 (`0xe20b`) Vulkan profile disables F16 compute kernels with
 `GGML_VK_DISABLE_F16=1`; KV storage stays F16. Default F16 compute reproduced
