@@ -56,6 +56,29 @@ func TestDesktopThemesShareShellAndAppMaterials(t *testing.T) {
 	}
 }
 
+func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		file   string
+		marker string
+	}{
+		{"css/desktop-app-office.css", ".office-writer"},
+		{"css/desktop-app-office.css", "--vd-theme-app-bg"},
+		{"css/desktop-app-planning.css", ".vd-todo-card"},
+		{"css/desktop-app-planning.css", "--vd-theme-panel-bg"},
+		{"css/desktop-app-settings.css", ".vd-settings-app"},
+		{"css/desktop-app-settings.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-calculator.css", ".vd-calc"},
+		{"css/desktop-app-calculator.css", "var(--vd-theme-app-bg)"},
+	} {
+		css := readDesktopAssetText(t, tc.file)
+		if !strings.Contains(css, tc.marker) {
+			t.Fatalf("%s missing theme bridge marker %q", tc.file, tc.marker)
+		}
+	}
+}
+
 func TestDesktopThemeBundleContainsConsistencyBridge(t *testing.T) {
 	t.Parallel()
 

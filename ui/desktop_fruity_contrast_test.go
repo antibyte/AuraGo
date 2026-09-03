@@ -106,8 +106,9 @@ func TestDesktopOfficeChromeUsesThemeSurfacesInsteadOfDarkWash(t *testing.T) {
 		t.Fatalf("office chrome must not hardcode a dark wash that disappears on fruity light")
 	}
 	for _, want := range []string{
-		"--vd-editor-toolbar-bg: var(--ds-color-surface-2);",
-		"background: var(--ds-color-surface-2);",
+		"--vd-editor-toolbar-bg: var(--vd-theme-chrome-bg);",
+		"background: var(--vd-theme-chrome-bg);",
+		"--vd-editor-bg: var(--vd-theme-app-bg);",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("office chrome missing theme surface marker %q", want)

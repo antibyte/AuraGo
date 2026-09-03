@@ -50,6 +50,15 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Compact viewport disables overview and keeps legacy single-window Show Desktop.
 - Snap left/right entries in the window context menu call `applyWindowSnap()`.
 
+### App theme bridge contract
+
+- Everyday apps Writer/Sheets, Todo/Calendar, Settings, and Calculator read
+  `--vd-theme-*` for chrome, panels, controls, borders, and shadows.
+- Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
+  toolbars, status bars, and sheet chrome follow the active desktop theme.
+- OpenSCAD (`--oscad-*`) and Webamp launcher styling remain excluded from this
+  bridge; migrate other apps in later polish waves.
+
 ### Desktop Phase 3 contract
 
 - Standard-theme taskbar window buttons show a hover/focus thumbnail preview

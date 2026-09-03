@@ -5,8 +5,8 @@
     height: 100%;
     min-height: 0;
     min-width: 0;
-    background: var(--ds-color-bg-raised, #181f2c);
-    color: var(--ds-color-fg-primary, #f6f7fb);
+    background: var(--vd-theme-app-bg);
+    color: var(--vd-text);
 }
 
 .vd-editor textarea {
@@ -22,8 +22,8 @@
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
     font-size: 0.92rem;
     line-height: 1.65;
-    color: var(--ds-color-fg-primary, #f6f7fb);
-    background: var(--ds-color-bg-raised, #181f2c);
+    color: var(--vd-text);
+    background: var(--vd-theme-app-bg);
     caret-color: var(--vd-accent, #27c7a6);
     font-variant-numeric: tabular-nums;
 }
@@ -41,17 +41,18 @@
     min-height: 0;
     display: grid;
     grid-template-rows: auto auto auto 1fr;
-    background: var(--ds-color-bg-canvas);
+    background: var(--vd-theme-app-bg);
 }
 
 .office-writer {
-    --vd-editor-bg: var(--ds-color-bg-raised, #181f2c);
-    --vd-editor-text: var(--ds-color-fg-primary, #f6f7fb);
-    --vd-editor-muted: var(--ds-color-fg-muted, #a8bbd0);
-    --vd-editor-border: var(--vd-border);
-    --vd-editor-toolbar-bg: var(--ds-color-surface-2);
+    --vd-editor-bg: var(--vd-theme-app-bg);
+    --vd-editor-page-bg: #ffffff;
+    --vd-editor-text: var(--vd-text);
+    --vd-editor-muted: var(--vd-theme-muted);
+    --vd-editor-border: var(--vd-theme-border);
+    --vd-editor-toolbar-bg: var(--vd-theme-chrome-bg);
     --vd-editor-toolbar-text: var(--vd-text);
-    --vd-editor-icon: var(--ds-color-fg-muted, #a8bbd0);
+    --vd-editor-icon: var(--vd-theme-muted);
     grid-template-rows: auto auto minmax(0, 1fr);
     background: var(--vd-editor-bg);
     color: var(--vd-editor-text);
@@ -79,9 +80,9 @@
 .office-title-input {
     min-width: 130px;
     height: 32px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: var(--ds-color-control-bg);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     padding: 0 10px;
     font: inherit;
@@ -95,7 +96,7 @@
 
 .office-path-input:hover,
 .office-title-input:hover {
-    border-color: var(--ds-color-border-default, rgba(255, 255, 255, 0.16));
+    border-color: var(--vd-theme-border);
 }
 
 .office-path-input:focus,
@@ -103,13 +104,13 @@
     outline: none;
     border-color: var(--vd-accent, #27c7a6);
     box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.14);
-    background: var(--ds-color-bg-overlay);
+    background: var(--vd-theme-panel-bg);
 }
 
 .office-writer .office-path-input:focus,
 .office-writer .office-title-input:focus {
     box-shadow: 0 0 0 3px rgba(39, 199, 166, 0.18);
-    background: var(--ds-color-bg-overlay, #1d2533);
+    background: var(--vd-theme-panel-bg);
 }
 
 .office-path-input {
@@ -128,8 +129,8 @@
     align-items: center;
     gap: 8px;
     padding: 10px 12px;
-    border-bottom: 1px solid var(--vd-border);
-    background: var(--ds-color-surface-2);
+    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
@@ -140,9 +141,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     font-size: 0.78rem;
     font-weight: 700;
@@ -166,9 +167,9 @@
 .office-formula-input {
     min-width: 0;
     height: 32px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(0, 0, 0, 0.32);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     padding: 0 12px;
     font: inherit;
@@ -183,7 +184,7 @@
 }
 
 .office-formula-input:hover {
-    border-color: var(--ds-color-border-default, rgba(255, 255, 255, 0.16));
+    border-color: var(--vd-theme-border);
 }
 
 .office-formula-input:focus {
@@ -317,8 +318,8 @@
     max-width: 760px;
     margin: 0 auto;
     padding: 32px clamp(22px, 5vw, 56px) 80px;
-    background: var(--vd-editor-bg);
-    color: var(--vd-editor-text);
+    background: var(--vd-editor-page-bg, #ffffff);
+    color: #1f2937;
     line-height: 1.7;
     font-size: 1rem;
     font-family: var(--font-sans, system-ui, sans-serif);
@@ -331,7 +332,7 @@
 .office-writer-editor .ql-editor h3 {
     text-wrap: balance;
     letter-spacing: -0.015em;
-    color: var(--vd-editor-text);
+    color: #111827;
 }
 
 .office-writer-editor .ql-editor h1 {
@@ -368,7 +369,7 @@
 }
 
 .office-writer-editor .ql-editor code {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     padding: 2px 6px;
     border-radius: var(--ds-radius-xs, 4px);
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
@@ -449,8 +450,8 @@
     min-width: 0;
     overflow-x: auto;
     padding: 8px 10px 0;
-    border-top: 1px solid var(--vd-border);
-    background: var(--ds-color-surface-2);
+    border-top: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
     scrollbar-width: thin;
 }
 
@@ -467,10 +468,10 @@
     min-width: 92px;
     max-width: 160px;
     height: 30px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-bottom: none;
     border-radius: var(--ds-radius-sm) var(--ds-radius-sm) 0 0;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     font: inherit;
     font-size: 0.8rem;
@@ -485,13 +486,13 @@
 }
 
 .office-sheet-tabs button:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     color: var(--vd-text);
 }
 
 .office-sheet-tabs button.active {
     border-color: var(--vd-accent, #27c7a6);
-    background: var(--ds-color-bg-raised, #181f2c);
+    background: var(--vd-theme-app-bg);
     color: var(--vd-text);
     font-weight: 600;
 }
@@ -509,7 +510,7 @@
 .office-sheet-grid-wrap {
     min-height: 0;
     overflow: auto;
-    background: var(--ds-color-bg-raised, #181f2c);
+    background: var(--vd-theme-app-bg);
     background-image:
         linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
@@ -521,7 +522,7 @@
     border-spacing: 0;
     min-width: 900px;
     width: max-content;
-    color: var(--ds-color-fg-primary, #f6f7fb);
+    color: var(--vd-text);
     font-size: 0.86rem;
     font-family: var(--font-sans, system-ui, sans-serif);
     font-variant-numeric: tabular-nums;
@@ -536,8 +537,8 @@
 .office-grid th {
     position: sticky;
     z-index: 2;
-    background: var(--ds-color-bg-overlay, #1d2533);
-    color: var(--ds-color-fg-muted, #a8bbd0);
+    background: var(--vd-theme-panel-bg);
+    color: var(--vd-theme-muted);
     min-width: 44px;
     height: 30px;
     font-weight: 600;
@@ -566,7 +567,7 @@
 .office-grid td {
     min-width: 104px;
     height: 32px;
-    background: rgba(0, 0, 0, 0.12);
+    background: color-mix(in srgb, var(--vd-theme-control-bg) 72%, transparent);
     transition: background 100ms ease;
 }
 
@@ -590,7 +591,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: var(--ds-color-fg-primary, #f6f7fb);
+    color: var(--vd-text);
     padding: 0 10px;
     font-family: inherit;
     font-size: inherit;
@@ -599,7 +600,7 @@
 }
 
 .office-grid input::placeholder {
-    color: var(--ds-color-fg-muted, #a8bbd0);
+    color: var(--vd-theme-muted);
     opacity: 0.5;
 }
 
@@ -613,9 +614,9 @@
     z-index: var(--vd-z-menu);
     min-width: 210px;
     padding: 6px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: rgba(10, 15, 24, 0.98);
+    background: var(--vd-theme-panel-bg-strong);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
     color: var(--vd-text);
 }
@@ -642,7 +643,7 @@
 .office-sheet-context-separator {
     height: 1px;
     margin: 5px 4px;
-    background: var(--vd-border);
+    background: var(--vd-theme-border);
 }
 
 .office-sheet-context-icon {
@@ -658,7 +659,7 @@
 .office-app textarea:focus-visible,
 .office-app [role="button"]:focus-visible,
 .office-app a:focus-visible {
-    outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, #27c7a6);
+    outline: var(--ds-focus-ring-width, 2px) solid var(--vd-theme-accent-border, var(--vd-accent));
     outline-offset: var(--ds-focus-ring-offset, 2px);
 }
 
@@ -669,8 +670,8 @@
     letter-spacing: 0.005em;
     padding: 4px 10px;
     border-radius: var(--ds-radius-full, 9999px);
-    background: rgba(0, 0, 0, 0.32);
-    border: 1px solid var(--vd-border);
+    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-theme-border);
     color: var(--vd-muted);
     transition: opacity 200ms ease;
 }
@@ -702,8 +703,8 @@
     align-items: center;
     gap: 4px;
     padding: 6px 12px;
-    border-bottom: 1px solid var(--vd-border);
-    background: var(--ds-color-surface-2);
+    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
     overflow-x: auto;
     scrollbar-width: thin;
 }
@@ -743,8 +744,8 @@
 }
 
 .office-fmt-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--vd-border);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
+    border-color: var(--vd-theme-border);
 }
 
 .office-fmt-btn.active {
@@ -756,16 +757,16 @@
 .office-fmt-separator {
     width: 1px;
     height: 20px;
-    background: var(--vd-border);
+    background: var(--vd-theme-border);
     margin: 0 4px;
     flex: 0 0 1px;
 }
 
 .office-fmt-select {
     height: 28px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(0, 0, 0, 0.22);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     font: inherit;
     font-size: 0.78rem;
@@ -789,9 +790,9 @@
     left: 0;
     z-index: var(--vd-z-menu);
     padding: 8px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: rgba(10, 15, 24, 0.98);
+    background: var(--vd-theme-panel-bg-strong);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     display: grid;
     grid-template-columns: repeat(10, 22px);
@@ -835,7 +836,7 @@
 .office-color-input {
     flex: 1;
     height: 28px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: transparent;
     cursor: pointer;
@@ -843,7 +844,7 @@
 
 .office-color-apply {
     height: 28px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: rgba(39, 199, 166, 0.15);
     color: var(--vd-accent, #27c7a6);
@@ -876,9 +877,9 @@
     z-index: var(--vd-z-menu);
     min-width: 380px;
     padding: 10px 12px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: rgba(10, 15, 24, 0.98);
+    background: var(--vd-theme-panel-bg-strong);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     display: flex;
     flex-direction: column;
@@ -894,9 +895,9 @@
 .office-search-input {
     flex: 1;
     height: 30px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(0, 0, 0, 0.32);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     padding: 0 10px;
     font: inherit;
@@ -932,7 +933,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-text);
@@ -942,7 +943,7 @@
 }
 
 .office-search-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
 }
 
 .office-search-replace-row {
@@ -962,8 +963,8 @@
     align-items: center;
     gap: 8px;
     padding: 4px 12px;
-    border-top: 1px solid var(--vd-border);
-    background: var(--ds-color-surface-2);
+    border-top: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
     font-size: 0.74rem;
     color: var(--vd-muted);
     min-height: 26px;
@@ -998,8 +999,8 @@
 .office-status-path:hover,
 .office-status-path:focus {
     outline: none;
-    border-color: var(--vd-border);
-    background: rgba(0, 0, 0, 0.22);
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
 }
 
@@ -1023,7 +1024,7 @@
 .office-sheet-add-btn {
     min-width: 30px;
     height: 30px;
-    border: 1px dashed var(--vd-border);
+    border: 1px dashed var(--vd-theme-border);
     border-bottom: none;
     border-radius: var(--ds-radius-sm) var(--ds-radius-sm) 0 0;
     background: transparent;
@@ -1034,7 +1035,7 @@
 }
 
 .office-sheet-add-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     color: var(--vd-text);
 }
 
@@ -1046,9 +1047,9 @@
 .office-writer-statusbar {
     display: flex;
     align-items: center;
-    border-top: 1px solid var(--vd-border);
+    border-top: 1px solid var(--vd-theme-border);
     padding: 4px 12px;
-    background: var(--ds-color-surface-2);
+    background: var(--vd-theme-chrome-bg);
     font-size: 0.74rem;
     color: var(--vd-muted);
     min-height: 26px;
@@ -1096,9 +1097,9 @@
     z-index: var(--vd-z-menu);
     min-width: 380px;
     padding: 10px 12px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: rgba(10, 15, 24, 0.98);
+    background: var(--vd-theme-panel-bg-strong);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     flex-direction: column;
     gap: 8px;
@@ -1117,9 +1118,9 @@
 .office-writer-search-input {
     flex: 1;
     height: 30px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(0, 0, 0, 0.32);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     padding: 0 10px;
     font: inherit;
@@ -1155,7 +1156,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-text);
@@ -1165,7 +1166,7 @@
 }
 
 .office-writer-search-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
 }
 
 .office-writer-search-replace-row {
@@ -1248,8 +1249,8 @@
 }
 
 .office-writer .ql-toolbar.ql-snow button:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--vd-border);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
+    border-color: var(--vd-theme-border);
 }
 
 .office-writer .ql-toolbar.ql-snow button.ql-active {
@@ -1281,9 +1282,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: rgba(0, 0, 0, 0.22);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     font: inherit;
     font-size: 0.78rem;
@@ -1293,8 +1294,8 @@
 }
 
 .office-writer .ql-toolbar.ql-snow .ql-picker-label:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--ds-color-border-default, rgba(255, 255, 255, 0.16));
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
+    border-color: var(--vd-theme-border);
 }
 
 .office-writer .ql-toolbar.ql-snow .ql-formats {
@@ -1303,7 +1304,7 @@
     gap: 2px;
     margin-right: 0;
     padding-right: 8px;
-    border-right: 1px solid var(--vd-border);
+    border-right: 1px solid var(--vd-theme-border);
 }
 
 .office-writer .ql-toolbar.ql-snow .ql-formats:last-child {
@@ -1312,8 +1313,8 @@
 }
 
 .office-writer .ql-toolbar.ql-snow .ql-picker-options {
-    background: var(--ds-color-bg-modal);
-    border-color: var(--vd-border);
+    background: var(--vd-theme-panel-bg-strong);
+    border-color: var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     padding: 4px;

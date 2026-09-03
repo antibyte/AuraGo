@@ -105,7 +105,7 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 	overview := readDesktopAssetText(t, "js/desktop/core/spaces-overview-runtime.js")
 	for _, want := range []string{
 		"function openSpacesOverview(",
-		"#vd-spaces-overview",
+		"'vd-spaces-overview'",
 		".vd-space-column",
 		"function handleSpacesOverviewShortcut(",
 		"function spacesOverviewEnabled(",

@@ -79,13 +79,13 @@ func TestDesktopStandardThemeKeepsOfficeSurfacesDark(t *testing.T) {
 		".desktop-body[data-theme=\"light\"]",
 		".desktop-body[data-theme=\"light\"] .vd-window-titlebar",
 		".vd-editor",
-		"background: var(--ds-color-bg-raised, #181f2c);",
-		"color: var(--ds-color-fg-primary, #f6f7fb);",
+		"background: var(--vd-theme-app-bg);",
+		"color: var(--vd-text);",
 		".vd-editor textarea",
 		".office-writer",
-		"--vd-editor-bg: var(--ds-color-bg-raised, #181f2c);",
-		"--vd-editor-text: var(--ds-color-fg-primary, #f6f7fb);",
-		"--vd-editor-icon: var(--ds-color-fg-muted, #a8bbd0);",
+		"--vd-editor-bg: var(--vd-theme-app-bg);",
+		"--vd-editor-text: var(--vd-text);",
+		"--vd-editor-icon: var(--vd-theme-muted);",
 		"background: var(--vd-editor-bg);",
 		".office-writer .ql-stroke",
 		"stroke: var(--vd-editor-icon);",
@@ -94,8 +94,7 @@ func TestDesktopStandardThemeKeepsOfficeSurfacesDark(t *testing.T) {
 		".office-writer-editor",
 		".office-writer-editor.ql-container",
 		".office-writer-editor .ql-editor",
-		"background: var(--vd-editor-bg);",
-		"color: var(--vd-editor-text);",
+		"background: var(--vd-editor-page-bg, #ffffff);",
 	} {
 		if !strings.Contains(desktopCSS, marker) {
 			t.Fatalf("desktop CSS is missing standard dark/writer marker %q", marker)

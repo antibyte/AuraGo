@@ -255,9 +255,10 @@ func TestDesktopWriterUsesSheetsDarkWritingSurface(t *testing.T) {
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-office.css"), "\r\n", "\n")
 	writerRule := desktopOfficeCSSRuleBody(t, css, ".office-writer")
 	for _, marker := range []string{
-		"--vd-editor-bg: var(--ds-color-bg-raised, #181f2c);",
-		"--vd-editor-text: var(--ds-color-fg-primary, #f6f7fb);",
-		"--vd-editor-toolbar-bg:",
+		"--vd-editor-bg: var(--vd-theme-app-bg);",
+		"--vd-editor-page-bg: #ffffff;",
+		"--vd-editor-text: var(--vd-text);",
+		"--vd-editor-toolbar-bg: var(--vd-theme-chrome-bg);",
 		"grid-template-rows: auto auto minmax(0, 1fr);",
 		"background: var(--vd-editor-bg);",
 		"color: var(--vd-editor-text);",
@@ -267,10 +268,10 @@ func TestDesktopWriterUsesSheetsDarkWritingSurface(t *testing.T) {
 		}
 	}
 
-	writerEditorRule := desktopOfficeCSSRuleBody(t, css, ".office-writer-editor")
+	writerEditorRule := desktopOfficeCSSRuleBody(t, css, ".office-writer-editor .ql-editor")
 	for _, marker := range []string{
-		"background: var(--vd-editor-bg);",
-		"color: var(--vd-editor-text);",
+		"background: var(--vd-editor-page-bg, #ffffff);",
+		"color: #1f2937;",
 	} {
 		if !strings.Contains(writerEditorRule, marker) {
 			t.Fatalf("writer editor dark-surface rule missing marker %q", marker)
@@ -279,8 +280,8 @@ func TestDesktopWriterUsesSheetsDarkWritingSurface(t *testing.T) {
 
 	for _, marker := range []string{
 		".office-sheet-grid-wrap {",
-		"background: var(--ds-color-bg-raised, #181f2c);",
-		"background: var(--ds-color-bg-overlay, #1d2533);",
+		"background: var(--vd-theme-app-bg);",
+		"background: var(--vd-theme-panel-bg);",
 		".office-writer .ql-stroke {",
 		"stroke: var(--vd-editor-icon);",
 		".office-writer .ql-fill {",
