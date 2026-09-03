@@ -145,20 +145,99 @@ func TestPromptCacheResponseMeasurementsUseCacheN(t *testing.T) {
 	}
 }
 
-func TestPromptCacheResponseMeasurementsUseOfficialTokenFields(t *testing.T) {
+func TestPromptCacheUsageDistinguishesSlotSizeFromInputReuse(t *testing.T) {
+	for _, test := range []struct {
+		name, body     string
+		cached, prompt uint64
+	}{
+		{"native cold warmup", `{"tokens_cached":2484,"tokens_evaluated":2484,"timings":{"cache_n":0,"prompt_n":2484}}`, 0, 2484},
+		{"native warm completion", `{"tokens_cached":6812,"tokens_evaluated":6786,"timings":{"cache_n":2484,"prompt_n":4302}}`, 2484, 6786},
+		{"native without timings", `{"tokens_cached":6812,"tokens_evaluated":6786}`, 0, 6786},
+		{"openai usage", `{"usage":{"prompt_tokens":1000,"prompt_tokens_details":{"cached_tokens":900}}}`, 900, 1000},
+		{"invalid usage", `{"usage":{"prompt_tokens":100,"prompt_tokens_details":{"cached_tokens":900}}}`, 0, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cached, prompt := promptCacheUsage([]byte(test.body))
+			if cached != test.cached || prompt != test.prompt {
+				t.Fatalf("cache=%d prompt=%d; want %d/%d", cached, prompt, test.cached, test.prompt)
+			}
+		})
+	}
+}
+
+func TestQualifiedPromptCacheSurvivesMissAndRecovers(t *testing.T) {
 	manager := promptCacheObservationTestManager(t)
+	manager.status.PromptCache.SeedTokens = 1000
 	plan := promptCacheObservationPlan{Generation: 1, SeedFingerprint: "seed", CacheEnabled: true}
-	manager.observePromptCacheResponse(
-		plan,
-		[]byte(`{"tokens_cached":900,"tokens_evaluated":100}`),
-		false,
-		12*time.Millisecond,
-		true,
-	)
+	for _, metrics := range []string{
+		`{"timings":{"cache_n":0,"prompt_n":1200}}`,
+		`{"timings":{"cache_n":1100,"prompt_n":100}}`,
+	} {
+		manager.observePromptCacheResponse(plan, []byte(metrics), false, time.Second, true)
+		if !manager.promptCacheReady(manager.promptSeed) {
+			t.Fatal("a normal cache miss disabled the qualified cache")
+		}
+	}
 	status := manager.Status().PromptCache
-	if !status.LastHit || status.CachedTokens != 900 || status.ProcessedTokens != 100 ||
-		status.HitRate != 0.9 {
-		t.Fatalf("prompt cache status = %#v", status)
+	if !status.Qualified || status.State != "warm" || status.Requests != 2 || status.Hits != 1 || !status.LastHit || status.CachedTokens != 1100 || status.ProcessedTokens != 1300 {
+		t.Fatalf("unexpected recovery metrics: %#v", status)
+	}
+}
+
+func TestPromptCacheColdAndHelperRequestsCanReuse(t *testing.T) {
+	manager := promptCacheObservationTestManager(t)
+	manager.promptCacheQualified = false
+	manager.status.PromptCache = PromptCacheStatus{State: "cold"}
+	manager.promptPersistLast = time.Now()
+	if !manager.promptCacheReady(manager.promptSeed) || !manager.promptCacheReady(nil) {
+		t.Fatal("first tool chain or helper was forced to run without caching")
+	}
+	manager.observePromptCacheResponse(promptCacheObservationPlan{Generation: 1, CacheEnabled: true},
+		[]byte(`{"timings":{"cache_n":90,"prompt_n":10}}`), false, time.Millisecond, true)
+	if manager.status.PromptCache.State != "warm" || manager.status.PromptCache.Qualified ||
+		manager.promptPersistPending == nil || manager.promptPersistPending.Accepted {
+		t.Fatal("a cache hit must not impersonate completed qualification")
+	}
+	for _, code := range []string{"prompt_cache_semantic_mismatch", "prompt_cache_oom", "prompt_cache_offload_failed"} {
+		manager.status.PromptCache.ErrorCode = code
+		if manager.promptCacheReady(manager.promptSeed) {
+			t.Fatalf("unsafe cache remained enabled: %s", code)
+		}
+	}
+	for _, code := range []string{"prompt_cache_reuse_below_80_percent", "prompt_cache_qualification_timeout", "prompt_cache_probe_tool_unavailable"} {
+		if isPermanentPromptCacheRejection(code) {
+			t.Fatalf("recoverable qualification result was persisted as permanent: %s", code)
+		}
+	}
+}
+
+func TestLingSeparatesVolatileContextAfterStableSystemAndTools(t *testing.T) {
+	body := `{"model":"aurago-ling","messages":[{"role":"system","content":"STATIC\n# TURN CONTEXT\nCurrent time: now"},{"role":"user","content":"private request"},{"role":"system","content":"Trusted recovery instruction"}],"tools":[]}`
+	req, _ := http.NewRequest(http.MethodPost, "http://localhost/v1/chat/completions", strings.NewReader(body))
+	prepared, seed, _, seedError, err := preparePromptCacheRequest(req)
+	if err != nil || seedError != "" || seed == nil {
+		t.Fatalf("prepare failed: %v / %s", err, seedError)
+	}
+	var object struct {
+		Messages []struct{ Role, Content string }
+	}
+	if json.NewDecoder(prepared.Body).Decode(&object) != nil || len(object.Messages) != 3 {
+		t.Fatal("invalid prepared messages")
+	}
+	if object.Messages[0].Role != "system" || object.Messages[0].Content != "STATIC\n" ||
+		object.Messages[1].Role != "system" || !strings.Contains(object.Messages[1].Content, "# TURN CONTEXT\nCurrent time: now") ||
+		!strings.Contains(object.Messages[1].Content, "Trusted recovery instruction") || object.Messages[2].Content != "private request" {
+		t.Fatalf("context authority or content changed: %#v", object.Messages)
+	}
+	for _, private := range []string{"Current time: now", "Trusted recovery instruction", "private request"} {
+		if strings.Contains(string(seed.ApplyTemplateBody), private) {
+			t.Fatal("private data entered qualification seed")
+		}
+	}
+	template, err := promptCacheTemplateBody(*seed)
+	if err != nil || json.Unmarshal(template, &object) != nil || len(object.Messages) < 3 ||
+		object.Messages[0].Content != "STATIC\n" || object.Messages[1].Content != promptCacheRenderBoundary || object.Messages[1].Role != "system" {
+		t.Fatalf("Ling warmup boundary must follow its entire first system message: %v", err)
 	}
 }
 
@@ -370,6 +449,27 @@ func TestPromptCacheQualificationRejectsMissingDiscoverTool(t *testing.T) {
 	}
 }
 
+func TestPromptCacheQualificationSeedDoesNotMutateLiveSeed(t *testing.T) {
+	for _, model := range []string{"aurago-qwen", "aurago-ling"} {
+		request, _ := http.NewRequest(http.MethodPost, "http://localhost/v1/chat/completions", strings.NewReader(
+			`{"model":"`+model+`","messages":[{"role":"system","content":"STATIC\n# TURN CONTEXT\nprivate turn"},{"role":"user","content":"private message"}],"tools":[]}`))
+		_, seed, _, _, err := preparePromptCacheRequest(request)
+		if err != nil || seed == nil {
+			t.Fatalf("seed: %v", err)
+		}
+		original := string(seed.ApplyTemplateBody)
+		probe, err := promptCacheQualificationSeed(*seed)
+		if err != nil || probe.SystemPrefix == seed.SystemPrefix ||
+			!strings.HasSuffix(probe.SystemPrefix, seed.SystemPrefix) || probe.Fingerprint != seed.Fingerprint ||
+			string(seed.ApplyTemplateBody) != original || strings.Contains(string(probe.ApplyTemplateBody), "private") {
+			t.Fatalf("qualification seed changed the live seed or included private context: %v", err)
+		}
+		if _, err := promptCacheTemplateBody(probe); err != nil {
+			t.Fatalf("isolated seed cannot be rendered: %v", err)
+		}
+	}
+}
+
 func TestPromptCacheQualificationReservesTimeForRealTurn(t *testing.T) {
 	parent, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -473,11 +573,11 @@ func TestPromptCacheQualificationThresholdsAndSemantics(t *testing.T) {
 			code: "prompt_cache_reuse_below_80_percent",
 		},
 		{
-			name: "ttft gain below threshold",
+			name: "missing ttft measurement",
 			edit: func(value *promptCacheProbeResult) {
-				value.TTFT = 31 * time.Millisecond
+				value.TTFT = 0
 			},
-			code: "prompt_cache_ttft_gain_below_70_percent",
+			code: "prompt_cache_measurements_unavailable",
 		},
 	}
 	for _, test := range tests {
@@ -489,6 +589,30 @@ func TestPromptCacheQualificationThresholdsAndSemantics(t *testing.T) {
 				t.Fatalf("error=%v want=%s", err, test.code)
 			}
 		})
+	}
+	baseWarm.TTFT = 110 * time.Millisecond
+	if _, err := validatePromptCacheQualification(baseCold, baseWarm, 1000); err != nil {
+		t.Fatalf("host contention must not reject correct cache reuse: %v", err)
+	}
+}
+
+func TestPromptCacheProbeNeedsUsableColdBaseline(t *testing.T) {
+	if _, err := readPromptCacheProbe(strings.NewReader("data: {}\n\n"), time.Now()); err == nil || isPermanentPromptCacheRejection(errorCode(err)) {
+		t.Fatalf("interrupted probe must be a transient failure: %v", err)
+	}
+	invalid, err := readPromptCacheProbe(strings.NewReader("data: {\"choices\":[{\"delta\":{\"content\":\"No tool call\"}}]}\n\ndata: [DONE]\n\n"), time.Now())
+	if err != nil {
+		t.Fatalf("completed output must reach cold/warm comparison: %v", err)
+	}
+	valid := promptCacheProbeResult{
+		ToolCall: `{"name":"discover_tools","arguments":"{\"operation\":\"search\",\"query\":\"aurago_prompt_cache_probe\"}"}`,
+		Complete: true, TTFT: time.Millisecond, CachedTokens: 900, PromptTokens: 1000,
+	}
+	if _, err := validatePromptCacheQualification(invalid, valid, 1000); err == nil || isPermanentPromptCacheRejection(errorCode(err)) {
+		t.Fatalf("invalid cold output cannot prove cache corruption: %v", err)
+	}
+	if _, err := validatePromptCacheQualification(valid, invalid, 1000); errorCode(err) != "prompt_cache_semantic_mismatch" {
+		t.Fatalf("changed warm output must still reject unsafe reuse: %v", err)
 	}
 }
 
@@ -596,9 +720,7 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 				`{"prompt":"rendered STATIC PREFIX `+secretSuffix+promptCacheRenderBoundary+` synthetic turn"}`,
 			)
 		case "/completion":
-			// llama.cpp exposes these reliable non-streaming counters even on
-			// builds where the final chat SSE omits cache timing details.
-			_, _ = io.WriteString(writer, `{"tokens_cached":900,"tokens_evaluated":100}`)
+			_, _ = io.WriteString(writer, `{"tokens_cached":1000,"tokens_evaluated":1000,"timings":{"cache_n":0,"prompt_n":1000}}`)
 		case "/v1/chat/completions":
 			var payload map[string]json.RawMessage
 			_ = json.NewDecoder(request.Body).Decode(&payload)
@@ -609,7 +731,11 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 			}
 			writer.Header().Set("Content-Type", "text/event-stream")
 			_, _ = io.WriteString(writer, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"discover_tools","arguments":"{\"operation\":\"search\",\"query\":\"aurago_prompt_cache_probe\"}"}}]}}],"timings":{"cache_n":`)
-			_, _ = io.WriteString(writer, "0")
+			if cache {
+				_, _ = io.WriteString(writer, "900")
+			} else {
+				_, _ = io.WriteString(writer, "0")
+			}
 			_, _ = io.WriteString(writer, `,"prompt_n":100}}`+"\n\ndata: [DONE]\n\n")
 		default:
 			http.NotFound(writer, request)
@@ -628,7 +754,7 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 		profile: HardwareProfile{SelectedBackend: "cpu"},
 		status: Status{
 			PerformanceProfile: performanceProfileGeneric,
-			PromptCache:        PromptCacheStatus{State: "cold"},
+			PromptCache:        PromptCacheStatus{State: "cold", CachedTokens: 12, ProcessedTokens: 34, Requests: 1},
 		},
 		promptDecisionWrite: config.WriteFileAtomic,
 		// Threshold boundaries have their own deterministic unit test. This
@@ -658,6 +784,9 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 	status := manager.Status().PromptCache
 	if status.State != "warm" || !status.Qualified || !status.DecisionPersisted || status.SeedTokens != 1000 {
 		t.Fatalf("warmup status = %#v", status)
+	}
+	if status.CachedTokens != 12 || status.ProcessedTokens != 34 || status.Requests != 1 {
+		t.Fatal("qualification replaced actual request counters")
 	}
 	payload, err := os.ReadFile(filepath.Join(modelDir, promptCacheFileName))
 	if err != nil {

@@ -292,7 +292,7 @@ function localLLMCacheErrorText(errorCode) {
     if (code === 'prompt_cache_probe_tool_unavailable') key = 'config.local_llm.cache_error_probe_tool';
     else if (code === 'prompt_cache_semantic_mismatch') key = 'config.local_llm.cache_error_semantic';
     else if (code === 'prompt_cache_reuse_below_80_percent') key = 'config.local_llm.cache_error_reuse';
-    else if (code === 'prompt_cache_ttft_gain_below_70_percent') key = 'config.local_llm.cache_error_ttft';
+    else if (code === 'prompt_cache_measurements_unavailable') key = 'config.local_llm.cache_error_ttft';
     else if (code === 'prompt_cache_qualification_timeout') key = 'config.local_llm.cache_error_timeout';
     else if (code === 'prompt_cache_decision_write_failed') key = 'config.local_llm.cache_error_persistence';
     const translated = t(key);

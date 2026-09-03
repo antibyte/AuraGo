@@ -23,6 +23,9 @@ import (
 	"aurago/internal/dockerutil"
 )
 
+// At supported 16K/32K limits, only a complete input prefix exceeds this value.
+const qwenSlotPromptSimilarity = "0.999999"
+
 type vault interface {
 	ReadSecret(string) (string, error)
 	WriteSecret(string, string) error
@@ -1152,6 +1155,7 @@ type startupManifest struct {
 	CheckpointMinStep     int      `json:"checkpoint_min_step"`
 	CacheReuse            int      `json:"cache_reuse"`
 	CacheIdleSlots        string   `json:"cache_idle_slots"`
+	SlotPromptSimilarity  string   `json:"slot_prompt_similarity"`
 	SlotsEndpoint         string   `json:"slots_endpoint"`
 	SplitMode             string   `json:"split_mode"`
 	Poll                  string   `json:"poll"`
@@ -1182,6 +1186,9 @@ func (m *Manager) attestStartupPlan(ctx context.Context, plan runtimePlan, key s
 }
 
 func validateStartupManifest(plan runtimePlan, startup startupManifest) error {
+	if plan.Config.Family() == "qwen" && startup.SlotPromptSimilarity != qwenSlotPromptSimilarity {
+		return fmt.Errorf("startup_manifest_performance_mismatch")
+	}
 	if plan.Config.Backend == "cpu" && (startup.GPUOffload || startup.KVOffload) {
 		return fmt.Errorf("startup_manifest_mismatch")
 	}
@@ -2272,6 +2279,9 @@ func resolvedParameters(cfg config.LocalLLMConfig, mtp bool) []string {
 		"--kv-offload=on",
 		"--reasoning=off",
 		fmt.Sprintf("--ctx-size=%d", cfg.ContextSize),
+	}
+	if cfg.Family() == "qwen" {
+		values = append(values, "--slot-prompt-similarity="+qwenSlotPromptSimilarity)
 	}
 	if mtp {
 		values = append(values,

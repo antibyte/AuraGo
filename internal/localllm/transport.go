@@ -32,14 +32,10 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			}
 		}()
 
-		req, seed, stream, seedError, err := preparePromptCacheRequest(req)
+		req, seed, stream, _, err := preparePromptCacheRequest(req)
 		if err != nil {
 			return nil, &UnavailableError{Code: errorCode(err), Err: err}
 		}
-		if seedError != "" {
-			m.markPromptCacheDegraded(seedError)
-		}
-		m.rememberPromptSeed(seed)
 		if err := m.acquireRequest(); err != nil {
 			return nil, err
 		}
@@ -56,6 +52,8 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		if err != nil {
 			return nil, err
 		}
+		// Start may invalidate the previous runtime fingerprint and seed.
+		m.rememberPromptSeed(seed)
 		key, err := m.runtimeKey()
 		if err != nil {
 			return nil, &UnavailableError{Code: "runtime_key_unavailable", Err: err}
@@ -67,9 +65,6 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			applied = &copyPlan
 		}
 		m.mu.Unlock()
-		if applied != nil && m.promptCacheNeedsSynchronousWarm(seed) {
-			m.ensurePromptCacheWarm(req.Context(), *applied, key)
-		}
 		cacheEnabled := m.promptCacheReady(seed)
 		if cacheEnabled {
 			if cachedReq, cacheErr := enablePromptCacheRequest(req); cacheErr == nil {
@@ -95,6 +90,9 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			return nil, &UnavailableError{Code: "local_runtime_unavailable"}
 		}
 		observation := promptCacheObservationPlan{CacheEnabled: cacheEnabled}
+		if applied != nil {
+			observation.Generation = applied.Generation
+		}
 		if seed != nil {
 			observation.Generation = seed.Generation
 			observation.SeedFingerprint = seed.Fingerprint
@@ -102,7 +100,7 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		resp.Body = &releaseBody{
 			ReadCloser: newCacheObservingBody(resp.Body, stream, func(payload []byte, firstByte time.Duration, complete bool) {
 				m.observePromptCacheResponse(observation, payload, stream, firstByte, complete)
-				if complete && !cacheEnabled && applied != nil {
+				if complete && applied != nil {
 					m.schedulePromptCacheQualification(*applied, seed)
 				}
 			}, started),

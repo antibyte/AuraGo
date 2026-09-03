@@ -24,10 +24,10 @@ const (
 	maxLocalRequestBytes             = 4 << 20
 	maxPromptSeedBytes               = 256 << 10
 	promptCacheFileName              = "prompt-cache-decision.json"
-	promptCacheDecisionSchemaVersion = 3
+	promptCacheDecisionSchemaVersion = 4
 	promptCacheQualificationTimeout  = 90 * time.Second
 	promptCacheRequestReserve        = 30 * time.Second
-	promptCacheQualificationQuiet    = 5 * time.Second
+	promptCacheQualificationQuiet    = 30 * time.Second
 	promptCachePersistInterval       = time.Minute
 	promptCacheProbeQuery            = "aurago_prompt_cache_probe"
 	promptCacheProbeText             = `Call discover_tools exactly once with {"operation":"search","query":"aurago_prompt_cache_probe"}. Do not answer with normal text.`
@@ -161,6 +161,11 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 		seed = nil
 		seedError = errorCode(err)
 	}
+	if seed != nil && isLingChatRequest(object) {
+		if err := splitLingTurnContext(object, seed.SystemPrefix); err != nil {
+			return nil, nil, false, "", err
+		}
+	}
 	encoded, err := json.Marshal(object)
 	if err != nil {
 		return nil, nil, false, "", fmt.Errorf("local_request_encode_failed")
@@ -173,6 +178,37 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 		return io.NopCloser(bytes.NewReader(encoded)), nil
 	}
 	return clone, seed, stream, seedError, nil
+}
+
+func isLingChatRequest(object map[string]json.RawMessage) bool {
+	var model string
+	return json.Unmarshal(object["model"], &model) == nil && model == "aurago-ling"
+}
+
+// Ling renders tools after its first system message and supports subsequent
+// system messages. Keep volatile data after those tools without changing its
+// authority, content, or the order of the conversation and tool results.
+func splitLingTurnContext(object map[string]json.RawMessage, prefix string) error {
+	var messages []map[string]json.RawMessage
+	if json.Unmarshal(object["messages"], &messages) != nil || len(messages) == 0 {
+		return fmt.Errorf("local_request_invalid")
+	}
+	var content string
+	if json.Unmarshal(messages[0]["content"], &content) != nil || !strings.HasPrefix(content, prefix) {
+		return fmt.Errorf("local_request_invalid")
+	}
+	stable, _ := json.Marshal(prefix)
+	volatile, _ := json.Marshal(content[len(prefix):])
+	messages[0]["content"] = stable
+	messages = append(messages[:1:1], append([]map[string]json.RawMessage{
+		{"role": json.RawMessage(`"system"`), "content": volatile},
+	}, messages[1:]...)...)
+	encoded, err := json.Marshal(messages)
+	if err != nil {
+		return fmt.Errorf("local_request_encode_failed: %w", err)
+	}
+	object["messages"] = encoded
+	return nil
 }
 
 // normalizeLocalSystemMessages preserves the meaning of runtime recovery and
@@ -331,6 +367,13 @@ func seedFromChatRequest(object map[string]json.RawMessage) (*promptCacheSeed, e
 		},
 		"tools": tools,
 	}
+	if isLingChatRequest(object) {
+		seedRequest["messages"] = []map[string]string{
+			{"role": "system", "content": prefix},
+			{"role": "system", "content": "Cache qualification."},
+			{"role": "user", "content": promptCacheProbeText},
+		}
+	}
 	if kwargs := object["chat_template_kwargs"]; len(kwargs) > 0 {
 		seedRequest["chat_template_kwargs"] = kwargs
 	}
@@ -429,31 +472,20 @@ func (m *Manager) markPromptCacheDegraded(code string) {
 }
 
 func (m *Manager) promptCacheReady(seed *promptCacheSeed) bool {
-	if seed == nil {
-		return false
-	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.promptSeed != nil &&
-		m.promptSeed.Generation == m.generation &&
-		m.promptSeed.Fingerprint == seed.Fingerprint &&
-		m.promptCacheQualified &&
-		m.status.PromptCache.Qualified &&
-		m.status.PromptCache.State == "warm"
-}
-
-func (m *Manager) promptCacheNeedsSynchronousWarm(seed *promptCacheSeed) bool {
-	if seed == nil {
+	if m.shuttingDown || (seed != nil && seed.Generation != m.generation) {
 		return false
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.promptSeed != nil &&
-		m.promptSeed.Generation == m.generation &&
-		m.promptSeed.Fingerprint == seed.Fingerprint &&
-		m.promptCacheQualified &&
-		m.status.PromptCache.Qualified &&
-		m.status.PromptCache.State == "cold"
+	// Start() attests the pinned runtime before this check. Native prefix
+	// matching also works while qualification is pending, and for helper
+	// requests without a reusable seed. Never force repeated cold tool rounds.
+	switch m.status.PromptCache.ErrorCode {
+	case "prompt_cache_semantic_mismatch", "prompt_cache_oom", "prompt_cache_offload_failed":
+		return false
+	default:
+		return true
+	}
 }
 
 func (m *Manager) cancelPromptCacheWarmForRequest() {
@@ -488,10 +520,12 @@ func (m *Manager) schedulePromptCacheQualificationAfter(plan runtimePlan, seed *
 	if m.shuttingDown || plan.Generation != m.generation ||
 		m.promptSeed == nil || m.promptSeed.Fingerprint != seed.Fingerprint ||
 		m.promptCacheQualified ||
-		m.status.PromptCache.State == "rejected" ||
-		m.status.PromptCache.State == "degraded" {
+		m.status.PromptCache.State == "rejected" {
 		m.mu.Unlock()
 		return
+	}
+	if m.status.PromptCache.State == "degraded" && quiet < time.Minute {
+		quiet = time.Minute
 	}
 	if m.promptWarmCancel != nil {
 		m.promptWarmCancel()
@@ -554,7 +588,7 @@ func (m *Manager) ensurePromptCacheWarm(ctx context.Context, plan runtimePlan, k
 		m.mu.Unlock()
 		return
 	}
-	if m.status.PromptCache.State == "rejected" || m.status.PromptCache.State == "degraded" {
+	if m.status.PromptCache.State == "rejected" {
 		m.mu.Unlock()
 		return
 	}
@@ -615,14 +649,7 @@ func (m *Manager) ensurePromptCacheWarm(ctx context.Context, plan runtimePlan, k
 	if result.WarmTTFT > 0 {
 		m.status.PromptCache.WarmTTFTMS = float64(result.WarmTTFT.Microseconds()) / 1000
 	}
-	if result.CachedTokens > 0 || result.ProcessedTokens > 0 {
-		m.status.PromptCache.CachedTokens = result.CachedTokens
-		m.status.PromptCache.ProcessedTokens = result.ProcessedTokens
-		total := result.CachedTokens + result.ProcessedTokens
-		if total > 0 {
-			m.status.PromptCache.HitRate = float64(result.CachedTokens) / float64(total)
-		}
-	}
+	// Probe measurements must not replace counters from real model requests.
 	m.status.PromptCache.ErrorCode = ""
 	entry, ok := m.promptCacheDecisionEntryLocked(true, true)
 	m.mu.Unlock()
@@ -679,10 +706,7 @@ func (m *Manager) publishPromptCacheFailure(plan runtimePlan, seed promptCacheSe
 
 func isPermanentPromptCacheRejection(code string) bool {
 	switch code {
-	case "prompt_cache_probe_tool_unavailable",
-		"prompt_cache_semantic_mismatch",
-		"prompt_cache_reuse_below_80_percent",
-		"prompt_cache_ttft_gain_below_70_percent":
+	case "prompt_cache_semantic_mismatch":
 		return true
 	default:
 		return false
@@ -710,6 +734,14 @@ func promptCacheTemplateBody(seed promptCacheSeed) ([]byte, error) {
 		}
 		if json.Unmarshal(messages[index]["content"], &content) != nil || content != seed.SystemPrefix {
 			return nil, fmt.Errorf("prompt_cache_seed_invalid")
+		}
+		if isLingChatRequest(request) {
+			boundary, _ := json.Marshal(promptCacheRenderBoundary)
+			messages = append(messages[:index+1:index+1], append([]map[string]json.RawMessage{
+				{"role": json.RawMessage(`"system"`), "content": boundary},
+			}, messages[index+1:]...)...)
+			found = true
+			break
 		}
 		encoded, err := json.Marshal(content + promptCacheRenderBoundary)
 		if err != nil {
@@ -845,9 +877,38 @@ func (m *Manager) warmPromptPrefix(ctx context.Context, plan runtimePlan, key st
 	}, nil
 }
 
+// A distinct synthetic prefix makes the runtime save the live conversation
+// before the cold probe. A similar probe can otherwise overwrite its history.
+func promptCacheQualificationSeed(seed promptCacheSeed) (promptCacheSeed, error) {
+	var request map[string]json.RawMessage
+	var messages []map[string]json.RawMessage
+	if json.Unmarshal(seed.ApplyTemplateBody, &request) != nil ||
+		json.Unmarshal(request["messages"], &messages) != nil || len(messages) == 0 {
+		return promptCacheSeed{}, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	var role, content string
+	if json.Unmarshal(messages[0]["role"], &role) != nil || role != "system" ||
+		json.Unmarshal(messages[0]["content"], &content) != nil || content != seed.SystemPrefix {
+		return promptCacheSeed{}, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	seed.SystemPrefix = "[AuraGo cache qualification " + seed.Fingerprint + "]\n" + seed.SystemPrefix
+	messages[0]["content"], _ = json.Marshal(seed.SystemPrefix)
+	request["messages"], _ = json.Marshal(messages)
+	body, err := json.Marshal(request)
+	if err != nil || len(body) > maxPromptSeedBytes {
+		return promptCacheSeed{}, fmt.Errorf("prompt_cache_seed_too_large")
+	}
+	seed.ApplyTemplateBody = body
+	return seed, nil
+}
+
 func (m *Manager) qualifyPromptCache(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (promptCacheQualificationResult, error) {
 	if !promptCacheSeedHasTool(seed, "discover_tools") {
 		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_probe_tool_unavailable")
+	}
+	seed, err := promptCacheQualificationSeed(seed)
+	if err != nil {
+		return promptCacheQualificationResult{}, err
 	}
 	cold, err := m.runPromptCacheProbe(ctx, plan, key, seed, false)
 	if err != nil {
@@ -861,27 +922,26 @@ func (m *Manager) qualifyPromptCache(ctx context.Context, plan runtimePlan, key 
 	if err != nil {
 		return promptCacheQualificationResult{}, err
 	}
-	if warmup.CachedTokens > warm.CachedTokens {
-		warm.CachedTokens = warmup.CachedTokens
-	}
-	if warmup.SeedTokens > warm.PromptTokens {
-		warm.PromptTokens = warmup.SeedTokens
-	}
 	return validatePromptCacheQualification(cold, warm, warmup.SeedTokens)
 }
 
 func validatePromptCacheQualification(cold, warm promptCacheProbeResult, seedTokens uint64) (promptCacheQualificationResult, error) {
-	if !cold.Complete || !warm.Complete ||
-		!validPromptCacheProbeCall(cold.ToolCall) ||
-		normalizeToolCall(cold.ToolCall) != normalizeToolCall(warm.ToolCall) {
+	if !cold.Complete || !warm.Complete {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_transport_failed")
+	}
+	if !validPromptCacheProbeCall(cold.ToolCall) {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_probe_inconclusive")
+	}
+	if normalizeToolCall(cold.ToolCall) != normalizeToolCall(warm.ToolCall) {
 		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_semantic_mismatch")
 	}
 	if seedTokens == 0 || float64(warm.CachedTokens) < float64(seedTokens)*0.80 {
 		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_reuse_below_80_percent")
 	}
-	if cold.TTFT <= 0 || warm.TTFT <= 0 ||
-		float64(warm.TTFT) > float64(cold.TTFT)*0.30 {
-		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_ttft_gain_below_70_percent")
+	// Latency also includes uncached tool schemas and host contention. It is
+	// an observation, not evidence that a correctly reused prefix is unsafe.
+	if cold.TTFT <= 0 || warm.TTFT <= 0 {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_measurements_unavailable")
 	}
 	processed := warm.PromptTokens
 	if warm.CachedTokens <= processed {
@@ -1031,12 +1091,16 @@ func readPromptCacheProbe(reader io.Reader, started time.Time) (promptCacheProbe
 	if err := scanner.Err(); err != nil {
 		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_transport_failed: %w", err)
 	}
-	if !result.Complete || len(calls) != 1 {
-		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_semantic_mismatch")
+	if !result.Complete {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_transport_failed")
+	}
+	// Only comparison with a valid cold baseline can establish cache corruption.
+	if len(calls) != 1 {
+		return result, nil
 	}
 	parts, ok := calls[0]
 	if !ok {
-		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_semantic_mismatch")
+		return result, nil
 	}
 	encoded, _ := json.Marshal(map[string]any{
 		"name":      parts.name.String(),
@@ -1080,7 +1144,6 @@ func promptCacheHTTPError(payload []byte) error {
 
 func promptCacheUsage(raw []byte) (cached, prompt uint64) {
 	var response struct {
-		TokensCached    uint64 `json:"tokens_cached"`
 		TokensEvaluated uint64 `json:"tokens_evaluated"`
 		Usage           struct {
 			PromptTokens        uint64 `json:"prompt_tokens"`
@@ -1089,8 +1152,8 @@ func promptCacheUsage(raw []byte) (cached, prompt uint64) {
 			} `json:"prompt_tokens_details"`
 		} `json:"usage"`
 		Timings struct {
-			CacheN  uint64 `json:"cache_n"`
-			PromptN uint64 `json:"prompt_n"`
+			CacheN  *uint64 `json:"cache_n"`
+			PromptN *uint64 `json:"prompt_n"`
 		} `json:"timings"`
 	}
 	if json.Unmarshal(raw, &response) != nil {
@@ -1098,17 +1161,16 @@ func promptCacheUsage(raw []byte) (cached, prompt uint64) {
 	}
 	prompt = response.Usage.PromptTokens
 	cached = response.Usage.PromptTokensDetails.CachedTokens
-	if response.Timings.CacheN > cached {
-		cached = response.Timings.CacheN
+	// Native tokens_cached is the slot size AFTER generation, not a cache
+	// hit counter. tokens_evaluated is the entire input, including cache hits.
+	if response.Timings.CacheN != nil && response.Timings.PromptN != nil {
+		cached = *response.Timings.CacheN
+		prompt = cached + *response.Timings.PromptN
+	} else if prompt == 0 {
+		prompt = response.TokensEvaluated
 	}
-	if total := response.Timings.PromptN + response.Timings.CacheN; total > prompt {
-		prompt = total
-	}
-	if response.TokensCached > cached {
-		cached = response.TokensCached
-	}
-	if total := response.TokensCached + response.TokensEvaluated; total > prompt {
-		prompt = total
+	if cached > prompt {
+		return 0, 0
 	}
 	return cached, prompt
 }
@@ -1118,7 +1180,7 @@ func (m *Manager) promptCacheFingerprintLocked() string {
 		return ""
 	}
 	payload := m.desiredFingerprint + "\x00" + m.promptSeed.Fingerprint + "\x00" +
-		engineCommit(m.cfg) + "\x00" + m.status.PerformanceProfile + "\x00schema=3"
+		engineCommit(m.cfg) + "\x00" + m.status.PerformanceProfile + fmt.Sprintf("\x00schema=%d", promptCacheDecisionSchemaVersion)
 	sum := sha256.Sum256([]byte(payload))
 	return hex.EncodeToString(sum[:])
 }
@@ -1149,7 +1211,7 @@ func (m *Manager) promptCacheDecisionEntryLocked(accepted, terminal bool) (promp
 		Fingerprint:   fingerprint, Accepted: accepted, State: m.status.PromptCache.State,
 		Reason:            m.status.PromptCache.ErrorCode,
 		ReuseThreshold:    0.80,
-		TTFTGainThreshold: 0.70,
+		TTFTGainThreshold: 0,
 		WarmupDurationMS:  m.status.PromptCache.WarmupDurationMS,
 		CachedTokens:      m.status.PromptCache.CachedTokens,
 		ProcessedTokens:   m.status.PromptCache.ProcessedTokens,
@@ -1310,8 +1372,8 @@ func (m *Manager) observePromptCacheResponse(plan promptCacheObservationPlan, pa
 		processed = prompt - cached
 	}
 	m.mu.Lock()
-	if plan.Generation != m.generation || m.promptSeed == nil ||
-		plan.SeedFingerprint != m.promptSeed.Fingerprint {
+	if plan.Generation != m.generation || (plan.SeedFingerprint != "" &&
+		(m.promptSeed == nil || plan.SeedFingerprint != m.promptSeed.Fingerprint)) {
 		m.mu.Unlock()
 		return
 	}
@@ -1321,6 +1383,9 @@ func (m *Manager) observePromptCacheResponse(plan promptCacheObservationPlan, pa
 	if plan.CacheEnabled && cached > 0 {
 		status.Hits++
 		status.WarmTTFTMS = float64(firstByte.Microseconds()) / 1000
+		if status.State == "cold" {
+			status.State = "warm"
+		}
 	} else {
 		status.ColdTTFTMS = float64(firstByte.Microseconds()) / 1000
 	}
@@ -1330,15 +1395,10 @@ func (m *Manager) observePromptCacheResponse(plan promptCacheObservationPlan, pa
 	if total > 0 {
 		status.HitRate = float64(status.CachedTokens) / float64(total)
 	}
-	if plan.CacheEnabled && status.State == "warm" && status.SeedTokens > 0 &&
-		float64(cached) < float64(status.SeedTokens)*0.80 {
-		status.State = "rejected"
-		status.Qualified = false
-		m.promptCacheQualified = false
-		status.ErrorCode = "prompt_cache_reuse_below_80_percent"
-	}
+	// Another conversation, changed instructions, or a shorter prefix can
+	// legitimately miss. Keep the qualified cache available for the next turn.
 	terminal := status.State == "rejected"
-	entry, ok := m.promptCacheDecisionEntryLocked(status.State == "warm", terminal)
+	entry, ok := m.promptCacheDecisionEntryLocked(m.promptCacheQualified && status.Qualified, terminal)
 	m.mu.Unlock()
 	if ok {
 		m.queuePromptCacheDecision(entry, terminal)

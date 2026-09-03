@@ -919,6 +919,19 @@ func TestExactSmokeToolCallRejectsExtraCallsAndArguments(t *testing.T) {
 	}
 }
 
+func TestQwenSlotSimilarityOnlyAcceptsFullSupportedInput(t *testing.T) {
+	value, err := strconv.ParseFloat(qwenSlotPromptSimilarity, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	threshold := float32(value)
+	for _, tokens := range []float32{16384, 32768} {
+		if !(1 > threshold) || (tokens-1)/tokens > threshold {
+			t.Fatalf("threshold %v must accept full input and reject even one missing token at %.0f tokens", threshold, tokens)
+		}
+	}
+}
+
 func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.T) {
 	plan := runtimePlan{
 		Config: config.LocalLLMConfig{Backend: "sycl"},
@@ -936,43 +949,47 @@ func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.
 	}
 	valid := startupManifest{
 		GPUOffload: true, KVOffload: true, MemoryProfileVerified: true,
-		ImageDigest:        "sha256:" + strings.Repeat("c", 64),
-		TargetSHA256:       strings.Repeat("a", 64),
-		DraftSHA256:        strings.Repeat("b", 64),
-		PhysicalDevice:     "0000:03:00.0",
-		ActualDevice:       "SYCL0",
-		ResolvedParameters: []string{"--ctx-size=8192", "--spec-draft-n-max=2"},
-		LlamaCPPCommit:     LlamaCPPCommit,
-		PerformanceProfile: performanceProfileSYCLArc,
-		BatchSize:          2048,
-		UBatchSize:         2048,
-		Threads:            8,
-		ThreadsBatch:       8,
-		CacheTypeK:         "f16",
-		CacheTypeV:         "f16",
-		FlashAttention:     "off",
-		CacheRAMMiB:        8192,
-		ContextCheckpoints: 32,
-		CheckpointMinStep:  2048,
-		CacheReuse:         0,
-		CacheIdleSlots:     "on",
-		SlotsEndpoint:      "off",
-		SplitMode:          "",
-		Poll:               "",
-		Priority:           "",
-		RADVPerfTest:       "",
+		ImageDigest:          "sha256:" + strings.Repeat("c", 64),
+		TargetSHA256:         strings.Repeat("a", 64),
+		DraftSHA256:          strings.Repeat("b", 64),
+		PhysicalDevice:       "0000:03:00.0",
+		ActualDevice:         "SYCL0",
+		ResolvedParameters:   []string{"--ctx-size=8192", "--spec-draft-n-max=2"},
+		LlamaCPPCommit:       LlamaCPPCommit,
+		PerformanceProfile:   performanceProfileSYCLArc,
+		BatchSize:            2048,
+		UBatchSize:           2048,
+		Threads:              8,
+		ThreadsBatch:         8,
+		CacheTypeK:           "f16",
+		CacheTypeV:           "f16",
+		FlashAttention:       "off",
+		CacheRAMMiB:          8192,
+		ContextCheckpoints:   32,
+		CheckpointMinStep:    2048,
+		CacheReuse:           0,
+		CacheIdleSlots:       "on",
+		SlotPromptSimilarity: qwenSlotPromptSimilarity,
+		SlotsEndpoint:        "off",
+		SplitMode:            "",
+		Poll:                 "",
+		Priority:             "",
+		RADVPerfTest:         "",
 	}
 	if err := validateStartupManifest(plan, valid); err != nil {
 		t.Fatalf("valid manifest rejected: %v", err)
 	}
 	for name, mutate := range map[string]func(*startupManifest){
-		"model hash":      func(value *startupManifest) { value.TargetSHA256 = strings.Repeat("d", 64) },
-		"draft hash":      func(value *startupManifest) { value.DraftSHA256 = strings.Repeat("d", 64) },
-		"physical device": func(value *startupManifest) { value.PhysicalDevice = "0000:04:00.0" },
-		"actual device":   func(value *startupManifest) { value.ActualDevice = "/dev/dri/renderD128" },
-		"parameters":      func(value *startupManifest) { value.ResolvedParameters = []string{"--ctx-size=2048"} },
-		"kv offload":      func(value *startupManifest) { value.KVOffload = false },
-		"memory profile":  func(value *startupManifest) { value.MemoryProfileVerified = false },
+		"model hash":              func(value *startupManifest) { value.TargetSHA256 = strings.Repeat("d", 64) },
+		"draft hash":              func(value *startupManifest) { value.DraftSHA256 = strings.Repeat("d", 64) },
+		"physical device":         func(value *startupManifest) { value.PhysicalDevice = "0000:04:00.0" },
+		"actual device":           func(value *startupManifest) { value.ActualDevice = "/dev/dri/renderD128" },
+		"parameters":              func(value *startupManifest) { value.ResolvedParameters = []string{"--ctx-size=2048"} },
+		"kv offload":              func(value *startupManifest) { value.KVOffload = false },
+		"memory profile":          func(value *startupManifest) { value.MemoryProfileVerified = false },
+		"cache selection":         func(value *startupManifest) { value.SlotPromptSimilarity = "0.1" },
+		"unnecessary cache copy":  func(value *startupManifest) { value.SlotPromptSimilarity = "0" },
+		"missing cache selection": func(value *startupManifest) { value.SlotPromptSimilarity = "" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			invalid := valid
@@ -1474,7 +1491,7 @@ func TestFakeLlamaServerSmokeTestValidatesToolCallAndStartupManifest(t *testing.
 				`"llama_cpp_commit":"`+LlamaCPPCommit+`","performance_profile":"generic-safe-v1",`+
 				`"batch_size":2048,"ubatch_size":512,"cache_type_k":"f16","cache_type_v":"f16","flash_attention":"auto",`+
 				`"cache_ram_mib":1024,"context_checkpoints":32,"checkpoint_min_step":2048,`+
-				`"cache_reuse":0,"cache_idle_slots":"on","slots_endpoint":"off",`+
+				`"cache_reuse":0,"cache_idle_slots":"on","slot_prompt_similarity":"0.999999","slots_endpoint":"off",`+
 				`"split_mode":"","poll":"","priority":"","radv_perftest":"",`+
 				`"resolved_parameters":`+string(resolvedParametersJSON)+`}`)
 		default:

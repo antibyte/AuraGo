@@ -102,18 +102,18 @@ func DefaultManifest() Manifest {
 			// Candidate images require an explicit backend choice and experimental acknowledgement.
 			"cuda": {
 				Backend: "cuda",
-				Reference: "ghcr.io/antibyte/aurago-llm-cuda:edge-8ac3d8c69e8a@" +
-					"sha256:2b063f4e67f8bcba54f5f47607fe298167d7b63775fe9dfe22ce5bb42870dc19",
+				Reference: "ghcr.io/antibyte/aurago-llm-cuda:sha-bf2a63b51926@" +
+					"sha256:553cf8dd940b8e5a65ba0ca90866fa4e15db1ed2405226efbcb90e5e28cc291b",
 			},
 			"sycl": {
 				Backend: "sycl",
-				Reference: "ghcr.io/antibyte/aurago-llm-sycl:edge-8ac3d8c69e8a@" +
-					"sha256:ba2f0208cf77c29cb69cd5a84e305296dab597722ca9b88449d0cbf9b965eaef",
+				Reference: "ghcr.io/antibyte/aurago-llm-sycl:sha-bf2a63b51926@" +
+					"sha256:ba9541b05b91ff6c7a2f2901b51a601804e68d28ce516715f8cceb8c2108ca58",
 			},
 			"vulkan": {
 				Backend: "vulkan",
-				Reference: "ghcr.io/antibyte/aurago-llm-vulkan:edge-8ac3d8c69e8a@" +
-					"sha256:ad94aba8c422dbaf7c298d2c5d7c51ce3e6aabea378e31b816a11c55162d4970",
+				Reference: "ghcr.io/antibyte/aurago-llm-vulkan:sha-bf2a63b51926@" +
+					"sha256:fa662d58f3a3c78aae33cc01d7845b713b5fb50fea536647f970cd11de20deb3",
 			},
 		},
 		HardwareProfiles: []ValidatedHardwareProfile{

@@ -88,6 +88,8 @@ images, and browser-oriented regression tests.
   default for missing `model_family`; Ling selects Q4_K_L, MTP off, and 16K.
   Model changes reset incompatible options; Setup also resets its probe acknowledgement.
   runtime status and setup progress display the selected model name.
+  Cache help distinguishes native reuse from idle qualification; a transient
+  qualification failure must not claim that subsequent requests disable reuse.
 - Provider model-limit fields use `0` for automatic resolution. Provider cards
   show compact effective context/output values; the source and the full
   configured/effective sentence belong in the card tooltip and in the editor.

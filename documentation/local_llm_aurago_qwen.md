@@ -107,18 +107,48 @@ through `discover_tools` followed by `invoke_tool`. Restricted runtimes such as
 SIP, missions, Game Maker, and co-agents keep their narrower allowlists; the
 indirect tool path never widens them.
 
-The local transport asks llama.cpp to retain the identical rendered prefix in
-RAM. This prefix contains only the model/template settings, canonical tool
-schemas, and the static system prompt before `# TURN CONTEXT`. User messages,
-history, current memories, RAG results, tool output, paths, and secrets are not
-part of the reusable seed. Cache state is not written to disk. A restart
-therefore needs one cold warm-up; an idle restart warms the retained in-process
-seed again.
+The local transport enables native prefix reuse from the first attested
+request, including helper requests. llama.cpp retains conversation state in
+bounded RAM and matches actual rendered tokens; changed instructions are never
+ignored. For Ling, the static system prompt remains in the first system
+message and `# TURN CONTEXT` moves intact into a second system message. Its
+embedded template can then render the stable tool schemas before volatile
+context. Qwen retains its single-system-message format.
+Qwen uses `--slot-prompt-similarity 0.999999`: only a complete input-prefix
+match at the supported 16K/32K limits reuses the current slot directly. Partial
+matches search saved RAM contexts, preventing a shorter helper from hiding a
+better conversation. Identical prompts avoid an unnecessary full-state copy.
+The startup manifest must attest this setting.
 
-The prefix cache saves prompt-processing time only. It does **not** reduce the
-number of tokens occupying the selected 16K or 32K context window. If template
-rendering, warm-up, or cache verification fails, the request continues
-uncached and the status reports a sanitized degraded or rejected state.
+Idle qualification uses only model/template settings, canonical tool schemas,
+the static prefix, and synthetic probes. Live user messages, tool results, and
+volatile context never enter the qualification seed. A distinct synthetic
+prefix makes the runtime preserve the live conversation before a cold probe;
+qualification must not overwrite a similar conversation's cached history.
+RAM state is not written
+to disk; only a value-free decision and measurements are persisted, bound to
+model, engine, image, hardware, and seed. Schema 4 invalidates older decisions
+whose token counts could be inflated by the post-generation slot size.
+
+Actual reuse is measured from `timings.cache_n` or OpenAI cached-token usage.
+Native `tokens_cached` is the slot size after generation and must not be counted
+as a cache hit. A normal miss does not disable future reuse. Qualification
+checks semantic consistency and reuse of the static prefix; latency is measured
+without imposing a fixed speedup that cannot hold for every prompt or host
+load. Recoverable failures retry after an idle interval, and real requests
+preempt qualification. Incomplete streams or an invalid cold probe are
+inconclusive and cannot prove cache corruption. Semantic mismatches against a
+valid cold baseline or memory/offload failures disable reuse until the problem
+is resolved.
+
+The cache saves prompt-processing time. It does **not** reduce context usage:
+the full configured 16K or 32K window remains available, and model restarts
+require the first input to be processed again.
+
+The opt-in `TestLiveLocalPromptCache` exercises qualification, repeated and
+changed prompts, native tools, conversation switching, streaming, long-context
+facts, idle qualification, and cancellation on an isolated runtime. Set `AURAGO_CACHE_TEST_PORT`,
+`AURAGO_CACHE_TEST_KEY_FILE`, and `AURAGO_CACHE_TEST_MODEL` to run it.
 
 Qwen on AMD Vulkan devices uses the tested `vulkan-amd-fast-v1` profile. It enables the
 RADV `nogttspill` optimization, full GPU offload, batch/uBatch 2048/512, eight
