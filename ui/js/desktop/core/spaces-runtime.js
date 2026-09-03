@@ -7,6 +7,44 @@
         return !isCompactViewport();
     }
 
+    function knownWallpaperIds() {
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves'];
+    }
+
+    function normalizeWallpaperId(value) {
+        const id = String(value || '');
+        return knownWallpaperIds().indexOf(id) >= 0 ? id : 'groupshoot';
+    }
+
+    function parseWallpaperBySpace() {
+        try {
+            const raw = settingValue('appearance.wallpaper_by_space');
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+            const known = knownWallpaperIds();
+            const out = {};
+            SPACE_IDS.forEach(id => {
+                const wallpaper = parsed[id];
+                if (typeof wallpaper === 'string' && known.indexOf(wallpaper) >= 0) out[id] = wallpaper;
+            });
+            return out;
+        } catch (err) {
+            return {};
+        }
+    }
+
+    function wallpaperForActiveSpace() {
+        const fallback = normalizeWallpaperId(settingValue('appearance.wallpaper'));
+        if (!spacesEnabled()) return fallback;
+        const map = parseWallpaperBySpace();
+        return map[normalizeSpaceId(state.activeSpaceId)] || fallback;
+    }
+
+    function applyActiveSpaceWallpaper() {
+        if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
+    }
+
     function normalizeSpaceId(id) {
         const value = String(id || DEFAULT_SPACE_ID);
         return SPACE_IDS.includes(value) ? value : DEFAULT_SPACE_ID;
@@ -74,6 +112,7 @@
         if (next === normalizeSpaceId(state.activeSpaceId)) return;
         state.activeSpaceId = next;
         hideTaskbarThumbnail();
+        applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderSpacePager();
         renderTaskbar();
@@ -123,6 +162,7 @@
         if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
         if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
+        applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderTaskbar();
     }

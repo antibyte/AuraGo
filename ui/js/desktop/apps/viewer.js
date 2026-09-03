@@ -25,11 +25,13 @@
         const api = ctx.api || fetchJSON;
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
-        let currentPath = ctx.path || '';
-        const fileName = currentPath.split('/').pop() || currentPath;
+        const archiveEntry = String(ctx.archiveEntry || ctx.entry || '').trim();
+        const archivePath = archiveEntry ? String(ctx.archive || ctx.path || '').trim() : '';
+        let currentPath = archiveEntry ? archivePath : (ctx.path || '');
+        const fileName = (archiveEntry ? archiveEntry.split('/').pop() : currentPath.split('/').pop()) || currentPath;
         const ext = fileName.split('.').pop().toLowerCase();
         const viewerType = viewerTypeForExt(ext);
-        const canEdit = ['docx', 'xlsx', 'xlsm', 'csv'].includes(ext);
+        const canEdit = !archiveEntry && ['docx', 'xlsx', 'xlsm', 'csv'].includes(ext);
         const editApp = ['docx', 'html', 'htm'].includes(ext) ? 'writer' : 'sheets';
         let activeSheet = 0;
         let workbook = null;
@@ -118,7 +120,26 @@
             }
         }
 
+        function viewerContentURL() {
+            let url = '/api/desktop/viewer/content?path=' + encodeURIComponent(currentPath);
+            if (archiveEntry) url += '&entry=' + encodeURIComponent(archiveEntry);
+            return url;
+        }
+
+        function archiveEntryURL() {
+            return '/api/desktop/archive/entry?path=' + encodeURIComponent(currentPath) + '&entry=' + encodeURIComponent(archiveEntry);
+        }
+
         function downloadFile() {
+            if (archiveEntry) {
+                const link = document.createElement('a');
+                link.href = archiveEntryURL();
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                return;
+            }
             if (typeof ctx.exportDesktopFile === 'function') {
                 ctx.exportDesktopFile({ path: currentPath, name: fileName }).catch(err => notify(err.message || String(err)));
                 return;
@@ -247,7 +268,7 @@
                     pdfControls.style.display = 'flex';
                     await loadPdf();
                 } else {
-                    const resp = await api('/api/desktop/viewer/content?path=' + encodeURIComponent(currentPath));
+                    const resp = await api(viewerContentURL());
                     if (viewerType === 'markdown') renderMarkdown(resp.content);
                     else if (viewerType === 'document') renderDocument(resp.content);
                     else if (viewerType === 'spreadsheet') renderSpreadsheet(resp.workbook);
@@ -353,7 +374,7 @@
                 return;
             }
             try {
-                const loadingTask = pdfjsLib.getDocument('/api/desktop/viewer/content?path=' + encodeURIComponent(currentPath));
+                const loadingTask = pdfjsLib.getDocument(viewerContentURL());
                 pdfDoc = await loadingTask.promise;
                 pdfPage = 1;
                 renderPdfPage();

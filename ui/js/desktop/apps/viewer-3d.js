@@ -15,9 +15,12 @@
         };
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
-        const currentPath = ctx.path || '';
-        const fileName = currentPath.split('/').pop() || currentPath || t('desktop.stl_viewer');
-        const fileUrl = '/api/desktop/download?path=' + encodeURIComponent(currentPath);
+        const archiveEntry = String(ctx.archiveEntry || ctx.entry || '').trim();
+        const currentPath = archiveEntry ? String(ctx.archive || ctx.path || '').trim() : (ctx.path || '');
+        const fileName = (archiveEntry ? archiveEntry.split('/').pop() : currentPath.split('/').pop()) || currentPath || t('desktop.stl_viewer');
+        const fileUrl = archiveEntry
+            ? '/api/desktop/archive/entry?path=' + encodeURIComponent(currentPath) + '&entry=' + encodeURIComponent(archiveEntry)
+            : '/api/desktop/download?path=' + encodeURIComponent(currentPath);
 
         host.innerHTML = `<div class="vd-viewer vd-viewer-3d" data-viewer-3d="${esc(windowId)}">
             <div class="vd-viewer-toolbar">

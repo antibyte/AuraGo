@@ -1,11 +1,11 @@
 .network-cameras-app {
-    --nc-bg: color-mix(in srgb, var(--vd-surface, #111827) 94%, #08111f);
-    --nc-panel: color-mix(in srgb, var(--vd-surface-elevated, #172033) 92%, transparent);
-    --nc-border: color-mix(in srgb, var(--vd-border, #64748b) 24%, transparent);
-    --nc-muted: var(--vd-text-muted, #94a3b8);
+    --nc-bg: var(--vd-theme-app-bg);
+    --nc-panel: var(--vd-theme-panel-bg);
+    --nc-border: var(--vd-theme-border);
+    --nc-muted: var(--vd-theme-muted);
     --nc-accent: var(--vd-accent, #60a5fa);
     background: var(--nc-bg);
-    color: var(--vd-text, #f8fafc);
+    color: var(--vd-text);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -275,8 +275,8 @@
 @keyframes nc-spin { to { transform: rotate(360deg); } }
 
 .nc-modal-host:empty { display: none; }
-.nc-modal-backdrop { align-items: center; background: rgba(2, 6, 12, .68); display: flex; inset: 0; justify-content: center; padding: 20px; position: absolute; z-index: 50; }
-.nc-modal { background: color-mix(in srgb, var(--vd-surface-elevated, #172033) 97%, #000); border: 1px solid var(--nc-border); border-radius: 16px; box-shadow: 0 22px 60px rgba(0, 0, 0, .45); max-height: calc(100% - 20px); max-width: 620px; overflow: auto; width: 100%; }
+.nc-modal-backdrop { align-items: center; background: var(--vd-theme-overlay-bg); display: flex; inset: 0; justify-content: center; padding: 20px; position: absolute; z-index: 50; }
+.nc-modal { background: var(--vd-theme-panel-bg-strong); border: 1px solid var(--nc-border); border-radius: var(--vd-theme-radius-modal, 16px); box-shadow: var(--vd-theme-shadow-modal, 0 22px 60px rgba(0, 0, 0, .45)); max-height: calc(100% - 20px); max-width: 620px; overflow: auto; width: 100%; }
 .nc-modal header { border-bottom: 1px solid var(--nc-border); justify-content: space-between; padding: 14px 16px; }
 .nc-modal header > div { display: grid; gap: 3px; }
 .nc-modal header small { color: var(--nc-muted); font-size: 10px; }
@@ -298,8 +298,8 @@
 .nc-form-row { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
 .nc-form label { color: var(--nc-muted); display: grid; font-size: 11px; gap: 6px; }
 .nc-form input,
-.nc-form select { background: color-mix(in srgb, var(--nc-bg) 75%, transparent); border: 1px solid var(--nc-border); border-radius: 9px; color: var(--vd-text, #fff); height: 38px; padding: 0 10px; width: 100%; }
-.nc-form select option { background: #111827; }
+.nc-form select { background: var(--vd-theme-control-bg); border: 1px solid var(--nc-border); border-radius: 9px; color: var(--vd-text); height: 38px; padding: 0 10px; width: 100%; }
+.nc-form select option { background: var(--vd-theme-panel-bg-strong); color: var(--vd-text); }
 .nc-form .nc-check { align-items: center; display: flex; gap: 8px; }
 .nc-form .nc-check input { height: 16px; width: 16px; }
 .nc-probe-notice { border: 1px solid var(--nc-border); border-radius: 8px; font-size: 11px; line-height: 1.45; padding: 9px 10px; }

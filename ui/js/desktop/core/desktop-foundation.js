@@ -269,6 +269,7 @@
     };
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
+        'appearance.wallpaper_by_space': '{}',
         'appearance.theme': 'standard',
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
@@ -621,7 +622,9 @@
 
     function applyDesktopSettings() {
         const body = document.body;
-        body.dataset.wallpaper = settingValue('appearance.wallpaper');
+        body.dataset.wallpaper = (typeof wallpaperForActiveSpace === 'function')
+            ? wallpaperForActiveSpace()
+            : settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');

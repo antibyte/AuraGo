@@ -50,6 +50,8 @@ func TestDesktopViewerAppMarkers(t *testing.T) {
 		"desktop.viewer_pdfjs_unavailable",
 		"pdfLoadingTask",
 		"/api/desktop/viewer/content",
+		"archiveEntry",
+		"&entry=",
 		"window.DOMPurify",
 		"DOMPurify.sanitize",
 	} {
@@ -69,6 +71,8 @@ func TestDesktopViewer3DAppMarkers(t *testing.T) {
 		"desktop.stl_wireframe",
 		"resizeObserver.disconnect",
 		"THREE.STLLoader",
+		"/api/desktop/archive/entry",
+		"archiveEntry",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("viewer-3d.js missing marker %q", marker)

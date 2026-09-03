@@ -6,8 +6,8 @@
     min-height: 100%;
     height: 100%;
     overflow: hidden;
-    color: var(--vd-text, #f3f7f8);
-    background: var(--vd-surface, #121920);
+    color: var(--vd-text);
+    background: var(--vd-theme-app-bg);
 }
 
 .vd-live-speech-fx {
@@ -51,7 +51,7 @@
     width: 30px;
     height: 30px;
     padding: 0;
-    color: var(--vd-text-muted, #9dafb9);
+    color: var(--vd-theme-muted);
     background: transparent;
     border: 1px solid transparent;
     border-radius: 8px;
@@ -72,13 +72,13 @@
     padding: 0.6rem 0.75rem;
     border: 1px solid color-mix(in srgb, var(--vd-accent, #2fc5a9) 28%, transparent);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--vd-panel, #17202a) 72%, transparent);
+    background: var(--vd-theme-panel-bg);
     backdrop-filter: blur(10px);
 }
 
 .vd-live-speech-lab p {
     margin: 0 0 0.4rem;
-    color: var(--vd-text, #f3f7f8);
+    color: var(--vd-text);
     font-size: 0.82rem;
     line-height: 1.45;
 }
@@ -104,7 +104,7 @@
 
 .vd-live-speech-app .realtime-speech-panel {
     --rt-accent: var(--vd-accent, #2fc5a9);
-    --rt-surface: color-mix(in srgb, var(--vd-panel, #17202a) 58%, transparent);
+    --rt-surface: var(--vd-theme-panel-bg);
     width: 100%;
     margin: 0;
     background: var(--rt-surface);

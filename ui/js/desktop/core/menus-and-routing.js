@@ -267,7 +267,7 @@
     }
 
     function desktopWallpaperMenuItems() {
-        const current = settingValue('appearance.wallpaper') || 'groupshoot';
+        const current = (typeof wallpaperForActiveSpace === 'function' ? wallpaperForActiveSpace() : settingValue('appearance.wallpaper')) || 'groupshoot';
         const options = [
             ['groupshoot', 'desktop.settings_wallpaper_groupshoot'],
             ['aurora', 'desktop.settings_wallpaper_aurora'],
@@ -295,13 +295,32 @@
 
     async function saveDesktopWallpaper(value) {
         try {
-            const body = await api('/api/desktop/settings', {
+            const wallpaper = typeof normalizeWallpaperId === 'function' ? normalizeWallpaperId(value) : String(value || 'groupshoot');
+            const updates = [];
+            const nextSettings = Object.assign({}, desktopSettings());
+            if (typeof spacesEnabled === 'function' && spacesEnabled()) {
+                const map = typeof parseWallpaperBySpace === 'function' ? Object.assign({}, parseWallpaperBySpace()) : {};
+                const fallback = settingValue('appearance.wallpaper') || 'groupshoot';
+                SPACE_IDS.forEach(id => {
+                    if (!map[id]) map[id] = fallback;
+                });
+                map[normalizeSpaceId(state.activeSpaceId)] = wallpaper;
+                const encoded = JSON.stringify(map);
+                updates.push({ key: 'appearance.wallpaper_by_space', value: encoded });
+                nextSettings['appearance.wallpaper_by_space'] = encoded;
+            } else {
+                updates.push({ key: 'appearance.wallpaper', value: wallpaper });
+                nextSettings['appearance.wallpaper'] = wallpaper;
+            }
+            const results = await Promise.all(updates.map(update => api('/api/desktop/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'appearance.wallpaper', value })
-            });
+                body: JSON.stringify(update)
+            })));
+            const last = results[results.length - 1];
             if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { 'appearance.wallpaper': value });
+            state.bootstrap.settings = last.settings || nextSettings;
+            Object.assign(state.bootstrap.settings, nextSettings);
             applyDesktopSettings();
             renderStartButtonIcon();
             renderIcons();
@@ -1411,7 +1430,7 @@ function modalDialog(options) {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }

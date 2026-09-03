@@ -50,6 +50,13 @@
                 </table>
             </div>
             <div class="zipper-status" data-status></div>
+            <div class="zipper-preview" data-preview hidden>
+                <div class="zipper-preview-bar">
+                    <span class="zipper-preview-name" data-preview-name></span>
+                    <button class="vd-tool-button" type="button" data-action="close-preview">${esc(t('zipper.close_preview'))}</button>
+                </div>
+                <div class="zipper-preview-body" data-preview-body></div>
+            </div>
         </div>`;
 
         const listHost = host.querySelector('[data-list]');
@@ -57,6 +64,9 @@
         const statusNode = host.querySelector('[data-status]');
         const breadcrumbNode = host.querySelector('[data-breadcrumb]');
         const selectAllCheckbox = host.querySelector('[data-select-all]');
+        const previewNode = host.querySelector('[data-preview]');
+        const previewNameNode = host.querySelector('[data-preview-name]');
+        const previewBodyNode = host.querySelector('[data-preview-body]');
 
         function fmtBytes(n) {
             n = Number(n || 0);
@@ -154,6 +164,125 @@
             });
         }
 
+        function fileExtension(name) {
+            const value = String(name || '').split('/').pop() || '';
+            const dot = value.lastIndexOf('.');
+            return dot > 0 ? value.slice(dot + 1).toLowerCase() : '';
+        }
+
+        function archiveEntryURL(entryName) {
+            return '/api/desktop/archive/entry?path=' + encodeURIComponent(zipPath) + '&entry=' + encodeURIComponent(entryName);
+        }
+
+        function previewKind(name) {
+            const ext = fileExtension(name);
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tif', 'tiff', 'avif'].includes(ext)) return 'image';
+            if (['mp3', 'm4a', 'ogg', 'opus', 'wav', 'flac'].includes(ext)) return 'audio';
+            if (['mp4', 'webm', 'mkv', 'mov'].includes(ext)) return 'video';
+            if (['pdf', 'md', 'docx', 'xlsx', 'xlsm', 'csv'].includes(ext)) return 'document';
+            if (ext === 'stl') return 'model';
+            if (['txt', 'log', 'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf', 'html', 'htm', 'css', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'go', 'py', 'sh', 'ps1', 'sql'].includes(ext)) return 'text';
+            return '';
+        }
+
+        function entryIconKey(entry) {
+            if (entry.is_dir) return 'folder';
+            const kind = previewKind(entry.name);
+            if (kind === 'image') return 'image';
+            if (kind === 'audio') return 'audio';
+            if (kind === 'video') return 'video';
+            if (kind === 'model') return 'theme-threedee';
+            const ext = fileExtension(entry.name);
+            if (ext === 'pdf') return 'pdf';
+            if (ext === 'md') return 'markdown';
+            if (ext === 'docx') return 'documents';
+            if (['xlsx', 'xlsm', 'csv'].includes(ext)) return 'spreadsheet';
+            if (kind === 'text') return 'text';
+            return 'file';
+        }
+
+        function closePreview() {
+            if (!previewNode) return;
+            previewNode.hidden = true;
+            if (previewBodyNode) previewBodyNode.innerHTML = '';
+            if (previewNameNode) previewNameNode.textContent = '';
+        }
+
+        async function showInlinePreview(entry, kind) {
+            if (!previewNode || !previewBodyNode) return;
+            previewNode.hidden = false;
+            if (previewNameNode) previewNameNode.textContent = displayName(entry) || entry.name;
+            previewBodyNode.innerHTML = `<div class="zipper-preview-loading">${esc(t('zipper.previewing'))}</div>`;
+            const src = archiveEntryURL(entry.name);
+            try {
+                if (kind === 'image') {
+                    previewBodyNode.innerHTML = `<img class="zipper-preview-image" src="${esc(src)}" alt="${esc(displayName(entry) || entry.name)}">`;
+                    const image = previewBodyNode.querySelector('img');
+                    if (image) {
+                        image.addEventListener('error', () => {
+                            previewBodyNode.innerHTML = `<div class="zipper-preview-error">${esc(t('zipper.error_preview'))}</div>`;
+                        });
+                    }
+                    return;
+                }
+                if (kind === 'audio') {
+                    previewBodyNode.innerHTML = `<audio class="zipper-preview-media" controls src="${esc(src)}"></audio>`;
+                    return;
+                }
+                if (kind === 'video') {
+                    previewBodyNode.innerHTML = `<video class="zipper-preview-media" controls src="${esc(src)}"></video>`;
+                    return;
+                }
+                const resp = await fetch(src);
+                if (!resp.ok) {
+                    const body = await resp.json().catch(() => ({}));
+                    throw new Error(body.error || body.message || ('HTTP ' + resp.status));
+                }
+                const text = await resp.text();
+                previewBodyNode.innerHTML = `<pre class="zipper-preview-text">${esc(text)}</pre>`;
+            } catch (err) {
+                previewBodyNode.innerHTML = `<div class="zipper-preview-error">${esc(t('zipper.error_preview'))}: ${esc(err.message || String(err))}</div>`;
+                notify({ type: 'error', message: err.message || String(err) });
+            }
+        }
+
+        function openArchiveMember(entry) {
+            if (!entry) return;
+            if (entry.is_dir) {
+                currentDir = entry.name.replace(/\/$/, '');
+                selected.clear();
+                closePreview();
+                applyFilter();
+                return;
+            }
+            if (!zipPath) {
+                notify({ type: 'error', message: t('zipper.no_archive') });
+                return;
+            }
+            const kind = previewKind(entry.name);
+            if (!kind) {
+                notify({ type: 'info', message: t('zipper.preview_unsupported') });
+                return;
+            }
+            setStatus(t('zipper.previewing'));
+            if (kind === 'document') {
+                closePreview();
+                openApp('viewer', { path: zipPath, archiveEntry: entry.name, forceNew: true });
+                return;
+            }
+            if (kind === 'model') {
+                closePreview();
+                openApp('viewer-3d', { path: zipPath, archiveEntry: entry.name, forceNew: true });
+                return;
+            }
+            showInlinePreview(entry, kind);
+        }
+
+        function openSelectedMember() {
+            const chosen = filteredEntries.find(e => selected.has(e.name));
+            if (chosen) openArchiveMember(chosen);
+        }
+
         function displayName(entry) {
             const prefix = currentDir ? currentDir + '/' : '';
             let name = entry.name.startsWith(prefix) ? entry.name.slice(prefix.length) : entry.name;
@@ -170,7 +299,7 @@
             tbody.innerHTML = filteredEntries.map((e, i) => {
                 const name = displayName(e);
                 const checked = selected.has(e.name) ? 'checked' : '';
-                const icon = e.is_dir ? iconMarkup('folder', 'Dir') : iconMarkup('archive', 'File');
+                const icon = iconMarkup(entryIconKey(e), e.is_dir ? 'Dir' : 'File');
                 return `<tr data-idx="${i}" class="${selected.has(e.name) ? 'zipper-selected' : ''}">
                     <td class="zipper-col-check"><input type="checkbox" data-check="${esc(e.name)}" ${checked}></td>
                     <td class="zipper-col-name"><span class="zipper-icon">${icon}</span> ${esc(name)}</td>
@@ -194,11 +323,7 @@
                     const idx = Number(row.dataset.idx);
                     const entry = filteredEntries[idx];
                     if (!entry) return;
-                    if (entry.is_dir) {
-                        currentDir = entry.name.replace(/\/$/, '');
-                        selected.clear();
-                        applyFilter();
-                    }
+                    openArchiveMember(entry);
                 });
                 row.addEventListener('click', (ev) => {
                     if (ev.target.tagName === 'INPUT') return;
@@ -396,6 +521,8 @@
         host.querySelector('[data-action="extract-here"]').addEventListener('click', () => extractHere());
         host.querySelector('[data-action="extract-to"]').addEventListener('click', () => extractTo(''));
         host.querySelector('[data-action="new-archive"]').addEventListener('click', () => newArchive());
+        const closePreviewBtn = host.querySelector('[data-action="close-preview"]');
+        if (closePreviewBtn) closePreviewBtn.addEventListener('click', () => closePreview());
 
         host.querySelectorAll('[data-sort]').forEach(th => {
             th.addEventListener('click', () => {
@@ -424,6 +551,7 @@
                     labelKey: 'desktop.menu_file',
                     items: [
                         { id: 'open', labelKey: 'zipper.open', icon: 'folder-open', shortcut: 'Ctrl+O', action: () => openFile() },
+                        { id: 'open-entry', labelKey: 'zipper.open_entry', icon: 'folder-open', shortcut: 'Enter', action: () => openSelectedMember() },
                         { id: 'extract-here', labelKey: 'zipper.extract_here', icon: 'download', action: () => extractHere() },
                         { id: 'extract-to', labelKey: 'zipper.extract_to', icon: 'folder', action: () => extractTo('') },
                         { type: 'separator' },
@@ -488,6 +616,16 @@
 
         function onKeyDown(e) {
             if (e.target.closest('input, textarea, select')) return;
+            if (e.key === 'Escape' && previewNode && !previewNode.hidden) {
+                e.preventDefault();
+                closePreview();
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                openSelectedMember();
+                return;
+            }
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'o') { e.preventDefault(); openFile(); }
             }

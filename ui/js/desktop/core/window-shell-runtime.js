@@ -795,6 +795,7 @@
         });
         btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
         wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
+        wireDockThumbnailHover(btn);
     }
 
     function reconcileFruityDock() {

@@ -77,6 +77,29 @@ func (s *Service) SetSettings(ctx context.Context, values map[string]string, sou
 	return nil
 }
 
+func validateWallpaperBySpace(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	if len(value) > 4096 {
+		return fmt.Errorf("invalid desktop setting value for appearance.wallpaper_by_space")
+	}
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(value), &parsed); err != nil {
+		return fmt.Errorf("invalid desktop setting value for appearance.wallpaper_by_space")
+	}
+	allowed := desktopWallpaperValueSet()
+	for spaceID, wallpaper := range parsed {
+		if spaceID != "1" && spaceID != "2" && spaceID != "3" {
+			return fmt.Errorf("invalid desktop setting value for appearance.wallpaper_by_space")
+		}
+		if _, ok := allowed[wallpaper]; !ok {
+			return fmt.Errorf("invalid desktop setting value for appearance.wallpaper_by_space")
+		}
+	}
+	return nil
+}
+
 func validateDesktopSetting(key, value string) error {
 	for _, def := range DesktopSettingDefinitions() {
 		if def.Key != key {
@@ -130,6 +153,8 @@ func validateFreeformDesktopSetting(key, value string) error {
 			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}
 		return nil
+	case "appearance.wallpaper_by_space":
+		return validateWallpaperBySpace(value)
 	case "appearance.dock_pins", "files.default_apps", "session.windows":
 		if len(value) > 65536 {
 			return fmt.Errorf("invalid desktop setting value for %s", key)

@@ -548,6 +548,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/preview", handleDesktopPreview(s))
 	mux.HandleFunc("/api/desktop/archive", handleDesktopArchive(s))
 	mux.HandleFunc("/api/desktop/archive/list", handleDesktopArchiveList(s))
+	mux.HandleFunc("/api/desktop/archive/entry", handleDesktopArchiveEntry(s))
 	mux.HandleFunc("/api/desktop/extract", handleDesktopExtract(s))
 	mux.HandleFunc("/api/desktop/batch-rename", handleDesktopBatchRename(s))
 	mux.HandleFunc("/api/desktop/symlink", handleDesktopSymlink(s))

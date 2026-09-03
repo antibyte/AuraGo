@@ -1,9 +1,9 @@
 .noisemaker-app {
-    --nm-bg: color-mix(in srgb, var(--vd-surface, #111827) 94%, #0d0a1a);
-    --nm-panel: color-mix(in srgb, var(--vd-surface-elevated, #172033) 92%, transparent);
-    --nm-border: color-mix(in srgb, var(--vd-border, #64748b) 24%, transparent);
-    --nm-muted: var(--vd-text-muted, #94a3b8);
-    --nm-text: var(--vd-text, #f8fafc);
+    --nm-bg: var(--vd-theme-app-bg);
+    --nm-panel: var(--vd-theme-panel-bg);
+    --nm-border: var(--vd-theme-border);
+    --nm-muted: var(--vd-theme-muted);
+    --nm-text: var(--vd-text);
     --nm-accent: var(--vd-accent, #8b5cf6);
     --nm-accent-2: #ec4899;
     --nm-gradient: linear-gradient(135deg, var(--nm-accent) 0%, var(--nm-accent-2) 100%);
@@ -150,7 +150,7 @@
 
 .nm-input,
 .nm-textarea {
-    background: color-mix(in srgb, var(--nm-panel) 88%, transparent);
+    background: var(--vd-theme-control-bg);
     border: 1px solid var(--nm-border);
     border-radius: 12px;
     color: var(--nm-text);
@@ -304,7 +304,7 @@
 }
 .nm-cover {
     align-items: center;
-    background: color-mix(in srgb, var(--nm-accent) 16%, #0b0f1c);
+    background: color-mix(in srgb, var(--nm-accent) 16%, var(--nm-panel));
     border-radius: 10px;
     color: color-mix(in srgb, var(--nm-accent) 75%, #fff);
     display: inline-flex;
@@ -570,7 +570,7 @@
 /* ---------- player bar ---------- */
 .nm-player {
     align-items: center;
-    background: color-mix(in srgb, var(--nm-panel) 88%, #0b0f1c);
+    background: var(--vd-theme-chrome-bg);
     border-top: 1px solid var(--nm-border);
     display: none;
     gap: 12px;

@@ -1,10 +1,10 @@
 .gm-studio {
-    --gm-bg: #11121a;
-    --gm-panel: #191a24;
-    --gm-panel-2: #222330;
-    --gm-line: rgba(255, 255, 255, 0.09);
-    --gm-text: #f3f1ff;
-    --gm-muted: #a7a3bb;
+    --gm-bg: var(--vd-theme-app-bg);
+    --gm-panel: var(--vd-theme-panel-bg);
+    --gm-panel-2: var(--vd-theme-panel-bg-strong);
+    --gm-line: var(--vd-theme-border);
+    --gm-text: var(--vd-text);
+    --gm-muted: var(--vd-theme-muted);
     --gm-accent: #8b7cf6;
     --gm-accent-2: #5de2c3;
     display: grid;
@@ -34,7 +34,7 @@
     color: var(--gm-text);
     border: 1px solid var(--gm-line);
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.045);
+    background: var(--vd-theme-control-bg);
     cursor: pointer;
 }
 
@@ -75,7 +75,7 @@
     min-height: 66px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--gm-line);
-    background: rgba(17, 18, 26, 0.9);
+    background: var(--vd-theme-chrome-bg);
 }
 
 .gm-brand {
@@ -165,7 +165,7 @@
     flex-direction: column;
     min-height: 0;
     border-right: 1px solid var(--gm-line);
-    background: rgba(20, 21, 30, 0.78);
+    background: var(--vd-theme-chrome-bg);
 }
 
 .gm-library-head {
@@ -485,7 +485,7 @@
     color: var(--gm-text);
     border: 1px solid var(--gm-line);
     border-radius: 9px;
-    background: #11121a;
+    background: var(--vd-theme-control-bg);
 }
 
 .gm-change-form textarea {
@@ -533,7 +533,7 @@
 
 .gm-diagnostics {
     border-top: 1px solid var(--gm-line);
-    background: #12131b;
+    background: var(--gm-panel);
 }
 
 .gm-diagnostics summary {
@@ -577,7 +577,7 @@
     display: grid;
     place-items: center;
     padding: 24px;
-    background: rgba(5, 6, 10, 0.78);
+    background: var(--vd-theme-overlay-bg);
     backdrop-filter: blur(5px);
 }
 
@@ -594,7 +594,7 @@
     overflow-y: auto;
     border: 1px solid rgba(139, 124, 246, 0.35);
     border-radius: 18px;
-    background: #1a1b25;
+    background: var(--vd-theme-panel-bg-strong);
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
 }
 
@@ -926,7 +926,7 @@
     color: var(--gm-text);
     border: 1px solid var(--gm-line);
     border-radius: 9px;
-    background: #11121a;
+    background: var(--vd-theme-control-bg);
 }
 
 .gm-mobile-projects[hidden] {

@@ -53,3 +53,21 @@ func assertDesktopWindowTopSnapRequiresSideProximity(t *testing.T, source string
 		t.Fatal("top-corner snap checks must run before plain side-half snap checks")
 	}
 }
+
+func TestDesktopWindowSnapKeyboardUsesMetaArrows(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
+	for _, want := range []string{
+		"function handleWindowSnapShortcut(",
+		"function restoreWindowFromSnap(",
+		"if (!event.metaKey || event.ctrlKey || event.altKey) return false",
+		"applyWindowSnap(item.element, 'left-half')",
+		"applyWindowSnap(item.element, 'right-half')",
+		"applyWindowSnap(item.element, 'maximize')",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("window snap keyboard handler missing %q", want)
+		}
+	}
+}

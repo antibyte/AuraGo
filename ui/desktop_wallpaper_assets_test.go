@@ -92,6 +92,22 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	if !strings.Contains(foundationText, "'appearance.wallpaper': 'groupshoot'") {
 		t.Fatal("desktop frontend defaults must use groupshoot as the default wallpaper")
 	}
+	if !strings.Contains(foundationText, "'appearance.wallpaper_by_space': '{}'") {
+		t.Fatal("desktop frontend defaults must include an empty per-space wallpaper map")
+	}
+
+	var foundSpaceWallpapers bool
+	for _, def := range defs {
+		if def.Key == "appearance.wallpaper_by_space" {
+			foundSpaceWallpapers = true
+			if def.Default != "{}" {
+				t.Fatalf("appearance.wallpaper_by_space default = %q, want {}", def.Default)
+			}
+		}
+	}
+	if !foundSpaceWallpapers {
+		t.Fatal("desktop setting definitions missing appearance.wallpaper_by_space")
+	}
 }
 
 func TestDesktopChatQuestionPromptAssets(t *testing.T) {

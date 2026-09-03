@@ -15,6 +15,8 @@
     .vd-qc-confirm,
     .vd-store-modal,
     .vd-launchpad-modal,
+    .vd-people-modal,
+    .pixel-ctx-menu,
     .office-sheet-context-menu,
     .office-search-overlay,
     .office-color-picker,
@@ -23,7 +25,9 @@
     .cheater-context-menu,
     .radio-toast,
     .teevee-toast,
-    .ad-toast
+    .ad-toast,
+    .nc-modal,
+    .gm-modal
 ),
 .desktop-body[data-theme="fruity"] :where(
     .fm-modal,
@@ -38,6 +42,8 @@
     .vd-qc-confirm,
     .vd-store-modal,
     .vd-launchpad-modal,
+    .vd-people-modal,
+    .pixel-ctx-menu,
     .office-sheet-context-menu,
     .office-search-overlay,
     .office-color-picker,
@@ -46,7 +52,9 @@
     .cheater-context-menu,
     .radio-toast,
     .teevee-toast,
-    .ad-toast
+    .ad-toast,
+    .nc-modal,
+    .gm-modal
 ) {
     border-color: var(--vd-theme-border) !important;
     border-radius: var(--vd-theme-radius-modal) !important;
@@ -64,9 +72,12 @@
     .cs-shortcut-overlay,
     .cs-command-palette-backdrop,
     .vd-qc-modal-overlay,
+    .vd-people-modal-backdrop,
     .cheater-modal,
     .cheater-spotlight,
-    .vd-chat-drop-overlay.active
+    .vd-chat-drop-overlay.active,
+    .nc-modal-backdrop,
+    .gm-modal-layer
 ),
 .desktop-body[data-theme="fruity"] :where(
     .fm-modal-overlay,
@@ -75,9 +86,12 @@
     .cs-shortcut-overlay,
     .cs-command-palette-backdrop,
     .vd-qc-modal-overlay,
+    .vd-people-modal-backdrop,
     .cheater-modal,
     .cheater-spotlight,
-    .vd-chat-drop-overlay.active
+    .vd-chat-drop-overlay.active,
+    .nc-modal-backdrop,
+    .gm-modal-layer
 ) {
     background: var(--vd-theme-overlay-bg) !important;
     -webkit-backdrop-filter: blur(10px) saturate(1.08);
@@ -102,7 +116,32 @@
     .vd-gallery-toolbar,
     .vd-qc-toolbar,
     .cheater-sidebar,
-    .cheater-toolbar
+    .cheater-toolbar,
+    .vd-people-toolbar,
+    .vd-people-sidebar,
+    .vd-launchpad-toolbar,
+    .zipper-toolbar,
+    .zipper-breadcrumb,
+    .zipper-status,
+    .zipper-preview-bar,
+    .pixel-toolbar,
+    .pixel-options-bar,
+    .pixel-tool-rail,
+    .pixel-panel,
+    .vd-logviewer-toolbar,
+    .vd-logviewer-sidebar,
+    .vd-logviewer-list,
+    .vd-logviewer-detail,
+    .vd-pet-picker-settings,
+    .nc-toolbar,
+    .nm-header,
+    .nm-library-toolbar,
+    .nm-player,
+    .vd-hp-header,
+    .vd-hp-chat,
+    .vd-hp-inspector,
+    .gm-topbar,
+    .gm-library
 ),
 .desktop-body[data-theme="fruity"] :where(
     .fm-toolbar,
@@ -122,7 +161,32 @@
     .vd-gallery-toolbar,
     .vd-qc-toolbar,
     .cheater-sidebar,
-    .cheater-toolbar
+    .cheater-toolbar,
+    .vd-people-toolbar,
+    .vd-people-sidebar,
+    .vd-launchpad-toolbar,
+    .zipper-toolbar,
+    .zipper-breadcrumb,
+    .zipper-status,
+    .zipper-preview-bar,
+    .pixel-toolbar,
+    .pixel-options-bar,
+    .pixel-tool-rail,
+    .pixel-panel,
+    .vd-logviewer-toolbar,
+    .vd-logviewer-sidebar,
+    .vd-logviewer-list,
+    .vd-logviewer-detail,
+    .vd-pet-picker-settings,
+    .nc-toolbar,
+    .nm-header,
+    .nm-library-toolbar,
+    .nm-player,
+    .vd-hp-header,
+    .vd-hp-chat,
+    .vd-hp-inspector,
+    .gm-topbar,
+    .gm-library
 ) {
     border-color: var(--vd-theme-border) !important;
     background: var(--vd-theme-chrome-bg) !important;
@@ -142,6 +206,31 @@
     .vd-qc-modal textarea,
     .vd-store-modal input,
     .vd-store-modal select,
+    .vd-people-search,
+    .vd-people-modal-fields input,
+    .vd-people-modal-fields select,
+    .vd-people-modal-fields textarea,
+    .vd-launchpad-search,
+    .vd-launchpad-category,
+    .lp-icon-search-row input,
+    .zipper-crumb,
+    .pixel-hex-input,
+    .vd-logviewer-search,
+    .vd-pet-picker-select,
+    .nc-search,
+    .nc-icon-button,
+    .nc-form input,
+    .nc-form select,
+    .nm-input,
+    .nm-textarea,
+    .vd-hp-target-select,
+    .vd-hp-chat-input,
+    .vd-hp-history-search,
+    .vd-hp-history-filter,
+    .gm-modal input,
+    .gm-modal textarea,
+    .gm-modal select,
+    .gm-mobile-projects,
     .cheater-modal-panel input,
     .cheater-modal-panel textarea,
     .cheater-toast button
@@ -159,6 +248,31 @@
     .vd-qc-modal textarea,
     .vd-store-modal input,
     .vd-store-modal select,
+    .vd-people-search,
+    .vd-people-modal-fields input,
+    .vd-people-modal-fields select,
+    .vd-people-modal-fields textarea,
+    .vd-launchpad-search,
+    .vd-launchpad-category,
+    .lp-icon-search-row input,
+    .zipper-crumb,
+    .pixel-hex-input,
+    .vd-logviewer-search,
+    .vd-pet-picker-select,
+    .nc-search,
+    .nc-icon-button,
+    .nc-form input,
+    .nc-form select,
+    .nm-input,
+    .nm-textarea,
+    .vd-hp-target-select,
+    .vd-hp-chat-input,
+    .vd-hp-history-search,
+    .vd-hp-history-filter,
+    .gm-modal input,
+    .gm-modal textarea,
+    .gm-modal select,
+    .gm-mobile-projects,
     .cheater-modal-panel input,
     .cheater-modal-panel textarea,
     .cheater-toast button
@@ -176,6 +290,9 @@
     .fm-grid-item:hover,
     .cs-icon-button:hover,
     .vd-qc-modal button:hover,
+    .vd-people-list-row:hover,
+    .zipper-table tbody tr:hover,
+    .pixel-ctx-item:hover,
     .cheater-context-menu li:hover,
     .cheater-toast button:hover
 ),
@@ -187,6 +304,9 @@
     .fm-grid-item:hover,
     .cs-icon-button:hover,
     .vd-qc-modal button:hover,
+    .vd-people-list-row:hover,
+    .zipper-table tbody tr:hover,
+    .pixel-ctx-item:hover,
     .cheater-context-menu li:hover,
     .cheater-toast button:hover
 ) {
@@ -196,7 +316,11 @@
 .desktop-body[data-theme="standard"] :where(
     .radio-app,
     .camera-app,
-    .code-studio
+    .code-studio,
+    .network-cameras-app,
+    .noisemaker-app,
+    .vd-hp-studio,
+    .gm-studio
 ) {
     --radio-glass: var(--vd-theme-panel-bg) !important;
     --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
@@ -218,12 +342,39 @@
     --cs-accent: var(--vd-accent) !important;
     --cs-accent-soft: var(--vd-theme-accent-soft) !important;
     --cs-accent-glow: var(--vd-accent-glow) !important;
+    --nc-bg: var(--vd-theme-app-bg) !important;
+    --nc-panel: var(--vd-theme-panel-bg) !important;
+    --nc-border: var(--vd-theme-border) !important;
+    --nc-muted: var(--vd-theme-muted) !important;
+    --nm-bg: var(--vd-theme-app-bg) !important;
+    --nm-panel: var(--vd-theme-panel-bg) !important;
+    --nm-border: var(--vd-theme-border) !important;
+    --nm-muted: var(--vd-theme-muted) !important;
+    --nm-text: var(--vd-text) !important;
+    --hp-bg: var(--vd-theme-app-bg) !important;
+    --hp-surface: var(--vd-theme-panel-bg) !important;
+    --hp-surface-strong: var(--vd-theme-panel-bg-strong) !important;
+    --hp-border: var(--vd-theme-border) !important;
+    --hp-text: var(--vd-text) !important;
+    --hp-muted: var(--vd-theme-muted) !important;
+    --hp-glass: var(--vd-theme-chrome-bg) !important;
+    --hp-glass-border: var(--vd-theme-border) !important;
+    --gm-bg: var(--vd-theme-app-bg) !important;
+    --gm-panel: var(--vd-theme-panel-bg) !important;
+    --gm-panel-2: var(--vd-theme-panel-bg-strong) !important;
+    --gm-line: var(--vd-theme-border) !important;
+    --gm-text: var(--vd-text) !important;
+    --gm-muted: var(--vd-theme-muted) !important;
 }
 
 .desktop-body[data-theme="fruity"] :where(
     .radio-app,
     .camera-app,
-    .code-studio
+    .code-studio,
+    .network-cameras-app,
+    .noisemaker-app,
+    .vd-hp-studio,
+    .gm-studio
 ) {
     --radio-glass: var(--vd-theme-panel-bg) !important;
     --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
@@ -245,6 +396,29 @@
     --cs-accent: var(--vd-accent) !important;
     --cs-accent-soft: var(--vd-theme-accent-soft) !important;
     --cs-accent-glow: var(--vd-accent-glow) !important;
+    --nc-bg: var(--vd-theme-app-bg) !important;
+    --nc-panel: var(--vd-theme-panel-bg) !important;
+    --nc-border: var(--vd-theme-border) !important;
+    --nc-muted: var(--vd-theme-muted) !important;
+    --nm-bg: var(--vd-theme-app-bg) !important;
+    --nm-panel: var(--vd-theme-panel-bg) !important;
+    --nm-border: var(--vd-theme-border) !important;
+    --nm-muted: var(--vd-theme-muted) !important;
+    --nm-text: var(--vd-text) !important;
+    --hp-bg: var(--vd-theme-app-bg) !important;
+    --hp-surface: var(--vd-theme-panel-bg) !important;
+    --hp-surface-strong: var(--vd-theme-panel-bg-strong) !important;
+    --hp-border: var(--vd-theme-border) !important;
+    --hp-text: var(--vd-text) !important;
+    --hp-muted: var(--vd-theme-muted) !important;
+    --hp-glass: var(--vd-theme-chrome-bg) !important;
+    --hp-glass-border: var(--vd-theme-border) !important;
+    --gm-bg: var(--vd-theme-app-bg) !important;
+    --gm-panel: var(--vd-theme-panel-bg) !important;
+    --gm-panel-2: var(--vd-theme-panel-bg-strong) !important;
+    --gm-line: var(--vd-theme-border) !important;
+    --gm-text: var(--vd-text) !important;
+    --gm-muted: var(--vd-theme-muted) !important;
 }
 
 
@@ -452,7 +626,12 @@
     .vd-terminal-toolbar,
     .vd-notes-toolbar,
     .vd-viewer-toolbar,
-    .vd-looper-header
+    .vd-looper-header,
+    .vd-people-toolbar,
+    .vd-launchpad-toolbar,
+    .zipper-toolbar,
+    .pixel-toolbar,
+    .vd-logviewer-toolbar
 ) {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -475,7 +654,12 @@
     .vd-terminal-toolbar,
     .vd-notes-toolbar,
     .vd-viewer-toolbar,
-    .vd-looper-header
+    .vd-looper-header,
+    .vd-people-toolbar,
+    .vd-launchpad-toolbar,
+    .zipper-toolbar,
+    .pixel-toolbar,
+    .vd-logviewer-toolbar
 ) {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
@@ -491,7 +675,12 @@
     .vd-todo-sidebar,
     .vd-calendar-sidebar,
     .fm-preview-panel,
-    .fm-upload-panel
+    .fm-upload-panel,
+    .vd-people-sidebar,
+    .vd-people-detail,
+    .pixel-panel,
+    .pixel-tool-rail,
+    .vd-logviewer-sidebar
 ) {
     background: color-mix(in srgb, var(--vd-theme-chrome-bg), #000 10%) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
@@ -508,7 +697,12 @@
     .vd-todo-sidebar,
     .vd-calendar-sidebar,
     .fm-preview-panel,
-    .fm-upload-panel
+    .fm-upload-panel,
+    .vd-people-sidebar,
+    .vd-people-detail,
+    .pixel-panel,
+    .pixel-tool-rail,
+    .vd-logviewer-sidebar
 ) {
     background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 8%) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.28);
@@ -525,7 +719,12 @@
     .vd-todo-sidebar,
     .vd-calendar-sidebar,
     .fm-preview-panel,
-    .fm-upload-panel
+    .fm-upload-panel,
+    .vd-people-sidebar,
+    .vd-people-detail,
+    .pixel-panel,
+    .pixel-tool-rail,
+    .vd-logviewer-sidebar
 ) {
     background: color-mix(in srgb, var(--vd-theme-chrome-bg), #000 8%) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
@@ -553,7 +752,12 @@
     .vd-notes-app,
     .vd-viewer,
     .vd-looper,
-    .cheater-app
+    .cheater-app,
+    .vd-people,
+    .vd-launchpad,
+    .zipper-app,
+    .pixel-app,
+    .vd-pet-picker
 ) {
     background: var(--vd-theme-app-bg);
 }
@@ -568,7 +772,12 @@
     .vd-notes-app,
     .vd-viewer,
     .vd-looper,
-    .cheater-app
+    .cheater-app,
+    .vd-people,
+    .vd-launchpad,
+    .zipper-app,
+    .pixel-app,
+    .vd-pet-picker
 ) {
     background: var(--vd-theme-app-bg);
 }
@@ -657,7 +866,19 @@
     .vd-mc .vd-mc-card,
     .vd-mc .vd-mc-list-item,
     .vd-looper-step-btn,
-    .vd-viewer-sheet-tab
+    .vd-viewer-sheet-tab,
+    .vd-people-card,
+    .vd-launchpad-tile,
+    .vd-pet-picker-card,
+    .vd-sysinfo-hero,
+    .vd-sysinfo-gauge,
+    .vd-sysinfo-history,
+    .vd-sysinfo-detail,
+    .nc-card,
+    .nc-detail,
+    .nm-card,
+    .vd-live-speech-lab,
+    .gm-project-card
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);
@@ -675,7 +896,19 @@
     .vd-mc .vd-mc-card,
     .vd-mc .vd-mc-list-item,
     .vd-looper-step-btn,
-    .vd-viewer-sheet-tab
+    .vd-viewer-sheet-tab,
+    .vd-people-card,
+    .vd-launchpad-tile,
+    .vd-pet-picker-card,
+    .vd-sysinfo-hero,
+    .vd-sysinfo-gauge,
+    .vd-sysinfo-history,
+    .vd-sysinfo-detail,
+    .nc-card,
+    .nc-detail,
+    .nm-card,
+    .vd-live-speech-lab,
+    .gm-project-card
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);

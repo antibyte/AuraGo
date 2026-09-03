@@ -140,6 +140,8 @@ function wireWindow(win, id) {
             if (event.target.closest('button, .vd-window-menubar')) return;
             if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
+            const dragItem = state.windows.get(id);
+            if (dragItem) dragItem.snapped = '';
             drag = {
                 x: event.clientX,
                 y: event.clientY,
@@ -265,6 +267,7 @@ function wireWindow(win, id) {
         const item = state.windows.get(windowId);
         if (!item) return;
         if (zone === 'maximize') {
+            item.snapped = '';
             if (!item.maximized) toggleMaximizeWindow(windowId);
             return;
         }
@@ -276,12 +279,51 @@ function wireWindow(win, id) {
                 win.classList.remove('maximized');
             }
             item.restoreBounds = windowBounds(win);
+            item.snapped = zone;
             win.style.left = p.left + 'px';
             win.style.top = p.top + 'px';
             win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
             win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
         });
         scheduleFruityDockOcclusionCheck();
+    }
+
+    function restoreWindowFromSnap(id) {
+        const item = state.windows.get(id);
+        if (!item || !item.element || item.isGadget) return;
+        if (item.maximized) {
+            toggleMaximizeWindow(id);
+            return;
+        }
+        const bounds = item.restoreBounds;
+        if (item.snapped && bounds) {
+            animateWindowBounds(item.element, () => {
+                item.element.classList.remove('maximized');
+                item.element.style.left = bounds.left + 'px';
+                item.element.style.top = bounds.top + 'px';
+                item.element.style.width = bounds.width + 'px';
+                item.element.style.height = bounds.height + 'px';
+                item.maximized = false;
+                item.snapped = '';
+            });
+            scheduleFruityDockOcclusionCheck();
+            return;
+        }
+        minimizeWindow(id);
+    }
+
+    function handleWindowSnapShortcut(event) {
+        if (isCompactViewport() || isEditableTarget(event.target)) return false;
+        if (!event.metaKey || event.ctrlKey || event.altKey) return false;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return false;
+        const item = state.windows.get(state.activeWindowId);
+        if (!item || !item.element || item.isGadget) return false;
+        event.preventDefault();
+        if (event.key === 'ArrowLeft') applyWindowSnap(item.element, 'left-half');
+        else if (event.key === 'ArrowRight') applyWindowSnap(item.element, 'right-half');
+        else if (event.key === 'ArrowUp') applyWindowSnap(item.element, 'maximize');
+        else restoreWindowFromSnap(item.id);
+        return true;
     }
 
     function wireWindowTouchGestures(win, id) {

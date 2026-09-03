@@ -542,6 +542,7 @@
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
         if (handleSpacesOverviewShortcut(event)) return;
+        if (handleWindowSnapShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;

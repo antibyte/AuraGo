@@ -2,7 +2,9 @@ package server
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -306,6 +308,59 @@ func handleDesktopArchiveList(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"entries": entries})
+	}
+}
+
+func handleDesktopArchiveEntry(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, _, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		zipPath := r.URL.Query().Get("path")
+		entryName := r.URL.Query().Get("entry")
+		if strings.TrimSpace(zipPath) == "" || strings.TrimSpace(entryName) == "" {
+			jsonError(w, "Missing path or entry parameter", http.StatusBadRequest)
+			return
+		}
+		entry, err := svc.ReadArchiveEntry(r.Context(), zipPath, entryName)
+		if err != nil {
+			writeDesktopArchiveEntryError(w, err)
+			return
+		}
+		mimeType := entry.MIMEType
+		if mimeType == "" {
+			mimeType = desktop.MIMETypeForName(entry.Name)
+		}
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", mimeType)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "private, max-age=60")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, sanitizeContentDisposition(entry.Name)))
+		http.ServeContent(w, r, entry.Name, entry.ModTime, bytes.NewReader(entry.Data))
+	}
+}
+
+func writeDesktopArchiveEntryError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, desktop.ErrArchiveEntryNotFound):
+		jsonError(w, err.Error(), http.StatusNotFound)
+	case errors.Is(err, desktop.ErrArchiveEntryTooLarge):
+		jsonError(w, err.Error(), http.StatusRequestEntityTooLarge)
+	case errors.Is(err, desktop.ErrArchiveEntryNotPreviewable):
+		jsonError(w, err.Error(), http.StatusUnsupportedMediaType)
+	default:
+		jsonError(w, err.Error(), http.StatusBadRequest)
 	}
 }
 

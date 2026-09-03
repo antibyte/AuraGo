@@ -1,20 +1,15 @@
 .zipper-app {
-    --zipper-line: rgba(255, 255, 255, 0.13);
-    --zipper-head: rgba(255, 255, 255, 0.06);
-    --zipper-selected: rgba(63, 220, 205, 0.14);
-    --zipper-muted: rgba(232, 244, 255, 0.62);
+    --zipper-line: var(--vd-theme-border);
+    --zipper-head: var(--vd-theme-chrome-bg);
+    --zipper-selected: var(--vd-theme-accent-soft);
+    --zipper-muted: var(--vd-theme-muted);
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 100%;
     color: var(--vd-text, #eff7ff);
-}
-
-.desktop-body[data-theme="light"] .zipper-app {
-    --zipper-line: rgba(51, 65, 85, 0.16);
-    --zipper-head: rgba(51, 65, 85, 0.06);
-    --zipper-selected: rgba(15, 143, 122, 0.12);
-    --zipper-muted: rgba(71, 85, 105, 0.72);
+    background: var(--vd-theme-app-bg);
 }
 
 .zipper-toolbar {
@@ -185,4 +180,70 @@
 .zipper-drop-target {
     outline: 2px dashed var(--vd-accent, #59d4c8);
     outline-offset: -2px;
+}
+
+.zipper-preview {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    background: var(--vd-theme-panel-bg);
+}
+
+.zipper-preview[hidden] {
+    display: none;
+}
+
+.zipper-preview-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--zipper-line);
+    background: var(--zipper-head);
+}
+
+.zipper-preview-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.zipper-preview-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.zipper-preview-image,
+.zipper-preview-media {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.zipper-preview-text {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font: 13px/1.5 ui-monospace, "Cascadia Code", "JetBrains Mono", monospace;
+    color: var(--vd-text, #eff7ff);
+}
+
+.zipper-preview-loading,
+.zipper-preview-error {
+    color: var(--zipper-muted);
+    text-align: center;
+    max-width: 28rem;
 }

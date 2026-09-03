@@ -11,6 +11,7 @@
     --vd-people-sidebar-w: 190px;
     --vd-people-detail-w: 320px;
     box-sizing: border-box;
+    background: var(--vd-theme-app-bg);
 }
 .vd-people *,
 .vd-people *::before,
@@ -24,7 +25,7 @@
     gap: 10px;
     align-items: center;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--vd-theme-border);
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -38,9 +39,9 @@
 .vd-people-search {
     flex: 1;
     padding: 7px 12px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-surface);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     font-size: 13px;
     outline: none;
@@ -50,10 +51,10 @@
 
 .vd-people-semantic-toggle {
     padding: 5px 8px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-surface);
-    color: var(--vd-muted);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-theme-muted);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -75,7 +76,7 @@
 }
 .vd-people-view-toggle {
     display: flex;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     overflow: hidden;
 }
@@ -83,7 +84,7 @@
     padding: 5px 10px;
     border: none;
     background: transparent;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     cursor: pointer;
     font-size: 14px;
     transition: all 0.15s;
@@ -119,10 +120,10 @@
     width: var(--vd-people-sidebar-w);
     min-width: var(--vd-people-sidebar-w);
     padding: 10px 8px;
-    border-right: 1px solid var(--vd-border);
+    border-right: 1px solid var(--vd-theme-border);
     overflow-y: auto;
     flex-shrink: 0;
-    background: var(--vd-surface);
+    background: var(--vd-theme-chrome-bg);
 }
 .vd-people-sidebar-section {
     margin-bottom: 12px;
@@ -132,7 +133,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     padding: 4px 8px 4px;
     margin-bottom: 2px;
 }
@@ -152,14 +153,14 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.vd-people-sidebar-item:hover { background: rgba(255,255,255,0.06); }
+.vd-people-sidebar-item:hover { background: var(--vd-theme-control-hover); }
 .vd-people-sidebar-item.active {
     background: var(--vd-accent);
     color: #fff;
 }
 .vd-people-sidebar-empty {
     font-size: 11px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     padding: 4px 8px;
 }
 
@@ -178,7 +179,7 @@
     cursor: pointer;
     transition: background 0.12s;
 }
-.vd-people-birthday-item:hover { background: rgba(255,255,255,0.06); }
+.vd-people-birthday-item:hover { background: var(--vd-theme-control-hover); }
 .vd-people-birthday-name {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -203,7 +204,7 @@
 .vd-people-loading {
     text-align: center;
     padding: 40px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     font-size: 13px;
 }
 
@@ -218,9 +219,9 @@
     flex-direction: column;
     gap: 8px;
     padding: 14px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-lg);
-    background: var(--vd-surface);
+    background: var(--vd-theme-panel-bg);
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
     position: relative;
@@ -294,7 +295,7 @@
 .vd-people-card-email,
 .vd-people-card-phone {
     font-size: 11px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -329,20 +330,20 @@
     padding: 8px 12px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--vd-theme-border);
 }
 .vd-people-list-row {
     display: flex;
     padding: 8px 12px;
     align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--vd-theme-border);
     cursor: pointer;
     transition: background 0.12s;
 }
-.vd-people-list-row:hover { background: rgba(255,255,255,0.06); }
+.vd-people-list-row:hover { background: var(--vd-theme-control-hover); }
 .vd-people-list-col {
     flex: 1;
     font-size: 12px;
@@ -354,8 +355,8 @@
     align-items: center;
 }
 .vd-people-list-name { flex: 2; }
-.vd-people-list-email { flex: 2; color: var(--vd-muted); }
-.vd-people-list-phone { flex: 1.5; color: var(--vd-muted); }
+.vd-people-list-email { flex: 2; color: var(--vd-theme-muted); }
+.vd-people-list-phone { flex: 1.5; color: var(--vd-theme-muted); }
 .vd-people-list-birthday { flex: 1.5; gap: 6px; }
 
 /* ── Detail Panel ── */
@@ -363,8 +364,8 @@
     width: 0;
     min-width: 0;
     overflow: hidden;
-    border-left: 1px solid var(--vd-border);
-    background: var(--vd-surface);
+    border-left: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-panel-bg);
     transition: width 0.2s ease, min-width 0.2s ease;
     position: relative;
     flex-shrink: 0;
@@ -384,8 +385,8 @@
     height: 28px;
     border: none;
     border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    color: var(--vd-muted);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-theme-muted);
     font-size: 18px;
     cursor: pointer;
     display: flex;
@@ -394,12 +395,12 @@
     z-index: 2;
     transition: background 0.12s;
 }
-.vd-people-detail-close:hover { background: rgba(255,255,255,0.15); color: var(--vd-text); }
+.vd-people-detail-close:hover { background: var(--vd-theme-control-hover); color: var(--vd-text); }
 
 .vd-people-detail-header {
     text-align: center;
     padding-bottom: 14px;
-    border-bottom: 1px solid var(--vd-border);
+    border-bottom: 1px solid var(--vd-theme-border);
     margin-bottom: 14px;
 }
 .vd-people-detail-name {
@@ -410,7 +411,7 @@
 }
 .vd-people-detail-rel {
     font-size: 12px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     margin-top: 2px;
 }
 
@@ -424,7 +425,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     margin-bottom: 2px;
 }
 .vd-people-detail-field span {
@@ -435,13 +436,13 @@
 .vd-people-detail-notes span {
     white-space: pre-wrap;
     font-size: 12px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
 }
 
 /* ── Detail KG Section ── */
 .vd-people-detail-kg {
     padding-top: 12px;
-    border-top: 1px solid var(--vd-border);
+    border-top: 1px solid var(--vd-theme-border);
     margin-bottom: 14px;
 }
 .vd-people-detail-kg-title {
@@ -449,12 +450,12 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     margin-bottom: 8px;
 }
 .vd-people-detail-kg-empty {
     font-size: 12px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
 }
 .vd-people-detail-kg-list { font-size: 12px; }
 .vd-people-detail-kg-edge {
@@ -472,7 +473,7 @@
 .vd-people-detail-kg-target { color: var(--vd-text); }
 .vd-people-detail-kg-neighbor {
     padding: 2px 0;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
 }
 
 /* ── Detail Actions ── */
@@ -480,13 +481,13 @@
     display: flex;
     gap: 8px;
     padding-top: 12px;
-    border-top: 1px solid var(--vd-border);
+    border-top: 1px solid var(--vd-theme-border);
 }
 .vd-people-detail-edit,
 .vd-people-detail-delete {
     flex: 1;
     padding: 7px 0;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     background: transparent;
     color: var(--vd-text);
@@ -501,7 +502,7 @@
 .vd-people-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.45);
+    background: var(--vd-theme-overlay-bg);
     display: none;
     align-items: center;
     justify-content: center;
@@ -512,8 +513,8 @@
     display: flex;
 }
 .vd-people-modal {
-    background: var(--vd-surface);
-    border: 1px solid var(--vd-border);
+    background: var(--vd-theme-panel-bg-strong);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-xl);
     min-width: 360px;
     max-width: 480px;
@@ -540,15 +541,15 @@
     gap: 3px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
 }
 .vd-people-modal-fields input,
 .vd-people-modal-fields select,
 .vd-people-modal-fields textarea {
     padding: 7px 10px;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-bg, #1a1a2e);
+    background: var(--vd-theme-control-bg);
     color: var(--vd-text);
     font-size: 13px;
     font-family: inherit;
@@ -574,14 +575,14 @@
     border-radius: var(--ds-radius-md);
     font-size: 13px;
     cursor: pointer;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     transition: all 0.12s;
 }
 .vd-people-modal-cancel {
     background: transparent;
     color: var(--vd-text);
 }
-.vd-people-modal-cancel:hover { background: rgba(255,255,255,0.06); }
+.vd-people-modal-cancel:hover { background: var(--vd-theme-control-hover); }
 .vd-people-modal-save {
     background: var(--vd-accent);
     color: #fff;
@@ -611,7 +612,7 @@
 }
 .vd-people-empty-hint {
     font-size: 13px;
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
 }
 
 /* ── Responsive ── */

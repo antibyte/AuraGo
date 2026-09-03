@@ -24,7 +24,9 @@ and `files.default_apps` via `/api/desktop/settings`.
   restore reads stored `spaceId` (fallback space `1`).
 - Space switch hides other windows (`vd-space-hidden` / `data-space-hidden`) but
   does not dispose them; minimize and space-hide stay independent.
-- Desktop icons, widgets, wallpaper, and gadgets stay global across spaces.
+- Desktop icons, widgets, and gadgets stay global across spaces. Wallpaper is
+  per space (`appearance.wallpaper_by_space`) and falls back to
+  `appearance.wallpaper`; compact viewport keeps one shared wallpaper.
 - Taskbar/dock pins stay global; running window buttons and Ctrl+Tab switcher
   list only the active space.
 - `findExistingAppWindow` prefers the current space; a match in another space
@@ -54,8 +56,10 @@ and `files.default_apps` via `/api/desktop/settings`.
 
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
   Manager, Quick Connect, Mission Control, Software Store, Gallery, Notes,
-  Viewer, Looper, and Cheater read `--vd-theme-*` for chrome, panels, controls,
-  borders, and shadows.
+  Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
+  System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
+  Noisemaker, Live Speech, Homepage Studio, and Game Maker read `--vd-theme-*`
+  for chrome, panels, controls, borders, and shadows.
 - Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
@@ -66,14 +70,49 @@ and `files.default_apps` via `/api/desktop/settings`.
   contrast; card chrome and media preview bars follow theme.
 - Cheater code blocks keep a dark readable code surface (`--cheater-code-bg` /
   `--cheater-code-fg`); app chrome uses `--vd-theme-*` through `--cheater-*`.
+- People status badges keep semantic colors (`#e8a020` / `#6495ed` / `#32cd32`);
+  danger stays `#e74c3c`. Accent-on-white remains on primary People buttons.
+- Zipper local `--zipper-*` aliases map to `--vd-theme-*`; the in-app preview
+  overlay uses `--vd-theme-panel-bg`.
+- Pixel canvas, checkerboard, and image viewport stay a dark work surface
+  (`#0e1117`); toolbars, rails, panels, and dialogs follow theme via
+  `--pixel-*` aliases.
+- Log Viewer level colors and log-line semantics stay readable; toolbar,
+  sidebar, and pane chrome use theme tokens. System Info gauge and chart
+  accents may stay.
+- Radio keeps brand accent gradients on `--vd-theme-app-bg`; station cards and
+  player chrome use `--radio-*` aliases mapped to `--vd-theme-*`.
+- Camera viewport stays black (`#000`) for live preview; toolbar and controls
+  use `--cam-*` aliases mapped to `--vd-theme-*`. Error banner keeps semantic
+  danger colors.
+- Code Studio editor/terminal surfaces follow `--cs-*` aliases mapped to
+  `--vd-theme-*`; CodeMirror theme selection stays in `code-studio/editor.js`.
+- Network Cameras live tiles and detail video stay dark viewports (`#05080d` /
+  `#030509`); toolbar, cards, and modal chrome use `--nc-*` aliases mapped to
+  `--vd-theme-*`. Online/offline and danger badges stay semantic.
+- Noisemaker keeps the brand pink/purple gradient (`--nm-accent-2`) on create
+  and play controls; chrome, library cards, and the player bar use `--nm-*`
+  aliases mapped to `--vd-theme-*`. Cover play overlays may stay dark.
+- Live Speech canvas FX stay decorative; the lab panel and realtime surface
+  use `--vd-theme-panel-bg`.
+- Homepage Studio preview letterbox (`.vd-hp-preview-zone`) and the website
+  paper panel (`#f8fafc`) stay work surfaces; chrome uses `--hp-*` aliases
+  mapped to `--vd-theme-*`. Icon filters stay light/dark aware. History type
+  colors stay semantic.
+- Game Maker preview checkerboard and iframe stay dark (`#0d0e14` / `#050509`);
+  chrome uses `--gm-*` aliases mapped to `--vd-theme-*`. Brand purple/teal
+  (`--gm-accent`, `--gm-accent-2`) and status badges stay.
 - OpenSCAD (`--oscad-*`) and Webamp launcher styling remain excluded from this
-  bridge; migrate other apps in later polish waves.
+  bridge.
 
 ### Desktop Phase 3 contract
 
-- Standard-theme taskbar window buttons show a hover/focus thumbnail preview
-  (`.vd-taskbar-thumbnail`) for windows on the active space only; Fruity dock,
-  compact viewport, and coarse-pointer layouts disable previews.
+- Standard-theme taskbar window buttons and Fruity dock app buttons show a
+  hover/focus thumbnail preview (`.vd-taskbar-thumbnail`) for windows on the
+  active space only. Compact viewport and coarse-pointer layouts disable
+  previews. Dock hover must not call `findExistingAppWindow` (that switches
+  spaces). Win/Meta+Arrow snaps the active window; Ctrl+Alt+Arrow keeps
+  cycling spaces.
 - Thumbnails clone DOM window content when possible; iframe-heavy windows show
   a live-window fallback instead of a blank capture.
 - Media keys and `navigator.mediaSession` route to the active Webamp music
@@ -819,6 +858,20 @@ registration lives in `internal/desktop/types.go`.
   Active-call texts (party name/URI, status, button and volume labels) must
   wrap inside the screen via `overflow-wrap` and never bleed past the device
   edges. No child DOX file needed.
+- `zipper.js` - Zip archive browser: list/create/extract, desktop and host
+  file drops, breadcrumb navigation inside an archive. Double-click, Enter, or
+  File → Open preview a member without extracting the whole zip. Images, text,
+  audio, and video render in an in-app overlay from
+  `GET /api/desktop/archive/entry`. PDF, Markdown, and Office files open Viewer
+  with `{ path, archiveEntry, forceNew: true }`; STL opens Viewer 3D the same
+  way. Executables and other blocked types stay closed. Visible strings use
+  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. Exposes
+  `window.ZipperApp`. No child DOX file needed.
+- `viewer.js` / `viewer-3d.js` - Viewer and STL viewer accept optional
+  `archiveEntry` with the zip `path` and `forceNew: true`. Archive members
+  load from `/api/desktop/viewer/content?path=&entry=` or
+  `/api/desktop/archive/entry`; Viewer hides Edit for archive members.
+  No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -
   Pixel image editor: tool rail + options bar layout, 17 tools (magic wand

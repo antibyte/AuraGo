@@ -58,8 +58,16 @@ func TestDesktopCodeStudioEditorFollowsFruityLightDark(t *testing.T) {
 	}
 
 	css := readDesktopAssetText(t, "css/code-studio.css")
-	if !strings.Contains(css, `.desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .code-studio`) {
-		t.Fatalf("Code Studio OS-dark fallback must not restyle explicit fruity light")
+	for _, want := range []string{
+		"--cs-bg: var(--vd-theme-app-bg)",
+		"--cs-panel: var(--vd-theme-panel-bg)",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("Code Studio must read theme tokens in source CSS, missing %q", want)
+		}
+	}
+	if strings.Contains(css, ".desktop-body[data-theme=\"fruity\"] .code-studio {\n    --cs-bg: #f7fafc") {
+		t.Fatalf("Code Studio must not duplicate fruity palette overrides; shell theme tokens own light/dark")
 	}
 	if strings.Contains(css, "@media (prefers-color-scheme: dark) {\n    .desktop-body[data-theme=\"fruity\"] .code-studio {") {
 		t.Fatalf("Code Studio must not apply OS dark tokens to all fruity desktops")
@@ -87,6 +95,9 @@ func TestDesktopFruityWorkbenchesDoNotPaintDarkGlassOnLightText(t *testing.T) {
 	fruityHomepage := cssRuleBodyInFruityThemeTest(t, homepage, `.desktop-body[data-theme="fruity"] .vd-hp-studio`)
 	if strings.Contains(fruityHomepage, "rgba(18, 24, 34") {
 		t.Fatalf("fruity light Homepage Studio must not force dark glass over --vd-text: %q", fruityHomepage)
+	}
+	if !strings.Contains(homepage, "--hp-bg: var(--vd-theme-app-bg)") {
+		t.Fatalf("Homepage Studio must read theme tokens in source CSS")
 	}
 
 	editor := readDesktopAssetText(t, "js/desktop/apps/openscad-editor.js")
@@ -152,6 +163,70 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	}
 	if !strings.Contains(store, "background: var(--vd-theme-app-bg);") {
 		t.Fatalf("software store missing theme app background marker")
+	}
+
+	radio := readDesktopAssetText(t, "css/radio.css")
+	if strings.Contains(radio, "rgba(9, 18, 32") {
+		t.Fatalf("radio must not hardcode a dark glass wash in source aliases")
+	}
+	if !strings.Contains(radio, "var(--vd-theme-app-bg)") {
+		t.Fatalf("radio missing theme app background marker")
+	}
+
+	camera := readDesktopAssetText(t, "css/camera.css")
+	if strings.Contains(camera, "rgba(9, 18, 32") {
+		t.Fatalf("camera must not hardcode a dark glass wash in source aliases")
+	}
+	if !strings.Contains(camera, "background: var(--vd-theme-app-bg);") {
+		t.Fatalf("camera missing theme app background marker")
+	}
+
+	codeStudio := readDesktopAssetText(t, "css/code-studio.css")
+	if strings.Contains(codeStudio, "--cs-bg: #12161d") {
+		t.Fatalf("code studio must not hardcode dark-only panel palette")
+	}
+	if !strings.Contains(codeStudio, "--cs-panel: var(--vd-theme-panel-bg)") {
+		t.Fatalf("code studio missing theme panel marker")
+	}
+
+	networkCameras := readDesktopAssetText(t, "css/desktop-app-network-cameras.css")
+	if strings.Contains(networkCameras, "var(--vd-surface, #111827)") {
+		t.Fatalf("network cameras must not mix a dark surface wash into --nc-bg")
+	}
+	if !strings.Contains(networkCameras, "--nc-bg: var(--vd-theme-app-bg)") {
+		t.Fatalf("network cameras missing theme app background marker")
+	}
+
+	noisemaker := readDesktopAssetText(t, "css/desktop-app-noisemaker.css")
+	if strings.Contains(noisemaker, "var(--vd-surface, #111827)") {
+		t.Fatalf("noisemaker must not mix a dark surface wash into --nm-bg")
+	}
+	if !strings.Contains(noisemaker, "--nm-bg: var(--vd-theme-app-bg)") {
+		t.Fatalf("noisemaker missing theme app background marker")
+	}
+
+	liveSpeech := readDesktopAssetText(t, "css/desktop-app-live-speech.css")
+	if strings.Contains(liveSpeech, "var(--vd-surface, #121920)") {
+		t.Fatalf("live speech must not hardcode a dark surface wash")
+	}
+	if !strings.Contains(liveSpeech, "background: var(--vd-theme-app-bg);") {
+		t.Fatalf("live speech missing theme app background marker")
+	}
+
+	homepageStudio := readDesktopAssetText(t, "css/desktop-app-homepage-studio.css")
+	if strings.Contains(homepageStudio, "--hp-bg: var(--vd-bg, #071018)") {
+		t.Fatalf("homepage studio must not fall back to a dark-only --vd-bg wash")
+	}
+	if !strings.Contains(homepageStudio, "--hp-glass: var(--vd-theme-chrome-bg)") {
+		t.Fatalf("homepage studio missing theme chrome marker")
+	}
+
+	gameMaker := readDesktopAssetText(t, "css/desktop-app-game-maker-studio.css")
+	if strings.Contains(gameMaker, "--gm-bg: #11121a") {
+		t.Fatalf("game maker must not hardcode a dark-only studio palette")
+	}
+	if !strings.Contains(gameMaker, "--gm-bg: var(--vd-theme-app-bg)") {
+		t.Fatalf("game maker missing theme app background marker")
 	}
 }
 

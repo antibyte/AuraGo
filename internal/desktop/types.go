@@ -237,10 +237,24 @@ type SettingDefinition struct {
 	Values  []string
 }
 
+func desktopWallpaperValues() []string {
+	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves"}
+}
+
+func desktopWallpaperValueSet() map[string]struct{} {
+	values := desktopWallpaperValues()
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
+}
+
 // DesktopSettingDefinitions returns all settings that may be persisted by the desktop UI.
 func DesktopSettingDefinitions() []SettingDefinition {
 	return []SettingDefinition{
-		{Key: "appearance.wallpaper", Default: "groupshoot", Values: []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves"}},
+		{Key: "appearance.wallpaper", Default: "groupshoot", Values: desktopWallpaperValues()},
+		{Key: "appearance.wallpaper_by_space", Default: "{}"},
 		{Key: "appearance.theme", Default: "standard", Values: []string{"standard", "fruity"}},
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},

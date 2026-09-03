@@ -7,9 +7,34 @@
     let activeThumbWindowId = '';
 
     function taskbarThumbnailsEnabled() {
-        if (isCompactViewport() || isFruityTheme()) return false;
+        if (isCompactViewport()) return false;
         if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return false;
         return true;
+    }
+
+    function dockThumbnailWindow(appId) {
+        const id = String(appId || '');
+        if (!id) return null;
+        const running = taskbarWindows().filter(win => (
+            win && !win.isGadget && win.appId === id && win.element
+            && win.element.style.display !== 'none'
+            && !win.element.classList.contains('vd-space-hidden')
+        ));
+        if (!running.length) return null;
+        return running.find(win => win.id === state.activeWindowId) || running[0];
+    }
+
+    function wireDockThumbnailHover(btn) {
+        if (!btn || btn.getAttribute('data-thumb-wired') === 'true') return;
+        btn.setAttribute('data-thumb-wired', 'true');
+        const preview = () => {
+            const win = dockThumbnailWindow(btn.dataset.appId);
+            if (win) scheduleShowTaskbarThumbnail(win.id, btn);
+        };
+        btn.addEventListener('mouseenter', preview);
+        btn.addEventListener('mouseleave', scheduleHideTaskbarThumbnail);
+        btn.addEventListener('focus', preview);
+        btn.addEventListener('blur', scheduleHideTaskbarThumbnail);
     }
 
     function cancelTaskbarThumbnailTimers() {

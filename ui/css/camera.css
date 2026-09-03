@@ -6,35 +6,24 @@
  * ─────────────────────────────────────────────────────────────── */
 
 .camera-app {
-    --cam-glass: rgba(9, 18, 32, 0.58);
-    --cam-glass-strong: rgba(10, 24, 42, 0.82);
-    --cam-line: rgba(255, 255, 255, 0.13);
-    --cam-text-muted: rgba(232, 244, 255, 0.68);
+    --cam-glass: var(--vd-theme-panel-bg);
+    --cam-glass-strong: var(--vd-theme-panel-bg-strong);
+    --cam-line: var(--vd-theme-border);
+    --cam-text-muted: var(--vd-theme-muted);
     --cam-accent: var(--vd-accent, var(--accent, #27c7a6));
-    --cam-accent-soft: rgba(39, 199, 166, 0.18);
-    --cam-accent-strong: rgba(39, 199, 166, 0.55);
-    --cam-shadow: 0 -10px 32px rgba(5, 13, 24, 0.42);
-    --cam-ring: rgba(239, 247, 255, 0.95);
+    --cam-accent-soft: var(--vd-theme-accent-soft);
+    --cam-accent-strong: var(--vd-accent);
+    --cam-shadow: var(--vd-theme-shadow-modal, 0 -10px 32px rgba(5, 13, 24, 0.42));
+    --cam-ring: var(--vd-text);
     position: relative;
     display: flex;
     flex-direction: column;
     min-height: 100%;
     height: 100%;
-    color: var(--vd-text, #eff7ff);
-    background: linear-gradient(145deg, rgba(5, 13, 24, 0.35), rgba(5, 13, 24, 0.74));
+    color: var(--vd-text);
+    background: var(--vd-theme-app-bg);
     overflow: hidden;
     font-variant-numeric: tabular-nums;
-}
-
-[data-theme="light"] .camera-app {
-    --cam-glass: rgba(220, 232, 228, 0.65);
-    --cam-glass-strong: rgba(200, 218, 212, 0.88);
-    --cam-line: rgba(71, 85, 105, 0.18);
-    --cam-text-muted: rgba(16, 32, 50, 0.6);
-    --cam-accent-soft: rgba(39, 199, 166, 0.14);
-    --cam-accent-strong: rgba(39, 199, 166, 0.45);
-    --cam-shadow: 0 -8px 24px rgba(83, 97, 122, 0.1);
-    --cam-ring: rgba(15, 23, 42, 0.92);
 }
 
 /* ── Error banner ────────────────────────────────────────────── */
@@ -53,12 +42,6 @@
     font-size: 0.88rem;
     text-align: center;
     animation: cam-slide-down 220ms ease-out;
-}
-
-[data-theme="light"] .camera-error {
-    color: #7f1d1d;
-    background: rgba(254, 226, 226, 0.92);
-    border-bottom-color: rgba(220, 38, 38, 0.25);
 }
 
 /* ── Viewport + capture flash ───────────────────────────────── */
@@ -201,14 +184,10 @@
     margin-right: 4px;
     border: 1px solid var(--cam-line);
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-theme-control-bg);
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 0.68rem;
     color: inherit;
-}
-
-[data-theme="light"] .camera-toolbar-hint kbd {
-    background: rgba(15, 23, 42, 0.04);
 }
 
 /* ── Action area (capture OR retake/save/send) ──────────────── */

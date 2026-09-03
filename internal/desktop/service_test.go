@@ -1232,6 +1232,15 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if err := svc.SetSetting(ctx, "appearance.wallpaper", "../../bad", SourceUser); err == nil {
 		t.Fatal("expected invalid setting value to be rejected")
 	}
+	if err := svc.SetSetting(ctx, "appearance.wallpaper_by_space", `{"2":"forest"}`, SourceUser); err != nil {
+		t.Fatalf("SetSetting space wallpaper valid: %v", err)
+	}
+	if err := svc.SetSetting(ctx, "appearance.wallpaper_by_space", `{"9":"forest"}`, SourceUser); err == nil {
+		t.Fatal("expected invalid space id in wallpaper map to be rejected")
+	}
+	if err := svc.SetSetting(ctx, "appearance.wallpaper_by_space", `{"1":"../../bad"}`, SourceUser); err == nil {
+		t.Fatal("expected invalid wallpaper id in space map to be rejected")
+	}
 	if err := svc.SetSetting(ctx, "appearance.theme", "citrus", SourceUser); err == nil {
 		t.Fatal("expected invalid theme to be rejected")
 	}

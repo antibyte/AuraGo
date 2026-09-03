@@ -180,6 +180,11 @@
             control.addEventListener('change', async event => {
                 const key = event.currentTarget.dataset.settingKey;
                 const value = event.currentTarget.type === 'checkbox' ? String(event.currentTarget.checked) : event.currentTarget.value;
+                if (key === 'appearance.wallpaper' && typeof ctx.saveDesktopWallpaper === 'function') {
+                    await ctx.saveDesktopWallpaper(value);
+                    if (host && host.isConnected) renderSettingsShell();
+                    return;
+                }
                 await saveDesktopSetting(key, value);
             });
         });
@@ -249,11 +254,14 @@
                 <div class="vd-setting-value">${esc(item.value)}</div>
             </article>`;
         }
+        const currentValue = item.key === 'appearance.wallpaper' && typeof ctx.wallpaperForActiveSpace === 'function'
+            ? ctx.wallpaperForActiveSpace()
+            : settingValue(item.key);
         const control = item.type === 'toggle'
             ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
             : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => {
                 const normalized = normalizeSettingOption(option);
-                return `<option value="${esc(normalized.value)}" ${settingValue(item.key) === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
+                return `<option value="${esc(normalized.value)}" ${currentValue === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
             }).join('')}</select>`;
         return `<article class="vd-setting-row">
             <div>

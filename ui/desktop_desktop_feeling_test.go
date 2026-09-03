@@ -49,6 +49,9 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 	if !strings.Contains(foundation, `'windows.restore_session'`) || !strings.Contains(foundation, "function dockApps()") {
 		t.Fatalf("desktop foundation must define restore_session defaults and dockApps")
 	}
+	if !strings.Contains(foundation, `'appearance.wallpaper_by_space': '{}'`) {
+		t.Fatalf("desktop foundation must default appearance.wallpaper_by_space")
+	}
 
 	session := readDesktopAssetText(t, "js/desktop/core/session-runtime.js")
 	for _, want := range []string{
@@ -73,6 +76,9 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		"SPACE_IDS = ['1', '2', '3']",
 		"function renderSpacePager(",
 		"function handleSpaceShortcut(",
+		"function wallpaperForActiveSpace(",
+		"function applyActiveSpaceWallpaper(",
+		"function parseWallpaperBySpace(",
 	} {
 		if !strings.Contains(spaces, want) {
 			t.Fatalf("spaces runtime missing %q", want)
@@ -85,6 +91,8 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		"function hideTaskbarThumbnail(",
 		"function taskbarThumbnailsEnabled(",
 		"function windowPreviewMarkup(",
+		"function wireDockThumbnailHover(",
+		"function dockThumbnailWindow(",
 	} {
 		if !strings.Contains(thumbs, want) {
 			t.Fatalf("taskbar thumbnails runtime missing %q", want)
@@ -119,10 +127,27 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 	if !strings.Contains(interactions, "function toggleShowDesktop(") {
 		t.Fatalf("window interactions must expose toggleShowDesktop")
 	}
+	for _, want := range []string{
+		"function handleWindowSnapShortcut(",
+		"function restoreWindowFromSnap(",
+		"item.snapped = zone",
+	} {
+		if !strings.Contains(interactions, want) {
+			t.Fatalf("window interactions missing snap shortcut marker %q", want)
+		}
+	}
 
 	bootstrap := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
 	if !strings.Contains(bootstrap, "restoreDesktopSession()") {
 		t.Fatalf("bootstrap must restore session after init")
+	}
+	if !strings.Contains(bootstrap, "handleWindowSnapShortcut(event)") {
+		t.Fatalf("bootstrap must route Win/Meta arrow keys to window snap")
+	}
+
+	thumbsEnabled := jsFunctionBodyInWindowMenuTest(t, thumbs, "function taskbarThumbnailsEnabled")
+	if strings.Contains(thumbsEnabled, "isFruityTheme()") {
+		t.Fatal("Fruity dock thumbnails must stay enabled; only compact and coarse pointer disable previews")
 	}
 }
 
@@ -134,6 +159,7 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		"function pushNotificationRecord(",
 		"function openClockPopup(",
 		"function showShortcutsHelp(",
+		"desktop.shortcuts_window_snap",
 		"function beginWindowSwitcherHold(",
 		"function handleWindowSwitcherKeydown(",
 		"wireShellChromeControls()",

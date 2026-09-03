@@ -1,16 +1,16 @@
 .code-studio {
-    --cs-bg: #12161d;
-    --cs-panel: #171d26;
-    --cs-panel-soft: #1d2530;
-    --cs-panel-glass: rgba(23, 29, 38, 0.72);
-    --cs-panel-elevated: #212a36;
-    --cs-border: rgba(172, 185, 204, 0.18);
-    --cs-border-subtle: rgba(172, 185, 204, 0.08);
-    --cs-text: #edf2f8;
-    --cs-muted: #9baabc;
-    --cs-accent: #3ec6b5;
-    --cs-accent-soft: rgba(62, 198, 181, 0.12);
-    --cs-accent-glow: rgba(62, 198, 181, 0.25);
+    --cs-bg: var(--vd-theme-app-bg);
+    --cs-panel: var(--vd-theme-panel-bg);
+    --cs-panel-soft: var(--vd-theme-chrome-bg);
+    --cs-panel-glass: var(--vd-theme-panel-bg);
+    --cs-panel-elevated: var(--vd-theme-panel-bg-strong);
+    --cs-border: var(--vd-theme-border);
+    --cs-border-subtle: var(--vd-theme-border);
+    --cs-text: var(--vd-text);
+    --cs-muted: var(--vd-theme-muted);
+    --cs-accent: var(--vd-accent);
+    --cs-accent-soft: var(--vd-theme-accent-soft);
+    --cs-accent-glow: var(--vd-accent-glow);
     --cs-danger: #ff6b7a;
     --cs-danger-soft: rgba(255, 107, 122, 0.12);
     --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
@@ -36,64 +36,6 @@
     color: var(--cs-text);
     background: var(--cs-bg);
     overflow: hidden;
-}
-
-.desktop-body[data-theme="light"] .code-studio,
-.desktop-body[data-theme="fruity"] .code-studio {
-    --cs-bg: #f7fafc;
-    --cs-panel: #ffffff;
-    --cs-panel-soft: #eef3f8;
-    --cs-panel-glass: rgba(255, 255, 255, 0.78);
-    --cs-panel-elevated: #ffffff;
-    --cs-border: rgba(51, 65, 85, 0.18);
-    --cs-border-subtle: rgba(51, 65, 85, 0.08);
-    --cs-text: #172033;
-    --cs-muted: #64748b;
-    --cs-accent: var(--vd-accent);
-    --cs-accent-soft: rgba(62, 198, 181, 0.08);
-    --cs-accent-glow: rgba(62, 198, 181, 0.18);
-    --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-    --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
-    background: var(--cs-bg);
-}
-
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .code-studio {
-    --cs-bg: #12161d;
-    --cs-panel: #171d26;
-    --cs-panel-soft: #1d2530;
-    --cs-panel-glass: rgba(23, 29, 38, 0.72);
-    --cs-panel-elevated: #212a36;
-    --cs-border: rgba(172, 185, 204, 0.18);
-    --cs-border-subtle: rgba(172, 185, 204, 0.08);
-    --cs-text: #edf2f8;
-    --cs-muted: #9baabc;
-    --cs-accent: #3ec6b5;
-    --cs-accent-soft: rgba(62, 198, 181, 0.12);
-    --cs-accent-glow: rgba(62, 198, 181, 0.25);
-    --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
-    --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.14);
-    --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.32), 0 4px 12px rgba(0, 0, 0, 0.18);
-}
-
-@media (prefers-color-scheme: dark) {
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .code-studio {
-        --cs-bg: #12161d;
-        --cs-panel: #171d26;
-        --cs-panel-soft: #1d2530;
-        --cs-panel-glass: rgba(23, 29, 38, 0.72);
-        --cs-panel-elevated: #212a36;
-        --cs-border: rgba(172, 185, 204, 0.18);
-        --cs-border-subtle: rgba(172, 185, 204, 0.08);
-        --cs-text: #edf2f8;
-        --cs-muted: #9baabc;
-        --cs-accent: #3ec6b5;
-        --cs-accent-soft: rgba(62, 198, 181, 0.12);
-        --cs-accent-glow: rgba(62, 198, 181, 0.25);
-        --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
-        --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.14);
-        --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.32), 0 4px 12px rgba(0, 0, 0, 0.18);
-    }
 }
 
 .code-studio-toolbar,

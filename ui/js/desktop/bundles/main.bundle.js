@@ -501,6 +501,7 @@
     };
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
+        'appearance.wallpaper_by_space': '{}',
         'appearance.theme': 'standard',
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
@@ -853,7 +854,9 @@
 
     function applyDesktopSettings() {
         const body = document.body;
-        body.dataset.wallpaper = settingValue('appearance.wallpaper');
+        body.dataset.wallpaper = (typeof wallpaperForActiveSpace === 'function')
+            ? wallpaperForActiveSpace()
+            : settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
@@ -5095,6 +5098,7 @@
         });
         btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
         wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
+        wireDockThumbnailHover(btn);
     }
 
     function reconcileFruityDock() {
@@ -5502,9 +5506,34 @@
     let activeThumbWindowId = '';
 
     function taskbarThumbnailsEnabled() {
-        if (isCompactViewport() || isFruityTheme()) return false;
+        if (isCompactViewport()) return false;
         if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return false;
         return true;
+    }
+
+    function dockThumbnailWindow(appId) {
+        const id = String(appId || '');
+        if (!id) return null;
+        const running = taskbarWindows().filter(win => (
+            win && !win.isGadget && win.appId === id && win.element
+            && win.element.style.display !== 'none'
+            && !win.element.classList.contains('vd-space-hidden')
+        ));
+        if (!running.length) return null;
+        return running.find(win => win.id === state.activeWindowId) || running[0];
+    }
+
+    function wireDockThumbnailHover(btn) {
+        if (!btn || btn.getAttribute('data-thumb-wired') === 'true') return;
+        btn.setAttribute('data-thumb-wired', 'true');
+        const preview = () => {
+            const win = dockThumbnailWindow(btn.dataset.appId);
+            if (win) scheduleShowTaskbarThumbnail(win.id, btn);
+        };
+        btn.addEventListener('mouseenter', preview);
+        btn.addEventListener('mouseleave', scheduleHideTaskbarThumbnail);
+        btn.addEventListener('focus', preview);
+        btn.addEventListener('blur', scheduleHideTaskbarThumbnail);
     }
 
     function cancelTaskbarThumbnailTimers() {
@@ -6014,6 +6043,8 @@ function wireWindow(win, id) {
             if (event.target.closest('button, .vd-window-menubar')) return;
             if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
+            const dragItem = state.windows.get(id);
+            if (dragItem) dragItem.snapped = '';
             drag = {
                 x: event.clientX,
                 y: event.clientY,
@@ -6139,6 +6170,7 @@ function wireWindow(win, id) {
         const item = state.windows.get(windowId);
         if (!item) return;
         if (zone === 'maximize') {
+            item.snapped = '';
             if (!item.maximized) toggleMaximizeWindow(windowId);
             return;
         }
@@ -6150,12 +6182,51 @@ function wireWindow(win, id) {
                 win.classList.remove('maximized');
             }
             item.restoreBounds = windowBounds(win);
+            item.snapped = zone;
             win.style.left = p.left + 'px';
             win.style.top = p.top + 'px';
             win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
             win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
         });
         scheduleFruityDockOcclusionCheck();
+    }
+
+    function restoreWindowFromSnap(id) {
+        const item = state.windows.get(id);
+        if (!item || !item.element || item.isGadget) return;
+        if (item.maximized) {
+            toggleMaximizeWindow(id);
+            return;
+        }
+        const bounds = item.restoreBounds;
+        if (item.snapped && bounds) {
+            animateWindowBounds(item.element, () => {
+                item.element.classList.remove('maximized');
+                item.element.style.left = bounds.left + 'px';
+                item.element.style.top = bounds.top + 'px';
+                item.element.style.width = bounds.width + 'px';
+                item.element.style.height = bounds.height + 'px';
+                item.maximized = false;
+                item.snapped = '';
+            });
+            scheduleFruityDockOcclusionCheck();
+            return;
+        }
+        minimizeWindow(id);
+    }
+
+    function handleWindowSnapShortcut(event) {
+        if (isCompactViewport() || isEditableTarget(event.target)) return false;
+        if (!event.metaKey || event.ctrlKey || event.altKey) return false;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return false;
+        const item = state.windows.get(state.activeWindowId);
+        if (!item || !item.element || item.isGadget) return false;
+        event.preventDefault();
+        if (event.key === 'ArrowLeft') applyWindowSnap(item.element, 'left-half');
+        else if (event.key === 'ArrowRight') applyWindowSnap(item.element, 'right-half');
+        else if (event.key === 'ArrowUp') applyWindowSnap(item.element, 'maximize');
+        else restoreWindowFromSnap(item.id);
+        return true;
     }
 
     function wireWindowTouchGestures(win, id) {
@@ -7479,6 +7550,44 @@ function wireWindow(win, id) {
         return !isCompactViewport();
     }
 
+    function knownWallpaperIds() {
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves'];
+    }
+
+    function normalizeWallpaperId(value) {
+        const id = String(value || '');
+        return knownWallpaperIds().indexOf(id) >= 0 ? id : 'groupshoot';
+    }
+
+    function parseWallpaperBySpace() {
+        try {
+            const raw = settingValue('appearance.wallpaper_by_space');
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+            const known = knownWallpaperIds();
+            const out = {};
+            SPACE_IDS.forEach(id => {
+                const wallpaper = parsed[id];
+                if (typeof wallpaper === 'string' && known.indexOf(wallpaper) >= 0) out[id] = wallpaper;
+            });
+            return out;
+        } catch (err) {
+            return {};
+        }
+    }
+
+    function wallpaperForActiveSpace() {
+        const fallback = normalizeWallpaperId(settingValue('appearance.wallpaper'));
+        if (!spacesEnabled()) return fallback;
+        const map = parseWallpaperBySpace();
+        return map[normalizeSpaceId(state.activeSpaceId)] || fallback;
+    }
+
+    function applyActiveSpaceWallpaper() {
+        if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
+    }
+
     function normalizeSpaceId(id) {
         const value = String(id || DEFAULT_SPACE_ID);
         return SPACE_IDS.includes(value) ? value : DEFAULT_SPACE_ID;
@@ -7546,6 +7655,7 @@ function wireWindow(win, id) {
         if (next === normalizeSpaceId(state.activeSpaceId)) return;
         state.activeSpaceId = next;
         hideTaskbarThumbnail();
+        applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderSpacePager();
         renderTaskbar();
@@ -7595,6 +7705,7 @@ function wireWindow(win, id) {
         if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
         if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
+        applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderTaskbar();
     }
@@ -8021,6 +8132,7 @@ function wireWindow(win, id) {
             ['Ctrl+Alt+← / →', t('desktop.spaces_help')],
             ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
             ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
+            ['Win / ⌘ + ←↑→↓', t('desktop.shortcuts_window_snap')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -9817,7 +9929,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     function desktopWallpaperMenuItems() {
-        const current = settingValue('appearance.wallpaper') || 'groupshoot';
+        const current = (typeof wallpaperForActiveSpace === 'function' ? wallpaperForActiveSpace() : settingValue('appearance.wallpaper')) || 'groupshoot';
         const options = [
             ['groupshoot', 'desktop.settings_wallpaper_groupshoot'],
             ['aurora', 'desktop.settings_wallpaper_aurora'],
@@ -9845,13 +9957,32 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function saveDesktopWallpaper(value) {
         try {
-            const body = await api('/api/desktop/settings', {
+            const wallpaper = typeof normalizeWallpaperId === 'function' ? normalizeWallpaperId(value) : String(value || 'groupshoot');
+            const updates = [];
+            const nextSettings = Object.assign({}, desktopSettings());
+            if (typeof spacesEnabled === 'function' && spacesEnabled()) {
+                const map = typeof parseWallpaperBySpace === 'function' ? Object.assign({}, parseWallpaperBySpace()) : {};
+                const fallback = settingValue('appearance.wallpaper') || 'groupshoot';
+                SPACE_IDS.forEach(id => {
+                    if (!map[id]) map[id] = fallback;
+                });
+                map[normalizeSpaceId(state.activeSpaceId)] = wallpaper;
+                const encoded = JSON.stringify(map);
+                updates.push({ key: 'appearance.wallpaper_by_space', value: encoded });
+                nextSettings['appearance.wallpaper_by_space'] = encoded;
+            } else {
+                updates.push({ key: 'appearance.wallpaper', value: wallpaper });
+                nextSettings['appearance.wallpaper'] = wallpaper;
+            }
+            const results = await Promise.all(updates.map(update => api('/api/desktop/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'appearance.wallpaper', value })
-            });
+                body: JSON.stringify(update)
+            })));
+            const last = results[results.length - 1];
             if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { 'appearance.wallpaper': value });
+            state.bootstrap.settings = last.settings || nextSettings;
+            Object.assign(state.bootstrap.settings, nextSettings);
             applyDesktopSettings();
             renderStartButtonIcon();
             renderIcons();
@@ -10961,7 +11092,7 @@ function modalDialog(options) {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -14683,6 +14814,7 @@ if (appId === 'pixel') {
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
         if (handleSpacesOverviewShortcut(event)) return;
+        if (handleWindowSnapShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
