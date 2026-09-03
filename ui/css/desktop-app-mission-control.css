@@ -7,18 +7,13 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    font-size: var(--ds-type-size-md); /* Increased for better readability vs other desktop apps */
-    color: var(--ds-color-fg-primary);
-    background: var(--ds-color-surface-1);
-    /* Force clean Virtual Desktop look even when outer theme is Cyberwar or other fancy themes */
-    --vd-text: #e8ecf1;
-    --vd-text-muted: #9aa4b2;
-    --vd-surface: #181c24;
-    --vd-surface-alt: #22262e;
-    --vd-border: rgba(255,255,255,0.08);
-    --vd-border-hover: rgba(255,255,255,0.14);
-    --vd-accent: #3b82f6;
-    --vd-accent-hover: #2563eb;
+    font-size: var(--ds-type-size-md);
+    color: var(--vd-text);
+    background: var(--vd-theme-app-bg);
+    --vd-surface: var(--vd-theme-panel-bg);
+    --vd-surface-alt: var(--vd-theme-panel-bg-strong);
+    --vd-border: var(--vd-theme-border);
+    --vd-border-hover: var(--vd-theme-border-strong, var(--vd-theme-border));
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -27,28 +22,28 @@
 [data-theme="cyberwar"] .vd-mc * {
     --vd-accent: #3b82f6 !important;
     --vd-accent-hover: #2563eb !important;
-    color: var(--ds-color-fg-primary) !important;
-    border-color: var(--ds-color-border-subtle) !important;
+    color: var(--vd-text) !important;
+    border-color: var(--vd-theme-border) !important;
 }
 
 [data-theme="cyberwar"] .vd-mc .vd-mc-card,
 [data-theme="cyberwar"] .vd-mc .vd-mc-list-item,
 [data-theme="cyberwar"] .vd-mc .vd-mc-toolbar,
 [data-theme="cyberwar"] .vd-mc .vd-mc-stat {
-    background: var(--vd-surface-alt) !important;
+    background: var(--vd-theme-panel-bg-strong) !important;
 }
 
 /* Ensure children also stay in neutral mode */
 [data-theme="cyberwar"] .vd-mc,
 [data-theme="cyberwar"] .vd-mc * {
-    color: var(--ds-color-fg-primary) !important;
+    color: var(--vd-text) !important;
 }
 
 .vd-mc .vd-mc-card,
 .vd-mc .vd-mc-list-item,
 .vd-mc .vd-mc-toolbar {
-    background: var(--vd-surface-alt);
-    border-color: var(--ds-color-border-subtle);
+    background: var(--vd-theme-panel-bg);
+    border-color: var(--vd-theme-border);
 }
 
 /* ── Toolbar ── */
@@ -57,8 +52,8 @@
     align-items: center;
     gap: var(--ds-space-2);
     padding: 8px 12px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
-    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -68,10 +63,10 @@
     align-items: center;
     gap: 6px;
     padding: 6px 14px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-surface-alt);
-    color: var(--ds-color-fg-primary);
+    background: var(--vd-theme-panel-bg-strong);
+    color: var(--vd-text);
     font-size: var(--ds-type-size-sm);
     font-weight: 500;
     cursor: pointer;
@@ -109,10 +104,10 @@
     min-width: 140px;
     max-width: 280px;
     padding: 6px 11px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-surface-alt);
-    color: var(--ds-color-fg-primary);
+    background: var(--vd-theme-panel-bg-strong);
+    color: var(--vd-text);
     font-size: 13px;
     outline: none;
     transition: border-color 0.15s;
@@ -128,10 +123,10 @@
 
 .vd-mc-filter-select {
     padding: 6px 10px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-surface-alt);
-    color: var(--ds-color-fg-primary);
+    background: var(--vd-theme-panel-bg-strong);
+    color: var(--vd-text);
     font-size: 13px;
     cursor: pointer;
     outline: none;
@@ -139,7 +134,7 @@
 
 .vd-mc-view-toggle {
     display: flex;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     overflow: hidden;
 }
@@ -168,7 +163,7 @@
     display: flex;
     gap: var(--ds-space-2);
     padding: 8px 12px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-theme-border);
     flex-shrink: 0;
     overflow-x: auto;
 }
@@ -179,8 +174,8 @@
     gap: 6px;
     padding: 5px 11px;
     border-radius: var(--ds-radius-md);
-    background: var(--vd-surface-alt);
-    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--vd-theme-panel-bg-strong);
+    border: 1px solid var(--vd-theme-border);
     font-size: var(--ds-type-size-sm);
     white-space: nowrap;
     min-width: 80px;
@@ -193,7 +188,7 @@
 .vd-mc-stat-value {
     font-weight: 700;
     font-size: var(--ds-type-size-md);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-stat-label {
@@ -215,7 +210,7 @@
 
 /* ── Queue Section ── */
 .vd-mc-queue {
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-theme-border);
     flex-shrink: 0;
 }
 
@@ -234,7 +229,7 @@
 }
 
 .vd-mc-queue-header:hover {
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-queue-badge {
@@ -259,8 +254,8 @@
     gap: var(--ds-space-2);
     padding: 7px 11px;
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-surface-alt);
-    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--vd-theme-panel-bg-strong);
+    border: 1px solid var(--vd-theme-border);
     font-size: 13px;
 }
 
@@ -276,7 +271,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: var(--ds-color-surface-1);
+    background: var(--vd-theme-app-bg);
     font-size: var(--ds-type-size-xs);
     font-weight: 700;
     flex-shrink: 0;
@@ -318,7 +313,7 @@
     display: flex;
     gap: 2px;
     padding: 6px 12px 0;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-theme-border);
     flex-shrink: 0;
 }
 
@@ -336,7 +331,7 @@
 }
 
 .vd-mc-tab:hover {
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-tab.active {
@@ -362,9 +357,9 @@
 
 /* ── Mission Card (Grid) ── */
 .vd-mc-card {
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-surface-alt, rgba(255,255,255,0.03));
+    background: var(--vd-theme-panel-bg-strong);
     overflow: hidden;
     transition: border-color 0.2s, box-shadow 0.2s;
     animation: vd-mc-card-enter 0.3s ease both;
@@ -422,7 +417,7 @@
 }
 
 .vd-mc-expand-btn:hover {
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-card.expanded .vd-mc-expand-btn {
@@ -524,7 +519,7 @@
 .vd-mc-card-name {
     font-size: 15px;
     font-weight: 600;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     margin: 0 0 4px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -656,7 +651,7 @@
 
 .vd-mc-card-expand-inner {
     padding: 0 10px 10px;
-    border-top: 1px solid var(--ds-color-border-subtle);
+    border-top: 1px solid var(--vd-theme-border);
     display: flex;
     flex-direction: column;
     gap: var(--ds-space-2);
@@ -671,20 +666,20 @@
     max-height: 120px;
     overflow-y: auto;
     padding: 6px 8px;
-    background: var(--ds-color-surface-1);
+    background: var(--vd-theme-app-bg);
     border-radius: var(--ds-radius-sm);
 }
 
 .vd-mc-trigger-full {
     padding: 6px 8px;
-    background: var(--ds-color-surface-1);
+    background: var(--vd-theme-app-bg);
     border-radius: var(--ds-radius-sm);
     font-size: var(--ds-type-size-sm);
 }
 
 .vd-mc-trigger-label {
     font-weight: 600;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     margin-bottom: 2px;
     font-size: var(--ds-type-size-xs);
     text-transform: none;
@@ -705,7 +700,7 @@
     align-items: center;
     gap: 5px;
     padding: 5px 8px;
-    background: var(--ds-color-surface-1);
+    background: var(--vd-theme-app-bg);
     font-size: var(--ds-type-size-xs);
     font-weight: 600;
     text-transform: none;
@@ -720,7 +715,7 @@
 }
 
 .vd-mc-log-head:hover {
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-log-body {
@@ -749,7 +744,7 @@
     align-items: center;
     justify-content: center;
     padding: 4px 8px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-text-muted, #9aa3ad);
@@ -760,7 +755,7 @@
 
 .vd-mc-action-btn:hover {
     background: rgba(255,255,255,0.06);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     border-color: var(--vd-border-hover, rgba(255,255,255,0.15));
 }
 
@@ -786,9 +781,9 @@
     align-items: center;
     gap: var(--ds-space-2);
     padding: 6px 10px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-surface-alt, rgba(255,255,255,0.02));
+    background: var(--vd-theme-panel-bg-strong);
     cursor: pointer;
     transition: all 0.15s;
     animation: vd-mc-card-enter 0.2s ease both;
@@ -852,8 +847,8 @@
 .vd-mc-modal {
     width: 100%;
     max-width: 680px;
-    background: var(--ds-color-surface-1);
-    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--vd-theme-app-bg);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     animation: vd-mc-modal-enter 0.2s ease;
@@ -869,13 +864,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-theme-border);
 }
 
 .vd-mc-modal-title {
     font-size: 15px;
     font-weight: 600;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     margin: 0;
 }
 
@@ -895,7 +890,7 @@
 
 .vd-mc-modal-close:hover {
     background: rgba(255,255,255,0.06);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-modal-body {
@@ -909,7 +904,7 @@
     justify-content: flex-end;
     gap: var(--ds-space-2);
     padding: 12px 16px;
-    border-top: 1px solid var(--ds-color-border-subtle);
+    border-top: 1px solid var(--vd-theme-border);
 }
 
 /* ── Form Elements ── */
@@ -932,10 +927,10 @@
 .vd-mc-form-select {
     width: 100%;
     padding: 6px 10px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: var(--vd-surface-alt, rgba(255,255,255,0.04));
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     font-size: 13px;
     outline: none;
     transition: border-color 0.15s;
@@ -993,7 +988,7 @@
     align-items: center;
     gap: 3px;
     padding: 8px 6px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     cursor: pointer;
     transition: all 0.15s;
@@ -1010,7 +1005,7 @@
 .vd-mc-exec-option.active {
     border-color: var(--vd-accent, #3b82f6);
     background: rgba(59,130,246,0.08);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-exec-option input[type="radio"] {
@@ -1041,7 +1036,7 @@
 
 .vd-mc-trigger-btn {
     padding: 4px 8px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     background: transparent;
     color: var(--vd-text-muted, #9aa3ad);
@@ -1091,7 +1086,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 8px 10px;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     cursor: pointer;
     transition: all 0.15s;
@@ -1106,7 +1101,7 @@
 .vd-mc-runner-option.active {
     border-color: var(--vd-accent, #3b82f6);
     background: rgba(59,130,246,0.08);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-runner-option input[type="radio"] {
@@ -1175,7 +1170,7 @@
 
 .vd-mc-toggle-text {
     font-size: 13px;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-toggle-hint {
@@ -1206,10 +1201,10 @@
 
 /* ── Loading Skeleton ── */
 .vd-mc-skeleton {
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
     height: 140px;
-    background: linear-gradient(90deg, var(--vd-surface-alt, rgba(255,255,255,0.03)) 25%, rgba(255,255,255,0.06) 50%, var(--vd-surface-alt, rgba(255,255,255,0.03)) 75%);
+    background: linear-gradient(90deg, var(--vd-theme-panel-bg-strong) 25%, rgba(255,255,255,0.06) 50%, var(--vd-theme-panel-bg-strong) 75%);
     background-size: 200% 100%;
     animation: vd-mc-shimmer 1.5s infinite;
 }
@@ -1223,7 +1218,7 @@
 .vd-mc-cheatsheet-picker {
     max-height: 120px;
     overflow-y: auto;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     padding: 6px;
 }
@@ -1242,7 +1237,7 @@
 
 .vd-mc-cheatsheet-item label {
     font-size: var(--ds-type-size-sm);
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
     cursor: pointer;
 }
 
@@ -1262,7 +1257,7 @@
 .vd-mc-mission-selector {
     max-height: 150px;
     overflow-y: auto;
-    border: 1px solid var(--ds-color-border-subtle);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
 }
 
@@ -1273,7 +1268,7 @@
     padding: 6px 8px;
     cursor: pointer;
     transition: background 0.1s;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-theme-border);
 }
 
 .vd-mc-mission-option:last-child {
@@ -1295,7 +1290,7 @@
 .vd-mc-mission-option-name {
     font-size: 13px;
     font-weight: 500;
-    color: var(--ds-color-fg-primary);
+    color: var(--vd-text);
 }
 
 .vd-mc-mission-option-meta {
@@ -1351,6 +1346,6 @@
 .vd-mc input:focus-visible,
 .vd-mc [tabindex]:focus-visible,
 .vd-mc a:focus-visible {
-    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline: var(--ds-focus-ring-width) solid var(--vd-theme-accent-border, var(--vd-accent));
     outline-offset: var(--ds-focus-ring-offset);
 }

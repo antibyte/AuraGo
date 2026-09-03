@@ -71,6 +71,18 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-settings.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-calculator.css", ".vd-calc"},
 		{"css/desktop-app-calculator.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-chat.css", ".vd-chat"},
+		{"css/desktop-app-chat.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-file-manager.css", ".file-manager"},
+		{"css/desktop-app-file-manager.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-quick-connect.css", ".vd-quick-connect"},
+		{"css/desktop-app-quick-connect.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-mission-control.css", ".vd-mc"},
+		{"css/desktop-app-mission-control.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-software-store.css", ".vd-store"},
+		{"css/desktop-app-software-store.css", "var(--vd-theme-panel-bg)"},
+		{"css/desktop-app-gallery.css", ".vd-gallery-card"},
+		{"css/desktop-app-gallery.css", "var(--vd-theme-panel-bg)"},
 	} {
 		css := readDesktopAssetText(t, tc.file)
 		if !strings.Contains(css, tc.marker) {

@@ -4,6 +4,7 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    background: var(--vd-theme-app-bg);
 }
 
 .vd-gallery-toolbar {
@@ -34,9 +35,9 @@
     min-width: 0;
     min-height: 192px;
     overflow: hidden;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-surface);
+    background: var(--vd-theme-panel-bg);
 }
 
 .vd-gallery-preview {
@@ -101,10 +102,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--vd-border);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-md);
-    background: var(--vd-surface);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    background: var(--vd-theme-panel-bg-strong);
+    box-shadow: var(--vd-theme-shadow-modal);
 }
 
 .vd-media-preview-bar {
@@ -113,8 +114,8 @@
     justify-content: space-between;
     gap: 12px;
     padding: 10px 12px;
-    border-bottom: 1px solid var(--vd-border);
-    background: var(--vd-surface-strong);
+    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-media-preview-bar strong {

@@ -116,6 +116,45 @@ func TestDesktopOfficeChromeUsesThemeSurfacesInsteadOfDarkWash(t *testing.T) {
 	}
 }
 
+func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) {
+	t.Parallel()
+
+	missionControl := readDesktopAssetText(t, "css/desktop-app-mission-control.css")
+	for _, banned := range []string{
+		"#181c24",
+		"#22262e",
+		"--vd-text: #e8ecf1",
+	} {
+		if strings.Contains(missionControl, banned) {
+			t.Fatalf("mission control must not force dark-only palette marker %q", banned)
+		}
+	}
+	for _, want := range []string{
+		"background: var(--vd-theme-app-bg);",
+		"--vd-surface: var(--vd-theme-panel-bg);",
+	} {
+		if !strings.Contains(missionControl, want) {
+			t.Fatalf("mission control missing theme surface marker %q", want)
+		}
+	}
+
+	chat := readDesktopAssetText(t, "css/desktop-app-chat.css")
+	if strings.Contains(chat, "rgba(9, 13, 22") || strings.Contains(chat, "rgba(10, 15, 26") {
+		t.Fatalf("chat chrome must not hardcode a dark wash that disappears on fruity light")
+	}
+	if !strings.Contains(chat, "background: var(--vd-theme-panel-bg);") {
+		t.Fatalf("chat agent bubbles must use theme panel material")
+	}
+
+	store := readDesktopAssetText(t, "css/desktop-app-software-store.css")
+	if strings.Contains(store, "rgba(4, 8, 14") {
+		t.Fatalf("software store must not hardcode a dark app wash")
+	}
+	if !strings.Contains(store, "background: var(--vd-theme-app-bg);") {
+		t.Fatalf("software store missing theme app background marker")
+	}
+}
+
 func TestDesktopCheaterCodeBlocksKeepReadableForeground(t *testing.T) {
 	t.Parallel()
 

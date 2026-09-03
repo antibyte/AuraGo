@@ -447,7 +447,8 @@
     .office-formula-bar,
     .office-status-bar,
     .office-writer-statusbar,
-    .vd-calendar-command
+    .vd-calendar-command,
+    .vd-mc-toolbar
 ) {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -465,7 +466,8 @@
     .office-formula-bar,
     .office-status-bar,
     .office-writer-statusbar,
-    .vd-calendar-command
+    .vd-calendar-command,
+    .vd-mc-toolbar
 ) {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
@@ -476,9 +478,12 @@
     .vd-settings-sidebar,
     .vd-chat-sidebar,
     .vd-store-sidebar,
+    .vd-qc-sidebar,
     .cheater-sidebar,
     .vd-todo-sidebar,
-    .vd-calendar-sidebar
+    .vd-calendar-sidebar,
+    .fm-preview-panel,
+    .fm-upload-panel
 ) {
     background: color-mix(in srgb, var(--vd-theme-chrome-bg), #000 10%) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
@@ -490,9 +495,12 @@
     .vd-settings-sidebar,
     .vd-chat-sidebar,
     .vd-store-sidebar,
+    .vd-qc-sidebar,
     .cheater-sidebar,
     .vd-todo-sidebar,
-    .vd-calendar-sidebar
+    .vd-calendar-sidebar,
+    .fm-preview-panel,
+    .fm-upload-panel
 ) {
     background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 8%) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.28);
@@ -504,9 +512,12 @@
     .vd-settings-sidebar,
     .vd-chat-sidebar,
     .vd-store-sidebar,
+    .vd-qc-sidebar,
     .cheater-sidebar,
     .vd-todo-sidebar,
-    .vd-calendar-sidebar
+    .vd-calendar-sidebar,
+    .fm-preview-panel,
+    .fm-upload-panel
 ) {
     background: color-mix(in srgb, var(--vd-theme-chrome-bg), #000 8%) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
@@ -521,6 +532,28 @@
 }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-settings-app {
+    background: var(--vd-theme-app-bg);
+}
+
+.desktop-body[data-theme="standard"] :where(
+    .vd-chat,
+    .file-manager,
+    .vd-quick-connect,
+    .vd-mc,
+    .vd-store,
+    .vd-gallery
+) {
+    background: var(--vd-theme-app-bg);
+}
+
+.desktop-body[data-theme="fruity"] :where(
+    .vd-chat,
+    .file-manager,
+    .vd-quick-connect,
+    .vd-mc,
+    .vd-store,
+    .vd-gallery
+) {
     background: var(--vd-theme-app-bg);
 }
 
@@ -602,7 +635,11 @@
     .vd-calendar-modal,
     .office-writer,
     .office-app,
-    .vd-calc
+    .vd-calc,
+    .vd-store-card,
+    .vd-gallery-card,
+    .vd-mc .vd-mc-card,
+    .vd-mc .vd-mc-list-item
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);
@@ -614,11 +651,26 @@
     .vd-calendar-modal,
     .office-writer,
     .office-app,
-    .vd-calc
+    .vd-calc,
+    .vd-store-card,
+    .vd-gallery-card,
+    .vd-mc .vd-mc-card,
+    .vd-mc .vd-mc-list-item
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);
     box-shadow: var(--vd-theme-shadow-panel);
+}
+
+.desktop-body[data-theme="standard"] :where(.vd-chat-form, .vd-chat-composer) {
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
+}
+
+.desktop-body[data-theme="fruity"] :where(.vd-chat-form, .vd-chat-composer) {
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .desktop-body[data-theme="standard"] :where(.fm-statusbar, .cs-statusbar) {
