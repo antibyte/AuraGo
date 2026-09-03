@@ -23,8 +23,8 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					"query": prop("string", "Natural language search query. Use '*' only for a diagnostic inventory/counts overview, not for semantic recall."),
 					"sources": map[string]interface{}{
 						"type":        "array",
-						"description": "Memory sources to search. Default: all available. Options: activity, vector_db, knowledge_graph, journal, notes, planner, core_memory, error_patterns",
-						"items":       map[string]interface{}{"type": "string", "enum": []string{"activity", "vector_db", "knowledge_graph", "journal", "notes", "planner", "core_memory", "error_patterns"}},
+						"description": "Memory sources to search. Default: all available. Options: conversation, activity, vector_db, knowledge_graph, journal, notes, planner, core_memory, error_patterns",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "vector_db", "knowledge_graph", "journal", "notes", "planner", "core_memory", "error_patterns"}},
 					},
 					"limit": map[string]interface{}{
 						"type":        "integer",
@@ -41,17 +41,17 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					"include_related": prop("boolean", "Whether related entities/contexts should be expanded where possible"),
 					"sources": map[string]interface{}{
 						"type":        "array",
-						"description": "Sources to include. Default: activity, journal, notes, planner, core, kg, ltm",
-						"items":       map[string]interface{}{"type": "string", "enum": []string{"activity", "journal", "notes", "planner", "core", "kg", "ltm"}},
+						"description": "Sources to include. Default: conversation, activity, journal, notes, planner, core, kg, ltm",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "journal", "notes", "planner", "core", "kg", "ltm"}},
 					},
 				}, "query"),
 			),
 			tool("recall_memory",
-				"Read specific long-term memory entries by ID from the Available Context Index. Use only when the listed memory teaser is needed for the current task.",
+				"Read specific long-term memory or session-bound conversation entries by ID from the Available Context Index. Use only when the listed teaser is needed for the current task.",
 				schema(map[string]interface{}{
 					"ids": map[string]interface{}{
 						"type":        "array",
-						"description": "Memory IDs from [memory:<id>] entries in the Available Context Index.",
+						"description": "Memory IDs from [memory:<id>] or [conversation:<id>] entries in the Available Context Index.",
 						"items":       map[string]interface{}{"type": "string"},
 					},
 				}, "ids"),

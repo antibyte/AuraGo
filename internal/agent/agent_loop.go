@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -25,6 +26,16 @@ import (
 const defaultMaxConcurrentAgentLoops = 8
 
 var agentLoopLimiter = make(chan struct{}, defaultMaxConcurrentAgentLoops)
+
+// ErrToolLimitFinalResponseInvalid marks a tool call emitted during the
+// tool-free finalization response after the tool-call limit.
+var ErrToolLimitFinalResponseInvalid = errors.New("tool_limit_final_response_invalid")
+
+// IsToolLimitFinalResponseInvalid reports whether the model tried to call a
+// tool during the one tool-free response allowed after the tool-call limit.
+func IsToolLimitFinalResponseInvalid(err error) bool {
+	return errors.Is(err, ErrToolLimitFinalResponseInvalid)
+}
 
 // ConfigureAgentLoopLimiter sets the maximum number of concurrent agent loop
 // executions. It must be called before any agent loop starts; calling it while
@@ -343,6 +354,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	transientCompressionAttempted := false
 	var cachedTurnGuides []string
 	preparedExplicitGuideKey := ""
+	toolLimitFinalizing := false
+	conversationRecall, recalledHistoryTokens := buildConversationRecallMessage(shortTermMem, sessionID, initialUserMsg, req.Model)
+	req.Messages = insertConversationRecall(req.Messages, conversationRecall)
 
 	var requestBudget *RequestBudget
 
@@ -487,9 +501,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
 
 		if s.toolCallCount >= effectiveMaxCalls {
-			s.currentLogger.Warn("[Sync] Circuit breaker triggered", "count", s.toolCallCount, "limit", effectiveMaxCalls)
-			breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: You have reached the maximum of %d consecutive tool calls. You MUST now summarize your progress and respond to the user with a final answer.", effectiveMaxCalls)
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: breakerMsg})
+			if !toolLimitFinalizing {
+				s.currentLogger.Warn("[Sync] Circuit breaker triggered", "count", s.toolCallCount, "limit", effectiveMaxCalls)
+				breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: You have reached the maximum of %d consecutive tool calls. You MUST now summarize your progress and respond to the user with a final answer.", effectiveMaxCalls)
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: breakerMsg})
+				toolLimitFinalizing = true
+			}
 			req.Tools = nil // Physically remove tool schemas to prevent infinite loops
 		}
 
@@ -1348,17 +1365,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Tool schemas, output capacity, the protocol margin and the generated
 		// system prompt have already been reserved. Compression therefore receives
 		// only the capacity that is genuinely available to history.
-		historyBudget := requestBudget.historyBudget(sysPrompt, req.Tools, tokenCache)
-		usageBeforeCompression := requestBudget.tokenUsage(req.Messages, req.Tools, tokenCache)
-		historyTokens := 0
-		if len(usageBeforeCompression) > 0 {
-			historyTokens = usageBeforeCompression[0].HistoryTokens
-		}
+		currentUserIndex := currentUserMessageIndex(req.Messages, initialUserMsg)
+		historyBudget := requestBudget.historyWorkingSetLimitForMessages(req.Messages, currentUserIndex, sysPrompt, req.Tools, tokenCache)
+		historyTokens := requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserIndex, tokenCache)
 		runHistoryCompression := shouldRunHistoryCompression(loopIterationCount, historyTokens, historyBudget)
 		if runHistoryCompression && cfg.Agent.HistoryCompaction.Enabled {
-			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, HistoryCompactionOptions{
+			compactionOptions := HistoryCompactionOptions{
 				KeepRecentToolRoundsFull: cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull,
-			})
+			}
+			if compactionOptions.KeepRecentToolRoundsFull < 2 {
+				compactionOptions.KeepRecentToolRoundsFull = 2
+			}
+			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, compactionOptions)
+			compactedMessages, textCompaction := CompactHistoryTextToolRounds(compactedMessages, compactionOptions)
+			historyCompaction.Compacted = historyCompaction.Compacted || textCompaction.Compacted
+			historyCompaction.RoundsCompacted += textCompaction.RoundsCompacted
+			historyCompaction.MessagesDropped += textCompaction.MessagesDropped
 			if historyCompaction.Compacted {
 				req.Messages = compactedMessages
 				if lastCompressionMsg > len(req.Messages) {
@@ -1420,6 +1442,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
 		}
 
+		workingMessages, workingDropped, workingStats := requestBudget.trimHistoryWorkingSet(req.Messages, initialUserMsg, sysPrompt, req.Tools, tokenCache)
+		if len(workingDropped) > 0 {
+			broker.Send("thinking", "Condensing older conversation context...")
+			req.Messages = appendRecapWithinWorkingSet(requestBudget, workingMessages, initialUserMsg, sysPrompt, req.Tools, workingDropped, tokenCache)
+			workingStats.KeptTokens = requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserMessageIndex(req.Messages, initialUserMsg), tokenCache)
+			workingStats.SummaryTokens = requestBudget.maxSummaryTokens(req.Messages, tokenCache)
+			s.currentLogger.Info("[ContextGuard] History working set reduced",
+				"working_limit_tokens", workingStats.LimitTokens,
+				"current_request_tokens", workingStats.CurrentTokens,
+				"kept_history_tokens", workingStats.KeptTokens,
+				"summary_tokens", workingStats.SummaryTokens,
+				"dropped_history_tokens", workingStats.DroppedTokens,
+				"dropped_messages", len(workingDropped))
+		} else {
+			req.Messages = workingMessages
+		}
+
 		useImportance := cfg.Agent.ImportanceScoring.Enabled && cfg.Agent.ImportanceScoring.Mode == "active"
 		if cfg.Agent.ImportanceScoring.Enabled && cfg.Agent.ImportanceScoring.Mode == "log_only" && len(requestBudget.Routes) > 0 {
 			target := requestBudget.historyAndSystemLimit(req.Tools, tokenCache)
@@ -1460,6 +1499,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if finalizeErr != nil {
 			return openai.ChatCompletionResponse{}, finalizeErr
 		}
+		workingStats.CurrentTokens = requestBudget.maxMessageTokensAt(req.Messages, currentUserMessageIndex(req.Messages, initialUserMsg), tokenCache)
+		workingStats.KeptTokens = requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserMessageIndex(req.Messages, initialUserMsg), tokenCache)
+		workingStats.SummaryTokens = requestBudget.maxSummaryTokens(req.Messages, tokenCache)
 		for _, usage := range finalizedRequest.Usage {
 			s.currentLogger.Info("[PromptBudget] Request ready",
 				"prompt_build_ms", promptBuildDuration.Milliseconds(),
@@ -1476,6 +1518,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"system_tokens", usage.SystemTokens,
 				"schema_tokens", usage.SchemaTokens,
 				"history_tokens", usage.HistoryTokens,
+				"history_working_limit_tokens", workingStats.LimitTokens,
+				"current_request_tokens", workingStats.CurrentTokens,
+				"kept_history_tokens", workingStats.KeptTokens,
+				"summary_tokens", workingStats.SummaryTokens,
+				"recalled_history_tokens", recalledHistoryTokens,
 				"output_tokens", usage.CompletionTokens,
 				"safety_tokens", usage.SafetyTokens,
 				"total_tokens", usage.TotalTokens)
@@ -1545,8 +1592,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if llmTimeout > 0 && chunkIdleTimeout > llmTimeout {
 				chunkIdleTimeout = llmTimeout
 			}
-			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout)
+			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count)
 			if result.recoveryContinue {
+				req.Messages = result.recoveredMessages
 				continue
 			}
 			if result.err != nil {
@@ -1561,6 +1609,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		} else {
 			result := handleSyncLLMCall(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, &retry422Count)
 			if result.recoveryContinue {
+				req.Messages = result.recoveredMessages
 				continue
 			}
 			if result.err != nil {
@@ -1606,6 +1655,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		tc := parsedToolResp.ToolCall
 		tc = normalizeParsedToolShortcut(tc)
 		parsedToolResp.ToolCall = tc
+		if toolLimitFinalizing && (parsedToolResp.ParseSource != ToolCallParseSourceNone || parsedToolResp.IncompleteToolCall) {
+			pendingTCs = nil
+			s.pendingTCs = nil
+			s.currentLogger.Warn("[Sync] Rejected tool call from tool-free final response", "source", parsedToolResp.ParseSource)
+			return openai.ChatCompletionResponse{}, ErrToolLimitFinalResponseInvalid
+		}
 		useNativePath := parsedToolResp.UseNativePath
 		nativeAssistantMsg := parsedToolResp.NativeAssistantMsg
 		if parsedToolResp.ParseSource == ToolCallParseSourceNative {

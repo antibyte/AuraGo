@@ -219,6 +219,9 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			}
 			return openai.ChatCompletionResponse{}, err
 		}
+		if IsContextLimitError(err) {
+			return openai.ChatCompletionResponse{}, err
+		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
 			reportProviderError(client, req, "chat_completion", err, attempt+1, false, timeout)
@@ -352,6 +355,9 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 					"tools", len(req.Tools),
 				)
 			}
+			return nil, noCancel, err
+		}
+		if IsContextLimitError(err) {
 			return nil, noCancel, err
 		}
 

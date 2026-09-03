@@ -2,6 +2,7 @@ package agent
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -320,6 +321,33 @@ func TestRecoverFrom422TreatsInvalidFunctionArgs400AsRecoverable(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected retry count to increment, got %d", count)
+	}
+}
+
+func TestRecoverFromProviderContextLimitKeepsIntentAndTwoToolRounds(t *testing.T) {
+	req := openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+		{Role: openai.ChatMessageRoleUser, Content: "old request"},
+		{Role: openai.ChatMessageRoleAssistant, Content: strings.Repeat("old history ", 100)},
+		{Role: openai.ChatMessageRoleUser, Content: "current request"},
+	}}
+	for i := 0; i < 3; i++ {
+		id := fmt.Sprintf("call-%d", i)
+		req.Messages = append(req.Messages,
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{ID: id, Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "test", Arguments: `{}`}}}},
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleTool, ToolCallID: id, Content: "result"},
+		)
+	}
+	count := 0
+	recovered, err := recoverFrom422(errors.New("status 400: Requested token count exceeds the model's maximum context length"), &count, &req, nil, nil, "Sync", AgentTelemetryScope{})
+	if err != nil || !recovered || count != 1 {
+		t.Fatalf("recovered=%v count=%d err=%v", recovered, count, err)
+	}
+	if len(req.Messages) != 6 || req.Messages[1].Content != "current request" {
+		t.Fatalf("unexpected recovery messages: %#v", req.Messages)
+	}
+	if req.Messages[2].ToolCalls[0].ID != "call-1" || req.Messages[4].ToolCalls[0].ID != "call-2" {
+		t.Fatalf("latest two tool rounds were not preserved: %#v", req.Messages)
 	}
 }
 

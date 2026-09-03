@@ -283,13 +283,16 @@ func compressPersistentHistory(
 		if logger != nil {
 			logger.Warn("[Compression] Persistent summary failed", "error", err)
 		}
+		recordHistoryCompressionFailure(runCfg)
 		return result
 	}
-	if len(response.Choices) == 0 {
+	if len(response.Choices) == 0 || response.Choices[0].FinishReason == openai.FinishReasonLength {
+		recordHistoryCompressionFailure(runCfg)
 		return result
 	}
 	summary := strings.TrimSpace(response.Choices[0].Message.Content)
-	if summary == "" {
+	if summary == "" || prompts.CountTokensForModel(summary, model) > historySummaryMaxTokens {
+		recordHistoryCompressionFailure(runCfg)
 		return result
 	}
 	requestedIDs := make([]int64, 0, len(selected))
@@ -323,6 +326,7 @@ func compressPersistentHistory(
 	}
 	result.Compressed = true
 	result.Summary = summary
+	resolveHistoryCompressionFailure(runCfg)
 	if logger != nil {
 		logger.Info("[Compression] Persistent history compressed", "dropped_messages", len(result.Dropped), "summary_tokens", prompts.CountTokensForModel(summary, model))
 	}
@@ -342,7 +346,7 @@ func buildPersistentHistorySummaryPrompt(existingSummary string, messages []memo
 		_, _ = fmt.Fprintf(&transcript, "[%s]: %s\n\n", message.Role, content)
 	}
 	return buildSafeConversationSummaryPrompt(
-		"Update the persistent summary with the recent messages. Preserve chronological facts, technical decisions, user preferences, tool outcomes, and pending actions. Output only a concise briefing.",
+		"Update the bounded persistent recap with these headings when applicable: Decisions, Fixed requirements, Open work, Errors, Results, References. Preserve chronology, identifiers, user preferences, tool outcomes, and output references. Output only the recap.",
 		transcript.String(),
 	)
 }

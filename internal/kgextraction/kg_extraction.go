@@ -40,7 +40,7 @@ func ExtractKGFromTextWithContext(ctx context.Context, cfg *config.Config, logge
 		return nil, nil, fmt.Errorf("input text too short for extraction")
 	}
 
-	buildPrompt := func(text string) string {
+	buildPrompt := func(text string, maxNodes, maxEdges int) string {
 		return fmt.Sprintf(`Extract entities and relationships from this conversation.
 Return ONLY valid JSON with this exact structure:
 {
@@ -55,7 +55,7 @@ Rules:
 - Extract only clear, factual entities.
 - Vocabulary for types: person, device, service, software, location, project, concept, event, file, tool.
 - Vocabulary for relationships: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in.
-- Limit to highly relevant facts. Maximum 15 nodes and 20 edges.
+- Limit to highly relevant facts. Maximum %d nodes and %d edges.
 
 Example:
 Excerpt: "I installed adguard on my truenas server at 192.168.1.5"
@@ -71,7 +71,7 @@ JSON:
 }
 
 Inputs:
-%s%s`, existingNodesString, text)
+%s%s`, maxNodes, maxEdges, existingNodesString, text)
 	}
 
 	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
@@ -95,12 +95,12 @@ Inputs:
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		attemptInput := inputText
+		maxNodes, maxEdges := 15, 20
 		if attempt == 1 {
 			runes := []rune(attemptInput)
-			if len(runes) > 1200 {
-				runes = runes[:max(1200, len(runes)/2)]
-				attemptInput = string(runes)
-			}
+			retryLen := min(4000, len(runes)/2)
+			attemptInput = string(runes[:retryLen])
+			maxNodes, maxEdges = 6, 8
 		}
 		resp, err := llm.ExecuteWithRetry(
 			kgCtx,
@@ -109,7 +109,7 @@ Inputs:
 				Model: kgModel,
 				Messages: []openai.ChatCompletionMessage{
 					{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
-					{Role: openai.ChatMessageRoleUser, Content: buildPrompt(attemptInput)},
+					{Role: openai.ChatMessageRoleUser, Content: buildPrompt(attemptInput, maxNodes, maxEdges)},
 				},
 				MaxTokens:      1500,
 				ResponseFormat: llm.JSONResponseFormat(structured),

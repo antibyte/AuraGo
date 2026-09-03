@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sashabaranov/go-openai"
-
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
@@ -337,7 +335,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeQueryMemory(tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
+			result, err := executeQueryMemory(tc, dc.SessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"query_memory failed: %v"}`, err)
 			}
@@ -347,7 +345,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeRecallMemory(tc, longTermMem)
+			result, err := executeRecallMemory(tc, dc.SessionID, shortTermMem, longTermMem)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"recall_memory failed: %v"}`, err)
 			}
@@ -357,7 +355,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeContextMemoryQuery(tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
+			result, err := executeContextMemoryQuery(tc, dc.SessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"context_memory failed: %v"}`, err)
 			}
@@ -800,54 +798,22 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				bStat := dc.BudgetTracker.GetStatusJSON()
 				return fmt.Sprintf(`Tool Output: {"status": "success", "messages_count": %d, "total_chars": %d, "budget": %s}`, len(msgs), dc.HistoryMgr.TotalChars(), bStat)
 			case "compact":
+				if dc.Cfg == nil || dc.LLMClient == nil || dc.ShortTermMem == nil {
+					return `Tool Output: {"status": "error", "message": "Persistent context compression is unavailable."}`
+				}
 				msgs := dc.HistoryMgr.GetAll()
 				if len(msgs) < 4 {
 					return `Tool Output: {"status": "error", "message": "Not enough messages to compact."}`
 				}
-
-				toCompact := len(msgs) / 2
-				var transcript strings.Builder
-				var idsToDrop []int64
-				for i := 0; i < toCompact; i++ {
-					m := msgs[i]
-					if m.Pinned {
-						continue
-					}
-					transcript.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, m.Content))
-					idsToDrop = append(idsToDrop, m.ID)
+				client, model := resolveHelperBackedLLM(dc.Cfg, dc.LLMClient, dc.Cfg.LLM.Model)
+				result := compressPersistentHistory(ctx, RunConfig{
+					Config: dc.Cfg, Logger: dc.Logger, LLMClient: dc.LLMClient,
+					ShortTermMem: dc.ShortTermMem, HistoryManager: dc.HistoryMgr, SessionID: dc.SessionID,
+				}, 0, dc.HistoryMgr.TotalChars()/2, true, model, client, dc.Logger)
+				if !result.Compressed {
+					return `Tool Output: {"status": "error", "message": "Conversation could not be compacted safely."}`
 				}
-
-				if len(idsToDrop) == 0 {
-					return `Tool Output: {"status": "error", "message": "No unpinned messages to compact."}`
-				}
-
-				prompt := buildSafeConversationSummaryPrompt(
-					"Compress this conversation into a concise factual summary. Preserve key facts, tool results, decisions. Output ONLY the summary.",
-					transcript.String(),
-				)
-				llmReq := openai.ChatCompletionRequest{
-					Model: dc.Cfg.LLM.Model,
-					Messages: []openai.ChatCompletionMessage{
-						{Role: openai.ChatMessageRoleUser, Content: prompt},
-					},
-					MaxTokens:   500,
-					Temperature: 0.2,
-				}
-
-				resp, err := dc.LLMClient.CreateChatCompletion(ctx, llmReq)
-				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Summarization failed: %v"}`, err)
-				}
-
-				summary := resp.Choices[0].Message.Content
-				oldSummary := dc.HistoryMgr.GetSummary()
-				if oldSummary != "" {
-					summary = oldSummary + "\n" + summary
-				}
-				dc.HistoryMgr.SetSummary(summary)
-				dc.HistoryMgr.DropMessages(idsToDrop)
-
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Compacted %d messages into summary."}`, len(idsToDrop))
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Compacted %d messages into summary."}`, len(result.Dropped))
 			case "drop":
 				msgs := dc.HistoryMgr.GetAll()
 				if req.Index < 0 || req.Index >= len(msgs) {

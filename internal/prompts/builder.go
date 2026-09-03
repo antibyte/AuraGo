@@ -2415,8 +2415,8 @@ func ensureTokenEncoderContext(ctx context.Context) tokenEncoder {
 }
 
 // tokenMultiplier returns a conservative model-specific safety margin.
-// Anthropic Claude and Google Gemini use different tokenizers than cl100k_base,
-// so applying a small upward correction avoids underestimating prompt budget use.
+// Providers that do not expose a local tokenizer can differ from cl100k_base,
+// so a small upward correction avoids underestimating prompt budget use.
 func tokenMultiplier(model string) float64 {
 	if model == "" {
 		return 1.0
@@ -2429,13 +2429,15 @@ func tokenMultiplier(model string) float64 {
 		return 1.10
 	case strings.Contains(lower, "deepseek"):
 		return 1.05
+	case strings.Contains(lower, "agnes"):
+		return 1.05
 	default:
 		return 1.0
 	}
 }
 
 // CountTokensForModel returns the estimated token count for a specific model.
-// For models that use different tokenizers than cl100k_base (Anthropic, Gemini),
+// For models that use different tokenizers than cl100k_base,
 // a correction multiplier is applied.
 func CountTokensForModel(text string, model string) int {
 	return CountTokensForModelContext(context.Background(), text, model)

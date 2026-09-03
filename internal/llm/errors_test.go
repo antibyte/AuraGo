@@ -117,6 +117,16 @@ func TestClassifyError_BadRequestNonRetryable(t *testing.T) {
 	}
 }
 
+func TestClassifyError_ContextLimitIsNotProviderConfiguration(t *testing.T) {
+	err := &openai.APIError{HTTPStatusCode: 400, Message: "Requested token count exceeds the model's maximum context length of 524288 tokens"}
+	if got := ClassifyError(err); got != ErrCategoryContextLimit {
+		t.Fatalf("ClassifyError(context limit) = %v, want %v", got, ErrCategoryContextLimit)
+	}
+	if !IsContextLimitError(err) {
+		t.Fatal("IsContextLimitError returned false")
+	}
+}
+
 func TestClassifyError_UnprocessableEntityNonRetryable(t *testing.T) {
 	// HTTP 422 is a structural payload error; same as 400 — no point retrying same payload.
 	apiErr := &openai.APIError{HTTPStatusCode: http.StatusUnprocessableEntity}

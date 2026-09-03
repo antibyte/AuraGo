@@ -105,6 +105,7 @@
   "backend.handler_followup_circuit_breaker": "Interruttore di follow-up attivato. Profondità ricorsione massima.",
   "backend.handler_timeout_error": "La richiesta è scaduta. Riprova o passa a un modello più veloce.",
   "backend.handler_sync_error": "Si è verificato un errore interno. Controllare i log del server.",
+  "backend.handler_tool_limit_final_response_invalid": "L'agente ha raggiunto il limite degli strumenti e ha richiesto un'altra azione invece di fornire una risposta finale. Non è stata eseguita alcuna altra azione. Riprova l'attività.",
   "backend.handler_context_budget_error": "La richiesta supera il limite di contesto del modello. Accorcia la conversazione o riduci gli strumenti attivati.",
   "backend.handler_llm_quota_error": "Il provider LLM ha rifiutato la richiesta perché la quota del modello o il rate limit è stato superato. Attendi un momento, riduci contesto/strumenti o cambia provider/modello.",
   "backend.handler_llm_auth_error": "Il provider LLM ha rifiutato l'autenticazione. Controlla la chiave API e i permessi dell'account.",

@@ -105,6 +105,7 @@
   "backend.handler_followup_circuit_breaker": "Follow-up strømbryter utløst. Maksimal rekursjonsdybde nådd.",
   "backend.handler_timeout_error": "Forespørselen fikk tidsavbrudd. Prøv igjen eller bytt til en raskere modell.",
   "backend.handler_sync_error": "Det oppstod en intern feil. Sjekk serverloggene for detaljer.",
+  "backend.handler_tool_limit_final_response_invalid": "Agenten nådde verktøygrensen og ba om en ny handling i stedet for et endelig svar. Ingen ytterligere handling ble utført. Prøv oppgaven på nytt.",
   "backend.handler_context_budget_error": "Forespørselen overskrider modellens kontekstgrense. Forkort samtalen eller reduser de aktiverte verktøyene.",
   "backend.handler_llm_quota_error": "LLM-leverandøren avviste forespørselen fordi modellkvoten eller hastighetsgrensen er overskredet. Vent litt, reduser kontekst/verktøy eller bytt leverandør/modell.",
   "backend.handler_llm_auth_error": "LLM-leverandøren avviste autentisering. Kontroller API-nøkkel og kontotillatelser.",

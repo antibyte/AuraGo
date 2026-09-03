@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -83,6 +84,32 @@ func TestWriteChatCompletionErrorResponseMarksAgentError(t *testing.T) {
 	}
 }
 
+func TestToolLimitFinalResponseErrorUsesLocalizedTypedTransport(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+	err := fmt.Errorf("wrapped: %w", agent.ErrToolLimitFinalResponseInvalid)
+
+	message := chatCompletionErrorMessage("de", err)
+	if !strings.Contains(message, "Werkzeuglimit") || strings.Contains(message, "tool_limit_final_response_invalid") {
+		t.Fatalf("localized message = %q", message)
+	}
+	syncRec := httptest.NewRecorder()
+	writeChatCompletionErrorResponse(syncRec, "session-tool-limit", message)
+	if syncRec.Header().Get("X-Aurago-Agent-Error") != "true" || strings.Contains(syncRec.Body.String(), "wrapped:") {
+		t.Fatalf("sync error response headers=%v body=%s", syncRec.Header(), syncRec.Body.String())
+	}
+
+	rec := httptest.NewRecorder()
+	broker := &streamedErrorCaptureBroker{}
+	emitStreamedAgentError(rec, rec, broker, "session-tool-limit", "de", err)
+	body := rec.Body.String()
+	if !strings.Contains(body, `"code":"tool_limit_final_response_invalid"`) || strings.Contains(body, "wrapped:") {
+		t.Fatalf("typed stream error = %s", body)
+	}
+	if broker.typed.Code != "tool_limit_final_response_invalid" || broker.typed.Status != http.StatusInternalServerError {
+		t.Fatalf("typed event = %+v", broker.typed)
+	}
+}
+
 func TestEmitStreamedContextBudgetErrorUsesErrorFrameAndTypedEvent(t *testing.T) {
 	i18n.Load(ui.Content, slog.Default())
 	rec := httptest.NewRecorder()
@@ -115,6 +142,21 @@ func TestEmitStreamedContextBudgetErrorUsesErrorFrameAndTypedEvent(t *testing.T)
 	var envelope map[string]interface{}
 	if err := json.Unmarshal([]byte(strings.TrimPrefix(frames[0], "data: ")), &envelope); err != nil {
 		t.Fatalf("invalid SSE JSON frame: %v", err)
+	}
+}
+
+func TestProviderContextLimitUsesContextErrorInsteadOfConfigWarning(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+	err := &openai.APIError{HTTPStatusCode: http.StatusBadRequest, Message: "Requested token count exceeds the model's maximum context length"}
+	message := chatCompletionErrorMessage("en", err)
+	if !strings.Contains(strings.ToLower(message), "context") || strings.Contains(strings.ToLower(message), "provider configuration") {
+		t.Fatalf("unexpected context-limit message: %q", message)
+	}
+	rec := httptest.NewRecorder()
+	broker := &streamedErrorCaptureBroker{}
+	emitStreamedAgentError(rec, rec, broker, "session-context", "en", err)
+	if broker.typed.Code != "context_budget_exceeded" || broker.typed.Status != http.StatusRequestEntityTooLarge {
+		t.Fatalf("typed event = %+v", broker.typed)
 	}
 }
 

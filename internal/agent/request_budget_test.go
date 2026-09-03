@@ -467,6 +467,105 @@ func TestRequestBudgetFiveMessagesFitWithoutTrimming(t *testing.T) {
 	}
 }
 
+func TestHistoryWorkingSetLimitUsesSmallestRouteAndClamp(t *testing.T) {
+	tests := []struct {
+		name   string
+		routes []llm.ModelRoute
+		want   int
+	}{
+		{"small model uses available capacity", []llm.ModelRoute{{Model: "small", ContextWindowOverride: 32768, MaxOutputTokensOverride: 4096}}, 32768 - 4096 - requestProtocolSafetyTokens},
+		{"128k model uses seventy percent", []llm.ModelRoute{{Model: "medium", ContextWindowOverride: 128000, MaxOutputTokensOverride: 4096}}, 89600},
+		{"Agnes sized model caps at 128k", []llm.ModelRoute{{Model: "agnes-2.5-flash", ContextWindowOverride: 524288, MaxOutputTokensOverride: 8192}}, 131072},
+		{"smaller failover wins", []llm.ModelRoute{
+			{Model: "large", ContextWindowOverride: 524288, MaxOutputTokensOverride: 8192, Primary: true},
+			{Model: "fallback", ContextWindowOverride: 100000, MaxOutputTokensOverride: 4096},
+		}, 70000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			budget, err := newRequestBudget(context.Background(), &config.Config{}, &budgetRouteClient{routes: tt.routes}, openai.ChatCompletionRequest{}, budgetTestLogger())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := budget.historyWorkingSetLimit("", nil, newTokenCountCache(64)); got != tt.want {
+				t.Fatalf("working history limit = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHistoryWorkingSetPreservesLargeCurrentRequestAndAtomicOldTurns(t *testing.T) {
+	budget, err := newRequestBudget(context.Background(), &config.Config{}, &budgetRouteClient{routes: []llm.ModelRoute{{
+		Model: "large", ContextWindowOverride: 524288, MaxOutputTokensOverride: 8192, Primary: true,
+	}}}, openai.ChatCompletionRequest{}, budgetTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := strings.Repeat("current attachment content ", 45000)
+	messages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: "system"}}
+	for i := 0; i < 20; i++ {
+		callID := fmt.Sprintf("old-%d", i)
+		messages = append(messages,
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: strings.Repeat("old request ", 1800)},
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{ID: callID, Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "test_tool", Arguments: `{}`}}}},
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleTool, ToolCallID: callID, Content: strings.Repeat("old result ", 1800)},
+		)
+	}
+	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: current})
+
+	trimmed, dropped, stats := budget.trimHistoryWorkingSet(messages, current, "system", nil, newTokenCountCache(2048))
+	if len(dropped) == 0 {
+		t.Fatal("expected older turns to be removed")
+	}
+	if got := messageText(trimmed[len(trimmed)-1]); got != strings.TrimSpace(current) {
+		t.Fatal("current request was changed or removed")
+	}
+	if stats.KeptTokens > stats.LimitTokens {
+		t.Fatalf("kept history = %d, limit = %d", stats.KeptTokens, stats.LimitTokens)
+	}
+	if _, droppedToolMessages := SanitizeToolMessages(trimmed); droppedToolMessages != 0 {
+		t.Fatalf("working-set trim split a tool group; sanitizer would drop %d messages", droppedToolMessages)
+	}
+}
+
+func TestHistoryWorkingSetNeverDropsTrustedSystemAddenda(t *testing.T) {
+	budget, err := newRequestBudget(context.Background(), &config.Config{}, &budgetRouteClient{routes: []llm.ModelRoute{{
+		Model: "route", ContextWindowOverride: 100000, MaxOutputTokensOverride: 4096,
+	}}}, openai.ChatCompletionRequest{}, budgetTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	trusted := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: strings.Repeat("trusted execution contract ", 4000)}
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "generated system"},
+		trusted,
+		{Role: openai.ChatMessageRoleSystem, Content: "[CONTEXT_RECAP]: " + strings.Repeat("old recap ", 60000)},
+		{Role: openai.ChatMessageRoleUser, Content: "current request"},
+	}
+	trimmed, dropped, _ := budget.trimHistoryWorkingSet(messages, "current request", "generated system", nil, newTokenCountCache(512))
+	if len(dropped) != 1 || dropped[0].Content == trusted.Content {
+		t.Fatalf("unexpected dropped messages: %#v", dropped)
+	}
+	found := false
+	for _, message := range trimmed {
+		found = found || message.Content == trusted.Content
+	}
+	if !found {
+		t.Fatal("trusted system addendum was dropped")
+	}
+}
+
+func TestCurrentUserMessageIndexDoesNotMistakeInternalFollowupForHumanIntent(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "human request"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "working"},
+		{Role: openai.ChatMessageRoleUser, Content: "CIRCUIT BREAKER: summarize now"},
+	}
+	if got := currentUserMessageIndex(messages, "human request"); got != 0 {
+		t.Fatalf("current user index=%d, want 0", got)
+	}
+}
+
 func budgetTestTool(name, description string) openai.Tool {
 	return openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{
 		Name: name, Description: description,

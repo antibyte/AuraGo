@@ -494,25 +494,28 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	ledger.finishPhase("agent_loop", false)
 }
 
-func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, logger *slog.Logger, phase string) bool {
+func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, logger *slog.Logger, operation string) bool {
 	if ctx == nil {
 		return false
 	}
 	if err := ctx.Err(); err != nil {
 		if logger != nil {
-			logger.Warn("[Maintenance] Stopping after context cancellation", "phase", phase, "error", err)
+			logger.Warn("[Maintenance] Stopping after context cancellation", "operation", operation, "error", err)
 		}
 		if ledger != nil {
-			ledger.addError(phase + ": " + err.Error())
-			if ledger.phaseDeferred(phase) == 0 {
-				ledger.addDeferred(phase, 1)
+			activePhase := ledger.currentPhase
+			ledger.addError(operation + ": " + err.Error())
+			if activePhase != "" {
+				if ledger.phaseDeferred(activePhase) == 0 {
+					ledger.addDeferred(activePhase, 1)
+				}
+				ledger.finishPhase(activePhase, true)
 			}
-			ledger.finishPhase(phase, true)
 		}
 		return true
 	}
 	if ledger != nil {
-		ledger.finishPhase(phase, false)
+		ledger.finishPhase(operation, false)
 	}
 	return false
 }

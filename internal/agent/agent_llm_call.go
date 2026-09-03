@@ -16,15 +16,16 @@ import (
 
 // streamingResponseResult holds the output of handleStreamingResponse.
 type streamingResponseResult struct {
-	resp             openai.ChatCompletionResponse
-	content          string
-	promptTokens     int
-	completionTokens int
-	totalTokens      int
-	tokenSource      string
-	contextCancelled bool
-	err              error
-	recoveryContinue bool
+	resp              openai.ChatCompletionResponse
+	content           string
+	promptTokens      int
+	completionTokens  int
+	totalTokens       int
+	tokenSource       string
+	contextCancelled  bool
+	err               error
+	recoveryContinue  bool
+	recoveredMessages []openai.ChatCompletionMessage
 }
 
 func shouldSuppressStreamedToolCallJSON(content string) bool {
@@ -178,6 +179,7 @@ func handleStreamingResponse(
 	telemetryScope AgentTelemetryScope,
 	cancelResp func(),
 	chunkIdleTimeout time.Duration,
+	retry422Count *int,
 ) streamingResponseResult {
 	streamAcct := streamingAccountingState{}
 	contextCancelled := false
@@ -193,8 +195,8 @@ func handleStreamingResponse(
 	if streamErr != nil {
 		cancelResp()
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
-		if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, streamErr, new(int), &req, currentLogger, broker, "Stream", telemetryScope); recovered {
-			return streamingResponseResult{recoveryContinue: true}
+		if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, streamErr, retry422Count, &req, currentLogger, broker, "Stream", telemetryScope); recovered {
+			return streamingResponseResult{recoveryContinue: true, recoveredMessages: req.Messages}
 		} else if recErr != nil {
 			return streamingResponseResult{err: recErr}
 		}
@@ -447,11 +449,12 @@ func handleStreamingResponse(
 
 // recoveryResult holds output of handleSyncLLMCall.
 type recoveryResult struct {
-	resp             openai.ChatCompletionResponse
-	content          string
-	err              error
-	telemetryScope   AgentTelemetryScope
-	recoveryContinue bool
+	resp              openai.ChatCompletionResponse
+	content           string
+	err               error
+	telemetryScope    AgentTelemetryScope
+	recoveryContinue  bool
+	recoveredMessages []openai.ChatCompletionMessage
 }
 
 // handleSyncLLMCall executes the non-streaming LLM call with retry and recovery.
@@ -473,7 +476,7 @@ func handleSyncLLMCall(
 			cancelResp()
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, err, retry422Count, &req, currentLogger, broker, "Sync", telemetryScope); recovered {
-				return recoveryResult{recoveryContinue: true, telemetryScope: telemetryScope}
+				return recoveryResult{recoveryContinue: true, recoveredMessages: req.Messages, telemetryScope: telemetryScope}
 			} else if recErr != nil {
 				return recoveryResult{err: recErr, telemetryScope: telemetryScope}
 			}
@@ -490,7 +493,7 @@ func handleSyncLLMCall(
 			cancelResp()
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, err, retry422Count, &req, currentLogger, broker, "Sync", telemetryScope); recovered {
-				return recoveryResult{recoveryContinue: true, telemetryScope: telemetryScope}
+				return recoveryResult{recoveryContinue: true, recoveredMessages: req.Messages, telemetryScope: telemetryScope}
 			} else if recErr != nil {
 				return recoveryResult{err: recErr, telemetryScope: telemetryScope}
 			}

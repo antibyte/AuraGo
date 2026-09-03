@@ -252,10 +252,81 @@ func (s *SQLiteMemory) InsertActivityTurn(turn ActivityTurn) (int64, error) {
 
 // SearchActivityTurnsInRange searches stored activity turns in an optional date window.
 func (s *SQLiteMemory) SearchActivityTurnsInRange(keyword, fromDate, toDate string, limit int) ([]ActivityTurn, error) {
+	return s.searchActivityTurns("", keyword, fromDate, toDate, limit)
+}
+
+// SearchSessionActivityTurns searches conversation summaries from one
+// server-bound session. An empty session never broadens the query.
+func (s *SQLiteMemory) SearchSessionActivityTurns(sessionID, keyword string, limit int) ([]ActivityTurn, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 4 {
+		limit = 4
+	}
+	query := activityFTSAnyQuery(keyword)
+	if query == "" {
+		return nil, nil
+	}
+	rows, err := s.db.Query(`
+		SELECT at.id, at.timestamp, at.date, at.session_id, at.channel, at.is_autonomous, at.user_relevant, at.status,
+			at.importance, at.intent, at.user_request, at.user_goal,
+			at.actions_taken_json, at.outcomes_json, at.important_points_json, at.pending_items_json,
+			at.tool_names_json, at.linked_journal_ids_json, at.linked_note_ids_json, at.linked_memory_ids_json, at.source
+		FROM activity_turns_fts fts
+		JOIN activity_turns at ON at.id = fts.rowid
+		WHERE at.session_id = ? AND activity_turns_fts MATCH ?
+		ORDER BY bm25(activity_turns_fts), at.timestamp DESC
+		LIMIT ?`, sessionID, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query session activity turns: %w", err)
+	}
+	defer rows.Close()
+	return scanActivityTurns(rows)
+}
+
+func activityFTSAnyQuery(keyword string) string {
+	terms := activitySearchTerms(keyword)
+	for i, term := range terms {
+		term = strings.ReplaceAll(term, `"`, `""`)
+		terms[i] = `"` + term + `"*`
+	}
+	return strings.Join(terms, " OR ")
+}
+
+// GetSessionActivityTurn resolves a short-lived conversation reference only
+// inside the server-bound session.
+func (s *SQLiteMemory) GetSessionActivityTurn(sessionID string, id int64) (ActivityTurn, error) {
+	if strings.TrimSpace(sessionID) == "" || id <= 0 {
+		return ActivityTurn{}, sql.ErrNoRows
+	}
+	rows, err := s.db.Query(`
+		SELECT id, timestamp, date, session_id, channel, is_autonomous, user_relevant, status,
+			importance, intent, user_request, user_goal,
+			actions_taken_json, outcomes_json, important_points_json, pending_items_json,
+			tool_names_json, linked_journal_ids_json, linked_note_ids_json, linked_memory_ids_json, source
+		FROM activity_turns WHERE session_id = ? AND id = ? LIMIT 1`, strings.TrimSpace(sessionID), id)
+	if err != nil {
+		return ActivityTurn{}, fmt.Errorf("query session activity turn: %w", err)
+	}
+	defer rows.Close()
+	turns, err := scanActivityTurns(rows)
+	if err != nil {
+		return ActivityTurn{}, err
+	}
+	if len(turns) == 0 {
+		return ActivityTurn{}, sql.ErrNoRows
+	}
+	return turns[0], nil
+}
+
+func (s *SQLiteMemory) searchActivityTurns(sessionID, keyword, fromDate, toDate string, limit int) ([]ActivityTurn, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 10
 	}
 	trimmedKeyword := strings.TrimSpace(keyword)
+	sessionID = strings.TrimSpace(sessionID)
 	var (
 		rows interface {
 			Close() error
@@ -275,10 +346,11 @@ func (s *SQLiteMemory) SearchActivityTurnsInRange(keyword, fromDate, toDate stri
 			JOIN activity_turns at ON at.id = fts.rowid
 			WHERE (? = '' OR at.date >= ?)
 			  AND (? = '' OR at.date <= ?)
+			  AND (? = '' OR at.session_id = ?)
 			  AND activity_turns_fts MATCH ?
 			ORDER BY at.date DESC, at.timestamp DESC
 			LIMIT ?`,
-			fromDate, fromDate, toDate, toDate,
+			fromDate, fromDate, toDate, toDate, sessionID, sessionID,
 			escapeFTS5(trimmedKeyword),
 			limit,
 		)
@@ -291,9 +363,10 @@ func (s *SQLiteMemory) SearchActivityTurnsInRange(keyword, fromDate, toDate stri
 			FROM activity_turns
 			WHERE (? = '' OR date >= ?)
 			  AND (? = '' OR date <= ?)
+			  AND (? = '' OR session_id = ?)
 			ORDER BY date DESC, timestamp DESC
 			LIMIT ?`,
-			fromDate, fromDate, toDate, toDate, limit,
+			fromDate, fromDate, toDate, toDate, sessionID, sessionID, limit,
 		)
 	}
 	if err != nil {

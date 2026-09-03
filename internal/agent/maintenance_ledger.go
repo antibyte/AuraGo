@@ -115,6 +115,7 @@ func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
 		return
 	}
 	now := time.Now()
+	matched := false
 	for i := range l.phaseResults.Phases {
 		phase := &l.phaseResults.Phases[i]
 		if phase.Name != name {
@@ -131,9 +132,12 @@ func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
 		default:
 			phase.Status = "completed"
 		}
+		matched = true
 		break
 	}
-	l.currentPhase = ""
+	if matched && l.currentPhase == name {
+		l.currentPhase = ""
+	}
 }
 
 var maintenanceErrorCodePattern = regexp.MustCompile(`[^a-z0-9_]+`)

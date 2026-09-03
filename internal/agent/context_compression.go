@@ -37,8 +37,8 @@ func summaryMaxTokensForCount(droppedMessages int) int {
 	if tokens < 80 {
 		tokens = 80
 	}
-	if tokens > 800 {
-		tokens = 800
+	if tokens > historySummaryMaxTokens {
+		tokens = historySummaryMaxTokens
 	}
 	return tokens
 }
@@ -157,7 +157,7 @@ func CompressHistory(
 	}
 
 	summaryPrompt := buildSafeConversationSummaryPrompt(
-		"Compress the following conversation excerpt into a concise factual summary. Preserve key decisions, tool results, facts learned, and action items. Omit greetings, filler, and redundant exchanges. Output ONLY the summary, no preamble.",
+		"Compress the conversation into a bounded factual recap with these headings when applicable: Decisions, Fixed requirements, Open work, Errors, Results, References. Preserve identifiers and output references. Omit greetings and repetition. Output only the recap.",
 		transcript.String(),
 	)
 
@@ -180,11 +180,11 @@ func CompressHistory(
 	}
 
 	summary := ""
-	if len(resp.Choices) > 0 {
+	if len(resp.Choices) > 0 && resp.Choices[0].FinishReason != openai.FinishReasonLength {
 		summary = strings.TrimSpace(resp.Choices[0].Message.Content)
 	}
-	if summary == "" {
-		logger.Warn("[Compression] LLM returned empty summary, skipping compression")
+	if summary == "" || prompts.CountTokensForModel(summary, model) > historySummaryMaxTokens {
+		logger.Warn("[Compression] LLM returned empty, truncated, or oversized summary; skipping compression")
 		return messages, lastCompressionMsg, result
 	}
 

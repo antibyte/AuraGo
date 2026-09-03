@@ -15,10 +15,11 @@ import (
 
 // mockChatClient implements llm.ChatClient for testing.
 type mockChatClient struct {
-	response string
-	err      error
-	lastReq  openai.ChatCompletionRequest
-	calls    int
+	response     string
+	finishReason openai.FinishReason
+	err          error
+	lastReq      openai.ChatCompletionRequest
+	calls        int
 }
 
 func (m *mockChatClient) CreateChatCompletion(_ context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
@@ -29,7 +30,7 @@ func (m *mockChatClient) CreateChatCompletion(_ context.Context, req openai.Chat
 	}
 	return openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
-			{Message: openai.ChatCompletionMessage{Content: m.response}},
+			{Message: openai.ChatCompletionMessage{Content: m.response}, FinishReason: m.finishReason},
 		},
 	}, nil
 }
@@ -242,6 +243,18 @@ func TestCompressHistory_LLMFailureFallback(t *testing.T) {
 	}
 }
 
+func TestCompressHistory_TruncatedSummaryFallback(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: "System"}}
+	for i := 0; i < 15; i++ {
+		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: strings.Repeat("history ", 40)})
+	}
+	client := &mockChatClient{response: "partial summary", finishReason: openai.FinishReasonLength}
+	result, _, res := CompressHistory(context.Background(), messages, 50, "test", client, 0, testLogger)
+	if res.Compressed || len(result) != len(messages) {
+		t.Fatal("truncated summary must not replace raw request history")
+	}
+}
+
 func TestIsToolError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -350,8 +363,9 @@ func TestSummaryMaxTokensForCount(t *testing.T) {
 		{"1 message", 1, 80, 80},
 		{"5 messages", 5, 150, 150},
 		{"10 messages", 10, 300, 300},
-		{"20 messages", 20, 600, 800},
-		{"50 messages", 50, 800, 800},
+		{"20 messages", 20, 600, historySummaryMaxTokens},
+		{"50 messages", 50, 1500, historySummaryMaxTokens},
+		{"large history", 1000, historySummaryMaxTokens, historySummaryMaxTokens},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

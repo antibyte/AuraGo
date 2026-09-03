@@ -148,6 +148,7 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 
 	aliases := map[string]string{
 		"activity":        "activity",
+		"conversation":    "conversation",
 		"journal":         "journal",
 		"episodic":        "episodic",
 		"notes":           "notes",
@@ -515,7 +516,7 @@ func firstMemoryQueryText(values ...string) string {
 	return ""
 }
 
-func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+func executeQueryMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
 	searchContent := tc.Content
 	if searchContent == "" {
 		searchContent = tc.Query
@@ -524,8 +525,8 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 		return `Tool Output: {"status": "error", "message": "'content' or 'query' (search query) is required"}`, nil
 	}
 
-	defaults := map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true}
-	sourceLabels := map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"}
+	defaults := map[string]bool{"conversation": true, "activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true}
+	sourceLabels := map[string]string{"conversation": "conversation", "activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"}
 
 	inventoryMode := isMemoryInventoryQuery(searchContent)
 	var bundle memorySearchBundle
@@ -546,6 +547,15 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 			true,
 			memory.TemporalQueryRange{},
 		)
+	}
+	if bundle.SourceMap["conversation"] && shortTermMem != nil && strings.TrimSpace(sessionID) != "" && !inventoryMode {
+		entries, err := shortTermMem.SearchSessionConversationEntries(sessionID, searchContent, tc.Limit)
+		if err != nil {
+			bundle.Errors = append(bundle.Errors, fmt.Sprintf("conversation: %v", err))
+		} else if len(entries) > 0 {
+			entries = scrubConversationEntries(entries, sessionID)
+			bundle.Results = append(bundle.Results, memorySourceResult{Source: "conversation", Count: len(entries), Data: entries})
+		}
 	}
 
 	if len(bundle.Results) == 0 && len(bundle.Errors) == 0 {
@@ -576,10 +586,7 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 	return "Tool Output: " + string(raw), nil
 }
 
-func executeRecallMemory(tc ToolCall, longTermMem memory.VectorDB) (string, error) {
-	if longTermMem == nil {
-		return `Tool Output: {"status":"error","message":"long-term memory unavailable"}`, nil
-	}
+func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB) (string, error) {
 	ids := memoryIDsFromToolCall(tc)
 	if len(ids) == 0 {
 		return `Tool Output: {"status":"error","message":"ids are required"}`, nil
@@ -594,6 +601,30 @@ func executeRecallMemory(tc ToolCall, longTermMem memory.VectorDB) (string, erro
 	results := make([]recalledMemory, 0, len(ids))
 	missing := make([]string, 0)
 	for _, id := range ids {
+		if strings.HasPrefix(id, "conversation:") {
+			if shortTermMem == nil {
+				missing = append(missing, id)
+				continue
+			}
+			entryID, ok := resolveConversationReference(sessionID, strings.TrimPrefix(id, "conversation:"))
+			if !ok {
+				missing = append(missing, id)
+				continue
+			}
+			entry, err := shortTermMem.GetSessionConversationEntry(sessionID, entryID)
+			if err != nil {
+				missing = append(missing, id)
+				continue
+			}
+			entry = scrubConversationEntry(entry)
+			encoded, _ := json.Marshal(entry)
+			results = append(results, recalledMemory{ID: id, Content: security.Scrub(string(encoded))})
+			continue
+		}
+		if longTermMem == nil {
+			missing = append(missing, id)
+			continue
+		}
 		content, err := longTermMem.GetByID(id)
 		if err != nil || strings.TrimSpace(content) == "" {
 			missing = append(missing, id)
@@ -770,7 +801,7 @@ func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
 	return "Tool Output: " + string(raw), nil
 }
 
-func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
 	if shortTermMem == nil && longTermMem == nil && kg == nil && plannerDB == nil && cheatsheetDB == nil {
 		return `Tool Output: {"status":"error","message":"short-term memory unavailable"}`, nil
 	}
@@ -804,7 +835,7 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 	}
 
 	sourceMap := normalizeMemorySourceMap(tc.Sources, map[string]bool{
-		"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true,
+		"conversation": true, "activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true,
 	})
 
 	results := make([]contextMemoryResult, 0, 20)
@@ -834,6 +865,16 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 					}
 				}
 				addResult("activity", "turn", entry.Intent+" | "+strings.Join(entry.Outcomes, " | "), entry.Date, "Captured turn summary", "", 0.95)
+			}
+		}
+	}
+	if sourceMap["conversation"] && shortTermMem != nil && strings.TrimSpace(sessionID) != "" {
+		if entries, err := shortTermMem.SearchSessionConversationEntries(sessionID, query, perSourceLimit); err == nil {
+			for _, entry := range entries {
+				ref := registerConversationReference(sessionID, entry.ID)
+				if ref != "" {
+					addResult("conversation", entry.Source, security.Scrub(entry.Content), entry.Timestamp, "Same-session conversation match", "conversation:"+ref, 0.98)
+				}
 			}
 		}
 	}
@@ -977,6 +1018,24 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		return "", fmt.Errorf("marshal context_memory response: %w", err)
 	}
 	return "Tool Output: " + string(raw), nil
+}
+
+func scrubConversationEntries(entries []memory.ConversationEntry, sessionID string) []memory.ConversationEntry {
+	out := make([]memory.ConversationEntry, len(entries))
+	for i, entry := range entries {
+		out[i] = scrubConversationEntry(entry)
+		if ref := registerConversationReference(sessionID, entry.ID); ref != "" {
+			out[i].ID = "conversation:" + ref
+		} else {
+			out[i].ID = ""
+		}
+	}
+	return out
+}
+
+func scrubConversationEntry(entry memory.ConversationEntry) memory.ConversationEntry {
+	entry.Content = security.Scrub(entry.Content)
+	return entry
 }
 
 func filterArchivedMemoryResults(results []string, docIDs []string, stm *memory.SQLiteMemory) []string {

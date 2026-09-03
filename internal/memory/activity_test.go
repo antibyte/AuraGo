@@ -3,6 +3,7 @@ package memory
 import (
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -61,6 +62,63 @@ func TestActivityOverviewBuildsFromTurnsAndNotes(t *testing.T) {
 	}
 	if len(overview.Entries) == 0 {
 		t.Fatal("expected recent entries")
+	}
+}
+
+func TestSessionActivitySearchAndLookupStaySessionBound(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	firstID, err := stm.InsertActivityTurn(ActivityTurn{Date: "2026-09-03", SessionID: "session-a", Intent: "repair lunar cache", Outcomes: []string{"fixed"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stm.InsertActivityTurn(ActivityTurn{Date: "2026-09-03", SessionID: "session-b", Intent: "repair lunar cache", Outcomes: []string{"other"}}); err != nil {
+		t.Fatal(err)
+	}
+	turns, err := stm.SearchSessionActivityTurns("session-a", "repair lunar", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(turns) != 1 || turns[0].SessionID != "session-a" {
+		t.Fatalf("session search leaked or missed rows: %#v", turns)
+	}
+	if _, err := stm.GetSessionActivityTurn("session-b", firstID); err == nil {
+		t.Fatal("cross-session activity lookup unexpectedly succeeded")
+	}
+	activeID, err := stm.InsertMessage("session-a", "assistant", "lunar cache active evidence", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archivedID, err := stm.InsertMessage("session-a", "assistant", "lunar cache archived evidence", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.DeleteMessagesByID("session-a", []int64{archivedID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stm.InsertMessage("session-b", "assistant", "lunar cache foreign evidence", false, false); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := stm.SearchSessionConversationEntries("session-a", "lunar cache", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, entry := range entries {
+		found[entry.Source] = true
+		if strings.Contains(entry.Content, "foreign") {
+			t.Fatalf("cross-session conversation search leaked: %#v", entries)
+		}
+	}
+	if !found["activity"] || !found["message"] || !found["archive"] {
+		t.Fatalf("conversation stores missing: %#v", entries)
+	}
+	if _, err := stm.GetSessionConversationEntry("session-b", "message:"+strconv.FormatInt(activeID, 10)); err == nil {
+		t.Fatal("cross-session message lookup unexpectedly succeeded")
 	}
 }
 

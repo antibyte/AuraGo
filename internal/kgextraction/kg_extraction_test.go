@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -162,6 +163,60 @@ func TestExtractKGFromText_Success(t *testing.T) {
 	}
 	if edges[0].Relation != "related_to" {
 		t.Errorf("edge relation = %q, want %q", edges[0].Relation, "related_to")
+	}
+}
+
+func TestExtractKGFromText_RetriesTruncatedResponseWithCompactRequest(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	client := &mockChatClient{responses: []openai.ChatCompletionResponse{
+		{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: `{"nodes":[`}, FinishReason: openai.FinishReasonLength}}},
+		{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: `{"nodes":[{"id":"compact","label":"Compact","properties":{"type":"concept"}}],"edges":[]}`}}}},
+	}}
+	input := strings.Repeat("§", 10000) + "TAIL_MARKER"
+
+	nodes, edges, err := ExtractKGFromText(cfg, slog.Default(), client, input, "")
+	if err != nil {
+		t.Fatalf("ExtractKGFromText: %v", err)
+	}
+	if len(nodes) != 1 || nodes[0].ID != "compact" || len(edges) != 0 {
+		t.Fatalf("result nodes=%#v edges=%#v", nodes, edges)
+	}
+	if len(client.requests) != 2 {
+		t.Fatalf("requests = %d, want 2", len(client.requests))
+	}
+	firstPrompt := client.requests[0].Messages[1].Content
+	secondPrompt := client.requests[1].Messages[1].Content
+	if !strings.Contains(firstPrompt, "Maximum 15 nodes and 20 edges") || !strings.Contains(firstPrompt, "TAIL_MARKER") {
+		t.Fatalf("first request was changed: %q", firstPrompt)
+	}
+	if !strings.Contains(secondPrompt, "Maximum 6 nodes and 8 edges") || strings.Contains(secondPrompt, "TAIL_MARKER") {
+		t.Fatalf("second request is not compact: %q", secondPrompt)
+	}
+	if got := strings.Count(secondPrompt, "§"); got != 4000 {
+		t.Fatalf("second input length = %d, want 4000", got)
+	}
+	for i, req := range client.requests {
+		if req.MaxTokens != 1500 {
+			t.Fatalf("request %d MaxTokens = %d, want 1500", i, req.MaxTokens)
+		}
+	}
+}
+
+func TestExtractKGFromText_StopsAfterTwoTruncatedResponses(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	truncated := openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
+		Message: openai.ChatCompletionMessage{Content: `{"nodes":[`}, FinishReason: openai.FinishReasonLength,
+	}}}
+	client := &mockChatClient{responses: []openai.ChatCompletionResponse{truncated, truncated}}
+
+	nodes, edges, err := ExtractKGFromText(cfg, slog.Default(), client, strings.Repeat("§", 10000), "")
+	if err == nil || nodes != nil || edges != nil {
+		t.Fatalf("result nodes=%#v edges=%#v err=%v, want atomic failure", nodes, edges, err)
+	}
+	if len(client.requests) != 2 {
+		t.Fatalf("requests = %d, want 2", len(client.requests))
 	}
 }
 
@@ -398,11 +453,17 @@ func TestExtractKGFromText_HelperLLMNotEnabled(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 type mockChatClient struct {
-	response openai.ChatCompletionResponse
-	err      error
+	response  openai.ChatCompletionResponse
+	responses []openai.ChatCompletionResponse
+	requests  []openai.ChatCompletionRequest
+	err       error
 }
 
-func (m *mockChatClient) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+func (m *mockChatClient) CreateChatCompletion(_ context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	m.requests = append(m.requests, req)
+	if len(m.responses) > 0 {
+		return m.responses[len(m.requests)-1], m.err
+	}
 	return m.response, m.err
 }
 

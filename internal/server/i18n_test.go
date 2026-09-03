@@ -128,6 +128,7 @@ func TestLoadI18NBackendKeys(t *testing.T) {
 		"backend.handler_followup_circuit_breaker",
 		"backend.handler_timeout_error",
 		"backend.handler_sync_error",
+		"backend.handler_tool_limit_final_response_invalid",
 		"backend.handler_llm_quota_error",
 		"backend.handler_llm_auth_error",
 		"backend.handler_llm_config_error",

@@ -2952,6 +2952,9 @@ func TestTokenMultiplierUsesConservativeModelMargins(t *testing.T) {
 	if tokenMultiplier("deepseek-chat") <= 1.0 {
 		t.Fatal("deepseek multiplier should be conservative")
 	}
+	if tokenMultiplier("agnes-2.5-flash") <= 1.0 {
+		t.Fatal("Agnes multiplier should be conservative")
+	}
 	if tokenMultiplier("gpt-4o") != 1.0 {
 		t.Fatal("gpt multiplier should stay at baseline")
 	}

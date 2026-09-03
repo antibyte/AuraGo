@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -93,6 +94,29 @@ func TestCompactHistoryToolRoundsIsolatesCompactedToolData(t *testing.T) {
 	}
 	if !strings.Contains(summary, "&lt;/external_data&gt;") {
 		t.Fatalf("expected nested external_data tag to be escaped:\n%s", summary)
+	}
+}
+
+func TestCompactHistoryTextToolRoundsKeepsLatestTwo(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "current request"}}
+	for i := 0; i < 4; i++ {
+		messages = append(messages,
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: fmt.Sprintf(`[TOOL_CALL]{"action":"test","n":%d}[/TOOL_CALL]`, i)},
+			openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: fmt.Sprintf("Tool Output: result %d", i)},
+		)
+	}
+	compacted, result := CompactHistoryTextToolRounds(messages, HistoryCompactionOptions{KeepRecentToolRoundsFull: 2})
+	if !result.Compacted || result.RoundsCompacted != 2 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	fullResults := 0
+	for _, message := range compacted {
+		if isTextModeToolResult(message) {
+			fullResults++
+		}
+	}
+	if fullResults != 2 {
+		t.Fatalf("full text tool results=%d, want 2", fullResults)
 	}
 }
 

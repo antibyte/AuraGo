@@ -65,6 +65,50 @@ func CompactHistoryToolRounds(messages []openai.ChatCompletionMessage, opts Hist
 	return compacted, result
 }
 
+// CompactHistoryTextToolRounds applies the same bounded representation to the
+// legacy text tool protocol while keeping its two newest rounds verbatim.
+func CompactHistoryTextToolRounds(messages []openai.ChatCompletionMessage, opts HistoryCompactionOptions) ([]openai.ChatCompletionMessage, HistoryCompactionResult) {
+	result := HistoryCompactionResult{}
+	keep := opts.KeepRecentToolRoundsFull
+	if keep < 0 {
+		keep = 0
+	}
+	type textRound struct{ start, end int }
+	var rounds []textRound
+	for i := 1; i < len(messages); i++ {
+		if isTextModeToolResult(messages[i]) && messages[i-1].Role == openai.ChatMessageRoleAssistant {
+			rounds = append(rounds, textRound{start: i - 1, end: i + 1})
+			i++
+		}
+	}
+	compactCount := len(rounds) - keep
+	if compactCount <= 0 {
+		return messages, result
+	}
+	byStart := make(map[int]textRound, compactCount)
+	for _, round := range rounds[:compactCount] {
+		byStart[round.start] = round
+	}
+	out := make([]openai.ChatCompletionMessage, 0, len(messages))
+	for i := 0; i < len(messages); {
+		if round, ok := byStart[i]; ok {
+			call := truncateUTF8ToLimit(messageText(messages[round.start]), 400, "...")
+			resultText := summarizeToolRoundResult(messageText(messages[round.end-1]))
+			out = append(out, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: strings.TrimSpace(
+				"[TaskStateSummary]\nCompacted older text tool round; untrusted context only.\nCall:\n" + isolateAgentPromptExternalData(call) + "\nResult:\n" + isolateAgentPromptExternalData(resultText),
+			)})
+			result.Compacted = true
+			result.RoundsCompacted++
+			result.MessagesDropped++
+			i = round.end
+			continue
+		}
+		out = append(out, messages[i])
+		i++
+	}
+	return out, result
+}
+
 func findCompleteNativeToolRounds(messages []openai.ChatCompletionMessage) []nativeToolRound {
 	var rounds []nativeToolRound
 	for i := 0; i < len(messages); i++ {

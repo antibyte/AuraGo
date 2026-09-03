@@ -73,3 +73,47 @@ func TestMaintenanceContextClaimGateRequiresSeventyFiveSeconds(t *testing.T) {
 		t.Fatal("74-second deadline should defer the next claim")
 	}
 }
+
+func TestMaintenanceFinishPhaseMismatchKeepsActivePhase(t *testing.T) {
+	ledger := newMaintenanceRunLedger()
+	ledger.beginPhase("consolidation")
+	ledger.finishPhase("memory_maintenance", false)
+
+	if ledger.currentPhase != "consolidation" {
+		t.Fatalf("currentPhase = %q, want consolidation", ledger.currentPhase)
+	}
+	if got := ledger.results().Phases[0].Status; got != "running" {
+		t.Fatalf("phase status = %q, want running", got)
+	}
+}
+
+func TestMaintenanceContextTimeoutClosesActiveLedgerPhase(t *testing.T) {
+	for _, tt := range []struct {
+		phase     string
+		operation string
+	}{
+		{phase: "consolidation", operation: "memory_maintenance"},
+		{phase: "agent_loop", operation: "skill_quality"},
+	} {
+		t.Run(tt.operation, func(t *testing.T) {
+			ledger := newMaintenanceRunLedger()
+			ledger.beginPhase(tt.phase)
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			if !maintenanceContextDone(ctx, ledger, nil, tt.operation) {
+				t.Fatal("maintenanceContextDone = false, want true")
+			}
+			results := ledger.results()
+			if ledger.currentPhase != "" || ledger.status() != "partial" {
+				t.Fatalf("currentPhase=%q status=%q", ledger.currentPhase, ledger.status())
+			}
+			if results.Deferred != 1 || len(results.Phases) != 1 || results.Phases[0].Deferred != 1 || results.Phases[0].Status != "partial" {
+				t.Fatalf("results = %#v", results)
+			}
+			if len(results.Phases[0].ErrorCodes) != 1 || results.Phases[0].ErrorCodes[0] != tt.operation {
+				t.Fatalf("phase error codes = %#v, want %q", results.Phases[0].ErrorCodes, tt.operation)
+			}
+		})
+	}
+}

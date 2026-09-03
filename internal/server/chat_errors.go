@@ -1,13 +1,13 @@
 package server
 
 import (
-	"aurago/internal/agent"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 
@@ -18,7 +18,9 @@ func chatCompletionErrorMessage(lang string, err error) string {
 	switch {
 	case err == nil:
 		return i18n.T(lang, "backend.handler_sync_error")
-	case agent.IsContextBudgetExceeded(err):
+	case agent.IsToolLimitFinalResponseInvalid(err):
+		return i18n.T(lang, "backend.handler_tool_limit_final_response_invalid")
+	case agent.IsContextBudgetExceeded(err) || llm.IsContextLimitError(err):
 		return i18n.T(lang, "backend.handler_context_budget_error")
 	case llm.IsImageNotSupportedError(err):
 		return i18n.T(lang, "backend.handler_image_not_supported")
@@ -57,7 +59,9 @@ func emitStreamedAgentError(w http.ResponseWriter, flusher http.Flusher, broker 
 	message := chatCompletionErrorMessage(lang, err)
 	code := "agent_execution_failed"
 	status := http.StatusInternalServerError
-	if agent.IsContextBudgetExceeded(err) {
+	if agent.IsToolLimitFinalResponseInvalid(err) {
+		code = "tool_limit_final_response_invalid"
+	} else if agent.IsContextBudgetExceeded(err) || llm.IsContextLimitError(err) {
 		code = "context_budget_exceeded"
 		status = http.StatusRequestEntityTooLarge
 	}

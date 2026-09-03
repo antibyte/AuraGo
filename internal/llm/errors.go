@@ -15,6 +15,7 @@ type ErrorCategory string
 const (
 	ErrCategoryContextCanceled    ErrorCategory = "context_canceled"
 	ErrCategoryContextDeadline    ErrorCategory = "context_deadline"
+	ErrCategoryContextLimit       ErrorCategory = "context_limit"
 	ErrCategoryNonRetryableConfig ErrorCategory = "non_retryable_config"
 	ErrCategoryAuthError          ErrorCategory = "auth_error"
 	ErrCategoryRateLimit          ErrorCategory = "rate_limit"
@@ -71,6 +72,9 @@ func ClassifyError(err error) ErrorCategory {
 	}
 
 	msg := strings.ToLower(err.Error())
+	if isContextLimitByString(msg) {
+		return ErrCategoryContextLimit
+	}
 	if isQuotaExceededByString(msg) {
 		return ErrCategoryQuotaExceeded
 	}
@@ -89,6 +93,9 @@ func ClassifyError(err error) ErrorCategory {
 }
 
 func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
+	if isContextLimitByString(strings.ToLower(errMsg)) {
+		return ErrCategoryContextLimit
+	}
 	if statusCode == http.StatusTooManyRequests && isQuotaExceededByString(strings.ToLower(errMsg)) {
 		return ErrCategoryQuotaExceeded
 	}
@@ -117,6 +124,16 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 	}
 }
 
+func isContextLimitByString(message string) bool {
+	return strings.Contains(message, "maximum context length") ||
+		strings.Contains(message, "context length exceeded") ||
+		strings.Contains(message, "requested token count exceeds")
+}
+
+func IsContextLimitError(err error) bool {
+	return err != nil && ClassifyError(err) == ErrCategoryContextLimit
+}
+
 func IsContextError(err error) bool {
 	if err == nil {
 		return false
@@ -142,7 +159,7 @@ func IsRetryable(err error) bool {
 	switch cat {
 	case ErrCategoryContextCanceled, ErrCategoryContextDeadline:
 		return false
-	case ErrCategoryNonRetryableConfig, ErrCategoryAuthError, ErrCategoryQuotaExceeded:
+	case ErrCategoryContextLimit, ErrCategoryNonRetryableConfig, ErrCategoryAuthError, ErrCategoryQuotaExceeded:
 		return false
 	case ErrCategoryRateLimit, ErrCategoryTemporaryTransport, ErrCategoryProviderValidation:
 		return true

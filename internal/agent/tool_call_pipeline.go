@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"aurago/internal/llm"
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
@@ -233,12 +234,21 @@ func recoverFrom422(err error, retryCount *int, req *openai.ChatCompletionReques
 }
 
 func recoverFrom422WithPolicy(policy RecoveryPolicy, err error, retryCount *int, req *openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackBroker, path string, scope AgentTelemetryScope) (bool, error) {
-	if !isUnprocessableProviderError(err) {
+	contextLimit := llm.IsContextLimitError(err)
+	if !contextLimit && !isUnprocessableProviderError(err) {
 		return false, nil
 	}
 	*retryCount = *retryCount + 1
-	RecordToolRecoveryEventForScope(scope, "provider_422_recovered")
-	if *retryCount > policy.maxProvider422Recoveries() {
+	event := "provider_422_recovered"
+	if contextLimit {
+		event = "provider_context_limit_recovered"
+	}
+	RecordToolRecoveryEventForScope(scope, event)
+	maxRecoveries := policy.maxProvider422Recoveries()
+	if contextLimit {
+		maxRecoveries = 1
+	}
+	if *retryCount > maxRecoveries {
 		RecordToolRecoveryEventForScope(scope, "provider_422_aborted")
 		if logger != nil {
 			logger.Error("["+path+"] Provider tool-call recovery retry limit reached — aborting", "attempts", *retryCount)
@@ -246,14 +256,20 @@ func recoverFrom422WithPolicy(policy RecoveryPolicy, err error, retryCount *int,
 		return false, fmt.Errorf("provider tool-call recovery retry limit exceeded after %d attempts: %w", *retryCount, err)
 	}
 	if logger != nil {
-		logger.Warn("["+path+"] Provider rejected tool-call history — trimming malformed history", "error", err, "attempt", *retryCount)
+		logger.Warn("["+path+"] Provider rejected request context — trimming carried history", "error", err, "attempt", *retryCount, "context_limit", contextLimit)
 	}
 	if broker != nil {
 		broker.Send("thinking", "Context error recovered — retrying...")
 	}
 	beforeTrim := req.Messages
-	req.Messages = trim422Messages(req.Messages)
-	trimSummary := summarizeRecoveryTrim("provider_422", beforeTrim, req.Messages)
+	trigger := "provider_422"
+	if contextLimit {
+		req.Messages = providerContextRetryMessages(req.Messages)
+		trigger = "provider_context_limit"
+	} else {
+		req.Messages = trim422Messages(req.Messages)
+	}
+	trimSummary := summarizeRecoveryTrim(trigger, beforeTrim, req.Messages)
 	if logger != nil {
 		logger.Info("["+path+"] Context trimmed after 422, retrying",
 			"attempt", *retryCount,
@@ -265,6 +281,40 @@ func recoverFrom422WithPolicy(policy RecoveryPolicy, err error, retryCount *int,
 			"preserved_latest_tool_result", trimSummary.PreservedLatestToolResult)
 	}
 	return true, nil
+}
+
+func providerContextRetryMessages(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	if len(messages) == 0 {
+		return nil
+	}
+	keep := make([]bool, len(messages))
+	if messages[0].Role == openai.ChatMessageRoleSystem {
+		keep[0] = true
+	}
+	currentUser := latestGenuineUserIndex(messages)
+	if currentUser >= 0 {
+		keep[currentUser] = true
+	}
+	rounds := findCompleteNativeToolRounds(messages)
+	start := len(rounds) - 2
+	if start < 0 {
+		start = 0
+	}
+	for _, round := range rounds[start:] {
+		if round.start <= currentUser {
+			continue
+		}
+		for i := round.start; i < round.end; i++ {
+			keep[i] = true
+		}
+	}
+	out := make([]openai.ChatCompletionMessage, 0, len(messages))
+	for i, message := range messages {
+		if keep[i] {
+			out = append(out, message)
+		}
+	}
+	return out
 }
 
 func trimMessagesForEmptyResponse(msgs []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {

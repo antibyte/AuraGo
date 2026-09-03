@@ -105,6 +105,7 @@
   "backend.handler_followup_circuit_breaker": "フォローアップサーキットブレーカーが作動。最大再帰深度に達しました。",
   "backend.handler_timeout_error": "リクエストがタイムアウトしました。再試行するか、より高速なモデルに切り替えてください。",
   "backend.handler_sync_error": "内部エラーが発生しました。詳細はサーバーログを確認してください。",
+  "backend.handler_tool_limit_final_response_invalid": "エージェントはツール上限に達した後、最終回答ではなく別の操作を要求しました。追加の操作は実行されていません。タスクを再試行してください。",
   "backend.handler_context_budget_error": "リクエストがモデルのコンテキスト上限を超えています。会話を短くするか、有効なツールを減らしてください。",
   "backend.handler_llm_quota_error": "LLMプロバイダーが、モデルのクォータまたはレート制限超過のためリクエストを拒否しました。少し待つか、コンテキスト/ツールを減らすか、プロバイダー/モデルを変更してください。",
   "backend.handler_llm_auth_error": "LLMプロバイダーが認証を拒否しました。APIキーとアカウント権限を確認してください。",

@@ -19,7 +19,19 @@ const (
 	requestProtocolSafetyTokens = 256
 	minimumSystemPromptTokens   = 500
 	minimumRecentMessages       = 4
+	historyWorkingSetMinTokens  = 64 * 1024
+	historyWorkingSetMaxTokens  = 128 * 1024
+	historyWorkingSetPercent    = 70
+	historySummaryMaxTokens     = 8 * 1024
 )
+
+type historyWorkingSetStats struct {
+	LimitTokens   int
+	CurrentTokens int
+	KeptTokens    int
+	SummaryTokens int
+	DroppedTokens int
+}
 
 // RequestRouteBudget contains the effective model limits for one route.
 type RequestRouteBudget struct {
@@ -270,7 +282,7 @@ func minimumRequestMessages(messages []openai.ChatCompletionMessage) []openai.Ch
 	groups := buildConversationGroups(messages)
 	keep := make([]bool, len(messages))
 	for i, message := range messages {
-		if message.Role == openai.ChatMessageRoleSystem {
+		if message.Role == openai.ChatMessageRoleSystem && !isSheddableHistorySystem(message) {
 			keep[i] = true
 		}
 	}
@@ -359,6 +371,246 @@ func (b *RequestBudget) historyBudget(systemPrompt string, tools []openai.Tool, 
 		return 0
 	}
 	return best
+}
+
+func (b *RequestBudget) historyWorkingSetLimit(systemPrompt string, tools []openai.Tool, cache *tokenCountCache) int {
+	available := b.historyBudget(systemPrompt, tools, cache)
+	limit := available
+	for _, route := range b.Routes {
+		routeLimit := route.Limits.ContextWindow * historyWorkingSetPercent / 100
+		if routeLimit < historyWorkingSetMinTokens {
+			routeLimit = historyWorkingSetMinTokens
+		}
+		if routeLimit > historyWorkingSetMaxTokens {
+			routeLimit = historyWorkingSetMaxTokens
+		}
+		if routeLimit < limit {
+			limit = routeLimit
+		}
+	}
+	if limit < 0 {
+		return 0
+	}
+	return limit
+}
+
+func (b *RequestBudget) historyWorkingSetLimitForMessages(messages []openai.ChatCompletionMessage, currentUser int, systemPrompt string, tools []openai.Tool, cache *tokenCountCache) int {
+	best := int(^uint(0) >> 1)
+	encoded, _ := json.Marshal(tools)
+	for _, route := range b.Routes {
+		model := route.Limits.Route.Model
+		available := b.inputLimit(route.Limits)
+		if systemPrompt != "" {
+			available -= cache.Count(systemPrompt, model) + 4
+		}
+		if len(tools) > 0 {
+			available -= cache.Count(string(encoded), model)
+		}
+		if currentUser >= 0 && currentUser < len(messages) {
+			available -= cache.Count(messageTextWithReasoningForAccounting(messages[currentUser]), model) + 4
+		}
+		available -= fixedSystemAddendaTokens(messages, model, cache)
+		limit := route.Limits.ContextWindow * historyWorkingSetPercent / 100
+		if limit < historyWorkingSetMinTokens {
+			limit = historyWorkingSetMinTokens
+		}
+		if limit > historyWorkingSetMaxTokens {
+			limit = historyWorkingSetMaxTokens
+		}
+		if available < limit {
+			limit = available
+		}
+		if limit < best {
+			best = limit
+		}
+	}
+	if best < 0 {
+		return 0
+	}
+	return best
+}
+
+// trimHistoryWorkingSet bounds carried conversation state independently from
+// the current human request. Older complete turns and compact summaries are
+// removable; the current request and its two newest native tool rounds remain
+// intact even when they alone make the request impossible.
+func (b *RequestBudget) trimHistoryWorkingSet(messages []openai.ChatCompletionMessage, currentUserText, systemPrompt string, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, historyWorkingSetStats) {
+	working := append([]openai.ChatCompletionMessage(nil), messages...)
+	currentUser := currentUserMessageIndex(working, currentUserText)
+	stats := historyWorkingSetStats{LimitTokens: b.historyWorkingSetLimitForMessages(working, currentUser, systemPrompt, tools, cache)}
+	if len(working) == 0 {
+		return working, nil, stats
+	}
+	stats.CurrentTokens = b.maxMessageTokensAt(working, currentUser, cache)
+	stats.KeptTokens = b.maxCarriedHistoryTokens(working, currentUser, cache)
+	if b.historyWorkingSetFits(working, currentUser, systemPrompt, tools, cache) {
+		stats.SummaryTokens = b.maxSummaryTokens(working, cache)
+		return working, nil, stats
+	}
+
+	groups := buildConversationGroups(working)
+	var dropped []openai.ChatCompletionMessage
+	for len(groups) > 1 && !b.historyWorkingSetFits(working, currentUserMessageIndex(working, currentUserText), systemPrompt, tools, cache) {
+		currentUser = currentUserMessageIndex(working, currentUserText)
+		candidate := -1
+		for i, group := range groups {
+			if group.end <= currentUser {
+				candidate = i
+				break
+			}
+		}
+		if candidate < 0 {
+			break
+		}
+		group := groups[candidate]
+		dropped = append(dropped, working[group.start:group.end]...)
+		working = append(append([]openai.ChatCompletionMessage(nil), working[:group.start]...), working[group.end:]...)
+		groups = buildConversationGroups(working)
+	}
+
+	// Compacted tool summaries and old recaps are system messages after the
+	// generated system prompt. They are history, not immutable policy.
+	for i := 1; i < len(working) && !b.historyWorkingSetFits(working, currentUserMessageIndex(working, currentUserText), systemPrompt, tools, cache); {
+		if !isSheddableHistorySystem(working[i]) {
+			i++
+			continue
+		}
+		dropped = append(dropped, working[i])
+		working = append(working[:i], working[i+1:]...)
+	}
+
+	currentUser = currentUserMessageIndex(working, currentUserText)
+	stats.DroppedTokens = b.maxMessagesTokens(dropped, cache)
+	stats.KeptTokens = b.maxCarriedHistoryTokens(working, currentUser, cache)
+	stats.SummaryTokens = b.maxSummaryTokens(working, cache)
+	return working, dropped, stats
+}
+
+func latestGenuineUserIndex(messages []openai.ChatCompletionMessage) int {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(messages[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+func currentUserMessageIndex(messages []openai.ChatCompletionMessage, currentUserText string) int {
+	wanted := strings.TrimSpace(currentUserText)
+	if wanted != "" {
+		for i := len(messages) - 1; i >= 0; i-- {
+			if messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(messages[i]) && strings.TrimSpace(messageText(messages[i])) == wanted {
+				return i
+			}
+		}
+	}
+	return latestGenuineUserIndex(messages)
+}
+
+func (b *RequestBudget) historyWorkingSetFits(messages []openai.ChatCompletionMessage, currentUser int, systemPrompt string, tools []openai.Tool, cache *tokenCountCache) bool {
+	for _, route := range b.Routes {
+		model := route.Limits.Route.Model
+		available := b.inputLimit(route.Limits)
+		if systemPrompt != "" {
+			available -= cache.Count(systemPrompt, model) + 4
+		}
+		if len(tools) > 0 {
+			encoded, _ := json.Marshal(tools)
+			available -= cache.Count(string(encoded), model)
+		}
+		if currentUser >= 0 && currentUser < len(messages) {
+			available -= cache.Count(messageTextWithReasoningForAccounting(messages[currentUser]), model) + 4
+		}
+		available -= fixedSystemAddendaTokens(messages, model, cache)
+		limit := route.Limits.ContextWindow * historyWorkingSetPercent / 100
+		if limit < historyWorkingSetMinTokens {
+			limit = historyWorkingSetMinTokens
+		}
+		if limit > historyWorkingSetMaxTokens {
+			limit = historyWorkingSetMaxTokens
+		}
+		if available < limit {
+			limit = available
+		}
+		if carriedHistoryTokensForModel(messages, currentUser, model, cache) > limit {
+			return false
+		}
+	}
+	return true
+}
+
+func carriedHistoryTokensForModel(messages []openai.ChatCompletionMessage, currentUser int, model string, cache *tokenCountCache) int {
+	total := 0
+	for i, message := range messages {
+		if i == currentUser || message.Role == openai.ChatMessageRoleSystem && (i == 0 || !isSheddableHistorySystem(message)) {
+			continue
+		}
+		total += cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+	}
+	return total
+}
+
+func (b *RequestBudget) maxCarriedHistoryTokens(messages []openai.ChatCompletionMessage, currentUser int, cache *tokenCountCache) int {
+	maxTokens := 0
+	for _, route := range b.Routes {
+		if tokens := carriedHistoryTokensForModel(messages, currentUser, route.Limits.Route.Model, cache); tokens > maxTokens {
+			maxTokens = tokens
+		}
+	}
+	return maxTokens
+}
+
+func (b *RequestBudget) maxMessageTokensAt(messages []openai.ChatCompletionMessage, index int, cache *tokenCountCache) int {
+	if index < 0 || index >= len(messages) {
+		return 0
+	}
+	return b.maxMessagesTokens(messages[index:index+1], cache)
+}
+
+func (b *RequestBudget) maxMessagesTokens(messages []openai.ChatCompletionMessage, cache *tokenCountCache) int {
+	maxTokens := 0
+	for _, route := range b.Routes {
+		total := 0
+		for _, message := range messages {
+			total += cache.Count(messageTextWithReasoningForAccounting(message), route.Limits.Route.Model) + 4
+		}
+		if total > maxTokens {
+			maxTokens = total
+		}
+	}
+	return maxTokens
+}
+
+func (b *RequestBudget) maxSummaryTokens(messages []openai.ChatCompletionMessage, cache *tokenCountCache) int {
+	summaries := make([]openai.ChatCompletionMessage, 0, 2)
+	for _, message := range messages {
+		if isSheddableHistorySystem(message) {
+			summaries = append(summaries, message)
+		}
+	}
+	return b.maxMessagesTokens(summaries, cache)
+}
+
+func isSheddableHistorySystem(message openai.ChatCompletionMessage) bool {
+	if message.Role != openai.ChatMessageRoleSystem {
+		return false
+	}
+	content := strings.TrimSpace(message.Content)
+	return strings.HasPrefix(content, "[CONTEXT_RECAP]:") ||
+		strings.HasPrefix(content, "[TRIMMED_CONTEXT_RECAP]:") ||
+		strings.HasPrefix(content, "[TaskStateSummary]") ||
+		strings.HasPrefix(content, "[RELEVANT_CONVERSATION_CONTEXT]")
+}
+
+func fixedSystemAddendaTokens(messages []openai.ChatCompletionMessage, model string, cache *tokenCountCache) int {
+	total := 0
+	for i, message := range messages {
+		if i == 0 || message.Role != openai.ChatMessageRoleSystem || isSheddableHistorySystem(message) {
+			continue
+		}
+		total += cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+	}
+	return total
 }
 
 func (b *RequestBudget) shedOptionalTools(messages []openai.ChatCompletionMessage, tools []openai.Tool, required map[string]bool, promptModel string, cache *tokenCountCache) ([]openai.Tool, []string, error) {
@@ -540,6 +792,36 @@ func appendRecapWithinBudget(budget *RequestBudget, messages []openai.ChatComple
 	candidate = append(candidate, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: recap})
 	candidate = append(candidate, messages[insertAt:]...)
 	if _, err := budget.validate(candidate, tools, cache); err != nil {
+		return messages
+	}
+	return candidate
+}
+
+func appendRecapWithinWorkingSet(budget *RequestBudget, messages []openai.ChatCompletionMessage, currentUserText, systemPrompt string, tools []openai.Tool, dropped []openai.ChatCompletionMessage, cache *tokenCountCache) []openai.ChatCompletionMessage {
+	if budget == nil || len(dropped) == 0 || len(messages) == 0 {
+		return messages
+	}
+	currentUser := currentUserMessageIndex(messages, currentUserText)
+	remaining := budget.historyWorkingSetLimitForMessages(messages, currentUser, systemPrompt, tools, cache) - budget.maxCarriedHistoryTokens(messages, currentUser, cache)
+	if remaining <= 4 {
+		return messages
+	}
+	if remaining > historySummaryMaxTokens {
+		remaining = historySummaryMaxTokens
+	}
+	recap := buildTrimmedContextRecap(dropped, remaining-4)
+	if recap == "" {
+		return messages
+	}
+	insertAt := 1
+	if insertAt > len(messages) {
+		insertAt = len(messages)
+	}
+	candidate := make([]openai.ChatCompletionMessage, 0, len(messages)+1)
+	candidate = append(candidate, messages[:insertAt]...)
+	candidate = append(candidate, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: recap})
+	candidate = append(candidate, messages[insertAt:]...)
+	if !budget.historyWorkingSetFits(candidate, currentUserMessageIndex(candidate, currentUserText), systemPrompt, tools, cache) {
 		return messages
 	}
 	return candidate

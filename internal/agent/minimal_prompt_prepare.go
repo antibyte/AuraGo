@@ -98,6 +98,12 @@ func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client l
 		logger.Warn("[PreSend] Sanitized orphaned tool messages before context trimming",
 			"dropped", droppedOrphans, "before", before, "after", len(sanitized))
 	}
+	currentUserText := ""
+	if index := latestGenuineUserIndex(req.Messages); index >= 0 {
+		currentUserText = messageText(req.Messages[index])
+	}
+	workingMessages, workingDropped, workingStats := budget.trimHistoryWorkingSet(req.Messages, currentUserText, promptResult.Text, req.Tools, tokenCache)
+	req.Messages = appendRecapWithinWorkingSet(budget, workingMessages, currentUserText, promptResult.Text, req.Tools, workingDropped, tokenCache)
 	trimmed, droppedHistory, err := budget.trimHistory(req.Messages, req.Tools, false, logger, tokenCache)
 	if err != nil {
 		return minimalPromptPreparation{}, err
@@ -130,6 +136,10 @@ func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client l
 			"system_tokens", usage.SystemTokens,
 			"schema_tokens", usage.SchemaTokens,
 			"history_tokens", usage.HistoryTokens,
+			"history_working_limit_tokens", workingStats.LimitTokens,
+			"current_request_tokens", workingStats.CurrentTokens,
+			"kept_history_tokens", budget.maxCarriedHistoryTokens(req.Messages, currentUserMessageIndex(req.Messages, currentUserText), tokenCache),
+			"summary_tokens", budget.maxSummaryTokens(req.Messages, tokenCache),
 			"output_tokens", usage.CompletionTokens,
 			"safety_tokens", usage.SafetyTokens,
 			"total_tokens", usage.TotalTokens)
