@@ -18,9 +18,9 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 		"justify-content: center;",
 		"gap: 8px;",
 		"border-radius: var(--ds-radius-sm);",
-		"border: 1px solid var(--vd-border, rgba(255,255,255,0.08));",
-		"background: var(--vd-surface-strong, rgba(0,0,0,0.25));",
-		"color: var(--vd-text, #e8ecf1);",
+		"border: 1px solid var(--vd-theme-border);",
+		"background: var(--vd-theme-control-bg);",
+		"color: var(--vd-text);",
 		"font-size: 12px;",
 		"font-weight: 700;",
 	} {
@@ -41,12 +41,12 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 		},
 		".vd-looper-start:hover:not(:disabled),\n.vd-looper-stop:hover:not(:disabled),\n.vd-looper-pause:hover:not(:disabled),\n.vd-looper-resume:hover:not(:disabled)": {
 			"border-color: var(--vd-looper-action-accent);",
-			"background: rgba(255,255,255,0.06);",
+			"background: var(--vd-theme-control-bg);",
 		},
 		".vd-looper-start:disabled,\n.vd-looper-stop:disabled,\n.vd-looper-pause:disabled,\n.vd-looper-resume:disabled": {
 			"cursor: not-allowed;",
-			"background: var(--vd-surface-strong, rgba(0,0,0,0.25));",
-			"border-color: var(--vd-border, rgba(255,255,255,0.08));",
+			"background: var(--vd-theme-control-bg);",
+			"border-color: var(--vd-theme-border);",
 		},
 	} {
 		block := desktopLooperCSSRuleBody(t, css, selector)

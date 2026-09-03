@@ -117,10 +117,10 @@ func TestDesktopCheaterStylesUseReadableDesktopScopedTokens(t *testing.T) {
 
 	css := readDesktopAssetText(t, "css/desktop-app-cheater.css")
 	for _, marker := range []string{
-		"--cheater-text: var(--ds-color-fg-primary",
-		"--cheater-muted: var(--ds-color-fg-muted",
-		"--cheater-surface: var(--ds-color-surface-1",
-		"--cheater-modal-surface: var(--ds-color-surface-3",
+		"--cheater-text: var(--vd-text",
+		"--cheater-muted: var(--vd-theme-muted",
+		"--cheater-surface: var(--vd-theme-app-bg",
+		"--cheater-modal-surface: var(--vd-theme-panel-bg-strong",
 		"background: var(--cheater-surface",
 		"color: var(--cheater-text",
 		".cheater-field input::placeholder",

@@ -83,6 +83,14 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-software-store.css", "var(--vd-theme-panel-bg)"},
 		{"css/desktop-app-gallery.css", ".vd-gallery-card"},
 		{"css/desktop-app-gallery.css", "var(--vd-theme-panel-bg)"},
+		{"css/desktop-chrome.css", ".vd-terminal-app"},
+		{"css/desktop-chrome.css", "var(--vd-theme-chrome-bg)"},
+		{"css/desktop-app-viewer.css", ".vd-viewer"},
+		{"css/desktop-app-viewer.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-looper.css", ".vd-looper"},
+		{"css/desktop-app-looper.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-cheater.css", ".cheater-app"},
+		{"css/desktop-app-cheater.css", "--cheater-surface: var(--vd-theme-app-bg)"},
 	} {
 		css := readDesktopAssetText(t, tc.file)
 		if !strings.Contains(css, tc.marker) {

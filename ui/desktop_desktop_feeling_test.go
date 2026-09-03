@@ -165,6 +165,10 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		"vd-space-hidden",
 		".vd-taskbar-thumbnail",
 		"--vd-theme-panel-bg-strong",
+		".vd-terminal-toolbar",
+		".vd-notes-toolbar",
+		"background: var(--vd-theme-chrome-bg);",
+		"background: #0f172a;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chrome css missing %q", want)

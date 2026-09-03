@@ -6,15 +6,15 @@
     height: 100%;
     overflow: hidden;
     font-size: 13px;
-    color: var(--vd-text, #e8ecf1);
-    background: var(--vd-surface, rgba(20,24,30,0.85));
+    color: var(--vd-text);
+    background: var(--vd-theme-app-bg);
 }
 
 /* ── Header / Toolbar ── */
 .vd-looper-header {
     padding: 10px 14px;
-    border-bottom: 1px solid var(--vd-border, rgba(255,255,255,0.06));
-    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-chrome-bg);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -30,7 +30,7 @@
 
 .vd-looper-header-group-config {
     padding-top: 6px;
-    border-top: 1px solid var(--vd-border, rgba(255,255,255,0.04));
+    border-top: 1px solid var(--vd-theme-border);
 }
 
 .vd-looper-field {
@@ -46,7 +46,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     white-space: normal;
     line-height: 1.25;
 }
@@ -56,8 +56,8 @@
 .vd-looper-field input[type="number"] {
     padding: 5px 9px;
     border-radius: var(--ds-radius-sm);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
     color: inherit;
     font-size: 12px;
     outline: none;
@@ -97,17 +97,17 @@
     width: 30px;
     height: 30px;
     border-radius: var(--ds-radius-sm);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
-    color: var(--vd-text-muted, #9aa3ad);
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-theme-muted);
     cursor: pointer;
     transition: all 0.15s ease;
     flex-shrink: 0;
 }
 
 .vd-looper-icon-btn:hover {
-    background: rgba(255,255,255,0.08);
-    color: var(--vd-text, #e8ecf1);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
+    color: var(--vd-text);
     transform: translateY(-1px);
 }
 
@@ -153,9 +153,9 @@
     gap: 8px;
     padding: 8px 10px;
     border-radius: var(--ds-radius-sm);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
-    color: var(--vd-text, #e8ecf1);
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -167,12 +167,12 @@
 }
 
 .vd-looper-step-btn:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.15);
+    background: var(--vd-theme-control-bg);
+    border-color: var(--vd-theme-border-strong, var(--vd-theme-border));
 }
 
 .vd-looper-step-btn--active {
-    background: rgba(255,255,255,0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     border-color: var(--step-color, var(--vd-accent, #27c7a6));
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--step-color, var(--vd-accent, #27c7a6)) 19%, transparent);
 }
@@ -190,7 +190,7 @@
 .vd-looper-step-btn-num {
     font-size: 11px;
     font-weight: 700;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     flex-shrink: 0;
     min-width: 16px;
 }
@@ -235,8 +235,8 @@
     width: 100%;
     padding: 10px 12px;
     border-radius: var(--ds-radius-md);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
     color: inherit;
     font-size: 13px;
     line-height: 1.5;
@@ -252,7 +252,7 @@
 }
 
 .vd-looper-editor textarea::placeholder {
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     opacity: 0.5;
 }
 
@@ -270,9 +270,9 @@
     gap: 8px;
     padding: 7px 10px;
     border-radius: var(--ds-radius-sm);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
-    color: var(--vd-text, #e8ecf1);
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
     box-sizing: border-box;
     font-size: 12px;
     font-weight: 700;
@@ -310,7 +310,7 @@
 .vd-looper-stop:hover:not(:disabled),
 .vd-looper-pause:hover:not(:disabled),
 .vd-looper-resume:hover:not(:disabled) {
-    background: rgba(255,255,255,0.06);
+    background: var(--vd-theme-control-bg);
     border-color: var(--vd-looper-action-accent);
     color: #fff;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-looper-action-accent) 22%, transparent);
@@ -330,9 +330,9 @@
 .vd-looper-resume:disabled {
     cursor: not-allowed;
     opacity: 0.46;
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
-    border-color: var(--vd-border, rgba(255,255,255,0.08));
-    color: var(--vd-text-muted, #9aa3ad);
+    background: var(--vd-theme-control-bg);
+    border-color: var(--vd-theme-border);
+    color: var(--vd-theme-muted);
     box-shadow: none;
 }
 
@@ -353,7 +353,7 @@
 
 .vd-looper-field-hint {
     font-size: 10px;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     line-height: 1.35;
     margin-top: 2px;
 }
@@ -374,7 +374,7 @@
     border-radius: var(--ds-radius-sm);
     border: 1px solid transparent;
     background: transparent;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
@@ -382,9 +382,9 @@
 }
 
 .vd-looper-advanced-toggle:hover {
-    color: var(--vd-text, #e8ecf1);
-    border-color: var(--vd-border, rgba(255,255,255,0.08));
-    background: rgba(255,255,255,0.04);
+    color: var(--vd-text);
+    border-color: var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
 }
 
 .vd-looper-advanced-toggle svg {
@@ -412,7 +412,7 @@
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: var(--vd-text, #e8ecf1);
+    color: var(--vd-text);
     cursor: pointer;
     padding: 6px 0;
     user-select: none;
@@ -481,12 +481,12 @@
 /* ── Monitor ── */
 .vd-looper-monitor {
     padding: 10px 14px 12px;
-    border-top: 1px solid var(--vd-border, rgba(255,255,255,0.06));
+    border-top: 1px solid var(--vd-theme-border);
     flex: 1 1 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.25) 100%);
+    background: var(--vd-theme-chrome-bg);
     backdrop-filter: blur(8px);
     transition: border-color 0.3s ease;
 }
@@ -532,7 +532,7 @@
 
 .vd-looper-monitor-meta {
     font-size: 11px;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
 }
@@ -542,7 +542,7 @@
     position: relative;
     width: 100%;
     height: 5px;
-    background: rgba(255,255,255,0.05);
+    background: var(--vd-theme-control-bg);
     border-radius: var(--ds-radius-xs);
     overflow: visible;
     margin-bottom: 10px;
@@ -588,9 +588,9 @@
     flex-direction: column;
     min-height: 0;
     position: relative;
-    background: rgba(0,0,0,0.15);
+    background: var(--vd-theme-control-bg);
     border-radius: var(--ds-radius-md);
-    border: 1px solid rgba(255,255,255,0.04);
+    border: 1px solid var(--vd-theme-border);
     overflow: hidden;
 }
 
@@ -603,9 +603,9 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--vd-text-muted, #9aa3ad);
-    background: rgba(255,255,255,0.02);
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--vd-theme-muted);
+    background: color-mix(in srgb, var(--vd-theme-control-bg) 55%, transparent);
+    border-bottom: 1px solid var(--vd-theme-border);
 }
 
 .vd-looper-logs-clear {
@@ -614,7 +614,7 @@
     gap: 4px;
     font-size: 10px;
     font-weight: 500;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -640,7 +640,7 @@
 .vd-looper-log-empty {
     text-align: center;
     padding: 16px;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     font-size: 12px;
     font-style: italic;
     opacity: 0.7;
@@ -654,7 +654,7 @@
 }
 
 .vd-looper-log + .vd-looper-log {
-    border-top: 1px solid rgba(255,255,255,0.04);
+    border-top: 1px solid var(--vd-theme-border);
 }
 
 .vd-looper-log-dot {
@@ -686,13 +686,13 @@
 
 .vd-looper-log-time {
     font-size: 10px;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
 
 .vd-looper-log-prompt {
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     font-style: italic;
     margin-bottom: 3px;
     white-space: pre-wrap;
@@ -704,15 +704,15 @@
 .vd-looper-log-response {
     white-space: pre-wrap;
     word-break: break-word;
-    color: var(--vd-text, #e8ecf1);
+    color: var(--vd-text);
     font-size: 11.5px;
     line-height: 1.5;
 }
 
 .vd-looper-code-block {
     display: block;
-    background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--vd-theme-panel-bg-strong);
+    border: 1px solid var(--vd-theme-border);
     border-radius: var(--ds-radius-sm);
     padding: 8px 10px;
     margin: 4px 0;
@@ -725,7 +725,7 @@
 }
 
 .vd-looper-code-inline {
-    background: rgba(255,255,255,0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     border-radius: var(--ds-radius-xs);
     padding: 1px 4px;
     font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
@@ -746,13 +746,13 @@
 
 .vd-looper-sidebar::-webkit-scrollbar-thumb,
 .vd-looper-logs::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.08);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     border-radius: var(--ds-radius-xs);
 }
 
 .vd-looper-sidebar::-webkit-scrollbar-thumb:hover,
 .vd-looper-logs::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.14);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
 }
 
 /* ── Looper Layout Folding Styles ── */
@@ -799,9 +799,9 @@
     padding: 4px 8px;
     height: 24px;
     border-radius: var(--ds-radius-sm);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
-    color: var(--vd-text-muted, #9aa3ad);
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-theme-muted);
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
@@ -809,9 +809,9 @@
 }
 
 .vd-looper-monitor-btn:hover {
-    background: rgba(255,255,255,0.08);
-    color: var(--vd-text, #e8ecf1);
-    border-color: rgba(255,255,255,0.15);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
+    color: var(--vd-text);
+    border-color: var(--vd-theme-border-strong, var(--vd-theme-border));
 }
 
 .vd-looper-monitor-btn-stop {
@@ -859,7 +859,7 @@
     width: 36px;
     height: 3px;
     border-radius: 2px;
-    background: rgba(255,255,255,0.1);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     transition: background 0.15s ease, width 0.15s ease;
 }
 
@@ -887,7 +887,7 @@
     height: 14px;
     flex-shrink: 0;
     transition: transform 0.2s ease;
-    color: var(--vd-text-muted, #9aa3ad);
+    color: var(--vd-theme-muted);
     margin-right: 4px;
     vertical-align: middle;
 }
@@ -926,8 +926,8 @@
     gap: 4px;
     padding: 5px 10px;
     border-radius: var(--ds-radius-sm);
-    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
-    background: var(--vd-surface-strong, rgba(0,0,0,0.65));
+    border: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-panel-bg-strong);
     backdrop-filter: blur(8px);
     color: var(--vd-accent, #27c7a6);
     font-size: 11px;
@@ -947,7 +947,7 @@
 }
 
 .vd-looper-jump-bottom:hover {
-    background: rgba(255,255,255,0.1);
+    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
     border-color: var(--vd-accent, #27c7a6);
 }
 

@@ -155,6 +155,40 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	}
 }
 
+func TestDesktopUtilityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) {
+	t.Parallel()
+
+	chrome := readDesktopAssetText(t, "css/desktop-chrome.css")
+	if strings.Contains(chrome, ".vd-notes-toolbar {\n    background: var(--ds-color-surface-2);") {
+		t.Fatalf("notes/terminal toolbars must not use design-system dark wash")
+	}
+	for _, want := range []string{
+		"background: var(--vd-theme-chrome-bg);",
+		"background: var(--vd-theme-app-bg);",
+		"background: #0f172a;",
+	} {
+		if !strings.Contains(chrome, want) {
+			t.Fatalf("terminal/notes chrome missing theme marker %q", want)
+		}
+	}
+
+	viewer := readDesktopAssetText(t, "css/desktop-app-viewer.css")
+	if strings.Contains(viewer, "rgba(255,255,255,0.1)") {
+		t.Fatalf("viewer chrome must not use fixed white-glass borders")
+	}
+	if !strings.Contains(viewer, "background: var(--vd-theme-app-bg);") {
+		t.Fatalf("viewer missing theme app background marker")
+	}
+
+	looper := readDesktopAssetText(t, "css/desktop-app-looper.css")
+	if strings.Contains(looper, "rgba(20,24,30,0.85)") {
+		t.Fatalf("looper must not hardcode a dark app wash")
+	}
+	if !strings.Contains(looper, "background: var(--vd-theme-app-bg);") {
+		t.Fatalf("looper missing theme app background marker")
+	}
+}
+
 func TestDesktopCheaterCodeBlocksKeepReadableForeground(t *testing.T) {
 	t.Parallel()
 

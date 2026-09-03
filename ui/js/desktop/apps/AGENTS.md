@@ -53,16 +53,19 @@ and `files.default_apps` via `/api/desktop/settings`.
 ### App theme bridge contract
 
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
-  Manager, Quick Connect, Mission Control, Software Store, and Gallery read
-  `--vd-theme-*` for chrome, panels, controls, borders, and shadows.
+  Manager, Quick Connect, Mission Control, Software Store, Gallery, Notes,
+  Viewer, Looper, and Cheater read `--vd-theme-*` for chrome, panels, controls,
+  borders, and shadows.
 - Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
   bubbles use theme panel material instead of fixed white glass.
-- Quick Connect xterm/VNC viewports may stay on a dark terminal surface
-  (`#0d1117`); sidebar, host lists, modals, and VNC toolbar follow theme.
+- Quick Connect xterm/VNC viewports and the built-in Terminal screen may stay
+  on a dark terminal surface (`#0d1117` / `#0f172a`); toolbars follow theme.
 - Gallery preview letterboxes (`.vd-gallery-preview`) may stay dark for media
   contrast; card chrome and media preview bars follow theme.
+- Cheater code blocks keep a dark readable code surface (`--cheater-code-bg` /
+  `--cheater-code-fg`); app chrome uses `--vd-theme-*` through `--cheater-*`.
 - OpenSCAD (`--oscad-*`) and Webamp launcher styling remain excluded from this
   bridge; migrate other apps in later polish waves.
 

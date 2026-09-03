@@ -4,25 +4,25 @@
 .cheater-attach-panel,
 .cheater-toast,
 .cheater-context-menu {
-    --cheater-text: var(--ds-color-fg-primary, #f6f7fb);
-    --cheater-muted: var(--ds-color-fg-muted, #a7b0c0);
-    --cheater-disabled: var(--ds-color-fg-muted, #a7b0c0);
-    --cheater-surface: var(--ds-color-surface-1, #111827);
-    --cheater-surface-elevated: var(--ds-color-surface-2, #182235);
-    --cheater-modal-surface: var(--ds-color-surface-3, #202a3a);
-    --cheater-input: var(--ds-color-surface-2, rgba(18, 24, 36, 0.9));
-    --cheater-border: var(--ds-color-border-subtle, rgba(148, 163, 184, 0.2));
+    --cheater-text: var(--vd-text);
+    --cheater-muted: var(--vd-theme-muted);
+    --cheater-disabled: var(--vd-theme-muted);
+    --cheater-surface: var(--vd-theme-app-bg);
+    --cheater-surface-elevated: var(--vd-theme-chrome-bg);
+    --cheater-modal-surface: var(--vd-theme-panel-bg-strong);
+    --cheater-input: var(--vd-theme-control-bg);
+    --cheater-border: var(--vd-theme-border);
     --cheater-accent: var(--vd-accent, var(--ds-color-accent-500, #27c7a6));
     --cheater-accent-fg: #ffffff;
-    --cheater-hover: rgba(255, 255, 255, 0.07);
-    --cheater-pill-bg: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
-    --cheater-selected-bg: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    --cheater-hover: var(--vd-theme-control-hover);
+    --cheater-pill-bg: var(--vd-theme-accent-soft);
+    --cheater-selected-bg: var(--vd-theme-accent-soft);
     --cheater-code-bg: rgba(5, 9, 15, 0.55);
     --cheater-code-fg: #e8eef6;
-    --cheater-code-inline-bg: rgba(255, 255, 255, 0.09);
-    --cheater-toast-bg: rgba(8, 12, 20, 0.94);
-    --cheater-toast-fg: #f8fafc;
-    --cheater-update-bg: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    --cheater-code-inline-bg: var(--vd-theme-control-bg);
+    --cheater-toast-bg: var(--vd-theme-panel-bg-strong);
+    --cheater-toast-fg: var(--vd-text);
+    --cheater-update-bg: var(--vd-theme-accent-soft);
     --cheater-danger: var(--ds-color-danger-500, #ef4444);
 }
 

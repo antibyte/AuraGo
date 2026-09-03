@@ -8451,6 +8451,7 @@
     grid-template-rows: auto 1fr;
     height: 100%;
     min-height: 0;
+    background: var(--vd-theme-app-bg);
 }
 
 .vd-terminal-screen {
@@ -8465,7 +8466,7 @@
     gap: 8px;
     padding: 8px 10px;
     border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
-    background: var(--ds-color-surface-2);
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-notes-editor {
@@ -8475,7 +8476,7 @@
     border: 0;
     resize: none;
     padding: 12px 14px;
-    background: var(--ds-color-bg-canvas);
+    background: var(--vd-theme-app-bg);
     color: var(--vd-text);
     font: 0.92rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
