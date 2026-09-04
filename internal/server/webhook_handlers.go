@@ -87,10 +87,15 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		payload := map[string]interface{}{
 			"token": raw,
 			"meta":  meta,
-		})
+		}
+		if display := security.FormatCYDTokenDisplay(raw); strings.Contains(display, " ") {
+			payload["display"] = display
+			payload["prefix"] = "aura_"
+		}
+		json.NewEncoder(w).Encode(payload)
 	}
 }
 

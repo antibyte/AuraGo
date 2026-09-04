@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -149,13 +150,86 @@ func writeFileAtomicSynced(path string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
+const (
+	tokenPrefix      = "aura_"
+	CYDTokenBodyLen  = 9
+	cydTokenAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no 0/O/1/I/L
+)
+
 // generateToken creates a random token string: aura_ + 32 hex chars = 37 chars total.
 func generateToken() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return "aura_" + hex.EncodeToString(b), nil
+	return tokenPrefix + hex.EncodeToString(b), nil
+}
+
+// generateCYDToken returns aura_ plus 9 unambiguous chars for on-glass entry.
+func generateCYDToken() (string, error) {
+	body := make([]byte, CYDTokenBodyLen)
+	if _, err := rand.Read(body); err != nil {
+		return "", err
+	}
+	alphabet := []byte(cydTokenAlphabet)
+	for i := range body {
+		body[i] = alphabet[int(body[i])%len(alphabet)]
+	}
+	return tokenPrefix + string(body), nil
+}
+
+func scopesIncludeCYD(scopes []string) bool {
+	for _, s := range scopes {
+		if strings.EqualFold(strings.TrimSpace(s), "cyd") {
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizeAPIToken strips grouping and ensures the aura_ prefix.
+// Nine-character CYD codes are uppercased; legacy hex tokens are unchanged.
+func NormalizeAPIToken(raw string) string {
+	var b strings.Builder
+	b.Grow(len(raw) + len(tokenPrefix))
+	for _, r := range raw {
+		if r == ' ' || r == '-' || r == '\t' || r == '\n' {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	s := b.String()
+	if s == "" {
+		return ""
+	}
+	body := s
+	if len(s) >= len(tokenPrefix) && strings.EqualFold(s[:len(tokenPrefix)], tokenPrefix) {
+		body = s[len(tokenPrefix):]
+	}
+	if len(body) == CYDTokenBodyLen {
+		return tokenPrefix + strings.ToUpper(body)
+	}
+	return tokenPrefix + body
+}
+
+// FormatCYDTokenDisplay shows the 9-character body as XXX XXX XXX.
+func FormatCYDTokenDisplay(raw string) string {
+	norm := NormalizeAPIToken(raw)
+	body := strings.TrimPrefix(norm, tokenPrefix)
+	if len(body) != CYDTokenBodyLen {
+		return body
+	}
+	return body[:3] + " " + body[3:6] + " " + body[6:]
+}
+
+func visibleTokenPrefix(raw string) string {
+	if len(raw) >= len(tokenPrefix)+3 && strings.HasPrefix(raw, tokenPrefix) {
+		return raw[:len(tokenPrefix)+3] + "..."
+	}
+	if len(raw) >= 13 {
+		return raw[:13] + "..."
+	}
+	return raw
 }
 
 // hashToken returns the SHA-256 hex digest of a raw token.
@@ -169,17 +243,24 @@ func (tm *TokenManager) Create(name string, scopes []string, expiresAt *time.Tim
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	raw, err := generateToken()
+	var raw string
+	var err error
+	if scopesIncludeCYD(scopes) {
+		raw, err = generateCYDToken()
+	} else {
+		raw, err = generateToken()
+	}
 	if err != nil {
 		return "", TokenMeta{}, fmt.Errorf("failed to generate token: %w", err)
 	}
+	raw = NormalizeAPIToken(raw)
 
 	now := time.Now().UTC()
 	t := Token{
 		ID:        uid.New(),
 		Name:      name,
 		TokenHash: hashToken(raw),
-		Prefix:    raw[:13] + "...", // "aura_" + 8 hex chars + "..."
+		Prefix:    visibleTokenPrefix(raw),
 		Scopes:    scopes,
 		CreatedAt: now,
 		Enabled:   true,
@@ -261,7 +342,7 @@ func (tm *TokenManager) Validate(rawToken string, requiredScope string) (TokenMe
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
-	targetHash := hashToken(rawToken)
+	targetHash := hashToken(NormalizeAPIToken(rawToken))
 
 	for _, t := range tm.tokens {
 		// Constant-time comparison to prevent timing attacks

@@ -283,6 +283,21 @@
 .pw-page .config-icon-slot-112 { background-position: 20% 100%; }
 .pw-page .config-icon-slot-113 { background-position: 30% 100%; }
 
+.pw-page .cyd-token-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1.55rem;
+    letter-spacing: 0.08em;
+    margin: 10px 0 6px;
+}
+.pw-page .cyd-token-prefix {
+    color: var(--text-muted, #8c91a4);
+    margin-right: 0.4em;
+    letter-spacing: 0.04em;
+}
+.pw-page .cyd-token-code code {
+    font: inherit;
+}
+
 .pw-page .cfg-content {
     flex: 1;
     min-height: 0;

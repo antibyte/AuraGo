@@ -58,6 +58,9 @@ func TestCYDConfigModuleWiresContentRoot(t *testing.T) {
 		"/api/cyd/test",
 		"/api/tokens",
 		"scopes: ['cyd']",
+		"function cydFormatTokenDisplay",
+		"cyd-token-prefix",
+		"aura_",
 	} {
 		if !strings.Contains(src, marker) {
 			t.Fatalf("cfg/cyd.js missing %q", marker)

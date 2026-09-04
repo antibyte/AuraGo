@@ -2786,8 +2786,8 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 1. Open **Config → Smart Home → Cheap Yellow Display**.
 2. Enable the integration and save.
-3. Click **Create display token** (scope `cyd`). Copy it once.
-4. Flash the display, join `agocyd-XXXX`, and enter this AuraGo LAN URL (`http://<lan-ip>:port`) plus the token.
+3. Click **Create display token**. Copy the 9-character code (`XXX XXX XXX`). `aura_` is already on the glass.
+4. Flash the display, join `agocyd-XXXX`, enter this AuraGo LAN URL (`http://<lan-ip>:port`), then type the 9 characters on the display.
 5. AuraGo must listen on a LAN address (`server.host`), not only `127.0.0.1`.
 6. Use **Send test notification** to push an overlay.
 

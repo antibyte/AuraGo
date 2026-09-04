@@ -111,6 +111,15 @@ async function cydLoadStatus() {
     }
 }
 
+function cydFormatTokenDisplay(token) {
+    const raw = String(token || '');
+    const body = raw.replace(/^aura_/i, '').replace(/[\s-]/g, '').toUpperCase();
+    if (body.length === 9) {
+        return body.slice(0, 3) + ' ' + body.slice(3, 6) + ' ' + body.slice(6);
+    }
+    return raw;
+}
+
 async function cydCreateToken() {
     const box = document.getElementById('cyd-token-result');
     if (box) box.textContent = t('config.cyd.token_creating');
@@ -123,8 +132,11 @@ async function cydCreateToken() {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || data.message || ('HTTP ' + resp.status));
         const token = data.token || data.raw || '';
+        const grouped = data.display || cydFormatTokenDisplay(token);
         if (box) {
-            box.innerHTML = `${t('config.cyd.token_created')} <code id="cyd-token-value">${escapeAttr(token)}</code>. ${t('config.cyd.token_copy_hint')}`;
+            box.innerHTML = `<div>${t('config.cyd.token_created')}</div>
+                <div class="cyd-token-code"><span class="cyd-token-prefix">aura_</span><code id="cyd-token-value">${escapeAttr(grouped)}</code></div>
+                <p class="field-help">${t('config.cyd.token_copy_hint')}</p>`;
         }
     } catch (err) {
         if (box) box.textContent = t('config.cyd.token_failed') + ' ' + (err && err.message ? err.message : '');
