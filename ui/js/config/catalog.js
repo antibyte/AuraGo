@@ -67,6 +67,34 @@
         version: 1,
         actionRules,
         validationRules,
+        // Semantic surfaces declared by the integration renderers. These are exact
+        // selectors, never guesses from a field name or DOM nesting depth.
+        presentation: Object.freeze({
+            a2a: { topics: '.a2a-card', objects: '.a2a-agent-card', headings: '.a2a-card-title' },
+            web_config: { markers: '.auth-section-title', topics: '.auth-sec-audit-panel' },
+            backup_restore: { topics: '.bck-card', headings: '.bck-card-header', bodies: '.bck-card-body', flows: '.backup-panel' },
+            co_agents: { objects: '.ca-card', headings: '.ca-card-header', bodies: '.ca-card-body' },
+            danger_zone: { topics: '.danger-card', headings: '.danger-card-header' },
+            email: { objects: '.em-card', headings: '.em-card-header' },
+            firewall: { topics: '.fw-section' },
+            fritzbox: { topics: '.fb-feature-card', headings: '.fb-feature-title', markers: '.cfg-section-title' },
+            heartbeat: { topics: '.hb-window-card', headings: '.hb-window-title', flows: '#heartbeatOptionsWrapper' },
+            indexing: { topics: '.idx-card, .idx-status-card', headings: '.idx-card-header, .idx-status-header', bodies: '.idx-card-body' },
+            mcp: { objects: '.mcp-card', headings: '.mcp-card-header' },
+            memory_analysis: { topics: '.ma-block', headings: '.ma-block-header' },
+            mqtt: { markers: '.cfg-section-title' },
+            onedrive: { markers: '.od-section-title' },
+            providers: { objects: '.prov-provider-card, .provider-card' },
+            realtime_speech: { topics: '.rs-master-card', objects: '.rs-profile-card', headings: '.rs-profile-head' },
+            remote_control: { objects: '.rc-token-card' },
+            rules: { topics: '.rules-summary-card, .rules-design-panel, .rules-field-panel, .rules-markdown-panel, .rules-list-panel', headings: '.rules-panel-title, .rules-summary-title, .rules-list-header' },
+            sandbox: { topics: '.sb-card', headings: '.sb-card-header', bodies: '.sb-card-body' },
+            sip: { topics: '.sip-wizard-shell', headings: '.sip-wizard-title', objects: '.sip-profile-card' },
+            sql_connections: { topics: '.sb-card', headings: '.sb-card-header', bodies: '.sb-card-body' },
+            telephone_agent: { topics: '.ta-card' },
+            tts: { markers: '.tts-subsection-title' },
+            webhooks: { objects: '.wh-card', headings: '.wh-card-header', bodies: '.wh-card-body', flows: '.wh-panel', markers: '.wh-subsection-title' }
+        }),
         // Fields rendered outside their YAML root belong to their visible Config section.
         searchSections: Object.freeze({
             optimizations: ['agent.optimizer_enabled', 'agent.system_prompt_token_budget', 'agent.adaptive_system_prompt_token_budget', 'agent.context_window', 'agent.memory_compression_char_limit', 'agent.tool_output_limit', 'agent.discover_tools_snapshot_ttl_minutes', 'agent.max_tool_guides', 'agent.core_memory_max_entries', 'agent.core_memory_cap_mode', 'agent.adaptive_tools', 'agent.recovery', 'agent.background_tasks', 'circuit_breaker.max_tool_calls', 'circuit_breaker.llm_timeout_seconds', 'circuit_breaker.maintenance_timeout_minutes', 'circuit_breaker.retry_intervals'],

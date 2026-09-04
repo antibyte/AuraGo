@@ -736,6 +736,15 @@ func TestConfigPrecisionTranslationsAreComplete(t *testing.T) {
 	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	keys := []string{
 		"config.common.clear",
+		"config.refresh.settings",
+		"config.refresh.operation",
+		"config.refresh.connection",
+		"config.refresh.credentials",
+		"config.refresh.runtime",
+		"config.refresh.model",
+		"config.refresh.network",
+		"config.refresh.language",
+		"config.refresh.local_models",
 		"config.unsaved_changes.save_and_continue",
 		"config.precision.action_save_first",
 		"config.precision.action_missing_fields",

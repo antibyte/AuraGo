@@ -18,11 +18,13 @@ function renderEvomapSection(section) {
         label: section.label,
         desc: section.desc,
         beforeHTML: '<div id="evomap-status-banner" class="adg-status-banner">' + t('config.evomap.checking') + '</div>',
-        fields: [
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.evomap.enabled_label'), help: t('help.evomap.enabled'), path: 'evomap.enabled', value: data.enabled === true }),
             form.toggle({ label: t('config.evomap.readonly_label'), help: t('help.evomap.readonly'), path: 'evomap.readonly', value: data.readonly !== false }),
+        ] }, { titleKey: 'config.refresh.connection', fields: [
             form.field({ label: t('config.evomap.base_url_label'), help: t('help.evomap.base_url'), path: 'evomap.base_url', value: data.base_url || 'https://evomap.ai', placeholder: 'https://evomap.ai' }),
             form.field({ label: t('config.evomap.node_id_label'), help: t('help.evomap.node_id'), path: 'evomap.node_id', value: data.node_id || '', placeholder: t('config.evomap.node_id_placeholder') }),
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.password({
                 label: t('config.evomap.api_key_label'),
                 help: t('help.evomap.api_key'),
@@ -39,10 +41,11 @@ function renderEvomapSection(section) {
                 placeholder: cfgSecretPlaceholder(data.node_secret, t('config.evomap.node_secret_placeholder')),
                 actionHTML: '<button type="button" class="btn-save adg-save-btn" onclick="evomapSaveSecret(\'evomap_node_secret\', \'evomap.node_secret\', \'evomap-node-secret\')">' + t('config.evomap.save_vault') + '</button>'
             }),
+        ] }, { titleKey: 'config.refresh.runtime', fields: [
             form.toggle({ label: t('config.evomap.kg_enabled'), help: t('help.evomap.kg_enabled'), path: 'evomap.kg_enabled', value: data.kg_enabled === true }),
             form.number({ label: t('config.evomap.timeout_label'), help: t('help.evomap.timeout'), path: 'evomap.request_timeout_seconds', value: String(data.request_timeout_seconds || 30), min: 1, step: 1 }),
             form.number({ label: t('config.evomap.max_result_label'), help: t('help.evomap.max_result'), path: 'evomap.max_result_bytes', value: String(data.max_result_bytes || 262144), min: 1024, step: 1024 })
-        ],
+        ] }],
         afterHTML: form.actions([
             { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-test-btn" onclick="evomapTestConnection()">' + t('config.evomap.test_btn') + '</button>' },
             { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-register-btn" onclick="evomapRegisterNode()">' + t('config.evomap.register_btn') + '</button>' },

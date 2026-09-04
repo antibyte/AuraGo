@@ -56,7 +56,7 @@ const SECTIONS = [
             { key: 'dograh', icon: '▧', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
             { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
             { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
-            { key: 'local_llm', icon: '◈', label: t('config.section.local_llm.label'), desc: t('config.section.local_llm.desc') },
+            { key: 'local_llm', icon: '◈', label: t('config.refresh.local_models'), desc: t('config.section.local_llm.desc') },
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
@@ -1262,17 +1262,15 @@ function sectionMetadata(key) {
 function renderConfigOverview() {
     const content = document.getElementById('content');
     const recent = loadRecentSections().map(sectionMetadata).filter(Boolean);
-    const sectionCount = SECTIONS.reduce((total, group) => total + group.items.length, 0);
     const recentMarkup = recent.length
         ? recent.map(section => `<button type="button" class="pw-recent-card" data-overview-section="${escapeAttr(section.key)}">
-            <span class="pw-overview-card-kicker">${escapeHtml(section.group)}</span>
+            ${createConfigSidebarIcon(section.key)}<span class="pw-overview-card-kicker">${escapeHtml(section.group)}</span>
             <strong>${escapeHtml(section.label)}</strong>
-            <span>${escapeHtml(section.desc || '')}</span>
         </button>`).join('')
         : `<div class="pw-overview-empty">${escapeHtml(t('config.precision.recent_empty'))}</div>`;
     const groupMarkup = SECTIONS.map(group => `<section class="pw-overview-card${group.dangerGroup ? ' pw-overview-card-danger' : ''}">
         <div class="pw-overview-card-heading">
-            <h2>${escapeHtml(group.group)}</h2>
+            <h2>${createConfigSidebarIcon(group.items[0].key)}${escapeHtml(group.group)}</h2>
             <span>${group.items.length}</span>
         </div>
         <div class="pw-overview-links">
@@ -1282,10 +1280,8 @@ function renderConfigOverview() {
 
     content.innerHTML = `<div class="cfg-section active pw-overview">
         <div class="pw-overview-hero">
-            <span class="pw-overview-eyebrow">${escapeHtml(t('config.precision.workspace_label'))}</span>
             <h1>${escapeHtml(t('config.precision.overview_title'))}</h1>
             <p>${escapeHtml(t('config.precision.overview_desc'))}</p>
-            <div class="pw-overview-stat"><strong>${sectionCount}</strong><span>${escapeHtml(t('config.precision.overview_sections'))}</span></div>
         </div>
         <section class="pw-overview-recent" aria-labelledby="pw-recent-title">
             <h2 id="pw-recent-title">${escapeHtml(t('config.precision.recent_title'))}</h2>
@@ -1338,6 +1334,11 @@ function enhanceConfigSectionLayout(key) {
     if (!key || key === 'overview') return;
     const section = document.querySelector('#content > .cfg-section.active');
     if (!section) return;
+    window.AuraConfigForm?.layout(section, key);
+    const heading = section.querySelector('.section-header');
+    if (heading && !heading.querySelector('.config-sidebar-icon-sprite')) {
+        heading.insertAdjacentHTML('afterbegin', createConfigSidebarIcon(key));
+    }
     window.AuraConfigPresentation?.enhance(section);
 
     section.querySelectorAll('.field-group').forEach(group => group.classList.add('pw-field'));
@@ -2287,7 +2288,7 @@ function setNestedValue(obj, path, value) {
 function toggleBool(el) {
     if (el.dataset.disabled === 'true' || el.getAttribute('aria-disabled') === 'true') return;
     const on = el.classList.toggle('on');
-    if (el.nextElementSibling) {
+    if (el.nextElementSibling?.classList.contains('toggle-label')) {
         el.nextElementSibling.textContent = on ? t('config.toggle.active') : t('config.toggle.inactive');
     }
     syncToggleA11y(el);
@@ -2610,6 +2611,8 @@ function setDirty(dirty) {
 }
 
 function updateSaveDockSection(key) {
+    const dock = document.querySelector('.save-bar');
+    if (dock) dock.hidden = key === 'overview';
     const element = document.getElementById('saveSection');
     if (!element) return;
     const section = sectionMetadata(key);
@@ -2722,7 +2725,7 @@ async function saveConfig() {
             }
             if (!telephoneAgentDirty && !configDirty) {
                 status.className = 'save-status success';
-                status.textContent = '✓ ' + t('config.save_bar.saved');
+                status.textContent = t('config.save_bar.saved');
                 saveSucceeded = true;
                 return true;
             }
@@ -2737,7 +2740,7 @@ async function saveConfig() {
             }
             if (!configDirty) {
                 status.className = 'save-status success';
-                status.textContent = '✓ ' + t('config.save_bar.saved');
+                status.textContent = t('config.save_bar.saved');
                 saveSucceeded = true;
                 return true;
             }
@@ -2796,7 +2799,7 @@ async function saveConfig() {
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
             } else {
                 status.className = 'save-status success';
-                status.textContent = '✓ ' + (result.message || t('config.save_bar.saved'));
+                status.textContent = result.message || t('config.save_bar.saved');
             }
             // Refresh config data and reset dirty state
             // Use a retry loop so a briefly-restarting tunnel (e.g. Cloudflare hot-reload)

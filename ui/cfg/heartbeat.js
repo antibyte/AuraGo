@@ -16,6 +16,7 @@ window.renderHeartbeatSection = function (section) {
     // Info banner
     html += '<div class="cfg-info-banner hb-info-banner">' + t('config.heartbeat.info_banner') + '</div>';
 
+    html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
     // Enabled Toggle
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.heartbeat.enabled_label') + '</div>';
@@ -25,7 +26,8 @@ window.renderHeartbeatSection = function (section) {
     html += '<span class="toggle-label" id="hbEnabledLabel">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
-    html += '<div id="heartbeatOptionsWrapper" class="hb-options-wrap' + (enabledOn ? '' : ' is-disabled') + '">';
+    html += '<div id="heartbeatOptionsWrapper" class="hb-options-wrap' + (enabledOn ? '' : ' is-disabled') + '" data-config-surface>';
+    html += '<div class="cfg-group-title">' + t('config.refresh.runtime') + '</div>';
 
     // Check toggles row
     html += '<div class="hb-toggles-row">';

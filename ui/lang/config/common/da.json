@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Skift grænsefladens tæthed",
   "config.precision.density_comfortable": "Komfortabel",
   "config.precision.density_compact": "Kompakt",
-  "config.precision.overview_title": "Konfigurationsarbejdsområde",
-  "config.precision.overview_desc": "Find alle systemindstillinger i ét fokuseret arbejdsområde. Søg direkte efter felter, gennemgå relaterede områder, og fortsæt hvor du slap.",
+  "config.precision.overview_title": "Indstillinger",
+  "config.precision.overview_desc": "Administrer din agent, forbindelser og systemindstillinger.",
   "config.precision.overview_sections": "konfigurationsområder",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Senest brugt",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Test forbindelse",
   "config.integration_test.testing": "Tester forbindelse…",
   "config.integration_test.success": "Forbindelsen lykkedes.",
-  "config.integration_test.failure": "Forbindelsestesten mislykkedes."
+  "config.integration_test.failure": "Forbindelsestesten mislykkedes.",
+  "config.refresh.settings": "Indstillinger",
+  "config.refresh.operation": "Drift",
+  "config.refresh.connection": "Forbindelse",
+  "config.refresh.credentials": "Loginoplysninger",
+  "config.refresh.runtime": "Kørselsmiljø",
+  "config.refresh.model": "Model",
+  "config.refresh.network": "Netværk",
+  "config.refresh.language": "Sprog",
+  "config.refresh.local_models": "Lokale modeller"
 }

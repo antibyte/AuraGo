@@ -31,13 +31,13 @@ function renderLocalLLMSection(section) {
     const selectedRegular = localLLMRegularProvider(displayedRole, providers);
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
+    html += '<div class="section-header">' + t('config.refresh.local_models') + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-warning"><strong>' + t('config.local_llm.purpose_title') + '</strong><br>' + t('config.local_llm.purpose') + '</div>';
-    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.local_llm.hardware') + '</div>';
-    html += '<div class="cfg-note-banner">' + t(ling ? 'config.local_llm.ling_quality' : 'config.local_llm.quality') + '</div>';
 
+    html += '<div class="cfg-group-title">' + t('config.refresh.model') + '</div>';
     html += localLLMEnabledToggle(data.enabled === true, 'config.local_llm.enabled');
+    html += '<div class="field-grid two-cols">';
     html += localLLMSelect('local_llm.model_family', data.model_family, 'config.local_llm.model_family', [
         ['qwen', 'AuraGo-Qwen'], ['ling', 'AuraGo-Ling']
     ]);
@@ -51,18 +51,22 @@ function renderLocalLLMSection(section) {
     html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', ling ? [['16384', '16K']] : [
         ['16384', '16K'], ['32768', '32K']
     ], 'number');
+    html += '</div>';
     html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', ling ? [['off', t('config.local_llm.mtp_off')]] : [
         ['off', t('config.local_llm.mtp_off')], ['auto', t('config.local_llm.mtp_auto')],
         ['mtp2', 'MTP-2 (' + t('config.local_llm.experimental') + ')']
     ]);
     if (!ling) html += '<div class="field-help">' + t('config.local_llm.mtp_storage_note') + '</div>';
+    html += '<div class="field-help">' + t(ling ? 'config.local_llm.ling_quality' : 'config.local_llm.quality') + '</div>';
+    html += '<div class="cfg-group-title">' + t('config.refresh.runtime') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.local_llm.hardware') + '</div>';
     html += localLLMNumber('local_llm.idle_timeout_minutes', data.idle_timeout_minutes, 'config.local_llm.idle_timeout', 1, 1440);
     if (typeof isDockerRuntime !== 'function' || !isDockerRuntime()) {
         html += localLLMNumber('local_llm.listen_port', data.listen_port, 'config.local_llm.listen_port', 1, 65535);
     }
     html += '<div class="field-help">' + t('config.local_llm.storage_note') + '</div>';
 
-    html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.local_llm.compatibility') + '</div>';
+    html += '<h3 class="cfg-subheading">' + t('config.local_llm.compatibility') + '</h3>';
     html += '<div id="local-llm-status" class="cfg-note-banner ' + localLLMStatusClass(status) + '">' + escapeHtml(localLLMStatusText(status)) + '</div>';
     html += localLLMPromptCacheStatus(status);
     if (status.acknowledgement_required) {

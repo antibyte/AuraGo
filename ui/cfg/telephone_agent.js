@@ -111,8 +111,8 @@ function taRender() {
         ${taBlockerMarkup()}
 
         <div class="ta-grid">
-            <fieldset class="ta-card">
-                <legend>${taEsc(t('config.telephone_agent.routing'))}</legend>
+            <section class="ta-card">
+                <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.routing'))}</h2>
                 <label>${taEsc(t('config.sip.inbound_route'))}
                     <select class="field-select" data-ta="inbound_route">
                         <option value="agent" ${c.inbound_route === 'agent' ? 'selected' : ''}>${taEsc(t('config.sip.route_agent'))}</option>
@@ -121,10 +121,10 @@ function taRender() {
                     </select>
                 </label>
                 <label>${taEsc(t('config.sip.auto_answer_delay'))}<input class="field-input" type="number" min="0" max="60000" data-ta="auto_answer_delay_ms" value="${c.auto_answer_delay_ms}"></label>
-            </fieldset>
+            </section>
 
-            <fieldset class="ta-card">
-                <legend>${taEsc(t('config.telephone_agent.pipeline'))}</legend>
+            <section class="ta-card">
+                <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.pipeline'))}</h2>
                 <label>${taEsc(t('config.sip.voice_backend'))}
                     <select class="field-select" data-ta="voice.backend">
                         <option value="classic" ${classic ? 'selected' : ''}>${taEsc(t('config.sip.backend_classic'))}</option>
@@ -144,32 +144,32 @@ function taRender() {
                         ${['auto', 'de', 'en', 'fr', 'es', 'it', 'nl', 'pt', 'pl', 'cs', 'da', 'no', 'sv', 'el', 'hi', 'ja', 'zh'].map(language => `<option value="${language}" ${language === c.voice.language ? 'selected' : ''}>${language}</option>`).join('')}
                     </select>
                 </label>
-            </fieldset>
+            </section>
 
-            <fieldset class="ta-card ta-card-wide">
-                <legend>${taEsc(t('config.telephone_agent.behavior'))}</legend>
+            <section class="ta-card ta-card-wide">
+                <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.behavior'))}</h2>
                 <label class="ta-check"><input type="checkbox" data-ta="voice.behavior.greeting_enabled" ${c.voice.behavior.greeting_enabled ? 'checked' : ''}>${taEsc(t('config.telephone_agent.greeting_enabled'))}</label>
-                <label>${taEsc(t('config.telephone_agent.greeting'))}<textarea class="field-textarea" maxlength="500" data-ta="voice.behavior.greeting">${taEsc(c.voice.behavior.greeting)}</textarea></label>
-                <label>${taEsc(t('config.telephone_agent.purpose'))}<textarea class="field-textarea" maxlength="8000" data-ta="voice.behavior.purpose">${taEsc(c.voice.behavior.purpose)}</textarea></label>
-                <label>${taEsc(t('config.telephone_agent.style'))}<textarea class="field-textarea" maxlength="8000" data-ta="voice.behavior.speaking_style">${taEsc(c.voice.behavior.speaking_style)}</textarea></label>
-                <label>${taEsc(t('config.telephone_agent.prohibitions'))}<textarea class="field-textarea" maxlength="8000" data-ta="voice.behavior.additional_prohibitions">${taEsc(c.voice.behavior.additional_prohibitions)}</textarea></label>
+                <label>${taEsc(t('config.telephone_agent.greeting'))}<textarea class="field-input" maxlength="500" data-ta="voice.behavior.greeting">${taEsc(c.voice.behavior.greeting)}</textarea></label>
+                <label>${taEsc(t('config.telephone_agent.purpose'))}<textarea class="field-input" maxlength="8000" data-ta="voice.behavior.purpose">${taEsc(c.voice.behavior.purpose)}</textarea></label>
+                <label>${taEsc(t('config.telephone_agent.style'))}<textarea class="field-input" maxlength="8000" data-ta="voice.behavior.speaking_style">${taEsc(c.voice.behavior.speaking_style)}</textarea></label>
+                <label>${taEsc(t('config.telephone_agent.prohibitions'))}<textarea class="field-input" maxlength="8000" data-ta="voice.behavior.additional_prohibitions">${taEsc(c.voice.behavior.additional_prohibitions)}</textarea></label>
                 <label>${taEsc(t('config.telephone_agent.unavailable'))}<select class="field-select" data-ta="voice.behavior.unavailable_request_behavior">
                     <option value="explain" ${c.voice.behavior.unavailable_request_behavior === 'explain' ? 'selected' : ''}>${taEsc(t('config.telephone_agent.explain'))}</option>
                     <option value="explain_and_end" ${c.voice.behavior.unavailable_request_behavior === 'explain_and_end' ? 'selected' : ''}>${taEsc(t('config.telephone_agent.explain_end'))}</option>
                 </select></label>
-                <label>${taEsc(t('config.telephone_agent.failure_message'))}<textarea class="field-textarea" maxlength="500" data-ta="voice.behavior.failure_message">${taEsc(c.voice.behavior.failure_message)}</textarea></label>
-                <label>${taEsc(t('config.telephone_agent.goodbye'))}<textarea class="field-textarea" maxlength="500" data-ta="voice.behavior.goodbye_message">${taEsc(c.voice.behavior.goodbye_message)}</textarea></label>
-            </fieldset>
+                <label>${taEsc(t('config.telephone_agent.failure_message'))}<textarea class="field-input" maxlength="500" data-ta="voice.behavior.failure_message">${taEsc(c.voice.behavior.failure_message)}</textarea></label>
+                <label>${taEsc(t('config.telephone_agent.goodbye'))}<textarea class="field-input" maxlength="500" data-ta="voice.behavior.goodbye_message">${taEsc(c.voice.behavior.goodbye_message)}</textarea></label>
+            </section>
 
-            <fieldset class="ta-card">
-                <legend>${taEsc(t('config.telephone_agent.tools'))}</legend>
+            <section class="ta-card">
+                <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.tools'))}</h2>
                 <p class="ta-hint">${taEsc(t('config.telephone_agent.tools_desc'))}</p>
                 <input class="field-input" type="search" data-ta-search placeholder="${taEsc(t('config.telephone_agent.search_tools'))}" value="${taEsc(telephoneAgentToolQuery)}">
                 <div class="ta-tools" data-ta-tools>${taToolMarkup(c.voice.allowed_tools)}</div>
-            </fieldset>
+            </section>
 
-            <fieldset class="ta-card">
-                <legend>${taEsc(t('config.telephone_agent.privacy_limits'))}</legend>
+            <section class="ta-card">
+                <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.privacy_limits'))}</h2>
                 <label class="ta-check"><input type="checkbox" data-ta="voice.persist_transcripts" ${c.voice.persist_transcripts ? 'checked' : ''}>${taEsc(t('config.sip.persist_transcripts'))}</label>
                 <label>${taEsc(t('config.sip.max_duration'))}<input class="field-input" type="number" min="30" max="86400" data-ta="voice.max_call_duration_seconds" value="${c.voice.max_call_duration_seconds}"></label>
 				<label>${taEsc(t('config.telephone_agent.idle_timeout'))}<input class="field-input" type="number" min="15" max="3600" data-ta="voice.idle_timeout_seconds" value="${c.voice.idle_timeout_seconds}"></label>
@@ -178,7 +178,7 @@ function taRender() {
 				<label>${taEsc(t('config.telephone_agent.max_outbound_calls_per_day'))}<input class="field-input" type="number" min="1" max="1000" data-ta="voice.max_outbound_calls_per_day" value="${c.voice.max_outbound_calls_per_day}"></label>
 				${taDailyUsageMarkup()}
                 <p class="ta-hint">${taEsc(t('config.telephone_agent.snapshot_note'))}</p>
-            </fieldset>
+            </section>
         </div>
         <div class="ta-actions">
             <span id="telephone-agent-status" role="status" aria-live="polite"></span>

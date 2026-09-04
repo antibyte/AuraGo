@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Zmień gęstość interfejsu",
   "config.precision.density_comfortable": "Wygodny",
   "config.precision.density_compact": "Kompaktowy",
-  "config.precision.overview_title": "Obszar konfiguracji",
-  "config.precision.overview_desc": "Znajdź wszystkie ustawienia systemu w jednym uporządkowanym miejscu. Wyszukuj pola bezpośrednio, przeglądaj powiązane obszary i wracaj do ostatniego miejsca pracy.",
+  "config.precision.overview_title": "Ustawienia",
+  "config.precision.overview_desc": "Zarządzaj agentem, połączeniami i ustawieniami systemu.",
   "config.precision.overview_sections": "obszarów konfiguracji",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Ostatnio używane",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Testuj połączenie",
   "config.integration_test.testing": "Testowanie połączenia…",
   "config.integration_test.success": "Połączenie udane.",
-  "config.integration_test.failure": "Test połączenia nie powiódł się."
+  "config.integration_test.failure": "Test połączenia nie powiódł się.",
+  "config.refresh.settings": "Ustawienia",
+  "config.refresh.operation": "Działanie",
+  "config.refresh.connection": "Połączenie",
+  "config.refresh.credentials": "Dane logowania",
+  "config.refresh.runtime": "Środowisko wykonawcze",
+  "config.refresh.model": "Model",
+  "config.refresh.network": "Sieć",
+  "config.refresh.language": "Język",
+  "config.refresh.local_models": "Modele lokalne"
 }

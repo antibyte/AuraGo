@@ -7,14 +7,11 @@
 }
 
 .pw-page[data-workspace-page="config"] .sip-wizard-shell {
-    padding: clamp(1rem, 2.4vw, 1.75rem);
-    border: 1px solid var(--border-subtle);
-    border-radius: 18px;
-    background: var(--bg-secondary);
+    padding: 0;
 }
 
 .pw-page[data-workspace-page="config"] .sip-wizard-title {
-    margin-bottom: 1.25rem;
+    margin-bottom: 24px;
 }
 
 .pw-page[data-workspace-page="config"] .sip-wizard-title h2,
@@ -22,7 +19,7 @@
 .pw-page[data-workspace-page="config"] .sip-wizard-configured h3 {
     margin: 0.2rem 0 0;
     color: var(--text-primary);
-    font-size: clamp(1.2rem, 2vw, 1.55rem);
+    font-size: 18px;
     line-height: 1.25;
 }
 
@@ -551,10 +548,10 @@
 }
 
 .pw-page[data-workspace-page="config"] .sip-profile-card {
-    overflow: hidden;
-    border: 1px solid var(--border-subtle);
-    border-radius: 14px;
-    background: var(--bg-primary);
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .pw-page[data-workspace-page="config"] .sip-profile-header {
@@ -726,9 +723,7 @@
 }
 
 .pw-page[data-workspace-page="config"] .sip-expert-actions {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
+    position: static;
     margin-top: 1.5rem;
     padding: 0.9rem 0;
     background: var(--bg-secondary);

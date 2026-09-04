@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Αλλαγή πυκνότητας διεπαφής",
   "config.precision.density_comfortable": "Άνετη",
   "config.precision.density_compact": "Συμπαγής",
-  "config.precision.overview_title": "Χώρος ρυθμίσεων",
-  "config.precision.overview_desc": "Βρες κάθε ρύθμιση συστήματος σε έναν οργανωμένο χώρο. Αναζήτησε απευθείας πεδία, έλεγξε σχετικές ενότητες και συνέχισε από εκεί που σταμάτησες.",
+  "config.precision.overview_title": "Ρυθμίσεις",
+  "config.precision.overview_desc": "Διαχειριστείτε τον πράκτορα, τις συνδέσεις και τις ρυθμίσεις συστήματος.",
   "config.precision.overview_sections": "ενότητες ρυθμίσεων",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Πρόσφατα χρησιμοποιημένα",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Έλεγχος σύνδεσης",
   "config.integration_test.testing": "Γίνεται έλεγχος σύνδεσης…",
   "config.integration_test.success": "Η σύνδεση ήταν επιτυχής.",
-  "config.integration_test.failure": "Ο έλεγχος σύνδεσης απέτυχε."
+  "config.integration_test.failure": "Ο έλεγχος σύνδεσης απέτυχε.",
+  "config.refresh.settings": "Ρυθμίσεις",
+  "config.refresh.operation": "Λειτουργία",
+  "config.refresh.connection": "Σύνδεση",
+  "config.refresh.credentials": "Διαπιστευτήρια",
+  "config.refresh.runtime": "Περιβάλλον εκτέλεσης",
+  "config.refresh.model": "Μοντέλο",
+  "config.refresh.network": "Δίκτυο",
+  "config.refresh.language": "Γλώσσα",
+  "config.refresh.local_models": "Τοπικά μοντέλα"
 }

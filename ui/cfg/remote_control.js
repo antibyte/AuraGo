@@ -12,8 +12,9 @@ async function renderRemoteControlSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // ── Enabled toggle ──
-    html += `<div class="rc-toggle-row rc-toggle-row-main">
-        <span class="rc-toggle-label-main">${t('config.remote_control.enabled_label')}</span>
+    html += `<div class="cfg-group-title">${t('config.refresh.operation')}</div>`;
+    html += `<div class="field-group">
+        <span class="field-label">${t('config.remote_control.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="remote_control.enabled" onclick="toggleBool(this);setNestedValue(configData,'remote_control.enabled',this.classList.contains('on'));renderRemoteControlSection(null)"></div>
     </div>`;
 
@@ -33,8 +34,8 @@ async function renderRemoteControlSection(section) {
 
     // ── Read-Only toggle ──
     const readOnly = cfg.read_only === true;
-    html += `<div class="rc-toggle-row rc-toggle-row-main">
-        <span class="rc-toggle-label-main">${t('config.remote_control.read_only_label')}</span>
+    html += `<div class="field-group">
+        <span class="field-label">${t('config.remote_control.read_only_label')}</span>
         <div class="toggle ${readOnly ? 'on' : ''}" data-path="remote_control.read_only" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -88,22 +89,22 @@ async function renderRemoteControlSection(section) {
 
     // Auto Approve
     const autoApprove = cfg.auto_approve === true;
-    html += `<div class="rc-toggle-row">
-        <span class="rc-label-text">${t('config.remote_control.auto_approve_label')}</span>
+    html += `<div class="field-group">
+        <span class="field-label">${t('config.remote_control.auto_approve_label')}</span>
         <div class="toggle ${autoApprove ? 'on' : ''}" data-path="remote_control.auto_approve" onclick="toggleBool(this)"></div>
     </div>`;
 
     // Audit Log
     const auditLog = cfg.audit_log !== false;
-    html += `<div class="rc-toggle-row">
-        <span class="rc-label-text">${t('config.remote_control.audit_log_label')}</span>
+    html += `<div class="field-group">
+        <span class="field-label">${t('config.remote_control.audit_log_label')}</span>
         <div class="toggle ${auditLog ? 'on' : ''}" data-path="remote_control.audit_log" onclick="toggleBool(this)"></div>
     </div>`;
 
     // SSH Insecure Host Key
     const sshInsecure = cfg.ssh_insecure_host_key === true;
-    html += `<div class="rc-toggle-row rc-toggle-insecure${sshInsecure ? ' is-on' : ''}">
-        <span class="rc-label-text">${t('config.remote_control.ssh_insecure_host_key_label')}</span>
+    html += `<div class="field-group rc-toggle-insecure${sshInsecure ? ' is-on' : ''}">
+        <span class="field-label">${t('config.remote_control.ssh_insecure_host_key_label')}</span>
         <div class="toggle ${sshInsecure ? 'on' : ''}" data-path="remote_control.ssh_insecure_host_key" onclick="toggleBool(this)"></div>
     </div>`;
     html += `</div>`;

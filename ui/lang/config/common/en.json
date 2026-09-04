@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Change interface density",
   "config.precision.density_comfortable": "Comfortable",
   "config.precision.density_compact": "Compact",
-  "config.precision.overview_title": "Configuration workspace",
-  "config.precision.overview_desc": "Find every system setting from one focused workspace. Search fields directly, review related areas and continue where you left off.",
+  "config.precision.overview_title": "Settings",
+  "config.precision.overview_desc": "Manage your agent, connections and system settings.",
   "config.precision.overview_sections": "configuration areas",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Recently used",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Test connection",
   "config.integration_test.testing": "Testing connection…",
   "config.integration_test.success": "Connection successful.",
-  "config.integration_test.failure": "Connection test failed."
+  "config.integration_test.failure": "Connection test failed.",
+  "config.refresh.settings": "Settings",
+  "config.refresh.operation": "Operation",
+  "config.refresh.connection": "Connection",
+  "config.refresh.credentials": "Credentials",
+  "config.refresh.runtime": "Runtime",
+  "config.refresh.model": "Model",
+  "config.refresh.network": "Network",
+  "config.refresh.language": "Language",
+  "config.refresh.local_models": "Local models"
 }

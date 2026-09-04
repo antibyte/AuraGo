@@ -14,9 +14,10 @@ function renderAgentMailSection(section) {
         label: section.label,
         desc: section.desc,
         beforeHTML: '<div id="agentmail-status-banner" class="adg-status-banner">' + t('config.agentmail.checking') + '</div>',
-        fields: [
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.agentmail.enabled_label'), help: t('help.agentmail.enabled'), path: 'agentmail.enabled', value: enabledOn }),
             form.toggle({ label: t('config.agentmail.readonly_label'), help: t('help.agentmail.readonly'), path: 'agentmail.readonly', value: readonlyOn }),
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.password({
                 label: t('config.agentmail.api_key_label'),
                 help: t('help.agentmail.api_key'),
@@ -25,19 +26,22 @@ function renderAgentMailSection(section) {
                 placeholder: apiKeyPlaceholder,
                 actionHTML: '<button class="btn-save adg-save-btn" onclick="agentMailSaveAPIKey()">' + t('config.agentmail.save_icon') + ' ' + t('config.agentmail.save_vault') + '</button>'
             }),
+        ] }, { titleKey: 'config.agentmail.inbox_id_label', fields: [
             form.field({ label: t('config.agentmail.inbox_id_label'), help: t('help.agentmail.inbox_id'), path: 'agentmail.inbox_id', value: data.inbox_id || '', placeholder: 'inbox_...' }),
             form.toggle({ label: t('config.agentmail.auto_create_label'), help: t('help.agentmail.auto_create_inbox'), path: 'agentmail.auto_create_inbox', value: data.auto_create_inbox === true }),
             form.field({ label: t('config.agentmail.username_label'), help: t('help.agentmail.username'), path: 'agentmail.username', value: data.username || '', placeholder: 'aurago' }),
             form.field({ label: t('config.agentmail.domain_label'), help: t('help.agentmail.domain'), path: 'agentmail.domain', value: data.domain || '', placeholder: 'agentmail.to' }),
             form.field({ label: t('config.agentmail.display_name_label'), help: t('help.agentmail.display_name'), path: 'agentmail.display_name', value: data.display_name || '', placeholder: 'AuraGo' }),
+        ] }, { titleKey: 'config.refresh.runtime', fields: [
             form.toggle({ label: t('config.agentmail.relay_label'), help: t('help.agentmail.relay_to_agent'), path: 'agentmail.relay_to_agent', value: relayOn }),
             agentMailCheatsheetSelect(data.relay_cheatsheet_id || ''),
             form.toggle({ label: t('config.agentmail.websocket_label'), help: t('help.agentmail.use_websocket'), path: 'agentmail.use_websocket', value: wsOn }),
             form.number({ label: t('config.agentmail.poll_interval_label'), help: t('help.agentmail.poll_interval_seconds'), path: 'agentmail.poll_interval_seconds', value: String(data.poll_interval_seconds || 120), min: 30, step: 1 }),
             form.number({ label: t('config.agentmail.max_attachment_label'), help: t('help.agentmail.max_attachment_mb'), path: 'agentmail.max_attachment_mb', value: String(data.max_attachment_mb || 10), min: 0, step: 1 }),
+        ] }, { titleKey: 'config.refresh.connection', fields: [
             form.field({ label: t('config.agentmail.base_url_label'), help: t('help.agentmail.base_url'), path: 'agentmail.base_url', value: data.base_url || 'https://api.agentmail.to', placeholder: 'https://api.agentmail.to' }),
             form.field({ label: t('config.agentmail.websocket_url_label'), help: t('help.agentmail.websocket_url'), path: 'agentmail.websocket_url', value: data.websocket_url || 'wss://ws.agentmail.to/v0', placeholder: 'wss://ws.agentmail.to/v0' })
-        ],
+        ] }],
         afterHTML: form.actions([
             { html: '<button class="btn-save adg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn">🔌 ' + t('config.agentmail.test_btn') + '</button>' },
             { html: '<span id="agentmail-test-result" class="adg-test-result"></span>' }

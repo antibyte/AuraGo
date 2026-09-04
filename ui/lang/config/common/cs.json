@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Změnit hustotu rozhraní",
   "config.precision.density_comfortable": "Pohodlné",
   "config.precision.density_compact": "Kompaktní",
-  "config.precision.overview_title": "Pracovní prostor konfigurace",
-  "config.precision.overview_desc": "Najdi všechna systémová nastavení na jednom přehledném místě. Vyhledávej přímo pole, procházej související oblasti a pokračuj tam, kde jsi skončil.",
+  "config.precision.overview_title": "Nastavení",
+  "config.precision.overview_desc": "Spravujte svého agenta, připojení a nastavení systému.",
   "config.precision.overview_sections": "oblastí konfigurace",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Nedávno použité",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Otestovat připojení",
   "config.integration_test.testing": "Testuji připojení…",
   "config.integration_test.success": "Připojení bylo úspěšné.",
-  "config.integration_test.failure": "Test připojení se nezdařil."
+  "config.integration_test.failure": "Test připojení se nezdařil.",
+  "config.refresh.settings": "Nastavení",
+  "config.refresh.operation": "Provoz",
+  "config.refresh.connection": "Připojení",
+  "config.refresh.credentials": "Přihlašovací údaje",
+  "config.refresh.runtime": "Běhové prostředí",
+  "config.refresh.model": "Model",
+  "config.refresh.network": "Síť",
+  "config.refresh.language": "Jazyk",
+  "config.refresh.local_models": "Místní modely"
 }

@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "इंटरफ़ेस घनत्व बदलें",
   "config.precision.density_comfortable": "आरामदायक",
   "config.precision.density_compact": "कॉम्पैक्ट",
-  "config.precision.overview_title": "कॉन्फ़िगरेशन कार्यक्षेत्र",
-  "config.precision.overview_desc": "सिस्टम की हर सेटिंग एक सुव्यवस्थित कार्यक्षेत्र में खोजें। सीधे फ़ील्ड खोजें, जुड़े हुए भाग देखें और वहीं से जारी रखें जहाँ रुके थे।",
+  "config.precision.overview_title": "सेटिंग्स",
+  "config.precision.overview_desc": "अपने एजेंट, कनेक्शन और सिस्टम सेटिंग्स प्रबंधित करें।",
   "config.precision.overview_sections": "कॉन्फ़िगरेशन क्षेत्र",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "हाल में इस्तेमाल किए गए",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "कनेक्शन जाँचें",
   "config.integration_test.testing": "कनेक्शन जाँचा जा रहा है…",
   "config.integration_test.success": "कनेक्शन सफल रहा।",
-  "config.integration_test.failure": "कनेक्शन परीक्षण विफल रहा।"
+  "config.integration_test.failure": "कनेक्शन परीक्षण विफल रहा।",
+  "config.refresh.settings": "सेटिंग्स",
+  "config.refresh.operation": "संचालन",
+  "config.refresh.connection": "कनेक्शन",
+  "config.refresh.credentials": "लॉगिन विवरण",
+  "config.refresh.runtime": "रनटाइम",
+  "config.refresh.model": "मॉडल",
+  "config.refresh.network": "नेटवर्क",
+  "config.refresh.language": "भाषा",
+  "config.refresh.local_models": "स्थानीय मॉडल"
 }

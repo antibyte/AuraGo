@@ -147,8 +147,6 @@ async function renderNetlifySection(section) {
 
     html += `</div>`;
 
-    html += `</div>`;
-
     html += `<div class="field-group">
         <div class="field-group-title">🔌 ${t('config.netlify.test_title')}</div>
         <div class="field-group-desc">${t('config.netlify.test_desc')}</div>

@@ -12,7 +12,7 @@ async function renderServerSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">${t('config.server.general_title')}</div>`;
+        <div class="field-group-title">${t('config.refresh.network')}</div>`;
 
     html += `<div class="field-grid two-cols">`;
 
@@ -27,18 +27,9 @@ async function renderServerSection(section) {
     </div>`;
 
     html += `<div class="field-group">
-        <div class="field-label">${t('config.server.ui_language_label')}</div>
-        <select class="field-select" data-path="server.ui_language">
-            ${['de','en','es','fr','it','pt','nl','pl','zh','ja','hi','da','sv','no','cs','el'].map(l =>
-                `<option value="${l}" ${(cfg.ui_language||'de')===l?'selected':''}>${l.toUpperCase()}</option>`
-            ).join('')}
-        </select>
-    </div>`;
-
-    html += `<div class="field-group">
         <div class="field-label">${t('config.server.oauth_redirect_label')}</div>
         <div class="field-help">${t('config.server.oauth_redirect_hint')}</div>
-        <input type="text" class="field-input" data-path="server.oauth_redirect_base_url" value="${escapeAttr(cfg.oauth_redirect_base_url || '')}" placeholder="https://aurago.example.com">
+        <input type="url" class="field-input" data-path="server.oauth_redirect_base_url" value="${escapeAttr(cfg.oauth_redirect_base_url || '')}" placeholder="https://aurago.example.com">
     </div>`;
 
     html += `<div class="field-group">
@@ -46,6 +37,17 @@ async function renderServerSection(section) {
         <div class="field-help">${t('config.server.max_body_bytes_hint')}</div>
         <input type="number" class="field-input" data-path="server.max_body_bytes" value="${cfg.max_body_bytes || 0}" min="0">
     </div></div>`;
+
+    html += `</div>`;
+    html += `<div class="cfg-topic"><div class="field-group-title">${t('config.refresh.language')}</div>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.server.ui_language_label')}</div>
+        <select class="field-select" data-path="server.ui_language">
+            ${['de','en','es','fr','it','pt','nl','pl','zh','ja','hi','da','sv','no','cs','el'].map(l =>
+                `<option value="${l}" ${(cfg.ui_language||'de')===l?'selected':''}>${l.toUpperCase()}</option>`
+            ).join('')}
+        </select>
+    </div>`;
 
     html += `</div>`;
 

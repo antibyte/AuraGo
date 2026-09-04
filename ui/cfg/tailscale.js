@@ -21,13 +21,13 @@ async function renderTailscaleSection(section) {
         <div class="field-group-desc">${t('config.tailscale.api_desc')}</div>
         <div id="ts-api-status-banner" class="adg-status-banner">${t('config.tailscale.checking')}</div>`;
 
-    html += `<div class="ts-toggle-row">
-        <span class="ts-toggle-label">${t('config.tailscale.enabled_label')}</span>
+    html += `<div class="field-group">
+        <span class="field-label">${t('config.tailscale.enabled_label')}</span>
         <div class="toggle ${cfg.enabled ? 'on' : ''}" data-path="tailscale.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
-    html += `<div class="ts-toggle-row">
-        <span class="ts-toggle-label">${t('config.tailscale.readonly_label')}</span>
+    html += `<div class="field-group">
+        <span class="field-label">${t('config.tailscale.readonly_label')}</span>
         <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="tailscale.readonly" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -96,21 +96,21 @@ async function renderTailscaleSection(section) {
         const spaceAgentCfg = configData.space_agent || {};
         html += `<div class="ts-exposure-box">
             <div class="ts-exposure-title">${t('config.tailscale.tsnet_exposure_title')}</div>
-            <div class="ts-exposure-row">
-                <span class="ts-exposure-label">${t('config.tailscale.tsnet_serve_http_label')}</span>
+            <div class="field-group">
+                <span class="field-label">${t('config.tailscale.tsnet_serve_http_label')}</span>
                 <div class="toggle ${serveHTTP ? 'on' : ''}" data-path="tailscale.tsnet.serve_http" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.serve_http',this.classList.contains('on'));renderTailscaleSection(null)"></div>
             </div>
             <small class="ts-hint-block-mb">${t('config.tailscale.tsnet_serve_http_hint')}</small>
 
-            <div class="ts-exposure-row">
-                <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_homepage_label')}</span>
+            <div class="field-group">
+                <span class="field-label">${t('config.tailscale.tsnet_expose_homepage_label')}</span>
                 <div class="toggle ${exposeHomepage ? 'on' : ''}" data-path="tailscale.tsnet.expose_homepage" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.expose_homepage',this.classList.contains('on'));renderTailscaleSection(null)"></div>
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_homepage_hint')}</small>
             ${homepageCfg.webserver_enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_homepage_requires_webserver')}</div>`}
 
-            <div class="ts-exposure-row-mt">
-                <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_manifest_label')}</span>
+            <div class="field-group">
+                <span class="field-label">${t('config.tailscale.tsnet_expose_manifest_label')}</span>
                 <div class="toggle ${exposeManifest ? 'on' : ''}" data-path="tailscale.tsnet.expose_manifest" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.expose_manifest',this.classList.contains('on'));renderTailscaleSection(null)"></div>
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_manifest_hint')}</small>
@@ -122,22 +122,22 @@ async function renderTailscaleSection(section) {
                 <input type="number" min="1" max="65535" class="field-input" data-path="tailscale.tsnet.manifest_port" value="${escapeAttr(tsnet.manifest_port || 443)}">
             </div>
 
-            <div class="ts-exposure-row-mt">
-                <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_space_agent_label')}</span>
+            <div class="field-group">
+                <span class="field-label">${t('config.tailscale.tsnet_expose_space_agent_label')}</span>
                 <div class="toggle ${exposeSpaceAgent ? 'on' : ''}" data-path="tailscale.tsnet.expose_space_agent" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.expose_space_agent',this.classList.contains('on'));renderTailscaleSection(null)"></div>
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_space_agent_hint')}</small>
             ${spaceAgentCfg.enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_space_agent_requires_enabled')}</div>`}
 
-            <div class="ts-exposure-row-mt">
-                <span class="ts-exposure-label">${t('config.tailscale.tsnet_funnel_label')}</span>
+            <div class="field-group">
+                <span class="field-label">${t('config.tailscale.tsnet_funnel_label')}</span>
                 <div class="toggle ${funnel ? 'on' : ''}" data-path="tailscale.tsnet.funnel" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.funnel',this.classList.contains('on'));renderTailscaleSection(null)"></div>
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_funnel_hint')}</small>
             ${serveHTTP ? '' : `<div class="ts-info-box">${t('config.tailscale.tsnet_funnel_requires_web')}</div>`}
 
-            <div class="ts-exposure-row-mt">
-                <span class="ts-exposure-label">${t('config.tailscale.tsnet_allow_http_fallback_label')}</span>
+            <div class="field-group">
+                <span class="field-label">${t('config.tailscale.tsnet_allow_http_fallback_label')}</span>
                 <div class="toggle ${allowHTTPFallback ? 'on' : ''}" data-path="tailscale.tsnet.allow_http_fallback" onclick="toggleBool(this)"></div>
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_allow_http_fallback_hint')}</small>

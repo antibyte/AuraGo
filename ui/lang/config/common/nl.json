@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Dichtheid van de interface wijzigen",
   "config.precision.density_comfortable": "Comfortabel",
   "config.precision.density_compact": "Compact",
-  "config.precision.overview_title": "Configuratiewerkruimte",
-  "config.precision.overview_desc": "Vind alle systeeminstellingen in één overzichtelijke werkruimte. Zoek rechtstreeks naar velden, bekijk verwante onderdelen en ga verder waar je was gebleven.",
+  "config.precision.overview_title": "Instellingen",
+  "config.precision.overview_desc": "Beheer je agent, verbindingen en systeeminstellingen.",
   "config.precision.overview_sections": "configuratieonderdelen",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Onlangs gebruikt",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Verbinding testen",
   "config.integration_test.testing": "Verbinding wordt getest…",
   "config.integration_test.success": "Verbinding geslaagd.",
-  "config.integration_test.failure": "Verbindingstest mislukt."
+  "config.integration_test.failure": "Verbindingstest mislukt.",
+  "config.refresh.settings": "Instellingen",
+  "config.refresh.operation": "Werking",
+  "config.refresh.connection": "Verbinding",
+  "config.refresh.credentials": "Inloggegevens",
+  "config.refresh.runtime": "Uitvoering",
+  "config.refresh.model": "Model",
+  "config.refresh.network": "Netwerk",
+  "config.refresh.language": "Taal",
+  "config.refresh.local_models": "Lokale modellen"
 }

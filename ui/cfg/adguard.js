@@ -12,10 +12,12 @@ function renderAdGuardSection(section) {
         label: section.label,
         desc: section.desc,
         beforeHTML: '<div id="adg-status-banner" class="adg-status-banner">' + t('config.adguard.checking') + '</div>',
-        fields: [
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.adguard.enabled_label'), help: t('help.adguard.enabled'), path: 'adguard.enabled', value: enabledOn }),
-            form.toggle({ label: t('config.adguard.readonly_label'), help: t('help.adguard.readonly'), path: 'adguard.readonly', value: readonlyOn }),
-            form.field({ label: t('config.adguard.url_label'), help: t('help.adguard.url'), path: 'adguard.url', value: data.url || '', placeholder: 'http://192.168.1.1:3000' }),
+            form.toggle({ label: t('config.adguard.readonly_label'), help: t('help.adguard.readonly'), path: 'adguard.readonly', value: readonlyOn })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.adguard.url_label'), help: t('help.adguard.url'), path: 'adguard.url', value: data.url || '', placeholder: 'http://192.168.1.1:3000' })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.field({ label: t('config.adguard.username_label'), help: t('help.adguard.username'), path: 'adguard.username', value: data.username || '', placeholder: 'admin' }),
             form.password({
                 label: t('config.adguard.password_label'),
@@ -25,7 +27,7 @@ function renderAdGuardSection(section) {
                 placeholder: passwordPlaceholder,
                 actionHTML: '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">' + t('config.adguard.save_icon') + ' ' + t('config.adguard.save_vault') + '</button>'
             })
-        ],
+        ] }],
         afterHTML: form.actions([
             { html: '<button class="btn-save adg-test-btn" onclick="adgTestConnection()" id="adg-test-btn">🔌 ' + t('config.adguard.test_btn') + '</button>' },
             { html: '<span id="adg-test-result" class="adg-test-result"></span>' }

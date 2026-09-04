@@ -1068,7 +1068,7 @@ func TestConfigSaveBarStickyAndLiveStatusMarkers(t *testing.T) {
 	for _, marker := range []string{
 		"position: relative;",
 		"flex: 0 0 auto;",
-		"min-height: 72px;",
+		"min-height: 64px;",
 		"env(safe-area-inset-bottom",
 		"z-index: 10;",
 	} {

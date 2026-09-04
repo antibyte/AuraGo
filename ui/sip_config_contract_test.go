@@ -30,7 +30,7 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"sipSavedState", "sipComparable(current) !== sipSavedState",
 		"config.telephone_agent.sip_summary", `class="sip-settings-grid"`,
 		`class="field-group sip-toggle-field"`, `class="toggle"`, `class="slider"`,
-		`class="sip-wizard-shell"`, `class="sip-provider-grid"`, `class="sip-advanced"`,
+		`class="sip-wizard-shell cfg-topic"`, `class="sip-provider-grid"`, `class="sip-advanced"`,
 		"confirm_replace", "sipWizardPassword", "sipAdvancedDirty",
 		"const canReusePassword = sipConfigState.password_set && sipConfigState.preset_id === provider.id",
 		"async function renderSIPSection() {\n    sipWizardStep = 1;",

@@ -77,15 +77,36 @@
         });
         scope.querySelectorAll('.field-group').forEach(group => {
             group.classList.add('pw-field');
-            const nested = group.querySelector('.field-group');
-            group.classList.toggle('cfg-field-section', !!nested);
             const label = group.querySelector(':scope > .field-label');
             const help = group.querySelector(':scope > .field-help');
+            const toggle = group.querySelector(':scope > .toggle, :scope > .toggle-wrap');
+            group.classList.toggle('cfg-switch-field', !!toggle && !!label);
+            // The help follows the editor in both visual and screen-reader order.
+            if (help && !toggle && help.nextElementSibling && !help.nextElementSibling.matches('.pw-field-error, .cfg-save-scope')) {
+                const editor = group.querySelector(':scope > input, :scope > select, :scope > textarea, :scope > .password-wrap, :scope > .adg-password-row, :scope > .field-select-wrap');
+                if (editor && editor.previousElementSibling === help) editor.after(help);
+            }
             group.querySelectorAll('input, select, textarea, .toggle[data-path]').forEach(control => {
                 if (control.closest('.field-group') !== group) return;
                 if (!control.labels?.length && !control.hasAttribute('aria-label')) describe(control, 'aria-labelledby', label);
                 describe(control, 'aria-describedby', help);
             });
+        });
+        scope.querySelectorAll('.cfg-toggle-row, .cfg-toggle-row-highlight, .cfg-toggle-row-compact').forEach(row => {
+            const label = row.querySelector('.cfg-toggle-label');
+            const toggle = row.querySelector('.toggle');
+            if (label && toggle) describe(toggle, 'aria-labelledby', label);
+        });
+        scope.querySelectorAll('.toggle[data-path]').forEach(toggle => {
+            if (!toggle.parentElement.classList.contains('toggle-wrap')) {
+                const wrap = document.createElement('div');
+                wrap.className = 'toggle-wrap';
+                const state = document.createElement('span');
+                state.className = 'toggle-label';
+                state.textContent = t(toggle.classList.contains('on') ? 'config.toggle.active' : 'config.toggle.inactive');
+                toggle.before(wrap);
+                wrap.append(toggle, state);
+            }
         });
         scope.querySelectorAll('.password-toggle').forEach(button => {
             if (button.hasAttribute('aria-label') || button.title) return;

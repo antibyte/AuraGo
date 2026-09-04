@@ -15,6 +15,7 @@ function renderFritzBoxSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += '<div id="fb-status-banner" class="adg-status-banner">' + t('config.fritzbox.checking') + '</div>';
+    html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.enabled_label') + '</div>';
@@ -24,6 +25,7 @@ function renderFritzBoxSection(section) {
     html += '<span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
+    html += '<div class="cfg-group-title">' + t('config.refresh.connection') + '</div>';
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.host_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.host') + '</div>';
@@ -60,6 +62,7 @@ function renderFritzBoxSection(section) {
     html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
+    html += '<div class="cfg-group-title">' + t('config.refresh.credentials') + '</div>';
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.username_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.username') + '</div>';

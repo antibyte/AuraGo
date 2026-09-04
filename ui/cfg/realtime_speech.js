@@ -135,6 +135,7 @@ function rsRender() {
         <div class="section-header">${rsEsc(t('config.realtime_speech.title'))}</div>
         <div class="section-desc">${rsEsc(t('config.realtime_speech.description'))}</div>
         <div class="rs-master-card">
+            <h2 class="cfg-topic-heading">${rsEsc(t('config.refresh.operation'))}</h2>
             <label class="rs-master-toggle">
                 <input type="checkbox" data-rs-master="enabled" ${realtimeSpeechState.enabled ? 'checked' : ''}>
                 <span>

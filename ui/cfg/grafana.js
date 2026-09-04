@@ -12,9 +12,14 @@ function renderGrafanaSection(section) {
         label: section.label,
         desc: section.desc,
         beforeHTML: '<div id="grafana-status-banner" class="adg-status-banner">' + t('config.grafana.checking') + '</div>',
-        fields: [
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.grafana.enabled_label'), help: t('help.grafana.enabled'), path: 'grafana.enabled', value: enabledOn }),
+            form.toggle({ label: t('config.grafana.readonly_label'), help: t('help.grafana.readonly'), path: 'grafana.readonly', value: readonlyOn })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
             form.field({ label: t('config.grafana.base_url_label'), help: t('help.grafana.base_url'), path: 'grafana.base_url', value: data.base_url || '', placeholder: 'http://grafana.local:3000' }),
+            form.toggle({ label: t('config.grafana.insecure_ssl_label'), help: t('help.grafana.insecure_ssl'), path: 'grafana.insecure_ssl', value: insecureOn }),
+            form.number({ label: t('config.grafana.request_timeout_label'), help: t('help.grafana.request_timeout'), path: 'grafana.request_timeout', value: String(data.request_timeout || 15), min: 1, step: 1 })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.password({
                 label: t('config.grafana.api_key_label'),
                 help: t('help.grafana.api_key'),
@@ -22,11 +27,8 @@ function renderGrafanaSection(section) {
                 value: data.api_key,
                 placeholder: apiKeyPlaceholder,
                 actionHTML: '<button class="btn-save adg-save-btn" onclick="grafanaSaveAPIKey()">' + t('config.grafana.save_icon') + ' ' + t('config.grafana.save_vault') + '</button>'
-            }),
-            form.toggle({ label: t('config.grafana.readonly_label'), help: t('help.grafana.readonly'), path: 'grafana.readonly', value: readonlyOn }),
-            form.toggle({ label: t('config.grafana.insecure_ssl_label'), help: t('help.grafana.insecure_ssl'), path: 'grafana.insecure_ssl', value: insecureOn }),
-            form.number({ label: t('config.grafana.request_timeout_label'), help: t('help.grafana.request_timeout'), path: 'grafana.request_timeout', value: String(data.request_timeout || 15), min: 1, step: 1 })
-        ],
+            })
+        ] }],
         afterHTML: form.actions([
             { html: '<button class="btn-save adg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn">🔌 ' + t('config.grafana.test_btn') + '</button>' },
             { html: '<span id="grafana-test-result" class="adg-test-result"></span>' }

@@ -16,10 +16,12 @@ function renderWebDAVSection(section) {
         label: section.label,
         desc: section.desc,
         beforeHTML: '<div id="webdav-status-banner" class="adg-status-banner">' + t('config.webdav.checking') + '</div>',
-        fields: [
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.webdav.enabled_label'), help: t('help.webdav.enabled'), path: 'webdav.enabled', value: enabled }),
             form.toggle({ label: t('config.webdav.readonly_label'), help: t('help.webdav.read_only'), path: 'webdav.readonly', value: readonly }),
-            form.field({ label: t('config.webdav.url_label'), help: t('help.webdav.url'), path: 'webdav.url', value: data.url || '', placeholder: 'https://cloud.example.com/remote.php/dav/files/user/' }),
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.webdav.url_label'), help: t('help.webdav.url'), path: 'webdav.url', value: data.url || '', placeholder: 'https://cloud.example.com/remote.php/dav/files/user/' })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.select({
                 label: t('config.webdav.auth_type_label'),
                 help: t('help.webdav.auth_type'),
@@ -47,7 +49,7 @@ function renderWebDAVSection(section) {
                 placeholder: cfgSecretPlaceholder(secretValue, authType === 'bearer' ? t('config.webdav.token_placeholder') : t('config.webdav.password_placeholder')),
                 actionHTML: '<button class="btn-save adg-save-btn" onclick="webdavSaveSecret()">💾 ' + t('config.webdav.save_vault') + '</button>'
             })
-        ],
+        ] }],
         afterHTML: form.actions([
             { html: '<button class="btn-save adg-test-btn" onclick="webdavTestConnection()" id="webdav-test-btn">🔌 ' + t('config.webdav.test_btn') + '</button>' },
             { html: '<span id="webdav-test-result" class="adg-test-result"></span>' }

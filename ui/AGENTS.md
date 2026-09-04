@@ -74,8 +74,9 @@ images, and browser-oriented regression tests.
   rules in that stylesheet's normal rule structure. Every operational selector
   must be scoped with the page's `data-workspace-page`; do not keep separate
   Precision and legacy layers, permanently appended/delimited adapter blocks,
-  superseded legacy surface tokens, gradients, glassmorphism, glows, shadows,
-  or decorative animations. Entry-page additions remain scoped with
+  superseded legacy surface tokens, glassmorphism, or glows. Gradients, shadows
+  and decorative animations remain prohibited outside Config; Config's bounded
+  surface and interaction effects are defined below. Entry-page additions remain scoped with
   `data-entry-page`.
 - `window.AuraPrecisionWorkspace` owns the browser-local
   `aurago.workspace.density.v1` preference and exposes `init()`,
@@ -89,10 +90,20 @@ images, and browser-oriented regression tests.
   Keep Geist, 16px inputs and 44px controls in both densities. Below 1100px the
   labeled sidebar becomes a keyboard-accessible drawer; the save dock stays in
   the viewport layout without covering the scrollable form.
-- Config fields are flat rows inside topic sections; cards represent independent
-  objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy
+- Config uses one visible card level: named topic cards containing flat fields,
+  with a compact variant for independent objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy
   integration renderers. Preserve their data bindings, independent provider /
   credential save paths and native checkbox semantics.
+- Config topic boundaries are explicit renderer headings/groups or exact selectors
+  in `AuraConfigCatalog.presentation`; never infer cards from nested field wrappers.
+  Card headings use 18px text, fields 16px, help 14px, with 24px spacing (16px
+  compact/mobile). Switches sit beside their label and help. Keep blue/slate
+  surfaces, softly tinted blue/cyan card heads and subtle blue-tinted shadows.
+  Use 16px card corners, the `--cfg-card-heading` tint and `--surface-shadow`
+  (0 6px 20px, 16% dark / 7% light); dialogs use `--surface-shadow-strong`.
+  Interactive entry cards may lift at most 2px; switches/disclosures use 140–180ms
+  feedback and save success may animate once. Reduced motion disables these effects.
+  The overview has no save dock; independent saves identify their scope.
 - Config advanced fields require explicit `sectionTiers` or `data-tier` metadata.
   Never infer tiers from name fragments or move fields across topic boundaries.
   Required fields and security notices stay visible. Search and validation open

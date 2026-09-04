@@ -2,8 +2,6 @@
     max-width: 1120px;
 }
 
-.pw-page[data-workspace-page="config"] .rs-master-card,
-.pw-page[data-workspace-page="config"] .rs-profile-card,
 .pw-page[data-workspace-page="config"] .rs-security-note {
     margin-top: 18px;
     padding: 18px;
@@ -13,17 +11,15 @@
 }
 
 .pw-page[data-workspace-page="config"] .rs-master-card {
-    display: grid;
-    grid-template-columns: minmax(220px, 1.25fr) minmax(180px, 1fr) minmax(160px, .6fr);
-    gap: 16px;
-    align-items: end;
+    display: block;
 }
 
-.pw-page[data-workspace-page="config"] .rs-master-toggle,
+.pw-page[data-workspace-page="config"] .rs-master-card > .rs-master-toggle,
 .pw-page[data-workspace-page="config"] .rs-inline-toggle {
     display: flex;
     align-items: flex-start;
     gap: 10px;
+    min-height: 44px;
     cursor: pointer;
 }
 
@@ -33,6 +29,8 @@
     height: 18px;
     margin-top: 2px;
     accent-color: var(--accent, #35c7d3);
+    order: 2;
+    margin-left: auto;
 }
 
 .pw-page[data-workspace-page="config"] .rs-master-toggle span {

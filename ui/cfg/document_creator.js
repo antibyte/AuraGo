@@ -15,8 +15,9 @@ async function renderDocumentCreatorSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Enabled toggle ──
-    html += '<div class="dc-toggle-row-main">';
-    html += '<span class="dc-toggle-label">' + t('config.document_creator.enabled_label') + '</span>';
+    html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.document_creator.enabled_label') + '</div>';
     html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="tools.document_creator.enabled" onclick="toggleBool(this);dcUpdateEnabled(this.classList.contains(\'on\'))"></div>';
     html += '</div>';
 
@@ -56,8 +57,8 @@ async function renderDocumentCreatorSection(section) {
 
     // ── Gotenberg fields (conditional) ──
     var showGot = backend === 'gotenberg';
-    html += '<div id="dc-gotenberg-fields" class="dc-gotenberg-box' + (showGot ? '' : ' is-hidden') + '">';
-    html += '<div class="dc-gotenberg-title">' + t('config.document_creator.gotenberg_title') + '</div>';
+    html += '<section id="dc-gotenberg-fields" class="cfg-topic' + (showGot ? '' : ' is-hidden') + '">';
+    html += '<h2 class="cfg-topic-heading">' + t('config.document_creator.gotenberg_title') + '</h2>';
 
     // URL
     html += '<div class="field-group">';
@@ -83,7 +84,7 @@ async function renderDocumentCreatorSection(section) {
     html += '<span id="dc-test-result" class="dc-test-result"></span>';
     html += '</div>';
 
-    html += '</div>'; // End gotenberg-fields
+    html += '</section>'; // End gotenberg-fields
     html += '</div>'; // End cfg-section
 
     document.getElementById('content').innerHTML = html;

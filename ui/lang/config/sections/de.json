@@ -401,7 +401,7 @@
   "config.space_agent.sidecar_note": "Läuft als verwalteter Docker-Sidecar mit eigener Anmeldung und Vault-Token.",
   "config.space_agent.auto_start_label": "Sidecar automatisch starten",
   "config.space_agent.public_url_label": "Öffentliche URL",
-  "config.space_agent.port_label": "Hafen",
+  "config.space_agent.port_label": "Port",
   "config.space_agent.https_enabled_label": "HTTPS-Wrapper",
   "config.space_agent.https_port_label": "HTTPS-Port",
   "config.space_agent.host_label": "Host",

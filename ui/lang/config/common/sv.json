@@ -48,8 +48,8 @@
   "config.precision.density_toggle": "Ändra gränssnittets täthet",
   "config.precision.density_comfortable": "Bekväm",
   "config.precision.density_compact": "Kompakt",
-  "config.precision.overview_title": "Konfigurationsyta",
-  "config.precision.overview_desc": "Hitta alla systeminställningar på en tydlig arbetsyta. Sök direkt efter fält, granska relaterade områden och fortsätt där du slutade.",
+  "config.precision.overview_title": "Inställningar",
+  "config.precision.overview_desc": "Hantera din agent, anslutningar och systeminställningar.",
   "config.precision.overview_sections": "konfigurationsområden",
   "config.precision.workspace_label": "Precision Workspace",
   "config.precision.recent_title": "Senast använda",
@@ -74,5 +74,14 @@
   "config.integration_test.button": "Testa anslutning",
   "config.integration_test.testing": "Testar anslutningen…",
   "config.integration_test.success": "Anslutningen lyckades.",
-  "config.integration_test.failure": "Anslutningstestet misslyckades."
+  "config.integration_test.failure": "Anslutningstestet misslyckades.",
+  "config.refresh.settings": "Inställningar",
+  "config.refresh.operation": "Drift",
+  "config.refresh.connection": "Anslutning",
+  "config.refresh.credentials": "Inloggningsuppgifter",
+  "config.refresh.runtime": "Körmiljö",
+  "config.refresh.model": "Modell",
+  "config.refresh.network": "Nätverk",
+  "config.refresh.language": "Språk",
+  "config.refresh.local_models": "Lokala modeller"
 }

@@ -30,6 +30,7 @@ async function renderSpaceAgentSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
+    html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
 
     html += spaceAgentToggleRow('config.space_agent.enabled_label', 'help.space_agent.enabled', enabled, 'space_agent.enabled', "spaceAgentToggleEnabled(this.classList.contains('on'))");
 
@@ -47,7 +48,8 @@ async function renderSpaceAgentSection(section) {
     html += '<div class="cfg-note-banner cfg-note-banner-info">🛰️ ' + t('config.space_agent.sidecar_note') + '</div>';
     html += spaceAgentToggleRow('config.space_agent.auto_start_label', 'help.space_agent.auto_start', data.auto_start !== false, 'space_agent.auto_start');
 
-    html += '<div class="field-grid two-cols">';
+    html += '<div class="cfg-group-title">' + t('config.refresh.connection') + '</div>';
+    html += '<div class="field-grid">';
     html += spaceAgentField('config.space_agent.public_url_label', 'help.space_agent.public_url',
         '<input class="field-input" type="url" placeholder="https://aurago-server.local:3101" value="' + escapeAttr(data.public_url || '') + '" data-path="space_agent.public_url">');
     html += spaceAgentField('config.space_agent.port_label', 'help.space_agent.port',
@@ -63,6 +65,7 @@ async function renderSpaceAgentSection(section) {
     html += '<div class="field-grid two-cols">';
     html += spaceAgentField('config.space_agent.host_label', 'help.space_agent.host',
         '<input class="field-input" type="text" value="' + escapeAttr(data.host || '0.0.0.0') + '" data-path="space_agent.host">');
+    html += '</div><div class="cfg-group-title">' + t('config.refresh.credentials') + '</div><div class="field-grid">';
     html += spaceAgentField('config.space_agent.admin_user_label', 'help.space_agent.admin_user',
         '<input class="field-input" type="text" value="' + escapeAttr(data.admin_user || 'admin') + '" data-path="space_agent.admin_user">');
     html += '</div>';
@@ -70,6 +73,7 @@ async function renderSpaceAgentSection(section) {
     html += spaceAgentField('config.space_agent.admin_password_label', 'help.space_agent.admin_password',
         '<div class="password-wrap"><input class="field-input" type="password" value="' + escapeAttr(data.admin_password || '') + '" data-path="space_agent.admin_password" autocomplete="new-password"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
 
+    html += '<div class="cfg-group-title">' + t('config.refresh.runtime') + '</div>';
     html += '<details class="cfg-advanced-panel space-agent-advanced-panel">';
     html += '<summary class="cfg-advanced-summary">⚙️ ' + t('config.space_agent.advanced_label') + '</summary>';
     html += '<div class="cfg-advanced-body">';

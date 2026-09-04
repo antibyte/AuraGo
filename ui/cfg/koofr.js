@@ -11,10 +11,12 @@ function renderKoofrSection(section) {
         label: section.label,
         desc: section.desc,
         beforeHTML: '<div id="koofr-status-banner" class="adg-status-banner">' + t('config.koofr.checking') + '</div>',
-        fields: [
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.koofr.enabled_label'), help: t('help.koofr.enabled'), path: 'koofr.enabled', value: enabled }),
             form.toggle({ label: t('config.koofr.readonly_label'), help: t('help.koofr.read_only'), path: 'koofr.readonly', value: readonly }),
-            form.field({ label: t('config.koofr.base_url_label'), help: t('help.koofr.base_url'), path: 'koofr.base_url', value: data.base_url || 'https://app.koofr.net', placeholder: 'https://app.koofr.net' }),
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.koofr.base_url_label'), help: t('help.koofr.base_url'), path: 'koofr.base_url', value: data.base_url || 'https://app.koofr.net', placeholder: 'https://app.koofr.net' })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.field({ label: t('config.koofr.username_label'), help: t('help.koofr.username'), path: 'koofr.username', value: data.username || '', placeholder: 'name@example.com' }),
             form.password({
                 label: t('config.koofr.app_password_label'),
@@ -24,7 +26,7 @@ function renderKoofrSection(section) {
                 placeholder: cfgSecretPlaceholder(data.app_password, t('config.koofr.app_password_placeholder')),
                 actionHTML: '<button class="btn-save adg-save-btn" onclick="koofrSaveAppPassword()">💾 ' + t('config.koofr.save_vault') + '</button>'
             })
-        ],
+        ] }],
         afterHTML: form.actions([
             { html: '<button class="btn-save adg-test-btn" onclick="koofrTestConnection()" id="koofr-test-btn">🔌 ' + t('config.koofr.test_btn') + '</button>' },
             { html: '<span id="koofr-test-result" class="adg-test-result"></span>' }

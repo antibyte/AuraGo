@@ -36,8 +36,8 @@
         });
         return '<div class="field-group pw-field' + extraClass + '"' + tier + '>'
             + '<div class="field-label" id="' + attr(labelID) + '">' + html(labelText(options)) + '</div>'
-            + (help ? '<div class="field-help" id="' + attr(helpID) + '">' + html(help) + '</div>' : '')
             + controlHTML
+            + (help ? '<div class="field-help" id="' + attr(helpID) + '">' + html(help) + '</div>' : '')
             + '</div>';
     }
 
@@ -125,7 +125,7 @@
         const title = options.title != null ? options.title : (options.titleKey ? t(options.titleKey) : '');
         const desc = options.desc != null ? options.desc : (options.descKey ? t(options.descKey) : '');
         const content = options.content != null ? options.content : (options.html || '');
-        return '<section class="pw-panel' + (options.className ? ' ' + attr(options.className) : '') + '">'
+        return '<section class="pw-panel cfg-topic' + (options.className ? ' ' + attr(options.className) : '') + '">'
             + (title ? '<div class="pw-panel-heading"><h2>' + html(title) + '</h2>' + (desc ? '<p>' + html(desc) + '</p>' : '') + '</div>' : '')
             + '<div class="pw-panel-body">' + content + '</div>'
             + '</section>';
@@ -169,7 +169,7 @@
 
     function actions(items) {
         const row = (items || []).map(item => item.html || '').join('');
-        return '<div class="field-group cfg-actions-row pw-action-row">' + row + '</div>';
+        return '<div class="cfg-actions-row pw-action-row">' + row + '</div>';
     }
 
     function section(spec) {
@@ -186,10 +186,88 @@
         (spec.fields || []).forEach(item => {
             fields += typeof item === 'string' ? item : field(item);
         });
-        if (fields) out += panel({ content: fields, className: 'pw-section-panel' });
+        if (fields) out += panel({ titleKey: 'config.refresh.settings', content: fields, className: 'pw-section-panel' });
+        (spec.groups || []).forEach(group => {
+            out += panel(Object.assign({}, group, {
+                content: (group.fields || []).map(item => typeof item === 'string' ? item : field(item)).join('') + (group.content || '')
+            }));
+        });
         if (spec.afterHTML) out += spec.afterHTML;
         out += '</div>';
         return out;
+    }
+
+    // Existing renderers declare topic boundaries with group headings. Materialize
+    // those boundaries once, preserving nodes, IDs, listeners and conditional wrappers.
+    // Field nesting is never used to decide whether something is a card.
+    function layout(root, key) {
+        if (!root || root.classList.contains('pw-overview')) return;
+        const metadata = window.AuraConfigCatalog?.presentation?.[key] || {};
+        const markers = '.cfg-group-title, .field-group-title, [data-config-topic-title]' + (metadata.markers ? ', ' + metadata.markers : '');
+        const surfaces = '.cfg-topic, .cfg-object, [data-config-surface], .pw-panel';
+        const apply = (selector, className) => {
+            if (selector) root.querySelectorAll(selector).forEach(node => node.classList.add(className));
+        };
+        apply(metadata.topics, 'cfg-topic');
+        apply(metadata.objects, 'cfg-object');
+        apply(metadata.headings, 'cfg-topic-heading');
+        apply(metadata.bodies, 'pw-panel-body');
+        // These are existing, explicitly named shared topic/object components.
+        apply('.cfg-card', 'cfg-topic');
+        apply('.cfg-card-title', 'cfg-topic-heading');
+        if (root.dataset.topicsReady) return;
+        root.dataset.topicsReady = 'true';
+        function create(title) {
+            const template = document.createElement('template');
+            template.innerHTML = panel({ title: title?.replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '') || t('config.refresh.settings') });
+            return template.content.firstElementChild;
+        }
+        function arrange(parent) {
+            let current = null;
+            [...parent.children].forEach(node => {
+                if (node.matches(markers)) {
+                    current = create(node.textContent.trim());
+                    node.before(current);
+                    node.remove();
+                    return;
+                }
+                if (node.matches(surfaces + ', .wh-tabs, .tabs, .cfg-error-state, .pw-empty-state, [role="dialog"], .modal-overlay')) {
+                    current = null;
+                    return;
+                }
+                const title = node.querySelector(':scope > .field-group-title, :scope > [data-config-topic-title]');
+                if (title) {
+                    node.classList.add('cfg-topic');
+                    title.classList.add('cfg-topic-heading');
+                    title.setAttribute('role', 'heading');
+                    title.setAttribute('aria-level', '2');
+                    current = null;
+                    return;
+                }
+                if (node.matches('.section-header, .cfg-page-heading') || (!current && node.matches('.section-desc, .adg-status-banner, [role="status"]'))) {
+                    current = null;
+                    return;
+                }
+                // Runtime capability wrappers must remain around their fields.
+                if (node.matches('.feature-unavailable-fields, .speech-lab-section')) {
+                    arrange(node);
+                    current = null;
+                    return;
+                }
+                if (!current && node.matches('.field-group, .field-grid, .cfg-toggle-row, .cfg-toggle-row-highlight, [data-config-fields]')) {
+                    current = create(parent.dataset.configIntro || t('config.refresh.settings'));
+                    node.before(current);
+                }
+                if (current) current.querySelector('.pw-panel-body').append(node);
+            });
+        }
+        arrange(root);
+        if (metadata.flows) root.querySelectorAll(metadata.flows).forEach(arrange);
+        root.querySelectorAll('.cfg-topic > .field-group-title').forEach(title => {
+            title.classList.add('cfg-topic-heading');
+            title.setAttribute('role', 'heading');
+            title.setAttribute('aria-level', '2');
+        });
     }
 
     window.AuraConfigForm = {
@@ -207,6 +285,7 @@
         emptyState,
         modal,
         actions,
-        renderSpec
+        renderSpec,
+        layout
     };
 })();

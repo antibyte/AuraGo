@@ -415,7 +415,7 @@ function sipRender() {
         <div id="sip-status" class="adg-status-banner" role="status" aria-live="polite">${sipEsc(t('config.sip.loading_status'))}</div>
         ${outboundMigrationRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.outbound_policy_migration_required'))}</strong></div>` : ''}
         ${sipDockerAdvertisedHostRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.docker_advertised_host_required'))}</strong></div>` : ''}
-        <div class="sip-wizard-shell">
+        <div class="sip-wizard-shell cfg-topic" data-config-surface>
             <div class="sip-wizard-title"><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.eyebrow'))}</span><h2>${sipEsc(t('config.sip.wizard.title'))}</h2></div>
             ${sipWizardMarkup()}
             <div id="sip-wizard-status" class="sip-wizard-status" role="status" aria-live="polite">${sipEsc(sipWizardMessage)}</div>
@@ -601,7 +601,7 @@ function sipBindProfileEvents() {
         sipRender();
         sipFocusWizardHeading();
     });
-    document.querySelector('[data-sip-profile="credentials"]')?.addEventListener('click', () => {
+    document.querySelectorAll('[data-sip-profile="credentials"]').forEach(button => button.addEventListener('click', () => {
         const provider = sipProvider(sipConfigState.preset_id);
         if (!provider) {
             document.querySelector('.sip-advanced')?.setAttribute('open', '');
@@ -615,7 +615,7 @@ function sipBindProfileEvents() {
         sipWizardMessage = '';
         sipRender();
         sipFocusWizardHeading();
-    });
+    }));
     document.querySelector('[data-sip-profile="delete"]')?.addEventListener('click', () => {
         sipDeleteConfirm = true;
         sipRender();
