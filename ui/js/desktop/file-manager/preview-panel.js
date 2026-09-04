@@ -20,7 +20,7 @@
         } catch (err) {
             const container = fm.host ? fm.host.querySelector(`.fm-preview-text-wrap[data-preview-path="${path.replace(/"/g, '\\"')}"]`) : null;
             if (container) {
-                container.innerHTML = `<div class="fm-preview-text-error">Cannot display preview</div>`;
+                container.innerHTML = `<div class="fm-preview-text-error">${esc(t('desktop.fm.preview_unavailable'))}</div>`;
             }
         }
     }

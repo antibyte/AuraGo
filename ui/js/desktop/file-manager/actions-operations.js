@@ -24,7 +24,7 @@
 
     async function createNewFolder() {
         if (isReadonly()) return;
-        const name = await promptDialog(t('desktop.fm.new_folder_prompt'), 'New Folder');
+        const name = await promptDialog(t('desktop.fm.new_folder_prompt'), t('desktop.fm.new_folder'));
         if (!name) return;
         const path = joinPath(fm.currentPath, name);
         try {

@@ -99,16 +99,27 @@ and `files.default_apps` via `/api/desktop/settings`.
   hardcode English CPU/Memory/Disk there.
 - Virtual Computers duration and expiry-day labels use
   `desktop.virtual_computers_duration_*` and
-  `desktop.virtual_computers_expiry_days`. Do not hardcode `s`/`min`/`h`/`d`
+  `desktop.virtual_computers_expiry_days`. Volume TTL options use
+  `formatDuration` for 1/7/30 days. Do not hardcode `s`/`min`/`h`/`d`
   there. Leave `tx` as a key-only helper.
+- Virtual Computers volume sizes use `desktop.bytes`, `desktop.kib`,
+  `desktop.mib`, and `desktop.gib`. Do not hardcode `KB`/`MB`/`GB` there.
+- Looper log durations use `desktop.looper_duration_ms` and
+  `desktop.looper_duration_s`. Do not hardcode `ms`/`s` there. Leave SIP
+  and Noisemaker `formatDuration` unchanged.
 - Calculator backspace labels use `desktop.calc_back`. Do not hardcode
   English `Back` there.
+- Calculator display maps the parser sentinel `Invalid expression` to
+  `desktop.calc_invalid_expression`. Do not change the throw messages.
 - Mission Control window menus use `desktop.menu_file` and
   `desktop.menu_view`. Do not hardcode English File/View there.
 - File Manager new-file template labels use `desktop.fm.new_file_kind_*`
   and `desktop.fm.new_file_template_label`. ZIP/rename success toasts use
   `desktop.fm.zip_created`, `desktop.fm.zip_extracted`, and
-  `desktop.fm.batch_rename_success`. Do not hardcode English there.
+  `desktop.fm.batch_rename_success`. Preview and Quick Look chrome use
+  `desktop.fm.preview_loading`, `desktop.fm.preview_unavailable`,
+  `desktop.fm.quick_look_close`, and `desktop.fm.quick_look_error`. The new-folder
+  prompt default uses `desktop.fm.new_folder`. Do not hardcode English there.
 - `renderAppError` shows `desktop.app_error_title` plus `err.message` or
   `desktop.app_error_fallback`. Do not hardcode English `Error` there.
 - Missing Agent Chat / Live Speech renderers use

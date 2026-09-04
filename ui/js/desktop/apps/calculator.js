@@ -181,6 +181,13 @@
         return ensureFiniteCalculatorResult(value);
     }
 
+    function calculatorErrorMessage(err) {
+        if (err && err.message === 'Invalid expression' && typeof t === 'function') {
+            return t('desktop.calc_invalid_expression');
+        }
+        return err && err.message ? err.message : String(err || '');
+    }
+
     function calcButton(def) {
         const label = def.label || def.key;
         const classes = [def.kind || '', def.className || ''].filter(Boolean).join(' ');
@@ -436,7 +443,7 @@
                 update();
                 flashDisplay();
             } catch (err) {
-                resultEl.textContent = err.message;
+                resultEl.textContent = calculatorErrorMessage(err);
             }
         };
         const bindKeyButtons = () => {

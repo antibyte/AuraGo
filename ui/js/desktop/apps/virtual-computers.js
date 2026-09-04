@@ -197,12 +197,16 @@
         }, expiryCountdownIntervalMs);
     }
 
-    function formatBytes(value) {
+    function formatBytes(value, context) {
         const bytes = Math.max(0, Number(value) || 0);
+        const label = (key, count) => (
+            context && typeof context.t === 'function' ? context.t(key, { count }) : String(count)
+        );
         if (!bytes) return '—';
-        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-        if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-        return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        if (bytes < 1024) return label('desktop.bytes', bytes);
+        if (bytes < 1024 * 1024) return label('desktop.kib', Math.round(bytes / 1024));
+        if (bytes < 1024 * 1024 * 1024) return label('desktop.mib', (bytes / (1024 * 1024)).toFixed(1));
+        return label('desktop.gib', (bytes / (1024 * 1024 * 1024)).toFixed(1));
     }
 
     function draw(state) {
@@ -388,8 +392,8 @@
         if (state.resourceLoading.volumes && !state.volumes.length) return `<section class="vc-section-page">${skeletonRows()}</section>`;
         if (state.resourceErrors.volumes && !state.volumes.length) return `<section class="vc-section-page">${resourceErrorPane(state, 'volumes')}</section>`;
         const mutable = isMutable(state);
-        const rows = state.volumes.length ? state.volumes.map(volume => `<article class="vc-ledger-row"><div class="vc-volume-summary"><span class="vc-volume-title"><strong>${esc(volume.name || volume.id)}</strong><span class="vc-state-chip" data-state="${esc(volume.verification_status || '')}">${esc(volume.verification_status || '—')}</span></span><span>${esc(formatBytes(volume.size_bytes))} · ${esc(formatDate(volume.expires_at))}</span></div>${mutable ? `<button type="button" class="vc-icon-btn danger" data-action="delete-volume" data-id="${esc(volume.id)}" aria-label="${esc(tx(c, 'desktop.virtual_computers_volume_delete'))}">${icon(state, 'trash', '×')}</button>` : ''}</article>`).join('') : `<div class="vc-empty-state"><span class="vc-empty-icon">${icon(state, 'archive', '▤')}</span><strong>${esc(tx(c, 'desktop.virtual_computers_volumes_empty'))}</strong></div>`;
-        const controls = mutable ? `<div class="vc-volume-tools"><label><span>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</span><select data-role="volume-ttl"><option value="86400">1 d</option><option value="604800">7 d</option><option value="2592000">30 d</option></select></label><button type="button" class="vc-btn vc-primary" data-action="create-volume" ${isPending(state, 'create-volume') ? 'disabled' : ''}>${icon(state, 'plus', '+')}${esc(tx(c, 'desktop.virtual_computers_volume_create'))}</button><label class="vc-import-field"><span>${esc(tx(c, 'desktop.virtual_computers_volume_import'))}</span><input data-role="volume-import-id" type="text" placeholder="volume_id"></label><button type="button" class="vc-btn" data-action="import-volume" ${isPending(state, 'import-volume') ? 'disabled' : ''}>${esc(tx(c, 'desktop.virtual_computers_volume_import'))}</button></div>` : '';
+        const rows = state.volumes.length ? state.volumes.map(volume => `<article class="vc-ledger-row"><div class="vc-volume-summary"><span class="vc-volume-title"><strong>${esc(volume.name || volume.id)}</strong><span class="vc-state-chip" data-state="${esc(volume.verification_status || '')}">${esc(volume.verification_status || '—')}</span></span><span>${esc(formatBytes(volume.size_bytes, c))} · ${esc(formatDate(volume.expires_at))}</span></div>${mutable ? `<button type="button" class="vc-icon-btn danger" data-action="delete-volume" data-id="${esc(volume.id)}" aria-label="${esc(tx(c, 'desktop.virtual_computers_volume_delete'))}">${icon(state, 'trash', '×')}</button>` : ''}</article>`).join('') : `<div class="vc-empty-state"><span class="vc-empty-icon">${icon(state, 'archive', '▤')}</span><strong>${esc(tx(c, 'desktop.virtual_computers_volumes_empty'))}</strong></div>`;
+        const controls = mutable ? `<div class="vc-volume-tools"><label><span>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</span><select data-role="volume-ttl"><option value="86400">${esc(formatDuration(86400, c))}</option><option value="604800">${esc(formatDuration(604800, c))}</option><option value="2592000">${esc(formatDuration(2592000, c))}</option></select></label><button type="button" class="vc-btn vc-primary" data-action="create-volume" ${isPending(state, 'create-volume') ? 'disabled' : ''}>${icon(state, 'plus', '+')}${esc(tx(c, 'desktop.virtual_computers_volume_create'))}</button><label class="vc-import-field"><span>${esc(tx(c, 'desktop.virtual_computers_volume_import'))}</span><input data-role="volume-import-id" type="text" placeholder="volume_id"></label><button type="button" class="vc-btn" data-action="import-volume" ${isPending(state, 'import-volume') ? 'disabled' : ''}>${esc(tx(c, 'desktop.virtual_computers_volume_import'))}</button></div>` : '';
         return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(tx(c, 'desktop.virtual_computers_title'))}</span><h3>${esc(tx(c, 'desktop.virtual_computers_volumes'))}</h3></div></header>${controls}${state.resourceErrors.volumes ? `<div class="vc-inline-error">${esc(state.resourceErrors.volumes)}</div>` : ''}<section class="vc-ledger vc-volume-list">${rows}</section></section>`;
     }
 

@@ -769,9 +769,10 @@
         connectStatus();
 
         function formatDuration(ms) {
-            if (!ms || ms < 0) return '0ms';
-            if (ms < 1000) return ms + 'ms';
-            return (ms / 1000).toFixed(1) + 's';
+            const value = Number(ms);
+            if (!value || value < 0) return t('desktop.looper_duration_ms', { count: 0 });
+            if (value < 1000) return t('desktop.looper_duration_ms', { count: value });
+            return t('desktop.looper_duration_s', { count: (value / 1000).toFixed(1) });
         }
 
         function highlightCode(text) {

@@ -762,7 +762,7 @@
                 content = `<video src="${previewURL(file)}" controls style="max-width: 90vw; max-height: 80vh; border-radius: 8px;"></video>`;
             }
         } else if (isTxt) {
-            content = `<div class="fm-quick-look-text" style="width: min(700px, 90vw); height: 60vh; background: var(--vd-surface-strong, #1a1a1a); border: 1px solid var(--vd-border); border-radius: 8px; padding: 16px; overflow: auto; text-align: left; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem; color: var(--vd-text);">Loading preview...</div>`;
+            content = `<div class="fm-quick-look-text" style="width: min(700px, 90vw); height: 60vh; background: var(--vd-surface-strong, #1a1a1a); border: 1px solid var(--vd-border); border-radius: 8px; padding: 16px; overflow: auto; text-align: left; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem; color: var(--vd-text);">${esc(t('desktop.fm.preview_loading'))}</div>`;
             fetchTextPreview(file.path);
         } else {
             content = `
@@ -776,7 +776,7 @@
         
         overlay.innerHTML = `
             <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 10;">
-                <button class="fm-btn" data-close-ql style="padding: 6px 12px; font-size: 0.85rem;">Close (Space)</button>
+                <button class="fm-btn" data-close-ql style="padding: 6px 12px; font-size: 0.85rem;">${esc(t('desktop.fm.quick_look_close'))}</button>
             </div>
             <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
                 <div class="fm-quick-look-panel" style="padding: 24px; background: rgba(0,0,0,0.85); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; flex-direction: column; min-width: 280px; max-width: 95vw;">
@@ -809,7 +809,7 @@
                 if (el) el.textContent = text;
             } catch (err) {
                 const el = overlay.querySelector('.fm-quick-look-text');
-                if (el) el.textContent = 'Cannot load preview.';
+                if (el) el.textContent = t('desktop.fm.quick_look_error');
             }
         }
     }
