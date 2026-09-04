@@ -109,8 +109,17 @@
             ]
         },
         'notes': {
-            styles: appStyles('/css/desktop-chrome.css'),
-            scripts: ['/js/desktop/apps/notes.js']
+            styles: appStyles('/css/desktop-app-notes.css', '/css/hljs-github.min.css'),
+            scripts: [
+                '/js/vendor/marked.min.js',
+                '/js/vendor/purify.min.js',
+                '/js/vendor/highlight.min.js',
+                '/js/desktop/apps/notes-frontmatter.js',
+                '/js/desktop/apps/notes-list.js',
+                '/js/desktop/apps/notes-toolbar.js',
+                '/js/desktop/apps/notes-editor.js',
+                '/js/desktop/apps/notes.js'
+            ]
         },
         'radio': {
             styles: appStyles('/css/radio.css'),

@@ -194,12 +194,22 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		".vd-taskbar-thumbnail",
 		"--vd-theme-panel-bg-strong",
 		".vd-terminal-toolbar",
-		".vd-notes-toolbar",
 		"background: var(--vd-theme-chrome-bg);",
 		"background: #0f172a;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chrome css missing %q", want)
+		}
+	}
+
+	notesCSS := readDesktopAssetText(t, "css/desktop-app-notes.css")
+	for _, want := range []string{
+		".vd-notes-app",
+		".vd-notes-toolbar",
+		"background: var(--vd-theme-chrome-bg);",
+	} {
+		if !strings.Contains(notesCSS, want) {
+			t.Fatalf("desktop app notes css missing %q", want)
 		}
 	}
 

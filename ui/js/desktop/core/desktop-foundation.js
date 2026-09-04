@@ -1026,6 +1026,7 @@
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         if (win.appId === 'log-viewer') callAppDispose(window.LogViewerApp, win.id);
+        if (win.appId === 'notes') callAppDispose(window.NotesApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);

@@ -1599,6 +1599,7 @@ if (appId === 'system-info') {
             if (typeof window.NotesApp.render === 'function') {
                 return window.NotesApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(),
+                    promptDialog,
                     recordRecentFile, openFileDialog: options => openDesktopFileDialog(options || {})
                 }));
             }

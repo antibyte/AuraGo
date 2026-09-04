@@ -1258,6 +1258,7 @@
         if (win.appId === 'teevee') callAppDispose(window.TeeVeeApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         if (win.appId === 'log-viewer') callAppDispose(window.LogViewerApp, win.id);
+        if (win.appId === 'notes') callAppDispose(window.NotesApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
@@ -5280,7 +5281,7 @@
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
             terminal: { width: 880, height: 520 },
-            notes: { width: 720, height: 560 },
+            notes: { width: 1060, height: 680 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
             'log-viewer': { width: 920, height: 640 },
@@ -11430,6 +11431,7 @@ if (appId === 'system-info') {
             if (typeof window.NotesApp.render === 'function') {
                 return window.NotesApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(),
+                    promptDialog,
                     recordRecentFile, openFileDialog: options => openDesktopFileDialog(options || {})
                 }));
             }
