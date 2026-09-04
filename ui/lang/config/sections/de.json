@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Virtuelle Computer",
   "config.section.virtual_computers.desc": "Kurzlebige microVM-Computer mit Terminal, Desktop, Previews und Agentenzugriff.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Authentifizierte permanente Sites veröffentlichen und verwalten"
+  "config.section.here_now.desc": "Authentifizierte permanente Sites veröffentlichen und verwalten",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "ESP32-2,8-Zoll-Mini-Dashboard für Systemstatus und Agent-Benachrichtigungen"
 }

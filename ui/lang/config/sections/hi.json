@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "वर्चुअल कंप्यूटर",
   "config.section.virtual_computers.desc": "टर्मिनल, डेस्कटॉप, प्रीव्यू और एजेंट एक्सेस वाले अस्थायी microVM कंप्यूटर।",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "प्रमाणित स्थायी Sites प्रकाशित और प्रबंधित करें"
+  "config.section.here_now.desc": "प्रमाणित स्थायी Sites प्रकाशित और प्रबंधित करें",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "सिस्टम स्थिति और एजेंट सूचनाओं के लिए ESP32 2.8\" मिनी डैशबोर्ड"
 }

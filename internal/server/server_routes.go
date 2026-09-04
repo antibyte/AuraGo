@@ -154,6 +154,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 						payload["host_uptime_seconds"] = int(hostInfo.Uptime)
 					}
 					sse.BroadcastType(EventSystemMetrics, payload)
+					if s.CydHub != nil && s.CydHub.HasRecentDevice(2*time.Minute) {
+						s.refreshCydSnapshot()
+					}
 				}
 			case <-serverCtx.Done():
 				return
@@ -768,6 +771,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.A2AServer.RegisterRoutes(mux)
 		s.Logger.Info("A2A protocol routes registered on main server (shared port)")
 	}
+
+	registerCYDRoutes(mux, s)
 
 	// Phase 34: Notifications endpoints
 	mux.HandleFunc("/api/system/notifications", handleSystemNotifications(s))

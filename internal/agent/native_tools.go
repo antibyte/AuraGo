@@ -138,6 +138,8 @@ type ToolFeatureFlags struct {
 	GitHubEnabled           bool
 	HuggingFaceEnabled      bool
 	MQTTEnabled             bool
+	CydEnabled              bool
+	NotificationEnabled     bool
 	AdGuardEnabled          bool
 	UptimeKumaEnabled       bool
 	GrafanaEnabled          bool

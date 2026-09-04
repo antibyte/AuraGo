@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Virtuální počítače",
   "config.section.virtual_computers.desc": "Jednorázové microVM počítače s terminálem, plochou, náhledy a přístupem agenta.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Publikování a správa ověřených trvalých Sites"
+  "config.section.here_now.desc": "Publikování a správa ověřených trvalých Sites",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "Mini dashboard ESP32 2,8\" se stavem systému a oznámeními agenta"
 }

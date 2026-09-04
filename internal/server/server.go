@@ -25,6 +25,7 @@ import (
 	"aurago/internal/bluetooth"
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/cyd"
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
 	"aurago/internal/discord"
@@ -177,6 +178,7 @@ type Server struct {
 	CoAgentRegistry         *agent.CoAgentRegistry
 	BudgetTracker           *budget.Tracker
 	TokenManager            *security.TokenManager
+	CydHub                  *cyd.Hub
 	WebhookManager          *webhooks.Manager
 	WebhookHandler          *webhooks.Handler
 	SSE                     *SSEBroadcaster // shared SSE broadcaster, set by run()

@@ -1229,6 +1229,12 @@ mqtt:
         offline_payload: offline
         qos: 1
         retain: true
+cyd:
+    enabled: false
+    poll_seconds: 5              # snapshot poll interval used by the display if WebSocket drops
+    overlay_ttl_seconds: 30      # default notification overlay lifetime
+    allow_agent_control: true    # allow cyd_display page/brightness/led mutations
+    mqtt_mirror: false           # also publish snapshots to MQTT topic aurago/cyd/snapshot
 adguard:
     enabled: false
     readonly: false

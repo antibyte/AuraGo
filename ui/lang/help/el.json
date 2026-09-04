@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Εκθέτει τα σημεία τερματισμού προφίλ Go στο /debug/pprof. Κράτησέ το απενεργοποιημένο εκτός αν κάνεις προφίλ σε αξιόπιστη τοπική εγκατάσταση.",
   "help.embeddings.local.backend": "Επιλέγει το τοπικό backend. Το „auto“ δοκιμάζει κατάλληλες επιλογές GPU και αλλιώς χρησιμοποιεί CPU.",
   "help.embeddings.local.context_size": "Μέγιστος αριθμός token ανά κείμενο. Προεπιλογή 2048.",
-  "help.embeddings.local.batch_size": "Μέγεθος batch για ONNX Runtime και llama.cpp. Προεπιλογή 2048."
+  "help.embeddings.local.batch_size": "Μέγεθος batch για ONNX Runtime και llama.cpp. Προεπιλογή 2048.",
+  "help.cyd.enabled": "Ενεργοποιεί το μίνι ταμπλό Cheap Yellow Display. Ο πράκτορας μπορεί να δείχνει επικαλύψεις με send_notification κανάλι cyd ή cyd_display.",
+  "help.cyd.poll_seconds": "Πόσο συχνά η οθόνη ζητά /api/cyd/snapshot αν λείπει το WebSocket. Ελάχιστο 2 δευτερόλεπτα.",
+  "help.cyd.overlay_ttl": "Προεπιλεγμένα δευτερόλεπτα που μένει μια ειδοποίηση στο γυαλί.",
+  "help.cyd.allow_agent_control": "Όταν είναι ενεργό, ο πράκτορας μπορεί να αλλάξει σελίδα, φωτεινότητα και LED. Οι επικαλύψεις λειτουργούν και χωρίς αυτό.",
+  "help.cyd.mqtt_mirror": "Δημοσιεύει επίσης το συμπαγές στιγμιότυπο στο θέμα MQTT aurago/cyd/snapshot όταν το MQTT είναι συνδεδεμένο."
 }

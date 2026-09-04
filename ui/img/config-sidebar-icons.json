@@ -599,6 +599,14 @@
       "source": "AuraGo custom Precision sidebar icon set"
     },
     {
+      "key": "cyd",
+      "slot": 113,
+      "column": 3,
+      "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
       "key": "chromecast",
       "slot": 74,
       "column": 8,

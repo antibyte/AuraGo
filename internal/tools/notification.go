@@ -2,6 +2,7 @@ package tools
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/cyd"
 	"aurago/internal/push"
 	"bytes"
 	"encoding/json"
@@ -22,6 +23,7 @@ const (
 	ChannelDiscord  NotificationChannel = "discord"
 	ChannelPush     NotificationChannel = "push"
 	ChannelTelnyx   NotificationChannel = "telnyx"
+	ChannelCYD      NotificationChannel = "cyd"
 	ChannelAll      NotificationChannel = "all"
 )
 
@@ -95,6 +97,8 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 				break
 			}
 			err = sendTelnyxNotification(cfg, title, message, telnyxSend...)
+		case ChannelCYD:
+			err = sendCYDNotification(cfg, title, message, priority)
 		default:
 			results = append(results, result{Channel: string(c), Status: "error", Detail: "unknown channel"})
 			return
@@ -127,6 +131,9 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 		}
 		if cfg.Telnyx.Enabled && cfg.Telnyx.PhoneNumber != "" && len(telnyxSend) > 0 && telnyxSend[0] != nil {
 			send(ChannelTelnyx)
+		}
+		if cfg.Cyd.Enabled {
+			send(ChannelCYD)
 		}
 		if len(results) == 0 {
 			return encode(map[string]interface{}{"status": "error", "message": "no notification channels are enabled"})
@@ -341,5 +348,21 @@ func sendPushNotification(title, message, priority string) error {
 	if successCount == 0 {
 		return fmt.Errorf("no active web push subscriptions found")
 	}
+	return nil
+}
+
+func sendCYDNotification(cfg *config.Config, title, message, priority string) error {
+	if cfg == nil || !cfg.Cyd.Enabled {
+		return fmt.Errorf("cyd is not enabled in config")
+	}
+	hub := cyd.Global()
+	if hub == nil {
+		return fmt.Errorf("cyd hub is not started")
+	}
+	if !hub.HasRecentDevice(2 * time.Minute) {
+		return fmt.Errorf("no cyd device connected")
+	}
+	ttl := cfg.Cyd.OverlayTTLSeconds
+	hub.Notify(title, message, priority, ttl)
 	return nil
 }

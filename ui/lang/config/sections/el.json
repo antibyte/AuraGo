@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Εικονικοί υπολογιστές",
   "config.section.virtual_computers.desc": "Προσωρινοί microVM υπολογιστές με τερματικό, επιφάνεια εργασίας, προεπισκοπήσεις και πρόσβαση agent.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Δημοσίευση και διαχείριση μόνιμων πιστοποιημένων Sites"
+  "config.section.here_now.desc": "Δημοσίευση και διαχείριση μόνιμων πιστοποιημένων Sites",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "Μίνι πίνακας ESP32 2,8\" για κατάσταση συστήματος και ειδοποιήσεις πράκτορα"
 }

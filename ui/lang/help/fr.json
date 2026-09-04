@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Expose les points de terminaison de profilage Go sous /debug/pprof. Laisse cette option désactivée sauf pour profiler une instance locale fiable.",
   "help.embeddings.local.backend": "Sélectionne le backend local. „auto“ teste les options GPU adaptées et utilise sinon le CPU.",
   "help.embeddings.local.context_size": "Nombre maximal de tokens par texte. La valeur par défaut est 2048.",
-  "help.embeddings.local.batch_size": "Taille du lot pour ONNX Runtime et llama.cpp. La valeur par défaut est 2048."
+  "help.embeddings.local.batch_size": "Taille du lot pour ONNX Runtime et llama.cpp. La valeur par défaut est 2048.",
+  "help.cyd.enabled": "Active le mini-tableau Cheap Yellow Display. L'agent peut afficher des overlays via send_notification canal cyd ou cyd_display.",
+  "help.cyd.poll_seconds": "Fréquence à laquelle l'écran interroge /api/cyd/snapshot si le WebSocket est coupé. Minimum 2 secondes.",
+  "help.cyd.overlay_ttl": "Durée par défaut d'une notification sur l'écran, en secondes.",
+  "help.cyd.allow_agent_control": "Si activé, l'agent peut changer de page, de luminosité et de LED. Les overlays fonctionnent même si c'est désactivé.",
+  "help.cyd.mqtt_mirror": "Publie aussi l'instantané compact sur le topic MQTT aurago/cyd/snapshot lorsque MQTT est connecté."
 }

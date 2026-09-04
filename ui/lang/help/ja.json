@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "/debug/pprof で Go のプロファイリングエンドポイントを公開します。信頼できるローカルインスタンスをプロファイリングする場合を除き、無効のままにしてください。",
   "help.embeddings.local.backend": "ローカルバックエンドを選択します。「auto」は適切な GPU を測定し、利用できない場合は CPU を使います。",
   "help.embeddings.local.context_size": "テキストごとの最大トークン数です。既定値は 2048 です。",
-  "help.embeddings.local.batch_size": "ONNX Runtime と llama.cpp のバッチサイズです。既定値は 2048 です。"
+  "help.embeddings.local.batch_size": "ONNX Runtime と llama.cpp のバッチサイズです。既定値は 2048 です。",
+  "help.cyd.enabled": "Cheap Yellow Display ミニダッシュボードを有効にします。エージェントは send_notification のチャネル cyd または cyd_display でオーバーレイを表示できます。",
+  "help.cyd.poll_seconds": "WebSocket が切れたとき、ディスプレイが /api/cyd/snapshot を取得する間隔。最小 2 秒。",
+  "help.cyd.overlay_ttl": "通知が画面に残る既定の秒数。",
+  "help.cyd.allow_agent_control": "有効だとエージェントがページ、輝度、LED を変更できます。オフでもオーバーレイは動作します。",
+  "help.cyd.mqtt_mirror": "MQTT 接続時、コンパクトなスナップショットをトピック aurago/cyd/snapshot にも公開します。"
 }

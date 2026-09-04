@@ -18,7 +18,7 @@ Send push notifications to one or more channels. Ideal for alerts, reminders, an
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `channel` | yes | Target: `"ntfy"`, `"pushover"`, `"telegram"`, `"discord"`, `"push"`, `"telnyx"`, or `"all"` |
+| `channel` | yes | Target: `"ntfy"`, `"pushover"`, `"telegram"`, `"discord"`, `"push"`, `"telnyx"`, `"cyd"`, or `"all"` |
 | `title`   | no  | Notification title (default: "AuraGo") |
 | `message` | yes | Notification body text |
 | `tag`     | no  | Priority: `"low"`, `"normal"` (default), `"high"`, `"critical"` |
@@ -31,6 +31,7 @@ Send push notifications to one or more channels. Ideal for alerts, reminders, an
 - **discord** — Uses existing Discord bot config (`discord.default_channel_id`).
 - **push** — Web Push / PWA Notification. Native background notification to all browsers that have installed the app.
 - **telnyx** — SMS notification via Telnyx. Sends to the first number in `telnyx.allowed_numbers`. Requires Telnyx integration enabled.
+- **cyd** — Cheap Yellow Display overlay. Requires `cyd.enabled` and a recently heartbeating display.
 - **all** — Sends to all enabled channels simultaneously.
 
 ### Examples

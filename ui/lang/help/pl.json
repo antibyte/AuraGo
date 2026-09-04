@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Udostępnia punkty profilowania Go pod /debug/pprof. Pozostaw wyłączone, chyba że profilujesz zaufaną lokalną instancję.",
   "help.embeddings.local.backend": "Wybiera lokalny backend. „auto“ testuje odpowiednie warianty GPU, a w razie potrzeby używa CPU.",
   "help.embeddings.local.context_size": "Maksymalna liczba tokenów na tekst. Domyślnie 2048.",
-  "help.embeddings.local.batch_size": "Rozmiar partii dla ONNX Runtime i llama.cpp. Domyślnie 2048."
+  "help.embeddings.local.batch_size": "Rozmiar partii dla ONNX Runtime i llama.cpp. Domyślnie 2048.",
+  "help.cyd.enabled": "Włącza mini-pulpit Cheap Yellow Display. Agent może pokazywać nakładki przez send_notification kanał cyd lub cyd_display.",
+  "help.cyd.poll_seconds": "Jak często wyświetlacz pobiera /api/cyd/snapshot, gdy brak WebSocket. Minimum 2 sekundy.",
+  "help.cyd.overlay_ttl": "Domyślna liczba sekund, przez które powiadomienie zostaje na ekranie.",
+  "help.cyd.allow_agent_control": "Gdy włączone, agent może zmieniać stronę, jasność i LED. Nakładki działają mimo wyłączenia.",
+  "help.cyd.mqtt_mirror": "Dodatkowo publikuj zwięzły zrzut na temat MQTT aurago/cyd/snapshot, gdy MQTT jest połączony."
 }

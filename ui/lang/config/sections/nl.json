@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Virtuele computers",
   "config.section.virtual_computers.desc": "Tijdelijke microVM-computers met terminal, desktop, previews en agenttoegang.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Geverifieerde permanente Sites publiceren en beheren"
+  "config.section.here_now.desc": "Geverifieerde permanente Sites publiceren en beheren",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "ESP32 2,8\" mini-dashboard voor systeemstatus en agentmeldingen"
 }

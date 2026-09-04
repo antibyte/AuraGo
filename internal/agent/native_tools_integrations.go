@@ -1194,6 +1194,43 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.NotificationEnabled {
+		channels := []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "all"}
+		if ff.CydEnabled {
+			channels = []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "cyd", "all"}
+		}
+		tools = append(tools, tool("send_notification",
+			"Send a push notification to ntfy, Pushover, Telegram, Discord, Web Push, SMS, or a Cheap Yellow Display. Use channel cyd for the desk display overlay.",
+			schema(map[string]interface{}{
+				"channel":  map[string]interface{}{"type": "string", "description": "Target channel", "enum": channels},
+				"title":    prop("string", "Optional title (default AuraGo)"),
+				"message":  prop("string", "Notification body"),
+				"tag":      prop("string", "Priority: low, normal, high, or critical"),
+				"priority": prop("string", "Alias for tag"),
+			}, "message"),
+		))
+	}
+
+	if ff.CydEnabled {
+		tools = append(tools, tool("cyd_display",
+			"Control the Cheap Yellow Display mini-dashboard: show a notification overlay, pin a status line, change page, brightness, or LED, or inspect connected devices.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Display operation",
+					"enum":        []string{"notify", "show", "clear", "page", "brightness", "led", "status"},
+				},
+				"title":      prop("string", "Overlay title for notify"),
+				"message":    prop("string", "Overlay or pinned status text"),
+				"priority":   prop("string", "low, normal, high, or critical"),
+				"page":       prop("string", "status or load"),
+				"brightness": map[string]interface{}{"type": "integer", "description": "Backlight 0-255"},
+				"led":        prop("string", "off, green, yellow, red, or blue"),
+				"ttl_s":      map[string]interface{}{"type": "integer", "description": "Overlay lifetime in seconds"},
+			}, "operation"),
+		))
+	}
+
 	if ff.TelegramEnabled {
 		tools = append(tools, tool("send_telegram",
 			"Send a Telegram message to the configured default chat (telegram_user_id).",

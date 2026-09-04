@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Exposes Go profiling endpoints under /debug/pprof. Keep disabled unless you are profiling a trusted local instance.",
   "help.embeddings.local.backend": "Selects the local backend. “auto” benchmarks suitable GPU paths and otherwise falls back to CPU.",
   "help.embeddings.local.context_size": "Maximum token count per text. The default is 2048.",
-  "help.embeddings.local.batch_size": "Processing batch size for ONNX Runtime and llama.cpp. The default is 2048."
+  "help.embeddings.local.batch_size": "Processing batch size for ONNX Runtime and llama.cpp. The default is 2048.",
+  "help.cyd.enabled": "Enables the Cheap Yellow Display mini-dashboard. The agent can show overlays with send_notification channel cyd or cyd_display.",
+  "help.cyd.poll_seconds": "How often the display fetches /api/cyd/snapshot if WebSocket is down. Minimum 2 seconds.",
+  "help.cyd.overlay_ttl": "Default seconds a notification stays on the glass unless dismissed.",
+  "help.cyd.allow_agent_control": "When enabled, the agent may change page, brightness, and LED. Overlays still work if this is off.",
+  "help.cyd.mqtt_mirror": "Also publish the compact snapshot to MQTT topic aurago/cyd/snapshot when MQTT is connected."
 }

@@ -69,7 +69,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
-		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true,
+		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
@@ -137,6 +137,8 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("github", ff.GitHubEnabled)
 	appendToolFeatureKeyPart("huggingface", ff.HuggingFaceEnabled)
 	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
+	appendToolFeatureKeyPart("cyd", ff.CydEnabled)
+	appendToolFeatureKeyPart("notification", ff.NotificationEnabled)
 	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
 	appendToolFeatureKeyPart("uptime_kuma", ff.UptimeKumaEnabled)
 	appendToolFeatureKeyPart("grafana", ff.GrafanaEnabled)

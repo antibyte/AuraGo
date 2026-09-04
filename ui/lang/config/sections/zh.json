@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "虚拟电脑",
   "config.section.virtual_computers.desc": "带终端、桌面、预览和代理访问的一次性 microVM 电脑。",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "发布和管理经过认证的永久 Site"
+  "config.section.here_now.desc": "发布和管理经过认证的永久 Site",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "用于系统状态和智能体通知的 ESP32 2.8 英寸迷你仪表盘"
 }

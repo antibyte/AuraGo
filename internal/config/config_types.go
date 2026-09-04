@@ -2018,6 +2018,14 @@ type Config struct {
 		Availability              MQTTAvailability `yaml:"availability"`
 	} `yaml:"mqtt"`
 
+	Cyd struct {
+		Enabled           bool `yaml:"enabled"`
+		PollSeconds       int  `yaml:"poll_seconds"`
+		OverlayTTLSeconds int  `yaml:"overlay_ttl_seconds"`
+		AllowAgentControl bool `yaml:"allow_agent_control"`
+		MQTTMirror        bool `yaml:"mqtt_mirror"`
+	} `yaml:"cyd"`
+
 	MCP struct {
 		Enabled               bool                     `yaml:"enabled"`
 		Servers               []MCPServer              `yaml:"servers"`

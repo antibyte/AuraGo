@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Gjør Go-profileringsendepunkter tilgjengelige under /debug/pprof. La dette være deaktivert med mindre du profilerer en lokal instans du stoler på.",
   "help.embeddings.local.backend": "Velger lokal backend. „auto“ tester egnede GPU-alternativer og bruker ellers CPU.",
   "help.embeddings.local.context_size": "Maksimalt antall tokens per tekst. Standard er 2048.",
-  "help.embeddings.local.batch_size": "Batchstørrelse for ONNX Runtime og llama.cpp. Standard er 2048."
+  "help.embeddings.local.batch_size": "Batchstørrelse for ONNX Runtime og llama.cpp. Standard er 2048.",
+  "help.cyd.enabled": "Aktiverer Cheap Yellow Display mini-dashboard. Agenten kan vise overlegg med send_notification kanal cyd eller cyd_display.",
+  "help.cyd.poll_seconds": "Hvor ofte skjermen henter /api/cyd/snapshot hvis WebSocket er nede. Minimum 2 sekunder.",
+  "help.cyd.overlay_ttl": "Standardsekunder et varsel blir på glasset.",
+  "help.cyd.allow_agent_control": "Når på kan agenten endre side, lysstyrke og LED. Overlegg virker fortsatt hvis dette er av.",
+  "help.cyd.mqtt_mirror": "Publiser også det kompakte øyeblikksbildet til MQTT-emnet aurago/cyd/snapshot når MQTT er tilkoblet."
 }

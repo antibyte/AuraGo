@@ -680,6 +680,10 @@ var authBypassPrefixes = []string{
 	"/api/game-maker/preview/",       // short-lived project-scoped token is validated by the preview handler
 	"/mcp",
 	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth
+	"/api/cyd/snapshot",                // CYD device snapshot — Bearer scope cyd
+	"/api/cyd/heartbeat",               // CYD device heartbeat — Bearer scope cyd
+	"/api/cyd/ack",                     // CYD overlay dismiss — Bearer scope cyd
+	"/api/cyd/ws",                      // CYD WebSocket — Bearer or ?token= scope cyd
 	"/setup",
 	"/css/",
 	"/fonts/",

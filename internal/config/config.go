@@ -2343,6 +2343,16 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
+	if cfg.Cyd.PollSeconds <= 0 {
+		cfg.Cyd.PollSeconds = 5
+	}
+	if cfg.Cyd.PollSeconds < 2 {
+		cfg.Cyd.PollSeconds = 2
+	}
+	if cfg.Cyd.OverlayTTLSeconds <= 0 {
+		cfg.Cyd.OverlayTTLSeconds = 30
+	}
+
 	// EggMode — environment variable overrides (used in Docker egg containers)
 	if val := os.Getenv("AURAGO_EGG_MODE"); val == "true" || val == "1" {
 		cfg.EggMode.Enabled = true

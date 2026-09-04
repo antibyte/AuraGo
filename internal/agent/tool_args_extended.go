@@ -224,6 +224,17 @@ type notificationArgs struct {
 	Priority string
 }
 
+type cydDisplayArgs struct {
+	Operation  string
+	Title      string
+	Message    string
+	Priority   string
+	Page       string
+	LED        string
+	Brightness int
+	TTL        int
+}
+
 type emailFetchArgs struct {
 	Account string
 	Folder  string
@@ -693,6 +704,19 @@ func decodeMissionArgs(tc ToolCall) missionArgs {
 		req.LockedProvided = true
 	}
 	return req
+}
+
+func decodeCYDDisplayArgs(tc ToolCall) cydDisplayArgs {
+	return cydDisplayArgs{
+		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Title:      firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Message:    firstNonEmptyToolString(tc.Message, tc.Content, tc.Body, toolArgString(tc.Params, "message", "content", "body")),
+		Priority:   firstNonEmptyToolString(tc.Tag, toolArgString(tc.Params, "tag", "priority")),
+		Page:       toolArgString(tc.Params, "page"),
+		LED:        toolArgString(tc.Params, "led", "color"),
+		Brightness: toolArgInt(tc.Params, 0, "brightness"),
+		TTL:        toolArgInt(tc.Params, 0, "ttl_s", "ttl"),
+	}
 }
 
 func decodeNotificationArgs(tc ToolCall) notificationArgs {

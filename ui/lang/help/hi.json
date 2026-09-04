@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Go प्रोफाइलिंग एंडपॉइंट को /debug/pprof के अंतर्गत उपलब्ध कराता है। विश्वसनीय स्थानीय इंस्टेंस की प्रोफाइलिंग के अलावा इसे बंद रखें।",
   "help.embeddings.local.backend": "स्थानीय बैकएंड चुनता है। „auto“ उपयुक्त GPU विकल्प जाँचता है और अन्यथा CPU उपयोग करता है।",
   "help.embeddings.local.context_size": "प्रति टेक्स्ट अधिकतम टोकन संख्या। डिफ़ॉल्ट 2048 है।",
-  "help.embeddings.local.batch_size": "ONNX Runtime और llama.cpp के लिए बैच आकार। डिफ़ॉल्ट 2048 है।"
+  "help.embeddings.local.batch_size": "ONNX Runtime और llama.cpp के लिए बैच आकार। डिफ़ॉल्ट 2048 है।",
+  "help.cyd.enabled": "Cheap Yellow Display मिनी डैशबोर्ड चालू करता है। एजेंट send_notification चैनल cyd या cyd_display से ओवरले दिखा सकता है।",
+  "help.cyd.poll_seconds": "WebSocket न होने पर डिस्प्ले कितनी बार /api/cyd/snapshot माँगता है। न्यूनतम 2 सेकंड।",
+  "help.cyd.overlay_ttl": "सूचना स्क्रीन पर कितने सेकंड रहे, यह डिफ़ॉल्ट है।",
+  "help.cyd.allow_agent_control": "चालू होने पर एजेंट पेज, चमक और LED बदल सकता है। बंद होने पर भी ओवरले चलते हैं।",
+  "help.cyd.mqtt_mirror": "MQTT जुड़ा हो तो कॉम्पैक्ट स्नैपशॉट aurago/cyd/snapshot विषय पर भी प्रकाशित करें।"
 }

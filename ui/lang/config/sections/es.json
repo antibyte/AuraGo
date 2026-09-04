@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Computadores virtuales",
   "config.section.virtual_computers.desc": "MicroVM desechables con terminal, escritorio, vistas previas y acceso del agente.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Publicar y gestionar Sites permanentes autenticados"
+  "config.section.here_now.desc": "Publicar y gestionar Sites permanentes autenticados",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "Mini panel ESP32 de 2,8\" para estado del sistema y avisos del agente"
 }

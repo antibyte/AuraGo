@@ -2395,4 +2395,21 @@ tail -f log/supervisor.log | grep -i telegram
 
 ---
 
+## Cheap Yellow Display
+
+Ein gekoppeltes ESP32-2432S028R (Cheap Yellow Display) zeigt AuraGo-Status auf dem Schreibtisch und empfängt Agent-Overlays.
+
+Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
+
+1. **Config → Smart Home → Cheap Yellow Display** öffnen.
+2. Integration aktivieren und speichern.
+3. **Display-Token erzeugen** (Scope `cyd`). Einmal kopieren.
+4. Display flashen, `agocyd-XXXX` beitreten, AuraGo-LAN-URL (`http://<lan-ip>:port`) und Token eintragen.
+5. AuraGo muss auf einer LAN-Adresse lauschen (`server.host`), nicht nur `127.0.0.1`.
+6. Mit **Testbenachrichtigung senden** ein Overlay prüfen.
+
+Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display`.
+
+---
+
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

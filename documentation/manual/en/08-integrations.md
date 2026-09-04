@@ -2778,6 +2778,23 @@ The dashboard shows status indicators:
 
 ---
 
+## Cheap Yellow Display
+
+A paired ESP32-2432S028R (Cheap Yellow Display) can show AuraGo status on the desk and receive agent overlays.
+
+Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
+
+1. Open **Config → Smart Home → Cheap Yellow Display**.
+2. Enable the integration and save.
+3. Click **Create display token** (scope `cyd`). Copy it once.
+4. Flash the display, join `agocyd-XXXX`, and enter this AuraGo LAN URL (`http://<lan-ip>:port`) plus the token.
+5. AuraGo must listen on a LAN address (`server.host`), not only `127.0.0.1`.
+6. Use **Send test notification** to push an overlay.
+
+Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page, brightness, and LED.
+
+---
+
 ## Next Steps
 
 Now that your integrations are set up:

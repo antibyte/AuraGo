@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Komputery wirtualne",
   "config.section.virtual_computers.desc": "Tymczasowe microVM z terminalem, pulpitem, podglądami i dostępem agenta.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Publikowanie i zarządzanie uwierzytelnionymi trwałymi Sites"
+  "config.section.here_now.desc": "Publikowanie i zarządzanie uwierzytelnionymi trwałymi Sites",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "Mini-pulpit ESP32 2,8\" ze statusem systemu i powiadomieniami agenta"
 }

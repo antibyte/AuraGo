@@ -819,6 +819,28 @@
       "description": "Automatically prepare scheduled missions when they are created or modified."
     }
   },
+  "cyd": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enables the Cheap Yellow Display mini-dashboard. Pair a flashed ESP32-2432S028R with a token scoped to cyd."
+    },
+    "poll_seconds": {
+      "title": "Poll interval",
+      "description": "How often the display fetches /api/cyd/snapshot if the WebSocket is down. Minimum 2 seconds."
+    },
+    "overlay_ttl_seconds": {
+      "title": "Overlay lifetime",
+      "description": "Default seconds a notification stays on the glass unless dismissed. Critical overlays default to 60s."
+    },
+    "allow_agent_control": {
+      "title": "Allow agent control",
+      "description": "When enabled, cyd_display may change page, brightness, and LED. Notifications still work if this is off."
+    },
+    "mqtt_mirror": {
+      "title": "MQTT mirror",
+      "description": "Also publish the compact snapshot to MQTT topic aurago/cyd/snapshot when MQTT is connected."
+    }
+  },
   "mqtt": {
     "broker": {
       "title": "Broker",

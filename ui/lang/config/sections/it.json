@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Computer virtuali",
   "config.section.virtual_computers.desc": "MicroVM temporanee con terminale, desktop, anteprime e accesso agente.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Pubblica e gestisci Sites permanenti autenticati"
+  "config.section.here_now.desc": "Pubblica e gestisci Sites permanenti autenticati",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "Mini dashboard ESP32 da 2,8\" per stato di sistema e notifiche dell'agente"
 }

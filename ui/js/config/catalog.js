@@ -28,6 +28,7 @@
         'mc-test-btn': { requiredPaths: [] },
         'mcp-m-test': { requiredSelectors: ['#mcp-m-name'], requiredAnySelectors: [['#mcp-m-command', '#mcp-m-url']] },
         'mqtt-test-btn': { requiredPaths: ['mqtt.broker'] },
+        'cyd-test-btn': { requiredPaths: ['cyd.enabled'] },
         'music-test-btn': { requiredPaths: ['music_generation.provider'] },
 		'nf-test-btn': { credentialPaths: ['netlify.token'] },
 		'hn-test-btn': { credentialPaths: ['here_now.api_key'] },

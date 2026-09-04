@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "在 /debug/pprof 下公开 Go 性能分析端点。除非你正在分析受信任的本地实例，否则请保持关闭。",
   "help.embeddings.local.backend": "选择本地后端。“auto”会测试合适的 GPU 方案，否则回退到 CPU。",
   "help.embeddings.local.context_size": "每段文本的最大 token 数。默认值为 2048。",
-  "help.embeddings.local.batch_size": "ONNX Runtime 和 llama.cpp 的批次大小。默认值为 2048。"
+  "help.embeddings.local.batch_size": "ONNX Runtime 和 llama.cpp 的批次大小。默认值为 2048。",
+  "help.cyd.enabled": "启用 Cheap Yellow Display 迷你仪表盘。智能体可通过 send_notification 的 cyd 通道或 cyd_display 显示叠加层。",
+  "help.cyd.poll_seconds": "WebSocket 断开时显示屏拉取 /api/cyd/snapshot 的频率。最少 2 秒。",
+  "help.cyd.overlay_ttl": "通知在屏幕上停留的默认秒数。",
+  "help.cyd.allow_agent_control": "启用后，智能体可以更改页面、亮度和 LED。关闭时叠加层仍可用。",
+  "help.cyd.mqtt_mirror": "在 MQTT 已连接时，还将紧凑快照发布到主题 aurago/cyd/snapshot。"
 }

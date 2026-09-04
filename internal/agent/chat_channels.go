@@ -45,6 +45,9 @@ func buildReachableChatChannelsContext(runCfg RunConfig) string {
 	if cfg.Notifications.Pushover.Enabled {
 		lines = append(lines, "- Pushover: reachable via `send_notification` with channel `pushover`.")
 	}
+	if cfg.Cyd.Enabled {
+		lines = append(lines, "- Cheap Yellow Display: reachable via `send_notification` with channel `cyd`, or `cyd_display` for overlays, pinned status, page, brightness, and LED.")
+	}
 	if cfg.RocketChat.Enabled && cfg.RocketChat.Channel != "" {
 		lines = append(lines, "- Rocket.Chat: incoming messages identify as Rocket.Chat; direct proactive send tools are not exposed, so reply in-session when contacted there.")
 	}

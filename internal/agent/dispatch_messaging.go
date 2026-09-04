@@ -34,6 +34,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		req := decodeAgoDeskChatArgs(tc)
 		return "Tool Output: " + sendAgoDeskChatMessage(dc, req), true
 
+	case "cyd_display":
+		return "Tool Output: " + handleCYDDisplay(dc, decodeCYDDisplayArgs(tc)), true
+
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		req := decodeNotificationArgs(tc)
 		logger.Info("LLM requested notification", "channel", req.Channel, "title", req.Title)

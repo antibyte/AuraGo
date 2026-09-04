@@ -640,6 +640,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"invasion":          cfg.InvasionControl.Enabled,
 			"github":            cfg.GitHub.Enabled,
 			"mqtt":              cfg.MQTT.Enabled,
+			"cyd":               cfg.Cyd.Enabled,
 			"budget":            cfg.Budget.Enabled,
 			"indexing":          cfg.Indexing.Enabled,
 			"auth":              cfg.Auth.Enabled,

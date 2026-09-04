@@ -642,5 +642,7 @@
   "config.section.virtual_computers.label": "Virtuella datorer",
   "config.section.virtual_computers.desc": "Tillfälliga microVM-datorer med terminal, skrivbord, förhandsvisningar och agentåtkomst.",
   "config.section.here_now.label": "here.now",
-  "config.section.here_now.desc": "Publicera och hantera autentiserade permanenta Sites"
+  "config.section.here_now.desc": "Publicera och hantera autentiserade permanenta Sites",
+  "config.section.cyd.label": "Cheap Yellow Display",
+  "config.section.cyd.desc": "ESP32 2,8\" mini-dashboard för systemstatus och agentaviseringar"
 }

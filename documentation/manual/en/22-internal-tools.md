@@ -445,7 +445,7 @@ Send proactive text to a connected **AgoDesk/AgoChat** desktop client.
 **Prerequisites:** AgoDesk client paired via `/api/agodesk/ws`; `remote_control.enabled: true`. See ch. 08 **AgoDesk / AgoChat** and [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md).
 
 ### `send_notification` / `notification_center` / `send_push_notification` / `web_push`
-Deliver push notifications through configured providers (ntfy, Pushover) or browser Web Push (PWA). `notification_center` lists recent notifications; `web_push` targets subscribed PWA clients via VAPID. See ch. 08 **Notifications** and **Web Push / PWA Notifications**.
+Deliver push notifications through configured providers (ntfy, Pushover), browser Web Push (PWA), or a Cheap Yellow Display (`channel: "cyd"`). `notification_center` lists recent notifications; `web_push` targets subscribed PWA clients via VAPID. See ch. 08 **Notifications**, **Web Push / PWA Notifications**, and **Cheap Yellow Display**.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -453,6 +453,9 @@ Deliver push notifications through configured providers (ntfy, Pushover) or brow
 | `message` | string | Notification body |
 | `priority` | string | normal, high, low (provider-dependent) |
 | `url` | string | Optional click-through URL (Web Push) |
+
+### `cyd_display`
+Control a paired Cheap Yellow Display: `notify`, `show`, `clear`, `page`, `brightness`, `led`, `status`. Requires `cyd.enabled`. Page/brightness/LED need `cyd.allow_agent_control`. See ch. 08 **Cheap Yellow Display**.
 
 ### `pin_message`
 Pin or unpin a chat message in the Web UI history.

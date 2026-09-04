@@ -31,6 +31,7 @@ flowchart TD
         FB[("Fritz!Box")]
         HA[("Home Assistant")]
         MQ[("MQTT")]
+        CYD[("CYD Display")]
         PX[("Proxmox")]
         JF[("Jellyfin")]
         TS[("Tailscale")]

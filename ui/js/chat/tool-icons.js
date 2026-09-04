@@ -74,7 +74,7 @@
         { slot: 71, key: 'discord', label: 'Discord', row: 7, col: 1, aliases: Object.freeze([]) },
         { slot: 72, key: 'mqtt', label: 'MQTT', row: 7, col: 2, aliases: Object.freeze(['mqtt_publish', 'mqtt_subscribe', 'mqtt_unsubscribe', 'mqtt_get_messages']) },
         { slot: 73, key: 'telnyx', label: 'Telnyx', row: 7, col: 3, aliases: Object.freeze(['telnyx_sms', 'telnyx_call', 'telnyx_manage']) },
-        { slot: 74, key: 'send_notification', label: 'Notification', row: 7, col: 4, aliases: Object.freeze([]) },
+        { slot: 74, key: 'send_notification', label: 'Notification', row: 7, col: 4, aliases: Object.freeze(['cyd_display', 'cyd']) },
         { slot: 75, key: 'chromecast', label: 'Chromecast', row: 7, col: 5, aliases: Object.freeze([]) },
         { slot: 76, key: 'jellyfin', label: 'Jellyfin', row: 7, col: 6, aliases: Object.freeze([]) },
         { slot: 77, key: 'media_registry', label: 'Media registry', row: 7, col: 7, aliases: Object.freeze([]) },

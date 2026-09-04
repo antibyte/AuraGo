@@ -20,6 +20,14 @@ func precheckMessagingToolArgs(tc ToolCall, runCfg RunConfig, sessionID string) 
 		message = decodeSendTelegramArgs(tc).Message
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		message = decodeNotificationArgs(tc).Message
+	case "cyd_display":
+		req := decodeCYDDisplayArgs(tc)
+		switch strings.ToLower(strings.TrimSpace(req.Operation)) {
+		case "notify", "show":
+			message = req.Message
+		default:
+			return "", false
+		}
 	case "send_discord":
 		message = decodeDiscordMessageArgs(tc).Message
 	default:

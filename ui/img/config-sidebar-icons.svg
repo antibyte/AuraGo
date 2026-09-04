@@ -451,4 +451,8 @@
     <title>here_now</title>
     <rect x="23" y="31" width="82" height="66" rx="14" fill="#84f35c" opacity=".2"/><path d="M39 48v32M58 48v32M39 64h19M73 48l10 32 10-32" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7" stroke="#84f35c"/>
   </g>
+  <g class="cfg-icon-cell" data-key="cyd" data-slot="113" transform="translate(384 1280)">
+    <title>cyd</title>
+    <rect x="28" y="38" width="72" height="52" rx="6" fill="#35c7d3" opacity=".2"/><path d="M28 38h72v52H28zM40 96h48" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3"/><path d="M40 52h48M40 64h32M40 76h20" fill="none" stroke-linecap="round" stroke-width="5" stroke="#6fca8f"/>
+  </g>
 </svg>

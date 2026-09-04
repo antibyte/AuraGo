@@ -174,6 +174,7 @@ const SECTIONS = [
         items: [
             { key: 'home_assistant', icon: '🏠', label: t('config.section.home_assistant.label'), desc: t('config.section.home_assistant.desc') },
             { key: 'mqtt', icon: '📡', label: t('config.section.mqtt.label'), desc: t('config.section.mqtt.desc') },
+            { key: 'cyd', icon: '📟', label: t('config.section.cyd.label'), desc: t('config.section.cyd.desc') },
             { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
             { key: 'bluetooth', icon: 'ᛒ', label: t('config.section.bluetooth.label'), desc: t('config.section.bluetooth.desc') },
             { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') },
@@ -532,6 +533,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     yepapi: 71,
     home_assistant: 72,
     mqtt: 73,
+    cyd: 113,
     chromecast: 74,
     bluetooth: 104,
     network_shares: 105,
@@ -652,6 +654,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     yepapi: "<path d=\"m64 25 35 20v38l-35 20-35-20V45z\" fill=\"#35c7d3\" opacity=\".22\"/><path d=\"m64 25 35 20v38l-35 20-35-20V45z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><text x=\"64\" y=\"65\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"25\" font-weight=\"800\" fill=\"#4f8ee8\">Y</text>",
     home_assistant: "<circle cx=\"64\" cy=\"64\" r=\"39\" fill=\"#18bcf2\"/><path d=\"M43 70 64 46l21 24M52 65v22h24V65M64 46v41\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#ffffff\"/>",
     mqtt: "<path d=\"M64 87V59M42 37a32 32 0 0 1 44 0M31 25a48 48 0 0 1 66 0M53 49a16 16 0 0 1 22 0\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#6fca8f\"/><circle cx=\"64\" cy=\"91\" r=\"10\" fill=\"#35c7d3\"/><text x=\"64\" y=\"94\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"16\" font-weight=\"800\" fill=\"#6fca8f\">M</text>",
+    cyd: "<rect x=\"28\" y=\"38\" width=\"72\" height=\"52\" rx=\"6\" fill=\"#35c7d3\" opacity=\".2\"/><path d=\"M28 38h72v52H28zM40 96h48\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><path d=\"M40 52h48M40 64h32M40 76h20\" fill=\"none\" stroke-linecap=\"round\" stroke-width=\"5\" stroke=\"#6fca8f\"/>",
     chromecast: "<rect x=\"29\" y=\"36\" width=\"70\" height=\"48\" rx=\"7\" fill=\"#4285f4\" opacity=\".2\"/><path d=\"M29 36h70v48H29zM31 95a28 28 0 0 1 28 28M31 79a44 44 0 0 1 44 44M31 106h.1\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4285f4\"/>",
     bluetooth: "<path d=\"M56 24v80l30-25-44-31 44-24-30-24v104M34 43l52 37M34 85l52-42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4285f4\"/>",
     network_shares: "<path d=\"M29 42h58M77 31l11 11-11 11M99 86H41M51 75 40 86l11 11\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><rect x=\"23\" y=\"27\" width=\"18\" height=\"30\" rx=\"4\" fill=\"#4f8ee8\" opacity=\".28\"/><rect x=\"87\" y=\"71\" width=\"18\" height=\"30\" rx=\"4\" fill=\"#6fca8f\" opacity=\".28\"/>",
@@ -3050,6 +3053,7 @@ const SECTION_MODULES = {
     ollama: { m: 'ollama', fn: 'renderOllamaSection' },
     mission_preparation: { m: 'mission_preparation', fn: 'renderMissionPreparationSection' },
     mqtt: { m: 'mqtt', fn: 'renderMQTTSection' },
+    cyd: { m: 'cyd', fn: 'renderCYDSection' },
     yepapi: { m: 'yepapi', fn: 'renderYepAPISection' }
 };
 

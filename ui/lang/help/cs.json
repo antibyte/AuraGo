@@ -426,5 +426,10 @@
   "help.server.debug_pprof": "Zpřístupní profilovací koncové body Go pod /debug/pprof. Nechte vypnuté, pokud neprofilujete důvěryhodnou místní instanci.",
   "help.embeddings.local.backend": "Vybere místní backend. „auto“ otestuje vhodné GPU varianty a jinak použije CPU.",
   "help.embeddings.local.context_size": "Maximální počet tokenů na text. Výchozí hodnota je 2048.",
-  "help.embeddings.local.batch_size": "Velikost dávky pro ONNX Runtime a llama.cpp. Výchozí hodnota je 2048."
+  "help.embeddings.local.batch_size": "Velikost dávky pro ONNX Runtime a llama.cpp. Výchozí hodnota je 2048.",
+  "help.cyd.enabled": "Zapne mini dashboard Cheap Yellow Display. Agent může ukazovat překryvy přes send_notification kanál cyd nebo cyd_display.",
+  "help.cyd.poll_seconds": "Jak často displej stahuje /api/cyd/snapshot, když chybí WebSocket. Minimum 2 sekundy.",
+  "help.cyd.overlay_ttl": "Výchozí počet sekund, po které oznámení zůstane na skle.",
+  "help.cyd.allow_agent_control": "Pokud je zapnuto, agent může měnit stránku, jas a LED. Překryvy fungují i při vypnutí.",
+  "help.cyd.mqtt_mirror": "Navíc publikuje kompaktní snímek na MQTT téma aurago/cyd/snapshot, když je MQTT připojeno."
 }
