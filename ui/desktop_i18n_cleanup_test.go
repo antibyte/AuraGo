@@ -16,6 +16,8 @@ func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
 	t.Parallel()
 
 	required := []string{
+		"desktop.app_error_fallback",
+		"desktop.app_error_renderer_missing",
 		"desktop.app_error_title",
 		"desktop.sheets_clear_range",
 		"desktop.sheets_insert_row_above",

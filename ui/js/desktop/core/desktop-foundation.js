@@ -1119,7 +1119,7 @@
         if (!host) return;
         host.innerHTML = `<div class="vd-app-error">
             <div class="vd-app-error-title">${esc(t('desktop.app_error_title'))}</div>
-            <div class="vd-app-error-message">${esc((err && err.message) || String(err || 'Error'))}</div>
+            <div class="vd-app-error-message">${esc((err && err.message) || String(err || t('desktop.app_error_fallback')))}</div>
         </div>`;
     }
 

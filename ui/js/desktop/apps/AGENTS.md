@@ -92,6 +92,28 @@ and `files.default_apps` via `/api/desktop/settings`.
 - The System Info app reuses `hours_minutes` and `minutes`, and uses
   `desktop.system_info_uptime_days_hours_minutes` when days are present.
   Sysmon stays without minutes in the days/hours form.
+- System Info network totals use `desktop.system_info_network_io` with
+  `{{sent}}` and `{{recv}}`. Do not hardcode English `up / down`.
+- System Info history-chart dataset labels reuse `desktop.system_info_cpu`,
+  `desktop.system_info_memory`, and `desktop.system_info_disk`. Do not
+  hardcode English CPU/Memory/Disk there.
+- Virtual Computers duration and expiry-day labels use
+  `desktop.virtual_computers_duration_*` and
+  `desktop.virtual_computers_expiry_days`. Do not hardcode `s`/`min`/`h`/`d`
+  there. Leave `tx` as a key-only helper.
+- Calculator backspace labels use `desktop.calc_back`. Do not hardcode
+  English `Back` there.
+- Mission Control window menus use `desktop.menu_file` and
+  `desktop.menu_view`. Do not hardcode English File/View there.
+- File Manager new-file template labels use `desktop.fm.new_file_kind_*`
+  and `desktop.fm.new_file_template_label`. ZIP/rename success toasts use
+  `desktop.fm.zip_created`, `desktop.fm.zip_extracted`, and
+  `desktop.fm.batch_rename_success`. Do not hardcode English there.
+- `renderAppError` shows `desktop.app_error_title` plus `err.message` or
+  `desktop.app_error_fallback`. Do not hardcode English `Error` there.
+- Missing Agent Chat / Live Speech renderers use
+  `desktop.app_error_renderer_missing` with `{{app}}`. Do not hardcode
+  English "renderer is not loaded" strings.
 
 ### Trash restore contract
 
@@ -701,6 +723,10 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopFeeling`
 - `go test ./ui/ -run TestDesktopWidgetConfigPersistence`
 - `go test ./ui/ -run TestDesktopWeatherWidgetI18n`
+- `go test ./ui/ -run TestDesktopVirtualComputersDurationI18n`
+- `go test ./ui/ -run TestDesktopCalculatorBackI18n`
+- `go test ./ui/ -run TestDesktopMissionControlMenuI18n`
+- `go test ./ui/ -run TestDesktopFileManagerTemplateI18n`
 - `go test ./ui/ -run TestDesktopWidgetDisplayTitle`
 - `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
@@ -717,7 +743,8 @@ registration lives in `internal/desktop/types.go`.
 
 - `file-manager/` (under `ui/js/desktop/file-manager/`, bundled to
   `file-manager.bundle.js`) - File Manager restore and empty-trash menus follow
-  the Trash restore contract above. No child DOX file needed.
+  the Trash restore contract above. New-file templates and ZIP/rename success
+  toasts follow the i18n keys in Local Contracts. No child DOX file needed.
 - `galaxa-modes.js` - Game mode contracts (`gauntlet`, `hyperdrive`, `mirror`)
   and hooks (`modesOnRunStart`, `modesOnStageStart`, `modesShouldOpenShop`,
   `modesGetBaseMusicTheme`). Settings mode cycle reads/writes `settings.mode`.

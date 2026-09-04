@@ -91,7 +91,7 @@ func TestDesktopCalculatorUsesReadableKeysAndOrderedLayouts(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{
-		"{ key: 'backspace', label: 'Back' }",
+		"{ key: 'backspace', label: t('desktop.calc_back') }",
 		"else if (key === 'backspace') expression = expression.slice(0, -1);",
 		"else if (key === 'negate') expression = expression ? `(-1*(${expression}))` : '-';",
 		"else if (key === 'square') expression += '^2';",
@@ -108,7 +108,7 @@ func TestDesktopCalculatorUsesReadableKeysAndOrderedLayouts(t *testing.T) {
 		"standard: [",
 		"{ key: 'C', kind: 'danger' }",
 		"{ key: 'CE', kind: 'danger' }",
-		"{ key: 'backspace', label: 'Back' }",
+		"{ key: 'backspace', label: t('desktop.calc_back') }",
 		"{ key: '/', kind: 'op' }",
 		"{ key: '7' }",
 		"{ key: '8' }",
@@ -132,7 +132,7 @@ func TestDesktopCalculatorUsesReadableKeysAndOrderedLayouts(t *testing.T) {
 		"{ key: 'sin', kind: 'fn' }",
 		"{ key: 'C', kind: 'danger' }",
 		"{ key: 'CE', kind: 'danger' }",
-		"{ key: 'backspace', label: 'Back' }",
+		"{ key: 'backspace', label: t('desktop.calc_back') }",
 		"{ key: '/', kind: 'op' }",
 		"{ key: 'cos', kind: 'fn' }",
 		"{ key: '7' }",
@@ -160,7 +160,7 @@ func TestDesktopCalculatorUsesReadableKeysAndOrderedLayouts(t *testing.T) {
 		"{ key: 'AND', kind: 'fn' }",
 		"{ key: 'C', kind: 'danger' }",
 		"{ key: 'CE', kind: 'danger' }",
-		"{ key: 'backspace', label: 'Back' }",
+		"{ key: 'backspace', label: t('desktop.calc_back') }",
 		"{ key: '/', kind: 'op' }",
 		"{ key: 'OR', kind: 'fn' }",
 		"{ key: '7' }",

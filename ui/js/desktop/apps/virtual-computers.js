@@ -132,15 +132,18 @@
         return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
     }
 
-    function formatDuration(seconds) {
+    function formatDuration(seconds, context) {
         const value = Math.max(0, Number(seconds) || 0);
-        if (value < 60) return `${value} s`;
-        if (value < 3600) return `${Math.round(value / 60)} min`;
-        if (value < 86400) return `${Math.round(value / 3600)} h`;
-        return `${Math.round(value / 86400)} d`;
+        const label = (key, count) => (
+            context && typeof context.t === 'function' ? context.t(key, { count }) : String(count)
+        );
+        if (value < 60) return label('desktop.virtual_computers_duration_seconds', value);
+        if (value < 3600) return label('desktop.virtual_computers_duration_minutes', Math.round(value / 60));
+        if (value < 86400) return label('desktop.virtual_computers_duration_hours', Math.round(value / 3600));
+        return label('desktop.virtual_computers_duration_days', Math.round(value / 86400));
     }
 
-    function formatExpiryCountdown(expiresAt, nowMs) {
+    function formatExpiryCountdown(expiresAt, nowMs, context) {
         const expiry = new Date(expiresAt).getTime();
         if (!Number.isFinite(expiry)) return '—';
         const parsedNow = Number(nowMs);
@@ -153,7 +156,11 @@
         const minutes = Math.floor(remaining / 60);
         const seconds = remaining % 60;
         const clock = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
-        if (days > 0) return `${days}d ${clock}`;
+        if (days > 0) {
+            return context && typeof context.t === 'function'
+                ? context.t('desktop.virtual_computers_expiry_days', { days, clock })
+                : `${days} ${clock}`;
+        }
         return hours > 0 ? clock : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
@@ -162,7 +169,7 @@
         const classes = className ? ` ${className}` : '';
         if (machine.persistent) return `<span class="vc-expiry-countdown${classes}">${esc(tx(c, 'desktop.virtual_computers_unlimited'))}</span>`;
         const expiresAt = machine.expires_at || '';
-        const value = formatExpiryCountdown(expiresAt);
+        const value = formatExpiryCountdown(expiresAt, undefined, c);
         const label = tx(c, 'desktop.virtual_computers_expires');
         return `<span class="vc-expiry-countdown${classes}" data-expiry-countdown data-expires-at="${esc(expiresAt)}" data-expiry-label="${esc(label)}" title="${esc(formatDate(expiresAt))}" aria-label="${esc(label)}: ${esc(value)}">${esc(value)}</span>`;
     }
@@ -171,7 +178,7 @@
         if (!state.host || state.disposed) return;
         const now = Date.now();
         state.host.querySelectorAll('[data-expiry-countdown]').forEach(node => {
-            const value = formatExpiryCountdown(node.dataset.expiresAt, now);
+            const value = formatExpiryCountdown(node.dataset.expiresAt, now, state.context);
             node.textContent = value;
             node.setAttribute('aria-label', `${node.dataset.expiryLabel || ''}: ${value}`);
         });
@@ -367,7 +374,7 @@
             </div></header>
             <dl class="vc-meta-grid">
                 <div><dt>${esc(tx(c, 'desktop.virtual_computers_template'))}</dt><dd>${esc(machine.template || '—')}</dd></div>
-                <div><dt>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</dt><dd>${esc(machine.persistent ? tx(c, 'desktop.virtual_computers_unlimited') : formatDuration(machine.ttl_seconds))}</dd></div>
+                <div><dt>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</dt><dd>${esc(machine.persistent ? tx(c, 'desktop.virtual_computers_unlimited') : formatDuration(machine.ttl_seconds, c))}</dd></div>
                 <div><dt>${esc(tx(c, 'desktop.virtual_computers_expires'))}</dt><dd class="vc-expiry-detail">${expiryCountdownMarkup(state, machine, 'vc-expiry-detail-countdown')}${machine.persistent ? '' : `<span>${esc(formatDate(machine.expires_at))}</span>`}</dd></div>
                 <div><dt>${esc(tx(c, 'desktop.virtual_computers_display'))}</dt><dd>${esc(machine.display ? tx(c, 'desktop.on') : tx(c, 'desktop.off'))}</dd></div>
                 <div class="vc-meta-wide"><dt>${esc(tx(c, 'desktop.virtual_computers_web_ports'))}</dt><dd class="vc-machine-links">${portLinks}</dd></div>
@@ -401,7 +408,7 @@
             const options = templates.map(template => `<option value="${esc(template.id || template.name)}">${esc(template.name || template.id)}</option>`).join('');
             const volumes = state.volumes.map(volume => `<option value="${esc(volume.id)}">${esc(volume.name || volume.id)}</option>`).join('');
             const unlimited = capabilities(state).persistent ? `<option value="persistent">${esc(tx(c, 'desktop.virtual_computers_unlimited'))}</option>` : '';
-            return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="vc-launch-title"><header><h3 id="vc-launch-title">${esc(tx(c, 'desktop.virtual_computers_new'))}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header>${error}<label><span>${esc(tx(c, 'desktop.virtual_computers_template'))}</span><select data-role="template" autofocus>${options}</select></label>${state.templatesFallback ? `<p class="vc-form-note">${esc(tx(c, 'desktop.virtual_computers_templates_fallback'))}</p>` : ''}<label><span>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</span><select data-role="ttl"><option value="300">${esc(formatDuration(300))}</option><option value="600" selected>${esc(formatDuration(600))}</option><option value="900">${esc(formatDuration(900))}</option>${unlimited}</select></label>${capabilities(state).volumes ? `<label><span>${esc(tx(c, 'desktop.virtual_computers_volumes'))}</span><select data-role="launch-volume"><option value="">${esc(tx(c, 'desktop.virtual_computers_volume_none'))}</option>${volumes}</select></label>` : ''}<div class="vc-actions"><button type="button" class="vc-btn" data-action="close-modal">${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn vc-primary" data-action="confirm-launch" ${isPending(state, 'launch') ? 'disabled aria-busy="true"' : ''}>${esc(tx(c, 'desktop.virtual_computers_launch'))}</button></div></div></div>`;
+            return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="vc-launch-title"><header><h3 id="vc-launch-title">${esc(tx(c, 'desktop.virtual_computers_new'))}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header>${error}<label><span>${esc(tx(c, 'desktop.virtual_computers_template'))}</span><select data-role="template" autofocus>${options}</select></label>${state.templatesFallback ? `<p class="vc-form-note">${esc(tx(c, 'desktop.virtual_computers_templates_fallback'))}</p>` : ''}<label><span>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</span><select data-role="ttl"><option value="300">${esc(formatDuration(300, c))}</option><option value="600" selected>${esc(formatDuration(600, c))}</option><option value="900">${esc(formatDuration(900, c))}</option>${unlimited}</select></label>${capabilities(state).volumes ? `<label><span>${esc(tx(c, 'desktop.virtual_computers_volumes'))}</span><select data-role="launch-volume"><option value="">${esc(tx(c, 'desktop.virtual_computers_volume_none'))}</option>${volumes}</select></label>` : ''}<div class="vc-actions"><button type="button" class="vc-btn" data-action="close-modal">${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn vc-primary" data-action="confirm-launch" ${isPending(state, 'launch') ? 'disabled aria-busy="true"' : ''}>${esc(tx(c, 'desktop.virtual_computers_launch'))}</button></div></div></div>`;
         }
         const definitions = {
             destroy: ['desktop.virtual_computers_confirm_destroy', 'desktop.virtual_computers_confirm_destroy_desc', 'confirm-destroy', 'desktop.virtual_computers_destroy'],

@@ -82,7 +82,7 @@
         });
     }
 
-    function createHistoryChart(canvas) {
+    function createHistoryChart(canvas, context) {
         if (!window.Chart || !canvas) return null;
         const accent = cssVar('--vd-accent', '#27c7a6');
         const coral = cssVar('--vd-coral', '#ff8066');
@@ -93,9 +93,9 @@
             data: {
                 labels: [],
                 datasets: [
-                    { label: 'CPU', data: [], borderColor: accent, backgroundColor: 'rgba(39,199,166,0.12)', borderWidth: 2, pointRadius: 0, tension: 0.34, fill: true },
-                    { label: 'Memory', data: [], borderColor: coral, backgroundColor: 'rgba(255,128,102,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.34 },
-                    { label: 'Disk', data: [], borderColor: amber, backgroundColor: 'rgba(242,184,75,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.34 }
+                    { label: t(context, 'desktop.system_info_cpu'), data: [], borderColor: accent, backgroundColor: 'rgba(39,199,166,0.12)', borderWidth: 2, pointRadius: 0, tension: 0.34, fill: true },
+                    { label: t(context, 'desktop.system_info_memory'), data: [], borderColor: coral, backgroundColor: 'rgba(255,128,102,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.34 },
+                    { label: t(context, 'desktop.system_info_disk'), data: [], borderColor: amber, backgroundColor: 'rgba(242,184,75,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.34 }
                 ]
             },
             options: {
@@ -156,7 +156,7 @@
                 memory: createGauge(host.querySelector('[data-gauge="memory"]'), coral),
                 disk: createGauge(host.querySelector('[data-gauge="disk"]'), amber)
             },
-            historyChart: createHistoryChart(host.querySelector('[data-role="history"]')),
+            historyChart: createHistoryChart(host.querySelector('[data-role="history"]'), context),
             handler: null,
             tickTimer: null
         };
@@ -259,7 +259,10 @@
             ['cores', t(instance.context, 'desktop.system_info_cores'), cpu.cores || '-'],
             ['memory', t(instance.context, 'desktop.system_info_memory'), `${formatBytes(memory.used)} / ${formatBytes(memory.total)}`],
             ['disk', t(instance.context, 'desktop.system_info_disk'), `${formatBytes(disk.used)} / ${formatBytes(disk.total)}`],
-            ['network', t(instance.context, 'desktop.system_info_network'), `${formatBytes(network.bytes_sent)} up / ${formatBytes(network.bytes_recv)} down`],
+            ['network', t(instance.context, 'desktop.system_info_network'), t(instance.context, 'desktop.system_info_network_io', {
+                sent: formatBytes(network.bytes_sent),
+                recv: formatBytes(network.bytes_recv)
+            })],
             ['uptime', t(instance.context, 'desktop.system_info_uptime'), formatUptime(uptimeSeconds, instance.context)]
         ];
         detailHost.innerHTML = details.map(([id, label, value]) => `<article class="vd-sysinfo-detail">

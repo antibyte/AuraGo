@@ -108,7 +108,7 @@ func TestVirtualComputersExpiryCountdownContract(t *testing.T) {
 	for _, marker := range []string{
 		`const expiryCountdownIntervalMs = 1000;`,
 		`expiryCountdownTimer: null`,
-		`function formatExpiryCountdown(expiresAt, nowMs)`,
+		`function formatExpiryCountdown(expiresAt, nowMs, context)`,
 		`function expiryCountdownMarkup(state, machine, className)`,
 		`function updateExpiryCountdowns(state)`,
 		`function scheduleExpiryCountdown(state)`,

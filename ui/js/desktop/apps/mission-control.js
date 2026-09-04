@@ -136,12 +136,12 @@
             if (typeof setWindowMenus !== 'function') return;
             setWindowMenus(windowId, [
                 {
-                    id: 'file', label: 'File', items: [
+                    id: 'file', labelKey: 'desktop.menu_file', items: [
                         { id: 'new', labelKey: 'desktop.mc_new_mission', icon: 'plus', shortcut: 'Ctrl+N', action: () => openModal() }
                     ]
                 },
                 {
-                    id: 'view', label: 'View', items: [
+                    id: 'view', labelKey: 'desktop.menu_view', items: [
                         { id: 'grid', labelKey: 'desktop.mc_view_grid', checked: () => state.viewMode === 'grid', action: () => setViewMode('grid') },
                         { id: 'list', labelKey: 'desktop.mc_view_list', checked: () => state.viewMode === 'list', action: () => setViewMode('list') },
                         { type: 'separator' },

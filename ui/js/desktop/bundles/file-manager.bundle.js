@@ -3666,7 +3666,7 @@
                     dest: destPath
                 })
             });
-            showNotification({ type: 'success', message: 'ZIP created successfully' });
+            showNotification({ type: 'success', message: t('desktop.fm.zip_created') });
             refresh();
         } catch (err) {
             showNotification({ type: 'error', message: err.message || String(err) });
@@ -3689,7 +3689,7 @@
                     dest: dest
                 })
             });
-            showNotification({ type: 'success', message: 'ZIP extracted successfully' });
+            showNotification({ type: 'success', message: t('desktop.fm.zip_extracted') });
             refresh();
         } catch (err) {
             showNotification({ type: 'error', message: err.message || String(err) });
@@ -3921,7 +3921,7 @@
                 method: 'POST',
                 body: JSON.stringify({ operations: payload })
             });
-            showNotification({ type: 'success', message: 'Files renamed successfully' });
+            showNotification({ type: 'success', message: t('desktop.fm.batch_rename_success') });
             refresh();
         } catch (err) {
             showNotification({ type: 'error', message: err.message || String(err) });
@@ -3936,19 +3936,19 @@
             overlay.className = 'fm-modal-overlay';
 
             const templates = [
-                { ext: 'txt', label: 'Plain Text', content: '' },
-                { ext: 'md', label: 'Markdown', content: '# Document Title\n\n' },
-                { ext: 'py', label: 'Python Script', content: '#!/usr/bin/env python3\n\ndef main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()\n' },
-                { ext: 'go', label: 'Go Source', content: 'package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello, World!")\n}\n' },
-                { ext: 'js', label: 'JavaScript', content: '// JavaScript Document\nconsole.log("Hello, World!");\n' },
-                { ext: 'json', label: 'JSON Config', content: '{\n  "key": "value"\n}\n' },
-                { ext: 'yaml', label: 'YAML Config', content: 'key: value\n' },
-                { ext: 'sh', label: 'Shell Script', content: '#!/bin/bash\necho "Hello, World!"\n' },
-                { ext: 'html', label: 'HTML Page', content: '<!DOCTYPE html>\n<html>\n<head>\n    <title>Page Title</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>\n' },
-                { ext: 'css', label: 'CSS Stylesheet', content: 'body {\n    background-color: #f0f0f0;\n}\n' }
+                { ext: 'txt', labelKey: 'desktop.fm.new_file_kind_txt', content: '' },
+                { ext: 'md', labelKey: 'desktop.fm.new_file_kind_md', content: '# Document Title\n\n' },
+                { ext: 'py', labelKey: 'desktop.fm.new_file_kind_py', content: '#!/usr/bin/env python3\n\ndef main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()\n' },
+                { ext: 'go', labelKey: 'desktop.fm.new_file_kind_go', content: 'package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello, World!")\n}\n' },
+                { ext: 'js', labelKey: 'desktop.fm.new_file_kind_js', content: '// JavaScript Document\nconsole.log("Hello, World!");\n' },
+                { ext: 'json', labelKey: 'desktop.fm.new_file_kind_json', content: '{\n  "key": "value"\n}\n' },
+                { ext: 'yaml', labelKey: 'desktop.fm.new_file_kind_yaml', content: 'key: value\n' },
+                { ext: 'sh', labelKey: 'desktop.fm.new_file_kind_sh', content: '#!/bin/bash\necho "Hello, World!"\n' },
+                { ext: 'html', labelKey: 'desktop.fm.new_file_kind_html', content: '<!DOCTYPE html>\n<html>\n<head>\n    <title>Page Title</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>\n' },
+                { ext: 'css', labelKey: 'desktop.fm.new_file_kind_css', content: 'body {\n    background-color: #f0f0f0;\n}\n' }
             ];
 
-            const options = templates.map(t => `<option value="${t.ext}">${t.label} (.${t.ext})</option>`).join('');
+            const options = templates.map(item => `<option value="${item.ext}">${esc(t(item.labelKey))} (.${item.ext})</option>`).join('');
 
             overlay.innerHTML = `<form class="fm-modal">
                 <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template'))}</div>
@@ -3957,7 +3957,7 @@
                     <input type="text" name="filename" value="new-file.txt" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                 </div>
                 <div class="fm-field-group" style="margin-bottom: 16px; display:flex; flex-direction:column; gap:4px">
-                    <label style="font-size:0.75rem;color:var(--vd-muted)">Template</label>
+                    <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_template_label'))}</label>
                     <select name="template" style="width:100%;box-sizing:border-box;background:#1a1a1a;color:var(--vd-text);border:1px solid var(--vd-border);padding:6px;border-radius:4px">${options}</select>
                 </div>
                 <div class="fm-modal-actions">
