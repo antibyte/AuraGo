@@ -63,6 +63,8 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 		"version: 2",
 		"activeSpaceId",
 		"spaceId",
+		"alwaysOnTop: !!item.alwaysOnTop",
+		"alwaysOnTop: !!entry.alwaysOnTop",
 	} {
 		if !strings.Contains(session, want) {
 			t.Fatalf("session runtime missing %q", want)

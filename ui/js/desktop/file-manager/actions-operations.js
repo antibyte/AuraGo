@@ -94,6 +94,17 @@
         }
     }
 
+    async function restoreSelected() {
+        if (isReadonly()) return;
+        const selected = getSelectedFiles().filter(file => isTrashItemPath(file && file.path));
+        if (!selected.length) return;
+        if (fm.callbacks && typeof fm.callbacks.restoreFromTrash === 'function') {
+            await fm.callbacks.restoreFromTrash(selected.map(file => file.path));
+            clearSelection();
+            refresh();
+        }
+    }
+
     async function deleteSelected() {
         if (isReadonly()) return;
         const selected = getSelectedFiles();

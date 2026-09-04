@@ -82,6 +82,10 @@ func TestDesktopTrashCanSupportsDropAndEmptyMenu(t *testing.T) {
 		"removeIconPosition('desktop-entry-' + cleanPath)",
 		"await removeDesktopShortcut(btn.dataset.id || '')",
 		"await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' })",
+		"function restorePathsFromTrash(",
+		"function uniqueRestoreDestination(",
+		"uniqueRestoreDestination('Desktop'",
+		"restoreFromTrash: restorePathsFromTrash",
 	} {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop trash can integration missing marker %q", want)
@@ -95,10 +99,35 @@ func TestDesktopTrashCanSupportsDropAndEmptyMenu(t *testing.T) {
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		text := rawDesktopAssetText(t, filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json")))
-		for _, key := range []string{"desktop.context_empty_trash", "desktop.confirm_empty_trash", "desktop.confirm_empty_trash_msg", "desktop.trash_empty"} {
+		for _, key := range []string{"desktop.context_empty_trash", "desktop.confirm_empty_trash", "desktop.confirm_empty_trash_msg", "desktop.trash_empty", "desktop.fm.restore", "desktop.trash_restored", "desktop.trash_restored_items"} {
 			if !strings.Contains(text, `"`+key+`"`) {
 				t.Fatalf("%s desktop translations missing %q", lang, key)
 			}
+		}
+	}
+}
+
+func TestDesktopWindowAlwaysOnTopMarkers(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"function toggleWindowAlwaysOnTop(",
+		"function assignWindowZ(",
+		"WINDOW_ALWAYS_ON_TOP_Z = 200000",
+		"desktop.context_always_on_top",
+		"alwaysOnTop: !!item.alwaysOnTop",
+		"alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop)",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop window always-on-top missing marker %q", want)
+		}
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		text := rawDesktopAssetText(t, filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json")))
+		if !strings.Contains(text, `"desktop.context_always_on_top"`) {
+			t.Fatalf("%s desktop translations missing %q", lang, "desktop.context_always_on_top")
 		}
 	}
 }

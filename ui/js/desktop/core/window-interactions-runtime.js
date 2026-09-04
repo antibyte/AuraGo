@@ -552,7 +552,7 @@ function wireWindow(win, id) {
         const wasHidden = win.element.style.display === 'none' || win.element.hidden;
         win.minimizing = false;
         win.element.style.display = '';
-        win.element.style.zIndex = String(++state.z);
+        assignWindowZ(win);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
         if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
@@ -632,11 +632,48 @@ function wireWindow(win, id) {
         items.push(cleanup);
         state.windowCleanups.set(windowId, items);
     }
+    const WINDOW_ALWAYS_ON_TOP_Z = 200000;
+
+    function windowAlwaysOnTop(win) {
+        return !!(win && win.alwaysOnTop && !win.isGadget);
+    }
+
+    function applyWindowAlwaysOnTopAttr(win) {
+        if (!win || !win.element) return;
+        win.element.dataset.alwaysOnTop = windowAlwaysOnTop(win) ? 'true' : 'false';
+    }
+
+    function assignWindowZ(win) {
+        if (!win || !win.element) return;
+        if (state.z > 100000) normalizeWindowZIndexes();
+        const base = windowAlwaysOnTop(win) ? WINDOW_ALWAYS_ON_TOP_Z : 0;
+        win.element.style.zIndex = String(base + (++state.z));
+        applyWindowAlwaysOnTopAttr(win);
+    }
+
+    function toggleWindowAlwaysOnTop(id) {
+        const win = state.windows.get(id);
+        if (!win || win.isGadget) return;
+        win.alwaysOnTop = !win.alwaysOnTop;
+        applyWindowAlwaysOnTopAttr(win);
+        assignWindowZ(win);
+        if (typeof scheduleSessionPersist === 'function') scheduleSessionPersist();
+    }
+
     function normalizeWindowZIndexes() {
         const wins = [...state.windows.values()].sort((a, b) => Number(a.element.style.zIndex || 0) - Number(b.element.style.zIndex || 0));
-        wins.forEach((win, i) => {
-            const z = (i + 1) * 10;
+        const normal = wins.filter(win => !windowAlwaysOnTop(win));
+        const onTop = wins.filter(win => windowAlwaysOnTop(win));
+        let z = 0;
+        normal.forEach(win => {
+            z += 10;
             win.element.style.zIndex = String(z);
+            applyWindowAlwaysOnTopAttr(win);
         });
-        state.z = wins.length * 10;
+        onTop.forEach(win => {
+            z += 10;
+            win.element.style.zIndex = String(WINDOW_ALWAYS_ON_TOP_Z + z);
+            applyWindowAlwaysOnTopAttr(win);
+        });
+        state.z = z;
     }

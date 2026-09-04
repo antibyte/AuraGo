@@ -122,6 +122,25 @@ func TestFileManagerItemsCanDropOntoDesktop(t *testing.T) {
 	}
 }
 
+func TestFileManagerTrashRestoreMarkers(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
+	for _, marker := range []string{
+		"desktop.fm.restore",
+		"selection-restore",
+		"callbacks.restoreFromTrash",
+		"action: 'empty-trash'",
+		"function restoreSelected()",
+		"function isTrashFolderPath(",
+		"function isTrashItemPath(",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("file manager trash restore missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopFileDragPayloadCanDropOnTrash(t *testing.T) {
 	t.Parallel()
 

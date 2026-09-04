@@ -49,6 +49,28 @@
         return !!(fm.callbacks && fm.callbacks.readonly);
     }
 
+    function normalizeFmPath(path) {
+        return String(path || '').replace(/\\/g, '/').split('/').filter(Boolean).join('/');
+    }
+
+    function isTrashFolderPath(path) {
+        return normalizeFmPath(path).toLowerCase() === 'trash';
+    }
+
+    function isTrashItemPath(path) {
+        return normalizeFmPath(path).toLowerCase().startsWith('trash/');
+    }
+
+    function isTrashLocation(path) {
+        const clean = normalizeFmPath(path == null ? fm.currentPath : path);
+        return isTrashFolderPath(clean) || isTrashItemPath(clean);
+    }
+
+    function hasRestorableTrashSelection() {
+        const selected = typeof getSelectedFiles === 'function' ? getSelectedFiles() : [];
+        return selected.length > 0 && selected.every(file => isTrashItemPath(file && file.path));
+    }
+
     function maxFileSize() {
         const value = Number(fm.callbacks && fm.callbacks.maxFileSize);
         return Number.isFinite(value) && value > 0 ? value : 0;
@@ -249,6 +271,7 @@
             scissors: '\u2702',
             sort: '\u2195',
             trash: '\u1f5d1',
+            undo: '\u21a9',
             eye: '\ud83d\udc41',
             'eye-off': '\ud83d\udc41\u0338',
             chat: '\ud83d\udcac',

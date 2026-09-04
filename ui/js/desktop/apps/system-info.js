@@ -36,16 +36,16 @@
         return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
     }
 
-    function formatUptime(seconds) {
+    function formatUptime(seconds, context) {
         let total = Math.max(0, Math.floor(Number(seconds || 0)));
         const days = Math.floor(total / 86400);
         total -= days * 86400;
         const hours = Math.floor(total / 3600);
         total -= hours * 3600;
         const minutes = Math.floor(total / 60);
-        if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-        if (hours > 0) return `${hours}h ${minutes}m`;
-        return `${minutes}m`;
+        if (days > 0) return t(context, 'desktop.system_info_uptime_days_hours_minutes', { days, hours, minutes });
+        if (hours > 0) return t(context, 'desktop.system_info_uptime_hours_minutes', { hours, minutes });
+        return t(context, 'desktop.system_info_uptime_minutes', { minutes });
     }
 
     function pct(value) {
@@ -187,7 +187,7 @@
         const elapsed = (Date.now() - instance.uptimeAt) / 1000;
         const uptimeSeconds = instance.uptimeBase + elapsed;
         const uptimeEl = instance.host.querySelector('[data-detail="uptime"]');
-        if (uptimeEl) uptimeEl.textContent = formatUptime(uptimeSeconds);
+        if (uptimeEl) uptimeEl.textContent = formatUptime(uptimeSeconds, instance.context);
     }
 
     function gaugeMarkup(key, label) {
@@ -260,7 +260,7 @@
             ['memory', t(instance.context, 'desktop.system_info_memory'), `${formatBytes(memory.used)} / ${formatBytes(memory.total)}`],
             ['disk', t(instance.context, 'desktop.system_info_disk'), `${formatBytes(disk.used)} / ${formatBytes(disk.total)}`],
             ['network', t(instance.context, 'desktop.system_info_network'), `${formatBytes(network.bytes_sent)} up / ${formatBytes(network.bytes_recv)} down`],
-            ['uptime', t(instance.context, 'desktop.system_info_uptime'), formatUptime(uptimeSeconds)]
+            ['uptime', t(instance.context, 'desktop.system_info_uptime'), formatUptime(uptimeSeconds, instance.context)]
         ];
         detailHost.innerHTML = details.map(([id, label, value]) => `<article class="vd-sysinfo-detail">
             <span>${escapeHtml(label)}</span>

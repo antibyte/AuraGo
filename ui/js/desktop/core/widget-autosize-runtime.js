@@ -2,9 +2,10 @@
 
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
+        const configAutoSize = widget.config && widget.config.auto_size;
         const configured = widget.auto_size !== undefined
             ? widget.auto_size
-            : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
+            : (widget.autoSize !== undefined ? widget.autoSize : (widget.autosize !== undefined ? widget.autosize : configAutoSize));
         if (configured === undefined || configured === null || configured === '') return true;
         if (configured === false || configured === 0) return false;
         return String(configured).toLowerCase() !== 'false';

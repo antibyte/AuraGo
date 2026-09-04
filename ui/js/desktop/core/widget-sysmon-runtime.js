@@ -24,9 +24,9 @@
         const hours = Math.floor(total / 3600);
         total -= hours * 3600;
         const minutes = Math.floor(total / 60);
-        if (days > 0) return `${days}d ${hours}h`;
-        if (hours > 0) return `${hours}h ${minutes}m`;
-        return `${minutes}m`;
+        if (days > 0) return t('desktop.system_info_uptime_days_hours', { days, hours });
+        if (hours > 0) return t('desktop.system_info_uptime_hours_minutes', { hours, minutes });
+        return t('desktop.system_info_uptime_minutes', { minutes });
     }
 
     function sysmonClampPct(value) {
@@ -123,7 +123,7 @@
             }
             if (hostUptimeBase) {
                 const seconds = hostUptimeBase.seconds + (now - hostUptimeBase.at) / 1000;
-                parts.push(`Host ${sysmonFormatUptime(seconds)}`);
+                parts.push(`${t('desktop.system_info_host')} ${sysmonFormatUptime(seconds)}`);
             }
             refs.uptimeEl.textContent = parts.join(' · ');
         }

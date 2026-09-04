@@ -14,7 +14,8 @@ arrows; disabled on compact viewport), `core/shell-chrome-runtime.js`
 and `core/spotlight-runtime.js` (Ctrl+K mixed search). Styles:
 `ui/css/desktop-chrome.css` (bundled into `desktop-shell.bundle.css`).
 Persisted keys: `windows.restore_session`, `appearance.dock_pins`,
-`session.windows` (snapshot v2 with `activeSpaceId` and per-window `spaceId`),
+`session.windows` (snapshot v2 with `activeSpaceId` and per-window `spaceId`
+plus optional `alwaysOnTop`),
 and `files.default_apps` via `/api/desktop/settings`.
 
 ### Spaces v1 contract
@@ -52,6 +53,61 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Compact viewport disables overview and keeps legacy single-window Show Desktop.
 - Snap left/right entries in the window context menu call `applyWindowSnap()`.
 
+### Window always-on-top contract
+
+- Normal windows can pin above other windows via the window context menu.
+  Pet and SIP gadgets keep their own always-on-top settings; they are not
+  windows and stay siblings above `#vd-window-layer`.
+- On-top windows use Z-band `200000` inside the window layer. Focusing a
+  normal window must not jump that band. `normalizeWindowZIndexes` keeps both
+  bands. Gadgets stay out of this band.
+- Always-on-top stays space-scoped. Hidden on other spaces. Not global.
+- Session snapshot v2 stores `alwaysOnTop` additively. No version bump to 3.
+
+### Widget config contract
+
+- Weather location lives in `widget.Config.location` (`{ lat, lon, name, country }`).
+  `localStorage` key `vd-weather-location` is a one-time import only. After a
+  successful POST upsert, stop using it as the source of truth.
+- Auto-size persists as `widget.Config.auto_size`. Default is on when the flag
+  is missing. Top-level `auto_size` is dropped by the Go `Widget` struct — do
+  not add a Go field unless Config cannot round-trip.
+- POST `/api/desktop/widgets` replaces the entire `config_json`. Always send a
+  merged full config. PATCH stays visibility-only.
+- The widget context menu owns the auto-size toggle (`desktop.widget_auto_size`).
+  Readonly denies the mutation. Weather location saves use `skipReload` so the
+  card does not remount.
+- Weather chrome and WMO labels use `desktop.weather_*` keys in all 16 desktop
+  locales. Do not hardcode English weather UI or WMO labels.
+- Builtin widget catalog titles are UI-only via `widgetDisplayTitle`. Stored
+  `widget.Title` stays the seed. Do not send the translated title in POST/PATCH.
+- Widget chrome errors and the sysmon host label use `desktop.quickchat_error`,
+  `desktop.widget_update_failed`, and `desktop.system_info_host`. Do not
+  hardcode English there.
+- Sysmon uptime units and weather wind speed use
+  `desktop.system_info_uptime_days_hours`,
+  `desktop.system_info_uptime_hours_minutes`,
+  `desktop.system_info_uptime_minutes`, and `desktop.weather_wind_kmh`. Do not
+  hardcode `d`/`h`/`m` or `km/h`.
+- The System Info app reuses `hours_minutes` and `minutes`, and uses
+  `desktop.system_info_uptime_days_hours_minutes` when days are present.
+  Sysmon stays without minutes in the days/hours form.
+
+### Trash restore contract
+
+- Restore is File Manager only. The desktop trash icon keeps Open, Empty, and
+  Properties — never a Restore action (no single target).
+- Restore only moves paths under `trash/…`. Destination is `Desktop/<name>`
+  with unique names via `trashNameCandidate`. Never overwrite an existing
+  Desktop name. Nested `Trash/foo/bar` restores the basename to `Desktop/bar`.
+- Origin paths are not persisted in v1. Do not change `listTrashEntries` or
+  `movePathToTrash` to record origin.
+- Readonly denies restore and empty-trash mutations. Delete inside Trash stays
+  a permanent DELETE.
+- Shell callbacks `restoreFromTrash` and `emptyTrash` are injected from
+  `menus-and-routing.js`. Empty Trash in the File Manager empty-folder menu
+  calls that callback; do not reimplement emptying in the File Manager.
+
 ### App theme bridge contract
 
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
@@ -61,6 +117,10 @@ and `files.default_apps` via `/api/desktop/settings`.
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
   launcher, TeeVee, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows.
+- Calculator programmer display (`.vd-calc-prog-display`) and history chrome
+  use `--vd-theme-panel-bg` / `--vd-theme-border` / `--vd-theme-muted`. HEX,
+  DEC, OCT, and BIN labels stay muted. Do not put `.vd-calc-base button.active`
+  or `.vd-calc-tabs button.active` in the control `!important` bridge.
 - Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
@@ -119,7 +179,11 @@ and `files.default_apps` via `/api/desktop/settings`.
   surface. Warn/danger/good stay semantic.
 - Nasscad shell uses `--vd-theme-app-bg`; the bundled iframe viewport stays
   `#111318`.
-- Galaxa, Quake, Sysworld, and SIP-phone hardware chrome remain excluded.
+- Sysworld HUD uses `--sw-*` aliases mapped to `--vd-theme-*`. The 3D canvas
+  and vignette stay a dark work surface (`#020208`). Brand cyan
+  (`--sw-accent`), event/tone semantics, and `.sw-btn.active` stay. Do not put
+  `.sw-btn.active` in the control `!important` bridge.
+- Galaxa, Quake, and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract
 
@@ -635,6 +699,9 @@ registration lives in `internal/desktop/types.go`.
 ## Verification
 
 - `go test ./ui/ -run TestDesktopFeeling`
+- `go test ./ui/ -run TestDesktopWidgetConfigPersistence`
+- `go test ./ui/ -run TestDesktopWeatherWidgetI18n`
+- `go test ./ui/ -run TestDesktopWidgetDisplayTitle`
 - `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go test ./ui/ -run TestGalaxaDeluxeCachesCanvasResources`
@@ -648,6 +715,9 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `file-manager/` (under `ui/js/desktop/file-manager/`, bundled to
+  `file-manager.bundle.js`) - File Manager restore and empty-trash menus follow
+  the Trash restore contract above. No child DOX file needed.
 - `galaxa-modes.js` - Game mode contracts (`gauntlet`, `hyperdrive`, `mirror`)
   and hooks (`modesOnRunStart`, `modesOnStageStart`, `modesShouldOpenShop`,
   `modesGetBaseMusicTheme`). Settings mode cycle reads/writes `settings.mode`.

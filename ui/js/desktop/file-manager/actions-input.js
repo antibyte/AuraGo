@@ -238,6 +238,7 @@
                     case 'selection-copy': copySelection(); break;
                     case 'selection-cut': cutSelection(); break;
                     case 'selection-delete': deleteSelected(); break;
+                    case 'selection-restore': restoreSelected(); break;
                     case 'selection-download':
                         if (singleFile && singleFile.type === 'file') downloadFile(singleFile);
                         break;
@@ -330,7 +331,7 @@
 
     function readonlyGuardItems(items) {
         if (!isReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder', 'restore', 'empty-trash']);
         return items.map(item => item.separator || !blocked.has(item.action) ? item : Object.assign({}, item, { disabled: true, handler: () => {} }));
     }
 
@@ -509,8 +510,11 @@
         items.push(
             { separator: true },
             { label: t('desktop.fm.rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
-            { label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
         );
+        if (hasRestorableTrashSelection()) {
+            items.push({ label: t('desktop.fm.restore'), action: 'restore', icon: 'undo', handler: () => restoreSelected() });
+        }
+        items.push({ label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() });
         if (type === 'directory') {
             items.push(
                 { separator: true },
@@ -530,7 +534,14 @@
     function handleEmptyContextMenu(e) {
         e.preventDefault();
         const hasClipboard = hasSharedFileClipboard();
-        const items = [
+        const items = [];
+        if (isTrashFolderPath(fm.currentPath)) {
+            items.push(
+                { label: t('desktop.context_empty_trash'), action: 'empty-trash', icon: 'trash', handler: () => { if (fm.callbacks && typeof fm.callbacks.emptyTrash === 'function') fm.callbacks.emptyTrash(); } },
+                { separator: true }
+            );
+        }
+        items.push(
             { label: t('desktop.fm.new_file'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
             { label: t('desktop.fm.new_folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
             { separator: true },
@@ -540,8 +551,8 @@
             { label: t('desktop.fm.refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
             { label: t('desktop.fm.open_terminal'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
             { separator: true },
-            { label: t('desktop.fm.select_all'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
-        ];
+            { label: t('desktop.fm.select_all'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() }
+        );
         showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
 

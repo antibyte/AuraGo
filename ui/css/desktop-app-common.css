@@ -361,7 +361,8 @@
     .gm-studio,
     .openscad-app,
     .teevee-app,
-    .vd-chess
+    .vd-chess,
+    .sysworld
 ) {
     --radio-glass: var(--vd-theme-panel-bg) !important;
     --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
@@ -424,6 +425,14 @@
     --chess-panel: var(--vd-theme-panel-bg) !important;
     --chess-panel-strong: var(--vd-theme-panel-bg-strong) !important;
     --chess-line: var(--vd-theme-border) !important;
+    --sw-panel: var(--vd-theme-panel-bg) !important;
+    --sw-panel-strong: var(--vd-theme-panel-bg-strong) !important;
+    --sw-border: var(--vd-theme-border) !important;
+    --sw-text: var(--vd-text) !important;
+    --sw-muted: var(--vd-theme-muted) !important;
+    --sw-shadow: var(--vd-theme-shadow-panel) !important;
+    --sw-control: var(--vd-theme-control-bg) !important;
+    --sw-control-hover: var(--vd-theme-control-hover) !important;
 }
 
 .desktop-body[data-theme="fruity"] :where(
@@ -436,7 +445,8 @@
     .gm-studio,
     .openscad-app,
     .teevee-app,
-    .vd-chess
+    .vd-chess,
+    .sysworld
 ) {
     --radio-glass: var(--vd-theme-panel-bg) !important;
     --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
@@ -499,6 +509,14 @@
     --chess-panel: var(--vd-theme-panel-bg) !important;
     --chess-panel-strong: var(--vd-theme-panel-bg-strong) !important;
     --chess-line: var(--vd-theme-border) !important;
+    --sw-panel: var(--vd-theme-panel-bg) !important;
+    --sw-panel-strong: var(--vd-theme-panel-bg-strong) !important;
+    --sw-border: var(--vd-theme-border) !important;
+    --sw-text: var(--vd-text) !important;
+    --sw-muted: var(--vd-theme-muted) !important;
+    --sw-shadow: var(--vd-theme-shadow-panel) !important;
+    --sw-control: var(--vd-theme-control-bg) !important;
+    --sw-control-hover: var(--vd-theme-control-hover) !important;
 }
 
 
@@ -941,6 +959,14 @@
     .office-writer,
     .office-app,
     .vd-calc,
+    .vd-calc-prog-display,
+    .vd-calc-history,
+    .sw-stats,
+    .sw-legend,
+    .sw-events,
+    .sw-tooltip,
+    .sw-info,
+    .sw-fallback,
     .vd-store-card,
     .vd-gallery-card,
     .vd-mc .vd-mc-card,
@@ -974,6 +1000,14 @@
     .office-writer,
     .office-app,
     .vd-calc,
+    .vd-calc-prog-display,
+    .vd-calc-history,
+    .sw-stats,
+    .sw-legend,
+    .sw-events,
+    .sw-tooltip,
+    .sw-info,
+    .sw-fallback,
     .vd-store-card,
     .vd-gallery-card,
     .vd-mc .vd-mc-card,

@@ -242,6 +242,42 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if !strings.Contains(gameMaker, "--gm-bg: var(--vd-theme-app-bg)") {
 		t.Fatalf("game maker missing theme app background marker")
 	}
+
+	sysworld := readDesktopAssetText(t, "css/desktop-app-sysworld.css")
+	fruitySysworld := cssRuleBodyInFruityThemeTest(t, sysworld, `.desktop-body[data-theme="fruity"] .sysworld`)
+	if strings.Contains(fruitySysworld, "rgba(18, 28, 52") {
+		t.Fatalf("fruity light Sysworld HUD must not force dark glass over --vd-text: %q", fruitySysworld)
+	}
+	for _, want := range []string{
+		"--sw-text: var(--vd-text",
+		"--sw-panel:",
+	} {
+		if !strings.Contains(fruitySysworld, want) {
+			t.Fatalf("fruity Sysworld missing token remap %q in %q", want, fruitySysworld)
+		}
+	}
+	if !strings.Contains(sysworld, "background: #020208") {
+		t.Fatalf("Sysworld canvas must stay a dark work surface")
+	}
+	if !strings.Contains(sysworld, "--sw-panel: var(--vd-theme-panel-bg)") {
+		t.Fatalf("Sysworld HUD must read theme panel tokens in source CSS")
+	}
+
+	calculator := readDesktopAssetText(t, "css/desktop-app-calculator.css")
+	for _, banned := range []string{
+		"rgba(7, 16, 20",
+		"rgba(5, 12, 16",
+	} {
+		if strings.Contains(calculator, banned) {
+			t.Fatalf("calculator chrome must not hardcode a dark wash that disappears on fruity light: %q", banned)
+		}
+	}
+	if !strings.Contains(calculator, ".vd-calc-prog-display") {
+		t.Fatalf("calculator missing programmer display rule")
+	}
+	if !strings.Contains(calculator, "background: var(--vd-theme-panel-bg)") {
+		t.Fatalf("calculator programmer display must use theme panel material")
+	}
 }
 
 func TestDesktopUtilityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) {

@@ -178,6 +178,9 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"sysworld-panel-sheen",
 		"repeating-linear-gradient",
 		"prefers-reduced-motion",
+		"--sw-panel: var(--vd-theme-panel-bg)",
+		"background: #020208",
+		"--sw-accent: #59d4ff",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("System World CSS missing marker %q", want)

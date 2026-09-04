@@ -466,6 +466,7 @@
                     { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly || !hasClipboard, action: () => pasteClipboard() },
                     { type: 'separator' },
                     { id: 'rename', labelKey: 'desktop.fm.rename', icon: 'edit', shortcut: 'F2', disabled: readonly || selected.length !== 1, action: () => selectedFile && startRename(selectedFile.path) },
+                    { id: 'restore', labelKey: 'desktop.fm.restore', icon: 'undo', disabled: readonly || !hasRestorableTrashSelection(), action: () => restoreSelected() },
                     { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', disabled: readonly || !hasSelection, action: () => deleteSelected() },
                     { type: 'separator' },
                     { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => selectAll() }
@@ -555,6 +556,10 @@
                 const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
                 downloadBtn.classList.toggle('is-hidden', !hasFile);
             }
+            const restoreBtn = selToolbar.querySelector('[data-action="selection-restore"]');
+            if (restoreBtn) {
+                restoreBtn.classList.toggle('is-hidden', !hasRestorableTrashSelection());
+            }
         }
         updateWindowMenus();
         updateToolbarState();
@@ -563,6 +568,7 @@
     function renderSelectionToolbarHtml() {
         const selected = getSelectedFiles ? (typeof getSelectedFiles === 'function' ? getSelectedFiles() : []) : [];
         const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
+        const canRestore = typeof hasRestorableTrashSelection === 'function' && hasRestorableTrashSelection();
         const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;
         return `<div class="fm-selection-toolbar">
             <div class="fm-selection-toolbar-left">
@@ -583,6 +589,9 @@
                 </button>
                 <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download'))}" aria-label="${esc(t('desktop.fm.download'))}">
                     ${iconMarkup('download', '\u2193', 'fm-btn-icon', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn${canRestore ? '' : ' is-hidden'}" data-action="selection-restore" title="${esc(t('desktop.fm.restore'))}" aria-label="${esc(t('desktop.fm.restore'))}"${readonly ? ' disabled' : ''}>
+                    ${iconMarkup('undo', '\u21A9', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete'))}" aria-label="${esc(t('desktop.fm.delete'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('trash', '\u267B', 'fm-btn-icon', 16)}
@@ -1082,6 +1091,28 @@
         return !!(fm.callbacks && fm.callbacks.readonly);
     }
 
+    function normalizeFmPath(path) {
+        return String(path || '').replace(/\\/g, '/').split('/').filter(Boolean).join('/');
+    }
+
+    function isTrashFolderPath(path) {
+        return normalizeFmPath(path).toLowerCase() === 'trash';
+    }
+
+    function isTrashItemPath(path) {
+        return normalizeFmPath(path).toLowerCase().startsWith('trash/');
+    }
+
+    function isTrashLocation(path) {
+        const clean = normalizeFmPath(path == null ? fm.currentPath : path);
+        return isTrashFolderPath(clean) || isTrashItemPath(clean);
+    }
+
+    function hasRestorableTrashSelection() {
+        const selected = typeof getSelectedFiles === 'function' ? getSelectedFiles() : [];
+        return selected.length > 0 && selected.every(file => isTrashItemPath(file && file.path));
+    }
+
     function maxFileSize() {
         const value = Number(fm.callbacks && fm.callbacks.maxFileSize);
         return Number.isFinite(value) && value > 0 ? value : 0;
@@ -1282,6 +1313,7 @@
             scissors: '\u2702',
             sort: '\u2195',
             trash: '\u1f5d1',
+            undo: '\u21a9',
             eye: '\ud83d\udc41',
             'eye-off': '\ud83d\udc41\u0338',
             chat: '\ud83d\udcac',
@@ -1536,6 +1568,7 @@
                     case 'selection-copy': copySelection(); break;
                     case 'selection-cut': cutSelection(); break;
                     case 'selection-delete': deleteSelected(); break;
+                    case 'selection-restore': restoreSelected(); break;
                     case 'selection-download':
                         if (singleFile && singleFile.type === 'file') downloadFile(singleFile);
                         break;
@@ -1628,7 +1661,7 @@
 
     function readonlyGuardItems(items) {
         if (!isReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder', 'restore', 'empty-trash']);
         return items.map(item => item.separator || !blocked.has(item.action) ? item : Object.assign({}, item, { disabled: true, handler: () => {} }));
     }
 
@@ -1807,8 +1840,11 @@
         items.push(
             { separator: true },
             { label: t('desktop.fm.rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
-            { label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
         );
+        if (hasRestorableTrashSelection()) {
+            items.push({ label: t('desktop.fm.restore'), action: 'restore', icon: 'undo', handler: () => restoreSelected() });
+        }
+        items.push({ label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() });
         if (type === 'directory') {
             items.push(
                 { separator: true },
@@ -1828,7 +1864,14 @@
     function handleEmptyContextMenu(e) {
         e.preventDefault();
         const hasClipboard = hasSharedFileClipboard();
-        const items = [
+        const items = [];
+        if (isTrashFolderPath(fm.currentPath)) {
+            items.push(
+                { label: t('desktop.context_empty_trash'), action: 'empty-trash', icon: 'trash', handler: () => { if (fm.callbacks && typeof fm.callbacks.emptyTrash === 'function') fm.callbacks.emptyTrash(); } },
+                { separator: true }
+            );
+        }
+        items.push(
             { label: t('desktop.fm.new_file'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
             { label: t('desktop.fm.new_folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
             { separator: true },
@@ -1838,8 +1881,8 @@
             { label: t('desktop.fm.refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
             { label: t('desktop.fm.open_terminal'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
             { separator: true },
-            { label: t('desktop.fm.select_all'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
-        ];
+            { label: t('desktop.fm.select_all'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() }
+        );
         showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
 
@@ -2330,6 +2373,17 @@
         } catch (err) {
             showNotification({ type: 'error', message: (err.message || String(err)) });
             renderAll();
+        }
+    }
+
+    async function restoreSelected() {
+        if (isReadonly()) return;
+        const selected = getSelectedFiles().filter(file => isTrashItemPath(file && file.path));
+        if (!selected.length) return;
+        if (fm.callbacks && typeof fm.callbacks.restoreFromTrash === 'function') {
+            await fm.callbacks.restoreFromTrash(selected.map(file => file.path));
+            clearSelection();
+            refresh();
         }
     }
 

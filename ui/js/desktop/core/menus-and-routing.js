@@ -569,8 +569,16 @@
 
     function showWidgetContextMenu(event, widget) {
         event.preventDefault();
+        const autoSize = widgetShouldAutoSize(widget);
         showContextMenu(event.clientX, event.clientY, [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => widget.app_id && openApp(widget.app_id) },
+            {
+                label: t('desktop.widget_auto_size'),
+                icon: autoSize ? 'check-square' : 'square',
+                fallback: autoSize ? '\u2713' : '\u2610',
+                disabled: desktopReadonly(),
+                action: () => toggleWidgetAutoSize(widget)
+            },
             { label: t('desktop.widget_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => setWidgetVisible(widget.id, false) },
             { separator: true },
             { label: t('desktop.widget_manager'), icon: 'widgets', fallback: 'W', action: () => showWidgetManager() }
@@ -586,6 +594,15 @@
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
+        if (!item.isGadget) {
+            const onTop = !!item.alwaysOnTop;
+            items.push({
+                label: t('desktop.context_always_on_top'),
+                icon: onTop ? 'check-square' : 'square',
+                fallback: onTop ? '\u2713' : '\u2610',
+                action: () => toggleWindowAlwaysOnTop(id)
+            });
+        }
         if (spacesEnabled() && !item.isGadget) {
             items.push({ separator: true });
             items.push({
@@ -877,6 +894,61 @@ function modalDialog(options) {
         }
     }
 
+    async function listWorkspaceEntries(dir) {
+        const body = await api('/api/desktop/files?path=' + encodeURIComponent(dir || ''));
+        return Array.isArray(body.files) ? body.files : [];
+    }
+
+    async function uniqueRestoreDestination(dir, name) {
+        const baseName = name || 'item';
+        let entries = [];
+        try {
+            entries = await listWorkspaceEntries(dir);
+        } catch (err) {
+            if (dir === 'Desktop') return uniqueRestoreDestination('Documents', name);
+            throw err;
+        }
+        const existing = new Set(entries.map(entry => String(entry.name || pathBaseName(entry.path)).toLowerCase()));
+        for (let index = 1; index < 1000; index += 1) {
+            const candidate = trashNameCandidate(baseName, index);
+            if (!existing.has(candidate.toLowerCase())) return workspaceJoinPath(dir, candidate);
+        }
+        return workspaceJoinPath(dir, baseName + ' ' + Date.now());
+    }
+
+    async function restorePathsFromTrash(paths) {
+        if (desktopReadonly()) return [];
+        const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
+        if (!unique.length) return [];
+        const restored = [];
+        for (const path of unique) {
+            try {
+                const dest = await uniqueRestoreDestination('Desktop', pathBaseName(path) || 'item');
+                await api('/api/desktop/file', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ old_path: path, new_path: dest })
+                });
+                restored.push(dest);
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            }
+        }
+        if (restored.length) {
+            await refreshDesktopAfterFileChange();
+            const message = restored.length === 1
+                ? t('desktop.trash_restored', { path: restored[0] })
+                : t('desktop.trash_restored_items', { count: restored.length });
+            showDesktopNotification({ title: t('desktop.notification'), message });
+        }
+        return restored;
+    }
+
+    async function restorePathFromTrash(path) {
+        const restored = await restorePathsFromTrash([path]);
+        return restored[0] || '';
+    }
+
     async function addDesktopShortcut(appId) {
         if (!appId) return;
         try {
@@ -987,9 +1059,9 @@ function modalDialog(options) {
                 const iconKey = widget.icon || 'widgets';
                 return `<div class="vd-wm-card${isBuiltin ? ' vd-wm-card-builtin' : ''}" data-widget-id="${esc(widget.id)}">
                     <div class="vd-wm-card-head">
-                        ${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 24)}
+                        ${iconMarkup(iconKey, widgetDisplayTitle(widget), 'vd-sprite-file', 24)}
                         <div class="vd-wm-card-info">
-                            <div class="vd-wm-card-title">${esc(widget.title || widget.id)}</div>
+                            <div class="vd-wm-card-title">${esc(widgetDisplayTitle(widget))}</div>
                             <div class="vd-wm-card-badges">${statusBadge}${builtinBadge}</div>
                         </div>
                     </div>
@@ -1025,7 +1097,7 @@ function modalDialog(options) {
             overlay.querySelectorAll('.vd-wm-btn[data-action="delete"]').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const widget = ((state.bootstrap && state.bootstrap.all_widgets) || []).find(w => w.id === btn.dataset.id);
-                    const name = widget ? (widget.title || widget.id) : btn.dataset.id;
+                    const name = widget ? widgetDisplayTitle(widget) : btn.dataset.id;
                     const confirmed = await confirmDialog(t('desktop.widget_confirm_delete'), t('desktop.widget_confirm_delete_msg', { name }));
                     if (!confirmed) return;
                     try {
@@ -1726,6 +1798,8 @@ if (appId === 'pixel') {
                 addFileToChat: (entry) => addFileContextToChat(entry),
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
+                restoreFromTrash: restorePathsFromTrash,
+                emptyTrash,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;
                     const item = state.windows.get(id);

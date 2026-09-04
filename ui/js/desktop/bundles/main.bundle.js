@@ -1324,7 +1324,10 @@
 
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
-        const configured = widget.auto_size !== undefined ? widget.auto_size : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
+        const configAutoSize = widget.config && widget.config.auto_size;
+        const configured = widget.auto_size !== undefined
+            ? widget.auto_size
+            : (widget.autoSize !== undefined ? widget.autoSize : (widget.autosize !== undefined ? widget.autosize : configAutoSize));
         return !(configured === false || configured === 0 || String(configured).toLowerCase() === 'false');
     }
 
@@ -1767,6 +1770,16 @@
         btn.addEventListener('pointercancel', finishDrag);
     }
 
+    function widgetDisplayTitle(widget) {
+        if (!widget) return '';
+        const id = String(widget.id || '');
+        if (id === 'builtin-weather') return t('desktop.weather_title');
+        if (id === 'builtin-analog-clock') return t('desktop.widget_analog_clock');
+        if (id === 'builtin-quickchat') return t('desktop.widget_quickchat');
+        if (id === 'builtin-sysmon') return t('desktop.widget_sysmon_title');
+        return widget.title || widget.id || '';
+    }
+
     function widgetContentSignature(widget) {
         const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
         return JSON.stringify({
@@ -1806,7 +1819,7 @@
         card.dataset.widgetDefaultWidth = String(bounds.w);
         if (autoSize) card.dataset.widgetAutoSize = 'true';
         else delete card.dataset.widgetAutoSize;
-        card.title = widget.title || widget.id || '';
+        card.title = widgetDisplayTitle(widget);
         card.style.left = bounds.x + 'px';
         card.style.top = bounds.y + 'px';
         card.style.width = bounds.w + 'px';
@@ -4318,11 +4331,11 @@
         } else if (widget.id === 'builtin-quickchat') {
             renderQuickChatWidget(container);
         } else if (widget.id === 'builtin-weather') {
-            renderWeatherWidget(container);
+            renderWeatherWidget(container, widget);
         } else if (widget.id === 'builtin-sysmon') {
             renderSysmonWidget(container);
         } else {
-            container.innerHTML = `<div class="vd-widget-body">${esc(widget.title)}</div>`;
+            container.innerHTML = `<div class="vd-widget-body">${esc(widgetDisplayTitle(widget))}</div>`;
         }
     }
 
@@ -4401,7 +4414,7 @@
             try {
                 await sendQuickChatStream(responseEl, message);
             } catch (err) {
-                responseEl.textContent = err.message || 'Error';
+                responseEl.textContent = err.message || t('desktop.quickchat_error');
             } finally {
                 state.chatBusy = false;
             }
@@ -4495,57 +4508,62 @@
     }
 
     const WMO_WEATHER = {
-        0:  { icon: '\u2600\ufe0f', label: 'Clear sky' },
-        1:  { icon: '\ud83c\udf24\ufe0f', label: 'Mainly clear' },
-        2:  { icon: '\u26c5', label: 'Partly cloudy' },
-        3:  { icon: '\u2601\ufe0f', label: 'Overcast' },
-        45: { icon: '\ud83c\udf2b\ufe0f', label: 'Foggy' },
-        48: { icon: '\ud83c\udf2b\ufe0f', label: 'Rime fog' },
-        51: { icon: '\ud83c\udf26\ufe0f', label: 'Light drizzle' },
-        53: { icon: '\ud83c\udf26\ufe0f', label: 'Moderate drizzle' },
-        55: { icon: '\ud83c\udf27\ufe0f', label: 'Dense drizzle' },
-        56: { icon: '\ud83c\udf27\ufe0f', label: 'Freezing drizzle' },
-        57: { icon: '\ud83c\udf27\ufe0f', label: 'Dense freezing drizzle' },
-        61: { icon: '\ud83c\udf27\ufe0f', label: 'Slight rain' },
-        63: { icon: '\ud83c\udf27\ufe0f', label: 'Moderate rain' },
-        65: { icon: '\ud83c\udf27\ufe0f', label: 'Heavy rain' },
-        66: { icon: '\ud83c\udf27\ufe0f', label: 'Freezing rain' },
-        67: { icon: '\ud83c\udf27\ufe0f', label: 'Heavy freezing rain' },
-        71: { icon: '\ud83c\udf28\ufe0f', label: 'Slight snow' },
-        73: { icon: '\ud83c\udf28\ufe0f', label: 'Moderate snow' },
-        75: { icon: '\u2744\ufe0f', label: 'Heavy snow' },
-        77: { icon: '\u2744\ufe0f', label: 'Snow grains' },
-        80: { icon: '\ud83c\udf26\ufe0f', label: 'Slight showers' },
-        81: { icon: '\ud83c\udf27\ufe0f', label: 'Moderate showers' },
-        82: { icon: '\ud83c\udf27\ufe0f', label: 'Heavy showers' },
-        85: { icon: '\ud83c\udf28\ufe0f', label: 'Slight snow showers' },
-        86: { icon: '\ud83c\udf28\ufe0f', label: 'Heavy snow showers' },
-        95: { icon: '\u26c8\ufe0f', label: 'Thunderstorm' },
-        96: { icon: '\u26c8\ufe0f', label: 'Thunderstorm + hail' },
-        99: { icon: '\u26c8\ufe0f', label: 'Thunderstorm + heavy hail' }
+        0:  { icon: '\u2600\ufe0f', key: 'desktop.weather_wmo_0' },
+        1:  { icon: '\ud83c\udf24\ufe0f', key: 'desktop.weather_wmo_1' },
+        2:  { icon: '\u26c5', key: 'desktop.weather_wmo_2' },
+        3:  { icon: '\u2601\ufe0f', key: 'desktop.weather_wmo_3' },
+        45: { icon: '\ud83c\udf2b\ufe0f', key: 'desktop.weather_wmo_45' },
+        48: { icon: '\ud83c\udf2b\ufe0f', key: 'desktop.weather_wmo_48' },
+        51: { icon: '\ud83c\udf26\ufe0f', key: 'desktop.weather_wmo_51' },
+        53: { icon: '\ud83c\udf26\ufe0f', key: 'desktop.weather_wmo_53' },
+        55: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_55' },
+        56: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_56' },
+        57: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_57' },
+        61: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_61' },
+        63: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_63' },
+        65: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_65' },
+        66: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_66' },
+        67: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_67' },
+        71: { icon: '\ud83c\udf28\ufe0f', key: 'desktop.weather_wmo_71' },
+        73: { icon: '\ud83c\udf28\ufe0f', key: 'desktop.weather_wmo_73' },
+        75: { icon: '\u2744\ufe0f', key: 'desktop.weather_wmo_75' },
+        77: { icon: '\u2744\ufe0f', key: 'desktop.weather_wmo_77' },
+        80: { icon: '\ud83c\udf26\ufe0f', key: 'desktop.weather_wmo_80' },
+        81: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_81' },
+        82: { icon: '\ud83c\udf27\ufe0f', key: 'desktop.weather_wmo_82' },
+        85: { icon: '\ud83c\udf28\ufe0f', key: 'desktop.weather_wmo_85' },
+        86: { icon: '\ud83c\udf28\ufe0f', key: 'desktop.weather_wmo_86' },
+        95: { icon: '\u26c8\ufe0f', key: 'desktop.weather_wmo_95' },
+        96: { icon: '\u26c8\ufe0f', key: 'desktop.weather_wmo_96' },
+        99: { icon: '\u26c8\ufe0f', key: 'desktop.weather_wmo_99' }
     };
 
     function wmoInfo(code) {
-        return WMO_WEATHER[code] || { icon: '\ud83c\udf21\ufe0f', label: 'Unknown' };
+        const entry = WMO_WEATHER[code];
+        if (!entry) return { icon: '\ud83c\udf21\ufe0f', label: t('desktop.weather_wmo_unknown') };
+        return { icon: entry.icon, label: t(entry.key) };
     }
 
-    async function renderWeatherWidget(container) {
+    async function renderWeatherWidget(container, widget) {
         const WEATHER_REFRESH_MS = 30 * 60 * 1000;
         const STORAGE_KEY = 'vd-weather-location';
+        const DEFAULT_WEATHER_LOCATION = { lat: 52.52, lon: 13.41, name: 'Berlin', country: 'Germany' };
+        const card = container && container.closest ? container.closest('.vd-widget') : null;
+        const record = (widget && widget.id) ? widget : ((card && card._widgetData) || widget || {});
 
         container.innerHTML = `<div class="vd-weather">
             <div class="vd-weather-location-row">
                 <div class="vd-weather-location-name">${esc('\u2014')}</div>
-                <button class="vd-weather-geo-btn" type="button" title="Use my location">\ud83d\udccd</button>
-                <button class="vd-weather-edit-btn" type="button" title="Change location">\u270f\ufe0f</button>
+                <button class="vd-weather-geo-btn" type="button" title="${esc(t('desktop.weather_use_location'))}">\ud83d\udccd</button>
+                <button class="vd-weather-edit-btn" type="button" title="${esc(t('desktop.weather_change_location'))}">\u270f\ufe0f</button>
             </div>
             <div class="vd-weather-search-row" hidden>
-                <input class="vd-weather-search-input" type="text" placeholder="Search city\u2026" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
-                <button class="vd-weather-search-btn" type="button">Set</button>
+                <input class="vd-weather-search-input" type="text" placeholder="${esc(t('desktop.weather_search_city'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                <button class="vd-weather-search-btn" type="button">${esc(t('desktop.weather_set'))}</button>
             </div>
             <div class="vd-weather-suggestions" hidden></div>
             <div class="vd-weather-main">
-                <div class="vd-weather-loading">Loading weather\u2026</div>
+                <div class="vd-weather-loading">${esc(t('desktop.weather_loading'))}</div>
             </div>
             <div class="vd-weather-forecast"></div>
             <div class="vd-weather-updated"></div>
@@ -4568,10 +4586,56 @@
         let refreshTimer = null;
         let searchDebounce = null;
 
-        function saveLocation(loc) {
+        function isWeatherLocation(loc) {
+            return !!(loc && typeof loc === 'object' && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lon)));
+        }
+
+        function normalizeWeatherLocation(loc) {
+            const lat = Number(loc.lat);
+            const lon = Number(loc.lon);
+            const name = String(loc.name || '').trim() || (lat + ', ' + lon);
+            const country = String(loc.country || '');
+            return { lat: lat, lon: lon, name: name, country: country };
+        }
+
+        function formatWeatherLocationName(loc) {
+            return loc.name + (loc.country && loc.country !== loc.name ? ', ' + loc.country : '');
+        }
+
+        function readImportedWeatherLocation() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (!saved) return null;
+                const loc = JSON.parse(saved);
+                return isWeatherLocation(loc) ? normalizeWeatherLocation(loc) : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function applyWeatherLocationLabel(loc) {
             location = loc;
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(loc)); } catch (_) {}
-            locationName.textContent = loc.name + (loc.country && loc.country !== loc.name ? ', ' + loc.country : '');
+            locationName.textContent = formatWeatherLocationName(loc);
+        }
+
+        async function persistWeatherLocation(loc, imported) {
+            if (desktopReadonly() || !record || !record.id) return;
+            try {
+                await persistWidgetConfig(record, { location: loc }, { skipReload: true });
+                try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+            } catch (err) {
+                if (!imported) {
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(loc)); } catch (_) {}
+                    showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                }
+            }
+        }
+
+        function saveLocation(loc) {
+            if (!isWeatherLocation(loc)) return;
+            const next = normalizeWeatherLocation(loc);
+            applyWeatherLocationLabel(next);
+            persistWeatherLocation(next, false);
         }
 
         async function fetchWeather() {
@@ -4586,7 +4650,7 @@
                 const data = await res.json();
                 renderWeatherData(data);
             } catch (err) {
-                mainArea.innerHTML = '<div class="vd-weather-error">Could not load weather: ' + esc(err.message || 'network error') + '</div>';
+                mainArea.innerHTML = '<div class="vd-weather-error">' + esc(t('desktop.weather_load_error', { error: err.message || t('desktop.weather_network_error') })) + '</div>';
             }
         }
 
@@ -4602,13 +4666,14 @@
                     '<div class="vd-weather-meta">' +
                         '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83c\udf21\ufe0f</span>' + Math.round(c.apparent_temperature) + '\u00b0</div>' +
                         '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83d\udca7</span>' + Math.round(c.relative_humidity_2m) + '%</div>' +
-                        '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83d\udca8</span>' + Math.round(c.wind_speed_10m) + ' km/h</div>' +
+                        '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83d\udca8</span>' + esc(t('desktop.weather_wind_kmh', { speed: Math.round(c.wind_speed_10m) })) + '</div>' +
                     '</div>' +
                 '</div>';
             const days = (d.time || []).slice(0, 6);
             forecastArea.innerHTML = days.map((date, i) => {
                 const dt = new Date(date + 'T12:00:00');
-                const dayName = dt.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2).toUpperCase();
+                const weatherLocale = String(window.SYSTEM_LANG || document.documentElement.lang || 'en');
+                const dayName = dt.toLocaleDateString(weatherLocale, { weekday: 'short' }).slice(0, 2).toUpperCase();
                 const dwm = wmoInfo(d.weather_code[i]);
                 return '<div class="vd-weather-day' + (i === 0 ? ' is-today' : '') + '">' +
                     '<div class="vd-weather-day-name">' + esc(dayName) + '</div>' +
@@ -4648,7 +4713,7 @@
 
         async function geolocate() {
             if (!navigator.geolocation) {
-                showDesktopNotification({ title: t('desktop.notification'), message: 'Geolocation not available' });
+                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.weather_geolocation_unavailable') });
                 return;
             }
             geoBtn.disabled = true;
@@ -4709,17 +4774,12 @@
             }
         });
 
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) location = JSON.parse(saved);
-        } catch (_) {}
-
-        if (!location) {
-            location = { lat: 52.52, lon: 13.41, name: 'Berlin', country: 'Germany' };
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(location)); } catch (_) {}
-        }
-
-        locationName.textContent = location.name + (location.country && location.country !== location.name ? ', ' + location.country : '');
+        const fromConfig = record && record.config && isWeatherLocation(record.config.location)
+            ? normalizeWeatherLocation(record.config.location)
+            : null;
+        const imported = fromConfig ? null : readImportedWeatherLocation();
+        applyWeatherLocationLabel(fromConfig || imported || DEFAULT_WEATHER_LOCATION);
+        if (!fromConfig) persistWeatherLocation(location, !!imported);
         fetchWeather();
 
         refreshTimer = setInterval(fetchWeather, WEATHER_REFRESH_MS);
@@ -4821,6 +4881,75 @@
         });
         handle.addEventListener('pointerup', finishDrag);
         handle.addEventListener('pointercancel', finishDrag);
+    }
+
+    function widgetConfig(widget) {
+        const cfg = widget && widget.config;
+        return cfg && typeof cfg === 'object' && !Array.isArray(cfg) ? Object.assign({}, cfg) : {};
+    }
+
+    function updateBootstrapWidget(updated) {
+        const boot = state.bootstrap;
+        if (!boot || !updated || !updated.id) return;
+        ['widgets', 'all_widgets'].forEach(function (key) {
+            const list = boot[key];
+            if (!Array.isArray(list)) return;
+            const idx = list.findIndex(function (item) { return item && item.id === updated.id; });
+            if (idx >= 0) list[idx] = Object.assign({}, list[idx], updated);
+        });
+    }
+
+    function syncLiveWidgetRecord(widget, extras) {
+        if (!widget) return widget;
+        if (extras) Object.assign(widget, extras);
+        updateBootstrapWidget(widget);
+        if (widget.id) {
+            const card = document.querySelector('.vd-widget[data-widget-id="' + cssSel(widget.id) + '"]');
+            if (card) card._widgetData = widget;
+        }
+        return widget;
+    }
+
+    async function persistWidgetRecord(widget, extras, options) {
+        const opts = options || {};
+        const payload = Object.assign({}, widget, extras || {});
+        if (widgetShouldAutoSize(payload)) {
+            delete payload.w;
+            delete payload.h;
+        }
+        await api('/api/desktop/widgets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        syncLiveWidgetRecord(widget, extras);
+        if (!opts.skipReload) await loadBootstrap();
+        return widget;
+    }
+
+    async function persistWidgetConfig(widget, patch, options) {
+        const config = Object.assign(widgetConfig(widget), patch || {});
+        return persistWidgetRecord(widget, { config: config }, options);
+    }
+
+    async function toggleWidgetAutoSize(widget) {
+        if (!widget || !widget.id || desktopReadonly()) return;
+        const nextEnabled = !widgetShouldAutoSize(widget);
+        const extras = { config: Object.assign(widgetConfig(widget), { auto_size: nextEnabled }) };
+        if (!nextEnabled) {
+            const card = document.querySelector('.vd-widget[data-widget-id="' + cssSel(widget.id) + '"]');
+            if (card) {
+                extras.x = parseInt(card.style.left, 10) || widget.x || 0;
+                extras.y = parseInt(card.style.top, 10) || widget.y || 0;
+                extras.w = Math.round(card.offsetWidth);
+                extras.h = Math.round(card.offsetHeight);
+            }
+        }
+        try {
+            await persistWidgetRecord(widget, extras);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
     }
 
     async function persistWidgetBounds(widget, card) {
@@ -5476,7 +5605,7 @@
         const windowContext = Object.assign({}, context || {});
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId });
+        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
@@ -6455,7 +6584,7 @@ function wireWindow(win, id) {
         const wasHidden = win.element.style.display === 'none' || win.element.hidden;
         win.minimizing = false;
         win.element.style.display = '';
-        win.element.style.zIndex = String(++state.z);
+        assignWindowZ(win);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
         if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
@@ -6535,13 +6664,50 @@ function wireWindow(win, id) {
         items.push(cleanup);
         state.windowCleanups.set(windowId, items);
     }
+    const WINDOW_ALWAYS_ON_TOP_Z = 200000;
+
+    function windowAlwaysOnTop(win) {
+        return !!(win && win.alwaysOnTop && !win.isGadget);
+    }
+
+    function applyWindowAlwaysOnTopAttr(win) {
+        if (!win || !win.element) return;
+        win.element.dataset.alwaysOnTop = windowAlwaysOnTop(win) ? 'true' : 'false';
+    }
+
+    function assignWindowZ(win) {
+        if (!win || !win.element) return;
+        if (state.z > 100000) normalizeWindowZIndexes();
+        const base = windowAlwaysOnTop(win) ? WINDOW_ALWAYS_ON_TOP_Z : 0;
+        win.element.style.zIndex = String(base + (++state.z));
+        applyWindowAlwaysOnTopAttr(win);
+    }
+
+    function toggleWindowAlwaysOnTop(id) {
+        const win = state.windows.get(id);
+        if (!win || win.isGadget) return;
+        win.alwaysOnTop = !win.alwaysOnTop;
+        applyWindowAlwaysOnTopAttr(win);
+        assignWindowZ(win);
+        if (typeof scheduleSessionPersist === 'function') scheduleSessionPersist();
+    }
+
     function normalizeWindowZIndexes() {
         const wins = [...state.windows.values()].sort((a, b) => Number(a.element.style.zIndex || 0) - Number(b.element.style.zIndex || 0));
-        wins.forEach((win, i) => {
-            const z = (i + 1) * 10;
+        const normal = wins.filter(win => !windowAlwaysOnTop(win));
+        const onTop = wins.filter(win => windowAlwaysOnTop(win));
+        let z = 0;
+        normal.forEach(win => {
+            z += 10;
             win.element.style.zIndex = String(z);
+            applyWindowAlwaysOnTopAttr(win);
         });
-        state.z = wins.length * 10;
+        onTop.forEach(win => {
+            z += 10;
+            win.element.style.zIndex = String(WINDOW_ALWAYS_ON_TOP_Z + z);
+            applyWindowAlwaysOnTopAttr(win);
+        });
+        state.z = z;
     }
 
 ;
@@ -6611,9 +6777,10 @@ function wireWindow(win, id) {
 
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
+        const configAutoSize = widget.config && widget.config.auto_size;
         const configured = widget.auto_size !== undefined
             ? widget.auto_size
-            : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
+            : (widget.autoSize !== undefined ? widget.autoSize : (widget.autosize !== undefined ? widget.autosize : configAutoSize));
         if (configured === undefined || configured === null || configured === '') return true;
         if (configured === false || configured === 0) return false;
         return String(configured).toLowerCase() !== 'false';
@@ -7408,6 +7575,7 @@ function wireWindow(win, id) {
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
                 spaceId: windowSpaceId(item),
+                alwaysOnTop: !!item.alwaysOnTop,
                 context: sanitizeSessionContext(item.context)
             });
         });
@@ -7472,6 +7640,7 @@ function wireWindow(win, id) {
                     minimized: !!entry.minimized,
                     z: entry.z || 0,
                     spaceId: entry.spaceId,
+                    alwaysOnTop: !!entry.alwaysOnTop,
                     active: i === sorted.length - 1
                 }
             });
@@ -9004,10 +9173,10 @@ async function renderWidgetDrawerContent(drawer) {
 
         card.className = 'vd-widget-drawer-card';
         card.innerHTML = `
-            <div class="vd-widget-drawer-card-icon">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
+            <div class="vd-widget-drawer-card-icon">${iconMarkup(iconKey, widgetDisplayTitle(widget), 'vd-sprite-file', 22)}</div>
             <div class="vd-widget-drawer-card-text">
                 <div class="vd-widget-drawer-card-title">
-                    ${esc(widget.title || widget.id)}
+                    ${esc(widgetDisplayTitle(widget))}
                 </div>
                 <div class="vd-widget-drawer-card-meta">
                     ${isBuiltin ? t('desktop.widget_builtin') : t('desktop.widget_custom')}
@@ -9042,7 +9211,7 @@ async function renderWidgetDrawerContent(drawer) {
             } catch (err) {
                 showDesktopNotification({
                     title: t('desktop.notification'),
-                    message: err.message || 'Failed to update widget'
+                    message: err.message || t('desktop.widget_update_failed')
                 });
                 btn.disabled = false;
                 btn.textContent = action === 'show'
@@ -9093,9 +9262,9 @@ function updateTaskbarSystemButtonsForMobile() {
         const hours = Math.floor(total / 3600);
         total -= hours * 3600;
         const minutes = Math.floor(total / 60);
-        if (days > 0) return `${days}d ${hours}h`;
-        if (hours > 0) return `${hours}h ${minutes}m`;
-        return `${minutes}m`;
+        if (days > 0) return t('desktop.system_info_uptime_days_hours', { days, hours });
+        if (hours > 0) return t('desktop.system_info_uptime_hours_minutes', { hours, minutes });
+        return t('desktop.system_info_uptime_minutes', { minutes });
     }
 
     function sysmonClampPct(value) {
@@ -9192,7 +9361,7 @@ function updateTaskbarSystemButtonsForMobile() {
             }
             if (hostUptimeBase) {
                 const seconds = hostUptimeBase.seconds + (now - hostUptimeBase.at) / 1000;
-                parts.push(`Host ${sysmonFormatUptime(seconds)}`);
+                parts.push(`${t('desktop.system_info_host')} ${sysmonFormatUptime(seconds)}`);
             }
             refs.uptimeEl.textContent = parts.join(' · ');
         }
@@ -10231,8 +10400,16 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function showWidgetContextMenu(event, widget) {
         event.preventDefault();
+        const autoSize = widgetShouldAutoSize(widget);
         showContextMenu(event.clientX, event.clientY, [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => widget.app_id && openApp(widget.app_id) },
+            {
+                label: t('desktop.widget_auto_size'),
+                icon: autoSize ? 'check-square' : 'square',
+                fallback: autoSize ? '\u2713' : '\u2610',
+                disabled: desktopReadonly(),
+                action: () => toggleWidgetAutoSize(widget)
+            },
             { label: t('desktop.widget_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => setWidgetVisible(widget.id, false) },
             { separator: true },
             { label: t('desktop.widget_manager'), icon: 'widgets', fallback: 'W', action: () => showWidgetManager() }
@@ -10248,6 +10425,15 @@ function updateTaskbarSystemButtonsForMobile() {
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
+        if (!item.isGadget) {
+            const onTop = !!item.alwaysOnTop;
+            items.push({
+                label: t('desktop.context_always_on_top'),
+                icon: onTop ? 'check-square' : 'square',
+                fallback: onTop ? '\u2713' : '\u2610',
+                action: () => toggleWindowAlwaysOnTop(id)
+            });
+        }
         if (spacesEnabled() && !item.isGadget) {
             items.push({ separator: true });
             items.push({
@@ -10539,6 +10725,61 @@ function modalDialog(options) {
         }
     }
 
+    async function listWorkspaceEntries(dir) {
+        const body = await api('/api/desktop/files?path=' + encodeURIComponent(dir || ''));
+        return Array.isArray(body.files) ? body.files : [];
+    }
+
+    async function uniqueRestoreDestination(dir, name) {
+        const baseName = name || 'item';
+        let entries = [];
+        try {
+            entries = await listWorkspaceEntries(dir);
+        } catch (err) {
+            if (dir === 'Desktop') return uniqueRestoreDestination('Documents', name);
+            throw err;
+        }
+        const existing = new Set(entries.map(entry => String(entry.name || pathBaseName(entry.path)).toLowerCase()));
+        for (let index = 1; index < 1000; index += 1) {
+            const candidate = trashNameCandidate(baseName, index);
+            if (!existing.has(candidate.toLowerCase())) return workspaceJoinPath(dir, candidate);
+        }
+        return workspaceJoinPath(dir, baseName + ' ' + Date.now());
+    }
+
+    async function restorePathsFromTrash(paths) {
+        if (desktopReadonly()) return [];
+        const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
+        if (!unique.length) return [];
+        const restored = [];
+        for (const path of unique) {
+            try {
+                const dest = await uniqueRestoreDestination('Desktop', pathBaseName(path) || 'item');
+                await api('/api/desktop/file', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ old_path: path, new_path: dest })
+                });
+                restored.push(dest);
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            }
+        }
+        if (restored.length) {
+            await refreshDesktopAfterFileChange();
+            const message = restored.length === 1
+                ? t('desktop.trash_restored', { path: restored[0] })
+                : t('desktop.trash_restored_items', { count: restored.length });
+            showDesktopNotification({ title: t('desktop.notification'), message });
+        }
+        return restored;
+    }
+
+    async function restorePathFromTrash(path) {
+        const restored = await restorePathsFromTrash([path]);
+        return restored[0] || '';
+    }
+
     async function addDesktopShortcut(appId) {
         if (!appId) return;
         try {
@@ -10649,9 +10890,9 @@ function modalDialog(options) {
                 const iconKey = widget.icon || 'widgets';
                 return `<div class="vd-wm-card${isBuiltin ? ' vd-wm-card-builtin' : ''}" data-widget-id="${esc(widget.id)}">
                     <div class="vd-wm-card-head">
-                        ${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 24)}
+                        ${iconMarkup(iconKey, widgetDisplayTitle(widget), 'vd-sprite-file', 24)}
                         <div class="vd-wm-card-info">
-                            <div class="vd-wm-card-title">${esc(widget.title || widget.id)}</div>
+                            <div class="vd-wm-card-title">${esc(widgetDisplayTitle(widget))}</div>
                             <div class="vd-wm-card-badges">${statusBadge}${builtinBadge}</div>
                         </div>
                     </div>
@@ -10687,7 +10928,7 @@ function modalDialog(options) {
             overlay.querySelectorAll('.vd-wm-btn[data-action="delete"]').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const widget = ((state.bootstrap && state.bootstrap.all_widgets) || []).find(w => w.id === btn.dataset.id);
-                    const name = widget ? (widget.title || widget.id) : btn.dataset.id;
+                    const name = widget ? widgetDisplayTitle(widget) : btn.dataset.id;
                     const confirmed = await confirmDialog(t('desktop.widget_confirm_delete'), t('desktop.widget_confirm_delete_msg', { name }));
                     if (!confirmed) return;
                     try {
@@ -11388,6 +11629,8 @@ if (appId === 'pixel') {
                 addFileToChat: (entry) => addFileContextToChat(entry),
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
+                restoreFromTrash: restorePathsFromTrash,
+                emptyTrash,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;
                     const item = state.windows.get(id);

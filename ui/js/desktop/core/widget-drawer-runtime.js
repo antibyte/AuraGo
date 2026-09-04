@@ -27,10 +27,10 @@ async function renderWidgetDrawerContent(drawer) {
 
         card.className = 'vd-widget-drawer-card';
         card.innerHTML = `
-            <div class="vd-widget-drawer-card-icon">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
+            <div class="vd-widget-drawer-card-icon">${iconMarkup(iconKey, widgetDisplayTitle(widget), 'vd-sprite-file', 22)}</div>
             <div class="vd-widget-drawer-card-text">
                 <div class="vd-widget-drawer-card-title">
-                    ${esc(widget.title || widget.id)}
+                    ${esc(widgetDisplayTitle(widget))}
                 </div>
                 <div class="vd-widget-drawer-card-meta">
                     ${isBuiltin ? t('desktop.widget_builtin') : t('desktop.widget_custom')}
@@ -65,7 +65,7 @@ async function renderWidgetDrawerContent(drawer) {
             } catch (err) {
                 showDesktopNotification({
                     title: t('desktop.notification'),
-                    message: err.message || 'Failed to update widget'
+                    message: err.message || t('desktop.widget_update_failed')
                 });
                 btn.disabled = false;
                 btn.textContent = action === 'show'

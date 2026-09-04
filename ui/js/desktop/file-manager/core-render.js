@@ -461,6 +461,7 @@
                     { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly || !hasClipboard, action: () => pasteClipboard() },
                     { type: 'separator' },
                     { id: 'rename', labelKey: 'desktop.fm.rename', icon: 'edit', shortcut: 'F2', disabled: readonly || selected.length !== 1, action: () => selectedFile && startRename(selectedFile.path) },
+                    { id: 'restore', labelKey: 'desktop.fm.restore', icon: 'undo', disabled: readonly || !hasRestorableTrashSelection(), action: () => restoreSelected() },
                     { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', disabled: readonly || !hasSelection, action: () => deleteSelected() },
                     { type: 'separator' },
                     { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => selectAll() }
@@ -550,6 +551,10 @@
                 const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
                 downloadBtn.classList.toggle('is-hidden', !hasFile);
             }
+            const restoreBtn = selToolbar.querySelector('[data-action="selection-restore"]');
+            if (restoreBtn) {
+                restoreBtn.classList.toggle('is-hidden', !hasRestorableTrashSelection());
+            }
         }
         updateWindowMenus();
         updateToolbarState();
@@ -558,6 +563,7 @@
     function renderSelectionToolbarHtml() {
         const selected = getSelectedFiles ? (typeof getSelectedFiles === 'function' ? getSelectedFiles() : []) : [];
         const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
+        const canRestore = typeof hasRestorableTrashSelection === 'function' && hasRestorableTrashSelection();
         const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;
         return `<div class="fm-selection-toolbar">
             <div class="fm-selection-toolbar-left">
@@ -578,6 +584,9 @@
                 </button>
                 <button type="button" class="fm-selection-btn${hasFile ? '' : ' is-hidden'}" data-action="selection-download" title="${esc(t('desktop.fm.download'))}" aria-label="${esc(t('desktop.fm.download'))}">
                     ${iconMarkup('download', '\u2193', 'fm-btn-icon', 16)}
+                </button>
+                <button type="button" class="fm-selection-btn${canRestore ? '' : ' is-hidden'}" data-action="selection-restore" title="${esc(t('desktop.fm.restore'))}" aria-label="${esc(t('desktop.fm.restore'))}"${readonly ? ' disabled' : ''}>
+                    ${iconMarkup('undo', '\u21A9', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-selection-btn" data-action="selection-delete" title="${esc(t('desktop.fm.delete'))}" aria-label="${esc(t('desktop.fm.delete'))}"${readonly ? ' disabled' : ''}>
                     ${iconMarkup('trash', '\u267B', 'fm-btn-icon', 16)}

@@ -75,6 +75,7 @@
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
                 spaceId: windowSpaceId(item),
+                alwaysOnTop: !!item.alwaysOnTop,
                 context: sanitizeSessionContext(item.context)
             });
         });
@@ -139,6 +140,7 @@
                     minimized: !!entry.minimized,
                     z: entry.z || 0,
                     spaceId: entry.spaceId,
+                    alwaysOnTop: !!entry.alwaysOnTop,
                     active: i === sorted.length - 1
                 }
             });

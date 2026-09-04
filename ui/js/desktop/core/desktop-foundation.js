@@ -1092,7 +1092,10 @@
 
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
-        const configured = widget.auto_size !== undefined ? widget.auto_size : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
+        const configAutoSize = widget.config && widget.config.auto_size;
+        const configured = widget.auto_size !== undefined
+            ? widget.auto_size
+            : (widget.autoSize !== undefined ? widget.autoSize : (widget.autosize !== undefined ? widget.autosize : configAutoSize));
         return !(configured === false || configured === 0 || String(configured).toLowerCase() === 'false');
     }
 
@@ -1535,6 +1538,16 @@
         btn.addEventListener('pointercancel', finishDrag);
     }
 
+    function widgetDisplayTitle(widget) {
+        if (!widget) return '';
+        const id = String(widget.id || '');
+        if (id === 'builtin-weather') return t('desktop.weather_title');
+        if (id === 'builtin-analog-clock') return t('desktop.widget_analog_clock');
+        if (id === 'builtin-quickchat') return t('desktop.widget_quickchat');
+        if (id === 'builtin-sysmon') return t('desktop.widget_sysmon_title');
+        return widget.title || widget.id || '';
+    }
+
     function widgetContentSignature(widget) {
         const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
         return JSON.stringify({
@@ -1574,7 +1587,7 @@
         card.dataset.widgetDefaultWidth = String(bounds.w);
         if (autoSize) card.dataset.widgetAutoSize = 'true';
         else delete card.dataset.widgetAutoSize;
-        card.title = widget.title || widget.id || '';
+        card.title = widgetDisplayTitle(widget);
         card.style.left = bounds.x + 'px';
         card.style.top = bounds.y + 'px';
         card.style.width = bounds.w + 'px';
