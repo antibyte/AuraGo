@@ -681,7 +681,7 @@ function testVirtualComputersTerminalSessionReconciliation() {
 
 function testVirtualComputersTerminalActionGating() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
-  const detailSource = sourceBetween(app, 'function detailPane', 'function taskRows');
+  const detailSource = sourceBetween(app, 'function detailPane', 'function workspacePane');
   const context = {
     Array,
     Number,
@@ -826,14 +826,14 @@ function testVirtualComputersHidesUnavailableCapabilitySections() {
   vm.createContext(context);
   vm.runInContext(`${helperSource}; globalThis.reconcileSection = reconcileSection;`, context);
 
-  const state = { activeSection: 'volumes', status: { capabilities: { volumes: false, agent_tasks: true } } };
+  const state = { activeSection: 'volumes', status: { capabilities: { volumes: false, agent_control: true } } };
   context.reconcileSection(state);
   assert.equal(state.activeSection, 'machines');
   assert.equal(disconnected, 1, 'removing an active capability must close its live workspace');
 
-  state.activeSection = 'tasks';
+  state.activeSection = 'workspaces';
   context.reconcileSection(state);
-  assert.equal(state.activeSection, 'tasks', 'available capability sections must stay selected');
+  assert.equal(state.activeSection, 'workspaces', 'available capability sections must stay selected');
 }
 
 function testVirtualComputersMutationLocksAreIdempotent() {
@@ -854,14 +854,15 @@ function testVirtualComputersMutationLocksAreIdempotent() {
 
 function testVirtualComputersCanOpenIndependentWindows() {
   const shell = read('ui/js/desktop/core/window-shell-runtime.js');
-  const helperSource = sourceBetween(shell, 'function findExistingAppWindow', 'function isStandaloneWidgetPath');
+  const helperSource = sourceBetween(shell, 'function matchesExistingAppWindow', 'function isStandaloneWidgetPath');
   const virtualWindow = { id: 'vc-1', appId: 'virtual-computers', element: { isConnected: true }, context: {} };
   const regularWindow = { id: 'settings-1', appId: 'settings', element: { isConnected: true }, context: {} };
   const context = {
     state: { windows: new Map([[virtualWindow.id, virtualWindow], [regularWindow.id, regularWindow]]), activeWindowId: '' },
     clearWindowMenus() {},
     disposeAppWindow() {},
-    normalizeDesktopPath: value => String(value || '')
+    normalizeDesktopPath: value => String(value || ''),
+    isWindowOnActiveSpace: () => true
   };
   vm.createContext(context);
   vm.runInContext(`${helperSource}; globalThis.findExisting = findExistingAppWindow;`, context);
@@ -880,7 +881,7 @@ function testVirtualComputersMobileLayoutUsesAvailableWindowHeight() {
 
 function loadVirtualComputersMachinePollingRuntime() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
-  const helperSource = sourceBetween(app, 'function normalizeMachineList', 'function hasActiveTasks');
+  const helperSource = sourceBetween(app, 'function normalizeMachineList', 'function scheduleWorkspaceRefresh');
   const requests = [];
   const scheduled = [];
   const cleared = [];
@@ -1021,7 +1022,7 @@ function testVirtualComputersMachinePollingDisposeClearsTimer() {
   const state = {
     disposed: false,
     refreshGeneration: 2,
-    taskRefreshTimer: 7,
+    workspaceRefreshTimer: 7,
     machinePollTimer: 8,
     expiryCountdownTimer: 9,
     clickHandler: null,
@@ -1046,50 +1047,42 @@ function testVirtualComputersMachinePollingDisposeClearsTimer() {
   assert.equal(context.instanceMap.has('vc-1'), false);
 }
 
-function testVirtualComputersAgentTaskFeedbackAndPolling() {
+function testVirtualComputersWorkspacePolling() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
-  const helperSource = sourceBetween(app, 'function notify', 'function dispose');
-  const notifications = [];
+  const helperSource = sourceBetween(app, 'function scheduleWorkspaceRefresh', 'function dispose');
   const scheduled = [];
+  const refreshed = [];
   const context = {
     clearTimeout() {},
     setTimeout(callback, delay) {
       scheduled.push({ callback, delay });
       return scheduled.length;
     },
-    refresh() {},
-    tx(_ctx, key) { return key; }
+    capabilities: state => state.status.capabilities,
+    refreshResource(_state, resource) { refreshed.push(resource); }
   };
   vm.createContext(context);
   vm.runInContext(
-    `${helperSource}; globalThis.hasActiveTasks = hasActiveTasks; ` +
-    'globalThis.scheduleTaskRefresh = scheduleTaskRefresh; globalThis.notify = notify;',
+    `${helperSource}; globalThis.scheduleWorkspaceRefresh = scheduleWorkspaceRefresh;`,
     context
   );
 
-  assert.equal(context.hasActiveTasks([{ status: 'queued' }]), true);
-  assert.equal(context.hasActiveTasks([{ status: 'running' }]), true);
-  assert.equal(context.hasActiveTasks([{ status: 'failed' }, { status: 'completed' }]), false);
-
   const state = {
-    context: { notify(payload) { notifications.push(payload); } },
-    tasks: [{ status: 'running' }],
+    activeSection: 'workspaces',
+    status: { capabilities: { agent_control: true } },
+    workspaces: [{ state: 'ready' }],
     disposed: false,
-    taskRefreshTimer: null
+    workspaceRefreshTimer: null
   };
-  context.notify(state, 'Cannot cancel task', 'error');
-  assert.equal(JSON.stringify(notifications), JSON.stringify([{
-    title: 'desktop.notification',
-    message: 'Cannot cancel task',
-    type: 'error'
-  }]));
-
-  context.scheduleTaskRefresh(state);
+  context.scheduleWorkspaceRefresh(state);
   assert.equal(scheduled.length, 1);
-  assert.equal(scheduled[0].delay, 2000);
-  state.tasks = [{ status: 'canceled' }];
-  context.scheduleTaskRefresh(state);
-  assert.equal(scheduled.length, 1, 'terminal tasks must stop polling');
+  assert.equal(scheduled[0].delay, 3000);
+  scheduled.shift().callback();
+  assert.deepEqual(refreshed, ['workspaces']);
+
+  state.workspaces = [{ state: 'closed' }];
+  context.scheduleWorkspaceRefresh(state);
+  assert.equal(scheduled.length, 0, 'inactive workspaces must stop polling');
 }
 
 function testLocalGraniteMultimodalObserverIsIdempotent() {
@@ -1672,7 +1665,7 @@ const tests = [
   ['Virtual Computers mobile layout uses available height', testVirtualComputersMobileLayoutUsesAvailableWindowHeight],
   ['Virtual Computers polls machines only when visible and changed', testVirtualComputersMachinePollingLifecycle],
   ['Virtual Computers clears machine polling on dispose', testVirtualComputersMachinePollingDisposeClearsTimer],
-  ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],
+  ['Virtual Computers polls active agent workspaces', testVirtualComputersWorkspacePolling],
   ['local Granite multimodal observer remains idempotent', testLocalGraniteMultimodalObserverIsIdempotent],
   ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
