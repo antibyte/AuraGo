@@ -654,7 +654,7 @@
     min-height: 100%;
     padding: 18px;
     box-sizing: border-box;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+    background: var(--vd-theme-app-bg);
 }
 
 .vd-webamp-launcher-header {
@@ -677,7 +677,7 @@
 }
 
 .vd-webamp-launcher-copy span {
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     font-size: 12px;
     line-height: 1.35;
 }
@@ -690,7 +690,7 @@
     border: 1px solid var(--vd-theme-border);
     border-radius: 8px;
     background: var(--vd-theme-panel-bg);
-    color: var(--vd-muted);
+    color: var(--vd-theme-muted);
     font-size: 12px;
 }
 

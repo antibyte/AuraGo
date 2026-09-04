@@ -1,9 +1,9 @@
 .teevee-app {
-    --teevee-bg: #08111d;
-    --teevee-panel: rgba(16, 28, 43, 0.86);
-    --teevee-panel-strong: rgba(19, 34, 52, 0.94);
-    --teevee-line: rgba(255, 255, 255, 0.12);
-    --teevee-muted: rgba(231, 242, 255, 0.66);
+    --teevee-bg: var(--vd-theme-app-bg);
+    --teevee-panel: var(--vd-theme-panel-bg);
+    --teevee-panel-strong: var(--vd-theme-panel-bg-strong);
+    --teevee-line: var(--vd-theme-border);
+    --teevee-muted: var(--vd-theme-muted);
     --teevee-accent: #37d3c5;
     --teevee-accent-strong: #6af3e8;
     --teevee-warm: #ffb14a;
@@ -14,12 +14,11 @@
     grid-template-columns: 268px minmax(0, 1fr);
     min-height: 100%;
     height: 100%;
-    color: var(--vd-text, #f2f8ff);
+    color: var(--vd-text);
     background:
         radial-gradient(circle at 18% 12%, rgba(79, 183, 255, 0.2), transparent 28%),
         radial-gradient(circle at 74% 78%, rgba(255, 75, 95, 0.16), transparent 34%),
-        linear-gradient(145deg, rgba(6, 13, 23, 0.98), rgba(9, 17, 29, 0.9)),
-        #08111d;
+        var(--teevee-bg);
     overflow: hidden;
 }
 
@@ -42,18 +41,6 @@
     z-index: 1;
 }
 
-.desktop-body[data-theme="light"] .teevee-app {
-    --teevee-bg: #eef5f8;
-    --teevee-panel: rgba(255, 255, 255, 0.82);
-    --teevee-panel-strong: rgba(255, 255, 255, 0.94);
-    --teevee-line: rgba(22, 42, 61, 0.15);
-    --teevee-muted: rgba(38, 58, 78, 0.72);
-    color: var(--vd-text, #152132);
-    background:
-        linear-gradient(145deg, rgba(238, 247, 249, 0.95), rgba(222, 235, 241, 0.88)),
-        #eef5f8;
-}
-
 .teevee-sidebar {
     display: flex;
     flex-direction: column;
@@ -62,12 +49,8 @@
     min-height: 0;
     padding: 18px;
     border-right: 1px solid var(--teevee-line);
-    background: linear-gradient(180deg, rgba(4, 12, 22, 0.64), rgba(4, 12, 22, 0.22));
+    background: var(--vd-theme-chrome-bg);
     backdrop-filter: blur(18px);
-}
-
-.desktop-body[data-theme="light"] .teevee-sidebar {
-    background: rgba(255, 255, 255, 0.36);
 }
 
 .teevee-brand {
@@ -142,11 +125,7 @@
 }
 
 .teevee-search input::placeholder {
-    color: rgba(231, 242, 255, 0.48);
-}
-
-.desktop-body[data-theme="light"] .teevee-search input::placeholder {
-    color: rgba(38, 58, 78, 0.5);
+    color: var(--teevee-muted);
 }
 
 .teevee-control-grid {
@@ -162,7 +141,7 @@
     padding: 10px;
     border: 1px solid var(--teevee-line);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.055);
+    background: var(--vd-theme-control-bg);
 }
 
 .teevee-select-field span {
@@ -176,16 +155,12 @@
     width: 100%;
     min-width: 0;
     min-height: 34px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--teevee-line);
     border-radius: 8px;
     color: inherit;
-    background: rgba(4, 12, 22, 0.62);
+    background: var(--vd-theme-control-bg);
     font: inherit;
     font-weight: 720;
-}
-
-.desktop-body[data-theme="light"] .teevee-select-field select {
-    background: rgba(255, 255, 255, 0.88);
 }
 
 .teevee-filters {
@@ -460,7 +435,7 @@
     border: 1px solid var(--teevee-line);
     border-radius: 8px;
     color: inherit;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-theme-control-bg);
     cursor: pointer;
     transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
@@ -531,11 +506,7 @@
     min-width: 0;
     min-height: 0;
     border-left: 1px solid var(--teevee-line);
-    background: rgba(4, 12, 22, 0.24);
-}
-
-.desktop-body[data-theme="light"] .teevee-list-panel {
-    background: rgba(255, 255, 255, 0.32);
+    background: var(--vd-theme-chrome-bg);
 }
 
 .teevee-list-head {

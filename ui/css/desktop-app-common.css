@@ -141,7 +141,18 @@
     .vd-hp-chat,
     .vd-hp-inspector,
     .gm-topbar,
-    .gm-library
+    .gm-library,
+    .oscad-header,
+    .oscad-inspector,
+    .oscad-sidebar,
+    .oscad-agent-panel,
+    .teevee-sidebar,
+    .teevee-player-bar,
+    .teevee-list-panel,
+    .vd-chess-controls,
+    .vd-chess-moves,
+    .vd-chess-captured-panel,
+    .vd-chess-info-panel
 ),
 .desktop-body[data-theme="fruity"] :where(
     .fm-toolbar,
@@ -186,7 +197,18 @@
     .vd-hp-chat,
     .vd-hp-inspector,
     .gm-topbar,
-    .gm-library
+    .gm-library,
+    .oscad-header,
+    .oscad-inspector,
+    .oscad-sidebar,
+    .oscad-agent-panel,
+    .teevee-sidebar,
+    .teevee-player-bar,
+    .teevee-list-panel,
+    .vd-chess-controls,
+    .vd-chess-moves,
+    .vd-chess-captured-panel,
+    .vd-chess-info-panel
 ) {
     border-color: var(--vd-theme-border) !important;
     background: var(--vd-theme-chrome-bg) !important;
@@ -231,6 +253,14 @@
     .gm-modal textarea,
     .gm-modal select,
     .gm-mobile-projects,
+    .oscad-select,
+    .oscad-input,
+    .oscad-chat,
+    .oscad-defines-text,
+    .oscad-define-number,
+    .oscad-define-text,
+    .teevee-select-field select,
+    .vd-chess-field select,
     .cheater-modal-panel input,
     .cheater-modal-panel textarea,
     .cheater-toast button
@@ -273,6 +303,14 @@
     .gm-modal textarea,
     .gm-modal select,
     .gm-mobile-projects,
+    .oscad-select,
+    .oscad-input,
+    .oscad-chat,
+    .oscad-defines-text,
+    .oscad-define-number,
+    .oscad-define-text,
+    .teevee-select-field select,
+    .vd-chess-field select,
     .cheater-modal-panel input,
     .cheater-modal-panel textarea,
     .cheater-toast button
@@ -320,7 +358,10 @@
     .network-cameras-app,
     .noisemaker-app,
     .vd-hp-studio,
-    .gm-studio
+    .gm-studio,
+    .openscad-app,
+    .teevee-app,
+    .vd-chess
 ) {
     --radio-glass: var(--vd-theme-panel-bg) !important;
     --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
@@ -365,6 +406,24 @@
     --gm-line: var(--vd-theme-border) !important;
     --gm-text: var(--vd-text) !important;
     --gm-muted: var(--vd-theme-muted) !important;
+    --oscad-bg: var(--vd-theme-app-bg) !important;
+    --oscad-surface: var(--vd-theme-panel-bg) !important;
+    --oscad-surface-strong: var(--vd-theme-panel-bg-strong) !important;
+    --oscad-border: var(--vd-theme-border) !important;
+    --oscad-text: var(--vd-text) !important;
+    --oscad-muted: var(--vd-theme-muted) !important;
+    --oscad-glass: var(--vd-theme-chrome-bg) !important;
+    --oscad-glass-border: var(--vd-theme-border) !important;
+    --teevee-bg: var(--vd-theme-app-bg) !important;
+    --teevee-panel: var(--vd-theme-panel-bg) !important;
+    --teevee-panel-strong: var(--vd-theme-panel-bg-strong) !important;
+    --teevee-line: var(--vd-theme-border) !important;
+    --teevee-muted: var(--vd-theme-muted) !important;
+    --chess-ink: var(--vd-text) !important;
+    --chess-muted: var(--vd-theme-muted) !important;
+    --chess-panel: var(--vd-theme-panel-bg) !important;
+    --chess-panel-strong: var(--vd-theme-panel-bg-strong) !important;
+    --chess-line: var(--vd-theme-border) !important;
 }
 
 .desktop-body[data-theme="fruity"] :where(
@@ -374,7 +433,10 @@
     .network-cameras-app,
     .noisemaker-app,
     .vd-hp-studio,
-    .gm-studio
+    .gm-studio,
+    .openscad-app,
+    .teevee-app,
+    .vd-chess
 ) {
     --radio-glass: var(--vd-theme-panel-bg) !important;
     --radio-glass-strong: var(--vd-theme-panel-bg-strong) !important;
@@ -419,6 +481,24 @@
     --gm-line: var(--vd-theme-border) !important;
     --gm-text: var(--vd-text) !important;
     --gm-muted: var(--vd-theme-muted) !important;
+    --oscad-bg: var(--vd-theme-app-bg) !important;
+    --oscad-surface: var(--vd-theme-panel-bg) !important;
+    --oscad-surface-strong: var(--vd-theme-panel-bg-strong) !important;
+    --oscad-border: var(--vd-theme-border) !important;
+    --oscad-text: var(--vd-text) !important;
+    --oscad-muted: var(--vd-theme-muted) !important;
+    --oscad-glass: var(--vd-theme-chrome-bg) !important;
+    --oscad-glass-border: var(--vd-theme-border) !important;
+    --teevee-bg: var(--vd-theme-app-bg) !important;
+    --teevee-panel: var(--vd-theme-panel-bg) !important;
+    --teevee-panel-strong: var(--vd-theme-panel-bg-strong) !important;
+    --teevee-line: var(--vd-theme-border) !important;
+    --teevee-muted: var(--vd-theme-muted) !important;
+    --chess-ink: var(--vd-text) !important;
+    --chess-muted: var(--vd-theme-muted) !important;
+    --chess-panel: var(--vd-theme-panel-bg) !important;
+    --chess-panel-strong: var(--vd-theme-panel-bg-strong) !important;
+    --chess-line: var(--vd-theme-border) !important;
 }
 
 
@@ -878,7 +958,10 @@
     .nc-detail,
     .nm-card,
     .vd-live-speech-lab,
-    .gm-project-card
+    .gm-project-card,
+    .vd-webamp-status,
+    .oscad-file,
+    .teevee-channel
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);
@@ -908,7 +991,10 @@
     .nc-detail,
     .nm-card,
     .vd-live-speech-lab,
-    .gm-project-card
+    .gm-project-card,
+    .vd-webamp-status,
+    .oscad-file,
+    .teevee-channel
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);

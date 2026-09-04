@@ -58,8 +58,9 @@ and `files.default_apps` via `/api/desktop/settings`.
   Manager, Quick Connect, Mission Control, Software Store, Gallery, Notes,
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
   System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
-  Noisemaker, Live Speech, Homepage Studio, and Game Maker read `--vd-theme-*`
-  for chrome, panels, controls, borders, and shadows.
+  Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
+  launcher, TeeVee, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
+  panels, controls, borders, and shadows.
 - Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
@@ -102,8 +103,23 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Game Maker preview checkerboard and iframe stay dark (`#0d0e14` / `#050509`);
   chrome uses `--gm-*` aliases mapped to `--vd-theme-*`. Brand purple/teal
   (`--gm-accent`, `--gm-accent-2`) and status badges stay.
-- OpenSCAD (`--oscad-*`) and Webamp launcher styling remain excluded from this
-  bridge.
+- OpenSCAD chrome uses `--oscad-*` aliases mapped to `--vd-theme-*`. The 3D
+  preview letterbox and panel stay dark work surfaces (`#071018` / `#050a10`);
+  `light-preview` may flip the panel to `#f2f6f8`. Warm/danger and accent-on
+  `#061014` stay semantic. Icon filters stay light/dark aware. Do not put
+  `.oscad-primary` in the control `!important` bridge.
+- Webamp launcher chrome uses `--vd-theme-*`. The embedded Winamp player skin
+  stays authentic and stays out of this bridge.
+- TeeVee chrome uses `--teevee-*` aliases mapped to `--vd-theme-*`. The video
+  letterbox and mount stay dark (`#02050a`). Brand teal/amber gradients,
+  live-dot danger, and accent-on `#06141b` stay. Do not put `.teevee-primary`
+  or `.teevee-icon-button.active` in the control `!important` bridge.
+- Chess chrome uses `--chess-*` aliases mapped to `--vd-theme-*`. The wood
+  frame (`--chess-board-frame*`) and felt (`--chess-felt`) stay the board
+  surface. Warn/danger/good stay semantic.
+- Nasscad shell uses `--vd-theme-app-bg`; the bundled iframe viewport stays
+  `#111318`.
+- Galaxa, Quake, Sysworld, and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract
 

@@ -99,6 +99,20 @@ func TestDesktopFruityWorkbenchesDoNotPaintDarkGlassOnLightText(t *testing.T) {
 	if !strings.Contains(homepage, "--hp-bg: var(--vd-theme-app-bg)") {
 		t.Fatalf("Homepage Studio must read theme tokens in source CSS")
 	}
+	if !strings.Contains(openscad, "--oscad-bg: var(--vd-theme-app-bg)") {
+		t.Fatalf("OpenSCAD must read theme tokens in source CSS")
+	}
+	teevee := readDesktopAssetText(t, "css/teevee.css")
+	if !strings.Contains(teevee, "--teevee-bg: var(--vd-theme-app-bg)") {
+		t.Fatalf("TeeVee must read theme tokens in source CSS")
+	}
+	if strings.Contains(teevee, `.desktop-body[data-theme="light"] .teevee-app`) {
+		t.Fatalf("TeeVee must not duplicate light palette overrides; shell theme tokens own light/dark")
+	}
+	chess := readDesktopAssetText(t, "css/desktop-app-chess.css")
+	if !strings.Contains(chess, "--chess-panel: var(--vd-theme-panel-bg)") {
+		t.Fatalf("Chess chrome must read theme tokens in source CSS")
+	}
 
 	editor := readDesktopAssetText(t, "js/desktop/apps/openscad-editor.js")
 	if strings.Contains(editor, "backgroundColor: 'rgba(5,11,18,0.68)'") || strings.Contains(editor, "color: '#eef7f7'") {

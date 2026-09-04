@@ -1,13 +1,13 @@
 /* Virtual Desktop Chess — premium club-table shell */
 
 .vd-chess {
-    --chess-ink: #e8f0ec;
-    --chess-ink-soft: rgba(232, 240, 236, 0.72);
-    --chess-muted: rgba(180, 200, 192, 0.88);
-    --chess-panel: rgba(18, 32, 28, 0.72);
-    --chess-panel-strong: rgba(22, 40, 34, 0.9);
-    --chess-line: rgba(120, 170, 150, 0.22);
-    --chess-accent: #2f9f84;
+    --chess-ink: var(--vd-text);
+    --chess-ink-soft: var(--vd-theme-muted);
+    --chess-muted: var(--vd-theme-muted);
+    --chess-panel: var(--vd-theme-panel-bg);
+    --chess-panel-strong: var(--vd-theme-panel-bg-strong);
+    --chess-line: var(--vd-theme-border);
+    --chess-accent: var(--vd-accent, #2f9f84);
     --chess-accent-deep: #1c6b57;
     --chess-warn: #e0a23a;
     --chess-danger: #d35448;
@@ -16,7 +16,7 @@
     --chess-board-frame-hi: #7a5636;
     --chess-board-frame-lo: #3d2a1a;
     --chess-felt: #d7e5dc;
-    --chess-shadow: 0 22px 48px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --chess-shadow: var(--vd-theme-shadow-panel);
     --chess-radius: 14px;
     --chess-radius-sm: 10px;
     position: relative;
@@ -25,28 +25,12 @@
     display: grid;
     grid-template-columns: minmax(360px, 1fr) 340px;
     background:
-        radial-gradient(ellipse 80% 60% at 18% 12%, rgba(47, 159, 132, 0.18), transparent 55%),
+        radial-gradient(ellipse 80% 60% at 18% 12%, color-mix(in srgb, var(--chess-accent) 18%, transparent), transparent 55%),
         radial-gradient(ellipse 70% 50% at 88% 88%, rgba(226, 168, 74, 0.1), transparent 50%),
-        linear-gradient(155deg, #101a17 0%, #15241f 48%, #1a2218 100%);
+        var(--vd-theme-app-bg);
     color: var(--chess-ink);
     overflow: hidden;
     font-feature-settings: "tnum" 1;
-}
-
-/* Align with desktop theme tokens when present */
-.desktop-body[data-theme="standard"] .vd-chess,
-.desktop-body[data-theme="fruity"] .vd-chess {
-    --chess-ink: var(--vd-text, #e8f0ec);
-    --chess-muted: var(--vd-muted, rgba(180, 200, 192, 0.88));
-    --chess-accent: var(--vd-accent, #2f9f84);
-    --chess-panel: var(--vd-surface, rgba(18, 32, 28, 0.72));
-    --chess-panel-strong: var(--vd-surface-strong, rgba(22, 40, 34, 0.9));
-    --chess-line: var(--vd-border, rgba(120, 170, 150, 0.22));
-    --chess-shadow: var(--vd-shadow, 0 22px 48px rgba(0, 0, 0, 0.38));
-    background:
-        radial-gradient(ellipse 80% 60% at 18% 12%, color-mix(in srgb, var(--vd-accent, #2f9f84) 22%, transparent), transparent 55%),
-        linear-gradient(155deg, color-mix(in srgb, var(--vd-bg, #101a17) 92%, #0a1210), var(--vd-bg, #15241f));
-    color: var(--chess-ink);
 }
 
 .vd-chess-board-pane {
@@ -526,7 +510,7 @@
     border: 1px solid var(--chess-line);
     border-radius: 8px;
     padding: 0 10px;
-    background: color-mix(in srgb, var(--chess-panel-strong) 88%, #000);
+    background: var(--vd-theme-control-bg);
     color: var(--chess-ink);
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
@@ -549,7 +533,7 @@
     gap: 4px;
     padding: 3px;
     border-radius: 9px;
-    background: color-mix(in srgb, var(--chess-panel-strong) 80%, #000);
+    background: var(--vd-theme-control-bg);
     border: 1px solid var(--chess-line);
 }
 
