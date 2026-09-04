@@ -58,7 +58,7 @@
     const validationRules = Object.freeze({
         'server.port': { type: 'number', min: 1, max: 65535, required: true },
         'web_config.session_timeout_minutes': { type: 'number', min: 1 },
-        'agent.context_window': { type: 'number', min: 1024 },
+        'agent.context_window': { type: 'number', min: 0 },
         'circuit_breaker.max_tool_calls': { type: 'number', min: 1 },
         'circuit_breaker.llm_timeout_seconds': { type: 'number', min: 1 }
     });
@@ -67,10 +67,28 @@
         version: 1,
         actionRules,
         validationRules,
-        sectionTiers: Object.freeze({}),
-        advancedPathPatterns: Object.freeze([
-            'debug', 'timeout', 'interval', 'retry', 'proxy', 'headers', 'tls_',
-            'container_', 'docker_image', 'advanced', 'max_', 'min_', 'log_'
-        ])
+        // Fields rendered outside their YAML root belong to their visible Config section.
+        searchSections: Object.freeze({
+            optimizations: ['agent.optimizer_enabled', 'agent.system_prompt_token_budget', 'agent.adaptive_system_prompt_token_budget', 'agent.context_window', 'agent.memory_compression_char_limit', 'agent.tool_output_limit', 'agent.discover_tools_snapshot_ttl_minutes', 'agent.max_tool_guides', 'agent.core_memory_max_entries', 'agent.core_memory_cap_mode', 'agent.adaptive_tools', 'agent.recovery', 'agent.background_tasks', 'circuit_breaker.max_tool_calls', 'circuit_breaker.llm_timeout_seconds', 'circuit_breaker.maintenance_timeout_minutes', 'circuit_breaker.retry_intervals'],
+            info_tools: ['tools.wikipedia', 'tools.ddg_search', 'tools.pdf_extractor'],
+            network_tools: ['tools.wol', 'tools.stop_process', 'tools.network_ping', 'tools.network_scan', 'tools.web_capture', 'tools.form_automation', 'tools.upnp_scan'],
+            web_scraper: ['tools.web_scraper'],
+            browser_automation: ['tools.browser_automation'],
+            virtual_desktop: ['tools.virtual_desktop'],
+            media_conversion: ['tools.media_conversion'],
+            video_download: ['tools.video_download', 'tools.send_youtube_video'],
+            document_creator: ['tools.document_creator'],
+            skill_manager: ['tools.skill_manager', 'tools.python_tool_bridge'],
+            daemon_skills: ['tools.daemon_skills'],
+            output_compression: ['agent.output_compression'],
+            danger_zone: ['agent.allow_shell', 'agent.allow_python', 'agent.allow_filesystem_write', 'agent.allow_network_requests', 'agent.allow_remote_shell', 'agent.allow_self_update', 'agent.allow_package_manager', 'agent.allow_mcp', 'agent.sudo_enabled']
+        }),
+        // Only explicitly reviewed tuning fields may be collapsed. Unknown fields stay visible.
+        sectionTiers: Object.freeze({
+            'server.debug_mode': 'advanced',
+            'agent.debug_mode': 'advanced',
+            'web_config.session_timeout_minutes': 'advanced',
+            'circuit_breaker.llm_timeout_seconds': 'advanced'
+        })
     });
 })();

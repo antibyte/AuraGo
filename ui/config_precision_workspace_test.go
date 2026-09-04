@@ -69,7 +69,7 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 		`max-width: 1120px;`,
 		`@media (max-width: 1099px)`,
 		`min-height: 44px;`,
-		// Body-mounted unsaved modal must not depend on .pw-page ancestors.
+		// Config dialogs are scoped to the opted-in body.
 		`.pw-unsaved-overlay {`,
 		`.pw-unsaved-card.modal-card,`,
 		`max-width: min(640px, calc(100vw - 2rem));`,
@@ -81,8 +81,8 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 			t.Fatalf("config-workspace.css missing %q", marker)
 		}
 	}
-	if strings.Contains(shell, `.pw-page .pw-unsaved-overlay`) {
-		t.Fatal("unsaved modal styles must remain body-safe without a .pw-page ancestor")
+	if !strings.Contains(shell, `.pw-page[data-workspace-page="config"] .pw-unsaved-overlay`) {
+		t.Fatal("unsaved modal styles must stay within the config body")
 	}
 }
 
@@ -91,14 +91,14 @@ func TestConfigPrecisionWorkspaceKeepsShellFixedWhileContentScrolls(t *testing.T
 
 	workspace := normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
 	for _, marker := range []string{
-		`.pw-page {`,
+		`.pw-page[data-workspace-page="config"] {`,
 		`height: 100dvh;`,
 		`overflow: hidden;`,
-		`.pw-page .cfg-layout {`,
+		`.pw-page[data-workspace-page="config"] .cfg-layout {`,
 		`min-height: 0;`,
-		`.pw-page .cfg-sidebar {`,
+		`.pw-page[data-workspace-page="config"] .cfg-sidebar {`,
 		`overflow-y: auto;`,
-		`.pw-page .cfg-content {`,
+		`.pw-page[data-workspace-page="config"] .cfg-content {`,
 		`overflow-y: auto;`,
 	} {
 		if !strings.Contains(workspace, marker) {
@@ -247,6 +247,8 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	}
 	css := strings.Join([]string{
 		normalizeAssetText(mustReadUIFile(t, "shared-variables.css")),
+		normalizeAssetText(mustReadUIFile(t, "shared-components.css")),
+		normalizeAssetText(mustReadUIFile(t, "shared-utilities.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/tokens.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/enhancements.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/config.css")),
@@ -255,8 +257,8 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css")),
 	}, "\n")
 	html := fmt.Sprintf(`<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>%s</style></head>
-	<body class="pw-page" data-density="comfortable">
-	<div class="cfg-header"><div class="cfg-logo-wrap"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span data-pw-density-label>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
+	<body class="pw-page" data-workspace-page="config" data-density="comfortable">
+	<div class="cfg-header"><div class="cfg-logo-wrap header-left"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span data-pw-density-label>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
 	<div class="cfg-layout" id="main-content"><div id="sidebar-backdrop" class="sidebar-backdrop"></div><div class="cfg-sidebar" id="sidebar"></div><main class="cfg-content" id="content"></main></div>
 	<div class="save-bar"><div class="pw-save-context"><strong id="saveSection"></strong><span id="saveChangeCount"></span><span id="saveValidation"></span></div><span id="changesPill" class="changes-pill">Unsaved</span><span id="saveStatus"></span><button id="btnSave" class="btn-save" disabled>Save</button></div>
 	<script>window.I18N=%s;window.I18N_META={};window.SYSTEM_LANG='en';window.AURAGO_BUILD_VERSION='test';window.t=(key)=>window.I18N[key]||key;
@@ -271,7 +273,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	page := browser.MustPage(server.URL)
 	defer page.MustClose()
 	page.MustSetDocumentContent(html)
-	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/main.js"} {
+	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/presentation.js", "js/config/main.js"} {
 		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, script))); err != nil {
 			t.Fatalf("load %s: %v", script, err)
 		}
@@ -494,7 +496,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		}
 		x := configIconSpritePercent(float64(column) * 100 / 10)
 		y := configIconSpritePercent(float64(row) * 100 / 10)
-		cssMarker := fmt.Sprintf(`.pw-page .config-icon-slot-%d { background-position: %s %s; }`, slot, x, y)
+		cssMarker := fmt.Sprintf(`.pw-page[data-workspace-page="config"] .config-icon-slot-%d { background-position: %s %s; }`, slot, x, y)
 		if !strings.Contains(css, cssMarker) {
 			t.Fatalf("config workspace CSS missing exact slot marker %q", cssMarker)
 		}
@@ -507,8 +509,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		`.config-sidebar-icon-sprite:empty`,
 		`background-image: url('/img/config-sidebar-icons.svg')`,
 		`background-size: 1100% 1100%`,
-		`.pw-page .config-icon-slot-0 { background-position: 0% 0%; }`,
-		`.pw-page .config-icon-slot-110 { background-position: 0% 100%; }`,
+		`.pw-page[data-workspace-page="config"] .config-icon-slot-0 { background-position: 0% 0%; }`,
+		`.pw-page[data-workspace-page="config"] .config-icon-slot-110 { background-position: 0% 100%; }`,
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("config workspace CSS missing sidebar sprite marker %q", marker)

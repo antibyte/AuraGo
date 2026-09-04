@@ -1064,14 +1064,13 @@ func TestConfigSaveBarStickyAndLiveStatusMarkers(t *testing.T) {
 		}
 	}
 
-	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	css := normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
 	for _, marker := range []string{
-		"--cfg-save-bar-height: 72px;",
-		"--cfg-save-bar-height: 96px;",
-		"position: fixed;",
-		"bottom: 0;",
-		"z-index: 30;",
-		"scroll-padding-bottom: calc(var(--cfg-save-bar-height) + env(safe-area-inset-bottom, 0px));",
+		"position: relative;",
+		"flex: 0 0 auto;",
+		"min-height: 72px;",
+		"env(safe-area-inset-bottom",
+		"z-index: 10;",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("config.css missing sticky save bar marker %q", marker)

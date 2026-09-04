@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "无法加载此部分。",
+  "config.refresh.retry": "重试",
+  "config.refresh.toggle_password": "显示或隐藏密码",
+  "config.refresh.credential_save": "使用字段旁边的按钮单独保存凭据。",
   "config.header.restart_full": "↻ 重启",
   "config.header.restart_tooltip": "重启 AuraGo 服务",
   "config.nav.chat": "聊天",

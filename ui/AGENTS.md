@@ -84,6 +84,20 @@ images, and browser-oriented regression tests.
   directly.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
+- Config owns its blue/slate palette and form presentation in `config-workspace.css`
+  and `js/config/presentation.js`, scoped to `data-workspace-page="config"`.
+  Keep Geist, 16px inputs and 44px controls in both densities. Below 1100px the
+  labeled sidebar becomes a keyboard-accessible drawer; the save dock stays in
+  the viewport layout without covering the scrollable form.
+- Config fields are flat rows inside topic sections; cards represent independent
+  objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy
+  integration renderers. Preserve their data bindings, independent provider /
+  credential save paths and native checkbox semantics.
+- Config advanced fields require explicit `sectionTiers` or `data-tier` metadata.
+  Never infer tiers from name fragments or move fields across topic boundaries.
+  Required fields and security notices stay visible. Search and validation open
+  ancestor disclosures; `searchSections` maps fields to their actual editor.
+  Failed saves retain inputs and persistent inline feedback.
 - Config and Setup share the managed local model choices: Qwen remains the
   default for missing `model_family`; Ling selects Q4_K_L, MTP off, and 16K.
   Model changes reset incompatible options; Setup also resets its probe acknowledgement.
@@ -180,7 +194,11 @@ images, and browser-oriented regression tests.
 - Operational stylesheet integration and cache release keys:
   `go test -count=1 ./ui/... -run 'TestPrecisionOperationalStylesAreIntegratedAndPageScoped|TestPrecisionChangedPageAssetsUseReleaseBuildVersion'`.
 - Browser contracts (Chrome or Edge):
-  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|ConfigPrecisionWorkspaceBrowserMatrix'`.
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
+- Config refresh browser coverage uses the real lazy renderers with local API
+  fixtures, every section at five widths in both themes/densities, plus draft,
+  failure, search, disclosure and dialog interactions. Run an individual matrix
+  section with `-run 'TestConfigRefreshRealSectionsBrowser/matrix/server$'`.
 - Full UI: `go test -count=1 ./ui/...`.
 - Generated bundles: `npm run build:ui -- --check`.
 - UI delivery regressions: `npm run test:ui-regressions`.

@@ -92,15 +92,16 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 func TestSpeechLabSectionKeepsAsyncFieldsInNormalFlow(t *testing.T) {
 	css := readSpeechLabUIFile(t, "css/config-workspace.css")
 	for _, wanted := range []string{
-		".pw-page .speech-lab-section {",
+		`.pw-page[data-workspace-page="config"] .speech-lab-section {`,
 		"display: block;",
 		"overflow: visible;",
-		".pw-page .speech-lab-section > .field-group",
+		`.pw-page[data-workspace-page="config"] .speech-lab-section > .field-group`,
 		"position: static;",
-		".pw-page .speech-lab-section .field-input",
+		`.pw-page[data-workspace-page="config"] .speech-lab-section .field-input`,
 		"max-width: 100%;",
-		".pw-page .speech-lab-section .btn-speech-lab {",
-		"linear-gradient(135deg, var(--pw-accent-strong), var(--pw-accent))",
+		`.pw-page[data-workspace-page="config"] .speech-lab-section .btn-speech-lab {`,
+		"color: var(--cfg-on-accent);",
+		"background: var(--pw-accent);",
 	} {
 		if !strings.Contains(css, wanted) {
 			t.Fatalf("Speech Lab layout guard missing %q", wanted)
@@ -119,7 +120,7 @@ func TestSpeechLabASRSelectionUsesExplicitCatalogStage(t *testing.T) {
 }
 
 func TestConfigFieldGroupsKeepLabelCardsInNormalFlow(t *testing.T) {
-	css := readSpeechLabUIFile(t, "css/config.css")
+	css := readSpeechLabUIFile(t, "css/config-workspace.css")
 	start := strings.Index(css, ".field-group {")
 	if start < 0 {
 		t.Fatal("config.css is missing the shared field-group rule")

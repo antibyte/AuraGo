@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Tuto sekci se nepodařilo načíst.",
+  "config.refresh.retry": "Zkusit znovu",
+  "config.refresh.toggle_password": "Zobrazit nebo skrýt heslo",
+  "config.refresh.credential_save": "Přihlašovací údaje ulož tlačítkem vedle pole.",
   "config.header.restart_full": "↻ Restartovat",
   "config.header.restart_tooltip": "Restartovat AuraGo Službu",
   "config.nav.chat": "Povídání",

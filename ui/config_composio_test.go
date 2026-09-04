@@ -30,11 +30,11 @@ func TestConfigComposioAPIKeyParticipatesInNormalConfigSave(t *testing.T) {
 func TestConfigComposioPickerUsesOpaqueModalSurfaces(t *testing.T) {
 	t.Parallel()
 
-	configCSS := strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n")
+	configCSS := strings.ReplaceAll(strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n"), `.pw-page[data-workspace-page="config"] `, "")
 	for _, marker := range []string{
 		".cmp-modal-overlay",
 		"background: rgba(2, 6, 23, 0.86);",
-		"backdrop-filter: blur(8px);",
+		"backdrop-filter: none;",
 		".cmp-modal {\n",
 		"background: var(--bg-primary);",
 		".cmp-list-panel {\n    border-right: 1px solid var(--border-subtle);\n    background: var(--bg-secondary);",
@@ -49,7 +49,7 @@ func TestConfigComposioPickerUsesOpaqueModalSurfaces(t *testing.T) {
 func TestConfigComposioButtonStylesFitLocalizedLabels(t *testing.T) {
 	t.Parallel()
 
-	configCSS := strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n")
+	configCSS := strings.ReplaceAll(strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n"), `.pw-page[data-workspace-page="config"] `, "")
 	for _, marker := range []string{
 		".cmp-toolbar .cfg-save-btn-sm,\n.cmp-modal-controls .cfg-save-btn-sm,\n.cmp-detail-head .cfg-save-btn-sm,\n.cmp-detail-actions .cfg-save-btn-sm",
 		".cmp-secret-row .cfg-save-btn-sm",
@@ -280,7 +280,7 @@ func TestConfigToastsRenderAboveComposioModal(t *testing.T) {
 	t.Parallel()
 
 	sharedCSS := strings.ReplaceAll(readDesktopAssetText(t, "shared-components.css"), "\r\n", "\n")
-	configCSS := strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n")
+	configCSS := strings.ReplaceAll(strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n"), `.pw-page[data-workspace-page="config"] `, "")
 	toastZ := cssZIndex(t, cssBlock(t, sharedCSS, ".toast {"))
 	modalZ := cssZIndex(t, cssBlock(t, configCSS, ".cmp-modal-overlay {"))
 	if toastZ <= modalZ {

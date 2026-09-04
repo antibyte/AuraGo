@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "このセクションを読み込めませんでした。",
+  "config.refresh.retry": "再試行",
+  "config.refresh.toggle_password": "パスワードを表示または非表示",
+  "config.refresh.credential_save": "認証情報はフィールド横のボタンで個別に保存してください。",
   "config.header.restart_full": "↻ 再起動",
   "config.header.restart_tooltip": "AuraGo サービスを再起動",
   "config.nav.chat": "チャット",

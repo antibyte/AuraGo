@@ -17,7 +17,7 @@ func TestConfigUXSaveBarShellAndDirtyTracking(t *testing.T) {
 		`id="saveStatus"`,
 		`class="save-status"`,
 		`id="btnSave"`,
-		`onclick="saveConfig()"`,
+		`data-config-action="save"`,
 		`data-i18n="config.save_bar.save_button"`,
 	} {
 		if !strings.Contains(html, marker) {
@@ -25,7 +25,7 @@ func TestConfigUXSaveBarShellAndDirtyTracking(t *testing.T) {
 		}
 	}
 
-	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css")) + normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
 	for _, marker := range []string{
 		".save-bar {",
 		"env(safe-area-inset-bottom",
@@ -81,7 +81,7 @@ func TestConfigUXSidebarSearchWiring(t *testing.T) {
 		}
 	}
 
-	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css")) + normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
 	for _, marker := range []string{
 		".cfg-sidebar-search {",
 		".cfg-sidebar-search-input:focus",
@@ -147,7 +147,7 @@ func TestConfigUXToggleLabelsUseI18n(t *testing.T) {
 func TestConfigUXMobileSaveBarLayout(t *testing.T) {
 	t.Parallel()
 
-	css := normalizeAssetText(mustReadUIFile(t, "css/config.css"))
+	css := normalizeAssetText(mustReadUIFile(t, "css/config.css")) + normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
 	if !strings.Contains(css, "@media (max-width: 480px)") {
 		t.Fatal("config.css missing 480px breakpoint")
 	}

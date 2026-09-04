@@ -392,13 +392,17 @@ const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 function openSidebar() {
     sidebarEl.classList.add('open');
     sidebarBackdrop.classList.add('open');
-    cfgHamburger.textContent = '✕';
+    cfgHamburger.setAttribute('aria-expanded', 'true');
+    sidebarEl.inert = false;
+    document.getElementById('sidebarSearchInput')?.focus();
 }
 
 function closeSidebar() {
     sidebarEl.classList.remove('open');
     sidebarBackdrop.classList.remove('open');
-    cfgHamburger.textContent = '☰';
+    cfgHamburger.setAttribute('aria-expanded', 'false');
+    sidebarEl.inert = window.matchMedia('(max-width: 1099px)').matches;
+    if (sidebarEl.contains(document.activeElement)) cfgHamburger.focus();
 }
 
 cfgHamburger.addEventListener('click', () => {
@@ -410,6 +414,25 @@ cfgHamburger.addEventListener('click', () => {
 });
 
 sidebarBackdrop.addEventListener('click', closeSidebar);
+const configDrawerMedia = window.matchMedia('(max-width: 1099px)');
+configDrawerMedia.addEventListener('change', () => {
+    if (!configDrawerMedia.matches) {
+        sidebarEl.classList.remove('open');
+        sidebarBackdrop.classList.remove('open');
+        cfgHamburger.setAttribute('aria-expanded', 'false');
+    }
+    sidebarEl.inert = configDrawerMedia.matches && !sidebarEl.classList.contains('open');
+});
+sidebarEl.inert = configDrawerMedia.matches;
+sidebarEl.addEventListener('keydown', event => {
+    if (!configDrawerMedia.matches || !sidebarEl.classList.contains('open')) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeSidebar(); }
+    if (event.key !== 'Tab') return;
+    const controls = [...sidebarEl.querySelectorAll('input, button:not(:disabled)')].filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});
 
 // ── Group collapse state (persisted in localStorage, keyed by group name) ──
 const COLLAPSED_GROUPS_KEY = 'aurago-cfg-groups-collapsed';
@@ -725,8 +748,8 @@ function buildSidebar() {
     search.id = 'sidebarSearch';
     search.innerHTML = `
         <label for="sidebarSearchInput" class="cfg-visually-hidden">${escapeHtml(t('config.sidebar.search_placeholder'))}</label>
-        <span class="cfg-sidebar-search-icon">🔍</span>
-        <input type="text" id="sidebarSearchInput" class="cfg-sidebar-search-input"
+        <svg class="cfg-sidebar-search-icon cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input type="search" id="sidebarSearchInput" class="cfg-sidebar-search-input pw-search"
             placeholder="${escapeHtml(t('config.sidebar.search_placeholder'))}"
             data-i18n-placeholder="config.sidebar.search_placeholder"
             autocomplete="off" spellcheck="false" value="${escapeHtml(sidebarSearchQuery)}">
@@ -868,8 +891,11 @@ function flattenConfigSchemaFields(fields, entries = []) {
 }
 
 function configSearchEntriesForSection(sectionKey) {
-    const sectionSchema = schema.find(entry => entry.yaml_key === sectionKey);
-    return sectionSchema ? flattenConfigSchemaFields(sectionSchema.children || []) : [];
+    const owners = Object.entries(window.AuraConfigCatalog?.searchSections || {});
+    return flattenConfigSchemaFields(schema).filter(field => {
+        const owner = owners.find(([, paths]) => paths.some(path => field.path === path || field.path.startsWith(path + '.')));
+        return (owner ? owner[0] : field.path.split('.')[0]) === sectionKey;
+    });
 }
 
 function configValidationRules() {
@@ -903,7 +929,7 @@ function sidebarItemMatches(item, terms) {
 function matchingConfigFieldPath(item, terms) {
     let entries = [];
     try { entries = JSON.parse(item.dataset.searchFields || '[]'); } catch (_) { }
-    const match = entries.find(entry => {
+    const match = entries.find(entry => terms.every(term => (entry.label || '').toLowerCase().includes(term))) || entries.find(entry => {
         const haystack = [entry.label || '', entry.help || '', entry.path || ''].join(' ').toLowerCase();
         return terms.every(term => haystack.includes(term));
     });
@@ -1127,7 +1153,7 @@ function showUnsavedChangesDecision() {
         });
         document.addEventListener('keydown', onKeyDown);
         document.body.appendChild(overlay);
-        overlay.querySelector('[data-decision="save"]').focus();
+        // The workspace modal controller captures the opener and manages focus.
     });
 }
 
@@ -1195,6 +1221,8 @@ function syncToggleA11y(toggle) {
 
 function enhanceConfigControls(root = document) {
     root.querySelectorAll('.toggle').forEach(toggle => {
+        // Native checkbox switches already own their checked state and keyboard behavior.
+        if (toggle.querySelector('input[type="checkbox"]')) return;
         syncToggleA11y(toggle);
         if (toggle.dataset.a11yBound === 'true') return;
         toggle.dataset.a11yBound = 'true';
@@ -1276,7 +1304,8 @@ function renderConfigOverview() {
 function focusConfigField(path) {
     if (!path) return;
     requestAnimationFrame(() => {
-        const field = document.querySelector('[data-path="' + CSS.escape(path) + '"]');
+        const field = document.querySelector('[data-path="' + CSS.escape(path) + '"]')
+            || (path.startsWith('sip.') ? document.querySelector('[data-sip="' + CSS.escape(path.slice(4)) + '"]') : null);
         if (!field) return;
         let disclosure = field.closest('details');
         while (disclosure) {
@@ -1285,7 +1314,7 @@ function focusConfigField(path) {
         }
         const target = field.closest('.field-group, .pw-field') || field;
         target.classList.add('pw-field-focus');
-        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        target.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
         if (typeof field.focus === 'function') field.focus({ preventScroll: true });
         window.setTimeout(() => target.classList.remove('pw-field-focus'), 1800);
     });
@@ -1302,44 +1331,44 @@ function loadAdvancedSectionState() {
 
 function isAdvancedConfigPath(path) {
     const catalog = window.AuraConfigCatalog || {};
-    const explicit = catalog.sectionTiers && catalog.sectionTiers[path];
-    if (explicit) return explicit === 'advanced';
-    const normalized = String(path || '').toLowerCase();
-    const fieldName = normalized.split('.').pop() || '';
-    return (catalog.advancedPathPatterns || []).some(pattern => fieldName.includes(pattern));
+    return catalog.sectionTiers?.[path] === 'advanced';
 }
 
 function enhanceConfigSectionLayout(key) {
     if (!key || key === 'overview') return;
     const section = document.querySelector('#content > .cfg-section.active');
-    if (!section || section.querySelector(':scope > .pw-advanced')) return;
+    if (!section) return;
+    window.AuraConfigPresentation?.enhance(section);
 
     section.querySelectorAll('.field-group').forEach(group => group.classList.add('pw-field'));
+    const validationRules = configValidationRules();
     const advancedFields = [...section.querySelectorAll('.field-group')].filter(group => {
-        if (group.closest('.modal-overlay, .pw-modal-overlay, .pw-advanced')) return false;
-        if (group.parentElement !== section && !group.parentElement?.classList.contains('pw-panel-body')) return false;
-        if (group.dataset.tier === 'advanced') return true;
-        const control = group.querySelector('[data-path]');
-        return control ? isAdvancedConfigPath(control.dataset.path) : false;
+        if (group.closest('.modal-overlay, .pw-modal-overlay, details')) return false;
+        if (group.querySelector('.field-group, [role="alert"], .cfg-note-banner, .rs-security-note')) return false;
+        const controls = [...group.querySelectorAll('[data-path]')];
+        if (!controls.length || controls.some(control => control.required || validationRules[control.dataset.path]?.required)) return false;
+        return group.dataset.tier === 'advanced' || controls.every(control => isAdvancedConfigPath(control.dataset.path));
     });
-    if (!advancedFields.length) return;
-
     const advancedState = loadAdvancedSectionState();
-    const details = document.createElement('details');
-    details.className = 'pw-advanced';
-    details.open = advancedState[key] === true;
-    const summary = document.createElement('summary');
-    summary.innerHTML = `<span><strong>${escapeHtml(t('config.precision.advanced_title'))}</strong><small>${escapeHtml(t('config.precision.advanced_desc'))}</small></span><span class="pw-disclosure-mark" aria-hidden="true">+</span>`;
-    const body = document.createElement('div');
-    body.className = 'pw-advanced-body';
-    advancedFields.forEach(field => body.appendChild(field));
-    details.append(summary, body);
-    details.addEventListener('toggle', () => {
-        const nextState = loadAdvancedSectionState();
-        nextState[key] = details.open;
-        localStorage.setItem(CONFIG_ADVANCED_KEY, JSON.stringify(nextState));
+    // Preserve topic boundaries and field order: collapse only consecutive sibling fields.
+    advancedFields.forEach(field => {
+        let details = field.previousElementSibling;
+        if (!details?.matches('.pw-advanced[data-config-disclosure]')) {
+            details = document.createElement('details');
+            details.className = 'pw-advanced';
+            details.dataset.configDisclosure = field.querySelector('[data-path]').dataset.path;
+            const stateKey = key + ':' + details.dataset.configDisclosure;
+            details.open = advancedState[stateKey] === true;
+            details.innerHTML = `<summary><span><strong>${escapeHtml(t('config.precision.advanced_title'))}</strong><small>${escapeHtml(t('config.precision.advanced_desc'))}</small></span><span class="pw-disclosure-mark" aria-hidden="true">+</span></summary><div class="pw-advanced-body"></div>`;
+            field.before(details);
+            details.addEventListener('toggle', () => {
+                const nextState = loadAdvancedSectionState();
+                nextState[stateKey] = details.open;
+                try { localStorage.setItem(CONFIG_ADVANCED_KEY, JSON.stringify(nextState)); } catch (_) { /* Presentation remains usable without storage. */ }
+            });
+        }
+        details.querySelector('.pw-advanced-body').appendChild(field);
     });
-    section.appendChild(details);
 }
 
 let configSectionObserverFrame = 0;
@@ -1457,6 +1486,16 @@ function personalitySectionNeedsHelperLLM() {
     return wantsHelper && !(configData.llm && configData.llm.helper_enabled);
 }
 
+function showConfigSectionError(section, error) {
+    console.error('Config section unavailable', section.key, error);
+    const content = document.getElementById('content');
+    content.innerHTML = '<div class="cfg-section active"><h1 class="section-header">' + escapeHtml(section.label) + '</h1>'
+        + '<p class="section-desc">' + escapeHtml(section.desc) + '</p>'
+        + '<div class="cfg-error-state" role="alert">' + escapeHtml(t('config.refresh.load_error')) + '</div>'
+        + '<button type="button" class="btn btn-secondary" data-config-retry>' + escapeHtml(t('config.refresh.retry')) + '</button></div>';
+    content.querySelector('[data-config-retry]').addEventListener('click', () => selectSection(section.key));
+}
+
 async function renderSection(key) {
     if (key === 'overview') {
         renderConfigOverview();
@@ -1476,7 +1515,7 @@ async function renderSection(key) {
     const modInfo = SECTION_MODULES[key];
     if (modInfo) {
         try { await loadModule(modInfo.m); } catch (e) {
-            document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-md">\u274c Module load error: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+            showConfigSectionError(section, e);
             return;
         }
         const fn = window[modInfo.fn];
@@ -1484,8 +1523,7 @@ async function renderSection(key) {
             try {
                 await fn(section);
             } catch (e) {
-                console.error('Config section render failed', key, e);
-                document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-md">\u274c Section render error: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+                showConfigSectionError(section, e);
             }
             return;
         }
@@ -2587,8 +2625,9 @@ function updateSaveDockValidation(valid) {
 
 function clearConfigValidation() {
     document.querySelectorAll('.pw-field-error[data-config-validation]').forEach(element => element.remove());
-    document.querySelectorAll('[aria-invalid="true"][data-path]').forEach(element => {
+    document.querySelectorAll('[aria-invalid="true"][data-path], [aria-invalid="true"][data-config-validation]').forEach(element => {
         element.removeAttribute('aria-invalid');
+        delete element.dataset.configValidation;
         const describedBy = (element.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && !id.endsWith('-validation'));
         if (describedBy.length) element.setAttribute('aria-describedby', describedBy.join(' '));
         else element.removeAttribute('aria-describedby');
@@ -2600,23 +2639,33 @@ function showConfigValidationErrors(errors) {
     let first = null;
     (errors || []).forEach(error => {
         const selector = '[data-path="' + CSS.escape(error.path || '') + '"]';
-        const control = document.querySelector(selector);
+        const control = error.controlId ? document.getElementById(error.controlId) : document.querySelector(selector);
         if (!control) return;
         const id = (control.id || 'cfg-' + (error.path || '').replace(/[^a-z0-9_-]/gi, '-')) + '-validation';
         const message = document.createElement('div');
         message.id = id;
         message.className = 'pw-field-error';
         message.dataset.configValidation = 'true';
+        message.setAttribute('role', 'alert');
         const translated = t('config.precision.validation_' + error.code);
         message.textContent = translated && translated !== 'config.precision.validation_' + error.code ? translated : error.message;
         control.setAttribute('aria-invalid', 'true');
+        control.dataset.configValidation = 'true';
         const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
         describedBy.add(id);
         control.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
         control.insertAdjacentElement('afterend', message);
         if (!first) first = control;
     });
-    if (first) first.focus();
+    if (first) {
+        let disclosure = first.closest('details');
+        while (disclosure) {
+            disclosure.open = true;
+            disclosure = disclosure.parentElement?.closest('details');
+        }
+        first.focus();
+        first.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
 }
 
 function setConfigSaveBusy(busy) {
@@ -2669,13 +2718,11 @@ async function saveConfig() {
                 const detail = (sipStatus && sipStatus.textContent) || t('config.save_bar.error');
                 status.className = 'save-status error';
                 status.textContent = '✗ ' + detail;
-                setTimeout(() => { status.textContent = ''; }, 7000);
                 return false;
             }
             if (!telephoneAgentDirty && !configDirty) {
                 status.className = 'save-status success';
                 status.textContent = '✓ ' + t('config.save_bar.saved');
-                setTimeout(() => { status.textContent = ''; }, 4000);
                 saveSucceeded = true;
                 return true;
             }
@@ -2686,13 +2733,11 @@ async function saveConfig() {
                 const detail = (telephoneStatus && telephoneStatus.textContent) || t('config.save_bar.error');
                 status.className = 'save-status error';
                 status.textContent = '✗ ' + detail;
-                setTimeout(() => { status.textContent = ''; }, 7000);
                 return false;
             }
             if (!configDirty) {
                 status.className = 'save-status success';
                 status.textContent = '✓ ' + t('config.save_bar.saved');
-                setTimeout(() => { status.textContent = ''; }, 4000);
                 saveSucceeded = true;
                 return true;
             }
@@ -2742,7 +2787,6 @@ async function saveConfig() {
                 if (!resetResult.ok) {
                     status.className = 'save-status error';
                     status.textContent = '✗ ' + (resetResult.data.message || t('config.embeddings.reset_error'));
-                    setTimeout(() => { status.textContent = ''; }, 7000);
                     return false;
                 }
             }
@@ -2757,6 +2801,8 @@ async function saveConfig() {
             // Refresh config data and reset dirty state
             // Use a retry loop so a briefly-restarting tunnel (e.g. Cloudflare hot-reload)
             // doesn't cause an HTML response to be parsed as JSON.
+            // The PUT succeeded. Retain its values if the follow-up read is unavailable.
+            if (window.AuraConfigState) configData = window.AuraConfigState.snapshot().draft;
             for (let _i = 0; _i < 4; _i++) {
                 try {
                     const cfgResp = await fetch('/api/config');
@@ -2796,11 +2842,9 @@ async function saveConfig() {
             status.className = 'save-status error';
             status.textContent = '✗ ' + (result.message || t('config.save_bar.error'));
         }
-        setTimeout(() => { status.textContent = ''; }, 5000);
     } catch (e) {
         status.className = 'save-status error';
         status.textContent = '✗ ' + e.message;
-        setTimeout(() => { status.textContent = ''; }, 5000);
     } finally {
         configSaveInFlight = false;
         setConfigSaveBusy(false);
@@ -3063,7 +3107,11 @@ function loadModule(name) {
         const s = document.createElement('script');
         s.src = '/cfg/' + name + '.js?v=' + encodeURIComponent(CONFIG_ASSET_VERSION);
         s.onload = resolve;
-        s.onerror = () => reject(new Error('Failed to load module: ' + name));
+        s.onerror = () => {
+            delete _moduleCache[name];
+            s.remove();
+            reject(new Error('Failed to load module: ' + name));
+        };
         document.head.appendChild(s);
     });
     return _moduleCache[name];

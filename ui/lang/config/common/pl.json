@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Nie udało się załadować tej sekcji.",
+  "config.refresh.retry": "Spróbuj ponownie",
+  "config.refresh.toggle_password": "Pokaż lub ukryj hasło",
+  "config.refresh.credential_save": "Zapisz dane logowania osobno przyciskiem obok pola.",
   "config.header.restart_full": "↻ Restart",
   "config.header.restart_tooltip": "Restart Usługi AuraGo",
   "config.nav.chat": "Czat",

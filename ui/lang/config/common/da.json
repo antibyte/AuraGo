@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Dette område kunne ikke indlæses.",
+  "config.refresh.retry": "Prøv igen",
+  "config.refresh.toggle_password": "Vis eller skjul adgangskode",
+  "config.refresh.credential_save": "Gem adgangsoplysninger separat med knappen ved feltet.",
   "config.header.restart_full": "↻ Genstart",
   "config.header.restart_tooltip": "Genstart AuraGo-tjenesten",
   "config.nav.chat": "Chat",

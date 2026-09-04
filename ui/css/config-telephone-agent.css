@@ -1,8 +1,8 @@
-[data-workspace-page="config"] .telephone-agent-section {
+.pw-page[data-workspace-page="config"] .telephone-agent-section {
     max-width: 1180px;
 }
 
-[data-workspace-page="config"] .ta-status-card {
+.pw-page[data-workspace-page="config"] .ta-status-card {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -14,31 +14,31 @@
     background: color-mix(in srgb, var(--pw-surface, #111827) 92%, transparent);
 }
 
-[data-workspace-page="config"] .ta-status-card.is-ready {
+.pw-page[data-workspace-page="config"] .ta-status-card.is-ready {
     border-color: #4f9b6d;
 }
 
-[data-workspace-page="config"] .ta-status-card.is-blocked {
+.pw-page[data-workspace-page="config"] .ta-status-card.is-blocked {
     border-color: #b7791f;
 }
 
-[data-workspace-page="config"] .ta-status-card strong,
-[data-workspace-page="config"] .ta-status-card span {
+.pw-page[data-workspace-page="config"] .ta-status-card strong,
+.pw-page[data-workspace-page="config"] .ta-status-card span {
     display: block;
 }
 
-[data-workspace-page="config"] .ta-status-card ul {
+.pw-page[data-workspace-page="config"] .ta-status-card ul {
     margin: .5rem 0 0;
     padding-left: 1.25rem;
 }
 
-[data-workspace-page="config"] .ta-grid {
+.pw-page[data-workspace-page="config"] .ta-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
 }
 
-[data-workspace-page="config"] .ta-card {
+.pw-page[data-workspace-page="config"] .ta-card {
     display: grid;
     align-content: start;
     gap: .85rem;
@@ -49,35 +49,35 @@
     border-radius: 12px;
 }
 
-[data-workspace-page="config"] .ta-card-wide {
+.pw-page[data-workspace-page="config"] .ta-card-wide {
     grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-[data-workspace-page="config"] .ta-card-wide legend {
+.pw-page[data-workspace-page="config"] .ta-card-wide legend {
     grid-column: 1 / -1;
 }
 
-[data-workspace-page="config"] .ta-card label {
+.pw-page[data-workspace-page="config"] .ta-card label {
     display: grid;
     gap: .35rem;
     min-width: 0;
 }
 
-[data-workspace-page="config"] .ta-check {
+.pw-page[data-workspace-page="config"] .ta-check {
     display: flex !important;
     align-items: center;
     gap: .55rem !important;
 }
 
-[data-workspace-page="config"] .ta-tools {
+.pw-page[data-workspace-page="config"] .ta-tools {
     display: grid;
     gap: .45rem;
     max-height: 340px;
     overflow: auto;
 }
 
-[data-workspace-page="config"] .ta-tool {
+.pw-page[data-workspace-page="config"] .ta-tool {
     display: grid !important;
     grid-template-columns: auto 1fr;
     align-items: start;
@@ -87,19 +87,19 @@
     border-radius: 8px;
 }
 
-[data-workspace-page="config"] .ta-tool small {
+.pw-page[data-workspace-page="config"] .ta-tool small {
     display: block;
     margin-top: .2rem;
     color: var(--pw-text-muted, #94a3b8);
 }
 
-[data-workspace-page="config"] .ta-hint,
-[data-workspace-page="config"] .ta-empty {
+.pw-page[data-workspace-page="config"] .ta-hint,
+.pw-page[data-workspace-page="config"] .ta-empty {
     margin: 0;
     color: var(--pw-text-muted, #94a3b8);
 }
 
-[data-workspace-page="config"] .ta-actions {
+.pw-page[data-workspace-page="config"] .ta-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -108,21 +108,21 @@
     margin-top: 1rem;
 }
 
-[data-workspace-page="config"] #telephone-agent-status {
+.pw-page[data-workspace-page="config"] #telephone-agent-status {
     margin-right: auto;
 }
 
 @media (max-width: 820px) {
-    [data-workspace-page="config"] .ta-grid,
-    [data-workspace-page="config"] .ta-card-wide {
+    .pw-page[data-workspace-page="config"] .ta-grid,
+.pw-page[data-workspace-page="config"] .ta-card-wide {
         grid-template-columns: 1fr;
     }
 
-    [data-workspace-page="config"] .ta-card-wide {
+    .pw-page[data-workspace-page="config"] .ta-card-wide {
         grid-column: auto;
     }
 
-    [data-workspace-page="config"] .ta-status-card {
+    .pw-page[data-workspace-page="config"] .ta-status-card {
         flex-direction: column;
     }
 }

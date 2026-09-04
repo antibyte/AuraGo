@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Δεν ήταν δυνατή η φόρτωση αυτής της ενότητας.",
+  "config.refresh.retry": "Δοκιμή ξανά",
+  "config.refresh.toggle_password": "Εμφάνιση ή απόκρυψη κωδικού",
+  "config.refresh.credential_save": "Αποθήκευσε τα διαπιστευτήρια ξεχωριστά με το κουμπί δίπλα στο πεδίο.",
   "config.header.restart_full": "↻ Επανεκκίνηση",
   "config.header.restart_tooltip": "Επανεκκίνηση Υπηρεσίας AuraGo",
   "config.nav.chat": "Συνομιλία",

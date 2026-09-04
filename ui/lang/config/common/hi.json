@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "यह अनुभाग लोड नहीं हो सका।",
+  "config.refresh.retry": "फिर कोशिश करें",
+  "config.refresh.toggle_password": "पासवर्ड दिखाएँ या छिपाएँ",
+  "config.refresh.credential_save": "फ़ील्ड के पास दिए बटन से क्रेडेंशियल अलग से सहेजें।",
   "config.header.restart_full": "↻ पुनरारंभ",
   "config.header.restart_tooltip": "AuraGo सेवा पुनरारंभ करें",
   "config.nav.chat": "चैट",

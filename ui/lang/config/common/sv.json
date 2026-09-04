@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Det gick inte att läsa in det här avsnittet.",
+  "config.refresh.retry": "Försök igen",
+  "config.refresh.toggle_password": "Visa eller dölj lösenord",
+  "config.refresh.credential_save": "Spara inloggningsuppgifter separat med knappen bredvid fältet.",
   "config.header.restart_full": "↻ Starta om",
   "config.header.restart_tooltip": "Starta om AuraGo-tjänsten",
   "config.nav.chat": "Chatt",

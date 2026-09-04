@@ -396,9 +396,9 @@ func TestConfigEmbeddingsResetRestartFlowContract(t *testing.T) {
 	jsText := string(js)
 	for _, marker := range []string{
 		`id="cfg-restart-btn"`,
-		`onclick="restartAuraGo()"`,
+		`data-config-action="restart"`,
 		`id="btnSave"`,
-		`onclick="saveConfig()"`,
+		`data-config-action="save"`,
 	} {
 		if !strings.Contains(htmlText, marker) {
 			t.Fatalf("config restart/save flow is missing stable action marker %q", marker)

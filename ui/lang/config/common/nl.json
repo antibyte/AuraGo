@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Dit onderdeel kon niet worden geladen.",
+  "config.refresh.retry": "Opnieuw proberen",
+  "config.refresh.toggle_password": "Wachtwoord tonen of verbergen",
+  "config.refresh.credential_save": "Sla inloggegevens afzonderlijk op met de knop naast het veld.",
   "config.header.restart_full": "↻ Herstarten",
   "config.header.restart_tooltip": "Start de AuraGo-service opnieuw",
   "config.nav.chat": "Chatten",

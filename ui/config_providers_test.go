@@ -15,8 +15,8 @@ func TestConfigProviderActionsUseReadableAccentContrast(t *testing.T) {
 
 	pill := configProviderCSSRuleBody(t, css, ".prov-provider-pill")
 	for _, want := range []string{
-		"background: linear-gradient(135deg, #ccfbf1, #5eead4);",
-		"color: #08312d;",
+		"background: var(--pw-surface-elevated);",
+		"color: var(--pw-text);",
 		"border: 1px solid rgba(20, 184, 166, 0.42);",
 		"text-shadow: none;",
 	} {
@@ -30,9 +30,9 @@ func TestConfigProviderActionsUseReadableAccentContrast(t *testing.T) {
 
 	addButton := configProviderCSSRuleBody(t, css, ".prov-section-actions .btn-save.prov-btn-sm")
 	for _, want := range []string{
-		"background: linear-gradient(135deg, #0f766e, #115e59);",
-		"color: #f0fdfa;",
-		"border: 1px solid rgba(94, 234, 212, 0.42);",
+		"background: var(--pw-accent);",
+		"color: var(--cfg-on-accent);",
+		"border: 1px solid transparent;",
 		"text-shadow: none;",
 	} {
 		if !strings.Contains(addButton, want) {
@@ -45,8 +45,8 @@ func TestConfigCSSCacheBustForProviderContrast(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "config.html")
-	if !strings.Contains(html, `/css/config.css?v=20260815b`) {
-		t.Fatal("config.html must bust config.css cache after personality lived-notes styles")
+	if !strings.Contains(html, `/css/config.css?v={{.BuildVersion}}`) {
+		t.Fatal("config.html must version config.css with the running build")
 	}
 }
 
@@ -413,7 +413,8 @@ func TestConfigProvidersListUsesRolesCompactLimitsAndEditorTabs(t *testing.T) {
 func configProviderCSSRuleBody(t *testing.T, source, selector string) string {
 	t.Helper()
 
-	needle := "\n" + selector + " {"
+	selector = strings.TrimPrefix(selector, `[data-workspace-page="config"] `)
+	needle := "\n" + `.pw-page[data-workspace-page="config"] ` + selector + " {"
 	start := strings.Index(source, needle)
 	if start < 0 {
 		t.Fatalf("config CSS missing selector %q", selector)

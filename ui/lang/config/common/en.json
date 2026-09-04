@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "This section could not be loaded.",
+  "config.refresh.retry": "Try again",
+  "config.refresh.toggle_password": "Show or hide password",
+  "config.refresh.credential_save": "Save credentials separately using the button beside the field.",
   "config.header.restart_full": "↻ Restart",
   "config.header.restart_tooltip": "Restart AuraGo Service",
   "config.nav.chat": "Chat",

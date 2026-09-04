@@ -1,6 +1,7 @@
 // Shared form builder for config section modules.
 (function () {
     'use strict';
+    let fieldID = 0;
 
     function html(value) {
         return typeof escapeHtml === 'function' ? escapeHtml(value == null ? '' : String(value)) : String(value == null ? '' : value);
@@ -23,9 +24,19 @@
         const help = helpText(options);
         const extraClass = options.groupClass ? ' ' + attr(options.groupClass) : '';
         const tier = options.advanced ? ' data-tier="advanced"' : '';
+        const id = options.id || 'cfg-form-' + (++fieldID);
+        const helpID = id + '-help';
+        const labelID = id + '-label';
+        // Preserve integration-owned IDs and request bindings; add accessible names only.
+        controlHTML = controlHTML.replace(/<(input|select|textarea)\b([^>]*)>/, (tag, name, attrs) => {
+            if (!/\bid=/.test(attrs)) attrs += ' id="' + attr(id) + '"';
+            attrs += ' aria-labelledby="' + attr(labelID) + '"';
+            if (help) attrs += ' aria-describedby="' + attr(helpID) + '"';
+            return '<' + name + attrs + '>';
+        });
         return '<div class="field-group pw-field' + extraClass + '"' + tier + '>'
-            + '<div class="field-label">' + html(labelText(options)) + '</div>'
-            + (help ? '<div class="field-help">' + html(help) + '</div>' : '')
+            + '<div class="field-label" id="' + attr(labelID) + '">' + html(labelText(options)) + '</div>'
+            + (help ? '<div class="field-help" id="' + attr(helpID) + '">' + html(help) + '</div>' : '')
             + controlHTML
             + '</div>';
     }
@@ -168,7 +179,7 @@
     function renderSpec(spec) {
         spec = spec || {};
         let out = '<div class="cfg-section active">';
-        out += '<div class="section-header">' + html(spec.label || '') + '</div>';
+        out += '<h1 class="section-header">' + html(spec.label || '') + '</h1>';
         if (spec.desc) out += '<div class="section-desc">' + html(spec.desc) + '</div>';
         if (spec.beforeHTML) out += spec.beforeHTML;
         let fields = '';

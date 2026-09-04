@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Impossible de charger cette section.",
+  "config.refresh.retry": "Réessayer",
+  "config.refresh.toggle_password": "Afficher ou masquer le mot de passe",
+  "config.refresh.credential_save": "Enregistre les identifiants séparément avec le bouton à côté du champ.",
   "config.header.restart_full": "↻ Redémarrer",
   "config.header.restart_tooltip": "Redémarrer le Service AuraGo",
   "config.nav.chat": "Discussion",

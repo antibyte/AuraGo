@@ -3059,7 +3059,7 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read chat.css: %v", err)
 	}
-	configContent, err := os.ReadFile(filepath.Join("css", "config.css"))
+	configContent, err := os.ReadFile(filepath.Join("css", "config-workspace.css"))
 	if err != nil {
 		t.Fatalf("read config.css: %v", err)
 	}
@@ -3106,9 +3106,8 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 
 	configCSS := normalizeAssetText(configContent)
 	for _, marker := range []string{
-		"--safe-area-footer-padding-bottom: 0.7rem;",
-		"--safe-area-footer-padding-bottom: 0.6rem;",
-		"--safe-area-footer-padding-bottom: 0.5rem;",
+		`.pw-page[data-workspace-page="config"] .save-bar {`,
+		"padding: 12px 24px max(12px, env(safe-area-inset-bottom, 0px));",
 	} {
 		if !strings.Contains(configCSS, marker) {
 			t.Fatalf("config.css is missing save-bar spacing marker %q", marker)

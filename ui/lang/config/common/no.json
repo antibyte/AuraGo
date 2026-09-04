@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Denne delen kunne ikke lastes inn.",
+  "config.refresh.retry": "Prøv igjen",
+  "config.refresh.toggle_password": "Vis eller skjul passord",
+  "config.refresh.credential_save": "Lagre påloggingsopplysninger separat med knappen ved feltet.",
   "config.header.restart_full": "↻ Start på nytt",
   "config.header.restart_tooltip": "Start AuraGo-tjenesten på nytt",
   "config.nav.chat": "Chat",

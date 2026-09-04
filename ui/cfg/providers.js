@@ -1815,12 +1815,30 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     const active = tab.getAttribute('data-prov-tab') === id;
                     tab.classList.toggle('is-active', active);
                     tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                    tab.tabIndex = active ? 0 : -1;
                 });
                 panels.forEach(panel => setHidden(panel, panel.getAttribute('data-prov-panel') !== id));
             };
-            tabs.forEach(tab => {
+            tabs.forEach((tab, index) => {
+                const id = tab.dataset.provTab;
+                tab.id = 'prov-tab-' + id;
+                tab.setAttribute('aria-controls', 'prov-panel-' + id);
+                const panel = panels.find(panel => panel.dataset.provPanel === id);
+                if (panel) {
+                    panel.id = 'prov-panel-' + id;
+                    panel.setAttribute('role', 'tabpanel');
+                    panel.setAttribute('aria-labelledby', tab.id);
+                }
                 tab.addEventListener('click', () => activate(tab.getAttribute('data-prov-tab')));
+                tab.addEventListener('keydown', event => {
+                    const next = { ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
+                    if (next == null) return;
+                    event.preventDefault();
+                    activate(tabs[next].dataset.provTab);
+                    tabs[next].focus();
+                });
             });
+            activate(tabs[0].dataset.provTab);
         }
 
         function providerShowModal(title, data, onSave) {
@@ -1873,6 +1891,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 closeProviderModal();
             }
             overlay.onclick = (e) => { if (e.target === overlay) requestCloseProviderModal(); };
+            overlay.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    requestCloseProviderModal();
+                }
+            });
 
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
@@ -2516,7 +2540,13 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             }
 
             // ── Save handlers ──
+            function fieldError(controlId, message) {
+                const panel = document.getElementById(controlId)?.closest('[data-prov-panel]');
+                if (panel) overlay.querySelector('[data-prov-tab="' + panel.dataset.provPanel + '"]')?.click();
+                showConfigValidationErrors([{ controlId, message }]);
+            }
             async function submitProviderModal(connectAfterSave) {
+                clearConfigValidation();
                 const id = document.getElementById('prov-id').value.trim();
                 const name = document.getElementById('prov-name').value.trim();
                 const type = document.getElementById('prov-type').value;
@@ -2527,24 +2557,24 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const auth_type = document.getElementById('prov-auth-type').value;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
-                if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
+                if (!id) { fieldError('prov-id', t('config.providers.id_empty_error')); return; }
                 if (!Number.isInteger(context_window) || context_window < 0 || !Number.isInteger(max_output_tokens) || max_output_tokens < 0) {
-                    showToast(t('config.providers.model_limits_nonnegative_error'), 'warn');
+                    fieldError(!Number.isInteger(context_window) || context_window < 0 ? 'prov-context-window' : 'prov-max-output-tokens', t('config.providers.model_limits_nonnegative_error'));
                     return;
                 }
                 // New provider IDs: lowercase, digits, dots, hyphens, underscores.
                 // Existing legacy IDs (e.g. mixed-case EdenAi) may still re-save.
                 const isExistingID = data._editMode || (providersCache || []).some(p => p.id === id);
                 if (!isExistingID && !/^[a-z0-9][a-z0-9._-]*$/.test(id)) {
-                    showToast(t('config.providers.id_invalid_error', { id }), 'warn');
+                    fieldError('prov-id', t('config.providers.id_invalid_error', { id }));
                     return;
                 }
                 if (type === 'workers-ai') {
-                    if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
+                    if (!account_id) { fieldError('prov-account-id', t('config.providers.account_id_empty_error')); return; }
                 } else if (type === 'manifest' || type === 'omniroute') {
                     // Managed gateway providers are resolved from their integration settings.
                 } else if (!base_url) {
-                    showToast(t('config.providers.url_empty_error'), 'warn'); return;
+                    fieldError('prov-url', t('config.providers.url_empty_error')); return;
                 }
 
                 const entry = { id, name: name || id, type, base_url, model, context_window, max_output_tokens, auth_type, account_id };
@@ -2561,11 +2591,11 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     entry.oauth_scopes = oauthConfig.scopes;
 
                     if (!entry.oauth_client_id) {
-                        showToast(t('config.providers.oauth_required_error'), 'warn');
+                        fieldError('prov-oauth-client-id', t('config.providers.oauth_required_error'));
                         return;
                     }
                     if (!entry.oauth_auth_url || !entry.oauth_token_url) {
-                        showToast(t('config.providers.oauth_endpoint_required_error'), 'warn');
+                        fieldError(!entry.oauth_auth_url ? 'prov-oauth-auth-url' : 'prov-oauth-token-url', t('config.providers.oauth_endpoint_required_error'));
                         return;
                     }
                 } else {

@@ -32,7 +32,7 @@
     <!-- QR code generator for TOTP setup (auth section only) -->
     <script src="/js/vendor/qrcode.min.js" defer></script>
     <link rel="stylesheet" href="/css/tokens.css">
-    <link rel="stylesheet" href="/css/config.css?v=20260815b">
+    <link rel="stylesheet" href="/css/config.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260430a">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
@@ -44,12 +44,12 @@
 </head>
 
 <body class="pw-page" data-workspace-page="config" data-density="comfortable">
-    <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
+    <a href="#content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- Header -->
     <div class="cfg-header">
-        <div class="cfg-logo-wrap">
+        <div class="cfg-logo-wrap header-left">
             <button id="cfg-hamburger" class="hamburger-btn cfg-hamburger" data-i18n-title="config.menu"
-                data-i18n-aria-label="config.toggle_sidebar">☰</button>
+                data-i18n-aria-label="config.toggle_sidebar" aria-controls="sidebar" aria-expanded="false"><svg class="cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
             <a href="/" class="logo">
                 <div class="logo-icon">⚡</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
@@ -65,9 +65,9 @@
                 </svg>
                 <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
             </button>
-            <button id="cfg-restart-btn" class="btn-header cfg-restart-btn cfg-restart-danger" onclick="restartAuraGo()">
+            <button id="cfg-restart-btn" type="button" class="btn-header cfg-restart-btn cfg-restart-danger" data-config-action="restart">
                 <span class="cfg-restart-full" data-i18n="config.header.restart_full"></span>
-                <span class="cfg-restart-short">↻</span>
+                <svg class="cfg-restart-short cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-3-3" /></svg>
             </button>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
@@ -76,15 +76,15 @@
     <div id="radialMenuAnchor"></div>
 
     <!-- Layout -->
-    <div class="cfg-layout" id="main-content">
+    <div class="cfg-layout">
         <!-- Sidebar backdrop (mobile) -->
         <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
         <!-- Sidebar -->
-        <div class="cfg-sidebar" id="sidebar"></div>
+        <nav class="cfg-sidebar" id="sidebar" data-i18n-aria-label="config.menu"></nav>
 
         <!-- Content -->
-        <div class="cfg-content" id="content">
+        <main class="cfg-content pw-page-frame" id="content" tabindex="-1">
             <div class="cfg-loading-state">
                 <div class="cfg-skeleton-header">
                     <div class="skeleton pw-skeleton-title"></div>
@@ -107,7 +107,7 @@
                     <div class="skeleton pw-skeleton-control-60"></div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <!-- Save bar -->
@@ -119,7 +119,7 @@
         </div>
         <span class="changes-pill" id="changesPill" data-i18n="config.save_bar.unsaved_changes"></span>
         <span class="save-status" id="saveStatus" role="status" aria-live="polite" aria-atomic="true"></span>
-        <button type="button" class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
+        <button type="button" class="btn-save" id="btnSave" data-config-action="save" disabled data-i18n="config.save_bar.save_button"></button>
     </div>
 
     <script src="/js/config/catalog.js?v={{.BuildVersion}}"></script>
@@ -129,6 +129,7 @@
     <script src="/cfg/form-builder.js?v={{.BuildVersion}}"></script>
     <script src="/js/config/utils.js?v={{.BuildVersion}}"></script>
     <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
+    <script src="/js/config/presentation.js?v={{.BuildVersion}}"></script>
     <script src="/js/config/main.js?v={{.BuildVersion}}"></script>
 
     <!-- Vault delete confirmation modal -->

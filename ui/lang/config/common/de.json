@@ -1,4 +1,8 @@
 {
+  "config.refresh.load_error": "Dieser Bereich konnte nicht geladen werden.",
+  "config.refresh.retry": "Erneut versuchen",
+  "config.refresh.toggle_password": "Passwort ein- oder ausblenden",
+  "config.refresh.credential_save": "Speichere Zugangsdaten separat mit der Schaltfläche am Feld.",
   "config.header.restart_full": "↻ Neustart",
   "config.header.restart_tooltip": "AuraGo Service Neustarten",
   "config.nav.chat": "Chatten",
