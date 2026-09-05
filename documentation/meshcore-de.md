@@ -33,8 +33,12 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
    Kanäle freigeben. Antworten benötigen diese Freigabe nicht; das Laufzeitsystem
    bindet ihre Zieladresse unveränderlich an den Eingang.
 
-Unter Linux benötigt das AuraGo-Dienstkonto Zugriff auf das konkrete serielle
-Gerät. Unter macOS eignen sich `/dev/cu.*`-Ports, unter Windows beispielsweise
+Unter Linux richten der One-Liner-Installer, `install_service_linux.sh` und
+`update.sh` den USB-Zugriff für den systemd-Dienst automatisch über vorhandene
+`dialout`-/`uucp`-Gruppen ein. Die Berechtigung gilt ab dem Dienststart; eine
+erneute Benutzeranmeldung ist nicht nötig. Bei `--no-restart` gilt sie erst
+nach dem nächsten Neustart des Dienstes. Manuelle Starts ohne systemd benötigen
+weiterhin passende Geräteberechtigungen. Unter macOS eignen sich `/dev/cu.*`-Ports, unter Windows beispielsweise
 `COM3`. Docker benötigt eine ausdrückliche Gerätedurchreichung:
 
 ```yaml

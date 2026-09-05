@@ -31,8 +31,12 @@ radio-parameter changes are included.
    keys or channels. Automatic replies do not require proactive permission;
    their destination is fixed internally to the incoming node or channel.
 
-For Linux USB, grant the AuraGo service account access to the specific serial
-device, commonly through its serial-device group. On macOS use `/dev/cu.*`; on
+On Linux, the one-line installer, `install_service_linux.sh`, and `update.sh`
+automatically grant the systemd service USB access through existing `dialout`/
+`uucp` groups. Permissions take effect when the service starts, without a new
+login. With `--no-restart`, they take effect on the next service restart.
+Manual starts without systemd still require suitable device permissions.
+On macOS use `/dev/cu.*`; on
 Windows use a port such as `COM3`. For Docker, explicitly pass the device, e.g.:
 
 ```yaml

@@ -92,6 +92,18 @@ systemd_gpu_groups_line() {
     fi
 }
 
+systemd_serial_groups_line() {
+    local groups=() group_name
+    for group_name in dialout uucp; do
+        if system_group_exists "$group_name"; then
+            groups+=("$group_name")
+        fi
+    done
+    if [ "${#groups[@]}" -gt 0 ]; then
+        printf 'SupplementaryGroups=%s' "${groups[*]}"
+    fi
+}
+
 systemd_escape_path_value() {
     local value="$1"
     local escaped=""
@@ -241,6 +253,10 @@ fi
 
 # 4. Create Systemd Service File
 GPU_GROUPS_LINE="$(systemd_gpu_groups_line)"
+SERIAL_GROUPS_LINE="$(systemd_serial_groups_line)"
+if [ -n "$SERIAL_GROUPS_LINE" ]; then
+    info "Granting the service USB serial access: ${SERIAL_GROUPS_LINE#SupplementaryGroups=}"
+fi
 GPU_GROUP_IDS="$(system_gpu_group_ids)"
 GPU_GROUP_IDS_LINE=""
 NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"
@@ -278,6 +294,7 @@ Type=simple
 User=$(id -un "${SUDO_USER:-root}")
 Group=$(id -gn "${SUDO_USER:-root}")
 ${GPU_GROUPS_LINE}
+${SERIAL_GROUPS_LINE}
 ${GPU_GROUP_IDS_LINE}
 WorkingDirectory=${SYSTEMD_INSTALL_DIR}
 ExecStart=${SYSTEMD_BINARY_PATH} --config ${SYSTEMD_CONFIG_PATH}

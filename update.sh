@@ -164,6 +164,18 @@ systemd_gpu_groups_line() {
     fi
 }
 
+systemd_serial_groups_line() {
+    local groups=() group_name
+    for group_name in dialout uucp; do
+        if system_group_exists "$group_name"; then
+            groups+=("$group_name")
+        fi
+    done
+    if [ "${#groups[@]}" -gt 0 ]; then
+        printf 'SupplementaryGroups=%s' "${groups[*]}"
+    fi
+}
+
 ensure_private_update_runtime_dir() {
     local dir="/tmp/aurago-update-$(id -u)"
     if [ -e "$dir" ] && [ ! -d "$dir" ]; then
@@ -2062,11 +2074,14 @@ fi
 # Keep systemd's stop deadline slightly above AuraGo's 45-second internal
 # shutdown deadline. A dedicated drop-in avoids position-dependent edits to
 # legacy service files.
+# Also grant host USB serial access through this backed-up, verified drop-in.
+# SupplementaryGroups entries accumulate; account memberships and GPU IDs stay unchanged.
 if [ -f "$SVC_FILE" ]; then
     _dropin_tmp="$(mktemp)"
     printf '%s\n' \
         '[Service]' \
-        'TimeoutStopSec=60s' > "$_dropin_tmp"
+        'TimeoutStopSec=60s' \
+        "$(systemd_serial_groups_line)" > "$_dropin_tmp"
     if ! $SUDO mkdir -p "$SYSTEMD_DROPIN_DIR" ||
        ! $SUDO install -o root -g root -m 0644 "$_dropin_tmp" "$SYSTEMD_STOP_TIMEOUT_DROPIN"; then
         rm -f -- "$_dropin_tmp"
@@ -2080,6 +2095,7 @@ if [ -f "$SVC_FILE" ]; then
         abort_update "systemd rejected the AuraGo service configuration after installing the stop-timeout drop-in."
     fi
     ok "Service stop timeout drop-in verified at 60 seconds."
+    ok "Service USB serial access configured for available dialout/uucp groups."
 fi
 
 # ── Service restart ────────────────────────────────────────────────────

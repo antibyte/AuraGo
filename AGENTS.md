@@ -430,6 +430,7 @@ Tools are defined in `internal/tools/`:
 - `HistoryManager.CurrentSummary` belongs exclusively to chat context compression. Nightly maintenance must not use an LLM reflection loop to overwrite it; maintenance state is stored in the structured maintenance ledger and typed morning notification instead.
 
 ### MeshCore Integration Contract
+- Linux systemd installers and updates automatically grant existing `dialout`/`uucp` groups to the service for USB serial access, without changing login-account memberships or forwarding serial groups to GPU containers. Updates use the backed-up, verified service drop-in before restart; preserve rollback and `--no-restart` behavior.
 - `internal/meshcore` owns one Companion device, versioned SQLite inbox/execution reservations, framed USB (115200 baud) and native Linux BlueZ BLE. Docker allows explicit USB passthrough only. Hardware acceptance remains unverified until real platform tests pass.
 - Bind permissions to the confirmed full device identity and keyed channel fingerprint. Trust is full-key, unambiguous synchronized chat contacts sending direct plain text only; names, channel senders, signed-plain and room-forwarded messages never authorize actions.
 - Every text input uses static injection checks and a strict successful Guardian content verdict, or an isolated tool-free main-model scan only when Guardian is disabled. Errors, truncation and tool calls quarantine input regardless of global `fail_safe: allow`. No global slash-command interception.
