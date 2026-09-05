@@ -221,6 +221,9 @@ images, and browser-oriented regression tests.
   preserve source provenance in `img/galaxy/CREDITS.md`. LCARS rules belong
   only under `[data-theme="galaxy"]` in `css/chat-themes.css`; keep Geist for
   chat prose, local Barlow for labels, actual status signals and 44px targets.
+  Use rectangular controls with 3px corners; reserve large curves for frame
+  elbows. The desktop composer toolbar shares the footer's black surface
+  without a panel border; only the mobile popover has a colored top edge.
 
 ## Work Guidance
 

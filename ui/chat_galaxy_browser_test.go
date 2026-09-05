@@ -107,6 +107,13 @@ document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset
 document.querySelectorAll('[data-i18n-aria-label]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.i18nAriaLabel)));
 document.getElementById('chat-content').innerHTML='<div class="greeting-row"><div class="greeting-text">GALAXY</div></div><div class="msg-row bot"><div class="avatar bot">A</div><div class="message-stack"><div class="bubble bot"><p>Willkommen an Bord.</p><p>Wir halten Position im Orbit. Die Galaxie liegt vor uns – womit darf ich dir helfen?</p></div></div></div><div class="msg-row user"><div class="message-stack"><div class="bubble user">Zeig mir, was heute wichtig ist.</div></div><div class="avatar human">Du</div></div><div class="msg-row bot"><div class="avatar bot">A</div><div class="message-stack"><div class="bubble bot"><p><strong>Alles im Blick.</strong></p><p>Deine Projekte, Termine und Ideen. Bereit, gemeinsam den nächsten Schritt zu gehen.</p></div></div></div>';
 document.getElementById('user-input').placeholder='Nachricht schreiben …';
+document.getElementById('tokenCounter').textContent='0 Token';
+document.getElementById('moodText').textContent='Besorgt';
+document.getElementById('moodToggle').style.display='flex';
+document.getElementById('debug-pill').textContent='debuggen';
+document.getElementById('connectionPill').textContent='Verbunden';
+document.getElementById('logout-btn').classList.remove('is-hidden');
+document.getElementById('logout-btn').textContent='Abmelden';
 document.getElementById('chat-form').addEventListener('submit',e=>{e.preventDefault();window.__submitted=document.getElementById('user-input').value});
 SessionDrawer.init();initTheme();initChatThemePicker();
 </script><script src="/js/chat/theme-effects.js"></script>`
@@ -194,16 +201,27 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	}
 	p.MustElement("#chat-box").MustHover()
 
-	for _, size := range [][2]int{{1920, 1080}, {2560, 1440}, {390, 844}, {430, 932}} {
+	for _, size := range [][2]int{{1920, 1080}, {2560, 1440}, {768, 1024}, {1024, 768}, {390, 844}, {430, 932}} {
 		p.MustSetViewport(size[0], size[1], 1, size[0] < 768)
 		p.MustReload().MustWaitLoad()
 		ready()
 		p.MustEval(`() => document.fonts.ready`)
+		p.MustEval(`() => document.querySelector('.header-actions').scrollLeft=0`)
 		check(`() => {
             const g=__galaxy.stats();const buttons=[...document.querySelectorAll('.app-header button:not(.chat-theme-option),.btn-composer-primary,.session-edge-tab,.integrations-edge-tab')].filter(e=>e.getClientRects().length && getComputedStyle(e).visibility!=='hidden');
             return document.body.scrollWidth<=innerWidth && g.width*g.height<=3840*2160 && g.stars===(innerWidth<768?850:3500) && buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44});
         }`, fmt.Sprintf("layout, touch target or resolution budget at %v", size))
 		artifact(fmt.Sprintf("galaxy-%dx%d", size[0], size[1]))
+		// Exercise the visible tool strip; the normal fixture starts collapsed on mobile.
+		p.MustEval(`async () => {const panel=document.getElementById('composer-panel');panel.classList.remove('is-hidden');await Promise.all(panel.getAnimations().map(a=>a.finished))}`)
+		artifact(fmt.Sprintf("galaxy-toolbar-%dx%d", size[0], size[1]))
+		check(`() => {
+            const panel=document.getElementById('composer-panel'),style=getComputedStyle(panel),footer=getComputedStyle(document.querySelector('.app-footer'));
+            const buttons=[...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn,#chat-theme-btn,#speaker-toggle,#warnings-btn')].filter(e=>e.getClientRects().length);
+            const controls=buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44 && parseFloat(getComputedStyle(e).borderTopLeftRadius)<=3});
+            const input=document.getElementById('user-input').getBoundingClientRect(),send=document.getElementById('send-btn').getBoundingClientRect();
+            return controls && send.right<=innerWidth && input.width>=100 && input.right<=send.left && style.backgroundColor===footer.backgroundColor && (innerWidth<768 || style.borderTopWidth==='0px');
+        }`, fmt.Sprintf("LCARS toolbar geometry or continuous footer surface at %v: %s", size, p.MustEval(`() => JSON.stringify([...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn')].filter(e=>e.getClientRects().length).map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,radius:getComputedStyle(e).borderTopLeftRadius})))`).Str()))
 	}
 	p.MustSetViewport(2560, 1440, 2, false)
 	p.MustReload().MustWaitLoad()
@@ -247,12 +265,12 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	// Add bounded CPU work to real rendered frames, independently of the FPS
 	// measurement. This catches scheduler/quality integration, not just the formula.
 	quality := p.MustEval(`async () => {
-        const r=__galaxy.runtime,render=r.renderer.render.bind(r.renderer);r.sampleTime=r.sampleFrames=0;
-        r.renderer.render=(...args)=>{render(...args);const end=performance.now()+45;while(performance.now()<end){}};
+        const r=__galaxy.runtime,render=r.renderer.render.bind(r.renderer),work=Math.max(45,r.frameBudget*2000);r.sampleTime=r.sampleFrames=0;
+        r.renderer.render=(...args)=>{render(...args);const end=performance.now()+work;while(performance.now()<end){}};
         try {await new Promise(resolve=>setTimeout(resolve,5000))} finally {r.renderer.render=render}
         return r.quality;
     }`).Num()
-	t.Logf("45 ms CPU load per frame, 5 seconds: quality %.2f", quality)
+	t.Logf("CPU load at twice the measured frame budget (minimum 45 ms), 5 seconds: quality %.2f", quality)
 	check(`() => __galaxy.runtime.quality<1 && __galaxy.runtime.quality>=0.65 && __galaxy.runtime.canvas.width<1920`, "slow frames did not reduce resolution")
 
 	p.MustEval(`() => {window.__gl=__galaxy.runtime.renderer.getContext();window.__loss=__gl.getExtension('WEBGL_lose_context');__loss.loseContext()}`)
