@@ -66,6 +66,9 @@
   "config.meshcore.channels_help": "Confirma la asignación del canal antes de responder o enviar de forma proactiva. Un cambio de dispositivo o canal bloquea la automatización hasta reasignarlo.",
   "config.meshcore.ble_help": "Solo BlueZ en Linux, no disponible en Docker. Activa Bluetooth y permite cambios de emparejamiento en sus ajustes. No requiere permisos de audio. El PIN solo se usa para emparejar y nunca se guarda.",
   "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.select_port": "Seleccionar puerto",
+  "config.meshcore.no_ports": "No se encontraron puertos serie",
+  "config.meshcore.port_unavailable": "no encontrado",
   "config.meshcore.searching": "Buscando dispositivos…",
   "config.meshcore.use_device": "Usar dispositivo"
 }

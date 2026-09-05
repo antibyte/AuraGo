@@ -14,8 +14,8 @@ function renderMeshCoreSection(section) {
         groups: [
             { titleKey: 'config.refresh.connection', fields: [toggle('enabled'),
                 form.select({ path: 'meshcore.transport', label: tr('transport'), value: data.transport || 'usb', options: [{ value: 'usb', label: 'USB' }, { value: 'ble', label: 'Bluetooth / Linux' }] }),
-                field('port'), field('address')], content: '<div id="meshcore-device"></div>' + form.actions([{ html: button('refresh', 'refresh') + button('test', 'test') + button('confirm', 'confirm') }])
-                    + '<p id="meshcore-saved-reason" class="field-help" hidden></p><div id="meshcore-ports"></div>'
+                form.select({ path: 'meshcore.port', label: tr('port'), value: data.port || '', options: [{ value: '', label: t('config.common.loading') }, ...(data.port ? [{ value: data.port, label: data.port }] : [])] }), field('address')], content: '<div id="meshcore-device"></div>' + form.actions([{ html: button('refresh', 'refresh') + button('test', 'test') + button('confirm', 'confirm') }])
+                    + '<p id="meshcore-saved-reason" class="field-help" hidden></p>'
                     + form.disclosure({ title: tr('pairing'), className: 'meshcore-pairing', content: form.note({ text: tr('ble_help') }) + form.password({ id: 'meshcore-pin', label: tr('pin') }).replace('autocomplete="off"', 'autocomplete="off" maxlength="16"') + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery" role="region" aria-label="' + escapeHtml(tr('scan')) + '" aria-busy="false"></div>' }) },
             { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content: '<div id="meshcore-contacts"></div>' },
             { title: tr('channels'), content: form.note({ text: tr('channels_help') }) + '<div id="meshcore-channels"></div>' },
@@ -29,6 +29,16 @@ function renderMeshCoreSection(section) {
     let busy = false;
     let lastPageSize = 0;
     const status = root.querySelector('#meshcore-status');
+    const portSelect = root.querySelector('select[data-path="meshcore.port"]');
+    function renderPorts(ports) {
+        const selected = draft().port || '';
+        const found = ports === null ? null : [...new Set((Array.isArray(ports) ? ports : []).filter(port => typeof port === 'string' && port.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        portSelect.replaceChildren(new Option(tr(found === null ? 'failed' : found.length ? 'select_port' : 'no_ports'), ''));
+        for (const port of found || []) portSelect.add(new Option(port, port));
+        if (selected && !found?.includes(selected)) portSelect.add(new Option(selected + (found ? ' (' + tr('port_unavailable') + ')' : ''), selected));
+        portSelect.value = selected;
+        portSelect.setAttribute('aria-busy', 'false');
+    }
     function set(path, value) {
         if (path === 'trusted_nodes' || path === 'send_nodes') root.querySelector('[data-path="meshcore.' + path + '"]').value = value.join('\n');
         else if (typeof value === 'string') {
@@ -166,10 +176,11 @@ function renderMeshCoreSection(section) {
         lockActions();
     }
     async function refresh() {
+        portSelect.setAttribute('aria-busy', 'true');
         const results = await Promise.allSettled([request('status'), request('devices'), inbox()]);
         if (!root.isConnected) return;
         if (results[0].status === 'fulfilled') { runtime = results[0].value; renderRuntime(); } else { runtime = null; status.textContent = tr('failed'); }
-        if (results[1].status === 'fulfilled') root.querySelector('#meshcore-ports').textContent = tr('port') + ': ' + (results[1].value.ports || []).join(', ');
+        renderPorts(results[1].status === 'fulfilled' ? results[1].value.ports || [] : null);
         if (results.some(result => result.status === 'rejected')) status.textContent = tr('failed');
         lockActions();
     }

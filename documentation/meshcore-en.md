@@ -8,9 +8,11 @@ radio-parameter changes are included.
 ## Setup
 
 1. Install the Companion firmware appropriate for USB or BLE on your device.
-2. Open **Settings → MeshCore**. Select the transport, enter the serial port or
+2. Open **Settings → MeshCore**. Select the transport, choose a serial port or enter a
    Bluetooth address, enable the integration, and save. USB uses 115200 baud.
    The port list uses basic enumeration, without macOS CGO USB-detail discovery.
+   **Refresh** reloads the dropdown; a previously selected, missing port stays
+   selected and is marked as unavailable.
 3. For BLE, explicitly pair the selected device first. You can save a BLE
    address while MeshCore is disabled, search and pair, then enable MeshCore.
    The existing Bluetooth settings must permit discovery/pairing; audio access

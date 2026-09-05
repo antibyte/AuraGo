@@ -66,6 +66,9 @@
   "config.meshcore.channels_help": "Bekräfta varje kanalkoppling före svar eller proaktiv sändning. Enhets- eller kanaländringar blockerar automatik tills kopplingen bekräftas igen.",
   "config.meshcore.ble_help": "Endast Linux BlueZ, inte tillgängligt i Docker. Aktivera Bluetooth och tillåt ändringar för parkoppling i inställningarna. Ljudbehörighet behövs inte. PIN används endast för parkoppling och sparas aldrig.",
   "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.select_port": "Välj port",
+  "config.meshcore.no_ports": "Inga serieportar hittades",
+  "config.meshcore.port_unavailable": "hittades inte",
   "config.meshcore.searching": "Söker efter enheter…",
   "config.meshcore.use_device": "Använd enhet"
 }

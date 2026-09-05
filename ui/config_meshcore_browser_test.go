@@ -30,6 +30,7 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	page.MustEval(`() => {
         const original = window.fetch;
         window.meshRequests = [];
+        window.meshPorts = ['COM3', 'COM10', 'COM4', 'COM4'];
         const settings = {...configData.meshcore, enabled:true, port:'COM3', channels:[{index:7,mode:'prefix',binding:'55'.repeat(32)}]};
         configData.meshcore = settings; AuraConfigState.init(configData);
         window.fetch = async (url, options={}) => {
@@ -41,7 +42,10 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
             let body = {};
             if (url.endsWith('/status')) body={status:state,config:settings,ble_supported:true};
             if (url.endsWith('/test')) body={status:state};
-            if (url.endsWith('/devices')) body={ports:['COM3']};
+            if (url.endsWith('/devices')) {
+                if (window.meshPortsFail) throw Error('port enumeration unavailable');
+                body={ports:window.meshPorts};
+            }
             if (url.endsWith('/scan')) {
                 if (window.meshScanFails) throw Error('discovery unavailable');
                 await new Promise(resolve=>{window.meshCompleteScan=resolve;});
@@ -58,6 +62,22 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-mesh-action="test"]`).MustClick()
 	waitForJSBool(t, page, `() => meshRequests.some(r=>r.url.endsWith('/test')) && !document.querySelector('[data-mesh-action="confirm"]').disabled`)
+	if !page.MustEval(`() => {const port=document.querySelector('select[data-path="meshcore.port"]');return port.value==='COM3' && JSON.stringify([...port.options].map(o=>o.value))==='["","COM3","COM4","COM10"]';}`).Bool() {
+		t.Fatal("serial port dropdown did not list detected ports")
+	}
+	page.MustEval(`() => {const port=document.querySelector('[data-path="meshcore.port"]');port.value='COM4';port.dispatchEvent(new Event('change',{bubbles:true}));window.meshPorts=null;}`)
+	if !page.MustEval(`() => AuraConfigState.buildPatch().meshcore.port==='COM4' && document.querySelector('[data-mesh-action="test"]').disabled`).Bool() {
+		t.Fatal("port selection did not enter the config draft")
+	}
+	page.MustElement(`[data-mesh-action="refresh"]`).MustClick()
+	waitForJSBool(t, page, `() => {const port=document.querySelector('[data-path="meshcore.port"]');return port.getAttribute('aria-busy')==='false' && port.value==='COM4' && port.selectedOptions[0].textContent.includes(t('config.meshcore.port_unavailable')) && port.options[0].textContent===t('config.meshcore.no_ports');}`)
+	page.MustEval(`() => {window.meshPortsFail=true;}`)
+	page.MustElement(`[data-mesh-action="refresh"]`).MustClick()
+	waitForJSBool(t, page, `() => {const port=document.querySelector('[data-path="meshcore.port"]');return port.getAttribute('aria-busy')==='false' && port.options[0].textContent===t('config.meshcore.failed') && port.value==='COM4' && AuraConfigState.get('meshcore.port')==='COM4';}`)
+	page.MustEval(`() => {window.meshPortsFail=false;window.meshPorts=['COM3','COM4'];const port=document.querySelector('[data-path="meshcore.port"]');port.value='';port.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustElement(`[data-mesh-action="refresh"]`).MustClick()
+	waitForJSBool(t, page, `() => {const port=document.querySelector('[data-path="meshcore.port"]');return port.getAttribute('aria-busy')==='false' && port.options.length===3 && port.value==='' && AuraConfigState.get('meshcore.port')==='';}`)
+	page.MustEval(`() => {const port=document.querySelector('[data-path="meshcore.port"]');port.value='COM3';port.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustElement(`.meshcore-pairing summary`).MustClick()
 	page.MustElement(`[data-mesh-action="scan"]`).MustClick()
 	waitForJSBool(t, page, `() => !!window.meshCompleteScan && !!document.querySelector('#meshcore-discovery .spinner') && document.querySelector('#meshcore-discovery').getAttribute('aria-busy')==='true' && document.querySelector('[data-mesh-action="scan"]').disabled`)

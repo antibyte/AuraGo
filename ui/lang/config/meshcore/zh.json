@@ -66,6 +66,9 @@
   "config.meshcore.channels_help": "启用回复或主动发送前，请确认每个频道的绑定。设备或频道发生变化后，将停止自动处理，直到重新绑定。",
   "config.meshcore.ble_help": "仅支持 Linux BlueZ，Docker 中不可用。请启用蓝牙，并在蓝牙设置中允许配对修改。无需音频权限。PIN 仅用于本次配对，绝不保存。",
   "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.select_port": "选择端口",
+  "config.meshcore.no_ports": "未找到串行端口",
+  "config.meshcore.port_unavailable": "未找到",
   "config.meshcore.searching": "正在搜索设备…",
   "config.meshcore.use_device": "使用此设备"
 }

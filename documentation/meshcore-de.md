@@ -11,6 +11,8 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
    installiert sein.
 2. **Einstellungen → MeshCore** öffnen, Transport und seriellen Port beziehungsweise
    Bluetooth-Adresse wählen, aktivieren und speichern. USB verwendet 115200 Baud.
+   Das Port-Dropdown zeigt die gefundenen seriellen Anschlüsse; **Aktualisieren**
+   liest sie erneut ein. Ein zuvor gewählter, fehlender Port bleibt markiert erhalten.
 3. BLE-Geräte vorher ausdrücklich koppeln. Dazu lässt sich die BLE-Adresse bei
    noch deaktivierter MeshCore-Integration speichern. Die Bluetooth-Einstellungen
    müssen Suche und Kopplung erlauben; eine Audiofreigabe ist nicht erforderlich.

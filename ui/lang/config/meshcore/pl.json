@@ -66,6 +66,9 @@
   "config.meshcore.channels_help": "Potwierdź powiązanie kanału przed odpowiedziami lub wysyłaniem proaktywnym. Zmiana urządzenia lub kanału blokuje automatykę do ponownego powiązania.",
   "config.meshcore.ble_help": "Tylko Linux BlueZ, niedostępne w Dockerze. Włącz Bluetooth i zezwól na zmiany parowania w ustawieniach. Uprawnienia audio nie są potrzebne. PIN służy tylko do parowania i nie jest zapisywany.",
   "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.select_port": "Wybierz port",
+  "config.meshcore.no_ports": "Nie znaleziono portów szeregowych",
+  "config.meshcore.port_unavailable": "nie znaleziono",
   "config.meshcore.searching": "Wyszukiwanie urządzeń…",
   "config.meshcore.use_device": "Użyj urządzenia"
 }

@@ -66,6 +66,9 @@
   "config.meshcore.channels_help": "返信や能動的な送信を有効にする前にチャンネルの割り当てを確認してください。デバイスやチャンネルが変わると、再割り当てまで自動処理が停止します。",
   "config.meshcore.ble_help": "Linux BlueZのみ。Dockerでは利用できません。Bluetoothを有効にし、設定でペアリングの変更を許可してください。音声権限は不要です。PINはペアリングにのみ使い、保存しません。",
   "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.select_port": "ポートを選択",
+  "config.meshcore.no_ports": "シリアルポートが見つかりません",
+  "config.meshcore.port_unavailable": "見つかりません",
   "config.meshcore.searching": "デバイスを検索中…",
   "config.meshcore.use_device": "このデバイスを使用"
 }

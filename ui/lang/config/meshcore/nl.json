@@ -66,6 +66,9 @@
   "config.meshcore.channels_help": "Bevestig elke kanaaltoewijzing voordat antwoorden of proactief verzenden worden ingeschakeld. Een apparaat- of kanaalwijziging blokkeert automatisering tot hertoewijzing.",
   "config.meshcore.ble_help": "Alleen Linux BlueZ, niet beschikbaar in Docker. Schakel Bluetooth in en sta koppelingen toe in de Bluetooth-instellingen. Audiorechten zijn niet nodig. De PIN wordt alleen voor koppelen gebruikt en nooit opgeslagen.",
   "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.select_port": "Poort selecteren",
+  "config.meshcore.no_ports": "Geen seriële poorten gevonden",
+  "config.meshcore.port_unavailable": "niet gevonden",
   "config.meshcore.searching": "Apparaten zoeken…",
   "config.meshcore.use_device": "Apparaat gebruiken"
 }
