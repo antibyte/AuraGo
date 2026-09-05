@@ -65,5 +65,7 @@
   "config.meshcore.keys_help": "Én full offentlig nøkkel på 64 tegn per linje. Navn og kanalavsendere gir aldri tillit.",
   "config.meshcore.channels_help": "Bekreft hver kanaltilknytning før svar eller proaktiv sending. Enhets- eller kanalendringer blokkerer automatikk til ny tilknytning.",
   "config.meshcore.ble_help": "Kun Linux BlueZ, ikke tilgjengelig i Docker. Aktiver Bluetooth og tillat endringer for paring i innstillingene. Lydtillatelse er unødvendig. PIN brukes bare til paring og lagres aldri.",
-  "config.section.meshcore.label": "MeshCore"
+  "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.searching": "Søker etter enheter…",
+  "config.meshcore.use_device": "Bruk enhet"
 }

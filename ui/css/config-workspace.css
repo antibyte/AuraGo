@@ -1512,6 +1512,52 @@
 .pw-page[data-workspace-page="config"] #meshcore-inbox p {
     overflow-wrap: anywhere;
 }
+.pw-page[data-workspace-page="config"] .meshcore-intro {
+    display: grid;
+    gap: 16px;
+    margin-bottom: var(--cfg-card-padding);
+}
+.pw-page[data-workspace-page="config"] .meshcore-pairing .pw-disclosure-body {
+    display: grid;
+    gap: var(--cfg-card-padding);
+}
+.pw-page[data-workspace-page="config"] .meshcore-pairing .field-group {
+    padding: 0;
+    border: 0;
+}
+.pw-page[data-workspace-page="config"] #meshcore-discovery {
+    display: grid;
+    gap: 8px;
+}
+.pw-page[data-workspace-page="config"] #meshcore-discovery:empty {
+    display: none;
+}
+.pw-page[data-workspace-page="config"] .meshcore-search-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.pw-page[data-workspace-page="config"] .meshcore-search-status .spinner {
+    flex: 0 0 24px;
+}
+.pw-page[data-workspace-page="config"] .meshcore-device-choice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    text-align: left;
+}
+.pw-page[data-workspace-page="config"] .meshcore-device-choice[aria-pressed="true"] {
+    border-color: var(--pw-accent);
+    background: var(--cfg-card-heading);
+}
+.pw-page[data-workspace-page="config"] .meshcore-device-identity {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
 .pw-page[data-workspace-page="config"] #meshcore-inbox pre,
 .pw-page[data-workspace-page="config"] #meshcore-discovery {
     white-space: pre-wrap;

@@ -65,5 +65,7 @@
   "config.meshcore.keys_help": "Ein vollständiger öffentlicher Schlüssel mit 64 Zeichen pro Zeile. Namen und Kanalabsender begründen niemals Vertrauen.",
   "config.meshcore.channels_help": "Jede Kanalzuordnung vor Antworten oder proaktivem Senden bestätigen. Geräte- oder Kanalwechsel sperren automatische Arbeit bis zur erneuten Zuordnung.",
   "config.meshcore.ble_help": "Nur Linux BlueZ, in Docker nicht verfügbar. Bluetooth aktivieren und Änderungen für die Kopplung in den Bluetooth-Einstellungen erlauben. Keine Audiofreigabe nötig. PINs werden nur zum Koppeln verwendet und niemals gespeichert.",
-  "config.section.meshcore.label": "MeshCore"
+  "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.searching": "Geräte werden gesucht…",
+  "config.meshcore.use_device": "Gerät übernehmen"
 }

@@ -65,5 +65,7 @@
   "config.meshcore.keys_help": "Jeden úplný veřejný klíč o 64 znacích na řádek. Jména ani odesílatelé v kanálu nezakládají důvěru.",
   "config.meshcore.channels_help": "Před odpovídáním či odesíláním potvrďte přiřazení kanálu. Změna zařízení nebo kanálu blokuje automatiku do nového přiřazení.",
   "config.meshcore.ble_help": "Pouze Linux BlueZ, mimo Docker. Zapněte Bluetooth a povolte změny při párování v jeho nastavení. Zvukové oprávnění není potřeba. PIN slouží pouze k párování a neukládá se.",
-  "config.section.meshcore.label": "MeshCore"
+  "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.searching": "Hledání zařízení…",
+  "config.meshcore.use_device": "Použít zařízení"
 }

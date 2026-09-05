@@ -16,6 +16,16 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 		_, _ = page.Eval(`() => window.removeEventListener('beforeunload', handleConfigBeforeUnload)`)
 		_ = page.Close()
 	}()
+	capture := func(name string) {
+		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), page.MustScreenshot(), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`() => {
         const original = window.fetch;
@@ -29,9 +39,14 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
                 contacts:[{key:'22'.repeat(32),name:'<script>window.meshInjection=true</script>',type:1}],
                 channels:[{index:0,name:'Public',binding:'33'.repeat(32)}]};
             let body = {};
-            if (url.endsWith('/status')) body={status:state,config:settings,ble_supported:false};
+            if (url.endsWith('/status')) body={status:state,config:settings,ble_supported:true};
             if (url.endsWith('/test')) body={status:state};
             if (url.endsWith('/devices')) body={ports:['COM3']};
+            if (url.endsWith('/scan')) {
+                if (window.meshScanFails) throw Error('discovery unavailable');
+                await new Promise(resolve=>{window.meshCompleteScan=resolve;});
+                body={devices:[{address:'aa:bb:cc:dd:ee:ff',name:'<img src=x onerror="window.meshInjection=true">'}, {address:'11:22:33:44:55:66'}, {address:'invalid'}]};
+            }
             if (url.includes('/messages')) body={messages:[{id:'44'.repeat(32),direction:'incoming',kind:'channel',channel:0,received_at:1800000000,state:'quarantine',review:'suspicious',text:'<img src=x onerror="window.meshInjection=true">'}]};
             return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
         };
@@ -43,6 +58,29 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-mesh-action="test"]`).MustClick()
 	waitForJSBool(t, page, `() => meshRequests.some(r=>r.url.endsWith('/test')) && !document.querySelector('[data-mesh-action="confirm"]').disabled`)
+	page.MustElement(`.meshcore-pairing summary`).MustClick()
+	page.MustElement(`[data-mesh-action="scan"]`).MustClick()
+	waitForJSBool(t, page, `() => !!window.meshCompleteScan && !!document.querySelector('#meshcore-discovery .spinner') && document.querySelector('#meshcore-discovery').getAttribute('aria-busy')==='true' && document.querySelector('[data-mesh-action="scan"]').disabled`)
+	capture("meshcore-searching.png")
+	page.MustEval(`() => meshCompleteScan()`)
+	waitForJSBool(t, page, `() => document.querySelectorAll('.meshcore-device-choice').length===2 && document.querySelector('#meshcore-discovery').getAttribute('aria-busy')==='false' && !document.querySelector('[data-mesh-action="select_device"]').disabled`)
+	if page.MustEval(`() => !!window.meshInjection || !!document.querySelector('#meshcore-discovery img')`).Bool() {
+		t.Fatal("device name executed HTML")
+	}
+	page.MustEval(`() => document.querySelector('.meshcore-pairing').scrollIntoView({block:'start'})`)
+	capture("meshcore-devices.png")
+	page.MustElement(`[data-mesh-action="select_device"]`).MustClick()
+	if !page.MustEval(`() => {const draft=AuraConfigState.get('meshcore');return draft.address==='AA:BB:CC:DD:EE:FF' && draft.transport==='ble' && document.querySelector('[data-path="meshcore.address"]').value===draft.address && document.querySelector('[data-path="meshcore.transport"]').value==='ble' && document.querySelector('[data-mesh-action="select_device"]').getAttribute('aria-pressed')==='true' && document.querySelector('[data-mesh-action="pair"]').disabled && document.querySelector('[data-mesh-action="test"]').disabled && !draft.identity_key && !(draft.trusted_nodes||[]).length && !meshRequests.some(r=>r.url.endsWith('/pair'));}`).Bool() {
+		t.Fatalf("selection did not update only the draft connection: %s", page.MustEval(`() => JSON.stringify({draft:AuraConfigState.get('meshcore'),address:document.querySelector('[data-path="meshcore.address"]').value,transport:document.querySelector('[data-path="meshcore.transport"]').value,pressed:document.querySelector('[data-mesh-action="select_device"]').getAttribute('aria-pressed'),pair:document.querySelector('[data-mesh-action="pair"]').disabled,test:document.querySelector('[data-mesh-action="test"]').disabled,requests:meshRequests})`).Str())
+	}
+	page.MustEval(`() => {AuraConfigState.init(configData); resetDirtySnapshot(); document.dispatchEvent(new Event('cfg:statechange')); window.meshScanFails=true;}`)
+	page.MustElement(`[data-mesh-action="scan"]`).MustClick()
+	waitForJSBool(t, page, `() => !document.querySelector('[data-mesh-action="scan"]').disabled && !document.querySelector('#meshcore-discovery .spinner') && document.querySelector('#meshcore-discovery').getAttribute('aria-busy')==='false' && document.querySelector('#meshcore-discovery').textContent===t('config.meshcore.failed')`)
+	page.MustEval(`() => {window.meshScanFails=false;window.meshCompleteScan=null;}`)
+	page.MustElement(`[data-mesh-action="scan"]`).MustClick()
+	waitForJSBool(t, page, `() => !!window.meshCompleteScan`)
+	page.MustEval(`() => meshCompleteScan()`)
+	waitForJSBool(t, page, `() => document.querySelectorAll('.meshcore-device-choice').length===2 && !document.querySelector('[data-mesh-action="scan"]').disabled`)
 	page.MustElement(`[data-mesh-action="confirm"]`).MustClick()
 	page.MustEval(`() => {const rows=document.querySelectorAll('.meshcore-channel');if(rows.length!==2)throw Error('Missing orphaned rule');rows[1].querySelector('button:last-child').click();}`)
 	page.MustElement(`#meshcore-channels button`).MustClick()
@@ -59,18 +97,22 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 				if page.MustEval(`() => {const el=document.getElementById('content'),dock=document.querySelector('.save-bar');return el.scrollWidth>el.clientWidth+1 || el.getBoundingClientRect().bottom>dock.getBoundingClientRect().top+1}`).Bool() {
 					t.Fatalf("overflow at %d", width)
 				}
+				if !page.MustEval(`() => {
+                    const rect=selector=>document.querySelector(selector).getBoundingClientRect();
+                    const intro=rect('.meshcore-intro'), note=rect('.meshcore-intro .cfg-note'), status=rect('#meshcore-status');
+                    const body=document.querySelector('.meshcore-pairing .pw-disclosure-body');
+                    const pin=rect('#meshcore-pin'), actions=body.querySelector('.cfg-actions-row').getBoundingClientRect();
+                    const help=body.querySelector('.cfg-note').getBoundingClientRect(), field=body.querySelector('.field-group').getBoundingClientRect();
+                    return status.top-note.bottom>=15 && document.querySelector('.meshcore-intro').nextElementSibling.getBoundingClientRect().top-intro.bottom>=15 && field.top-help.bottom>=15 && actions.top-pin.bottom>=15;
+                }`).Bool() {
+					t.Fatalf("MeshCore spacing collapsed at %d / %s / %s", width, theme, density)
+				}
 			}
 		}
 	}
 	if page.MustEval(`() => meshRequests.some(r=>r.url.includes('/send') || r.body.includes('pin'))`).Bool() {
 		t.Fatal("setup sent radio text or PIN")
 	}
-	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "meshcore-config.png"), page.MustScreenshot(), 0644); err != nil {
-			t.Fatal(err)
-		}
-	}
+	page.MustEval(`() => document.querySelector('.section-header').scrollIntoView({block:'start'})`)
+	capture("meshcore-config.png")
 }

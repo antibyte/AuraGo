@@ -65,5 +65,7 @@
   "config.meshcore.keys_help": "Jeden pełny 64-znakowy klucz publiczny na wiersz. Nazwy i nadawcy na kanale nigdy nie nadają zaufania.",
   "config.meshcore.channels_help": "Potwierdź powiązanie kanału przed odpowiedziami lub wysyłaniem proaktywnym. Zmiana urządzenia lub kanału blokuje automatykę do ponownego powiązania.",
   "config.meshcore.ble_help": "Tylko Linux BlueZ, niedostępne w Dockerze. Włącz Bluetooth i zezwól na zmiany parowania w ustawieniach. Uprawnienia audio nie są potrzebne. PIN służy tylko do parowania i nie jest zapisywany.",
-  "config.section.meshcore.label": "MeshCore"
+  "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.searching": "Wyszukiwanie urządzeń…",
+  "config.meshcore.use_device": "Użyj urządzenia"
 }

@@ -65,5 +65,7 @@
   "config.meshcore.keys_help": "प्रति पंक्ति एक पूरी 64-अक्षर की सार्वजनिक कुंजी। नाम या चैनल के प्रेषक भरोसे का प्रमाण नहीं हैं।",
   "config.meshcore.channels_help": "जवाब या सक्रिय संदेश भेजने से पहले चैनल मैपिंग की पुष्टि करें। डिवाइस या चैनल बदलने पर नई मैपिंग तक स्वचालन रुक जाता है।",
   "config.meshcore.ble_help": "केवल Linux BlueZ, Docker में अनुपलब्ध। Bluetooth चालू करें और उसकी सेटिंग में पेयरिंग बदलाव की अनुमति दें। ऑडियो अनुमति आवश्यक नहीं। PIN केवल पेयरिंग के लिए है और सहेजा नहीं जाता।",
-  "config.section.meshcore.label": "MeshCore"
+  "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.searching": "डिवाइस खोजे जा रहे हैं…",
+  "config.meshcore.use_device": "डिवाइस चुनें"
 }

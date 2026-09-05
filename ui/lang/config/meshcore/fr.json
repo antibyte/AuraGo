@@ -65,5 +65,7 @@
   "config.meshcore.keys_help": "Une clé publique complète de 64 caractères par ligne. Les noms et expéditeurs de canal ne confèrent jamais de confiance.",
   "config.meshcore.channels_help": "Confirmez chaque association de canal avant les réponses ou l’envoi proactif. Un changement d’appareil ou de canal bloque l’automatisation jusqu’à la nouvelle association.",
   "config.meshcore.ble_help": "Linux BlueZ uniquement, indisponible dans Docker. Activez Bluetooth et autorisez les modifications d’appairage dans ses réglages. Aucune autorisation audio nécessaire. Le PIN sert uniquement à l’appairage et n’est jamais enregistré.",
-  "config.section.meshcore.label": "MeshCore"
+  "config.section.meshcore.label": "MeshCore",
+  "config.meshcore.searching": "Recherche d’appareils…",
+  "config.meshcore.use_device": "Utiliser cet appareil"
 }

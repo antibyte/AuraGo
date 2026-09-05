@@ -10,13 +10,13 @@ function renderMeshCoreSection(section) {
     const list = key => form.textarea({ path: 'meshcore.' + key, label: tr(key), help: tr('keys_help'), value: (data[key] || []).join('\n') }).replace('<textarea ', '<textarea data-type="array-lines" ');
     const limits = { max_command_age_seconds: [600, 86400], future_tolerance_seconds: [120, 3600], retention_days: [7, 90], max_messages: [1000, 10000], peer_runs_per_minute: [2, 60], runs_per_minute: [12, 120] };
     document.getElementById('content').innerHTML = form.renderSpec({ label: section.label, desc: section.desc,
-        beforeHTML: form.note({ text: tr('security') }) + '<div id="meshcore-status" class="pw-status" role="status" aria-live="polite"></div>',
+        beforeHTML: '<div class="meshcore-intro">' + form.note({ text: tr('security') }) + '<div id="meshcore-status" class="pw-status" role="status" aria-live="polite"></div></div>',
         groups: [
             { titleKey: 'config.refresh.connection', fields: [toggle('enabled'),
                 form.select({ path: 'meshcore.transport', label: tr('transport'), value: data.transport || 'usb', options: [{ value: 'usb', label: 'USB' }, { value: 'ble', label: 'Bluetooth / Linux' }] }),
                 field('port'), field('address')], content: '<div id="meshcore-device"></div>' + form.actions([{ html: button('refresh', 'refresh') + button('test', 'test') + button('confirm', 'confirm') }])
-                    + '<p id="meshcore-saved-reason" class="field-help"></p><div id="meshcore-ports"></div>'
-                    + form.disclosure({ title: tr('pairing'), content: form.note({ text: tr('ble_help') }) + '<label>' + escapeHtml(tr('pin')) + '<input id="meshcore-pin" class="field-input" type="password" autocomplete="off" maxlength="16"></label>' + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery"></div>' }) },
+                    + '<p id="meshcore-saved-reason" class="field-help" hidden></p><div id="meshcore-ports"></div>'
+                    + form.disclosure({ title: tr('pairing'), className: 'meshcore-pairing', content: form.note({ text: tr('ble_help') }) + form.password({ id: 'meshcore-pin', label: tr('pin') }).replace('autocomplete="off"', 'autocomplete="off" maxlength="16"') + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery" role="region" aria-label="' + escapeHtml(tr('scan')) + '" aria-busy="false"></div>' }) },
             { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content: '<div id="meshcore-contacts"></div>' },
             { title: tr('channels'), content: form.note({ text: tr('channels_help') }) + '<div id="meshcore-channels"></div>' },
             { title: tr('limits'), content: form.disclosure({ titleKey: 'config.precision.advanced_title', content: Object.entries(limits).map(([key, values]) => form.number({ path: 'meshcore.' + key, label: tr(key), value: data[key] || values[0], min: 1, max: values[1] })).join('') }) },
@@ -30,20 +30,56 @@ function renderMeshCoreSection(section) {
     let lastPageSize = 0;
     const status = root.querySelector('#meshcore-status');
     function set(path, value) {
-        window.AuraConfigState.set('meshcore.' + path, value);
-        setNestedValue(configData, 'meshcore.' + path, value);
         if (path === 'trusted_nodes' || path === 'send_nodes') root.querySelector('[data-path="meshcore.' + path + '"]').value = value.join('\n');
+        else if (typeof value === 'string') {
+            const control = root.querySelector('[data-path="meshcore.' + path + '"]');
+            if (control) control.value = value;
+        }
+        setNestedValue(configData, 'meshcore.' + path, value);
+        window.AuraConfigState.set('meshcore.' + path, value);
     }
     function lockActions() {
         if (!root.isConnected) { document.removeEventListener('cfg:statechange', lockActions); window.removeEventListener('aurago:config-saved', saved); return; }
         const dirty = window.AuraConfigState.isDirty();
-        root.querySelector('#meshcore-saved-reason').textContent = dirty ? tr('save_first') : '';
+        const reason = root.querySelector('#meshcore-saved-reason');
+        reason.textContent = dirty ? tr('save_first') : '';
+        reason.hidden = !dirty;
         for (const action of ['test', 'pair', 'scan']) {
             root.querySelector('[data-mesh-action="' + action + '"]').disabled = busy || dirty || !runtime || (action !== 'test' && !runtime.ble_supported) || (action === 'test' && !runtime.config.enabled);
         }
         root.querySelector('[data-mesh-action="confirm"]').disabled = busy || !runtime?.status.identity_key;
         root.querySelector('[data-mesh-action="previous"]').disabled = busy || offset === 0;
         root.querySelector('[data-mesh-action="next"]').disabled = busy || lastPageSize < 25;
+        root.querySelectorAll('[data-mesh-action="select_device"]').forEach(button => {
+            button.disabled = busy;
+            button.setAttribute('aria-pressed', String(draft().transport === 'ble' && draft().address === button.dataset.address));
+        });
+    }
+    async function scanDevices() {
+        const discovery = root.querySelector('#meshcore-discovery');
+        discovery.setAttribute('aria-busy', 'true');
+        discovery.innerHTML = '<div class="meshcore-search-status" role="status"><span class="spinner" aria-hidden="true"></span><span>' + escapeHtml(tr('searching')) + '</span></div>';
+        try {
+            const result = await request('scan', {});
+            discovery.replaceChildren();
+            for (const device of result.devices || []) {
+                if (!/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(device.address || '')) continue;
+                const choice = document.createElement('button');
+                choice.type = 'button'; choice.className = 'btn-secondary meshcore-device-choice';
+                choice.dataset.meshAction = 'select_device'; choice.dataset.address = device.address.toUpperCase();
+                const identity = document.createElement('span'); identity.className = 'meshcore-device-identity';
+                const name = document.createElement('strong'); name.textContent = device.name || choice.dataset.address;
+                identity.append(name);
+                if (device.name) { const address = document.createElement('span'); address.textContent = choice.dataset.address; identity.append(address); }
+                const action = document.createElement('span'); action.textContent = tr('use_device');
+                choice.append(identity, action); discovery.append(choice);
+            }
+            if (!discovery.childElementCount) discovery.textContent = tr('empty');
+            status.textContent = tr('success');
+        } catch (error) {
+            discovery.textContent = tr('failed');
+            throw error;
+        } finally { discovery.setAttribute('aria-busy', 'false'); }
     }
     async function request(action, body) {
         const controller = new AbortController();
@@ -142,16 +178,17 @@ function renderMeshCoreSection(section) {
         if (!target || target.disabled || busy) return;
         const action = target.dataset.meshAction;
         if (action === 'confirm') { set('identity_key', runtime.status.identity_key); status.textContent = tr('save_first'); return; }
+        if (action === 'select_device') {
+            set('address', target.dataset.address); set('transport', 'ble');
+            status.textContent = tr('save_first'); lockActions(); return;
+        }
         if (['test', 'pair', 'scan', 'recheck'].includes(action) && window.AuraConfigState.isDirty()) { status.textContent = tr('save_first'); return; }
         busy = true; lockActions();
         try {
             if (action === 'previous' || action === 'next') { offset = Math.max(0, offset + (action === 'next' ? 25 : -25)); await inbox(); }
             else if (action === 'refresh') await refresh();
-            else if (action === 'scan') {
-                const result = await request('scan', {});
-                root.querySelector('#meshcore-discovery').textContent = (result.devices || []).map(device => [device.name, device.address].filter(Boolean).join(' · ')).join('\n') || tr('empty');
-                status.textContent = tr('success');
-            } else if (action === 'pair') {
+            else if (action === 'scan') await scanDevices();
+            else if (action === 'pair') {
                 const pin = root.querySelector('#meshcore-pin'); const value = pin.value; pin.value = '';
                 await request('pair', { address: runtime.config.address, pin: value }); status.textContent = tr('success');
             } else if (action === 'recheck') { await request('recheck', { id: target.dataset.id }); await inbox(); }
