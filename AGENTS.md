@@ -431,6 +431,7 @@ Tools are defined in `internal/tools/`:
 
 ### MeshCore Integration Contract
 - Linux systemd installers and updates automatically grant existing `dialout`/`uucp` groups to the service for USB serial access, without changing login-account memberships or forwarding serial groups to GPU containers. Updates use the backed-up, verified service drop-in before restart; preserve rollback and `--no-restart` behavior.
+- USB Companion ports assert DTR at 115200 baud with RTS inactive: TinyUSB CDC firmware treats deasserted DTR as disconnected and suppresses serial replies. Do not use the 1200-baud bootloader touch sequence.
 - `internal/meshcore` owns one Companion device, versioned SQLite inbox/execution reservations, framed USB (115200 baud) and native Linux BlueZ BLE. Docker allows explicit USB passthrough only. Hardware acceptance remains unverified until real platform tests pass.
 - Bind permissions to the confirmed full device identity and keyed channel fingerprint. Trust is full-key, unambiguous synchronized chat contacts sending direct plain text only; names, channel senders, signed-plain and room-forwarded messages never authorize actions.
 - Every text input uses static injection checks and a strict successful Guardian content verdict, or an isolated tool-free main-model scan only when Guardian is disabled. Errors, truncation and tool calls quarantine input regardless of global `fail_safe: allow`. No global slash-command interception.

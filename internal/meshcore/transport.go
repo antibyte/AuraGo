@@ -19,7 +19,9 @@ func openLink(ctx context.Context, cfg Config, docker bool) (frameLink, error) {
 		}
 		return openBLE(ctx, cfg.Address)
 	}
-	p, err := serial.Open(cfg.Port, &serial.Mode{BaudRate: 115200, DataBits: 8, Parity: serial.NoParity, StopBits: serial.OneStopBit, InitialStatusBits: &serial.ModemOutputBits{DTR: false, RTS: false}})
+	// TinyUSB CDC companions only transmit while the host asserts DTR.
+	// Keep RTS inactive and 115200 baud to avoid reset/bootloader signaling.
+	p, err := serial.Open(cfg.Port, &serial.Mode{BaudRate: 115200, DataBits: 8, Parity: serial.NoParity, StopBits: serial.OneStopBit, InitialStatusBits: &serial.ModemOutputBits{DTR: true, RTS: false}})
 	if err != nil {
 		return nil, fmt.Errorf("meshcore_serial_unavailable")
 	}
