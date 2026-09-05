@@ -12526,7 +12526,9 @@ pre,
 
 [data-theme="galaxy"] .app-header,
 [data-theme="galaxy"] .app-footer {
-    background: transparent;
+    --galaxy-frame-offset: 120px;
+    --galaxy-frame-segments: linear-gradient(90deg, #05060d 0 1%, #cc99cc 1% 38%, #05060d 38% 39%, #9999ff 39% 74%, #05060d 74% 75%, #ff9900 75%);
+    background: #ffcc99 var(--galaxy-frame-segments) right / calc(100% - var(--galaxy-frame-offset)) 100% no-repeat;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none;
@@ -12544,16 +12546,17 @@ pre,
     content: '';
     position: absolute;
     top: -12px;
-    left: 120px;
+    left: var(--galaxy-frame-offset);
     right: 0;
     height: 12px;
     pointer-events: none;
     border-radius: 0 18px 0 0;
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 2px 7px rgba(153, 153, 255, 0.15);
-    background: linear-gradient(90deg, #05060d 0 1%, #cc99cc 1% 38%, #05060d 38% 39%, #9999ff 39% 74%, #05060d 74% 75%, #ff9900 75%);
+    background: var(--galaxy-frame-segments);
 }
 
 [data-theme="galaxy"] .app-footer {
+    background-color: #cc99cc;
     margin: 0 24px 18px;
     padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 0px));
     border-top: 0;
@@ -12591,6 +12594,8 @@ pre,
 }
 [data-theme="galaxy"] .galaxy-console-id { color: #c9c5df; font: 600 10px/1.8 'Galaxy Console', monospace; letter-spacing: 0.22em; pointer-events: none; }
 [data-theme="galaxy"] .galaxy-console-id span { color: #9999cc; }
+[data-theme="galaxy"] .app-footer .galaxy-console-id,
+[data-theme="galaxy"] .app-footer .galaxy-console-id span { color: #171329; }
 @media (min-width: 1600px) {
     [data-theme="galaxy"] .galaxy-console-id { display: block; }
     [data-theme="galaxy"] .app-header > .galaxy-console-id { flex: 0 1 280px; margin: 0 auto 0 4px; padding: 8px 18px; border-radius: 14px; border-bottom: 1px solid #534b76; background: var(--galaxy-console); }
@@ -12781,10 +12786,12 @@ pre,
 }
 @media (max-width: 767px) {
     [data-theme="galaxy"] { --galaxy-poster: url('/img/galaxy/poster-mobile.webp?v=galaxy-1'); }
+    [data-theme="galaxy"] .app-header,
+    [data-theme="galaxy"] .app-footer { --galaxy-frame-offset: 64px; }
     [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 4px 8px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 12px 12px 0; }
     [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
-    [data-theme="galaxy"] .app-header::before { top: -8px; height: 8px; left: 64px; }
-    [data-theme="galaxy"] .app-footer::before { bottom: -8px; height: 8px; left: 64px; }
+    [data-theme="galaxy"] .app-header::before { top: -8px; height: 8px; }
+    [data-theme="galaxy"] .app-footer::before { bottom: -8px; height: 8px; }
     [data-theme="galaxy"] .app-header::after { inset: -12px -4px -4px -16px; border-radius: 28px 14px 18px 8px; }
     [data-theme="galaxy"] .app-footer::after { inset: -4px -4px -12px -14px; border-radius: 8px 18px 22px 28px; }
     [data-theme="galaxy"] body::after { left: 8px; width: 5px; top: 112px; bottom: 144px; }

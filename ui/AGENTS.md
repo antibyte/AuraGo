@@ -232,8 +232,10 @@ images, and browser-oriented regression tests.
   On mobile, reserve space beside the scrolling controls for the radial menu.
   Match the LCARS reference with double lavender contours, subtle static bevels,
   dark inset consoles, framed messages/greeting and matching outlined header
-  controls/composer rows. Outer header/footer surfaces and contours stay
-  transparent; keep their vertical padding compact, with 44px controls intact.
+  controls/composer rows. The colored LCARS segments continue beneath the
+  transparent outer console area; this area exposes the HUD colors, not space.
+  Align that backing with the edge rails and keep its labels dark for contrast.
+  Keep vertical padding compact, with 44px controls intact.
   The desktop toolbar stays transparent within that row; only the mobile popover
   has its own surface. Decorative LCARS identifiers are aria-hidden, desktop-only
   and hidden outside Galaxy; connection and notification states remain real.
