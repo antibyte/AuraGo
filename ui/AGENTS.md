@@ -209,8 +209,11 @@ images, and browser-oriented regression tests.
   transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
   and narrow-screen gates.
 - Galaxy uses the existing Three.js r128 and a single lazy renderer/RAF loop.
-  Keep the six draw calls, shared sphere geometry and fixed 3500/850-star
-  buffers; no full-screen postprocessing. Start desktop at high quality with
+  Keep the seven draw calls, shared sphere geometry and fixed 3500/850-star
+  buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
+  three distant low-poly ships share one instanced mesh and wrap offscreen.
+  Both effects use scene time and the existing pause/disposal lifecycle.
+  No full-screen postprocessing. Start desktop at high quality with
   at most 1.5 DPR / 3840x2160 pixels, then lower resolution after sustained
   slow frames. Calibrate the idle display cadence during the first-frame fade;
   30/32 Hz displays must not trigger quality reduction. Mobile starts with 2K

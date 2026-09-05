@@ -181,25 +181,42 @@
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         const sizes = new Float32Array(count);
+        const twinkle = new Float32Array(count);
         for (let i = 0; i < count; i++) {
             positions.set([random() * 2 - 1, random() * 2 - 1, random()], i * 3);
             const warmth = random();
             colors.set([0.65 + warmth * 0.35, 0.75 + warmth * 0.2, 1.0 - warmth * 0.3], i * 3);
             sizes[i] = 0.5 + Math.pow(random(), 7) * 2.4;
         }
+        // Spread twenty subtle scintillating stars across the viewport.
+        for (let i = 0; i < 20; i++) {
+            positions[i * 3] = -0.88 + (i % 5) * 0.43 + random() * 0.12;
+            positions[i * 3 + 1] = -0.72 + Math.floor(i / 5) * 0.46 + random() * 0.12;
+            sizes[i] = 2.1 + random() * 1.2;
+            twinkle[i] = 1 + random() * 100;
+        }
         const stars = new THREE.BufferGeometry();
         stars.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         stars.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         stars.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+        stars.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 1));
         rt.stars = new THREE.Points(stars, new THREE.ShaderMaterial({
             transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-            uniforms: { uDrift: { value: new THREE.Vector2() }, uPixelRatio: { value: 1 } },
+            uniforms: { uDrift: { value: new THREE.Vector2() }, uPixelRatio: { value: 1 }, uTime: { value: 0 } },
             vertexShader: `
-                attribute float aSize; attribute vec3 color;
-                uniform vec2 uDrift; uniform float uPixelRatio;
+                attribute float aSize; attribute vec3 color; attribute float aTwinkle;
+                uniform vec2 uDrift; uniform float uPixelRatio; uniform float uTime;
                 varying vec3 vColor;
                 void main(){
                     vColor=color;
+                    if(aTwinkle>0.0){
+                        float clock=uTime+aTwinkle;
+                        float cycle=floor(clock/6.0);
+                        float delay=fract(sin(cycle*12.9898+aTwinkle*78.233)*43758.5453)*4.0;
+                        float pulse=clamp((mod(clock,6.0)-delay)/1.4,0.0,1.0);
+                        float envelope=sin(pulse*3.14159265);
+                        vColor*=1.0+envelope*(0.12+0.16*sin(clock*13.0+aTwinkle));
+                    }
                     gl_Position=vec4(position.xy+uDrift*(0.3+position.z),0.98,1.0);
                     gl_PointSize=aSize*uPixelRatio;
                 }
@@ -215,6 +232,40 @@
         rt.stars.frustumCulled = false;
         rt.stars.renderOrder = -5;
         rt.scene.add(rt.stars);
+
+        // Faceted scout hull, swept wings and small dorsal engine strips.
+        // All three distant ships share one buffer and one draw call.
+        const hull = [
+            [1.6, 0, 0], [-1, -0.18, 0], [-1, 0.18, 0],
+            [-0.3, 0, 0.28], [-0.3, 0, -0.16],
+            [-1.25, -0.8, -0.04], [-1.25, 0.8, -0.04],
+            [0.2, -0.12, 0.03], [0.2, 0.12, 0.03]
+        ];
+        const shipPositions = [], shipColors = [];
+        const face = (a, b, c, color) => {
+            shipPositions.push(...a, ...b, ...c);
+            for (let i = 0; i < 3; i++) shipColors.push(...color);
+        };
+        [[0, 1, 3], [0, 3, 2], [1, 2, 3], [0, 4, 1], [0, 2, 4], [1, 4, 2], [7, 5, 1], [8, 2, 6]].forEach((f, i) => {
+            const shade = i % 2 ? 0.4 : 0.65;
+            face(hull[f[0]], hull[f[1]], hull[f[2]], [shade * 0.7, shade * 0.85, shade]);
+        });
+        for (const side of [-1, 1]) {
+            face([-1.14, side * 0.65, 0.01], [-0.88, side * 0.48, 0.02], [-1.02, side * 0.48, 0.02], [0.16, 0.65, 1]);
+        }
+        const shipGeometry = new THREE.BufferGeometry();
+        shipGeometry.setAttribute('position', new THREE.Float32BufferAttribute(shipPositions, 3));
+        shipGeometry.setAttribute('color', new THREE.Float32BufferAttribute(shipColors, 3));
+        rt.ships = new THREE.InstancedMesh(shipGeometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 3);
+        rt.ships.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        rt.ships.frustumCulled = false;
+        rt.shipTransform = new THREE.Object3D();
+        rt.shipRoutes = [
+            { duration: 85, phase: 0.25, y: 0.48, slope: -0.12, scale: 0.025, direction: 1 },
+            { duration: 115, phase: 0.65, y: 0.1, slope: 0.18, scale: 0.018, direction: -1 },
+            { duration: 145, phase: 0.02, y: -0.35, slope: -0.08, scale: 0.013, direction: 1 }
+        ];
+        rt.scene.add(rt.ships);
     }
 
     function resize() {
@@ -258,6 +309,18 @@
         const phase = rt.time * Math.PI * 2 / 180;
         rt.backdrop.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.004, Math.sin(phase * 0.7) * 0.002);
         rt.stars.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.009, Math.sin(phase * 0.7) * 0.004);
+        rt.stars.material.uniforms.uTime.value = rt.time;
+        rt.shipRoutes.forEach((route, i) => {
+            const progress = (rt.time / route.duration + route.phase) % 1;
+            const x = (progress * 2 - 1) * (rt.camera.right + 0.15) * route.direction;
+            const ship = rt.shipTransform;
+            ship.position.set(x, route.y + (progress - 0.5) * route.slope, -3 - i);
+            ship.scale.setScalar(route.scale);
+            ship.rotation.set(0.35, 0.2, Math.atan2(route.slope, 2 * (rt.camera.right + 0.15) * route.direction));
+            ship.updateMatrix();
+            rt.ships.setMatrixAt(i, ship.matrix);
+        });
+        rt.ships.instanceMatrix.needsUpdate = true;
         rt.camera.position.x = Math.sin(phase) * 0.012;
         rt.camera.position.y = Math.sin(phase * 0.7) * 0.006;
         rt.renderer.render(rt.scene, rt.camera);

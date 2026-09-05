@@ -200,6 +200,36 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		t.Fatal("LCARS button hover state is overridden")
 	}
 	p.MustElement("#chat-box").MustHover()
+	// Read real GPU pixels with only the star layer visible, so background drift
+	// cannot masquerade as twinkling. Exercise several independently timed pulses.
+	check(`() => {
+        const r=__galaxy.runtime,stars=r.stars,geometry=stars.geometry;
+        const indices=Array.from(geometry.attributes.aTwinkle.array).flatMap((v,i)=>v>0?[i]:[]);
+        if(indices.length!==20 || new Set(indices.map(i=>geometry.attributes.aTwinkle.array[i])).size!==20)return false;
+        const target=new THREE.WebGLRenderTarget(256,256),scene=new THREE.Scene(),pixels=new Uint8Array(256*256*4);
+        const uniforms=stars.material.uniforms,drift=uniforms.uDrift.value.clone(),time=uniforms.uTime.value;
+        const levels=indices.map(()=>[]);scene.add(stars);uniforms.uDrift.value.set(0,0);
+        try {
+            r.renderer.setRenderTarget(target);
+            for(let step=0;step<48;step++){
+                uniforms.uTime.value=step*0.4;r.renderer.render(scene,r.camera);
+                r.renderer.readRenderTargetPixels(target,0,0,256,256,pixels);
+                indices.forEach((i,j)=>{
+                    const x=Math.floor((geometry.attributes.position.getX(i)+1)*128),y=Math.floor((geometry.attributes.position.getY(i)+1)*128);
+                    let energy=0;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const p=((y+dy)*256+x+dx)*4;energy+=pixels[p]+pixels[p+1]+pixels[p+2]}
+                    levels[j].push(energy);
+                });
+            }
+            return levels.every(v=>Math.max(...v)-Math.min(...v)>2);
+        } finally {
+            r.renderer.setRenderTarget(null);target.dispose();r.scene.add(stars);uniforms.uDrift.value.copy(drift);uniforms.uTime.value=time;__galaxy.draw(r);
+        }
+    }`, "twenty independently timed stars did not flicker in real GPU output")
+	check(`() => {
+        const r=__galaxy.runtime,time=r.time,before=Array.from(r.ships.instanceMatrix.array);
+        try {r.time+=10;__galaxy.draw(r);return r.ships.count===3 && [0,1,2].every(i=>Math.abs(r.ships.instanceMatrix.array[i*16+12]-before[i*16+12])>0.1)}
+        finally {r.time=time;__galaxy.draw(r)}
+    }`, "distant ships did not travel along their routes")
 
 	for _, size := range [][2]int{{1920, 1080}, {2560, 1440}, {768, 1024}, {1024, 768}, {390, 844}, {430, 932}} {
 		p.MustSetViewport(size[0], size[1], 1, size[0] < 768)
@@ -254,7 +284,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.info.memory.textures===0 && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
-		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===3 && s.calls===6}`, "theme restart grew resources")
+		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===4 && s.calls===7}`, "theme restart grew resources")
 	}
 	p.MustEval(`() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));window.__paused=__galaxy.runtime.time}`)
 	check(`() => __pending.size===0 && __galaxy.runtime.time===__paused`, "hidden tab did not pause")
