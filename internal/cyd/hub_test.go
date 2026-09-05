@@ -66,6 +66,29 @@ func TestBroadcastNotify(t *testing.T) {
 	}
 }
 
+func TestSetPageNames(t *testing.T) {
+	if NormalizePage("LOAD") != "load" {
+		t.Fatalf("load: %s", NormalizePage("LOAD"))
+	}
+	if NormalizePage("work") != "work" {
+		t.Fatalf("work: %s", NormalizePage("work"))
+	}
+	if NormalizePage("host") != "host" {
+		t.Fatalf("host: %s", NormalizePage("host"))
+	}
+	if NormalizePage("home") != "status" {
+		t.Fatalf("home: %s", NormalizePage("home"))
+	}
+	if NormalizePage("nope") != "status" {
+		t.Fatalf("unknown: %s", NormalizePage("nope"))
+	}
+	h := NewHub()
+	h.SetPage("work")
+	if h.Snapshot().Display.Page != "work" {
+		t.Fatalf("snapshot page = %s", h.Snapshot().Display.Page)
+	}
+}
+
 func TestBuildSnapshotTruncates(t *testing.T) {
 	long := "abcdefghijklmnopqrstuvwxyz0123456789 extra"
 	snap := BuildSnapshot(Inputs{Task: long, Model: long, Busy: true}, nil)

@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "Fréquence à laquelle l'écran interroge /api/cyd/snapshot si le WebSocket est coupé. Minimum 2 secondes.",
   "help.cyd.overlay_ttl": "Durée par défaut d'une notification sur l'écran, en secondes.",
   "help.cyd.allow_agent_control": "Si activé, l'agent peut changer de page, de luminosité et de LED. Les overlays fonctionnent même si c'est désactivé.",
-  "help.cyd.mqtt_mirror": "Publie aussi l'instantané compact sur le topic MQTT aurago/cyd/snapshot lorsque MQTT est connecté."
+  "help.cyd.mqtt_mirror": "Publie aussi l'instantané compact sur le topic MQTT aurago/cyd/snapshot lorsque MQTT est connecté.",
+  "help.cyd.web_flasher": "Installe aurago-cyd depuis le navigateur en USB et écrit le jeton plus l’URL AuraGo dans une partition d’usine. Ensuite, seul le Wi-Fi reste à configurer."
 }

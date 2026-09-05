@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "Com que frequência o ecrã pede /api/cyd/snapshot se o WebSocket cair. Mínimo 2 segundos.",
   "help.cyd.overlay_ttl": "Segundos predefinidos que uma notificação permanece no vidro.",
   "help.cyd.allow_agent_control": "Se ativo, o agente pode mudar página, brilho e LED. As sobreposições continuam a funcionar se estiver desligado.",
-  "help.cyd.mqtt_mirror": "Também publica o instantâneo compacto no tópico MQTT aurago/cyd/snapshot quando o MQTT está ligado."
+  "help.cyd.mqtt_mirror": "Também publica o instantâneo compacto no tópico MQTT aurago/cyd/snapshot quando o MQTT está ligado.",
+  "help.cyd.web_flasher": "Grava aurago-cyd a partir do browser por USB e escreve o token e o URL AuraGo numa partição de fábrica. Depois só resta o Wi‑Fi."
 }

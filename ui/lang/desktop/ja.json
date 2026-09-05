@@ -538,6 +538,7 @@
   "desktop.file_dialog_select_folder": "フォルダーを選択",
   "desktop.file_dialog_upload_error": "インポートに失敗しました。",
   "desktop.file_dialog_workspace": "Workspace",
+  "desktop.file_dialog_zip": "ZIPアーカイブ",
   "desktop.fm.add_favorite": "お気に入りに追加",
   "desktop.fm.add_to_chat": "チャットに追加",
   "desktop.fm.ask_agent": "エージェントに質問",

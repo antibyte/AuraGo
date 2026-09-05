@@ -1,6 +1,9 @@
 package cyd
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 const (
 	TitleMax = 32
@@ -94,6 +97,13 @@ type Inputs struct {
 	LED             string
 }
 
+func finite(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	return v
+}
+
 func Truncate(s string, max int) string {
 	if max <= 0 || len(s) <= max {
 		return s
@@ -153,9 +163,9 @@ func BuildSnapshot(in Inputs, overlay *Notify) Snapshot {
 			Task:        Truncate(in.Task, TaskMax),
 		},
 		Host: HostMetrics{
-			CPUPct:      in.CPUPct,
-			MemPct:      in.MemPct,
-			DiskPct:     in.DiskPct,
+			CPUPct:      finite(in.CPUPct),
+			MemPct:      finite(in.MemPct),
+			DiskPct:     finite(in.DiskPct),
 			UptimeS:     in.UptimeS,
 			HostUptimeS: in.HostUptimeS,
 		},
@@ -163,7 +173,7 @@ func BuildSnapshot(in Inputs, overlay *Notify) Snapshot {
 			MissionsRunning: in.MissionsRunning,
 			MissionsQueued:  in.MissionsQueued,
 			NotesOpen:       in.NotesOpen,
-			LastUserH:       in.LastUserH,
+			LastUserH:       finite(in.LastUserH),
 		},
 		Display: DisplayInfo{
 			Page:       page,

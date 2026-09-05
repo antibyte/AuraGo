@@ -538,6 +538,7 @@
   "desktop.file_dialog_select_folder": "选择文件夹",
   "desktop.file_dialog_upload_error": "导入失败。",
   "desktop.file_dialog_workspace": "工作区",
+  "desktop.file_dialog_zip": "ZIP 压缩包",
   "desktop.fm.add_favorite": "添加到收藏夹",
   "desktop.fm.add_to_chat": "添加到聊天",
   "desktop.fm.ask_agent": "询问代理",

@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "WebSocket न होने पर डिस्प्ले कितनी बार /api/cyd/snapshot माँगता है। न्यूनतम 2 सेकंड।",
   "help.cyd.overlay_ttl": "सूचना स्क्रीन पर कितने सेकंड रहे, यह डिफ़ॉल्ट है।",
   "help.cyd.allow_agent_control": "चालू होने पर एजेंट पेज, चमक और LED बदल सकता है। बंद होने पर भी ओवरले चलते हैं।",
-  "help.cyd.mqtt_mirror": "MQTT जुड़ा हो तो कॉम्पैक्ट स्नैपशॉट aurago/cyd/snapshot विषय पर भी प्रकाशित करें।"
+  "help.cyd.mqtt_mirror": "MQTT जुड़ा हो तो कॉम्पैक्ट स्नैपशॉट aurago/cyd/snapshot विषय पर भी प्रकाशित करें।",
+  "help.cyd.web_flasher": "ब्राउज़र से USB पर aurago-cyd फ़्लैश करता है और टोकन व AuraGo URL फ़ैक्टरी पार्टीशन में लिखता है. इसके बाद केवल वाई‑फ़ाई सेटअप बचता है."
 }

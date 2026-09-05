@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "Hoe vaak het display /api/cyd/snapshot ophaalt als WebSocket wegvalt. Minimaal 2 seconden.",
   "help.cyd.overlay_ttl": "Standaardseconden dat een melding op het scherm blijft.",
   "help.cyd.allow_agent_control": "Indien aan mag de agent pagina, helderheid en LED wijzigen. Overlays werken ook als dit uit staat.",
-  "help.cyd.mqtt_mirror": "Publiceer de compacte snapshot ook op MQTT-topic aurago/cyd/snapshot wanneer MQTT verbonden is."
+  "help.cyd.mqtt_mirror": "Publiceer de compacte snapshot ook op MQTT-topic aurago/cyd/snapshot wanneer MQTT verbonden is.",
+  "help.cyd.web_flasher": "Flasht aurago-cyd vanuit de browser via USB en schrijft token plus AuraGo-URL naar een fabriekspartitie. Daarna blijft alleen wifi over."
 }

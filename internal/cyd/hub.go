@@ -2,6 +2,7 @@ package cyd
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
@@ -163,13 +164,22 @@ func (h *Hub) PinTask(task string, ttl int) {
 	}
 }
 
+func NormalizePage(page string) string {
+	switch strings.ToLower(strings.TrimSpace(page)) {
+	case "load", "work", "host":
+		return strings.ToLower(strings.TrimSpace(page))
+	case "home":
+		return "status"
+	default:
+		return "status"
+	}
+}
+
 func (h *Hub) SetPage(page string) {
 	if h == nil {
 		return
 	}
-	if page != "load" {
-		page = "status"
-	}
+	page = NormalizePage(page)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.page = page

@@ -361,7 +361,7 @@
 
         async function openFile() {
             if (!openFileDialog) return;
-            const result = await openFileDialog({ filters: [{ name: 'ZIP Archives', extensions: ['zip'] }] });
+            const result = await openFileDialog({ filters: [{ label: t('desktop.file_dialog_zip'), extensions: ['zip'] }] });
             if (result && !result.canceled && result.path) {
                 openZipPath(result.path);
             }

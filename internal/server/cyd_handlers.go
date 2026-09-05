@@ -2,11 +2,17 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/cyd"
 	"aurago/internal/prompts"
 	"aurago/internal/tools"
@@ -184,8 +190,14 @@ func handleCYDSnapshot(s *Server) http.HandlerFunc {
 			return
 		}
 		s.ensureCydHub().Heartbeat(tokenID, name, cyd.Heartbeat{})
+		body, err := json.Marshal(s.CydHub.Snapshot())
+		if err != nil {
+			jsonError(w, "snapshot encode failed", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(s.CydHub.Snapshot())
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		_, _ = w.Write(body)
 	}
 }
 
@@ -230,6 +242,45 @@ func handleCYDAck(s *Server) http.HandlerFunc {
 	}
 }
 
+func firstLANIPv4() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1"
+	}
+	for _, addr := range addrs {
+		ipnet, ok := addr.(*net.IPNet)
+		if !ok || ipnet.IP.IsLoopback() {
+			continue
+		}
+		if v4 := ipnet.IP.To4(); v4 != nil {
+			return v4.String()
+		}
+	}
+	return "127.0.0.1"
+}
+
+func cydDeviceURL(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	host := strings.TrimSpace(cfg.Server.Host)
+	if host == "" || host == "0.0.0.0" || host == "::" || host == "localhost" || host == "127.0.0.1" {
+		host = firstLANIPv4()
+	}
+	if cfg.Server.HTTPS.Enabled {
+		port := cfg.Server.HTTPS.HTTPSPort
+		if port <= 0 {
+			port = 443
+		}
+		return fmt.Sprintf("https://%s:%d", host, port)
+	}
+	port := cfg.Server.Port
+	if port <= 0 {
+		port = 8088
+	}
+	return fmt.Sprintf("http://%s:%d", host, port)
+}
+
 func handleCYDStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -254,6 +305,7 @@ func handleCYDStatus(s *Server) http.HandlerFunc {
 			"devices":      hub.Devices(),
 			"ws_clients":   hub.ClientCount(),
 			"poll_seconds": poll,
+			"device_url":   cydDeviceURL(cfg),
 		})
 	}
 }
@@ -347,6 +399,105 @@ func handleCYDWebSocket(s *Server) http.HandlerFunc {
 	}
 }
 
+func (s *Server) cydDataDir() string {
+	if s == nil || s.Cfg == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.Cfg.Directories.DataDir)
+}
+
+func handleCYDFirmwareStatus(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		s.CfgMu.RUnlock()
+		variants := cyd.DiscoverFirmware(s.cydDataDir())
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"variants":          variants,
+			"provision_offset":  cyd.FactoryOffset,
+			"provision_size":    cyd.FactorySize,
+			"device_url":        cydDeviceURL(cfg),
+			"erase_recommended": true,
+		})
+	}
+}
+
+func handleCYDFirmwareProvision(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var body struct {
+			URL   string `json:"url"`
+			Token string `json:"token"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(body.Token) == "" {
+			jsonError(w, "token is required", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(body.URL) == "" {
+			s.CfgMu.RLock()
+			body.URL = cydDeviceURL(s.Cfg)
+			s.CfgMu.RUnlock()
+		}
+		blob, err := cyd.EncodeFactoryBlob(body.URL, body.Token)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", strconv.Itoa(len(blob)))
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(blob)
+	}
+}
+
+func handleCYDFirmwareFile(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		rest := strings.TrimPrefix(r.URL.Path, "/api/cyd/firmware/")
+		rest = strings.Trim(rest, "/")
+		parts := strings.Split(rest, "/")
+		if len(parts) != 2 {
+			jsonError(w, "not found", http.StatusNotFound)
+			return
+		}
+		path := cyd.FirmwareFilePath(s.cydDataDir(), parts[0], parts[1])
+		if path == "" {
+			jsonError(w, "firmware image not found", http.StatusNotFound)
+			return
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			jsonError(w, "firmware image not found", http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+		st, err := f.Stat()
+		if err != nil {
+			jsonError(w, "firmware image not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
+		w.Header().Set("Cache-Control", "public, max-age=60")
+		_, _ = io.Copy(w, f)
+	}
+}
+
 func registerCYDRoutes(mux *http.ServeMux, s *Server) {
 	s.ensureCydHub()
 	mux.HandleFunc("/api/cyd/snapshot", handleCYDSnapshot(s))
@@ -355,4 +506,7 @@ func registerCYDRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/cyd/ws", handleCYDWebSocket(s))
 	mux.HandleFunc("/api/cyd/status", handleCYDStatus(s))
 	mux.HandleFunc("/api/cyd/test", handleCYDTest(s))
+	mux.HandleFunc("/api/cyd/firmware/status", handleCYDFirmwareStatus(s))
+	mux.HandleFunc("/api/cyd/firmware/provision", handleCYDFirmwareProvision(s))
+	mux.HandleFunc("/api/cyd/firmware/", handleCYDFirmwareFile(s))
 }

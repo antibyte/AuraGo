@@ -19,6 +19,7 @@ func TestCYDConfigI18nKeys(t *testing.T) {
 		"help.cyd.overlay_ttl",
 		"help.cyd.allow_agent_control",
 		"help.cyd.mqtt_mirror",
+		"help.cyd.web_flasher",
 	}
 	for _, lang := range langs {
 		values := mustReadJSONMap(t, "lang/config/cyd/"+lang+".json")
@@ -61,10 +62,21 @@ func TestCYDConfigModuleWiresContentRoot(t *testing.T) {
 		"function cydFormatTokenDisplay",
 		"cyd-token-prefix",
 		"aura_",
+		"cyd-device-url",
+		"cydCopyDeviceUrl",
+		"cyd-test-btn",
+		"/api/cyd/firmware/status",
+		"/api/cyd/firmware/provision",
+		"esp-web-install-button",
+		"cydFlashDisplay",
+		"/js/vendor/esp-web-tools/install-button.js",
 	} {
 		if !strings.Contains(src, marker) {
 			t.Fatalf("cfg/cyd.js missing %q", marker)
 		}
+	}
+	if _, err := Content.ReadFile("js/vendor/esp-web-tools/install-button.js"); err != nil {
+		t.Fatalf("esp-web-tools must be embedded: %v", err)
 	}
 }
 

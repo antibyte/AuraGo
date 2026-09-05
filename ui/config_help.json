@@ -839,6 +839,10 @@
     "mqtt_mirror": {
       "title": "MQTT mirror",
       "description": "Also publish the compact snapshot to MQTT topic aurago/cyd/snapshot when MQTT is connected."
+    },
+    "web_flasher": {
+      "title": "Web flasher",
+      "description": "Flashes aurago-cyd from the browser over USB and writes the display token plus AuraGo URL into a factory partition. Afterwards only Wi-Fi setup remains."
     }
   },
   "mqtt": {

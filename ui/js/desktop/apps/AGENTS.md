@@ -165,8 +165,10 @@ and `files.default_apps` via `/api/desktop/settings`.
   `<$0.01` / `tok` there.
 - Zipper status uses `zipper.selected` and `zipper.compressed_size`.
   Zipper sizes use `desktop.bytes`, `desktop.kib`, `desktop.mib`,
-  `desktop.gib`, and `desktop.tib`. Do not hardcode `selected`,
-  `compressed`, or `B`/`KiB`/`MiB` there. Leave File Manager and
+  `desktop.gib`, and `desktop.tib`. The open-dialog filter uses
+  `desktop.file_dialog_zip`. Do not hardcode `selected`,
+  `compressed`, `ZIP Archives`, or `B`/`KiB`/`MiB` there. Zipper
+  `t` stays key-only. Leave File Manager and
   OpenSCAD byte formatters unchanged.
 - Quick Connect SFTP status uses `desktop.qc_sftp_items`. SFTP sizes
   use `desktop.bytes`, `desktop.kib`, `desktop.mib`, `desktop.gib`,
@@ -882,6 +884,7 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopSysworldSuccessRateI18n`
 - `go test ./ui/ -run TestDesktopSysworldPanelIdI18n`
 - `go test ./ui/ -run TestDesktopHomepageStudioFallbackI18n`
+- `go test ./ui/ -run TestDesktopZipperFilterI18n`
 - `go test ./ui/ -run TestDesktopAppAssetsRegistry`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go build ./cmd/aurago`
@@ -1162,7 +1165,8 @@ registration lives in `internal/desktop/types.go`.
   `GET /api/desktop/archive/entry`. PDF, Markdown, and Office files open Viewer
   with `{ path, archiveEntry, forceNew: true }`; STL opens Viewer 3D the same
   way. Executables and other blocked types stay closed. Visible strings use
-  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. Exposes
+  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. The open-dialog
+  filter uses `desktop.file_dialog_zip`. Exposes
   `window.ZipperApp`. No child DOX file needed.
 - `viewer.js` / `viewer-3d.js` - Viewer and STL viewer accept optional
   `archiveEntry` with the zip `path` and `forceNew: true`. Archive members

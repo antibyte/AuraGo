@@ -1226,7 +1226,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"title":      prop("string", "Overlay title for notify"),
 				"message":    prop("string", "Overlay or pinned status text"),
 				"priority":   prop("string", "low, normal, high, or critical"),
-				"page":       prop("string", "status or load"),
+				"page":       prop("string", "status, home, load, work, or host"),
 				"brightness": map[string]interface{}{"type": "integer", "description": "Backlight 0-255"},
 				"led":        prop("string", "off, green, yellow, red, or blue"),
 				"ttl_s":      map[string]interface{}{"type": "integer", "description": "Overlay lifetime in seconds"},

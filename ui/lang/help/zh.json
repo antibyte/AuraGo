@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "WebSocket 断开时显示屏拉取 /api/cyd/snapshot 的频率。最少 2 秒。",
   "help.cyd.overlay_ttl": "通知在屏幕上停留的默认秒数。",
   "help.cyd.allow_agent_control": "启用后，智能体可以更改页面、亮度和 LED。关闭时叠加层仍可用。",
-  "help.cyd.mqtt_mirror": "在 MQTT 已连接时，还将紧凑快照发布到主题 aurago/cyd/snapshot。"
+  "help.cyd.mqtt_mirror": "在 MQTT 已连接时，还将紧凑快照发布到主题 aurago/cyd/snapshot。",
+  "help.cyd.web_flasher": "通过浏览器 USB 烧录 aurago-cyd，并把令牌和 AuraGo URL 写入出厂分区。之后只需配置 Wi‑Fi。"
 }

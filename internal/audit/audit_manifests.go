@@ -169,6 +169,9 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/cyd/ws", Methods: []string{"GET"}, Auth: "bearer-scope-cyd", Category: "cyd", ContentTypes: []string{"websocket"}},
 		{Pattern: "/api/cyd/status", Methods: []string{"GET"}, Auth: "session", Category: "cyd"},
 		{Pattern: "/api/cyd/test", Methods: []string{"POST"}, Auth: "session", Category: "cyd", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/cyd/firmware/status", Methods: []string{"GET"}, Auth: "session", Category: "cyd"},
+		{Pattern: "/api/cyd/firmware/provision", Methods: []string{"POST"}, Auth: "session", Category: "cyd", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/cyd/firmware/", Methods: []string{"GET"}, Auth: "session", Category: "cyd"},
 		{Pattern: "/v1/chat/completions", Methods: []string{"POST"}, Auth: "session-or-api-key", Category: "llm", ContentTypes: []string{"application/json"}},
 	}
 }

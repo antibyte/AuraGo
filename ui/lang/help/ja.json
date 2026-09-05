@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "WebSocket が切れたとき、ディスプレイが /api/cyd/snapshot を取得する間隔。最小 2 秒。",
   "help.cyd.overlay_ttl": "通知が画面に残る既定の秒数。",
   "help.cyd.allow_agent_control": "有効だとエージェントがページ、輝度、LED を変更できます。オフでもオーバーレイは動作します。",
-  "help.cyd.mqtt_mirror": "MQTT 接続時、コンパクトなスナップショットをトピック aurago/cyd/snapshot にも公開します。"
+  "help.cyd.mqtt_mirror": "MQTT 接続時、コンパクトなスナップショットをトピック aurago/cyd/snapshot にも公開します。",
+  "help.cyd.web_flasher": "ブラウザから USB 経由で aurago-cyd を書き込み、トークンと AuraGo URL を工場パーティションに保存します。その後は Wi‑Fi 設定だけです。"
 }

@@ -431,5 +431,6 @@
   "help.cyd.poll_seconds": "Jak často displej stahuje /api/cyd/snapshot, když chybí WebSocket. Minimum 2 sekundy.",
   "help.cyd.overlay_ttl": "Výchozí počet sekund, po které oznámení zůstane na skle.",
   "help.cyd.allow_agent_control": "Pokud je zapnuto, agent může měnit stránku, jas a LED. Překryvy fungují i při vypnutí.",
-  "help.cyd.mqtt_mirror": "Navíc publikuje kompaktní snímek na MQTT téma aurago/cyd/snapshot, když je MQTT připojeno."
+  "help.cyd.mqtt_mirror": "Navíc publikuje kompaktní snímek na MQTT téma aurago/cyd/snapshot, když je MQTT připojeno.",
+  "help.cyd.web_flasher": "Nahrává aurago-cyd z prohlížeče přes USB a zapíše token i URL AuraGo do tovární oblasti. Poté zbývá jen Wi‑Fi."
 }
