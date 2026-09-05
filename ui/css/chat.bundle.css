@@ -12513,7 +12513,7 @@ pre,
     width: 18px;
     z-index: 3;
     pointer-events: none;
-    border-radius: 0 0 0 18px;
+    border-radius: 0;
     background: linear-gradient(to bottom, #9999ff 0 18%, transparent 18% 19.5%, #cc99cc 19.5% 65%, transparent 65% 66.5%, #ff9900 66.5% 78%, transparent 78% 79.5%, #ffcc99 79.5%);
     opacity: 1;
     filter: none;
@@ -12531,7 +12531,7 @@ pre,
     padding: 10px 16px;
     border-left: 48px solid #ffcc99;
     border-top: 12px solid #ffcc99;
-    border-radius: 44px 0 0 0;
+    border-radius: 44px 18px 18px 0;
     overflow: visible;
 }
 
@@ -12544,6 +12544,7 @@ pre,
     right: 0;
     height: 12px;
     pointer-events: none;
+    border-radius: 0 18px 0 0;
     background: linear-gradient(90deg, #05060d 0 1%, #cc99cc 1% 38%, #05060d 38% 39%, #9999ff 39% 74%, #05060d 74% 75%, #ff9900 75%);
 }
 
@@ -12553,10 +12554,11 @@ pre,
     border-top: 0;
     border-left-color: #cc99cc;
     border-bottom: 12px solid #cc99cc;
-    border-radius: 0 0 0 44px;
+    border-radius: 0 18px 18px 44px;
 }
 
-[data-theme="galaxy"] .app-footer::before { top: auto; bottom: -12px; }
+[data-theme="galaxy"] .app-footer::before { top: auto; bottom: -12px; border-radius: 0 0 18px 0; }
+[data-theme="galaxy"] .app-header::after { display: none; }
 [data-theme="galaxy"] .logo { font-family: 'Galaxy Console', 'Geist', sans-serif; letter-spacing: 0.09em; font-size: 1.7rem; }
 [data-theme="galaxy"] .logo-wordmark-accent { color: #ffcc99; }
 [data-theme="galaxy"] .logo-wordmark-base { color: #cc99cc; }
@@ -12661,6 +12663,38 @@ pre,
 [data-theme="galaxy"] .app-header .pill::after { display: none; }
 [data-theme="galaxy"] .app-header .personality-current-icon { border-radius: 2px; }
 [data-theme="galaxy"] .app-header .mood-widget { padding: 0; }
+[data-theme="galaxy"] .app-header #logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    line-height: 1;
+    padding: 0 14px;
+    text-align: center;
+}
+[data-theme="galaxy"] .app-header .header-actions .btn-warnings:has(.warnings-badge:not(.is-hidden)) {
+    width: max-content !important;
+    min-width: 64px !important;
+    grid-auto-flow: column;
+    gap: 6px;
+    padding: 0 6px !important;
+}
+[data-theme="galaxy"] .app-header .header-actions .warnings-badge {
+    --warnings-badge-text: #ffe0b9;
+    position: static;
+    min-width: 22px;
+    height: 24px;
+    padding: 0 5px;
+    border: 0;
+    border-radius: 4px;
+    background: #05060d;
+    font: 700 12px/1 'Geist', sans-serif;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    box-shadow: none;
+    text-shadow: none;
+}
+[data-theme="galaxy"] .app-header .header-actions .warnings-badge.seen { --warnings-badge-text: #d3d1e1; background: #252536; }
 [data-theme="galaxy"] .app-footer .input-row,
 [data-theme="galaxy"] .app-footer .composer-panel { gap: 6px; }
 [data-theme="galaxy"] .app-footer .composer-panel {
@@ -12689,15 +12723,15 @@ pre,
 }
 @media (max-width: 767px) {
     [data-theme="galaxy"] { --galaxy-poster: url('/img/galaxy/poster-mobile.webp?v=galaxy-1'); }
-    [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 8px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 0 0 0; }
-    [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 0 0 24px; }
+    [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 8px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 12px 12px 0; }
+    [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
     [data-theme="galaxy"] .app-header::before { top: -8px; height: 8px; left: 64px; }
     [data-theme="galaxy"] .app-footer::before { bottom: -8px; height: 8px; left: 64px; }
     [data-theme="galaxy"] body::after { left: 8px; width: 5px; top: 112px; bottom: 144px; }
     [data-theme="galaxy"] #chat-box { padding: 0 12px; }
     [data-theme="galaxy"] #chat-content { padding: 16px 0; }
     [data-theme="galaxy"] .bubble { padding: 12px 14px; }
-    [data-theme="galaxy"] .app-header .header-actions { gap: 4px; }
+    [data-theme="galaxy"] .app-header .header-actions { gap: 4px; margin-right: 40px; }
     [data-theme="galaxy"] .logo { font-size: 1.25rem; letter-spacing: 0.02em; }
     [data-theme="galaxy"] .btn-send { width: 44px; }
     [data-theme="galaxy"] .app-footer .composer-panel { border-top: 4px solid #cc99cc; padding: 8px; }

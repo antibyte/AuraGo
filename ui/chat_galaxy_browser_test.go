@@ -113,7 +113,9 @@ document.getElementById('moodToggle').style.display='flex';
 document.getElementById('debug-pill').textContent='debuggen';
 document.getElementById('connectionPill').textContent='Verbunden';
 document.getElementById('logout-btn').classList.remove('is-hidden');
-document.getElementById('logout-btn').textContent='Abmelden';
+document.getElementById('logout-btn').textContent=t('chat.logout_label');
+document.getElementById('warnings-badge').classList.remove('is-hidden');
+document.getElementById('warnings-badge').textContent='3';
 document.getElementById('chat-form').addEventListener('submit',e=>{e.preventDefault();window.__submitted=document.getElementById('user-input').value});
 SessionDrawer.init();initTheme();initChatThemePicker();
 </script><script src="/js/chat/theme-effects.js"></script>`
@@ -226,12 +228,22 @@ SessionDrawer.init();initTheme();initChatThemePicker();
         }
     }`, "twenty independently timed stars did not flicker in real GPU output")
 	check(`() => {
-        const r=__galaxy.runtime,time=r.time,before=Array.from(r.ships.instanceMatrix.array);
-        try {r.time+=10;__galaxy.draw(r);return r.ships.count===3 && [0,1,2].every(i=>Math.abs(r.ships.instanceMatrix.array[i*16+12]-before[i*16+12])>0.1)}
+        const r=__galaxy.runtime,time=r.time,before=r.ships.map(s=>s.position.clone());
+        try {
+            r.time+=10;__galaxy.draw(r);
+            return r.ships.length===4 && new Set(r.ships.map(s=>s.geometry.id)).size===4 && r.ships.every((s,i)=>{
+                const dx=s.position.x-before[i].x,dy=s.position.y-before[i].y;
+                return s.geometry.attributes.position.count>500 && Math.abs(dx)>0.1 && Math.abs(dy/dx)>0.45;
+            });
+        }
         finally {r.time=time;__galaxy.draw(r)}
-    }`, "distant ships did not travel along their routes")
+    }`, "four detailed ship designs did not follow visibly diagonal routes")
+	// Inspect the actual meshes at a larger scale as well as at flight distance.
+	p.MustEval(`() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));const r=__galaxy.runtime;r.ships.forEach((s,i)=>{s.position.set(-1.2+i*0.8,0.3,-3);s.scale.setScalar(0.22);s.rotation.set(0.35,-0.2,0.4)});r.renderer.render(r.scene,r.camera)}`)
+	artifact("galaxy-fleet-detail")
+	p.MustEval(`() => {__galaxy.draw(__galaxy.runtime);delete document.hidden;document.dispatchEvent(new Event('visibilitychange'))}`)
 
-	for _, size := range [][2]int{{1920, 1080}, {2560, 1440}, {768, 1024}, {1024, 768}, {390, 844}, {430, 932}} {
+	for _, size := range [][2]int{{1920, 1080}, {2560, 1440}, {1536, 864}, {768, 1024}, {1024, 768}, {390, 844}, {430, 932}} {
 		p.MustSetViewport(size[0], size[1], 1, size[0] < 768)
 		p.MustReload().MustWaitLoad()
 		ready()
@@ -246,12 +258,37 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		p.MustEval(`async () => {const panel=document.getElementById('composer-panel');panel.classList.remove('is-hidden');await Promise.all(panel.getAnimations().map(a=>a.finished))}`)
 		artifact(fmt.Sprintf("galaxy-toolbar-%dx%d", size[0], size[1]))
 		check(`() => {
+            const logout=document.getElementById('logout-btn'),box=logout.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(logout);
+            const text=range.getBoundingClientRect(),header=getComputedStyle(document.querySelector('.app-header')),rail=getComputedStyle(document.body,'::after');
+            const badge=document.getElementById('warnings-badge'),icon=document.querySelector('#warnings-btn .warnings-icon');
+            const style=getComputedStyle(badge),a=badge.getBoundingClientRect(),b=icon.getBoundingClientRect();
+            return Math.abs((text.top+text.bottom-box.top-box.bottom)/2)<4 && Math.abs((text.left+text.right-box.left-box.right)/2)<2 &&
+                a.left>=b.right && a.height>=24 && parseFloat(style.fontSize)>=12 && style.color==='rgb(255, 224, 185)' && style.backgroundColor==='rgb(5, 6, 13)' &&
+                rail.borderBottomLeftRadius==='0px' && parseFloat(header.borderBottomRightRadius)>=12;
+        }`, fmt.Sprintf("logout centering, warning badge legibility or frame corners at %v: %s", size, p.MustEval(`() => {
+            const e=document.getElementById('logout-btn'),range=document.createRange();range.selectNodeContents(e);
+            const s=getComputedStyle(document.getElementById('warnings-badge'));
+            return JSON.stringify({button:e.getBoundingClientRect(),text:range.getBoundingClientRect(),badge:[s.color,s.backgroundColor,s.fontSize,s.height],rail:getComputedStyle(document.body,'::after').borderBottomLeftRadius});
+        }`).Str()))
+		check(`() => {
+            const badge=document.getElementById('warnings-badge'),button=document.getElementById('warnings-btn');badge.textContent='128';
+            const r=badge.getBoundingClientRect(),b=button.getBoundingClientRect();
+            const fits=r.left>b.left && r.right<b.right && badge.scrollWidth<=badge.clientWidth;
+            badge.classList.add('seen');const seen=getComputedStyle(badge).color==='rgb(211, 209, 225)';
+            badge.classList.remove('seen');badge.textContent='3';return fits && seen;
+        }`, "multi-digit or already-read warning count is clipped or loses contrast")
+		check(`() => {
             const panel=document.getElementById('composer-panel'),style=getComputedStyle(panel),footer=getComputedStyle(document.querySelector('.app-footer'));
             const buttons=[...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn,#chat-theme-btn,#speaker-toggle,#warnings-btn')].filter(e=>e.getClientRects().length);
             const controls=buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44 && parseFloat(getComputedStyle(e).borderTopLeftRadius)<=3});
             const input=document.getElementById('user-input').getBoundingClientRect(),send=document.getElementById('send-btn').getBoundingClientRect();
             return controls && send.right<=innerWidth && input.width>=100 && input.right<=send.left && style.backgroundColor===footer.backgroundColor && (innerWidth<768 || style.borderTopWidth==='0px');
         }`, fmt.Sprintf("LCARS toolbar geometry or continuous footer surface at %v: %s", size, p.MustEval(`() => JSON.stringify([...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn')].filter(e=>e.getClientRects().length).map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,radius:getComputedStyle(e).borderTopLeftRadius})))`).Str()))
+		if size[0] < 768 {
+			p.MustEval(`() => {const row=document.querySelector('.header-actions');row.scrollLeft=row.scrollWidth}`)
+			check(`() => document.getElementById('logout-btn').getBoundingClientRect().right<=document.getElementById('radialTrigger').getBoundingClientRect().left`, "mobile navigation covers logout")
+			artifact(fmt.Sprintf("galaxy-header-end-%d", size[0]))
+		}
 	}
 	p.MustSetViewport(2560, 1440, 2, false)
 	p.MustReload().MustWaitLoad()
@@ -284,7 +321,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.info.memory.textures===0 && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
-		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===4 && s.calls===7}`, "theme restart grew resources")
+		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===7 && s.calls===10}`, "theme restart grew resources")
 	}
 	p.MustEval(`() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));window.__paused=__galaxy.runtime.time}`)
 	check(`() => __pending.size===0 && __galaxy.runtime.time===__paused`, "hidden tab did not pause")

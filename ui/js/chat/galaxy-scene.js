@@ -233,39 +233,92 @@
         rt.stars.renderOrder = -5;
         rt.scene.add(rt.stars);
 
-        // Faceted scout hull, swept wings and small dorsal engine strips.
-        // All three distant ships share one buffer and one draw call.
-        const hull = [
-            [1.6, 0, 0], [-1, -0.18, 0], [-1, 0.18, 0],
-            [-0.3, 0, 0.28], [-0.3, 0, -0.16],
-            [-1.25, -0.8, -0.04], [-1.25, 0.8, -0.04],
-            [0.2, -0.12, 0.03], [0.2, 0.12, 0.03]
-        ];
-        const shipPositions = [], shipColors = [];
-        const face = (a, b, c, color) => {
-            shipPositions.push(...a, ...b, ...c);
-            for (let i = 0; i < 3; i++) shipColors.push(...color);
-        };
-        [[0, 1, 3], [0, 3, 2], [1, 2, 3], [0, 4, 1], [0, 2, 4], [1, 4, 2], [7, 5, 1], [8, 2, 6]].forEach((f, i) => {
-            const shade = i % 2 ? 0.4 : 0.65;
-            face(hull[f[0]], hull[f[1]], hull[f[2]], [shade * 0.7, shade * 0.85, shade]);
-        });
-        for (const side of [-1, 1]) {
-            face([-1.14, side * 0.65, 0.01], [-0.88, side * 0.48, 0.02], [-1.02, side * 0.48, 0.02], [0.16, 0.65, 1]);
+        createFleet(rt, sun);
+    }
+
+    function createFleet(rt, sun) {
+        // Bake each multipart design into one mesh: four ships, four draw calls.
+        const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.35, roughness: 0.48 });
+        const light = new THREE.DirectionalLight(0xffeedb, 1.8);
+        light.position.copy(sun).multiplyScalar(10);
+        rt.scene.add(light, new THREE.HemisphereLight(0xaacfff, 0x152031, 0.8));
+        rt.ships = [];
+        for (let design = 0; design < 4; design++) {
+            const positions = [], normals = [], colors = [];
+            const part = (geometry, hex, x, y, z, rx = 0, rz = 0) => {
+                const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+                flat.rotateX(rx).rotateZ(rz).translate(x, y, z);
+                const color = new THREE.Color(hex).convertSRGBToLinear();
+                positions.push(...flat.attributes.position.array);
+                normals.push(...flat.attributes.normal.array);
+                for (let i = 0; i < flat.attributes.position.count; i++) colors.push(color.r, color.g, color.b);
+                flat.dispose();
+                if (flat !== geometry) geometry.dispose();
+            };
+            const box = (x, y, z, w, h, d, color) => part(new THREE.BoxGeometry(w, h, d), color, x, y, z);
+            const pod = (x, y, z, length, radius, color) => {
+                part(new THREE.CylinderGeometry(radius * 0.8, radius, length, 10), color, x, y, z, 0, -Math.PI / 2);
+                part(new THREE.CylinderGeometry(radius * 0.75, radius * 0.75, 0.035, 10), 0x82e4ff, x - length / 2 - 0.015, y, z, 0, -Math.PI / 2);
+            };
+            if (design === 0) {
+                // Survey cruiser: broad saucer, bridge dome and twin nacelles.
+                box(-0.5, 0, 0, 1.2, 0.18, 0.12, 0x8297ab);
+                box(-0.65, 0, -0.02, 0.24, 1.35, 0.1, 0x687d91);
+                part(new THREE.SphereGeometry(1, 24, 8).scale(0.8, 0.72, 0.12), 0xcbd7df, 0.55, 0, 0.06);
+                part(new THREE.SphereGeometry(1, 12, 6).scale(0.23, 0.22, 0.1), 0x819bb0, 0.5, 0, 0.18);
+                box(0.65, 0, 0.24, 0.13, 0.21, 0.035, 0x9be2f2);
+                for (const side of [-1, 1]) {
+                    pod(-0.62, side * 0.67, 0.06, 1.65, 0.1, 0xa9bdca);
+                    box(-0.62, side * 0.67, 0.15, 1.05, 0.05, 0.025, 0x68bde6);
+                    box(0.67, side * 0.4, 0.17, 0.26, 0.035, 0.02, 0x53687c);
+                }
+            } else if (design === 1) {
+                // Freighter: exposed spine, six cargo pods and a raised bridge.
+                box(0, 0, 0, 2.15, 0.34, 0.22, 0x697e91);
+                for (let i = 0; i < 3; i++) for (const side of [-1, 1]) {
+                    box(-0.65 + i * 0.58, side * 0.35, 0.04, 0.49, 0.38, 0.32, i === 1 ? 0xc69a68 : 0x7798ab);
+                    box(-0.65 + i * 0.58, side * 0.35, 0.21, 0.055, 0.37, 0.035, 0xd5d8d1);
+                }
+                box(0.94, 0, 0.13, 0.36, 0.52, 0.35, 0xc3c7bf);
+                box(1.05, 0, 0.32, 0.13, 0.36, 0.035, 0x8bd7e9);
+                for (const side of [-1, 1]) pod(-1.04, side * 0.31, -0.07, 0.5, 0.16, 0x8a9aa9);
+            } else if (design === 2) {
+                // Ring explorer: open annular drive and narrow instrument hull.
+                part(new THREE.TorusGeometry(0.72, 0.085, 6, 28), 0xc3bdab, -0.25, 0, 0);
+                box(-0.25, 0, 0, 0.12, 1.4, 0.08, 0x617d92);
+                pod(0, 0, 0.05, 2.15, 0.15, 0xa5bcc9);
+                box(0.65, 0, 0.2, 0.3, 0.24, 0.13, 0xd4dce0);
+                box(0.73, 0, 0.28, 0.12, 0.18, 0.035, 0x8edbea);
+                for (const side of [-1, 1]) {
+                    box(-0.25, side * 0.7, 0.07, 0.25, 0.075, 0.04, 0x88d7f4);
+                    pod(-0.92, side * 0.28, 0, 0.45, 0.09, 0x627e92);
+                }
+            } else {
+                // Shuttle: rounded fuselage, dark canopy and straight outriggers.
+                part(new THREE.SphereGeometry(1, 12, 6).scale(0.98, 0.36, 0.24), 0xc2cdd4, 0.1, 0, 0.02);
+                part(new THREE.SphereGeometry(1, 10, 6).scale(0.38, 0.27, 0.13), 0x285977, 0.55, 0, 0.21);
+                box(-0.28, 0, 0, 0.54, 1.3, 0.08, 0x8d9dab);
+                box(-0.15, 0, 0.26, 0.44, 0.12, 0.025, 0xd8a46f);
+                for (const side of [-1, 1]) {
+                    pod(-0.48, side * 0.52, 0, 1.05, 0.12, 0xaabac6);
+                    box(-0.65, side * 0.52, 0.18, 0.34, 0.05, 0.25, 0x72899d);
+                }
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            const ship = new THREE.Mesh(geometry, material);
+            ship.frustumCulled = false;
+            rt.ships.push(ship);
+            rt.scene.add(ship);
         }
-        const shipGeometry = new THREE.BufferGeometry();
-        shipGeometry.setAttribute('position', new THREE.Float32BufferAttribute(shipPositions, 3));
-        shipGeometry.setAttribute('color', new THREE.Float32BufferAttribute(shipColors, 3));
-        rt.ships = new THREE.InstancedMesh(shipGeometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 3);
-        rt.ships.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        rt.ships.frustumCulled = false;
-        rt.shipTransform = new THREE.Object3D();
         rt.shipRoutes = [
-            { duration: 85, phase: 0.25, y: 0.48, slope: -0.12, scale: 0.025, direction: 1 },
-            { duration: 115, phase: 0.65, y: 0.1, slope: 0.18, scale: 0.018, direction: -1 },
-            { duration: 145, phase: 0.02, y: -0.35, slope: -0.08, scale: 0.013, direction: 1 }
+            { duration: 105, phase: 0.32, x: 0, y: 0.28, angle: 28, scale: 0.055 },
+            { duration: 135, phase: 0.6, x: 0.1, y: 0.4, angle: 145, scale: 0.045 },
+            { duration: 155, phase: 0.36, x: -0.3, y: 0, angle: -58, scale: 0.04 },
+            { duration: 90, phase: 0.52, x: 0.3, y: 0.3, angle: -32, scale: 0.035 }
         ];
-        rt.scene.add(rt.ships);
     }
 
     function resize() {
@@ -312,15 +365,15 @@
         rt.stars.material.uniforms.uTime.value = rt.time;
         rt.shipRoutes.forEach((route, i) => {
             const progress = (rt.time / route.duration + route.phase) % 1;
-            const x = (progress * 2 - 1) * (rt.camera.right + 0.15) * route.direction;
-            const ship = rt.shipTransform;
-            ship.position.set(x, route.y + (progress - 0.5) * route.slope, -3 - i);
-            ship.scale.setScalar(route.scale);
-            ship.rotation.set(0.35, 0.2, Math.atan2(route.slope, 2 * (rt.camera.right + 0.15) * route.direction));
-            ship.updateMatrix();
-            rt.ships.setMatrixAt(i, ship.matrix);
+            const angle = route.angle * Math.PI / 180, dx = Math.cos(angle), dy = Math.sin(angle);
+            // The full path extends beyond the viewport in every aspect ratio.
+            const reach = Math.abs(dx) * (rt.camera.right * (1 + Math.abs(route.x)) + 0.25) + Math.abs(dy) * (1.25 + Math.abs(route.y));
+            const distance = (progress * 2 - 1) * reach;
+            const ship = rt.ships[i];
+            ship.position.set(route.x * rt.camera.right + distance * dx, route.y + distance * dy, -3 - i);
+            ship.scale.setScalar(route.scale * (rt.mobile ? 0.7 : 1));
+            ship.rotation.set(0.25 + Math.sin(rt.time * 0.025 + i) * 0.08, -0.2, angle);
         });
-        rt.ships.instanceMatrix.needsUpdate = true;
         rt.camera.position.x = Math.sin(phase) * 0.012;
         rt.camera.position.y = Math.sin(phase * 0.7) * 0.006;
         rt.renderer.render(rt.scene, rt.camera);

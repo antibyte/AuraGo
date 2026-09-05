@@ -209,9 +209,11 @@ images, and browser-oriented regression tests.
   transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
   and narrow-screen gates.
 - Galaxy uses the existing Three.js r128 and a single lazy renderer/RAF loop.
-  Keep the seven draw calls, shared sphere geometry and fixed 3500/850-star
+  Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
-  three distant low-poly ships share one instanced mesh and wrap offscreen.
+  four distinct low-poly ships (saucer cruiser, cargo freighter, ring explorer,
+  shuttle) each bake their lit hull, bridge and engines into one mesh. Keep
+  diagonal courses visible at every aspect ratio and wrap fully offscreen.
   Both effects use scene time and the existing pause/disposal lifecycle.
   No full-screen postprocessing. Start desktop at high quality with
   at most 1.5 DPR / 3840x2160 pixels, then lower resolution after sustained
@@ -224,8 +226,11 @@ images, and browser-oriented regression tests.
   preserve source provenance in `img/galaxy/CREDITS.md`. LCARS rules belong
   only under `[data-theme="galaxy"]` in `css/chat-themes.css`; keep Geist for
   chat prose, local Barlow for labels, actual status signals and 44px targets.
-  Use rectangular controls with 3px corners; reserve large curves for frame
-  elbows. The desktop composer toolbar shares the footer's black surface
+  Use rectangular controls with 3px corners, straight vertical color segments
+  and rounded black header/footer ends. Center logout content; warning counts
+  sit beside the icon in a high-contrast 24px badge, including multi-digit counts.
+  On mobile, reserve space beside the scrolling controls for the radial menu.
+  The desktop composer toolbar shares the footer's black surface
   without a panel border; only the mobile popover has a colored top edge.
 
 ## Work Guidance
