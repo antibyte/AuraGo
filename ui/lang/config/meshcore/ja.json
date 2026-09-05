@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "名前またはキーでノードを検索",
+  "config.meshcore.add_to": "追加先",
+  "config.meshcore.use_node": "ノードを追加",
+  "config.meshcore.node_added": "追加済み",
+  "config.meshcore.chat_nodes_only": "チャットノードのみ選択できます",
   "config.meshcore.enabled": "有効",
   "config.meshcore.transport": "接続",
   "config.meshcore.port": "シリアルポート",

@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Rechercher des nœuds par nom ou clé",
+  "config.meshcore.add_to": "Ajouter à",
+  "config.meshcore.use_node": "Ajouter le nœud",
+  "config.meshcore.node_added": "Déjà ajouté",
+  "config.meshcore.chat_nodes_only": "Seuls les nœuds de discussion sont sélectionnables",
   "config.meshcore.enabled": "Activé",
   "config.meshcore.transport": "Connexion",
   "config.meshcore.port": "Port série",

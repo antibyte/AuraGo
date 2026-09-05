@@ -24,6 +24,9 @@ radio-parameter changes are included.
 5. Copy complete 64-character node public keys into the trusted list, one per
    line. Only unambiguous, synchronized chat contacts sending direct plain text
    may start the normal agent. Each full node key has its own chat session.
+   Alternatively, search the node list by name or key, choose the permission list
+   under **Add to**, and click a chat node. Its full key is added without
+   duplicates; then select **Save**.
 6. Enable **Reply to trusted direct messages** if desired. For channels, confirm
    the channel assignment and select receive-only, prefix (`!aura` followed by
    whitespace), or question detection. Save the configuration.

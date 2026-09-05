@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Cerca nodi per nome o chiave",
+  "config.meshcore.add_to": "Aggiungi a",
+  "config.meshcore.use_node": "Aggiungi nodo",
+  "config.meshcore.node_added": "Già aggiunto",
+  "config.meshcore.chat_nodes_only": "Sono selezionabili solo i nodi di chat",
   "config.meshcore.enabled": "Attivato",
   "config.meshcore.transport": "Connessione",
   "config.meshcore.port": "Porta seriale",

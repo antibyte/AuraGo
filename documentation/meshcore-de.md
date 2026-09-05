@@ -26,6 +26,10 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
    einen pro Zeile. Nur eindeutige synchronisierte Chat-Kontakte dürfen direkte
    Plain-Text-Befehle auslösen. Jeder vollständige Node-Schlüssel besitzt eine
    eigene Sitzung.
+   Alternativ die Nodeliste nach Name oder Schlüssel durchsuchen, unter
+   **Übernehmen in** die gewünschte Freigabeliste wählen und einen Chat-Node
+   anklicken. Der vollständige Schlüssel wird ohne Duplikate übernommen;
+   anschließend **Speichern** wählen.
 6. Antworten auf sichere Direktnachrichten bei Bedarf einschalten. Bei Kanälen
    die Zuordnung bestätigen und Empfang, Präfix (`!aura` mit anschließendem
    Leerzeichen) oder automatische Frageerkennung wählen. Einstellungen speichern.

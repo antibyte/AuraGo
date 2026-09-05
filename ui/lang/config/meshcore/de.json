@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Nodes nach Name oder Schlüssel suchen",
+  "config.meshcore.add_to": "Übernehmen in",
+  "config.meshcore.use_node": "Node übernehmen",
+  "config.meshcore.node_added": "Bereits enthalten",
+  "config.meshcore.chat_nodes_only": "Nur Chat-Nodes auswählbar",
   "config.meshcore.enabled": "Aktiviert",
   "config.meshcore.transport": "Verbindung",
   "config.meshcore.port": "Serieller Port",

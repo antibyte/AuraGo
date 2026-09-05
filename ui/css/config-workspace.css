@@ -1518,11 +1518,30 @@
     margin-bottom: var(--cfg-card-padding);
 }
 .pw-page[data-workspace-page="config"] #meshcore-contacts {
+    display: grid;
+    gap: 8px;
     max-height: min(24rem, 50vh);
     overflow-y: auto;
     overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
     padding-right: 8px;
+}
+.pw-page[data-workspace-page="config"] .meshcore-node-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: 16px;
+}
+.pw-page[data-workspace-page="config"] .meshcore-node-controls label {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+.pw-page[data-workspace-page="config"] .meshcore-node-controls :is(input, select) {
+    width: 100%;
+    min-width: 0;
+}
+.pw-page[data-workspace-page="config"] #meshcore-node-status:empty {
+    display: none;
 }
 .pw-page[data-workspace-page="config"] #meshcore-contacts:focus-visible {
     outline: 2px solid var(--pw-accent);
@@ -1551,13 +1570,18 @@
 .pw-page[data-workspace-page="config"] .meshcore-search-status .spinner {
     flex: 0 0 24px;
 }
-.pw-page[data-workspace-page="config"] .meshcore-device-choice {
+.pw-page[data-workspace-page="config"] .meshcore-device-choice,
+.pw-page[data-workspace-page="config"] .meshcore-node-choice {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 8px 16px;
     text-align: left;
+}
+.pw-page[data-workspace-page="config"] .meshcore-node-choice:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: -2px;
 }
 .pw-page[data-workspace-page="config"] .meshcore-device-choice[aria-pressed="true"] {
     border-color: var(--pw-accent);

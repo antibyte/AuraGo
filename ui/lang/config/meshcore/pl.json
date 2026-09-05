@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Szukaj węzłów według nazwy lub klucza",
+  "config.meshcore.add_to": "Dodaj do",
+  "config.meshcore.use_node": "Dodaj węzeł",
+  "config.meshcore.node_added": "Już dodano",
+  "config.meshcore.chat_nodes_only": "Można wybrać tylko węzły czatu",
   "config.meshcore.enabled": "Włączone",
   "config.meshcore.transport": "Połączenie",
   "config.meshcore.port": "Port szeregowy",

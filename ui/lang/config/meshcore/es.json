@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Buscar nodos por nombre o clave",
+  "config.meshcore.add_to": "Añadir a",
+  "config.meshcore.use_node": "Añadir nodo",
+  "config.meshcore.node_added": "Ya añadido",
+  "config.meshcore.chat_nodes_only": "Solo se pueden seleccionar nodos de chat",
   "config.meshcore.enabled": "Activado",
   "config.meshcore.transport": "Conexión",
   "config.meshcore.port": "Puerto serie",

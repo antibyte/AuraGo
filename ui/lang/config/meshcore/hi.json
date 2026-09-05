@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "नाम या कुंजी से नोड खोजें",
+  "config.meshcore.add_to": "इसमें जोड़ें",
+  "config.meshcore.use_node": "नोड जोड़ें",
+  "config.meshcore.node_added": "पहले से जोड़ा गया",
+  "config.meshcore.chat_nodes_only": "केवल चैट नोड चुने जा सकते हैं",
   "config.meshcore.enabled": "सक्रिय",
   "config.meshcore.transport": "कनेक्शन",
   "config.meshcore.port": "सीरियल पोर्ट",

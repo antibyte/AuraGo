@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Hledat uzly podle názvu nebo klíče",
+  "config.meshcore.add_to": "Přidat do",
+  "config.meshcore.use_node": "Přidat uzel",
+  "config.meshcore.node_added": "Již přidáno",
+  "config.meshcore.chat_nodes_only": "Lze vybrat pouze chatové uzly",
   "config.meshcore.enabled": "Zapnuto",
   "config.meshcore.transport": "Připojení",
   "config.meshcore.port": "Sériový port",

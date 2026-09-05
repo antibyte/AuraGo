@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Nodes zoeken op naam of sleutel",
+  "config.meshcore.add_to": "Toevoegen aan",
+  "config.meshcore.use_node": "Node toevoegen",
+  "config.meshcore.node_added": "Al toegevoegd",
+  "config.meshcore.chat_nodes_only": "Alleen chatnodes kunnen worden geselecteerd",
   "config.meshcore.enabled": "Ingeschakeld",
   "config.meshcore.transport": "Verbinding",
   "config.meshcore.port": "Seriële poort",

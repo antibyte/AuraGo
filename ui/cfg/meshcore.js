@@ -18,7 +18,10 @@ function renderMeshCoreSection(section) {
                     + '<div id="meshcore-test-status" class="pw-status" role="status" aria-live="polite" aria-busy="false" hidden></div>'
                     + '<p id="meshcore-saved-reason" class="field-help" hidden></p>'
                     + form.disclosure({ title: tr('pairing'), className: 'meshcore-pairing', content: form.note({ text: tr('ble_help') }) + form.password({ id: 'meshcore-pin', label: tr('pin') }).replace('autocomplete="off"', 'autocomplete="off" maxlength="16"') + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery" role="region" aria-label="' + escapeHtml(tr('scan')) + '" aria-busy="false"></div>' }) },
-            { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content: '<div id="meshcore-contacts" tabindex="0" role="region" aria-label="MeshCore"></div>' },
+            { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content:
+                '<div class="meshcore-node-controls"><label>' + escapeHtml(tr('search_nodes')) + '<input id="meshcore-node-search" type="search" class="field-input pw-search" aria-controls="meshcore-contacts"></label>'
+                + '<label>' + escapeHtml(tr('add_to')) + '<select id="meshcore-node-target" class="field-select"><option value="send_nodes">' + escapeHtml(tr('send_nodes')) + '</option><option value="trusted_nodes">' + escapeHtml(tr('trusted_nodes')) + '</option></select></label></div>'
+                + '<p id="meshcore-node-status" class="field-help" role="status" aria-live="polite"></p><div id="meshcore-contacts" tabindex="0" role="region" aria-label="MeshCore"></div>' },
             { title: tr('channels'), content: form.note({ text: tr('channels_help') }) + '<div id="meshcore-channels"></div>' },
             { title: tr('limits'), content: form.disclosure({ titleKey: 'config.precision.advanced_title', content: Object.entries(limits).map(([key, values]) => form.number({ path: 'meshcore.' + key, label: tr(key), value: data[key] || values[0], min: 1, max: values[1] })).join('') }) },
             { title: tr('inbox'), content: '<div id="meshcore-inbox"></div>' + form.actions([{ html: button('previous', 'previous') + button('next', 'next') }]) }
@@ -32,6 +35,44 @@ function renderMeshCoreSection(section) {
     const status = root.querySelector('#meshcore-status');
     const testStatus = root.querySelector('#meshcore-test-status');
     const portSelect = root.querySelector('select[data-path="meshcore.port"]');
+    const nodeSearch = root.querySelector('#meshcore-node-search');
+    const nodeTarget = root.querySelector('#meshcore-node-target');
+    const nodeStatus = root.querySelector('#meshcore-node-status');
+    nodeSearch.addEventListener('input', renderContacts);
+    nodeTarget.addEventListener('change', renderContacts);
+    root.addEventListener('input', event => {
+        if (event.target.matches('[data-path="meshcore.trusted_nodes"], [data-path="meshcore.send_nodes"]')) queueMicrotask(renderContacts);
+    });
+    function renderContacts() {
+        const contacts = root.querySelector('#meshcore-contacts');
+        const query = nodeSearch.value.trim().toLowerCase();
+        const target = nodeTarget.value;
+        contacts.replaceChildren();
+        for (const contact of runtime?.status.contacts || []) {
+            if (!(contact.name + ' ' + contact.key).toLowerCase().includes(query)) continue;
+            const key = (contact.key || '').toLowerCase();
+            const row = document.createElement('button');
+            row.type = 'button'; row.className = 'btn-secondary meshcore-node-choice';
+            const identity = document.createElement('span'); identity.className = 'meshcore-device-identity';
+            const name = document.createElement('strong'); name.textContent = contact.name;
+            const address = document.createElement('span'); address.textContent = key;
+            identity.append(name, address);
+            const action = document.createElement('span');
+            const included = (draft()[target] || []).some(value => value.trim().toLowerCase() === key);
+            const eligible = contact.type === 1 && /^[a-f0-9]{64}$/.test(key) && key !== runtime.status.identity_key;
+            action.textContent = tr(!eligible ? 'chat_nodes_only' : included ? 'node_added' : 'use_node');
+            row.disabled = included || !eligible;
+            row.append(identity, action);
+            row.addEventListener('click', () => {
+                const current = draft()[target] || [];
+                if (!current.some(value => value.trim().toLowerCase() === key)) set(target, [...current, key]);
+                row.disabled = true; action.textContent = tr('node_added');
+                nodeStatus.textContent = contact.name + ' · ' + tr('save_first');
+            });
+            contacts.append(row);
+        }
+        if (!contacts.childElementCount) contacts.textContent = tr('empty');
+    }
     function renderPorts(ports) {
         const selected = draft().port || '';
         const found = ports === null ? null : [...new Set((Array.isArray(ports) ? ports : []).filter(port => typeof port === 'string' && port.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -108,13 +149,7 @@ function renderMeshCoreSection(section) {
         const known = ['disabled', 'connecting', 'connected', 'disconnected', 'binding_required', 'binding_changed', 'suspended'];
         status.textContent = tr(known.includes(st.state) ? st.state : 'failed') + ' · ' + tr('hardware_unverified');
         root.querySelector('#meshcore-device').textContent = [st.name, st.identity_key, st.firmware].filter(Boolean).join(' · ');
-        const contacts = root.querySelector('#meshcore-contacts');
-        contacts.replaceChildren();
-        for (const contact of st.contacts || []) {
-            const row = document.createElement('p');
-            row.textContent = contact.name + ' · ' + contact.key;
-            contacts.append(row);
-        }
+        renderContacts();
         const channels = root.querySelector('#meshcore-channels');
         channels.replaceChildren();
         const available = st.channels || [];
@@ -227,7 +262,7 @@ function renderMeshCoreSection(section) {
             busy = false; lockActions();
         }
     });
-    function saved() { if (root.isConnected) refresh(); else lockActions(); }
+    function saved() { nodeStatus.textContent = ''; if (root.isConnected) refresh(); else lockActions(); }
     document.addEventListener('cfg:statechange', lockActions);
     window.addEventListener('aurago:config-saved', saved);
     refresh();

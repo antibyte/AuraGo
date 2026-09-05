@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Αναζήτηση κόμβων με όνομα ή κλειδί",
+  "config.meshcore.add_to": "Προσθήκη σε",
+  "config.meshcore.use_node": "Προσθήκη κόμβου",
+  "config.meshcore.node_added": "Έχει ήδη προστεθεί",
+  "config.meshcore.chat_nodes_only": "Επιλέγονται μόνο κόμβοι συνομιλίας",
   "config.meshcore.enabled": "Ενεργό",
   "config.meshcore.transport": "Σύνδεση",
   "config.meshcore.port": "Σειριακή θύρα",

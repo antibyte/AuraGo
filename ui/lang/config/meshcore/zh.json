@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "按名称或密钥搜索节点",
+  "config.meshcore.add_to": "添加到",
+  "config.meshcore.use_node": "添加节点",
+  "config.meshcore.node_added": "已添加",
+  "config.meshcore.chat_nodes_only": "只能选择聊天节点",
   "config.meshcore.enabled": "已启用",
   "config.meshcore.transport": "连接",
   "config.meshcore.port": "串口",

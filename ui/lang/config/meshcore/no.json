@@ -1,4 +1,9 @@
 {
+  "config.meshcore.search_nodes": "Søk etter noder med navn eller nøkkel",
+  "config.meshcore.add_to": "Legg til i",
+  "config.meshcore.use_node": "Legg til node",
+  "config.meshcore.node_added": "Allerede lagt til",
+  "config.meshcore.chat_nodes_only": "Bare chatnoder kan velges",
   "config.meshcore.enabled": "Aktivert",
   "config.meshcore.transport": "Tilkobling",
   "config.meshcore.port": "Serieport",
