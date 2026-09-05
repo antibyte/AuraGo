@@ -104,6 +104,13 @@ images, and browser-oriented regression tests.
   Interactive entry cards may lift at most 2px; switches/disclosures use 140–180ms
   feedback and save success may animate once. Reduced motion disables these effects.
   The overview has no save dock; independent saves identify their scope.
+- Every Config topic has one `.pw-panel-body` owning all four content insets;
+  do not simulate body padding with margins on individual card children. Keep
+  dynamic list refreshes inside that body so headings survive. Switch fields
+  use the shared label-left/control-right row; hidden action reasons consume
+  no layout space and visible reasons follow the action row. Empty-state
+  decorations must never cover their text. Check these details geometrically
+  and visually with the real integration renderers.
 - Config advanced fields require explicit `sectionTiers` or `data-tier` metadata.
   Never infer tiers from name fragments or move fields across topic boundaries.
   Required fields and security notices stay visible. Search and validation open

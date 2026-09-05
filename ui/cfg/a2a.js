@@ -64,39 +64,17 @@ function renderA2ASection(section) {
     html += '<div class="a2a-card">';
     html += '<div class="a2a-card-title">🔌 ' + t('config.a2a.bindings_title') + '</div>';
 
-    html += '<div class="a2a-toggle-row">';
-    html += '<div class="toggle toggle-sm' + (bindings.rest !== false ? ' on' : '') + '" data-path="a2a.server.bindings.rest" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">' + t('config.a2a.rest_binding') + '</span>';
-    html += '</div>';
-
-    html += '<div class="a2a-toggle-row">';
-    html += '<div class="toggle toggle-sm' + (bindings.jsonrpc ? ' on' : '') + '" data-path="a2a.server.bindings.jsonrpc" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">' + t('config.a2a.jsonrpc_binding') + '</span>';
-    html += '</div>';
-
-    html += '<div class="a2a-toggle-row">';
-    html += '<div class="toggle toggle-sm' + (bindings.grpc ? ' on' : '') + '" data-path="a2a.server.bindings.grpc" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">' + t('config.a2a.grpc_binding') + '</span>';
-    html += '</div>';
-
-    html += '<div class="a2a-port-row">';
-    html += '<span class="a2a-toggle-label">' + t('config.a2a.grpc_port') + '</span>';
-    html += '<input class="field-input a2a-input-xs" type="number" data-path="a2a.server.bindings.grpc_port" value="' + escapeAttr(String(bindings.grpc_port || 50051)) + '">';
-    html += '</div>';
+    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.rest', value: bindings.rest !== false, labelKey: 'config.a2a.rest_binding' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.jsonrpc', value: !!bindings.jsonrpc, labelKey: 'config.a2a.jsonrpc_binding' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.grpc', value: !!bindings.grpc, labelKey: 'config.a2a.grpc_binding' });
+    html += AuraConfigForm.number({ path: 'a2a.server.bindings.grpc_port', value: bindings.grpc_port || 50051, labelKey: 'config.a2a.grpc_port' });
     html += '</div>';
 
     html += '<div class="a2a-card">';
     html += '<div class="a2a-card-title">⚡ ' + t('config.a2a.capabilities_title') + '</div>';
 
-    html += '<div class="a2a-toggle-row">';
-    html += '<div class="toggle toggle-sm' + (srv.streaming ? ' on' : '') + '" data-path="a2a.server.streaming" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">' + t('config.a2a.streaming') + '</span>';
-    html += '</div>';
-
-    html += '<div class="a2a-toggle-row-last">';
-    html += '<div class="toggle toggle-sm' + (srv.push_notifications ? ' on' : '') + '" data-path="a2a.server.push_notifications" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">' + t('config.a2a.push_notifications') + '</span>';
-    html += '</div>';
+    html += AuraConfigForm.toggle({ path: 'a2a.server.streaming', value: !!srv.streaming, labelKey: 'config.a2a.streaming' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.push_notifications', value: !!srv.push_notifications, labelKey: 'config.a2a.push_notifications' });
     html += '</div>';
 
     html += '<div class="a2a-card">';
@@ -117,10 +95,7 @@ function renderA2ASection(section) {
     html += '<div class="a2a-section-title">🔐 ' + t('config.a2a.auth_title') + '</div>';
 
     html += '<div class="a2a-card">';
-    html += '<div class="a2a-toggle-row-mb">';
-    html += '<div class="toggle toggle-sm' + (auth.api_key_enabled ? ' on' : '') + '" data-path="a2a.auth.api_key_enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label-bold">' + t('config.a2a.api_key_auth') + '</span>';
-    html += '</div>';
+    html += AuraConfigForm.toggle({ path: 'a2a.auth.api_key_enabled', value: !!auth.api_key_enabled, labelKey: 'config.a2a.api_key_auth' });
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="a2a-api-key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
@@ -132,10 +107,7 @@ function renderA2ASection(section) {
     html += '</div>';
 
     html += '<div class="a2a-card">';
-    html += '<div class="a2a-toggle-row-mb">';
-    html += '<div class="toggle toggle-sm' + (auth.bearer_enabled ? ' on' : '') + '" data-path="a2a.auth.bearer_enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label-bold">' + t('config.a2a.bearer_auth') + '</span>';
-    html += '</div>';
+    html += AuraConfigForm.toggle({ path: 'a2a.auth.bearer_enabled', value: !!auth.bearer_enabled, labelKey: 'config.a2a.bearer_auth' });
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="a2a-bearer-secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';

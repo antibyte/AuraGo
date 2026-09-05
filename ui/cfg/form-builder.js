@@ -215,7 +215,10 @@
         // These are existing, explicitly named shared topic/object components.
         apply('.cfg-card', 'cfg-topic');
         apply('.cfg-card-title', 'cfg-topic-heading');
-        if (root.dataset.topicsReady) return;
+        if (root.dataset.topicsReady) {
+            normalizeBodies();
+            return;
+        }
         root.dataset.topicsReady = 'true';
         function create(title) {
             const template = document.createElement('template');
@@ -268,6 +271,22 @@
             title.setAttribute('role', 'heading');
             title.setAttribute('aria-level', '2');
         });
+        normalizeBodies();
+
+        // Every declared topic owns its padding in one body, including legacy
+        // renderers. Move existing nodes so values, IDs and listeners survive.
+        function normalizeBodies() {
+            root.querySelectorAll('.cfg-topic').forEach(card => {
+                if (card.querySelector(':scope > .pw-panel-body')) return;
+                const body = document.createElement('div');
+                body.className = 'pw-panel-body';
+                [...card.childNodes].forEach(node => {
+                    if (node.nodeType === Node.ELEMENT_NODE && node.matches('.cfg-topic-heading, .pw-panel-heading')) return;
+                    body.append(node);
+                });
+                card.append(body);
+            });
+        }
     }
 
     window.AuraConfigForm = {

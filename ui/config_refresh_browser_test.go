@@ -27,6 +27,9 @@ func TestConfigRefreshReferenceScrollBrowser(t *testing.T) {
 	if dir == "" {
 		t.Skip("set AURAGO_BROWSER_ARTIFACT_DIR to capture the visual references")
 	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	browser := newSmokeBrowser(t)
 	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", true) + "/config#overview")
 	defer page.MustClose()
@@ -65,6 +68,9 @@ func TestConfigRefreshPopulatedBrowser(t *testing.T) {
 			page.MustEval(`() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`)
 			if page.MustEval(`() => !!document.querySelector('.cfg-error-state')`).Bool() {
 				t.Fatal("populated renderer failed")
+			}
+			if !page.MustEval(`() => [...document.querySelectorAll('#content .cfg-topic')].every(card=>card.querySelector(':scope > .pw-panel-body'))`).Bool() {
+				t.Error("declared topic is missing its shared content body")
 			}
 			if key == "overview" && !page.MustEval(`() => document.querySelector('.save-bar').hidden && !document.querySelector('.pw-overview-stat')`).Bool() {
 				t.Error("overview retains form actions or the dominant section counter")
@@ -225,6 +231,7 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 		fixtures["/api/sip/agent"] = map[string]any{"config": map[string]any{}, "blockers": []string{"asr_unavailable"}}
 		fixtures["/api/sip/agent/catalog"] = map[string]any{"providers": []any{}, "tools": []any{}}
 		fixtures["/api/config/rules"] = map[string]any{"rules": []any{}, "candidates": map[string]any{}}
+		fixtures["/api/outgoing-webhooks"] = []map[string]any{}
 		fixtures["/api/adguard/status"] = map[string]any{"status": "ok", "data": map[string]any{"version": "0.107.77", "running": true}}
 		fixtures["/api/sip/config"] = map[string]any{"enabled": true, "preset_id": "fritzbox", "display_name": "FRITZ!Box", "registrar": "sip.fixture.invalid", "username": "home-lab", "password_set": true, "permissions": map[string]any{"originate_outbound": true}, "browser_media": map[string]any{"enabled": true}}
 		fixtures["/api/sip/status"] = map[string]any{"registered": true}
@@ -247,6 +254,19 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 			fixtureMu.Lock()
 			defer fixtureMu.Unlock()
 			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path == "/api/outgoing-webhooks" && r.Method == http.MethodPut {
+				var hooks []map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&hooks); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				for _, hook := range hooks {
+					hook["url"] = "••••••••"
+				}
+				fixtures[r.URL.Path] = hooks
+				_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok"})
+				return
+			}
 			if r.URL.Path == "/api/config" && r.Method == http.MethodPut {
 				var patch map[string]any
 				if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {

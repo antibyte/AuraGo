@@ -181,7 +181,7 @@ func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
 	}
 
 	gwJS := normalizeAssetText(mustReadUIFile(t, "cfg/google_workspace.js"))
-	for _, marker := range []string{"gw-status-line", "adg-password-row", "adg-test-btn", "gw-scope-row"} {
+	for _, marker := range []string{"gw-status-line", "adg-password-row", "adg-test-btn", "AuraConfigForm.toggle("} {
 		if !strings.Contains(gwJS, marker) {
 			t.Fatalf("google_workspace.js missing marker %q", marker)
 		}

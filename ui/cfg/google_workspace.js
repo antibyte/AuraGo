@@ -101,16 +101,7 @@ async function renderGoogleWorkspaceSection(section) {
     ];
 
     for (const scope of scopes) {
-        const on = data[scope.key] === true;
-        html += `<div class="field-group gw-scope-group">
-            <div class="gw-scope-row">
-                <div class="toggle${on ? ' on' : ''}" data-path="google_workspace.${scope.key}" onclick="toggleBool(this)"></div>
-                <div>
-                    <div class="gw-scope-label">${scope.label}</div>
-                    <div class="gw-scope-hint">${scope.hint}</div>
-                </div>
-            </div>
-        </div>`;
+        html += AuraConfigForm.toggle({ path: 'google_workspace.' + scope.key, value: data[scope.key], label: scope.label, help: scope.hint });
     }
 
     html += `</div></div>`;

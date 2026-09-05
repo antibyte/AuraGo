@@ -75,9 +75,10 @@ async function renderWebhooksSection(section) {
 
     // Outgoing webhooks — always visible, independent of incoming webhook server
     html += `<div id="wh-panel-outgoing" class="field-group">
-        <div class="field-group-title">${t('config.webhooks.tab_outgoing')}</div>`;
+        <div class="field-group-title">${t('config.webhooks.tab_outgoing')}</div>
+        <div id="wh-outgoing-list" class="pw-panel-body">`;
     html += ogRenderList();
-    html += '</div>';
+    html += '</div></div>';
 
     html += '</div>';
     content.innerHTML = html;
@@ -816,7 +817,7 @@ async function ogSave() {
         ogWebhooks = await maskedResp.json();
         ogCloseModal();
         showToast(t('config.webhooks.og_saved'), 'success');
-        const panel = document.getElementById('wh-panel-outgoing');
+        const panel = document.getElementById('wh-outgoing-list');
         if (panel) panel.innerHTML = ogRenderList();
     } catch (e) { showToast(e.message, 'error'); }
 }
@@ -832,7 +833,7 @@ async function ogDelete(idx) {
         if (resp.ok) {
             ogWebhooks = newList;
             showToast(t('config.webhooks.og_deleted'), 'success');
-            const panel = document.getElementById('wh-panel-outgoing');
+            const panel = document.getElementById('wh-outgoing-list');
             if (panel) panel.innerHTML = ogRenderList();
         }
     } catch (e) { showToast(e.message, 'error'); }

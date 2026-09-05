@@ -98,6 +98,8 @@
             if (label && toggle) describe(toggle, 'aria-labelledby', label);
         });
         scope.querySelectorAll('.toggle[data-path]').forEach(toggle => {
+            // Hidden binding mirrors must not acquire a visible state label.
+            if (toggle.matches('[hidden], [aria-hidden="true"], .pw-u-hidden')) return;
             if (!toggle.parentElement.classList.contains('toggle-wrap')) {
                 const wrap = document.createElement('div');
                 wrap.className = 'toggle-wrap';

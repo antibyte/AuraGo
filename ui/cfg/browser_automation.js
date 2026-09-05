@@ -58,7 +58,9 @@ async function renderBrowserAutomationSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.browser_automation.integration_enabled') + '</div>';
     if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
+    html += '<div class="toggle-wrap">';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" onclick="baToggleIntegration(this.classList.contains(\'on\'))"></div>';
+    html += '<span class="toggle-label">' + t(integrationEnabled ? 'config.toggle.active' : 'config.toggle.inactive') + '</span></div>';
     html += '</div>';
     html += baHiddenToggle('browser_automation.enabled', integrationEnabled);
     html += baHiddenToggle('tools.browser_automation.enabled', integrationEnabled);
