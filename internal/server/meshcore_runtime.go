@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/i18n"
 	"aurago/internal/memory"
 	"aurago/internal/meshcore"
@@ -22,6 +23,9 @@ func (s *Server) initMeshCore(ctx context.Context) error {
 		return nil
 	}
 	m, err := meshcore.NewManager(ctx, cfg.Directories.DataDir, meshcore.Hooks{
+		Changed: func(change meshcore.Change) {
+			broadcastDesktopEvent(s, s.DesktopHub, desktop.Event{Type: "meshcore_changed", Payload: change})
+		},
 		Scan: s.scanMeshCoreMessage, Run: s.runMeshCoreMessage, Scrub: security.Scrub,
 		Notify: func(msg meshcore.Message) error {
 			if s.ShortTermMem == nil {

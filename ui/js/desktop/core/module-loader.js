@@ -158,6 +158,10 @@
             styles: appStyles('/css/desktop-app-network-cameras.css'),
             scripts: ['/js/desktop/apps/network-cameras.js']
         },
+        'meshcore': {
+            styles: appStyles('/css/desktop-app-meshcore.css'),
+            scripts: ['/js/vendor/qrcode.min.js', '/js/desktop/apps/meshcore.js']
+        },
         'noisemaker': {
             styles: appStyles('/css/desktop-app-noisemaker.css'),
             scripts: ['/js/desktop/apps/noisemaker-library.js', '/js/desktop/apps/noisemaker.js']

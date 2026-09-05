@@ -79,8 +79,10 @@ begonnene Befehle und unklare Ergebnisse lassen sich damit nicht wiederholen.
 
 Gerätewechsel und geänderte Kanalzuordnungen sperren die Automatik bis zur
 erneuten Bestätigung. Die Kanalbindung verwendet einen lokalen schlüsselbasierten
-Fingerprint. Kanalschlüssel und die im Gerät hinterlegte BLE-PIN werden weder
-an Browser oder Agenten ausgegeben noch protokolliert. Berechtigungsänderungen
+Fingerprint. Kanalschlüssel erscheinen weder in normalen API-Antworten noch
+beim Agenten oder in Logs. Ein ausdrücklicher administrativer Einladungsexport
+im Messenger ist die unten beschriebene Browser-Ausnahme; die im Gerät
+hinterlegte BLE-PIN bleibt ausgeschlossen. Berechtigungsänderungen
 brechen laufende Arbeit vor Veröffentlichung der neuen Konfiguration ab und
 unterdrücken ausstehende Antworten. Bereits abgeschlossene Systemaktionen oder
 Funkübertragungen lassen sich dadurch nicht rückgängig machen.
@@ -121,6 +123,72 @@ Operational-Issue-Lebenszyklus.
 Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`,
 `send_direct` mit `node_key`/`text` und `send_channel` mit `channel`/`text`.
 Es bietet keine Rohprotokoll-, Schlüssel-, Firmware- oder Geräteverwaltung.
+
+## Desktop-Messenger
+
+Die App **MeshCore** im virtuellen Desktop verwendet dasselbe Companion-Gerät
+wie die Integration. Der Browser baut keine zweite USB-/Bluetooth-Verbindung
+auf. Unter **Verbindung** bleiben Geräteidentität, Anschluss und Agentenrechte.
+
+- Gesprächsliste mit Suche, Direkt-/Kanal-/Ungelesen-Filtern, Favoriten und
+  Stummschaltung; im Gespräch stehen Verlaufssuche, Kopieren und ältere Seiten
+  bereit. Unter 700 Pixel Fensterbreite wechselt **Zurück** zur Liste. Eine
+  vorhandene Fensterinstanz wird wiederverwendet, auch über Spaces hinweg.
+  Sitzungswiederherstellung und Benachrichtigungen öffnen das passende Gespräch.
+- **Enter** sendet, **Shift+Enter** fügt eine Zeile ein. Entwürfe bleiben lokal
+  je Geräteidentität und Gespräch gespeichert. Bytezähler und Paketvorschau
+  berücksichtigen UTF-8, maximal drei nummerierte Teile und den Kanalabsender.
+  Manuelles Senden benötigt weder LLM noch proaktive Agentenfreigabe.
+- Versandstatus unterscheidet laufenden Versand, Geräteannahme, bestätigte
+  Direktzustellung, nicht gesendet und unklaren Ausgang. Kanäle erhalten keine
+  Empfängerbestätigung. HTTP-Wiederholungen verwenden dieselbe dauerhafte
+  Auftrags-ID. **Erneut senden** warnt ausdrücklich vor möglicher Doppelzustellung.
+- Ungeprüfte oder quarantänisierte Nachrichten erscheinen als Platzhalter.
+  **Geschützten Text anzeigen** zeigt bereinigten Klartext nur im geöffneten
+  Gespräch. Das erteilt keine Freigabe und führt keine Aktion aus. Nachrichten
+  werden ausschließlich als Text dargestellt.
+- Kontakte lassen sich per vollständigem Schlüssel/Name/Typ oder Kontaktlink
+  hinzufügen und per Link/QR-Code teilen. **Mein Node** kündigt ausdrücklich
+  in direkter Reichweite oder über das Mesh an; dabei kann eine bereits im Gerät
+  konfigurierte Position mitgesendet werden. Repeater, Rooms und Sensoren werden
+  gekennzeichnet, erhalten aber keine Verwaltungsbefehle.
+- Öffentliche, Hashtag- und private Kanäle verwenden nur freie Slots. Private
+  Schlüssel werden zufällig erzeugt oder als 32 Hex-Zeichen eingegeben. Ein
+  erneuter Geräteabgleich bestätigt Änderungen. Neue Kanäle starten mit reinem
+  Empfang; Kontaktentfernung widerruft Agentenrechte. Unklare Änderungen bleiben
+  gesperrt. Eine ausdrückliche Zuordnungsbestätigung setzt Kanalautomatik zurück.
+- **Teilen → Einladung anzeigen** ist ein eigener administrativer Export. Bei
+  privaten Kanälen enthält die Einladung den Schlüssel. Die Antwort ist
+  `no-store`, bleibt ausschließlich im aktuellen Dialog und wird weder im
+  Browser gespeichert noch protokolliert oder an den Agenten weitergereicht.
+  Kopieren erfolgt nur auf Klick; Schließen entfernt den Dialoginhalt. QR-Bilder
+  können mit nativem `BarcodeDetector` gelesen werden, Einladungscodes lassen
+  sich überall einfügen. Nicht unterstützte Regionsoptionen werden abgelehnt.
+
+Der Verlauf hat getrennte Standardgrenzen: **90 Tage und 10.000 Nachrichten
+insgesamt**, einstellbar in der App oder über `meshcore.history_days` und
+`meshcore.history_messages`. Der geschützte Eingang behält seine eigenen Grenzen
+von sieben Tagen/1.000 Nachrichten. Verlauf leeren entfernt sichtbaren Chattext;
+Sicherheitsreservierungen und der kurzlebige Eingang bleiben erhalten.
+Geräte-/Kontaktschlüssel und Kanal-Fingerprints trennen alte Gespräche nach
+Gerätewechsel oder Slot-Neubelegung. Historisch unklare Schlüsselpräfixe werden
+nicht nachträglich zugeordnet; fehlende Versandbelege bleiben unbekannt.
+
+Die Migration einer vorhandenen Datenbank legt zunächst eine private
+`meshcore-v1-*.backup.db` daneben an; diese Sicherungen verwaltet der
+Administrator. Manuelle Auftragskennungen überleben die Verlaufslöschung.
+Die Sicherheitsgrenze von 65.536 Einträgen sperrt neue Sendungen, sobald die
+Ablage voll ist, und erfordert administrative Wartung.
+
+Die administrativen Endpunkte unter `/api/meshcore/messenger/` bieten GET für
+`bootstrap`, `conversations` und `messages`; POST für `send`, `conversation`,
+`reveal`, `invitation`, `manage` und `settings`. Schreibzugriffe prüfen die
+Herkunft. Die Verlaufspaginierung verwendet einen exklusiven `before`-Cursor
+mit bis zu 50 Nachrichten pro Seite. API-Felder stehen in der
+[englischen Dokumentation](meshcore-en.md#desktop-messenger).
+Desktop-Ereignisse enthalten nur Metadaten und Gesprächsverweise. Nach einer
+Wiederverbindung wird der aktuelle Zustand geladen. Stummschaltung beeinflusst
+ausschließlich Messenger-Benachrichtigungen, nicht die Hinweise an den Agenten.
 
 Prüfkommandos und die festgeschriebenen Firmwarequellen stehen in der
 [englischen Integrationsdokumentation](meshcore-en.md#validation-and-sources).

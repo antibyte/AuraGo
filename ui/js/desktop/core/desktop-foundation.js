@@ -558,6 +558,7 @@
             looper: 'LooperApp',
             camera: 'CameraApp',
             'network-cameras': 'NetworkCamerasApp',
+            meshcore: 'MeshCoreApp',
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',

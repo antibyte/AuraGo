@@ -43,7 +43,7 @@ INSERT OR IGNORE INTO meshcore_meta(key,value) VALUES('version','1');`)
 		return nil, fmt.Errorf("initialize meshcore store: %w", err)
 	}
 	var version string
-	if err = db.QueryRow("SELECT value FROM meshcore_meta WHERE key='version'").Scan(&version); err != nil || version != "1" {
+	if err = db.QueryRow("SELECT value FROM meshcore_meta WHERE key='version'").Scan(&version); err != nil || (version != "1" && version != "2") {
 		return nil, fmt.Errorf("unsupported meshcore schema")
 	}
 	var salt string
@@ -67,6 +67,12 @@ INSERT OR IGNORE INTO meshcore_meta(key,value) VALUES('version','1');`)
 	if err != nil {
 		return nil, err
 	}
+	if err = s.migrateMessenger(dir, version); err != nil {
+		return nil, err
+	}
+	if err = s.recoverChat(); err != nil {
+		return nil, err
+	}
 	ok = true
 	return s, nil
 }
@@ -75,20 +81,43 @@ func (s *store) insert(m Message) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	r, err := s.db.Exec("INSERT OR IGNORE INTO meshcore_messages(id,received,state,data,binding) VALUES(?,?,?,?,?)", m.ID, m.ReceivedAt, m.State, b, m.Binding)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	r, err := tx.Exec("INSERT OR IGNORE INTO meshcore_messages(id,received,state,data,binding) VALUES(?,?,?,?,?)", m.ID, m.ReceivedAt, m.State, b, m.Binding)
 	if err != nil {
 		return false, err
 	}
 	n, err := r.RowsAffected()
-	return n == 1, err
+	if err != nil {
+		return false, err
+	}
+	if n == 1 {
+		if err = projectChat(tx, m); err != nil {
+			return false, err
+		}
+	}
+	return n == 1, tx.Commit()
 }
 func (s *store) save(m Message) error {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("UPDATE meshcore_messages SET state=?,data=? WHERE id=?", m.State, b, m.ID)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec("UPDATE meshcore_messages SET state=?,data=? WHERE id=?", m.State, b, m.ID); err != nil {
+		return err
+	}
+	if err = projectChat(tx, m); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 func (s *store) claim(id string) (bool, error) {
 	r, err := s.db.Exec("UPDATE meshcore_messages SET state='processing' WHERE id=? AND state='pending'", id)
@@ -149,7 +178,10 @@ func (s *store) prune(c Config) error {
 		return err
 	}
 	_, err = s.db.Exec("DELETE FROM meshcore_messages WHERE id IN (SELECT id FROM meshcore_messages WHERE state NOT IN ('pending','processing','sending') ORDER BY received,id LIMIT MAX(0,(SELECT COUNT(*) FROM meshcore_messages)-?))", c.MaxMessages)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.pruneChat(c)
 }
 
 // Keep execution tombstones beyond the maximum configurable command age, even

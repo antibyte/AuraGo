@@ -54,6 +54,7 @@
         SESSION_CONTEXT_KEYS.forEach(key => {
             if (context[key] != null && context[key] !== '') out[key] = context[key];
         });
+        if (/^[a-f0-9]{64}$/.test(context.conversation_id || '')) out.conversation_id = context.conversation_id;
         return out;
     }
 

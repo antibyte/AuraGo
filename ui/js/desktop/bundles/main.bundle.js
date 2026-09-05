@@ -790,6 +790,7 @@
             looper: 'LooperApp',
             camera: 'CameraApp',
             'network-cameras': 'NetworkCamerasApp',
+            meshcore: 'MeshCoreApp',
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
@@ -5290,6 +5291,7 @@
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
             'network-cameras': { width: 1120, height: 720 },
+            meshcore: { width: 1080, height: 720 },
             'sip-phone': { width: 420, height: 760 },
             'live-speech': { width: 440, height: 600 },
             viewer: { width: 900, height: 700 },
@@ -5309,9 +5311,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ meshcore: true, files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'meshcore') return { width: 360, height: 480 };
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
@@ -5518,6 +5521,7 @@
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (context && context.path) recordRecentFile(context.path, appId);
             return;
         }
@@ -7556,6 +7560,7 @@ function wireWindow(win, id) {
         SESSION_CONTEXT_KEYS.forEach(key => {
             if (context[key] != null && context[key] !== '') out[key] = context[key];
         });
+        if (/^[a-f0-9]{64}$/.test(context.conversation_id || '')) out.conversation_id = context.conversation_id;
         return out;
     }
 
@@ -8147,6 +8152,7 @@ function wireWindow(win, id) {
             title: String(payload.title || t('desktop.notification')),
             message: String(payload.message || ''),
             appId: payload.appId || '',
+            context: payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(payload.context?.conversation_id || '') ? { conversation_id: payload.context.conversation_id } : undefined,
             ts: Date.now(),
             read: false
         };
@@ -8211,7 +8217,7 @@ function wireWindow(win, id) {
                 state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
                 updateNotificationBadge();
                 closeNotificationCenter();
-                if (btn.dataset.appId) openApp(btn.dataset.appId);
+                if (btn.dataset.appId) openApp(btn.dataset.appId, entry?.context);
             });
         });
     }
@@ -11476,6 +11482,13 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
+        }
+        if (appId === 'meshcore') {
+            if (!window.MeshCoreApp) {
+                window.AuraDesktopModules.loadAppScript('meshcore').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.MeshCoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { t, readonly: desktopReadonly(), updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); } }));
         }
         if (appId === 'noisemaker') {
             if (!window.NoisemakerApp) {
@@ -14824,7 +14837,21 @@ if (appId === 'pixel') {
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'meshcore_changed') {
+            const change = event.payload || {};
+            document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: change }));
+            if (change.incoming && !change.muted) {
+                state.meshcoreNotified = state.meshcoreNotified || new Set();
+                if (!state.meshcoreNotified.has(change.message_id)) {
+                    state.meshcoreNotified.add(change.message_id);
+                    if (state.meshcoreNotified.size > 256) state.meshcoreNotified.delete(state.meshcoreNotified.values().next().value);
+                    showDesktopNotification({ title: 'MeshCore', message: t('desktop.meshcore_notification'), appId: 'meshcore', context: { conversation_id: change.conversation_id } });
+                }
+            }
+            return;
+        }
         if (event.type === 'welcome') {
+            document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
             state.bootstrap = event.payload || state.bootstrap;
             renderDesktop();
             refreshPetRuntime();

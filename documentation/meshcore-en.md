@@ -73,8 +73,10 @@ retried through this action.
 
 Device identity changes or changed channel assignments block automatic work
 until explicitly confirmed again. Bindings use a local keyed fingerprint of
-the device and channel data. Raw channel secrets and the device's configured
-BLE PIN never reach API responses, tool output or logs. Changing permissions
+the device and channel data. Raw channel secrets never reach normal API
+responses, tool output or logs. An explicit administrator invitation export is
+the sole browser exception described below; the device's configured BLE PIN
+remains excluded. Changing permissions
 cancels current work before new settings are published and suppresses pending
 replies. Cancellation cannot undo a system operation or radio transmission
 that already completed.
@@ -113,10 +115,80 @@ The `meshcore` agent tool supports `status`, `contacts`, `channels`,
 `send_direct` (`node_key`, `text`) and `send_channel` (`channel`, `text`). It has
 no raw protocol, key management, flashing, pairing or radio settings operations.
 
+## Desktop Messenger
+
+Open **MeshCore** from the virtual Desktop. It reuses the server's Companion
+connection; the browser does not connect to USB or Bluetooth. Connection,
+identity and agent permissions remain under **Connection** (`/config#meshcore`).
+
+- Direct conversations and channels offer search, favorites, unread counts,
+  muting and history search. Narrow windows switch between the conversation
+  list and chat with **Back**. Existing windows are reused across Spaces;
+  session restoration and notifications reopen the selected conversation.
+- **Enter** sends; **Shift+Enter** adds a line. Drafts stay in browser storage
+  per device and conversation. The UTF-8 byte counter and packet preview show
+  the maximum three numbered parts before sending. Manual sending does not
+  invoke the agent and does not require proactive agent permission.
+- Delivery states distinguish sending, device acceptance, confirmed direct
+  delivery, not sent and uncertain outcomes. Channels never claim recipient
+  acknowledgement. HTTP retries reuse a durable request ID. **Send again**
+  requires confirmation because another copy may reach the recipient.
+- Protected messages initially show placeholders. **Show protected text**
+  reveals sanitized plain text for this open conversation only; it neither
+  approves the message nor executes it. Message text is never rendered as HTML.
+- Add contacts using their complete public key/name/type or a MeshCore contact
+  link. Share public contact details as links/QR codes. **My node** explicitly
+  announces in direct range or through the mesh; this can also broadcast any
+  location already configured on the radio. Repeater, Room and sensor contacts
+  are labelled but have no device-management controls.
+- Create/join public, hashtag or private channels in free slots only. Private
+  keys are randomly generated unless explicitly supplied as 32 hexadecimal
+  characters. Contact/channel changes are verified by another device read.
+  New channels receive no agent permissions; removing contacts revokes trust.
+  Uncertain edits remain locked until explicit mapping confirmation, which
+  resets channel automation to receive-only.
+- **Share → Show invitation** is an explicit administrative export. Private
+  invitations expose the channel key only in the current dialog; responses
+  use `Cache-Control: no-store`. They never enter notifications, logs, browser
+  storage or agent tools. Copying requires a click. Close the dialog to remove
+  the invitation. QR images can be imported where native `BarcodeDetector`
+  exists; pasting an invitation works everywhere. Unsupported region options
+  are rejected rather than silently ignored.
+
+Messenger history defaults to **90 days and 10,000 messages total**, adjustable
+in its Settings or `meshcore.history_days` / `meshcore.history_messages`. The
+protected inbox retains its separate seven-day/1,000-message defaults. Clear
+history removes visible chat text but keeps execution reservations and the
+short-lived security inbox. Device/contact identities and channel fingerprints
+keep old conversations separate after device or slot changes. Legacy ambiguous
+prefixes remain unknown; missing historical delivery evidence stays unknown.
+The first migration of an existing database creates a private
+`meshcore-v1-*.backup.db` next to it; administrators manage these backups.
+Manual request tombstones persist independently of history, with a 65,536-entry
+safety ceiling. A full ledger refuses new sends and requires maintenance.
+
+Administrative API routes under `/api/meshcore/messenger/`:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `bootstrap`, `conversations` | Status, conversations, unread counts, retention settings |
+| GET | `messages?conversation=ID&before=SEQ&q=TEXT` | Up to 50 messages, stable exclusive sequence cursor |
+| POST | `send` | `{id, conversation, text}`; returns reserved ID with HTTP 202 |
+| POST | `conversation` | `{conversation, read?, favorite?, muted?, clear?}` |
+| POST | `reveal` | Explicit protected-body read `{id}` |
+| POST | `invitation` | Explicit export `{identity, conversation}`; `self` shares own contact |
+| POST | `manage` | Identity-bound contact/channel actions and announcements |
+| POST | `settings` | `{history_days, history_messages}` via the existing config file |
+
+All routes require administrative access. Writes enforce same-origin requests;
+messages and invitations are uncached. Desktop events contain metadata only,
+and reconnects reload state. Muting has no effect on agent inbox notifications.
+
 ## Validation and sources
 
 Run `go test ./internal/meshcore ./internal/security ./internal/agent ./internal/config ./internal/server`
-and `go test ./ui -run 'ConfigMeshCore'`. UI bundles are checked with
+and `go test ./ui -run 'ConfigMeshCore|DesktopMeshCore'`. Browser checks run with
+`AURAGO_RUN_BROWSER_SMOKE=1` and Chrome/Edge. UI bundles are checked with
 `node scripts/build-ui-bundles.js --check`. Practical USB tests on all three
 operating systems and BLE tests on native Linux remain required before claiming
 hardware support is verified.

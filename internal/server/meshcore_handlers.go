@@ -14,6 +14,10 @@ import (
 func registerMeshCoreRoutes(mux *http.ServeMux, s *Server) {
 	mux.Handle("/api/meshcore/", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		action := strings.TrimPrefix(r.URL.Path, "/api/meshcore/")
+		if strings.HasPrefix(action, "messenger/") {
+			s.handleMeshCoreMessenger(w, r, strings.TrimPrefix(action, "messenger/"))
+			return
+		}
 		read := action == "status" || action == "devices" || action == "contacts" || action == "channels" || action == "messages"
 		method := http.MethodPost
 		if read {

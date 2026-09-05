@@ -303,7 +303,21 @@
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'meshcore_changed') {
+            const change = event.payload || {};
+            document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: change }));
+            if (change.incoming && !change.muted) {
+                state.meshcoreNotified = state.meshcoreNotified || new Set();
+                if (!state.meshcoreNotified.has(change.message_id)) {
+                    state.meshcoreNotified.add(change.message_id);
+                    if (state.meshcoreNotified.size > 256) state.meshcoreNotified.delete(state.meshcoreNotified.values().next().value);
+                    showDesktopNotification({ title: 'MeshCore', message: t('desktop.meshcore_notification'), appId: 'meshcore', context: { conversation_id: change.conversation_id } });
+                }
+            }
+            return;
+        }
         if (event.type === 'welcome') {
+            document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
             state.bootstrap = event.payload || state.bootstrap;
             renderDesktop();
             refreshPetRuntime();

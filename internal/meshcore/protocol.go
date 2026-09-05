@@ -76,10 +76,12 @@ type companion struct {
 	closeOnce sync.Once
 	ackMu     sync.Mutex
 	acks      map[uint32]time.Time
+	onACK     func(uint32)
+	session   string
 }
 
 func newCompanion(link frameLink) *companion {
-	c := &companion{link: link, commands: make(chan struct{}, 1), frames: make(chan []byte, 512), wake: make(chan struct{}, 1), done: make(chan struct{}), acks: map[uint32]time.Time{}}
+	c := &companion{link: link, commands: make(chan struct{}, 1), frames: make(chan []byte, 512), wake: make(chan struct{}, 1), done: make(chan struct{}), acks: map[uint32]time.Time{}, session: fmt.Sprintf("%d", time.Now().UnixNano())}
 	go func() {
 		defer c.Close()
 		for {
@@ -102,7 +104,11 @@ func newCompanion(link frameLink) *companion {
 					if len(c.acks) < 128 {
 						c.acks[binary.LittleEndian.Uint32(b[1:])] = now
 					}
+					callback := c.onACK
 					c.ackMu.Unlock()
+					if callback != nil {
+						callback(binary.LittleEndian.Uint32(b[1:]))
+					}
 				}
 				if b[0] == 0x83 || b[0] == 0x80 || b[0] == 0x8a || b[0] == 0x8f {
 					select {
@@ -186,6 +192,7 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 		return st, fmt.Errorf("unsupported companion version")
 	}
 	slots := int(info[0][3])
+	st.ChannelCapacity = slots
 	if slots < 1 || slots > 64 {
 		return st, fmt.Errorf("invalid channel capacity")
 	}
@@ -229,14 +236,19 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 		}
 		name := wireText(b[2:34])
 		if name == "" {
+			clear(b)
 			continue
 		}
-		h := hmac.New(sha256.New, salt)
-		h.Write([]byte(st.IdentityKey))
-		h.Write(b[1:])
-		st.Channels = append(st.Channels, Channel{Index: i, Name: name, Binding: hex.EncodeToString(h.Sum(nil))})
+		st.Channels = append(st.Channels, Channel{Index: i, Name: name, Binding: channelBinding(st.IdentityKey, b, salt), Kind: channelKind(name, b[34:50])})
+		clear(b)
 	}
 	return st, nil
+}
+func channelBinding(identity string, b, salt []byte) string {
+	h := hmac.New(sha256.New, salt)
+	h.Write([]byte(identity))
+	h.Write(b[1:])
+	return hex.EncodeToString(h.Sum(nil))
 }
 func wireText(b []byte) string {
 	if i := bytes.IndexByte(b, 0); i >= 0 {
@@ -265,6 +277,9 @@ func decodeMessage(b []byte, st Status) (Message, error) {
 		}
 		m.Kind = "direct"
 		m.Sender = hex.EncodeToString(b[:6])
+		if contact, ok := uniqueContact(st, m.Sender); ok {
+			m.PeerKey = contact.Key
+		}
 		m.TextType = b[7]
 		m.Timestamp = int64(binary.LittleEndian.Uint32(b[8:12]))
 		b = b[12:]

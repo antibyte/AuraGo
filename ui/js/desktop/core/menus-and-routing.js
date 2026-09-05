@@ -1643,6 +1643,13 @@ if (appId === 'system-info') {
             }
             if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
         }
+        if (appId === 'meshcore') {
+            if (!window.MeshCoreApp) {
+                window.AuraDesktopModules.loadAppScript('meshcore').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.MeshCoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { t, readonly: desktopReadonly(), updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); } }));
+        }
         if (appId === 'noisemaker') {
             if (!window.NoisemakerApp) {
                 window.AuraDesktopModules.loadAppScript('noisemaker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

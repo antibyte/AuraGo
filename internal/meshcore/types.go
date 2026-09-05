@@ -30,6 +30,8 @@ type Config struct {
 	MaxMessages            int           `yaml:"max_messages" json:"max_messages"`
 	PeerRunsPerMinute      int           `yaml:"peer_runs_per_minute" json:"peer_runs_per_minute"`
 	RunsPerMinute          int           `yaml:"runs_per_minute" json:"runs_per_minute"`
+	HistoryDays            int           `yaml:"history_days" json:"history_days"`
+	HistoryMessages        int           `yaml:"history_messages" json:"history_messages"`
 }
 
 type ChannelRule struct {
@@ -99,6 +101,7 @@ func (c *Config) Normalize() error {
 	}{
 		{&c.MaxCommandAgeSeconds, 600, 86400}, {&c.FutureToleranceSeconds, 120, 3600},
 		{&c.RetentionDays, 7, 90}, {&c.MaxMessages, 1000, 10000}, {&c.PeerRunsPerMinute, 2, 60}, {&c.RunsPerMinute, 12, 120},
+		{&c.HistoryDays, 90, 3650}, {&c.HistoryMessages, 10000, 100000},
 	} {
 		if *v.p == 0 {
 			*v.p = v.def
@@ -126,6 +129,7 @@ type Channel struct {
 	Index   int    `json:"index"`
 	Name    string `json:"name"`
 	Binding string `json:"binding"`
+	Kind    string `json:"kind"`
 }
 type Status struct {
 	nameBytes        int
@@ -137,35 +141,41 @@ type Status struct {
 	Channels         []Channel `json:"channels"`
 	ErrorCode        string    `json:"error_code,omitempty"`
 	HardwareVerified bool      `json:"hardware_verified"`
+	ChannelCapacity  int       `json:"channel_capacity"`
 }
 type Message struct {
-	Direction   string `json:"direction"`
-	ID          string `json:"id"`
-	IdentityKey string `json:"identity_key"`
-	Kind        string `json:"kind"`
-	Sender      string `json:"sender"`
-	Channel     int    `json:"channel"`
-	Binding     string `json:"-"`
-	TextType    byte   `json:"text_type"`
-	Timestamp   int64  `json:"timestamp"`
-	ReceivedAt  int64  `json:"received_at"`
-	Text        string `json:"text"`
-	State       string `json:"state"`
-	Review      string `json:"review"`
-	Reason      string `json:"reason"`
-	Reply       string `json:"reply,omitempty"`
-	SendState   string `json:"send_state,omitempty"`
+	Direction        string     `json:"direction"`
+	ID               string     `json:"id"`
+	IdentityKey      string     `json:"identity_key"`
+	Kind             string     `json:"kind"`
+	Sender           string     `json:"sender"`
+	Channel          int        `json:"channel"`
+	Binding          string     `json:"-"`
+	TextType         byte       `json:"text_type"`
+	Timestamp        int64      `json:"timestamp"`
+	ReceivedAt       int64      `json:"received_at"`
+	Text             string     `json:"text"`
+	State            string     `json:"state"`
+	Review           string     `json:"review"`
+	Reason           string     `json:"reason"`
+	Reply            string     `json:"reply,omitempty"`
+	SendState        string     `json:"send_state,omitempty"`
+	PeerKey          string     `json:"peer_key,omitempty"` // resolved at reception, never inferred from historical prefixes
+	Origin           string     `json:"origin,omitempty"`
+	Parts            []SendPart `json:"parts,omitempty"`
+	BindingUncertain bool       `json:"binding_uncertain,omitempty"`
 }
 type Review struct {
 	Decision string
 	Reason   string
 }
 type Hooks struct {
-	Scan   func(context.Context, Message) Review
-	Run    func(context.Context, Message, string) (string, error)
-	Notify func(Message) error
-	Issue  func(string, bool)
-	Scrub  func(string) string
+	Scan    func(context.Context, Message) Review
+	Run     func(context.Context, Message, string) (string, error)
+	Notify  func(Message) error
+	Issue   func(string, bool)
+	Scrub   func(string) string
+	Changed func(Change)
 }
 
 // Fresh uses radio time only for the bounded command admission window.

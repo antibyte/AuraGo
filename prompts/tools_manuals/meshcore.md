@@ -24,3 +24,9 @@ Settings, pairing, trust, channel assignments and quarantine review are
 administrator tasks in `/config#meshcore`. Firmware, raw protocol, radio
 parameters and channel keys are not available through this tool. Hardware
 support remains practically unverified until platform-specific acceptance.
+
+The **MeshCore** Desktop Messenger is for administrators: human messages use a
+separate authorized send path and do not invoke an LLM. Its contact/channel
+management and explicit invitation export are not agent capabilities. Do not
+use HTTP, shell, browser automation or delegation to bypass this tool's sending
+allowlists or obtain channel keys. Contact imports and favorites grant no trust.

@@ -851,6 +851,8 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `meshcore.js`: native Messenger (`window.MeshCoreApp.render/dispose/openConversation`), using `/api/meshcore/messenger/` and the existing Companion manager. Owns direct/channel conversations, protected-text reveal, contact/channel dialogs, native BarcodeDetector import and the existing QRCode renderer. No direct hardware connection or agent-tool sending. Theme styles live in `css/desktop-app-meshcore.css`; the 300px list switches to single-pane navigation below 700px. Drafts and pending send IDs are local per device/conversation; invitation keys never enter browser storage. Persistent request IDs reconcile HTTP retries, explicit resend warns about duplicates. Abort all requests and remove document listeners/timers on dispose. Session/notification context contains only a validated conversation ID. All 16 desktop locales must include `desktop.meshcore_*`.
+
 - `file-manager/` (under `ui/js/desktop/file-manager/`, bundled to
   `file-manager.bundle.js`) - File Manager restore and empty-trash menus follow
   the Trash restore contract above. New-file templates, new-file default

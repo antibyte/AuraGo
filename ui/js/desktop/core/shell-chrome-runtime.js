@@ -8,6 +8,7 @@
             title: String(payload.title || t('desktop.notification')),
             message: String(payload.message || ''),
             appId: payload.appId || '',
+            context: payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(payload.context?.conversation_id || '') ? { conversation_id: payload.context.conversation_id } : undefined,
             ts: Date.now(),
             read: false
         };
@@ -72,7 +73,7 @@
                 state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
                 updateNotificationBadge();
                 closeNotificationCenter();
-                if (btn.dataset.appId) openApp(btn.dataset.appId);
+                if (btn.dataset.appId) openApp(btn.dataset.appId, entry?.context);
             });
         });
     }

@@ -143,6 +143,8 @@ meshcore:
     future_tolerance_seconds: 120
     retention_days: 7
     max_messages: 1000
+    history_days: 90                  # separate approved Messenger history
+    history_messages: 10000           # total across all Messenger conversations
     peer_runs_per_minute: 2
     runs_per_minute: 12
 bluetooth:

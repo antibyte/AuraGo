@@ -38,6 +38,10 @@ type Manager struct {
 	runs        map[string][]time.Time
 	sends       []time.Time
 	open        func(context.Context, Config, bool) (frameLink, error)
+	manualSlots chan struct{}
+	writeSlot   chan struct{}
+	editing     bool
+	closed      bool
 }
 
 func NewManager(ctx context.Context, dir string, hooks Hooks) (*Manager, error) {
@@ -45,7 +49,7 @@ func NewManager(ctx context.Context, dir string, hooks Hooks) (*Manager, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &Manager{store: s, hooks: hooks, root: ctx, refreshSlot: make(chan struct{}, 1), status: Status{State: "disabled", Contacts: []Contact{}, Channels: []Channel{}}, runs: map[string][]time.Time{}, open: openLink}, nil
+	return &Manager{store: s, hooks: hooks, root: ctx, refreshSlot: make(chan struct{}, 1), manualSlots: make(chan struct{}, 16), writeSlot: make(chan struct{}, 1), status: Status{State: "disabled", Contacts: []Contact{}, Channels: []Channel{}}, runs: map[string][]time.Time{}, open: openLink}, nil
 }
 func (m *Manager) Configure(cfg Config, docker bool) error {
 	cfg.TrustedNodes = slices.Clone(cfg.TrustedNodes)
@@ -72,6 +76,9 @@ func (m *Manager) Configure(cfg Config, docker bool) error {
 	m.wg.Wait()
 	// Queued input survives a reconfiguration but is never replayed automatically.
 	if _, err := m.store.db.Exec("UPDATE meshcore_messages SET state='received' WHERE state='pending'"); err != nil {
+		return err
+	}
+	if err := m.store.prune(cfg); err != nil {
 		return err
 	}
 	m.mu.Lock()
@@ -105,6 +112,7 @@ func (m *Manager) Close() error {
 	m.lifecycle.Lock()
 	defer m.lifecycle.Unlock()
 	m.mu.Lock()
+	m.closed = true
 	if m.cancel != nil {
 		m.cancel()
 	}
@@ -157,6 +165,7 @@ func (m *Manager) save(msg Message) bool {
 		return false
 	}
 	m.issue("persistence", false)
+	m.chatChanged(msg, false)
 	return true
 }
 
@@ -212,13 +221,13 @@ func (m *Manager) refresh(ctx context.Context, c *companion) (Status, error) {
 	if err != nil {
 		return st, err
 	}
-	st.Name = m.scrub(st.Name)
-	st.Firmware = m.scrub(st.Firmware)
-	for i := range st.Contacts {
-		st.Contacts[i].Name = m.scrub(st.Contacts[i].Name)
+	m.scrubStatus(&st)
+	if err := m.store.syncConversations(st); err != nil {
+		return st, err
 	}
-	for i := range st.Channels {
-		st.Channels[i].Name = m.scrub(st.Channels[i].Name)
+	var pending string
+	if err := m.store.db.QueryRow("SELECT COALESCE((SELECT value FROM meshcore_meta WHERE key='mutation_pending'),'0')").Scan(&pending); err != nil {
+		return st, err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -229,13 +238,18 @@ func (m *Manager) refresh(ctx context.Context, c *companion) (Status, error) {
 		st.State = "binding_required"
 	} else {
 		for _, r := range m.cfg.Channels {
-			if r.Mode != "receive" || r.AllowSend {
+			if r.Binding != "" {
 				if !channelMatches(st, r) {
 					st.State = "binding_changed"
 					break
 				}
 			}
 		}
+	}
+	if m.editing {
+		st.State = "updating"
+	} else if pending == "1" {
+		st.State = "binding_changed"
 	}
 	m.status = st
 	if st.State != "connected" && m.runCancel != nil {
@@ -265,52 +279,8 @@ func (m *Manager) receiveLoop(ctx context.Context, c *companion, queue chan Mess
 	tick := time.NewTicker(15 * time.Second)
 	defer tick.Stop()
 	for {
-		st, err := m.refresh(ctx, c)
-		if err != nil {
+		if err := m.receiveBatch(ctx, c, queue); err != nil {
 			return err
-		}
-		m.issue("connection", false)
-		for i := 0; i < 128; i++ {
-			frames, err := c.request(ctx, []byte{10}, 7, 8, 10, 16, 17, 27)
-			if err != nil {
-				return err
-			}
-			b := frames[0]
-			if b[0] == 10 {
-				break
-			}
-			if b[0] == 27 {
-				continue
-			} // binary datagrams never enter agent text
-			msg, err := decodeMessage(b, st)
-			if err != nil {
-				m.issue("invalid_frame", true)
-				continue
-			}
-			m.issue("invalid_frame", false)
-			msg.Text = m.scrub(msg.Text)
-			added, err := m.store.insert(msg)
-			if err != nil {
-				return fmt.Errorf("persist incoming message: %w", err)
-			}
-			m.issue("persistence", false)
-			if !added {
-				continue
-			}
-			select {
-			case queue <- msg:
-			default:
-				msg.State = "received"
-				msg.Reason = "queue_full"
-				m.save(msg)
-				m.notify(msg)
-			}
-		}
-		m.mu.Lock()
-		cfg := m.cfg
-		m.mu.Unlock()
-		if err := m.store.prune(cfg); err != nil {
-			m.issue("persistence", true)
 		}
 		select {
 		case <-ctx.Done():
@@ -321,6 +291,77 @@ func (m *Manager) receiveLoop(ctx context.Context, c *companion, queue chan Mess
 		case <-tick.C:
 		}
 	}
+}
+
+// Keep contact/channel snapshots and queue draining atomic with device edits.
+func (m *Manager) receiveBatch(ctx context.Context, c *companion, queue chan Message) error {
+	select {
+	case m.writeSlot <- struct{}{}:
+		defer func() { <-m.writeSlot }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	st, err := m.refresh(ctx, c)
+	if err != nil {
+		return err
+	}
+	m.issue("connection", false)
+	var uncertain string
+	if err := m.store.db.QueryRow("SELECT COALESCE((SELECT value FROM meshcore_meta WHERE key='input_binding_uncertain'),'0')").Scan(&uncertain); err != nil {
+		return err
+	}
+	for i := 0; i < 128; i++ {
+		frames, err := c.request(ctx, []byte{10}, 7, 8, 10, 16, 17, 27)
+		if err != nil {
+			return err
+		}
+		b := frames[0]
+		if b[0] == 10 {
+			if _, err := m.store.db.Exec("DELETE FROM meshcore_meta WHERE key='input_binding_uncertain'"); err != nil {
+				return err
+			}
+			break
+		}
+		if b[0] == 27 {
+			continue
+		} // binary datagrams never enter agent text
+		msg, err := decodeMessage(b, st)
+		if err != nil {
+			m.issue("invalid_frame", true)
+			continue
+		}
+		m.issue("invalid_frame", false)
+		msg.Text = m.scrub(msg.Text)
+		if uncertain == "1" {
+			msg.BindingUncertain = true
+			msg.Binding = ""
+			msg.PeerKey = ""
+		}
+		added, err := m.store.insert(msg)
+		if err != nil {
+			return fmt.Errorf("persist incoming message: %w", err)
+		}
+		m.issue("persistence", false)
+		if !added {
+			continue
+		}
+		m.chatChanged(msg, true)
+		select {
+		case queue <- msg:
+		default:
+			msg.State = "received"
+			msg.Reason = "queue_full"
+			m.save(msg)
+			m.notify(msg)
+		}
+	}
+	m.mu.Lock()
+	cfg := m.cfg
+	m.mu.Unlock()
+	if err := m.store.prune(cfg); err != nil {
+		m.issue("persistence", true)
+	}
+	return nil
 }
 func (m *Manager) notify(msg Message) {
 	if m.hooks.Notify != nil {
@@ -346,7 +387,7 @@ func uniqueContact(st Status, key string) (Contact, bool) {
 	return found, n == 1
 }
 func admit(msg Message, cfg Config, st Status, now time.Time) (string, Message) {
-	if !cfg.Enabled || st.State != "connected" || msg.IdentityKey != cfg.IdentityKey || msg.TextType != 0 {
+	if !cfg.Enabled || st.State != "connected" || msg.IdentityKey != cfg.IdentityKey || msg.TextType != 0 || msg.BindingUncertain {
 		return "", msg
 	}
 	if msg.Kind == "direct" {
@@ -354,7 +395,7 @@ func admit(msg Message, cfg Config, st Status, now time.Time) (string, Message) 
 			return "", msg
 		}
 		contact, ok := uniqueContact(st, msg.Sender)
-		if !ok || contact.Type != 1 || contact.Key == st.IdentityKey || !slices.Contains(cfg.TrustedNodes, contact.Key) || !Fresh(msg, cfg, now) {
+		if !ok || (msg.PeerKey != contact.Key && msg.Sender != contact.Key) || contact.Type != 1 || contact.Key == st.IdentityKey || !slices.Contains(cfg.TrustedNodes, contact.Key) || !Fresh(msg, cfg, now) {
 			return "", msg
 		}
 		msg.Sender = contact.Key
@@ -617,6 +658,15 @@ func (m *Manager) Send(ctx context.Context, kind, target, text string, index int
 	return state, err
 }
 func (m *Manager) send(ctx context.Context, msg Message, text string, reply bool, c *companion) (string, error) {
+	mode := sendAgent
+	if reply {
+		mode = sendReply
+	}
+	return m.sendMessage(ctx, msg, text, mode, c)
+}
+
+func (m *Manager) sendMessage(ctx context.Context, msg Message, text string, mode sendOrigin, c *companion) (string, error) {
+	reply := mode == sendReply
 	m.mu.Lock()
 	cfg := m.cfg
 	st := m.status
@@ -633,10 +683,16 @@ func (m *Manager) send(ctx context.Context, msg Message, text string, reply bool
 			if reply {
 				return cfg.DirectReplies && slices.Contains(cfg.TrustedNodes, msg.Sender)
 			}
+			if mode == sendHuman {
+				return contact.Type == 1 && contact.Key != st.IdentityKey
+			}
 			return cfg.ProactiveSend && slices.Contains(cfg.SendNodes, msg.Sender)
 		}
 		if msg.Kind != "channel" {
 			return false
+		}
+		if mode == sendHuman {
+			return channelMatches(st, ChannelRule{Index: msg.Channel, Binding: msg.Binding})
 		}
 		for _, r := range cfg.Channels {
 			if r.Index == msg.Channel && r.Binding == msg.Binding && channelMatches(st, r) {
@@ -659,6 +715,16 @@ func (m *Manager) send(ctx context.Context, msg Message, text string, reply bool
 	if err != nil {
 		return "not_sent", err
 	}
+	chatID := msg.ID
+	if reply {
+		chatID += ":reply"
+	}
+	if err := m.prepareParts(chatID, msg.IdentityKey, c, parts); err != nil {
+		return "not_sent", err
+	}
+	c.ackMu.Lock()
+	c.onACK = func(tag uint32) { m.lateACK(c, tag) }
+	c.ackMu.Unlock()
 	state := "device_accepted"
 	for i, part := range parts {
 		if ctx.Err() != nil {
@@ -701,15 +767,41 @@ func (m *Manager) send(ctx context.Context, msg Message, text string, reply bool
 		}
 		binary.LittleEndian.PutUint32(cmd[3:7], uint32(time.Now().Unix()+int64(i)))
 		cmd = append(cmd, part...)
-		frames, err := c.request(ctx, cmd, expected)
-		if err != nil {
+		if err := m.recordPart(chatID, i+1, "sending", 0, c); err != nil {
 			return "outcome_unknown", err
+		}
+		frames, err := func() ([][]byte, error) {
+			select {
+			case m.writeSlot <- struct{}{}:
+				defer func() { <-m.writeSlot }()
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			m.mu.Lock()
+			valid := m.conn == c && !m.editing && allowed(m.cfg, m.status)
+			m.mu.Unlock()
+			if !valid {
+				return nil, fmt.Errorf("permission_changed")
+			}
+			return c.request(ctx, cmd, expected)
+		}()
+		if err != nil {
+			_ = m.recordPart(chatID, i+1, "outcome_unknown", 0, c)
+			return "outcome_unknown", err
+		}
+		if expected == 0 {
+			if err := m.recordPart(chatID, i+1, "device_accepted", 0, c); err != nil {
+				return "outcome_unknown", err
+			}
 		}
 		if expected == 6 {
 			if len(frames[0]) != 10 {
 				return "outcome_unknown", fmt.Errorf("invalid send response")
 			}
 			tag := binary.LittleEndian.Uint32(frames[0][2:6])
+			if err := m.recordPart(chatID, i+1, "device_accepted", tag, c); err != nil {
+				return "outcome_unknown", err
+			}
 			timeout := time.Duration(binary.LittleEndian.Uint32(frames[0][6:10])) * time.Millisecond
 			timeout = min(max(timeout, time.Second), 60*time.Second)
 			confirmed := c.waitACK(ctx, tag, timeout)
@@ -717,6 +809,11 @@ func (m *Manager) send(ctx context.Context, msg Message, text string, reply bool
 				state = "device_accepted"
 			} else if i == 0 || state == "delivered" {
 				state = "delivered"
+			}
+			if confirmed {
+				if err := m.recordPart(chatID, i+1, "delivered", tag, c); err != nil {
+					return "outcome_unknown", err
+				}
 			}
 		}
 	}

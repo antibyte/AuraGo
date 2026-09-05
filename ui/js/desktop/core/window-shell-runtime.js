@@ -972,6 +972,7 @@
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
             'network-cameras': { width: 1120, height: 720 },
+            meshcore: { width: 1080, height: 720 },
             'sip-phone': { width: 420, height: 760 },
             'live-speech': { width: 440, height: 600 },
             viewer: { width: 900, height: 700 },
@@ -991,9 +992,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ meshcore: true, files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'meshcore') return { width: 360, height: 480 };
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
@@ -1200,6 +1202,7 @@
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (context && context.path) recordRecentFile(context.path, appId);
             return;
         }
