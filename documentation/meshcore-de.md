@@ -33,6 +33,12 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
    Kanäle freigeben. Antworten benötigen diese Freigabe nicht; das Laufzeitsystem
    bindet ihre Zieladresse unveränderlich an den Eingang.
 
+Gespeicherte Kanalzuordnungen bleiben bei unverändertem Gerät und Kanal über
+Neustarts erhalten. Nach dem Update der Fingerprint-Berechnung kann bei älteren
+Zuordnungen einmalig **Kanalzuordnung bestätigen** und **Speichern** nötig sein.
+Alte Verläufe bleiben erhalten; Berechtigungen werden nicht automatisch auf eine
+abweichende Kanalbindung übertragen.
+
 Unter Linux richten der One-Liner-Installer, `install_service_linux.sh` und
 `update.sh` den USB-Zugriff für den systemd-Dienst automatisch über vorhandene
 `dialout`-/`uucp`-Gruppen ein. Die Berechtigung gilt ab dem Dienststart; eine

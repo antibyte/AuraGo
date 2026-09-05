@@ -31,6 +31,12 @@ radio-parameter changes are included.
    keys or channels. Automatic replies do not require proactive permission;
    their destination is fixed internally to the incoming node or channel.
 
+Saved channel assignments survive restarts when the device and channel are
+unchanged. After the fingerprint calculation update, older assignments may
+require **Confirm channel assignment** and **Save** once. Existing histories
+remain available; permissions are never automatically transferred to a different
+channel binding.
+
 On Linux, the one-line installer, `install_service_linux.sh`, and `update.sh`
 automatically grant the systemd service USB access through existing `dialout`/
 `uucp` groups. Permissions take effect when the service starts, without a new

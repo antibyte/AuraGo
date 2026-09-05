@@ -245,9 +245,19 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 	return st, nil
 }
 func channelBinding(identity string, b, salt []byte) string {
+	// Companion strcpy leaves undefined bytes after the channel name's NUL.
+	// Canonical zero padding preserves bindings from already zero-filled frames.
+	var name [32]byte
+	rawName := b[2:34]
+	if end := bytes.IndexByte(rawName, 0); end >= 0 {
+		rawName = rawName[:end]
+	}
+	copy(name[:], rawName)
 	h := hmac.New(sha256.New, salt)
 	h.Write([]byte(identity))
-	h.Write(b[1:])
+	h.Write(b[1:2])
+	h.Write(name[:])
+	h.Write(b[34:50])
 	return hex.EncodeToString(h.Sum(nil))
 }
 func wireText(b []byte) string {
