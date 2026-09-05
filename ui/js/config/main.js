@@ -177,6 +177,7 @@ const SECTIONS = [
             { key: 'cyd', icon: '📟', label: t('config.section.cyd.label'), desc: t('config.section.cyd.desc') },
             { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
             { key: 'bluetooth', icon: 'ᛒ', label: t('config.section.bluetooth.label'), desc: t('config.section.bluetooth.desc') },
+            { key: 'meshcore', icon: '📡', label: t('config.section.meshcore.label'), desc: t('config.section.meshcore.desc') },
             { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') },
             { key: 'fritzbox', icon: '📡', label: t('config.section.fritzbox.label'), desc: t('config.section.fritzbox.desc') },
             { key: 'ldap', icon: '📇', label: t('config.section.ldap.label'), desc: t('config.section.ldap.desc') }
@@ -559,6 +560,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     cyd: 113,
     chromecast: 74,
     bluetooth: 104,
+    meshcore: 114,
     network_shares: 105,
     sip: 107,
     telephone_agent: 109,
@@ -598,6 +600,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
+    meshcore: "<path d=\"M34 90 64 32 94 90Z\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><circle cx=\"64\" cy=\"32\" r=\"12\" fill=\"#6fca8f\"/><circle cx=\"34\" cy=\"90\" r=\"12\" fill=\"#35c7d3\"/><circle cx=\"94\" cy=\"90\" r=\"12\" fill=\"#4f8ee8\"/>",
     overview: "<g fill=\"#7da3c8\"><rect x=\"28\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\"/><rect x=\"72\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"28\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"72\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\"/></g><path d=\"M43 43h42M43 85h42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     agent: "<circle cx=\"64\" cy=\"64\" r=\"23\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/><path d=\"M64 23v13M64 92v13M23 64h13M92 64h13M35 35l9 9M84 84l9 9M93 35l-9 9M44 84l-9 9\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><circle cx=\"64\" cy=\"64\" r=\"8\" fill=\"#35c7d3\"/><text x=\"64\" y=\"64\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"18\" font-weight=\"800\" fill=\"#7da3c8\">A</text>",
     heartbeat: "<path d=\"M30 67c-11-15 8-34 24-19l10 10 10-10c16-15 35 4 24 19-7 11-21 22-34 34-13-12-27-23-34-34z\" fill=\"#ef6f78\" opacity=\".2\"/><path d=\"M26 68h19l8-18 15 36 9-18h25\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
@@ -3045,6 +3048,7 @@ const SECTION_MODULES = {
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     bluetooth: { m: 'bluetooth', fn: 'renderBluetoothSection' },
+    meshcore: { m: 'meshcore', fn: 'renderMeshCoreSection' },
     network_shares: { m: 'network_shares', fn: 'renderNetworkSharesSection' },
     sip: { m: 'sip', fn: 'renderSIPSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },

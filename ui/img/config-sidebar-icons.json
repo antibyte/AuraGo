@@ -7,6 +7,14 @@
   },
   "icons": [
     {
+      "key": "meshcore",
+      "slot": 114,
+      "column": 4,
+      "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
       "key": "overview",
       "slot": 0,
       "column": 0,

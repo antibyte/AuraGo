@@ -591,6 +591,7 @@
 .pw-page[data-workspace-page="config"] .config-icon-slot-111 { background-position: 10% 100%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-112 { background-position: 20% 100%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-113 { background-position: 30% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-114 { background-position: 40% 100%; }
 
 .pw-page[data-workspace-page="config"] .cyd-token-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1504,6 +1505,26 @@
 .pw-page[data-workspace-page="config"] .sidebar-group-header {
         min-height: 44px;
     }
+}
+
+.pw-page[data-workspace-page="config"] #meshcore-device,
+.pw-page[data-workspace-page="config"] #meshcore-contacts,
+.pw-page[data-workspace-page="config"] #meshcore-inbox p {
+    overflow-wrap: anywhere;
+}
+.pw-page[data-workspace-page="config"] #meshcore-inbox pre,
+.pw-page[data-workspace-page="config"] #meshcore-discovery {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.pw-page[data-workspace-page="config"] .meshcore-channel {
+    display: grid;
+    gap: 16px;
+}
+.pw-page[data-workspace-page="config"] .meshcore-channel select,
+.pw-page[data-workspace-page="config"] .meshcore-channel .field-input {
+    display: block;
+    margin-top: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

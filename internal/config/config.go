@@ -958,6 +958,9 @@ func Load(path string) (*Config, error) {
 		cfg.VirtualComputers.Storage.Mode = ""
 	}
 	normalizeDeprecatedEmbeddingBackend(&cfg)
+	if err := cfg.MeshCore.Normalize(); err != nil {
+		return nil, err
+	}
 	if cfg.Bluetooth.ScanTimeoutSeconds <= 0 {
 		cfg.Bluetooth.ScanTimeoutSeconds = 10
 	}

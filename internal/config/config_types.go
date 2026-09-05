@@ -1,6 +1,7 @@
 package config
 
 import (
+	"aurago/internal/meshcore"
 	"fmt"
 	"strings"
 	"unicode"
@@ -1700,6 +1701,7 @@ type Config struct {
 		TTSPort            int      `yaml:"tts_port"`
 		MediaHostAllowlist []string `yaml:"media_host_allowlist"`
 	} `yaml:"chromecast"`
+	MeshCore      meshcore.Config     `yaml:"meshcore" json:"meshcore"`
 	Bluetooth     BluetoothConfig     `yaml:"bluetooth" json:"bluetooth"`
 	NetworkShares NetworkSharesConfig `yaml:"network_shares" json:"network_shares"`
 	Homepage      struct {

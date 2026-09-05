@@ -451,6 +451,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if meshErr := validateCfg.MeshCore.Normalize(); meshErr != nil {
+			jsonError(w, meshErr.Error(), http.StatusBadRequest)
+			return
+		}
 		if localLLMErr := config.ValidateLocalLLMConfig(&validateCfg); localLLMErr != nil {
 			s.Logger.Error("[Config] Invalid local LLM settings — save rejected", "error", localLLMErr)
 			jsonError(w, localLLMErr.Error(), http.StatusBadRequest)
@@ -618,8 +622,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		meshCorePrevious := s.ConfigSnapshot()
+		meshCoreChanged := s.MeshCore != nil && !reflect.DeepEqual(meshCorePrevious.MeshCore, validateCfg.MeshCore)
+		if meshCoreChanged {
+			s.MeshCore.Suspend()
+		}
 		writeErr := config.WriteFileAtomic(configPath, out, perm)
 		if writeErr != nil {
+			if meshCoreChanged {
+				_ = s.MeshCore.Configure(meshCorePrevious.MeshCore, meshCorePrevious.Runtime.IsDocker)
+			}
 			s.Logger.Error("Failed to write config file", "error", writeErr)
 			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
@@ -1309,6 +1321,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					s.Logger.Warn("[go2rtc] Failed to apply configuration change", "error", err)
 				}
 			}()
+		}
+		if loadErr == nil && newCfg != nil && s.MeshCore != nil && !reflect.DeepEqual(oldCfg.MeshCore, newCfg.MeshCore) {
+			if err := s.MeshCore.Configure(newCfg.MeshCore, newCfg.Runtime.IsDocker); err != nil {
+				s.Logger.Error("MeshCore configuration failed", "code", "meshcore_config_failed")
+			}
 		}
 		if loadErr == nil && bluetoothChanged && newCfg != nil && s.Bluetooth != nil {
 			s.Bluetooth.Configure(config.BluetoothRuntimeOptions(newCfg))

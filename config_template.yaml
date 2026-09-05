@@ -128,6 +128,23 @@ chromecast:
     enabled: false
     tts_port: 8090
     media_host_allowlist: []
+meshcore:
+    enabled: false
+    transport: usb                    # usb (Linux/Windows/macOS), ble (native Linux BlueZ)
+    port: ""                          # COM3, /dev/ttyACM0, /dev/cu.usbmodem...; 115200 baud
+    address: ""                       # explicitly paired BLE device address
+    identity_key: ""                  # full Companion public key, confirmed by administrator
+    trusted_nodes: []                 # full public keys; only direct plain text may execute
+    direct_replies: false             # independent of proactive sending
+    proactive_send: false
+    send_nodes: []                    # full public keys for proactive direct messages
+    channels: []                      # index, binding, mode (receive/prefix/questions), prefix (!aura), allow_send
+    max_command_age_seconds: 600
+    future_tolerance_seconds: 120
+    retention_days: 7
+    max_messages: 1000
+    peer_runs_per_minute: 2
+    runs_per_minute: 12
 bluetooth:
     enabled: true
     readonly: true

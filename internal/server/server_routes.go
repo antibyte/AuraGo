@@ -29,6 +29,7 @@ import (
 
 func (s *Server) run(shutdownCh chan struct{}) error {
 	mux := http.NewServeMux()
+	registerMeshCoreRoutes(mux, s)
 	sse := NewSSEBroadcaster()
 	s.SSE = sse // expose broadcaster for use by handlers and callbacks
 	if s.ShortTermMem != nil {

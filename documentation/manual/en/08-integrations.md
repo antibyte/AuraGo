@@ -2795,6 +2795,15 @@ Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for ov
 
 ---
 
+## MeshCore radio
+
+Connect one Companion over USB or native Linux Bluetooth in **Settings → MeshCore**.
+Confirm its identity, assign channel rules, and explicitly allow full node keys.
+Replies and proactive sends have separate permissions; public channel replies
+use an isolated assistant with optional Brave search. See the
+[MeshCore setup, security and reliability guide](../../meshcore-en.md).
+Hardware acceptance is still pending on all supported platforms.
+
 ## Next Steps
 
 Now that your integrations are set up:

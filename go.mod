@@ -191,6 +191,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zaf/g711 v1.4.0 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
+	go.bug.st/serial v1.8.0
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect

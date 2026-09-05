@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/meshcore"
 	"bufio"
 	"context"
 	"database/sql"
@@ -160,6 +161,7 @@ type Server struct {
 	LocalLLM                *localllm.Manager
 	localLLMLifecycleCtx    context.Context
 	Go2RTCDiscovery         *onvif.Service
+	MeshCore                *meshcore.Manager
 	Bluetooth               *bluetooth.Manager
 	NetworkShares           *networkshares.Manager
 	SIPPhone                *sipphone.Manager
@@ -1208,6 +1210,18 @@ func Start(opts StartOptions) error {
 		}
 	}
 
+	// Start radio ingress after agent dependencies have finished initialization.
+	if err := s.initMeshCore(serverCtx); err != nil {
+		return err
+	}
+	defer func() {
+		if s.MeshCore != nil {
+			_ = s.MeshCore.Close()
+			if meshcore.DefaultManager() == s.MeshCore {
+				meshcore.SetDefaultManager(nil)
+			}
+		}
+	}()
 	return s.run(shutdownCh)
 }
 

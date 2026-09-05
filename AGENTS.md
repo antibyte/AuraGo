@@ -429,6 +429,16 @@ Tools are defined in `internal/tools/`:
 - Persisted and manual history compression share the coordinated per-session path and apply one stable-ID update to the summary, in-memory history, and SQLite archive. Summaries are capped at 8192 tokens; failed summaries must leave raw data intact and fall back to bounded request-only recaps. Hard truncation must preserve valid UTF-8 and the final token limit.
 - `HistoryManager.CurrentSummary` belongs exclusively to chat context compression. Nightly maintenance must not use an LLM reflection loop to overwrite it; maintenance state is stored in the structured maintenance ledger and typed morning notification instead.
 
+### MeshCore Integration Contract
+- `internal/meshcore` owns one Companion device, versioned SQLite inbox/execution reservations, framed USB (115200 baud) and native Linux BlueZ BLE. Docker allows explicit USB passthrough only. Hardware acceptance remains unverified until real platform tests pass.
+- Bind permissions to the confirmed full device identity and keyed channel fingerprint. Trust is full-key, unambiguous synchronized chat contacts sending direct plain text only; names, channel senders, signed-plain and room-forwarded messages never authorize actions.
+- Every text input uses static injection checks and a strict successful Guardian content verdict, or an isolated tool-free main-model scan only when Guardian is disabled. Errors, truncation and tool calls quarantine input regardless of global `fail_safe: allow`. No global slash-command interception.
+- Channel replies use a fresh `ExecuteMinimalLoop` without private context, with at most two individual native Brave searches. Enforce scope in schemas and dispatch; MCP preferences, `invoke_tool`, skills and dynamic activation cannot bypass it.
+- Automatic replies bind their destination internally. Proactive sending is separately disabled by default and requires destination allowlists. Permission publication cancels current work; interrupted executions and uncertain sends are not automatically replayed. Execution tombstones outlive the maximum command admission age even when inbox bodies are evicted.
+- Channel secrets and device BLE PIN fields never enter browser, agent or logs. Pairing is explicit and PINs transient. Tests read saved settings and never send radio text or mutate radio parameters.
+- `meshcore_message` notifications and the next direct-contact prompt contain fixed metadata only. Raw inbox text stays in the administrative API/UI. Connection and scan failures use Operational Issues. Setup and recheck routes are admin-only under `/api/meshcore/`.
+- Keep `documentation/meshcore-{en,de}.md`, `prompts/tools_manuals/meshcore.md`, config defaults and all Config translations synchronized. Verify MeshCore protocol/policy, strict scans, minimal-loop scope, API and UI contracts.
+
 ### 3D Printer Integration Contract
 - Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.
 - Normal 3D-printer operations require an explicit `printer_id` unless `three_d_printers.default_printer` is configured. `list_printers` and ad-hoc `/api/3d-printers/test` are the setup exceptions.

@@ -384,6 +384,9 @@ func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool
 }
 
 func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
+	if ff.MeshCoreEnabled {
+		tools = append(tools, meshCoreToolSchema())
+	}
 	// ── Integration tools (conditionally included) ───────────────────────────
 
 	if ff.HomeAssistantEnabled {

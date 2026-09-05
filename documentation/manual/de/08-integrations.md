@@ -2412,4 +2412,13 @@ Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display`.
 
 ---
 
+## MeshCore-Funk
+
+Unter **Einstellungen → MeshCore** ein Companion-Gerät über USB oder natives
+Linux-Bluetooth verbinden, seine Identität bestätigen, Kanalregeln festlegen und
+vollständige Node-Schlüssel freigeben. Antworten und proaktives Senden sind
+getrennt erlaubt; Kanalantworten nutzen einen isolierten Assistenten mit optionaler
+Brave-Websuche. Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md).
+Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
+
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

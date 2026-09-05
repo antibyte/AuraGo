@@ -264,6 +264,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"yepapi_amazon", "Amazon data via YepAPI: products, reviews, offers, categories, and search"},
 	},
 	"communication": {
+		{"meshcore", "MeshCore Companion status, contacts, channels and explicitly permitted radio messages"},
 		{"send_email", "Send emails via configured SMTP accounts"},
 		{"send_telegram", "Send messages through Telegram"},
 		{"send_notification", "Send notifications to ntfy, Pushover, Telegram, Discord, Web Push, SMS, or CYD"},

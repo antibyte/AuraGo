@@ -22,6 +22,8 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	mediaRegistryDB := dc.MediaRegistryDB
 
 	switch tc.Action {
+	case "meshcore":
+		return dispatchMeshCore(ctx, tc, dc), true
 	case "send_telegram":
 		req := decodeSendTelegramArgs(tc)
 		if strings.TrimSpace(req.Message) == "" {

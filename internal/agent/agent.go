@@ -1152,6 +1152,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 	if !dispatchToolAllowed(dc, tc.Action) {
 		return toolScopeDeniedOutput(tc.Action)
 	}
+	if tc.Action == "brave_search" && dc.MessageSource == "meshcore_reply" {
+		return dispatchMeshCoreSearch(tc, dc)
+	}
 
 	// Co-Agent blacklist: co-agents cannot access secrets,
 	// mutate memory-like stores, or orchestrate additional autonomous work.

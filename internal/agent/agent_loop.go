@@ -276,6 +276,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 	}()
 
+	ackMeshCoreNotice := appendMeshCoreNotice(&runCfg)
+	defer func() {
+		if retErr == nil && len(response.Choices) > 0 {
+			ackMeshCoreNotice()
+		}
+	}()
 	s := initAgentLoopState(req, runCfg, broker, VoiceOutputSuppressed(ctx))
 	s.turnSnapshot = &turnContextSnapshot{
 		UserIntent:        s.initialUserMsg,

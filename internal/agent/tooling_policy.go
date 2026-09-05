@@ -348,6 +348,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		JellyfinEnabled:            cfg.Jellyfin.Enabled,
 		ObsidianEnabled:            cfg.Obsidian.Enabled,
 		ChromecastEnabled:          cfg.Chromecast.Enabled,
+		MeshCoreEnabled:            cfg.MeshCore.Enabled,
 		BluetoothEnabled:           bluetoothEnabled,
 		BluetoothWriteEnabled:      bluetoothEnabled && !cfg.Bluetooth.ReadOnly,
 		BluetoothAudioEnabled:      bluetoothEnabled && cfg.Bluetooth.AllowPlayback && cfg.Runtime.Bluetooth.Audio.Usable,

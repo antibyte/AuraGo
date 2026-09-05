@@ -122,6 +122,7 @@ func tool(name, description string, params map[string]interface{}) openai.Tool {
 
 // ToolFeatureFlags controls which optional tool schemas are included.
 type ToolFeatureFlags struct {
+	MeshCoreEnabled         bool
 	HomeAssistantEnabled    bool
 	DockerEnabled           bool
 	CoAgentEnabled          bool

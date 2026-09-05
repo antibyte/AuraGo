@@ -85,6 +85,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true, VirtualWorkspaceEnabled: true,
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
+		MeshCoreEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
 		NetworkSharesEnabled: true, NetworkSharesCreateEnabled: true, NetworkSharesUpdateEnabled: true, NetworkSharesDeleteEnabled: true,
 		SIPPhoneEnabled: true, SIPPhoneDialEnabled: true, SIPPhoneAnswerEnabled: true, SIPPhoneDTMFEnabled: true, SIPPhoneHangupEnabled: true,
@@ -216,6 +217,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("jellyfin", ff.JellyfinEnabled)
 	appendToolFeatureKeyPart("obsidian", ff.ObsidianEnabled)
 	appendToolFeatureKeyPart("chromecast", ff.ChromecastEnabled)
+	appendToolFeatureKeyPart("meshcore", ff.MeshCoreEnabled)
 	appendToolFeatureKeyPart("bluetooth", ff.BluetoothEnabled)
 	appendToolFeatureKeyPart("bluetooth_write", ff.BluetoothWriteEnabled)
 	appendToolFeatureKeyPart("bluetooth_audio", ff.BluetoothAudioEnabled)

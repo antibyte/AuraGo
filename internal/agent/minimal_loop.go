@@ -17,6 +17,7 @@ import (
 
 // MinimalLoopResult is the outcome of a single minimal agent turn.
 type MinimalLoopResult struct {
+	FinishReason     openai.FinishReason
 	Response         string
 	ToolCalls        int
 	Duration         time.Duration
@@ -26,6 +27,8 @@ type MinimalLoopResult struct {
 
 // MinimalLoopOptions controls optional behaviour of ExecuteMinimalLoop.
 type MinimalLoopOptions struct {
+	// MaxToolCalls limits individual calls including parallel batches; zero keeps the legacy limit.
+	MaxToolCalls int
 	// MaxToolRounds caps the number of tool-call follow-up rounds.
 	// 0 means "no tools at all" (the request is sent without tool schemas).
 	// -1 or unset defaults to 3.
@@ -85,7 +88,14 @@ func ExecuteMinimalLoop(
 
 	// When no tools are needed, strip tool schemas to save thousands of tokens.
 	reqTools := tools
-	if noTools || len(tools) == 0 {
+	if dispatchCtx.ToolScopeRestricted {
+		names := make([]string, 0, len(dispatchCtx.AllowedTools))
+		for name := range dispatchCtx.AllowedTools {
+			names = append(names, name)
+		}
+		reqTools = filterSchemasByAllowedTools(reqTools, names)
+	}
+	if noTools || len(reqTools) == 0 {
 		reqTools = nil
 		maxRounds = 0
 	}
@@ -118,13 +128,20 @@ func ExecuteMinimalLoop(
 		if err != nil {
 			return result, req.Messages, fmt.Errorf("llm call failed: %w", err)
 		}
-		if len(resp.Choices) == 0 {
+		if len(resp.Choices) != 1 {
 			return result, req.Messages, fmt.Errorf("empty response from llm")
 		}
 		accumulateMinimalLoopUsage(&result, resp.Usage)
 
 		choice := resp.Choices[0]
 		msg := choice.Message
+		if msg.FunctionCall != nil {
+			return result, req.Messages, fmt.Errorf("unexpected legacy function call")
+		}
+		result.FinishReason = choice.FinishReason
+		if len(msg.ToolCalls) > 0 && len(req.Tools) == 0 {
+			return result, req.Messages, fmt.Errorf("unexpected tool calls in a tool-free request")
+		}
 
 		// If no tool calls, we're done
 		if len(msg.ToolCalls) == 0 {
@@ -134,20 +151,23 @@ func ExecuteMinimalLoop(
 		}
 
 		// Execute tool calls
-		result.ToolCalls += len(msg.ToolCalls)
 		req.Messages = append(req.Messages, msg)
 
 		for _, tc := range msg.ToolCalls {
-			if tc.Function.Name == "" {
-				continue
+			toolResult := "Tool Output: {\"status\":\"error\",\"code\":\"tool_call_limit\"}"
+			if opts == nil || opts.MaxToolCalls <= 0 || result.ToolCalls < opts.MaxToolCalls {
+				toolResult = executeMinimalToolCall(ctx, tc, dispatchCtx, userPrompt, logger)
+				result.ToolCalls++
 			}
-			toolResult := executeMinimalToolCall(ctx, tc, dispatchCtx, userPrompt, logger)
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{
 				Role:       openai.ChatMessageRoleTool,
 				Content:    toolResult,
 				Name:       tc.Function.Name,
 				ToolCallID: tc.ID,
 			})
+		}
+		if opts != nil && opts.MaxToolCalls > 0 && result.ToolCalls >= opts.MaxToolCalls {
+			req.Tools = nil
 		}
 	}
 
@@ -175,6 +195,10 @@ func ExecuteMinimalLoop(
 		return result, req.Messages, fmt.Errorf("empty summary response from llm")
 	}
 	accumulateMinimalLoopUsage(&result, resp.Usage)
+	result.FinishReason = resp.Choices[0].FinishReason
+	if len(resp.Choices[0].Message.ToolCalls) > 0 || resp.Choices[0].Message.FunctionCall != nil {
+		return result, req.Messages, fmt.Errorf("unexpected tool calls in a tool-free summary")
+	}
 	result.Response = security.StripThinkingTags(resp.Choices[0].Message.Content)
 	result.Duration = time.Since(start)
 	return result, req.Messages, nil
