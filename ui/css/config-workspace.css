@@ -245,7 +245,6 @@
 
 .pw-page[data-workspace-page="config"] .radial-menu {
     top: calc(8px + env(safe-area-inset-top, 0px));
-    z-index: 80;
 }
 
 .pw-page[data-workspace-page="config"] .toast {

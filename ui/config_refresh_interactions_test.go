@@ -5,7 +5,61 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
+
+func TestConfigNavigationOverlayBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := newSmokeBrowser(t).MustPage(configRefreshFixtureOrigin(t, "de", true) + "/config#overview")
+	defer page.MustClose()
+	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card') && !!document.getElementById('radialTrigger')`)
+	page = page.Timeout(60 * time.Second)
+	page.MustEval(`() => document.querySelector('.radial-item[href="/dashboard"]').addEventListener('click', event => {event.preventDefault(); window.navigationClicked=true;})`)
+	for _, width := range []int{390, 768, 1024, 1440, 1920} {
+		page.MustSetViewport(width, 1000, 1, width == 390)
+		for _, theme := range []string{"dark", "light"} {
+			for _, density := range []string{"comfortable", "compact"} {
+				page.MustEval(`(theme,density) => {document.documentElement.dataset.theme=theme; document.body.dataset.theme=theme; AuraPrecisionWorkspace.setDensity(density); window.navigationClicked=false;}`, theme, density)
+				page.MustElement("#radialTrigger").MustClick()
+				page.MustEval(`async () => await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})))`)
+				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+					if err := os.MkdirAll(dir, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("navigation-%d-%s-%s.png", width, theme, density)), page.MustScreenshot(), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if !page.MustEval(`() => [...document.querySelectorAll('#radialTrigger, .radial-item[href]')].every(el=>{const r=el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})`).Bool() {
+					t.Errorf("%d %s %s: navigation controls are covered by the backdrop", width, theme, density)
+				} else {
+					point := page.MustEval(`() => {const r=document.querySelector('.radial-item[href="/dashboard"] .radial-item-label').getBoundingClientRect(); return [r.x+r.width/2,r.y+r.height/2];}`).Arr()
+					page.Mouse.MustMoveTo(point[0].Num(), point[1].Num()).MustClick(proto.InputMouseButtonLeft)
+					if !page.MustEval(`() => window.navigationClicked===true`).Bool() {
+						t.Fatal("navigation link did not receive the pointer click")
+					}
+					page.MustElement("#radialTrigger").MustClick()
+					if page.MustEval(`() => document.getElementById('radialMenu').classList.contains('open')`).Bool() {
+						t.Fatal("trigger could not close the menu")
+					}
+					page.MustElement("#radialTrigger").MustClick()
+					page.Mouse.MustMoveTo(8, 980).MustClick(proto.InputMouseButtonLeft)
+					if page.MustEval(`() => document.getElementById('radialMenu').classList.contains('open')`).Bool() {
+						t.Fatal("backdrop could not close the menu")
+					}
+					page.MustElement("#radialTrigger").MustClick()
+				}
+				page.Keyboard.MustType(input.Escape)
+				if page.MustEval(`() => document.getElementById('radialMenu').classList.contains('open')`).Bool() {
+					t.Fatal("Escape could not close the menu")
+				}
+			}
+		}
+	}
+}
 
 func TestConfigRefreshSIPStepsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
