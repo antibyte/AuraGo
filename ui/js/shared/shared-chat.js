@@ -19,6 +19,7 @@ const CHAT_THEME_DEFINITIONS = [
     { theme: 'sandstorm', icon: 'theme-sandstorm', labelKey: 'chat.theme_sandstorm', fallbackLabel: 'Sandstorm' },
     { theme: 'papyrus', icon: 'theme-papyrus', labelKey: 'chat.theme_papyrus', fallbackLabel: 'Papyrus' },
     { theme: 'threedee', icon: 'theme-threedee', labelKey: 'chat.theme_threedee', fallbackLabel: 'ThreeDee' },
+    { theme: 'galaxy', icon: 'theme-galaxy', labelKey: 'chat.theme_galaxy', fallbackLabel: 'Galaxy' },
     { theme: 'black-matrix', icon: 'theme-black-matrix', labelKey: 'chat.theme_black_matrix', fallbackLabel: 'Black Matrix' },
 ];
 const CHAT_THEMES = CHAT_THEME_DEFINITIONS.map(def => def.theme);
@@ -111,6 +112,7 @@ var THEME_COLORS = {
     'sandstorm': '#1d140d',
     'papyrus': '#bca784',
     'threedee': '#070b14',
+    'galaxy': '#05060d',
     'black-matrix': '#030404',
     '8bit': '#1a252f'
 };

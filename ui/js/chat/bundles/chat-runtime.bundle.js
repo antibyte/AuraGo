@@ -920,6 +920,9 @@
         'sandstorm': {
             scripts: ['/js/chat/sandstorm-particles.js']
         },
+        'galaxy': {
+            scripts: ['/js/vendor/three.min.js', '/js/chat/galaxy-scene.js']
+        },
         'threedee': {
             scripts: [
                 '/js/vendor/three.min.js',
@@ -1002,6 +1005,7 @@
         { key: 'code', label: 'Code', shape: 'code-brackets', color: '#38bdf8', aliases: [] },
         { key: 'robot', label: 'Robot', shape: 'robot', color: '#22d3ee', aliases: ['logo', 'agent'] },
         { key: 'theme-threedee', label: 'ThreeDee theme', shape: 'cube-3d', color: '#818cf8', aliases: ['threedee'] },
+        { key: 'theme-galaxy', label: 'Galaxy theme', shape: 'spiral-galaxy', color: '#cc99cc', aliases: ['galaxy'] },
         { key: 'theme-8bit', label: '8Bit theme', shape: 'gamepad', color: '#a0a0ff', aliases: ['8bit'] },
         { key: 'theme-black-matrix', label: 'Black Matrix theme', shape: 'matrix-grid', color: '#22c55e', aliases: ['black-matrix'] },
         { key: 'play', label: 'Play', shape: 'play', color: '#2dd4bf', aliases: ['resume'] },
@@ -1125,7 +1129,8 @@
 
     function getIconUrl(iconName) {
         const definition = getDefinition(iconName);
-        return `${ICON_BASE_PATH}/${fileNameFor(definition)}?v=${ICON_VERSION}`;
+        const version = definition.key === 'theme-galaxy' ? encodeURIComponent(window.BUILD_VERSION || ICON_VERSION) : ICON_VERSION;
+        return `${ICON_BASE_PATH}/${fileNameFor(definition)}?v=${version}`;
     }
 
     function applyIcon(el, iconName) {
@@ -6002,6 +6007,7 @@ const THEME_ICON_KEYS = {
     'sandstorm': 'theme-sandstorm',
     'papyrus': 'theme-papyrus',
     'threedee': 'theme-threedee',
+    'galaxy': 'theme-galaxy',
     'black-matrix': 'theme-black-matrix',
     '8bit': 'theme-8bit'
 };
@@ -6035,6 +6041,7 @@ function initChatThemePicker() {
                 { theme: 'sandstorm', icon: 'theme-sandstorm', labelKey: 'chat.theme_sandstorm', fallbackLabel: 'Sandstorm' },
                 { theme: 'papyrus', icon: 'theme-papyrus', labelKey: 'chat.theme_papyrus', fallbackLabel: 'Papyrus' },
                 { theme: 'threedee', icon: 'theme-threedee', labelKey: 'chat.theme_threedee', fallbackLabel: 'ThreeDee' },
+                { theme: 'galaxy', icon: 'theme-galaxy', labelKey: 'chat.theme_galaxy', fallbackLabel: 'Galaxy' },
                 { theme: 'black-matrix', icon: 'theme-black-matrix', labelKey: 'chat.theme_black_matrix', fallbackLabel: 'Black Matrix' },
             ];
 

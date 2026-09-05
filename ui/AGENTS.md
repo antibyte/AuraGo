@@ -208,6 +208,19 @@ images, and browser-oriented regression tests.
   soft dust does not need device-pixel resolution. Canvas bounds must not
   transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
   and narrow-screen gates.
+- Galaxy uses the existing Three.js r128 and a single lazy renderer/RAF loop.
+  Keep the six draw calls, shared sphere geometry and fixed 3500/850-star
+  buffers; no full-screen postprocessing. Start desktop at high quality with
+  at most 1.5 DPR / 3840x2160 pixels, then lower resolution after sustained
+  slow frames. Calibrate the idle display cadence during the first-frame fade;
+  30/32 Hz displays must not trigger quality reduction. Mobile starts with 2K
+  maps and the simpler atmosphere.
+  Pause hidden tabs; release all GPU resources on exit and reject stale loads.
+  Reduced motion, unavailable WebGL, missing textures and context loss expose
+  the complete local poster. Keep posters aligned with the rendered scene and
+  preserve source provenance in `img/galaxy/CREDITS.md`. LCARS rules belong
+  only under `[data-theme="galaxy"]` in `css/chat-themes.css`; keep Geist for
+  chat prose, local Barlow for labels, actual status signals and 44px targets.
 
 ## Work Guidance
 
@@ -242,6 +255,11 @@ images, and browser-oriented regression tests.
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run ThreeDeeCombatBrowserSmoke`.
 - Sandstorm WebGL/2D weather, resource bounds and lifecycle:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run SandstormWeatherBrowserSmoke`.
+- Galaxy picker, real rendering, responsive controls, drawers, dialogs,
+  disposal and failure modes:
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run GalaxyBrowserSmoke`.
+  Add `AURAGO_GALAXY_BENCHMARK=1` for the two-minute native-RAF benchmark and
+  `AURAGO_BROWSER_ARTIFACT_DIR` for screenshots and measured GPU/FPS data.
 - Full repository: `go test -count=1 ./...`.
 - Protected surfaces from the rollout base:
   `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
