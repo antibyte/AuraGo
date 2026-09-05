@@ -57,7 +57,23 @@
     }
 
     // Relative time via sysworld.time.in / sysworld.time.ago ("in 3h" / "3h ago").
+    // Span units use desktop.rel_time_*. inst.L stays key-only; interpolate via ctx.t.
     // Returns null for missing/unparseable timestamps so callers can fall back.
+    function formatRelCount(inst, count, key) {
+        const n = String(count);
+        let phrase = '';
+        try {
+            if (inst.ctx && typeof inst.ctx.t === 'function') {
+                phrase = inst.ctx.t(key, { count: n });
+            }
+        } catch (_) { /* fall through to key-only L */ }
+        if (!phrase && typeof inst.L === 'function') phrase = inst.L(key);
+        if (typeof phrase === 'string' && phrase.indexOf('{{count}}') >= 0) {
+            return phrase.replaceAll('{{count}}', n);
+        }
+        return typeof phrase === 'string' && phrase && phrase !== key ? phrase : n;
+    }
+
     function relTime(inst, ts) {
         if (ts == null || ts === '') return null;
         const d = new Date(ts);
@@ -65,10 +81,10 @@
         const diff = d.getTime() - Date.now();
         const abs = Math.abs(diff);
         let span;
-        if (abs < 90000) span = Math.max(1, Math.round(abs / 1000)) + 's';
-        else if (abs < 3600000) span = Math.round(abs / 60000) + 'm';
-        else if (abs < 86400000) span = Math.round(abs / 3600000) + 'h';
-        else span = Math.round(abs / 86400000) + 'd';
+        if (abs < 90000) span = formatRelCount(inst, Math.max(1, Math.round(abs / 1000)), 'desktop.rel_time_seconds');
+        else if (abs < 3600000) span = formatRelCount(inst, Math.round(abs / 60000), 'desktop.rel_time_minutes');
+        else if (abs < 86400000) span = formatRelCount(inst, Math.round(abs / 3600000), 'desktop.rel_time_hours');
+        else span = formatRelCount(inst, Math.round(abs / 86400000), 'desktop.rel_time_days');
         const key = diff >= 0 ? 'sysworld.time.in' : 'sysworld.time.ago';
         const phrase = inst.L(key);
         return phrase.indexOf('{{time}}') >= 0 ? phrase.replace('{{time}}', span) : span;

@@ -2115,10 +2115,11 @@
         layer = document.createElement('div');
         layer.id = 'vd-pet-layer';
         layer.className = 'vd-pet-layer';
-        layer.innerHTML = '<div class="vd-pet-sprite" role="img" aria-label="Desktop pet"></div><div class="vd-pet-bubble" hidden></div>';
+        layer.innerHTML = '<div class="vd-pet-sprite" role="img"></div><div class="vd-pet-bubble" hidden></div>';
         document.body.appendChild(layer);
         spriteEl = layer.querySelector('.vd-pet-sprite');
         bubbleEl = layer.querySelector('.vd-pet-bubble');
+        spriteEl.setAttribute('aria-label', t('desktop.pet_aria_label'));
         wireDrag();
     }
 
@@ -9245,15 +9246,16 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function sysmonFormatBytes(value) {
         const n = Number(value || 0);
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+        const label = (key, count) => t(key, { count });
+        if (!Number.isFinite(n) || n <= 0) return label('desktop.bytes', 0);
+        const units = ['desktop.bytes', 'desktop.kib', 'desktop.mib', 'desktop.gib', 'desktop.tib'];
         let size = n;
         let unit = 0;
         while (size >= 1024 && unit < units.length - 1) {
             size /= 1024;
             unit += 1;
         }
-        return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+        return label(units[unit], unit === 0 ? size.toFixed(0) : size.toFixed(1));
     }
 
     function sysmonFormatUptime(seconds) {
@@ -10610,7 +10612,7 @@ function modalDialog(options) {
     }
 
     async function createFileInPath(basePath) {
-        const name = await promptDialog(t('desktop.new_file'), 'untitled.txt');
+        const name = await promptDialog(t('desktop.new_file'), t('desktop.new_file_default'));
         if (!name) return;
         const path = workspaceJoinPath(basePath, name);
         try {
@@ -10629,7 +10631,7 @@ function modalDialog(options) {
     }
 
     async function createFolderInPath(basePath) {
-        const name = await promptDialog(t('desktop.new_folder'), 'New Folder');
+        const name = await promptDialog(t('desktop.new_folder'), t('desktop.new_folder'));
         if (!name) return;
         try {
             await api('/api/desktop/directory', {
@@ -13708,10 +13710,12 @@ if (appId === 'pixel') {
         }
 
         function formatSFTPSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KiB';
-            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MiB';
-            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GiB';
+            const n = Number(bytes || 0);
+            if (n < 1024) return t('desktop.bytes').replace('{{count}}', n);
+            if (n < 1024 * 1024) return t('desktop.kib').replace('{{count}}', (n / 1024).toFixed(1));
+            if (n < 1024 * 1024 * 1024) return t('desktop.mib').replace('{{count}}', (n / (1024 * 1024)).toFixed(1));
+            if (n < 1024 * 1024 * 1024 * 1024) return t('desktop.gib').replace('{{count}}', (n / (1024 * 1024 * 1024)).toFixed(1));
+            return t('desktop.tib').replace('{{count}}', (n / (1024 * 1024 * 1024 * 1024)).toFixed(1));
         }
 
         async function loadSFTPList(deviceId, dirPath, listEl, breadcrumbEl, statusEl) {
@@ -13733,7 +13737,7 @@ if (appId === 'pixel') {
         function renderSFTPList(deviceId, listEl, breadcrumbEl, statusEl) {
             if (!sftpEntries.length) {
                 listEl.innerHTML = `<div class="vd-qc-sftp-empty">${iconMarkup('folder-open', 'F', 'vd-qc-sftp-empty-icon', 32)}<span>${esc(t('desktop.qc_sftp_empty'))}</span></div>`;
-                statusEl.textContent = '0 items';
+                statusEl.textContent = t('desktop.qc_sftp_items').replace('{{count}}', 0);
                 return;
             }
             let html = `<table class="vd-qc-sftp-table"><thead><tr>
@@ -13754,7 +13758,7 @@ if (appId === 'pixel') {
             }
             html += '</tbody></table>';
             listEl.innerHTML = html;
-            statusEl.textContent = sftpEntries.length + ' items';
+            statusEl.textContent = t('desktop.qc_sftp_items').replace('{{count}}', sftpEntries.length);
 
             listEl.querySelectorAll('.vd-qc-sftp-row').forEach(row => {
                 row.addEventListener('dblclick', () => {

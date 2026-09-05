@@ -379,7 +379,7 @@
                 <div class="fm-modal-title">${esc(t('desktop.fm.new_file_template'))}</div>
                 <div class="fm-field-group" style="margin-bottom: 12px; display:flex; flex-direction:column; gap:4px">
                     <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_prompt'))}</label>
-                    <input type="text" name="filename" value="new-file.txt" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
+                    <input type="text" name="filename" value="${esc(t('desktop.new_file_default'))}" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box">
                 </div>
                 <div class="fm-field-group" style="margin-bottom: 16px; display:flex; flex-direction:column; gap:4px">
                     <label style="font-size:0.75rem;color:var(--vd-muted)">${esc(t('desktop.fm.new_file_template_label'))}</label>

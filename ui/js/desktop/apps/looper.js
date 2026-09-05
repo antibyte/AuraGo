@@ -18,10 +18,10 @@
         return String(log.iteration || 0) + '|' + String(log.step || '') + '|' + String(log.duration || 0) + '|' + index;
     }
 
-    function formatCost(usd) {
+    function formatCost(usd, t) {
         if (!usd || usd <= 0) return '';
-        if (usd < 0.01) return '<$0.01';
-        return '$' + usd.toFixed(usd < 1 ? 3 : 2);
+        if (usd < 0.01) return t('desktop.looper_cost_under');
+        return t('desktop.looper_cost', { amount: usd.toFixed(usd < 1 ? 3 : 2) });
     }
 
     function render(container, windowId, context) {
@@ -1001,9 +1001,9 @@
                 metaParts.push(`${state.logCount} ${t('desktop.looper_logs_title').toLowerCase()}`);
             }
             if (data.input_tokens || data.output_tokens) {
-                metaParts.push(`${(data.input_tokens || 0) + (data.output_tokens || 0)} tok`);
+                metaParts.push(t('desktop.looper_tokens', { count: (data.input_tokens || 0) + (data.output_tokens || 0) }));
             }
-            const cost = formatCost(data.estimated_cost_usd);
+            const cost = formatCost(data.estimated_cost_usd, t);
             if (cost) {
                 metaParts.push(cost);
             }

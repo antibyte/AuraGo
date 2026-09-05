@@ -6,15 +6,16 @@
 
     function sysmonFormatBytes(value) {
         const n = Number(value || 0);
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+        const label = (key, count) => t(key, { count });
+        if (!Number.isFinite(n) || n <= 0) return label('desktop.bytes', 0);
+        const units = ['desktop.bytes', 'desktop.kib', 'desktop.mib', 'desktop.gib', 'desktop.tib'];
         let size = n;
         let unit = 0;
         while (size >= 1024 && unit < units.length - 1) {
             size /= 1024;
             unit += 1;
         }
-        return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+        return label(units[unit], unit === 0 ? size.toFixed(0) : size.toFixed(1));
     }
 
     function sysmonFormatUptime(seconds) {

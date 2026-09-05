@@ -611,7 +611,7 @@
                 }
             }
             if (cfg.min_interval_seconds) {
-                const intv = t('missions.trigger_info_min_interval_prefix') + ' ' + cfg.min_interval_seconds + 's';
+                const intv = t('missions.trigger_info_min_interval_prefix') + ' ' + t('desktop.rel_time_seconds', { count: cfg.min_interval_seconds });
                 txt = txt ? txt + ' | ' + intv : intv;
             }
             return txt;

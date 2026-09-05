@@ -627,10 +627,12 @@
         }
 
         function formatSFTPSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KiB';
-            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MiB';
-            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GiB';
+            const n = Number(bytes || 0);
+            if (n < 1024) return t('desktop.bytes').replace('{{count}}', n);
+            if (n < 1024 * 1024) return t('desktop.kib').replace('{{count}}', (n / 1024).toFixed(1));
+            if (n < 1024 * 1024 * 1024) return t('desktop.mib').replace('{{count}}', (n / (1024 * 1024)).toFixed(1));
+            if (n < 1024 * 1024 * 1024 * 1024) return t('desktop.gib').replace('{{count}}', (n / (1024 * 1024 * 1024)).toFixed(1));
+            return t('desktop.tib').replace('{{count}}', (n / (1024 * 1024 * 1024 * 1024)).toFixed(1));
         }
 
         async function loadSFTPList(deviceId, dirPath, listEl, breadcrumbEl, statusEl) {
@@ -652,7 +654,7 @@
         function renderSFTPList(deviceId, listEl, breadcrumbEl, statusEl) {
             if (!sftpEntries.length) {
                 listEl.innerHTML = `<div class="vd-qc-sftp-empty">${iconMarkup('folder-open', 'F', 'vd-qc-sftp-empty-icon', 32)}<span>${esc(t('desktop.qc_sftp_empty'))}</span></div>`;
-                statusEl.textContent = '0 items';
+                statusEl.textContent = t('desktop.qc_sftp_items').replace('{{count}}', 0);
                 return;
             }
             let html = `<table class="vd-qc-sftp-table"><thead><tr>
@@ -673,7 +675,7 @@
             }
             html += '</tbody></table>';
             listEl.innerHTML = html;
-            statusEl.textContent = sftpEntries.length + ' items';
+            statusEl.textContent = t('desktop.qc_sftp_items').replace('{{count}}', sftpEntries.length);
 
             listEl.querySelectorAll('.vd-qc-sftp-row').forEach(row => {
                 row.addEventListener('dblclick', () => {

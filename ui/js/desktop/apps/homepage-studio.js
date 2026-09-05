@@ -594,7 +594,7 @@
                 const webhosts = Array.isArray(webhostsData && webhostsData.webhosts) ? webhostsData.webhosts : [];
                 for (const item of webhosts) {
                     if (item && item.id === 'homepage') {
-                        addHomepageTarget(nextTargets, 'local', item.url, item.name || 'Homepage');
+                        addHomepageTarget(nextTargets, 'local', item.url, item.name || t('homepage_studio.default_name'));
                     }
                 }
 
@@ -918,7 +918,7 @@
                     streamTextFrame = 0;
                 }
                 if (statusEl && statusEl.parentNode) statusEl.remove();
-                const msg = (err && err.message) || String(err || 'Request failed');
+                const msg = (err && err.message) || String(err || t('desktop.chat_request_failed'));
                 appendBubble('agent', msg);
                 state.chatBusy = false;
                 state.abortCtrl = null;
@@ -1038,9 +1038,10 @@
             }
             if (busy) {
                 state.busyStart = Date.now();
-                if (agentElapsed) agentElapsed.textContent = '0s';
+                const elapsedText = (seconds) => t('desktop.noisemaker_progress_elapsed', { seconds });
+                if (agentElapsed) agentElapsed.textContent = elapsedText(0);
                 state.busyTimer = setInterval(() => {
-                    if (agentElapsed) agentElapsed.textContent = Math.round((Date.now() - state.busyStart) / 1000) + 's';
+                    if (agentElapsed) agentElapsed.textContent = elapsedText(Math.round((Date.now() - state.busyStart) / 1000));
                 }, 500);
             } else if (state.busyTimer) {
                 clearInterval(state.busyTimer);

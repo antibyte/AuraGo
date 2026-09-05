@@ -778,7 +778,7 @@ function modalDialog(options) {
     }
 
     async function createFileInPath(basePath) {
-        const name = await promptDialog(t('desktop.new_file'), 'untitled.txt');
+        const name = await promptDialog(t('desktop.new_file'), t('desktop.new_file_default'));
         if (!name) return;
         const path = workspaceJoinPath(basePath, name);
         try {
@@ -797,7 +797,7 @@ function modalDialog(options) {
     }
 
     async function createFolderInPath(basePath) {
-        const name = await promptDialog(t('desktop.new_folder'), 'New Folder');
+        const name = await promptDialog(t('desktop.new_folder'), t('desktop.new_folder'));
         if (!name) return;
         try {
             await api('/api/desktop/directory', {

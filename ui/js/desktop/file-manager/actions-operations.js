@@ -5,7 +5,7 @@
         if (typeof createNewFileWithTemplate === 'function') {
             res = await createNewFileWithTemplate();
         } else {
-            const name = await promptDialog(t('desktop.fm.new_file_prompt'), 'new-file.txt');
+            const name = await promptDialog(t('desktop.fm.new_file_prompt'), t('desktop.new_file_default'));
             if (name) res = { name, content: '' };
         }
         if (!res) return;

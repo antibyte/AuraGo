@@ -8,6 +8,10 @@
         const api = typeof ctx.api === 'function' ? ctx.api : function () { return Promise.reject(new Error('api not available')); };
         const notify = typeof ctx.notify === 'function' ? ctx.notify : function () {};
 
+        function formatScale(value) {
+            return t('desktop.pet_scale_value', { value: Number(value).toFixed(1) });
+        }
+
         host.innerHTML = `
             <div class="vd-pet-picker">
                 <div class="vd-pet-picker-header">
@@ -19,7 +23,7 @@
                     <label class="vd-pet-picker-setting">
                         <span>${esc(t('desktop.pet_scale'))}</span>
                         <input type="range" class="vd-pet-picker-scale" min="0.5" max="2" step="0.1" value="1">
-                        <span class="vd-pet-picker-scale-value">1.0x</span>
+                        <span class="vd-pet-picker-scale-value">${esc(formatScale(1))}</span>
                     </label>
                     <label class="vd-pet-picker-setting">
                         <span>${esc(t('desktop.pet_enabled'))}</span>
@@ -77,7 +81,7 @@
                 renderGrid();
                 const settings = settingsBody.settings || {};
                 scaleInput.value = parseFloat(settings['pet.scale'] || '0.5');
-                scaleValue.textContent = Number(scaleInput.value).toFixed(1) + 'x';
+                scaleValue.textContent = formatScale(scaleInput.value);
                 enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
                 alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';
                 syncPetBootstrap({ pets, active_pet_id: activeId, settings });
@@ -136,7 +140,7 @@
         }
 
         scaleInput.addEventListener('input', () => {
-            scaleValue.textContent = Number(scaleInput.value).toFixed(1) + 'x';
+            scaleValue.textContent = formatScale(scaleInput.value);
         });
         scaleInput.addEventListener('change', () => {
             saveSetting('pet.scale', Number(scaleInput.value).toFixed(2));

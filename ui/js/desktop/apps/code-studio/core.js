@@ -1299,14 +1299,16 @@
             line = lines.length;
             col = lines[lines.length - 1].length + 1;
         }
-        return 'Ln ' + line + ', Col ' + col;
+        return tr('codeStudio.cursorPosition', undefined, { line, column: col });
     }
 
     function formatBytes(size) {
         const n = Number(size || 0);
-        if (n < 1024) return n + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
-        return (n / 1024 / 1024).toFixed(1) + ' MiB';
+        if (n < 1024) return tr('desktop.bytes', undefined, { count: n });
+        if (n < 1024 * 1024) return tr('desktop.kib', undefined, { count: (n / 1024).toFixed(1) });
+        if (n < 1024 * 1024 * 1024) return tr('desktop.mib', undefined, { count: (n / (1024 * 1024)).toFixed(1) });
+        if (n < 1024 * 1024 * 1024 * 1024) return tr('desktop.gib', undefined, { count: (n / (1024 * 1024 * 1024)).toFixed(1) });
+        return tr('desktop.tib', undefined, { count: (n / (1024 * 1024 * 1024 * 1024)).toFixed(1) });
     }
 
     function codeStudioCursor() {

@@ -89,6 +89,9 @@ and `files.default_apps` via `/api/desktop/settings`.
   `desktop.system_info_uptime_hours_minutes`,
   `desktop.system_info_uptime_minutes`, and `desktop.weather_wind_kmh`. Do not
   hardcode `d`/`h`/`m` or `km/h`.
+- Sysmon memory, disk, and network sizes use `desktop.bytes`,
+  `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do not
+  hardcode `B`/`KiB`/`MiB`/`GiB`/`TiB` there. Leave the `/s` rate suffix.
 - The System Info app reuses `hours_minutes` and `minutes`, and uses
   `desktop.system_info_uptime_days_hours_minutes` when days are present.
   Sysmon stays without minutes in the days/hours form.
@@ -97,6 +100,45 @@ and `files.default_apps` via `/api/desktop/settings`.
 - System Info history-chart dataset labels reuse `desktop.system_info_cpu`,
   `desktop.system_info_memory`, and `desktop.system_info_disk`. Do not
   hardcode English CPU/Memory/Disk there.
+- System Info memory, disk, and network sizes use `desktop.bytes`,
+  `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do not
+  hardcode `B`/`KiB`/`MiB`/`GiB`/`TiB` there. Leave File Manager and
+  OpenSCAD byte formatters unchanged.
+- Log Viewer file-list sizes use `desktop.bytes`, `desktop.kib`,
+  `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do not hardcode
+  `B`/`KiB`/`MiB` there.
+- Sheets search match counts use `desktop.sheets_match_count` with
+  `{{current}}` and `{{total}}`. Do not hardcode English `of` there.
+- Writer search match counts use `desktop.writer_match_count` with
+  `{{current}}` and `{{total}}`. The search-close tooltip uses
+  `desktop.close`. Do not hardcode `1/5` or `Esc` there.
+- Pet fallback `aria-label` uses `desktop.pet_aria_label`. After a pet
+  loads, keep `display_name` / `id`. Pet Picker scale text uses
+  `desktop.pet_scale_value` with `{{value}}`. Do not hardcode
+  `Desktop pet` or `1.0x` there.
+- Radio station click counts use `desktop.radio_compact_thousands` and
+  `desktop.radio_compact_millions` with `{{count}}`. MediaSession title
+  fallback uses `desktop.app_radio`; album uses `desktop.radio_album`.
+  Pass `t` into `updateMediaSession`. Radio `t` stays key-only;
+  interpolate via `.replace`. Do not hardcode `K`/`M`, `Radio`, or
+  `AuraGo Radio` there.
+- Sysworld `relTime` and Mission Control trigger min-interval use
+  `desktop.rel_time_seconds`, `desktop.rel_time_minutes`,
+  `desktop.rel_time_hours`, and `desktop.rel_time_days` with `{{count}}`.
+  Sysworld `t`/`L` stays key-only; interpolate via `inst.ctx.t`.
+  Do not hardcode `s`/`m`/`h`/`d` there. Leave SIP/Noisemaker
+  `formatDuration` unchanged. Sysworld HUD uptime uses
+  `desktop.system_info_uptime_days_hours`,
+  `desktop.system_info_uptime_hours_minutes`, and
+  `desktop.system_info_uptime_minutes` (same compact form as
+  Sysmon). Interpolate via `inst.ctx.t`. Sysworld HUD budget uses
+  `desktop.looper_cost` with `{{amount}}`. Do not hardcode `$` there.
+- People birthday countdowns in the sidebar, cards, list, and detail
+  use `desktop.people_today`, `desktop.people_tomorrow`, and
+  `desktop.people_days_until_birthday`. Do not hardcode `d` or `days`
+  there.
+- People KG toggle, active label, and card badge use
+  `desktop.people_kg`. Do not hardcode `KG` there.
 - Virtual Computers duration and expiry-day labels use
   `desktop.virtual_computers_duration_*` and
   `desktop.virtual_computers_expiry_days`. Volume TTL options use
@@ -107,24 +149,62 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Looper log durations use `desktop.looper_duration_ms` and
   `desktop.looper_duration_s`. Do not hardcode `ms`/`s` there. Leave SIP
   and Noisemaker `formatDuration` unchanged.
+- OpenSCAD, Homepage Studio, and Noisemaker elapsed busy times use
+  `desktop.noisemaker_progress_elapsed` with `{{seconds}}`. Do not
+  hardcode `s` there. OpenSCAD `t` stays key-only; interpolate via
+  `ctx.t`.
+- Looper status cost and token labels use `desktop.looper_cost`,
+  `desktop.looper_cost_under`, and `desktop.looper_tokens`. Sysworld
+  HUD budget reuses `desktop.looper_cost` only. Do not hardcode `$` /
+  `<$0.01` / `tok` there.
+- Zipper status uses `zipper.selected` and `zipper.compressed_size`.
+  Zipper sizes use `desktop.bytes`, `desktop.kib`, `desktop.mib`,
+  `desktop.gib`, and `desktop.tib`. Do not hardcode `selected`,
+  `compressed`, or `B`/`KiB`/`MiB` there. Leave File Manager and
+  OpenSCAD byte formatters unchanged.
+- Quick Connect SFTP status uses `desktop.qc_sftp_items`. SFTP sizes
+  use `desktop.bytes`, `desktop.kib`, `desktop.mib`, `desktop.gib`,
+  and `desktop.tib`. Do not hardcode `items` or `B`/`KiB`/`MiB`/`GiB`
+  there.
 - Calculator backspace labels use `desktop.calc_back`. Do not hardcode
   English `Back` there.
 - Calculator display maps the parser sentinel `Invalid expression` to
   `desktop.calc_invalid_expression`. Do not change the throw messages.
+- Code Studio agent markdown copy buttons use `desktop.copy` and
+  `desktop.copied`. Do not hardcode English Copy/Copied there.
+- Code Studio status cursor text uses `codeStudio.cursorPosition` with
+  `{{line}}` and `{{column}}`. Sidebar file sizes use `desktop.bytes`,
+  `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do
+  not hardcode `Ln`/`Col` or `B`/`KiB`/`MiB` there.
 - Mission Control window menus use `desktop.menu_file` and
   `desktop.menu_view`. Do not hardcode English File/View there.
+- Shell new-file and new-folder prompt defaults use
+  `desktop.new_file_default` and `desktop.new_folder`. Do not hardcode
+  `untitled.txt` or `New Folder` in those prompts. Leave editor path
+  fallbacks as `untitled.txt`.
 - File Manager new-file template labels use `desktop.fm.new_file_kind_*`
   and `desktop.fm.new_file_template_label`. ZIP/rename success toasts use
   `desktop.fm.zip_created`, `desktop.fm.zip_extracted`, and
   `desktop.fm.batch_rename_success`. Preview and Quick Look chrome use
   `desktop.fm.preview_loading`, `desktop.fm.preview_unavailable`,
-  `desktop.fm.quick_look_close`, and `desktop.fm.quick_look_error`. The new-folder
-  prompt default uses `desktop.fm.new_folder`. Do not hardcode English there.
+  `desktop.fm.quick_look_close`, and `desktop.fm.quick_look_error`.   The new-folder
+  prompt default uses `desktop.fm.new_folder`. The new-file prompt and
+  template filename default use `desktop.new_file_default`. Do not
+  hardcode `new-file.txt` there.
 - `renderAppError` shows `desktop.app_error_title` plus `err.message` or
   `desktop.app_error_fallback`. Do not hardcode English `Error` there.
 - Missing Agent Chat / Live Speech renderers use
   `desktop.app_error_renderer_missing` with `{{app}}`. Do not hardcode
   English "renderer is not loaded" strings.
+- Agent Chat generic request errors use `desktop.chat_request_failed`.
+  Homepage Studio chat-stream failures reuse the same key. Chat
+  live-stream fallbacks use `desktop.chat_live_stream`. Unknown
+  document-format badges use `desktop.chat_document_format_unknown`.
+  Do not hardcode English `Request failed`, `Live stream`, or `FILE`
+  there.
+- Homepage Studio local webhost name fallback uses
+  `homepage_studio.default_name`. Do not hardcode English `Homepage`
+  there.
 
 ### Trash restore contract
 
@@ -243,7 +323,9 @@ and `files.default_apps` via `/api/desktop/settings`.
   handlers, and timers and must close them in `dispose`. Styles are
   scoped under `.vd-logviewer`. Visible strings use
   `desktop.app_log_viewer` plus `desktop.log_viewer_*` in all 16
-  `ui/lang/desktop/*.json` files. Download is hidden when the desktop
+  `ui/lang/desktop/*.json` files. File-list sizes use `desktop.bytes`,
+  `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`.
+  Download is hidden when the desktop
   is readonly; the backend also returns HTTP 403 for
   `/api/desktop/logs/download` in that mode.
 - `chess*.js` implements Chess, a desktop chess app using `cm-chessboard`,
@@ -720,7 +802,9 @@ registration lives in `internal/desktop/types.go`.
   the shell `confirmDialog` passed by `menus-and-routing.js`; native
   `alert`/`confirm`/`prompt` are forbidden in all four modules.
 - Homepage Studio visible UI strings use `homepage_studio.*` keys in all
-  16 `ui/lang/desktop/*.json` files.
+  16 `ui/lang/desktop/*.json` files. The local webhost name fallback
+  uses `homepage_studio.default_name`. Chat-stream failures reuse
+  `desktop.chat_request_failed`.
 - Keep Writer self-contained in `writer.js` below the 1100-line budget;
   if find/replace grows unwieldy, extract into `writer-search.js` and register
   in `module-loader.js` and `DESKTOP_APP_ASSETS`.
@@ -746,6 +830,21 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run "TestDesktopChess|TestDesktopAppsExposeDisposeLifecycle|TestDesktopAppAssetsRegistry"`
 - `go test ./ui/ -run "TestDesktopCheater"`
 - `go test ./ui/ -run "TestDesktopSheets"`
+- `go test ./ui/ -run TestDesktopSheetsMatchCountI18n`
+- `go test ./ui/ -run TestDesktopPeopleDaysI18n`
+- `go test ./ui/ -run TestDesktopElapsedSecondsI18n`
+- `go test ./ui/ -run TestDesktopShellPromptDefaultsI18n`
+- `go test ./ui/ -run TestDesktopChatFallbackI18n`
+- `go test ./ui/ -run TestDesktopFileManagerNewFileDefaultI18n`
+- `go test ./ui/ -run TestDesktopWriterSearchI18n`
+- `go test ./ui/ -run TestDesktopRelTimeI18n`
+- `go test ./ui/ -run TestDesktopPetChromeI18n`
+- `go test ./ui/ -run TestDesktopRadioCompactI18n`
+- `go test ./ui/ -run TestDesktopRadioMediaSessionI18n`
+- `go test ./ui/ -run TestDesktopPeopleKgI18n`
+- `go test ./ui/ -run TestDesktopSysworldHudUptimeI18n`
+- `go test ./ui/ -run TestDesktopSysworldHudMoneyI18n`
+- `go test ./ui/ -run TestDesktopHomepageStudioFallbackI18n`
 - `go test ./ui/ -run TestDesktopAppAssetsRegistry`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go build ./cmd/aurago`
@@ -754,8 +853,9 @@ registration lives in `internal/desktop/types.go`.
 
 - `file-manager/` (under `ui/js/desktop/file-manager/`, bundled to
   `file-manager.bundle.js`) - File Manager restore and empty-trash menus follow
-  the Trash restore contract above. New-file templates and ZIP/rename success
-  toasts follow the i18n keys in Local Contracts. No child DOX file needed.
+  the Trash restore contract above. New-file templates, new-file default
+  names, and ZIP/rename success toasts follow the i18n keys in Local
+  Contracts. No child DOX file needed.
 - `galaxa-modes.js` - Game mode contracts (`gauntlet`, `hyperdrive`, `mirror`)
   and hooks (`modesOnRunStart`, `modesOnStageStart`, `modesShouldOpenShop`,
   `modesGetBaseMusicTheme`). Settings mode cycle reads/writes `settings.mode`.
@@ -774,9 +874,23 @@ registration lives in `internal/desktop/types.go`.
   with `ctx.settings.particles` via `GC.FX_CAPS`. No child DOX file needed.
 - `writer.js` - Word-processing editor: Quill rich-text, auto-save with 800 ms
   debounce, dirty-state tracking, word/character/page status bar, find &
-  replace overlay with match highlighting, enhanced formatting toolbar (font,
-  size, color, background, alignment, blockquote, code-block, image), and agent
-  integration. Exposes `window.WriterApp`. No child DOX file needed.
+  replace overlay with match highlighting. Search counts use
+  `desktop.writer_match_count`; the close tooltip uses `desktop.close`.
+  Enhanced formatting toolbar (font, size, color, background, alignment,
+  blockquote, code-block, image), and agent integration. Exposes
+  `window.WriterApp`. No child DOX file needed.
+- `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
+  ZIP import. Scale text uses `desktop.pet_scale_value`. Exposes
+  `window.PetPickerApp`. The companion shell runtime
+  `core/pet-runtime.js` uses `desktop.pet_aria_label` for the fallback
+  sprite label. No child DOX file needed.
+- `radio.js` - Station browser and player. Click counts use
+  `desktop.radio_compact_thousands` and `desktop.radio_compact_millions`.
+  MediaSession title fallback uses `desktop.app_radio`; album uses
+  `desktop.radio_album`. Exposes `window.RadioApp`. No child DOX file needed.
+- `people.js` - Address-book app. KG toggle, active label, and card badge
+  use `desktop.people_kg`. Exposes `window.PeopleApp`. No child DOX file
+  needed.
 - `calendar.js` - Calendar renderer and appointment UI continuation bundled
   inside the shared Desktop IIFE immediately before `sdk-events-bootstrap.js`.
   No child DOX file needed.
@@ -859,8 +973,9 @@ registration lives in `internal/desktop/types.go`.
   pickers, alignment buttons, number format dropdown, border dropdown. Exposes
   `window.SheetsFormat`. No child DOX file needed.
 - `sheets-search.js` - Search/replace overlay: find next/prev, match case,
-  replace current, replace all, match highlighting. Exposes
-  `window.SheetsSearch`. No child DOX file needed.
+  replace current, replace all, match highlighting. Match counts use
+  `desktop.sheets_match_count`. Exposes `window.SheetsSearch`. No child
+  DOX file needed.
 - `code-studio/core.js` - Code Studio core: state management, API client, path
   utilities, lifecycle (render/dispose), shell markup, toolbar, tabs, breadcrumbs,
   status bar, file operations, window menus. Opens the shared IIFE. No child DOX
@@ -893,7 +1008,8 @@ registration lives in `internal/desktop/types.go`.
   RAF loop, pointer interaction (hover tooltip + hover ring, click fly-to +
   info panel, dblclick empty resets view), selection label projection
   (`inst.focused` + `updateSelLabel`), zone anchors (`zoneAnchor`), arrow-key
-  cycling (`cycleFocus`), idle autoRotate, WebGL fallback. Exposes
+  cycling (`cycleFocus`), idle autoRotate, WebGL fallback. Relative
+  timestamps use `desktop.rel_time_*`. Exposes
   `window.SysWorldApp`. No child DOX file needed.
 - `sysworld-effects.js` - `NS.PALETTE`, cached glow textures, `textSprite`
   label factory (cached canvas textures), pooled comets/bursts/pulse rings,
@@ -919,7 +1035,13 @@ registration lives in `internal/desktop/types.go`.
 - `sysworld-hud.js` - HTML overlay: stats card, action buttons, interactive
   legend (zone hover/click), live event feed, tooltip, selection label chip
   (`sw-sel-label`), slide-in info panel with badges/tone pills/sections/
-  bars/relations (`createHud`). No child DOX file needed.
+  bars/relations (`createHud`). Compact uptime uses
+  `desktop.system_info_uptime_days_hours`,
+  `desktop.system_info_uptime_hours_minutes`, and
+  `desktop.system_info_uptime_minutes` via `inst.ctx.t`. Do not reuse
+  `desktop.rel_time_*` here. Budget uses `desktop.looper_cost` via
+  `inst.ctx.t`. No child DOX
+  file needed.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
   syntax highlighting (using javascript()), error line highlighting, fallback
   textarea, and `revealLine(line)` for jumping to an issue. Exposes
@@ -937,7 +1059,9 @@ registration lives in `internal/desktop/types.go`.
   with device switcher and fullscreen, Sites inspector (drift badges,
   deployments, reconcile) and History inspector (search/filter/pagination,
   shell-dialog deletes). URL validation and the iframe sandbox contract stay
-  pinned in `homepage-studio.js`. Exposes `window.HomepageStudioApp` plus
+  pinned in `homepage-studio.js`. Local webhost name fallback uses
+  `homepage_studio.default_name`; chat-stream failures reuse
+  `desktop.chat_request_failed`. Exposes `window.HomepageStudioApp` plus
   `HomepageStudioPreview`/`HomepageStudioSites`/`HomepageStudioHistory`
   factories. No child DOX file needed.
 - `log-viewer-filters.js` / `log-viewer.js` - Log Viewer: file sidebar,

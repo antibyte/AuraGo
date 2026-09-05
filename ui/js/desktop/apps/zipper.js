@@ -70,9 +70,11 @@
 
         function fmtBytes(n) {
             n = Number(n || 0);
-            if (n < 1024) return n + ' B';
-            if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
-            return (n / 1024 / 1024).toFixed(1) + ' MiB';
+            if (n < 1024) return t('desktop.bytes').replace('{{count}}', n);
+            if (n < 1024 * 1024) return t('desktop.kib').replace('{{count}}', (n / 1024).toFixed(1));
+            if (n < 1024 * 1024 * 1024) return t('desktop.mib').replace('{{count}}', (n / (1024 * 1024)).toFixed(1));
+            if (n < 1024 * 1024 * 1024 * 1024) return t('desktop.gib').replace('{{count}}', (n / (1024 * 1024 * 1024)).toFixed(1));
+            return t('desktop.tib').replace('{{count}}', (n / (1024 * 1024 * 1024 * 1024)).toFixed(1));
         }
 
         function setStatus(msg) {
@@ -349,9 +351,12 @@
             const msg = [
                 t('zipper.items').replace('{{count}}', count),
                 t('zipper.total_size').replace('{{size}}', fmtBytes(totalSize)),
-                fmtBytes(totalCompressed) + ' compressed'
-            ].join('  ·  ');
-            setStatus((selected.size > 0 ? selected.size + ' selected  ·  ' : '') + msg);
+                t('zipper.compressed_size').replace('{{size}}', fmtBytes(totalCompressed))
+            ];
+            if (selected.size > 0) {
+                msg.unshift(t('zipper.selected').replace('{{count}}', selected.size));
+            }
+            setStatus(msg.join('  ·  '));
         }
 
         async function openFile() {

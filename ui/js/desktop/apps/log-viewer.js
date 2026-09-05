@@ -42,11 +42,18 @@
         try { localStorage.setItem(BUFFER_KEY, String(n)); } catch (_) {}
     }
 
-    function formatSize(bytes) {
+    function formatSize(bytes, ctx) {
         const n = Number(bytes || 0);
-        if (!Number.isFinite(n) || n < 1024) return Math.max(0, n) + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
-        return (n / (1024 * 1024)).toFixed(1) + ' MiB';
+        const label = (key, count) => t(ctx, key, { count });
+        if (!Number.isFinite(n) || n <= 0) return label('desktop.bytes', 0);
+        const units = ['desktop.bytes', 'desktop.kib', 'desktop.mib', 'desktop.gib', 'desktop.tib'];
+        let size = n;
+        let unit = 0;
+        while (size >= 1024 && unit < units.length - 1) {
+            size /= 1024;
+            unit += 1;
+        }
+        return label(units[unit], unit === 0 ? size.toFixed(0) : size.toFixed(1));
     }
 
     function formatTime(value) {
@@ -217,7 +224,7 @@
             const name = el('div', 'vd-logviewer-file-name');
             name.textContent = file.name;
             const meta = el('div', 'vd-logviewer-file-meta');
-            meta.textContent = formatSize(file.size);
+            meta.textContent = formatSize(file.size, state.ctx);
             btn.appendChild(name);
             btn.appendChild(meta);
             btn.addEventListener('click', () => selectFile(state, file.name));

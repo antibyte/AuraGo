@@ -192,18 +192,46 @@
             return typeof v === 'number' && isFinite(v) ? Math.round(v) + '%' : EMPTY_VALUE;
         }
 
+        function formatUptimePhrase(key, vars) {
+            let phrase = '';
+            try {
+                if (inst.ctx && typeof inst.ctx.t === 'function') {
+                    phrase = inst.ctx.t(key, vars);
+                }
+            } catch (_) { /* fall through to placeholder replace */ }
+            if (typeof phrase !== 'string' || !phrase) return EMPTY_VALUE;
+            Object.keys(vars).forEach(name => {
+                phrase = phrase.split('{{' + name + '}}').join(String(vars[name]));
+            });
+            return phrase;
+        }
+
+        // Compact host uptime: same keys and day/hour form as Sysmon.
+        // inst.L stays key-only; interpolate via inst.ctx.t.
         function fmtUptime(seconds) {
             if (typeof seconds !== 'number' || !isFinite(seconds) || seconds < 0) return EMPTY_VALUE;
             const totalMin = Math.floor(seconds / 60);
             const hours = Math.floor(totalMin / 60);
             const days = Math.floor(hours / 24);
-            if (days > 0) return days + 'd ' + (hours % 24) + 'h';
-            if (hours > 0) return hours + 'h ' + (totalMin % 60) + 'm';
-            return totalMin + 'm';
+            if (days > 0) {
+                return formatUptimePhrase('desktop.system_info_uptime_days_hours', {
+                    days: days,
+                    hours: hours % 24
+                });
+            }
+            if (hours > 0) {
+                return formatUptimePhrase('desktop.system_info_uptime_hours_minutes', {
+                    hours: hours,
+                    minutes: totalMin % 60
+                });
+            }
+            return formatUptimePhrase('desktop.system_info_uptime_minutes', { minutes: totalMin });
         }
 
+        // Budget currency: same key as Looper. inst.L stays key-only.
         function fmtMoney(v) {
-            return '$' + (typeof v === 'number' && isFinite(v) ? v.toFixed(2) : '0.00');
+            const amount = (typeof v === 'number' && isFinite(v)) ? v.toFixed(2) : '0.00';
+            return formatUptimePhrase('desktop.looper_cost', { amount: amount });
         }
 
         // Budget accepts {spent, limit}, a bare number, or a preformatted string.

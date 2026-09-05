@@ -76,8 +76,8 @@
                 const code = btn.closest('pre')?.querySelector('code');
                 if (code) {
                     navigator.clipboard.writeText(code.textContent).then(() => {
-                        btn.textContent = 'Copied!';
-                        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+                        btn.textContent = tr('desktop.copied');
+                        setTimeout(() => { btn.textContent = tr('desktop.copy'); }, 1500);
                     }).catch(() => {});
                 }
             }));
@@ -91,7 +91,7 @@
         let html = esc(text);
         html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
             const langAttr = lang ? ` data-lang="${lang}"` : '';
-            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">Copy</button></pre>`;
+            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">${esc(tr('desktop.copy'))}</button></pre>`;
         });
         html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
         html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');

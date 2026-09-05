@@ -184,10 +184,11 @@
         layer = document.createElement('div');
         layer.id = 'vd-pet-layer';
         layer.className = 'vd-pet-layer';
-        layer.innerHTML = '<div class="vd-pet-sprite" role="img" aria-label="Desktop pet"></div><div class="vd-pet-bubble" hidden></div>';
+        layer.innerHTML = '<div class="vd-pet-sprite" role="img"></div><div class="vd-pet-bubble" hidden></div>';
         document.body.appendChild(layer);
         spriteEl = layer.querySelector('.vd-pet-sprite');
         bubbleEl = layer.querySelector('.vd-pet-bubble');
+        spriteEl.setAttribute('aria-label', t('desktop.pet_aria_label'));
         wireDrag();
     }
 

@@ -23,17 +23,18 @@
         return value || fallback;
     }
 
-    function formatBytes(value) {
+    function formatBytes(value, context) {
         const n = Number(value || 0);
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+        const label = (key, count) => t(context, key, { count });
+        if (!Number.isFinite(n) || n <= 0) return label('desktop.bytes', 0);
+        const units = ['desktop.bytes', 'desktop.kib', 'desktop.mib', 'desktop.gib', 'desktop.tib'];
         let size = n;
         let unit = 0;
         while (size >= 1024 && unit < units.length - 1) {
             size /= 1024;
             unit += 1;
         }
-        return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+        return label(units[unit], unit === 0 ? size.toFixed(0) : size.toFixed(1));
     }
 
     function formatUptime(seconds, context) {
@@ -257,11 +258,11 @@
         const details = [
             ['cpu_model', t(instance.context, 'desktop.system_info_cpu_model'), cpu.model_name || '-'],
             ['cores', t(instance.context, 'desktop.system_info_cores'), cpu.cores || '-'],
-            ['memory', t(instance.context, 'desktop.system_info_memory'), `${formatBytes(memory.used)} / ${formatBytes(memory.total)}`],
-            ['disk', t(instance.context, 'desktop.system_info_disk'), `${formatBytes(disk.used)} / ${formatBytes(disk.total)}`],
+            ['memory', t(instance.context, 'desktop.system_info_memory'), `${formatBytes(memory.used, instance.context)} / ${formatBytes(memory.total, instance.context)}`],
+            ['disk', t(instance.context, 'desktop.system_info_disk'), `${formatBytes(disk.used, instance.context)} / ${formatBytes(disk.total, instance.context)}`],
             ['network', t(instance.context, 'desktop.system_info_network'), t(instance.context, 'desktop.system_info_network_io', {
-                sent: formatBytes(network.bytes_sent),
-                recv: formatBytes(network.bytes_recv)
+                sent: formatBytes(network.bytes_sent, instance.context),
+                recv: formatBytes(network.bytes_recv, instance.context)
             })],
             ['uptime', t(instance.context, 'desktop.system_info_uptime'), formatUptime(uptimeSeconds, instance.context)]
         ];

@@ -99,7 +99,7 @@
         });
         if (state.matches.length > 0) {
             state.current = 0;
-            if (countSpan) countSpan.textContent = '1 of ' + state.matches.length;
+            if (countSpan) countSpan.textContent = t('desktop.sheets_match_count', { current: 1, total: state.matches.length });
         } else {
             if (countSpan) countSpan.textContent = t('desktop.sheets_no_matches');
         }
@@ -118,7 +118,7 @@
     }
 
     function highlightCurrent(state, gridHost, countSpan, t, onSelectCell) {
-        if (countSpan) countSpan.textContent = (state.current + 1) + ' of ' + state.matches.length;
+        if (countSpan) countSpan.textContent = t('desktop.sheets_match_count', { current: state.current + 1, total: state.matches.length });
         const match = state.matches[state.current];
         if (!match) return;
         const input = gridHost.querySelector(`input[data-row="${match.row}"][data-col="${match.col}"]`);

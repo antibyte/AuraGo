@@ -165,7 +165,7 @@
             const active = state.current && stationKey(state.current) === stationKey(station);
             const favorite = isFavorite(station);
             const bitrate = station.bitrate ? t('desktop.radio_kbps').replace('{{bitrate}}', station.bitrate) : '';
-            const clicks = station.clickcount ? t('desktop.radio_listeners').replace('{{count}}', compactNumber(station.clickcount)) : '';
+            const clicks = station.clickcount ? t('desktop.radio_listeners').replace('{{count}}', compactNumber(station.clickcount, t)) : '';
             const country = countryFlag(station.countrycode) || clean(station.countrycode || '');
             const favicon = clean(station.favicon || '');
             return `<article class="radio-card ${active ? 'active' : ''}" role="button" tabindex="0" data-play-station="${esc(id)}" aria-label="${esc(t('desktop.radio_play'))} ${esc(station.name || '')}">
@@ -275,7 +275,7 @@
                 audio.src = url;
                 await audio.play();
                 state.playing = true;
-                updateMediaSession(station);
+                updateMediaSession(station, t);
             } catch (err) {
                 state.playing = false;
                 showToast(err.message || t('desktop.radio_error'));
@@ -463,13 +463,14 @@
         } catch (_) {}
     }
 
-    function updateMediaSession(station) {
+    function updateMediaSession(station, t) {
         if (!('mediaSession' in navigator) || !station) return;
+        const translate = typeof t === 'function' ? t : (key => key);
         try {
             navigator.mediaSession.metadata = new MediaMetadata({
-                title: station.name || 'Radio',
+                title: station.name || translate('desktop.app_radio'),
                 artist: station.countrycode || '',
-                album: 'AuraGo Radio',
+                album: translate('desktop.radio_album'),
                 artwork: station.favicon ? [{ src: station.favicon, sizes: '96x96', type: 'image/png' }] : []
             });
         } catch (_) {}
@@ -481,10 +482,22 @@
         return String.fromCodePoint.apply(String, value.split('').map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65));
     }
 
-    function compactNumber(value) {
+    function compactNumber(value, t) {
         const n = Number(value) || 0;
-        if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-        if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+        const translate = typeof t === 'function' ? t : (key => key);
+        function formatCompact(count, key, fallbackSuffix) {
+            const phrase = translate(key);
+            if (typeof phrase === 'string' && phrase.indexOf('{{count}}') >= 0) {
+                return phrase.replaceAll('{{count}}', count);
+            }
+            return count + fallbackSuffix;
+        }
+        if (n >= 1000000) {
+            return formatCompact((n / 1000000).toFixed(1).replace(/\.0$/, ''), 'desktop.radio_compact_millions', 'M');
+        }
+        if (n >= 1000) {
+            return formatCompact((n / 1000).toFixed(1).replace(/\.0$/, ''), 'desktop.radio_compact_thousands', 'K');
+        }
         return String(n);
     }
 

@@ -90,7 +90,7 @@
                     <span class="office-writer-search-count" data-search-count></span>
                     <button class="office-writer-search-btn" data-search-prev type="button" title="${esc(t('desktop.writer_find'))}">&#8593;</button>
                     <button class="office-writer-search-btn" data-search-next type="button" title="${esc(t('desktop.writer_find'))}">&#8595;</button>
-                    <button class="office-writer-search-btn" data-search-close type="button" title="Esc">&#10005;</button>
+                    <button class="office-writer-search-btn" data-search-close type="button" title="${esc(t('desktop.close'))}">&#10005;</button>
                 </div>
                 <div class="office-writer-search-replace-row" data-search-replace-row>
                     <input class="office-writer-search-input" data-replace-input placeholder="${esc(t('desktop.writer_replace_placeholder'))}" autocomplete="off">
@@ -650,7 +650,10 @@
                 searchCount.textContent = searchState && searchState.query ? t('desktop.writer_no_results') : '';
                 return;
             }
-            searchCount.textContent = (searchState.currentMatch + 1) + '/' + searchState.matches.length;
+            searchCount.textContent = t('desktop.writer_match_count', {
+                current: searchState.currentMatch + 1,
+                total: searchState.matches.length
+            });
         }
 
         // --- Event Listeners ---

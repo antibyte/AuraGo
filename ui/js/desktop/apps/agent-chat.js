@@ -846,7 +846,7 @@
     }
 
     function appendDesktopChatError(host, err) {
-        const message = err && err.message ? err.message : String(err || 'Request failed');
+        const message = err && err.message ? err.message : String(err || desktopText('desktop.chat_request_failed'));
         const chatLog = host && host.querySelector('.vd-chat-log');
         const renderer = window.DesktopChatRenderer;
         if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', message, lastRole);

@@ -1304,14 +1304,16 @@
             line = lines.length;
             col = lines[lines.length - 1].length + 1;
         }
-        return 'Ln ' + line + ', Col ' + col;
+        return tr('codeStudio.cursorPosition', undefined, { line, column: col });
     }
 
     function formatBytes(size) {
         const n = Number(size || 0);
-        if (n < 1024) return n + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
-        return (n / 1024 / 1024).toFixed(1) + ' MiB';
+        if (n < 1024) return tr('desktop.bytes', undefined, { count: n });
+        if (n < 1024 * 1024) return tr('desktop.kib', undefined, { count: (n / 1024).toFixed(1) });
+        if (n < 1024 * 1024 * 1024) return tr('desktop.mib', undefined, { count: (n / (1024 * 1024)).toFixed(1) });
+        if (n < 1024 * 1024 * 1024 * 1024) return tr('desktop.gib', undefined, { count: (n / (1024 * 1024 * 1024)).toFixed(1) });
+        return tr('desktop.tib', undefined, { count: (n / (1024 * 1024 * 1024 * 1024)).toFixed(1) });
     }
 
     function codeStudioCursor() {
@@ -2182,8 +2184,8 @@
                 const code = btn.closest('pre')?.querySelector('code');
                 if (code) {
                     navigator.clipboard.writeText(code.textContent).then(() => {
-                        btn.textContent = 'Copied!';
-                        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+                        btn.textContent = tr('desktop.copied');
+                        setTimeout(() => { btn.textContent = tr('desktop.copy'); }, 1500);
                     }).catch(() => {});
                 }
             }));
@@ -2197,7 +2199,7 @@
         let html = esc(text);
         html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
             const langAttr = lang ? ` data-lang="${lang}"` : '';
-            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">Copy</button></pre>`;
+            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">${esc(tr('desktop.copy'))}</button></pre>`;
         });
         html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
         html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');

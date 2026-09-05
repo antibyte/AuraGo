@@ -1414,8 +1414,10 @@ model();`;
             elapsedEl.textContent = '';
             return;
         }
-        const seconds = Math.max(0, (Date.now() - state.busyStartedAt) / 1000);
-        elapsedEl.textContent = seconds.toFixed(0) + 's';
+        const seconds = Math.max(0, Math.round((Date.now() - state.busyStartedAt) / 1000));
+        elapsedEl.textContent = state.ctx && typeof state.ctx.t === 'function'
+            ? state.ctx.t('desktop.noisemaker_progress_elapsed', { seconds })
+            : String(seconds);
     }
 
     function renderRequestTimeoutMS(state) {

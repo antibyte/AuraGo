@@ -180,7 +180,7 @@
             '<div class="nm-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>' +
             '<div><strong>' + esc(text(ctx, 'progress_title', {}, 'Your song is being created…')) + '</strong>' +
             '<p>' + esc(text(ctx, 'progress_hint', {}, 'This usually takes 1–2 minutes. You can keep browsing your library.')) + '</p></div>' +
-            '<span class="nm-progress-time" data-nm-elapsed>0 s</span>' +
+            '<span class="nm-progress-time" data-nm-elapsed>' + esc(text(ctx, 'progress_elapsed', { seconds: 0 }, '0 s')) + '</span>' +
         '</div>';
     }
 

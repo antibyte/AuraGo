@@ -67,7 +67,7 @@
             <div class="vd-people-toolbar">
                 <div class="vd-people-search-wrap">
                     <input class="vd-people-search" type="text" placeholder="${esc(t(context, 'desktop.people_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
-                    <button class="vd-people-semantic-toggle" type="button" title="${esc(t(context, 'desktop.people_semantic_hint'))}">KG</button>
+                    <button class="vd-people-semantic-toggle" type="button" title="${esc(t(context, 'desktop.people_semantic_hint'))}">${esc(t(context, 'desktop.people_kg'))}</button>
                 </div>
                 <div class="vd-people-toolbar-actions">
                     <div class="vd-people-view-toggle">
@@ -134,7 +134,8 @@
         semanticBtn.addEventListener('click', () => {
             inst.semanticMode = !inst.semanticMode;
             semanticBtn.classList.toggle('active', inst.semanticMode);
-            semanticBtn.textContent = inst.semanticMode ? 'KG ' + t(context, 'desktop.people_semantic_search') : 'KG';
+            const kgLabel = t(context, 'desktop.people_kg');
+            semanticBtn.textContent = inst.semanticMode ? kgLabel + ' ' + t(context, 'desktop.people_semantic_search') : kgLabel;
             if (inst.searchQuery.length >= 2) searchContacts(inst);
         });
 
@@ -315,10 +316,10 @@
     function renderCard(contact, inst) {
         const days = daysUntilBirthday(contact.birthday);
         const birthdayBadge = (days >= 0 && days <= 30)
-            ? `<span class="vd-people-badge vd-people-badge-birthday">${days === 0 ? t(inst.context, 'desktop.people_today') : days + 'd'}</span>`
+            ? `<span class="vd-people-badge vd-people-badge-birthday">${days === 0 ? t(inst.context, 'desktop.people_today') : t(inst.context, 'desktop.people_days_until_birthday', { days })}</span>`
             : '';
         const relBadge = contact.relationship ? `<span class="vd-people-badge vd-people-badge-rel">${esc(contact.relationship)}</span>` : '';
-        const kgBadge = contact._kg ? '<span class="vd-people-badge vd-people-badge-kg">KG</span>' : '';
+        const kgBadge = contact._kg ? '<span class="vd-people-badge vd-people-badge-kg">' + esc(t(inst.context, 'desktop.people_kg')) + '</span>' : '';
         return `<div class="vd-people-card" data-contact-id="${esc(contact.id)}">
             <div class="vd-people-avatar">${esc(avatarInitials(contact.name))}</div>
             <div class="vd-people-card-info">
@@ -333,7 +334,7 @@
     function renderListRow(contact, inst) {
         const days = daysUntilBirthday(contact.birthday);
         const birthdayCell = contact.birthday
-            ? `<span>${esc(formatDate(contact.birthday))}</span>${days >= 0 && days <= 30 ? `<span class="vd-people-badge vd-people-badge-birthday">${days === 0 ? t(inst.context, 'desktop.people_today') : days + 'd'}</span>` : ''}`
+            ? `<span>${esc(formatDate(contact.birthday))}</span>${days >= 0 && days <= 30 ? `<span class="vd-people-badge vd-people-badge-birthday">${days === 0 ? t(inst.context, 'desktop.people_today') : t(inst.context, 'desktop.people_days_until_birthday', { days })}</span>` : ''}`
             : '';
         return `<div class="vd-people-list-row" data-contact-id="${esc(contact.id)}">
             <span class="vd-people-list-col vd-people-list-name"><span class="vd-people-avatar-sm">${esc(avatarInitials(contact.name))}</span>${esc(contact.name)}</span>
@@ -356,7 +357,7 @@
             birthdayInfo = formatDate(contact.birthday);
             if (days === 0) birthdayInfo += ' - ' + t(inst.context, 'desktop.people_today');
             else if (days === 1) birthdayInfo += ' - ' + t(inst.context, 'desktop.people_tomorrow');
-            else if (days > 1) birthdayInfo += ' (' + days + ' days)';
+            else if (days > 1) birthdayInfo += ' (' + t(inst.context, 'desktop.people_days_until_birthday', { days }) + ')';
         }
 
         let kgSection = `<div class="vd-people-detail-kg-empty">${esc(t(inst.context, 'desktop.people_kg_no_data'))}</div>`;

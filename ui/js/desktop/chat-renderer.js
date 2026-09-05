@@ -362,7 +362,8 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'chat-video-wrapper chat-live-stream-wrapper';
 
-            const title = String(streamData.title || 'Live stream').trim();
+            const liveTitle = this.translate('desktop.chat_live_stream');
+            const title = String(streamData.title || liveTitle || '').trim();
             if (title) {
                 const titleEl = document.createElement('div');
                 titleEl.className = 'chat-video-title';
@@ -374,7 +375,7 @@
                 const img = document.createElement('img');
                 img.className = 'chat-video-player chat-live-stream';
                 img.src = streamData.path;
-                img.alt = title || 'Live stream';
+                img.alt = title || liveTitle || '';
                 img.style.maxWidth = '100%';
                 img.style.borderRadius = '8px';
                 wrapper.appendChild(img);
@@ -430,7 +431,7 @@
             if (!docData || !docData.path || this.seenSSEDocuments.has(docData.path)) return;
             this.seenSSEDocuments.add(docData.path);
             const title = this.escapeHtml(docData.title || docData.filename || this.translate('desktop.chat_document', 'Document'));
-            const fmt = this.escapeHtml((docData.format || '').toUpperCase() || 'FILE');
+            const fmt = this.escapeHtml((docData.format || '').toUpperCase() || this.translate('desktop.chat_document_format_unknown'));
             const downloadPath = docData.path;
             const card = document.createElement('div');
             card.className = 'vd-chat-document-card';
