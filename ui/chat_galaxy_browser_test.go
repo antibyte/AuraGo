@@ -267,6 +267,10 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		// Exercise the visible tool strip; the normal fixture starts collapsed on mobile.
 		p.MustEval(`async () => {const panel=document.getElementById('composer-panel');panel.classList.remove('is-hidden');await Promise.all(panel.getAnimations().map(a=>a.finished))}`)
 		artifact(fmt.Sprintf("galaxy-toolbar-%dx%d", size[0], size[1]))
+		check(`() => [['.app-header','.header-actions'],['.app-footer','#chat-form']].every(([frame,controls])=>{
+            const f=document.querySelector(frame).getBoundingClientRect(),c=document.querySelector(controls).getBoundingClientRect();
+            return Math.abs((f.left+f.right-c.left-c.right)/2)<=1 && Math.abs((f.top+f.bottom-c.top-c.bottom)/2)<=1;
+        })`, fmt.Sprintf("Galaxy control blocks are not centered in their decorative frames at %v", size))
 		check(`() => {
             const logout=document.getElementById('logout-btn'),box=logout.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(logout);
             const text=range.getBoundingClientRect(),header=getComputedStyle(document.querySelector('.app-header')),rail=getComputedStyle(document.body,'::after');

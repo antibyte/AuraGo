@@ -4954,12 +4954,14 @@
     box-shadow: none;
     border: 0;
     margin: 18px 24px 0;
-    padding: 4px 16px;
+    padding: 0 64px 12px 16px;
     border-left: 48px solid #ffcc99;
     border-top: 12px solid #ffcc99;
     border-radius: 44px 12px 28px 0;
     overflow: visible;
 }
+[data-theme="galaxy"] .app-header { justify-content: center; }
+[data-theme="galaxy"] .app-header > .logo { position: absolute; left: 16px; }
 
 [data-theme="galaxy"] .app-header::before,
 [data-theme="galaxy"] .app-footer::before {
@@ -4978,7 +4980,7 @@
 [data-theme="galaxy"] .app-footer {
     background-color: #cc99cc;
     margin: 0 24px 18px;
-    padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 0px));
+    padding: 12px 64px env(safe-area-inset-bottom, 0px) 16px;
     border-top: 0;
     border-left-color: #cc99cc;
     border-bottom: 12px solid #cc99cc;
@@ -5010,15 +5012,19 @@
 [data-theme="galaxy"] .app-header .header-actions {
     --chat-header-control-size: 44px;
     --chat-header-control-radius: 3px;
+    flex: 0 1 auto;
+    max-width: 100%;
+    margin: 0;
     gap: 6px;
 }
+[data-theme="galaxy"] .app-header .header-actions::after { display: none; }
 [data-theme="galaxy"] .galaxy-console-id { color: #c9c5df; font: 600 10px/1.8 'Galaxy Console', monospace; letter-spacing: 0.22em; pointer-events: none; }
 [data-theme="galaxy"] .galaxy-console-id span { color: #9999cc; }
 [data-theme="galaxy"] .app-footer .galaxy-console-id,
 [data-theme="galaxy"] .app-footer .galaxy-console-id span { color: #171329; }
 @media (min-width: 1600px) {
     [data-theme="galaxy"] .galaxy-console-id { display: block; }
-    [data-theme="galaxy"] .app-header > .galaxy-console-id { flex: 0 1 280px; margin: 0 auto 0 4px; padding: 8px 18px; border-radius: 14px; border-bottom: 1px solid #534b76; background: var(--galaxy-console); }
+    [data-theme="galaxy"] .app-header > .galaxy-console-id { position: absolute; right: 16px; width: 200px; padding: 8px 18px; border-radius: 14px; border-bottom: 1px solid #534b76; background: var(--galaxy-console); }
     [data-theme="galaxy"] .galaxy-footer-id { position: absolute; left: 14px; top: 8px; }
     [data-theme="galaxy"] .galaxy-footer-tag { position: absolute; right: 24px; top: 8px; text-align: right; }
     [data-theme="galaxy"] .galaxy-rail-labels { display: block; position: fixed; left: 60px; top: 152px; z-index: 3; color: #b5adf5; font: 600 9px/1.7 'Galaxy Console', monospace; letter-spacing: 0.2em; pointer-events: none; }
@@ -5204,12 +5210,20 @@
 @media (min-width: 1600px) {
     [data-theme="galaxy"] { --galaxy-poster: url('/img/galaxy/poster-4k.webp?v=galaxy-1'); }
 }
+@media (max-width: 1199px) {
+    [data-theme="galaxy"] .app-header > .logo { display: none; }
+    [data-theme="galaxy"] .app-header,
+    [data-theme="galaxy"] .app-footer { border-left-width: 20px; padding-left: 8px; padding-right: 28px; }
+    [data-theme="galaxy"] .app-header { padding-left: 24px; padding-right: 44px; }
+    [data-theme="galaxy"] .app-header::after,
+    [data-theme="galaxy"] .app-footer::after { left: -29px; }
+}
 @media (max-width: 767px) {
     [data-theme="galaxy"] { --galaxy-poster: url('/img/galaxy/poster-mobile.webp?v=galaxy-1'); }
     [data-theme="galaxy"] .app-header,
     [data-theme="galaxy"] .app-footer { --galaxy-frame-offset: 64px; }
-    [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 4px 8px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 12px 12px 0; }
-    [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
+    [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 0 52px 8px 40px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 12px 12px 0; }
+    [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 8px 14px env(safe-area-inset-bottom, 0px) 4px; border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
     [data-theme="galaxy"] .app-header::before { top: -8px; height: 8px; }
     [data-theme="galaxy"] .app-footer::before { bottom: -8px; height: 8px; }
     [data-theme="galaxy"] .app-header::after { inset: -12px -4px -4px -16px; border-radius: 28px 14px 18px 8px; }
@@ -5218,7 +5232,7 @@
     [data-theme="galaxy"] #chat-box { padding: 0 52px; }
     [data-theme="galaxy"] #chat-content { padding: 16px 0; }
     [data-theme="galaxy"] .bubble { padding: 12px 14px; }
-    [data-theme="galaxy"] .app-header .header-actions { gap: 4px; margin-right: 40px; }
+    [data-theme="galaxy"] .app-header .header-actions { gap: 4px; }
     [data-theme="galaxy"] .logo { font-size: 1.25rem; letter-spacing: 0.02em; padding: 0; }
     [data-theme="galaxy"] .btn-send { width: 44px; }
     [data-theme="galaxy"] .app-header .header-actions,

@@ -236,6 +236,9 @@ images, and browser-oriented regression tests.
   transparent outer console area; this area exposes the HUD colors, not space.
   Align that backing with the edge rails and keep its labels dark for contrast.
   Keep vertical padding compact, with 44px controls intact.
+  Center both control blocks against the full decorative frame, including its
+  asymmetric borders. Logo/identifiers must not shift that center; hide the
+  logo on narrow headers and reserve equal side space for the mobile menu.
   The desktop toolbar stays transparent within that row; only the mobile popover
   has its own surface. Decorative LCARS identifiers are aria-hidden, desktop-only
   and hidden outside Galaxy; connection and notification states remain real.
