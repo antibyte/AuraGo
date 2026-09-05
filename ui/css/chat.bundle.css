@@ -12466,6 +12466,9 @@ pre,
     --surface-shadow: none;
     --surface-shadow-strong: none;
     --surface-highlight: transparent;
+    --galaxy-console: linear-gradient(155deg, #121326 0%, #060710 35%, #080912 75%, #22203c 100%);
+    --galaxy-line: #b5adf5;
+    --galaxy-inset: inset 0 1px 0 rgba(224, 216, 255, 0.28), inset 0 -4px 12px rgba(116, 105, 207, 0.2);
     --chat-image-opacity: 0;
     --galaxy-poster: url('/img/galaxy/poster-2k.webp?v=galaxy-1');
 }
@@ -12515,6 +12518,7 @@ pre,
     pointer-events: none;
     border-radius: 0;
     background: linear-gradient(to bottom, #9999ff 0 18%, transparent 18% 19.5%, #cc99cc 19.5% 65%, transparent 65% 66.5%, #ff9900 66.5% 78%, transparent 78% 79.5%, #ffcc99 79.5%);
+    box-shadow: -9px 0 0 -8px #b5adf5, 9px 0 0 -8px #b5adf5;
     opacity: 1;
     filter: none;
     animation: none;
@@ -12522,16 +12526,16 @@ pre,
 
 [data-theme="galaxy"] .app-header,
 [data-theme="galaxy"] .app-footer {
-    background: #05060d;
+    background: var(--galaxy-console);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    box-shadow: none;
+    box-shadow: var(--galaxy-inset);
     border: 0;
     margin: 18px 24px 0;
     padding: 10px 16px;
     border-left: 48px solid #ffcc99;
     border-top: 12px solid #ffcc99;
-    border-radius: 44px 18px 18px 0;
+    border-radius: 44px 12px 28px 0;
     overflow: visible;
 }
 
@@ -12545,6 +12549,7 @@ pre,
     height: 12px;
     pointer-events: none;
     border-radius: 0 18px 0 0;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 2px 7px rgba(153, 153, 255, 0.15);
     background: linear-gradient(90deg, #05060d 0 1%, #cc99cc 1% 38%, #05060d 38% 39%, #9999ff 39% 74%, #05060d 74% 75%, #ff9900 75%);
 }
 
@@ -12554,12 +12559,28 @@ pre,
     border-top: 0;
     border-left-color: #cc99cc;
     border-bottom: 12px solid #cc99cc;
-    border-radius: 0 18px 18px 44px;
+    border-radius: 0 24px 28px 44px;
 }
 
 [data-theme="galaxy"] .app-footer::before { top: auto; bottom: -12px; border-radius: 0 0 18px 0; }
-[data-theme="galaxy"] .app-header::after { display: none; }
-[data-theme="galaxy"] .logo { font-family: 'Galaxy Console', 'Geist', sans-serif; letter-spacing: 0.09em; font-size: 1.7rem; }
+[data-theme="galaxy"] .app-header::after,
+[data-theme="galaxy"] .app-footer::after {
+    content: '';
+    display: block;
+    position: absolute;
+    inset: -21px -9px -9px -57px;
+    width: auto;
+    height: auto;
+    border: 1px solid var(--galaxy-line);
+    border-radius: 56px 18px 38px 12px;
+    background: linear-gradient(135deg, rgba(135, 124, 219, 0.14), transparent 24%, transparent 80%, rgba(135, 124, 219, 0.22));
+    box-shadow: inset 0 0 0 5px rgba(5, 6, 13, 0.85), 0 0 0 1px rgba(181, 173, 245, 0.15);
+    opacity: 1;
+    pointer-events: none;
+    z-index: -1;
+}
+[data-theme="galaxy"] .app-footer::after { inset: -9px -9px -21px -57px; border-radius: 14px 32px 38px 56px; }
+[data-theme="galaxy"] .logo { font-family: 'Galaxy Console', 'Geist', sans-serif; letter-spacing: 0.09em; font-size: 1.7rem; padding: 8px 14px; border-radius: 14px; background: var(--galaxy-console); box-shadow: var(--galaxy-inset); }
 [data-theme="galaxy"] .logo-wordmark-accent { color: #ffcc99; }
 [data-theme="galaxy"] .logo-wordmark-base { color: #cc99cc; }
 [data-theme="galaxy"] .logo-icon { display: none; }
@@ -12568,6 +12589,15 @@ pre,
     --chat-header-control-radius: 3px;
     gap: 6px;
 }
+[data-theme="galaxy"] .galaxy-console-id { color: #c9c5df; font: 600 10px/1.8 'Galaxy Console', monospace; letter-spacing: 0.22em; pointer-events: none; }
+[data-theme="galaxy"] .galaxy-console-id span { color: #9999cc; }
+@media (min-width: 1600px) {
+    [data-theme="galaxy"] .galaxy-console-id { display: block; }
+    [data-theme="galaxy"] .app-header > .galaxy-console-id { flex: 0 1 280px; margin: 0 auto 0 4px; padding: 8px 18px; border-radius: 14px; border-bottom: 1px solid #534b76; background: var(--galaxy-console); }
+    [data-theme="galaxy"] .galaxy-footer-id { position: absolute; left: 14px; top: 18px; }
+    [data-theme="galaxy"] .galaxy-footer-tag { position: absolute; right: 24px; top: 18px; text-align: right; }
+    [data-theme="galaxy"] .galaxy-rail-labels { display: block; position: fixed; left: 60px; top: 152px; z-index: 3; color: #b5adf5; font: 600 9px/1.7 'Galaxy Console', monospace; letter-spacing: 0.2em; pointer-events: none; }
+}
 
 [data-theme="galaxy"] #chat-box { background: transparent; padding: 0 48px; z-index: 2; }
 [data-theme="galaxy"] #chat-box::before,
@@ -12575,22 +12605,39 @@ pre,
 [data-theme="galaxy"] #chat-robot-mascot { display: none; }
 [data-theme="galaxy"] #chat-content { padding-top: 32px; padding-bottom: 32px; }
 
-[data-theme="galaxy"] .bubble {
+[data-theme="galaxy"] .bubble,
+[data-theme="galaxy"] .greeting-text {
+    position: relative;
     color: var(--text-primary);
-    box-shadow: none;
+    background: var(--galaxy-console);
+    box-shadow: var(--galaxy-inset), 0 0 0 4px rgba(17, 16, 35, 0.92), 0 0 0 5px var(--galaxy-line), 0 5px 18px rgba(0, 0, 0, 0.22);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    border: 1px solid var(--border-subtle);
-    border-radius: 20px 20px 20px 4px;
-    padding: 16px 20px;
+    border: 1px solid #615c99;
+    border-radius: 22px 14px 22px 12px;
+    padding: 18px 22px;
 }
-[data-theme="galaxy"] .bubble.bot { border-left: 4px solid #9999ff; }
-[data-theme="galaxy"] .bubble.user { border-right: 4px solid #ffcc99; border-radius: 20px 20px 4px 20px; }
+[data-theme="galaxy"] .bubble.bot { border-left: 2px solid #9999ff; }
+[data-theme="galaxy"] .bubble.user { border-right: 2px solid #ffcc99; border-radius: 14px 22px 12px 22px; }
 [data-theme="galaxy"] .bubble.bot::before,
-[data-theme="galaxy"] .bubble.user::before { display: none; }
+[data-theme="galaxy"] .bubble.user::before,
+[data-theme="galaxy"] .greeting-text::before {
+    content: ''; display: block; position: absolute; left: 4px; right: auto; bottom: 4px;
+    width: 11px; height: 11px; border: 0; border-left: 4px solid #ffb64e; border-bottom: 4px solid #ffb64e;
+    border-radius: 0 0 0 9px; pointer-events: none;
+}
+[data-theme="galaxy"] .bubble.user::before { left: auto; right: 4px; transform: scaleX(-1); }
+[data-theme="galaxy"] .bubble::after,
+[data-theme="galaxy"] .greeting-text::after {
+    content: ''; position: absolute; top: 5px; left: 20px; right: 20px; height: 2px; pointer-events: none;
+    background: linear-gradient(90deg, #b5adf5 0 16%, transparent 16% 25%, #655c92 25% 80%, transparent 80% 94%, #ffcc99 94%);
+}
 [data-theme="galaxy"] .avatar,
-[data-theme="galaxy"] .greeting-icon { background: #0c0d17; border: 1px solid #9999ff; box-shadow: none; }
-[data-theme="galaxy"] .greeting-text { color: #f4f0fa; text-shadow: 0 2px 8px #000; }
+[data-theme="galaxy"] .greeting-icon { background: var(--galaxy-console); border: 1px solid #9999ff; box-shadow: 0 0 0 3px #15132c, 0 0 0 4px #b5adf5; }
+[data-theme="galaxy"] .greeting-icon-robot { display: none; }
+[data-theme="galaxy"] .greeting-row { align-items: flex-start; padding: 2rem 10px; text-align: left; }
+[data-theme="galaxy"] .greeting-text { max-width: min(100%, 56rem); color: #f4f0fa; font-size: 1.125rem; line-height: 1.6; text-shadow: none; }
+[data-theme="galaxy"] .message-timestamp { color: #b4aed6; margin-top: 9px; opacity: 0.8; }
 
 [data-theme="galaxy"] .app-header .header-actions :is(.chat-theme-btn, .btn-speaker, .btn-warnings, .select-personality, .mood-toggle, .btn-header, .btn-header-link, .personality-mobile-btn),
 [data-theme="galaxy"] .btn-composer-primary {
@@ -12600,7 +12647,7 @@ pre,
     color: #05060d;
     border: 0;
     border-radius: 3px;
-    box-shadow: none;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.52), inset 0 -2px 4px rgba(33, 24, 69, 0.18), 0 0 0 1px rgba(181, 173, 245, 0.25);
     font-family: 'Galaxy Console', 'Geist', sans-serif;
     font-size: 1.05rem;
     font-weight: 600;
@@ -12611,7 +12658,7 @@ pre,
 [data-theme="galaxy"] .btn-voice { background: #9999ff; }
 [data-theme="galaxy"] .app-header .header-actions .chat-theme-btn,
 [data-theme="galaxy"] .btn-send { background: #ffcc99; }
-[data-theme="galaxy"] .btn-send { width: 64px; }
+[data-theme="galaxy"] .btn-send { width: 64px; box-shadow: inset 0 1px 2px #ffe0b9, 0 0 10px rgba(255, 153, 0, 0.2); }
 [data-theme="galaxy"] .app-header .header-actions :is(button, a):hover,
 [data-theme="galaxy"] .btn-composer-primary:hover { background: #ffe0b9; transform: none; box-shadow: none; }
 [data-theme="galaxy"] button:active { filter: brightness(0.85); }
@@ -12620,16 +12667,17 @@ pre,
 [data-theme="galaxy"] .app-header .chat-ui-icon,
 [data-theme="galaxy"] .btn-composer-primary .chat-ui-icon { filter: grayscale(1) brightness(0.12); }
 [data-theme="galaxy"] .chat-theme-dropdown .chat-ui-icon { filter: none; }
-[data-theme="galaxy"] .input-wrap textarea { background: #080912; border: 1px solid #9999ff; border-radius: 3px; min-height: 44px; font-size: 16px; padding: 9px 14px; }
+[data-theme="galaxy"] .input-wrap textarea { background: linear-gradient(135deg, #080912, #0d0e1d); border: 1px solid #9999ff; border-radius: 3px; min-height: 44px; font-size: 16px; padding: 9px 14px; box-shadow: inset 0 0 0 2px #111326; overflow-x: hidden; }
+[data-theme="galaxy"] .input-wrap textarea::placeholder { white-space: nowrap; text-overflow: ellipsis; }
 [data-theme="galaxy"] .input-wrap textarea:focus { border-color: #ffcc99; box-shadow: none; }
 [data-theme="galaxy"] .input-row:focus-within .input-wrap { transform: none; }
 
 [data-theme="galaxy"] :is(.chat-theme-dropdown, .personality-dropdown, .mood-panel, .session-drawer, .integrations-drawer, .modal-card, .mermaid-modal-content) {
-    background: #0c0d17;
+    background: var(--galaxy-console);
     color: #f4f0fa;
     border: 1px solid #9999ff;
     border-top: 8px solid #cc99cc;
-    border-radius: 3px;
+    border-radius: 18px 6px 18px 6px;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
@@ -12652,13 +12700,13 @@ pre,
 [data-theme="galaxy"] .modal-btn.cancel { background: #9999ff; }
 [data-theme="galaxy"] :is(.modal-card, .session-drawer, .integrations-drawer, .composer-panel) button:hover,
 [data-theme="galaxy"] .integration-open:hover { background: #ffe0b9; color: #05060d; }
-[data-theme="galaxy"] :is(.session-edge-tab, .integrations-edge-tab) { min-width: 44px; min-height: 44px; background: #9999ff; color: #05060d; border: 0; border-radius: 3px; box-shadow: none; }
+[data-theme="galaxy"] :is(.session-edge-tab, .integrations-edge-tab) { min-width: 44px; min-height: 44px; background: #9999ff; color: #05060d; border: 0; border-radius: 3px; box-shadow: inset 0 1px 2px #d0c9ff, 0 0 0 5px #111024, 0 0 0 6px var(--galaxy-line); }
 [data-theme="galaxy"] :is(.session-edge-tab, .integrations-edge-tab):hover { background: #ffcc99; transform: translateY(-50%); }
 [data-theme="galaxy"] :is(.session-edge-tab, .integrations-edge-tab) .chat-ui-icon { filter: brightness(0.12); }
 [data-theme="galaxy"] .status-pill { background: #05060d; color: #ffcc99; border: 1px solid #cc99cc; border-left: 12px solid #ff9900; border-radius: 3px; box-shadow: none; }
 [data-theme="galaxy"] .pulsing-dot { background: #ff9900; box-shadow: none; }
 
-[data-theme="galaxy"] .app-header .pill { border-radius: 3px; box-shadow: none; animation: none; font-family: 'Galaxy Console', 'Geist', sans-serif; }
+[data-theme="galaxy"] .app-header .pill { border-radius: 3px; box-shadow: inset 0 0 0 2px #101124; animation: none; font-family: 'Galaxy Console', 'Geist', sans-serif; }
 [data-theme="galaxy"] .app-header .pill::before { border-radius: 0; box-shadow: none; animation: none; }
 [data-theme="galaxy"] .app-header .pill::after { display: none; }
 [data-theme="galaxy"] .app-header .personality-current-icon { border-radius: 2px; }
@@ -12697,8 +12745,16 @@ pre,
 [data-theme="galaxy"] .app-header .header-actions .warnings-badge.seen { --warnings-badge-text: #d3d1e1; background: #252536; }
 [data-theme="galaxy"] .app-footer .input-row,
 [data-theme="galaxy"] .app-footer .composer-panel { gap: 6px; }
+[data-theme="galaxy"] .app-footer .input-row {
+    position: relative;
+    padding: 10px 16px;
+    border: 1px solid var(--galaxy-line);
+    border-radius: 18px 12px 18px 12px;
+    background: var(--galaxy-console);
+    box-shadow: var(--galaxy-inset), 0 0 0 5px #090a15, 0 0 0 6px #504977;
+}
 [data-theme="galaxy"] .app-footer .composer-panel {
-    background: #05060d;
+    background: transparent;
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -12706,6 +12762,7 @@ pre,
     -webkit-backdrop-filter: none;
 }
 [data-theme="galaxy"] .app-footer .composer-tool-btn:hover { transform: none; }
+[data-theme="galaxy"] .app-footer .composer-tool-btn { box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.45), inset 0 -2px 4px rgba(33, 24, 69, 0.18); }
 [data-theme="galaxy"] .app-footer .composer-tool-btn .chat-ui-icon { filter: grayscale(1) brightness(0.12); }
 
 @media (min-width: 768px) {
@@ -12727,14 +12784,18 @@ pre,
     [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
     [data-theme="galaxy"] .app-header::before { top: -8px; height: 8px; left: 64px; }
     [data-theme="galaxy"] .app-footer::before { bottom: -8px; height: 8px; left: 64px; }
+    [data-theme="galaxy"] .app-header::after { inset: -12px -4px -4px -16px; border-radius: 28px 14px 18px 8px; }
+    [data-theme="galaxy"] .app-footer::after { inset: -4px -4px -12px -14px; border-radius: 8px 18px 22px 28px; }
     [data-theme="galaxy"] body::after { left: 8px; width: 5px; top: 112px; bottom: 144px; }
-    [data-theme="galaxy"] #chat-box { padding: 0 12px; }
+    [data-theme="galaxy"] #chat-box { padding: 0 52px; }
     [data-theme="galaxy"] #chat-content { padding: 16px 0; }
     [data-theme="galaxy"] .bubble { padding: 12px 14px; }
     [data-theme="galaxy"] .app-header .header-actions { gap: 4px; margin-right: 40px; }
-    [data-theme="galaxy"] .logo { font-size: 1.25rem; letter-spacing: 0.02em; }
+    [data-theme="galaxy"] .logo { font-size: 1.25rem; letter-spacing: 0.02em; padding: 0; }
     [data-theme="galaxy"] .btn-send { width: 44px; }
-    [data-theme="galaxy"] .app-footer .composer-panel { border-top: 4px solid #cc99cc; padding: 8px; }
+    [data-theme="galaxy"] .app-footer .input-row { padding: 6px 2px; }
+    [data-theme="galaxy"] .app-footer .composer-panel { background: var(--galaxy-console); border: 1px solid #b5adf5; border-top: 4px solid #cc99cc; border-radius: 12px; padding: 8px; }
+    [data-theme="galaxy"] .greeting-text { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
     [data-theme="galaxy"] #galaxy-scene { display: none; }

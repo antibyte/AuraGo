@@ -106,7 +106,8 @@ if(location.search.includes('no-webgl')){const get=HTMLCanvasElement.prototype.g
 document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
 document.querySelectorAll('[data-i18n-aria-label]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.i18nAriaLabel)));
 document.getElementById('chat-content').innerHTML='<div class="greeting-row"><div class="greeting-text">GALAXY</div></div><div class="msg-row bot"><div class="avatar bot">A</div><div class="message-stack"><div class="bubble bot"><p>Willkommen an Bord.</p><p>Wir halten Position im Orbit. Die Galaxie liegt vor uns – womit darf ich dir helfen?</p></div></div></div><div class="msg-row user"><div class="message-stack"><div class="bubble user">Zeig mir, was heute wichtig ist.</div></div><div class="avatar human">Du</div></div><div class="msg-row bot"><div class="avatar bot">A</div><div class="message-stack"><div class="bubble bot"><p><strong>Alles im Blick.</strong></p><p>Deine Projekte, Termine und Ideen. Bereit, gemeinsam den nächsten Schritt zu gehen.</p></div></div></div>';
-document.getElementById('user-input').placeholder='Nachricht schreiben …';
+document.querySelector('.greeting-text').textContent=t('chat.greeting');
+document.getElementById('user-input').placeholder=t('chat.input_placeholder');
 document.getElementById('tokenCounter').textContent='0 Token';
 document.getElementById('moodText').textContent='Besorgt';
 document.getElementById('moodToggle').style.display='flex';
@@ -253,7 +254,16 @@ SessionDrawer.init();initTheme();initChatThemePicker();
             const g=__galaxy.stats();const buttons=[...document.querySelectorAll('.app-header button:not(.chat-theme-option),.btn-composer-primary,.session-edge-tab,.integrations-edge-tab')].filter(e=>e.getClientRects().length && getComputedStyle(e).visibility!=='hidden');
             return document.body.scrollWidth<=innerWidth && g.width*g.height<=3840*2160 && g.stars===(innerWidth<768?850:3500) && buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44});
         }`, fmt.Sprintf("layout, touch target or resolution budget at %v", size))
+		check(`() => {
+            const left=document.getElementById('session-toggle-btn').getBoundingClientRect().right,right=document.getElementById('integrations-toggle-btn').getBoundingClientRect().left;
+            return [...document.querySelectorAll('.bubble,.greeting-text')].every(e=>{const r=e.getBoundingClientRect();return r.left>=left && r.right<=right});
+        }`, fmt.Sprintf("drawer tabs can obscure message text at %v", size))
 		artifact(fmt.Sprintf("galaxy-%dx%d", size[0], size[1]))
+		if size[0] == 1920 || size[0] == 390 {
+			p.MustEval(`async () => {const c=document.getElementById('chat-content');window.__messages=c.innerHTML;c.innerHTML=c.querySelector('.greeting-row').outerHTML;await Promise.all(c.getAnimations({subtree:true}).map(a=>a.finished))}`)
+			artifact(fmt.Sprintf("galaxy-greeting-%dx%d", size[0], size[1]))
+			p.MustEval(`() => document.getElementById('chat-content').innerHTML=__messages`)
+		}
 		// Exercise the visible tool strip; the normal fixture starts collapsed on mobile.
 		p.MustEval(`async () => {const panel=document.getElementById('composer-panel');panel.classList.remove('is-hidden');await Promise.all(panel.getAnimations().map(a=>a.finished))}`)
 		artifact(fmt.Sprintf("galaxy-toolbar-%dx%d", size[0], size[1]))
@@ -278,11 +288,11 @@ SessionDrawer.init();initTheme();initChatThemePicker();
             badge.classList.remove('seen');badge.textContent='3';return fits && seen;
         }`, "multi-digit or already-read warning count is clipped or loses contrast")
 		check(`() => {
-            const panel=document.getElementById('composer-panel'),style=getComputedStyle(panel),footer=getComputedStyle(document.querySelector('.app-footer'));
+            const panel=document.getElementById('composer-panel'),style=getComputedStyle(panel),form=getComputedStyle(document.getElementById('chat-form'));
             const buttons=[...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn,#chat-theme-btn,#speaker-toggle,#warnings-btn')].filter(e=>e.getClientRects().length);
             const controls=buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44 && parseFloat(getComputedStyle(e).borderTopLeftRadius)<=3});
             const input=document.getElementById('user-input').getBoundingClientRect(),send=document.getElementById('send-btn').getBoundingClientRect();
-            return controls && send.right<=innerWidth && input.width>=100 && input.right<=send.left && style.backgroundColor===footer.backgroundColor && (innerWidth<768 || style.borderTopWidth==='0px');
+            return controls && send.right<=innerWidth && input.width>=100 && input.right<=send.left && form.backgroundImage!=='none' && (innerWidth<768 || (style.borderTopWidth==='0px' && style.backgroundColor==='rgba(0, 0, 0, 0)'));
         }`, fmt.Sprintf("LCARS toolbar geometry or continuous footer surface at %v: %s", size, p.MustEval(`() => JSON.stringify([...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn')].filter(e=>e.getClientRects().length).map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,radius:getComputedStyle(e).borderTopLeftRadius})))`).Str()))
 		if size[0] < 768 {
 			p.MustEval(`() => {const row=document.querySelector('.header-actions');row.scrollLeft=row.scrollWidth}`)
@@ -319,6 +329,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	ready()
 	for i := 0; i < 10; i++ {
 		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.info.memory.textures===0 && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
+		check(`() => [...document.querySelectorAll('.galaxy-console-id,.galaxy-rail-labels')].every(e=>!e.getClientRects().length)`, "Galaxy console decorations remain visible in another theme")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
 		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===7 && s.calls===10}`, "theme restart grew resources")

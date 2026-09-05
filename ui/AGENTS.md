@@ -230,8 +230,12 @@ images, and browser-oriented regression tests.
   and rounded black header/footer ends. Center logout content; warning counts
   sit beside the icon in a high-contrast 24px badge, including multi-digit counts.
   On mobile, reserve space beside the scrolling controls for the radial menu.
-  The desktop composer toolbar shares the footer's black surface
-  without a panel border; only the mobile popover has a colored top edge.
+  Match the LCARS reference with double lavender contours, subtle static bevels,
+  dark inset consoles, framed messages/greeting and an outlined composer row.
+  The desktop toolbar stays transparent within that row; only the mobile popover
+  has its own surface. Decorative LCARS identifiers are aria-hidden, desktop-only
+  and hidden outside Galaxy; connection and notification states remain real.
+  Mobile chat gutters keep framed messages clear of the fixed drawer tabs.
 
 ## Work Guidance
 
