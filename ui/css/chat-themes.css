@@ -5079,11 +5079,14 @@
     filter: var(--bg-logo-filter);
 }
 
-[data-theme="sandstorm"] #sandstorm-overlay {
+[data-theme="sandstorm"] #sandstorm-overlay,
+[data-theme="sandstorm"] #sandstorm-fog {
     z-index: 2 !important;
     opacity: 1 !important;
-    mix-blend-mode: screen !important;
-    filter: saturate(1.0) brightness(1.05) !important;
+    mix-blend-mode: normal !important;
+    filter: none !important;
+    /* Canvas backing sizes must match their bounds immediately. */
+    transition-property: none !important;
 }
 
 [data-theme="sandstorm"] #chat-content,
@@ -8802,4 +8805,3 @@ html[data-theme="8bit"]::after {
         transition-duration: 0.001ms !important;
     }
 }
-

@@ -13,12 +13,12 @@
 
     const GRAVITY = 0.42;
     const TERMINAL_VELOCITY = 5.5;
-    const BASE_WIND = 0.45;
+    const BASE_WIND = 1.15;
     const STORM_WIND = 6.5;
     const STORM_LIFT = -5.0;
-    const IDLE_MIN = 30000;
-    const IDLE_MAX = 120000;
-    const STORM_DURATION = 4000;
+    const IDLE_MIN = 12000;
+    const IDLE_MAX = 24000;
+    const STORM_DURATION = 9000;
     const GROUND_RES = 3;
 
     // ─── WebGL Fog Config ───
@@ -30,13 +30,20 @@
     `;
 
     const FOG_FRAGMENT = `
+        #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+        #else
         precision mediump float;
+        #endif
         uniform float u_time;
         uniform vec2 u_resolution;
         uniform float u_storm;
+        uniform float u_drift;
 
         float hash(vec2 p) {
-            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+            vec3 h = fract(vec3(p.xyx) * 0.1031);
+            h += dot(h, h.yzx + 33.33);
+            return fract((h.x + h.y) * h.z);
         }
 
         float noise(vec2 p) {
@@ -53,7 +60,7 @@
         float fbm(vec2 p) {
             float v = 0.0;
             float a = 0.5;
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 4; i++) {
                 v += a * noise(p);
                 p *= 2.03;
                 a *= 0.5;
@@ -65,48 +72,26 @@
             vec2 uv = gl_FragCoord.xy / u_resolution;
             vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
 
-            // Much faster drift so fog is clearly animated
-            float t = u_time * 1.2;
-            vec2 q = vec2(
-                fbm(uv * aspect * 2.0 + vec2(t * 0.35, t * 0.18)),
-                fbm(uv * aspect * 2.0 + vec2(5.2, 1.3) + vec2(t * 0.22, t * 0.28))
-            );
+            // Advect broad distant veils and faster foreground dust with one wind.
+            vec2 p = uv * aspect;
+            vec2 flow = p * vec2(2.6, 6.0) - vec2(u_drift, u_time * 0.025);
+            float distant = fbm(flow * 0.55 + vec2(3.2, 1.7));
+            vec2 curl = vec2(distant * 0.8, noise(flow * 0.7) * 0.65);
+            float closeDust = fbm(flow * vec2(1.25, 1.8) + curl - vec2(u_drift * 0.65, 0.0));
+            float groundSheet = fbm(p * vec2(3.0, 16.0) - vec2(u_drift * 1.8, 0.0));
+            float low = 1.0 - smoothstep(0.0, 0.48, uv.y);
+            float density = smoothstep(0.23, 0.78, distant * 0.5 + closeDust * 0.65);
+            density += low * smoothstep(0.35, 0.72, groundSheet) * (0.35 + u_storm * 0.45);
 
-            vec2 r = vec2(
-                fbm(uv * aspect * 2.0 + 3.0 * q + vec2(1.7, 9.2) + t * 0.20),
-                fbm(uv * aspect * 2.0 + 3.0 * q + vec2(8.3, 2.8) + t * 0.24)
-            );
+            // Warm light scatters through thin dust; dense folds stay ochre.
+            vec2 toLight = p - vec2(aspect.x * 0.82, 0.88);
+            float light = exp(-dot(toLight, toLight) * 2.8);
+            vec3 col = mix(vec3(0.40, 0.28, 0.16), vec3(0.89, 0.73, 0.48),
+                clamp(0.35 + light * 0.4 + closeDust * 0.3, 0.0, 1.0));
+            float alpha = density * (0.12 + u_storm * 0.13) * (0.65 + low * 0.35);
+            alpha = clamp(alpha, 0.0, 0.28);
 
-            float f = fbm(uv * aspect * 2.0 + 2.0 * r);
-
-            // Storm turbulence
-            float stormT = u_storm * 0.8;
-            float stormNoise = fbm(uv * aspect * 4.0 + t * 2.0) * stormT;
-            f += stormNoise;
-
-            float detail = fbm(uv * aspect * 5.0 + 5.0 * r + t * 0.15) * 0.35;
-            f += detail * (1.0 + stormT);
-
-            // Brighter warm sand colors
-            vec3 c1 = vec3(0.95, 0.82, 0.58);
-            vec3 c2 = vec3(0.82, 0.62, 0.36);
-            vec3 c3 = vec3(0.62, 0.42, 0.24);
-            vec3 c4 = vec3(0.42, 0.28, 0.15);
-
-            vec3 col = mix(c4, c3, smoothstep(0.0, 0.3, f));
-            col = mix(col, c2, smoothstep(0.3, 0.55, f));
-            col = mix(col, c1, smoothstep(0.55, 0.85, f));
-
-            col += vec3(0.08, 0.03, 0.0) * stormT;
-            col = clamp(col, 0.0, 1.0);
-
-            // Stronger alpha so fog is actually visible
-            float alpha = f * 0.25;
-            alpha *= (0.35 + 0.65 * smoothstep(0.0, 0.5, 1.0 - uv.y));
-            alpha += u_storm * 0.10;
-            alpha = clamp(alpha, 0.0, 0.50);
-
-            gl_FragColor = vec4(col, alpha);
+            gl_FragColor = vec4(col * alpha, alpha);
         }
     `;
 
@@ -395,10 +380,15 @@
     let stormActive = false;
     let stormEndTime = 0;
     let nextStormTime = 0;
+    let stormIntensity = 0;
+    let windSpeed = BASE_WIND;
+    let windDrift = 0;
+    let weatherTime = 0;
+    let liftCarry = 0;
 
     // ─── WebGL Fog State ───
     let fogCanvas, gl, fogProgram;
-    let uTime, uRes, uStorm;
+    let uTime, uRes, uStorm, uDrift;
     let fogPositionBuffer;
     let fogActive = false;
 
@@ -412,6 +402,7 @@
 
     function shouldRun() {
         return document.documentElement.getAttribute('data-theme') === 'sandstorm' &&
+            !document.hidden &&
             !prefersReducedMotion() &&
             window.innerWidth >= 640;
     }
@@ -428,30 +419,32 @@
         if (canvas) return;
         canvas = document.createElement('canvas');
         canvas.id = 'sandstorm-overlay';
+        canvas.setAttribute('aria-hidden', 'true');
         Object.assign(canvas.style, {
             position: 'fixed', top: '0', left: '0', width: '0', height: '0',
             pointerEvents: 'none', zIndex: '2', opacity: '1',
-            mixBlendMode: 'screen', display: 'none'
+            mixBlendMode: 'normal', display: 'none'
         });
         document.body.appendChild(canvas);
         ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
     }
 
     function initFogGL() {
-        if (fogCanvas) return true;
+        if (fogCanvas) return !!(gl && fogProgram && gl.getProgramParameter(fogProgram, gl.LINK_STATUS));
 
         fogCanvas = document.createElement('canvas');
         fogCanvas.id = 'sandstorm-fog';
+        fogCanvas.setAttribute('aria-hidden', 'true');
         Object.assign(fogCanvas.style, {
             position: 'fixed', top: '0', left: '0', width: '0', height: '0',
             pointerEvents: 'none', zIndex: '2', opacity: '1',
             mixBlendMode: 'normal', display: 'none'
         });
-        document.body.appendChild(fogCanvas);
+        document.body.insertBefore(fogCanvas, canvas);
 
         gl = fogCanvas.getContext('webgl', {
             alpha: true,
-            premultipliedAlpha: false,
+            premultipliedAlpha: true,
             antialias: false,
             preserveDrawingBuffer: false
         });
@@ -488,6 +481,9 @@
         uTime = gl.getUniformLocation(fogProgram, 'u_time');
         uRes = gl.getUniformLocation(fogProgram, 'u_resolution');
         uStorm = gl.getUniformLocation(fogProgram, 'u_storm');
+        uDrift = gl.getUniformLocation(fogProgram, 'u_drift');
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
 
         const posLoc = gl.getAttribLocation(fogProgram, 'a_position');
         fogPositionBuffer = gl.createBuffer();
@@ -499,8 +495,8 @@
         gl.enableVertexAttribArray(posLoc);
         gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        // The fullscreen pass replaces every pixel with premultiplied dust.
+        gl.disable(gl.BLEND);
 
         return true;
     }
@@ -571,12 +567,12 @@
 
     function spawnFlying(i, width, height, fromEdge) {
         fx[i] = fromEdge ? rand(-width * 0.2, -5) : rand(-width * 0.05, width * 1.02);
-        fy[i] = fromEdge ? rand(-height * 0.35, height * 0.25) : rand(-height * 0.25, -5);
+        fy[i] = rand(-height * 0.08, height * 0.98);
         fvx[i] = rand(BASE_WIND * 0.4, BASE_WIND * 1.3);
         fvy[i] = rand(-0.8, 1.2);
-        fs[i] = rand(1.0, 2.8);
-        fa[i] = rand(0.25, 0.7);
-        fd[i] = rand(0.8, 1.3);
+        fd[i] = rand(0.45, 1.45);
+        fs[i] = rand(0.65, 1.35) * fd[i];
+        fa[i] = rand(0.3, 0.6) * Math.min(1, fd[i]);
         fk[i] = Math.random() > 0.88 ? 1 : 0;
     }
 
@@ -592,9 +588,9 @@
 
     function spawnCloud(i, width, height) {
         cx[i] = rand(-width * 0.3, width * 1.1);
-        cy[i] = rand(-height * 0.1, height * 0.6);
+        cy[i] = rand(height * 0.25, height * 0.95);
         cr[i] = rand(width * 0.06, width * 0.2);
-        ca[i] = rand(0.025, 0.065);
+        ca[i] = rand(0.06, 0.12);
         cvx[i] = rand(0.015, 0.05);
         cvy[i] = rand(-0.008, 0.008);
     }
@@ -656,12 +652,13 @@
 
         // Resize WebGL fog canvas
         if (fogActive && gl && fogCanvas) {
-            const fogDpr = Math.min(window.devicePixelRatio || 1, 1.5);
             const fRect = fogCanvas.getBoundingClientRect();
             const fw = Math.max(1, Math.round(fRect.width));
             const fh = Math.max(1, Math.round(fRect.height));
-            fogCanvas.width = Math.floor(fw * fogDpr);
-            fogCanvas.height = Math.floor(fh * fogDpr);
+            // Soft dust needs no device-pixel detail, even on a 4K screen.
+            const fogScale = Math.min(0.65, 960 / fw, 540 / fh);
+            fogCanvas.width = Math.max(1, Math.floor(fw * fogScale));
+            fogCanvas.height = Math.max(1, Math.floor(fh * fogScale));
             gl.viewport(0, 0, fogCanvas.width, fogCanvas.height);
         }
     }
@@ -672,24 +669,28 @@
 
     function drawClouds(width, height, time) {
         for (let i = 0; i < cCount; i++) {
-            const g = ctx.createRadialGradient(cx[i], cy[i], 0, cx[i], cy[i], cr[i]);
-            const alpha = ca[i] * (0.5 + Math.sin(time * 0.0002 + i * 3.1) * 0.5);
+            ctx.save();
+            ctx.translate(cx[i], cy[i]);
+            ctx.scale(1.6, 0.3 + i * 0.06);
+            const g = ctx.createRadialGradient(0, 0, 0, 0, 0, cr[i]);
+            const alpha = ca[i] * (0.75 + Math.sin(time * 0.0004 + i * 3.1) * 0.25) * (1 + stormIntensity * 0.65);
             g.addColorStop(0, `rgba(210, 178, 132, ${alpha})`);
             g.addColorStop(0.5, `rgba(180, 142, 96, ${alpha * 0.4})`);
             g.addColorStop(1, `rgba(150, 112, 68, 0)`);
             ctx.fillStyle = g;
-            ctx.fillRect(cx[i] - cr[i], cy[i] - cr[i], cr[i] * 2, cr[i] * 2);
+            ctx.fillRect(-cr[i], -cr[i], cr[i] * 2, cr[i] * 2);
+            ctx.restore();
         }
     }
 
     function updateClouds(dt, width, height) {
-        const wind = stormActive ? STORM_WIND * 0.25 : BASE_WIND * 0.15;
+        const wind = windSpeed * 0.32;
         for (let i = 0; i < cCount; i++) {
-            cx[i] += (cvx[i] + wind) * dt;
+            cx[i] += (cvx[i] + wind) * (0.7 + i * 0.18) * dt;
             cy[i] += cvy[i] * dt;
             if (cx[i] - cr[i] > width * 1.2) {
                 cx[i] = -cr[i] - rand(width * 0.05, width * 0.25);
-                cy[i] = rand(-height * 0.1, height * 0.6);
+                cy[i] = rand(height * 0.25, height * 0.95);
             }
         }
     }
@@ -738,22 +739,19 @@
     }
 
     function updateAndDrawFlying(dt, time, width, height) {
-        const storm = stormActive;
-        const wind = storm
-            ? STORM_WIND * (0.7 + Math.sin(time * 0.012) * 0.3)
-            : BASE_WIND + Math.sin(time * 0.00015) * 0.15;
+        const storm = stormIntensity > 0.35;
+        const wind = windSpeed;
 
         for (let i = 0; i < fCount; i++) {
             const groundDist = Math.max(0, height - fy[i]);
-            const heightFactor = Math.min(1, groundDist / (height * 0.35));
-            const swirl = Math.sin(fy[i] * 0.01 + time * 0.0009 + fd[i]) * 0.18;
+            const heightFactor = 0.32 + 0.68 * Math.min(1, groundDist / (height * 0.35));
+            const swirl = Math.sin(fy[i] * 0.012 + time * 0.0012 + fd[i]) * (0.25 + stormIntensity * 0.7);
 
             fvx[i] += ((wind * heightFactor + swirl) - fvx[i]) * 0.038 * dt;
 
-            let targetVy = GRAVITY;
-            if (storm && fy[i] > height * 0.5) {
-                targetVy = STORM_LIFT * (0.4 + Math.random() * 0.3);
-            }
+            const eddy = Math.sin(fx[i] * 0.008 - time * 0.0015 + fd[i] * 2);
+            let targetVy = GRAVITY * fd[i] + eddy * (0.2 + stormIntensity * 0.65);
+            if (fy[i] > height * 0.65) targetVy += STORM_LIFT * stormIntensity * 0.5;
             fvy[i] += (targetVy - fvy[i]) * 0.06 * dt;
             fvy[i] = Math.max(-TERMINAL_VELOCITY, Math.min(TERMINAL_VELOCITY, fvy[i]));
 
@@ -810,24 +808,18 @@
                 ctx.lineWidth = Math.max(0.6, fs[i] * 0.4);
                 ctx.beginPath();
                 ctx.moveTo(fx[i], fy[i]);
-                ctx.lineTo(fx[i] - fvx[i] * 6.5, fy[i] - fvy[i] * 4.8);
+                ctx.lineTo(fx[i] - fvx[i] * 3.5, fy[i] - fvy[i] * 2.5);
                 ctx.stroke();
             } else {
                 const s = fs[i];
-                ctx.beginPath();
-                ctx.moveTo(fx[i], fy[i] - s);
-                ctx.lineTo(fx[i] + s, fy[i]);
-                ctx.lineTo(fx[i], fy[i] + s);
-                ctx.lineTo(fx[i] - s, fy[i]);
-                ctx.closePath();
                 ctx.fillStyle = `rgba(${sandColors[i % sandColors.length]}, ${fa[i] * (storm ? 0.96 : 0.85)})`;
-                ctx.fill();
+                ctx.fillRect(fx[i], fy[i], s, s * 0.7);
             }
         }
     }
 
     function updateAndDrawTrails(dt, time, width, height) {
-        const wind = stormActive ? STORM_WIND * 0.7 : BASE_WIND;
+        const wind = windSpeed * 0.8;
         for (let i = 0; i < tCount; i++) {
             const swirl = Math.sin(ty[i] * 0.007 + time * 0.0007 + td[i]) * 0.25;
             tvx[i] += ((wind + swirl) - tvx[i]) * 0.028 * dt;
@@ -849,9 +841,10 @@
         }
     }
 
-    function whirlGroundSand(width, height) {
-        // Whirl a large chunk of ground sand back into the air
-        const toWhirl = Math.min(gCount, Math.ceil(gCount * 0.35) + 5);
+    function whirlGroundSand(dt, width, height) {
+        liftCarry += dt * stormIntensity * 2.5;
+        const toWhirl = Math.min(gCount, Math.floor(liftCarry));
+        liftCarry %= 1;
         for (let i = 0; i < toWhirl && gCount > 0; i++) {
             const idx = Math.floor(rand(0, gCount));
             if (fCount >= MAX_FLYING) break;
@@ -875,27 +868,23 @@
         }
     }
 
-    function decayGround() {
+    function decayGround(dt) {
         for (let i = 0; i < groundHeight.length; i++) {
-            groundHeight[i] *= 0.9997;
+            groundHeight[i] *= Math.pow(0.9997, dt);
             if (groundHeight[i] < 0.05) groundHeight[i] = 0;
         }
     }
 
-    function erodeGroundDuringStorm() {
-        // Aggressively flatten the sand pile during a storm
+    function erodeGroundDuringStorm(dt) {
         for (let i = 0; i < groundHeight.length; i++) {
-            groundHeight[i] *= 0.985;
+            groundHeight[i] *= Math.pow(0.985, dt * stormIntensity);
             if (groundHeight[i] < 0.3) groundHeight[i] = 0;
         }
     }
 
     function drawStormHaze(width, height, time) {
         if (!stormActive) return;
-        const elapsed = time - (stormEndTime - STORM_DURATION);
-        const buildUp = Math.min(1, elapsed / 800);
-        const fadeOut = Math.min(1, (STORM_DURATION - elapsed) / 900);
-        const alpha = buildUp * fadeOut * 0.05;
+        const alpha = stormIntensity * 0.04;
 
         const grad = ctx.createLinearGradient(0, 0, width, 0);
         grad.addColorStop(0, `rgba(225, 190, 140, 0)`);
@@ -913,21 +902,11 @@
     function renderFog(now) {
         if (!fogActive || !gl) return;
 
-        const elapsed = stormActive ? (now - (stormEndTime - STORM_DURATION)) : 0;
-        const stormIntensity = stormActive
-            ? Math.min(1, elapsed / 800) * Math.min(1, (STORM_DURATION - elapsed) / 900)
-            : 0;
-
         gl.useProgram(fogProgram);
-        gl.uniform1f(uTime, now * 0.001);
+        gl.uniform1f(uTime, weatherTime);
         gl.uniform2f(uRes, fogCanvas.width, fogCanvas.height);
         gl.uniform1f(uStorm, stormIntensity);
-
-        // Re-bind buffer and attrib pointer to be safe
-        const posLoc = gl.getAttribLocation(fogProgram, 'a_position');
-        gl.bindBuffer(gl.ARRAY_BUFFER, fogPositionBuffer);
-        gl.enableVertexAttribArray(posLoc);
-        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.uniform1f(uDrift, windDrift);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
@@ -941,18 +920,10 @@
         const rect = canvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
-        const dt = Math.min(2.5, (time - lastTime || 16.6) / 16.6);
+        const dt = lastTime ? Math.max(0, Math.min(2.5, (time - lastTime) / (1000 / 60))) : 1;
         lastTime = time;
 
-        // Storm logic
-        if (time >= nextStormTime && !stormActive) {
-            stormActive = true;
-            stormEndTime = time + STORM_DURATION;
-            nextStormTime = time + STORM_DURATION + rand(IDLE_MIN, IDLE_MAX);
-        }
-        if (stormActive && time >= stormEndTime) {
-            stormActive = false;
-        }
+        updateWeather(dt, time);
 
         // Update bubble elements & track vertical scrolling/velocity
         updateBubbleBounds(time);
@@ -970,22 +941,39 @@
 
         drawGroundPile(width, height);
         drawGroundParticles();
-        
-        // Draw the sand dunes accumulated on top of the chat bubbles
         drawBubbleSand();
-
         updateAndDrawTrails(dt, time, width, height);
         updateAndDrawFlying(dt, time, width, height);
 
         if (stormActive) {
-            whirlGroundSand(width, height);
-            erodeGroundDuringStorm();
+            whirlGroundSand(dt, width, height);
+            erodeGroundDuringStorm(dt);
             drawStormHaze(width, height, time);
         } else {
-            decayGround();
+            decayGround(dt);
         }
 
         animationId = window.requestAnimationFrame(render);
+    }
+
+    function updateWeather(dt, time) {
+        if (time >= nextStormTime && !stormActive) {
+            stormActive = true;
+            stormEndTime = time + STORM_DURATION;
+            nextStormTime = time + STORM_DURATION + rand(IDLE_MIN, IDLE_MAX);
+        }
+        if (stormActive && time >= stormEndTime) {
+            stormActive = false;
+        }
+        const elapsed = time - (stormEndTime - STORM_DURATION);
+        const attack = Math.max(0, Math.min(1, elapsed / 1800));
+        const release = Math.max(0, Math.min(1, (stormEndTime - time) / 2400));
+        stormIntensity = stormActive ? attack * attack * (3 - 2 * attack) * release * release * (3 - 2 * release) : 0;
+        weatherTime += dt / 60;
+        const gust = Math.pow(0.5 + 0.5 * Math.sin(weatherTime * 0.85), 4);
+        const target = BASE_WIND + gust * 1.6 + Math.sin(weatherTime * 0.37) * 0.25 + stormIntensity * STORM_WIND;
+        windSpeed += (target - windSpeed) * (1 - Math.exp(-dt * 0.035));
+        windDrift += windSpeed * dt * 0.0025;
     }
 
     function start() {
@@ -1002,7 +990,11 @@
         canvas.style.display = 'block';
         if (fogCanvas) fogCanvas.style.display = 'block';
         resize();
-        nextStormTime = performance.now() + rand(8000, 20000);
+        stormActive = false;
+        stormIntensity = 0;
+        windSpeed = BASE_WIND;
+        windDrift = weatherTime = liftCarry = 0;
+        nextStormTime = performance.now() + rand(5000, 9000);
         lastTime = 0;
         animationId = window.requestAnimationFrame(render);
     }

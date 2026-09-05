@@ -203,6 +203,11 @@ images, and browser-oriented regression tests.
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
+- Sandstorm dust, grains and ground lift share a smooth wind/gust envelope.
+  Keep the fixed particle pools and the fog buffer at most 960x540 pixels;
+  soft dust does not need device-pixel resolution. Canvas bounds must not
+  transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
+  and narrow-screen gates.
 
 ## Work Guidance
 
@@ -235,6 +240,8 @@ images, and browser-oriented regression tests.
 - UI delivery regressions: `npm run test:ui-regressions`.
 - ThreeDee real-model WebGL combat, resource budgets and lifecycle:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run ThreeDeeCombatBrowserSmoke`.
+- Sandstorm WebGL/2D weather, resource bounds and lifecycle:
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run SandstormWeatherBrowserSmoke`.
 - Full repository: `go test -count=1 ./...`.
 - Protected surfaces from the rollout base:
   `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
