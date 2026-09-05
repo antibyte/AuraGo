@@ -227,11 +227,13 @@ images, and browser-oriented regression tests.
   only under `[data-theme="galaxy"]` in `css/chat-themes.css`; keep Geist for
   chat prose, local Barlow for labels, actual status signals and 44px targets.
   Use rectangular controls with 3px corners, straight vertical color segments
-  and rounded black header/footer ends. Center logout content; warning counts
+  and rounded header/footer contours. Center logout content; warning counts
   sit beside the icon in a high-contrast 24px badge, including multi-digit counts.
   On mobile, reserve space beside the scrolling controls for the radial menu.
   Match the LCARS reference with double lavender contours, subtle static bevels,
-  dark inset consoles, framed messages/greeting and an outlined composer row.
+  dark inset consoles, framed messages/greeting and matching outlined header
+  controls/composer rows. Outer header/footer surfaces and contours stay
+  transparent; keep their vertical padding compact, with 44px controls intact.
   The desktop toolbar stays transparent within that row; only the mobile popover
   has its own surface. Decorative LCARS identifiers are aria-hidden, desktop-only
   and hidden outside Galaxy; connection and notification states remain real.

@@ -12526,13 +12526,13 @@ pre,
 
 [data-theme="galaxy"] .app-header,
 [data-theme="galaxy"] .app-footer {
-    background: var(--galaxy-console);
+    background: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    box-shadow: var(--galaxy-inset);
+    box-shadow: none;
     border: 0;
     margin: 18px 24px 0;
-    padding: 10px 16px;
+    padding: 4px 16px;
     border-left: 48px solid #ffcc99;
     border-top: 12px solid #ffcc99;
     border-radius: 44px 12px 28px 0;
@@ -12555,7 +12555,7 @@ pre,
 
 [data-theme="galaxy"] .app-footer {
     margin: 0 24px 18px;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 0px));
     border-top: 0;
     border-left-color: #cc99cc;
     border-bottom: 12px solid #cc99cc;
@@ -12573,8 +12573,8 @@ pre,
     height: auto;
     border: 1px solid var(--galaxy-line);
     border-radius: 56px 18px 38px 12px;
-    background: linear-gradient(135deg, rgba(135, 124, 219, 0.14), transparent 24%, transparent 80%, rgba(135, 124, 219, 0.22));
-    box-shadow: inset 0 0 0 5px rgba(5, 6, 13, 0.85), 0 0 0 1px rgba(181, 173, 245, 0.15);
+    background: transparent;
+    box-shadow: 0 0 0 1px rgba(181, 173, 245, 0.15);
     opacity: 1;
     pointer-events: none;
     z-index: -1;
@@ -12594,8 +12594,8 @@ pre,
 @media (min-width: 1600px) {
     [data-theme="galaxy"] .galaxy-console-id { display: block; }
     [data-theme="galaxy"] .app-header > .galaxy-console-id { flex: 0 1 280px; margin: 0 auto 0 4px; padding: 8px 18px; border-radius: 14px; border-bottom: 1px solid #534b76; background: var(--galaxy-console); }
-    [data-theme="galaxy"] .galaxy-footer-id { position: absolute; left: 14px; top: 18px; }
-    [data-theme="galaxy"] .galaxy-footer-tag { position: absolute; right: 24px; top: 18px; text-align: right; }
+    [data-theme="galaxy"] .galaxy-footer-id { position: absolute; left: 14px; top: 8px; }
+    [data-theme="galaxy"] .galaxy-footer-tag { position: absolute; right: 24px; top: 8px; text-align: right; }
     [data-theme="galaxy"] .galaxy-rail-labels { display: block; position: fixed; left: 60px; top: 152px; z-index: 3; color: #b5adf5; font: 600 9px/1.7 'Galaxy Console', monospace; letter-spacing: 0.2em; pointer-events: none; }
 }
 
@@ -12745,9 +12745,10 @@ pre,
 [data-theme="galaxy"] .app-header .header-actions .warnings-badge.seen { --warnings-badge-text: #d3d1e1; background: #252536; }
 [data-theme="galaxy"] .app-footer .input-row,
 [data-theme="galaxy"] .app-footer .composer-panel { gap: 6px; }
+[data-theme="galaxy"] .app-header .header-actions,
 [data-theme="galaxy"] .app-footer .input-row {
     position: relative;
-    padding: 10px 16px;
+    padding: 8px 12px;
     border: 1px solid var(--galaxy-line);
     border-radius: 18px 12px 18px 12px;
     background: var(--galaxy-console);
@@ -12780,8 +12781,8 @@ pre,
 }
 @media (max-width: 767px) {
     [data-theme="galaxy"] { --galaxy-poster: url('/img/galaxy/poster-mobile.webp?v=galaxy-1'); }
-    [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 8px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 12px 12px 0; }
-    [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
+    [data-theme="galaxy"] .app-header { margin: 8px 8px 0; padding: 4px 8px; border-left-width: 12px; border-top-width: 8px; border-radius: 24px 12px 12px 0; }
+    [data-theme="galaxy"] .app-footer { margin: 0 8px 8px; padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px)); border-left-width: 10px; border-bottom-width: 8px; border-radius: 0 12px 12px 24px; }
     [data-theme="galaxy"] .app-header::before { top: -8px; height: 8px; left: 64px; }
     [data-theme="galaxy"] .app-footer::before { bottom: -8px; height: 8px; left: 64px; }
     [data-theme="galaxy"] .app-header::after { inset: -12px -4px -4px -16px; border-radius: 28px 14px 18px 8px; }
@@ -12793,6 +12794,7 @@ pre,
     [data-theme="galaxy"] .app-header .header-actions { gap: 4px; margin-right: 40px; }
     [data-theme="galaxy"] .logo { font-size: 1.25rem; letter-spacing: 0.02em; padding: 0; }
     [data-theme="galaxy"] .btn-send { width: 44px; }
+    [data-theme="galaxy"] .app-header .header-actions,
     [data-theme="galaxy"] .app-footer .input-row { padding: 6px 2px; }
     [data-theme="galaxy"] .app-footer .composer-panel { background: var(--galaxy-console); border: 1px solid #b5adf5; border-top: 4px solid #cc99cc; border-radius: 12px; padding: 8px; }
     [data-theme="galaxy"] .greeting-text { padding: 16px; }
