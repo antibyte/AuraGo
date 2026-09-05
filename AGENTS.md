@@ -430,6 +430,7 @@ Tools are defined in `internal/tools/`:
 - `HistoryManager.CurrentSummary` belongs exclusively to chat context compression. Nightly maintenance must not use an LLM reflection loop to overwrite it; maintenance state is stored in the structured maintenance ledger and typed morning notification instead.
 
 ### MeshCore Integration Contract
+- MeshCore native schemas live under `native_tools_*.go` for catalogue/audit discovery. Both direct calls and `invoke_tool` must reach the MeshCore handler through `dispatchComm`; registration alone is insufficient. Keep disabled-integration and proactive destination gates enforced.
 - Linux systemd installers and updates automatically grant existing `dialout`/`uucp` groups to the service for USB serial access, without changing login-account memberships or forwarding serial groups to GPU containers. Updates use the backed-up, verified service drop-in before restart; preserve rollback and `--no-restart` behavior.
 - USB Companion ports assert DTR at 115200 baud with RTS inactive: TinyUSB CDC firmware treats deasserted DTR as disconnected and suppresses serial replies. Do not use the 1200-baud bootloader touch sequence.
 - `internal/meshcore` owns one Companion device, versioned SQLite inbox/execution reservations, framed USB (115200 baud) and native Linux BlueZ BLE. Docker allows explicit USB passthrough only. Hardware acceptance remains unverified until real platform tests pass.
