@@ -104,6 +104,7 @@ Funkübertragungen lassen sich dadurch nicht rückgängig machen.
   eine erneute administrative Prüfung. Ausführungsmerker bleiben unabhängig
   von gelöschten Nachrichtentexten 48 Stunden erhalten. Ein voller Merkerbestand
   mit 65.536 Einträgen sperrt weitere automatische Arbeit.
+- Automatische Kanalantworten tragen die feste KI-Kennzeichnung `[AuraGo KI]`.
 - Antworten passen in höchstens drei nummerierte, UTF-8-sichere Pakete. Der vom
   Gerät ergänzte Kanalname des Absenders verringert den verfügbaren Platz. Zu
   lange Texte werden abgelehnt und niemals still abgeschnitten. Es werden

@@ -435,7 +435,7 @@ func admit(msg Message, cfg Config, st Status, now time.Time) (string, Message) 
 }
 func isReplyText(text string) bool {
 	text = strings.TrimSpace(text)
-	return strings.HasPrefix(text, "[AuraGo]") || strings.HasPrefix(text, "[1/") || strings.HasPrefix(text, "[2/") || strings.HasPrefix(text, "[3/")
+	return strings.HasPrefix(text, "[AuraGo]") || strings.HasPrefix(text, "[AuraGo KI]") || strings.HasPrefix(text, "[1/") || strings.HasPrefix(text, "[2/") || strings.HasPrefix(text, "[3/")
 }
 func (m *Manager) allowRun(peer string, cfg Config, now time.Time) bool {
 	m.mu.Lock()
@@ -570,7 +570,11 @@ func (m *Manager) process(ctx context.Context, msg Message) {
 		return
 	}
 	if msg.Reply != "" && (mode != "trusted" || cfg.DirectReplies) {
-		msg.Reply = "[AuraGo] " + msg.Reply
+		if msg.Kind == "channel" {
+			msg.Reply = "[AuraGo KI] " + msg.Reply
+		} else {
+			msg.Reply = "[AuraGo] " + msg.Reply
+		}
 		msg.State = "sending"
 		if !m.save(msg) {
 			return

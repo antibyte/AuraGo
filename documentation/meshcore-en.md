@@ -98,6 +98,7 @@ that already completed.
   administrative check. Execution tombstones survive inbox eviction for 48
   hours, longer than the maximum configurable command age; a full 65,536-entry
   ledger refuses new automatic work.
+- Automatic channel replies carry the fixed AI disclosure prefix `[AuraGo KI]`.
 - Replies occupy at most three numbered, UTF-8-safe packets. Text is rejected
   if it cannot fit; it is never silently truncated. The channel sender-name
   bytes reduce available payload space. Transmit pacing is six packets/minute.
