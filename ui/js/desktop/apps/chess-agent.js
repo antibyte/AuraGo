@@ -20,7 +20,11 @@
                 })
             });
             const move = String(response && response.move ? response.move : '').toLowerCase();
-            if (!move) throw new Error('Agent did not return a move.');
+            if (!move) {
+                const err = new Error('Agent did not return a move.');
+                err.chessCode = 'agent_no_move';
+                throw err;
+            }
             return { move, comment: String(response.comment || '') };
         }
 

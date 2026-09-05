@@ -55,12 +55,15 @@
         return Math.max(0, Math.min(100, n));
     }
 
-    function createGauge(canvas, color) {
+    function createGauge(canvas, color, context) {
         if (!window.Chart || !canvas) return null;
         return new Chart(canvas, {
             type: 'doughnut',
             data: {
-                labels: ['Used', 'Free'],
+                labels: [
+                    t(context, 'desktop.system_info_used'),
+                    t(context, 'desktop.system_info_free')
+                ],
                 datasets: [{
                     data: [0, 100],
                     backgroundColor: [color, 'rgba(255,255,255,0.08)'],
@@ -153,9 +156,9 @@
             uptimeBase: null,
             uptimeAt: null,
             gauges: {
-                cpu: createGauge(host.querySelector('[data-gauge="cpu"]'), accent),
-                memory: createGauge(host.querySelector('[data-gauge="memory"]'), coral),
-                disk: createGauge(host.querySelector('[data-gauge="disk"]'), amber)
+                cpu: createGauge(host.querySelector('[data-gauge="cpu"]'), accent, context),
+                memory: createGauge(host.querySelector('[data-gauge="memory"]'), coral, context),
+                disk: createGauge(host.querySelector('[data-gauge="disk"]'), amber, context)
             },
             historyChart: createHistoryChart(host.querySelector('[data-role="history"]'), context),
             handler: null,

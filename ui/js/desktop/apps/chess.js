@@ -60,7 +60,7 @@
         instances.set(windowId, state);
         container.innerHTML = window.renderChessTemplate
             ? window.renderChessTemplate(ctx, PIECE_GLYPH)
-            : '<div class="vd-chess is-error"><div class="vd-chess-ribbon"><div class="vd-chess-status" data-status>Chess UI failed to load.</div></div></div>';
+            : '<div class="vd-chess is-error"><div class="vd-chess-ribbon"><div class="vd-chess-status" data-status>' + ctx.esc(ctx.t('desktop.chess_load_failed')) + '</div></div></div>';
         collectRefs(state);
         bindControls(state);
         setWindowMenus(state);
@@ -75,13 +75,13 @@
                 state.agent = window.createChessAgentClient ? window.createChessAgentClient({ api: ctx.api }) : null;
                 state.audio = window.createChessAudio ? window.createChessAudio() : null;
                 state.fx = window.createChessFx
-                    ? window.createChessFx({ root: state.refs.root, boardShell: state.refs.boardShell })
+                    ? window.createChessFx({ root: state.refs.root, boardShell: state.refs.boardShell, t: ctx.t })
                     : null;
                 createBoard(state);
                 startNewGame(state);
             })
             .catch(err => {
-                setStatus(state, (err && err.message) || ctx.t('desktop.chess_load_failed'));
+                setStatus(state, ctx.t('desktop.chess_load_failed'));
                 state.refs.root.classList.add('is-error');
             });
     }
@@ -497,7 +497,7 @@
             const legalMoves = legalMovesUCI(state);
             let result;
             if (state.opponent === 'agent') {
-                if (!state.agent) throw new Error('Agent client is not available.');
+                if (!state.agent) throw chessErr('agent_unavailable', 'Agent client is not available.');
                 result = await state.agent.chooseMove({
                     fen: state.game.fen(),
                     pgn: state.game.pgn(),
@@ -507,15 +507,16 @@
                     player_color: state.playerColor
                 });
             } else {
-                if (!state.engine) throw new Error('Stockfish is not available.');
+                if (!state.engine) throw chessErr('engine_unavailable', 'Stockfish is not available.');
                 result = { move: await state.engine.findMove({ fen: state.game.fen(), legalMoves, strength: state.strength }) };
             }
             if (state.disposed || token !== state.searchToken) return;
             applyOpponentMove(state, result.move, result.comment || '');
         } catch (err) {
             if (state.disposed || token !== state.searchToken) return;
-            notify(state, (err && err.message) || state.ctx.t('desktop.chess_move_failed'));
-            setStatus(state, state.ctx.t('desktop.chess_move_failed'));
+            const message = formatOpponentError(state, err);
+            notify(state, message);
+            setStatus(state, message);
         } finally {
             if (!state.disposed && token === state.searchToken) {
                 state.busy = false;
@@ -532,7 +533,7 @@
             to: moveText.slice(2, 4),
             promotion: moveText.slice(4, 5) || undefined
         });
-        if (!move) throw new Error('Opponent returned an illegal move.');
+        if (!move) throw chessErr('opponent_illegal', 'Opponent returned an illegal move.');
         finishAppliedMove(state, move, comment);
     }
 
@@ -1030,6 +1031,42 @@
         if (typeof state.ctx.notify === 'function') {
             state.ctx.notify({ title: state.ctx.t('desktop.chess_title'), message });
         }
+    }
+
+    function chessErr(code, fallback) {
+        const err = new Error(fallback);
+        err.chessCode = code;
+        return err;
+    }
+
+    const OPPONENT_ERROR_KEYS = {
+        agent_unavailable: 'desktop.chess_agent_unavailable',
+        engine_unavailable: 'desktop.chess_engine_unavailable',
+        engine_no_move: 'desktop.chess_engine_no_move',
+        engine_worker_failed: 'desktop.chess_engine_worker_failed',
+        engine_timeout: 'desktop.chess_engine_timeout',
+        engine_illegal: 'desktop.chess_engine_illegal',
+        agent_no_move: 'desktop.chess_agent_no_move',
+        opponent_illegal: 'desktop.chess_opponent_illegal'
+    };
+
+    const OPPONENT_ERROR_MESSAGES = {
+        'Agent client is not available.': 'desktop.chess_agent_unavailable',
+        'Stockfish is not available.': 'desktop.chess_engine_unavailable',
+        'Stockfish did not return a move.': 'desktop.chess_engine_no_move',
+        'Stockfish worker failed.': 'desktop.chess_engine_worker_failed',
+        'Stockfish timed out.': 'desktop.chess_engine_timeout',
+        'Stockfish returned an illegal move.': 'desktop.chess_engine_illegal',
+        'Agent did not return a move.': 'desktop.chess_agent_no_move',
+        'Opponent returned an illegal move.': 'desktop.chess_opponent_illegal'
+    };
+
+    function formatOpponentError(state, err) {
+        const code = err && err.chessCode;
+        if (code && OPPONENT_ERROR_KEYS[code]) return state.ctx.t(OPPONENT_ERROR_KEYS[code]);
+        const message = err && err.message ? String(err.message) : '';
+        if (message && OPPONENT_ERROR_MESSAGES[message]) return state.ctx.t(OPPONENT_ERROR_MESSAGES[message]);
+        return state.ctx.t('desktop.chess_move_failed');
     }
 
     function playMoveSound(state, move) {

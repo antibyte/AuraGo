@@ -7,6 +7,7 @@
     function createChessFx(options = {}) {
         const root = options.root || null;
         const boardShell = options.boardShell || null;
+        const t = typeof options.t === 'function' ? options.t : (key => key);
         let timers = [];
         let disposed = false;
 
@@ -93,8 +94,8 @@
             const detail = opts.detail || '';
             const win = !!opts.win;
             const draw = !!opts.draw;
-            const primaryLabel = opts.primaryLabel || 'New game';
-            const secondaryLabel = opts.secondaryLabel || 'OK';
+            const primaryLabel = opts.primaryLabel || t('desktop.chess_new_game');
+            const secondaryLabel = opts.secondaryLabel || t('desktop.ok');
             const onPrimary = typeof opts.onPrimary === 'function' ? opts.onPrimary : null;
             const onSecondary = typeof opts.onSecondary === 'function' ? opts.onSecondary : null;
 

@@ -22,6 +22,12 @@
             waiters.forEach(resolve => resolve());
         }
 
+        function chessErr(code, fallback) {
+            const err = new Error(fallback);
+            err.chessCode = code;
+            return err;
+        }
+
         function rejectSearch(error) {
             if (!activeSearch) return;
             const search = activeSearch;
@@ -47,7 +53,7 @@
             activeSearch = null;
             window.clearTimeout(search.timeoutId);
             if (!move || move === '(none)') {
-                search.reject(new Error('Stockfish did not return a move.'));
+                search.reject(chessErr('engine_no_move', 'Stockfish did not return a move.'));
                 return;
             }
             search.resolve(move);
@@ -59,7 +65,7 @@
                 worker = new Worker(workerUrl);
                 worker.addEventListener('message', handleMessage);
                 worker.addEventListener('error', event => {
-                    rejectSearch(new Error((event && event.message) || 'Stockfish worker failed.'));
+                    rejectSearch(chessErr('engine_worker_failed', 'Stockfish worker failed.'));
                 });
                 postMessage('uci');
             }
@@ -79,14 +85,14 @@
             const legal = new Set((legalMoves || []).map(move => String(move || '').toLowerCase()));
             return new Promise((resolve, reject) => {
                 const timeoutId = window.setTimeout(() => {
-                    rejectSearch(new Error('Stockfish timed out.'));
+                    rejectSearch(chessErr('engine_timeout', 'Stockfish timed out.'));
                 }, timeoutMs);
                 activeSearch = {
                     timeoutId,
                     resolve(move) {
                         const normalized = String(move || '').toLowerCase();
                         if (legal.size && !legal.has(normalized)) {
-                            reject(new Error('Stockfish returned an illegal move.'));
+                            reject(chessErr('engine_illegal', 'Stockfish returned an illegal move.'));
                             return;
                         }
                         resolve(normalized);

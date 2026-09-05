@@ -98,8 +98,10 @@ and `files.default_apps` via `/api/desktop/settings`.
 - System Info network totals use `desktop.system_info_network_io` with
   `{{sent}}` and `{{recv}}`. Do not hardcode English `up / down`.
 - System Info history-chart dataset labels reuse `desktop.system_info_cpu`,
-  `desktop.system_info_memory`, and `desktop.system_info_disk`. Do not
-  hardcode English CPU/Memory/Disk there.
+  `desktop.system_info_memory`, and `desktop.system_info_disk`. Gauge
+  dataset labels use `desktop.system_info_used` and
+  `desktop.system_info_free`. Do not hardcode English CPU/Memory/Disk or
+  Used/Free there. Leave Chart legend and tooltip off.
 - System Info memory, disk, and network sizes use `desktop.bytes`,
   `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do not
   hardcode `B`/`KiB`/`MiB`/`GiB`/`TiB` there. Leave File Manager and
@@ -131,8 +133,12 @@ and `files.default_apps` via `/api/desktop/settings`.
   `desktop.system_info_uptime_days_hours`,
   `desktop.system_info_uptime_hours_minutes`, and
   `desktop.system_info_uptime_minutes` (same compact form as
-  Sysmon). Interpolate via `inst.ctx.t`. Sysworld HUD budget uses
+  Sysmon). Interpolate via `inst.ctx.t`.   Sysworld HUD budget uses
   `desktop.looper_cost` with `{{amount}}`. Do not hardcode `$` there.
+  Sysworld mission success-rate rows use `sysworld.panel.success_rate`.
+  Do not hardcode `OK` there. Sysworld panel identity rows use
+  `sysworld.panel.id`. Do not hardcode `ID` there. Sysworld `L`
+  stays key-only.
 - People birthday countdowns in the sidebar, cards, list, and detail
   use `desktop.people_today`, `desktop.people_tomorrow`, and
   `desktop.people_days_until_birthday`. Do not hardcode `d` or `days`
@@ -202,6 +208,29 @@ and `files.default_apps` via `/api/desktop/settings`.
   document-format badges use `desktop.chat_document_format_unknown`.
   Do not hardcode English `Request failed`, `Live stream`, or `FILE`
   there.
+- Generated-app iframe title fallback uses
+  `desktop.embed_frame_title`. Host SDK error fallback uses
+  `desktop.embed_bridge_failed`. Do not hardcode English
+  `Aura Desktop app` or `Desktop bridge request failed` there.
+  Leave `aura-desktop-sdk.js` last-resort English when the parent
+  sends no error text.
+- Chess result-modal fallbacks use `desktop.chess_new_game` and
+  `desktop.ok`. Pass `t` into `createChessFx`. Callers may still
+  pass localized labels. Do not hardcode English `New game` or
+  `OK` there.
+- Chess opponent-move toasts and status use
+  `desktop.chess_agent_unavailable`, `desktop.chess_agent_no_move`,
+  `desktop.chess_engine_unavailable`, `desktop.chess_engine_no_move`,
+  `desktop.chess_engine_worker_failed`, `desktop.chess_engine_timeout`,
+  `desktop.chess_engine_illegal`, `desktop.chess_opponent_illegal`,
+  or `desktop.chess_move_failed`. Map `chessCode` or known English
+  sentinels. Do not show raw Stockfish, worker, HTTP, or
+  `err.message` text there.
+- Chess vendor-load status uses `desktop.chess_load_failed`.
+  Do not show raw vendor `err.message` there. Leave the hint
+  path and opponent-error mapper unchanged. The missing-template
+  HTML fallback reuses the same key via `ctx.t` and `ctx.esc`.
+  Do not hardcode English `Chess UI failed to load.` there.
 - Homepage Studio local webhost name fallback uses
   `homepage_studio.default_name`. Do not hardcode English `Homepage`
   there.
@@ -844,6 +873,14 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopPeopleKgI18n`
 - `go test ./ui/ -run TestDesktopSysworldHudUptimeI18n`
 - `go test ./ui/ -run TestDesktopSysworldHudMoneyI18n`
+- `go test ./ui/ -run TestDesktopSystemInfoGaugeI18n`
+- `go test ./ui/ -run TestDesktopEmbedFrameI18n`
+- `go test ./ui/ -run TestDesktopChessResultI18n`
+- `go test ./ui/ -run TestDesktopChessErrorI18n`
+- `go test ./ui/ -run TestDesktopChessLoadI18n`
+- `go test ./ui/ -run TestDesktopChessTemplateI18n`
+- `go test ./ui/ -run TestDesktopSysworldSuccessRateI18n`
+- `go test ./ui/ -run TestDesktopSysworldPanelIdI18n`
 - `go test ./ui/ -run TestDesktopHomepageStudioFallbackI18n`
 - `go test ./ui/ -run TestDesktopAppAssetsRegistry`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
@@ -892,6 +929,14 @@ registration lives in `internal/desktop/types.go`.
   `desktop.radio_album`. Exposes `window.RadioApp`. No child DOX file needed.
 - `people.js` - Address-book app. KG toggle, active label, and card badge
   use `desktop.people_kg`. Exposes `window.PeopleApp`. No child DOX file
+  needed.
+- `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
+  fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
+  into `createChessFx`. Opponent-move errors use
+  `desktop.chess_*` codes via `formatOpponentError`. Vendor-load
+  status and the missing-template fallback use
+  `desktop.chess_load_failed`. Exposes
+  `window.ChessApp` and `window.createChessFx`. No child DOX file
   needed.
 - `calendar.js` - Calendar renderer and appointment UI continuation bundled
   inside the shared Desktop IIFE immediately before `sdk-events-bootstrap.js`.
@@ -1011,7 +1056,9 @@ registration lives in `internal/desktop/types.go`.
   info panel, dblclick empty resets view), selection label projection
   (`inst.focused` + `updateSelLabel`), zone anchors (`zoneAnchor`), arrow-key
   cycling (`cycleFocus`), idle autoRotate, WebGL fallback. Relative
-  timestamps use `desktop.rel_time_*`. Exposes
+  timestamps use `desktop.rel_time_*`. Mission success-rate rows
+  use `sysworld.panel.success_rate`. Panel identity rows use
+  `sysworld.panel.id`. Exposes
   `window.SysWorldApp`. No child DOX file needed.
 - `sysworld-effects.js` - `NS.PALETTE`, cached glow textures, `textSprite`
   label factory (cached canvas textures), pooled comets/bursts/pulse rings,

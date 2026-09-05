@@ -14419,7 +14419,7 @@ if (appId === 'pixel') {
     function makeSandboxedFrame(src, appId, widgetId, windowId, className, title, options) {
         const iframe = document.createElement('iframe');
         iframe.className = className;
-        iframe.title = title || appId || 'Aura Desktop app';
+        iframe.title = title || appId || t('desktop.embed_frame_title');
         iframe.src = src;
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
@@ -14503,7 +14503,7 @@ if (appId === 'pixel') {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: false,
-            error: value && value.message ? value.message : String(value || 'Desktop bridge request failed')
+            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed'))
         }, '*');
     }
 

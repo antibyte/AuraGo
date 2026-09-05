@@ -1065,7 +1065,7 @@
                 k: L('sysworld.panel.category'),
                 v: CATEGORY_KEYS[ud.category] ? L('sysworld.cat.' + ud.category) : fmtVal(inst, ud.category)
             });
-            rows.push({ k: 'ID', v: fmtVal(inst, ud.id) });
+            rows.push({ k: L('sysworld.panel.id'), v: fmtVal(inst, ud.id) });
             rows.push({ k: L('sysworld.panel.zone'), v: L('sysworld.zone.integrations') });
         } else if (kind === 'kgnode') {
             rows.push({ section: L('sysworld.sec.status') });
@@ -1122,7 +1122,7 @@
             const success = pickNum(payload.success_rate, payload.successRate, payload.rate);
             if (success != null) {
                 const ratio = success > 1 ? success / 100 : success;
-                rows.push({ k: 'OK', v: Math.round(ratio * 100) + '%', bar: Math.max(0, Math.min(1, ratio)) });
+                rows.push({ k: L('sysworld.panel.success_rate'), v: Math.round(ratio * 100) + '%', bar: Math.max(0, Math.min(1, ratio)) });
             }
             rows.push({ section: L('sysworld.sec.details') });
             rows.push({ k: L('sysworld.panel.schedule'), v: fmtVal(inst, payload.schedule || payload.cron) });
@@ -1147,7 +1147,7 @@
             rows.push({ k: L('sysworld.panel.status'), v: fmtVal(inst, payload.status || payload.state), tone: toneForState(payload.status || payload.state) });
             rows.push({ k: L('sysworld.panel.restarts'), v: fmtVal(inst, pickNum(payload.restarts, payload.restart_count)) });
         } else if (kind === 'tool') {
-            rows.push({ k: 'ID', v: fmtVal(inst, ud.id || ud.label) });
+            rows.push({ k: L('sysworld.panel.id'), v: fmtVal(inst, ud.id || ud.label) });
             const calls = pickNum(ud.count, payload.count, payload.calls);
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, calls) });
             // Rank bar: this tool's calls relative to the busiest tool.
@@ -1169,7 +1169,7 @@
             const cronRel = relTime(inst, payload.next_run || payload.nextRun);
             rows.push({ k: L('sysworld.panel.next_run'), v: cronRel || fmtVal(inst, payload.next_run || payload.nextRun) });
         } else {
-            rows.push({ k: 'ID', v: fmtVal(inst, ud.id) });
+            rows.push({ k: L('sysworld.panel.id'), v: fmtVal(inst, ud.id) });
         }
 
         try { inst.hud.showPanel(title, rows, meta); } catch (_) {}
