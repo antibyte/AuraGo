@@ -18,7 +18,7 @@ function renderMeshCoreSection(section) {
                     + '<div id="meshcore-test-status" class="pw-status" role="status" aria-live="polite" aria-busy="false" hidden></div>'
                     + '<p id="meshcore-saved-reason" class="field-help" hidden></p>'
                     + form.disclosure({ title: tr('pairing'), className: 'meshcore-pairing', content: form.note({ text: tr('ble_help') }) + form.password({ id: 'meshcore-pin', label: tr('pin') }).replace('autocomplete="off"', 'autocomplete="off" maxlength="16"') + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery" role="region" aria-label="' + escapeHtml(tr('scan')) + '" aria-busy="false"></div>' }) },
-            { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content: '<div id="meshcore-contacts"></div>' },
+            { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content: '<div id="meshcore-contacts" tabindex="0" role="region" aria-label="MeshCore"></div>' },
             { title: tr('channels'), content: form.note({ text: tr('channels_help') }) + '<div id="meshcore-channels"></div>' },
             { title: tr('limits'), content: form.disclosure({ titleKey: 'config.precision.advanced_title', content: Object.entries(limits).map(([key, values]) => form.number({ path: 'meshcore.' + key, label: tr(key), value: data[key] || values[0], min: 1, max: values[1] })).join('') }) },
             { title: tr('inbox'), content: '<div id="meshcore-inbox"></div>' + form.actions([{ html: button('previous', 'previous') + button('next', 'next') }]) }

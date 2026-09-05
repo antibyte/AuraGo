@@ -1517,6 +1517,17 @@
     gap: 16px;
     margin-bottom: var(--cfg-card-padding);
 }
+.pw-page[data-workspace-page="config"] #meshcore-contacts {
+    max-height: min(24rem, 50vh);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding-right: 8px;
+}
+.pw-page[data-workspace-page="config"] #meshcore-contacts:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
 .pw-page[data-workspace-page="config"] .meshcore-pairing .pw-disclosure-body {
     display: grid;
     gap: var(--cfg-card-padding);

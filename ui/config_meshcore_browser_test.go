@@ -37,7 +37,7 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
             if (!String(url).startsWith('/api/meshcore/')) return original(url,options);
             meshRequests.push({url:String(url), body:options.body || ''});
             const state = {state:'binding_required',identity_key:'11'.repeat(32),name:'Companion',firmware:'fixture',hardware_verified:false,
-                contacts:[{key:'22'.repeat(32),name:'<script>window.meshInjection=true</script>',type:1}],
+                contacts:[{key:'22'.repeat(32),name:'<script>window.meshInjection=true</script>',type:1}, ...Array.from({length:219},(_,i)=>({key:'ab'.repeat(32),name:'Node '+i,type:1}))],
                 channels:[{index:0,name:'Public',binding:'33'.repeat(32)}]};
             let body = {};
             if (url.endsWith('/status')) body={status:state,config:settings,ble_supported:true};
@@ -132,6 +132,9 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 			for _, density := range []string{"comfortable", "compact"} {
 				page.MustEval(`(theme,density) => {document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;AuraPrecisionWorkspace.setDensity(density);}`, theme, density)
 				page.MustEval(`() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+				if !page.MustEval(`() => {const nodes=document.querySelector('#meshcore-contacts');nodes.scrollTop=100;return nodes.children.length===220 && nodes.tabIndex===0 && nodes.clientHeight<=Math.min(384,innerHeight/2)+1 && nodes.scrollHeight>nodes.clientHeight && nodes.scrollTop>0 && nodes.scrollWidth<=nodes.clientWidth+1;}`).Bool() {
+					t.Fatalf("node list must scroll independently without horizontal overflow at %d / %s / %s", width, theme, density)
+				}
 				if page.MustEval(`() => {const el=document.getElementById('content'),dock=document.querySelector('.save-bar');return el.scrollWidth>el.clientWidth+1 || el.getBoundingClientRect().bottom>dock.getBoundingClientRect().top+1}`).Bool() {
 					t.Fatalf("overflow at %d", width)
 				}
