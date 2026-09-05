@@ -41,7 +41,10 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
                 channels:[{index:0,name:'Public',binding:'33'.repeat(32)}]};
             let body = {};
             if (url.endsWith('/status')) body={status:state,config:settings,ble_supported:true};
-            if (url.endsWith('/test')) body={status:state};
+            if (url.endsWith('/test')) {
+                await new Promise((resolve,reject)=>{window.meshCompleteTest=resolve;window.meshFailTest=reject;});
+                body={status:state};
+            }
             if (url.endsWith('/devices')) {
                 if (window.meshPortsFail) throw Error('port enumeration unavailable');
                 body={ports:window.meshPorts};
@@ -61,7 +64,22 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 		t.Fatal("external HTML executed")
 	}
 	page.MustElement(`[data-mesh-action="test"]`).MustClick()
+	waitForJSBool(t, page, `() => !!window.meshCompleteTest && !document.querySelector('#meshcore-test-status').hidden && !!document.querySelector('#meshcore-test-status .spinner') && document.querySelector('#meshcore-test-status').getAttribute('aria-busy')==='true' && document.querySelector('[data-mesh-action="test"]').disabled`)
+	page.MustEval(`() => meshCompleteTest()`)
 	waitForJSBool(t, page, `() => meshRequests.some(r=>r.url.endsWith('/test')) && !document.querySelector('[data-mesh-action="confirm"]').disabled`)
+	if !page.MustEval(`() => {const result=document.querySelector('#meshcore-test-status');return result.getAttribute('aria-busy')==='false' && !result.querySelector('.spinner') && result.textContent.includes(t('config.meshcore.success')) && result.textContent.includes(t('config.meshcore.confirm')) && !AuraConfigState.get('meshcore.identity_key');}`).Bool() {
+		t.Fatal("test must report success and required identity confirmation without granting trust")
+	}
+	page.MustElement(`[data-mesh-action="refresh"]`).MustClick()
+	waitForJSBool(t, page, `() => document.querySelector('[data-path="meshcore.port"]').getAttribute('aria-busy')==='false' && !document.querySelector('[data-mesh-action="test"]').disabled`)
+	if !page.MustEval(`() => document.querySelector('#meshcore-test-status').textContent.includes(t('config.meshcore.success'))`).Bool() {
+		t.Fatal("runtime refresh erased the connection test result")
+	}
+	page.MustEval(`() => {window.meshCompleteTest=null;window.meshFailTest=null;}`)
+	page.MustElement(`[data-mesh-action="test"]`).MustClick()
+	waitForJSBool(t, page, `() => !!window.meshFailTest`)
+	page.MustEval(`() => meshFailTest(new DOMException('Timed out','AbortError'))`)
+	waitForJSBool(t, page, `() => {const result=document.querySelector('#meshcore-test-status');return result.textContent===t('config.meshcore.failed') && result.getAttribute('aria-busy')==='false' && !result.querySelector('.spinner') && !document.querySelector('[data-mesh-action="test"]').disabled;}`)
 	if !page.MustEval(`() => {const port=document.querySelector('select[data-path="meshcore.port"]');return port.value==='COM3' && JSON.stringify([...port.options].map(o=>o.value))==='["","COM3","COM4","COM10"]';}`).Bool() {
 		t.Fatal("serial port dropdown did not list detected ports")
 	}

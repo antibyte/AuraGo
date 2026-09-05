@@ -15,6 +15,7 @@ function renderMeshCoreSection(section) {
             { titleKey: 'config.refresh.connection', fields: [toggle('enabled'),
                 form.select({ path: 'meshcore.transport', label: tr('transport'), value: data.transport || 'usb', options: [{ value: 'usb', label: 'USB' }, { value: 'ble', label: 'Bluetooth / Linux' }] }),
                 form.select({ path: 'meshcore.port', label: tr('port'), value: data.port || '', options: [{ value: '', label: t('config.common.loading') }, ...(data.port ? [{ value: data.port, label: data.port }] : [])] }), field('address')], content: '<div id="meshcore-device"></div>' + form.actions([{ html: button('refresh', 'refresh') + button('test', 'test') + button('confirm', 'confirm') }])
+                    + '<div id="meshcore-test-status" class="pw-status" role="status" aria-live="polite" aria-busy="false" hidden></div>'
                     + '<p id="meshcore-saved-reason" class="field-help" hidden></p>'
                     + form.disclosure({ title: tr('pairing'), className: 'meshcore-pairing', content: form.note({ text: tr('ble_help') }) + form.password({ id: 'meshcore-pin', label: tr('pin') }).replace('autocomplete="off"', 'autocomplete="off" maxlength="16"') + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery" role="region" aria-label="' + escapeHtml(tr('scan')) + '" aria-busy="false"></div>' }) },
             { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content: '<div id="meshcore-contacts"></div>' },
@@ -29,6 +30,7 @@ function renderMeshCoreSection(section) {
     let busy = false;
     let lastPageSize = 0;
     const status = root.querySelector('#meshcore-status');
+    const testStatus = root.querySelector('#meshcore-test-status');
     const portSelect = root.querySelector('select[data-path="meshcore.port"]');
     function renderPorts(ports) {
         const selected = draft().port || '';
@@ -195,6 +197,12 @@ function renderMeshCoreSection(section) {
         }
         if (['test', 'pair', 'scan', 'recheck'].includes(action) && window.AuraConfigState.isDirty()) { status.textContent = tr('save_first'); return; }
         busy = true; lockActions();
+        if (action === 'test') {
+            testStatus.hidden = false;
+            testStatus.setAttribute('aria-busy', 'true');
+            target.setAttribute('aria-busy', 'true');
+            testStatus.innerHTML = '<span class="spinner" aria-hidden="true"></span> ' + escapeHtml(t('config.common.loading'));
+        }
         try {
             if (action === 'previous' || action === 'next') { offset = Math.max(0, offset + (action === 'next' ? 25 : -25)); await inbox(); }
             else if (action === 'refresh') await refresh();
@@ -203,9 +211,21 @@ function renderMeshCoreSection(section) {
                 const pin = root.querySelector('#meshcore-pin'); const value = pin.value; pin.value = '';
                 await request('pair', { address: runtime.config.address, pin: value }); status.textContent = tr('success');
             } else if (action === 'recheck') { await request('recheck', { id: target.dataset.id }); await inbox(); }
-            else if (action === 'test') { const result = await request('test', {}); runtime.status = result.status; renderRuntime(); }
-        } catch (_) { status.textContent = tr('failed'); }
-        finally { busy = false; lockActions(); }
+            else if (action === 'test') {
+                const result = await request('test', {});
+                runtime.status = result.status; renderRuntime();
+                const state = result.status.state;
+                testStatus.textContent = ['connected', 'binding_required', 'binding_changed'].includes(state)
+                    ? tr('success') + ' · ' + tr(state) + (state === 'binding_required' ? ' · ' + tr('confirm') : '')
+                    : tr('failed');
+            }
+        } catch (_) {
+            status.textContent = tr('failed');
+            if (action === 'test') testStatus.textContent = tr('failed');
+        } finally {
+            if (action === 'test') { testStatus.setAttribute('aria-busy', 'false'); target.setAttribute('aria-busy', 'false'); }
+            busy = false; lockActions();
+        }
     });
     function saved() { if (root.isConnected) refresh(); else lockActions(); }
     document.addEventListener('cfg:statechange', lockActions);
