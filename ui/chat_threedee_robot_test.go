@@ -113,7 +113,7 @@ func TestThreeDeeRobotsDuelWithEnergyProjectiles(t *testing.T) {
 		"function updateRobotDuel",
 		"function spawnEnergyProjectile",
 		"function updateEnergyProjectiles",
-		"projectileLight",
+		"flashImpactLight",
 		"energyProjectile",
 		"spawnEnergyExplosion(",
 		"cameraShake = Math.max(cameraShake",

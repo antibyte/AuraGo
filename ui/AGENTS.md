@@ -196,6 +196,13 @@ images, and browser-oriented regression tests.
   texture.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
+- ThreeDee combat uses a fixed four-light impact pool, at most 240 sprites
+  (40 slots reserved for smoke/debris), and six unlit, shadow-free blink ghosts.
+  Continuous particle emission follows simulation time; cinematic slow motion
+  expires on wall time, and every blink entry point enforces its cooldown.
+  Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
+  cleanup and respect the existing 18-projectile limit. EMP must not interrupt
+  a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
 
 ## Work Guidance
 
@@ -226,6 +233,8 @@ images, and browser-oriented regression tests.
 - Full UI: `go test -count=1 ./ui/...`.
 - Generated bundles: `npm run build:ui -- --check`.
 - UI delivery regressions: `npm run test:ui-regressions`.
+- ThreeDee real-model WebGL combat, resource budgets and lifecycle:
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run ThreeDeeCombatBrowserSmoke`.
 - Full repository: `go test -count=1 ./...`.
 - Protected surfaces from the rollout base:
   `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
