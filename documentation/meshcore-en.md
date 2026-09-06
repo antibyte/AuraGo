@@ -30,6 +30,10 @@ radio-parameter changes are included.
 6. Enable **Reply to trusted direct messages** if desired. For channels, confirm
    the channel assignment and select receive-only, prefix (`!aura` followed by
    whitespace), or question detection. Save the configuration.
+   Question detection includes open channel questions and radio checks such as
+   "anyone receiving", even without punctuation or directly addressing AuraGo.
+   Replies confirm arrival at this node only, without web search or claims about
+   other receivers or signal quality.
 7. Proactive sending is a separate opt-in. Enable it and allow individual node
    keys or channels. Automatic replies do not require proactive permission;
    their destination is fixed internally to the incoming node or channel.

@@ -33,6 +33,10 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
 6. Antworten auf sichere Direktnachrichten bei Bedarf einschalten. Bei Kanälen
    die Zuordnung bestätigen und Empfang, Präfix (`!aura` mit anschließendem
    Leerzeichen) oder automatische Frageerkennung wählen. Einstellungen speichern.
+   Die Frageerkennung berücksichtigt offene Kanalfragen und Empfangstests wie
+   „hört mich jemand“ auch ohne Fragezeichen oder direkte Ansprache. Die Antwort
+   bestätigt nur den Eingang am eigenen Node, ohne Websuche oder Aussagen über
+   andere Empfänger und Signalqualität.
 7. Proaktives Senden separat einschalten und seine Ziel-Nodes beziehungsweise
    Kanäle freigeben. Antworten benötigen diese Freigabe nicht; das Laufzeitsystem
    bindet ihre Zieladresse unveränderlich an den Eingang.

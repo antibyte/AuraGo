@@ -92,6 +92,29 @@ func TestMeshCoreScanFailsClosedWithoutGuardianFallback(t *testing.T) {
 		t.Fatalf("injection scanner skipped: %+v", got)
 	}
 }
+
+func TestMeshCoreQuestionPromptAcceptsOpenRadioChecks(t *testing.T) {
+	s, client := meshCoreTestServer(t)
+	msg := meshcore.Message{ID: strings.Repeat("22", 32), Kind: "channel", Text: "hört mich jemand"}
+	client.response.Choices[0].Message.Content = "Deine Nachricht ist bei meinem Node angekommen."
+	if _, err := s.runMeshCoreMessage(context.Background(), msg, "questions"); err != nil {
+		t.Fatal(err)
+	}
+	req := client.lastRequest()
+	if len(req.Messages) != 2 || len(req.Tools) != 0 || !strings.Contains(req.Messages[1].Content, msg.Text) {
+		t.Fatal("radio check must reach the isolated reply loop unchanged")
+	}
+	system := req.Messages[0].Content
+	for _, instruction := range []string{"without a question mark or explicit address", "hört mich jemand", "ist jemand da", "Do not use web search for radio checks", "only confirm that this message reached your node", "respond exactly NO_REPLY", "Never respond to another bot's answer", "never perform or claim system actions"} {
+		if !strings.Contains(system, instruction) {
+			t.Fatalf("missing channel question instruction: %s", instruction)
+		}
+	}
+	if strings.Contains(system, "directed at an assistant") || strings.Contains(system, "PRIVATE_OPERATOR_SENTINEL") {
+		t.Fatal("open channel question restricted to assistant addressing or private context leaked")
+	}
+}
+
 func TestMeshCoreAdministrativeAPI(t *testing.T) {
 	s, _ := meshCoreTestServer(t)
 	if err := s.initMeshCore(context.Background()); err != nil {
