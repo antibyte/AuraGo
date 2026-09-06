@@ -529,6 +529,9 @@ registration lives in `internal/desktop/types.go`.
   current-preview errors as untrusted diagnostics in the next change request.
   Readiness requires the injected boot's `boot: true, visible: true` report;
   game-authored ready messages alone never qualify browser validation.
+  Clear the visible diagnostics, error badge, and next-request diagnostics when
+  replacing a preview or opening a project. Late responses from an old preview
+  must not repopulate them; a ready message never clears current-run errors.
 - Because the preview sandbox is opaque, game diagnostics must
   `postMessage(..., "*")` (never `location.origin`, which is the string
   `"null"`). The parent still validates source/channel/`event.source`.

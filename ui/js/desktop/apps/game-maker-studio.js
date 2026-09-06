@@ -360,7 +360,7 @@
             state.project = body.project;
             state.messages = body.messages || [];
             state.job = null;
-            state.diagnostics = [];
+            clearDiagnostics(state);
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, '');
             renderProjects(state);
             if (state.activeJob && state.activeJob.project_id === state.project.id) {
@@ -627,8 +627,7 @@
             if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
             state.previewGrant = grant;
             state.previewProjectID = projectID;
-            state.previewDiagnostics = [];
-            state.previewReported = new Set();
+            clearDiagnostics(state);
             const channelID = crypto.getRandomValues(new Uint32Array(4)).join('-');
             state.channelID = channelID;
             const frame = document.createElement('iframe');
@@ -646,6 +645,7 @@
             if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.showLoading(state, shell, frame);
             frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID);
         } catch (error) {
+            if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
             addDiagnostic(state, { level: 'error', message: error.message || String(error) });
         }
     }
@@ -665,10 +665,13 @@
         if (state.previewReported.has(key) || state.previewReported.size >= 21) return;
         state.previewReported.add(key);
         if (state.previewGrant && state.previewGrant.validation_id) {
+            const frame = state.frame;
             state.api.reportPreview(state.previewProjectID, {
                 token: state.previewGrant.token, type: data.type, message, canvas_visible: data.type === 'ready'
             }).catch(error => {
-                if (!state.disposed) addDiagnostic(state, { level: 'error', message: error.message || String(error) });
+                if (!state.disposed && state.frame === frame && state.previewProjectID === state.project.id) {
+                    addDiagnostic(state, { level: 'error', message: error.message || String(error) });
+                }
             });
         }
         if (data.type === 'ready') {
@@ -703,6 +706,17 @@
         if (diagnostic.level === 'error' || diagnostic.level === 'runtime') {
             panel.open = true;
         }
+    }
+
+    function clearDiagnostics(state) {
+        state.diagnostics = [];
+        state.previewDiagnostics = [];
+        state.previewReported = new Set();
+        state.container.querySelector('[data-gm-diagnostic-list]').innerHTML = '';
+        state.container.querySelector('[data-gm-diagnostic-count]').textContent = '0';
+        const panel = state.container.querySelector('[data-gm-diagnostics]');
+        panel.classList.remove('has-errors');
+        panel.open = false;
     }
 
     function showCreateModal(state) {

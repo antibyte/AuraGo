@@ -176,6 +176,73 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   assert.equal(sent.length, 2, 'a switched project must not receive old preview reports');
 }
 
+async function testGameMakerDiagnosticsFollowPreviewLifetime() {
+  const app = read('ui/js/desktop/apps/game-maker-studio.js');
+  const nodes = new Map();
+  const panel = { open: false, classList: {
+    toggle(_name, value) { panel.hasErrors = value; },
+    remove() { panel.hasErrors = false; }
+  } };
+  nodes.set('[data-gm-diagnostics]', panel);
+  const state = {
+    project: { id: 'snake' }, diagnostics: [],
+    context: { esc: String, t: String },
+    container: { querySelector(selector) {
+      if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {} });
+      return nodes.get(selector);
+    } },
+    api: { async previewGrant() { return { url: '/preview', validation_id: 'build' }; } }
+  };
+  let nextChannel = 0;
+  const context = {
+    window: {}, crypto: { getRandomValues: () => [++nextChannel] },
+    document: { createElement: () => ({ contentWindow: {}, setAttribute() {} }) }
+  };
+  vm.runInNewContext(sourceBetween(app, 'async function refreshPreview(', 'function showCreateModal('), context);
+  await context.refreshPreview(state);
+  let rejectReport;
+  state.api.reportPreview = () => new Promise((_resolve, reject) => { rejectReport = reject; });
+  const oldEvent = { source: state.frame.contentWindow, data: {
+    source: 'aurago-game', channel: state.channelID, type: 'runtime_error', message: 'Old image error'
+  } };
+  context.handlePreviewMessage(state, oldEvent);
+  assert.equal(panel.hasErrors, true);
+  assert.equal(state.previewDiagnostics.length, 1);
+  await context.refreshPreview(state);
+  rejectReport(new Error('Late report failure'));
+  await Promise.resolve();
+  context.handlePreviewMessage(state, oldEvent);
+  assert.equal(state.diagnostics.length, 0);
+  assert.equal(state.previewDiagnostics.length, 0);
+  assert.equal(nodes.get('[data-gm-diagnostic-list]').innerHTML, '');
+  assert.equal(nodes.get('[data-gm-diagnostic-count]').textContent, '0');
+  assert.equal(panel.hasErrors, false);
+  assert.equal(panel.open, false);
+  state.api.reportPreview = async () => {};
+  const currentEvent = { ...oldEvent, source: state.frame.contentWindow,
+    data: { ...oldEvent.data, channel: state.channelID } };
+  context.handlePreviewMessage(state, currentEvent);
+  context.handlePreviewMessage(state, { ...currentEvent,
+    data: { ...currentEvent.data, type: 'ready', boot: true, visible: true } });
+  assert.equal(state.diagnostics.length, 1, 'ready must preserve errors from the current run');
+  assert.equal(panel.open, true);
+  let rejectGrant;
+  state.api.previewGrant = () => new Promise((_resolve, reject) => { rejectGrant = reject; });
+  const staleRefresh = context.refreshPreview(state);
+  state.api.previewGrant = async () => ({ url: '/new-preview' });
+  await context.refreshPreview(state);
+  rejectGrant(new Error('Late grant failure'));
+  await staleRefresh;
+  assert.equal(state.diagnostics.length, 0, 'old grant failures must not contaminate the new preview');
+  context.addDiagnostic(state, { level: 'runtime', message: 'Current error' });
+  state.api.previewGrant = async () => { throw new Error('Current grant failure'); };
+  await context.refreshPreview(state);
+  assert.equal(state.diagnostics.length, 2, 'failed reload keeps existing diagnostics and reports its failure');
+  context.clearDiagnostics(state);
+  assert.equal(nodes.get('[data-gm-diagnostic-count]').textContent, '0');
+  assert.match(sourceBetween(app, 'async function openProject(', 'function renderProject('), /clearDiagnostics\(state\)/);
+}
+
 function testGameMakerBootDetectsInvisibleCanvasAndEngineErrors() {
   const source = sourceBetween(read('internal/gamemaker/preview.go'), '(function () {', '</script>');
   const messages = [], timers = [];
@@ -1730,6 +1797,7 @@ function testLocalLLMFamilySelection() {
 }
 
 const tests = [
+  ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
   ['Game Maker boot rejects invisible canvases and captures engine errors', testGameMakerBootDetectsInvisibleCanvasAndEngineErrors],
   ['Desktop media keys are visible to bootstrap', testDesktopMediaKeysAreInBootstrapScope],
   ['Game Maker forwards runtime diagnostics to validation and the next change', testGameMakerPreviewDiagnosticsReachValidationAndNextRequest],
