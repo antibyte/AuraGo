@@ -172,6 +172,12 @@ common lifecycle resets state, physics and inputs. Keep standard Arrow/Space/R
 controls for minimum checks; ESC ends/forfeits a run. State counters reflect actual
 actions, hits, points, spawns, turns, timer ticks and terminal state. Do not invent
 actions or fabricate test counters for absent behavior.
+`setup()` must assign `this.player` to the controlled object (for Breakout,
+`this.player = this.paddle`) before returning. A missing or foreign player is
+rejected immediately with a concrete binding diagnostic. Asset detail examples
+include complete preload/setup methods: importing `preloadPack` alone does not
+load a texture. Sprite and assembly creation reject unloaded textures or missing
+frames before Phaser can substitute placeholder art.
 
 ## Builds, revisions, and export
 
@@ -200,6 +206,13 @@ All 2D publication uses full validation; 3D publication currently uses startup
 and explicitly reports gameplay unverified. Technical failures share at most
 three repair passes across tool calls and orchestration, with no nested allowance.
 Repairs receive the accepted plan and exact check/expected/observed mismatch.
+Exhausted repair budgets or unavailable browser feedback end the agent round
+immediately; each repair round ends after its first validation. Building may
+continue after core checks while budget remains, to finish the planned features.
+The server then continues the bounded workflow,
+without another model request in the completed round. On budget exhaustion the
+last concrete validation failure remains the job error, including its checks;
+it is not replaced by the generic repair-limit message.
 At most two optional screenshots go to the same selected model only when its
 catalog metadata confirms image input. A tool-free, budgeted request supplies
 advisory observations; no provider switch occurs. Missing capture/capability or

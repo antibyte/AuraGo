@@ -4,6 +4,11 @@ const keyFor = meta => `${meta.id}@${meta.version}`;
 const animKey = (meta, id) => `${keyFor(meta)}:${id}`;
 function need(value, message) { if (!value) throw new Error(`Game assets: ${message}`); return value; }
 function asset(meta, id) { return need(meta.assets.find(a => a.id === id), `${meta.id}: unknown asset ${id}`); }
+function requireFrame(scene, meta, id, frame) {
+  need(scene.textures.exists(keyFor(meta)), `${meta.id}/${id}: texture ${keyFor(meta)} is not loaded. Call preloadPack(this, meta, 'assets/builtin/${meta.id}/${meta.version}/sheet.png') inside preload(); create assets in setup()/create() after loading.`);
+  const texture = scene.textures.get(keyFor(meta));
+  need(Number.isInteger(frame) && texture.has(frame), `${meta.id}/${id}: missing numeric frame ${frame}; use preloadPack and the exact metadata frame.`);
+}
 
 export function preloadPack(scene, meta, imagePath) {
   need(meta.frame_width === 64 && meta.frame_height === 64 && meta.frames.length === 100, `${meta.id}: expected 100 frames of 64x64`);
@@ -20,12 +25,14 @@ export function registerAnimations(scene, meta) {
 export function createAsset(scene, meta, id, x, y) {
   const a = asset(meta, id);
   need(!a.assembly_part, `${id} is a fragment; use createAssembly`);
+  requireFrame(scene, meta, id, a.frames[0]);
   const sprite = scene.add.sprite(x, y, keyFor(meta), a.frames[0]).setOrigin(a.origin.x, a.origin.y);
   usage.set(sprite, { meta, a, direction: a.direction, action: a.action || '', assembly: false });
   return sprite;
 }
 export function createAssembly(scene, meta, id, x, y) {
   const a = need((meta.assemblies || []).find(a => a.id === id), `${meta.id}: unknown assembly ${id}`);
+  for (const p of a.parts) requireFrame(scene, meta, `${id}/${p.asset_id}`, p.frame);
   const container = scene.add.container(x, y).setSize(a.width, a.height);
   const parts = a.parts.map(p => {
     const sprite = scene.add.sprite(p.x - a.width * a.origin.x, p.y - a.height * a.origin.y, keyFor(meta), p.frame).setOrigin(0, 0);
@@ -98,6 +105,9 @@ export function createInputs(scene) {
 // Bind observable state, not a success verdict. The server compares snapshots.
 // state: { score, actions, hits, spawns, turns, ticks, ended }; player is the live object.
 export function bindGameTest(scene, state, player) {
+  if (!scene?.sys || !state || !player?.active || player.scene !== scene) {
+    throw new Error('bindGameTest(scene,state,player): player must be a live object in this scene. In GameScene.setup() assign this.player = this.paddle (or the controlled object) before returning. Preserve common.ts create/update and rebind after every scene restart.');
+  }
   const binding = { scene, state, player };
   globalThis.__AURAGO_GAME_TEST__ = binding;
   scene.events.once('shutdown', () => { if (globalThis.__AURAGO_GAME_TEST__ === binding) delete globalThis.__AURAGO_GAME_TEST__; });
@@ -118,6 +128,7 @@ export function inspectAssets(scene) {
       if (!u.a.transform?.flip_x && object.flipX || !u.a.transform?.flip_y && object.flipY) invalid++;
     }
     if (object.texture?.key?.includes('@') && object.frame?.name === '__BASE') invalid++;
+    if (object.texture?.key === '__MISSING') invalid++;
     if (object.list) object.list.forEach(inspect);
   };
   scene.children.list.forEach(inspect);

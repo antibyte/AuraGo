@@ -63,7 +63,7 @@ func TestPreviewPhysicsErrorsIncludeBoundedRepairGuidance(t *testing.T) {
 	s.previewCheck = &previewCheck{ID: "build", JobID: "job"}
 	s.activeJobID = "job"
 	s.tokens["token"] = previewToken{ProjectID: "project", JobID: "job", ValidationID: "build", ExpiresAt: time.Now().Add(time.Minute)}
-	for _, method := range []string{"setVelocity", "setPosition"} {
+	for _, method := range []string{"setVelocity", "setPosition", "setImmovable"} {
 		message := "Uncaught TypeError: this.paddle.body." + method + " is not a function"
 		for range 2 {
 			if err := s.ReportPreview("project", PreviewReport{Token: "token", Type: "runtime_error", Message: message}); err != nil {
@@ -72,7 +72,7 @@ func TestPreviewPhysicsErrorsIncludeBoundedRepairGuidance(t *testing.T) {
 		}
 	}
 	result := s.waitForPreview(context.Background(), s.previewCheck, time.Millisecond)
-	if result.OK || len(result.Diagnostics) != 2 {
+	if result.OK || len(result.Diagnostics) != 3 {
 		t.Fatalf("physics errors were lost or duplicated: %+v", result)
 	}
 	for _, d := range result.Diagnostics {
@@ -84,6 +84,15 @@ func TestPreviewPhysicsErrorsIncludeBoundedRepairGuidance(t *testing.T) {
 		if guide := PhaseGuidance(phase, "2d"); !strings.Contains(guide, "Neither Arcade body type") || !strings.Contains(guide, "fixed=false") {
 			t.Fatalf("%s lacks the reviewed physics API contract", phase)
 		}
+	}
+}
+
+func TestPreviewGroupErrorGuidance(t *testing.T) {
+	input := []Diagnostic{{Message: "Uncaught TypeError: this.blocks.removeAll is not a function"}}
+	first := boundedPreviewDiagnostics(input)
+	second := boundedPreviewDiagnostics(first)
+	if len(second) != 1 || second[0] != first[0] || !strings.Contains(second[0].Message, "group.clear(true,true)") {
+		t.Fatalf("missing or repeated group repair hint: %+v", second)
 	}
 }
 

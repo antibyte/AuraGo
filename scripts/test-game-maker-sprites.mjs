@@ -76,13 +76,34 @@ helpers.setFacing(tank,1,0);assert.equal(tank.rotation,Math.PI/2);assert.deepEqu
 assert.equal(helpers.inspectAssets(scene).invalid_assets,0);
 tank.list[0].x+=10;assert.ok(helpers.inspectAssets(scene).invalid_assets>0);
 assert.throws(()=>helpers.createAsset(scene,recipes,recipes.assemblies[0].parts[0].asset_id,0,0),/fragment/);
+const beforeMissing=objects.length;
+scene.textures.exists=()=>false;
+assert.throws(()=>helpers.createAsset(scene,meta,'ranger_idle',0,0),/ranger_idle.*not loaded.*inside preload/);
+assert.throws(()=>helpers.createAssembly(scene,recipes,'tank',0,0),/tank.*not loaded/);
+scene.textures.exists=()=>true;
+scene.textures.get=()=>({has:()=>false});
+assert.throws(()=>helpers.createAsset(scene,meta,'ranger_idle',0,0),/missing numeric frame/);
+assert.throws(()=>helpers.createAssembly(scene,recipes,'tank',0,0),/missing numeric frame/);
+assert.equal(objects.length,beforeMissing,'missing textures/frames must not create placeholders or partial assemblies');
+objects.length=0;objects.push(new Sprite(0,0,'__MISSING',0));
+assert.equal(helpers.inspectAssets(scene).invalid_assets,1,'Phaser placeholders must fail even without helper tracking');
+const shutdown=[];
+const testScene={sys:{},events:{once:(event,callback)=>{assert.equal(event,'shutdown');shutdown.push(callback);}}};
+const player={active:true,scene:testScene},state={score:0};
+assert.throws(()=>helpers.bindGameTest(testScene,state,undefined),/assign this.player/);
+assert.throws(()=>helpers.bindGameTest(testScene,state,{active:true,scene:{}}),/live object in this scene/);
+helpers.bindGameTest(testScene,state,player);
+assert.equal(globalThis.__AURAGO_GAME_TEST__.player,player);
+helpers.bindGameTest(testScene,state,player);shutdown[0]();
+assert.equal(globalThis.__AURAGO_GAME_TEST__.state,state,'old shutdown cannot erase new binding');
+shutdown[1]();assert.equal(globalThis.__AURAGO_GAME_TEST__,undefined);
 console.log('PASS: helper animation order/holds, idempotence, facing, missing actions and assembly geometry');
 
 const previewWindow = {};
 vm.runInNewContext(fs.readFileSync(new URL('../ui/js/desktop/apps/game-maker-studio-preview.js', import.meta.url),'utf8'), {window:previewWindow,clearTimeout});
 const reports=[],sent=[],diagnostics=[];
 const previewState={frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
-  previewGrant:{token:'token',validation_id:'build',scenarios:[{id:'required_input'}]},api:{reportPreview:(id,payload)=>{reports.push({id,payload});return Promise.resolve();}},addDiagnostic:message=>diagnostics.push(message)};
+  previewGrant:{token:'token',validation_id:'build',expires_at:new Date(Date.now()+60000).toISOString(),scenarios:[{id:'required_input'}]},api:{reportPreview:(id,payload)=>{reports.push({id,payload});return Promise.resolve();}},addDiagnostic:message=>diagnostics.push(message)};
 const receive=(data,source=previewState.frame.contentWindow)=>previewWindow.GameMakerStudioPreview.handleMessage(previewState,{source,data:{source:'aurago-game',channel:'channel',...data}});
 receive({type:'ready',boot:true,visible:true},{});receive({type:'ready',boot:false,visible:true});receive({type:'ready',boot:true,visible:true,channel:'stale'});
 assert.equal(reports.length,0,'only the current iframe and server boot may establish readiness');

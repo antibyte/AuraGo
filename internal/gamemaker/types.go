@@ -20,6 +20,7 @@ var (
 	ErrInvalidPath    = errors.New("invalid game maker path")
 	ErrInvalidToken   = errors.New("invalid or expired preview token")
 	ErrSkillsUnusable = errors.New("curated game maker skills are not verified")
+	ErrRepairLimit    = errors.New("repair_limit_reached: three repair passes have been exhausted; end this turn")
 )
 
 // Options contains the resolved service configuration. Paths are runtime-only

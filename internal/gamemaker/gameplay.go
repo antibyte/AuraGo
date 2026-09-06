@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image/png"
 	"io/fs"
@@ -195,6 +196,22 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 	return out
 }
 
+// StopAfterValidation ends a repair round after its first check. Building may
+// continue after core checks until repairs are exhausted or feedback is absent.
+// Results from preceding rounds cannot end a new round.
+func (s *Service) StopAfterValidation(jobID string, repairRound bool) func() bool {
+	s.mu.RLock()
+	previous := s.lastValidation[jobID]
+	s.mu.RUnlock()
+	return func() bool {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		current := s.lastValidation[jobID]
+		return s.activeJobID == jobID && current != nil && current != previous &&
+			(repairRound || s.validationFailures[jobID] >= 4 || current.RuntimeStatus == "unavailable" || current.GameplayStatus == "unavailable")
+	}
+}
+
 // Omitted scope remains startup-compatible. Publication calls full for 2D.
 func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (result BuildResult) {
 	if scope == "" {
@@ -204,11 +221,25 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (re
 		return previewUnavailable("scope must be startup, gameplay or full")
 	}
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
+		if errors.Is(err, ErrRepairLimit) {
+			s.mu.RLock()
+			last := s.lastValidation[jobID]
+			s.mu.RUnlock()
+			if last != nil && !last.OK {
+				return *last
+			}
+		}
 		return previewUnavailable(err.Error())
 	}
 	defer func(requestCtx context.Context) {
 		if !result.OK && result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable" && requestCtx.Err() == nil {
 			s.recordValidationFailure(jobID, result)
+		}
+		if requestCtx.Err() == nil {
+			completed := result
+			s.mu.Lock()
+			s.lastValidation[jobID] = &completed
+			s.mu.Unlock()
 		}
 	}(ctx)
 	project, _, err := s.ProjectForJob(ctx, jobID)

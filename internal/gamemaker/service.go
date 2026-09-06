@@ -55,6 +55,7 @@ type Service struct {
 	jobSummaries       map[string]string
 	validationFailures map[string]int
 	lastFailedBuild    map[string]string
+	lastValidation     map[string]*BuildResult
 }
 
 var (
@@ -120,6 +121,7 @@ func NewService(opts Options) (*Service, error) {
 		jobSummaries:       map[string]string{},
 		validationFailures: map[string]int{},
 		lastFailedBuild:    map[string]string{},
+		lastValidation:     map[string]*BuildResult{},
 	}
 	return service, nil
 }
@@ -480,6 +482,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		delete(s.jobSummaries, job.ID)
 		delete(s.validationFailures, job.ID)
 		delete(s.lastFailedBuild, job.ID)
+		delete(s.lastValidation, job.ID)
 	}()
 	defer s.releaseJob(job.ID)
 	stage := filepath.Join(s.stagingDir, job.ID)

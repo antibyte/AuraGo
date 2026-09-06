@@ -164,16 +164,26 @@ func TestRepairLimitIsSharedWithAgentValidation(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
 	runs := 0
+	var lastFailure string
 	s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
 		runs++
 		for attempt := 0; attempt < 4; attempt++ {
+			stop := s.StopAfterValidation(run.Job.ID, false)
+			if stop() {
+				t.Error("previous validation ended a new round")
+			}
 			if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", fmt.Sprintf("invalid TypeScript <<< %d", attempt)); err != nil {
 				return err
 			}
 			for repeat := 0; repeat < 2; repeat++ {
-				if result := s.ValidateJob(ctx, run.Job.ID); result.OK {
+				result := s.ValidateJob(ctx, run.Job.ID)
+				if result.OK {
 					t.Error("invalid source passed")
 				}
+				lastFailure = diagnosticsText(result.Diagnostics)
+			}
+			if stop() != (attempt == 3) {
+				t.Error("building must end when the shared repair budget is exhausted")
 			}
 			s.mu.RLock()
 			failures := s.validationFailures[run.Job.ID]
@@ -194,6 +204,35 @@ func TestRepairLimitIsSharedWithAgentValidation(t *testing.T) {
 	finished := waitJob(t, s, job.ID)
 	if finished.Status != "failed" || finished.ResultRevision != 0 || runs != 1 {
 		t.Fatalf("nested repair or false publication: %+v, runs=%d", finished, runs)
+	}
+	if lastFailure == "" || strings.Contains(lastFailure, "repair_limit_reached") || !strings.Contains(finished.Error, lastFailure) {
+		t.Fatalf("last concrete failure was lost: %q, job: %q", lastFailure, finished.Error)
+	}
+}
+
+func TestValidationCompletionDistinguishesBuildingAndRepair(t *testing.T) {
+	s := newTestService(t)
+	s.activeJobID = "job"
+	building := s.StopAfterValidation("job", false)
+	repair := s.StopAfterValidation("job", true)
+	if building() || repair() {
+		t.Fatal("round ended without validation")
+	}
+	s.lastValidation["job"] = &BuildResult{OK: true}
+	if building() || !repair() {
+		t.Fatal("successful core check must continue building but end a repair round")
+	}
+	fresh := s.StopAfterValidation("job", true)
+	if fresh() {
+		t.Fatal("old success ended a new round")
+	}
+	s.lastValidation["job"] = &BuildResult{RuntimeStatus: "unavailable"}
+	if !building() || !fresh() {
+		t.Fatal("missing browser feedback must return control to the orchestrator")
+	}
+	s.activeJobID = "other"
+	if building() || fresh() {
+		t.Fatal("stale job ended another job")
 	}
 }
 

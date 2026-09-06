@@ -13,7 +13,7 @@
   async function press(name, ms) {keyEvent(name,true);try{await wait(ms);}finally{keyEvent(name,false);}}
   function binding() {
     const b = window.__AURAGO_GAME_TEST__;
-    if (!b?.scene?.sys?.isActive() || !b.player?.active) throw Error('Missing live bindGameTest scene/player');
+    if (!b?.scene?.sys?.isActive() || !b.player?.active) throw Error('Missing live bindGameTest scene/player: assign this.player to the controlled object in GameScene.setup(). Preserve common.ts create/update; custom scenes must call bindGameTest(this,state,player) in create() on every restart.');
     return b;
   }
   async function reset() {await press('R',80);await wait(420);}

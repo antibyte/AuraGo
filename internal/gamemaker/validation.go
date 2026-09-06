@@ -38,9 +38,12 @@ func boundedPreviewDiagnostics(input []Diagnostic) []Diagnostic {
 			continue
 		}
 		if strings.Contains(message, "is not a function") &&
-			(strings.Contains(message, ".body.setVelocity") || strings.Contains(message, ".body.setPosition")) &&
+			(strings.Contains(message, ".body.setVelocity") || strings.Contains(message, ".body.setPosition") || strings.Contains(message, ".body.setImmovable")) &&
 			!strings.Contains(message, "\nArcade Physics:") {
 			message += "\nArcade Physics: inspect body creation. Moving paddles/players need dynamic bodies (template fixed=false); use setImmovable(true) instead of a StaticBody. Only dynamic bodies have setVelocity. Bodies have no setPosition: use body.reset(x,y), or gameObject.setPosition(x,y) and updateFromGameObject() for a static body. Preserve movement and collisions; do not silence the error."
+		}
+		if strings.Contains(message, ".removeAll is not a function") && !strings.Contains(message, "\nPhaser Group:") {
+			message += "\nPhaser Group: inspect the object's creation. For physics.add.group/staticGroup use group.clear(true,true) to remove and destroy children. removeAll belongs to Containers. Preserve collider registrations when rebuilding a level."
 		}
 		runes := []rune(message)
 		if len(runes) > 1000 {

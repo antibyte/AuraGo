@@ -26,9 +26,10 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 		t.Skip("requires a real browser")
 	}
 	root := t.TempDir()
-	names := append(templateNames()[:6], "sprite_example", "all_packs", "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly")
+	positive := append(templateNames()[:6], "sprite_example", "all_packs", "asset_detail", "assembly_detail")
+	names := append(append([]string{}, positive...), "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
 	if os.Getenv("GAMEMAKER_BROWSER_EXPORTS_ONLY") == "1" {
-		names = names[:8]
+		names = positive
 	}
 	service := newTestService(t)
 	service.opts.MaxProjects = len(names)
@@ -65,7 +66,7 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if slices.Contains([]string{"sprite_example", "all_packs", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly"}, name) {
+		if slices.Contains([]string{"sprite_example", "all_packs", "asset_detail", "assembly_detail", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture"}, name) {
 			prepareAssetBrowserFixture(t, dir, name)
 		}
 		if result := buildDirectory(context.Background(), dir, 100, 30<<20); !result.OK {
@@ -201,7 +202,7 @@ addEventListener('message',async e=>{const d=e.data;if(e.source!==frame?.content
 	for range names {
 		select {
 		case report := <-done:
-			negative := slices.Contains(names[8:], report.Name)
+			negative := !slices.Contains(positive, report.Name)
 			failed := len(report.Errors) > 0
 			for _, check := range compareGameObservations(gameScenarios(&GamePlan{Template: templateFor(report.Name)}), report.Observations) {
 				if check.Status != "passed" {
@@ -273,6 +274,24 @@ class Assets extends GameScene {
 start(Assets);`
 	seed := ""
 	switch name {
+	case "asset_detail", "assembly_detail":
+		s := &Service{}
+		packID, assetID, assemblyID := "blocks-and-balls", "paddle_01", ""
+		if name == "assembly_detail" {
+			packID, assetID, assemblyID = "vehicles-planes", "", "tank"
+		}
+		detail, err := s.describeAsset(packID, assetID, assemblyID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source = detail.Example
+	case "missing_preload":
+		source = strings.Replace(source, "preload(){for(const m of packs)preloadPack(this,m,'assets/builtin/'+m.id+'/'+m.version+'/sheet.png');}", "preload(){}", 1)
+		source = strings.ReplaceAll(source, "registerAnimations(this,m);", "")
+	case "missing_player":
+		seed = "this.player=undefined;"
+	case "missing_texture":
+		seed = "this.add.sprite(480,270,'nonexistent-texture');"
 	case "sprite_example":
 		body, err := bundledSkills.ReadFile("skills/aurago-phaser4-gameplay/SKILL.md")
 		if err != nil {

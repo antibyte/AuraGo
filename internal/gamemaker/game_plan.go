@@ -350,7 +350,7 @@ func (s *Service) CheckJobMutation(ctx context.Context, jobID string) error {
 	exhausted := s.validationFailures[jobID] >= 4
 	s.mu.RUnlock()
 	if exhausted {
-		return fmt.Errorf("repair_limit_reached: three repair passes have been exhausted; end this turn")
+		return ErrRepairLimit
 	}
 	if job.Phase == "planning" || !accepted {
 		return fmt.Errorf("planning_required: submit a valid plan with game_maker_project set_plan before writing code or generating/importing assets")

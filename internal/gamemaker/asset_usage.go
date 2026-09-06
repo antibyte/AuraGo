@@ -268,15 +268,30 @@ func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail
 		factory = "createAssembly"
 		id = assemblyID
 	}
-	d.Example = fmt.Sprintf(`import { preloadPack, registerAnimations, %s, setFacing, playAction } from '../vendor/aurago-game-1.js';
+	d.Example = fmt.Sprintf(`// Complete src/main.ts example. Merge these lifecycle methods into your game;
+// retain the accepted rules and the installed common.ts lifecycle.
+import { GameScene, start } from './common';
+import { preloadPack, registerAnimations, %s, setFacing, playAction } from '../vendor/aurago-game-1.js';
 import meta from '../assets/builtin/%s/%s/sheet.json';
-// preload():
-preloadPack(this, meta, 'assets/builtin/%s/%s/sheet.png');
-// create():
-registerAnimations(this, meta);
-const object = %s(this, meta, %q, 160, 160);
-// setFacing(object, dx, dy) respects transform rules. playAction(object, action)
-// accepts only the available actions above. Keep movement/physics separate.
+class AssetGame extends GameScene {
+  art: any;
+  preload() { preloadPack(this, meta, 'assets/builtin/%s/%s/sheet.png'); }
+  setup() {
+    super.setup(); // Creates this.player, the dynamic collision/test object.
+    this.player.setVisible(false);
+    registerAnimations(this, meta);
+    this.art = %s(this, meta, %q, this.player.x, this.player.y);
+    const target = this.body(360,270,20,20,0xfacc15,true);
+    this.physics.add.overlap(this.player,target,()=>{target.destroy();this.state.score++;this.state.hits++;});
+  }
+  step(delta: number) {
+    super.step(delta);
+    this.art.setPosition(this.player.x,this.player.y);
+    // setFacing(this.art, dx, dy) respects the listed transform rules.
+    // playAction(this.art, action) accepts only the listed actions.
+  }
+}
+start(AssetGame);
 `, factory, p.ID, p.Version, p.ID, p.Version, factory, id)
 	return d, nil
 }

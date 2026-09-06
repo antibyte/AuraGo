@@ -52,6 +52,15 @@ with `load.atlas`.
 Complete `src/main.ts` example after importing human-characters-animated version 2.
 Keep the installed `src/common.ts` template lifecycle:
 
+- An import of `preloadPack` does not load anything. Call it inside the scene's
+  `preload()` for every used pack; create sprites only in `setup()`/`create()`.
+- `setup()` must assign `this.player` to the controlled physics object before
+  returning. For Breakout use `this.player = this.paddle`. This is the object
+  observed by the movement tests, not the ball or a decorative sprite.
+- Keep `common.ts` `create()`/`update()` and their state/input/restart wiring.
+  Override `setup`, `step`, `action`, `tick`, and `paintHUD` as needed. Gameplay
+  changes must update `this.state`, which is also read by the HUD and tests.
+
 ```typescript
 import { GameScene, start } from './common';
 import { preloadPack, registerAnimations, createAsset, setFacing, playAction } from '../vendor/aurago-game-1.js';
@@ -97,6 +106,11 @@ no physics Sprite mixins such as `refreshBody()` or `setVelocity()`.
 For "body.setVelocity/setPosition is not a function", inspect body creation and
 every affected movement/reset call before validating. Do not suppress the error
 with optional chaining or disable movement/collision to make startup pass.
+`physics.add.existing(object, true)` creates a static body; omit `true` for a
+moving paddle. Static bodies also have no `setImmovable()` method.
+Phaser Groups use `group.clear(true, true)` to remove and destroy their children;
+`removeAll()` belongs to Containers, not Groups. Clear groups before rebuilding
+a level and preserve their existing collider registrations.
 
 Use setFacing(object,dx,dy): zero vector retains the last facing; four-view art
 selects the dominant axis (ties horizontal). Side-view art uses only horizontal
