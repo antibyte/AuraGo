@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "ebab33a54",
+  "policy": "Use the same explicitly configured weak model/provider, temperature and job limits before and after. Start each case from a fresh project; case 8 edits the successful shooter. Keep the Studio preview open. Judge actual playability independently of model prose. Do not use a stronger fallback.",
+  "record_fields": ["case_id", "commit", "provider", "model", "playable", "repairs", "duration_seconds", "false_success", "startup_status", "gameplay_status", "notes"],
+  "cases": [
+    {"id":"shooter","prompt":"Create a space shooter: arrow keys move, Space fires, enemies descend, hits score points, contact ends the game, R restarts. Use the built-in ships with correct facing and individual frames.","observe":["Ship moves","Projectile hits enemy","Score increases","Game over and two restarts"]},
+    {"id":"platformer","prompt":"Create a side-view platformer with running and jumping ranger, solid ground and platforms, a collectible, a lethal hazard, a reachable goal, and R restart. Use actual directional animations and mirror only when permitted.","observe":["Grounded jump","Solid platforms","Pickup and goal/hazard consequences","Two restarts"]},
+    {"id":"adventure","prompt":"Create a top-down adventure with four-direction ranger movement, blocking trees, a collectible key, an interactable chest and depth sorting. Keep the last facing direction while idle. R restarts.","observe":["Four correct views","Obstacle blocks","Key/chest state changes","Two restarts"]},
+    {"id":"breakout","prompt":"Create Breakout with arrow-controlled paddle, Space launch, bouncing ball, destructible blocks, three lives, score, game over and R restart. Use built-in blocks and balls.","observe":["Paddle moves","Ball bounces","Block hit changes score","Lives and two restarts"]},
+    {"id":"cards","prompt":"Create an offline two-player alternating-turn card matching game using built-in cards. Pointer or arrows select, Space reveals, invalid moves do nothing, matches score, completion shows a result, R restarts.","observe":["Correct individual cards","Selection and valid turns","Match rule and result","Two restarts"]},
+    {"id":"snake","prompt":"Create Snake with grid movement, arrow keys, food, score, controlled speed increase, wall/self collision, game over and R restart. Use the neutral template and preserve observable gameplay state.","observe":["Direction and timing","Food grows snake","Bounded speed increase","Collision and two restarts"]},
+    {"id":"vehicles","prompt":"Create a top-down tank game using the complete built-in tank assembly. Arrow keys move, the tank faces movement, Space fires in that direction, targets take hits and score points, R restarts. Keep one collision proxy and all body parts aligned.","observe":["Assembly stays aligned","Correct whole-object rotation","Shot direction and target hit","Two restarts"]},
+    {"id":"edit","base_case":"shooter","prompt":"Keep the existing shooter, controls and scoring. Add a slower second enemy wave and a shield power-up without replacing the game from a template. Preserve working sprite selection and restart.","observe":["Existing controls and score preserved","Delayed wave works","Shield has a real effect","Two restarts"]}
+  ]
+}

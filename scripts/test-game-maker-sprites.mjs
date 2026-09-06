@@ -38,3 +38,63 @@ for (const file of [
 }
 vm.runInNewContext(guard, {}); // A Three.js game has no Phaser global.
 console.log('PASS: built-in sprite loader contract, arrays, URLs and idempotence');
+
+const helpers = await import('../internal/gamemaker/runtime/aurago-game-1.js');
+const meta = JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_packs/human-characters-animated/sheet.json', import.meta.url)));
+const recipes = JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_packs/vehicles-planes-top-down/sheet.json', import.meta.url)));
+const definitions = new Map(); let animationStarts = 0;
+class Sprite {
+  constructor(x,y,key,frame){Object.assign(this,{x,y,texture:{key},frame:{name:frame,width:64,height:64},rotation:0,scaleX:1,scaleY:1});this.anims={stop(){}};}
+  setOrigin(x,y){this.originX=x;this.originY=y;return this;}
+  setRotation(value){this.rotation=value;return this;}
+  setFlipX(value){this.flipX=value;return this;}
+  setFrame(value){this.frame.name=value;return this;}
+  setScale(x,y=x){this.scaleX=x;this.scaleY=y;return this;}
+  setSize(w,h){this.width=w;this.height=h;return this;}
+  play(key,ignore){assert.ok(definitions.has(key));if(!(ignore&&this.current===key))animationStarts++;this.current=key;return this;}
+  add(child){(this.list ||= []).push(child);return this;}
+}
+const objects=[];
+const scene={
+  textures:{exists:()=>true,get:()=>({has:frame=>Number.isInteger(frame)&&frame>=0&&frame<100})},
+  anims:{exists:key=>definitions.has(key),create:definition=>definitions.set(definition.key,definition)},
+  add:{sprite:(...args)=>{const o=new Sprite(...args);objects.push(o);return o;},container:(x,y)=>{const o=new Sprite(x,y,'container',0);objects.push(o);return o;}},
+  children:{list:objects}
+};
+helpers.registerAnimations(scene,meta);const count=definitions.size;helpers.registerAnimations(scene,meta);assert.equal(definitions.size,count);
+const anim=meta.animations.find(a=>a.id==='ranger_walk');
+assert.deepEqual(definitions.get(meta.id+'@'+meta.version+':ranger_walk').frames.map(f=>f.frame),anim.frames);
+assert.equal(definitions.get(meta.id+'@'+meta.version+':ranger_walk').sortFrames,false);
+const ranger=helpers.createAsset(scene,meta,'ranger_idle',100,120);
+helpers.playAction(ranger,'walk');const starts=animationStarts;helpers.playAction(ranger,'walk');assert.equal(animationStarts,starts);
+helpers.setFacing(ranger,-1,0);assert.equal(ranger.flipX,true);helpers.setFacing(ranger,0,0);assert.equal(ranger.flipX,true);
+assert.throws(()=>helpers.playAction(ranger,'invented'),/unavailable/);
+assert.throws(()=>helpers.setFacing(ranger,0,-1),/forbidden/);
+helpers.registerAnimations(scene,recipes);
+const tank=helpers.createAssembly(scene,recipes,'tank',240,150),offsets=tank.list.map(p=>[p.x,p.y]);
+helpers.setFacing(tank,1,0);assert.equal(tank.rotation,Math.PI/2);assert.deepEqual(tank.list.map(p=>[p.x,p.y]),offsets);
+assert.equal(helpers.inspectAssets(scene).invalid_assets,0);
+tank.list[0].x+=10;assert.ok(helpers.inspectAssets(scene).invalid_assets>0);
+assert.throws(()=>helpers.createAsset(scene,recipes,recipes.assemblies[0].parts[0].asset_id,0,0),/fragment/);
+console.log('PASS: helper animation order/holds, idempotence, facing, missing actions and assembly geometry');
+
+const previewWindow = {};
+vm.runInNewContext(fs.readFileSync(new URL('../ui/js/desktop/apps/game-maker-studio-preview.js', import.meta.url),'utf8'), {window:previewWindow,clearTimeout});
+const reports=[],sent=[],diagnostics=[];
+const previewState={frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
+  previewGrant:{token:'token',validation_id:'build',scenarios:[{id:'required_input'}]},api:{reportPreview:(id,payload)=>{reports.push({id,payload});return Promise.resolve();}},addDiagnostic:message=>diagnostics.push(message)};
+const receive=(data,source=previewState.frame.contentWindow)=>previewWindow.GameMakerStudioPreview.handleMessage(previewState,{source,data:{source:'aurago-game',channel:'channel',...data}});
+receive({type:'ready',boot:true,visible:true},{});receive({type:'ready',boot:false,visible:true});receive({type:'ready',boot:true,visible:true,channel:'stale'});
+assert.equal(reports.length,0,'only the current iframe and server boot may establish readiness');
+receive({type:'ready',boot:true,visible:true});assert.equal(reports[0].payload.canvas_visible,true);assert.equal(sent[0].type,'run-tests');
+receive({type:'gameplay',observations:Array(17).fill({})});assert.equal(reports.length,1);
+receive({type:'gameplay',observations:[{id:'required_input',before:{player_x:1},after:{player_x:2}}],images:['data:image/png;base64,a','b','c']});
+assert.equal(reports.length,2);assert.equal(reports[1].payload.images.length,2);assert.equal(reports[1].payload.token,'token');
+receive({type:'gameplay',observations:[]});assert.equal(reports.length,2,'one report per current window');
+receive({type:'runtime_error',message:'new error'});receive({type:'ready',boot:true,visible:true});assert.equal(diagnostics.length,1,'ready cannot clear a current error');
+let rejectOld;
+previewState.api.reportPreview=()=>new Promise((_,reject)=>{rejectOld=reject;});
+receive({type:'runtime_error',message:'pending report'});
+previewState.previewGrant=null;const diagnosticCount=diagnostics.length;rejectOld(Error('old window failure'));await Promise.resolve();
+assert.equal(diagnostics.length,diagnosticCount,'late report failures must not repopulate diagnostics after reset');
+console.log('PASS: Studio bridge window/channel binding, evidence limits, replay and stale-response isolation');

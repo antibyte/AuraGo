@@ -8,7 +8,7 @@
     "side"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -826,6 +826,14 @@
         "block"
       ],
       "view": "side",
+      "entity": "grass_block",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -834,7 +842,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -847,6 +855,14 @@
         "left"
       ],
       "view": "side",
+      "entity": "grass_ledge_left",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -855,7 +871,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -868,6 +884,14 @@
         "bottom"
       ],
       "view": "side",
+      "entity": "grass_ledge_bottom",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -876,7 +900,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -889,6 +913,14 @@
         "right"
       ],
       "view": "side",
+      "entity": "grass_ledge_right",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -897,7 +929,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -910,6 +942,14 @@
         "up"
       ],
       "view": "side",
+      "entity": "grass_slope_up",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -918,7 +958,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -931,6 +971,14 @@
         "down"
       ],
       "view": "side",
+      "entity": "grass_slope_down",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -939,7 +987,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -952,6 +1000,14 @@
         "steep"
       ],
       "view": "side",
+      "entity": "grass_slope_steep",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -960,7 +1016,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -972,6 +1028,14 @@
         "island"
       ],
       "view": "side",
+      "entity": "grass_island",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -980,7 +1044,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -993,6 +1057,14 @@
         "left"
       ],
       "view": "side",
+      "entity": "grass_overhang_left",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -1001,7 +1073,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1014,6 +1086,14 @@
         "right"
       ],
       "view": "side",
+      "entity": "grass_overhang_right",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1022,7 +1102,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1034,6 +1114,14 @@
         "block"
       ],
       "view": "side",
+      "entity": "earth_block",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1042,7 +1130,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1054,6 +1142,14 @@
         "stones"
       ],
       "view": "side",
+      "entity": "earth_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1062,7 +1158,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1074,6 +1170,14 @@
         "dark"
       ],
       "view": "side",
+      "entity": "earth_dark",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1082,7 +1186,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1094,6 +1198,14 @@
         "roots"
       ],
       "view": "side",
+      "entity": "earth_roots",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1102,7 +1214,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1114,6 +1226,14 @@
         "light"
       ],
       "view": "side",
+      "entity": "earth_light",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1122,7 +1242,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1134,6 +1254,14 @@
         "round"
       ],
       "view": "side",
+      "entity": "stone_round",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1142,7 +1270,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1154,6 +1282,14 @@
         "cracked"
       ],
       "view": "side",
+      "entity": "stone_cracked",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1162,7 +1298,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1174,6 +1310,14 @@
         "dark"
       ],
       "view": "side",
+      "entity": "stone_dark",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1182,7 +1326,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1194,6 +1338,14 @@
         "moss"
       ],
       "view": "side",
+      "entity": "stone_moss",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1202,7 +1354,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1214,6 +1366,14 @@
         "overhang"
       ],
       "view": "side",
+      "entity": "stone_overhang",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1222,7 +1382,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1234,6 +1394,14 @@
         "block"
       ],
       "view": "side",
+      "entity": "sand_block",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1242,7 +1410,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1254,6 +1422,14 @@
         "waves"
       ],
       "view": "side",
+      "entity": "sand_waves",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1262,7 +1438,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1274,6 +1450,14 @@
         "pebbles"
       ],
       "view": "side",
+      "entity": "sand_pebbles",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1282,7 +1466,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1294,6 +1478,14 @@
         "bricks"
       ],
       "view": "side",
+      "entity": "sand_bricks",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1302,7 +1494,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1314,6 +1506,14 @@
         "cracked"
       ],
       "view": "side",
+      "entity": "sand_cracked",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1322,7 +1522,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1334,6 +1534,14 @@
         "ledge"
       ],
       "view": "side",
+      "entity": "sand_ledge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1342,7 +1550,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1354,6 +1562,14 @@
         "slope"
       ],
       "view": "side",
+      "entity": "sand_slope",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1362,7 +1578,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1374,6 +1590,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "sand_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1382,7 +1606,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1394,6 +1618,14 @@
         "cactus"
       ],
       "view": "side",
+      "entity": "sand_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1402,7 +1634,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1414,6 +1646,14 @@
         "arch"
       ],
       "view": "side",
+      "entity": "sand_arch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1422,7 +1662,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1434,6 +1674,14 @@
         "block"
       ],
       "view": "side",
+      "entity": "snow_block",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
@@ -1442,7 +1690,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1454,6 +1702,14 @@
         "ledge"
       ],
       "view": "side",
+      "entity": "snow_ledge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
@@ -1462,7 +1718,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1474,6 +1730,14 @@
         "stone"
       ],
       "view": "side",
+      "entity": "ice_stone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
@@ -1482,7 +1746,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1494,6 +1758,14 @@
         "block"
       ],
       "view": "side",
+      "entity": "ice_block",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
@@ -1502,7 +1774,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1514,6 +1786,14 @@
         "ledge"
       ],
       "view": "side",
+      "entity": "ice_ledge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
@@ -1522,7 +1802,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1535,6 +1815,14 @@
         "up"
       ],
       "view": "side",
+      "entity": "snow_slope_up",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
@@ -1543,7 +1831,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1556,6 +1844,14 @@
         "down"
       ],
       "view": "side",
+      "entity": "snow_slope_down",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
@@ -1564,7 +1860,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1576,6 +1872,14 @@
         "island"
       ],
       "view": "side",
+      "entity": "snow_island",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
@@ -1584,7 +1888,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1596,6 +1900,14 @@
         "pillar"
       ],
       "view": "side",
+      "entity": "ice_pillar",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
@@ -1604,7 +1916,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1616,6 +1928,14 @@
         "arch"
       ],
       "view": "side",
+      "entity": "ice_arch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1624,7 +1944,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true,
+      "flip_x": false,
       "tile": true
     },
     {
@@ -1636,6 +1956,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "wood_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
@@ -1644,7 +1972,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "rope_platform",
@@ -1655,6 +1983,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "rope_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
@@ -1663,7 +1999,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "log_platform",
@@ -1674,6 +2010,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "log_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
@@ -1682,7 +2026,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "stone_platform",
@@ -1693,6 +2037,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "stone_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
@@ -1701,7 +2053,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "chain_platform",
@@ -1712,6 +2064,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "chain_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
@@ -1720,7 +2080,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "grass_platform",
@@ -1731,6 +2091,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "grass_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
@@ -1739,7 +2107,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "earth_platform",
@@ -1750,6 +2118,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "earth_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
@@ -1758,7 +2134,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "red_mushroom_platform",
@@ -1770,6 +2146,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "red_mushroom_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
@@ -1778,7 +2162,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "violet_mushroom_platform",
@@ -1790,6 +2174,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "violet_mushroom_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
@@ -1798,7 +2190,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "ice_platform",
@@ -1809,6 +2201,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "ice_platform",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
@@ -1817,7 +2217,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "tree",
@@ -1827,6 +2227,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1835,7 +2243,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "bush",
@@ -1845,6 +2253,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1853,7 +2269,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "flowers",
@@ -1863,6 +2279,14 @@
         "flowers"
       ],
       "view": "side",
+      "entity": "flowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1871,7 +2295,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "sign",
@@ -1881,6 +2305,14 @@
         "sign"
       ],
       "view": "side",
+      "entity": "sign",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1889,7 +2321,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "barrel",
@@ -1899,6 +2331,14 @@
         "barrel"
       ],
       "view": "side",
+      "entity": "barrel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1907,7 +2347,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "crate",
@@ -1917,6 +2357,14 @@
         "crate"
       ],
       "view": "side",
+      "entity": "crate",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1925,7 +2373,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "ladder",
@@ -1935,6 +2383,14 @@
         "ladder"
       ],
       "view": "side",
+      "entity": "ladder",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1943,7 +2399,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "fence",
@@ -1953,6 +2409,14 @@
         "fence"
       ],
       "view": "side",
+      "entity": "fence",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1961,7 +2425,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "flag",
@@ -1971,6 +2435,14 @@
         "flag"
       ],
       "view": "side",
+      "entity": "flag",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -1979,7 +2451,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "lantern",
@@ -1989,6 +2461,14 @@
         "lantern"
       ],
       "view": "side",
+      "entity": "lantern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -1997,7 +2477,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "coin",
@@ -2007,6 +2487,14 @@
         "coin"
       ],
       "view": "side",
+      "entity": "coin",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -2015,7 +2503,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "red_gem",
@@ -2026,6 +2514,14 @@
         "gem"
       ],
       "view": "side",
+      "entity": "red_gem",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2034,7 +2530,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "blue_gem",
@@ -2045,6 +2541,14 @@
         "gem"
       ],
       "view": "side",
+      "entity": "blue_gem",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2053,7 +2557,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "green_gem",
@@ -2064,6 +2568,14 @@
         "gem"
       ],
       "view": "side",
+      "entity": "green_gem",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2072,7 +2584,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "key",
@@ -2082,6 +2594,14 @@
         "key"
       ],
       "view": "side",
+      "entity": "key",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2090,7 +2610,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "heart",
@@ -2100,6 +2620,14 @@
         "heart"
       ],
       "view": "side",
+      "entity": "heart",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2108,7 +2636,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "star",
@@ -2118,6 +2646,14 @@
         "star"
       ],
       "view": "side",
+      "entity": "star",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2126,7 +2662,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "apple",
@@ -2136,6 +2672,14 @@
         "apple"
       ],
       "view": "side",
+      "entity": "apple",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2144,7 +2688,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "potion",
@@ -2154,6 +2698,14 @@
         "potion"
       ],
       "view": "side",
+      "entity": "potion",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2162,7 +2714,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "treasure",
@@ -2172,6 +2724,14 @@
         "treasure"
       ],
       "view": "side",
+      "entity": "treasure",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2180,7 +2740,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "spikes",
@@ -2190,6 +2750,14 @@
         "spikes"
       ],
       "view": "side",
+      "entity": "spikes",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2198,7 +2766,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "stalactite",
@@ -2208,6 +2776,14 @@
         "stalactite"
       ],
       "view": "side",
+      "entity": "stalactite",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2216,7 +2792,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "saw",
@@ -2226,6 +2802,14 @@
         "saw"
       ],
       "view": "side",
+      "entity": "saw",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2234,7 +2818,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "lava",
@@ -2244,6 +2828,14 @@
         "lava"
       ],
       "view": "side",
+      "entity": "lava",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2252,7 +2844,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "fire",
@@ -2262,6 +2854,14 @@
         "fire"
       ],
       "view": "side",
+      "entity": "fire",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2270,7 +2870,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "thorn",
@@ -2280,6 +2880,14 @@
         "thorn"
       ],
       "view": "side",
+      "entity": "thorn",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2288,7 +2896,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "trapdoor",
@@ -2298,6 +2906,14 @@
         "trapdoor"
       ],
       "view": "side",
+      "entity": "trapdoor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2306,7 +2922,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "stone_weight",
@@ -2317,6 +2933,14 @@
         "weight"
       ],
       "view": "side",
+      "entity": "stone_weight",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2325,7 +2949,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "cannon",
@@ -2335,6 +2959,14 @@
         "cannon"
       ],
       "view": "side",
+      "entity": "cannon",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2343,7 +2975,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "bomb",
@@ -2353,6 +2985,14 @@
         "bomb"
       ],
       "view": "side",
+      "entity": "bomb",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2361,7 +3001,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "magic_platform",
@@ -2372,6 +3012,14 @@
         "platform"
       ],
       "view": "side",
+      "entity": "magic_platform",
+      "action": "effect",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80,
         81,
@@ -2389,7 +3037,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "spike_trap",
@@ -2400,6 +3048,14 @@
         "trap"
       ],
       "view": "side",
+      "entity": "spike_trap",
+      "action": "effect",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90,
         91,
@@ -2417,7 +3073,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     }
   ],
   "animations": [
@@ -2438,7 +3094,10 @@
       ],
       "frame_rate": 12,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "magic_platform",
+      "action": "effect",
+      "direction": "none"
     },
     {
       "id": "spike_trap",
@@ -2457,7 +3116,10 @@
       ],
       "frame_rate": 12,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "spike_trap",
+      "action": "effect",
+      "direction": "none"
     }
   ],
   "provenance": {

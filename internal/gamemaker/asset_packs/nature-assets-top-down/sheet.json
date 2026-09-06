@@ -10,7 +10,7 @@
     "top"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -829,6 +829,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "oak_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -849,6 +857,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "pine_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -869,6 +885,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "birch_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -889,6 +913,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "willow_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -909,6 +941,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "palm_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -929,6 +969,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "bare_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -949,6 +997,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "autumn_maple",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -969,6 +1025,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "fruit_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -989,6 +1053,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "fir_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -1009,6 +1081,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "ancient_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1029,6 +1109,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "leafy_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1049,6 +1137,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "berry_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1069,6 +1165,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "thorn_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1089,6 +1193,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "fern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1109,6 +1221,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "hedge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1129,6 +1249,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "flowering_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1149,6 +1277,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "dry_shrub",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1169,6 +1305,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "mossy_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1189,6 +1333,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "cattails",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1209,6 +1361,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "bramble",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1229,6 +1389,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "tall_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1249,6 +1417,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "reeds",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1269,6 +1445,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "dry_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1289,6 +1473,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "low_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1309,6 +1501,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "blue_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1329,6 +1529,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "golden_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1349,6 +1557,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "broad_leaves",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1369,6 +1585,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "pampas_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1389,6 +1613,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "flowering_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1409,6 +1641,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "curled_fern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1429,6 +1669,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "daisies",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
@@ -1449,6 +1697,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "poppies",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
@@ -1469,6 +1725,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "sunflowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
@@ -1489,6 +1753,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "bluebells",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
@@ -1509,6 +1781,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "pink_blossoms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
@@ -1529,6 +1809,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "white_bells",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
@@ -1549,6 +1837,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "tulips",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
@@ -1569,6 +1865,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "blue_flowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
@@ -1589,6 +1893,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "daffodils",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
@@ -1609,6 +1921,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "purple_flowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1629,6 +1949,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "red_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
@@ -1649,6 +1977,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "brown_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
@@ -1669,6 +2005,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "white_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
@@ -1689,6 +2033,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "violet_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
@@ -1709,6 +2061,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "orange_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
@@ -1729,6 +2089,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "blue_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
@@ -1749,6 +2117,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "spotted_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
@@ -1769,6 +2145,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "shelf_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
@@ -1789,6 +2173,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "green_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
@@ -1809,6 +2201,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "pale_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
@@ -1829,6 +2229,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "mossy_boulder",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1849,6 +2257,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "slate_rock",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1869,6 +2285,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "layered_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1889,6 +2313,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "brown_rocks",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1909,6 +2341,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "sharp_rocks",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1929,6 +2369,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "stone_pile",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1949,6 +2397,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "mossy_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1969,6 +2425,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "blue_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1989,6 +2453,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "amber_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -2009,6 +2481,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "green_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -2029,6 +2509,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "stump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -2049,6 +2537,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "hollow_log",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2069,6 +2565,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "branch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2089,6 +2593,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "exposed_roots",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2109,6 +2621,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "acorn",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2129,6 +2649,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "pinecone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2149,6 +2677,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "leaf_pile",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2169,6 +2705,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "driftwood",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2189,6 +2733,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "broken_trunk",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2209,6 +2761,14 @@
         "wood"
       ],
       "view": "top",
+      "entity": "vines",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2229,6 +2789,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "small_pond",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2249,6 +2817,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "waterfall",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2269,6 +2845,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "water_splash",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2289,6 +2873,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "ice_formation",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2309,6 +2901,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "lily_pad",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2329,6 +2929,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "water_reeds",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2349,6 +2957,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "stream_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2369,6 +2985,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "coral",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2389,6 +3013,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "shells",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2409,6 +3041,14 @@
         "water"
       ],
       "view": "top",
+      "entity": "seaweed",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2429,6 +3069,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "tall_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80
       ],
@@ -2449,6 +3097,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "round_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         81
       ],
@@ -2469,6 +3125,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "branching_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         82
       ],
@@ -2489,6 +3153,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "aloe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         83
       ],
@@ -2509,6 +3181,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "desert_shrub",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84
       ],
@@ -2529,6 +3209,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "sandstone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         85
       ],
@@ -2549,6 +3237,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "dune_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         86
       ],
@@ -2569,6 +3265,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "tumbleweed",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         87
       ],
@@ -2589,6 +3293,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "agave",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         88
       ],
@@ -2609,6 +3321,14 @@
         "desert"
       ],
       "view": "top",
+      "entity": "animal_bones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         89
       ],
@@ -2629,6 +3349,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "snowy_pine",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90
       ],
@@ -2649,6 +3377,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "snowy_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         91
       ],
@@ -2669,6 +3405,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "icy_rock",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         92
       ],
@@ -2689,6 +3433,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "icicles",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         93
       ],
@@ -2709,6 +3461,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "snowy_stump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         94
       ],
@@ -2729,6 +3489,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "frozen_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         95
       ],
@@ -2749,6 +3517,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "snow_mound",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         96
       ],
@@ -2769,6 +3545,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "ice_crystal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         97
       ],
@@ -2789,6 +3573,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "snowy_branch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         98
       ],
@@ -2809,6 +3601,14 @@
         "snow"
       ],
       "view": "top",
+      "entity": "frozen_reeds",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         99
       ],

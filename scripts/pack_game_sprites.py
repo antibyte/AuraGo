@@ -106,21 +106,22 @@ def pack(definition, source_root, check=False):
             sheet.alpha_composite(sprite, (x + left, y + top))
             ids.append(index)
             frames.append({"index": index, "asset_id": asset["id"], "x": x, "y": y, "w": 64, "h": 64})
-        item = {key: asset[key] for key in ("id", "name", "description", "tags", "view")}
+        item = {key: asset[key] for key in ("id", "name", "description", "tags", "view", "entity", "action", "transform")}
         item.update(frames=ids, direction=asset.get("direction", "none"),
                     origin={"x": .5, "y": .9375 if asset.get("view") == "side" else .5},
-                    flip_x=asset.get("view") == "side")
+                    flip_x=asset["transform"]["flip_x"])
         if asset.get("tile"):
             item["tile"] = True
         if "slice" in asset:
             item.update(assembly_part=True, origin={"x": 0, "y": 0}, flip_x=False)
         assets.append(item)
-        if "action" in asset:
+        if asset["action"] != "static":
             action = asset["action"]
             animations.append({"id": asset["id"], "asset_id": asset["id"], "frames": ids,
                                "frame_rate": 6 if action == "idle" else 10 if action in ("walk", "run", "move") else 12,
                                "repeat": -1 if asset.get("loop", action in ("idle", "walk", "run", "move")) else 0,
-                               "yoyo": False})
+                               "yoyo": False, "entity": asset["entity"], "action": action,
+                               "direction": asset.get("direction", "none")})
     if len(frames) != 100:
         raise ValueError(f"{definition['id']}: expected 100 frames, got {len(frames)}")
     for animation in animations:
@@ -131,7 +132,8 @@ def pack(definition, source_root, check=False):
     for alias in definition.get("animation_aliases", []):
         asset = next(a for a in assets if a["id"] == alias["asset_id"])
         animations.append({"id": alias["id"], "asset_id": asset["id"], "frames": [asset["frames"][0]],
-                           "frame_rate": 6, "repeat": -1, "yoyo": False})
+                           "frame_rate": 6, "repeat": -1, "yoyo": False,
+                           "entity": alias["entity"], "action": alias["action"], "direction": alias["direction"]})
     metadata = {key: definition[key] for key in ("id", "name", "description", "tags")}
     metadata.update(schema_version=1, version=definition["version"], image="sheet.png", columns=10, rows=10,
                     frame_width=64, frame_height=64, frames=frames, assets=assets, animations=animations,

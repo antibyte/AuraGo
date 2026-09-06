@@ -9,7 +9,7 @@
     "enemy"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -828,6 +828,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "slime",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0,
         1,
@@ -853,6 +861,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "slime",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6,
         7,
@@ -878,6 +894,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "slime",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12,
         13,
@@ -903,6 +927,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "slime",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18,
         19,
@@ -928,6 +960,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "goblin",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24,
         25,
@@ -953,6 +993,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "goblin",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30,
         31,
@@ -978,6 +1026,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "goblin",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36,
         37,
@@ -1003,6 +1059,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "goblin",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42,
         43,
@@ -1028,6 +1092,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "wolf",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48,
         49,
@@ -1053,6 +1125,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "wolf",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54,
         55,
@@ -1078,6 +1158,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "wolf",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60,
         61,
@@ -1103,6 +1191,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "wolf",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66,
         67,
@@ -1128,6 +1224,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "boar",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72,
         73,
@@ -1153,6 +1257,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "boar",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78,
         79,
@@ -1178,6 +1290,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "boar",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84,
         85,
@@ -1203,6 +1323,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "boar",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90,
         91,
@@ -1227,6 +1355,14 @@
         "gel"
       ],
       "view": "top",
+      "entity": "slime_gel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         96
       ],
@@ -1246,6 +1382,14 @@
         "pouch"
       ],
       "view": "top",
+      "entity": "coin_pouch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         97
       ],
@@ -1265,6 +1409,14 @@
         "fang"
       ],
       "view": "top",
+      "entity": "wolf_fang",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         98
       ],
@@ -1284,6 +1436,14 @@
         "tusk"
       ],
       "view": "top",
+      "entity": "boar_tusk",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         99
       ],
@@ -1309,7 +1469,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "walk",
+      "direction": "up"
     },
     {
       "id": "slime_walk_right",
@@ -1324,7 +1487,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "walk",
+      "direction": "right"
     },
     {
       "id": "slime_walk_down",
@@ -1339,7 +1505,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "walk",
+      "direction": "down"
     },
     {
       "id": "slime_walk_left",
@@ -1354,7 +1523,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "walk",
+      "direction": "left"
     },
     {
       "id": "goblin_walk_up",
@@ -1369,7 +1541,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "walk",
+      "direction": "up"
     },
     {
       "id": "goblin_walk_right",
@@ -1384,7 +1559,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "walk",
+      "direction": "right"
     },
     {
       "id": "goblin_walk_down",
@@ -1399,7 +1577,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "walk",
+      "direction": "down"
     },
     {
       "id": "goblin_walk_left",
@@ -1414,7 +1595,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "walk",
+      "direction": "left"
     },
     {
       "id": "wolf_walk_up",
@@ -1429,7 +1613,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "walk",
+      "direction": "up"
     },
     {
       "id": "wolf_walk_right",
@@ -1444,7 +1631,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "walk",
+      "direction": "right"
     },
     {
       "id": "wolf_walk_down",
@@ -1459,7 +1649,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "walk",
+      "direction": "down"
     },
     {
       "id": "wolf_walk_left",
@@ -1474,7 +1667,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "walk",
+      "direction": "left"
     },
     {
       "id": "boar_walk_up",
@@ -1489,7 +1685,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "walk",
+      "direction": "up"
     },
     {
       "id": "boar_walk_right",
@@ -1504,7 +1703,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "walk",
+      "direction": "right"
     },
     {
       "id": "boar_walk_down",
@@ -1519,7 +1721,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "walk",
+      "direction": "down"
     },
     {
       "id": "boar_walk_left",
@@ -1534,7 +1739,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "walk",
+      "direction": "left"
     },
     {
       "id": "slime_idle_up",
@@ -1544,7 +1752,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "idle",
+      "direction": "up"
     },
     {
       "id": "slime_idle_right",
@@ -1554,7 +1765,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "slime_idle_down",
@@ -1564,7 +1778,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "idle",
+      "direction": "down"
     },
     {
       "id": "slime_idle_left",
@@ -1574,7 +1791,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "idle",
+      "direction": "left"
     },
     {
       "id": "goblin_idle_up",
@@ -1584,7 +1804,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "idle",
+      "direction": "up"
     },
     {
       "id": "goblin_idle_right",
@@ -1594,7 +1817,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "goblin_idle_down",
@@ -1604,7 +1830,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "idle",
+      "direction": "down"
     },
     {
       "id": "goblin_idle_left",
@@ -1614,7 +1843,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "idle",
+      "direction": "left"
     },
     {
       "id": "wolf_idle_up",
@@ -1624,7 +1856,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "idle",
+      "direction": "up"
     },
     {
       "id": "wolf_idle_right",
@@ -1634,7 +1869,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "wolf_idle_down",
@@ -1644,7 +1882,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "idle",
+      "direction": "down"
     },
     {
       "id": "wolf_idle_left",
@@ -1654,7 +1895,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "idle",
+      "direction": "left"
     },
     {
       "id": "boar_idle_up",
@@ -1664,7 +1908,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "idle",
+      "direction": "up"
     },
     {
       "id": "boar_idle_right",
@@ -1674,7 +1921,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "boar_idle_down",
@@ -1684,7 +1934,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "idle",
+      "direction": "down"
     },
     {
       "id": "boar_idle_left",
@@ -1694,7 +1947,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "idle",
+      "direction": "left"
     }
   ],
   "provenance": {

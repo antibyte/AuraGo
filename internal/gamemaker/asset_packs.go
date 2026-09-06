@@ -49,6 +49,37 @@ type ImportedAssetPack struct {
 	PhaserExample string `json:"phaser_example"`
 }
 
+// Report complete project copies, including older immutable pack versions.
+func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]ImportedAssetPack, error) {
+	files, err := s.ListJobFiles(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	packs, err := s.ListAssetPacks()
+	if err != nil {
+		return nil, err
+	}
+	known, present := map[string]bool{}, map[string]bool{}
+	for _, pack := range packs {
+		known[pack.ID] = true
+	}
+	for _, file := range files {
+		present[file] = true
+	}
+	var out []ImportedAssetPack
+	for _, file := range files {
+		parts := strings.Split(file, "/")
+		if len(parts) != 5 || parts[0] != "assets" || parts[1] != "builtin" || !known[parts[2]] || parts[4] != "sheet.json" {
+			continue
+		}
+		image := strings.TrimSuffix(file, "sheet.json") + "sheet.png"
+		if present[image] {
+			out = append(out, ImportedAssetPack{ID: parts[2], Version: parts[3], Image: image, Metadata: file})
+		}
+	}
+	return out, nil
+}
+
 func (s *Service) ListAssetPacks() ([]AssetPackSummary, error) {
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
@@ -123,6 +154,9 @@ func validateAssetPackIDs(ids []string) ([]string, error) {
 // ImportAssetPack publishes the PNG/JSON pair by renaming one temporary directory.
 // Existing project copies are immutable: matching copies are reused, not replaced.
 func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string) (ImportedAssetPack, error) {
+	if err := s.CheckJobMutation(ctx, jobID); err != nil {
+		return ImportedAssetPack{}, err
+	}
 	s.policyMu.RLock()
 	policy := s.policy
 	if !policy.Enabled || policy.ReadOnly || !policy.AllowEdit {
@@ -167,41 +201,26 @@ func (s *Service) importAssetPack(ctx context.Context, jobID, id string) (Import
 		return result, err
 	}
 	result = ImportedAssetPack{ID: id, Version: pack.Version, Image: rel + "/sheet.png", Metadata: rel + "/sheet.json"}
-	var assets []struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(pack.Assets, &assets); err != nil || len(assets) == 0 {
+	_, assets, assemblies, _, err := readPackUsage(id)
+	if err != nil || len(assets) == 0 {
 		return ImportedAssetPack{}, fmt.Errorf("sprite pack has no usable asset metadata")
 	}
-	result.PhaserExample = fmt.Sprintf(`// src/main.ts: this PNG is a grid, not a single image or a Phaser atlas.
-import meta from %q;
-const texture = meta.id + '@' + meta.version;
-// In preload(), use spritesheet, NEVER load.image or load.atlas:
-this.load.spritesheet(texture, %q,
-  { frameWidth: meta.frame_width, frameHeight: meta.frame_height });
-// Register animations from meta.animations using their ordered numeric frames.
-// For random array elements use Phaser.Utils.Array.GetRandom(values), not Phaser.Math.pick.
-`, "../"+result.Metadata, result.Image)
-	if len(pack.Assemblies) > 0 {
-		result.PhaserExample += `// IMPORTANT: assembly_part assets are fragments. For complete buildings/large vehicles,
-// use an assembly in create(), after registering its animations.
-const assembly = meta.assemblies[0]; // Choose an exact assembly ID from the JSON.
-const object = this.add.container(160, 160);
-for (const part of assembly.parts) {
-  const sprite = this.add.sprite(part.x - assembly.width * assembly.origin.x,
-    part.y - assembly.height * assembly.origin.y, texture, part.frame).setOrigin(0, 0);
-  object.add(sprite);
-  // After registering meta.animations, start all part animations together:
-  if (part.animation_id) sprite.play(texture + ':' + part.animation_id);
-}
-// Move/scale the container; never resize or mirror individual assembly parts.
-`
+	assetID, assemblyID := assets[0].ID, ""
+	if len(assemblies) > 0 {
+		assetID, assemblyID = "", assemblies[0].ID
 	} else {
-		result.PhaserExample += fmt.Sprintf(`// In create(), select an asset ID from sheet.json and pass its numeric frame:
-const asset = meta.assets.find(a => a.id === %q);
-this.add.sprite(160, 160, texture, asset.frames[0]).setOrigin(asset.origin.x, asset.origin.y);
-`, assets[0].ID)
+		for _, asset := range assets {
+			if !asset.AssemblyPart {
+				assetID = asset.ID
+				break
+			}
+		}
 	}
+	detail, err := s.describeAsset(id, assetID, assemblyID)
+	if err != nil {
+		return ImportedAssetPack{}, err
+	}
+	result.PhaserExample = detail.Example
 	if info, statErr := os.Lstat(target); statErr == nil {
 		if !info.IsDir() {
 			return ImportedAssetPack{}, fmt.Errorf("sprite pack destination already exists")

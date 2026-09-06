@@ -12,14 +12,23 @@ import (
 )
 
 func (s *Service) BuildJob(ctx context.Context, jobID string) BuildResult {
+	return s.buildJob(ctx, jobID, "")
+}
+
+func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult {
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
-	result := buildDirectory(ctx, stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes)
 	job, _ := s.GetJob(context.Background(), jobID)
+	// Even a failed replacement build invalidates prior test evidence/errors.
+	s.mu.Lock()
+	s.previewCheck = nil
+	s.mu.Unlock()
+	_, _ = s.emit(context.Background(), job.ProjectID, jobID, "validation_reset", map[string]any{})
+	result := buildDirectory(ctx, stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes)
 	for _, diagnostic := range result.Diagnostics {
 		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "diagnostic", map[string]any{
 			"level": diagnostic.Level, "message": diagnostic.Message,
@@ -31,6 +40,14 @@ func (s *Service) BuildJob(ctx context.Context, jobID string) BuildResult {
 		s.previewJobs[job.ProjectID] = jobID
 		s.previewCheck = &previewCheck{ID: randomID("validation"), JobID: jobID}
 		result.check = s.previewCheck
+		if scope == "full" || scope == "gameplay" {
+			// Read the plan before serving any grant for this new build.
+			data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(gamePlanPath)))
+			var plan GamePlan
+			if err == nil && json.Unmarshal(data, &plan) == nil {
+				s.previewCheck.Scenarios = gameScenarios(&plan)
+			}
+		}
 		s.mu.Unlock()
 		result.RuntimeStatus = "unverified"
 		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "preview_reload", map[string]any{"staging": true})

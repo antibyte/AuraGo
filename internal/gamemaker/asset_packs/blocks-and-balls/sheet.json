@@ -8,7 +8,7 @@
     "blocks"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -826,6 +826,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -845,6 +853,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -864,6 +880,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -883,6 +907,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -902,6 +934,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -921,6 +961,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -940,6 +988,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -959,6 +1015,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -978,6 +1042,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -997,6 +1069,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "colored_block_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1017,6 +1097,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1037,6 +1125,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1056,6 +1152,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1075,6 +1179,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1094,6 +1206,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1114,6 +1234,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1133,6 +1261,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1153,6 +1289,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1172,6 +1316,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1192,6 +1344,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "material_block_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1212,6 +1372,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1232,6 +1400,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1252,6 +1428,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1272,6 +1456,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1292,6 +1484,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1312,6 +1512,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1332,6 +1540,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1352,6 +1568,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1372,6 +1596,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1392,6 +1624,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "cracked_block_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1411,6 +1651,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
@@ -1430,6 +1678,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
@@ -1449,6 +1705,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
@@ -1468,6 +1732,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
@@ -1487,6 +1759,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
@@ -1506,6 +1786,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
@@ -1525,6 +1813,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
@@ -1544,6 +1840,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
@@ -1563,6 +1867,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
@@ -1582,6 +1894,14 @@
         "block"
       ],
       "view": "top",
+      "entity": "special_block_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1601,6 +1921,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
@@ -1620,6 +1948,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
@@ -1639,6 +1975,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
@@ -1658,6 +2002,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
@@ -1677,6 +2029,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
@@ -1696,6 +2056,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
@@ -1715,6 +2083,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
@@ -1734,6 +2110,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
@@ -1753,6 +2137,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
@@ -1773,6 +2165,14 @@
         "paddle"
       ],
       "view": "top",
+      "entity": "paddle_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
@@ -1792,6 +2192,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1811,6 +2219,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1830,6 +2246,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1849,6 +2273,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1868,6 +2300,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1887,6 +2327,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1906,6 +2354,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1925,6 +2381,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1944,6 +2408,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -1963,6 +2435,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "ball_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -1982,6 +2462,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -2001,6 +2489,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2019,6 +2515,14 @@
         "football"
       ],
       "view": "top",
+      "entity": "special_ball_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2038,6 +2542,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2056,6 +2568,14 @@
         "baseball"
       ],
       "view": "top",
+      "entity": "special_ball_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2075,6 +2595,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2094,6 +2622,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2113,6 +2649,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2132,6 +2676,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2152,6 +2704,14 @@
         "ball"
       ],
       "view": "top",
+      "entity": "special_ball_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2171,6 +2731,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2191,6 +2759,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2211,6 +2787,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2230,6 +2814,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2249,6 +2841,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2269,6 +2869,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2288,6 +2896,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2307,6 +2923,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2327,6 +2951,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2346,6 +2978,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2366,6 +3006,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80
       ],
@@ -2386,6 +3034,14 @@
         "bonus"
       ],
       "view": "top",
+      "entity": "special_powerup_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         81
       ],
@@ -2406,6 +3062,14 @@
         "penalty"
       ],
       "view": "top",
+      "entity": "special_powerup_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         82
       ],
@@ -2426,6 +3090,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         83
       ],
@@ -2445,6 +3117,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84
       ],
@@ -2465,6 +3145,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         85
       ],
@@ -2485,6 +3173,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         86
       ],
@@ -2505,6 +3201,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         87
       ],
@@ -2525,6 +3229,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "special_powerup_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         88
       ],
@@ -2545,6 +3257,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "special_powerup_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         89
       ],
@@ -2564,6 +3284,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90
       ],
@@ -2583,6 +3311,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         91
       ],
@@ -2602,6 +3338,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         92
       ],
@@ -2621,6 +3365,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         93
       ],
@@ -2640,6 +3392,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         94
       ],
@@ -2659,6 +3419,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         95
       ],
@@ -2679,6 +3447,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         96
       ],
@@ -2699,6 +3475,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         97
       ],
@@ -2718,6 +3502,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         98
       ],
@@ -2737,6 +3529,14 @@
         "symbol"
       ],
       "view": "top",
+      "entity": "arcade_symbol_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         99
       ],

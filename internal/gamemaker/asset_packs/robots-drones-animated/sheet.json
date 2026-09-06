@@ -10,7 +10,7 @@
     "side"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -830,6 +830,14 @@
         "service_robot"
       ],
       "view": "side",
+      "entity": "service_robot",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         0,
         1,
@@ -854,6 +862,14 @@
         "service_robot"
       ],
       "view": "side",
+      "entity": "service_robot",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         4,
         5,
@@ -880,6 +896,14 @@
         "service_robot"
       ],
       "view": "side",
+      "entity": "service_robot",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         10,
         11,
@@ -904,6 +928,14 @@
         "service_robot"
       ],
       "view": "side",
+      "entity": "service_robot",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         14,
         15
@@ -926,6 +958,14 @@
         "service_robot"
       ],
       "view": "side",
+      "entity": "service_robot",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         16,
         17,
@@ -950,6 +990,14 @@
         "combat_mech"
       ],
       "view": "side",
+      "entity": "combat_mech",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         20,
         21,
@@ -974,6 +1022,14 @@
         "combat_mech"
       ],
       "view": "side",
+      "entity": "combat_mech",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         24,
         25,
@@ -1000,6 +1056,14 @@
         "combat_mech"
       ],
       "view": "side",
+      "entity": "combat_mech",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         30,
         31,
@@ -1024,6 +1088,14 @@
         "combat_mech"
       ],
       "view": "side",
+      "entity": "combat_mech",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         34,
         35
@@ -1046,6 +1118,14 @@
         "combat_mech"
       ],
       "view": "side",
+      "entity": "combat_mech",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         36,
         37,
@@ -1070,6 +1150,14 @@
         "spider_drone"
       ],
       "view": "side",
+      "entity": "spider_drone",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         40,
         41,
@@ -1094,6 +1182,14 @@
         "spider_drone"
       ],
       "view": "side",
+      "entity": "spider_drone",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         44,
         45,
@@ -1120,6 +1216,14 @@
         "spider_drone"
       ],
       "view": "side",
+      "entity": "spider_drone",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         50,
         51,
@@ -1144,6 +1248,14 @@
         "spider_drone"
       ],
       "view": "side",
+      "entity": "spider_drone",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         54,
         55
@@ -1166,6 +1278,14 @@
         "spider_drone"
       ],
       "view": "side",
+      "entity": "spider_drone",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         56,
         57,
@@ -1190,6 +1310,14 @@
         "quadcopter"
       ],
       "view": "side",
+      "entity": "quadcopter",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         60,
         61,
@@ -1214,6 +1342,14 @@
         "quadcopter"
       ],
       "view": "side",
+      "entity": "quadcopter",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         64,
         65,
@@ -1240,6 +1376,14 @@
         "quadcopter"
       ],
       "view": "side",
+      "entity": "quadcopter",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         70,
         71,
@@ -1264,6 +1408,14 @@
         "quadcopter"
       ],
       "view": "side",
+      "entity": "quadcopter",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         74,
         75
@@ -1286,6 +1438,14 @@
         "quadcopter"
       ],
       "view": "side",
+      "entity": "quadcopter",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         76,
         77,
@@ -1310,6 +1470,14 @@
         "security_orb"
       ],
       "view": "side",
+      "entity": "security_orb",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         80,
         81,
@@ -1334,6 +1502,14 @@
         "security_orb"
       ],
       "view": "side",
+      "entity": "security_orb",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         84,
         85,
@@ -1360,6 +1536,14 @@
         "security_orb"
       ],
       "view": "side",
+      "entity": "security_orb",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         90,
         91,
@@ -1384,6 +1568,14 @@
         "security_orb"
       ],
       "view": "side",
+      "entity": "security_orb",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         94,
         95
@@ -1406,6 +1598,14 @@
         "security_orb"
       ],
       "view": "side",
+      "entity": "security_orb",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         96,
         97,
@@ -1432,7 +1632,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "service_robot",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "service_robot_move",
@@ -1447,7 +1650,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "service_robot",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "service_robot_attack",
@@ -1460,7 +1666,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "service_robot",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "service_robot_hurt",
@@ -1471,7 +1680,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "service_robot",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "service_robot_death",
@@ -1484,7 +1696,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "service_robot",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "combat_mech_idle",
@@ -1497,7 +1712,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "combat_mech",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "combat_mech_move",
@@ -1512,7 +1730,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "combat_mech",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "combat_mech_attack",
@@ -1525,7 +1746,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "combat_mech",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "combat_mech_hurt",
@@ -1536,7 +1760,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "combat_mech",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "combat_mech_death",
@@ -1549,7 +1776,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "combat_mech",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "spider_drone_idle",
@@ -1562,7 +1792,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "spider_drone",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "spider_drone_move",
@@ -1577,7 +1810,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "spider_drone",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "spider_drone_attack",
@@ -1590,7 +1826,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "spider_drone",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "spider_drone_hurt",
@@ -1601,7 +1840,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "spider_drone",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "spider_drone_death",
@@ -1614,7 +1856,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "spider_drone",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "quadcopter_idle",
@@ -1627,7 +1872,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "quadcopter",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "quadcopter_move",
@@ -1642,7 +1890,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "quadcopter",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "quadcopter_attack",
@@ -1655,7 +1906,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "quadcopter",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "quadcopter_hurt",
@@ -1666,7 +1920,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "quadcopter",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "quadcopter_death",
@@ -1679,7 +1936,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "quadcopter",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "security_orb_idle",
@@ -1692,7 +1952,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "security_orb",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "security_orb_move",
@@ -1707,7 +1970,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "security_orb",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "security_orb_attack",
@@ -1720,7 +1986,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "security_orb",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "security_orb_hurt",
@@ -1731,7 +2000,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "security_orb",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "security_orb_death",
@@ -1744,7 +2016,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "security_orb",
+      "action": "death",
+      "direction": "right"
     }
   ],
   "provenance": {

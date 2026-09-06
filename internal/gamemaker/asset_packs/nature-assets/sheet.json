@@ -10,7 +10,7 @@
     "side"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -829,6 +829,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "oak_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -837,7 +845,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "pine_tree",
@@ -849,6 +857,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "pine_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -857,7 +873,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "birch_tree",
@@ -869,6 +885,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "birch_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -877,7 +901,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "willow_tree",
@@ -889,6 +913,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "willow_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -897,7 +929,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "palm_tree",
@@ -909,6 +941,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "palm_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -917,7 +957,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "bare_tree",
@@ -929,6 +969,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "bare_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -937,7 +985,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "autumn_maple",
@@ -949,6 +997,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "autumn_maple",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -957,7 +1013,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "fruit_tree",
@@ -969,6 +1025,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "fruit_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -977,7 +1041,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "fir_tree",
@@ -989,6 +1053,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "fir_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -997,7 +1069,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "ancient_tree",
@@ -1009,6 +1081,14 @@
         "tree"
       ],
       "view": "side",
+      "entity": "ancient_tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1017,7 +1097,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "leafy_bush",
@@ -1029,6 +1109,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "leafy_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1037,7 +1125,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "berry_bush",
@@ -1049,6 +1137,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "berry_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1057,7 +1153,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "thorn_bush",
@@ -1069,6 +1165,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "thorn_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1077,7 +1181,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "fern",
@@ -1089,6 +1193,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "fern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1097,7 +1209,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "hedge",
@@ -1109,6 +1221,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "hedge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1117,7 +1237,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "flowering_bush",
@@ -1129,6 +1249,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "flowering_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1137,7 +1265,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "dry_shrub",
@@ -1149,6 +1277,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "dry_shrub",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1157,7 +1293,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "mossy_stones",
@@ -1169,6 +1305,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "mossy_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1177,7 +1321,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "cattails",
@@ -1189,6 +1333,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "cattails",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1197,7 +1349,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "bramble",
@@ -1209,6 +1361,14 @@
         "bush"
       ],
       "view": "side",
+      "entity": "bramble",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1217,7 +1377,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "tall_grass",
@@ -1229,6 +1389,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "tall_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1237,7 +1405,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "reeds",
@@ -1249,6 +1417,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "reeds",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1257,7 +1433,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "dry_grass",
@@ -1269,6 +1445,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "dry_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1277,7 +1461,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "low_grass",
@@ -1289,6 +1473,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "low_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1297,7 +1489,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "blue_grass",
@@ -1309,6 +1501,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "blue_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1317,7 +1517,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "golden_grass",
@@ -1329,6 +1529,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "golden_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1337,7 +1545,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "broad_leaves",
@@ -1349,6 +1557,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "broad_leaves",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1357,7 +1573,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "pampas_grass",
@@ -1369,6 +1585,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "pampas_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1377,7 +1601,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "flowering_grass",
@@ -1389,6 +1613,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "flowering_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1397,7 +1629,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "curled_fern",
@@ -1409,6 +1641,14 @@
         "grass"
       ],
       "view": "side",
+      "entity": "curled_fern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1417,7 +1657,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "daisies",
@@ -1429,6 +1669,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "daisies",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
@@ -1437,7 +1685,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "poppies",
@@ -1449,6 +1697,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "poppies",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
@@ -1457,7 +1713,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "sunflowers",
@@ -1469,6 +1725,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "sunflowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
@@ -1477,7 +1741,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "bluebells",
@@ -1489,6 +1753,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "bluebells",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
@@ -1497,7 +1769,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "pink_blossoms",
@@ -1509,6 +1781,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "pink_blossoms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
@@ -1517,7 +1797,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "white_bells",
@@ -1529,6 +1809,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "white_bells",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
@@ -1537,7 +1825,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "tulips",
@@ -1549,6 +1837,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "tulips",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
@@ -1557,7 +1853,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "blue_flowers",
@@ -1569,6 +1865,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "blue_flowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
@@ -1577,7 +1881,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "daffodils",
@@ -1589,6 +1893,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "daffodils",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
@@ -1597,7 +1909,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "purple_flowers",
@@ -1609,6 +1921,14 @@
         "flower"
       ],
       "view": "side",
+      "entity": "purple_flowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1617,7 +1937,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "red_mushrooms",
@@ -1629,6 +1949,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "red_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
@@ -1637,7 +1965,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "brown_mushrooms",
@@ -1649,6 +1977,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "brown_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
@@ -1657,7 +1993,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "white_mushrooms",
@@ -1669,6 +2005,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "white_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
@@ -1677,7 +2021,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "violet_mushrooms",
@@ -1689,6 +2033,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "violet_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
@@ -1697,7 +2049,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "orange_mushrooms",
@@ -1709,6 +2061,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "orange_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
@@ -1717,7 +2077,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "blue_mushrooms",
@@ -1729,6 +2089,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "blue_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
@@ -1737,7 +2105,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "spotted_mushrooms",
@@ -1749,6 +2117,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "spotted_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
@@ -1757,7 +2133,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "shelf_mushrooms",
@@ -1769,6 +2145,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "shelf_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
@@ -1777,7 +2161,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "green_mushrooms",
@@ -1789,6 +2173,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "green_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
@@ -1797,7 +2189,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "pale_mushrooms",
@@ -1809,6 +2201,14 @@
         "mushroom"
       ],
       "view": "side",
+      "entity": "pale_mushrooms",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
@@ -1817,7 +2217,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "mossy_boulder",
@@ -1829,6 +2229,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "mossy_boulder",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1837,7 +2245,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "slate_rock",
@@ -1849,6 +2257,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "slate_rock",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1857,7 +2273,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "layered_stones",
@@ -1869,6 +2285,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "layered_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1877,7 +2301,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "brown_rocks",
@@ -1889,6 +2313,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "brown_rocks",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1897,7 +2329,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "sharp_rocks",
@@ -1909,6 +2341,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "sharp_rocks",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1917,7 +2357,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "stone_pile",
@@ -1929,6 +2369,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "stone_pile",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1937,7 +2385,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "mossy_crystals",
@@ -1949,6 +2397,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "mossy_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1957,7 +2413,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "blue_crystals",
@@ -1969,6 +2425,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "blue_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1977,7 +2441,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "amber_crystals",
@@ -1989,6 +2453,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "amber_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -1997,7 +2469,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "green_crystals",
@@ -2009,6 +2481,14 @@
         "rock"
       ],
       "view": "side",
+      "entity": "green_crystals",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -2017,7 +2497,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "stump",
@@ -2029,6 +2509,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "stump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -2037,7 +2525,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "hollow_log",
@@ -2049,6 +2537,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "hollow_log",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2057,7 +2553,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "branch",
@@ -2069,6 +2565,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "branch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2077,7 +2581,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "exposed_roots",
@@ -2089,6 +2593,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "exposed_roots",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2097,7 +2609,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "acorn",
@@ -2109,6 +2621,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "acorn",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2117,7 +2637,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "pinecone",
@@ -2129,6 +2649,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "pinecone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2137,7 +2665,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "leaf_pile",
@@ -2149,6 +2677,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "leaf_pile",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2157,7 +2693,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "driftwood",
@@ -2169,6 +2705,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "driftwood",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2177,7 +2721,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "broken_trunk",
@@ -2189,6 +2733,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "broken_trunk",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2197,7 +2749,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "vines",
@@ -2209,6 +2761,14 @@
         "wood"
       ],
       "view": "side",
+      "entity": "vines",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2217,7 +2777,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "small_pond",
@@ -2229,6 +2789,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "small_pond",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2237,7 +2805,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "waterfall",
@@ -2249,6 +2817,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "waterfall",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2257,7 +2833,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "water_splash",
@@ -2269,6 +2845,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "water_splash",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2277,7 +2861,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "ice_formation",
@@ -2289,6 +2873,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "ice_formation",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2297,7 +2889,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "lily_pad",
@@ -2309,6 +2901,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "lily_pad",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2317,7 +2917,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "water_reeds",
@@ -2329,6 +2929,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "water_reeds",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2337,7 +2945,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "stream_stones",
@@ -2349,6 +2957,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "stream_stones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2357,7 +2973,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "coral",
@@ -2369,6 +2985,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "coral",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2377,7 +3001,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "shells",
@@ -2389,6 +3013,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "shells",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2397,7 +3029,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "seaweed",
@@ -2409,6 +3041,14 @@
         "water"
       ],
       "view": "side",
+      "entity": "seaweed",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2417,7 +3057,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "tall_cactus",
@@ -2429,6 +3069,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "tall_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80
       ],
@@ -2437,7 +3085,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "round_cactus",
@@ -2449,6 +3097,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "round_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         81
       ],
@@ -2457,7 +3113,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "branching_cactus",
@@ -2469,6 +3125,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "branching_cactus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         82
       ],
@@ -2477,7 +3141,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "aloe",
@@ -2489,6 +3153,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "aloe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         83
       ],
@@ -2497,7 +3169,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "desert_shrub",
@@ -2509,6 +3181,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "desert_shrub",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84
       ],
@@ -2517,7 +3197,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "sandstone",
@@ -2529,6 +3209,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "sandstone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         85
       ],
@@ -2537,7 +3225,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "dune_grass",
@@ -2549,6 +3237,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "dune_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         86
       ],
@@ -2557,7 +3253,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "tumbleweed",
@@ -2569,6 +3265,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "tumbleweed",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         87
       ],
@@ -2577,7 +3281,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "agave",
@@ -2589,6 +3293,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "agave",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         88
       ],
@@ -2597,7 +3309,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "animal_bones",
@@ -2609,6 +3321,14 @@
         "desert"
       ],
       "view": "side",
+      "entity": "animal_bones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         89
       ],
@@ -2617,7 +3337,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "snowy_pine",
@@ -2629,6 +3349,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "snowy_pine",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90
       ],
@@ -2637,7 +3365,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "snowy_bush",
@@ -2649,6 +3377,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "snowy_bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         91
       ],
@@ -2657,7 +3393,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "icy_rock",
@@ -2669,6 +3405,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "icy_rock",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         92
       ],
@@ -2677,7 +3421,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "icicles",
@@ -2689,6 +3433,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "icicles",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         93
       ],
@@ -2697,7 +3449,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "snowy_stump",
@@ -2709,6 +3461,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "snowy_stump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         94
       ],
@@ -2717,7 +3477,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "frozen_grass",
@@ -2729,6 +3489,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "frozen_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         95
       ],
@@ -2737,7 +3505,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "snow_mound",
@@ -2749,6 +3517,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "snow_mound",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         96
       ],
@@ -2757,7 +3533,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "ice_crystal",
@@ -2769,6 +3545,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "ice_crystal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         97
       ],
@@ -2777,7 +3561,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "snowy_branch",
@@ -2789,6 +3573,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "snowy_branch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         98
       ],
@@ -2797,7 +3589,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "frozen_reeds",
@@ -2809,6 +3601,14 @@
         "snow"
       ],
       "view": "side",
+      "entity": "frozen_reeds",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         99
       ],
@@ -2817,7 +3617,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     }
   ],
   "animations": [],

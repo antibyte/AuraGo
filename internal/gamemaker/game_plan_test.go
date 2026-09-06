@@ -1,0 +1,286 @@
+package gamemaker
+
+import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+type planningRunner func(context.Context, JobRun) error
+
+func (r planningRunner) RunGameMakerJob(ctx context.Context, run JobRun) error { return r(ctx, run) }
+
+func TestPlanPhaseLocksMutationsAndBoundsCorrections(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage != "planning" {
+			return errors.New("invalid plan entered building")
+		}
+		for _, err := range []error{
+			s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "bad"),
+			func() error { _, e := s.ImportAssetPack(ctx, run.Job.ID, "space-shooter"); return e }(),
+			func() error {
+				_, e := s.StoreJobAsset(ctx, run.Job.ID, "assets/test.svg", "image", "test", "", []byte("x"))
+				return e
+			}(),
+		} {
+			if err == nil || !strings.Contains(err.Error(), "planning_required") {
+				t.Errorf("planning write gate: %v", err)
+			}
+		}
+		for range 3 {
+			if err := s.SetPlan(ctx, run.Job.ID, GamePlan{}); err == nil {
+				t.Error("invalid plan accepted")
+			}
+		}
+		if err := s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(project)); err == nil || !strings.Contains(err.Error(), "limit") {
+			t.Errorf("correction limit: %v", err)
+		}
+		return nil
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := waitJob(t, s, job.ID)
+	if finished.Status != "failed" || finished.ResultRevision != 0 {
+		t.Fatalf("invalid plan published: %+v", finished)
+	}
+}
+
+func TestPlanReferencesAndReadOnly(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	p := ExampleGamePlan(project)
+	p.Assets = nil
+	if err := s.checkPlan(project, p); err == nil {
+		t.Fatal("missing visual roles passed")
+	}
+	p.Assets = []PlanAsset{{Role: "player", PackID: "robots-drones-animated-top-down", Version: "2", AssetID: "service_robot_move_down", Direction: "left", DisplayHeight: 64, Origin: Point{.5, .5}, Collider: "rectangle", Animations: []string{"service_robot_move_left"}}}
+	if err := s.checkPlan(project, p); err != nil {
+		t.Fatal(err)
+	}
+	p.Assets[0].Animations = []string{"service_robot_attack_down"}
+	if err := s.checkPlan(project, p); err == nil {
+		t.Fatal("invented attack passed")
+	}
+	p.Assets[0].Animations = nil
+	p.Perspective = "side"
+	if err := s.checkPlan(project, p); err == nil {
+		t.Fatal("wrong perspective passed")
+	}
+	p = ExampleGamePlan(project)
+	p.Scenarios[0].Steps[0].Action = "eval"
+	if err := s.checkPlan(project, p); err == nil {
+		t.Fatal("executable test command passed")
+	}
+	s.UpdatePolicy(Policy{Enabled: true, ReadOnly: true, AllowEdit: true})
+	if err := s.SetPlan(context.Background(), "unused", p); !errors.Is(err, ErrReadOnly) {
+		t.Fatalf("readonly plan: %v", err)
+	}
+}
+
+func TestRepairLimitIsSharedWithAgentValidation(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	runs := 0
+	s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
+		runs++
+		for attempt := 0; attempt < 4; attempt++ {
+			if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", fmt.Sprintf("invalid TypeScript <<< %d", attempt)); err != nil {
+				return err
+			}
+			for repeat := 0; repeat < 2; repeat++ {
+				if result := s.ValidateJob(ctx, run.Job.ID); result.OK {
+					t.Error("invalid source passed")
+				}
+			}
+			s.mu.RLock()
+			failures := s.validationFailures[run.Job.ID]
+			s.mu.RUnlock()
+			if failures != attempt+1 {
+				t.Errorf("unchanged failure consumed another repair: %d", failures)
+			}
+		}
+		if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "// fifth attempt"); err == nil || !strings.Contains(err.Error(), "repair_limit_reached") {
+			t.Errorf("repair gate: %v", err)
+		}
+		return nil
+	}})
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := waitJob(t, s, job.ID)
+	if finished.Status != "failed" || finished.ResultRevision != 0 || runs != 1 {
+		t.Fatalf("nested repair or false publication: %+v, runs=%d", finished, runs)
+	}
+}
+
+func TestGameplayEvidenceBoundToBuildWindowAndLimits(t *testing.T) {
+	s := newTestService(t)
+	check := &previewCheck{ID: "build", JobID: "job", Scenarios: requiredScenarios("minimal")}
+	s.previewCheck = check
+	s.activeJobID = "job"
+	for _, token := range []string{"window1", "window2"} {
+		s.tokens[token] = previewToken{ProjectID: "project", JobID: "job", ValidationID: "build", ExpiresAt: time.Now().Add(time.Minute)}
+	}
+	_ = s.ReportPreview("project", PreviewReport{Token: "window1", Type: "ready", CanvasVisible: true})
+	report := PreviewReport{Token: "window2", Type: "gameplay", Observations: successfulObservationFixture(check.Scenarios)}
+	if err := s.ReportPreview("project", report); err != nil || check.GameplayReceived {
+		t.Fatalf("different window admitted: %v", err)
+	}
+	report.Token = "window1"
+	report.Observations[0].After["player_x"] = math.NaN()
+	if err := s.ReportPreview("project", report); err == nil {
+		t.Fatal("nonfinite evidence admitted")
+	}
+	report.Observations = successfulObservationFixture(check.Scenarios)
+	report.Images = []string{"data:image/png;base64,broken"}
+	if err := s.ReportPreview("project", report); err != nil || !check.GameplayReceived || len(check.Images) != 0 {
+		t.Fatalf("optional capture broke technical checks: %v", err)
+	}
+	newCheck := &previewCheck{ID: "new-build", JobID: "job", Scenarios: check.Scenarios}
+	s.previewCheck = newCheck
+	if err := s.ReportPreview("project", report); err != nil || newCheck.GameplayReceived {
+		t.Fatal("stale build admitted")
+	}
+	for _, oversized := range []PreviewReport{{Observations: make([]GameObservation, 17)}, {Images: make([]string, 3)}, {Images: []string{strings.Repeat("a", 700001)}}} {
+		if validateGameReport(oversized) == nil {
+			t.Fatal("unbounded evidence admitted")
+		}
+	}
+}
+
+func TestPublicationRechecksCancellationPolicyAndLateDiagnostics(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	job := Job{ID: "job", ProjectID: project.ID}
+	s.activeJobID = job.ID
+	check := &previewCheck{ID: "build", JobID: job.ID, GameplayReceived: true}
+	s.previewCheck = check
+	result := BuildResult{OK: true, check: check, RuntimeStatus: "passed", GameplayStatus: "passed"}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.publishValidated(cancelled, "unused", project, job, result); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled publication: %v", err)
+	}
+	s.UpdatePolicy(Policy{Enabled: true, ReadOnly: true, AllowEdit: true})
+	if _, err := s.publishValidated(context.Background(), "unused", project, job, result); !errors.Is(err, ErrReadOnly) {
+		t.Fatalf("readonly publication: %v", err)
+	}
+	s.UpdatePolicy(policyFromOptions(s.opts))
+	check.Diagnostics = []Diagnostic{{Message: "late spawn error during image review"}}
+	if _, err := s.publishValidated(context.Background(), "unused", project, job, result); err == nil || !strings.Contains(err.Error(), "late spawn") {
+		t.Fatalf("late error published: %v", err)
+	}
+	check.Diagnostics = nil
+	s.previewCheck = &previewCheck{ID: "replacement"}
+	if _, err := s.publishValidated(context.Background(), "unused", project, job, result); err == nil || !strings.Contains(err.Error(), "current validated build") {
+		t.Fatalf("stale build published: %v", err)
+	}
+	current, _ := s.GetProject(context.Background(), project.ID)
+	if current.CurrentRevision != 0 {
+		t.Fatal("rejected publication changed the revision")
+	}
+}
+
+func TestPlanAndChecksAreRevisionedButNotExported(t *testing.T) {
+	s := newTestService(t)
+	p := createTestProject(t, s, "2d")
+	s.SetRunner(testRunner{service: s})
+	job, err := s.StartJob(context.Background(), p.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, s, job.ID); finished.Status != "ready" {
+		t.Fatal(finished.Error)
+	}
+	data, err := os.ReadFile(filepath.Join(s.opts.WorkspacePath, p.ProjectKey, filepath.FromSlash(gamePlanPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan GamePlan
+	if json.Unmarshal(data, &plan) != nil || plan.Template != "minimal" {
+		t.Fatal("published plan missing")
+	}
+	// Existing export tests exercise hidden-file filtering; assert this exact path.
+	var exported bytes.Buffer
+	if _, err := s.WriteExport(context.Background(), p.ID, &exported); err != nil {
+		t.Fatal(err)
+	}
+	z, err := zip.NewReader(bytes.NewReader(exported.Bytes()), int64(exported.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range z.File {
+		if file.Name == gamePlanPath {
+			t.Fatal("internal plan included in export")
+		}
+	}
+}
+
+func TestGameObservationsCannotSelfCertifyOrOmitEvidence(t *testing.T) {
+	scenarios := gameScenarios(&GamePlan{Template: "shooter"})
+	observations := successfulObservationFixture(scenarios)
+	for _, check := range compareGameObservations(scenarios, observations) {
+		if check.Status != "passed" {
+			t.Fatal(check)
+		}
+	}
+	observations[0].After["player_x"] = observations[0].Before["player_x"]
+	delete(observations[1].After, "actions")
+	last := len(observations) - 1
+	observations[last].After["restart1_listener_count"] = 4
+	checks := compareGameObservations(scenarios, observations)
+	if checks[0].Status != "failed" || checks[1].Status != "unavailable" || checks[last].Status != "failed" {
+		t.Fatal(checks)
+	}
+}
+
+func TestSpriteUsageReferencesAndTransforms(t *testing.T) {
+	s := newTestService(t)
+	packs, _ := s.ListAssetPacks()
+	for _, pack := range packs {
+		_, assets, assemblies, animations, err := readPackUsage(pack.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, a := range assets {
+			if a.Entity == "" || a.Action == "" || !finite(a.Transform.ForwardRadians) || a.Transform.Mode == "" {
+				t.Fatalf("incomplete usage metadata %s/%s", pack.ID, a.ID)
+			}
+		}
+		for _, a := range assemblies {
+			if a.Transform.Mode == "" || a.Direction == "" {
+				t.Fatal("missing assembly transform")
+			}
+		}
+		for _, a := range animations {
+			if a.Entity == "" || a.Action == "" || a.Direction == "" {
+				t.Fatal("missing animation grouping")
+			}
+		}
+	}
+	found, err := s.SearchAssets("tank", "vehicles-planes-top-down", "top", 6)
+	if err != nil || len(found) == 0 || found[0].AssemblyID != "tank" {
+		t.Fatalf("fragment outranked tank: %+v %v", found, err)
+	}
+	d, err := s.DescribeAsset("robots-drones-animated-top-down", "service_robot_move_down", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(d.MissingActions, ","), "attack") || !d.allowsDirection("up") {
+		t.Fatal("invented attack or missing direction")
+	}
+}

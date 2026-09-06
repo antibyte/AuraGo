@@ -10,17 +10,24 @@ import (
 // previewCheck belongs to one build, never to a previous iframe or revision.
 // All fields are protected by Service.mu.
 type previewCheck struct {
-	ID          string
-	JobID       string
-	ReadyAt     time.Time
-	Diagnostics []Diagnostic
+	ID               string
+	JobID            string
+	ReadyAt          time.Time
+	Diagnostics      []Diagnostic
+	Scenarios        []GameScenario
+	Observations     []GameObservation
+	GameplayReceived bool
+	BoundToken       string
+	Images           []string
 }
 
 type PreviewReport struct {
-	CanvasVisible bool   `json:"canvas_visible,omitempty"`
-	Token         string `json:"token"`
-	Type          string `json:"type"`
-	Message       string `json:"message,omitempty"`
+	CanvasVisible bool              `json:"canvas_visible,omitempty"`
+	Token         string            `json:"token"`
+	Type          string            `json:"type"`
+	Message       string            `json:"message,omitempty"`
+	Observations  []GameObservation `json:"observations,omitempty"`
+	Images        []string          `json:"images,omitempty"`
 }
 
 func boundedPreviewDiagnostics(input []Diagnostic) []Diagnostic {
@@ -58,7 +65,7 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		return ErrDisabled
 	}
 	switch report.Type {
-	case "ready", "runtime_error", "resource_error", "diagnostic":
+	case "ready", "runtime_error", "resource_error", "diagnostic", "gameplay":
 	default:
 		return fmt.Errorf("unsupported preview report type")
 	}
@@ -78,7 +85,22 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		}
 		if check.ReadyAt.IsZero() {
 			check.ReadyAt = time.Now()
+			check.BoundToken = report.Token
 		}
+	} else if report.Type == "gameplay" {
+		if report.Token != check.BoundToken || len(check.Scenarios) == 0 || check.GameplayReceived {
+			return nil
+		}
+		if err := validateGameReport(report); err != nil {
+			return err
+		}
+		check.Observations = report.Observations
+		for _, image := range report.Images {
+			if validPreviewImage(image) {
+				check.Images = append(check.Images, image)
+			}
+		}
+		check.GameplayReceived = true
 	} else {
 		message := strings.TrimSpace(report.Message)
 		if message == "" {
@@ -92,11 +114,7 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 // ValidateJob uses the existing sandboxed browser preview as a bounded startup
 // smoke check. File writes still use BuildJob without waiting on a browser.
 func (s *Service) ValidateJob(ctx context.Context, jobID string) BuildResult {
-	result := s.BuildJob(ctx, jobID)
-	if !result.OK {
-		return result
-	}
-	return s.waitForPreview(ctx, result.check, 12*time.Second)
+	return s.ValidateJobScope(ctx, jobID, "startup")
 }
 
 func (s *Service) waitForPreview(ctx context.Context, check *previewCheck, timeout time.Duration) BuildResult {

@@ -8,7 +8,7 @@
       "animation",
       "environment"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "blocks-and-balls",
@@ -19,7 +19,7 @@
       "puzzle",
       "blocks"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "buildings-structures",
@@ -32,7 +32,7 @@
       "architecture",
       "side"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "buildings-structures-top-down",
@@ -45,7 +45,7 @@
       "architecture",
       "top"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "cards-and-board-games",
@@ -56,7 +56,7 @@
       "board",
       "puzzle"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "human-characters-animated",
@@ -68,7 +68,7 @@
       "side",
       "platformer"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "human-characters-top-down",
@@ -80,7 +80,7 @@
       "top",
       "adventure"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "jump-and-run",
@@ -91,7 +91,7 @@
       "terrain",
       "side"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "monsters-animals-animated",
@@ -103,7 +103,7 @@
       "side",
       "enemy"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "monsters-animals-top-down",
@@ -115,7 +115,7 @@
       "top",
       "enemy"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "nature-assets",
@@ -128,7 +128,7 @@
       "plants",
       "side"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "nature-assets-top-down",
@@ -141,7 +141,7 @@
       "plants",
       "top"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "robots-drones-animated",
@@ -154,7 +154,7 @@
       "animated",
       "side"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "robots-drones-animated-top-down",
@@ -167,7 +167,7 @@
       "animated",
       "top"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "space-shooter",
@@ -178,7 +178,7 @@
       "shooter",
       "top"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "top-down-adventure",
@@ -189,7 +189,7 @@
       "terrain",
       "top"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "vehicles-planes",
@@ -206,7 +206,7 @@
       "modular",
       "side"
     ],
-    "version": "1"
+    "version": "2"
   },
   {
     "id": "vehicles-planes-top-down",
@@ -223,6 +223,6 @@
       "modular",
       "top"
     ],
-    "version": "1"
+    "version": "2"
   }
 ]

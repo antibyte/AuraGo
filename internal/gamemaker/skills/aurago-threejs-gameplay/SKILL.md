@@ -33,5 +33,9 @@ not a passive scene.
 - Preserve `window.__AURAGO_GAME_DIAGNOSTICS__`; report canvas readiness, scene
   name, frame rate, resource errors, and runtime errors.
 
-Validate WebGL startup, resize behavior, controls, collision feedback, and a
-stable frame loop before polishing materials and effects.
+Use the shared mandatory planning round with template `three` and perspective
+`3d`; preserve working code on edits. Call `game_maker_validate` scope `startup`.
+This observes visible-canvas startup and runtime errors, not 3D gameplay, resize
+or collision correctness. Explicitly leave gameplay unverified. Phaser templates,
+sprite helpers and their 2D gameplay tests do not apply to Three.js. A sprite PNG
+is a texture, not a 3D character model. Optional image review is advisory only.

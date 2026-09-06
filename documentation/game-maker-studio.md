@@ -49,8 +49,13 @@ model are preselected.
 - Sound effects fall back to procedural Web Audio.
 - AuraGo does not claim to generate 3D models.
 
-The agent plans, builds, validates, and polishes autonomously. Progress,
-responses, diagnostics, and the playable preview remain in the same window.
+The selected model plans, builds, validates, and polishes autonomously. Planning
+is internal and requires no additional user confirmation. The server validates
+the structured plan before allowing code/media/import mutations. The initial
+plan has at most two corrections. Verified phase guidance is supplied directly;
+the model does not have to discover/activate four skills first. Progress events,
+diagnostics, and the preview remain in the same window. Model prose is held until
+publication, so an agent's early success claim cannot precede the actual checks.
 After a validated revision is ready, enter a change request to create the next
 revision. Stop cancels the staging job without changing the last playable
 version.
@@ -93,8 +98,9 @@ The **Assembly** selector previews complete objects, including synchronized
 vehicle animations. JSON `assemblies` describe dimensions, origin and ordered
 parts with exact frame indices and pixel offsets. Parts can reach their cell
 edges; assemble them in one container without individually resizing them.
-The import example includes this container pattern. Side-view vehicles face
-right; overhead vehicles face up. Top-down robots provide four directions.
+The sprite helper creates complete assemblies. Read each object's direction:
+most side-view vehicles face right, the ambulance faces left. Top-down robots
+provide four directions; rotatable vehicles record their exact forward angle.
 
 Search/filter packs, inspect sprites, play animations, and switch between
 checkerboard, white and dark backgrounds. **Use for next job** prepares the next
@@ -103,8 +109,13 @@ starting a job consumes it. Selections belong to the current Studio window.
 An empty selection lets the agent choose.
 
 Selected packs import before the agent starts. Additional packs are available
-through `game_maker_asset` operations `list_packs`, `describe_pack`, and
-`import_pack`, with the active `job_id`; the latter two also need `pack_id`.
+through `game_maker_asset` operations `list_packs`, `describe_pack`, `import_pack`,
+`search_assets` and `describe_asset`, always with the active `job_id`.
+Search accepts query, optional pack_id/view (side/top/board), and limit (default
+six, maximum twelve); complete assemblies rank before fragments. Describe accepts
+pack_id and exactly one asset_id/assembly_id. It returns entity variants, available
+directions/actions, explicitly missing actions and a use example. Imports require
+an accepted plan; search and description are available during planning.
 Omitting `operation` retains custom generation. Built-in imports need Studio
 edit permission but no image provider or media-generation permission.
 The import response and selected-pack context include a `phaser_example` with
@@ -122,6 +133,38 @@ The embedded Phaser skill includes a loading example using bundled JSON imports;
 generated games use local files, never the catalog API. Production is documented
 in `internal/gamemaker/asset_packs/production/README.md`.
 
+Pack version 2 adds explicit entity/action groups and transformation rules without
+changing artwork. Old project copies stay intact. The versioned embedded module
+`vendor/aurago-game-1.js` loads exact spritesheets, registers ordered animations
+idempotently (including hold frames), creates assets/assemblies, selects facing,
+and changes actions without restarting the same animation every frame. Transform
+angles are radians: zero right, pi/2 down. Four-view figures choose a directional
+animation and retain their last idle direction; flips and rotation require explicit
+metadata permission. Buildings, terrain, cards and signs have no blanket flip rule.
+Assemblies transform in one container; physics uses a separate proxy body because
+child Arcade bodies do not follow parent transforms correctly. See the complete
+scene in the embedded Phaser skill and the six editable `templates/*.ts` examples.
+
+## Internal plan and templates
+
+`game_maker_project inspect` returns next_action and a complete plan_example.
+`get_plan` reads `.aurago/game-plan.json`; `set_plan` validates and writes it during
+planning. Plans include goal/loop/scope, template, perspective, resolution/camera,
+controls/states/rules, exact asset/version/animation/assembly references, visual
+size/origin/collider, scenarios, assumptions/fallback and preserved edit behavior.
+Unknown references, incompatible perspectives/actions and unbounded scenarios
+produce a field-specific correction. Templates are installed only for new 2D
+projects: shooter, platformer, topdown, blocks, board, minimal. Default logical
+resolution is 960×540 with FIT, pixelArt and uniform sprite scaling. Existing
+projects keep their code and get an updated internal plan instead.
+
+The helper's `bindGameTest(scene,state,player)` connects the current live scene,
+object and numeric state to the finite preview driver. The editable template
+common lifecycle resets state, physics and inputs. Keep standard Arrow/Space/R
+controls for minimum checks; ESC ends/forfeits a run. State counters reflect actual
+actions, hits, points, spawns, turns, timer ticks and terminal state. Do not invent
+actions or fabricate test counters for absent behavior.
+
 ## Builds, revisions, and export
 
 Each job works in its own staging copy. TypeScript and ES modules are compiled
@@ -129,15 +172,36 @@ with the Pure-Go esbuild API, so Game Maker itself needs neither Docker nor a
 Node runtime. Successful validation atomically replaces the published project
 and records a revision whose file data is deduplicated in a SHA-256 blob store.
 
-Keep the project's Studio preview open during validation. After compiling,
-`game_maker_validate` waits up to 12 seconds for the browser to report a canvas
+Keep the project's Studio preview open during validation. With omitted scope or
+`scope: startup`, `game_maker_validate` waits up to 12 seconds for a canvas
 inside the visible viewport and at least three seconds of startup without
 runtime/resource errors. Engine console errors are included. Game-authored
 readiness alone does not prove a visible canvas. Those errors
 are returned to the agent and the existing repair loop (at most three passes).
 Missing browser feedback blocks publication instead of claiming playability.
-This is a startup smoke check; controls and later gameplay still need testing.
-Errors observed later in the current preview accompany the next change request.
+This compatibility mode is a startup check, not a full gameplay check.
+`scope: gameplay` or `full` additionally runs immutable template scenarios plus
+1–8 plan scenarios. The complete run is limited to 60 seconds. Commands are bounded
+key/pointer/wait/observe operations, never JavaScript expressions. Server-side
+comparisons check input, primary action, rules, timers, a six-second late-event
+interval, terminal state, sprite integrity and two consecutive restarts. Missing
+measurements are unavailable, not passed. A new build invalidates prior evidence
+and replaces preview diagnostics. The driver resets the game after testing.
+
+All 2D publication uses full validation; 3D publication currently uses startup
+and explicitly reports gameplay unverified. Technical failures share at most
+three repair passes across tool calls and orchestration, with no nested allowance.
+Repairs receive the accepted plan and exact check/expected/observed mismatch.
+At most two optional screenshots go to the same selected model only when its
+catalog metadata confirms image input. A tool-free, budgeted request supplies
+advisory observations; no provider switch occurs. Missing capture/capability or
+review failure is skipped. Visual review cannot override a failed technical check.
+Publication rechecks cancellation, edit permissions, build identity and late
+runtime errors under the publication lock, including errors during image review.
+The internal `.aurago/validation-report.json` records checks, separate gameplay/
+visual status and the compiled bundle SHA-256. Plans and reports travel with
+revisions and are excluded from export. Later preview errors accompany the next
+change request as untrusted diagnostics.
 
 Restoring an older revision creates a new revision and keeps the complete
 history. ZIP export contains:
@@ -193,4 +257,32 @@ Authenticated sprite endpoints are `GET /api/game-maker/asset-packs`,
 `GET /api/game-maker/asset-packs/{id}/sheet.json`, and the corresponding
 `sheet.png`. Only known IDs and these filenames are served. Disabled Studio
 access is rejected. Start-job bodies optionally accept `asset_pack_ids` (at
-most ten IDs, duplicates removed). No database migration is needed.
+most eighteen IDs, duplicates removed). No database migration is needed.
+
+The authenticated `preview-report` route additionally accepts at most sixteen
+numeric observations and two PNG data URLs (700,000 characters each). The report
+is bound to its build and the first ready preview token. Other JSON routes retain
+their 256 KiB limit; preview reports are limited to 1,500,000 bytes.
+
+## Acceptance commands
+
+Run `go test ./internal/gamemaker`, focused Game Maker agent/server/UI tests,
+`node scripts/test-game-maker-sprites.mjs`, and
+`node scripts/build-ui-bundles.js --check`. Reproduce metadata with
+`python scripts/pack_game_sprites.py --check`.
+For real Phaser acceptance set `GAMEMAKER_BROWSER_TEST=1` and run
+`go test ./internal/gamemaker -run TestGameMakerBrowserFixtures -v -timeout 15m`.
+Open its loopback URL and run the series: six templates, the complete documented
+sprite scene, all packs, and seven deliberately broken input/restart/late-event/
+sheet/direction/animation/assembly cases. This opt-in test never calls an LLM.
+Every case is loaded from the actual ZIP export with the production preview CSP,
+which blocks external network resources. Set `GAMEMAKER_BROWSER_EXPORTS_ONLY=1`
+to run only the eight positive exports. The diagnostic/test bridge is injected by
+the fixture server; exported files themselves contain neither that bridge nor
+internal plans/reports.
+
+`game-maker-comparison.json` defines eight fixed weak-model cases and the recorded
+fields. Run both commits with the same configured provider/model and settings,
+then record human playability observations independently of model success prose.
+This provider-dependent comparison is separate from the deterministic browser
+suite; do not claim a model quality improvement without those measurements.

@@ -14,7 +14,7 @@
     "side"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -833,6 +833,14 @@
         "vehicle"
       ],
       "view": "side",
+      "entity": "compact_car",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         0,
         1,
@@ -857,6 +865,14 @@
         "vehicle"
       ],
       "view": "side",
+      "entity": "jeep",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         5,
         6,
@@ -881,6 +897,14 @@
         "vehicle"
       ],
       "view": "side",
+      "entity": "motorcycle",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         10,
         11,
@@ -905,6 +929,14 @@
         "vehicle"
       ],
       "view": "side",
+      "entity": "tractor",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         15,
         16,
@@ -930,6 +962,14 @@
         "tank"
       ],
       "view": "side",
+      "entity": "tank",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20,
         21,
@@ -956,6 +996,14 @@
         "tank"
       ],
       "view": "side",
+      "entity": "tank",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25,
         26,
@@ -982,6 +1030,14 @@
         "helicopter"
       ],
       "view": "side",
+      "entity": "helicopter",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30,
         31,
@@ -1008,6 +1064,14 @@
         "helicopter"
       ],
       "view": "side",
+      "entity": "helicopter",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35,
         36,
@@ -1034,6 +1098,14 @@
         "propeller_plane"
       ],
       "view": "side",
+      "entity": "propeller_plane",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40,
         41,
@@ -1060,6 +1132,14 @@
         "propeller_plane"
       ],
       "view": "side",
+      "entity": "propeller_plane",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45,
         46,
@@ -1086,6 +1166,14 @@
         "cargo_truck"
       ],
       "view": "side",
+      "entity": "cargo_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1108,6 +1196,14 @@
         "cargo_truck"
       ],
       "view": "side",
+      "entity": "cargo_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1130,6 +1226,14 @@
         "cargo_truck"
       ],
       "view": "side",
+      "entity": "cargo_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1152,6 +1256,14 @@
         "cargo_truck"
       ],
       "view": "side",
+      "entity": "cargo_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1174,6 +1286,14 @@
         "cargo_truck"
       ],
       "view": "side",
+      "entity": "cargo_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1196,6 +1316,14 @@
         "cargo_truck"
       ],
       "view": "side",
+      "entity": "cargo_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1218,6 +1346,14 @@
         "bus"
       ],
       "view": "side",
+      "entity": "bus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1240,6 +1376,14 @@
         "bus"
       ],
       "view": "side",
+      "entity": "bus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1262,6 +1406,14 @@
         "bus"
       ],
       "view": "side",
+      "entity": "bus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -1284,6 +1436,14 @@
         "bus"
       ],
       "view": "side",
+      "entity": "bus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -1306,6 +1466,14 @@
         "bus"
       ],
       "view": "side",
+      "entity": "bus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -1328,6 +1496,14 @@
         "bus"
       ],
       "view": "side",
+      "entity": "bus",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -1350,6 +1526,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -1372,6 +1556,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -1394,6 +1586,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -1416,6 +1616,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -1438,6 +1646,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -1460,6 +1676,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -1482,6 +1706,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -1504,6 +1736,14 @@
         "cargo_aircraft"
       ],
       "view": "side",
+      "entity": "cargo_aircraft",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -1526,6 +1766,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -1548,6 +1796,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -1570,6 +1826,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -1592,6 +1856,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -1614,6 +1886,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -1636,6 +1916,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -1658,6 +1946,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -1680,6 +1976,14 @@
         "crane_truck"
       ],
       "view": "side",
+      "entity": "crane_truck",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -1702,10 +2006,18 @@
         "ambulance"
       ],
       "view": "side",
+      "entity": "ambulance",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
-      "direction": "right",
+      "direction": "left",
       "origin": {
         "x": 0,
         "y": 0
@@ -1724,10 +2036,18 @@
         "ambulance"
       ],
       "view": "side",
+      "entity": "ambulance",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
-      "direction": "right",
+      "direction": "left",
       "origin": {
         "x": 0,
         "y": 0
@@ -1746,10 +2066,18 @@
         "ambulance"
       ],
       "view": "side",
+      "entity": "ambulance",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80
       ],
-      "direction": "right",
+      "direction": "left",
       "origin": {
         "x": 0,
         "y": 0
@@ -1768,10 +2096,18 @@
         "ambulance"
       ],
       "view": "side",
+      "entity": "ambulance",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         81
       ],
-      "direction": "right",
+      "direction": "left",
       "origin": {
         "x": 0,
         "y": 0
@@ -1790,10 +2126,18 @@
         "ambulance"
       ],
       "view": "side",
+      "entity": "ambulance",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         82
       ],
-      "direction": "right",
+      "direction": "left",
       "origin": {
         "x": 0,
         "y": 0
@@ -1812,10 +2156,18 @@
         "ambulance"
       ],
       "view": "side",
+      "entity": "ambulance",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         83
       ],
-      "direction": "right",
+      "direction": "left",
       "origin": {
         "x": 0,
         "y": 0
@@ -1834,6 +2186,14 @@
         "effect"
       ],
       "view": "side",
+      "entity": "rotor_spin",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84,
         85,
@@ -1849,7 +2209,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     },
     {
       "id": "wheel_spin",
@@ -1862,6 +2222,14 @@
         "effect"
       ],
       "view": "side",
+      "entity": "wheel_spin",
+      "action": "move",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         92,
         93,
@@ -1877,7 +2245,7 @@
         "x": 0.5,
         "y": 0.9375
       },
-      "flip_x": true
+      "flip_x": false
     }
   ],
   "animations": [
@@ -1893,7 +2261,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "compact_car",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "jeep_move",
@@ -1907,7 +2278,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "jeep",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "motorcycle_move",
@@ -1921,7 +2295,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "motorcycle",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "tractor_move",
@@ -1935,7 +2312,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "tractor",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "tank_r1_c1",
@@ -1949,7 +2329,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "tank",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "tank_r1_c2",
@@ -1963,7 +2346,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "tank",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "helicopter_r1_c1",
@@ -1977,7 +2363,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "helicopter",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "helicopter_r1_c2",
@@ -1991,7 +2380,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "helicopter",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "propeller_plane_r1_c1",
@@ -2005,7 +2397,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "propeller_plane",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "propeller_plane_r1_c2",
@@ -2019,7 +2414,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "propeller_plane",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "rotor_spin",
@@ -2036,7 +2434,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "rotor_spin",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "wheel_spin",
@@ -2053,7 +2454,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wheel_spin",
+      "action": "move",
+      "direction": "right"
     }
   ],
   "provenance": {
@@ -2080,6 +2484,13 @@
       "origin": {
         "x": 0.5,
         "y": 1
+      },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
       },
       "parts": [
         {
@@ -2109,6 +2520,13 @@
         "x": 0.5,
         "y": 1
       },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "parts": [
         {
           "asset_id": "helicopter_r1_c1",
@@ -2137,6 +2555,13 @@
         "x": 0.5,
         "y": 1
       },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "parts": [
         {
           "asset_id": "propeller_plane_r1_c1",
@@ -2164,6 +2589,13 @@
       "origin": {
         "x": 0.5,
         "y": 1
+      },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
       },
       "parts": [
         {
@@ -2215,6 +2647,13 @@
         "x": 0.5,
         "y": 1
       },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "parts": [
         {
           "asset_id": "bus_r1_c1",
@@ -2264,6 +2703,13 @@
       "origin": {
         "x": 0.5,
         "y": 1
+      },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
       },
       "parts": [
         {
@@ -2327,6 +2773,13 @@
         "x": 0.5,
         "y": 1
       },
+      "direction": "right",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "parts": [
         {
           "asset_id": "crane_truck_r1_c1",
@@ -2388,6 +2841,13 @@
       "origin": {
         "x": 0.5,
         "y": 1
+      },
+      "direction": "left",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 3.141592653589793,
+        "flip_x": true,
+        "flip_y": false
       },
       "parts": [
         {

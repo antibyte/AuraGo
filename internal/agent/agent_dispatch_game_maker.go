@@ -34,6 +34,27 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		if err != nil {
 			return gameMakerToolError(err), true
 		}
+		if operation == "get_plan" {
+			plan, err := service.GetPlan(ctx, jobID)
+			if err != nil {
+				return gameMakerToolError(err), true
+			}
+			return gameMakerToolJSON(map[string]any{"status": "ok", "plan": plan}), true
+		}
+		if operation == "set_plan" {
+			data, err := json.Marshal(tc.Params["plan"])
+			if err != nil {
+				return gameMakerToolError(err), true
+			}
+			var plan gamemaker.GamePlan
+			if err = json.Unmarshal(data, &plan); err != nil {
+				return gameMakerToolError(err), true
+			}
+			if err = service.SetPlan(ctx, jobID, plan); err != nil {
+				return gameMakerToolError(err), true
+			}
+			return gameMakerToolJSON(map[string]any{"status": "ok", "next_action": "Plan accepted. End this planning turn; the server will import assets and start implementation."}), true
+		}
 		if operation == "list_files" {
 			files, err := service.ListJobFiles(ctx, jobID)
 			if err != nil {
@@ -42,7 +63,10 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 			return gameMakerToolJSON(map[string]any{"status": "ok", "files": files}), true
 		}
 		manifest, _ := service.ReadJobFile(ctx, jobID, "game.json")
-		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest}), true
+		if operation != "inspect" {
+			return gameMakerToolError(fmt.Errorf("unknown project operation")), true
+		}
+		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "plan_example": gamemaker.ExampleGamePlan(project), "next_action": gamemaker.JobNextAction(job)}), true
 
 	case "game_maker_file":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
@@ -67,7 +91,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		return gameMakerToolJSON(map[string]any{"status": "ok", "path": path}), true
 
 	case "game_maker_validate":
-		result := service.ValidateJob(ctx, jobID)
+		result := service.ValidateJobScope(ctx, jobID, toolArgString(tc.Params, "scope"))
 		return gameMakerToolJSON(map[string]any{"status": gameMakerValidationStatus(result.OK), "result": result}), true
 
 	case "game_maker_asset":
@@ -84,6 +108,22 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 	operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"), "generate")
 	packID := toolArgString(tc.Params, "pack_id")
 	switch operation {
+	case "search_assets":
+		limit := 6
+		if n, ok := tc.Params["limit"].(float64); ok {
+			limit = int(n)
+		}
+		matches, err := service.SearchAssets(toolArgString(tc.Params, "query"), packID, toolArgString(tc.Params, "view"), limit)
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		return gameMakerToolJSON(map[string]any{"status": "ok", "matches": matches, "next_action": "Use describe_asset with one exact asset_id or assembly_id before adding the selection to the plan."})
+	case "describe_asset":
+		detail, err := service.DescribeAsset(packID, toolArgString(tc.Params, "asset_id"), toolArgString(tc.Params, "assembly_id"))
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		return gameMakerToolJSON(map[string]any{"status": "ok", "detail": detail})
 	case "list_packs":
 		packs, err := service.ListAssetPacks()
 		if err != nil {
@@ -105,6 +145,9 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 	case "generate":
 	default:
 		return gameMakerToolError(fmt.Errorf("unsupported asset operation"))
+	}
+	if err := service.CheckJobMutation(ctx, jobID); err != nil {
+		return gameMakerToolError(err)
 	}
 	kind := strings.ToLower(firstNonEmptyToolString(toolArgString(tc.Params, "kind"), tc.Mode))
 	prompt := firstNonEmptyToolString(tc.Query, tc.Description, toolArgString(tc.Params, "prompt"))

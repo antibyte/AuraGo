@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 const (
@@ -109,6 +110,39 @@ func CuratedSkillNames() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// PhaseGuidance uses only the embedded, reviewed source, never a project file or
+// a locally replaced skill. Startup still verifies the curated skill registry.
+func PhaseGuidance(stage, dimension string) string {
+	names := []string{"aurago-game-maker-director"}
+	if stage == "planning" {
+		names = append(names, "aurago-game-assets")
+	} else {
+		engine := "aurago-phaser4-gameplay"
+		if dimension == "3d" {
+			engine = "aurago-threejs-gameplay"
+		}
+		names = append(names, engine, "aurago-game-qa")
+		if stage != "repair" {
+			names = append(names, "aurago-game-assets")
+		}
+	}
+	var out []string
+	for _, name := range names {
+		data, err := bundledSkills.ReadFile("skills/" + name + "/SKILL.md")
+		if err != nil {
+			continue
+		}
+		body := string(data)
+		if strings.HasPrefix(body, "---") {
+			if end := strings.Index(body[3:], "\n---"); end >= 0 {
+				body = body[end+7:]
+			}
+		}
+		out = append(out, body)
+	}
+	return strings.Join(out, "\n\n")
 }
 
 func equalSHA256(left, right []byte) bool {

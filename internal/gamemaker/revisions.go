@@ -38,7 +38,41 @@ func (s *Service) ListRevisions(ctx context.Context, projectID string) ([]Revisi
 	return out, rows.Err()
 }
 
-func (s *Service) publish(stage string, project Project, job Job, source, summary string) (Revision, error) {
+// Keep the admission check and filesystem commit under the same policy/build
+// locks. Cancellation, a new build or late diagnostics revoke publication.
+func (s *Service) publishValidated(ctx context.Context, stage string, project Project, job Job, result BuildResult) (Revision, error) {
+	s.policyMu.RLock()
+	defer s.policyMu.RUnlock()
+	if !s.policy.Enabled {
+		return Revision{}, ErrDisabled
+	}
+	if s.policy.ReadOnly || !s.policy.AllowEdit {
+		return Revision{}, ErrReadOnly
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return Revision{}, err
+	}
+	if !result.OK || result.check == nil || result.check != s.previewCheck || s.activeJobID != job.ID {
+		return Revision{}, fmt.Errorf("publication requires the current validated build")
+	}
+	if len(result.check.Diagnostics) > 0 {
+		return Revision{}, fmt.Errorf("preview failed before publication: %s", diagnosticsText(result.check.Diagnostics))
+	}
+	if project.Dimension == "2d" && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
+		return Revision{}, fmt.Errorf("publication requires full gameplay observations")
+	}
+	if err := writeValidationReport(stage, result, s.opts.MaxFilesPerProject, s.opts.MaxFileBytes, s.opts.MaxProjectBytes); err != nil {
+		return Revision{}, err
+	}
+	return s.publish(ctx, stage, project, job, "agent", job.Prompt)
+}
+
+func (s *Service) publish(ctx context.Context, stage string, project Project, job Job, source, summary string) (Revision, error) {
+	if err := ctx.Err(); err != nil {
+		return Revision{}, err
+	}
 	files, total, err := s.snapshotFiles(stage)
 	if err != nil {
 		return Revision{}, err
@@ -49,7 +83,7 @@ func (s *Service) publish(stage string, project Project, job Job, source, summar
 			_ = s.pruneOrphanBlobs(context.Background())
 		}
 	}()
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Revision{}, fmt.Errorf("begin game maker revision: %w", err)
 	}
@@ -317,7 +351,7 @@ func (s *Service) RestoreRevision(ctx context.Context, projectID string, number 
 		return Revision{}, fmt.Errorf("restored game revision failed validation: %s", diagnosticsText(result.Diagnostics))
 	}
 	restoreJob := Job{ID: writerID, ProjectID: projectID}
-	published, err := s.publish(stage, project, restoreJob, "restore", fmt.Sprintf("Restored revision %d", number))
+	published, err := s.publish(ctx, stage, project, restoreJob, "restore", fmt.Sprintf("Restored revision %d", number))
 	if err != nil {
 		return Revision{}, err
 	}

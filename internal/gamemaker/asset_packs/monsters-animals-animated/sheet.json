@@ -9,7 +9,7 @@
     "enemy"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -827,6 +827,14 @@
         "idle"
       ],
       "view": "side",
+      "entity": "slime",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         0,
         1,
@@ -849,6 +857,14 @@
         "move"
       ],
       "view": "side",
+      "entity": "slime",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         4,
         5,
@@ -875,6 +891,14 @@
         "attack"
       ],
       "view": "side",
+      "entity": "slime",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         12,
         13,
@@ -899,6 +923,14 @@
         "hurt"
       ],
       "view": "side",
+      "entity": "slime",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         18,
         19
@@ -919,6 +951,14 @@
         "death"
       ],
       "view": "side",
+      "entity": "slime",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         20,
         21,
@@ -942,6 +982,14 @@
         "idle"
       ],
       "view": "side",
+      "entity": "goblin",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         25,
         26,
@@ -964,6 +1012,14 @@
         "move"
       ],
       "view": "side",
+      "entity": "goblin",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         29,
         30,
@@ -990,6 +1046,14 @@
         "attack"
       ],
       "view": "side",
+      "entity": "goblin",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         37,
         38,
@@ -1014,6 +1078,14 @@
         "hurt"
       ],
       "view": "side",
+      "entity": "goblin",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         43,
         44
@@ -1034,6 +1106,14 @@
         "death"
       ],
       "view": "side",
+      "entity": "goblin",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         45,
         46,
@@ -1057,6 +1137,14 @@
         "idle"
       ],
       "view": "side",
+      "entity": "wolf",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         50,
         51,
@@ -1079,6 +1167,14 @@
         "move"
       ],
       "view": "side",
+      "entity": "wolf",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         54,
         55,
@@ -1105,6 +1201,14 @@
         "attack"
       ],
       "view": "side",
+      "entity": "wolf",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         62,
         63,
@@ -1129,6 +1233,14 @@
         "hurt"
       ],
       "view": "side",
+      "entity": "wolf",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         68,
         69
@@ -1149,6 +1261,14 @@
         "death"
       ],
       "view": "side",
+      "entity": "wolf",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         70,
         71,
@@ -1172,6 +1292,14 @@
         "idle"
       ],
       "view": "side",
+      "entity": "boar",
+      "action": "idle",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         75,
         76,
@@ -1194,6 +1322,14 @@
         "move"
       ],
       "view": "side",
+      "entity": "boar",
+      "action": "move",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         79,
         80,
@@ -1220,6 +1356,14 @@
         "attack"
       ],
       "view": "side",
+      "entity": "boar",
+      "action": "attack",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         87,
         88,
@@ -1244,6 +1388,14 @@
         "hurt"
       ],
       "view": "side",
+      "entity": "boar",
+      "action": "hurt",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         93,
         94
@@ -1264,6 +1416,14 @@
         "death"
       ],
       "view": "side",
+      "entity": "boar",
+      "action": "death",
+      "transform": {
+        "mode": "flip",
+        "forward_radians": 0,
+        "flip_x": true,
+        "flip_y": false
+      },
       "frames": [
         95,
         96,
@@ -1291,7 +1451,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "slime_move",
@@ -1308,7 +1471,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "slime_attack",
@@ -1323,7 +1489,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "slime_hurt",
@@ -1334,7 +1503,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "slime_death",
@@ -1348,7 +1520,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "slime",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "goblin_idle",
@@ -1361,7 +1536,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "goblin_move",
@@ -1378,7 +1556,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "goblin_attack",
@@ -1393,7 +1574,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "goblin_hurt",
@@ -1404,7 +1588,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "goblin_death",
@@ -1418,7 +1605,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "goblin",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "wolf_idle",
@@ -1431,7 +1621,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "wolf_move",
@@ -1448,7 +1641,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "wolf_attack",
@@ -1463,7 +1659,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "wolf_hurt",
@@ -1474,7 +1673,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "wolf_death",
@@ -1488,7 +1690,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "wolf",
+      "action": "death",
+      "direction": "right"
     },
     {
       "id": "boar_idle",
@@ -1501,7 +1706,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "boar_move",
@@ -1518,7 +1726,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "move",
+      "direction": "right"
     },
     {
       "id": "boar_attack",
@@ -1533,7 +1744,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "boar_hurt",
@@ -1544,7 +1758,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "hurt",
+      "direction": "right"
     },
     {
       "id": "boar_death",
@@ -1558,7 +1775,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "boar",
+      "action": "death",
+      "direction": "right"
     }
   ],
   "provenance": {

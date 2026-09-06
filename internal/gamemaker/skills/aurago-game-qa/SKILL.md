@@ -15,16 +15,18 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_validate
 Use deterministic, scene-first checks. This package contains original AuraGo
 guidance and copies no TinySwords code, text, scripts, or assets.
 
-1. Call `game_maker_validate` and inspect every compiler and browser diagnostic.
+1. Call `game_maker_validate` with `scope: full` for 2D and inspect every check.
 2. Confirm the manifest, entry point, local runtime, and diagnostic interface.
 3. Confirm a canvas becomes ready and the expected scene reports itself.
-4. Check that the documented controls change game state.
+4. Use returned expected/observed comparisons to check control effects; do not
+   infer movement from source code or the absence of exceptions.
 5. Check the core loop: goal, feedback, pressure or failure, progression, and
    restart or continued play.
 6. Check resource and runtime errors, viewport resize, legible UI, and bounded
    frame-rate reporting.
-7. Verify that external requests are unnecessary and that a ZIP export remains
-   playable offline.
+7. Keep runtime/assets project-local. The agent has no ZIP/browser tool; the
+   automated release fixtures verify exported reference games. Never claim that
+   you personally tested an export during a normal generation job.
 8. For imported sprites, confirm both local PNG/JSON files, exact numeric frames,
    direction, origin and actual movement. Check borders on light and dark scenes.
    Use `load.spritesheet` with 64×64 frames; a full sheet shown as one sprite is
@@ -38,6 +40,33 @@ validation pass.
 
 Make at most three focused repair passes. Do not hide a failed validation or
 replace the last working preview with broken output.
+
+## Available checks and interpretation
+
+```json
+{"job_id":"CURRENT_JOB_ID","scope":"full"}
+```
+Omitted scope remains startup-only for compatibility. Full 2D validation runs
+at most 60 seconds: startup, fixed template tests and the accepted plan scenarios.
+The driver accepts only bounded key/pointer/wait/observe commands, no JavaScript.
+It takes numeric snapshots before/after real input; the server compares them.
+`bindGameTest(scene,state,player)` connects the current live scene/object and
+state counters: actions, score, hits, spawns, turns, ticks, ended (0/1). Update these
+only in actual game event handlers. Position, object/timer/listener counts and
+asset integrity are measured from the engine. Never fabricate observations.
+Test input resets with R between scenarios and after the run. Retain R restart
+and ESC end/forfeit. Required tests exercise input, primary action, rules,
+timed activity, terminal state, sprite integrity, and two successive restarts.
+On restart recreate state in create(), cancel scene timers and release inputs;
+neither the first nor second restart may leave duplicate objects/listeners.
+
+`checks` contains ID/status/expected/observed. Missing observations are unavailable,
+never success. `gameplay_status` is independent of `runtime_status`. 3D currently
+requires startup only and reports gameplay unverified. Optional `visual_status`
+is advisory; skipped image review is normal for text-only/unknown models.
+An image review cannot override a failed technical check. Repair the named
+cause; preserve every passing behavior in the accepted plan. During repair,
+perform one validation and return control to the server's bounded orchestrator.
 
 Validation reloads the open Studio preview and waits up to 12 seconds for a
 server-boot report of a visible, nonzero canvas plus three seconds without startup

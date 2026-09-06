@@ -49,32 +49,58 @@ Import a pack first. Import its JSON in `src/main.ts` so esbuild bundles metadat
 into the offline game. The import response includes a pack-specific
 `phaser_example`. Never load the sheet with `load.image`, or its AuraGo metadata
 with `load.atlas`.
-Example for the returned human pack version 1 paths:
+Complete `src/main.ts` example after importing human-characters-animated version 2.
+Keep the installed `src/common.ts` template lifecycle:
 
 ```typescript
-import meta from '../assets/builtin/human-characters-animated/1/sheet.json';
-const texture = meta.id + '@' + meta.version;
-// In preload():
-this.load.spritesheet(texture,
-  'assets/builtin/human-characters-animated/1/sheet.png',
-  { frameWidth: meta.frame_width, frameHeight: meta.frame_height });
-// In create():
-for (const animation of meta.animations) {
-  const key = texture + ':' + animation.id;
-  if (!this.anims.exists(key)) this.anims.create({
-    key, sortFrames: false,
-    frames: animation.frames.map(frame => ({ key: texture, frame })),
-    frameRate: animation.frame_rate, repeat: animation.repeat,
-    yoyo: animation.yoyo
-  });
+import { GameScene, start } from './common';
+import { preloadPack, registerAnimations, createAsset, setFacing, playAction } from '../vendor/aurago-game-1.js';
+import meta from '../assets/builtin/human-characters-animated/2/sheet.json';
+class RangerGame extends GameScene {
+  art: any; attackUntil=0;
+  preload() { preloadPack(this,meta,'assets/builtin/human-characters-animated/2/sheet.png'); }
+  setup() {
+    super.setup();this.attackUntil=0;this.player.setVisible(false);
+    registerAnimations(this,meta);
+    this.art=createAsset(this,meta,'ranger_idle',this.player.x,this.player.y).setScale(2);
+    const coin=this.body(360,270,20,20,0xfacc15,true);
+    this.physics.add.overlap(this.player,coin,()=>{coin.destroy();this.state.score++;this.state.hits++;});
+  }
+  action() {this.state.actions++;this.attackUntil=this.elapsed+650;playAction(this.art,'attack');}
+  step(delta: number) {
+    super.step(delta);
+    this.art.setPosition(this.player.x,this.player.y);
+    const x=this.inputKeys.vector().x;
+    setFacing(this.art,x,0);
+    if(this.elapsed>=this.attackUntil)playAction(this.art,x?'walk':'idle');
+  }
 }
-const asset = meta.assets.find(asset => asset.id === 'ranger_walk');
-const ranger = this.add.sprite(160, 160, texture, asset.frames[0])
-  .setOrigin(asset.origin.x, asset.origin.y);
-ranger.play(texture + ':ranger_walk');
-ranger.setFlipX(true); // Side-view assets permit horizontal mirroring.
+start(RangerGame);
 ```
 
 Keep pixel art sharp with `pixelArt: true`. Preserve ordered frame lists with
 `sortFrames: false`, including holds. Reference:
 https://docs.phaser.io/phaser/concepts/animations
+
+## Direction, physics, and restart
+
+Use setFacing(object,dx,dy): zero vector retains the last facing; four-view art
+selects the dominant axis (ties horizontal). Side-view art uses only horizontal
+facing. Rotatable art uses atan2(dy,dx) minus metadata.forward_radians. Phaser
+`rotation`/setRotation are radians; `angle` is degrees. Do not mix them. Flip is
+around the texture center; the helper mirrors the normalized anchor too.
+Buildings, cards, signs and terrain cannot be flipped/rotated unless metadata
+explicitly permits it. Do not rotate a side-view person into a top-down person.
+playAction ignores a repeated request for the currently running animation;
+call it when the action changes and let one-shot attacks/deaths finish.
+
+For an assembly, createAssembly returns one container with original part offsets.
+Scale the container uniformly. Move a separate hidden rectangular/circular
+physics proxy and copy its position to the art. Never attach physics to the
+parts: container transforms do not correctly transform child Arcade bodies.
+Choose a conservative explicit collider; visual rotation is not collider rotation.
+Reset counters/timers/inputs in the provided scene lifecycle. A restarted scene
+must resume physics if the previous game ended with physics.pause().
+Phaser API references:
+https://docs.phaser.io/phaser/concepts/gameobjects/components
+https://docs.phaser.io/phaser/concepts/gameobjects/container

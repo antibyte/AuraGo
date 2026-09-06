@@ -11,6 +11,16 @@ hashes also travel in metadata. Preserve originals; change pose/crop choices in
 Bump the pack's `version` when changing already-released artwork or metadata;
 existing projects keep their earlier versioned copies.
 
+Version 2 adds explicit reviewed entity/action groups and per-asset/assembly
+transforms; PNG pixels are unchanged. `mode` is fixed, flip, directional or
+rotate. `forward_radians` uses screen coordinates: right 0, down pi/2, left pi,
+up -pi/2. flip_x/flip_y are explicit permissions, never inferred by the runtime
+from pack names. Figures with directional drawings select those drawings;
+buildings, signs, cards and nature keep their authored orientation. Moving
+assembly parts remain fixed locally and inherit only the container transform.
+The side ambulance faces left. Idle aliases identify the same entity/action
+and direction as their source poses. Validate all fields after regeneration.
+
 ## Production brief
 
 Shared direction: fantasy/arcade pixel art, dark outlines, emerald green,

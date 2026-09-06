@@ -18,6 +18,12 @@ parent owners. Only the runtime pairs/catalog are embedded in the binary.
   animation. Preserve ordered frames, direction, origins, timing and provenance.
   Metadata is English. Repeated source poses are explicit holds. Side views
   face right; top-down humans/creatures cover four directions.
+- Version 2 records reviewed `entity`, `action`, and `transform` on every asset;
+  animations also carry entity/action/direction. `forward_radians` is the actual
+  nose direction (0 right, pi/2 down). Only explicit flip_x/flip_y permits flips;
+  fixed buildings, cards and terrain do not inherit character rules. Assemblies
+  have their own rules and direction, including the left-facing side ambulance.
+  Preserve v1 project copies; the current pack imports in a separate v2 directory.
 - Preserve originals and their hashes. Edit reviewed rectangles/pose selections
   in `production/manifest.json`; rebuild outputs through the pack script. Do not
   manually patch generated JSON/PNGs. No third-party game characters or packs.

@@ -32,10 +32,10 @@ func TestGameMakerAssetSchemaKeepsGenerationAndPackOperations(t *testing.T) {
 		if !slices.Equal(schema.Required, []string{"job_id"}) {
 			t.Fatalf("default generation compatibility: required %v", schema.Required)
 		}
-		if !slices.Equal(schema.Properties["operation"].Enum, []string{"generate", "list_packs", "describe_pack", "import_pack"}) {
+		if !slices.Equal(schema.Properties["operation"].Enum, []string{"generate", "list_packs", "describe_pack", "import_pack", "search_assets", "describe_asset"}) {
 			t.Fatal("missing pack operations")
 		}
-		for _, key := range []string{"kind", "prompt", "path", "pack_id"} {
+		for _, key := range []string{"kind", "prompt", "path", "pack_id", "query", "view", "limit", "asset_id", "assembly_id"} {
 			if _, ok := schema.Properties[key]; !ok {
 				t.Fatalf("missing %s", key)
 			}

@@ -27,6 +27,9 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 		return append(assets, runtimeAsset{
 			embeddedPath: "runtime/phaser-4.2.1.min.js",
 			projectPath:  "vendor/phaser-4.2.1.min.js",
+		}, runtimeAsset{
+			embeddedPath: "runtime/aurago-game-1.js",
+			projectPath:  "vendor/aurago-game-1.js",
 		})
 	}
 	return append(assets,

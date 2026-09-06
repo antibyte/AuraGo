@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "रोबोट और ड्रोन · एनिमेटेड",
   "game_maker.pack_robots_drones_animated_top_down": "रोबोट और ड्रोन · ऊपर से एनिमेटेड दृश्य",
   "game_maker.assets_assembly": "संयोजन",
-  "game_maker.assets_individual": "अलग-अलग स्प्राइट"
+  "game_maker.assets_individual": "अलग-अलग स्प्राइट",
+  "game_maker.gameplay_checks": "गेमप्ले जाँच",
+  "game_maker.visual_checks": "दृश्य समीक्षा",
+  "game_maker.visual_advisory": "दृश्य अवलोकन (पूरक)",
+  "game_maker.check_passed": "सफल",
+  "game_maker.check_failed": "विफल",
+  "game_maker.check_unavailable": "अनुपलब्ध",
+  "game_maker.check_skipped": "छोड़ा गया",
+  "game_maker.check_reviewed": "समीक्षा की गई",
+  "game_maker.gameplay_unverified": "शुरुआत सत्यापित है; 3D गेमप्ले अभी सत्यापित नहीं है।"
 }

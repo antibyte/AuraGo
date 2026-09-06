@@ -4,6 +4,58 @@
     // Preview helpers for Game Maker Studio: loading overlay, stale badge,
     // fullscreen, and opening the sandboxed preview in a new tab.
 
+    function handleMessage(state, event) {
+        if (!state.frame || event.source !== state.frame.contentWindow) return;
+        const data = event.data;
+        if (!data || typeof data !== 'object' || data.channel !== state.channelID || data.source !== 'aurago-game') return;
+        const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic', 'gameplay']);
+        if (!allowed.has(data.type)) return;
+        // Game-authored ready calls may precede rendering or describe a canvas
+        // outside the viewport. Only the server boot's layout check qualifies.
+        if (data.type === 'ready' && (data.boot !== true || data.visible !== true)) return;
+        if (!state.project || state.previewProjectID !== state.project.id) return;
+        if (data.type === 'gameplay') {
+            if (!state.previewGrant?.validation_id || state.previewReported.has('gameplay')) return;
+            if (!Array.isArray(data.observations) || data.observations.length > 16) return;
+            const images = Array.isArray(data.images) ? data.images.filter(image => typeof image === 'string' && image.length <= 700000).slice(0, 2) : [];
+            const payload = { token: state.previewGrant.token, type: 'gameplay', observations: data.observations, images };
+            if (JSON.stringify(payload).length > 1500000) return;
+            state.previewReported.add('gameplay');
+            const grant = state.previewGrant;
+            state.api.reportPreview(state.previewProjectID, payload).catch(error => {
+                if (!state.disposed && state.previewGrant === grant) state.addDiagnostic({ level: 'error', message: error.message || String(error) });
+            });
+            return;
+        }
+        const message = data.type === 'ready' ? '' : String(data.message || data.type).slice(0, 1000);
+        const key = data.type + ':' + message;
+        if (state.previewReported.has(key) || state.previewReported.size >= 21) return;
+        state.previewReported.add(key);
+        if (state.previewGrant && state.previewGrant.validation_id) {
+            const frame = state.frame;
+            const grant = state.previewGrant;
+            state.api.reportPreview(state.previewProjectID, {
+                token: state.previewGrant.token, type: data.type, message, canvas_visible: data.type === 'ready'
+            }).catch(error => {
+                if (!state.disposed && state.previewGrant === grant && state.frame === frame && state.previewProjectID === state.project.id) {
+                    state.addDiagnostic({ level: 'error', message: error.message || String(error) });
+                }
+            });
+        }
+        if (data.type === 'ready') {
+            if (state.previewGrant?.scenarios?.length) {
+                state.frame.contentWindow.postMessage({ source: 'aurago-studio', type: 'run-tests', channel: state.channelID, scenarios: state.previewGrant.scenarios }, '*');
+            }
+            clearLoading(state);
+            return;
+        }
+        state.previewDiagnostics.push({ level: 'runtime', message });
+        state.addDiagnostic({
+            level: 'runtime',
+            message
+        });
+    }
+
     function showLoading(state, shellEl, frame) {
         clearLoading(state);
         const overlay = document.createElement('div');
@@ -81,5 +133,5 @@
         }
     }
 
-    window.GameMakerStudioPreview = { showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
+    window.GameMakerStudioPreview = { handleMessage, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
 })();

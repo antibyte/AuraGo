@@ -6,7 +6,7 @@
     const eventTypes = [
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
         'skill_activation', 'file_changed', 'asset_changed', 'preview_reload',
-        'diagnostic', 'revision'
+        'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
@@ -498,6 +498,26 @@
         case 'diagnostic':
             addDiagnostic(state, payload);
             break;
+        case 'validation_reset':
+            clearDiagnostics(state);
+            state.previewGrant = null;
+            state.channelID = '';
+            state.previewRequestID = (state.previewRequestID || 0) + 1;
+            break;
+        case 'validation_result': {
+            const result = payload.result || {};
+            appendActivity(state, state.context.t('game_maker.gameplay_checks') + ': ' + state.context.t('game_maker.check_' + (result.gameplay_status || 'unavailable')));
+            for (const check of result.checks || []) {
+                if (check.status !== 'passed') addDiagnostic(state, { level: 'error', message: check.id + ': ' + check.expected + ' — ' + check.observed });
+            }
+            break;
+        }
+        case 'visual_result':
+            appendActivity(state, state.context.t('game_maker.visual_checks') + ': ' + state.context.t('game_maker.check_' + (payload.status || 'skipped')));
+            break;
+        case 'visual_observation':
+            appendActivity(state, state.context.t('game_maker.visual_advisory') + ': ' + String(payload.message || '').slice(0, 2000));
+            break;
         case 'preview_reload':
             refreshPreview(state);
             break;
@@ -528,6 +548,7 @@
         reloadProjectRecord(state).then(() => {
             if (state.disposed) return;
             if (status === 'ready') {
+                if (state.project?.dimension === '3d') appendActivity(state, state.context.t('game_maker.gameplay_unverified'));
                 const revision = (state.job && state.job.result_revision) ||
                     (state.project && state.project.current_revision) || '';
                 appendResultCard(state, 'success',
@@ -657,39 +678,7 @@
     }
 
     function handlePreviewMessage(state, event) {
-        if (!state.frame || event.source !== state.frame.contentWindow) return;
-        const data = event.data;
-        if (!data || typeof data !== 'object' || data.channel !== state.channelID || data.source !== 'aurago-game') return;
-        const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic']);
-        if (!allowed.has(data.type)) return;
-        // Game-authored ready calls may precede rendering or describe a canvas
-        // outside the viewport. Only the server boot's layout check qualifies.
-        if (data.type === 'ready' && (data.boot !== true || data.visible !== true)) return;
-        if (!state.project || state.previewProjectID !== state.project.id) return;
-        const message = data.type === 'ready' ? '' : String(data.message || data.type).slice(0, 1000);
-        const key = data.type + ':' + message;
-        if (state.previewReported.has(key) || state.previewReported.size >= 21) return;
-        state.previewReported.add(key);
-        if (state.previewGrant && state.previewGrant.validation_id) {
-            const frame = state.frame;
-            state.api.reportPreview(state.previewProjectID, {
-                token: state.previewGrant.token, type: data.type, message, canvas_visible: data.type === 'ready'
-            }).catch(error => {
-                if (!state.disposed && state.frame === frame && state.previewProjectID === state.project.id) {
-                    addDiagnostic(state, { level: 'error', message: error.message || String(error) });
-                }
-            });
-        }
-        if (data.type === 'ready') {
-            if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
-            else if (state.previewLoadClear) state.previewLoadClear();
-            return;
-        }
-        state.previewDiagnostics.push({ level: 'runtime', message });
-        addDiagnostic(state, {
-            level: 'runtime',
-            message
-        });
+        window.GameMakerStudioPreview.handleMessage(state, event);
     }
 
     function addDiagnostic(state, diagnostic) {

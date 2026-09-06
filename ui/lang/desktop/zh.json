@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "机器人与无人机 · 动画",
   "game_maker.pack_robots_drones_animated_top_down": "机器人与无人机 · 俯视动画",
   "game_maker.assets_assembly": "组合结构",
-  "game_maker.assets_individual": "单个精灵"
+  "game_maker.assets_individual": "单个精灵",
+  "game_maker.gameplay_checks": "游戏流程检查",
+  "game_maker.visual_checks": "画面检查",
+  "game_maker.visual_advisory": "画面观察（补充）",
+  "game_maker.check_passed": "通过",
+  "game_maker.check_failed": "失败",
+  "game_maker.check_unavailable": "不可用",
+  "game_maker.check_skipped": "已跳过",
+  "game_maker.check_reviewed": "已检查",
+  "game_maker.gameplay_unverified": "启动已验证；3D游戏流程仍未验证。"
 }

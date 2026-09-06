@@ -540,6 +540,14 @@ registration lives in `internal/desktop/types.go`.
   current-preview errors as untrusted diagnostics in the next change request.
   Readiness requires the injected boot's `boot: true, visible: true` report;
   game-authored ready messages alone never qualify browser validation.
+  Full gameplay grants contain bounded scenarios. Send them only to this iframe;
+  forward at most 16 observations and two 700,000-character PNG data URLs through
+  the existing authenticated parent report route. Never accept JavaScript test
+  expressions or an iframe-authored pass verdict. Validation and advisory image
+  results use localized SSE activity; planning/model deltas stay internal until
+  the server publishes a verified revision.
+  `game-maker-studio-preview.js` owns the message bridge and its report limits;
+  the app supplies its instance state and diagnostic callback.
   Clear the visible diagnostics, error badge, and next-request diagnostics when
   replacing a preview or opening a project. Late responses from an old preview
   must not repopulate them; a ready message never clears current-run errors.

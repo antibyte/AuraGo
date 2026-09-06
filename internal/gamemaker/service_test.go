@@ -26,6 +26,12 @@ type repairRunner struct {
 }
 
 func (r *repairRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
+	if run.Stage == "planning" {
+		return r.service.SetPlan(ctx, run.Job.ID, ExampleGamePlan(run.Project))
+	}
+	if run.Stage == "visual" {
+		return nil
+	}
 	r.attempts++
 	if r.original == "" {
 		original, err := r.service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
@@ -56,6 +62,12 @@ func (r testRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
 	if r.block {
 		<-ctx.Done()
 		return ctx.Err()
+	}
+	if run.Stage == "planning" {
+		return r.service.SetPlan(ctx, run.Job.ID, ExampleGamePlan(run.Project))
+	}
+	if run.Stage == "visual" {
+		return nil
 	}
 	if r.mutate != nil {
 		return r.mutate(ctx, run)
@@ -149,6 +161,9 @@ func waitJob(t *testing.T, service *Service, id string) Job {
 			grant, grantErr := service.CreatePreviewGrant(job.ProjectID)
 			if grantErr == nil {
 				_ = service.ReportPreview(job.ProjectID, PreviewReport{Token: grant.Token, Type: "ready", CanvasVisible: true})
+				if len(grant.Scenarios) > 0 {
+					_ = service.ReportPreview(job.ProjectID, PreviewReport{Token: grant.Token, Type: "gameplay", Observations: successfulObservationFixture(grant.Scenarios)})
+				}
 				lastValidation = grant.ValidationID
 			}
 		}
@@ -159,6 +174,31 @@ func waitJob(t *testing.T, service *Service, id string) Job {
 	}
 	t.Fatalf("job %s did not finish", id)
 	return Job{}
+}
+
+// Service fixtures simulate browser evidence. The real driver/templates have a
+// separate browser smoke test; this fixture is never production validation.
+func successfulObservationFixture(scenarios []GameScenario) []GameObservation {
+	var out []GameObservation
+	for _, scenario := range scenarios {
+		before := map[string]float64{scenario.Metric: 0}
+		after := map[string]float64{scenario.Metric: 1}
+		if scenario.Compare == "equals" {
+			after[scenario.Metric] = scenario.Value
+		}
+		if scenario.Compare == "decreased" {
+			after[scenario.Metric] = -1
+		}
+		if scenario.ID == "required_restart" {
+			for _, key := range []string{"score", "actions", "hits", "turns", "object_count", "timer_count", "listener_count"} {
+				before[key] = 0
+				after[key] = 0
+				after["restart1_"+key] = 0
+			}
+		}
+		out = append(out, GameObservation{ID: scenario.ID, Before: before, After: after})
+	}
+	return out
 }
 
 func activeJobStatus(status string) bool {

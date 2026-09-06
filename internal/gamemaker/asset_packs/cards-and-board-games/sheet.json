@@ -8,7 +8,7 @@
     "puzzle"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -825,7 +825,15 @@
         "hearts",
         "ace"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_ace",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -844,7 +852,15 @@
         "hearts",
         "2"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_2",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -863,7 +879,15 @@
         "hearts",
         "3"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_3",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -882,7 +906,15 @@
         "hearts",
         "4"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_4",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -901,7 +933,15 @@
         "hearts",
         "5"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_5",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -920,7 +960,15 @@
         "hearts",
         "6"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_6",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -939,7 +987,15 @@
         "hearts",
         "7"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_7",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -958,7 +1014,15 @@
         "hearts",
         "8"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_8",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -977,7 +1041,15 @@
         "hearts",
         "9"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_9",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -996,7 +1068,15 @@
         "hearts",
         "10"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1015,7 +1095,15 @@
         "hearts",
         "jack"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_jack",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1034,7 +1122,15 @@
         "hearts",
         "queen"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_queen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1053,7 +1149,15 @@
         "hearts",
         "king"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "hearts_king",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1072,7 +1176,15 @@
         "diamonds",
         "ace"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_ace",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1091,7 +1203,15 @@
         "diamonds",
         "2"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_2",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1110,7 +1230,15 @@
         "diamonds",
         "3"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_3",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1129,7 +1257,15 @@
         "diamonds",
         "4"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_4",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1148,7 +1284,15 @@
         "diamonds",
         "5"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_5",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1167,7 +1311,15 @@
         "diamonds",
         "6"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_6",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1186,7 +1338,15 @@
         "diamonds",
         "7"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_7",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1205,7 +1365,15 @@
         "diamonds",
         "8"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_8",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1224,7 +1392,15 @@
         "diamonds",
         "9"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_9",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1243,7 +1419,15 @@
         "diamonds",
         "10"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1262,7 +1446,15 @@
         "diamonds",
         "jack"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_jack",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1281,7 +1473,15 @@
         "diamonds",
         "queen"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_queen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1300,7 +1500,15 @@
         "diamonds",
         "king"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "diamonds_king",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1319,7 +1527,15 @@
         "clubs",
         "ace"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_ace",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1338,7 +1554,15 @@
         "clubs",
         "2"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_2",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1357,7 +1581,15 @@
         "clubs",
         "3"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_3",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1376,7 +1608,15 @@
         "clubs",
         "4"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_4",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1395,7 +1635,15 @@
         "clubs",
         "5"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_5",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
@@ -1414,7 +1662,15 @@
         "clubs",
         "6"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_6",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
@@ -1433,7 +1689,15 @@
         "clubs",
         "7"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_7",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
@@ -1452,7 +1716,15 @@
         "clubs",
         "8"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_8",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
@@ -1471,7 +1743,15 @@
         "clubs",
         "9"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_9",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
@@ -1490,7 +1770,15 @@
         "clubs",
         "10"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
@@ -1509,7 +1797,15 @@
         "clubs",
         "jack"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_jack",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
@@ -1528,7 +1824,15 @@
         "clubs",
         "queen"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_queen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
@@ -1547,7 +1851,15 @@
         "clubs",
         "king"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "clubs_king",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
@@ -1566,7 +1878,15 @@
         "spades",
         "ace"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_ace",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1585,7 +1905,15 @@
         "spades",
         "2"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_2",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
@@ -1604,7 +1932,15 @@
         "spades",
         "3"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_3",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
@@ -1623,7 +1959,15 @@
         "spades",
         "4"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_4",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
@@ -1642,7 +1986,15 @@
         "spades",
         "5"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_5",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
@@ -1661,7 +2013,15 @@
         "spades",
         "6"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_6",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
@@ -1680,7 +2040,15 @@
         "spades",
         "7"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_7",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
@@ -1699,7 +2067,15 @@
         "spades",
         "8"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_8",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
@@ -1718,7 +2094,15 @@
         "spades",
         "9"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_9",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
@@ -1737,7 +2121,15 @@
         "spades",
         "10"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
@@ -1756,7 +2148,15 @@
         "spades",
         "jack"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_jack",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
@@ -1775,7 +2175,15 @@
         "spades",
         "queen"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_queen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1794,7 +2202,15 @@
         "spades",
         "king"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "spades_king",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1813,7 +2229,15 @@
         "joker",
         "red"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "joker_red",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1832,7 +2256,15 @@
         "joker",
         "violet"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "joker_violet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1852,7 +2284,15 @@
         "back",
         "red"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "card_back_red",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1872,7 +2312,15 @@
         "back",
         "blue"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "card_back_blue",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1892,7 +2340,15 @@
         "back",
         "green"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "card_back_green",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1912,7 +2368,15 @@
         "back",
         "violet"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "card_back_violet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1931,7 +2395,15 @@
         "white",
         "pawn"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "white_pawn",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -1950,7 +2422,15 @@
         "white",
         "rook"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "white_rook",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -1969,7 +2449,15 @@
         "white",
         "knight"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "white_knight",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -1988,7 +2476,15 @@
         "white",
         "bishop"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "white_bishop",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2007,7 +2503,15 @@
         "white",
         "queen"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "white_queen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2026,7 +2530,15 @@
         "white",
         "king"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "white_king",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2045,7 +2557,15 @@
         "black",
         "pawn"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "black_pawn",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2064,7 +2584,15 @@
         "black",
         "rook"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "black_rook",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2083,7 +2611,15 @@
         "black",
         "knight"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "black_knight",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2102,7 +2638,15 @@
         "black",
         "bishop"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "black_bishop",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2121,7 +2665,15 @@
         "black",
         "queen"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "black_queen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2140,7 +2692,15 @@
         "black",
         "king"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "black_king",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2160,7 +2720,15 @@
         "ivory",
         "1"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_ivory_1",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2180,7 +2748,15 @@
         "ivory",
         "2"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_ivory_2",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2200,7 +2776,15 @@
         "ivory",
         "3"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_ivory_3",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2220,7 +2804,15 @@
         "ivory",
         "4"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_ivory_4",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2240,7 +2832,15 @@
         "ivory",
         "5"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_ivory_5",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2260,7 +2860,15 @@
         "ivory",
         "6"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_ivory_6",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2280,7 +2888,15 @@
         "red",
         "1"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_red_1",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2300,7 +2916,15 @@
         "red",
         "2"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_red_2",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2320,7 +2944,15 @@
         "red",
         "3"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_red_3",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2340,7 +2972,15 @@
         "red",
         "4"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_red_4",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2360,7 +3000,15 @@
         "red",
         "5"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_red_5",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80
       ],
@@ -2380,7 +3028,15 @@
         "red",
         "6"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "die_red_6",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         81
       ],
@@ -2399,7 +3055,15 @@
         "red",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "red_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         82
       ],
@@ -2419,7 +3083,15 @@
         "king",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "red_king_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         83
       ],
@@ -2438,7 +3110,15 @@
         "blue",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "blue_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84
       ],
@@ -2458,7 +3138,15 @@
         "king",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "blue_king_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         85
       ],
@@ -2477,7 +3165,15 @@
         "green",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "green_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         86
       ],
@@ -2497,7 +3193,15 @@
         "king",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "green_king_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         87
       ],
@@ -2516,7 +3220,15 @@
         "yellow",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "yellow_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         88
       ],
@@ -2536,7 +3248,15 @@
         "king",
         "counter"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "yellow_king_counter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         89
       ],
@@ -2556,7 +3276,15 @@
         "wood",
         "light"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_wood_light",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90
       ],
@@ -2576,7 +3304,15 @@
         "wood",
         "dark"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_wood_dark",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         91
       ],
@@ -2595,7 +3331,15 @@
         "board",
         "grass"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         92
       ],
@@ -2614,7 +3358,15 @@
         "board",
         "water"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_water",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         93
       ],
@@ -2633,7 +3385,15 @@
         "board",
         "brick"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_brick",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         94
       ],
@@ -2652,7 +3412,15 @@
         "board",
         "stone"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_stone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         95
       ],
@@ -2671,7 +3439,15 @@
         "board",
         "sand"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_sand",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         96
       ],
@@ -2690,7 +3466,15 @@
         "board",
         "meadow"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_meadow",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         97
       ],
@@ -2709,7 +3493,15 @@
         "board",
         "star"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_star",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         98
       ],
@@ -2728,7 +3520,15 @@
         "board",
         "finish"
       ],
-      "view": "top",
+      "view": "board",
+      "entity": "board_finish",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         99
       ],

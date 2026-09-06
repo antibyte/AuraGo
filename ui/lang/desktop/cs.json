@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "Roboti a drony · animované",
   "game_maker.pack_robots_drones_animated_top_down": "Roboti a drony · animovaný pohled shora",
   "game_maker.assets_assembly": "Sestava",
-  "game_maker.assets_individual": "Jednotlivé sprity"
+  "game_maker.assets_individual": "Jednotlivé sprity",
+  "game_maker.gameplay_checks": "Testy hry",
+  "game_maker.visual_checks": "Vizuální kontrola",
+  "game_maker.visual_advisory": "Vizuální pozorování (doplňkové)",
+  "game_maker.check_passed": "Úspěšné",
+  "game_maker.check_failed": "Neúspěšné",
+  "game_maker.check_unavailable": "Nedostupné",
+  "game_maker.check_skipped": "Přeskočeno",
+  "game_maker.check_reviewed": "Zkontrolováno",
+  "game_maker.gameplay_unverified": "Spuštění ověřeno; průběh 3D hry zůstává neověřený."
 }

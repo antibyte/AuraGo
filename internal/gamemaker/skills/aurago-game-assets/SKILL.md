@@ -18,8 +18,11 @@ Ask for only assets that materially improve the current game.
 - Prefer matching built-in sprite packs. Initial context contains a compact
   catalog and paths of user-selected packs already imported before your turn.
   With no selection, choose suitable packs. Use `game_maker_asset` with `job_id`
-  and `operation: list_packs`, then `describe_pack` with `pack_id` only for relevant
-  details. `import_pack` copies PNG and JSON together and returns exact local
+  and `operation: search_assets`, `query`, optional `pack_id` and `view` (side/top/board).
+  Search returns six candidates by default, at most twelve, complete assemblies
+  before fragments. Then `describe_asset` with pack_id and asset_id OR assembly_id
+  gives exact variants, actions, transform rules, missing actions and usage code.
+  `list_packs`/`describe_pack` remain available. `import_pack` copies PNG and JSON together and returns exact local
   paths. It needs edit permission, not a media generator.
 - Follow the import response's `phaser_example`, including for user-selected
   packs supplied in the initial context. Load the PNG with `load.spritesheet`
@@ -31,8 +34,9 @@ Ask for only assets that materially improve the current game.
   frames 0–99 in ten rows and ten columns of 64px cells. Asset IDs, descriptions,
   direction, origin, ordered frames and timing are authoritative. Never invent
   indices or treat consecutive assets as an animation. Namespace texture and
-  animation keys with the pack ID. Side-view characters face right and permit
-  `flipX`; top-down characters have separate directional sequences. Creature
+  animation keys with pack ID AND version. Pack version 2 adds explicit `entity`,
+  `action` and `transform` fields. Only transform.flip_x permits mirroring;
+  there is no category-wide flip rule. Top-down characters have separate directional sequences. Creature
   resting animations reuse movement frames. Repeated poses are deliberate holds.
 - Keep both files at `assets/builtin/<pack-id>/<version>/`. Identical imports are
   repeatable; modified/incomplete copies are never overwritten. Preserve the
@@ -46,8 +50,10 @@ Ask for only assets that materially improve the current game.
   Never fit each fragment separately. Move/scale/flip the entire container.
   Register part animations first and start them together so tracks/rotors stay
   synchronized. Assembly parts intentionally reach cell edges to avoid seams.
-  Side-view vehicles face right; overhead vehicles face up and may rotate as a
-  whole. Top-down robots contain explicit up/right/down/left movement and idle.
+  Read the exact assembly direction: some side vehicles face left. Vehicles with
+  transform.mode rotate use atan2(dy,dx) minus transform.forward_radians; all
+  angle values are radians. Buildings/terrain/cards/signs are fixed unless
+  explicitly permitted. Top-down robots contain up/right/down/left movement and idle.
 - Use `operation: generate` (or omit operation) for missing custom content.
   Generation alone needs the configured media capability.
 - Plan the full asset list before the first request and batch what belongs
@@ -67,3 +73,22 @@ Ask for only assets that materially improve the current game.
   confirm the exact path before wiring it into loaders or textures.
 - Never delete or mutate the global AuraGo media registry asset. Project
   deletion removes only the project copy and ledger provenance.
+
+## Exact discovery sequence
+
+```json
+{"job_id":"CURRENT_JOB_ID","operation":"search_assets","query":"robot","view":"top","limit":6}
+```
+```json
+{"job_id":"CURRENT_JOB_ID","operation":"describe_asset","pack_id":"robots-drones-animated-top-down","asset_id":"service_robot_move_down"}
+```
+Use actual job_id from trusted job context. Plan the returned version/IDs first;
+imports are permitted only after plan acceptance. This robot has no attack
+animation: plan a projectile and optional effect, not an invented robot_attack.
+`preloadPack`, `registerAnimations`, `createAsset`, `createAssembly`, `setFacing`,
+and `playAction` from `../vendor/aurago-game-1.js` implement the metadata contract.
+The Phaser skill provides a complete scene. For assemblies use createAssembly
+with the returned assembly ID; move/scale/rotate only its container. Use a
+separate collision proxy; no physics bodies on children. Visual transforms never
+automatically transform a rectangular Arcade collider. Existing v1 project files
+remain unchanged; import v2 alongside them when new helpers need transform data.

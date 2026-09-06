@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "Robotar och drönare · animerade",
   "game_maker.pack_robots_drones_animated_top_down": "Robotar och drönare · animerade ovanifrån",
   "game_maker.assets_assembly": "Sammansättning",
-  "game_maker.assets_individual": "Enskilda sprites"
+  "game_maker.assets_individual": "Enskilda sprites",
+  "game_maker.gameplay_checks": "Speltester",
+  "game_maker.visual_checks": "Visuell kontroll",
+  "game_maker.visual_advisory": "Visuell observation (vägledande)",
+  "game_maker.check_passed": "Godkänd",
+  "game_maker.check_failed": "Misslyckades",
+  "game_maker.check_unavailable": "Inte tillgänglig",
+  "game_maker.check_skipped": "Överhoppad",
+  "game_maker.check_reviewed": "Granskad",
+  "game_maker.gameplay_unverified": "Uppstart kontrollerad; 3D-spelets förlopp är ännu inte kontrollerat."
 }

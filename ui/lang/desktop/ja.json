@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "ロボットとドローン・アニメーション",
   "game_maker.pack_robots_drones_animated_top_down": "ロボットとドローン・トップダウンアニメーション",
   "game_maker.assets_assembly": "組み立て",
-  "game_maker.assets_individual": "個別のスプライト"
+  "game_maker.assets_individual": "個別のスプライト",
+  "game_maker.gameplay_checks": "ゲームプレイの検証",
+  "game_maker.visual_checks": "画像レビュー",
+  "game_maker.visual_advisory": "画像の観察結果（補足）",
+  "game_maker.check_passed": "合格",
+  "game_maker.check_failed": "失敗",
+  "game_maker.check_unavailable": "利用不可",
+  "game_maker.check_skipped": "スキップ",
+  "game_maker.check_reviewed": "確認済み",
+  "game_maker.gameplay_unverified": "起動は検証済みですが、3Dゲームプレイは未検証です。"
 }

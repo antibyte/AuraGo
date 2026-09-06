@@ -36,19 +36,24 @@ type Service struct {
 	stagingDir string
 	blobDir    string
 
-	mu           sync.RWMutex
-	buildMu      sync.Mutex
-	runner       Runner
-	policyMu     sync.RWMutex
-	policy       Policy
-	activeJobID  string
-	jobCancels   map[string]context.CancelFunc
-	subscribers  map[string]map[chan Event]struct{}
-	tokens       map[string]previewToken
-	previewJobs  map[string]string
-	previewCheck *previewCheck
-	skills       []SkillInfo
-	skillsReady  bool
+	mu                 sync.RWMutex
+	buildMu            sync.Mutex
+	runner             Runner
+	policyMu           sync.RWMutex
+	policy             Policy
+	activeJobID        string
+	jobCancels         map[string]context.CancelFunc
+	subscribers        map[string]map[chan Event]struct{}
+	tokens             map[string]previewToken
+	previewJobs        map[string]string
+	previewCheck       *previewCheck
+	skills             []SkillInfo
+	skillsReady        bool
+	acceptedPlans      map[string]bool
+	planAttempts       map[string]int
+	jobSummaries       map[string]string
+	validationFailures map[string]int
+	lastFailedBuild    map[string]string
 }
 
 var (
@@ -99,15 +104,20 @@ func NewService(opts Options) (*Service, error) {
 		return nil, err
 	}
 	service := &Service{
-		db:          db,
-		opts:        opts,
-		policy:      policyFromOptions(opts),
-		stagingDir:  staging,
-		blobDir:     blobs,
-		jobCancels:  map[string]context.CancelFunc{},
-		subscribers: map[string]map[chan Event]struct{}{},
-		tokens:      map[string]previewToken{},
-		previewJobs: map[string]string{},
+		db:                 db,
+		opts:               opts,
+		policy:             policyFromOptions(opts),
+		stagingDir:         staging,
+		blobDir:            blobs,
+		jobCancels:         map[string]context.CancelFunc{},
+		subscribers:        map[string]map[chan Event]struct{}{},
+		tokens:             map[string]previewToken{},
+		previewJobs:        map[string]string{},
+		acceptedPlans:      map[string]bool{},
+		planAttempts:       map[string]int{},
+		jobSummaries:       map[string]string{},
+		validationFailures: map[string]int{},
+		lastFailedBuild:    map[string]string{},
 	}
 	return service, nil
 }
@@ -459,6 +469,15 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 }
 
 func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs []string) {
+	defer func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		delete(s.acceptedPlans, job.ID)
+		delete(s.planAttempts, job.ID)
+		delete(s.jobSummaries, job.ID)
+		delete(s.validationFailures, job.ID)
+		delete(s.lastFailedBuild, job.ID)
+	}()
 	defer s.releaseJob(job.ID)
 	stage := filepath.Join(s.stagingDir, job.ID)
 	_ = os.RemoveAll(stage)
@@ -481,18 +500,28 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
-	var assetPacks []ImportedAssetPack
+	assetPacks, err := s.importedJobPacks(ctx, job.ID)
+	if err != nil {
+		s.terminateJob(job, ctx, err)
+		return
+	}
 	for _, id := range assetPackIDs {
-		pack, err := s.ImportAssetPack(ctx, job.ID, id)
+		pack, err := s.importAssetPack(ctx, job.ID, id)
 		if err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		assetPacks = append(assetPacks, pack)
-	}
-	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
-		s.terminateJob(job, ctx, err)
-		return
+		found := false
+		for i, existing := range assetPacks {
+			if existing.ID == pack.ID && existing.Version == pack.Version {
+				assetPacks[i] = pack
+				found = true
+				break
+			}
+		}
+		if !found {
+			assetPacks = append(assetPacks, pack)
+		}
 	}
 	s.mu.RLock()
 	runner := s.runner
@@ -501,7 +530,56 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, fmt.Errorf("game maker agent runner is unavailable"))
 		return
 	}
-	if err := runner.RunGameMakerJob(ctx, JobRun{Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
+	var plan *GamePlan
+	for attempt := 0; attempt < 3; attempt++ {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		s.mu.RLock()
+		accepted := s.acceptedPlans[job.ID]
+		exhausted := s.planAttempts[job.ID] >= 3
+		s.mu.RUnlock()
+		if accepted {
+			plan, _ = s.GetPlan(ctx, job.ID)
+			break
+		}
+		if exhausted {
+			break
+		}
+		diagnostics = []Diagnostic{{Level: "plan", Message: "A validated set_plan submission is required. Read the plan example from game_maker_project inspect, then submit the complete plan."}}
+	}
+	if plan == nil {
+		s.terminateJob(job, ctx, fmt.Errorf("game planning failed after at most two corrections"))
+		return
+	}
+	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
+		s.terminateJob(job, ctx, err)
+		return
+	}
+	imported := map[string]bool{}
+	for _, p := range assetPacks {
+		imported[p.ID+"@"+p.Version] = true
+	}
+	for _, a := range plan.Assets {
+		if a.PackID == "" || imported[a.PackID+"@"+a.Version] {
+			continue
+		}
+		p, err := s.importAssetPack(ctx, job.ID, a.PackID)
+		if err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		assetPacks = append(assetPacks, p)
+		imported[p.ID+"@"+p.Version] = true
+	}
+	if job.BaseRevision == 0 && project.Dimension == "2d" {
+		if err := installGameTemplate(stage, *plan); err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+	}
+	if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "building", Plan: plan, Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			s.cancelledJob(job, ctx.Err())
 			return
@@ -513,18 +591,24 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
-	result := s.ValidateJob(ctx, job.ID)
-	for attempt := 1; !result.OK && result.RuntimeStatus != "unavailable" && attempt <= 3; attempt++ {
+	scope := "full"
+	if project.Dimension == "3d" {
+		scope = "startup"
+	}
+	result := s.ValidateJobScope(ctx, job.ID, scope)
+	for attempt := 1; !result.OK && result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable" && attempt <= 3; attempt++ {
+		s.mu.RLock()
+		exhausted := s.validationFailures[job.ID] >= 4
+		s.mu.RUnlock()
+		if exhausted {
+			break
+		}
 		repairJob := job
-		repairJob.Prompt = fmt.Sprintf(
-			"%s\n\nRepair validation attempt %d of 3. Diagnose and fix the supplied build or browser errors, then validate again.",
-			job.Prompt, attempt,
-		)
 		if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		if err := runner.RunGameMakerJob(ctx, JobRun{Job: repairJob, Project: project, Diagnostics: result.Diagnostics, AssetPacks: assetPacks}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "repair", Plan: plan, Checks: result.Checks, Job: repairJob, Project: project, Diagnostics: result.Diagnostics, AssetPacks: assetPacks}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
@@ -532,7 +616,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		result = s.ValidateJob(ctx, job.ID)
+		result = s.ValidateJobScope(ctx, job.ID, scope)
 	}
 	if !result.OK {
 		s.terminateJob(job, ctx, fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics)))
@@ -542,7 +626,13 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
-	revision, err := s.publish(stage, project, job, "agent", job.Prompt)
+	// Optional image review is advisory and uses the same selected provider.
+	if len(result.Images) > 0 {
+		_ = runner.RunGameMakerJob(ctx, JobRun{Stage: "visual", Result: &result, Plan: plan, Images: result.Images, Checks: result.Checks, Job: job, Project: project})
+	} else {
+		_ = s.EmitAgentEvent(ctx, project.ID, job.ID, "visual_result", map[string]any{"status": "skipped"})
+	}
+	revision, err := s.publishValidated(ctx, stage, project, job, result)
 	if err != nil {
 		s.terminateJob(job, ctx, err)
 		return
@@ -557,8 +647,12 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		revision.Number, now, job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
-	_, _ = s.appendMessage(context.Background(), project.ID, job.ID, "assistant",
-		fmt.Sprintf("Playable revision %d is ready.", revision.Number))
+	s.mu.RLock()
+	summary := s.jobSummaries[job.ID]
+	s.mu.RUnlock()
+	if strings.TrimSpace(summary) != "" {
+		_, _ = s.appendMessage(context.Background(), project.ID, job.ID, "assistant", summary)
+	}
 	_, _ = s.emit(context.Background(), project.ID, job.ID, "preview_reload",
 		map[string]any{"revision": revision.Number})
 	_, _ = s.emit(context.Background(), project.ID, job.ID, "revision",
@@ -709,6 +803,9 @@ func (s *Service) ReadJobFile(ctx context.Context, jobID, rawPath string) (strin
 }
 
 func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content string) error {
+	if err := s.CheckJobMutation(ctx, jobID); err != nil {
+		return err
+	}
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
 		return err
@@ -750,6 +847,9 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content stri
 }
 
 func (s *Service) StoreJobAsset(ctx context.Context, jobID, rawPath, kind, generator, provenance string, data []byte) (string, error) {
+	if err := s.CheckJobMutation(ctx, jobID); err != nil {
+		return "", err
+	}
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
 		return "", err

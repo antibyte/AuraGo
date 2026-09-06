@@ -8,7 +8,7 @@
     "top"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -826,6 +826,14 @@
         "flowers"
       ],
       "view": "top",
+      "entity": "grass_flowers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -846,6 +854,14 @@
         "horizontal"
       ],
       "view": "top",
+      "entity": "path_horizontal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -866,6 +882,14 @@
         "vertical"
       ],
       "view": "top",
+      "entity": "path_vertical",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -886,6 +910,14 @@
         "wide"
       ],
       "view": "top",
+      "entity": "path_wide",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -906,6 +938,14 @@
         "cross"
       ],
       "view": "top",
+      "entity": "path_cross",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -926,6 +966,14 @@
         "t"
       ],
       "view": "top",
+      "entity": "path_t",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -947,6 +995,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "path_corner_left",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -968,6 +1024,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "path_corner_right",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -988,6 +1052,14 @@
         "daisies"
       ],
       "view": "top",
+      "entity": "grass_daisies",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -1008,6 +1080,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "earth_grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1028,6 +1108,14 @@
         "plain"
       ],
       "view": "top",
+      "entity": "earth_plain",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1048,6 +1136,14 @@
         "pebbles"
       ],
       "view": "top",
+      "entity": "earth_pebbles",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1068,6 +1164,14 @@
         "cracked"
       ],
       "view": "top",
+      "entity": "earth_cracked",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1088,6 +1192,14 @@
         "dark"
       ],
       "view": "top",
+      "entity": "earth_dark",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1109,6 +1221,14 @@
         "shore"
       ],
       "view": "top",
+      "entity": "sand_south_shore",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1129,6 +1249,14 @@
         "waves"
       ],
       "view": "top",
+      "entity": "sand_waves",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1149,6 +1277,14 @@
         "starfish"
       ],
       "view": "top",
+      "entity": "sand_starfish",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1169,6 +1305,14 @@
         "plants"
       ],
       "view": "top",
+      "entity": "sand_plants",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1189,6 +1333,14 @@
         "rocks"
       ],
       "view": "top",
+      "entity": "earth_rocks",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1209,6 +1361,14 @@
         "cracked"
       ],
       "view": "top",
+      "entity": "clay_cracked",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1229,6 +1389,14 @@
         "deep"
       ],
       "view": "top",
+      "entity": "water_deep",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1249,6 +1417,14 @@
         "medium"
       ],
       "view": "top",
+      "entity": "water_medium",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1269,6 +1445,14 @@
         "shallow"
       ],
       "view": "top",
+      "entity": "water_shallow",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1289,6 +1473,14 @@
         "south"
       ],
       "view": "top",
+      "entity": "shore_south",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1309,6 +1501,14 @@
         "west"
       ],
       "view": "top",
+      "entity": "shore_west",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1329,6 +1529,14 @@
         "southwest"
       ],
       "view": "top",
+      "entity": "shore_southwest",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1349,6 +1557,14 @@
         "southeast"
       ],
       "view": "top",
+      "entity": "shore_southeast",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1368,6 +1584,14 @@
         "island"
       ],
       "view": "top",
+      "entity": "island",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1388,6 +1612,14 @@
         "pond"
       ],
       "view": "top",
+      "entity": "lily_pond",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1407,6 +1639,14 @@
         "waterfall"
       ],
       "view": "top",
+      "entity": "waterfall",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1426,6 +1666,14 @@
         "cobble"
       ],
       "view": "top",
+      "entity": "cobble",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
@@ -1446,6 +1694,14 @@
         "square"
       ],
       "view": "top",
+      "entity": "stone_square",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
@@ -1466,6 +1722,14 @@
         "diagonal"
       ],
       "view": "top",
+      "entity": "stone_diagonal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
@@ -1486,6 +1750,14 @@
         "circle"
       ],
       "view": "top",
+      "entity": "stone_circle",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
@@ -1506,6 +1778,14 @@
         "diamond"
       ],
       "view": "top",
+      "entity": "stone_diamond",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
@@ -1526,6 +1806,14 @@
         "grid"
       ],
       "view": "top",
+      "entity": "stone_grid",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
@@ -1546,6 +1834,14 @@
         "bones"
       ],
       "view": "top",
+      "entity": "dungeon_bones",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
@@ -1566,6 +1862,14 @@
         "stone"
       ],
       "view": "top",
+      "entity": "lava_stone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
@@ -1585,6 +1889,14 @@
         "stairs"
       ],
       "view": "top",
+      "entity": "stairs",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
@@ -1605,6 +1917,14 @@
         "wall"
       ],
       "view": "top",
+      "entity": "dungeon_wall",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1625,6 +1945,14 @@
         "horizontal"
       ],
       "view": "top",
+      "entity": "wood_horizontal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
@@ -1645,6 +1973,14 @@
         "vertical"
       ],
       "view": "top",
+      "entity": "wood_vertical",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
@@ -1665,6 +2001,14 @@
         "diagonal"
       ],
       "view": "top",
+      "entity": "wood_diagonal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
@@ -1685,6 +2029,14 @@
         "hatch"
       ],
       "view": "top",
+      "entity": "wood_hatch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
@@ -1704,6 +2056,14 @@
         "carpet"
       ],
       "view": "top",
+      "entity": "carpet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
@@ -1724,6 +2084,14 @@
         "grate"
       ],
       "view": "top",
+      "entity": "wood_grate",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
@@ -1744,6 +2112,14 @@
         "door"
       ],
       "view": "top",
+      "entity": "wood_door",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
@@ -1764,6 +2140,14 @@
         "bridge"
       ],
       "view": "top",
+      "entity": "wood_bridge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
@@ -1784,6 +2168,14 @@
         "broken"
       ],
       "view": "top",
+      "entity": "wood_broken",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
@@ -1804,6 +2196,14 @@
         "planter"
       ],
       "view": "top",
+      "entity": "wood_planter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
@@ -1823,6 +2223,14 @@
         "tree"
       ],
       "view": "top",
+      "entity": "tree",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1841,6 +2249,14 @@
         "pine"
       ],
       "view": "top",
+      "entity": "pine",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1859,6 +2275,14 @@
         "palm"
       ],
       "view": "top",
+      "entity": "palm",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1877,6 +2301,14 @@
         "stump"
       ],
       "view": "top",
+      "entity": "stump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1895,6 +2327,14 @@
         "log"
       ],
       "view": "top",
+      "entity": "log",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1913,6 +2353,14 @@
         "bush"
       ],
       "view": "top",
+      "entity": "bush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1931,6 +2379,14 @@
         "fern"
       ],
       "view": "top",
+      "entity": "fern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1949,6 +2405,14 @@
         "flower"
       ],
       "view": "top",
+      "entity": "flower",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1967,6 +2431,14 @@
         "mushroom"
       ],
       "view": "top",
+      "entity": "mushroom",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -1985,6 +2457,14 @@
         "grass"
       ],
       "view": "top",
+      "entity": "grass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -2003,6 +2483,14 @@
         "well"
       ],
       "view": "top",
+      "entity": "well",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -2021,6 +2509,14 @@
         "barrel"
       ],
       "view": "top",
+      "entity": "barrel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2039,6 +2535,14 @@
         "crate"
       ],
       "view": "top",
+      "entity": "crate",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2057,6 +2561,14 @@
         "bench"
       ],
       "view": "top",
+      "entity": "bench",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2075,6 +2587,14 @@
         "sign"
       ],
       "view": "top",
+      "entity": "sign",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2093,6 +2613,14 @@
         "statue"
       ],
       "view": "top",
+      "entity": "statue",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2111,6 +2639,14 @@
         "rock"
       ],
       "view": "top",
+      "entity": "rock",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2129,6 +2665,14 @@
         "bridge"
       ],
       "view": "top",
+      "entity": "bridge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2147,6 +2691,14 @@
         "fence"
       ],
       "view": "top",
+      "entity": "fence",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2165,6 +2717,14 @@
         "campfire"
       ],
       "view": "top",
+      "entity": "campfire",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2183,6 +2743,14 @@
         "sword"
       ],
       "view": "top",
+      "entity": "sword",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2201,6 +2769,14 @@
         "shield"
       ],
       "view": "top",
+      "entity": "shield",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2219,6 +2795,14 @@
         "bow"
       ],
       "view": "top",
+      "entity": "bow",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2237,6 +2821,14 @@
         "key"
       ],
       "view": "top",
+      "entity": "key",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2255,6 +2847,14 @@
         "potion"
       ],
       "view": "top",
+      "entity": "potion",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2273,6 +2873,14 @@
         "coin"
       ],
       "view": "top",
+      "entity": "coin",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2291,6 +2899,14 @@
         "gem"
       ],
       "view": "top",
+      "entity": "gem",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2309,6 +2925,14 @@
         "scroll"
       ],
       "view": "top",
+      "entity": "scroll",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2327,6 +2951,14 @@
         "apple"
       ],
       "view": "top",
+      "entity": "apple",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2345,6 +2977,14 @@
         "bag"
       ],
       "view": "top",
+      "entity": "bag",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2364,6 +3004,14 @@
         "open"
       ],
       "view": "top",
+      "entity": "chest_open",
+      "action": "open",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80,
         81,
@@ -2392,6 +3040,14 @@
         "open"
       ],
       "view": "top",
+      "entity": "gate_open",
+      "action": "open",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90,
         91,
@@ -2430,7 +3086,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "chest_open",
+      "action": "open",
+      "direction": "none"
     },
     {
       "id": "gate_open",
@@ -2449,7 +3108,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "gate_open",
+      "action": "open",
+      "direction": "none"
     }
   ],
   "provenance": {

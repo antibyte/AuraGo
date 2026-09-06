@@ -8,7 +8,7 @@
     "top"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -827,6 +827,14 @@
         "interceptor"
       ],
       "view": "top",
+      "entity": "player_ship_01",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0
       ],
@@ -847,6 +855,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "player_ship_02",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         1
       ],
@@ -867,6 +883,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "player_ship_03",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2
       ],
@@ -887,6 +911,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "player_ship_04",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         3
       ],
@@ -907,6 +939,14 @@
         "scout"
       ],
       "view": "top",
+      "entity": "player_ship_05",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         4
       ],
@@ -927,6 +967,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "player_ship_06",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         5
       ],
@@ -947,6 +995,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "player_ship_07",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         6
       ],
@@ -967,6 +1023,14 @@
         "gunship"
       ],
       "view": "top",
+      "entity": "player_ship_08",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         7
       ],
@@ -987,6 +1051,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "player_ship_09",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8
       ],
@@ -1007,6 +1079,14 @@
         "cruiser"
       ],
       "view": "top",
+      "entity": "player_ship_10",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         9
       ],
@@ -1027,6 +1107,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_01",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         10
       ],
@@ -1047,6 +1135,14 @@
         "bomber"
       ],
       "view": "top",
+      "entity": "enemy_fighter_02",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         11
       ],
@@ -1067,6 +1163,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_03",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12
       ],
@@ -1087,6 +1191,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_04",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         13
       ],
@@ -1107,6 +1219,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_05",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14
       ],
@@ -1127,6 +1247,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_06",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         15
       ],
@@ -1147,6 +1275,14 @@
         "gunship"
       ],
       "view": "top",
+      "entity": "enemy_fighter_07",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         16
       ],
@@ -1167,6 +1303,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_08",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         17
       ],
@@ -1187,6 +1331,14 @@
         "fighter"
       ],
       "view": "top",
+      "entity": "enemy_fighter_09",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         18
       ],
@@ -1207,6 +1359,14 @@
         "boss"
       ],
       "view": "top",
+      "entity": "enemy_fighter_10",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         19
       ],
@@ -1227,6 +1387,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_01",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20
       ],
@@ -1247,6 +1415,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_02",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         21
       ],
@@ -1267,6 +1443,14 @@
         "orb"
       ],
       "view": "top",
+      "entity": "enemy_drone_03",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         22
       ],
@@ -1287,6 +1471,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_04",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         23
       ],
@@ -1307,6 +1499,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_05",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24
       ],
@@ -1327,6 +1527,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_06",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         25
       ],
@@ -1347,6 +1555,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_07",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26
       ],
@@ -1367,6 +1583,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_08",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         27
       ],
@@ -1387,6 +1611,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_09",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         28
       ],
@@ -1407,6 +1639,14 @@
         "drone"
       ],
       "view": "top",
+      "entity": "enemy_drone_10",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         29
       ],
@@ -1427,10 +1667,18 @@
         "laser"
       ],
       "view": "top",
+      "entity": "energy_projectile_01",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         30
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1447,10 +1695,18 @@
         "bolt"
       ],
       "view": "top",
+      "entity": "energy_projectile_02",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         31
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1467,10 +1723,18 @@
         "bolts"
       ],
       "view": "top",
+      "entity": "energy_projectile_03",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1487,10 +1751,18 @@
         "orb"
       ],
       "view": "top",
+      "entity": "energy_projectile_04",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         33
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1507,10 +1779,18 @@
         "beam"
       ],
       "view": "top",
+      "entity": "energy_projectile_05",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         34
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1527,10 +1807,18 @@
         "bolt"
       ],
       "view": "top",
+      "entity": "energy_projectile_06",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         35
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1547,10 +1835,18 @@
         "projectile"
       ],
       "view": "top",
+      "entity": "energy_projectile_07",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1567,10 +1863,18 @@
         "bolt"
       ],
       "view": "top",
+      "entity": "energy_projectile_08",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         37
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1587,10 +1891,18 @@
         "missile"
       ],
       "view": "top",
+      "entity": "energy_projectile_09",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1607,6 +1919,14 @@
         "orb"
       ],
       "view": "top",
+      "entity": "energy_projectile_10",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         39
       ],
@@ -1627,10 +1947,18 @@
         "missile"
       ],
       "view": "top",
+      "entity": "heavy_projectile_01",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         40
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1647,10 +1975,18 @@
         "shots"
       ],
       "view": "top",
+      "entity": "heavy_projectile_02",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         41
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1667,10 +2003,18 @@
         "mine"
       ],
       "view": "top",
+      "entity": "heavy_projectile_03",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         42
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1687,10 +2031,18 @@
         "shuriken"
       ],
       "view": "top",
+      "entity": "heavy_projectile_04",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         43
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1707,10 +2059,18 @@
         "pulse"
       ],
       "view": "top",
+      "entity": "heavy_projectile_05",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1727,10 +2087,18 @@
         "pulses"
       ],
       "view": "top",
+      "entity": "heavy_projectile_06",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         45
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1746,10 +2114,18 @@
         "dart"
       ],
       "view": "top",
+      "entity": "heavy_projectile_07",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         46
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1766,10 +2142,18 @@
         "shot"
       ],
       "view": "top",
+      "entity": "heavy_projectile_08",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         47
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1786,10 +2170,18 @@
         "pulses"
       ],
       "view": "top",
+      "entity": "heavy_projectile_09",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48
       ],
-      "direction": "none",
+      "direction": "up",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1806,10 +2198,18 @@
         "beam"
       ],
       "view": "top",
+      "entity": "heavy_projectile_10",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         49
       ],
-      "direction": "none",
+      "direction": "down",
       "origin": {
         "x": 0.5,
         "y": 0.5
@@ -1826,6 +2226,14 @@
         "asteroid"
       ],
       "view": "top",
+      "entity": "asteroid_01",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50
       ],
@@ -1846,6 +2254,14 @@
         "asteroid"
       ],
       "view": "top",
+      "entity": "asteroid_02",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         51
       ],
@@ -1866,6 +2282,14 @@
         "asteroid"
       ],
       "view": "top",
+      "entity": "asteroid_03",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         52
       ],
@@ -1885,6 +2309,14 @@
         "asteroid"
       ],
       "view": "top",
+      "entity": "asteroid_04",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         53
       ],
@@ -1905,6 +2337,14 @@
         "crystal"
       ],
       "view": "top",
+      "entity": "asteroid_05",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         54
       ],
@@ -1925,6 +2365,14 @@
         "cluster"
       ],
       "view": "top",
+      "entity": "asteroid_06",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         55
       ],
@@ -1945,6 +2393,14 @@
         "asteroid"
       ],
       "view": "top",
+      "entity": "asteroid_07",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56
       ],
@@ -1965,6 +2421,14 @@
         "asteroid"
       ],
       "view": "top",
+      "entity": "asteroid_08",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         57
       ],
@@ -1985,6 +2449,14 @@
         "cluster"
       ],
       "view": "top",
+      "entity": "asteroid_09",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         58
       ],
@@ -2005,6 +2477,14 @@
         "cluster"
       ],
       "view": "top",
+      "entity": "asteroid_10",
+      "action": "static",
+      "transform": {
+        "mode": "rotate",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         59
       ],
@@ -2025,6 +2505,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60
       ],
@@ -2045,6 +2533,14 @@
         "battery"
       ],
       "view": "top",
+      "entity": "powerup_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         61
       ],
@@ -2065,6 +2561,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62
       ],
@@ -2085,6 +2589,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         63
       ],
@@ -2105,6 +2617,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         64
       ],
@@ -2125,6 +2645,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         65
       ],
@@ -2145,6 +2673,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         66
       ],
@@ -2165,6 +2701,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         67
       ],
@@ -2185,6 +2729,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68
       ],
@@ -2205,6 +2757,14 @@
         "pickup"
       ],
       "view": "top",
+      "entity": "powerup_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         69
       ],
@@ -2225,6 +2785,14 @@
         "station"
       ],
       "view": "top",
+      "entity": "station_module_01",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         70
       ],
@@ -2245,6 +2813,14 @@
         "turret"
       ],
       "view": "top",
+      "entity": "station_module_02",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         71
       ],
@@ -2265,6 +2841,14 @@
         "satellite"
       ],
       "view": "top",
+      "entity": "station_module_03",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72
       ],
@@ -2284,6 +2868,14 @@
         "station"
       ],
       "view": "top",
+      "entity": "station_module_04",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         73
       ],
@@ -2304,6 +2896,14 @@
         "battery"
       ],
       "view": "top",
+      "entity": "station_module_05",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74
       ],
@@ -2323,6 +2923,14 @@
         "dish"
       ],
       "view": "top",
+      "entity": "station_module_06",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         75
       ],
@@ -2342,6 +2950,14 @@
         "hub"
       ],
       "view": "top",
+      "entity": "station_module_07",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         76
       ],
@@ -2362,6 +2978,14 @@
         "pad"
       ],
       "view": "top",
+      "entity": "station_module_08",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         77
       ],
@@ -2382,6 +3006,14 @@
         "tower"
       ],
       "view": "top",
+      "entity": "station_module_09",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         78
       ],
@@ -2402,6 +3034,14 @@
         "tower"
       ],
       "view": "top",
+      "entity": "station_module_10",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         79
       ],
@@ -2421,6 +3061,14 @@
         "explosion"
       ],
       "view": "top",
+      "entity": "fire_explosion",
+      "action": "effect",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80,
         81,
@@ -2449,6 +3097,14 @@
         "explosion"
       ],
       "view": "top",
+      "entity": "energy_explosion",
+      "action": "effect",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         90,
         91,
@@ -2487,7 +3143,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "fire_explosion",
+      "action": "effect",
+      "direction": "none"
     },
     {
       "id": "energy_explosion",
@@ -2506,7 +3165,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "energy_explosion",
+      "action": "effect",
+      "direction": "none"
     }
   ],
   "provenance": {

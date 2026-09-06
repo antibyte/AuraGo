@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "Roboter og droner · animerte",
   "game_maker.pack_robots_drones_animated_top_down": "Roboter og droner · animert ovenfra",
   "game_maker.assets_assembly": "Sammensetning",
-  "game_maker.assets_individual": "Enkeltspriter"
+  "game_maker.assets_individual": "Enkeltspriter",
+  "game_maker.gameplay_checks": "Spilltester",
+  "game_maker.visual_checks": "Visuell kontroll",
+  "game_maker.visual_advisory": "Visuell observasjon (veiledende)",
+  "game_maker.check_passed": "Bestått",
+  "game_maker.check_failed": "Mislyktes",
+  "game_maker.check_unavailable": "Utilgjengelig",
+  "game_maker.check_skipped": "Hoppet over",
+  "game_maker.check_reviewed": "Kontrollert",
+  "game_maker.gameplay_unverified": "Oppstart kontrollert; 3D-spillforløpet er fortsatt ikke kontrollert."
 }

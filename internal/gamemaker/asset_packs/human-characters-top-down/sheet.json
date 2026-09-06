@@ -9,7 +9,7 @@
     "adventure"
   ],
   "schema_version": 1,
-  "version": "1",
+  "version": "2",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -828,6 +828,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         0,
         1
@@ -849,6 +857,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         2,
         3,
@@ -874,6 +890,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         8,
         9,
@@ -897,6 +921,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         12,
         13
@@ -918,6 +950,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         14,
         15,
@@ -943,6 +983,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         20,
         21,
@@ -966,6 +1014,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         24,
         25
@@ -987,6 +1043,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         26,
         27,
@@ -1012,6 +1076,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         32,
         33,
@@ -1035,6 +1107,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         36,
         37
@@ -1056,6 +1136,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         38,
         39,
@@ -1081,6 +1169,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "ranger",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         44,
         45,
@@ -1104,6 +1200,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         48,
         49
@@ -1125,6 +1229,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         50,
         51,
@@ -1150,6 +1262,14 @@
         "up"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": -1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         56,
         57,
@@ -1173,6 +1293,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         60,
         61
@@ -1194,6 +1322,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         62,
         63,
@@ -1219,6 +1355,14 @@
         "right"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         68,
         69,
@@ -1242,6 +1386,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         72,
         73
@@ -1263,6 +1415,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         74,
         75,
@@ -1288,6 +1448,14 @@
         "down"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 1.5707963267948966,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         80,
         81,
@@ -1311,6 +1479,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "idle",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         84,
         85
@@ -1332,6 +1508,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "walk",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         86,
         87,
@@ -1357,6 +1541,14 @@
         "left"
       ],
       "view": "top",
+      "entity": "knight",
+      "action": "attack",
+      "transform": {
+        "mode": "directional",
+        "forward_radians": 3.141592653589793,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         92,
         93,
@@ -1378,6 +1570,14 @@
         "sword"
       ],
       "view": "top",
+      "entity": "sword",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         96
       ],
@@ -1396,6 +1596,14 @@
         "bow"
       ],
       "view": "top",
+      "entity": "bow",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         97
       ],
@@ -1414,6 +1622,14 @@
         "shield"
       ],
       "view": "top",
+      "entity": "shield",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         98
       ],
@@ -1432,6 +1648,14 @@
         "helmet"
       ],
       "view": "top",
+      "entity": "helmet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
       "frames": [
         99
       ],
@@ -1453,7 +1677,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "idle",
+      "direction": "up"
     },
     {
       "id": "ranger_walk_up",
@@ -1468,7 +1695,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "walk",
+      "direction": "up"
     },
     {
       "id": "ranger_attack_up",
@@ -1481,7 +1711,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "attack",
+      "direction": "up"
     },
     {
       "id": "ranger_idle_right",
@@ -1492,7 +1725,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "ranger_walk_right",
@@ -1507,7 +1743,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "walk",
+      "direction": "right"
     },
     {
       "id": "ranger_attack_right",
@@ -1520,7 +1759,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "ranger_idle_down",
@@ -1531,7 +1773,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "idle",
+      "direction": "down"
     },
     {
       "id": "ranger_walk_down",
@@ -1546,7 +1791,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "walk",
+      "direction": "down"
     },
     {
       "id": "ranger_attack_down",
@@ -1559,7 +1807,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "attack",
+      "direction": "down"
     },
     {
       "id": "ranger_idle_left",
@@ -1570,7 +1821,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "idle",
+      "direction": "left"
     },
     {
       "id": "ranger_walk_left",
@@ -1585,7 +1839,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "walk",
+      "direction": "left"
     },
     {
       "id": "ranger_attack_left",
@@ -1598,7 +1855,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "attack",
+      "direction": "left"
     },
     {
       "id": "knight_idle_up",
@@ -1609,7 +1869,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "idle",
+      "direction": "up"
     },
     {
       "id": "knight_walk_up",
@@ -1624,7 +1887,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "walk",
+      "direction": "up"
     },
     {
       "id": "knight_attack_up",
@@ -1637,7 +1903,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "attack",
+      "direction": "up"
     },
     {
       "id": "knight_idle_right",
@@ -1648,7 +1917,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "idle",
+      "direction": "right"
     },
     {
       "id": "knight_walk_right",
@@ -1663,7 +1935,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "walk",
+      "direction": "right"
     },
     {
       "id": "knight_attack_right",
@@ -1676,7 +1951,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "attack",
+      "direction": "right"
     },
     {
       "id": "knight_idle_down",
@@ -1687,7 +1965,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "idle",
+      "direction": "down"
     },
     {
       "id": "knight_walk_down",
@@ -1702,7 +1983,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "walk",
+      "direction": "down"
     },
     {
       "id": "knight_attack_down",
@@ -1715,7 +1999,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "attack",
+      "direction": "down"
     },
     {
       "id": "knight_idle_left",
@@ -1726,7 +2013,10 @@
       ],
       "frame_rate": 6,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "idle",
+      "direction": "left"
     },
     {
       "id": "knight_walk_left",
@@ -1741,7 +2031,10 @@
       ],
       "frame_rate": 10,
       "repeat": -1,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "walk",
+      "direction": "left"
     },
     {
       "id": "knight_attack_left",
@@ -1754,7 +2047,10 @@
       ],
       "frame_rate": 12,
       "repeat": 0,
-      "yoyo": false
+      "yoyo": false,
+      "entity": "knight",
+      "action": "attack",
+      "direction": "left"
     }
   ],
   "provenance": {

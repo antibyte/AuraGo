@@ -150,13 +150,22 @@ type Diagnostic struct {
 }
 
 type BuildResult struct {
-	check         *previewCheck
-	OK            bool         `json:"ok"`
-	Diagnostics   []Diagnostic `json:"diagnostics"`
-	RuntimeStatus string       `json:"runtime_status,omitempty"`
+	check          *previewCheck
+	OK             bool          `json:"ok"`
+	Diagnostics    []Diagnostic  `json:"diagnostics"`
+	RuntimeStatus  string        `json:"runtime_status,omitempty"`
+	GameplayStatus string        `json:"gameplay_status,omitempty"`
+	VisualStatus   string        `json:"visual_status,omitempty"`
+	Checks         []CheckResult `json:"checks,omitempty"`
+	Images         []string      `json:"-"`
 }
 
 type JobRun struct {
+	Result      *BuildResult
+	Stage       string
+	Plan        *GamePlan
+	Checks      []CheckResult
+	Images      []string
 	AssetPacks  []ImportedAssetPack
 	Job         Job
 	Project     Project
@@ -216,8 +225,9 @@ type Provider struct {
 }
 
 type PreviewGrant struct {
-	ValidationID string    `json:"validation_id,omitempty"`
-	Token        string    `json:"token"`
-	URL          string    `json:"url"`
-	ExpiresAt    time.Time `json:"expires_at"`
+	Scenarios    []GameScenario `json:"scenarios,omitempty"`
+	ValidationID string         `json:"validation_id,omitempty"`
+	Token        string         `json:"token"`
+	URL          string         `json:"url"`
+	ExpiresAt    time.Time      `json:"expires_at"`
 }

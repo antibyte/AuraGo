@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "Ρομπότ και drones · κινούμενα",
   "game_maker.pack_robots_drones_animated_top_down": "Ρομπότ και drones · κινούμενη κάτοψη",
   "game_maker.assets_assembly": "Σύνθεση",
-  "game_maker.assets_individual": "Μεμονωμένα sprites"
+  "game_maker.assets_individual": "Μεμονωμένα sprites",
+  "game_maker.gameplay_checks": "Έλεγχοι παιχνιδιού",
+  "game_maker.visual_checks": "Οπτικός έλεγχος",
+  "game_maker.visual_advisory": "Οπτική παρατήρηση (συμπληρωματική)",
+  "game_maker.check_passed": "Επιτυχία",
+  "game_maker.check_failed": "Αποτυχία",
+  "game_maker.check_unavailable": "Μη διαθέσιμο",
+  "game_maker.check_skipped": "Παραλείφθηκε",
+  "game_maker.check_reviewed": "Ελέγχθηκε",
+  "game_maker.gameplay_unverified": "Η εκκίνηση ελέγχθηκε· η λειτουργία του παιχνιδιού 3D παραμένει ανεπιβεβαίωτη."
 }

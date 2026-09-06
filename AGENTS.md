@@ -558,11 +558,14 @@ Tools are defined in `internal/tools/`:
 
 ### Game Maker Studio Contract
 - Game Maker projects use `Games/<slug>` as their only persistent identity and live below the configured Virtual Desktop workspace. Never persist or return absolute host paths.
-- Jobs run in isolated staging directories with one global writer. Only a successful Pure-Go esbuild validation may publish a revision; failed, cancelled, or interrupted jobs must preserve the last playable revision.
+- Jobs run in isolated staging directories with one global writer. A validated internal `.aurago/game-plan.json` is required before agent code/media/import mutations. Planning has an initial submission and at most two corrections. The selected model plans and builds; no user confirmation or stronger-model fallback is required.
+- New 2D jobs install one of six embedded templates after plan acceptance; edits retain existing code. Publication requires compilation, build-bound browser startup and full gameplay checks. 3D currently requires startup and explicitly leaves gameplay unverified. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
 - Phaser 4.2.1 and Three.js 0.185.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - The Game Maker agent scope is binding: only `game_maker_project`, `game_maker_file`, `game_maker_asset`, `game_maker_validate`, `list_agent_skills`, and `activate_agent_skill` are allowed. `invoke_tool`, generic filesystem/shell/Python/network tools, and uncurated Agent Skills must remain unavailable.
 - System-managed Game Maker Agent Skills must match the embedded package hash. Startup self-heals the curated `SKILL.md` files by overwriting local drift with the bundled version and rescanning. Curated skills whose package hash matches the bundle are trusted even when an optional scanner (LLM Guardian, SkillSpector) returns a warning; blocked, missing, or hash-mismatched packages still block new jobs.
-- Preview iframes omit `allow-same-origin`, use short-lived project/job-bound tokens, restrictive CSP, external-connect blocking, and a source/channel-validated read-only diagnostic bridge.
+- Preview iframes omit `allow-same-origin`, use short-lived project/job-bound tokens, restrictive CSP, external-connect blocking, and a source/channel-validated bridge for bounded diagnostics and finite test inputs.
+- Preview tests accept only finite key/pointer/wait/observe steps, never model JavaScript. The authenticated parent forwards bounded numeric observations and at most two bounded PNGs. The server compares evidence; missing observations never pass. Runs are bound to a build and preview token, last at most 60 seconds, and reset gameplay afterwards. Optional image review uses only a confirmed image-capable selected model, is tool-free and cannot override technical checks.
+- Phase-specific verified embedded skills use `TrustedPromptAddenda`; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
 - Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
 - Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
 
@@ -843,8 +846,14 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
   an origin and ordered numeric-frame parts. Slice one shared canvas to preserve
   seams; animated parts start together. Pack selection limits follow the embedded
   catalog. Keep assembly previews and import examples aligned with this metadata.
-- Pack import results and selected-pack context include a concrete Phaser
-  loading example. Built 2D games guard the loader against treating built-in
+- Pack version 2 explicitly records entity/action groups and transform permissions
+  in the production manifest. Radians are explicit; fixed assets cannot inherit
+  category-wide mirroring. `search_assets` returns six (max twelve) targeted hits;
+  `describe_asset` returns related actions/directions and missing actions.
+  `vendor/aurago-game-1.js` handles exact frames, animation holds and complete
+  assembly transforms. Physics proxies stay separate from visual containers.
+- Pack import/detail results include a concrete helper example; selected-pack
+  context stays compact. Built 2D games guard the loader against treating built-in
   sheets as single images/atlases or using the wrong grid. Keep that guard at
   the common loader boundary, including config arrays and variable URLs.
   Browser startup must observe three seconds after visible-canvas readiness

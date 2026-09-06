@@ -378,7 +378,9 @@ func handleGameMakerPreviewReport(w http.ResponseWriter, r *http.Request, s *Ser
 		return
 	}
 	var report gamemaker.PreviewReport
-	if err := decodeGameMakerJSON(w, r, &report); err != nil {
+	// Only preview reports accept two bounded PNG captures. Other JSON endpoints
+	// retain their smaller request limit.
+	if err := decodeGameMakerJSONLimit(w, r, &report, 1500000); err != nil {
 		return
 	}
 	if err := s.GameMaker.ReportPreview(projectID, report); err != nil {
@@ -461,7 +463,11 @@ func handleGameMakerExport(w http.ResponseWriter, r *http.Request, s *Server, pr
 }
 
 func decodeGameMakerJSON(w http.ResponseWriter, r *http.Request, destination any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, gameMakerJSONLimit)
+	return decodeGameMakerJSONLimit(w, r, destination, gameMakerJSONLimit)
+}
+
+func decodeGameMakerJSONLimit(w http.ResponseWriter, r *http.Request, destination any, limit int64) error {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {

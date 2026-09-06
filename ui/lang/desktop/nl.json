@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "Robots en drones · geanimeerd",
   "game_maker.pack_robots_drones_animated_top_down": "Robots en drones · geanimeerd bovenaanzicht",
   "game_maker.assets_assembly": "Samenstelling",
-  "game_maker.assets_individual": "Afzonderlijke sprites"
+  "game_maker.assets_individual": "Afzonderlijke sprites",
+  "game_maker.gameplay_checks": "Speltests",
+  "game_maker.visual_checks": "Visuele controle",
+  "game_maker.visual_advisory": "Visuele waarneming (aanvullend)",
+  "game_maker.check_passed": "Geslaagd",
+  "game_maker.check_failed": "Mislukt",
+  "game_maker.check_unavailable": "Niet beschikbaar",
+  "game_maker.check_skipped": "Overgeslagen",
+  "game_maker.check_reviewed": "Gecontroleerd",
+  "game_maker.gameplay_unverified": "Opstart gecontroleerd; het 3D-spelverloop blijft ongecontroleerd."
 }

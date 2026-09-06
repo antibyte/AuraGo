@@ -43,6 +43,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 
 	app := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio.js")
 	modals := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-modals.js")
+	preview := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-preview.js")
 	for _, marker := range []string{
 		`frame.setAttribute('sandbox', 'allow-scripts')`,
 		`event.source !== state.frame.contentWindow`,
@@ -51,6 +52,10 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`window.removeEventListener('message'`,
 		`confirmDialog`,
 		`preview_reload`,
+		`validation_reset`,
+		`state.previewGrant === grant`,
+		`observations.length > 16`,
+		`type: 'run-tests'`,
 		`'polishing', 'cancelling'`,
 		`const modal = layer.querySelector('.gm-modal');`,
 		`const editable = Boolean(state.project && !active`,
@@ -63,7 +68,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`window.GameMakerStudioPreview.showLoading(state, shell, frame)`,
 		`frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID)`,
 	} {
-		if !strings.Contains(app+modals, marker) {
+		if !strings.Contains(app+modals+preview, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
 		}
 	}
@@ -72,7 +77,6 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 	if showIdx < 0 || srcIdx < 0 || showIdx > srcIdx {
 		t.Fatal("Game Maker preview must call showLoading before assigning iframe src")
 	}
-	preview := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-preview.js")
 	for _, marker := range []string{
 		`data-gm-preview-loading`,
 		`frame.addEventListener('load'`,
@@ -115,6 +119,15 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.create_disabled_notice",
 		"game_maker.restore_confirm",
 		"game_maker.delete_confirm",
+		"game_maker.gameplay_checks",
+		"game_maker.visual_checks",
+		"game_maker.visual_advisory",
+		"game_maker.check_passed",
+		"game_maker.check_failed",
+		"game_maker.check_unavailable",
+		"game_maker.check_skipped",
+		"game_maker.check_reviewed",
+		"game_maker.gameplay_unverified",
 	}
 	for _, file := range files {
 		data, err := os.ReadFile(file)

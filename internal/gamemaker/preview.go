@@ -31,8 +31,10 @@ func (s *Service) CreatePreviewGrant(projectID string) (PreviewGrant, error) {
 	expires := time.Now().UTC().Add(2 * time.Minute)
 	s.mu.Lock()
 	validationID := ""
+	var scenarios []GameScenario
 	if s.previewCheck != nil && s.previewCheck.JobID == previewJobID {
 		validationID = s.previewCheck.ID
+		scenarios = append(scenarios, s.previewCheck.Scenarios...)
 	}
 	s.tokens[token] = previewToken{ProjectID: projectID, JobID: previewJobID, ValidationID: validationID, ExpiresAt: expires}
 	for candidate, grant := range s.tokens {
@@ -41,7 +43,7 @@ func (s *Service) CreatePreviewGrant(projectID string) (PreviewGrant, error) {
 		}
 	}
 	s.mu.Unlock()
-	return PreviewGrant{Token: token, URL: "/api/game-maker/preview/" + token + "/index.html", ExpiresAt: expires, ValidationID: validationID}, nil
+	return PreviewGrant{Token: token, URL: "/api/game-maker/preview/" + token + "/index.html", ExpiresAt: expires, ValidationID: validationID, Scenarios: scenarios}, nil
 }
 
 // PreviewFile validates a token and returns one published project file. The
@@ -96,6 +98,14 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	}
 	if isPreviewHTML(rawPath, path, contentType) {
 		data = injectPreviewBoot(data)
+		// The driver is served only in the authenticated preview, never exported.
+		if project.Dimension == "2d" {
+			driver, err := runtimeFS.ReadFile("runtime/preview-tests.js")
+			if err != nil {
+				return nil, "", err
+			}
+			data = append(data, append([]byte("<script>"), append(driver, []byte("</script>")...)...)...)
+		}
 		if contentType == "application/octet-stream" || contentType == "" {
 			contentType = "text/html; charset=utf-8"
 		}

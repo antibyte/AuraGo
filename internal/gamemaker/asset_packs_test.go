@@ -27,7 +27,7 @@ func TestSpritePackContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if pack.SchemaVersion != 1 || pack.Version != "1" || pack.Columns != 10 || pack.Rows != 10 || pack.FrameWidth != 64 || pack.FrameHeight != 64 || pack.Image != "sheet.png" {
+			if pack.SchemaVersion != 1 || pack.Version != "2" || pack.Columns != 10 || pack.Rows != 10 || pack.FrameWidth != 64 || pack.FrameHeight != 64 || pack.Image != "sheet.png" {
 				t.Fatal("invalid grid contract")
 			}
 			data, err := s.AssetPackFile(summary.ID, "sheet.png")
@@ -166,14 +166,14 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			guidance := []string{"this.load.spritesheet(", "frameWidth: meta.frame_width", "../" + pack.Metadata, pack.Image, "Phaser.Utils.Array.GetRandom"}
+			guidance := []string{"aurago-game-1.js", "preloadPack(this, meta,", "registerAnimations(this, meta)", "../" + pack.Metadata, pack.Image}
 			if len(metadata.Assemblies) > 0 {
-				guidance = append(guidance, "this.add.container(", "assembly.parts", "part.frame).setOrigin(0, 0)", "part.animation_id")
-				if strings.Contains(pack.PhaserExample, "texture, asset.frames[0]") {
+				guidance = append(guidance, "createAssembly(this, meta,")
+				if strings.Contains(pack.PhaserExample, "createAsset(this, meta,") {
 					return fmt.Errorf("import %s renders an isolated assembly fragment", pack.ID)
 				}
 			} else {
-				guidance = append(guidance, "texture, asset.frames[0]")
+				guidance = append(guidance, "createAsset(this, meta,")
 			}
 			for _, required := range guidance {
 				if !strings.Contains(pack.PhaserExample, required) {
@@ -199,6 +199,15 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 		}
 		if count != 2*len(packs) {
 			return fmt.Errorf("idempotent import recorded %d files", count)
+		}
+		inventory, err := s.importedJobPacks(ctx, run.Job.ID)
+		if err != nil || len(inventory) != len(packs) {
+			return fmt.Errorf("project import inventory incomplete: %d, %v", len(inventory), err)
+		}
+		for _, copy := range inventory {
+			if copy.Version != "2" || copy.Image == "" || copy.Metadata == "" {
+				return fmt.Errorf("invalid imported context: %+v", copy)
+			}
 		}
 		return nil
 	}})
@@ -240,7 +249,7 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 	for _, id := range ids {
 		for _, filename := range []string{"sheet.png", "sheet.json"} {
 			want, _ := s.AssetPackFile(id, filename)
-			path := "assets/builtin/" + id + "/1/" + filename
+			path := "assets/builtin/" + id + "/2/" + filename
 			if !bytes.Equal(files[path], want) {
 				t.Fatalf("exported project copy differs: %s", path)
 			}
@@ -255,7 +264,7 @@ func TestSpritePackImportFailuresLeaveNoPartialPair(t *testing.T) {
 			project := createTestProject(t, s, "2d")
 			s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
 				stage, _ := s.JobDirectory(run.Job.ID)
-				target := filepath.Join(stage, "assets", "builtin", "space-shooter", "1")
+				target := filepath.Join(stage, "assets", "builtin", "space-shooter", "2")
 				id := "space-shooter"
 				switch kind {
 				case "unknown":

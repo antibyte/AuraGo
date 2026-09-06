@@ -2837,5 +2837,14 @@
   "game_maker.pack_robots_drones_animated": "Robots et drones · animés",
   "game_maker.pack_robots_drones_animated_top_down": "Robots et drones · animés de dessus",
   "game_maker.assets_assembly": "Assemblage",
-  "game_maker.assets_individual": "Sprites individuels"
+  "game_maker.assets_individual": "Sprites individuels",
+  "game_maker.gameplay_checks": "Tests du jeu",
+  "game_maker.visual_checks": "Examen visuel",
+  "game_maker.visual_advisory": "Observation visuelle (indicative)",
+  "game_maker.check_passed": "Réussi",
+  "game_maker.check_failed": "Échoué",
+  "game_maker.check_unavailable": "Indisponible",
+  "game_maker.check_skipped": "Ignoré",
+  "game_maker.check_reviewed": "Examiné",
+  "game_maker.gameplay_unverified": "Démarrage vérifié ; le déroulement du jeu 3D reste non vérifié."
 }
