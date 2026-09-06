@@ -83,7 +83,7 @@ func newTestService(t *testing.T) *Service {
 		MaxFileBytes:         2 * 1024 * 1024,
 		MaxAssetBytes:        4 * 1024 * 1024,
 		MaxProjectBytes:      20 * 1024 * 1024,
-		JobTimeout:           5 * time.Second,
+		JobTimeout:           15 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)

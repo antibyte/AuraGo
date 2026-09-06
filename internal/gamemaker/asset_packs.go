@@ -40,10 +40,11 @@ type AssetPack struct {
 }
 
 type ImportedAssetPack struct {
-	ID       string `json:"id"`
-	Version  string `json:"version"`
-	Image    string `json:"image"`
-	Metadata string `json:"metadata"`
+	ID            string `json:"id"`
+	Version       string `json:"version"`
+	Image         string `json:"image"`
+	Metadata      string `json:"metadata"`
+	PhaserExample string `json:"phaser_example"`
 }
 
 func (s *Service) ListAssetPacks() ([]AssetPackSummary, error) {
@@ -160,6 +161,24 @@ func (s *Service) importAssetPack(ctx context.Context, jobID, id string) (Import
 		return result, err
 	}
 	result = ImportedAssetPack{ID: id, Version: pack.Version, Image: rel + "/sheet.png", Metadata: rel + "/sheet.json"}
+	var assets []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(pack.Assets, &assets); err != nil || len(assets) == 0 {
+		return ImportedAssetPack{}, fmt.Errorf("sprite pack has no usable asset metadata")
+	}
+	result.PhaserExample = fmt.Sprintf(`// src/main.ts: this PNG is a grid, not a single image or a Phaser atlas.
+import meta from %q;
+const texture = meta.id + '@' + meta.version;
+// In preload(), use spritesheet, NEVER load.image or load.atlas:
+this.load.spritesheet(texture, %q,
+  { frameWidth: meta.frame_width, frameHeight: meta.frame_height });
+// In create(), select an asset ID from sheet.json and pass its numeric frame:
+const asset = meta.assets.find(a => a.id === %q);
+this.add.sprite(160, 160, texture, asset.frames[0]).setOrigin(asset.origin.x, asset.origin.y);
+// Register animations from meta.animations using their ordered numeric frames.
+// For random array elements use Phaser.Utils.Array.GetRandom(values), not Phaser.Math.pick.
+`, "../"+result.Metadata, result.Image, assets[0].ID)
 	if info, statErr := os.Lstat(target); statErr == nil {
 		if !info.IsDir() {
 			return ImportedAssetPack{}, fmt.Errorf("sprite pack destination already exists")

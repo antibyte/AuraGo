@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -126,6 +127,27 @@ func TestSpritePackContent(t *testing.T) {
 	}
 }
 
+func TestSpriteGuardIsBundledOnlyForPhaser(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		t.Run(dimension, func(t *testing.T) {
+			root := t.TempDir()
+			if err := WriteScaffold(root, Project{Name: "Guard", Dimension: dimension}); err != nil {
+				t.Fatal(err)
+			}
+			if result := buildDirectory(context.Background(), root, 100, 64*1024*1024); !result.OK {
+				t.Fatalf("build: %+v", result)
+			}
+			bundle, err := os.ReadFile(filepath.Join(root, "dist", "game.js"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(bundle), phaserSpriteGuard) != (dimension == "2d") {
+				t.Fatalf("incorrect sprite guard for %s", dimension)
+			}
+		})
+	}
+}
+
 func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
@@ -139,6 +161,11 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 			return fmt.Errorf("agent saw %d imports", len(run.AssetPacks))
 		}
 		for _, pack := range run.AssetPacks {
+			for _, required := range []string{"this.load.spritesheet(", "frameWidth: meta.frame_width", "texture, asset.frames[0]", "../" + pack.Metadata, pack.Image, "Phaser.Utils.Array.GetRandom"} {
+				if !strings.Contains(pack.PhaserExample, required) {
+					return fmt.Errorf("import %s omitted usage guidance %q", pack.ID, required)
+				}
+			}
 			for _, path := range []string{pack.Image, pack.Metadata} {
 				stage, err := s.JobDirectory(run.Job.ID)
 				if err != nil {

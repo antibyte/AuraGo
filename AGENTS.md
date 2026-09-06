@@ -839,6 +839,13 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
   isolation exception or migration is permitted. Verify with `go test
   ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
   plus existing Game Maker UI checks.
+- Pack import results and selected-pack context include a concrete Phaser
+  loading example. Built 2D games guard the loader against treating built-in
+  sheets as single images/atlases or using the wrong grid. Keep that guard at
+  the common loader boundary, including config arrays and variable URLs.
+  Browser startup must observe three seconds after visible-canvas readiness
+  to catch common delayed spawn errors. Verify with
+  `node scripts/test-game-maker-sprites.mjs` and Game Maker Go tests.
 
 - DOX is highly performant AGENTS.md hierarchy installed here
 - Agent must follow DOX instructions across any edits

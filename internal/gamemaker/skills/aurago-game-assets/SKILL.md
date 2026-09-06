@@ -21,6 +21,12 @@ Ask for only assets that materially improve the current game.
   and `operation: list_packs`, then `describe_pack` with `pack_id` only for relevant
   details. `import_pack` copies PNG and JSON together and returns exact local
   paths. It needs edit permission, not a media generator.
+- Follow the import response's `phaser_example`, including for user-selected
+  packs supplied in the initial context. Load the PNG with `load.spritesheet`
+  and 64×64 frames. `load.image` loads the entire 640×640 sheet as one texture;
+  passing a frame later does not slice it. `sheet.json` is AuraGo metadata,
+  not a Phaser texture-atlas file. Import that JSON in TypeScript, then select
+  numeric frames by asset ID. Do not use `load.atlas` for these packs.
 - Read imported `sheet.json` with `game_maker_file`. Schema version 1 uses numeric
   frames 0–99 in ten rows and ten columns of 64px cells. Asset IDs, descriptions,
   direction, origin, ordered frames and timing are authoritative. Never invent

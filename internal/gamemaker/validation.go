@@ -111,8 +111,9 @@ func (s *Service) waitForPreview(ctx context.Context, check *previewCheck, timeo
 		var ready bool
 		if current {
 			diagnostics = append(diagnostics, check.Diagnostics...)
-			// Canvas creation can precede an exception in Scene.create().
-			ready = !check.ReadyAt.IsZero() && time.Since(check.ReadyAt) >= time.Second
+			// Canvas creation precedes scene setup and common one-second spawn
+			// timers. Observe a short gameplay interval before accepting startup.
+			ready = !check.ReadyAt.IsZero() && time.Since(check.ReadyAt) >= 3*time.Second
 		}
 		s.mu.RUnlock()
 		if !current {

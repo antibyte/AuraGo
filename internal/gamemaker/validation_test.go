@@ -58,6 +58,24 @@ func TestPreviewBootObservesErrorsBeforeGameScripts(t *testing.T) {
 	}
 }
 
+func TestPreviewValidationWaitsBeyondFirstSpawnTimer(t *testing.T) {
+	s := newTestService(t)
+	check := &previewCheck{ID: "spawn", JobID: "job", ReadyAt: time.Now().Add(-1500 * time.Millisecond)}
+	s.previewCheck = check
+	s.activeJobID = "job"
+	s.tokens["spawn-token"] = previewToken{ProjectID: "project", JobID: "job", ValidationID: check.ID, ExpiresAt: time.Now().Add(time.Minute)}
+	if got := s.waitForPreview(context.Background(), check, 30*time.Millisecond); got.OK {
+		t.Fatal("startup passed before delayed spawning could be checked")
+	}
+	const message = "Uncaught TypeError: Phaser.Math.pick is not a function"
+	if err := s.ReportPreview("project", PreviewReport{Token: "spawn-token", Type: "runtime_error", Message: message}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.waitForPreview(context.Background(), check, time.Second); got.OK || got.RuntimeStatus != "failed" || got.Diagnostics[0].Message != message {
+		t.Fatalf("delayed spawn error was lost: %+v", got)
+	}
+}
+
 func TestRuntimeErrorReachesRepairRunnerBeforePublication(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")

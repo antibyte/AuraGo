@@ -35,13 +35,21 @@ when complexity justifies them.
   readable in-game UI with a fixed HUD (`setScrollFactor(0)`).
 - Release scene resources on shutdown so restarts stay leak-free.
 - Preserve `window.__AURAGO_GAME_DIAGNOSTICS__` and emit scene readiness.
+- Use `Phaser.Utils.Array.GetRandom(values)` or `Phaser.Math.RND.pick(values)`
+  for a random array element. `Phaser.Math.pick` does not exist. Keep spawning,
+  shooting, collision and restart paths executable during testing; errors in
+  a delayed callback are runtime failures too. Scale per-frame movement by
+  `delta / 1000` and reset score/game-over flags when restarting a scene.
 
 Validate after scene wiring, after gameplay rules, and after final polish.
 
 ## Built-in sprite sheets
 
 Import a pack first. Import its JSON in `src/main.ts` so esbuild bundles metadata
-into the offline game. Example for the returned human pack version 1 paths:
+into the offline game. The import response includes a pack-specific
+`phaser_example`. Never load the sheet with `load.image`, or its AuraGo metadata
+with `load.atlas`.
+Example for the returned human pack version 1 paths:
 
 ```typescript
 import meta from '../assets/builtin/human-characters-animated/1/sheet.json';

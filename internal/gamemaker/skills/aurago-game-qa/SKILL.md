@@ -27,6 +27,8 @@ guidance and copies no TinySwords code, text, scripts, or assets.
    playable offline.
 8. For imported sprites, confirm both local PNG/JSON files, exact numeric frames,
    direction, origin and actual movement. Check borders on light and dark scenes.
+   Use `load.spritesheet` with 64×64 frames; a full sheet shown as one sprite is
+   a failed asset integration. The build includes a loader guard for this error.
    Never substitute a catalog URL for the project copy or claim that loading a
    sheet proves gameplay.
 
@@ -38,7 +40,7 @@ Make at most three focused repair passes. Do not hide a failed validation or
 replace the last working preview with broken output.
 
 Validation reloads the open Studio preview and waits up to 12 seconds for a
-server-boot report of a visible, nonzero canvas plus one second without startup
+server-boot report of a visible, nonzero canvas plus three seconds without startup
 errors. Game-authored `ready` calls alone do not pass; engine `console.error`
 messages (including detached image decode failures) are diagnostics. `runtime_status`
 is `passed`, `failed`, or `unavailable`; compilation alone is `unverified`.

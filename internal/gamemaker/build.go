@@ -77,6 +77,10 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 		}
 	}
+	banner := ""
+	if manifest.Dimension == "2d" {
+		banner = phaserSpriteGuard
+	}
 	build := api.Build(api.BuildOptions{
 		AbsWorkingDir: projectDir,
 		EntryPoints:   []string{filepath.Join("src", "main.ts")},
@@ -89,6 +93,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		Write:         true,
 		LogLevel:      api.LogLevelSilent,
 		LegalComments: api.LegalCommentsLinked,
+		Banner:        map[string]string{"js": banner},
 	})
 	if len(build.Errors) > 0 {
 		diagnostics := make([]Diagnostic, 0, len(build.Errors))
@@ -115,6 +120,29 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	}
 	return BuildResult{OK: true}
 }
+
+// Guard the common loader boundary, including variable URLs and config arrays.
+// The guard travels with the built game; pinned vendor files remain unchanged.
+const phaserSpriteGuard = `(function () {
+  const loader = globalThis.Phaser && Phaser.Loader.LoaderPlugin.prototype;
+  if (!loader || loader.__auragoSpriteGuard) return;
+  const addFile = loader.addFile;
+  loader.addFile = function (input) {
+    for (const file of Array.isArray(input) ? input : [input]) {
+      let url = typeof file.url === 'string' ? file.url : '';
+      try { url = decodeURIComponent(url); } catch (_) {}
+      if (!/(^|\/)assets\/builtin\/[a-z0-9-]+\/[^/]+\/sheet\.png(?:[?#]|$)/.test(url)) continue;
+      const config = file.config || {};
+      if (file.type !== 'spritesheet' || config.frameWidth !== 64 ||
+          (config.frameHeight !== undefined && config.frameHeight !== 64) ||
+          (config.margin || 0) !== 0 || (config.spacing || 0) !== 0 || (config.startFrame || 0) !== 0) {
+        throw new Error('Built-in sprite packs require this.load.spritesheet(key, url, {frameWidth:64, frameHeight:64}) with no margin, spacing or startFrame offset. Do not use load.image/load.atlas: they display the entire sheet. Select numeric frames from sheet.json.');
+      }
+    }
+    return addFile.apply(this, arguments);
+  };
+  loader.__auragoSpriteGuard = true;
+})();`
 
 func validateTreeLimits(root string, maxFiles int, maxBytes int64) error {
 	var files int

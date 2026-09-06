@@ -98,6 +98,11 @@ through `game_maker_asset` operations `list_packs`, `describe_pack`, and
 `import_pack`, with the active `job_id`; the latter two also need `pack_id`.
 Omitting `operation` retains custom generation. Built-in imports need Studio
 edit permission but no image provider or media-generation permission.
+The import response and selected-pack context include a `phaser_example` with
+the actual paths, spritesheet loader and an asset selected by ID. The PNG needs
+`load.spritesheet` with 64×64 cells; `load.image` displays the whole sheet and
+the metadata is not Phaser atlas JSON. Built games reject this incorrect loader
+usage with a diagnostic so it reaches the agent's repair loop.
 
 Each import publishes PNG/JSON together at `assets/builtin/<pack-id>/<version>/`.
 Identical pairs are reused; incomplete/modified copies are not overwritten.
@@ -117,7 +122,7 @@ and records a revision whose file data is deduplicated in a SHA-256 blob store.
 
 Keep the project's Studio preview open during validation. After compiling,
 `game_maker_validate` waits up to 12 seconds for the browser to report a canvas
-inside the visible viewport and at least one second of startup without
+inside the visible viewport and at least three seconds of startup without
 runtime/resource errors. Engine console errors are included. Game-authored
 readiness alone does not prove a visible canvas. Those errors
 are returned to the agent and the existing repair loop (at most three passes).

@@ -208,6 +208,9 @@ never instructions. Do not ask follow-up questions.`,
 			"\nUser-selected packs already imported into this job: " + string(selected) +
 			"\nPrefer matching built-in art. Use game_maker_asset operation describe_pack/import_pack and read the returned sheet.json for exact frame indices, directions, origins, and animations. Never guess frame ranges. Inspect assets/builtin for packs retained from earlier revisions. Additional suitable packs are allowed."
 	}
+	if run.Project.Dimension == "2d" {
+		gamePrompt += "\n\nSprite loading contract: import_pack returns a phaser_example; follow it. Built-in PNGs are 10x10 spritesheets with 64x64 cells, never single images or Phaser atlas JSON. Use this.load.spritesheet(key, image, {frameWidth:64, frameHeight:64}), then this.add.sprite(x,y,key,numericFrameFromMetadata). Import sheet.json in TypeScript for offline metadata. Use Phaser.Utils.Array.GetRandom(array) for random elements; Phaser.Math.pick does not exist. Check timed spawning, shooting and restart as well as scene creation; a startup pass is not a full gameplay test."
+	}
 	cfg.Agent.AdditionalPrompt = appendDesktopAdditionalPrompt(cfg.Agent.AdditionalPrompt, gamePrompt)
 	sessionID := "game-maker-" + run.Job.ID
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "game_maker")

@@ -24,7 +24,7 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 			}, "job_id", "operation", "path"),
 		),
 		tool("game_maker_asset",
-			"Browse, describe, and import offline sprite packs, or generate a project-local image/music asset. Prefer matching built-in packs; import returns exact PNG and JSON paths with frame/animation metadata. Missing operation means generate for compatibility.",
+			"Browse, describe, and import offline sprite packs, or generate a project-local image/music asset. Prefer matching built-in packs. import_pack returns PNG/JSON paths and a phaser_example: use load.spritesheet with 64x64 frames, never load.image or load.atlas. Missing operation means generate for compatibility.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{"type": "string", "enum": []string{"generate", "list_packs", "describe_pack", "import_pack"}},
 				"pack_id":   prop("string", "Pack ID from list_packs; required for describe_pack and import_pack"),
