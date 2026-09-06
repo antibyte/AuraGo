@@ -145,7 +145,7 @@
                                     const img = new Image();
                                     img.crossOrigin = 'anonymous';
                                     img.onload = () => resolve(img);
-                                    img.onerror = () => reject(new Error('Failed to load image'));
+                                    img.onerror = () => reject(new Error(this.t('pixel.error_load')));
                                     img.src = src;
                                 });
             }),

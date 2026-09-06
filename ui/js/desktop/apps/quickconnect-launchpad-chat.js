@@ -1142,7 +1142,7 @@
             if (!contentEl(id)) return;
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
-                <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
+                <div class="vd-store-frame-error-msg">${esc(t('desktop.load_failed'))}</div>
                 <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>
             </div>`;
             const start = host.querySelector('[data-action="start"]');
@@ -1152,7 +1152,7 @@
                         await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/start', { method: 'POST' });
                         setTimeout(() => renderContainerWebApp(id, app), 1200);
                     } catch (startErr) {
-                        showDesktopNotification({ title: appName(app), message: startErr.message });
+                        showDesktopNotification({ title: appName(app), message: t('desktop.load_failed') });
                     }
                 });
             }
@@ -1291,7 +1291,7 @@
             navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
             closeExternalStoreWindow(pendingWindow);
-            showDesktopNotification({ title: title || storeAppId, message: err.message });
+            showDesktopNotification({ title: title || storeAppId, message: t('desktop.load_failed') });
         }
     }
 

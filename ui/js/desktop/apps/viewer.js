@@ -284,7 +284,7 @@
                 return;
             }
             if (typeof window.markdownit !== 'function') {
-                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}: markdown-it not loaded</div>`;
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}</div>`;
                 return;
             }
             const md = window.markdownit({ html: false, linkify: true, typographer: true });

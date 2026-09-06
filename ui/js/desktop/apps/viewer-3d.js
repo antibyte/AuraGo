@@ -51,12 +51,17 @@
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         init().catch(err => {
-            if (loading) loading.textContent = (t('viewer.error') + ': ' + err.message);
-            notify(t('viewer.error') + ': ' + err.message);
+            const raw = err && err.message ? String(err.message) : String(err || '');
+            const fallback = t('viewer.error');
+            const message = (raw === 'Three.js STLLoader is unavailable' || raw === fallback)
+                ? fallback
+                : (fallback + ': ' + raw);
+            if (loading) loading.textContent = message;
+            notify(message);
         });
 
         async function init() {
-            if (!window.THREE || !THREE.STLLoader) throw new Error('Three.js STLLoader is unavailable');
+            if (!window.THREE || !THREE.STLLoader) throw new Error(t('viewer.error'));
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
             renderer.setClearColor(0x000000, 0);

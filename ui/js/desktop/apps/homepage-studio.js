@@ -949,7 +949,7 @@
                 }
 
                 const parser = window.AuraChatStreamParser;
-                if (!parser) throw new Error('Chat stream parser not loaded');
+                if (!parser) throw new Error(t('desktop.chat_request_failed'));
 
                 await parser.readFetchEventStream(response, {
                     onEvent: data => {

@@ -11,7 +11,11 @@ apps), `core/spaces-runtime.js` (three virtual desktops / Spaces v1: window
 `spaceId`, hide-without-dispose, session snapshot v2, taskbar pager, Ctrl+Alt
 arrows; disabled on compact viewport), `core/shell-chrome-runtime.js`
 (notification center, clock popup, hold window switcher, shortcuts overlay),
-and `core/spotlight-runtime.js` (Ctrl+K mixed search). Styles:
+`core/spotlight-runtime.js` (Ctrl+K mixed search), and
+`core/window-shell-runtime.js` (widget frames, standalone widgets,
+`openApp`). Widget-frame and standalone-widget empty-state load
+failures use `desktop.load_failed`. Standalone Webamp notifications
+map `desktop.winamp_unsupported`. Styles:
 `ui/css/desktop-chrome.css` (bundled into `desktop-shell.bundle.css`).
 Persisted keys: `windows.restore_session`, `appearance.dock_pins`,
 `session.windows` (snapshot v2 with `activeSpaceId` and per-window `spaceId`
@@ -221,15 +225,51 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Quick Connect device-list, generated-app host, and People content
   empty-state load failures reuse `desktop.load_failed`. Do not dump
   raw `err.message` there. People `t` takes `(context, key)`.
+- Editor fallback file-list empty-state load failures reuse
+  `desktop.load_failed`. Do not dump raw `err.message` there.
+- Webamp unsupported-browser errors use
+  `desktop.winamp_unsupported`. `notifyError` maps the English
+  sentinel `Webamp is not supported in this browser.` and the
+  localized throw; other load failures reuse
+  `desktop.load_failed`. Do not dump raw `err.message` there.
+  Leave the Webamp skin unchanged.
+- Widget-frame and standalone-widget empty-state load failures reuse
+  `desktop.load_failed`. Standalone Webamp notifications map the
+  same unsupported sentinel and reuse `desktop.load_failed` for
+  other load failures. Do not dump raw `err.message` there.
 - Missing Agent Chat / Live Speech renderers use
   `desktop.app_error_renderer_missing` with `{{app}}`. Do not hardcode
   English "renderer is not loaded" strings.
+- Agent Chat and Live Speech missing-host throws reuse
+  `desktop.load_failed`. `renderAppError` may show that localized
+  message. Do not hardcode English `Desktop chat window content is
+  not available` or `Live Speech window content is not available`.
+  Agent Chat uses `desktopText(key)` with no second argument. Live
+  Speech `text` stays `(key, fallback)`; call this key without a
+  fallback.
 - Agent Chat generic request errors use `desktop.chat_request_failed`.
-  Homepage Studio chat-stream failures reuse the same key. Chat
-  live-stream fallbacks use `desktop.chat_live_stream`. Unknown
-  document-format badges use `desktop.chat_document_format_unknown`.
-  Do not hardcode English `Request failed`, `Live stream`, or `FILE`
-  there.
+  Homepage Studio chat-stream failures reuse the same key, including
+  the missing stream-parser throw. Chat live-stream fallbacks use
+  `desktop.chat_live_stream`. Unknown document-format badges use
+  `desktop.chat_document_format_unknown`. Do not hardcode English
+  `Request failed`, `Chat stream parser not loaded`, `Live stream`,
+  or `FILE` there.
+- Viewer missing-markdown-it errors show `viewer.error` only. Do
+  not hardcode English `markdown-it not loaded` there.
+- Pixel image-decode failures throw `pixel.error_load`. Pixel `t`
+  stays key-only. Do not hardcode English `Failed to load image`.
+- Teevee catalog timeouts throw `desktop.teevee_catalog_error`.
+  Call `t(key)` with no second argument. Do not hardcode English
+  `Catalog request timed out`. Leave the iptv-org HTTP throw.
+- Viewer 3D missing-STLLoader errors throw and map to
+  `viewer.error`. Map the English sentinel
+  `Three.js STLLoader is unavailable`. Other init failures may
+  still use `viewer.error` plus `err.message`.
+- Store container-app frame errors, terminal-preview frame errors,
+  store start toasts, and external-open notifications reuse
+  `desktop.load_failed`. Do not dump raw `err.message` there.
+  Leave Store asset-URL throws and the terminal-preview module
+  catch fallback unchanged.
 - Generated-app iframe title fallback uses
   `desktop.embed_frame_title`. Host SDK error fallback uses
   `desktop.embed_bridge_failed`. Do not hardcode English
@@ -1008,6 +1048,13 @@ registration lives in `internal/desktop/types.go`.
   inside the shared Desktop IIFE immediately before `sdk-events-bootstrap.js`.
   Empty-state load failures use `desktop.load_failed`. No child DOX file
   needed.
+- `agent-chat.js` - Desktop Agent Chat. Missing-host throws reuse
+  `desktop.load_failed` via `desktopText(key)` with no second
+  argument. Loaded lazily. Exposes `window.AgentChatApp`. No child
+  DOX file needed.
+- `live-speech.js` - Desktop Live Speech. Missing-host throws reuse
+  `desktop.load_failed` via `text(key)` with no fallback. Loaded
+  lazily. Exposes `window.LiveSpeechApp`. No child DOX file needed.
 - `galaxa-demo.js` - AI pilot and demo lifecycle; reactive combat AI (aim, fire,
   dodge, collect powerups), menu auto-tap for shop/evo, and game-over
   auto-restart loop. Attaches `ctx.startDemo()` and `ctx.updateDemo(dt)` via
@@ -1093,20 +1140,30 @@ registration lives in `internal/desktop/types.go`.
 - Noisemaker visible UI strings use `desktop.noisemaker_*` keys plus
   `desktop.app_noisemaker` in all `ui/lang/desktop/*.json` files.
 - `editor-filemenu.js` implements file management helpers and the inline text
-  editor with window menus (file, edit, agent, help). Bundled in the main shell
-  bundle (`desktopMainParts` in `build-ui-bundles.js`) because it is referenced
-  directly by the desktop foundation runtime.
+  editor with window menus (file, edit, agent, help). Fallback file-list
+  empty-state load failures use `desktop.load_failed`. Bundled in the
+  main shell bundle (`desktopMainParts` in `build-ui-bundles.js`) because
+  it is referenced directly by the desktop foundation runtime.
 - `planning-gallery-music.js` - Planner/todo, gallery, Webamp music, and
   Quick Connect device list. Bundled in the main shell. The synthetic
   AuraGo host card uses `desktop.qc_aurago_host` and
   `desktop.qc_aurago_host_description`. Todo, Gallery, and Quick
   Connect device-list empty-state load failures use
-  `desktop.load_failed`. No child DOX file needed.
+  `desktop.load_failed`. Webamp unsupported-browser errors use
+  `desktop.winamp_unsupported`; launcher `notifyError` maps the
+  English sentinel and reuses `desktop.load_failed` for other
+  load failures. Leave the Webamp skin unchanged. No child DOX
+  file needed.
 - `quickconnect-launchpad-chat.js` - Store/launchpad, generated-app
   host, and Quick Connect session chrome. Store terminal-preview load
   failures use `desktop.store_terminal_load_failed`. Generated-app
-  host empty-state load failures use `desktop.load_failed`. Bundled
+  host empty-state, store container-app frame errors, start toasts,
+  and external-open notifications use `desktop.load_failed`. Bundled
   in the main shell. No child DOX file needed.
+- `store-terminal-preview.js` - CommandCode console-plus-preview
+  host. Frame empty-state and start-toast failures reuse
+  `desktop.load_failed`. Loaded lazily. Exposes
+  `window.StoreTerminalPreviewApp`. No child DOX file needed.
 - `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
   cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
   functions, etc.). Exposes `window.SheetsFormulas`. No child DOX file needed.
@@ -1206,8 +1263,8 @@ registration lives in `internal/desktop/types.go`.
   deployments, reconcile) and History inspector (search/filter/pagination,
   shell-dialog deletes). URL validation and the iframe sandbox contract stay
   pinned in `homepage-studio.js`. Local webhost name fallback uses
-  `homepage_studio.default_name`; chat-stream failures reuse
-  `desktop.chat_request_failed`. Exposes `window.HomepageStudioApp` plus
+  `homepage_studio.default_name`; chat-stream failures and the
+  missing parser throw reuse `desktop.chat_request_failed`. Exposes `window.HomepageStudioApp` plus
   `HomepageStudioPreview`/`HomepageStudioSites`/`HomepageStudioHistory`
   factories. No child DOX file needed.
 - `log-viewer-filters.js` / `log-viewer.js` - Log Viewer: file sidebar,
@@ -1266,7 +1323,12 @@ registration lives in `internal/desktop/types.go`.
   `archiveEntry` with the zip `path` and `forceNew: true`. Archive members
   load from `/api/desktop/viewer/content?path=&entry=` or
   `/api/desktop/archive/entry`; Viewer hides Edit for archive members.
-  No child DOX file needed.
+  Missing markdown-it shows `viewer.error` only. Viewer 3D missing
+  STLLoader throws and maps `viewer.error`. No child DOX file
+  needed.
+- `teevee.js` - IPTV catalog player. Catalog timeouts throw
+  `desktop.teevee_catalog_error`. Loaded lazily. Exposes
+  `window.TeeveeApp`. No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -
   Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
@@ -1275,8 +1337,9 @@ registration lives in `internal/desktop/types.go`.
   slider, layers, click-to-jump history panel, AI generate/enhance. The
   open-dialog filter uses `desktop.file_dialog_images`. Save-dialog
   filters use `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`,
-  and `desktop.file_dialog_webp`. Exposes
-  `window.PixelApp`. No child DOX file needed.
+  and `desktop.file_dialog_webp`. Image-decode failures throw
+  `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
+  needed.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
   `/api/code-studio/terminal`. Exposes `window.TerminalApp`. No child DOX file
   needed.

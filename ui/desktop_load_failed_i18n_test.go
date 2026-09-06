@@ -19,8 +19,8 @@ func TestDesktopLoadFailedI18n(t *testing.T) {
 	}
 
 	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
-	if strings.Count(source, "t('desktop.load_failed')") < 3 {
-		t.Fatal("todo, gallery, and quick connect device list must localize desktop.load_failed")
+	if strings.Count(source, "t('desktop.load_failed')") < 4 {
+		t.Fatal("todo, gallery, quick connect device list, and webamp notifyError must localize desktop.load_failed")
 	}
 	for _, forbidden := range []string{
 		".vd-todo-list').innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`",
@@ -46,6 +46,14 @@ func TestDesktopLoadFailedI18n(t *testing.T) {
 	}
 	if strings.Contains(people, "vd-people-empty-title\">${esc(err.message)}") {
 		t.Fatal("people empty state still dumps err.message")
+	}
+
+	editor := readDesktopAssetText(t, "js/desktop/apps/editor-filemenu.js")
+	if !strings.Contains(editor, "t('desktop.load_failed')") {
+		t.Fatal("editor file-list empty state must localize desktop.load_failed")
+	}
+	if strings.Contains(editor, ".vd-file-list').innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`") {
+		t.Fatal("editor file-list empty state still dumps err.message")
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {

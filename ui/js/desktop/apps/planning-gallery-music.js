@@ -533,7 +533,7 @@
 
         const Webamp = await loadWebampConstructor();
         if (typeof Webamp.browserIsSupported === 'function' && !Webamp.browserIsSupported()) {
-            throw new Error('Webamp is not supported in this browser.');
+            throw new Error(t('desktop.winamp_unsupported'));
         }
 
         const current = state.webampMusic;
@@ -610,7 +610,11 @@
         };
 
         const notifyError = err => {
-            const message = err && err.message ? err.message : String(err);
+            const raw = err && err.message ? String(err.message) : String(err || '');
+            const unsupported = t('desktop.winamp_unsupported');
+            const message = (raw === 'Webamp is not supported in this browser.' || raw === unsupported)
+                ? unsupported
+                : t('desktop.load_failed');
             setStatus(message);
             showDesktopNotification({ title: t('desktop.notification'), message });
         };

@@ -668,7 +668,7 @@
             card.replaceChildren(makeSandboxedFrame(src, widget.app_id, widget.id, '', 'vd-widget-frame', widget.title || widget.id));
             scheduleWidgetAutoSize(card.closest('.vd-widget'), widget);
         } catch (err) {
-            card.innerHTML = `<div class="vd-widget-body">${esc(err.message)}</div>`;
+            card.innerHTML = `<div class="vd-widget-body">${esc(t('desktop.load_failed'))}</div>`;
             scheduleWidgetAutoSize(card.closest('.vd-widget'), widget);
         }
     }
@@ -1175,7 +1175,7 @@
             })
             .catch(err => {
                 if (!contentEl(id)) return;
-                host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             });
     }
 
@@ -1187,7 +1187,12 @@
         }
         if (appId === 'music-player') {
             launchStandaloneWebamp(context).catch(err => {
-                showDesktopNotification({ title: t('desktop.notification'), message: (err && err.message) || String(err) });
+                const raw = err && err.message ? String(err.message) : String(err || '');
+                const unsupported = t('desktop.winamp_unsupported');
+                const message = (raw === 'Webamp is not supported in this browser.' || raw === unsupported)
+                    ? unsupported
+                    : t('desktop.load_failed');
+                showDesktopNotification({ title: t('desktop.notification'), message });
             });
             return;
         }

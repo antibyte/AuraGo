@@ -18,7 +18,7 @@
     function render(windowId, context) {
         dispose(windowId, { keepSession: true });
         const host = hostFor(windowId, context || {});
-        if (!host) throw new Error('Live Speech window content is not available');
+        if (!host) throw new Error(text('desktop.load_failed'));
         host.innerHTML = `<div class="vd-live-speech-app">
             <canvas class="vd-live-speech-fx" aria-hidden="true"></canvas>
             <div class="vd-live-speech-content">

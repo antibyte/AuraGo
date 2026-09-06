@@ -4987,7 +4987,7 @@
             card.replaceChildren(makeSandboxedFrame(src, widget.app_id, widget.id, '', 'vd-widget-frame', widget.title || widget.id));
             scheduleWidgetAutoSize(card.closest('.vd-widget'), widget);
         } catch (err) {
-            card.innerHTML = `<div class="vd-widget-body">${esc(err.message)}</div>`;
+            card.innerHTML = `<div class="vd-widget-body">${esc(t('desktop.load_failed'))}</div>`;
             scheduleWidgetAutoSize(card.closest('.vd-widget'), widget);
         }
     }
@@ -5494,7 +5494,7 @@
             })
             .catch(err => {
                 if (!contentEl(id)) return;
-                host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             });
     }
 
@@ -5506,7 +5506,12 @@
         }
         if (appId === 'music-player') {
             launchStandaloneWebamp(context).catch(err => {
-                showDesktopNotification({ title: t('desktop.notification'), message: (err && err.message) || String(err) });
+                const raw = err && err.message ? String(err.message) : String(err || '');
+                const unsupported = t('desktop.winamp_unsupported');
+                const message = (raw === 'Webamp is not supported in this browser.' || raw === unsupported)
+                    ? unsupported
+                    : t('desktop.load_failed');
+                showDesktopNotification({ title: t('desktop.notification'), message });
             });
             return;
         }
@@ -11859,7 +11864,7 @@ if (appId === 'pixel') {
                 });
             });
         } catch (err) {
-            host.querySelector('.vd-file-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+            host.querySelector('.vd-file-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
         }
     }
 
@@ -12743,7 +12748,7 @@ if (appId === 'pixel') {
 
         const Webamp = await loadWebampConstructor();
         if (typeof Webamp.browserIsSupported === 'function' && !Webamp.browserIsSupported()) {
-            throw new Error('Webamp is not supported in this browser.');
+            throw new Error(t('desktop.winamp_unsupported'));
         }
 
         const current = state.webampMusic;
@@ -12820,7 +12825,11 @@ if (appId === 'pixel') {
         };
 
         const notifyError = err => {
-            const message = err && err.message ? err.message : String(err);
+            const raw = err && err.message ? String(err.message) : String(err || '');
+            const unsupported = t('desktop.winamp_unsupported');
+            const message = (raw === 'Webamp is not supported in this browser.' || raw === unsupported)
+                ? unsupported
+                : t('desktop.load_failed');
             setStatus(message);
             showDesktopNotification({ title: t('desktop.notification'), message });
         };
@@ -14239,7 +14248,7 @@ if (appId === 'pixel') {
             if (!contentEl(id)) return;
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
-                <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
+                <div class="vd-store-frame-error-msg">${esc(t('desktop.load_failed'))}</div>
                 <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>
             </div>`;
             const start = host.querySelector('[data-action="start"]');
@@ -14249,7 +14258,7 @@ if (appId === 'pixel') {
                         await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/start', { method: 'POST' });
                         setTimeout(() => renderContainerWebApp(id, app), 1200);
                     } catch (startErr) {
-                        showDesktopNotification({ title: appName(app), message: startErr.message });
+                        showDesktopNotification({ title: appName(app), message: t('desktop.load_failed') });
                     }
                 });
             }
@@ -14388,7 +14397,7 @@ if (appId === 'pixel') {
             navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
             closeExternalStoreWindow(pendingWindow);
-            showDesktopNotification({ title: title || storeAppId, message: err.message });
+            showDesktopNotification({ title: title || storeAppId, message: t('desktop.load_failed') });
         }
     }
 

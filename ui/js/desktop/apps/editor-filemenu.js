@@ -53,7 +53,7 @@
                 });
             });
         } catch (err) {
-            host.querySelector('.vd-file-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+            host.querySelector('.vd-file-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
         }
     }
 

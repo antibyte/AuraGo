@@ -862,7 +862,7 @@
             return response.json();
         } catch (err) {
             clearTimeout(timeout);
-            if (err && err.name === 'AbortError') throw new Error('Catalog request timed out');
+            if (err && err.name === 'AbortError') throw new Error(t('desktop.teevee_catalog_error'));
             throw err;
         }
     }

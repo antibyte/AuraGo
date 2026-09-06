@@ -186,7 +186,7 @@
     function renderChat(id, context) {
         useDesktopChatRuntime(context || {});
         const host = agentChatContentEl(id);
-        if (!host) throw new Error('Desktop chat window content is not available');
+        if (!host) throw new Error(desktopText('desktop.load_failed'));
 
         const sidebarCollapsed = !sidebarOpen;
         host.innerHTML = `<div class="vd-chat" data-sidebar-collapsed="${sidebarCollapsed}" ${sidebarOpen ? 'data-sidebar-open="true"' : ''}>
