@@ -772,6 +772,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ## Resources
 
 - **README.md** - User-facing documentation
+- README presentation: English, positioning AuraGo as a personal self-hosted AI platform; use the Slate/ice-blue/turquoise editorial direction. Keep installation and capability claims aligned with current source.
+- README artwork lives in `assets/readme/`; label generated illustrations as conceptual and use authentic, unchanged product screenshots for proof. Keep essential copy and commands in Markdown and verify light/dark rendering at desktop and mobile widths.
 - **documentation/** - Detailed guides
 - **config_template.yaml** - Full configuration reference (~600 lines)
 - **prompts/tools_manuals/** - Tool documentation (RAG-indexed)
