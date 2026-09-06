@@ -825,6 +825,21 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
 
 # DOX framework
 
+## Game Maker sprite library contract
+
+- `internal/gamemaker/asset_packs/` owns ten embedded 10×10 RGBA sheets (64px
+  cells), versioned JSON and a compact catalog. Original images and reviewed
+  crops remain in `production/` but are excluded from the binary. Rebuild with
+  `python scripts/pack_game_sprites.py`; verify with `--check` (Pillow 12.2).
+- Sprite operations stay inside `game_maker_asset`; omitted operation still
+  generates media. Selected `asset_pack_ids` import before the agent runs.
+  Imports publish PNG/JSON together, enforce edit policy and existing limits,
+  preserve differing copies, and record provenance. Revisions/exports use project
+  copies. Catalog reads are authenticated and disabled with Studio. No new tool
+  isolation exception or migration is permitted. Verify with `go test
+  ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
+  plus existing Game Maker UI checks.
+
 - DOX is highly performant AGENTS.md hierarchy installed here
 - Agent must follow DOX instructions across any edits
 
@@ -920,6 +935,7 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 ## Child DOX Index
 
 Current child AGENTS.md files:
+- `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
 - `ui/AGENTS.md` — Embedded Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.

@@ -135,7 +135,7 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const state = {
     frame: { contentWindow: {} }, project: { id: 'snake' }, channelID: 'channel',
     previewProjectID: 'snake', previewGrant: { token: 'parent-only-token', validation_id: 'build' },
-    previewReported: new Set(), previewDiagnostics: [], messages: [],
+    previewReported: new Set(), previewDiagnostics: [], messages: [], selectedAssetPackIDs: ['space-shooter'],
     api: {
       async reportPreview(id, report) { sent.push({ id, ...report }); },
       async startJob(id, body) { submitted = { id, ...body }; return { id: 'job', status: 'queued' }; }
@@ -171,9 +171,56 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   await context.submitChange(state);
   assert.equal(submitted.preview_diagnostics[0].message, data.message);
   assert.equal(submitted.prompt, 'Fix the snake');
+  assert.deepEqual(submitted.asset_pack_ids, ['space-shooter']);
   state.project = { id: 'other-project' };
   context.handlePreviewMessage(state, { ...event, data: { ...data, message: 'late old error' } });
   assert.equal(sent.length, 2, 'a switched project must not receive old preview reports');
+}
+
+async function testGameMakerSpriteBrowserOwnsSelectionAndCleanup() {
+  const mobile = {};
+  const mobileContext = {};
+  vm.runInNewContext(sourceBetween(read('ui/js/desktop/apps/game-maker-studio.js'), 'function renderMobileSelect(', 'function relativeTime('), mobileContext);
+  mobileContext.renderMobileSelect({ context: { esc: value => String(value).replaceAll('<', '&lt;') }, projects: [{id:'one',name:'<Ranger>'}], project:{id:'one'},container:{querySelector:()=>mobile} });
+  assert.ok(mobile.innerHTML.includes('&lt;Ranger>'));
+  const nodes = new Map();
+  function node(key) {
+    if (!nodes.has(key)) nodes.set(key, { value: '', innerHTML: '', handlers: {},
+      addEventListener(type, fn) { this.handlers[type] = fn; } });
+    return nodes.get(key);
+  }
+  const layer = { querySelector: node };
+  const selection = {};
+  let finishCatalog, finishDetail, requestSignal, starts = 0;
+  const state = { context: { t: key => key, esc: String }, selectedAssetPackIDs: [],
+    container: { querySelectorAll: () => [selection] }, api: {
+      assetPacks(options) { requestSignal = options.signal; return new Promise(resolve => { finishCatalog = resolve; }); },
+      assetPack() { return new Promise(resolve => { finishDetail = resolve; }); },
+      assetPackImageURL: id => '/packs/' + id, startJob() { starts++; }
+    } };
+  let cleared = 0;
+  const context = { window: {}, AbortController, clearInterval() { cleared++; } };
+  vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
+  const assets = context.window.GameMakerStudioAssets;
+  assets.show(state, { showModal(_state, _html, mount) { mount(layer); }, modalError() { assert.fail('late request touched closed modal'); } });
+  finishCatalog({ packs: [{ id: 'space-shooter', tags: ['space'], description: 'Ships' }] });
+  await Promise.resolve();
+  const cards = node('[data-asset-cards]');
+  cards.handlers.change({ target: { dataset: { selectPack: 'space-shooter' }, checked: true } });
+  assert.equal(state.selectedAssetPackIDs.join(), 'space-shooter');
+  assert.ok(selection.textContent.includes('pack_space_shooter'));
+  assert.equal(starts, 0, 'selection must never start a job');
+  assert.ok(assets.selectionMarkup({ ...state, selectedAssetPackIDs: [] }).includes('assets_automatic'));
+  state.assetBrowserCleanup();
+  const closedHTML = node('[data-asset-detail]').innerHTML;
+  finishDetail({ id: 'space-shooter' });
+  await Promise.resolve();
+  assert.equal(node('[data-asset-detail]').innerHTML, closedHTML);
+  assert.equal(requestSignal.aborted, true);
+  assert.ok(cleared > 0);
+  assert.equal(state.assetBrowserCleanup, null);
+  assets.clearSelection(state);
+  assert.equal(state.selectedAssetPackIDs.length, 0);
 }
 
 async function testGameMakerDiagnosticsFollowPreviewLifetime() {
@@ -1797,6 +1844,7 @@ function testLocalLLMFamilySelection() {
 }
 
 const tests = [
+  ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
   ['Game Maker boot rejects invisible canvases and captures engine errors', testGameMakerBootDetectsInvisibleCanvasAndEngineErrors],
   ['Desktop media keys are visible to bootstrap', testDesktopMediaKeysAreInBootstrapScope],

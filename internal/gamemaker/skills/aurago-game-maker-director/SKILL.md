@@ -19,17 +19,19 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 1. Inspect the project manifest and file list with `game_maker_project`.
 2. Reply first with a short build plan the player can read in the studio:
    the core loop, the fail or pressure condition, the progression signal,
-   the controls, and which generated assets you will request. Then build.
+   the controls, and which built-in or custom assets you will use. Then build.
 3. Keep the first implementation the smallest loop that is actually playable;
    extend it only after it validates.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
    If a write does not have the expected effect, fix the parameters and retry
    once; do not switch to `execute_python`, `execute_shell`, `filesystem`, or
    any tool outside the allowed Game Maker scope.
-5. Use `game_maker_asset` only for planned, gameplay-relevant media and only
-   when the capability is enabled. Stay within roughly four images and one
-   music track per job. Treat a fallback response as a design constraint,
-   not a failed job.
+5. Prefer offline sprite packs and respect the user's preimported selection.
+   Describe relevant packs, import additional matches as needed, and use exact
+   JSON frame/animation definitions. Custom generation requires the media
+   capability; stay within roughly four generated images and one music track.
+   A disabled generator does not disable built-in packs. Treat a generation
+   fallback as a design constraint.
 6. Call `game_maker_validate` after coherent edits. Fix concrete diagnostics
    before adding polish, with at most three repair passes.
 7. Preserve the AuraGo diagnostic interface and finish only when validation is

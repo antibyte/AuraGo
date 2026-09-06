@@ -78,6 +78,36 @@ version.
 - The skills dialog summarizes status in plain language and folds source,
   commit, and license details into a collapsible section.
 
+## Offline sprite library
+
+Open **Assets** to browse ten original pixel-art packs. Each contains 100 cells
+of 64×64 pixels in a 640×640 RGBA PNG, with English asset descriptions and JSON
+animations. Categories cover space shooters, animated effects, platformers,
+top-down adventures, blocks/balls, cards/board games, side-view and top-down
+humans, and side-view and top-down monsters/animals. Animation frames count
+toward the 1,000 cells; some sequences deliberately hold a source pose.
+
+Search/filter packs, inspect sprites, play animations, and switch between
+checkerboard, white and dark backgrounds. **Use for next job** prepares the next
+creation/change request without starting it. The form shows the selection;
+starting a job consumes it. Selections belong to the current Studio window.
+An empty selection lets the agent choose.
+
+Selected packs import before the agent starts. Additional packs are available
+through `game_maker_asset` operations `list_packs`, `describe_pack`, and
+`import_pack`, with the active `job_id`; the latter two also need `pack_id`.
+Omitting `operation` retains custom generation. Built-in imports need Studio
+edit permission but no image provider or media-generation permission.
+
+Each import publishes PNG/JSON together at `assets/builtin/<pack-id>/<version>/`.
+Identical pairs are reused; incomplete/modified copies are not overwritten.
+File, asset, file-count and project limits apply. Metadata includes stable IDs,
+numeric frames, origins, directions, ordered animations, FPS, repeat/yoyo,
+source hashes and the MIT notice. Project copies survive revisions and export.
+The embedded Phaser skill includes a loading example using bundled JSON imports;
+generated games use local files, never the catalog API. Production is documented
+in `internal/gamemaker/asset_packs/production/README.md`.
+
 ## Builds, revisions, and export
 
 Each job works in its own staging copy. TypeScript and ES modules are compiled
@@ -144,3 +174,9 @@ Authenticated Virtual Desktop clients use `/api/game-maker/capabilities`,
 `/projects`, project jobs/events/revisions/restore/preview-token/export, and
 `/jobs/{id}/cancel`. SSE event IDs are monotonic and support reconnecting with
 `Last-Event-ID`.
+
+Authenticated sprite endpoints are `GET /api/game-maker/asset-packs`,
+`GET /api/game-maker/asset-packs/{id}/sheet.json`, and the corresponding
+`sheet.png`. Only known IDs and these filenames are served. Disabled Studio
+access is rejected. Start-job bodies optionally accept `asset_pack_ids` (at
+most ten IDs, duplicates removed). No database migration is needed.

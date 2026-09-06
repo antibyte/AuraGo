@@ -1,0 +1,2468 @@
+{
+  "id": "top-down-adventure",
+  "name": "Top Down Adventure",
+  "description": "Overhead RPG terrain, props, items and opening chest/gate sequences.",
+  "tags": [
+    "adventure",
+    "terrain",
+    "top"
+  ],
+  "schema_version": 1,
+  "version": "1",
+  "image": "sheet.png",
+  "columns": 10,
+  "rows": 10,
+  "frame_width": 64,
+  "frame_height": 64,
+  "frames": [
+    {
+      "index": 0,
+      "asset_id": "grass_flowers",
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 1,
+      "asset_id": "path_horizontal",
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 2,
+      "asset_id": "path_vertical",
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 3,
+      "asset_id": "path_wide",
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 4,
+      "asset_id": "path_cross",
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 5,
+      "asset_id": "path_t",
+      "x": 320,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 6,
+      "asset_id": "path_corner_left",
+      "x": 384,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 7,
+      "asset_id": "path_corner_right",
+      "x": 448,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 8,
+      "asset_id": "grass_daisies",
+      "x": 512,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 9,
+      "asset_id": "earth_grass",
+      "x": 576,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 10,
+      "asset_id": "earth_plain",
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 11,
+      "asset_id": "earth_pebbles",
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 12,
+      "asset_id": "earth_cracked",
+      "x": 128,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 13,
+      "asset_id": "earth_dark",
+      "x": 192,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 14,
+      "asset_id": "sand_south_shore",
+      "x": 256,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 15,
+      "asset_id": "sand_waves",
+      "x": 320,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 16,
+      "asset_id": "sand_starfish",
+      "x": 384,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 17,
+      "asset_id": "sand_plants",
+      "x": 448,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 18,
+      "asset_id": "earth_rocks",
+      "x": 512,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 19,
+      "asset_id": "clay_cracked",
+      "x": 576,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 20,
+      "asset_id": "water_deep",
+      "x": 0,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 21,
+      "asset_id": "water_medium",
+      "x": 64,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 22,
+      "asset_id": "water_shallow",
+      "x": 128,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 23,
+      "asset_id": "shore_south",
+      "x": 192,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 24,
+      "asset_id": "shore_west",
+      "x": 256,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 25,
+      "asset_id": "shore_southwest",
+      "x": 320,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 26,
+      "asset_id": "shore_southeast",
+      "x": 384,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 27,
+      "asset_id": "island",
+      "x": 448,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 28,
+      "asset_id": "lily_pond",
+      "x": 512,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 29,
+      "asset_id": "waterfall",
+      "x": 576,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 30,
+      "asset_id": "cobble",
+      "x": 0,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 31,
+      "asset_id": "stone_square",
+      "x": 64,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 32,
+      "asset_id": "stone_diagonal",
+      "x": 128,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 33,
+      "asset_id": "stone_circle",
+      "x": 192,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 34,
+      "asset_id": "stone_diamond",
+      "x": 256,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 35,
+      "asset_id": "stone_grid",
+      "x": 320,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 36,
+      "asset_id": "dungeon_bones",
+      "x": 384,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 37,
+      "asset_id": "lava_stone",
+      "x": 448,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 38,
+      "asset_id": "stairs",
+      "x": 512,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 39,
+      "asset_id": "dungeon_wall",
+      "x": 576,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 40,
+      "asset_id": "wood_horizontal",
+      "x": 0,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 41,
+      "asset_id": "wood_vertical",
+      "x": 64,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 42,
+      "asset_id": "wood_diagonal",
+      "x": 128,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 43,
+      "asset_id": "wood_hatch",
+      "x": 192,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 44,
+      "asset_id": "carpet",
+      "x": 256,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 45,
+      "asset_id": "wood_grate",
+      "x": 320,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 46,
+      "asset_id": "wood_door",
+      "x": 384,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 47,
+      "asset_id": "wood_bridge",
+      "x": 448,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 48,
+      "asset_id": "wood_broken",
+      "x": 512,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 49,
+      "asset_id": "wood_planter",
+      "x": 576,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 50,
+      "asset_id": "tree",
+      "x": 0,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 51,
+      "asset_id": "pine",
+      "x": 64,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 52,
+      "asset_id": "palm",
+      "x": 128,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 53,
+      "asset_id": "stump",
+      "x": 192,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 54,
+      "asset_id": "log",
+      "x": 256,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 55,
+      "asset_id": "bush",
+      "x": 320,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 56,
+      "asset_id": "fern",
+      "x": 384,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 57,
+      "asset_id": "flower",
+      "x": 448,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 58,
+      "asset_id": "mushroom",
+      "x": 512,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 59,
+      "asset_id": "grass",
+      "x": 576,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 60,
+      "asset_id": "well",
+      "x": 0,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 61,
+      "asset_id": "barrel",
+      "x": 64,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 62,
+      "asset_id": "crate",
+      "x": 128,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 63,
+      "asset_id": "bench",
+      "x": 192,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 64,
+      "asset_id": "sign",
+      "x": 256,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 65,
+      "asset_id": "statue",
+      "x": 320,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 66,
+      "asset_id": "rock",
+      "x": 384,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 67,
+      "asset_id": "bridge",
+      "x": 448,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 68,
+      "asset_id": "fence",
+      "x": 512,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 69,
+      "asset_id": "campfire",
+      "x": 576,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 70,
+      "asset_id": "sword",
+      "x": 0,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 71,
+      "asset_id": "shield",
+      "x": 64,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 72,
+      "asset_id": "bow",
+      "x": 128,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 73,
+      "asset_id": "key",
+      "x": 192,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 74,
+      "asset_id": "potion",
+      "x": 256,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 75,
+      "asset_id": "coin",
+      "x": 320,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 76,
+      "asset_id": "gem",
+      "x": 384,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 77,
+      "asset_id": "scroll",
+      "x": 448,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 78,
+      "asset_id": "apple",
+      "x": 512,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 79,
+      "asset_id": "bag",
+      "x": 576,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 80,
+      "asset_id": "chest_open",
+      "x": 0,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 81,
+      "asset_id": "chest_open",
+      "x": 64,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 82,
+      "asset_id": "chest_open",
+      "x": 128,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 83,
+      "asset_id": "chest_open",
+      "x": 192,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 84,
+      "asset_id": "chest_open",
+      "x": 256,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 85,
+      "asset_id": "chest_open",
+      "x": 320,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 86,
+      "asset_id": "chest_open",
+      "x": 384,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 87,
+      "asset_id": "chest_open",
+      "x": 448,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 88,
+      "asset_id": "chest_open",
+      "x": 512,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 89,
+      "asset_id": "chest_open",
+      "x": 576,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 90,
+      "asset_id": "gate_open",
+      "x": 0,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 91,
+      "asset_id": "gate_open",
+      "x": 64,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 92,
+      "asset_id": "gate_open",
+      "x": 128,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 93,
+      "asset_id": "gate_open",
+      "x": 192,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 94,
+      "asset_id": "gate_open",
+      "x": 256,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 95,
+      "asset_id": "gate_open",
+      "x": 320,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 96,
+      "asset_id": "gate_open",
+      "x": 384,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 97,
+      "asset_id": "gate_open",
+      "x": 448,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 98,
+      "asset_id": "gate_open",
+      "x": 512,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 99,
+      "asset_id": "gate_open",
+      "x": 576,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    }
+  ],
+  "assets": [
+    {
+      "id": "grass_flowers",
+      "name": "Grass Flowers",
+      "description": "Grass flowers. Original pixel art for offline games.",
+      "tags": [
+        "grass",
+        "flowers"
+      ],
+      "view": "top",
+      "frames": [
+        0
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_horizontal",
+      "name": "Path Horizontal",
+      "description": "Path horizontal. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "horizontal"
+      ],
+      "view": "top",
+      "frames": [
+        1
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_vertical",
+      "name": "Path Vertical",
+      "description": "Path vertical. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "vertical"
+      ],
+      "view": "top",
+      "frames": [
+        2
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_wide",
+      "name": "Path Wide",
+      "description": "Path wide. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "wide"
+      ],
+      "view": "top",
+      "frames": [
+        3
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_cross",
+      "name": "Path Cross",
+      "description": "Path cross. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "cross"
+      ],
+      "view": "top",
+      "frames": [
+        4
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_t",
+      "name": "Path T",
+      "description": "Path t. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "t"
+      ],
+      "view": "top",
+      "frames": [
+        5
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_corner_left",
+      "name": "Path Corner Left",
+      "description": "Path corner left. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "corner",
+        "left"
+      ],
+      "view": "top",
+      "frames": [
+        6
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "path_corner_right",
+      "name": "Path Corner Right",
+      "description": "Path corner right. Original pixel art for offline games.",
+      "tags": [
+        "path",
+        "corner",
+        "right"
+      ],
+      "view": "top",
+      "frames": [
+        7
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "grass_daisies",
+      "name": "Grass Daisies",
+      "description": "Grass daisies. Original pixel art for offline games.",
+      "tags": [
+        "grass",
+        "daisies"
+      ],
+      "view": "top",
+      "frames": [
+        8
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "earth_grass",
+      "name": "Earth Grass",
+      "description": "Earth grass. Original pixel art for offline games.",
+      "tags": [
+        "earth",
+        "grass"
+      ],
+      "view": "top",
+      "frames": [
+        9
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "earth_plain",
+      "name": "Earth Plain",
+      "description": "Earth plain. Original pixel art for offline games.",
+      "tags": [
+        "earth",
+        "plain"
+      ],
+      "view": "top",
+      "frames": [
+        10
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "earth_pebbles",
+      "name": "Earth Pebbles",
+      "description": "Earth pebbles. Original pixel art for offline games.",
+      "tags": [
+        "earth",
+        "pebbles"
+      ],
+      "view": "top",
+      "frames": [
+        11
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "earth_cracked",
+      "name": "Earth Cracked",
+      "description": "Earth cracked. Original pixel art for offline games.",
+      "tags": [
+        "earth",
+        "cracked"
+      ],
+      "view": "top",
+      "frames": [
+        12
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "earth_dark",
+      "name": "Earth Dark",
+      "description": "Earth dark. Original pixel art for offline games.",
+      "tags": [
+        "earth",
+        "dark"
+      ],
+      "view": "top",
+      "frames": [
+        13
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "sand_south_shore",
+      "name": "Sand South Shore",
+      "description": "Sand south shore. Original pixel art for offline games.",
+      "tags": [
+        "sand",
+        "south",
+        "shore"
+      ],
+      "view": "top",
+      "frames": [
+        14
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "sand_waves",
+      "name": "Sand Waves",
+      "description": "Sand waves. Original pixel art for offline games.",
+      "tags": [
+        "sand",
+        "waves"
+      ],
+      "view": "top",
+      "frames": [
+        15
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "sand_starfish",
+      "name": "Sand Starfish",
+      "description": "Sand starfish. Original pixel art for offline games.",
+      "tags": [
+        "sand",
+        "starfish"
+      ],
+      "view": "top",
+      "frames": [
+        16
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "sand_plants",
+      "name": "Sand Plants",
+      "description": "Sand plants. Original pixel art for offline games.",
+      "tags": [
+        "sand",
+        "plants"
+      ],
+      "view": "top",
+      "frames": [
+        17
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "earth_rocks",
+      "name": "Earth Rocks",
+      "description": "Earth rocks. Original pixel art for offline games.",
+      "tags": [
+        "earth",
+        "rocks"
+      ],
+      "view": "top",
+      "frames": [
+        18
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "clay_cracked",
+      "name": "Clay Cracked",
+      "description": "Clay cracked. Original pixel art for offline games.",
+      "tags": [
+        "clay",
+        "cracked"
+      ],
+      "view": "top",
+      "frames": [
+        19
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "water_deep",
+      "name": "Water Deep",
+      "description": "Water deep. Original pixel art for offline games.",
+      "tags": [
+        "water",
+        "deep"
+      ],
+      "view": "top",
+      "frames": [
+        20
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "water_medium",
+      "name": "Water Medium",
+      "description": "Water medium. Original pixel art for offline games.",
+      "tags": [
+        "water",
+        "medium"
+      ],
+      "view": "top",
+      "frames": [
+        21
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "water_shallow",
+      "name": "Water Shallow",
+      "description": "Water shallow. Original pixel art for offline games.",
+      "tags": [
+        "water",
+        "shallow"
+      ],
+      "view": "top",
+      "frames": [
+        22
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "shore_south",
+      "name": "Shore South",
+      "description": "Shore south. Original pixel art for offline games.",
+      "tags": [
+        "shore",
+        "south"
+      ],
+      "view": "top",
+      "frames": [
+        23
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "shore_west",
+      "name": "Shore West",
+      "description": "Shore west. Original pixel art for offline games.",
+      "tags": [
+        "shore",
+        "west"
+      ],
+      "view": "top",
+      "frames": [
+        24
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "shore_southwest",
+      "name": "Shore Southwest",
+      "description": "Shore southwest. Original pixel art for offline games.",
+      "tags": [
+        "shore",
+        "southwest"
+      ],
+      "view": "top",
+      "frames": [
+        25
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "shore_southeast",
+      "name": "Shore Southeast",
+      "description": "Shore southeast. Original pixel art for offline games.",
+      "tags": [
+        "shore",
+        "southeast"
+      ],
+      "view": "top",
+      "frames": [
+        26
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "island",
+      "name": "Island",
+      "description": "Island. Original pixel art for offline games.",
+      "tags": [
+        "island"
+      ],
+      "view": "top",
+      "frames": [
+        27
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "lily_pond",
+      "name": "Lily Pond",
+      "description": "Lily pond. Original pixel art for offline games.",
+      "tags": [
+        "lily",
+        "pond"
+      ],
+      "view": "top",
+      "frames": [
+        28
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "waterfall",
+      "name": "Waterfall",
+      "description": "Waterfall. Original pixel art for offline games.",
+      "tags": [
+        "waterfall"
+      ],
+      "view": "top",
+      "frames": [
+        29
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "cobble",
+      "name": "Cobble",
+      "description": "Cobble. Original pixel art for offline games.",
+      "tags": [
+        "cobble"
+      ],
+      "view": "top",
+      "frames": [
+        30
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "stone_square",
+      "name": "Stone Square",
+      "description": "Stone square. Original pixel art for offline games.",
+      "tags": [
+        "stone",
+        "square"
+      ],
+      "view": "top",
+      "frames": [
+        31
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "stone_diagonal",
+      "name": "Stone Diagonal",
+      "description": "Stone diagonal. Original pixel art for offline games.",
+      "tags": [
+        "stone",
+        "diagonal"
+      ],
+      "view": "top",
+      "frames": [
+        32
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "stone_circle",
+      "name": "Stone Circle",
+      "description": "Stone circle. Original pixel art for offline games.",
+      "tags": [
+        "stone",
+        "circle"
+      ],
+      "view": "top",
+      "frames": [
+        33
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "stone_diamond",
+      "name": "Stone Diamond",
+      "description": "Stone diamond. Original pixel art for offline games.",
+      "tags": [
+        "stone",
+        "diamond"
+      ],
+      "view": "top",
+      "frames": [
+        34
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "stone_grid",
+      "name": "Stone Grid",
+      "description": "Stone grid. Original pixel art for offline games.",
+      "tags": [
+        "stone",
+        "grid"
+      ],
+      "view": "top",
+      "frames": [
+        35
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "dungeon_bones",
+      "name": "Dungeon Bones",
+      "description": "Dungeon bones. Original pixel art for offline games.",
+      "tags": [
+        "dungeon",
+        "bones"
+      ],
+      "view": "top",
+      "frames": [
+        36
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "lava_stone",
+      "name": "Lava Stone",
+      "description": "Lava stone. Original pixel art for offline games.",
+      "tags": [
+        "lava",
+        "stone"
+      ],
+      "view": "top",
+      "frames": [
+        37
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "stairs",
+      "name": "Stairs",
+      "description": "Stairs. Original pixel art for offline games.",
+      "tags": [
+        "stairs"
+      ],
+      "view": "top",
+      "frames": [
+        38
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "dungeon_wall",
+      "name": "Dungeon Wall",
+      "description": "Dungeon wall. Original pixel art for offline games.",
+      "tags": [
+        "dungeon",
+        "wall"
+      ],
+      "view": "top",
+      "frames": [
+        39
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_horizontal",
+      "name": "Wood Horizontal",
+      "description": "Wood horizontal. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "horizontal"
+      ],
+      "view": "top",
+      "frames": [
+        40
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_vertical",
+      "name": "Wood Vertical",
+      "description": "Wood vertical. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "vertical"
+      ],
+      "view": "top",
+      "frames": [
+        41
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_diagonal",
+      "name": "Wood Diagonal",
+      "description": "Wood diagonal. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "diagonal"
+      ],
+      "view": "top",
+      "frames": [
+        42
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_hatch",
+      "name": "Wood Hatch",
+      "description": "Wood hatch. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "hatch"
+      ],
+      "view": "top",
+      "frames": [
+        43
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "carpet",
+      "name": "Carpet",
+      "description": "Carpet. Original pixel art for offline games.",
+      "tags": [
+        "carpet"
+      ],
+      "view": "top",
+      "frames": [
+        44
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_grate",
+      "name": "Wood Grate",
+      "description": "Wood grate. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "grate"
+      ],
+      "view": "top",
+      "frames": [
+        45
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_door",
+      "name": "Wood Door",
+      "description": "Wood door. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "door"
+      ],
+      "view": "top",
+      "frames": [
+        46
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_bridge",
+      "name": "Wood Bridge",
+      "description": "Wood bridge. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "bridge"
+      ],
+      "view": "top",
+      "frames": [
+        47
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_broken",
+      "name": "Wood Broken",
+      "description": "Wood broken. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "broken"
+      ],
+      "view": "top",
+      "frames": [
+        48
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "wood_planter",
+      "name": "Wood Planter",
+      "description": "Wood planter. Original pixel art for offline games.",
+      "tags": [
+        "wood",
+        "planter"
+      ],
+      "view": "top",
+      "frames": [
+        49
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false,
+      "tile": true
+    },
+    {
+      "id": "tree",
+      "name": "Tree",
+      "description": "Tree. Original pixel art for offline games.",
+      "tags": [
+        "tree"
+      ],
+      "view": "top",
+      "frames": [
+        50
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pine",
+      "name": "Pine",
+      "description": "Pine. Original pixel art for offline games.",
+      "tags": [
+        "pine"
+      ],
+      "view": "top",
+      "frames": [
+        51
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "palm",
+      "name": "Palm",
+      "description": "Palm. Original pixel art for offline games.",
+      "tags": [
+        "palm"
+      ],
+      "view": "top",
+      "frames": [
+        52
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "stump",
+      "name": "Stump",
+      "description": "Stump. Original pixel art for offline games.",
+      "tags": [
+        "stump"
+      ],
+      "view": "top",
+      "frames": [
+        53
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "log",
+      "name": "Log",
+      "description": "Log. Original pixel art for offline games.",
+      "tags": [
+        "log"
+      ],
+      "view": "top",
+      "frames": [
+        54
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bush",
+      "name": "Bush",
+      "description": "Bush. Original pixel art for offline games.",
+      "tags": [
+        "bush"
+      ],
+      "view": "top",
+      "frames": [
+        55
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fern",
+      "name": "Fern",
+      "description": "Fern. Original pixel art for offline games.",
+      "tags": [
+        "fern"
+      ],
+      "view": "top",
+      "frames": [
+        56
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "flower",
+      "name": "Flower",
+      "description": "Flower. Original pixel art for offline games.",
+      "tags": [
+        "flower"
+      ],
+      "view": "top",
+      "frames": [
+        57
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "mushroom",
+      "name": "Mushroom",
+      "description": "Mushroom. Original pixel art for offline games.",
+      "tags": [
+        "mushroom"
+      ],
+      "view": "top",
+      "frames": [
+        58
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "grass",
+      "name": "Grass",
+      "description": "Grass. Original pixel art for offline games.",
+      "tags": [
+        "grass"
+      ],
+      "view": "top",
+      "frames": [
+        59
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "well",
+      "name": "Well",
+      "description": "Well. Original pixel art for offline games.",
+      "tags": [
+        "well"
+      ],
+      "view": "top",
+      "frames": [
+        60
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "barrel",
+      "name": "Barrel",
+      "description": "Barrel. Original pixel art for offline games.",
+      "tags": [
+        "barrel"
+      ],
+      "view": "top",
+      "frames": [
+        61
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "crate",
+      "name": "Crate",
+      "description": "Crate. Original pixel art for offline games.",
+      "tags": [
+        "crate"
+      ],
+      "view": "top",
+      "frames": [
+        62
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bench",
+      "name": "Bench",
+      "description": "Bench. Original pixel art for offline games.",
+      "tags": [
+        "bench"
+      ],
+      "view": "top",
+      "frames": [
+        63
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sign",
+      "name": "Sign",
+      "description": "Sign. Original pixel art for offline games.",
+      "tags": [
+        "sign"
+      ],
+      "view": "top",
+      "frames": [
+        64
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "statue",
+      "name": "Statue",
+      "description": "Statue. Original pixel art for offline games.",
+      "tags": [
+        "statue"
+      ],
+      "view": "top",
+      "frames": [
+        65
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "rock",
+      "name": "Rock",
+      "description": "Rock. Original pixel art for offline games.",
+      "tags": [
+        "rock"
+      ],
+      "view": "top",
+      "frames": [
+        66
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bridge",
+      "name": "Bridge",
+      "description": "Bridge. Original pixel art for offline games.",
+      "tags": [
+        "bridge"
+      ],
+      "view": "top",
+      "frames": [
+        67
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fence",
+      "name": "Fence",
+      "description": "Fence. Original pixel art for offline games.",
+      "tags": [
+        "fence"
+      ],
+      "view": "top",
+      "frames": [
+        68
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "campfire",
+      "name": "Campfire",
+      "description": "Campfire. Original pixel art for offline games.",
+      "tags": [
+        "campfire"
+      ],
+      "view": "top",
+      "frames": [
+        69
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sword",
+      "name": "Sword",
+      "description": "Sword. Original pixel art for offline games.",
+      "tags": [
+        "sword"
+      ],
+      "view": "top",
+      "frames": [
+        70
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "shield",
+      "name": "Shield",
+      "description": "Shield. Original pixel art for offline games.",
+      "tags": [
+        "shield"
+      ],
+      "view": "top",
+      "frames": [
+        71
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bow",
+      "name": "Bow",
+      "description": "Bow. Original pixel art for offline games.",
+      "tags": [
+        "bow"
+      ],
+      "view": "top",
+      "frames": [
+        72
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "key",
+      "name": "Key",
+      "description": "Key. Original pixel art for offline games.",
+      "tags": [
+        "key"
+      ],
+      "view": "top",
+      "frames": [
+        73
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "potion",
+      "name": "Potion",
+      "description": "Potion. Original pixel art for offline games.",
+      "tags": [
+        "potion"
+      ],
+      "view": "top",
+      "frames": [
+        74
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "coin",
+      "name": "Coin",
+      "description": "Coin. Original pixel art for offline games.",
+      "tags": [
+        "coin"
+      ],
+      "view": "top",
+      "frames": [
+        75
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "gem",
+      "name": "Gem",
+      "description": "Gem. Original pixel art for offline games.",
+      "tags": [
+        "gem"
+      ],
+      "view": "top",
+      "frames": [
+        76
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "scroll",
+      "name": "Scroll",
+      "description": "Scroll. Original pixel art for offline games.",
+      "tags": [
+        "scroll"
+      ],
+      "view": "top",
+      "frames": [
+        77
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "apple",
+      "name": "Apple",
+      "description": "Apple. Original pixel art for offline games.",
+      "tags": [
+        "apple"
+      ],
+      "view": "top",
+      "frames": [
+        78
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bag",
+      "name": "Bag",
+      "description": "Bag. Original pixel art for offline games.",
+      "tags": [
+        "bag"
+      ],
+      "view": "top",
+      "frames": [
+        79
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "chest_open",
+      "name": "Chest Open",
+      "description": "Chest open. Original pixel art for offline games.",
+      "tags": [
+        "chest",
+        "open"
+      ],
+      "view": "top",
+      "frames": [
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    },
+    {
+      "id": "gate_open",
+      "name": "Gate Open",
+      "description": "Gate open. Original pixel art for offline games.",
+      "tags": [
+        "gate",
+        "open"
+      ],
+      "view": "top",
+      "frames": [
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "flip_x": false
+    }
+  ],
+  "animations": [
+    {
+      "id": "chest_open",
+      "asset_id": "chest_open",
+      "frames": [
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "gate_open",
+      "asset_id": "gate_open",
+      "frames": [
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    }
+  ],
+  "provenance": {
+    "generator": "OpenAI Imagegen",
+    "license": "MIT",
+    "license_text": "MIT License\n\nCopyright (c) 2025 AuraGo contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
+    "source_manifest": "production/manifest.json",
+    "sources": [
+      {
+        "file": "adventure.png",
+        "sha256": "6aa3fb550876583c1a30ec46af6acf31d754379366c8d92f230aa34df3ac1a3b"
+      }
+    ],
+    "note": "Reviewed source poses; repeated source frames are intentional animation holds."
+  }
+}

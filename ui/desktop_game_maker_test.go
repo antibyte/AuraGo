@@ -42,6 +42,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 	}
 
 	app := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio.js")
+	modals := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-modals.js")
 	for _, marker := range []string{
 		`frame.setAttribute('sandbox', 'allow-scripts')`,
 		`event.source !== state.frame.contentWindow`,
@@ -62,7 +63,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`window.GameMakerStudioPreview.showLoading(state, shell, frame)`,
 		`frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID)`,
 	} {
-		if !strings.Contains(app, marker) {
+		if !strings.Contains(app+modals, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
 		}
 	}

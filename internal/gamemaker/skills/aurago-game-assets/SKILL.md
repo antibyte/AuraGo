@@ -1,8 +1,8 @@
 ---
 name: aurago-game-assets
-description: Create and integrate bounded game art, music, textures, UI, and procedural audio.
+description: Select offline sprite packs and integrate bounded game art, music, textures, and procedural audio.
 license: MIT
-compatibility: AuraGo image and music generation integrations
+compatibility: AuraGo offline sprite library; optional image and music integrations
 metadata:
   managed_by: aurago
   source: AuraGo synthesis
@@ -15,6 +15,25 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 
 Ask for only assets that materially improve the current game.
 
+- Prefer matching built-in sprite packs. Initial context contains a compact
+  catalog and paths of user-selected packs already imported before your turn.
+  With no selection, choose suitable packs. Use `game_maker_asset` with `job_id`
+  and `operation: list_packs`, then `describe_pack` with `pack_id` only for relevant
+  details. `import_pack` copies PNG and JSON together and returns exact local
+  paths. It needs edit permission, not a media generator.
+- Read imported `sheet.json` with `game_maker_file`. Schema version 1 uses numeric
+  frames 0–99 in ten rows and ten columns of 64px cells. Asset IDs, descriptions,
+  direction, origin, ordered frames and timing are authoritative. Never invent
+  indices or treat consecutive assets as an animation. Namespace texture and
+  animation keys with the pack ID. Side-view characters face right and permit
+  `flipX`; top-down characters have separate directional sequences. Creature
+  resting animations reuse movement frames. Repeated poses are deliberate holds.
+- Keep both files at `assets/builtin/<pack-id>/<version>/`. Identical imports are
+  repeatable; modified/incomplete copies are never overwritten. Preserve the
+  provenance and license in JSON. Revisions and ZIP exports use project copies,
+  never the Studio catalog API or a CDN.
+- Use `operation: generate` (or omit operation) for missing custom content.
+  Generation alone needs the configured media capability.
 - Plan the full asset list before the first request and batch what belongs
   together. Prefer one sprite sheet or one texture atlas over many single
   images; stay within roughly four images and one music track per job.

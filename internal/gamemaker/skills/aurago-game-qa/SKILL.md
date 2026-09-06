@@ -25,6 +25,10 @@ guidance and copies no TinySwords code, text, scripts, or assets.
    frame-rate reporting.
 7. Verify that external requests are unnecessary and that a ZIP export remains
    playable offline.
+8. For imported sprites, confirm both local PNG/JSON files, exact numeric frames,
+   direction, origin and actual movement. Check borders on light and dark scenes.
+   Never substitute a catalog URL for the project copy or claim that loading a
+   sheet proves gameplay.
 
 Fix the root cause of a diagnostic, never the symptom. Never weaken, remove, or
 stub `window.__AURAGO_GAME_DIAGNOSTICS__` or other checks just to make

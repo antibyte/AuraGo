@@ -102,6 +102,7 @@ type Job struct {
 }
 
 type StartJobRequest struct {
+	AssetPackIDs       []string     `json:"asset_pack_ids,omitempty"`
 	PreviewDiagnostics []Diagnostic `json:"preview_diagnostics,omitempty"`
 	Prompt             string       `json:"prompt"`
 	ProviderID         string       `json:"provider_id"`
@@ -156,6 +157,7 @@ type BuildResult struct {
 }
 
 type JobRun struct {
+	AssetPacks  []ImportedAssetPack
 	Job         Job
 	Project     Project
 	Diagnostics []Diagnostic

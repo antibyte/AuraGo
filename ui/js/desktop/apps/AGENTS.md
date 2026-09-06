@@ -512,13 +512,21 @@ registration lives in `internal/desktop/types.go`.
 - Game Maker Studio loads in the order `game-maker-studio-api.js`,
   `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
   overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
-  (`window.GameMakerStudioModals`: skills and revisions modals; the modal
-  framework and security-checked helpers stay in the main module), then
+  (`window.GameMakerStudioModals`: shared modal lifecycle, media toggles,
+  skills and revisions; confirmation stays shell-mediated),
+  `game-maker-studio-assets.js` (`window.GameMakerStudioAssets`: offline pack
+  catalog, selection, sprite/animation previews), then
   `game-maker-studio.js`.
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
   document-level overflow-menu listeners, and `message` listener.
+- Sprite selection is window-local and prepares the next create/edit request
+  via `asset_pack_ids`; selecting packs never starts a job. Clear selection only
+  after job acceptance. The asset browser owns an AbortController and animation
+  timer, released on modal replacement/close and disposal. Metadata stays English
+  for agents; controls and pack titles cover all 16 locales. Preview backgrounds
+  are CSS only: PNGs contain genuine alpha, no painted checkerboard.
 - Game Maker previews must use `sandbox="allow-scripts"` without
   `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
   Accept diagnostics only from the instance iframe when `event.source`, the

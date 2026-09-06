@@ -1,0 +1,1429 @@
+{
+  "id": "human-characters-animated",
+  "name": "Human Characters Animated",
+  "description": "Ranger and knight side-view character animations.",
+  "tags": [
+    "human",
+    "character",
+    "side",
+    "platformer"
+  ],
+  "schema_version": 1,
+  "version": "1",
+  "image": "sheet.png",
+  "columns": 10,
+  "rows": 10,
+  "frame_width": 64,
+  "frame_height": 64,
+  "frames": [
+    {
+      "index": 0,
+      "asset_id": "ranger_idle",
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 1,
+      "asset_id": "ranger_idle",
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 2,
+      "asset_id": "ranger_idle",
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 3,
+      "asset_id": "ranger_idle",
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 4,
+      "asset_id": "ranger_idle",
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 5,
+      "asset_id": "ranger_idle",
+      "x": 320,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 6,
+      "asset_id": "ranger_walk",
+      "x": 384,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 7,
+      "asset_id": "ranger_walk",
+      "x": 448,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 8,
+      "asset_id": "ranger_walk",
+      "x": 512,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 9,
+      "asset_id": "ranger_walk",
+      "x": 576,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 10,
+      "asset_id": "ranger_walk",
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 11,
+      "asset_id": "ranger_walk",
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 12,
+      "asset_id": "ranger_walk",
+      "x": 128,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 13,
+      "asset_id": "ranger_walk",
+      "x": 192,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 14,
+      "asset_id": "ranger_run",
+      "x": 256,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 15,
+      "asset_id": "ranger_run",
+      "x": 320,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 16,
+      "asset_id": "ranger_run",
+      "x": 384,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 17,
+      "asset_id": "ranger_run",
+      "x": 448,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 18,
+      "asset_id": "ranger_run",
+      "x": 512,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 19,
+      "asset_id": "ranger_run",
+      "x": 576,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 20,
+      "asset_id": "ranger_run",
+      "x": 0,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 21,
+      "asset_id": "ranger_run",
+      "x": 64,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 22,
+      "asset_id": "ranger_jump",
+      "x": 128,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 23,
+      "asset_id": "ranger_jump",
+      "x": 192,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 24,
+      "asset_id": "ranger_jump",
+      "x": 256,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 25,
+      "asset_id": "ranger_jump",
+      "x": 320,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 26,
+      "asset_id": "ranger_jump",
+      "x": 384,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 27,
+      "asset_id": "ranger_jump",
+      "x": 448,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 28,
+      "asset_id": "ranger_attack",
+      "x": 512,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 29,
+      "asset_id": "ranger_attack",
+      "x": 576,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 30,
+      "asset_id": "ranger_attack",
+      "x": 0,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 31,
+      "asset_id": "ranger_attack",
+      "x": 64,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 32,
+      "asset_id": "ranger_attack",
+      "x": 128,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 33,
+      "asset_id": "ranger_attack",
+      "x": 192,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 34,
+      "asset_id": "ranger_attack",
+      "x": 256,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 35,
+      "asset_id": "ranger_attack",
+      "x": 320,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 36,
+      "asset_id": "ranger_hurt",
+      "x": 384,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 37,
+      "asset_id": "ranger_hurt",
+      "x": 448,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 38,
+      "asset_id": "ranger_hurt",
+      "x": 512,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 39,
+      "asset_id": "ranger_hurt",
+      "x": 576,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 40,
+      "asset_id": "ranger_death",
+      "x": 0,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 41,
+      "asset_id": "ranger_death",
+      "x": 64,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 42,
+      "asset_id": "ranger_death",
+      "x": 128,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 43,
+      "asset_id": "ranger_death",
+      "x": 192,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 44,
+      "asset_id": "ranger_death",
+      "x": 256,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 45,
+      "asset_id": "ranger_death",
+      "x": 320,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 46,
+      "asset_id": "ranger_death",
+      "x": 384,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 47,
+      "asset_id": "ranger_death",
+      "x": 448,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 48,
+      "asset_id": "ranger_death",
+      "x": 512,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 49,
+      "asset_id": "ranger_death",
+      "x": 576,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 50,
+      "asset_id": "knight_idle",
+      "x": 0,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 51,
+      "asset_id": "knight_idle",
+      "x": 64,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 52,
+      "asset_id": "knight_idle",
+      "x": 128,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 53,
+      "asset_id": "knight_idle",
+      "x": 192,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 54,
+      "asset_id": "knight_idle",
+      "x": 256,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 55,
+      "asset_id": "knight_idle",
+      "x": 320,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 56,
+      "asset_id": "knight_walk",
+      "x": 384,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 57,
+      "asset_id": "knight_walk",
+      "x": 448,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 58,
+      "asset_id": "knight_walk",
+      "x": 512,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 59,
+      "asset_id": "knight_walk",
+      "x": 576,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 60,
+      "asset_id": "knight_walk",
+      "x": 0,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 61,
+      "asset_id": "knight_walk",
+      "x": 64,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 62,
+      "asset_id": "knight_walk",
+      "x": 128,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 63,
+      "asset_id": "knight_walk",
+      "x": 192,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 64,
+      "asset_id": "knight_run",
+      "x": 256,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 65,
+      "asset_id": "knight_run",
+      "x": 320,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 66,
+      "asset_id": "knight_run",
+      "x": 384,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 67,
+      "asset_id": "knight_run",
+      "x": 448,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 68,
+      "asset_id": "knight_run",
+      "x": 512,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 69,
+      "asset_id": "knight_run",
+      "x": 576,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 70,
+      "asset_id": "knight_run",
+      "x": 0,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 71,
+      "asset_id": "knight_run",
+      "x": 64,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 72,
+      "asset_id": "knight_jump",
+      "x": 128,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 73,
+      "asset_id": "knight_jump",
+      "x": 192,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 74,
+      "asset_id": "knight_jump",
+      "x": 256,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 75,
+      "asset_id": "knight_jump",
+      "x": 320,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 76,
+      "asset_id": "knight_jump",
+      "x": 384,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 77,
+      "asset_id": "knight_jump",
+      "x": 448,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 78,
+      "asset_id": "knight_attack",
+      "x": 512,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 79,
+      "asset_id": "knight_attack",
+      "x": 576,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 80,
+      "asset_id": "knight_attack",
+      "x": 0,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 81,
+      "asset_id": "knight_attack",
+      "x": 64,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 82,
+      "asset_id": "knight_attack",
+      "x": 128,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 83,
+      "asset_id": "knight_attack",
+      "x": 192,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 84,
+      "asset_id": "knight_attack",
+      "x": 256,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 85,
+      "asset_id": "knight_attack",
+      "x": 320,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 86,
+      "asset_id": "knight_hurt",
+      "x": 384,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 87,
+      "asset_id": "knight_hurt",
+      "x": 448,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 88,
+      "asset_id": "knight_hurt",
+      "x": 512,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 89,
+      "asset_id": "knight_hurt",
+      "x": 576,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 90,
+      "asset_id": "knight_death",
+      "x": 0,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 91,
+      "asset_id": "knight_death",
+      "x": 64,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 92,
+      "asset_id": "knight_death",
+      "x": 128,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 93,
+      "asset_id": "knight_death",
+      "x": 192,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 94,
+      "asset_id": "knight_death",
+      "x": 256,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 95,
+      "asset_id": "knight_death",
+      "x": 320,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 96,
+      "asset_id": "knight_death",
+      "x": 384,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 97,
+      "asset_id": "knight_death",
+      "x": 448,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 98,
+      "asset_id": "knight_death",
+      "x": 512,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 99,
+      "asset_id": "knight_death",
+      "x": 576,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    }
+  ],
+  "assets": [
+    {
+      "id": "ranger_idle",
+      "name": "Ranger idle",
+      "description": "Ranger facing right, idle animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "idle",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "ranger_walk",
+      "name": "Ranger walk",
+      "description": "Ranger facing right, walk animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "walk",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "ranger_run",
+      "name": "Ranger run",
+      "description": "Ranger facing right, run animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "run",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "ranger_jump",
+      "name": "Ranger jump",
+      "description": "Ranger facing right, jump animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "jump",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "ranger_attack",
+      "name": "Ranger attack",
+      "description": "Ranger facing right, attack animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "attack",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "ranger_hurt",
+      "name": "Ranger hurt",
+      "description": "Ranger facing right, hurt animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "hurt",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        36,
+        37,
+        38,
+        39
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "ranger_death",
+      "name": "Ranger death",
+      "description": "Ranger facing right, death animation. Mirror horizontally to face left.",
+      "tags": [
+        "ranger",
+        "death",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_idle",
+      "name": "Knight idle",
+      "description": "Knight facing right, idle animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "idle",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_walk",
+      "name": "Knight walk",
+      "description": "Knight facing right, walk animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "walk",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_run",
+      "name": "Knight run",
+      "description": "Knight facing right, run animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "run",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_jump",
+      "name": "Knight jump",
+      "description": "Knight facing right, jump animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "jump",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_attack",
+      "name": "Knight attack",
+      "description": "Knight facing right, attack animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "attack",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_hurt",
+      "name": "Knight hurt",
+      "description": "Knight facing right, hurt animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "hurt",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        86,
+        87,
+        88,
+        89
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    },
+    {
+      "id": "knight_death",
+      "name": "Knight death",
+      "description": "Knight facing right, death animation. Mirror horizontally to face left.",
+      "tags": [
+        "knight",
+        "death",
+        "human"
+      ],
+      "view": "side",
+      "frames": [
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true
+    }
+  ],
+  "animations": [
+    {
+      "id": "ranger_idle",
+      "asset_id": "ranger_idle",
+      "frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frame_rate": 6,
+      "repeat": -1,
+      "yoyo": false
+    },
+    {
+      "id": "ranger_walk",
+      "asset_id": "ranger_walk",
+      "frames": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "frame_rate": 10,
+      "repeat": -1,
+      "yoyo": false
+    },
+    {
+      "id": "ranger_run",
+      "asset_id": "ranger_run",
+      "frames": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "frame_rate": 10,
+      "repeat": -1,
+      "yoyo": false
+    },
+    {
+      "id": "ranger_jump",
+      "asset_id": "ranger_jump",
+      "frames": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "ranger_attack",
+      "asset_id": "ranger_attack",
+      "frames": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "ranger_hurt",
+      "asset_id": "ranger_hurt",
+      "frames": [
+        36,
+        37,
+        38,
+        39
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "ranger_death",
+      "asset_id": "ranger_death",
+      "frames": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "knight_idle",
+      "asset_id": "knight_idle",
+      "frames": [
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "frame_rate": 6,
+      "repeat": -1,
+      "yoyo": false
+    },
+    {
+      "id": "knight_walk",
+      "asset_id": "knight_walk",
+      "frames": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "frame_rate": 10,
+      "repeat": -1,
+      "yoyo": false
+    },
+    {
+      "id": "knight_run",
+      "asset_id": "knight_run",
+      "frames": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71
+      ],
+      "frame_rate": 10,
+      "repeat": -1,
+      "yoyo": false
+    },
+    {
+      "id": "knight_jump",
+      "asset_id": "knight_jump",
+      "frames": [
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "knight_attack",
+      "asset_id": "knight_attack",
+      "frames": [
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "knight_hurt",
+      "asset_id": "knight_hurt",
+      "frames": [
+        86,
+        87,
+        88,
+        89
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    },
+    {
+      "id": "knight_death",
+      "asset_id": "knight_death",
+      "frames": [
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "frame_rate": 12,
+      "repeat": 0,
+      "yoyo": false
+    }
+  ],
+  "provenance": {
+    "generator": "OpenAI Imagegen",
+    "license": "MIT",
+    "license_text": "MIT License\n\nCopyright (c) 2025 AuraGo contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
+    "source_manifest": "production/manifest.json",
+    "sources": [
+      {
+        "file": "humans-side.png",
+        "sha256": "c3803565567eabf2ef6b69bb96051e24e7c2fa784ba7581a4e97c4b173e52759"
+      }
+    ],
+    "note": "Reviewed source poses; repeated source frames are intentional animation holds."
+  }
+}

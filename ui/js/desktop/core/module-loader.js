@@ -147,6 +147,7 @@
                 '/js/desktop/apps/game-maker-studio-api.js',
                 '/js/desktop/apps/game-maker-studio-preview.js',
                 '/js/desktop/apps/game-maker-studio-modals.js',
+                '/js/desktop/apps/game-maker-studio-assets.js',
                 '/js/desktop/apps/game-maker-studio.js'
             ]
         },

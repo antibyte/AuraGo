@@ -1,8 +1,7 @@
 (function () {
     'use strict';
 
-    // Skills and revisions modals for Game Maker Studio. The modal framework
-    // (showModal, busy state, errors, confirm) is injected by the main module.
+    // Shared modal lifecycle, plus skills and revisions for Game Maker Studio.
 
     const skillStatuses = ['ready', 'installed', 'updated', 'verified', 'disabled', 'missing', 'hash_mismatch',
         'warning', 'dangerous', 'pending', 'error'];
@@ -74,5 +73,59 @@
         }
     }
 
-    window.GameMakerStudioModals = { showSkillsModal, showRevisionsModal };
+    function showModal(state, html, mount) {
+        if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        const layer = state.container.querySelector('[data-gm-modal]');
+        layer.hidden = false;
+        layer.innerHTML = html;
+        layer.querySelectorAll('[data-modal-close]').forEach(button =>
+            button.addEventListener('click', () => closeModal(state)));
+        layer.addEventListener('click', state.modalBackdrop = event => {
+            if (event.target === layer) closeModal(state);
+        }, { once: true });
+        if (mount) mount(layer);
+    }
+
+    function closeModal(state) {
+        if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        const layer = state.container.querySelector('[data-gm-modal]');
+        if (!layer) return;
+        layer.hidden = true;
+        layer.replaceChildren();
+    }
+
+    function setModalBusy(layer, busy) {
+        layer.querySelectorAll('button,input,textarea,select').forEach(control => { control.disabled = busy; });
+    }
+
+    function modalError(layer, message) {
+        const modal = layer.querySelector('.gm-modal');
+        if (!modal) return;
+        let error = layer.querySelector('.gm-modal-error');
+        if (!error) {
+            error = document.createElement('p');
+            error.className = 'gm-modal-error';
+            modal.appendChild(error);
+        }
+        error.textContent = message;
+    }
+
+    function confirmAction(state, title, message) {
+        if (typeof state.context.confirmDialog === 'function') {
+            return Promise.resolve(state.context.confirmDialog(title, message));
+        }
+        return Promise.resolve(false);
+    }
+
+    function mediaToggle(state, name, capability, label) {
+        const { esc, t } = state.context;
+        const available = Boolean(state.capabilities[capability]);
+        return `<label class="gm-media-toggle ${available ? '' : 'is-disabled'}">
+            <input type="checkbox" name="${name}" ${available ? 'checked' : 'disabled'}>
+            <span><strong>${esc(t('game_maker.' + label))}</strong>
+            <small>${esc(t(available ? 'game_maker.media_auto' : 'game_maker.media_unavailable'))}</small></span>
+        </label>`;
+    }
+
+    window.GameMakerStudioModals = { showSkillsModal, showRevisionsModal, showModal, closeModal, setModalBusy, modalError, confirmAction, mediaToggle };
 })();

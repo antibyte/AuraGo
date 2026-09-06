@@ -81,6 +81,31 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 	if err != nil {
 		return gameMakerToolError(err)
 	}
+	operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"), "generate")
+	packID := toolArgString(tc.Params, "pack_id")
+	switch operation {
+	case "list_packs":
+		packs, err := service.ListAssetPacks()
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		return gameMakerToolJSON(map[string]any{"status": "ok", "packs": packs})
+	case "describe_pack":
+		pack, err := service.DescribeAssetPack(packID)
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		return gameMakerToolJSON(map[string]any{"status": "ok", "pack": pack})
+	case "import_pack":
+		pack, err := service.ImportAssetPack(ctx, jobID, packID)
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		return gameMakerToolJSON(map[string]any{"status": "ok", "pack": pack})
+	case "generate":
+	default:
+		return gameMakerToolError(fmt.Errorf("unsupported asset operation"))
+	}
 	kind := strings.ToLower(firstNonEmptyToolString(toolArgString(tc.Params, "kind"), tc.Mode))
 	prompt := firstNonEmptyToolString(tc.Query, tc.Description, toolArgString(tc.Params, "prompt"))
 	path := firstNonEmptyToolString(tc.Path, tc.FilePath, toolArgString(tc.Params, "path"))

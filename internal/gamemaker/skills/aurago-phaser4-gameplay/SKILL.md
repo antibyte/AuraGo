@@ -37,3 +37,36 @@ when complexity justifies them.
 - Preserve `window.__AURAGO_GAME_DIAGNOSTICS__` and emit scene readiness.
 
 Validate after scene wiring, after gameplay rules, and after final polish.
+
+## Built-in sprite sheets
+
+Import a pack first. Import its JSON in `src/main.ts` so esbuild bundles metadata
+into the offline game. Example for the returned human pack version 1 paths:
+
+```typescript
+import meta from '../assets/builtin/human-characters-animated/1/sheet.json';
+const texture = meta.id + '@' + meta.version;
+// In preload():
+this.load.spritesheet(texture,
+  'assets/builtin/human-characters-animated/1/sheet.png',
+  { frameWidth: meta.frame_width, frameHeight: meta.frame_height });
+// In create():
+for (const animation of meta.animations) {
+  const key = texture + ':' + animation.id;
+  if (!this.anims.exists(key)) this.anims.create({
+    key, sortFrames: false,
+    frames: animation.frames.map(frame => ({ key: texture, frame })),
+    frameRate: animation.frame_rate, repeat: animation.repeat,
+    yoyo: animation.yoyo
+  });
+}
+const asset = meta.assets.find(asset => asset.id === 'ranger_walk');
+const ranger = this.add.sprite(160, 160, texture, asset.frames[0])
+  .setOrigin(asset.origin.x, asset.origin.y);
+ranger.play(texture + ':ranger_walk');
+ranger.setFlipX(true); // Side-view assets permit horizontal mirroring.
+```
+
+Keep pixel art sharp with `pixelArt: true`. Preserve ordered frame lists with
+`sortFrames: false`, including holds. Reference:
+https://docs.phaser.io/phaser/concepts/animations

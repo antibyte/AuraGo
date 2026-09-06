@@ -382,6 +382,10 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	if !ready {
 		return Job{}, ErrSkillsUnusable
 	}
+	assetPackIDs, err := validateAssetPackIDs(req.AssetPackIDs)
+	if err != nil {
+		return Job{}, err
+	}
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
 		return Job{}, err
@@ -450,11 +454,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
 	_, _ = s.emit(ctx, project.ID, job.ID, "job_status", map[string]any{"status": "queued", "job": job})
-	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics))
+	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs)
 	return job, nil
 }
 
-func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic) {
+func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs []string) {
 	defer s.releaseJob(job.ID)
 	stage := filepath.Join(s.stagingDir, job.ID)
 	_ = os.RemoveAll(stage)
@@ -477,6 +481,15 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
+	var assetPacks []ImportedAssetPack
+	for _, id := range assetPackIDs {
+		pack, err := s.ImportAssetPack(ctx, job.ID, id)
+		if err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		assetPacks = append(assetPacks, pack)
+	}
 	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
 		s.terminateJob(job, ctx, err)
 		return
@@ -488,7 +501,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, fmt.Errorf("game maker agent runner is unavailable"))
 		return
 	}
-	if err := runner.RunGameMakerJob(ctx, JobRun{Job: job, Project: project, Diagnostics: diagnostics}); err != nil {
+	if err := runner.RunGameMakerJob(ctx, JobRun{Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			s.cancelledJob(job, ctx.Err())
 			return
@@ -511,7 +524,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		if err := runner.RunGameMakerJob(ctx, JobRun{Job: repairJob, Project: project, Diagnostics: result.Diagnostics}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Job: repairJob, Project: project, Diagnostics: result.Diagnostics, AssetPacks: assetPacks}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}

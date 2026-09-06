@@ -1,0 +1,116 @@
+[
+  {
+    "id": "assets-animated",
+    "name": "Assets Animated",
+    "description": "Looping effects and animated interactive objects.",
+    "tags": [
+      "effect",
+      "animation",
+      "environment"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "blocks-and-balls",
+    "name": "Blocks and Balls",
+    "description": "Breakout blocks, paddles, balls, power-ups and arcade symbols.",
+    "tags": [
+      "arcade",
+      "puzzle",
+      "blocks"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "cards-and-board-games",
+    "name": "Cards and Board Games",
+    "description": "A complete 54-card deck, card backs, chess, dice, counters and board spaces.",
+    "tags": [
+      "cards",
+      "board",
+      "puzzle"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "human-characters-animated",
+    "name": "Human Characters Animated",
+    "description": "Ranger and knight side-view character animations.",
+    "tags": [
+      "human",
+      "character",
+      "side",
+      "platformer"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "human-characters-top-down",
+    "name": "Human Characters Top Down",
+    "description": "Ranger and knight with four-direction idle, walk and attack sequences.",
+    "tags": [
+      "human",
+      "character",
+      "top",
+      "adventure"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "jump-and-run",
+    "name": "Jump and Run",
+    "description": "Side-view terrain, platforms, hazards, collectibles and animated traps.",
+    "tags": [
+      "platformer",
+      "terrain",
+      "side"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "monsters-animals-animated",
+    "name": "Monsters and Animals Animated",
+    "description": "Slime, goblin, wolf and boar side-view animation sets.",
+    "tags": [
+      "monster",
+      "animal",
+      "side",
+      "enemy"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "monsters-animals-top-down",
+    "name": "Monsters and Animals Top Down",
+    "description": "Four-direction creature movement with loot and reusable resting poses.",
+    "tags": [
+      "monster",
+      "animal",
+      "top",
+      "enemy"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "space-shooter",
+    "name": "Space Shooter",
+    "description": "Ships, enemies, weapons, asteroids, pickups, station modules and two explosion sequences.",
+    "tags": [
+      "space",
+      "shooter",
+      "top"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "top-down-adventure",
+    "name": "Top Down Adventure",
+    "description": "Overhead RPG terrain, props, items and opening chest/gate sequences.",
+    "tags": [
+      "adventure",
+      "terrain",
+      "top"
+    ],
+    "version": "1"
+  }
+]

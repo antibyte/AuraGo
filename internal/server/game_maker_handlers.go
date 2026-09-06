@@ -16,6 +16,8 @@ const gameMakerJSONLimit = 256 * 1024
 
 func registerGameMakerRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/game-maker/capabilities", handleGameMakerCapabilities(s))
+	mux.HandleFunc("/api/game-maker/asset-packs", handleGameMakerAssetPacks(s))
+	mux.HandleFunc("/api/game-maker/asset-packs/", handleGameMakerAssetPacks(s))
 	mux.HandleFunc("/api/game-maker/projects", handleGameMakerProjects(s))
 	mux.HandleFunc("/api/game-maker/projects/", handleGameMakerProjectPath(s))
 	mux.HandleFunc("/api/game-maker/jobs/", handleGameMakerJobPath(s))

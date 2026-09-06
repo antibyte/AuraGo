@@ -14,6 +14,9 @@
         }
 
         return {
+            assetPacks: options => request('/asset-packs', options),
+            assetPack: (id, options) => request('/asset-packs/' + encodeURIComponent(id) + '/sheet.json', options),
+            assetPackImageURL: id => base + '/asset-packs/' + encodeURIComponent(id) + '/sheet.png',
             capabilities: () => request('/capabilities'),
             listProjects: () => request('/projects'),
             createProject: body => request('/projects', { method: 'POST', body }),

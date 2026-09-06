@@ -1,6 +1,7 @@
 (function () {
     'use strict';
 
+    const { showModal, closeModal, setModalBusy, modalError, confirmAction, mediaToggle } = window.GameMakerStudioModals;
     const instances = new Map();
     const eventTypes = [
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
@@ -28,6 +29,7 @@
             frame: null,
             channelID: '',
             diagnostics: [],
+            selectedAssetPackIDs: [],
             activeJob: null,
             jobStartedAt: 0,
             elapsedTimer: null,
@@ -71,6 +73,7 @@
                         <button type="button" class="gm-action-wide" data-gm-action="rename" disabled>${esc(t('game_maker.rename'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="delete" disabled>${esc(t('game_maker.delete'))}</button>
                         <button type="button" data-gm-action="skills">${esc(t('game_maker.skills'))}</button>
+                        <button type="button" data-gm-action="assets">${esc(t('game_maker.assets'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="revisions" disabled>${esc(t('game_maker.revisions'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="code" disabled>${esc(t('game_maker.open_code_studio'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="export" disabled>${esc(t('game_maker.export_zip'))}</button>
@@ -127,6 +130,7 @@
                                     <button type="submit" class="gm-primary" disabled>${esc(t('game_maker.apply_change'))}</button>
                                 </div>
                                 <p class="gm-busy-hint" data-gm-busy-hint hidden></p>
+                                ${window.GameMakerStudioAssets ? window.GameMakerStudioAssets.selectionMarkup(state) : ''}
                             </form>
                         </section>
                         <section class="gm-preview-pane">
@@ -203,6 +207,7 @@
             const preview = window.GameMakerStudioPreview;
             const actions = {
                 new: () => showCreateModal(state),
+                assets: () => window.GameMakerStudioAssets.show(state, modalHelpers),
                 skills: () => modals ? modals.showSkillsModal(state, modalHelpers) : fail(state, new Error('Game Maker Studio modules failed to load')),
                 revisions: () => modals ? modals.showRevisionsModal(state, modalHelpers) : fail(state, new Error('Game Maker Studio modules failed to load')),
                 code: () => openInCodeStudio(state),
@@ -327,6 +332,7 @@
     }
 
     function renderMobileSelect(state) {
+        const { esc } = state.context;
         const select = state.container.querySelector('[data-gm-mobile-projects]');
         if (!select) return;
         select.hidden = !state.projects.length;
@@ -753,6 +759,7 @@
                     ${mediaToggle(state, 'use_image_generation', 'image_generation', 'image_assets')}
                     ${mediaToggle(state, 'use_music_generation', 'music_generation', 'music_assets')}
                 </div>
+                ${window.GameMakerStudioAssets ? window.GameMakerStudioAssets.selectionMarkup(state) : ''}
                 <footer><button type="button" data-modal-close>${esc(t('game_maker.cancel'))}</button>
                     <button type="submit" class="gm-primary">${esc(t('game_maker.start_creating'))}</button></footer>
             </form>`, layer => {
@@ -793,6 +800,7 @@
                     createdProject = await state.api.createProject(request);
                     const job = await state.api.startJob(createdProject.id, {
                         prompt: request.description,
+                        asset_pack_ids: state.selectedAssetPackIDs || [],
                         provider_id: request.provider_id,
                         model: request.model,
                         image_generation: request.use_image_generation,
@@ -801,6 +809,7 @@
                     closeModal(state);
                     state.projects.unshift(createdProject);
                     state.lastPrompt = request.description;
+                    if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
                     state.jobStartedAt = Date.now();
                     state.activeJob = { job_id: job.id, project_id: createdProject.id, status: job.status, phase: job.phase };
                     await openProject(state, createdProject.id);
@@ -820,16 +829,6 @@
                 }
             });
         });
-    }
-
-    function mediaToggle(state, name, capability, label) {
-        const { esc, t } = state.context;
-        const available = Boolean(state.capabilities[capability]);
-        return `<label class="gm-media-toggle ${available ? '' : 'is-disabled'}">
-            <input type="checkbox" name="${name}" ${available ? 'checked' : 'disabled'}>
-            <span><strong>${esc(t('game_maker.' + label))}</strong>
-            <small>${esc(t(available ? 'game_maker.media_auto' : 'game_maker.media_unavailable'))}</small></span>
-        </label>`;
     }
 
     async function submitChange(state) {
@@ -852,10 +851,12 @@
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
+                asset_pack_ids: state.selectedAssetPackIDs || [],
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });
             state.lastPrompt = prompt;
+            if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
             state.jobStartedAt = Date.now();
             state.repairCount = 0;
             state.lastPhase = '';
@@ -930,41 +931,6 @@
         link.download = '';
         link.rel = 'noopener';
         link.click();
-    }
-
-    function showModal(state, html, mount) {
-        const layer = state.container.querySelector('[data-gm-modal]');
-        layer.hidden = false;
-        layer.innerHTML = html;
-        layer.querySelectorAll('[data-modal-close]').forEach(button =>
-            button.addEventListener('click', () => closeModal(state)));
-        layer.addEventListener('click', state.modalBackdrop = event => {
-            if (event.target === layer) closeModal(state);
-        }, { once: true });
-        if (mount) mount(layer);
-    }
-
-    function closeModal(state) {
-        const layer = state.container.querySelector('[data-gm-modal]');
-        if (!layer) return;
-        layer.hidden = true;
-        layer.replaceChildren();
-    }
-
-    function setModalBusy(layer, busy) {
-        layer.querySelectorAll('button,input,textarea,select').forEach(control => { control.disabled = busy; });
-    }
-
-    function modalError(layer, message) {
-        const modal = layer.querySelector('.gm-modal');
-        if (!modal) return;
-        let error = layer.querySelector('.gm-modal-error');
-        if (!error) {
-            error = document.createElement('p');
-            error.className = 'gm-modal-error';
-            modal.appendChild(error);
-        }
-        error.textContent = message;
     }
 
     function otherProjectBusy(state) {
@@ -1101,13 +1067,6 @@
         if (log) log.scrollTop = log.scrollHeight;
     }
 
-    function confirmAction(state, title, message) {
-        if (typeof state.context.confirmDialog === 'function') {
-            return Promise.resolve(state.context.confirmDialog(title, message));
-        }
-        return Promise.resolve(false);
-    }
-
     function closeEvents(state) {
         if (state.eventSource) state.eventSource.close();
         state.eventSource = null;
@@ -1118,6 +1077,7 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        if (state.assetBrowserCleanup) state.assetBrowserCleanup();
         closeEvents(state);
         stopElapsed(state);
         if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);

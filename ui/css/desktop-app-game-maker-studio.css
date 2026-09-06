@@ -21,6 +21,34 @@
     font-family: Inter, system-ui, sans-serif;
 }
 
+.gm-asset-selection { margin: 6px 0; color: var(--gm-muted); font-size: 12px; line-height: 1.5; }
+.gm-modal.gm-assets-modal { width: min(1120px, 96vw); max-width: 100%; }
+.gm-assets-toolbar { display: flex; gap: 10px; margin-bottom: 12px; }
+.gm-assets-toolbar input { flex: 1; min-width: 0; }
+.gm-assets-toolbar select { max-width: 45%; }
+.gm-assets-workspace { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(260px, 1.4fr); gap: 20px; min-height: 0; }
+.gm-asset-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; gap: 12px; align-content: start; max-height: 60vh; overflow-y: auto; }
+.gm-asset-card { border: 1px solid var(--gm-line); border-radius: 10px; background: var(--gm-panel); overflow: hidden; }
+.gm-asset-card > button { display: grid; gap: 6px; width: 100%; text-align: left; }
+.gm-asset-card img { width: 100%; aspect-ratio: 1; object-fit: contain; image-rendering: pixelated; background: #16202c; }
+.gm-asset-card label { display: flex; align-items: center; gap: 6px; padding: 8px; font-size: 12px; }
+.gm-asset-card input[type="checkbox"] { width: 16px; height: 16px; padding: 0; flex-shrink: 0; }
+.gm-asset-card:has(input:checked) { border-color: var(--gm-accent); }
+.gm-asset-detail { max-height: 60vh; overflow-y: auto; padding-right: 6px; }
+.gm-asset-detail > label { display: grid; gap: 5px; margin: 10px 0; }
+.gm-asset-detail p { color: var(--gm-muted); font-size: 13px; line-height: 1.5; }
+.gm-asset-stage { display: grid; grid-template-columns: 1fr 1fr; align-items: center; border-radius: 8px; overflow: hidden; }
+.gm-asset-stage.is-checker { background-color: #d7dce3; background-image: conic-gradient(#b8c1cc 25%, transparent 0 50%, #b8c1cc 0 75%, transparent 0); background-size: 20px 20px; }
+.gm-asset-stage.is-white { background: #fff; }
+.gm-asset-stage.is-dark { background: #10151e; }
+.gm-asset-stage img, .gm-asset-stage canvas { width: 100%; min-width: 0; aspect-ratio: 1; image-rendering: pixelated; }
+.gm-asset-playback { display: flex; gap: 8px; align-items: center; }
+@media (max-width: 680px) {
+    .gm-assets-workspace { grid-template-columns: 1fr; }
+    .gm-asset-cards { max-height: 200px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .gm-asset-detail { max-height: none; }
+}
+
 .gm-studio button,
 .gm-studio input,
 .gm-studio textarea,
