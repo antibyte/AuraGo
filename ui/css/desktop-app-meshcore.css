@@ -125,18 +125,21 @@
     width: 34px;
     height: 34px;
     padding: 0;
-    display: inline-grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
     border-radius: 10px;
     border-color: transparent;
     background: transparent;
     color: var(--vd-theme-muted);
 }
 .mc-icon-btn:hover:not(:disabled) { color: var(--vd-text); }
-.mc-icon-btn .mc-icon { width: 17px; height: 17px; }
+.mc-icon-btn .mc-icon { width: 17px; height: 17px; display: block; }
 .mc-link {
     display: inline-flex;
     align-items: center;
+    line-height: 1;
     gap: 7px;
     height: 34px;
     padding: 0 12px;
@@ -147,7 +150,7 @@
     background: transparent;
 }
 .mc-link:hover { color: var(--vd-text); }
-.mc-link .mc-icon { width: 14px; height: 14px; }
+.mc-link .mc-icon { width: 14px; height: 14px; display: block; }
 
 /* === Layout === */
 .mc-body { display: flex; flex: 1; min-height: 0; position: relative; }
@@ -425,12 +428,14 @@
     width: 44px;
     height: 44px;
     padding: 0;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
     border-radius: 50%;
     position: relative;
 }
-.vd-meshcore .mc-send .mc-icon { width: 19px; height: 19px; margin-left: 2px; }
+.vd-meshcore .mc-send .mc-icon { width: 19px; height: 19px; display: block; }
 .vd-meshcore .mc-send:hover:not(:disabled) { transform: translateY(-1px) scale(1.04); }
 .vd-meshcore .mc-send:active:not(:disabled) { transform: scale(0.96); }
 .mc-compose-footer { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; margin-top: 6px; }

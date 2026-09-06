@@ -57,7 +57,7 @@
     }
 
     const textBtn = (s, key, action, cls = '') => `<button type="button" class="${cls}" data-mc="${action}">${esc(tr(s, key))}</button>`;
-    const iconBtn = (s, key, action, iconName, cls = 'mc-icon-btn') => `<button type="button" class="${cls}" data-mc="${action}" title="${esc(tr(s, key))}">${icon(iconName)}<span class="mc-sr-only">${esc(tr(s, key))}</span></button>`;
+    const iconBtn = (s, key, action, iconName, cls = 'mc-icon-btn') => `<button type="button" class="${cls}" data-mc="${action}" aria-label="${esc(tr(s, key))}" title="${esc(tr(s, key))}">${icon(iconName)}</button>`;
     const labelBtn = (s, key, action, iconName, cls = '') => `<button type="button" class="${cls}" data-mc="${action}">${icon(iconName)}<span>${esc(tr(s, key))}</span></button>`;
     const emptyMarkup = (iconMarkup, text, hint) => `<div class="mc-empty"><span class="mc-empty-icon" aria-hidden="true">${iconMarkup}</span><p>${esc(text)}</p>${hint ? `<span class="mc-empty-hint">${esc(hint)}</span>` : ''}</div>`;
 
@@ -96,7 +96,7 @@
             <div class="mc-history-search"><div class="mc-search">${icon('search')}<input type="search" data-mc-role="query" aria-label="${esc(tr(s, 'search_history'))}" placeholder="${esc(tr(s, 'search_history'))}"></div></div>
             <div class="mc-chat-scroll"><div class="mc-messages" data-mc-role="messages" tabindex="0" aria-label="${esc(tr(s, 'messages'))}">${emptyMarkup(icon('mesh'), tr(s, 'choose'), tr(s, 'offline_hint'))}</div>
             <button type="button" class="mc-new" data-mc="latest" hidden>${icon('down')}<span>${esc(tr(s, 'new_messages'))}</span></button></div>
-            <form class="mc-composer"><div class="mc-composer-row"><label class="mc-sr-only" for="mc-compose-${esc(windowId)}">${esc(tr(s, 'message'))}</label><textarea id="mc-compose-${esc(windowId)}" data-mc-role="compose" rows="2" maxlength="1200" placeholder="${esc(tr(s, 'message'))}"></textarea><button type="submit" class="mc-primary mc-send" data-mc-role="send" title="${esc(tr(s, 'send'))}">${icon('send')}<span class="mc-sr-only">${esc(tr(s, 'send'))}</span></button></div><div class="mc-compose-footer"><span class="mc-counter" data-mc-role="counter" aria-live="polite"></span><span class="mc-hint" data-mc-role="send-hint"></span></div><details class="mc-parts"><summary>${esc(tr(s, 'preview'))}</summary><div data-mc-role="parts"></div></details></form>
+            <form class="mc-composer"><div class="mc-composer-row"><label class="mc-sr-only" for="mc-compose-${esc(windowId)}">${esc(tr(s, 'message'))}</label><textarea id="mc-compose-${esc(windowId)}" data-mc-role="compose" rows="2" maxlength="1200" placeholder="${esc(tr(s, 'message'))}"></textarea><button type="submit" class="mc-primary mc-send" data-mc-role="send" aria-label="${esc(tr(s, 'send'))}" title="${esc(tr(s, 'send'))}">${icon('send')}</button></div><div class="mc-compose-footer"><span class="mc-counter" data-mc-role="counter" aria-live="polite"></span><span class="mc-hint" data-mc-role="send-hint"></span></div><details class="mc-parts"><summary>${esc(tr(s, 'preview'))}</summary><div data-mc-role="parts"></div></details></form>
             </main><aside class="mc-detail" data-mc-role="detail" hidden></aside></div></div>`;
         s.root = host.firstElementChild;
         s.el = role => s.root.querySelector(`[data-mc-role="${role}"]`);
