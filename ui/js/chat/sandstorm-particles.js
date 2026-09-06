@@ -39,6 +39,7 @@
         uniform vec2 u_resolution;
         uniform float u_storm;
         uniform float u_drift;
+        uniform vec4 u_eddies[3];
 
         float hash(vec2 p) {
             vec3 h = fract(vec3(p.xyx) * 0.1031);
@@ -62,7 +63,7 @@
             float a = 0.5;
             for (int i = 0; i < 4; i++) {
                 v += a * noise(p);
-                p *= 2.03;
+                p = mat2(0.8, -0.6, 0.6, 0.8) * p * 2.03;
                 a *= 0.5;
             }
             return v;
@@ -72,24 +73,33 @@
             vec2 uv = gl_FragCoord.xy / u_resolution;
             vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
 
-            // Advect broad distant veils and faster foreground dust with one wind.
-            vec2 p = uv * aspect;
-            vec2 flow = p * vec2(2.6, 6.0) - vec2(u_drift, u_time * 0.025);
+            // The same moving eddies bend the fog and carry the visible grains.
+            vec2 p = vec2(uv.x, 1.0 - uv.y) * aspect;
+            vec2 folded = p;
+            for (int i = 0; i < 3; i++) {
+                vec4 eddy = u_eddies[i];
+                vec2 q = folded - eddy.xy;
+                float falloff = 1.0 / (1.0 + dot(q, q) / (eddy.z * eddy.z));
+                float angle = eddy.w * 0.075 * falloff * falloff;
+                float c = cos(angle), s = sin(angle);
+                folded = eddy.xy + mat2(c, -s, s, c) * q;
+            }
+            vec2 flow = p * vec2(3.2, 4.5) - vec2(u_drift, u_time * 0.065);
             float distant = fbm(flow * 0.55 + vec2(3.2, 1.7));
-            vec2 curl = vec2(distant * 0.8, noise(flow * 0.7) * 0.65);
-            float closeDust = fbm(flow * vec2(1.25, 1.8) + curl - vec2(u_drift * 0.65, 0.0));
-            float groundSheet = fbm(p * vec2(3.0, 16.0) - vec2(u_drift * 1.8, 0.0));
+            vec2 curl = vec2(noise(flow * 0.8 + u_time * 0.11), noise(flow.yx * 0.7 - u_time * 0.09)) - 0.5;
+            float closeDust = fbm(folded * vec2(5.3, 7.4) + curl * 1.4 - vec2(u_drift * 1.3, u_time * 0.1));
+            float groundSheet = noise(folded * vec2(4.0, 18.0) + curl * 2.0 - vec2(u_drift * 1.1, 0.0));
             float low = 1.0 - smoothstep(0.0, 0.48, uv.y);
             float density = smoothstep(0.23, 0.78, distant * 0.5 + closeDust * 0.65);
             density += low * smoothstep(0.35, 0.72, groundSheet) * (0.35 + u_storm * 0.45);
 
             // Warm light scatters through thin dust; dense folds stay ochre.
-            vec2 toLight = p - vec2(aspect.x * 0.82, 0.88);
+            vec2 toLight = p - vec2(aspect.x * 0.82, 0.12);
             float light = exp(-dot(toLight, toLight) * 2.8);
             vec3 col = mix(vec3(0.40, 0.28, 0.16), vec3(0.89, 0.73, 0.48),
                 clamp(0.35 + light * 0.4 + closeDust * 0.3, 0.0, 1.0));
-            float alpha = density * (0.12 + u_storm * 0.13) * (0.65 + low * 0.35);
-            alpha = clamp(alpha, 0.0, 0.28);
+            float alpha = density * (0.17 + u_storm * 0.18) * (0.65 + low * 0.35);
+            alpha = clamp(alpha, 0.0, 0.34);
 
             gl_FragColor = vec4(col * alpha, alpha);
         }
@@ -385,10 +395,15 @@
     let windDrift = 0;
     let weatherTime = 0;
     let liftCarry = 0;
+    let windDirection = 1;
+    // Three bounded vortices, in canvas-height units, shared with the shader.
+    const eddies = new Float32Array(12);
+    const eddyPhases = new Float32Array(3);
+    let flowX = 0, flowY = 0;
 
     // ─── WebGL Fog State ───
     let fogCanvas, gl, fogProgram;
-    let uTime, uRes, uStorm, uDrift;
+    let uTime, uRes, uStorm, uDrift, uEddies;
     let fogPositionBuffer;
     let fogActive = false;
 
@@ -482,6 +497,7 @@
         uRes = gl.getUniformLocation(fogProgram, 'u_resolution');
         uStorm = gl.getUniformLocation(fogProgram, 'u_storm');
         uDrift = gl.getUniformLocation(fogProgram, 'u_drift');
+        uEddies = gl.getUniformLocation(fogProgram, 'u_eddies[0]');
         gl.deleteShader(vs);
         gl.deleteShader(fs);
 
@@ -566,9 +582,9 @@
     }
 
     function spawnFlying(i, width, height, fromEdge) {
-        fx[i] = fromEdge ? rand(-width * 0.2, -5) : rand(-width * 0.05, width * 1.02);
+        fx[i] = fromEdge ? (windDirection >= 0 ? rand(-width * 0.12, -5) : rand(width + 5, width * 1.12)) : rand(-width * 0.05, width * 1.02);
         fy[i] = rand(-height * 0.08, height * 0.98);
-        fvx[i] = rand(BASE_WIND * 0.4, BASE_WIND * 1.3);
+        fvx[i] = rand(BASE_WIND * 0.4, BASE_WIND * 1.3) * windDirection;
         fvy[i] = rand(-0.8, 1.2);
         fd[i] = rand(0.45, 1.45);
         fs[i] = rand(0.65, 1.35) * fd[i];
@@ -577,9 +593,9 @@
     }
 
     function spawnTrail(i, width, height, fromEdge) {
-        tx[i] = fromEdge ? rand(-width * 0.25, -5) : rand(-width * 0.05, width);
+        tx[i] = fromEdge ? (windDirection >= 0 ? rand(-width * 0.12, -5) : rand(width + 5, width * 1.12)) : rand(-width * 0.05, width);
         ty[i] = rand(-height * 0.2, height * 0.85);
-        tvx[i] = rand(1.0, 2.8);
+        tvx[i] = rand(1.0, 2.8) * windDirection;
         tvy[i] = rand(-0.4, 0.4);
         tl[i] = rand(10, 28);
         ta[i] = rand(0.04, 0.13);
@@ -671,9 +687,10 @@
         for (let i = 0; i < cCount; i++) {
             ctx.save();
             ctx.translate(cx[i], cy[i]);
-            ctx.scale(1.6, 0.3 + i * 0.06);
+            ctx.rotate(Math.atan2(cvy[i], cvx[i]) + Math.sin(weatherTime * 0.23 + i) * 0.3);
+            ctx.scale(1.35, 0.55 + Math.sin(weatherTime * 0.35 + i * 2) * 0.16);
             const g = ctx.createRadialGradient(0, 0, 0, 0, 0, cr[i]);
-            const alpha = ca[i] * (0.75 + Math.sin(time * 0.0004 + i * 3.1) * 0.25) * (1 + stormIntensity * 0.65);
+            const alpha = ca[i] * (0.75 + Math.sin(weatherTime * 0.4 + i * 3.1) * 0.25) * (1 + stormIntensity * 0.65);
             g.addColorStop(0, `rgba(210, 178, 132, ${alpha})`);
             g.addColorStop(0.5, `rgba(180, 142, 96, ${alpha * 0.4})`);
             g.addColorStop(1, `rgba(150, 112, 68, 0)`);
@@ -684,13 +701,62 @@
     }
 
     function updateClouds(dt, width, height) {
-        const wind = windSpeed * 0.32;
         for (let i = 0; i < cCount; i++) {
-            cx[i] += (cvx[i] + wind) * (0.7 + i * 0.18) * dt;
+            sampleWind(cx[i], cy[i], height);
+            const drag = 1 - Math.exp(-dt * 0.02);
+            cvx[i] += (flowX * 0.35 - cvx[i]) * drag;
+            cvy[i] += (flowY * 0.35 - cvy[i]) * drag;
+            cx[i] += cvx[i] * dt;
             cy[i] += cvy[i] * dt;
-            if (cx[i] - cr[i] > width * 1.2) {
-                cx[i] = -cr[i] - rand(width * 0.05, width * 0.25);
-                cy[i] = rand(height * 0.25, height * 0.95);
+            const margin = cr[i] * 1.4;
+            if (cx[i] - margin > width) cx[i] = -margin;
+            if (cx[i] + margin < 0) cx[i] = width + margin;
+            if (cy[i] + margin < 0) cy[i] = height + margin;
+            if (cy[i] - margin > height) cy[i] = -margin;
+        }
+    }
+
+    function updateEddies(width, height) {
+        for (let i = 0; i < 3; i++) {
+            const phase = eddyPhases[i], t = weatherTime;
+            eddies[i * 4] = (0.2 + i * 0.3 + Math.sin(t * 0.13 + phase) * 0.12) * width / height;
+            eddies[i * 4 + 1] = 0.58 + Math.sin(t * 0.19 + phase * 1.7) * 0.24;
+            eddies[i * 4 + 2] = 0.17 + 0.045 * Math.sin(t * 0.21 + phase);
+            eddies[i * 4 + 3] = (i === 1 ? -1 : 1) * (9 + stormIntensity * 14) * (0.7 + 0.3 * Math.sin(t * 0.37 + phase));
+        }
+    }
+
+    function sampleWind(x, y, height) {
+        const px = x / height, py = y / height;
+        flowX = windSpeed * windDirection * 0.45 + Math.sin(py * 9 + weatherTime * 0.7) * 0.6;
+        flowY = Math.cos(px * 7 - weatherTime * 0.5) * 0.65;
+        for (let i = 0; i < 12; i += 4) {
+            const dx = (px - eddies[i]) / eddies[i + 2], dy = (py - eddies[i + 1]) / eddies[i + 2];
+            const falloff = 1 / (1 + dx * dx + dy * dy);
+            const spin = eddies[i + 3] * falloff * falloff;
+            flowX -= dy * spin;
+            flowY += dx * spin;
+        }
+    }
+
+    function drawDustRolls(height) {
+        // Broken, soft arcs of dust make the circulation visible, also without WebGL.
+        for (let i = 0; i < 3; i++) {
+            const offset = i * 4, radius = eddies[offset + 2] * height;
+            const phase = weatherTime * (i === 1 ? -0.65 : 0.55) + eddyPhases[i];
+            for (let j = 0; j < 9; j++) {
+                const angle = phase + j * 0.48;
+                const distance = radius * (0.55 + j * 0.045);
+                const x = eddies[offset] * height + Math.cos(angle) * distance;
+                const y = eddies[offset + 1] * height + Math.sin(angle) * distance * 0.8;
+                const size = radius * (0.22 + j * 0.016);
+                const alpha = Math.sin((j + 1) * Math.PI / 10) * (0.045 + stormIntensity * 0.07);
+                const dust = ctx.createRadialGradient(x, y, 0, x, y, size);
+                dust.addColorStop(0, `rgba(222, 184, 125, ${alpha})`);
+                dust.addColorStop(0.45, `rgba(184, 137, 78, ${alpha * 0.55})`);
+                dust.addColorStop(1, 'rgba(160, 110, 58, 0)');
+                ctx.fillStyle = dust;
+                ctx.fillRect(x - size, y - size, size * 2, size * 2);
             }
         }
     }
@@ -740,19 +806,16 @@
 
     function updateAndDrawFlying(dt, time, width, height) {
         const storm = stormIntensity > 0.35;
-        const wind = windSpeed;
 
         for (let i = 0; i < fCount; i++) {
             const groundDist = Math.max(0, height - fy[i]);
             const heightFactor = 0.32 + 0.68 * Math.min(1, groundDist / (height * 0.35));
-            const swirl = Math.sin(fy[i] * 0.012 + time * 0.0012 + fd[i]) * (0.25 + stormIntensity * 0.7);
-
-            fvx[i] += ((wind * heightFactor + swirl) - fvx[i]) * 0.038 * dt;
-
-            const eddy = Math.sin(fx[i] * 0.008 - time * 0.0015 + fd[i] * 2);
-            let targetVy = GRAVITY * fd[i] + eddy * (0.2 + stormIntensity * 0.65);
+            sampleWind(fx[i], fy[i], height);
+            const drag = 1 - Math.exp(-dt * 0.065 / fd[i]);
+            fvx[i] += (flowX * heightFactor - fvx[i]) * drag;
+            let targetVy = GRAVITY * fd[i] + flowY;
             if (fy[i] > height * 0.65) targetVy += STORM_LIFT * stormIntensity * 0.5;
-            fvy[i] += (targetVy - fvy[i]) * 0.06 * dt;
+            fvy[i] += (targetVy - fvy[i]) * drag;
             fvy[i] = Math.max(-TERMINAL_VELOCITY, Math.min(TERMINAL_VELOCITY, fvy[i]));
 
             fx[i] += fvx[i] * fd[i] * dt * 2.4;
@@ -799,7 +862,7 @@
                 continue;
             }
 
-            if (fx[i] > width * 1.12 || fy[i] < -height * 0.35 || fy[i] > height + 15) {
+            if (fx[i] < -width * 0.15 || fx[i] > width * 1.15 || fy[i] < -height * 0.35 || fy[i] > height + 15) {
                 spawnFlying(i, width, height, true);
             }
 
@@ -819,16 +882,16 @@
     }
 
     function updateAndDrawTrails(dt, time, width, height) {
-        const wind = windSpeed * 0.8;
         for (let i = 0; i < tCount; i++) {
-            const swirl = Math.sin(ty[i] * 0.007 + time * 0.0007 + td[i]) * 0.25;
-            tvx[i] += ((wind + swirl) - tvx[i]) * 0.028 * dt;
-            tvy[i] += (Math.cos(tx[i] * 0.004 + time * 0.0004 + td[i]) * 0.04 - tvy[i]) * 0.018 * dt;
+            sampleWind(tx[i], ty[i], height);
+            const drag = 1 - Math.exp(-dt * 0.055);
+            tvx[i] += (flowX * td[i] - tvx[i]) * drag;
+            tvy[i] += (flowY * td[i] - tvy[i]) * drag;
 
             tx[i] += tvx[i] * dt * 2.4;
             ty[i] += tvy[i] * dt * 1.8;
 
-            if (tx[i] > width * 1.12 || ty[i] < -height * 0.25 || ty[i] > height * 1.08) {
+            if (tx[i] < -width * 0.15 || tx[i] > width * 1.15 || ty[i] < -height * 0.25 || ty[i] > height * 1.08) {
                 spawnTrail(i, width, height, true);
             }
 
@@ -836,7 +899,9 @@
             ctx.lineWidth = stormActive ? 1.3 : 0.9;
             ctx.beginPath();
             ctx.moveTo(tx[i], ty[i]);
-            ctx.lineTo(tx[i] - tl[i], ty[i] - tvy[i] * 5);
+            const length = Math.min(tl[i], Math.hypot(tvx[i], tvy[i]) * 3);
+            const angle = Math.atan2(tvy[i], tvx[i]);
+            ctx.lineTo(tx[i] - Math.cos(angle) * length, ty[i] - Math.sin(angle) * length);
             ctx.stroke();
         }
     }
@@ -851,7 +916,8 @@
 
             fx[fCount] = gx[idx];
             fy[fCount] = gy[idx] - rand(10, 50);
-            fvx[fCount] = rand(STORM_WIND * 0.5, STORM_WIND * 1.1);
+            sampleWind(fx[fCount], fy[fCount], height);
+            fvx[fCount] = flowX;
             fvy[fCount] = rand(STORM_LIFT * 0.6, STORM_LIFT * 0.1);
             fs[fCount] = gs[idx];
             fa[fCount] = Math.min(0.95, ga[idx] * 1.2);
@@ -907,6 +973,7 @@
         gl.uniform2f(uRes, fogCanvas.width, fogCanvas.height);
         gl.uniform1f(uStorm, stormIntensity);
         gl.uniform1f(uDrift, windDrift);
+        gl.uniform4fv(uEddies, eddies);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
@@ -924,6 +991,7 @@
         lastTime = time;
 
         updateWeather(dt, time);
+        updateEddies(width, height);
 
         // Update bubble elements & track vertical scrolling/velocity
         updateBubbleBounds(time);
@@ -938,6 +1006,7 @@
 
         drawClouds(width, height, time);
         updateClouds(dt, width, height);
+        drawDustRolls(height);
 
         drawGroundPile(width, height);
         drawGroundParticles();
@@ -970,10 +1039,11 @@
         const release = Math.max(0, Math.min(1, (stormEndTime - time) / 2400));
         stormIntensity = stormActive ? attack * attack * (3 - 2 * attack) * release * release * (3 - 2 * release) : 0;
         weatherTime += dt / 60;
-        const gust = Math.pow(0.5 + 0.5 * Math.sin(weatherTime * 0.85), 4);
+        const gust = Math.pow(Math.max(0, 0.55 + 0.3 * Math.sin(weatherTime * 0.85) + 0.15 * Math.sin(weatherTime * 1.73 + eddyPhases[0])), 3);
         const target = BASE_WIND + gust * 1.6 + Math.sin(weatherTime * 0.37) * 0.25 + stormIntensity * STORM_WIND;
         windSpeed += (target - windSpeed) * (1 - Math.exp(-dt * 0.035));
-        windDrift += windSpeed * dt * 0.0025;
+        windDirection = Math.sin(weatherTime * 0.14 + 1.4);
+        windDrift += windSpeed * windDirection * dt * 0.0025;
     }
 
     function start() {
@@ -993,7 +1063,9 @@
         stormActive = false;
         stormIntensity = 0;
         windSpeed = BASE_WIND;
+        windDirection = 1;
         windDrift = weatherTime = liftCarry = 0;
+        for (let i = 0; i < 3; i++) eddyPhases[i] = rand(0, Math.PI * 2);
         nextStormTime = performance.now() + rand(5000, 9000);
         lastTime = 0;
         animationId = window.requestAnimationFrame(render);

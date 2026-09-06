@@ -204,6 +204,9 @@ images, and browser-oriented regression tests.
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
 - Sandstorm dust, grains and ground lift share a smooth wind/gust envelope.
+  Three moving counter-rotating eddies drive the fog and particle velocity
+  field; grains must visibly turn, rise and recirculate. Wind changes direction
+  gradually. Soft dust rolls preserve visible circulation in the 2D fallback.
   Keep the fixed particle pools and the fog buffer at most 960x540 pixels;
   soft dust does not need device-pixel resolution. Canvas bounds must not
   transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
@@ -277,6 +280,10 @@ images, and browser-oriented regression tests.
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run ThreeDeeCombatBrowserSmoke`.
 - Sandstorm WebGL/2D weather, resource bounds and lifecycle:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run SandstormWeatherBrowserSmoke`.
+  With `AURAGO_BROWSER_ARTIFACT_DIR` and `AURAGO_SANDSTORM_RECORD=1`, capture
+  96 frames per renderer at 10 FPS for visual motion review.
+  `AURAGO_SANDSTORM_BENCHMARK=1` measures 120 native-RAF frames at 1920x1080
+  with synchronized WebGL completion for each renderer.
 - Galaxy picker, real rendering, responsive controls, drawers, dialogs,
   disposal and failure modes:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run GalaxyBrowserSmoke`.

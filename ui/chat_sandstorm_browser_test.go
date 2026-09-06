@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,6 +22,8 @@ func TestSandstormWeatherBrowserSmoke(t *testing.T) {
     window.__sand = {
         resize, weather: updateWeather,
         forceStorm(time) { nextStormTime=time; stormActive=false; },
+        headings() { return Array.from({length:fCount},(_,i)=>[fx[i],fy[i],fvx[i],fvy[i]]); },
+        flush() { if(gl && fogActive)gl.finish(); },
         stats() { return { active, fogActive, stormIntensity, windSpeed,
             flying:fCount, ground:gCount, trails:tCount, clouds:cCount,
             width:fogCanvas?.width || 0, height:fogCanvas?.height || 0,
@@ -90,16 +93,26 @@ let seed=17;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
                 const s=__sand, now=performance.now();
                 s.resize(); const initial=s.stats();
                 s.forceStorm(now+2000);
-                const samples=[];
-                for(let i=0;i<360;i++) {const start=performance.now();__frame(now+i*1000/60);samples.push(performance.now()-start)}
+                const samples=[];let turns=0,counterflow=0,vertical=0,previous=s.headings();
+                for(let i=0;i<360;i++) {
+                    const start=performance.now();__frame(now+i*1000/60);samples.push(performance.now()-start);
+                    const current=s.headings();
+                    if(current.some(p=>p[2]<-0.25) && current.some(p=>p[2]>0.25))counterflow++;
+                    if(current.some(p=>p[3]<-0.5) && current.some(p=>p[3]>0.5))vertical++;
+                    current.forEach((p,j)=>{const old=previous[j];if(old && Math.hypot(p[0]-old[0],p[1]-old[1])<40 && old[2]*p[2]<0)turns++});
+                    previous=current;
+                }
                 const peak=s.stats(), pixel=s.fogPixel();
                 s.weather(1,now+11001);const after=s.stats();
                 window.__sandTestTime=now+11001;
                 samples.sort((a,b)=>a-b);
-                return {initial,peak,after,pixel,pending:__pending.size,errors:__errors,p50:samples[180],p95:samples[342]};
+                return {initial,peak,after,pixel,turns,counterflow,vertical,pending:__pending.size,errors:__errors,p50:samples[180],p95:samples[342]};
             }`).Map()
 			t.Logf("%s: %v", mode, result)
 			initial, peak, after := result["initial"].Map(), result["peak"].Map(), result["after"].Map()
+			if result["turns"].Int() < 5 || result["counterflow"].Int() < 120 || result["vertical"].Int() < 180 {
+				t.Error("dust trajectories must turn and circulate in opposing directions, not translate uniformly")
+			}
 			if !initial["active"].Bool() || initial["visible"].Int() < initial["flying"].Int()/2 {
 				t.Error("sand should be visible immediately across the scene")
 			}
@@ -133,6 +146,32 @@ let seed=17;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
 				if err := os.WriteFile(filepath.Join(dir, "sandstorm-"+mode+".png"), page.MustScreenshot(), 0644); err != nil {
 					t.Fatal(err)
 				}
+				if os.Getenv("AURAGO_SANDSTORM_RECORD") == "1" {
+					frames := filepath.Join(dir, mode)
+					if err := os.MkdirAll(frames, 0755); err != nil {
+						t.Fatal(err)
+					}
+					page.MustEval(`() => {window.__recordTime=__sandTestTime+6000;__sand.forceStorm(__recordTime)}`)
+					for frame := 0; frame < 96; frame++ {
+						page.MustEval(`() => {for(let i=0;i<6;i++)__frame(window.__recordTime+=1000/60)}`)
+						page.MustScreenshot(filepath.Join(frames, fmt.Sprintf("frame-%03d.png", frame)))
+					}
+				}
+			}
+			if os.Getenv("AURAGO_SANDSTORM_BENCHMARK") == "1" {
+				page.MustSetViewport(1920, 1080, 1, false)
+				page.MustEval(`() => __sand.resize()`)
+				metrics := page.MustEval(`async () => {
+                    const samples=[],frames=[],base=__sandTestTime+20000;let first=0,last=0;
+                    __sand.forceStorm(base-3000);
+                    for(let i=0;i<120;i++) {
+                        const stamp=await new Promise(__nativeRAF);if(!first)first=stamp;if(last)frames.push(stamp-last);last=stamp;
+                        const start=performance.now();__frame(base+stamp-first);__sand.flush();samples.push(performance.now()-start);
+                    }
+                    samples.sort((a,b)=>a-b);frames.sort((a,b)=>a-b);
+                    return {fps:119000/(last-first),renderP95:samples[114],frameP95:frames[113],stats:__sand.stats()};
+                }`).Map()
+				t.Logf("1920x1080 native RAF, GPU-synchronized %s: %v", mode, metrics)
 			}
 			page.MustSetViewport(2560, 1440, 2, false)
 			page.MustEval(`() => __sand.resize()`)
