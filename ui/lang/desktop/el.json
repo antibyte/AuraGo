@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Κινούμενοι άνθρωποι",
   "game_maker.pack_human_characters_top_down": "Άνθρωποι από ψηλά",
   "game_maker.pack_monsters_animals_animated": "Κινούμενα τέρατα και ζώα",
-  "game_maker.pack_monsters_animals_top_down": "Τέρατα και ζώα από ψηλά"
+  "game_maker.pack_monsters_animals_top_down": "Τέρατα και ζώα από ψηλά",
+  "game_maker.pack_buildings_structures": "Κτίρια και κατασκευές",
+  "game_maker.pack_buildings_structures_top_down": "Κτίρια και κατασκευές · κάτοψη",
+  "game_maker.pack_vehicles_planes": "Οχήματα και αεροπλάνα",
+  "game_maker.pack_vehicles_planes_top_down": "Οχήματα και αεροπλάνα · κάτοψη",
+  "game_maker.pack_nature_assets": "Στοιχεία φύσης",
+  "game_maker.pack_nature_assets_top_down": "Στοιχεία φύσης · κάτοψη",
+  "game_maker.pack_robots_drones_animated": "Ρομπότ και drones · κινούμενα",
+  "game_maker.pack_robots_drones_animated_top_down": "Ρομπότ και drones · κινούμενη κάτοψη",
+  "game_maker.assets_assembly": "Σύνθεση",
+  "game_maker.assets_individual": "Μεμονωμένα sprites"
 }

@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Geanimeerde mensen",
   "game_maker.pack_human_characters_top_down": "Mensen van bovenaf",
   "game_maker.pack_monsters_animals_animated": "Geanimeerde monsters en dieren",
-  "game_maker.pack_monsters_animals_top_down": "Monsters en dieren van bovenaf"
+  "game_maker.pack_monsters_animals_top_down": "Monsters en dieren van bovenaf",
+  "game_maker.pack_buildings_structures": "Gebouwen en constructies",
+  "game_maker.pack_buildings_structures_top_down": "Gebouwen en constructies · bovenaanzicht",
+  "game_maker.pack_vehicles_planes": "Voertuigen en vliegtuigen",
+  "game_maker.pack_vehicles_planes_top_down": "Voertuigen en vliegtuigen · bovenaanzicht",
+  "game_maker.pack_nature_assets": "Natuur",
+  "game_maker.pack_nature_assets_top_down": "Natuur · bovenaanzicht",
+  "game_maker.pack_robots_drones_animated": "Robots en drones · geanimeerd",
+  "game_maker.pack_robots_drones_animated_top_down": "Robots en drones · geanimeerd bovenaanzicht",
+  "game_maker.assets_assembly": "Samenstelling",
+  "game_maker.assets_individual": "Afzonderlijke sprites"
 }

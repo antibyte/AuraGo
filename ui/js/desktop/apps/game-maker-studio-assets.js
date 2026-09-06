@@ -61,6 +61,7 @@
                         <label>${esc(t('game_maker.assets_background'))}<select data-asset-background>
                             <option value="checker">${esc(t('game_maker.assets_checker'))}</option><option value="white">${esc(t('game_maker.assets_white'))}</option>
                             <option value="dark">${esc(t('game_maker.assets_dark'))}</option></select></label>
+                        ${(pack.assemblies || []).length ? `<label>${esc(t('game_maker.assets_assembly'))}<select data-asset-assembly><option value="">${esc(t('game_maker.assets_individual'))}</option>${pack.assemblies.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}</select></label>` : ''}
                         <label>${esc(t('game_maker.assets_sprite'))}<select data-asset-sprite>${pack.assets.map(asset => `<option value="${esc(asset.id)}">${esc(asset.name)}</option>`).join('')}</select></label>
                         <p data-asset-description></p><label>${esc(t('game_maker.assets_animation'))}<select data-asset-animation><option value="">${esc(t('game_maker.assets_still'))}</option>
                             ${pack.animations.map(a => `<option value="${esc(a.id)}">${esc(a.id)}</option>`).join('')}</select></label>
@@ -70,8 +71,32 @@
                     ctx.imageSmoothingEnabled = false;
                     const image = detail.querySelector('.gm-asset-sheet'), spriteSelect = detail.querySelector('[data-asset-sprite]');
                     const animationSelect = detail.querySelector('[data-asset-animation]');
+                    const assemblySelect = detail.querySelector('[data-asset-assembly]');
                     let frameIndex = 0;
+                    function drawAssembly(elapsed = 0) {
+                        const assembly = pack.assemblies?.find(a => a.id === assemblySelect?.value);
+                        if (!assembly || !current() || detailID !== requestID || !image.complete || !image.naturalWidth) return;
+                        ctx.clearRect(0, 0, 256, 256);
+                        const scale = 256 / Math.max(assembly.width, assembly.height);
+                        const left = (256 - assembly.width * scale) / 2, top = (256 - assembly.height * scale) / 2;
+                        for (const part of assembly.parts) {
+                            const animation = pack.animations.find(a => a.id === part.animation_id);
+                            let index = part.frame;
+                            if (animation) {
+                                const sequence = animation.frames.slice();
+                                if (animation.yoyo && sequence.length > 2) sequence.push(...sequence.slice(1, -1).reverse());
+                                const step = Math.floor(elapsed * animation.frame_rate / 1000);
+                                index = sequence[animation.repeat === -1 || step < sequence.length * (animation.repeat + 1)
+                                    ? step % sequence.length : sequence.length - 1];
+                            }
+                            const frame = pack.frames[index];
+                            ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h,
+                                left + part.x * scale, top + part.y * scale, frame.w * scale, frame.h * scale);
+                        }
+                        detail.querySelector('[data-asset-frame]').textContent = assembly.width + ' × ' + assembly.height;
+                    }
                     function draw(index) {
+                        if (assemblySelect?.value) { drawAssembly(); return; }
                         if (!current() || detailID !== requestID || !image.complete || !image.naturalWidth) return;
                         const frame = pack.frames[index];
                         ctx.clearRect(0, 0, 256, 256);
@@ -80,6 +105,7 @@
                     }
                     function chooseSprite() {
                         clearInterval(timer);
+                        if (assemblySelect) assemblySelect.value = '';
                         const asset = pack.assets.find(a => a.id === spriteSelect.value);
                         frameIndex = asset.frames[0];
                         detail.querySelector('[data-asset-description]').textContent = asset.description;
@@ -88,6 +114,14 @@
                     }
                     function play() {
                         clearInterval(timer);
+                        if (assemblySelect?.value) {
+                            drawAssembly();
+                            const assembly = pack.assemblies.find(a => a.id === assemblySelect.value);
+                            if (!assembly.parts.some(p => p.animation_id)) return;
+                            const started = performance.now();
+                            timer = setInterval(() => drawAssembly(performance.now() - started), 1000 / 30);
+                            return;
+                        }
                         const animation = pack.animations.find(a => a.id === animationSelect.value);
                         if (!animation) { draw(frameIndex); return; }
                         spriteSelect.value = animation.asset_id;
@@ -109,10 +143,23 @@
                     image.addEventListener('error', () => { if (current() && detailID === requestID) helpers.modalError(layer, t('game_maker.assets_load_failed')); }, { once: true });
                     detail.querySelector('[data-asset-background]').addEventListener('change', event => { detail.querySelector('[data-asset-stage]').className = 'gm-asset-stage is-' + event.target.value; });
                     spriteSelect.addEventListener('change', chooseSprite);
-                    animationSelect.addEventListener('change', play);
+                    animationSelect.addEventListener('change', () => { if (assemblySelect) assemblySelect.value = ''; play(); });
+                    assemblySelect?.addEventListener('change', () => {
+                        clearInterval(timer);
+                        if (!assemblySelect.value) { chooseSprite(); return; }
+                        animationSelect.value = '';
+                        detail.querySelector('[data-asset-description]').textContent = pack.assemblies.find(a => a.id === assemblySelect.value).description;
+                        play();
+                    });
                     detail.querySelector('[data-asset-play]').addEventListener('click', play);
                     detail.querySelector('[data-asset-stop]').addEventListener('click', () => clearInterval(timer));
                     chooseSprite();
+                    if (assemblySelect) {
+                        assemblySelect.value = pack.assemblies[0].id;
+                        animationSelect.value = '';
+                        detail.querySelector('[data-asset-description]').textContent = pack.assemblies[0].description;
+                        drawAssembly();
+                    }
                 } catch (error) { if (current() && detailID === requestID) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
             }
             cards.addEventListener('click', event => { const button = event.target.closest('[data-pack]'); if (button) showPack(button.dataset.pack); });

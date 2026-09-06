@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animerte mennesker",
   "game_maker.pack_human_characters_top_down": "Mennesker sett ovenfra",
   "game_maker.pack_monsters_animals_animated": "Animerte monstre og dyr",
-  "game_maker.pack_monsters_animals_top_down": "Monstre og dyr sett ovenfra"
+  "game_maker.pack_monsters_animals_top_down": "Monstre og dyr sett ovenfra",
+  "game_maker.pack_buildings_structures": "Bygninger og konstruksjoner",
+  "game_maker.pack_buildings_structures_top_down": "Bygninger og konstruksjoner · ovenfra",
+  "game_maker.pack_vehicles_planes": "Kjøretøy og fly",
+  "game_maker.pack_vehicles_planes_top_down": "Kjøretøy og fly · ovenfra",
+  "game_maker.pack_nature_assets": "Natur",
+  "game_maker.pack_nature_assets_top_down": "Natur · ovenfra",
+  "game_maker.pack_robots_drones_animated": "Roboter og droner · animerte",
+  "game_maker.pack_robots_drones_animated_top_down": "Roboter og droner · animert ovenfra",
+  "game_maker.assets_assembly": "Sammensetning",
+  "game_maker.assets_individual": "Enkeltspriter"
 }

@@ -4,7 +4,7 @@ Original illustrations generated with OpenAI Imagegen for AuraGo on 2026-09-06.
 No third-party asset pack or existing game character was used. The repository
 MIT license applies; its complete notice travels in each exported JSON.
 
-Only `../catalog.json` and ten `../*/sheet.{png,json}` pairs are embedded. This
+Only `../catalog.json` and eighteen `../*/sheet.{png,json}` pairs are embedded. This
 directory retains original PNGs and the explicit production manifest. Source
 hashes also travel in metadata. Preserve originals; change pose/crop choices in
 `manifest.json`, then regenerate.
@@ -33,10 +33,28 @@ blue cape), slime, goblin, wolf and boar. Keep body size and ground line stable.
 | space.png | 10 ships, 20 enemies, 20 projectiles, 10 asteroids, 10 pickups, 10 station parts, 20 explosions |
 | blocks.png | 40 blocks, 10 paddles, 20 balls, 20 power-ups, 10 symbols |
 | cards.png | 52 cards, 2 jokers, 4 backs, 12 chess pieces, 12 die faces, 8 counters, 10 fields |
+| buildings-side.png / buildings-top.png | 16 architectural objects each, sliced into modular parts; infill panels complete 100 cells |
+| vehicles-side.png / vehicles-top.png | Cars, jeeps, motorcycles, tractors, tanks, helicopters, planes; five large vehicles and rotor/wheel/exhaust sequences |
+| nature-side.png / nature-top.png | 100 trees, shrubs, grasses, flowers, fungi, rocks, wood, water, desert and winter objects each |
+| robots-side.png | Five robots, each with 4 idle, 6 move, 4 attack, 2 hit and 4 destruction frames |
+| robots-top.png | Five robots, each with 5 move frames in four directions; idle aliases reuse poses |
+
+`expansion-prompts.json` retains the exact eight built-in Imagegen prompts.
+Reviewed rectangles remove neighboring fragments; they never infer alpha from
+RGB. The top robot source supplied four rather than five north/south drawings;
+the fifth frame holds the first pose. The service robot destruction order and
+the combat mech muzzle crop were reviewed explicitly.
+
+Buildings and large vehicles use `slice` definitions. The packer fits one shared
+canvas and cuts grid cells without re-centering individual pieces. The `assemblies`
+recipes preserve pixel offsets and origin; fully empty exterior cells are omitted.
+Vehicle part animations use the same ordered poses and clock. A part with no
+moving mechanism may stay static while the complete object animates. The two
+building sources are front elevations and overhead adventure views, respectively.
 
 The manifest is authoritative for pose selection and rectangles. Imagegen does
 not reliably obey exact grids: reviewed explicit rectangles replace guessed
-uniform positions. Repeated poses are intentional holds, not claims of 1,000
+uniform positions. Repeated poses are intentional holds, not claims of 1,800
 distinct drawings. Card IDs/corner ranks define values; pip placement is decorative.
 
 ## Rebuild and review

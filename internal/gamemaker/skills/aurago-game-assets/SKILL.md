@@ -38,6 +38,16 @@ Ask for only assets that materially improve the current game.
   repeatable; modified/incomplete copies are never overwritten. Preserve the
   provenance and license in JSON. Revisions and ZIP exports use project copies,
   never the Studio catalog API or a CDN.
+- Buildings and large vehicles include `assemblies`: exact width/height, origin
+  and ordered parts with `asset_id`, numeric `frame`, pixel `x`/`y`, and optional
+  `animation_id`. `assembly_part` assets are fragments, not complete objects.
+  Put parts in one Phaser Container, use `.setOrigin(0, 0)` on each part and
+  subtract the assembly origin from all positions as shown in `phaser_example`.
+  Never fit each fragment separately. Move/scale/flip the entire container.
+  Register part animations first and start them together so tracks/rotors stay
+  synchronized. Assembly parts intentionally reach cell edges to avoid seams.
+  Side-view vehicles face right; overhead vehicles face up and may rotate as a
+  whole. Top-down robots contain explicit up/right/down/left movement and idle.
 - Use `operation: generate` (or omit operation) for missing custom content.
   Generation alone needs the configured media capability.
 - Plan the full asset list before the first request and batch what belongs

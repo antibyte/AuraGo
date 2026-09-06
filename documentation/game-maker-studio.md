@@ -80,12 +80,21 @@ version.
 
 ## Offline sprite library
 
-Open **Assets** to browse ten original pixel-art packs. Each contains 100 cells
+Open **Assets** to browse eighteen original pixel-art packs. Each contains 100 cells
 of 64×64 pixels in a 640×640 RGBA PNG, with English asset descriptions and JSON
 animations. Categories cover space shooters, animated effects, platformers,
 top-down adventures, blocks/balls, cards/board games, side-view and top-down
-humans, and side-view and top-down monsters/animals. Animation frames count
-toward the 1,000 cells; some sequences deliberately hold a source pose.
+humans, monsters/animals, buildings/structures, vehicles/planes, nature and
+animated robots/drones. Animation frames count toward the 1,800 cells; some
+sequences deliberately hold a source pose.
+
+Buildings and large vehicles contain 48 assembly recipes across four packs.
+The **Assembly** selector previews complete objects, including synchronized
+vehicle animations. JSON `assemblies` describe dimensions, origin and ordered
+parts with exact frame indices and pixel offsets. Parts can reach their cell
+edges; assemble them in one container without individually resizing them.
+The import example includes this container pattern. Side-view vehicles face
+right; overhead vehicles face up. Top-down robots provide four directions.
 
 Search/filter packs, inspect sprites, play animations, and switch between
 checkerboard, white and dark backgrounds. **Use for next job** prepares the next

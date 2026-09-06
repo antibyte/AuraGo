@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "एनिमेटेड मानव",
   "game_maker.pack_human_characters_top_down": "ऊपर से दिखने वाले मानव",
   "game_maker.pack_monsters_animals_animated": "एनिमेटेड राक्षस और जानवर",
-  "game_maker.pack_monsters_animals_top_down": "ऊपर से दिखने वाले राक्षस और जानवर"
+  "game_maker.pack_monsters_animals_top_down": "ऊपर से दिखने वाले राक्षस और जानवर",
+  "game_maker.pack_buildings_structures": "इमारतें और संरचनाएँ",
+  "game_maker.pack_buildings_structures_top_down": "इमारतें और संरचनाएँ · ऊपर से दृश्य",
+  "game_maker.pack_vehicles_planes": "वाहन और विमान",
+  "game_maker.pack_vehicles_planes_top_down": "वाहन और विमान · ऊपर से दृश्य",
+  "game_maker.pack_nature_assets": "प्राकृतिक वस्तुएँ",
+  "game_maker.pack_nature_assets_top_down": "प्राकृतिक वस्तुएँ · ऊपर से दृश्य",
+  "game_maker.pack_robots_drones_animated": "रोबोट और ड्रोन · एनिमेटेड",
+  "game_maker.pack_robots_drones_animated_top_down": "रोबोट और ड्रोन · ऊपर से एनिमेटेड दृश्य",
+  "game_maker.assets_assembly": "संयोजन",
+  "game_maker.assets_individual": "अलग-अलग स्प्राइट"
 }

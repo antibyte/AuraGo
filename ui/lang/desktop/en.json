@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animated Humans",
   "game_maker.pack_human_characters_top_down": "Top Down Humans",
   "game_maker.pack_monsters_animals_animated": "Animated Monsters and Animals",
-  "game_maker.pack_monsters_animals_top_down": "Top Down Monsters and Animals"
+  "game_maker.pack_monsters_animals_top_down": "Top Down Monsters and Animals",
+  "game_maker.pack_buildings_structures": "Buildings and structures",
+  "game_maker.pack_buildings_structures_top_down": "Buildings and structures · top down",
+  "game_maker.pack_vehicles_planes": "Vehicles and planes",
+  "game_maker.pack_vehicles_planes_top_down": "Vehicles and planes · top down",
+  "game_maker.pack_nature_assets": "Nature assets",
+  "game_maker.pack_nature_assets_top_down": "Nature assets · top down",
+  "game_maker.pack_robots_drones_animated": "Robots and drones · animated",
+  "game_maker.pack_robots_drones_animated_top_down": "Robots and drones · animated top down",
+  "game_maker.assets_assembly": "Assembly",
+  "game_maker.assets_individual": "Individual sprites"
 }

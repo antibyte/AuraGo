@@ -4,14 +4,14 @@ Offline, original pixel-art library consumed by Game Maker Studio and its agent.
 
 # Ownership
 
-This folder owns ten runtime PNG/JSON pairs, `catalog.json`, and retained
+This folder owns eighteen runtime PNG/JSON pairs, `catalog.json`, and retained
 Imagegen source artwork plus production instructions under `production/`.
 The Go service, authenticated HTTP routes and Studio UI remain with their
 parent owners. Only the runtime pairs/catalog are embedded in the binary.
 
 # Local Contracts
 
-- Ten sheets, each 640×640 RGBA with 100 cells of 64×64 pixels. Animation frames
+- Eighteen sheets, each 640×640 RGBA with 100 cells of 64×64 pixels. Animation frames
   count as cells. Non-tile objects have real transparent margins; no painted
   checkerboards, labels, grid lines, empty cells or clipped bodies.
 - Stable pack/asset IDs and schema/versioned JSON describe every cell and
@@ -21,6 +21,12 @@ parent owners. Only the runtime pairs/catalog are embedded in the binary.
 - Preserve originals and their hashes. Edit reviewed rectangles/pose selections
   in `production/manifest.json`; rebuild outputs through the pack script. Do not
   manually patch generated JSON/PNGs. No third-party game characters or packs.
+- `assembly_part` sprites may touch cell edges. Each belongs to an `assemblies`
+  recipe with width/height, normalized origin and ordered parts (`asset_id`,
+  numeric `frame`, top-left pixel `x`/`y`, optional `animation_id`). Render a
+  complete shared canvas before slicing; never resize parts independently.
+  Empty outer assembly cells are omitted. Parts of a moving vehicle share
+  timing and start together; an individual part may remain visually static.
 
 # Work Guidance
 

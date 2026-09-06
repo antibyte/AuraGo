@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Umani animati",
   "game_maker.pack_human_characters_top_down": "Umani dall’alto",
   "game_maker.pack_monsters_animals_animated": "Mostri e animali animati",
-  "game_maker.pack_monsters_animals_top_down": "Mostri e animali dall’alto"
+  "game_maker.pack_monsters_animals_top_down": "Mostri e animali dall’alto",
+  "game_maker.pack_buildings_structures": "Edifici e strutture",
+  "game_maker.pack_buildings_structures_top_down": "Edifici e strutture · vista dall’alto",
+  "game_maker.pack_vehicles_planes": "Veicoli e aerei",
+  "game_maker.pack_vehicles_planes_top_down": "Veicoli e aerei · vista dall’alto",
+  "game_maker.pack_nature_assets": "Elementi naturali",
+  "game_maker.pack_nature_assets_top_down": "Elementi naturali · vista dall’alto",
+  "game_maker.pack_robots_drones_animated": "Robot e droni · animati",
+  "game_maker.pack_robots_drones_animated_top_down": "Robot e droni · animati dall’alto",
+  "game_maker.assets_assembly": "Assemblaggio",
+  "game_maker.assets_individual": "Sprite singoli"
 }

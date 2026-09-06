@@ -24,6 +24,18 @@ def write_output(path, data, check):
         path.write_bytes(data)
 
 
+def assembly_cell(crop, layout):
+    """Slice a shared canvas; never resize or re-anchor individual building parts."""
+    width, height = layout["columns"] * 64, layout["rows"] * 64
+    canvas = Image.new("RGBA", (width, height))
+    sprite = crop if layout.get("preserve_cell") else crop.crop(crop.getbbox())
+    scale = min((width - 8) / sprite.width, (height - 8) / sprite.height)
+    sprite = sprite.resize((max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))), Image.Resampling.NEAREST)
+    canvas.alpha_composite(sprite, ((width - sprite.width) // 2, (height - sprite.height) // 2))
+    x, y = layout["column"] * 64, layout["row"] * 64
+    return canvas.crop((x, y, x + 64, y + 64))
+
+
 def pack(definition, source_root, check=False):
     sheet = Image.new("RGBA", (640, 640))
     frames, assets, animations = [], [], []
@@ -60,6 +72,15 @@ def pack(definition, source_root, check=False):
             index = len(frames)
             if index >= 100:
                 raise ValueError("More than 100 frames")
+            if "slice" in asset:
+                sprite = assembly_cell(crop, asset["slice"])
+                if not sprite.getbbox():
+                    raise ValueError(f"Empty assembly part: {asset['id']} {source_index}")
+                x, y = index % 10 * 64, index // 10 * 64
+                sheet.alpha_composite(sprite, (x, y))
+                ids.append(index)
+                frames.append({"index": index, "asset_id": asset["id"], "x": x, "y": y, "w": 64, "h": 64})
+                continue
             sprite = crop.crop(bbox)
             sprite = sprite.resize((max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))), Image.Resampling.NEAREST)
             if sprite.width > 60 or sprite.height > 60:
@@ -91,6 +112,8 @@ def pack(definition, source_root, check=False):
                     flip_x=asset.get("view") == "side")
         if asset.get("tile"):
             item["tile"] = True
+        if "slice" in asset:
+            item.update(assembly_part=True, origin={"x": 0, "y": 0}, flip_x=False)
         assets.append(item)
         if "action" in asset:
             action = asset["action"]
@@ -102,7 +125,8 @@ def pack(definition, source_root, check=False):
         raise ValueError(f"{definition['id']}: expected 100 frames, got {len(frames)}")
     for animation in animations:
         poses = {sheet.crop((i % 10 * 64, i // 10 * 64, i % 10 * 64 + 64, i // 10 * 64 + 64)).tobytes() for i in animation["frames"]}
-        if len(animation["frames"]) > 1 and len(poses) < 2:
+        asset = next(a for a in assets if a["id"] == animation["asset_id"])
+        if len(animation["frames"]) > 1 and len(poses) < 2 and not asset.get("assembly_part"):
             raise ValueError(f"Animation has no movement: {animation['id']}")
     for alias in definition.get("animation_aliases", []):
         asset = next(a for a in assets if a["id"] == alias["asset_id"])
@@ -114,6 +138,16 @@ def pack(definition, source_root, check=False):
                     provenance={"generator": "OpenAI Imagegen", "license": "MIT", "license_text": (ROOT / "LICENSE").read_text(encoding="utf8"), "source_manifest": "production/manifest.json",
                                 "sources": [{"file": s["file"], "sha256": s["sha256"]} for s in definition["sources"].values()],
                                 "note": "Reviewed source poses; repeated source frames are intentional animation holds."})
+    if definition.get("assemblies"):
+        metadata["assemblies"] = []
+        asset_map = {a["id"]: a for a in assets}
+        for assembly in definition["assemblies"]:
+            item = {k: v for k, v in assembly.items() if k != "parts"}
+            item["parts"] = []
+            for part in assembly["parts"]:
+                asset = asset_map[part["asset_id"]]
+                item["parts"].append({**part, "frame": asset["frames"][0]})
+            metadata["assemblies"].append(item)
     target = PACKS / definition["id"]
     output = io.BytesIO()
     sheet.save(output, format="PNG", optimize=True)

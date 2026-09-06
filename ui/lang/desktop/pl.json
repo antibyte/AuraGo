@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animowani ludzie",
   "game_maker.pack_human_characters_top_down": "Ludzie z góry",
   "game_maker.pack_monsters_animals_animated": "Animowane potwory i zwierzęta",
-  "game_maker.pack_monsters_animals_top_down": "Potwory i zwierzęta z góry"
+  "game_maker.pack_monsters_animals_top_down": "Potwory i zwierzęta z góry",
+  "game_maker.pack_buildings_structures": "Budynki i konstrukcje",
+  "game_maker.pack_buildings_structures_top_down": "Budynki i konstrukcje · widok z góry",
+  "game_maker.pack_vehicles_planes": "Pojazdy i samoloty",
+  "game_maker.pack_vehicles_planes_top_down": "Pojazdy i samoloty · widok z góry",
+  "game_maker.pack_nature_assets": "Elementy przyrody",
+  "game_maker.pack_nature_assets_top_down": "Elementy przyrody · widok z góry",
+  "game_maker.pack_robots_drones_animated": "Roboty i drony · animowane",
+  "game_maker.pack_robots_drones_animated_top_down": "Roboty i drony · animowany widok z góry",
+  "game_maker.assets_assembly": "Kompozycja",
+  "game_maker.assets_individual": "Pojedyncze sprite’y"
 }

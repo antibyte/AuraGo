@@ -1,0 +1,3861 @@
+{
+  "id": "buildings-structures",
+  "name": "Buildings and Structures",
+  "description": "Modular architecture: cottages, shops, workshops, castles, garages, bridges and street furniture with exact assembly recipes.",
+  "tags": [
+    "building",
+    "structure",
+    "modular",
+    "architecture",
+    "side"
+  ],
+  "schema_version": 1,
+  "version": "1",
+  "image": "sheet.png",
+  "columns": 10,
+  "rows": 10,
+  "frame_width": 64,
+  "frame_height": 64,
+  "frames": [
+    {
+      "index": 0,
+      "asset_id": "cottage_r1_c1",
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 1,
+      "asset_id": "cottage_r1_c2",
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 2,
+      "asset_id": "cottage_r1_c3",
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 3,
+      "asset_id": "cottage_r2_c1",
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 4,
+      "asset_id": "cottage_r2_c2",
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 5,
+      "asset_id": "cottage_r2_c3",
+      "x": 320,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 6,
+      "asset_id": "cottage_r3_c1",
+      "x": 384,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 7,
+      "asset_id": "cottage_r3_c2",
+      "x": 448,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 8,
+      "asset_id": "cottage_r3_c3",
+      "x": 512,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 9,
+      "asset_id": "townhouse_r1_c1",
+      "x": 576,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 10,
+      "asset_id": "townhouse_r1_c2",
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 11,
+      "asset_id": "townhouse_r1_c3",
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 12,
+      "asset_id": "townhouse_r2_c1",
+      "x": 128,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 13,
+      "asset_id": "townhouse_r2_c2",
+      "x": 192,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 14,
+      "asset_id": "townhouse_r2_c3",
+      "x": 256,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 15,
+      "asset_id": "townhouse_r3_c1",
+      "x": 320,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 16,
+      "asset_id": "townhouse_r3_c2",
+      "x": 384,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 17,
+      "asset_id": "townhouse_r3_c3",
+      "x": 448,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 18,
+      "asset_id": "townhouse_r4_c1",
+      "x": 512,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 19,
+      "asset_id": "townhouse_r4_c2",
+      "x": 576,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 20,
+      "asset_id": "townhouse_r4_c3",
+      "x": 0,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 21,
+      "asset_id": "shop_r1_c1",
+      "x": 64,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 22,
+      "asset_id": "shop_r1_c2",
+      "x": 128,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 23,
+      "asset_id": "shop_r1_c3",
+      "x": 192,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 24,
+      "asset_id": "shop_r2_c1",
+      "x": 256,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 25,
+      "asset_id": "shop_r2_c2",
+      "x": 320,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 26,
+      "asset_id": "shop_r2_c3",
+      "x": 384,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 27,
+      "asset_id": "shop_r3_c1",
+      "x": 448,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 28,
+      "asset_id": "shop_r3_c2",
+      "x": 512,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 29,
+      "asset_id": "shop_r3_c3",
+      "x": 576,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 30,
+      "asset_id": "workshop_r1_c2",
+      "x": 0,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 31,
+      "asset_id": "workshop_r1_c3",
+      "x": 64,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 32,
+      "asset_id": "workshop_r1_c4",
+      "x": 128,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 33,
+      "asset_id": "workshop_r2_c1",
+      "x": 192,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 34,
+      "asset_id": "workshop_r2_c2",
+      "x": 256,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 35,
+      "asset_id": "workshop_r2_c3",
+      "x": 320,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 36,
+      "asset_id": "workshop_r2_c4",
+      "x": 384,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 37,
+      "asset_id": "workshop_r3_c1",
+      "x": 448,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 38,
+      "asset_id": "workshop_r3_c2",
+      "x": 512,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 39,
+      "asset_id": "workshop_r3_c3",
+      "x": 576,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 40,
+      "asset_id": "workshop_r3_c4",
+      "x": 0,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 41,
+      "asset_id": "gatehouse_r1_c1",
+      "x": 64,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 42,
+      "asset_id": "gatehouse_r1_c2",
+      "x": 128,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 43,
+      "asset_id": "gatehouse_r1_c3",
+      "x": 192,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 44,
+      "asset_id": "gatehouse_r1_c4",
+      "x": 256,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 45,
+      "asset_id": "gatehouse_r2_c1",
+      "x": 320,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 46,
+      "asset_id": "gatehouse_r2_c2",
+      "x": 384,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 47,
+      "asset_id": "gatehouse_r2_c3",
+      "x": 448,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 48,
+      "asset_id": "gatehouse_r2_c4",
+      "x": 512,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 49,
+      "asset_id": "gatehouse_r3_c1",
+      "x": 576,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 50,
+      "asset_id": "gatehouse_r3_c2",
+      "x": 0,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 51,
+      "asset_id": "gatehouse_r3_c3",
+      "x": 64,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 52,
+      "asset_id": "gatehouse_r3_c4",
+      "x": 128,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 53,
+      "asset_id": "watchtower_r1_c1",
+      "x": 192,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 54,
+      "asset_id": "watchtower_r1_c2",
+      "x": 256,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 55,
+      "asset_id": "watchtower_r2_c1",
+      "x": 320,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 56,
+      "asset_id": "watchtower_r2_c2",
+      "x": 384,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 57,
+      "asset_id": "watchtower_r3_c1",
+      "x": 448,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 58,
+      "asset_id": "watchtower_r3_c2",
+      "x": 512,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 59,
+      "asset_id": "watchtower_r4_c1",
+      "x": 576,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 60,
+      "asset_id": "watchtower_r4_c2",
+      "x": 0,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 61,
+      "asset_id": "barn_r1_c1",
+      "x": 64,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 62,
+      "asset_id": "barn_r1_c2",
+      "x": 128,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 63,
+      "asset_id": "barn_r1_c3",
+      "x": 192,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 64,
+      "asset_id": "barn_r2_c1",
+      "x": 256,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 65,
+      "asset_id": "barn_r2_c2",
+      "x": 320,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 66,
+      "asset_id": "barn_r2_c3",
+      "x": 384,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 67,
+      "asset_id": "barn_r3_c1",
+      "x": 448,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 68,
+      "asset_id": "barn_r3_c2",
+      "x": 512,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 69,
+      "asset_id": "barn_r3_c3",
+      "x": 576,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 70,
+      "asset_id": "greenhouse_r1_c1",
+      "x": 0,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 71,
+      "asset_id": "greenhouse_r1_c2",
+      "x": 64,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 72,
+      "asset_id": "greenhouse_r1_c3",
+      "x": 128,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 73,
+      "asset_id": "greenhouse_r2_c1",
+      "x": 192,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 74,
+      "asset_id": "greenhouse_r2_c2",
+      "x": 256,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 75,
+      "asset_id": "greenhouse_r2_c3",
+      "x": 320,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 76,
+      "asset_id": "garage_r1_c1",
+      "x": 384,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 77,
+      "asset_id": "garage_r1_c2",
+      "x": 448,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 78,
+      "asset_id": "garage_r1_c3",
+      "x": 512,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 79,
+      "asset_id": "garage_r2_c1",
+      "x": 576,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 80,
+      "asset_id": "garage_r2_c2",
+      "x": 0,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 81,
+      "asset_id": "garage_r2_c3",
+      "x": 64,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 82,
+      "asset_id": "bridge_r1_c1",
+      "x": 128,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 83,
+      "asset_id": "bridge_r1_c2",
+      "x": 192,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 84,
+      "asset_id": "bridge_r1_c3",
+      "x": 256,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 85,
+      "asset_id": "bridge_r1_c4",
+      "x": 320,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 86,
+      "asset_id": "fence_r1_c1",
+      "x": 384,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 87,
+      "asset_id": "fence_post_r1_c1",
+      "x": 448,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 88,
+      "asset_id": "well_r1_c1",
+      "x": 512,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 89,
+      "asset_id": "well_r1_c2",
+      "x": 576,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 90,
+      "asset_id": "well_r2_c1",
+      "x": 0,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 91,
+      "asset_id": "well_r2_c2",
+      "x": 64,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 92,
+      "asset_id": "signpost_r1_c1",
+      "x": 128,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 93,
+      "asset_id": "streetlamp_r1_c1",
+      "x": 192,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 94,
+      "asset_id": "streetlamp_r2_c1",
+      "x": 256,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 95,
+      "asset_id": "fountain_r1_c1",
+      "x": 320,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 96,
+      "asset_id": "fountain_r1_c2",
+      "x": 384,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 97,
+      "asset_id": "fountain_r2_c1",
+      "x": 448,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 98,
+      "asset_id": "fountain_r2_c2",
+      "x": 512,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 99,
+      "asset_id": "architecture_panel_01",
+      "x": 576,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    }
+  ],
+  "assets": [
+    {
+      "id": "cottage_r1_c1",
+      "name": "Timber cottage: row 1, column 1",
+      "description": "Timber cottage: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        0
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r1_c2",
+      "name": "Timber cottage: row 1, column 2",
+      "description": "Timber cottage: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        1
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r1_c3",
+      "name": "Timber cottage: row 1, column 3",
+      "description": "Timber cottage: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        2
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r2_c1",
+      "name": "Timber cottage: row 2, column 1",
+      "description": "Timber cottage: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        3
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r2_c2",
+      "name": "Timber cottage: row 2, column 2",
+      "description": "Timber cottage: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        4
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r2_c3",
+      "name": "Timber cottage: row 2, column 3",
+      "description": "Timber cottage: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        5
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r3_c1",
+      "name": "Timber cottage: row 3, column 1",
+      "description": "Timber cottage: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        6
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r3_c2",
+      "name": "Timber cottage: row 3, column 2",
+      "description": "Timber cottage: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        7
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "cottage_r3_c3",
+      "name": "Timber cottage: row 3, column 3",
+      "description": "Timber cottage: row 3, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "cottage"
+      ],
+      "view": "side",
+      "frames": [
+        8
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r1_c1",
+      "name": "Townhouse: row 1, column 1",
+      "description": "Townhouse: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        9
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r1_c2",
+      "name": "Townhouse: row 1, column 2",
+      "description": "Townhouse: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        10
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r1_c3",
+      "name": "Townhouse: row 1, column 3",
+      "description": "Townhouse: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        11
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r2_c1",
+      "name": "Townhouse: row 2, column 1",
+      "description": "Townhouse: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        12
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r2_c2",
+      "name": "Townhouse: row 2, column 2",
+      "description": "Townhouse: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        13
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r2_c3",
+      "name": "Townhouse: row 2, column 3",
+      "description": "Townhouse: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        14
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r3_c1",
+      "name": "Townhouse: row 3, column 1",
+      "description": "Townhouse: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        15
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r3_c2",
+      "name": "Townhouse: row 3, column 2",
+      "description": "Townhouse: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        16
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r3_c3",
+      "name": "Townhouse: row 3, column 3",
+      "description": "Townhouse: row 3, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        17
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r4_c1",
+      "name": "Townhouse: row 4, column 1",
+      "description": "Townhouse: row 4, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        18
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r4_c2",
+      "name": "Townhouse: row 4, column 2",
+      "description": "Townhouse: row 4, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        19
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "townhouse_r4_c3",
+      "name": "Townhouse: row 4, column 3",
+      "description": "Townhouse: row 4, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "townhouse"
+      ],
+      "view": "side",
+      "frames": [
+        20
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r1_c1",
+      "name": "Shop: row 1, column 1",
+      "description": "Shop: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        21
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r1_c2",
+      "name": "Shop: row 1, column 2",
+      "description": "Shop: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        22
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r1_c3",
+      "name": "Shop: row 1, column 3",
+      "description": "Shop: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        23
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r2_c1",
+      "name": "Shop: row 2, column 1",
+      "description": "Shop: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        24
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r2_c2",
+      "name": "Shop: row 2, column 2",
+      "description": "Shop: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        25
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r2_c3",
+      "name": "Shop: row 2, column 3",
+      "description": "Shop: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        26
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r3_c1",
+      "name": "Shop: row 3, column 1",
+      "description": "Shop: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        27
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r3_c2",
+      "name": "Shop: row 3, column 2",
+      "description": "Shop: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        28
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "shop_r3_c3",
+      "name": "Shop: row 3, column 3",
+      "description": "Shop: row 3, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "shop"
+      ],
+      "view": "side",
+      "frames": [
+        29
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r1_c2",
+      "name": "Industrial workshop: row 1, column 2",
+      "description": "Industrial workshop: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        30
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r1_c3",
+      "name": "Industrial workshop: row 1, column 3",
+      "description": "Industrial workshop: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        31
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r1_c4",
+      "name": "Industrial workshop: row 1, column 4",
+      "description": "Industrial workshop: row 1, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        32
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r2_c1",
+      "name": "Industrial workshop: row 2, column 1",
+      "description": "Industrial workshop: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        33
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r2_c2",
+      "name": "Industrial workshop: row 2, column 2",
+      "description": "Industrial workshop: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        34
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r2_c3",
+      "name": "Industrial workshop: row 2, column 3",
+      "description": "Industrial workshop: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        35
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r2_c4",
+      "name": "Industrial workshop: row 2, column 4",
+      "description": "Industrial workshop: row 2, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        36
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r3_c1",
+      "name": "Industrial workshop: row 3, column 1",
+      "description": "Industrial workshop: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        37
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r3_c2",
+      "name": "Industrial workshop: row 3, column 2",
+      "description": "Industrial workshop: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        38
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r3_c3",
+      "name": "Industrial workshop: row 3, column 3",
+      "description": "Industrial workshop: row 3, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        39
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "workshop_r3_c4",
+      "name": "Industrial workshop: row 3, column 4",
+      "description": "Industrial workshop: row 3, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "workshop"
+      ],
+      "view": "side",
+      "frames": [
+        40
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r1_c1",
+      "name": "Castle gatehouse: row 1, column 1",
+      "description": "Castle gatehouse: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        41
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r1_c2",
+      "name": "Castle gatehouse: row 1, column 2",
+      "description": "Castle gatehouse: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        42
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r1_c3",
+      "name": "Castle gatehouse: row 1, column 3",
+      "description": "Castle gatehouse: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        43
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r1_c4",
+      "name": "Castle gatehouse: row 1, column 4",
+      "description": "Castle gatehouse: row 1, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        44
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r2_c1",
+      "name": "Castle gatehouse: row 2, column 1",
+      "description": "Castle gatehouse: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        45
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r2_c2",
+      "name": "Castle gatehouse: row 2, column 2",
+      "description": "Castle gatehouse: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        46
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r2_c3",
+      "name": "Castle gatehouse: row 2, column 3",
+      "description": "Castle gatehouse: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        47
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r2_c4",
+      "name": "Castle gatehouse: row 2, column 4",
+      "description": "Castle gatehouse: row 2, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        48
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r3_c1",
+      "name": "Castle gatehouse: row 3, column 1",
+      "description": "Castle gatehouse: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        49
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r3_c2",
+      "name": "Castle gatehouse: row 3, column 2",
+      "description": "Castle gatehouse: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        50
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r3_c3",
+      "name": "Castle gatehouse: row 3, column 3",
+      "description": "Castle gatehouse: row 3, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        51
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "gatehouse_r3_c4",
+      "name": "Castle gatehouse: row 3, column 4",
+      "description": "Castle gatehouse: row 3, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "gatehouse"
+      ],
+      "view": "side",
+      "frames": [
+        52
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r1_c1",
+      "name": "Stone watchtower: row 1, column 1",
+      "description": "Stone watchtower: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        53
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r1_c2",
+      "name": "Stone watchtower: row 1, column 2",
+      "description": "Stone watchtower: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        54
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r2_c1",
+      "name": "Stone watchtower: row 2, column 1",
+      "description": "Stone watchtower: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        55
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r2_c2",
+      "name": "Stone watchtower: row 2, column 2",
+      "description": "Stone watchtower: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        56
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r3_c1",
+      "name": "Stone watchtower: row 3, column 1",
+      "description": "Stone watchtower: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        57
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r3_c2",
+      "name": "Stone watchtower: row 3, column 2",
+      "description": "Stone watchtower: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        58
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r4_c1",
+      "name": "Stone watchtower: row 4, column 1",
+      "description": "Stone watchtower: row 4, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        59
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "watchtower_r4_c2",
+      "name": "Stone watchtower: row 4, column 2",
+      "description": "Stone watchtower: row 4, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "watchtower"
+      ],
+      "view": "side",
+      "frames": [
+        60
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r1_c1",
+      "name": "Barn: row 1, column 1",
+      "description": "Barn: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        61
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r1_c2",
+      "name": "Barn: row 1, column 2",
+      "description": "Barn: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        62
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r1_c3",
+      "name": "Barn: row 1, column 3",
+      "description": "Barn: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        63
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r2_c1",
+      "name": "Barn: row 2, column 1",
+      "description": "Barn: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        64
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r2_c2",
+      "name": "Barn: row 2, column 2",
+      "description": "Barn: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        65
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r2_c3",
+      "name": "Barn: row 2, column 3",
+      "description": "Barn: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        66
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r3_c1",
+      "name": "Barn: row 3, column 1",
+      "description": "Barn: row 3, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        67
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r3_c2",
+      "name": "Barn: row 3, column 2",
+      "description": "Barn: row 3, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        68
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "barn_r3_c3",
+      "name": "Barn: row 3, column 3",
+      "description": "Barn: row 3, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "barn"
+      ],
+      "view": "side",
+      "frames": [
+        69
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "greenhouse_r1_c1",
+      "name": "Greenhouse: row 1, column 1",
+      "description": "Greenhouse: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "greenhouse"
+      ],
+      "view": "side",
+      "frames": [
+        70
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "greenhouse_r1_c2",
+      "name": "Greenhouse: row 1, column 2",
+      "description": "Greenhouse: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "greenhouse"
+      ],
+      "view": "side",
+      "frames": [
+        71
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "greenhouse_r1_c3",
+      "name": "Greenhouse: row 1, column 3",
+      "description": "Greenhouse: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "greenhouse"
+      ],
+      "view": "side",
+      "frames": [
+        72
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "greenhouse_r2_c1",
+      "name": "Greenhouse: row 2, column 1",
+      "description": "Greenhouse: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "greenhouse"
+      ],
+      "view": "side",
+      "frames": [
+        73
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "greenhouse_r2_c2",
+      "name": "Greenhouse: row 2, column 2",
+      "description": "Greenhouse: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "greenhouse"
+      ],
+      "view": "side",
+      "frames": [
+        74
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "greenhouse_r2_c3",
+      "name": "Greenhouse: row 2, column 3",
+      "description": "Greenhouse: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "greenhouse"
+      ],
+      "view": "side",
+      "frames": [
+        75
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "garage_r1_c1",
+      "name": "Double garage: row 1, column 1",
+      "description": "Double garage: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "garage"
+      ],
+      "view": "side",
+      "frames": [
+        76
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "garage_r1_c2",
+      "name": "Double garage: row 1, column 2",
+      "description": "Double garage: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "garage"
+      ],
+      "view": "side",
+      "frames": [
+        77
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "garage_r1_c3",
+      "name": "Double garage: row 1, column 3",
+      "description": "Double garage: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "garage"
+      ],
+      "view": "side",
+      "frames": [
+        78
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "garage_r2_c1",
+      "name": "Double garage: row 2, column 1",
+      "description": "Double garage: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "garage"
+      ],
+      "view": "side",
+      "frames": [
+        79
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "garage_r2_c2",
+      "name": "Double garage: row 2, column 2",
+      "description": "Double garage: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "garage"
+      ],
+      "view": "side",
+      "frames": [
+        80
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "garage_r2_c3",
+      "name": "Double garage: row 2, column 3",
+      "description": "Double garage: row 2, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "garage"
+      ],
+      "view": "side",
+      "frames": [
+        81
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "bridge_r1_c1",
+      "name": "Wooden bridge: row 1, column 1",
+      "description": "Wooden bridge: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "bridge"
+      ],
+      "view": "side",
+      "frames": [
+        82
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "bridge_r1_c2",
+      "name": "Wooden bridge: row 1, column 2",
+      "description": "Wooden bridge: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "bridge"
+      ],
+      "view": "side",
+      "frames": [
+        83
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "bridge_r1_c3",
+      "name": "Wooden bridge: row 1, column 3",
+      "description": "Wooden bridge: row 1, column 3. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "bridge"
+      ],
+      "view": "side",
+      "frames": [
+        84
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "bridge_r1_c4",
+      "name": "Wooden bridge: row 1, column 4",
+      "description": "Wooden bridge: row 1, column 4. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "bridge"
+      ],
+      "view": "side",
+      "frames": [
+        85
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "fence_r1_c1",
+      "name": "Wooden fence: row 1, column 1",
+      "description": "Wooden fence: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "fence"
+      ],
+      "view": "side",
+      "frames": [
+        86
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "fence_post_r1_c1",
+      "name": "Stone fence post: row 1, column 1",
+      "description": "Stone fence post: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "fence_post"
+      ],
+      "view": "side",
+      "frames": [
+        87
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "well_r1_c1",
+      "name": "Roofed well: row 1, column 1",
+      "description": "Roofed well: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "well"
+      ],
+      "view": "side",
+      "frames": [
+        88
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "well_r1_c2",
+      "name": "Roofed well: row 1, column 2",
+      "description": "Roofed well: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "well"
+      ],
+      "view": "side",
+      "frames": [
+        89
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "well_r2_c1",
+      "name": "Roofed well: row 2, column 1",
+      "description": "Roofed well: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "well"
+      ],
+      "view": "side",
+      "frames": [
+        90
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "well_r2_c2",
+      "name": "Roofed well: row 2, column 2",
+      "description": "Roofed well: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "well"
+      ],
+      "view": "side",
+      "frames": [
+        91
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "signpost_r1_c1",
+      "name": "Signpost: row 1, column 1",
+      "description": "Signpost: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "signpost"
+      ],
+      "view": "side",
+      "frames": [
+        92
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "streetlamp_r1_c1",
+      "name": "Streetlamp: row 1, column 1",
+      "description": "Streetlamp: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "streetlamp"
+      ],
+      "view": "side",
+      "frames": [
+        93
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "streetlamp_r2_c1",
+      "name": "Streetlamp: row 2, column 1",
+      "description": "Streetlamp: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "streetlamp"
+      ],
+      "view": "side",
+      "frames": [
+        94
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "fountain_r1_c1",
+      "name": "Stone fountain: row 1, column 1",
+      "description": "Stone fountain: row 1, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "fountain"
+      ],
+      "view": "side",
+      "frames": [
+        95
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "fountain_r1_c2",
+      "name": "Stone fountain: row 1, column 2",
+      "description": "Stone fountain: row 1, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "fountain"
+      ],
+      "view": "side",
+      "frames": [
+        96
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "fountain_r2_c1",
+      "name": "Stone fountain: row 2, column 1",
+      "description": "Stone fountain: row 2, column 1. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "fountain"
+      ],
+      "view": "side",
+      "frames": [
+        97
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "fountain_r2_c2",
+      "name": "Stone fountain: row 2, column 2",
+      "description": "Stone fountain: row 2, column 2. Side-view original pixel art.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "fountain"
+      ],
+      "view": "side",
+      "frames": [
+        98
+      ],
+      "direction": "right",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "flip_x": false,
+      "assembly_part": true
+    },
+    {
+      "id": "architecture_panel_01",
+      "name": "Architecture infill panel 1",
+      "description": "Architectural infill or roof detail. Tile may fill its cell; use between matching facade parts.",
+      "tags": [
+        "buildings-structures",
+        "side",
+        "modular",
+        "infill"
+      ],
+      "view": "side",
+      "frames": [
+        99
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": true,
+      "tile": true
+    }
+  ],
+  "animations": [],
+  "provenance": {
+    "generator": "OpenAI Imagegen",
+    "license": "MIT",
+    "license_text": "MIT License\n\nCopyright (c) 2025 AuraGo contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
+    "source_manifest": "production/manifest.json",
+    "sources": [
+      {
+        "file": "buildings-side.png",
+        "sha256": "a270233e47f0b7efc61e71014b25e4e42e2dab1fefd3a8f15f5255f9c00c46b8"
+      },
+      {
+        "file": "buildings-side.png",
+        "sha256": "a270233e47f0b7efc61e71014b25e4e42e2dab1fefd3a8f15f5255f9c00c46b8"
+      }
+    ],
+    "note": "Reviewed source poses; repeated source frames are intentional animation holds."
+  },
+  "assemblies": [
+    {
+      "id": "cottage",
+      "name": "Timber cottage",
+      "description": "Timber cottage assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 192,
+      "height": 192,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "cottage_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 0
+        },
+        {
+          "asset_id": "cottage_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 1
+        },
+        {
+          "asset_id": "cottage_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 2
+        },
+        {
+          "asset_id": "cottage_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 3
+        },
+        {
+          "asset_id": "cottage_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 4
+        },
+        {
+          "asset_id": "cottage_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 5
+        },
+        {
+          "asset_id": "cottage_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 6
+        },
+        {
+          "asset_id": "cottage_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 7
+        },
+        {
+          "asset_id": "cottage_r3_c3",
+          "x": 128,
+          "y": 128,
+          "frame": 8
+        }
+      ]
+    },
+    {
+      "id": "townhouse",
+      "name": "Townhouse",
+      "description": "Townhouse assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 192,
+      "height": 256,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "townhouse_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 9
+        },
+        {
+          "asset_id": "townhouse_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 10
+        },
+        {
+          "asset_id": "townhouse_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 11
+        },
+        {
+          "asset_id": "townhouse_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 12
+        },
+        {
+          "asset_id": "townhouse_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 13
+        },
+        {
+          "asset_id": "townhouse_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 14
+        },
+        {
+          "asset_id": "townhouse_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 15
+        },
+        {
+          "asset_id": "townhouse_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 16
+        },
+        {
+          "asset_id": "townhouse_r3_c3",
+          "x": 128,
+          "y": 128,
+          "frame": 17
+        },
+        {
+          "asset_id": "townhouse_r4_c1",
+          "x": 0,
+          "y": 192,
+          "frame": 18
+        },
+        {
+          "asset_id": "townhouse_r4_c2",
+          "x": 64,
+          "y": 192,
+          "frame": 19
+        },
+        {
+          "asset_id": "townhouse_r4_c3",
+          "x": 128,
+          "y": 192,
+          "frame": 20
+        }
+      ]
+    },
+    {
+      "id": "shop",
+      "name": "Shop",
+      "description": "Shop assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 192,
+      "height": 192,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "shop_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 21
+        },
+        {
+          "asset_id": "shop_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 22
+        },
+        {
+          "asset_id": "shop_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 23
+        },
+        {
+          "asset_id": "shop_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 24
+        },
+        {
+          "asset_id": "shop_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 25
+        },
+        {
+          "asset_id": "shop_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 26
+        },
+        {
+          "asset_id": "shop_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 27
+        },
+        {
+          "asset_id": "shop_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 28
+        },
+        {
+          "asset_id": "shop_r3_c3",
+          "x": 128,
+          "y": 128,
+          "frame": 29
+        }
+      ]
+    },
+    {
+      "id": "workshop",
+      "name": "Industrial workshop",
+      "description": "Industrial workshop assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 256,
+      "height": 192,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "workshop_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 30
+        },
+        {
+          "asset_id": "workshop_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 31
+        },
+        {
+          "asset_id": "workshop_r1_c4",
+          "x": 192,
+          "y": 0,
+          "frame": 32
+        },
+        {
+          "asset_id": "workshop_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 33
+        },
+        {
+          "asset_id": "workshop_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 34
+        },
+        {
+          "asset_id": "workshop_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 35
+        },
+        {
+          "asset_id": "workshop_r2_c4",
+          "x": 192,
+          "y": 64,
+          "frame": 36
+        },
+        {
+          "asset_id": "workshop_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 37
+        },
+        {
+          "asset_id": "workshop_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 38
+        },
+        {
+          "asset_id": "workshop_r3_c3",
+          "x": 128,
+          "y": 128,
+          "frame": 39
+        },
+        {
+          "asset_id": "workshop_r3_c4",
+          "x": 192,
+          "y": 128,
+          "frame": 40
+        }
+      ]
+    },
+    {
+      "id": "gatehouse",
+      "name": "Castle gatehouse",
+      "description": "Castle gatehouse assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 256,
+      "height": 192,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "gatehouse_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 41
+        },
+        {
+          "asset_id": "gatehouse_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 42
+        },
+        {
+          "asset_id": "gatehouse_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 43
+        },
+        {
+          "asset_id": "gatehouse_r1_c4",
+          "x": 192,
+          "y": 0,
+          "frame": 44
+        },
+        {
+          "asset_id": "gatehouse_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 45
+        },
+        {
+          "asset_id": "gatehouse_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 46
+        },
+        {
+          "asset_id": "gatehouse_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 47
+        },
+        {
+          "asset_id": "gatehouse_r2_c4",
+          "x": 192,
+          "y": 64,
+          "frame": 48
+        },
+        {
+          "asset_id": "gatehouse_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 49
+        },
+        {
+          "asset_id": "gatehouse_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 50
+        },
+        {
+          "asset_id": "gatehouse_r3_c3",
+          "x": 128,
+          "y": 128,
+          "frame": 51
+        },
+        {
+          "asset_id": "gatehouse_r3_c4",
+          "x": 192,
+          "y": 128,
+          "frame": 52
+        }
+      ]
+    },
+    {
+      "id": "watchtower",
+      "name": "Stone watchtower",
+      "description": "Stone watchtower assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 128,
+      "height": 256,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "watchtower_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 53
+        },
+        {
+          "asset_id": "watchtower_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 54
+        },
+        {
+          "asset_id": "watchtower_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 55
+        },
+        {
+          "asset_id": "watchtower_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 56
+        },
+        {
+          "asset_id": "watchtower_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 57
+        },
+        {
+          "asset_id": "watchtower_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 58
+        },
+        {
+          "asset_id": "watchtower_r4_c1",
+          "x": 0,
+          "y": 192,
+          "frame": 59
+        },
+        {
+          "asset_id": "watchtower_r4_c2",
+          "x": 64,
+          "y": 192,
+          "frame": 60
+        }
+      ]
+    },
+    {
+      "id": "barn",
+      "name": "Barn",
+      "description": "Barn assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 192,
+      "height": 192,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "barn_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 61
+        },
+        {
+          "asset_id": "barn_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 62
+        },
+        {
+          "asset_id": "barn_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 63
+        },
+        {
+          "asset_id": "barn_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 64
+        },
+        {
+          "asset_id": "barn_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 65
+        },
+        {
+          "asset_id": "barn_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 66
+        },
+        {
+          "asset_id": "barn_r3_c1",
+          "x": 0,
+          "y": 128,
+          "frame": 67
+        },
+        {
+          "asset_id": "barn_r3_c2",
+          "x": 64,
+          "y": 128,
+          "frame": 68
+        },
+        {
+          "asset_id": "barn_r3_c3",
+          "x": 128,
+          "y": 128,
+          "frame": 69
+        }
+      ]
+    },
+    {
+      "id": "greenhouse",
+      "name": "Greenhouse",
+      "description": "Greenhouse assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 192,
+      "height": 128,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "greenhouse_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 70
+        },
+        {
+          "asset_id": "greenhouse_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 71
+        },
+        {
+          "asset_id": "greenhouse_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 72
+        },
+        {
+          "asset_id": "greenhouse_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 73
+        },
+        {
+          "asset_id": "greenhouse_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 74
+        },
+        {
+          "asset_id": "greenhouse_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 75
+        }
+      ]
+    },
+    {
+      "id": "garage",
+      "name": "Double garage",
+      "description": "Double garage assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 192,
+      "height": 128,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "garage_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 76
+        },
+        {
+          "asset_id": "garage_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 77
+        },
+        {
+          "asset_id": "garage_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 78
+        },
+        {
+          "asset_id": "garage_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 79
+        },
+        {
+          "asset_id": "garage_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 80
+        },
+        {
+          "asset_id": "garage_r2_c3",
+          "x": 128,
+          "y": 64,
+          "frame": 81
+        }
+      ]
+    },
+    {
+      "id": "bridge",
+      "name": "Wooden bridge",
+      "description": "Wooden bridge assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 256,
+      "height": 64,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "bridge_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 82
+        },
+        {
+          "asset_id": "bridge_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 83
+        },
+        {
+          "asset_id": "bridge_r1_c3",
+          "x": 128,
+          "y": 0,
+          "frame": 84
+        },
+        {
+          "asset_id": "bridge_r1_c4",
+          "x": 192,
+          "y": 0,
+          "frame": 85
+        }
+      ]
+    },
+    {
+      "id": "fence",
+      "name": "Wooden fence",
+      "description": "Wooden fence assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 64,
+      "height": 64,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "fence_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 86
+        }
+      ]
+    },
+    {
+      "id": "fence_post",
+      "name": "Stone fence post",
+      "description": "Stone fence post assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 64,
+      "height": 64,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "fence_post_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 87
+        }
+      ]
+    },
+    {
+      "id": "well",
+      "name": "Roofed well",
+      "description": "Roofed well assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 128,
+      "height": 128,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "well_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 88
+        },
+        {
+          "asset_id": "well_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 89
+        },
+        {
+          "asset_id": "well_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 90
+        },
+        {
+          "asset_id": "well_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 91
+        }
+      ]
+    },
+    {
+      "id": "signpost",
+      "name": "Signpost",
+      "description": "Signpost assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 64,
+      "height": 64,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "signpost_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 92
+        }
+      ]
+    },
+    {
+      "id": "streetlamp",
+      "name": "Streetlamp",
+      "description": "Streetlamp assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 64,
+      "height": 128,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "streetlamp_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 93
+        },
+        {
+          "asset_id": "streetlamp_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 94
+        }
+      ]
+    },
+    {
+      "id": "fountain",
+      "name": "Stone fountain",
+      "description": "Stone fountain assembled without gaps from grid-aligned parts; move or mirror the whole container, not individual parts.",
+      "view": "side",
+      "width": 128,
+      "height": 128,
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "parts": [
+        {
+          "asset_id": "fountain_r1_c1",
+          "x": 0,
+          "y": 0,
+          "frame": 95
+        },
+        {
+          "asset_id": "fountain_r1_c2",
+          "x": 64,
+          "y": 0,
+          "frame": 96
+        },
+        {
+          "asset_id": "fountain_r2_c1",
+          "x": 0,
+          "y": 64,
+          "frame": 97
+        },
+        {
+          "asset_id": "fountain_r2_c2",
+          "x": 64,
+          "y": 64,
+          "frame": 98
+        }
+      ]
+    }
+  ]
+}

@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animerade människor",
   "game_maker.pack_human_characters_top_down": "Människor ovanifrån",
   "game_maker.pack_monsters_animals_animated": "Animerade monster och djur",
-  "game_maker.pack_monsters_animals_top_down": "Monster och djur ovanifrån"
+  "game_maker.pack_monsters_animals_top_down": "Monster och djur ovanifrån",
+  "game_maker.pack_buildings_structures": "Byggnader och konstruktioner",
+  "game_maker.pack_buildings_structures_top_down": "Byggnader och konstruktioner · ovanifrån",
+  "game_maker.pack_vehicles_planes": "Fordon och flygplan",
+  "game_maker.pack_vehicles_planes_top_down": "Fordon och flygplan · ovanifrån",
+  "game_maker.pack_nature_assets": "Natur",
+  "game_maker.pack_nature_assets_top_down": "Natur · ovanifrån",
+  "game_maker.pack_robots_drones_animated": "Robotar och drönare · animerade",
+  "game_maker.pack_robots_drones_animated_top_down": "Robotar och drönare · animerade ovanifrån",
+  "game_maker.assets_assembly": "Sammansättning",
+  "game_maker.assets_individual": "Enskilda sprites"
 }

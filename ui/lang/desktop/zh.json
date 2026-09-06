@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "人物动画",
   "game_maker.pack_human_characters_top_down": "俯视人物",
   "game_maker.pack_monsters_animals_animated": "怪物与动物动画",
-  "game_maker.pack_monsters_animals_top_down": "俯视怪物与动物"
+  "game_maker.pack_monsters_animals_top_down": "俯视怪物与动物",
+  "game_maker.pack_buildings_structures": "建筑与结构",
+  "game_maker.pack_buildings_structures_top_down": "建筑与结构 · 俯视",
+  "game_maker.pack_vehicles_planes": "车辆与飞机",
+  "game_maker.pack_vehicles_planes_top_down": "车辆与飞机 · 俯视",
+  "game_maker.pack_nature_assets": "自然素材",
+  "game_maker.pack_nature_assets_top_down": "自然素材 · 俯视",
+  "game_maker.pack_robots_drones_animated": "机器人与无人机 · 动画",
+  "game_maker.pack_robots_drones_animated_top_down": "机器人与无人机 · 俯视动画",
+  "game_maker.assets_assembly": "组合结构",
+  "game_maker.assets_individual": "单个精灵"
 }

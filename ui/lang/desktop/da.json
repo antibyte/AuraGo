@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animerede mennesker",
   "game_maker.pack_human_characters_top_down": "Mennesker set ovenfra",
   "game_maker.pack_monsters_animals_animated": "Animerede monstre og dyr",
-  "game_maker.pack_monsters_animals_top_down": "Monstre og dyr set ovenfra"
+  "game_maker.pack_monsters_animals_top_down": "Monstre og dyr set ovenfra",
+  "game_maker.pack_buildings_structures": "Bygninger og konstruktioner",
+  "game_maker.pack_buildings_structures_top_down": "Bygninger og konstruktioner · ovenfra",
+  "game_maker.pack_vehicles_planes": "Køretøjer og fly",
+  "game_maker.pack_vehicles_planes_top_down": "Køretøjer og fly · ovenfra",
+  "game_maker.pack_nature_assets": "Natur",
+  "game_maker.pack_nature_assets_top_down": "Natur · ovenfra",
+  "game_maker.pack_robots_drones_animated": "Robotter og droner · animerede",
+  "game_maker.pack_robots_drones_animated_top_down": "Robotter og droner · animeret ovenfra",
+  "game_maker.assets_assembly": "Samling",
+  "game_maker.assets_individual": "Enkelte sprites"
 }

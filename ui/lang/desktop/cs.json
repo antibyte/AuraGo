@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animovaní lidé",
   "game_maker.pack_human_characters_top_down": "Lidé shora",
   "game_maker.pack_monsters_animals_animated": "Animované příšery a zvířata",
-  "game_maker.pack_monsters_animals_top_down": "Příšery a zvířata shora"
+  "game_maker.pack_monsters_animals_top_down": "Příšery a zvířata shora",
+  "game_maker.pack_buildings_structures": "Budovy a stavby",
+  "game_maker.pack_buildings_structures_top_down": "Budovy a stavby · pohled shora",
+  "game_maker.pack_vehicles_planes": "Vozidla a letadla",
+  "game_maker.pack_vehicles_planes_top_down": "Vozidla a letadla · pohled shora",
+  "game_maker.pack_nature_assets": "Příroda",
+  "game_maker.pack_nature_assets_top_down": "Příroda · pohled shora",
+  "game_maker.pack_robots_drones_animated": "Roboti a drony · animované",
+  "game_maker.pack_robots_drones_animated_top_down": "Roboti a drony · animovaný pohled shora",
+  "game_maker.assets_assembly": "Sestava",
+  "game_maker.assets_individual": "Jednotlivé sprity"
 }

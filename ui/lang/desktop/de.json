@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "Animierte Menschen",
   "game_maker.pack_human_characters_top_down": "Menschen in Draufsicht",
   "game_maker.pack_monsters_animals_animated": "Animierte Monster und Tiere",
-  "game_maker.pack_monsters_animals_top_down": "Monster und Tiere in Draufsicht"
+  "game_maker.pack_monsters_animals_top_down": "Monster und Tiere in Draufsicht",
+  "game_maker.pack_buildings_structures": "Gebäude und Bauwerke",
+  "game_maker.pack_buildings_structures_top_down": "Gebäude und Bauwerke · Draufsicht",
+  "game_maker.pack_vehicles_planes": "Fahrzeuge und Flugzeuge",
+  "game_maker.pack_vehicles_planes_top_down": "Fahrzeuge und Flugzeuge · Draufsicht",
+  "game_maker.pack_nature_assets": "Natur",
+  "game_maker.pack_nature_assets_top_down": "Natur · Draufsicht",
+  "game_maker.pack_robots_drones_animated": "Roboter und Drohnen · animiert",
+  "game_maker.pack_robots_drones_animated_top_down": "Roboter und Drohnen · animierte Draufsicht",
+  "game_maker.assets_assembly": "Bauplan",
+  "game_maker.assets_individual": "Einzelne Sprites"
 }

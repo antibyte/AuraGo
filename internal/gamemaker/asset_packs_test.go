@@ -18,7 +18,7 @@ import (
 func TestSpritePackContent(t *testing.T) {
 	s := newTestService(t)
 	packs, err := s.ListAssetPacks()
-	if err != nil || len(packs) != 10 {
+	if err != nil || len(packs) != 18 {
 		t.Fatalf("catalog: %d packs, %v", len(packs), err)
 	}
 	for _, summary := range packs {
@@ -54,6 +54,7 @@ func TestSpritePackContent(t *testing.T) {
 				Tags                                   []string
 				Frames                                 []int
 				Tile                                   bool
+				AssemblyPart                           bool `json:"assembly_part"`
 				Origin                                 map[string]float64
 			}
 			var animations []struct {
@@ -97,13 +98,13 @@ func TestSpritePackContent(t *testing.T) {
 								transparent++
 							} else {
 								opaque++
-								if !a.Tile && (x == 0 || y == 0 || x == 63 || y == 63) {
+								if !a.Tile && !a.AssemblyPart && (x == 0 || y == 0 || x == 63 || y == 63) {
 									t.Fatalf("asset touches cell edge: %s frame %d", a.ID, index)
 								}
 							}
 						}
 					}
-					if opaque == 0 || (!a.Tile && transparent == 0) {
+					if opaque == 0 || (!a.Tile && !a.AssemblyPart && transparent == 0) {
 						t.Fatalf("empty/opaque asset: %s frame %d", a.ID, index)
 					}
 				}
@@ -157,11 +158,24 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 		ids = append(ids, p.ID)
 	}
 	s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
-		if len(run.AssetPacks) != 10 {
+		if len(run.AssetPacks) != 18 {
 			return fmt.Errorf("agent saw %d imports", len(run.AssetPacks))
 		}
 		for _, pack := range run.AssetPacks {
-			for _, required := range []string{"this.load.spritesheet(", "frameWidth: meta.frame_width", "texture, asset.frames[0]", "../" + pack.Metadata, pack.Image, "Phaser.Utils.Array.GetRandom"} {
+			metadata, err := s.DescribeAssetPack(pack.ID)
+			if err != nil {
+				return err
+			}
+			guidance := []string{"this.load.spritesheet(", "frameWidth: meta.frame_width", "../" + pack.Metadata, pack.Image, "Phaser.Utils.Array.GetRandom"}
+			if len(metadata.Assemblies) > 0 {
+				guidance = append(guidance, "this.add.container(", "assembly.parts", "part.frame).setOrigin(0, 0)", "part.animation_id")
+				if strings.Contains(pack.PhaserExample, "texture, asset.frames[0]") {
+					return fmt.Errorf("import %s renders an isolated assembly fragment", pack.ID)
+				}
+			} else {
+				guidance = append(guidance, "texture, asset.frames[0]")
+			}
+			for _, required := range guidance {
 				if !strings.Contains(pack.PhaserExample, required) {
 					return fmt.Errorf("import %s omitted usage guidance %q", pack.ID, required)
 				}
@@ -183,14 +197,14 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 		if err := s.db.QueryRow(`SELECT COUNT(*) FROM gm_assets WHERE job_id=?`, run.Job.ID).Scan(&count); err != nil {
 			return err
 		}
-		if count != 20 {
+		if count != 2*len(packs) {
 			return fmt.Errorf("idempotent import recorded %d files", count)
 		}
 		return nil
 	}})
 	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{AssetPackIDs: append(ids, ids[0])})
 	if err == nil {
-		t.Fatal("more than ten selections accepted")
+		t.Fatal("more selections than available packs accepted")
 	}
 	job, err = s.StartJob(context.Background(), project.ID, StartJobRequest{AssetPackIDs: ids})
 	if err != nil {

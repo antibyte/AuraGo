@@ -2804,5 +2804,15 @@
   "game_maker.pack_human_characters_animated": "人物アニメーション",
   "game_maker.pack_human_characters_top_down": "見下ろし型の人物",
   "game_maker.pack_monsters_animals_animated": "モンスターと動物のアニメーション",
-  "game_maker.pack_monsters_animals_top_down": "見下ろし型のモンスターと動物"
+  "game_maker.pack_monsters_animals_top_down": "見下ろし型のモンスターと動物",
+  "game_maker.pack_buildings_structures": "建物と構造物",
+  "game_maker.pack_buildings_structures_top_down": "建物と構造物・トップダウン",
+  "game_maker.pack_vehicles_planes": "車両と航空機",
+  "game_maker.pack_vehicles_planes_top_down": "車両と航空機・トップダウン",
+  "game_maker.pack_nature_assets": "自然素材",
+  "game_maker.pack_nature_assets_top_down": "自然素材・トップダウン",
+  "game_maker.pack_robots_drones_animated": "ロボットとドローン・アニメーション",
+  "game_maker.pack_robots_drones_animated_top_down": "ロボットとドローン・トップダウンアニメーション",
+  "game_maker.assets_assembly": "組み立て",
+  "game_maker.assets_individual": "個別のスプライト"
 }

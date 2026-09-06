@@ -527,6 +527,9 @@ registration lives in `internal/desktop/types.go`.
   timer, released on modal replacement/close and disposal. Metadata stays English
   for agents; controls and pack titles cover all 16 locales. Preview backgrounds
   are CSS only: PNGs contain genuine alpha, no painted checkerboard.
+- Modular pack previews default to a complete assembly. Parts use metadata
+  coordinates and shared animation time; selecting an individual sprite exits
+  assembly mode. Reuse the window's existing preview timer and cleanup path.
 - Game Maker previews must use `sandbox="allow-scripts"` without
   `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
   Accept diagnostics only from the instance iframe when `event.source`, the

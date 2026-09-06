@@ -22,6 +22,32 @@
     "version": "1"
   },
   {
+    "id": "buildings-structures",
+    "name": "Buildings and Structures",
+    "description": "Modular architecture: cottages, shops, workshops, castles, garages, bridges and street furniture with exact assembly recipes.",
+    "tags": [
+      "building",
+      "structure",
+      "modular",
+      "architecture",
+      "side"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "buildings-structures-top-down",
+    "name": "Buildings and Structures Top Down",
+    "description": "Modular architecture: cottages, shops, workshops, castles, garages, bridges and street furniture with exact assembly recipes.",
+    "tags": [
+      "building",
+      "structure",
+      "modular",
+      "architecture",
+      "top"
+    ],
+    "version": "1"
+  },
+  {
     "id": "cards-and-board-games",
     "name": "Cards and Board Games",
     "description": "A complete 54-card deck, card backs, chess, dice, counters and board spaces.",
@@ -92,6 +118,58 @@
     "version": "1"
   },
   {
+    "id": "nature-assets",
+    "name": "Nature Assets",
+    "description": "Trees, bushes, grasses, flowers, fungi, rocks, woodland props, water, desert and winter nature.",
+    "tags": [
+      "nature",
+      "terrain",
+      "forest",
+      "plants",
+      "side"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "nature-assets-top-down",
+    "name": "Nature Assets Top Down",
+    "description": "Trees, bushes, grasses, flowers, fungi, rocks, woodland props, water, desert and winter nature.",
+    "tags": [
+      "nature",
+      "terrain",
+      "forest",
+      "plants",
+      "top"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "robots-drones-animated",
+    "name": "Robots and Drones Animated",
+    "description": "Five robots with idle, locomotion, attack, hit and destruction animations.",
+    "tags": [
+      "robot",
+      "drone",
+      "character",
+      "animated",
+      "side"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "robots-drones-animated-top-down",
+    "name": "Robots and Drones Animated Top Down",
+    "description": "Five robots with locomotion in four directions and reusable resting poses.",
+    "tags": [
+      "robot",
+      "drone",
+      "character",
+      "animated",
+      "top"
+    ],
+    "version": "1"
+  },
+  {
     "id": "space-shooter",
     "name": "Space Shooter",
     "description": "Ships, enemies, weapons, asteroids, pickups, station modules and two explosion sequences.",
@@ -109,6 +187,40 @@
     "tags": [
       "adventure",
       "terrain",
+      "top"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "vehicles-planes",
+    "name": "Vehicles and Planes",
+    "description": "Cars, jeeps, motorcycles, tractors, tanks, helicopters and airplanes; large vehicles have synchronized modular assembly recipes.",
+    "tags": [
+      "vehicle",
+      "aircraft",
+      "car",
+      "truck",
+      "tank",
+      "helicopter",
+      "animated",
+      "modular",
+      "side"
+    ],
+    "version": "1"
+  },
+  {
+    "id": "vehicles-planes-top-down",
+    "name": "Vehicles and Planes Top Down",
+    "description": "Cars, jeeps, motorcycles, tractors, tanks, helicopters and airplanes; large vehicles have synchronized modular assembly recipes.",
+    "tags": [
+      "vehicle",
+      "aircraft",
+      "car",
+      "truck",
+      "tank",
+      "helicopter",
+      "animated",
+      "modular",
       "top"
     ],
     "version": "1"

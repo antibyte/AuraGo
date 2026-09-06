@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,7 @@ type AssetPack struct {
 	Frames        json.RawMessage `json:"frames"`
 	Assets        json.RawMessage `json:"assets"`
 	Animations    json.RawMessage `json:"animations"`
+	Assemblies    json.RawMessage `json:"assemblies,omitempty"`
 	Provenance    json.RawMessage `json:"provenance"`
 }
 
@@ -97,8 +99,12 @@ func (s *Service) DescribeAssetPack(id string) (AssetPack, error) {
 }
 
 func validateAssetPackIDs(ids []string) ([]string, error) {
-	if len(ids) > 10 {
-		return nil, fmt.Errorf("at most ten sprite packs may be selected")
+	available, err := fs.Glob(assetPackFS, "asset_packs/*/sheet.json")
+	if err != nil {
+		return nil, fmt.Errorf("list bundled sprite packs: %w", err)
+	}
+	if len(ids) > len(available) {
+		return nil, fmt.Errorf("at most %d sprite packs may be selected", len(available))
 	}
 	var result []string
 	seen := map[string]bool{}
@@ -173,12 +179,29 @@ const texture = meta.id + '@' + meta.version;
 // In preload(), use spritesheet, NEVER load.image or load.atlas:
 this.load.spritesheet(texture, %q,
   { frameWidth: meta.frame_width, frameHeight: meta.frame_height });
-// In create(), select an asset ID from sheet.json and pass its numeric frame:
-const asset = meta.assets.find(a => a.id === %q);
-this.add.sprite(160, 160, texture, asset.frames[0]).setOrigin(asset.origin.x, asset.origin.y);
 // Register animations from meta.animations using their ordered numeric frames.
 // For random array elements use Phaser.Utils.Array.GetRandom(values), not Phaser.Math.pick.
-`, "../"+result.Metadata, result.Image, assets[0].ID)
+`, "../"+result.Metadata, result.Image)
+	if len(pack.Assemblies) > 0 {
+		result.PhaserExample += `// IMPORTANT: assembly_part assets are fragments. For complete buildings/large vehicles,
+// use an assembly in create(), after registering its animations.
+const assembly = meta.assemblies[0]; // Choose an exact assembly ID from the JSON.
+const object = this.add.container(160, 160);
+for (const part of assembly.parts) {
+  const sprite = this.add.sprite(part.x - assembly.width * assembly.origin.x,
+    part.y - assembly.height * assembly.origin.y, texture, part.frame).setOrigin(0, 0);
+  object.add(sprite);
+  // After registering meta.animations, start all part animations together:
+  if (part.animation_id) sprite.play(texture + ':' + part.animation_id);
+}
+// Move/scale the container; never resize or mirror individual assembly parts.
+`
+	} else {
+		result.PhaserExample += fmt.Sprintf(`// In create(), select an asset ID from sheet.json and pass its numeric frame:
+const asset = meta.assets.find(a => a.id === %q);
+this.add.sprite(160, 160, texture, asset.frames[0]).setOrigin(asset.origin.x, asset.origin.y);
+`, assets[0].ID)
+	}
 	if info, statErr := os.Lstat(target); statErr == nil {
 		if !info.IsDir() {
 			return ImportedAssetPack{}, fmt.Errorf("sprite pack destination already exists")

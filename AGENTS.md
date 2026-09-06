@@ -827,7 +827,7 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
 
 ## Game Maker sprite library contract
 
-- `internal/gamemaker/asset_packs/` owns ten embedded 10×10 RGBA sheets (64px
+- `internal/gamemaker/asset_packs/` owns eighteen embedded 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed
   crops remain in `production/` but are excluded from the binary. Rebuild with
   `python scripts/pack_game_sprites.py`; verify with `--check` (Pillow 12.2).
@@ -839,6 +839,10 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
   isolation exception or migration is permitted. Verify with `go test
   ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
   plus existing Game Maker UI checks.
+- Modular buildings and large vehicles expose `assemblies` with pixel bounds,
+  an origin and ordered numeric-frame parts. Slice one shared canvas to preserve
+  seams; animated parts start together. Pack selection limits follow the embedded
+  catalog. Keep assembly previews and import examples aligned with this metadata.
 - Pack import results and selected-pack context include a concrete Phaser
   loading example. Built 2D games guard the loader against treating built-in
   sheets as single images/atlases or using the wrong grid. Keep that guard at
