@@ -201,7 +201,7 @@
             loadKGPersons(inst);
         } catch (err) {
             const content = inst.host.querySelector('.vd-people-content');
-            if (content) content.innerHTML = `<div class="vd-people-empty"><div class="vd-people-empty-title">${esc(err.message)}</div></div>`;
+            if (content) content.innerHTML = `<div class="vd-people-empty"><div class="vd-people-empty-title">${esc(t(inst.context, 'desktop.load_failed'))}</div></div>`;
         }
     }
 

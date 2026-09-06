@@ -79,7 +79,7 @@
             }),
             openFile: Pixel.bindRuntime(runtime, async function openFile() {
                                 if (!this.ctx.openFileDialog) return;
-                                const result = await this.ctx.openFileDialog({ title: this.t('pixel.open'), initialPath: 'Photos', filters: [{ name: 'Images', extensions: this.IMAGE_EXTS }] });
+                                const result = await this.ctx.openFileDialog({ title: this.t('pixel.open'), initialPath: 'Photos', filters: [{ label: this.t('desktop.file_dialog_images'), extensions: this.IMAGE_EXTS }] });
                                 if (result && !result.canceled && result.path) {
                                     await this.loadDesktopImagePath(result.path);
                                 }
@@ -118,7 +118,11 @@
             saveFileAs: Pixel.bindRuntime(runtime, async function saveFileAs() {
                                 if (!this.canvas.width) return;
                                 if (!this.ctx.saveFileDialog) return;
-                                const result = await this.ctx.saveFileDialog({ filters: [{ name: 'PNG Image', extensions: ['png'] }, { name: 'JPEG Image', extensions: ['jpg'] }, { name: 'WebP Image', extensions: ['webp'] }] });
+                                const result = await this.ctx.saveFileDialog({ filters: [
+                                    { label: this.t('desktop.file_dialog_png'), extensions: ['png'] },
+                                    { label: this.t('desktop.file_dialog_jpeg'), extensions: ['jpg'] },
+                                    { label: this.t('desktop.file_dialog_webp'), extensions: ['webp'] }
+                                ] });
                                 if (result && !result.canceled && result.path) {
                                     this.filePath = result.path;
                                     this.fileName = this.filePath.split('/').pop();

@@ -1,9 +1,13 @@
+    function shellName(index) {
+        return tr('codeStudio.shell_n', 'Shell {{n}}', { n: index + 1 });
+    }
+
     function renderTerminal() {
         const terminal = shellPart('[data-terminal]');
         if (!terminal) return;
         const sessionTabs = (state.terminalSessions || []).map((session, index) => `
             <button type="button" class="cs-terminal-tab${index === (state.activeTerminalSession || 0) ? ' active' : ''}" data-terminal-tab="${index}">
-                <span>${esc(session.name || 'Shell ' + (index + 1))}</span>
+                <span>${esc(session.name || shellName(index))}</span>
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}">\u00d7</span>
             </button>`).join('');
         const activeIdx = state.activeTerminalSession || 0;
@@ -72,7 +76,7 @@
             if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
             return;
         }
-        state.terminalSessions = [{ name: 'Shell 1', term: null, ws: null }];
+        state.terminalSessions = [{ name: shellName(0), term: null, ws: null }];
         state.activeTerminalSession = 0;
         connectTerminalSession(0, screen, label);
     }
@@ -101,7 +105,7 @@
             if (index === 0) state.terminal = term;
             const fitTarget = state.terminalSessions[index]?.fitAddon || state.fitAddon;
             if (fitTarget) fitTarget.fit();
-            term.writeln('Code Studio - Shell ' + (index + 1));
+            term.writeln(tr('codeStudio.title', 'Code Studio') + ' - ' + shellName(index));
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
             ws.binaryType = 'arraybuffer';
@@ -152,7 +156,7 @@
     function addTerminalSession() {
         if (!state.terminalSessions) state.terminalSessions = [];
         const index = state.terminalSessions.length;
-        state.terminalSessions.push({ name: 'Shell ' + (index + 1), term: null, ws: null });
+        state.terminalSessions.push({ name: shellName(index), term: null, ws: null });
         state.activeTerminalSession = index;
         renderTerminal();
         const screen = shellPart('[data-terminal-screen]');
@@ -170,7 +174,7 @@
         }
         state.terminalSessions.splice(index, 1);
         if (!state.terminalSessions.length) {
-            state.terminalSessions.push({ name: 'Shell 1', term: null, ws: null });
+            state.terminalSessions.push({ name: shellName(0), term: null, ws: null });
             state.activeTerminalSession = 0;
             renderTerminal();
             const screen = shellPart('[data-terminal-screen]');

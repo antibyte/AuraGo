@@ -168,12 +168,23 @@ and `files.default_apps` via `/api/desktop/settings`.
   `desktop.gib`, and `desktop.tib`. The open-dialog filter uses
   `desktop.file_dialog_zip`. Do not hardcode `selected`,
   `compressed`, `ZIP Archives`, or `B`/`KiB`/`MiB` there. Zipper
-  `t` stays key-only. Leave File Manager and
+  `t` stays key-only.   Pixel open-dialog filter uses
+  `desktop.file_dialog_images`. Pixel save-dialog filters use
+  `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`, and
+  `desktop.file_dialog_webp`. Do not hardcode `Images`,
+  `PNG Image`, `JPEG Image`, or `WebP Image` there.
+  Pixel `t` stays key-only. Leave File Manager and
   OpenSCAD byte formatters unchanged.
 - Quick Connect SFTP status uses `desktop.qc_sftp_items`. SFTP sizes
   use `desktop.bytes`, `desktop.kib`, `desktop.mib`, `desktop.gib`,
   and `desktop.tib`. Do not hardcode `items` or `B`/`KiB`/`MiB`/`GiB`
   there.
+- Quick Connect synthetic AuraGo host uses `desktop.qc_aurago_host`
+  and `desktop.qc_aurago_host_description`. Detect the host by
+  `id === '__aurago-host__'`, matching IP, or the English sentinel
+  `aurago host`. Do not hardcode `AuraGo Host` or
+  `Current AuraGo web host` there. Shared `t(k, p)` interpolates
+  `{{name}}`; call these keys without a second argument.
 - Calculator backspace labels use `desktop.calc_back`. Do not hardcode
   English `Back` there.
 - Calculator display maps the parser sentinel `Invalid expression` to
@@ -184,6 +195,10 @@ and `files.default_apps` via `/api/desktop/settings`.
   `{{line}}` and `{{column}}`. Sidebar file sizes use `desktop.bytes`,
   `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do
   not hardcode `Ln`/`Col` or `B`/`KiB`/`MiB` there.
+- Code Studio terminal tabs and the xterm welcome line use
+  `codeStudio.shell_n` with `{{n}}` plus `codeStudio.title`. The zen
+  exit tooltip reuses `codeStudio.exitZen`. Do not hardcode English
+  `Shell N`, `Code Studio - Shell`, or `Exit Zen Mode (Esc)` there.
 - Mission Control window menus use `desktop.menu_file` and
   `desktop.menu_view`. Do not hardcode English File/View there.
 - Shell new-file and new-folder prompt defaults use
@@ -201,6 +216,11 @@ and `files.default_apps` via `/api/desktop/settings`.
   hardcode `new-file.txt` there.
 - `renderAppError` shows `desktop.app_error_title` plus `err.message` or
   `desktop.app_error_fallback`. Do not hardcode English `Error` there.
+- Calendar, Todo, and Gallery empty-state load failures use
+  `desktop.load_failed`. Do not dump raw `err.message` there.
+- Quick Connect device-list, generated-app host, and People content
+  empty-state load failures reuse `desktop.load_failed`. Do not dump
+  raw `err.message` there. People `t` takes `(context, key)`.
 - Missing Agent Chat / Live Speech renderers use
   `desktop.app_error_renderer_missing` with `{{app}}`. Do not hardcode
   English "renderer is not loaded" strings.
@@ -216,6 +236,15 @@ and `files.default_apps` via `/api/desktop/settings`.
   `Aura Desktop app` or `Desktop bridge request failed` there.
   Leave `aura-desktop-sdk.js` last-resort English when the parent
   sends no error text.
+- Store terminal-preview script load failures use
+  `desktop.store_terminal_load_failed`. Wrap both the AuraLazyAssets
+  path and the fallback `script.onerror` so the script URL does not
+  leak. Leave `desktop.store_terminal_module_unavailable` for a
+  loaded module without `render`.
+- Host clipboard throws use `desktop.clipboard_read_unavailable` and
+  `desktop.clipboard_write_unavailable`. Do not hardcode English
+  `Clipboard read/write is not available` there. Leave other SDK
+  throws and `aura-desktop-sdk.js` last-resort English unchanged.
 - Chess result-modal fallbacks use `desktop.chess_new_game` and
   `desktop.ok`. Pass `t` into `createChessFx`. Callers may still
   pass localized labels. Do not hardcode English `New game` or
@@ -885,6 +914,12 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopSysworldPanelIdI18n`
 - `go test ./ui/ -run TestDesktopHomepageStudioFallbackI18n`
 - `go test ./ui/ -run TestDesktopZipperFilterI18n`
+- `go test ./ui/ -run TestDesktopPixelOpenFilterI18n`
+- `go test ./ui/ -run TestDesktopPixelSaveFilterI18n`
+- `go test ./ui/ -run TestDesktopCodeStudioShellI18n`
+- `go test ./ui/ -run TestDesktopQcAuragoHostI18n`
+- `go test ./ui/ -run TestDesktopHostErrorI18n`
+- `go test ./ui/ -run TestDesktopLoadFailedI18n`
 - `go test ./ui/ -run TestDesktopAppAssetsRegistry`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go build ./cmd/aurago`
@@ -931,8 +966,9 @@ registration lives in `internal/desktop/types.go`.
   MediaSession title fallback uses `desktop.app_radio`; album uses
   `desktop.radio_album`. Exposes `window.RadioApp`. No child DOX file needed.
 - `people.js` - Address-book app. KG toggle, active label, and card badge
-  use `desktop.people_kg`. Exposes `window.PeopleApp`. No child DOX file
-  needed.
+  use `desktop.people_kg`. Content empty-state load failures use
+  `desktop.load_failed` via `t(inst.context, key)`. Exposes
+  `window.PeopleApp`. No child DOX file needed.
 - `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
   fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
   into `createChessFx`. Opponent-move errors use
@@ -943,7 +979,8 @@ registration lives in `internal/desktop/types.go`.
   needed.
 - `calendar.js` - Calendar renderer and appointment UI continuation bundled
   inside the shared Desktop IIFE immediately before `sdk-events-bootstrap.js`.
-  No child DOX file needed.
+  Empty-state load failures use `desktop.load_failed`. No child DOX file
+  needed.
 - `galaxa-demo.js` - AI pilot and demo lifecycle; reactive combat AI (aim, fire,
   dodge, collect powerups), menu auto-tap for shop/evo, and game-over
   auto-restart loop. Attaches `ctx.startDemo()` and `ctx.updateDemo(dt)` via
@@ -1016,6 +1053,17 @@ registration lives in `internal/desktop/types.go`.
   editor with window menus (file, edit, agent, help). Bundled in the main shell
   bundle (`desktopMainParts` in `build-ui-bundles.js`) because it is referenced
   directly by the desktop foundation runtime.
+- `planning-gallery-music.js` - Planner/todo, gallery, Webamp music, and
+  Quick Connect device list. Bundled in the main shell. The synthetic
+  AuraGo host card uses `desktop.qc_aurago_host` and
+  `desktop.qc_aurago_host_description`. Todo, Gallery, and Quick
+  Connect device-list empty-state load failures use
+  `desktop.load_failed`. No child DOX file needed.
+- `quickconnect-launchpad-chat.js` - Store/launchpad, generated-app
+  host, and Quick Connect session chrome. Store terminal-preview load
+  failures use `desktop.store_terminal_load_failed`. Generated-app
+  host empty-state load failures use `desktop.load_failed`. Bundled
+  in the main shell. No child DOX file needed.
 - `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
   cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
   functions, etc.). Exposes `window.SheetsFormulas`. No child DOX file needed.
@@ -1028,7 +1076,8 @@ registration lives in `internal/desktop/types.go`.
   DOX file needed.
 - `code-studio/core.js` - Code Studio core: state management, API client, path
   utilities, lifecycle (render/dispose), shell markup, toolbar, tabs, breadcrumbs,
-  status bar, file operations, window menus. Opens the shared IIFE. No child DOX
+  status bar, file operations, window menus. Zen-mode exit title reuses
+  `codeStudio.exitZen`. Opens the shared IIFE. No child DOX
   file needed.
 - `code-studio/sidebar.js` - File explorer: tree view, expand/collapse, drag &
   drop upload, file actions (rename/delete/download), activity bar. No child DOX
@@ -1036,7 +1085,9 @@ registration lives in `internal/desktop/types.go`.
 - `code-studio/editor.js` - CodeMirror and textarea editors, syntax highlighting
   integration. No child DOX file needed.
 - `code-studio/terminal.js` - Terminal sessions with xterm.js, WebSocket
-  connection, multi-session management. No child DOX file needed.
+  connection, multi-session management. Tab names and the xterm welcome
+  line use `codeStudio.shell_n` plus `codeStudio.title`. No child DOX
+  file needed.
 - `code-studio/search.js` - Search-in-files panel with grep, result navigation.
   No child DOX file needed.
 - `code-studio/agent.js` - Agent chat panel, SSE streaming, diff preview,
@@ -1178,7 +1229,10 @@ registration lives in `internal/desktop/types.go`.
   Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
   with mask selections, gradient, airbrush, dodge/burn, blur brush plus the
   classic set), 21-filter catalog gallery with live thumbnails and strength
-  slider, layers, click-to-jump history panel, AI generate/enhance. Exposes
+  slider, layers, click-to-jump history panel, AI generate/enhance. The
+  open-dialog filter uses `desktop.file_dialog_images`. Save-dialog
+  filters use `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`,
+  and `desktop.file_dialog_webp`. Exposes
   `window.PixelApp`. No child DOX file needed.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
   `/api/code-studio/terminal`. Exposes `window.TerminalApp`. No child DOX file

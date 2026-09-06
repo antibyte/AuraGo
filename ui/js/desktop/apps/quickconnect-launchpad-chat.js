@@ -1108,7 +1108,7 @@
             })
             .catch(err => {
                 if (!contentEl(id)) return;
-                host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             });
     }
 
@@ -1183,8 +1183,11 @@
             return Promise.resolve();
         }
         if (storeTerminalPreviewLoadPromise) return storeTerminalPreviewLoadPromise;
+        const loadFailed = () => new Error(t('desktop.store_terminal_load_failed'));
         if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
-            storeTerminalPreviewLoadPromise = window.AuraLazyAssets.loadScript(storeTerminalPreviewScriptSrc);
+            storeTerminalPreviewLoadPromise = window.AuraLazyAssets.loadScript(storeTerminalPreviewScriptSrc).catch(() => {
+                throw loadFailed();
+            });
             return storeTerminalPreviewLoadPromise;
         }
         storeTerminalPreviewLoadPromise = new Promise((resolve, reject) => {
@@ -1202,7 +1205,7 @@
                 script.dataset.storeTerminalPreviewLoaded = '1';
                 resolve();
             };
-            script.onerror = () => reject(new Error('Failed to load store terminal preview module'));
+            script.onerror = () => reject(loadFailed());
             if (!existing) {
                 script.src = versioned;
                 document.head.appendChild(script);

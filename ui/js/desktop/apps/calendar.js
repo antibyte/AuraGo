@@ -82,7 +82,7 @@
             renderCalendar(id);
         }));
         setCalendarMenus(id, host, activeDate, render);
-        try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+        try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
         registerWindowCleanup(id, () => {
             document.querySelectorAll('.vd-modal-backdrop').forEach(el => el.remove());
         });

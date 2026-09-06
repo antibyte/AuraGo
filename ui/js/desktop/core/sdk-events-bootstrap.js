@@ -117,11 +117,11 @@
                 closeContextMenu();
                 return { status: 'ok' };
             case 'desktop:clipboard:read-text': {
-                if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error('Clipboard read is not available.');
+                if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error(t('desktop.clipboard_read_unavailable'));
                 return { text: await navigator.clipboard.readText() };
             }
             case 'desktop:clipboard:write-text':
-                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error('Clipboard write is not available.');
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error(t('desktop.clipboard_write_unavailable'));
                 await navigator.clipboard.writeText(String(payload.text || ''));
                 return { status: 'ok' };
             case 'fs:list':

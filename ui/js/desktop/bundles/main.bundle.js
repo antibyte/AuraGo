@@ -9536,7 +9536,7 @@ function updateTaskbarSystemButtonsForMobile() {
             renderCalendar(id);
         }));
         setCalendarMenus(id, host, activeDate, render);
-        try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+        try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
         registerWindowCleanup(id, () => {
             document.querySelectorAll('.vd-modal-backdrop').forEach(el => el.remove());
         });
@@ -12330,7 +12330,7 @@ if (appId === 'pixel') {
             input.value = '';
             await load(result.id);
         });
-        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
     }
 
     function renderTodoCard(todo, selectedID) {
@@ -12522,7 +12522,7 @@ if (appId === 'pixel') {
                 renderItems(visibleItems, kind);
                 moreButton.hidden = !body.has_more;
             } catch (err) {
-                grid.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                grid.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         };
 
@@ -12869,7 +12869,7 @@ if (appId === 'pixel') {
                 }
                 renderDeviceList(cachedDevices);
             } catch (err) {
-                deviceList.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         }
 
@@ -12883,17 +12883,18 @@ if (appId === 'pixel') {
             const hasAuraHost = devices.some(device => {
                 const address = String(device.ip_address || '').toLowerCase();
                 const name = String(device.name || '').toLowerCase();
-                return address === normalizedHost || name === 'aurago host';
+                const id = String(device.id || '');
+                return id === '__aurago-host__' || address === normalizedHost || name === 'aurago host';
             });
             if (hasAuraHost) return devices;
             return [{
                 id: '__aurago-host__',
-                name: 'AuraGo Host',
+                name: t('desktop.qc_aurago_host'),
                 type: 'server',
                 protocol: 'ssh',
                 ip_address: hostName,
                 port: 22,
-                description: 'Current AuraGo web host',
+                description: t('desktop.qc_aurago_host_description'),
                 is_template: true
             }, ...devices];
         }
@@ -14204,7 +14205,7 @@ if (appId === 'pixel') {
             })
             .catch(err => {
                 if (!contentEl(id)) return;
-                host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             });
     }
 
@@ -14279,8 +14280,11 @@ if (appId === 'pixel') {
             return Promise.resolve();
         }
         if (storeTerminalPreviewLoadPromise) return storeTerminalPreviewLoadPromise;
+        const loadFailed = () => new Error(t('desktop.store_terminal_load_failed'));
         if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
-            storeTerminalPreviewLoadPromise = window.AuraLazyAssets.loadScript(storeTerminalPreviewScriptSrc);
+            storeTerminalPreviewLoadPromise = window.AuraLazyAssets.loadScript(storeTerminalPreviewScriptSrc).catch(() => {
+                throw loadFailed();
+            });
             return storeTerminalPreviewLoadPromise;
         }
         storeTerminalPreviewLoadPromise = new Promise((resolve, reject) => {
@@ -14298,7 +14302,7 @@ if (appId === 'pixel') {
                 script.dataset.storeTerminalPreviewLoaded = '1';
                 resolve();
             };
-            script.onerror = () => reject(new Error('Failed to load store terminal preview module'));
+            script.onerror = () => reject(loadFailed());
             if (!existing) {
                 script.src = versioned;
                 document.head.appendChild(script);
@@ -14651,11 +14655,11 @@ if (appId === 'pixel') {
                 closeContextMenu();
                 return { status: 'ok' };
             case 'desktop:clipboard:read-text': {
-                if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error('Clipboard read is not available.');
+                if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error(t('desktop.clipboard_read_unavailable'));
                 return { text: await navigator.clipboard.readText() };
             }
             case 'desktop:clipboard:write-text':
-                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error('Clipboard write is not available.');
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error(t('desktop.clipboard_write_unavailable'));
                 await navigator.clipboard.writeText(String(payload.text || ''));
                 return { status: 'ok' };
             case 'fs:list':

@@ -241,7 +241,7 @@
             input.value = '';
             await load(result.id);
         });
-        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
     }
 
     function renderTodoCard(todo, selectedID) {
@@ -433,7 +433,7 @@
                 renderItems(visibleItems, kind);
                 moreButton.hidden = !body.has_more;
             } catch (err) {
-                grid.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                grid.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         };
 
@@ -780,7 +780,7 @@
                 }
                 renderDeviceList(cachedDevices);
             } catch (err) {
-                deviceList.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+                deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         }
 
@@ -794,17 +794,18 @@
             const hasAuraHost = devices.some(device => {
                 const address = String(device.ip_address || '').toLowerCase();
                 const name = String(device.name || '').toLowerCase();
-                return address === normalizedHost || name === 'aurago host';
+                const id = String(device.id || '');
+                return id === '__aurago-host__' || address === normalizedHost || name === 'aurago host';
             });
             if (hasAuraHost) return devices;
             return [{
                 id: '__aurago-host__',
-                name: 'AuraGo Host',
+                name: t('desktop.qc_aurago_host'),
                 type: 'server',
                 protocol: 'ssh',
                 ip_address: hostName,
                 port: 22,
-                description: 'Current AuraGo web host',
+                description: t('desktop.qc_aurago_host_description'),
                 is_template: true
             }, ...devices];
         }
