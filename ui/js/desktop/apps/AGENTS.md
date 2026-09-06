@@ -1031,6 +1031,22 @@ registration lives in `internal/desktop/types.go`.
   and full desktop shell re-render on changes (icons, widgets, start menu,
   start button). Loaded lazily by `module-loader.js`. Exposes
   `window.SettingsApp`.
+- `camera.js` implements the Camera app (device webcam): photo mode with
+  optional self-timer countdown, mirror toggle and rule-of-thirds grid, and
+  MediaRecorder-based video mode with a centered REC badge. Live video, photo
+  preview and clip preview stack absolutely inside the viewport (never in-flow
+  flex siblings — that squeezed each into one half); the `[hidden]` guard in
+  `camera.css` must keep beating author display rules. Photo previews offer
+  retake/save (`Pictures`)/download/clipboard-copy/send-to-agent; clip previews
+  offer retake/save (`Videos`)/download. A session-only recents strip (max 12,
+  data-URL thumbnails) re-opens captures. Network access is limited to
+  `/api/desktop/upload` and `/api/desktop/chat/stream`; nothing is persisted
+  across windows. `dispose()` must stop tracks, cancel countdown/record clocks,
+  stop the recorder (discarding the clip), revoke the clip object URL and
+  detach `devicechange`. Loaded lazily by `module-loader.js` and exposes
+  `window.CameraApp { render, dispose }`. Visible strings use
+  `desktop.camera_*` keys in all `ui/lang/desktop/*.json` locales. No child
+  DOX file needed.
 - `network-cameras.js` implements the Network Cameras app with a bounded
   snapshot grid, one selected live viewer, an optional four-stream live grid,
   administrator-only ONVIF/manual setup and stream management, and cleanup on
