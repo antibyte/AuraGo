@@ -30,6 +30,10 @@ func TestPreviewValidationRejectsStaleReportsAndReadyBeforeError(t *testing.T) {
 		t.Fatalf("missing browser passed: %+v", got)
 	}
 	_ = s.ReportPreview("project", PreviewReport{Token: "current-token", Type: "ready"})
+	if !check.ReadyAt.IsZero() {
+		t.Fatal("game-authored readiness without a visible canvas passed validation")
+	}
+	_ = s.ReportPreview("project", PreviewReport{Token: "current-token", Type: "ready", CanvasVisible: true})
 	const message = "Uncaught TypeError: this.scale.setSize is not a function"
 	for range 30 {
 		_ = s.ReportPreview("project", PreviewReport{Token: "current-token", Type: "runtime_error", Message: message})

@@ -395,7 +395,10 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   requires a build-bound browser startup check through the authenticated Studio
   parent. Runtime errors feed the bounded repair loop; missing feedback prevents
   publication. Diagnostics stay bounded, untrusted data and never become trusted
-  prompt instructions. A passed startup check does not certify all gameplay.
+  prompt instructions. Only the server boot's visible-canvas report establishes
+  readiness; engine console errors also fail validation. Procedural SVG assets
+  return `.svg` paths, never SVG bytes mislabeled as PNG. A passed startup check
+  does not certify all gameplay.
 Tools are defined in `internal/tools/`:
 - Each tool has a JSON schema definition
 - Tools are registered in the tool registry

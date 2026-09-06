@@ -22,6 +22,8 @@ when complexity justifies them.
   velocities. Avoid Matter unless the design genuinely needs it.
 - Pick a fixed logical resolution and `Phaser.Scale.FIT` with auto-centering
   so the canvas adapts to the preview without stretching gameplay.
+- Set `parent: 'game-root'` in the Phaser game configuration when using the
+  scaffold. A canvas appended after the full-height root is clipped offscreen.
 - Make keyboard controls explicit and include touch or pointer controls when
   the game concept is likely to be used on mobile.
 - Reference project assets with relative paths (`assets/...`); load them in

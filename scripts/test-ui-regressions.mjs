@@ -155,11 +155,14 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   context.handlePreviewMessage(state, { ...event, data: { ...data, source: 'foreign' } });
   assert.equal(sent.length, 0, 'foreign iframe reports must stay outside the API');
   context.handlePreviewMessage(state, { ...event, data: { ...data, type: 'ready' } });
+  assert.equal(sent.length, 0, 'game-authored ready must not qualify an invisible canvas');
+  context.handlePreviewMessage(state, { ...event, data: { ...data, type: 'ready', boot: true, visible: true } });
   context.handlePreviewMessage(state, event);
   context.handlePreviewMessage(state, event);
   assert.equal(sent.length, 2, 'send ready plus one deduplicated runtime error');
   assert.equal(sent[1].token, 'parent-only-token');
   assert.equal(sent[1].message, data.message);
+  assert.equal(sent[0].canvas_visible, true);
   assert.equal(shown.length, 1);
   const input = { value: 'Fix the snake', disabled: false };
   const button = {};
@@ -171,6 +174,46 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   state.project = { id: 'other-project' };
   context.handlePreviewMessage(state, { ...event, data: { ...data, message: 'late old error' } });
   assert.equal(sent.length, 2, 'a switched project must not receive old preview reports');
+}
+
+function testGameMakerBootDetectsInvisibleCanvasAndEngineErrors() {
+  const source = sourceBetween(read('internal/gamemaker/preview.go'), '(function () {', '</script>');
+  const messages = [], timers = [];
+  let now = 0;
+  let rect = { top: 650, bottom: 1100, left: 0, right: 800, width: 800, height: 450 };
+  const canvas = { width: 700, height: 504, getBoundingClientRect: () => rect };
+  const context = {
+    window: { addEventListener() {} },
+    console: { error() {} },
+    parent: { postMessage: message => messages.push(message) },
+    performance: { now: () => now },
+    location: { hash: '#gm-channel=test' }, URLSearchParams,
+    innerHeight: 600, innerWidth: 800,
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
+    MutationObserver: class { observe() {} },
+    setTimeout: callback => timers.push(callback),
+    document: { readyState: 'complete', documentElement: {},
+      querySelector: () => canvas,
+      querySelectorAll: selector => selector === 'canvas' ? [canvas] : [] }
+  };
+  vm.runInNewContext(source, context);
+  assert.equal(messages.length, 0, 'an offscreen canvas must not signal success');
+  now = 1001;
+  timers[0]();
+  assert.match(messages[0].message, /canvas is hidden or outside/);
+  context.console.error('Failed to process file:', 'image', '"snake"');
+  assert.match(messages[1].message, /Failed to process file: image "snake"/);
+  rect = { ...rect, top: 0, bottom: 450 };
+  timers[1]();
+  assert.equal(messages[2].type, 'ready');
+  assert.equal(messages[2].visible, true);
+}
+
+function testDesktopMediaKeysAreInBootstrapScope() {
+  let source = read('ui/js/desktop/bundles/main.bundle.js');
+  source = source.slice(source.indexOf('/* ui/js/desktop/core/desktop-foundation.js */'));
+  source = source.replace('(function () {', '(function () { throw new Error("scope:" + typeof initDesktopMediaKeysRuntime);');
+  assert.throws(() => vm.runInNewContext(source), /scope:function/);
 }
 
 function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
@@ -1687,6 +1730,8 @@ function testLocalLLMFamilySelection() {
 }
 
 const tests = [
+  ['Game Maker boot rejects invisible canvases and captures engine errors', testGameMakerBootDetectsInvisibleCanvasAndEngineErrors],
+  ['Desktop media keys are visible to bootstrap', testDesktopMediaKeysAreInBootstrapScope],
   ['Game Maker forwards runtime diagnostics to validation and the next change', testGameMakerPreviewDiagnosticsReachValidationAndNextRequest],
   ['local LLM family selection keeps model, context and draft settings valid', testLocalLLMFamilySelection],
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],

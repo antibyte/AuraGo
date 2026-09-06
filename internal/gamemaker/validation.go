@@ -17,9 +17,10 @@ type previewCheck struct {
 }
 
 type PreviewReport struct {
-	Token   string `json:"token"`
-	Type    string `json:"type"`
-	Message string `json:"message,omitempty"`
+	CanvasVisible bool   `json:"canvas_visible,omitempty"`
+	Token         string `json:"token"`
+	Type          string `json:"type"`
+	Message       string `json:"message,omitempty"`
 }
 
 func boundedPreviewDiagnostics(input []Diagnostic) []Diagnostic {
@@ -72,6 +73,9 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		return nil
 	}
 	if report.Type == "ready" {
+		if !report.CanvasVisible {
+			return nil
+		}
 		if check.ReadyAt.IsZero() {
 			check.ReadyAt = time.Now()
 		}

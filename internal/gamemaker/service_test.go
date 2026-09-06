@@ -148,7 +148,7 @@ func waitJob(t *testing.T, service *Service, id string) Job {
 		if err == nil && validationID != "" && validationID != lastValidation {
 			grant, grantErr := service.CreatePreviewGrant(job.ProjectID)
 			if grantErr == nil {
-				_ = service.ReportPreview(job.ProjectID, PreviewReport{Token: grant.Token, Type: "ready"})
+				_ = service.ReportPreview(job.ProjectID, PreviewReport{Token: grant.Token, Type: "ready", CanvasVisible: true})
 				lastValidation = grant.ValidationID
 			}
 		}

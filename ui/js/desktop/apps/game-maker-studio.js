@@ -656,6 +656,9 @@
         if (!data || typeof data !== 'object' || data.channel !== state.channelID || data.source !== 'aurago-game') return;
         const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic']);
         if (!allowed.has(data.type)) return;
+        // Game-authored ready calls may precede rendering or describe a canvas
+        // outside the viewport. Only the server boot's layout check qualifies.
+        if (data.type === 'ready' && (data.boot !== true || data.visible !== true)) return;
         if (!state.project || state.previewProjectID !== state.project.id) return;
         const message = data.type === 'ready' ? '' : String(data.message || data.type).slice(0, 1000);
         const key = data.type + ':' + message;
@@ -663,7 +666,7 @@
         state.previewReported.add(key);
         if (state.previewGrant && state.previewGrant.validation_id) {
             state.api.reportPreview(state.previewProjectID, {
-                token: state.previewGrant.token, type: data.type, message
+                token: state.previewGrant.token, type: data.type, message, canvas_visible: data.type === 'ready'
             }).catch(error => {
                 if (!state.disposed) addDiagnostic(state, { level: 'error', message: error.message || String(error) });
             });

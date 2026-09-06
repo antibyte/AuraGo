@@ -155,6 +155,17 @@ const previewBootScript = `<script ` + previewBootMarker + `>
     if (!channel) return;
     parent.postMessage({ source: "aurago-game", type: type, channel: channel, message: String(message).slice(0, 1000) }, "*");
   }
+  // Engines also report failures for detached Image/Audio objects through the
+  // console; these do not reach window's error/unhandledrejection listeners.
+  var originalConsoleError = console.error;
+  console.error = function () {
+    originalConsoleError.apply(console, arguments);
+    var parts = [];
+    for (var i = 0; i < arguments.length && i < 8; i++) {
+      try { parts.push(String(arguments[i]).slice(0, 1000)); } catch (_) {}
+    }
+    reportError("runtime_error", parts.join(" "));
+  };
   window.addEventListener("error", function (event) {
     reportError(event.message ? "runtime_error" : "resource_error", event.message || "Failed to load game resource");
   }, true);
@@ -162,11 +173,29 @@ const previewBootScript = `<script ` + previewBootMarker + `>
     reportError("runtime_error", event.reason);
   });
   var readySent = false;
+  var startedAt = performance.now();
+  function visibleCanvas() {
+    var canvases = document.querySelectorAll("canvas");
+    for (var i = 0; i < canvases.length; i++) {
+      var canvas = canvases[i], rect = canvas.getBoundingClientRect();
+      var style = getComputedStyle(canvas);
+      if (canvas.width > 0 && canvas.height > 0 && rect.width > 0 && rect.height > 0 &&
+          rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth &&
+          style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0) return true;
+    }
+    return false;
+  }
   function notifyReady() {
     if (readySent || !channel || !document.querySelector("canvas")) return;
+    if (!visibleCanvas()) {
+      if (performance.now() - startedAt >= 1000) {
+        reportError("runtime_error", "Game canvas is hidden or outside the preview viewport. Mount the renderer in the visible game-root container (Phaser config parent: 'game-root') and check canvas layout.");
+      }
+      return;
+    }
     readySent = true;
     try {
-      parent.postMessage({ source: "aurago-game", type: "ready", channel: channel, canvas: true, boot: true }, "*");
+      parent.postMessage({ source: "aurago-game", type: "ready", channel: channel, canvas: true, boot: true, visible: true }, "*");
     } catch (_) {}
   }
   function tick() {
