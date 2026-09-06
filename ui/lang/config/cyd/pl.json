@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Wgraj na wyświetlacz",
   "config.cyd.flash_install": "Zainstaluj firmware",
   "config.cyd.flash_unsupported": "Brak Web Serial. Użyj Chrome lub Edge na HTTPS albo localhost.",
-  "config.cyd.flash_no_firmware": "Brak obrazów firmware na tym AuraGo. Zbuduj aurago-cyd albo ustaw CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Tworzenie tokenu wyświetlacza do firmware…",
   "config.cyd.flash_ready": "Gotowe do wgrania {version} ({variant}). Token i URL zostaną zapisane.",
   "config.cyd.flash_click_install": "Wybierz port szeregowy USB (CH340). Wyczyść, gdy zostaniesz zapytany.",

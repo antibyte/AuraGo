@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Flash display",
   "config.cyd.flash_install": "Installer firmware",
   "config.cyd.flash_unsupported": "Web Serial findes ikke. Brug Chrome eller Edge på HTTPS eller localhost.",
-  "config.cyd.flash_no_firmware": "Ingen firmware-images på denne AuraGo. Byg aurago-cyd eller sæt CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Opretter et display-token til firmwaren…",
   "config.cyd.flash_ready": "Klar til at flashe {version} ({variant}). Token og URL skrives med.",
   "config.cyd.flash_click_install": "Vælg USB-serieporten (CH340). Slet hvis du bliver spurgt.",

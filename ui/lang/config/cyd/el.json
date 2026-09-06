@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Flash οθόνης",
   "config.cyd.flash_install": "Εγκατάσταση firmware",
   "config.cyd.flash_unsupported": "Το Web Serial δεν είναι διαθέσιμο. Χρησιμοποιήστε Chrome ή Edge σε HTTPS ή localhost.",
-  "config.cyd.flash_no_firmware": "Δεν υπάρχουν εικόνες firmware σε αυτό το AuraGo. Φτιάξτε aurago-cyd ή ορίστε CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Δημιουργία token οθόνης για το firmware…",
   "config.cyd.flash_ready": "Έτοιμο για flash {version} ({variant}). Token και URL θα γραφτούν.",
   "config.cyd.flash_click_install": "Επιλέξτε τη σειριακή θύρα USB (CH340). Διαγράψτε αν ζητηθεί.",

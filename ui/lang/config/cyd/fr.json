@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Flasher l’écran",
   "config.cyd.flash_install": "Installer le micrologiciel",
   "config.cyd.flash_unsupported": "Web Serial indisponible. Utilisez Chrome ou Edge en HTTPS ou localhost.",
-  "config.cyd.flash_no_firmware": "Aucun image de micrologiciel sur cet AuraGo. Compilez aurago-cyd ou définissez CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Création d’un jeton d’écran à intégrer au micrologiciel…",
   "config.cyd.flash_ready": "Prêt à flasher {version} ({variant}). Jeton et URL seront provisionnés.",
   "config.cyd.flash_click_install": "Choisissez le port série USB (CH340). Effacez si demandé.",

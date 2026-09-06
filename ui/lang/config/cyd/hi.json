@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "डिस्प्ले फ़्लैश करें",
   "config.cyd.flash_install": "फ़र्मवेयर इंस्टॉल करें",
   "config.cyd.flash_unsupported": "Web Serial उपलब्ध नहीं. HTTPS या localhost पर Chrome या Edge इस्तेमाल करें.",
-  "config.cyd.flash_no_firmware": "इस AuraGo पर फ़र्मवेयर इमेज नहीं हैं. aurago-cyd बनाएँ या CYD_FIRMWARE_DIR सेट करें.",
   "config.cyd.flash_need_token": "फ़र्मवेयर के लिए डिस्प्ले टोकन बन रहा है…",
   "config.cyd.flash_ready": "{version} ({variant}) फ़्लैश के लिए तैयार. टोकन और URL लिखे जाएँगे.",
   "config.cyd.flash_click_install": "USB सीरियल पोर्ट चुनें (CH340). पूछे जाने पर मिटाएँ.",

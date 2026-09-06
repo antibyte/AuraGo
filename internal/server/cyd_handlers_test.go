@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -136,17 +135,6 @@ func TestCYDStatusHandlesNilConfig(t *testing.T) {
 }
 
 func TestCYDFirmwareStatusAndProvision(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "cyd")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"bootloader.bin", "partitions.bin", "boot_app0.bin", "firmware.bin"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("CYD_FIRMWARE_DIR", root)
 	s, _ := testCYDServer(t)
 
 	rec := httptest.NewRecorder()
@@ -179,8 +167,8 @@ func TestCYDFirmwareStatusAndProvision(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("file = %d %s", rec.Code, rec.Body.String())
 	}
-	if rec.Body.String() != "firmware.bin" {
-		t.Fatalf("body = %q", rec.Body.String())
+	if rec.Body.Len() < 1024 {
+		t.Fatalf("firmware.bin too small: %d", rec.Body.Len())
 	}
 
 	rec = httptest.NewRecorder()

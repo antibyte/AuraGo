@@ -1,8 +1,6 @@
 package cyd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -24,38 +22,24 @@ func TestEncodeFactoryBlobRoundTrip(t *testing.T) {
 }
 
 func TestDiscoverFirmwareFindsPack(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "cyd")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"bootloader.bin", "partitions.bin", "boot_app0.bin", "firmware.bin"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(dir, "version.txt"), []byte("0.2.1\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("CYD_FIRMWARE_DIR", root)
-	got := DiscoverFirmware("")
-	var cyd VariantInfo
+	got := DiscoverFirmware()
+	var pack VariantInfo
 	for _, v := range got {
 		if v.ID == "cyd" {
-			cyd = v
+			pack = v
 		}
 	}
-	if !cyd.Available {
-		t.Fatalf("cyd not available: %+v", cyd)
+	if !pack.Available {
+		t.Fatalf("cyd not available: %+v", pack)
 	}
-	if cyd.Version != "0.2.1" {
-		t.Fatalf("version=%q", cyd.Version)
+	if pack.Version == "" {
+		t.Fatal("missing bundled version")
 	}
-	path := FirmwareFilePath("", "cyd", "firmware.bin")
-	if path == "" {
-		t.Fatal("missing firmware path")
+	data, err := FirmwareBytes("cyd", "firmware.bin")
+	if err != nil || len(data) < 1024 {
+		t.Fatalf("firmware.bin: err=%v len=%d", err, len(data))
 	}
-	if FirmwareFilePath("", "cyd", "../secret.bin") != "" {
+	if _, err := FirmwareBytes("cyd", "../secret.bin"); err == nil {
 		t.Fatal("path traversal must be rejected")
 	}
 }

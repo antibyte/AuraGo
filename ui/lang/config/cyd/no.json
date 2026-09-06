@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Flash skjerm",
   "config.cyd.flash_install": "Installer fastvare",
   "config.cyd.flash_unsupported": "Web Serial er ikke tilgjengelig. Bruk Chrome eller Edge på HTTPS eller localhost.",
-  "config.cyd.flash_no_firmware": "Ingen fastvarebilder på denne AuraGo. Bygg aurago-cyd eller sett CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Oppretter et skjermtoken til fastvaren…",
   "config.cyd.flash_ready": "Klar til å flashe {version} ({variant}). Token og URL skrives med.",
   "config.cyd.flash_click_install": "Velg USB-serieporten (CH340). Slett hvis du blir spurt.",

@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "ディスプレイをフラッシュ",
   "config.cyd.flash_install": "ファームウェアをインストール",
   "config.cyd.flash_unsupported": "Web Serial が使えません。HTTPS または localhost の Chrome / Edge を使ってください。",
-  "config.cyd.flash_no_firmware": "この AuraGo にファームウェア画像がありません。aurago-cyd をビルドするか CYD_FIRMWARE_DIR を設定してください。",
   "config.cyd.flash_need_token": "ファームウェアに埋め込むトークンを作成しています…",
   "config.cyd.flash_ready": "{version} ({variant}) をフラッシュできます。トークンと URL を書き込みます。",
   "config.cyd.flash_click_install": "USB シリアルポート (CH340) を選んでください。求められたら消去します。",

@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "烧录屏幕",
   "config.cyd.flash_install": "安装固件",
   "config.cyd.flash_unsupported": "没有 Web Serial。请在 HTTPS 或 localhost 上使用 Chrome 或 Edge。",
-  "config.cyd.flash_no_firmware": "此 AuraGo 没有固件镜像。请编译 aurago-cyd 或设置 CYD_FIRMWARE_DIR。",
   "config.cyd.flash_need_token": "正在创建要写入固件的显示令牌…",
   "config.cyd.flash_ready": "可以烧录 {version}（{variant}）。将写入令牌和 URL。",
   "config.cyd.flash_click_install": "选择 USB 串口（CH340）。若提示则擦除。",

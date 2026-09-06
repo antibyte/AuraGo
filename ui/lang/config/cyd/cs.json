@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Nahrát na displej",
   "config.cyd.flash_install": "Nainstalovat firmware",
   "config.cyd.flash_unsupported": "Web Serial není k dispozici. Použijte Chrome nebo Edge na HTTPS nebo localhost.",
-  "config.cyd.flash_no_firmware": "Na tomto AuraGo nejsou obrazy firmwaru. Sestavte aurago-cyd nebo nastavte CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Vytvářím token displeje do firmwaru…",
   "config.cyd.flash_ready": "Připraveno nahrát {version} ({variant}). Token a URL se zapíší.",
   "config.cyd.flash_click_install": "Vyberte sériový port USB (CH340). Při výzvě smažte.",

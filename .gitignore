@@ -104,6 +104,9 @@ log/
 # Vaults
 *.vault
 *.bin
+!internal/cyd/firmware/
+!internal/cyd/firmware/**/
+!internal/cyd/firmware/**/*.bin
 
 # Audit reports
 CODE_AUDIT_REPORT.md

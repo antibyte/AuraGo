@@ -3,10 +3,8 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -399,13 +397,6 @@ func handleCYDWebSocket(s *Server) http.HandlerFunc {
 	}
 }
 
-func (s *Server) cydDataDir() string {
-	if s == nil || s.Cfg == nil {
-		return ""
-	}
-	return strings.TrimSpace(s.Cfg.Directories.DataDir)
-}
-
 func handleCYDFirmwareStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -415,7 +406,7 @@ func handleCYDFirmwareStatus(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		cfg := s.Cfg
 		s.CfgMu.RUnlock()
-		variants := cyd.DiscoverFirmware(s.cydDataDir())
+		variants := cyd.DiscoverFirmware()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"variants":          variants,
@@ -475,26 +466,15 @@ func handleCYDFirmwareFile(s *Server) http.HandlerFunc {
 			jsonError(w, "not found", http.StatusNotFound)
 			return
 		}
-		path := cyd.FirmwareFilePath(s.cydDataDir(), parts[0], parts[1])
-		if path == "" {
-			jsonError(w, "firmware image not found", http.StatusNotFound)
-			return
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			jsonError(w, "firmware image not found", http.StatusNotFound)
-			return
-		}
-		defer f.Close()
-		st, err := f.Stat()
+		data, err := cyd.FirmwareBytes(parts[0], parts[1])
 		if err != nil {
 			jsonError(w, "firmware image not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 		w.Header().Set("Cache-Control", "public, max-age=60")
-		_, _ = io.Copy(w, f)
+		_, _ = w.Write(data)
 	}
 }
 

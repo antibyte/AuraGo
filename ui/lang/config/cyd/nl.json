@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Display flashen",
   "config.cyd.flash_install": "Firmware installeren",
   "config.cyd.flash_unsupported": "Web Serial ontbreekt. Gebruik Chrome of Edge op HTTPS of localhost.",
-  "config.cyd.flash_no_firmware": "Geen firmware-images op deze AuraGo. Bouw aurago-cyd of zet CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Displaytoken maken om in de firmware te zetten…",
   "config.cyd.flash_ready": "Klaar om {version} ({variant}) te flashen. Token en URL worden meegeschreven.",
   "config.cyd.flash_click_install": "Kies de USB-seriepoort (CH340). Wis als daarom wordt gevraagd.",

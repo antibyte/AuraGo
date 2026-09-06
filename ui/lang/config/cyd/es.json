@@ -43,7 +43,6 @@
   "config.cyd.flash_btn": "Flashear pantalla",
   "config.cyd.flash_install": "Instalar firmware",
   "config.cyd.flash_unsupported": "Web Serial no está disponible. Usa Chrome o Edge en HTTPS o localhost.",
-  "config.cyd.flash_no_firmware": "No hay imágenes de firmware en este AuraGo. Compila aurago-cyd o define CYD_FIRMWARE_DIR.",
   "config.cyd.flash_need_token": "Creando un token de pantalla para el firmware…",
   "config.cyd.flash_ready": "Listo para flashear {version} ({variant}). Se grabarán token y URL.",
   "config.cyd.flash_click_install": "Elige el puerto serie USB (CH340). Borra si te lo pide.",

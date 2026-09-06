@@ -270,7 +270,6 @@ function cydUpdateFlashStatus() {
     }
     const info = cydVariantInfo(cydSelectedVariant());
     if (!info || !info.available) {
-        el.textContent = t('config.cyd.flash_no_firmware');
         if (btn) btn.disabled = true;
         return;
     }
@@ -303,7 +302,7 @@ async function cydFlashDisplay() {
         await cydLoadFirmwareStatus();
         const variant = cydSelectedVariant();
         const info = cydVariantInfo(variant);
-        if (!info || !info.available) throw new Error(t('config.cyd.flash_no_firmware'));
+        if (!info || !info.available) return;
         const token = await cydEnsureToken();
         const urlEl = document.getElementById('cyd-device-url');
         const url = urlEl ? String(urlEl.textContent || '').trim() : '';
@@ -312,7 +311,7 @@ async function cydFlashDisplay() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: url, token: token })
         });
-        if (!provResp.ok) throw new Error(t('config.cyd.flash_no_firmware'));
+        if (!provResp.ok) throw new Error(t('config.cyd.flash_need_token'));
         const provBuf = await provResp.arrayBuffer();
         const provURL = URL.createObjectURL(new Blob([provBuf], { type: 'application/octet-stream' }));
         const parts = (info.parts || []).map(function (p) {
@@ -342,6 +341,6 @@ async function cydFlashDisplay() {
         const install = document.getElementById('cyd-ewt-install');
         if (install) install.click();
     } catch (err) {
-        if (status) status.textContent = (err && err.message) ? err.message : t('config.cyd.flash_no_firmware');
+        if (status) status.textContent = (err && err.message) ? err.message : '';
     }
 }

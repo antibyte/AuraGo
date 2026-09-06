@@ -47,6 +47,9 @@ func TestCYDConfigModuleWiresContentRoot(t *testing.T) {
 	if strings.Contains(src, "getElementById('cfg-content')") || strings.Contains(src, `getElementById("cfg-content")`) {
 		t.Fatal("cfg/cyd.js must render into #content, not #cfg-content")
 	}
+	if strings.Contains(src, "flash_no_firmware") || strings.Contains(src, "CYD_FIRMWARE_DIR") {
+		t.Fatal("cfg/cyd.js must not mention missing firmware images or CYD_FIRMWARE_DIR")
+	}
 	for _, marker := range []string{
 		"getElementById('content')",
 		"function renderCYDSection",
