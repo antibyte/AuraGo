@@ -84,6 +84,20 @@ https://docs.phaser.io/phaser/concepts/animations
 
 ## Direction, physics, and restart
 
+Arcade dynamic bodies and static bodies have different APIs. The template helper
+`this.body(x,y,w,h,color,fixed)` returns a Rectangle game object; `fixed=true`
+creates a StaticBody for stationary walls/bricks, never a moving paddle/player.
+Keep moving paddles dynamic (`fixed=false`) and use
+`paddle.body.setImmovable(true).setAllowGravity(false)` for collision resistance.
+`paddle.body.setVelocity(vx,vy)` requires a dynamic body. Neither Arcade body type
+has `setPosition`: use `paddle.body.reset(x,y)` to teleport and synchronize the
+object, or `paddle.setPosition(x,y)` for the game object. After moving/resizing a
+static Rectangle, call `paddle.body.updateFromGameObject()`; Rectangle itself has
+no physics Sprite mixins such as `refreshBody()` or `setVelocity()`.
+For "body.setVelocity/setPosition is not a function", inspect body creation and
+every affected movement/reset call before validating. Do not suppress the error
+with optional chaining or disable movement/collision to make startup pass.
+
 Use setFacing(object,dx,dy): zero vector retains the last facing; four-view art
 selects the dominant axis (ties horizontal). Side-view art uses only horizontal
 facing. Rotatable art uses atan2(dy,dx) minus metadata.forward_radians. Phaser

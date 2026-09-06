@@ -211,6 +211,14 @@ visual status and the compiled bundle SHA-256. Plans and reports travel with
 revisions and are excluded from export. Later preview errors accompany the next
 change request as untrusted diagnostics.
 
+For Phaser errors such as `body.setVelocity is not a function` or
+`body.setPosition is not a function`, validation includes targeted repair guidance:
+moving players/paddles need dynamic Arcade bodies, while position changes use the
+game object or the body's `reset` method. The initial attempt and three repair
+passes remain the limit; suppressing errors does not count as a repair. Expired
+or finished validation previews stop submitting reports, so a late token rejection
+does not appear as another game error. Published-game errors remain visible.
+
 Restoring an older revision creates a new revision and keeps the complete
 history. ZIP export contains:
 

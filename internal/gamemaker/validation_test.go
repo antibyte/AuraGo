@@ -58,6 +58,35 @@ func TestPreviewBootObservesErrorsBeforeGameScripts(t *testing.T) {
 	}
 }
 
+func TestPreviewPhysicsErrorsIncludeBoundedRepairGuidance(t *testing.T) {
+	s := newTestService(t)
+	s.previewCheck = &previewCheck{ID: "build", JobID: "job"}
+	s.activeJobID = "job"
+	s.tokens["token"] = previewToken{ProjectID: "project", JobID: "job", ValidationID: "build", ExpiresAt: time.Now().Add(time.Minute)}
+	for _, method := range []string{"setVelocity", "setPosition"} {
+		message := "Uncaught TypeError: this.paddle.body." + method + " is not a function"
+		for range 2 {
+			if err := s.ReportPreview("project", PreviewReport{Token: "token", Type: "runtime_error", Message: message}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	result := s.waitForPreview(context.Background(), s.previewCheck, time.Millisecond)
+	if result.OK || len(result.Diagnostics) != 2 {
+		t.Fatalf("physics errors were lost or duplicated: %+v", result)
+	}
+	for _, d := range result.Diagnostics {
+		if !strings.Contains(d.Message, "fixed=false") || !strings.Contains(d.Message, "body.reset(x,y)") || strings.Count(d.Message, "Arcade Physics:") != 1 || len([]rune(d.Message)) > 1000 {
+			t.Fatalf("missing or repeated physics repair guidance: %s", d.Message)
+		}
+	}
+	for _, phase := range []string{"building", "repair"} {
+		if guide := PhaseGuidance(phase, "2d"); !strings.Contains(guide, "Neither Arcade body type") || !strings.Contains(guide, "fixed=false") {
+			t.Fatalf("%s lacks the reviewed physics API contract", phase)
+		}
+	}
+}
+
 func TestPreviewValidationWaitsBeyondFirstSpawnTimer(t *testing.T) {
 	s := newTestService(t)
 	check := &previewCheck{ID: "spawn", JobID: "job", ReadyAt: time.Now().Add(-1500 * time.Millisecond)}

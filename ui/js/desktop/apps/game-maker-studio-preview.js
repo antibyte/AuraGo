@@ -4,6 +4,11 @@
     // Preview helpers for Game Maker Studio: loading overlay, stale badge,
     // fullscreen, and opening the sandboxed preview in a new tab.
 
+    function validationActive(state, grant) {
+        return grant && state.previewGrant === grant && Date.parse(grant.expires_at) > Date.now()
+            && !['ready', 'failed', 'cancelled'].includes(state.job?.status);
+    }
+
     function handleMessage(state, event) {
         if (!state.frame || event.source !== state.frame.contentWindow) return;
         const data = event.data;
@@ -14,6 +19,7 @@
         // outside the viewport. Only the server boot's layout check qualifies.
         if (data.type === 'ready' && (data.boot !== true || data.visible !== true)) return;
         if (!state.project || state.previewProjectID !== state.project.id) return;
+        if (state.previewGrant?.validation_id && !validationActive(state, state.previewGrant)) return;
         if (data.type === 'gameplay') {
             if (!state.previewGrant?.validation_id || state.previewReported.has('gameplay')) return;
             if (!Array.isArray(data.observations) || data.observations.length > 16) return;
@@ -23,7 +29,7 @@
             state.previewReported.add('gameplay');
             const grant = state.previewGrant;
             state.api.reportPreview(state.previewProjectID, payload).catch(error => {
-                if (!state.disposed && state.previewGrant === grant) state.addDiagnostic({ level: 'error', message: error.message || String(error) });
+                if (!state.disposed && validationActive(state, grant)) state.addDiagnostic({ level: 'error', message: error.message || String(error) });
             });
             return;
         }
@@ -37,7 +43,7 @@
             state.api.reportPreview(state.previewProjectID, {
                 token: state.previewGrant.token, type: data.type, message, canvas_visible: data.type === 'ready'
             }).catch(error => {
-                if (!state.disposed && state.previewGrant === grant && state.frame === frame && state.previewProjectID === state.project.id) {
+                if (!state.disposed && validationActive(state, grant) && state.frame === frame && state.previewProjectID === state.project.id) {
                     state.addDiagnostic({ level: 'error', message: error.message || String(error) });
                 }
             });

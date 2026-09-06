@@ -591,6 +591,9 @@ registration lives in `internal/desktop/types.go`.
   Clear the visible diagnostics, error badge, and next-request diagnostics when
   replacing a preview or opening a project. Late responses from an old preview
   must not repopulate them; a ready message never clears current-run errors.
+  Stop validation reports when the grant expires or its job reaches a terminal
+  state, including late API failures. Published-game runtime diagnostics remain
+  visible locally.
 - Because the preview sandbox is opaque, game diagnostics must
   `postMessage(..., "*")` (never `location.origin`, which is the string
   `"null"`). The parent still validates source/channel/`event.source`.

@@ -134,7 +134,7 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   let submitted;
   const state = {
     frame: { contentWindow: {} }, project: { id: 'snake' }, channelID: 'channel',
-    previewProjectID: 'snake', previewGrant: { token: 'parent-only-token', validation_id: 'build' },
+    previewProjectID: 'snake', previewGrant: { token: 'parent-only-token', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() },
     previewReported: new Set(), previewDiagnostics: [], messages: [], selectedAssetPackIDs: ['space-shooter'],
     api: {
       async reportPreview(id, report) { sent.push({ id, ...report }); },
@@ -146,6 +146,8 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
     autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {}
   };
   vm.runInNewContext(sourceBetween(app, 'function handlePreviewMessage(', 'function addDiagnostic('), context);
+  vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
+  state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
   vm.runInNewContext(sourceBetween(app, 'async function submitChange(', 'async function stopJob('), context);
   const data = { source: 'aurago-game', channel: 'channel', type: 'runtime_error',
     message: 'Uncaught TypeError: this.scale.setSize is not a function' };
@@ -238,7 +240,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
       if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {} });
       return nodes.get(selector);
     } },
-    api: { async previewGrant() { return { url: '/preview', validation_id: 'build' }; } }
+    api: { async previewGrant() { return { url: '/preview', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() }; } }
   };
   let nextChannel = 0;
   const context = {
@@ -246,6 +248,10 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
     document: { createElement: () => ({ contentWindow: {}, setAttribute() {} }) }
   };
   vm.runInNewContext(sourceBetween(app, 'async function refreshPreview(', 'function showCreateModal('), context);
+  vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
+  // Loading overlays have their own DOM/lifecycle test below.
+  context.window.GameMakerStudioPreview.showLoading = () => {};
+  state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
   await context.refreshPreview(state);
   let rejectReport;
   state.api.reportPreview = () => new Promise((_resolve, reject) => { rejectReport = reject; });
@@ -288,6 +294,41 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   context.clearDiagnostics(state);
   assert.equal(nodes.get('[data-gm-diagnostic-count]').textContent, '0');
   assert.match(sourceBetween(app, 'async function openProject(', 'function renderProject('), /clearDiagnostics\(state\)/);
+}
+
+async function testGameMakerPreviewStopsExpiredValidation() {
+  const window = {};
+  vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), { window });
+  const shown = [], sent = [];
+  let reject;
+  const state = {
+    frame: { contentWindow: {} }, project: { id: 'breakout' }, previewProjectID: 'breakout',
+    channelID: 'channel', job: { status: 'building' }, previewReported: new Set(), previewDiagnostics: [],
+    previewGrant: { token: 'token', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() },
+    addDiagnostic: item => shown.push(item),
+    api: { reportPreview: (...args) => { sent.push(args); return new Promise((_, fail) => { reject = fail; }); } }
+  };
+  const event = { source: state.frame.contentWindow, data: { source: 'aurago-game', channel: 'channel', type: 'runtime_error', message: 'this.paddle.body.setVelocity is not a function' } };
+  window.GameMakerStudioPreview.handleMessage(state, event);
+  assert.equal(sent.length, 1);
+  assert.equal(shown.length, 1);
+  state.previewGrant.expires_at = new Date(Date.now() - 1000).toISOString();
+  reject(new Error('invalid or expired preview token'));
+  await Promise.resolve();
+  assert.equal(shown.length, 1, 'expiry during an in-flight report must not add a misleading game error');
+  window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, message: 'late error' } });
+  window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, type: 'gameplay', observations: [] } });
+  assert.equal(sent.length, 1, 'expired validation must not send more reports');
+  state.previewGrant.expires_at = new Date(Date.now() + 60000).toISOString();
+  for (const status of ['failed', 'cancelled', 'ready']) {
+    state.job.status = status;
+    window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, message: status } });
+  }
+  assert.equal(sent.length, 1, 'terminal jobs must not report against the old validation grant');
+  assert.equal(shown.length, 1);
+  state.previewGrant = { token: 'published', validation_id: '' };
+  window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, message: 'published gameplay error' } });
+  assert.equal(shown.length, 2, 'published-game diagnostics must remain visible');
 }
 
 function testGameMakerBootDetectsInvisibleCanvasAndEngineErrors() {
@@ -1846,6 +1887,7 @@ function testLocalLLMFamilySelection() {
 const tests = [
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
+  ['Game Maker stops reports from expired or finished validation', testGameMakerPreviewStopsExpiredValidation],
   ['Game Maker boot rejects invisible canvases and captures engine errors', testGameMakerBootDetectsInvisibleCanvasAndEngineErrors],
   ['Desktop media keys are visible to bootstrap', testDesktopMediaKeysAreInBootstrapScope],
   ['Game Maker forwards runtime diagnostics to validation and the next change', testGameMakerPreviewDiagnosticsReachValidationAndNextRequest],

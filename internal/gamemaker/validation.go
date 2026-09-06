@@ -37,6 +37,11 @@ func boundedPreviewDiagnostics(input []Diagnostic) []Diagnostic {
 		if message == "" {
 			continue
 		}
+		if strings.Contains(message, "is not a function") &&
+			(strings.Contains(message, ".body.setVelocity") || strings.Contains(message, ".body.setPosition")) &&
+			!strings.Contains(message, "\nArcade Physics:") {
+			message += "\nArcade Physics: inspect body creation. Moving paddles/players need dynamic bodies (template fixed=false); use setImmovable(true) instead of a StaticBody. Only dynamic bodies have setVelocity. Bodies have no setPosition: use body.reset(x,y), or gameObject.setPosition(x,y) and updateFromGameObject() for a static body. Preserve movement and collisions; do not silence the error."
+		}
 		runes := []rune(message)
 		if len(runes) > 1000 {
 			message = string(runes[:1000])
