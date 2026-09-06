@@ -172,7 +172,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 			ToolCallID: ptc.NativeCallID,
 		})
 		if circuitBreakerOpen {
-			appendCircuitBreakerSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker)
+			appendSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker, notExecutedDueToCircuitBreakerResult())
 			s.req.Tools = nil
 			s.req.ToolChoice = "none"
 		}
@@ -353,7 +353,7 @@ func executeAgentToolTurn(
 					ToolCallID: tc.NativeCallID,
 				}, resultID, false, true)
 			}
-			appendCircuitBreakerSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker)
+			appendSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker, notExecutedDueToCircuitBreakerResult())
 		} else {
 			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, syntheticResult, false, true)
 			if resultErr != nil {
@@ -570,6 +570,9 @@ func executeAgentToolTurn(
 		circuitBreakerOpen := false
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
+			if finishCompletedRun(s) {
+				break
+			}
 			if s.helperManager != nil && len(nativePendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
 				nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, nativeDispatchCtx, s.helperManager, lastUserMsg)
 			}
@@ -703,6 +706,9 @@ func executeAgentToolTurn(
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
 
+	if finishCompletedRun(s) {
+		return openai.ChatCompletionResponse{}, ctx.Err(), false
+	}
 	select {
 	case <-time.After(time.Duration(cfg.Agent.StepDelaySeconds) * time.Second):
 		return resp, nil, true
@@ -715,14 +721,24 @@ func notExecutedDueToCircuitBreakerResult() string {
 	return `{"status":"error","code":"not_executed_due_to_circuit_breaker","message":"Tool call was declared but not executed because the duplicate-call circuit breaker terminated this tool chain."}`
 }
 
-func appendCircuitBreakerSkippedNativeResults(s *agentLoopState, stm *memory.SQLiteMemory, history *memory.HistoryManager, sessionID string, broker FeedbackBroker) {
+func finishCompletedRun(s *agentLoopState) bool {
+	if s.runCfg.RunComplete == nil || !s.runCfg.RunComplete() {
+		return false
+	}
+	appendSkippedNativeResults(s, s.runCfg.ShortTermMem, s.runCfg.HistoryManager, s.runCfg.SessionID, s.broker,
+		`{"status":"skipped","code":"not_executed_after_run_completion","message":"The server completed this phase; remaining calls were not executed."}`)
+	s.pendingTCs = nil
+	s.pendingSummaryBatch = nil
+	return true
+}
+
+func appendSkippedNativeResults(s *agentLoopState, stm *memory.SQLiteMemory, history *memory.HistoryManager, sessionID string, broker FeedbackBroker, content string) {
 	for len(s.pendingTCs) > 0 && strings.TrimSpace(s.pendingTCs[0].NativeCallID) != "" {
 		tc := s.pendingTCs[0]
 		s.pendingTCs = s.pendingTCs[1:]
-		content := notExecutedDueToCircuitBreakerResult()
 		resultID, resultErr := stm.InsertMessage(sessionID, openai.ChatMessageRoleTool, content, false, true)
 		if resultErr != nil && s.currentLogger != nil {
-			s.currentLogger.Error("Failed to persist circuit-breaker skipped tool result", "error", resultErr)
+			s.currentLogger.Error("Failed to persist skipped tool result", "error", resultErr)
 		}
 		if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
 			history.AddMessage(openai.ChatCompletionMessage{Role: openai.ChatMessageRoleTool, Content: content, ToolCallID: tc.NativeCallID}, resultID, false, true)

@@ -414,6 +414,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}},
 			}, nil
 		}
+		if finishCompletedRun(s) {
+			return openai.ChatCompletionResponse{}, ctx.Err()
+		}
 
 		// Revive logic: If idle in maintenance for too long, poke the agent.
 		if isMaintenance && time.Since(lastActivity) > time.Duration(cfg.CircuitBreaker.MaintenanceTimeoutMinutes)*time.Minute {

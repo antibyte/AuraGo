@@ -152,6 +152,10 @@ The provider-compatible tool schema advertises `plan` as a JSON object string;
 native calls also accept the object directly. Both formats and XML fallback calls
 preserve the complete plan before validation. Field-specific errors survive a new
 planning round and appear in the final failure if corrections are exhausted.
+Acceptance or exhausted corrections ends the agent round immediately through a
+server-owned completion check. The model does not need to produce a final sentence
+or a done marker to trigger the next phase. Remaining calls in the same native
+batch receive skipped results without execution; tool limits remain unchanged.
 `get_plan` reads `.aurago/game-plan.json`; `set_plan` validates and writes it during
 planning. Plans include goal/loop/scope, template, perspective, resolution/camera,
 controls/states/rules, exact asset/version/animation/assembly references, visual

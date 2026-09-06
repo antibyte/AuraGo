@@ -26,6 +26,9 @@ func TestPlanPhaseLocksMutationsAndBoundsCorrections(t *testing.T) {
 		if run.Stage != "planning" {
 			return errors.New("invalid plan entered building")
 		}
+		if s.PlanningComplete(run.Job.ID) || s.PlanningComplete("unknown-job") {
+			t.Error("unsubmitted plan completed planning")
+		}
 		for _, err := range []error{
 			s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "bad"),
 			func() error { _, e := s.ImportAssetPack(ctx, run.Job.ID, "space-shooter"); return e }(),
@@ -38,9 +41,12 @@ func TestPlanPhaseLocksMutationsAndBoundsCorrections(t *testing.T) {
 				t.Errorf("planning write gate: %v", err)
 			}
 		}
-		for range 3 {
+		for attempt := range 3 {
 			if err := s.SetPlan(ctx, run.Job.ID, GamePlan{}); err == nil {
 				t.Error("invalid plan accepted")
+			}
+			if s.PlanningComplete(run.Job.ID) != (attempt == 2) {
+				t.Error("completion does not match the correction budget")
 			}
 		}
 		if err := s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(project)); err == nil || !strings.Contains(err.Error(), "limit") {

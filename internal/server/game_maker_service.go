@@ -224,6 +224,9 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	runCfg.UserIntent = run.Job.Prompt
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true
+	if run.Stage == "planning" {
+		runCfg.RunComplete = func() bool { return r.service.PlanningComplete(run.Job.ID) }
+	}
 	runCfg.IsMission = true
 	runCfg.VoiceOutputActive = false
 

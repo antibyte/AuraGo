@@ -69,6 +69,14 @@ func templateNames() []string {
 	return []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three"}
 }
 
+// PlanningComplete ends the internal agent round; the orchestrator alone decides
+// whether the accepted plan advances to building or exhausted corrections fail.
+func (s *Service) PlanningComplete(jobID string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.activeJobID == jobID && (s.acceptedPlans[jobID] || s.planAttempts[jobID] >= 3)
+}
+
 func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) {
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {

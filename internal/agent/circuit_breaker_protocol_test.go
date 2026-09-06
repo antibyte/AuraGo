@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestCircuitBreakerCompletesEveryRemainingNativeToolCallWithoutDispatch(t *t
 		},
 	}
 
-	appendCircuitBreakerSkippedNativeResults(s, stm, history, "test-session", NoopBroker{})
+	appendSkippedNativeResults(s, stm, history, "test-session", NoopBroker{}, notExecutedDueToCircuitBreakerResult())
 	if len(s.pendingTCs) != 0 {
 		t.Fatalf("pending calls = %#v", s.pendingTCs)
 	}
@@ -41,6 +42,58 @@ func TestCircuitBreakerCompletesEveryRemainingNativeToolCallWithoutDispatch(t *t
 		if msg.ToolCallID != wantID || !strings.Contains(msg.Content, "not_executed_due_to_circuit_breaker") {
 			t.Fatalf("result %d = %#v", i, msg)
 		}
+	}
+}
+
+func TestRunCompletionClosesNativeBatchWithoutAnotherDispatch(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "phase-complete", "game_maker")
+	defer cleanup()
+	s := &agentLoopState{runCfg: runCfg, broker: NoopBroker{}, currentLogger: runCfg.Logger,
+		pendingTCs: []ToolCall{{Action: "game_maker_file", NativeCallID: "next"}},
+		req: openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{ID: "done"}, {ID: "next"}}},
+			{Role: openai.ChatMessageRoleTool, ToolCallID: "done", Content: `{"status":"ok"}`},
+		}},
+	}
+	if finishCompletedRun(s) || len(s.pendingTCs) != 1 {
+		t.Fatal("nil completion hook changed normal runs")
+	}
+	s.runCfg.RunComplete = func() bool { return false }
+	if finishCompletedRun(s) || len(s.pendingTCs) != 1 {
+		t.Fatal("incomplete phase lost pending calls")
+	}
+	s.runCfg.RunComplete = func() bool { return true }
+	for range 2 {
+		if !finishCompletedRun(s) {
+			t.Fatal("completed phase continued")
+		}
+	}
+	if len(s.req.Messages) != 3 || len(s.pendingTCs) != 0 || s.toolCallCount != 0 {
+		t.Fatalf("completion dispatched or duplicated a result: %+v", s.req.Messages)
+	}
+	last := s.req.Messages[2]
+	if last.ToolCallID != "next" || !strings.Contains(last.Content, "not_executed_after_run_completion") {
+		t.Fatalf("missing skipped result: %+v", last)
+	}
+	if _, dropped := SanitizeToolMessages(s.req.Messages); dropped != 0 {
+		t.Fatalf("completion broke the native protocol: %d dropped", dropped)
+	}
+}
+
+func TestRunCompletionPreservesCancellation(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "phase-cancelled", "game_maker")
+	defer cleanup()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runCfg.RunComplete = func() bool { cancel(); return true }
+	runCfg.SuppressTurnSideEffects = true
+	client := &circuitBreakerSequenceClient{}
+	runCfg.LLMClient = client
+	_, err := ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Plan a game."}},
+	}, runCfg, false, NoopBroker{})
+	if !errors.Is(err, context.Canceled) || len(client.requests) != 0 {
+		t.Fatalf("completed phase swallowed cancellation or called the LLM: %v, calls=%d", err, len(client.requests))
 	}
 }
 
@@ -105,6 +158,7 @@ func TestToolLimitFinalResponseRejectsToolCallsWithoutPersistingThem(t *testing.
 			runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "tool-limit-final", "web_chat")
 			defer cleanup()
 			runCfg.Config.LLM.UseNativeFunctions = true
+			runCfg.SuppressTurnSideEffects = true
 			runCfg.Config.CircuitBreaker.MaxToolCalls = 1
 			client := &circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{first, tt.second}}
 			runCfg.LLMClient = client

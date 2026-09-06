@@ -62,6 +62,9 @@ acceptance. The initial submission has at most two corrections; fix the precise
 When the tool schema requests a string for `plan`, JSON-encode the complete plan
 object once as that parameter. AuraGo decodes it before validation. Keep all fields
 when correcting a plan; do not work around rejection by writing the plan file.
+The server ends the planning round as soon as it accepts the plan (or rejects the
+last allowed correction). Do not batch implementation calls with `set_plan`;
+remaining calls are skipped until the server starts the building round.
 
 Choose `shooter`, `platformer`, `topdown`, `blocks`, `board`, `minimal`, or `three`.
 The server installs a new 2D template once; edits keep their existing code.

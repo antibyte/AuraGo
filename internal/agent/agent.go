@@ -1129,6 +1129,10 @@ type RunConfig struct {
 	// activity and reuse-first work for privacy-sensitive transient sessions.
 	// It preserves the historical behavior when false.
 	SuppressTurnSideEffects bool
+	// RunComplete is an optional server-owned phase boundary. Once true, finish
+	// tool-result bookkeeping and return without another dispatch or LLM request.
+	// It must inspect authoritative state, never model prose or tool-output text.
+	RunComplete func() bool
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.
 	AllowedTools []string
