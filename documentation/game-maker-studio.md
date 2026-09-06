@@ -148,6 +148,10 @@ scene in the embedded Phaser skill and the six editable `templates/*.ts` example
 ## Internal plan and templates
 
 `game_maker_project inspect` returns next_action and a complete plan_example.
+The provider-compatible tool schema advertises `plan` as a JSON object string;
+native calls also accept the object directly. Both formats and XML fallback calls
+preserve the complete plan before validation. Field-specific errors survive a new
+planning round and appear in the final failure if corrections are exhausted.
 `get_plan` reads `.aurago/game-plan.json`; `set_plan` validates and writes it during
 planning. Plans include goal/loop/scope, template, perspective, resolution/camera,
 controls/states/rules, exact asset/version/animation/assembly references, visual

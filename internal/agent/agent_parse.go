@@ -1447,7 +1447,15 @@ func parseXMLParams(tc *ToolCall, body string) {
 			tc.Content = paramVal
 		case "query":
 			tc.Query = paramVal
-		case "task_prompt", "plan", "description":
+		case "plan":
+			// Keep the legacy task_prompt alias and the structured tool argument.
+			tc.TaskPrompt = paramVal
+			if tc.Params == nil {
+				tc.Params = make(map[string]interface{})
+			}
+			tc.Params["plan"] = paramVal
+			decodeNativeJSONStringObjectArgs(tc.Params)
+		case "task_prompt", "description":
 			tc.TaskPrompt = paramVal
 		case "prompt":
 			tc.Prompt = paramVal

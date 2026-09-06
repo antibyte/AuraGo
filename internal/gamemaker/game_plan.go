@@ -95,7 +95,7 @@ func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) 
 	return &plan, nil
 }
 
-func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) error {
+func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) (err error) {
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
 	if !s.policy.Enabled {
@@ -118,6 +118,17 @@ func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) erro
 	}
 	s.planAttempts[jobID]++
 	s.mu.Unlock()
+	// Preserve the actual field error across fresh planning rounds. A subsequent
+	// correction-limit rejection must not replace it with a generic message.
+	defer func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err == nil {
+			delete(s.planErrors, jobID)
+		} else {
+			s.planErrors[jobID] = err
+		}
+	}()
 	data, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode game plan: %w", err)

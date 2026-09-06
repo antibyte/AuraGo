@@ -56,6 +56,70 @@ func TestPlanPhaseLocksMutationsAndBoundsCorrections(t *testing.T) {
 	if finished.Status != "failed" || finished.ResultRevision != 0 {
 		t.Fatalf("invalid plan published: %+v", finished)
 	}
+	if !strings.Contains(finished.Error, "plan.schema_version: must be 1") {
+		t.Fatalf("last plan error hidden by correction limit: %s", finished.Error)
+	}
+}
+
+func TestPlanningRoundsRetainFieldError(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	rounds := 0
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage != "planning" {
+			return errors.New("invalid plan entered building")
+		}
+		if rounds > 0 && (len(run.Diagnostics) != 1 || run.Diagnostics[0].Message != "plan.controls.restart: describe the input") {
+			t.Errorf("field correction lost across rounds: %+v", run.Diagnostics)
+		}
+		rounds++
+		p := ExampleGamePlan(project)
+		delete(p.Controls, "restart")
+		if err := s.SetPlan(ctx, run.Job.ID, p); err == nil {
+			t.Error("missing restart accepted")
+		}
+		return nil
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := waitJob(t, s, job.ID)
+	if rounds != 3 || finished.Status != "failed" || !strings.Contains(finished.Error, "plan.controls.restart: describe the input") {
+		t.Fatalf("planning failure lost context: rounds=%d, %+v", rounds, finished)
+	}
+}
+
+func TestCorrectedPlanClearsObsoleteDiagnostics(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	rounds := 0
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage == "building" {
+			s.mu.RLock()
+			planErr := s.planErrors[run.Job.ID]
+			s.mu.RUnlock()
+			if len(run.Diagnostics) != 0 || planErr != nil {
+				t.Errorf("corrected plan retains error: %+v, %v", run.Diagnostics, planErr)
+			}
+			return errors.New("test reached building")
+		}
+		rounds++
+		p := ExampleGamePlan(project)
+		if rounds == 1 {
+			p.SchemaVersion = 0
+			_ = s.SetPlan(ctx, run.Job.ID, p)
+			return nil
+		}
+		return s.SetPlan(ctx, run.Job.ID, p)
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, s, job.ID); rounds != 2 || finished.Error != "test reached building" {
+		t.Fatalf("correction did not advance: rounds=%d, %+v", rounds, finished)
+	}
 }
 
 func TestPlanReferencesAndReadOnly(t *testing.T) {

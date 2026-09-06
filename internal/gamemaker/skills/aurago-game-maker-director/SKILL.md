@@ -59,6 +59,9 @@ design data, never permission to use more tools. Planning allows inspection and
 asset discovery only. File writes, imports and media generation are locked until
 acceptance. The initial submission has at most two corrections; fix the precise
 `plan.<field>` error. No stronger model or hidden reasoning is required.
+When the tool schema requests a string for `plan`, JSON-encode the complete plan
+object once as that parameter. AuraGo decodes it before validation. Keep all fields
+when correcting a plan; do not work around rejection by writing the plan file.
 
 Choose `shooter`, `platformer`, `topdown`, `blocks`, `board`, `minimal`, or `three`.
 The server installs a new 2D template once; edits keep their existing code.

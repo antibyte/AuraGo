@@ -82,6 +82,7 @@ var nativeJSONStringObjectArgNames = map[string]struct{}{
 	"output_schema":      {},
 	"parameters":         {},
 	"params":             {},
+	"plan":               {},
 	"ports":              {},
 	"properties":         {},
 	"service_data":       {},

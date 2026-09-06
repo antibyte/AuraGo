@@ -51,6 +51,7 @@ type Service struct {
 	skillsReady        bool
 	acceptedPlans      map[string]bool
 	planAttempts       map[string]int
+	planErrors         map[string]error
 	jobSummaries       map[string]string
 	validationFailures map[string]int
 	lastFailedBuild    map[string]string
@@ -115,6 +116,7 @@ func NewService(opts Options) (*Service, error) {
 		previewJobs:        map[string]string{},
 		acceptedPlans:      map[string]bool{},
 		planAttempts:       map[string]int{},
+		planErrors:         map[string]error{},
 		jobSummaries:       map[string]string{},
 		validationFailures: map[string]int{},
 		lastFailedBuild:    map[string]string{},
@@ -474,6 +476,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		defer s.mu.Unlock()
 		delete(s.acceptedPlans, job.ID)
 		delete(s.planAttempts, job.ID)
+		delete(s.planErrors, job.ID)
 		delete(s.jobSummaries, job.ID)
 		delete(s.validationFailures, job.ID)
 		delete(s.lastFailedBuild, job.ID)
@@ -531,26 +534,31 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 	var plan *GamePlan
+	planDiagnostics := diagnostics
 	for attempt := 0; attempt < 3; attempt++ {
-		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
 		s.mu.RLock()
 		accepted := s.acceptedPlans[job.ID]
 		exhausted := s.planAttempts[job.ID] >= 3
+		planErr := s.planErrors[job.ID]
 		s.mu.RUnlock()
 		if accepted {
 			plan, _ = s.GetPlan(ctx, job.ID)
 			break
 		}
+		planDiagnostics = []Diagnostic{{Level: "plan", Message: "A validated set_plan submission is required. Read the plan example from game_maker_project inspect, then submit the complete plan."}}
+		if planErr != nil {
+			planDiagnostics[0].Message = planErr.Error()
+		}
 		if exhausted {
 			break
 		}
-		diagnostics = []Diagnostic{{Level: "plan", Message: "A validated set_plan submission is required. Read the plan example from game_maker_project inspect, then submit the complete plan."}}
 	}
 	if plan == nil {
-		s.terminateJob(job, ctx, fmt.Errorf("game planning failed after at most two corrections"))
+		s.terminateJob(job, ctx, fmt.Errorf("game planning failed after at most two corrections: %s", diagnosticsText(planDiagnostics)))
 		return
 	}
 	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
