@@ -85,6 +85,14 @@ with the Pure-Go esbuild API, so Game Maker itself needs neither Docker nor a
 Node runtime. Successful validation atomically replaces the published project
 and records a revision whose file data is deduplicated in a SHA-256 blob store.
 
+Keep the project's Studio preview open during validation. After compiling,
+`game_maker_validate` waits up to 12 seconds for the browser to report a canvas
+and at least one second of startup without runtime/resource errors. Those errors
+are returned to the agent and the existing repair loop (at most three passes).
+Missing browser feedback blocks publication instead of claiming playability.
+This is a startup smoke check; controls and later gameplay still need testing.
+Errors observed later in the current preview accompany the next change request.
+
 Restoring an older revision creates a new revision and keeps the complete
 history. ZIP export contains:
 

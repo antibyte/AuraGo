@@ -29,7 +29,10 @@ func (s *Service) BuildJob(ctx context.Context, jobID string) BuildResult {
 	if result.OK {
 		s.mu.Lock()
 		s.previewJobs[job.ProjectID] = jobID
+		s.previewCheck = &previewCheck{ID: randomID("validation"), JobID: jobID}
+		result.check = s.previewCheck
 		s.mu.Unlock()
+		result.RuntimeStatus = "unverified"
 		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "preview_reload", map[string]any{"staging": true})
 	}
 	return result

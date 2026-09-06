@@ -134,8 +134,24 @@ func createTestProject(t *testing.T, service *Service, dimension string) Project
 func waitJob(t *testing.T, service *Service, id string) Job {
 	t.Helper()
 	deadline := time.Now().Add(8 * time.Second)
+	lastValidation := ""
 	for time.Now().Before(deadline) {
 		job, err := service.GetJob(context.Background(), id)
+		// These service fixtures model a successful browser startup. Runtime
+		// failures and missing browsers are exercised in validation_test.go.
+		service.mu.RLock()
+		validationID := ""
+		if service.previewCheck != nil {
+			validationID = service.previewCheck.ID
+		}
+		service.mu.RUnlock()
+		if err == nil && validationID != "" && validationID != lastValidation {
+			grant, grantErr := service.CreatePreviewGrant(job.ProjectID)
+			if grantErr == nil {
+				_ = service.ReportPreview(job.ProjectID, PreviewReport{Token: grant.Token, Type: "ready"})
+				lastValidation = grant.ValidationID
+			}
+		}
 		if err == nil && !activeJobStatus(job.Status) {
 			return job
 		}
@@ -636,7 +652,6 @@ func TestBundledSkillHashDriftSelfHeals(t *testing.T) {
 		}
 	}
 }
-
 
 func TestBuildDirectoryInjectsDiagnosticInterface(t *testing.T) {
 	ctx := context.Background()

@@ -23,9 +23,10 @@ import (
 var slugPartPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 type previewToken struct {
-	ProjectID string
-	JobID     string
-	ExpiresAt time.Time
+	ValidationID string
+	ProjectID    string
+	JobID        string
+	ExpiresAt    time.Time
 }
 
 // Service owns Game Maker Studio persistence and job publication.
@@ -35,18 +36,19 @@ type Service struct {
 	stagingDir string
 	blobDir    string
 
-	mu          sync.RWMutex
-	buildMu     sync.Mutex
-	runner      Runner
-	policyMu    sync.RWMutex
-	policy      Policy
-	activeJobID string
-	jobCancels  map[string]context.CancelFunc
-	subscribers map[string]map[chan Event]struct{}
-	tokens      map[string]previewToken
-	previewJobs map[string]string
-	skills      []SkillInfo
-	skillsReady bool
+	mu           sync.RWMutex
+	buildMu      sync.Mutex
+	runner       Runner
+	policyMu     sync.RWMutex
+	policy       Policy
+	activeJobID  string
+	jobCancels   map[string]context.CancelFunc
+	subscribers  map[string]map[chan Event]struct{}
+	tokens       map[string]previewToken
+	previewJobs  map[string]string
+	previewCheck *previewCheck
+	skills       []SkillInfo
+	skillsReady  bool
 }
 
 var (
@@ -448,11 +450,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
 	_, _ = s.emit(ctx, project.ID, job.ID, "job_status", map[string]any{"status": "queued", "job": job})
-	go s.executeJob(jobCtx, job, project)
+	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics))
 	return job, nil
 }
 
-func (s *Service) executeJob(ctx context.Context, job Job, project Project) {
+func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic) {
 	defer s.releaseJob(job.ID)
 	stage := filepath.Join(s.stagingDir, job.ID)
 	_ = os.RemoveAll(stage)
@@ -486,7 +488,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project) {
 		s.terminateJob(job, ctx, fmt.Errorf("game maker agent runner is unavailable"))
 		return
 	}
-	if err := runner.RunGameMakerJob(ctx, JobRun{Job: job, Project: project}); err != nil {
+	if err := runner.RunGameMakerJob(ctx, JobRun{Job: job, Project: project, Diagnostics: diagnostics}); err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			s.cancelledJob(job, ctx.Err())
 			return
@@ -498,18 +500,18 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project) {
 		s.terminateJob(job, ctx, err)
 		return
 	}
-	result := s.BuildJob(ctx, job.ID)
-	for attempt := 1; !result.OK && attempt <= 3; attempt++ {
+	result := s.ValidateJob(ctx, job.ID)
+	for attempt := 1; !result.OK && result.RuntimeStatus != "unavailable" && attempt <= 3; attempt++ {
 		repairJob := job
 		repairJob.Prompt = fmt.Sprintf(
-			"Repair validation attempt %d of 3. Diagnose and fix these build errors, then validate again: %s",
-			attempt, diagnosticsText(result.Diagnostics),
+			"%s\n\nRepair validation attempt %d of 3. Diagnose and fix the supplied build or browser errors, then validate again.",
+			job.Prompt, attempt,
 		)
 		if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		if err := runner.RunGameMakerJob(ctx, JobRun{Job: repairJob, Project: project}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Job: repairJob, Project: project, Diagnostics: result.Diagnostics}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
@@ -517,7 +519,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project) {
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		result = s.BuildJob(ctx, job.ID)
+		result = s.ValidateJob(ctx, job.ID)
 	}
 	if !result.OK {
 		s.terminateJob(job, ctx, fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics)))
@@ -639,6 +641,9 @@ func (s *Service) releaseJob(id string) {
 }
 
 func (s *Service) releaseJobLocked(id string) {
+	if s.previewCheck != nil && s.previewCheck.JobID == id {
+		s.previewCheck = nil
+	}
 	if cancel := s.jobCancels[id]; cancel != nil {
 		cancel()
 		delete(s.jobCancels, id)

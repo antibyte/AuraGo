@@ -30,14 +30,18 @@ func (s *Service) CreatePreviewGrant(projectID string) (PreviewGrant, error) {
 	token := hex.EncodeToString(raw[:])
 	expires := time.Now().UTC().Add(2 * time.Minute)
 	s.mu.Lock()
-	s.tokens[token] = previewToken{ProjectID: projectID, JobID: previewJobID, ExpiresAt: expires}
+	validationID := ""
+	if s.previewCheck != nil && s.previewCheck.JobID == previewJobID {
+		validationID = s.previewCheck.ID
+	}
+	s.tokens[token] = previewToken{ProjectID: projectID, JobID: previewJobID, ValidationID: validationID, ExpiresAt: expires}
 	for candidate, grant := range s.tokens {
 		if time.Now().After(grant.ExpiresAt) {
 			delete(s.tokens, candidate)
 		}
 	}
 	s.mu.Unlock()
-	return PreviewGrant{Token: token, URL: "/api/game-maker/preview/" + token + "/index.html", ExpiresAt: expires}, nil
+	return PreviewGrant{Token: token, URL: "/api/game-maker/preview/" + token + "/index.html", ExpiresAt: expires, ValidationID: validationID}, nil
 }
 
 // PreviewFile validates a token and returns one published project file. The
@@ -147,6 +151,16 @@ const previewBootScript = `<script ` + previewBootMarker + `>
   try {
     channel = new URLSearchParams(location.hash.replace(/^#/, "")).get("gm-channel") || "";
   } catch (_) {}
+  function reportError(type, message) {
+    if (!channel) return;
+    parent.postMessage({ source: "aurago-game", type: type, channel: channel, message: String(message).slice(0, 1000) }, "*");
+  }
+  window.addEventListener("error", function (event) {
+    reportError(event.message ? "runtime_error" : "resource_error", event.message || "Failed to load game resource");
+  }, true);
+  window.addEventListener("unhandledrejection", function (event) {
+    reportError("runtime_error", event.reason);
+  });
   var readySent = false;
   function notifyReady() {
     if (readySent || !channel || !document.querySelector("canvas")) return;
@@ -179,6 +193,12 @@ func injectPreviewBoot(data []byte) []byte {
 	}
 	html := string(data)
 	lower := strings.ToLower(html)
+	if idx := strings.Index(lower, "<head"); idx >= 0 {
+		if end := strings.IndexByte(lower[idx:], '>'); end >= 0 {
+			idx += end + 1
+			return []byte(html[:idx] + previewBootScript + html[idx:])
+		}
+	}
 	if idx := strings.LastIndex(lower, "</body>"); idx >= 0 {
 		return []byte(html[:idx] + previewBootScript + html[idx:])
 	}

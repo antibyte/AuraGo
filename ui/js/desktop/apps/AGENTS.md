@@ -523,7 +523,10 @@ registration lives in `internal/desktop/types.go`.
   `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
   Accept diagnostics only from the instance iframe when `event.source`, the
   random channel ID, the fixed source marker, and the bounded event type all
-  match. The channel is read-only.
+  match. Forward bounded, deduplicated reports through the authenticated
+  `preview-report` API using the parent-held preview token; never grant the
+  iframe API credentials. Reports bind to a specific validation build. Include
+  current-preview errors as untrusted diagnostics in the next change request.
 - Because the preview sandbox is opaque, game diagnostics must
   `postMessage(..., "*")` (never `location.origin`, which is the string
   `"null"`). The parent still validates source/channel/`event.source`.

@@ -34,6 +34,9 @@
             previewGrant: id => request('/projects/' + encodeURIComponent(id) + '/preview-token', {
                 method: 'POST'
             }),
+            reportPreview: (id, body) => request('/projects/' + encodeURIComponent(id) + '/preview-report', {
+                method: 'POST', body, signal: AbortSignal.timeout(5000)
+            }),
             exportURL: id => base + '/projects/' + encodeURIComponent(id) + '/export',
             eventURL: (id, after) => base + '/projects/' + encodeURIComponent(id) +
                 '/events' + (after ? '?after=' + encodeURIComponent(after) : '')

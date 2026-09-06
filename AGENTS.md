@@ -390,6 +390,12 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 - **FTS Migration State**: External-content FTS5 indexes for notes, journal entries, episodic memories, and activity turns use version `1` markers in `memory_schema_meta` (`fts.notes`, `fts.journal_entries`, `fts.episodic_memories`, `fts.activity_turns`). Missing or outdated markers require an FTS5 `rebuild`; write the marker only after a successful rebuild.
 
 ### Tool System
+
+- Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally
+  requires a build-bound browser startup check through the authenticated Studio
+  parent. Runtime errors feed the bounded repair loop; missing feedback prevents
+  publication. Diagnostics stay bounded, untrusted data and never become trusted
+  prompt instructions. A passed startup check does not certify all gameplay.
 Tools are defined in `internal/tools/`:
 - Each tool has a JSON schema definition
 - Tools are registered in the tool registry

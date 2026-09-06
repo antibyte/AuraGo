@@ -127,6 +127,52 @@ function testVersionedServiceWorkerRegistration() {
   assert.deepEqual(registrations, ['/sw.js?v=chat-build']);
 }
 
+async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
+  const app = read('ui/js/desktop/apps/game-maker-studio.js');
+  const sent = [];
+  const shown = [];
+  let submitted;
+  const state = {
+    frame: { contentWindow: {} }, project: { id: 'snake' }, channelID: 'channel',
+    previewProjectID: 'snake', previewGrant: { token: 'parent-only-token', validation_id: 'build' },
+    previewReported: new Set(), previewDiagnostics: [], messages: [],
+    api: {
+      async reportPreview(id, report) { sent.push({ id, ...report }); },
+      async startJob(id, body) { submitted = { id, ...body }; return { id: 'job', status: 'queued' }; }
+    }
+  };
+  const context = {
+    window: {}, addDiagnostic(_state, diagnostic) { shown.push(diagnostic); },
+    autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {}
+  };
+  vm.runInNewContext(sourceBetween(app, 'function handlePreviewMessage(', 'function addDiagnostic('), context);
+  vm.runInNewContext(sourceBetween(app, 'async function submitChange(', 'async function stopJob('), context);
+  const data = { source: 'aurago-game', channel: 'channel', type: 'runtime_error',
+    message: 'Uncaught TypeError: this.scale.setSize is not a function' };
+  const event = { source: state.frame.contentWindow, data };
+  context.handlePreviewMessage(state, { ...event, source: {} });
+  context.handlePreviewMessage(state, { ...event, data: { ...data, channel: 'old' } });
+  context.handlePreviewMessage(state, { ...event, data: { ...data, source: 'foreign' } });
+  assert.equal(sent.length, 0, 'foreign iframe reports must stay outside the API');
+  context.handlePreviewMessage(state, { ...event, data: { ...data, type: 'ready' } });
+  context.handlePreviewMessage(state, event);
+  context.handlePreviewMessage(state, event);
+  assert.equal(sent.length, 2, 'send ready plus one deduplicated runtime error');
+  assert.equal(sent[1].token, 'parent-only-token');
+  assert.equal(sent[1].message, data.message);
+  assert.equal(shown.length, 1);
+  const input = { value: 'Fix the snake', disabled: false };
+  const button = {};
+  const form = { querySelector(selector) { return selector.includes('button') ? button : input; } };
+  state.container = { querySelector() { return form; } };
+  await context.submitChange(state);
+  assert.equal(submitted.preview_diagnostics[0].message, data.message);
+  assert.equal(submitted.prompt, 'Fix the snake');
+  state.project = { id: 'other-project' };
+  context.handlePreviewMessage(state, { ...event, data: { ...data, message: 'late old error' } });
+  assert.equal(sent.length, 2, 'a switched project must not receive old preview reports');
+}
+
 function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
   const source = read('ui/js/desktop/apps/game-maker-studio-preview.js');
   const timers = new Map();
@@ -1641,6 +1687,7 @@ function testLocalLLMFamilySelection() {
 }
 
 const tests = [
+  ['Game Maker forwards runtime diagnostics to validation and the next change', testGameMakerPreviewDiagnosticsReachValidationAndNextRequest],
   ['local LLM family selection keeps model, context and draft settings valid', testLocalLLMFamilySelection],
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],

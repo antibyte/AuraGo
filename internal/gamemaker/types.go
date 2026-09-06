@@ -102,11 +102,12 @@ type Job struct {
 }
 
 type StartJobRequest struct {
-	Prompt          string `json:"prompt"`
-	ProviderID      string `json:"provider_id"`
-	Model           string `json:"model"`
-	ImageGeneration *bool  `json:"image_generation,omitempty"`
-	MusicGeneration *bool  `json:"music_generation,omitempty"`
+	PreviewDiagnostics []Diagnostic `json:"preview_diagnostics,omitempty"`
+	Prompt             string       `json:"prompt"`
+	ProviderID         string       `json:"provider_id"`
+	Model              string       `json:"model"`
+	ImageGeneration    *bool        `json:"image_generation,omitempty"`
+	MusicGeneration    *bool        `json:"music_generation,omitempty"`
 }
 
 type Event struct {
@@ -148,13 +149,16 @@ type Diagnostic struct {
 }
 
 type BuildResult struct {
-	OK          bool         `json:"ok"`
-	Diagnostics []Diagnostic `json:"diagnostics"`
+	check         *previewCheck
+	OK            bool         `json:"ok"`
+	Diagnostics   []Diagnostic `json:"diagnostics"`
+	RuntimeStatus string       `json:"runtime_status,omitempty"`
 }
 
 type JobRun struct {
-	Job     Job
-	Project Project
+	Job         Job
+	Project     Project
+	Diagnostics []Diagnostic
 }
 
 // Runner is implemented by the server layer to execute the AuraGo agent with
@@ -210,7 +214,8 @@ type Provider struct {
 }
 
 type PreviewGrant struct {
-	Token     string    `json:"token"`
-	URL       string    `json:"url"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ValidationID string    `json:"validation_id,omitempty"`
+	Token        string    `json:"token"`
+	URL          string    `json:"url"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }

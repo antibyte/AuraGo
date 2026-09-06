@@ -67,7 +67,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		return gameMakerToolJSON(map[string]any{"status": "ok", "path": path}), true
 
 	case "game_maker_validate":
-		result := service.BuildJob(ctx, jobID)
+		result := service.ValidateJob(ctx, jobID)
 		return gameMakerToolJSON(map[string]any{"status": gameMakerValidationStatus(result.OK), "result": result}), true
 
 	case "game_maker_asset":

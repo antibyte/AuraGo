@@ -153,6 +153,8 @@ func handleGameMakerProjectPath(s *Server) http.HandlerFunc {
 			jsonError(w, "Game Maker route not found", http.StatusNotFound)
 		case "preview-token":
 			handleGameMakerPreviewToken(w, r, s, projectID)
+		case "preview-report":
+			handleGameMakerPreviewReport(w, r, s, projectID)
 		case "export":
 			handleGameMakerExport(w, r, s, projectID)
 		default:
@@ -363,6 +365,25 @@ func handleGameMakerPreviewToken(w http.ResponseWriter, r *http.Request, s *Serv
 		return
 	}
 	writeGameMakerJSON(w, http.StatusCreated, grant)
+}
+
+func handleGameMakerPreviewReport(w http.ResponseWriter, r *http.Request, s *Server, projectID string) {
+	if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var report gamemaker.PreviewReport
+	if err := decodeGameMakerJSON(w, r, &report); err != nil {
+		return
+	}
+	if err := s.GameMaker.ReportPreview(projectID, report); err != nil {
+		handleGameMakerError(w, err)
+		return
+	}
+	writeGameMakerJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func handleGameMakerPreview(s *Server) http.HandlerFunc {

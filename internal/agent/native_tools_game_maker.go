@@ -34,7 +34,7 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 			}, "job_id", "kind", "prompt", "path"),
 		),
 		tool("game_maker_validate",
-			"Compile the current TypeScript game with Pure-Go esbuild and return bounded diagnostics. A successful build triggers a live preview reload.",
+			"Compile the game, reload the Studio preview, and wait for a browser startup check. Returns bounded build/runtime diagnostics; fix reported errors. An open Studio preview is required. A successful check covers startup only, not all gameplay.",
 			schema(map[string]interface{}{
 				"job_id": prop("string", "Active Game Maker job ID"),
 			}, "job_id"),

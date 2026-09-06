@@ -619,10 +619,16 @@
 
     async function refreshPreview(state) {
         if (!state.project) return;
+        const projectID = state.project.id;
+        const requestID = state.previewRequestID = (state.previewRequestID || 0) + 1;
         if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
         try {
-            const grant = await state.api.previewGrant(state.project.id);
-            if (state.disposed) return;
+            const grant = await state.api.previewGrant(projectID);
+            if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
+            state.previewGrant = grant;
+            state.previewProjectID = projectID;
+            state.previewDiagnostics = [];
+            state.previewReported = new Set();
             const channelID = crypto.getRandomValues(new Uint32Array(4)).join('-');
             state.channelID = channelID;
             const frame = document.createElement('iframe');
@@ -650,14 +656,27 @@
         if (!data || typeof data !== 'object' || data.channel !== state.channelID || data.source !== 'aurago-game') return;
         const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic']);
         if (!allowed.has(data.type)) return;
+        if (!state.project || state.previewProjectID !== state.project.id) return;
+        const message = data.type === 'ready' ? '' : String(data.message || data.type).slice(0, 1000);
+        const key = data.type + ':' + message;
+        if (state.previewReported.has(key) || state.previewReported.size >= 21) return;
+        state.previewReported.add(key);
+        if (state.previewGrant && state.previewGrant.validation_id) {
+            state.api.reportPreview(state.previewProjectID, {
+                token: state.previewGrant.token, type: data.type, message
+            }).catch(error => {
+                if (!state.disposed) addDiagnostic(state, { level: 'error', message: error.message || String(error) });
+            });
+        }
         if (data.type === 'ready') {
             if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
             else if (state.previewLoadClear) state.previewLoadClear();
             return;
         }
+        state.previewDiagnostics.push({ level: 'runtime', message });
         addDiagnostic(state, {
             level: 'runtime',
-            message: String(data.message || data.type).slice(0, 1000)
+            message
         });
     }
 
@@ -815,6 +834,7 @@
             scrollConversation(state);
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
+                preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });
