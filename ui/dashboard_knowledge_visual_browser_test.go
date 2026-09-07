@@ -116,6 +116,8 @@ window.KnowledgeGraphState = {
 	}
 
 	seed := `() => {
+    // Cold start in 2D, like a returning user with a stored 2D preference.
+    localStorage.setItem('aurago.dashboard.kgview.v1', '2d');
     const types = ['device', 'service', 'person', 'software', 'concept', 'network'];
     KnowledgeGraphState.nodes = Array.from({ length: 12 }, (_, i) => ({
         id: 'n' + i,
@@ -134,7 +136,33 @@ window.KnowledgeGraphState = {
 		t.Fatal("seeding the knowledge graph visual failed")
 	}
 
-	// 3D is the default view: WebGL constellation with starfield and glow nodes.
+	litPixels := `() => {
+    const c = document.getElementById('knowledge-graph-visual').querySelector('canvas');
+    const g = c.getContext('2d');
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let lit = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) lit++;
+    return lit;
+}`
+
+	// Cold-started 2D must paint immediately (regression: undefined node positions
+	// during the first paint used to kill the render loop and leave the canvas blank).
+	p.Timeout(15 * time.Second).MustWait(`() => {
+    const wrap = document.getElementById('knowledge-graph-visual');
+    return !!(wrap && wrap._kgRenderer === '2d' && wrap._forceGraph && wrap.querySelector('canvas'));
+}`)
+	time.Sleep(1500 * time.Millisecond)
+	if lit := p.MustEval(litPixels).Int(); lit < 500 {
+		t.Fatalf("cold-started 2D canvas painted only %d lit pixels", lit)
+	}
+	if errors := p.MustEval(`() => window.__errors.join(' | ')`).Str(); errors != "" {
+		t.Fatalf("cold-started 2D view raised page errors: %s", errors)
+	}
+
+	// 3D view: WebGL constellation with starfield and glow nodes.
+	if !p.MustEval(`() => { setKnowledgeGraphViewMode('3d'); return true; }`).Bool() {
+		t.Fatal("switching to 3D failed")
+	}
 	p.Timeout(20 * time.Second).MustWait(`() => {
     const wrap = document.getElementById('knowledge-graph-visual');
     return !!(wrap && wrap._kgRenderer === '3d' && wrap._forceGraph3d && wrap.querySelector('canvas'));
@@ -150,7 +178,7 @@ window.KnowledgeGraphState = {
 		t.Fatalf("3D view raised page errors: %s", errors)
 	}
 
-	// Switching to 2D disposes the WebGL instance and paints the upgraded canvas view.
+	// Switching back to 2D disposes the WebGL instance and paints the canvas view.
 	if !p.MustEval(`() => { setKnowledgeGraphViewMode('2d'); return true; }`).Bool() {
 		t.Fatal("switching to 2D failed")
 	}
@@ -159,14 +187,7 @@ window.KnowledgeGraphState = {
     return !!(wrap && wrap._kgRenderer === '2d' && wrap._forceGraph && !wrap._forceGraph3d && wrap.querySelector('canvas'));
 }`)
 	time.Sleep(1500 * time.Millisecond)
-	if lit := p.MustEval(`() => {
-    const c = document.getElementById('knowledge-graph-visual').querySelector('canvas');
-    const g = c.getContext('2d');
-    const d = g.getImageData(0, 0, c.width, c.height).data;
-    let lit = 0;
-    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) lit++;
-    return lit;
-}`).Int(); lit < 500 {
+	if lit := p.MustEval(litPixels).Int(); lit < 500 {
 		t.Fatalf("2D canvas painted only %d lit pixels", lit)
 	}
 

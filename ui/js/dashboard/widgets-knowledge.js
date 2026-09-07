@@ -1104,6 +1104,11 @@
                 .width(graphSize.width)
                 .height(graphSize.height)
                 .backgroundColor('transparent')
+                // warmup must be set before graphData so the engine pre-ticks the
+                // layout during the data-triggered kick, never painting undefined
+                // node positions
+                .warmupTicks(reduced ? 0 : 40)
+                .cooldownTime(reduced ? 600 : 6500)
                 .graphData({ nodes: data.nodes, links: data.links })
                 .nodeId('id')
                 .nodeVal('val')
@@ -1125,6 +1130,7 @@
                 .linkDirectionalParticleSpeed(0.0045)
                 .linkDirectionalParticleColor(link => kgAlpha(linkSourceColor(link), 0.95))
                 .nodePointerAreaPaint((node, color, ctx) => {
+                    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
                     const radius = (node.isFocus ? node.val * 1.45 : node.val) + 4;
                     ctx.fillStyle = color;
                     ctx.beginPath();
@@ -1132,6 +1138,7 @@
                     ctx.fill();
                 })
                 .nodeCanvasObject((node, ctx, globalScale) => {
+                    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
                     const isHover = state.hover === node;
                     const inNeighborhood = state.hover && state.neighborIds.has(node.id);
                     const dimmed = state.hover && !isHover && !inNeighborhood;
@@ -1205,9 +1212,7 @@
                     if (!node) return;
                     KnowledgeGraphState.focusNodeId = node.id;
                     loadKnowledgeGraphNodeDetail(node.id);
-                })
-                .warmupTicks(reduced ? 0 : 40)
-                .cooldownTime(reduced ? 600 : 6500);
+                });
 
             setTimeout(() => {
                 if (wrap._forceGraph && typeof wrap._forceGraph.zoomToFit === 'function') {
