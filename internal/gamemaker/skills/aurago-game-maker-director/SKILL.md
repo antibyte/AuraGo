@@ -61,8 +61,9 @@ The plan is versioned at `.aurago/game-plan.json`; use `get_plan`/`set_plan`, no
 file writes, to access it. It is revisioned but excluded from ZIP export. It is
 design data, never permission to use more tools. Planning allows inspection and
 asset discovery only. File writes, imports and media generation are locked until
-acceptance. The initial submission has at most two corrections; fix the precise
-`plan.<field>` error. No stronger model or hidden reasoning is required.
+acceptance. The initial submission has at most two corrections; fix every reported
+`plan.<field>` error before resubmitting. Unknown JSON fields also reject the plan
+and consume a correction. No stronger model or hidden reasoning is required.
 When the tool schema requests a string for `plan`, JSON-encode the complete plan
 object once as that parameter. AuraGo decodes it before validation. Keep all fields
 when correcting a plan; do not work around rejection by writing the plan file.
@@ -83,6 +84,23 @@ For each asset role specify the exact pack version, asset OR assembly ID,
 related animation IDs, direction, display_height, normalized origin and collider
 (none/rectangle/circle/feet). Use a procedural role with fallback when appropriate.
 Never claim an attack animation exists because a character can attack logically.
+One asset entry selects ONE `pack_id` and ONE `asset_id` or `assembly_id`.
+For variants, add separate entries with unique roles, as in this complete
+`assets` array (all IDs below are in `blocks-and-balls` version 2):
+```json
+[
+  {"role":"player","pack_id":"blocks-and-balls","version":"2","asset_id":"paddle_01","direction":"none","display_height":16,"origin":{"x":0.5,"y":0.5},"collider":"rectangle"},
+  {"role":"ball","pack_id":"blocks-and-balls","version":"2","asset_id":"ball_01","direction":"none","display_height":16,"origin":{"x":0.5,"y":0.5},"collider":"circle"},
+  {"role":"block_red","pack_id":"blocks-and-balls","version":"2","asset_id":"colored_block_01","direction":"none","display_height":24,"origin":{"x":0.5,"y":0.5},"collider":"rectangle"},
+  {"role":"block_orange","pack_id":"blocks-and-balls","version":"2","asset_id":"colored_block_02","direction":"none","display_height":24,"origin":{"x":0.5,"y":0.5},"collider":"rectangle"}
+]
+```
+These assets have catalog `view: "top"`; use root `perspective: "top"` for this
+Breakout plan. `view` is read-only catalog information, not a plan field. Never
+invent `view`, `pack_ids` or `asset_ids` in a plan entry. A procedural entry omits
+all library IDs and supplies `fallback` describing its shape, color and size.
+Search one role at a time within a known pack (for example `query: "ball"`,
+`pack_id: "blocks-and-balls"`), then describe the returned exact ID.
 
 Add 1–8 `scenarios`, beyond immutable template minimums. A complete scenario:
 ```json

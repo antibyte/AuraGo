@@ -152,9 +152,11 @@ func (s *Service) SearchAssets(query, packID, view string, limit int) ([]AssetSe
 			if view != "" && r.View != view {
 				return
 			}
-			text := strings.ToLower(r.Name + " " + r.Description + " " + strings.Join(tags, " ") + " " + p.ID)
+			text := strings.ToLower(r.AssetID + " " + r.AssemblyID + " " + r.Name + " " + r.Description + " " + strings.Join(tags, " "))
 			for _, term := range terms {
 				if strings.Contains(text, term) {
+					r.score += 2
+				} else if packID == "" && strings.Contains(p.ID, term) {
 					r.score++
 				}
 			}

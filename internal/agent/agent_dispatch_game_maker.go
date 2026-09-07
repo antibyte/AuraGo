@@ -53,11 +53,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			var plan gamemaker.GamePlan
-			if err = json.Unmarshal(data, &plan); err != nil {
-				return gameMakerToolError(err), true
-			}
-			if err = service.SetPlan(ctx, jobID, plan); err != nil {
+			if err = service.SetPlanJSON(ctx, jobID, data); err != nil {
 				return gameMakerToolError(err), true
 			}
 			return gameMakerToolJSON(map[string]any{"status": "ok", "next_action": "Plan accepted. End this planning turn; the server will import assets and start implementation."}), true

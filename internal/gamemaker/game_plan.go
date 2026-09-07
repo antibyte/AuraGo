@@ -1,9 +1,12 @@
 package gamemaker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -103,7 +106,17 @@ func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) 
 	return &plan, nil
 }
 
-func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) (err error) {
+func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) error {
+	data, err := json.Marshal(plan)
+	if err != nil {
+		return fmt.Errorf("encode game plan: %w", err)
+	}
+	return s.SetPlanJSON(ctx, jobID, data)
+}
+
+// SetPlanJSON validates model input before unknown fields can be discarded.
+// Syntax and schema failures consume the same bounded corrections as rule errors.
+func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) (err error) {
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
 	if !s.policy.Enabled {
@@ -137,7 +150,26 @@ func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) (err
 			s.planErrors[jobID] = err
 		}
 	}()
-	data, err := json.MarshalIndent(plan, "", "  ")
+	if len(data) > 32768 || int64(len(data)) > s.opts.MaxFileBytes {
+		return fmt.Errorf("game plan exceeds allowed size")
+	}
+	var plan GamePlan
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&plan); err != nil {
+		hint := "Use the exact fields in inspect.plan_example."
+		switch err.Error() {
+		case `json: unknown field "pack_ids"`, `json: unknown field "asset_ids"`:
+			hint = "Each assets entry accepts one pack_id and one asset_id (or assembly_id). Split variants into separate entries with unique roles; do not use pack_ids/asset_ids."
+		case `json: unknown field "view"`:
+			hint = "Asset view is read-only catalog metadata. Set the scene's plan.perspective to match it; do not add view to plan assets."
+		}
+		return fmt.Errorf("plan: %w. %s", err, hint)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return fmt.Errorf("plan: submit exactly one JSON object")
+	}
+	data, err = json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode game plan: %w", err)
 	}
@@ -251,52 +283,62 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		return bad("assets", "map 1–24 visual roles, including procedural graphics; limit assumptions to 12")
 	}
 	roles := map[string]bool{}
+	var assetErrors []error
 	for i, a := range p.Assets {
-		field := fmt.Sprintf("assets[%d]", i)
-		if strings.TrimSpace(a.Role) == "" || roles[a.Role] {
-			return bad(field+".role", "use a unique role")
-		}
-		roles[a.Role] = true
-		if !finite(a.DisplayHeight) || a.DisplayHeight <= 0 || a.DisplayHeight > 2048 || !validOrigin(a.Origin) {
-			return bad(field, "valid display_height and normalized origin required")
-		}
-		if !slices.Contains([]string{"none", "rectangle", "circle", "feet"}, a.Collider) {
-			return bad(field+".collider", "choose none, rectangle, circle or feet")
-		}
-		if !slices.Contains([]string{"up", "right", "down", "left", "none"}, a.Direction) {
-			return bad(field+".direction", "use up, right, down, left or none")
-		}
-		if a.PackID == "" {
-			if strings.TrimSpace(a.Fallback) == "" {
-				return bad(field+".fallback", "describe procedural/custom graphics")
+		err := func() error {
+			field := fmt.Sprintf("assets[%d]", i)
+			if strings.TrimSpace(a.Role) == "" || roles[a.Role] {
+				return bad(field+".role", "use a unique role")
 			}
-			if a.AssetID != "" || a.AssemblyID != "" || len(a.Animations) > 0 || a.Version != "" {
-				return bad(field+".pack_id", "library references require a known pack; omit library IDs for procedural graphics")
+			roles[a.Role] = true
+			if !finite(a.DisplayHeight) || a.DisplayHeight <= 0 || a.DisplayHeight > 2048 || !validOrigin(a.Origin) {
+				return bad(field, "valid display_height and normalized origin required")
 			}
-			continue
-		}
-		detail, err := s.describeAsset(a.PackID, a.AssetID, a.AssemblyID)
+			if !slices.Contains([]string{"none", "rectangle", "circle", "feet"}, a.Collider) {
+				return bad(field+".collider", "choose none, rectangle, circle or feet")
+			}
+			if !slices.Contains([]string{"up", "right", "down", "left", "none"}, a.Direction) {
+				return bad(field+".direction", "use up, right, down, left or none")
+			}
+			if a.PackID == "" {
+				if strings.TrimSpace(a.Fallback) == "" {
+					return bad(field+".fallback", "no pack_id supplied: describe procedural/custom graphics, or supply one pack_id and asset_id/assembly_id for library art")
+				}
+				if a.AssetID != "" || a.AssemblyID != "" || len(a.Animations) > 0 || a.Version != "" {
+					return bad(field+".pack_id", "library references require a known pack; omit library IDs for procedural graphics")
+				}
+				return nil
+			}
+			detail, err := s.describeAsset(a.PackID, a.AssetID, a.AssemblyID)
+			if err != nil {
+				return bad(field, fmt.Sprintf("asset_id=%q assembly_id=%q: %v", a.AssetID, a.AssemblyID, err))
+			}
+			if a.Version != detail.Version {
+				return bad(field+".version", "use version "+detail.Version)
+			}
+			if detail.Asset != nil && detail.Asset.AssemblyPart {
+				return bad(field, "select the complete assembly, not an isolated fragment")
+			}
+			view := detail.View
+			if project.Dimension == "2d" && (view == "side" && p.Perspective != "side" || view == "top" && p.Perspective == "side") {
+				return bad("perspective", fmt.Sprintf("%s uses %s-view art: set plan.perspective to %q or select compatible art; asset view is read-only catalog metadata", field, view, view))
+			}
+			if !detail.allowsDirection(a.Direction) {
+				return bad(field+".direction", "direction is not supported by this asset; choose a directional asset or an allowed transform")
+			}
+			for _, id := range a.Animations {
+				if !slices.ContainsFunc(detail.Animations, func(anim PackAnimation) bool { return anim.ID == id }) {
+					return bad(field+".animations", "unknown or unrelated animation "+id)
+				}
+			}
+			return nil
+		}()
 		if err != nil {
-			return bad(field, err.Error())
+			assetErrors = append(assetErrors, err)
 		}
-		if a.Version != detail.Version {
-			return bad(field+".version", "use version "+detail.Version)
-		}
-		if detail.Asset != nil && detail.Asset.AssemblyPart {
-			return bad(field, "select the complete assembly, not an isolated fragment")
-		}
-		view := detail.View
-		if project.Dimension == "2d" && (view == "side" && p.Perspective != "side" || view == "top" && p.Perspective == "side") {
-			return bad(field+".view", "asset perspective does not match the scene")
-		}
-		if !detail.allowsDirection(a.Direction) {
-			return bad(field+".direction", "direction is not supported by this asset; choose a directional asset or an allowed transform")
-		}
-		for _, id := range a.Animations {
-			if !slices.ContainsFunc(detail.Animations, func(anim PackAnimation) bool { return anim.ID == id }) {
-				return bad(field+".animations", "unknown or unrelated animation "+id)
-			}
-		}
+	}
+	if len(assetErrors) > 0 {
+		return errors.Join(assetErrors...)
 	}
 	if len(p.Scenarios) == 0 || len(p.Scenarios) > 8 {
 		return bad("scenarios", "provide 1–8 observable checks in addition to template checks")

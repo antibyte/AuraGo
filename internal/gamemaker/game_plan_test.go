@@ -160,6 +160,125 @@ func TestPlanReferencesAndReadOnly(t *testing.T) {
 	}
 }
 
+func TestBreakoutPlanCorrectionsPreserveAssetIntent(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	p := ExampleGamePlan(project)
+	p.Template = "blocks"
+	// Validate the documented array against the actual bundled pack IDs.
+	skill, err := os.ReadFile("skills/aurago-game-maker-director/SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, example, ok := strings.Cut(strings.ReplaceAll(string(skill), "\r\n", "\n"), "```json\n[\n")
+	if !ok {
+		t.Fatal("missing complete Breakout asset example")
+	}
+	example, _, _ = strings.Cut(example, "```")
+	if err := json.Unmarshal([]byte("[\n"+example), &p.Assets); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.checkPlan(project, p); err != nil {
+		t.Fatalf("documented Breakout plan rejected: %v", err)
+	}
+	rounds := 0
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage == "building" {
+			if len(run.Diagnostics) != 0 || len(run.Plan.Assets) != 4 || run.Plan.Assets[2].AssetID != "colored_block_01" {
+				t.Error("accepted plan lost variants or retained obsolete diagnostics")
+			}
+			return errors.New("test reached building")
+		}
+		rounds++
+		plan := p
+		plan.Assets = append([]PlanAsset(nil), p.Assets...)
+		if rounds < 3 {
+			plan.Perspective = "side"
+		}
+		if rounds == 2 {
+			plan.Assets[2].AssetID = "missing-block"
+		}
+		data, _ := json.Marshal(plan)
+		if rounds == 1 {
+			data = bytes.Replace(data, []byte(`"asset_id":"colored_block_01"`), []byte(`"asset_ids":["colored_block_01","colored_block_02"]`), 1)
+		}
+		err := s.SetPlanJSON(ctx, run.Job.ID, data)
+		if rounds == 1 && (err == nil || !strings.Contains(err.Error(), `unknown field "asset_ids"`) || !strings.Contains(err.Error(), "Split variants")) {
+			t.Errorf("plural IDs were silently lost: %v", err)
+		}
+		if rounds == 2 {
+			for _, want := range []string{"plan.perspective", `set plan.perspective to "top"`, "assets[2]", "missing-block"} {
+				if err == nil || !strings.Contains(err.Error(), want) {
+					t.Errorf("independent asset error %q missing: %v", want, err)
+				}
+			}
+		}
+		if rounds < 3 {
+			if s.PlanningComplete(run.Job.ID) {
+				t.Error("invalid plan accepted before correction")
+			}
+			return nil
+		}
+		return err
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, s, job.ID); rounds != 3 || finished.Error != "test reached building" {
+		t.Fatalf("bounded corrections failed: rounds=%d, %+v", rounds, finished)
+	}
+}
+
+func TestPlanSchemaErrorsExhaustCorrections(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage != "planning" {
+			return errors.New("schema-invalid plan entered building")
+		}
+		data, _ := json.Marshal(ExampleGamePlan(project))
+		for attempt, extra := range []string{`"pack_ids":["blocks-and-balls"]`, `"asset_ids":["ball_01"]`, `"view":"top"`} {
+			bad := bytes.Replace(data, []byte(`"role":"player"`), []byte(`"role":"player",`+extra), 1)
+			if err := s.SetPlanJSON(ctx, run.Job.ID, bad); err == nil || !strings.Contains(err.Error(), "unknown field") {
+				t.Errorf("unknown asset field was discarded: %v", err)
+			}
+			if s.PlanningComplete(run.Job.ID) != (attempt == 2) {
+				t.Error("schema error did not consume the shared correction budget")
+			}
+		}
+		if err := s.SetPlanJSON(ctx, run.Job.ID, data); err == nil || !strings.Contains(err.Error(), "limit") {
+			t.Errorf("fourth plan admitted: %v", err)
+		}
+		if plan, err := s.GetPlan(ctx, run.Job.ID); err != nil || plan != nil {
+			t.Error("invalid plan was persisted")
+		}
+		return nil
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, s, job.ID); !strings.Contains(finished.Error, `unknown field "view"`) || !strings.Contains(finished.Error, "plan.perspective") {
+		t.Fatalf("concrete schema correction was lost: %+v", finished)
+	}
+}
+
+func TestAssetSearchPrefersContentsOverPackName(t *testing.T) {
+	s := newTestService(t)
+	for _, packID := range []string{"", "blocks-and-balls"} {
+		for _, query := range []string{"ball", "ball circle bounce", "ball_01"} {
+			matches, err := s.SearchAssets(query, packID, "top", 6)
+			if err != nil || len(matches) == 0 || matches[0].AssetID != "ball_01" {
+				t.Fatalf("ball hidden by pack-name matches (%s/%s): %+v, %v", packID, query, matches, err)
+			}
+			if len(matches) > 6 {
+				t.Fatal("search limit exceeded")
+			}
+		}
+	}
+}
+
 func TestRepairLimitIsSharedWithAgentValidation(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")

@@ -112,7 +112,9 @@ Selected packs import before the agent starts. Additional packs are available
 through `game_maker_asset` operations `list_packs`, `describe_pack`, `import_pack`,
 `search_assets` and `describe_asset`, always with the active `job_id`.
 Search accepts query, optional pack_id/view (side/top/board), and limit (default
-six, maximum twelve); complete assemblies rank before fragments. Describe accepts
+six, maximum twelve); complete assemblies rank before fragments. Asset IDs,
+names and tags outrank pack-name matches; a search within a selected pack matches
+its contents, not the pack name. Describe accepts
 pack_id and exactly one asset_id/assembly_id. It returns entity variants, available
 directions/actions, explicitly missing actions and a use example. Imports require
 an accepted plan; search and description are available during planning.
@@ -152,6 +154,12 @@ The provider-compatible tool schema advertises `plan` as a JSON object string;
 native calls also accept the object directly. Both formats and XML fallback calls
 preserve the complete plan before validation. Field-specific errors survive a new
 planning round and appear in the final failure if corrections are exhausted.
+Unknown JSON fields are rejected before they can be discarded, within the same
+correction budget. Each visual role uses one `pack_id` and one `asset_id` or
+`assembly_id`; variants use separate uniquely named roles. Independent asset
+errors are reported together. Catalog `view` is read-only: perspective corrections
+must change the root `plan.perspective`. For example, the blocks-and-balls pack
+uses `top`, including its Breakout paddles, balls and blocks.
 Acceptance or exhausted corrections ends the agent round immediately through a
 server-owned completion check. The model does not need to produce a final sentence
 or a done marker to trigger the next phase. Remaining calls in the same native

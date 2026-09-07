@@ -15,7 +15,7 @@ import (
 )
 
 func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
-	for _, mode := range []string{"native", "batched", "xml", "correction", "exhausted", "without_boundary"} {
+	for _, mode := range []string{"native", "batched", "xml", "correction", "exhausted", "schema_exhausted", "without_boundary"} {
 		t.Run(mode, func(t *testing.T) {
 			runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "game-maker-phase-"+mode, "game_maker")
 			defer cleanup()
@@ -68,18 +68,25 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 					return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: m, FinishReason: openai.FinishReasonStop}}}
 				}
 				responses := []openai.ChatCompletionResponse{}
-				if mode == "correction" || mode == "exhausted" {
+				exhausted := mode == "exhausted" || mode == "schema_exhausted"
+				if mode == "correction" || exhausted {
 					attempts := 1
-					if mode == "exhausted" {
+					if exhausted {
 						attempts = 3
 					}
 					for i := 0; i < attempts; i++ {
 						plan.SchemaVersion = i + 2 // Distinct invalid plans, not duplicate-call recovery.
-						bad := call(fmt.Sprintf("bad-%d", i), "game_maker_project", map[string]any{"operation": "set_plan", "plan": plan})
+						var payload any = plan
+						if mode == "schema_exhausted" {
+							// Unknown fields must survive native parsing and exhaust
+							// planning, rather than disappearing into a typed struct.
+							payload = strings.TrimSuffix(string(data), "}") + fmt.Sprintf(`,"unknown_%d":true}`, i)
+						}
+						bad := call(fmt.Sprintf("bad-%d", i), "game_maker_project", map[string]any{"operation": "set_plan", "plan": payload})
 						responses = append(responses, response(openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{bad}}))
 					}
 				}
-				if mode != "exhausted" {
+				if !exhausted {
 					responses = append(responses, response(message))
 				}
 				expectedRequests := len(responses)
@@ -109,7 +116,7 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 						skipped++
 					}
 				}
-				if mode != "xml" && mode != "exhausted" && skipped != 1 {
+				if mode != "xml" && !exhausted && skipped != 1 {
 					loopErr = fmt.Errorf("trailing call was not skipped exactly once: %d", skipped)
 				}
 				loopResult <- loopErr
@@ -130,7 +137,13 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 			for deadline := time.Now().Add(3 * time.Second); ; {
 				finished, err := s.GetJob(context.Background(), job.ID)
 				if err == nil && finished.Status == "failed" {
-					if mode == "exhausted" && !strings.Contains(finished.Error, "plan.schema_version") || mode != "exhausted" && mode != "without_boundary" && finished.Error != "test reached building" {
+					want := "test reached building"
+					if mode == "exhausted" {
+						want = "plan.schema_version"
+					} else if mode == "schema_exhausted" {
+						want = `unknown field "unknown_2"`
+					}
+					if mode != "without_boundary" && !strings.Contains(finished.Error, want) {
 						t.Fatalf("wrong phase outcome: %+v", finished)
 					}
 					break
