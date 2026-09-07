@@ -15,6 +15,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
   create() {
+    if (this.update !== GameScene.prototype.update) {
+      throw Error('GameScene.update must be inherited from common.ts: it handles ESC end, R restart, input, elapsed time and planned sprite following. Remove the update override; put continuous gameplay in step(deltaSeconds), primary input in action(), and HUD changes in paintHUD().');
+    }
     this.physics.resume();
     this.elapsed = 0;
     this.visuals = [];

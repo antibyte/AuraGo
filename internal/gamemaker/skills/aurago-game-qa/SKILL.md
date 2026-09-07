@@ -71,7 +71,13 @@ Do not fake the counter or disable a check; retain an observable first interacti
 On restart recreate state in create(), cancel scene timers and release inputs;
 neither the first nor second restart may leave duplicate objects/listeners.
 
-`checks` contains ID/status/expected/observed. Missing observations are unavailable,
+`checks` contains ID/status/expected/observed and the exact executed `steps`,
+including keys and durations in milliseconds. `required_end` presses ESC; if
+ended stays zero, restore the inherited common.ts update loop and its end path.
+Do not invent a natural game-over simulation for that check. For a short hit
+check compare its steps to a passing required_rules check before editing; retain
+working movement, sprites and collision wiring. A launch is an action, not a hit.
+Missing observations are unavailable,
 never success. `gameplay_status` is independent of `runtime_status`. 3D currently
 requires startup only and reports gameplay unverified. Optional `visual_status`
 is advisory; skipped image review is normal for text-only/unknown models.

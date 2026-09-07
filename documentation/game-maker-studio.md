@@ -186,6 +186,10 @@ common lifecycle resets state, physics and inputs. Keep standard Arrow/Space/R
 controls for minimum checks; ESC ends/forfeits a run. State counters reflect actual
 actions, hits, points, spawns, turns, timer ticks and terminal state. Do not invent
 actions or fabricate test counters for absent behavior.
+New templates reject subclass `update()` overrides at startup with a concrete
+correction: use `step`, `action`, `tick` and `paintHUD` hooks instead. This preserves
+ESC, restart, input and planned sprite following. Call `super.setup()` only when
+reusing the default player; a custom paddle must not leave that extra object behind.
 Planning examples distinguish position changes (`player_x`, `player_y`) from
 primary actions (`actions`). Breakout uses the `blocks` template; `minimal` is
 reserved for games without a matching starting template.
@@ -226,7 +230,12 @@ are returned to the agent and the existing repair loop (at most three passes).
 Missing browser feedback blocks publication instead of claiming playability.
 This compatibility mode is a startup check, not a full gameplay check.
 `scope: gameplay` or `full` additionally runs immutable template scenarios plus
-1–8 plan scenarios. The complete run is limited to 60 seconds. Commands are bounded
+0–8 optional plan scenarios. The schema example defaults to an empty list: movement,
+launch/action and collision checks are already supplied by the server. Additional
+checks must distinguish a new deterministic effect; score alone cannot prove
+power-up collection. Existing plan scenarios still run unchanged. Results include
+the exact input steps and their durations for focused repairs. The complete run
+is limited to 60 seconds. Commands are bounded
 key/pointer/wait/observe operations, never JavaScript expressions. Server-side
 comparisons check input, primary action, rules, timers, a six-second late-event
 interval, terminal state, sprite integrity and two consecutive restarts. Missing

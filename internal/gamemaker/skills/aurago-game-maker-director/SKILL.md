@@ -102,7 +102,11 @@ all library IDs and supplies `fallback` describing its shape, color and size.
 Search one role at a time within a known pack (for example `query: "ball"`,
 `pack_id: "blocks-and-balls"`), then describe the returned exact ID.
 
-Add 1–8 `scenarios`, beyond immutable template minimums. A complete scenario:
+Use `scenarios: []` when the immutable template minimums cover the core loop.
+They already check movement, primary action, a rule effect, timers, delayed
+events, ESC end, assets and two restarts. Do not invent duplicate launch/movement/
+hit tests just to fill the plan. Add at most eight scenarios only for additional
+deterministic behavior that those checks cannot cover. A complete scenario:
 ```json
 {"id":"shooting","steps":[{"action":"key","key":"SPACE","ms":500}],"metric":"actions","compare":"increased","value":0}
 ```
@@ -112,6 +116,11 @@ Movement uses position, not the primary-action counter:
 ```
 `actions` counts actual primary actions such as launching/shooting, `hits` counts
 actual collisions/rule effects, and `player_x/player_y` observe movement directly.
+For a launch check use `actions`, not `hits`: launching a ball and hitting a
+block are different events. A score increase alone does not prove a power-up
+was collected; ordinary block hits can also award score. Omit a proposed extra
+check if its metric cannot distinguish the intended effect; keep the feature
+in scope and do not claim it was independently verified.
 Never increment `actions` every frame to satisfy a movement scenario. Each
 scenario starts from a restarted game; launch a waiting ball before checking hits.
 Allow travel time: a ball starting at y=465 and moving up at 300 px/s needs about

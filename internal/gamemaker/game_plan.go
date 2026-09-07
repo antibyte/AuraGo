@@ -340,8 +340,8 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	if len(assetErrors) > 0 {
 		return errors.Join(assetErrors...)
 	}
-	if len(p.Scenarios) == 0 || len(p.Scenarios) > 8 {
-		return bad("scenarios", "provide 1–8 observable checks in addition to template checks")
+	if len(p.Scenarios) > 8 {
+		return bad("scenarios", "provide at most 8 additional observable checks; template minimums run automatically")
 	}
 	seen := map[string]bool{}
 	duration := 0
@@ -418,12 +418,10 @@ func JobNextAction(job Job) string {
 
 // ExampleGamePlan is a schema example, not a replacement for the user's design.
 func ExampleGamePlan(project Project) GamePlan {
-	p := GamePlan{SchemaVersion: 1, Template: "minimal", Objective: "Replace with the requested objective", CoreLoop: "Replace with the input, consequence, feedback and progression loop", Scope: []string{"Replace with concrete requested features"}, Perspective: "top", Width: 960, Height: 540, Camera: "Fixed logical viewport with FIT scaling", Controls: map[string]string{"move": "Arrow keys", "primary": "Space", "restart": "R"}, States: []string{"playing", "ended"}, Rules: map[string]string{"progress": "Describe score or progression", "failure": "Describe defeat or explain why absent", "completion": "Describe victory or continued play"}, Assets: []PlanAsset{}, Scenarios: []GameScenario{{ID: "primary_action", Steps: []GameTestStep{{Action: "key", Key: "SPACE", MS: 200}}, Metric: "actions", Compare: "increased"}}, Assumptions: []string{"Single-player offline game"}, Fallback: "Use named procedural shapes when matching art is unavailable"}
+	p := GamePlan{SchemaVersion: 1, Template: "minimal", Objective: "Replace with the requested objective", CoreLoop: "Replace with the input, consequence, feedback and progression loop", Scope: []string{"Replace with concrete requested features"}, Perspective: "top", Width: 960, Height: 540, Camera: "Fixed logical viewport with FIT scaling", Controls: map[string]string{"move": "Arrow keys", "primary": "Space", "restart": "R"}, States: []string{"playing", "ended"}, Rules: map[string]string{"progress": "Describe score or progression", "failure": "Describe defeat or explain why absent", "completion": "Describe victory or continued play"}, Assets: []PlanAsset{}, Scenarios: []GameScenario{}, Assumptions: []string{"Single-player offline game"}, Fallback: "Use named procedural shapes when matching art is unavailable"}
 	if project.Dimension == "3d" {
 		p.Template = "three"
 		p.Perspective = "3d"
-	} else {
-		p.Scenarios = append(p.Scenarios, GameScenario{ID: "player_movement", Steps: []GameTestStep{{Action: "key", Key: "RIGHT", MS: 350}}, Metric: "player_x", Compare: "changed"})
 	}
 	p.Assets = []PlanAsset{{Role: "player", Direction: "none", DisplayHeight: 32, Origin: Point{.5, .5}, Collider: "rectangle", Fallback: "Replace with a specific procedural shape or choose exact library IDs"}}
 	if project.CurrentRevision > 0 {

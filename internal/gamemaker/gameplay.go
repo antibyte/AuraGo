@@ -18,10 +18,11 @@ import (
 )
 
 type CheckResult struct {
-	ID       string `json:"id"`
-	Status   string `json:"status"`
-	Expected string `json:"expected"`
-	Observed string `json:"observed"`
+	ID       string         `json:"id"`
+	Status   string         `json:"status"`
+	Expected string         `json:"expected"`
+	Observed string         `json:"observed"`
+	Steps    []GameTestStep `json:"steps,omitempty"`
 }
 type GameObservation struct {
 	ID     string             `json:"id"`
@@ -141,7 +142,7 @@ func gameScenarios(plan *GamePlan) []GameScenario {
 func compareGameObservations(scenarios []GameScenario, observations []GameObservation) []CheckResult {
 	out := make([]CheckResult, 0, len(scenarios))
 	for _, scenario := range scenarios {
-		check := CheckResult{ID: scenario.ID, Status: "unavailable", Expected: fmt.Sprintf("%s %s %g", scenario.Metric, scenario.Compare, scenario.Value), Observed: "No complete observation"}
+		check := CheckResult{ID: scenario.ID, Status: "unavailable", Expected: fmt.Sprintf("%s %s %g", scenario.Metric, scenario.Compare, scenario.Value), Observed: "No complete observation", Steps: scenario.Steps}
 		var found *GameObservation
 		for i := range observations {
 			if observations[i].ID == scenario.ID {

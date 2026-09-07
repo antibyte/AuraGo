@@ -16,8 +16,9 @@ Use the provided global `Phaser` runtime. Keep a scene-first architecture:
 bootstrap configuration, one focused gameplay scene, and separate helpers only
 when complexity justifies them.
 
-- Create game objects and physics relationships in `create`; update continuous
-  input and simulation in `update`.
+- In the installed GameScene template, create objects/colliders in `setup()` and
+  continuous gameplay in `step(deltaSeconds)`. The shared `create()`/`update()`
+  lifecycle calls these hooks; leave it intact.
 - Use Arcade Physics for simple movement, overlap, collision, bounds, and
   velocities. Avoid Matter unless the design genuinely needs it.
 - Pick a fixed logical resolution and `Phaser.Scale.FIT` with auto-centering
@@ -57,9 +58,15 @@ Keep the installed `src/common.ts` template lifecycle:
 - `setup()` must assign `this.player` to the controlled physics object before
   returning. For Breakout use `this.player = this.paddle`. This is the object
   observed by the movement tests, not the ball or a decorative sprite.
+  Call `super.setup()` only when reusing its default player. If creating your own
+  paddle/player, omit that call so it does not leave an extra cyan rectangle.
 - Keep `common.ts` `create()`/`update()` and their state/input/restart wiring.
   Override `setup`, `step`, `action`, `tick`, and `paintHUD` as needed. Gameplay
   changes must update `this.state`, which is also read by the HUD and tests.
+  New templates reject an `update()` override at startup: copying only part of
+  the shared loop drops ESC handling or the following of sprites by physics
+  objects. Remove that override and move its game-specific logic into the hooks;
+  do not remove the guard or copy the loop again.
 - The installed `common.ts` already imports/preloads the plan's packs. Retain
   `super.preload()` if adding a preload override. `this.body(x,y,w,h,color,fixed,role)`
   uses the exact planned role and keeps a separate collision proxy. The blocks

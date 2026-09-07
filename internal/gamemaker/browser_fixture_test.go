@@ -27,7 +27,7 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 	}
 	root := t.TempDir()
 	positive := append(templateNames()[:6], "planned_blocks", "multiball", "sprite_example", "all_packs", "asset_detail", "assembly_detail")
-	names := append(append([]string{}, positive...), "wrapped_bodies", "metadata_texture", "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
+	names := append(append([]string{}, positive...), "overridden_update", "wrapped_bodies", "metadata_texture", "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
 	if os.Getenv("GAMEMAKER_BROWSER_EXPORTS_ONLY") == "1" {
 		names = positive
 	}
@@ -71,6 +71,17 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 		}
 		if err := installGameTemplate(dir, plan); err != nil {
 			t.Fatal(err)
+		}
+		if name == "overridden_update" {
+			path := filepath.Join(dir, "src/main.ts")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data = bytes.Replace(data, []byte("extends GameScene {"), []byte("extends GameScene { update() {}"), 1)
+			if err := os.WriteFile(path, data, 0o640); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if name == "multiball" {
 			data, err := bundledSkills.ReadFile("skills/aurago-phaser4-gameplay/SKILL.md")
@@ -259,6 +270,9 @@ addEventListener('message',async e=>{const d=e.data;if(e.source!==frame?.content
 			}
 			if report.Name == "wrapped_bodies" && !strings.Contains(strings.Join(report.Errors, " "), "received a wrapper whose body is a GameObject") {
 				t.Error("collider wrapper misuse did not produce the concrete correction")
+			}
+			if report.Name == "overridden_update" && !strings.Contains(strings.Join(report.Errors, " "), "GameScene.update must be inherited") {
+				t.Error("lifecycle override did not produce the concrete correction")
 			}
 			for _, check := range compareGameObservations(gameScenarios(&GamePlan{Template: templateFor(report.Name)}), report.Observations) {
 				if check.Status != "passed" {

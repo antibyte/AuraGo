@@ -150,13 +150,55 @@ func TestPlanReferencesAndReadOnly(t *testing.T) {
 		t.Fatal("wrong perspective passed")
 	}
 	p = ExampleGamePlan(project)
-	p.Scenarios[0].Steps[0].Action = "eval"
+	p.Scenarios = []GameScenario{{ID: "unsafe", Metric: "actions", Compare: "increased", Steps: []GameTestStep{{Action: "eval"}}}}
 	if err := s.checkPlan(project, p); err == nil {
 		t.Fatal("executable test command passed")
 	}
 	s.UpdatePolicy(Policy{Enabled: true, ReadOnly: true, AllowEdit: true})
 	if err := s.SetPlan(context.Background(), "unused", p); !errors.Is(err, ErrReadOnly) {
 		t.Fatalf("readonly plan: %v", err)
+	}
+}
+
+func TestOptionalPlanScenariosRetainRequiredChecks(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	plan := ExampleGamePlan(project)
+	plan.Template = "blocks"
+	if len(plan.Scenarios) != 0 {
+		t.Fatal("schema example should not require duplicate gameplay checks")
+	}
+	if err := s.checkPlan(project, plan); err != nil {
+		t.Fatal(err)
+	}
+	scenarios := gameScenarios(&plan)
+	if len(scenarios) != 8 || scenarios[2].ID != "required_rules" || scenarios[2].Steps[0].MS != 2400 || scenarios[5].ID != "required_end" || scenarios[5].Value != 1 {
+		t.Fatalf("empty additional scenarios weakened template checks: %+v", scenarios)
+	}
+	observations := successfulObservationFixture(scenarios)
+	observations[5].After["ended"] = 0
+	checks := compareGameObservations(scenarios, observations)
+	if checks[5].Status != "failed" {
+		t.Fatal("missing ESC handling must still fail")
+	}
+	// Keep valid existing custom checks and their exact input/timing evidence.
+	plan.Scenarios = []GameScenario{{ID: "launch_ball", Metric: "actions", Compare: "increased", Steps: []GameTestStep{{Action: "key", Key: "SPACE", MS: 200}}}}
+	if err := s.checkPlan(project, plan); err != nil {
+		t.Fatal(err)
+	}
+	scenarios = gameScenarios(&plan)
+	checks = compareGameObservations(scenarios, successfulObservationFixture(scenarios))
+	encoded, err := json.Marshal(checks[len(checks)-1])
+	if err != nil || !bytes.Contains(encoded, []byte(`"steps":[{"action":"key","key":"SPACE","ms":200}]`)) || len(checks) != 9 {
+		t.Fatalf("custom test evidence missing: %s, %v", encoded, err)
+	}
+	plan.Scenarios[0].ID = "required_rules"
+	if err := s.checkPlan(project, plan); err == nil {
+		t.Fatal("plan replaced a server-owned scenario")
+	}
+	plan.Scenarios = make([]GameScenario, 9)
+	if err := s.checkPlan(project, plan); err == nil {
+		t.Fatal("extra scenario limit removed")
 	}
 }
 
