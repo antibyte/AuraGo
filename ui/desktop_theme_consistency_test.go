@@ -86,6 +86,8 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-gallery.css", "var(--vd-theme-panel-bg)"},
 		{"css/desktop-chrome.css", ".vd-terminal-app"},
 		{"css/desktop-chrome.css", "var(--vd-theme-chrome-bg)"},
+		{"css/desktop-app-terminal.css", ".vd-terminal-bezel"},
+		{"css/desktop-app-terminal.css", "var(--vd-theme-chrome-bg)"},
 		{"css/desktop-app-viewer.css", ".vd-viewer"},
 		{"css/desktop-app-viewer.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-looper.css", ".vd-looper"},

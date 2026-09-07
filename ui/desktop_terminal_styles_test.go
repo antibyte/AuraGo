@@ -141,3 +141,30 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 		t.Fatal("vendored canvas addon missing CanvasAddon export")
 	}
 }
+
+func TestDesktopTerminalAppStylesheet(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-app-terminal.css")
+	for _, want := range []string{
+		".vd-terminal-app",
+		".vd-terminal-bezel",
+		".vd-terminal-crt-overlay",
+		"[data-terminal-style=\"modern\"]",
+		"[data-terminal-style=\"amber\"]",
+		"[data-terminal-style=\"green\"]",
+		"[data-terminal-style=\"apple2\"]",
+		"[data-terminal-style=\"commodore64\"]",
+		"[data-terminal-style=\"ibm3278\"]",
+		"[data-terminal-style=\"vintage\"]",
+		"[data-terminal-style=\"mono-green\"]",
+		"[data-terminal-style=\"transparent-green\"]",
+		"[data-terminal-fallback=\"css\"]",
+		"prefers-reduced-motion",
+		"[data-terminal-audio]",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop-app-terminal.css missing %q", want)
+		}
+	}
+}
