@@ -1037,6 +1037,7 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopZipperFilterI18n`
 - `go test ./ui/ -run TestDesktopPixelOpenFilterI18n`
 - `go test ./ui/ -run TestDesktopPixelSaveFilterI18n`
+- `go test ./ui/ -run TestDesktopTerminal`
 - `go test ./ui/ -run TestDesktopCodeStudioShellI18n`
 - `go test ./ui/ -run TestDesktopQcAuragoHostI18n`
 - `go test ./ui/ -run TestDesktopHostErrorI18n`
@@ -1418,20 +1419,24 @@ registration lives in `internal/desktop/types.go`.
   `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
   needed.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
-  `/api/code-studio/terminal`. Exposes `window.TerminalApp = { render, dispose }`
-  with a per-window `instances` Map. Toolbar: status left; style
-  `<select data-terminal-style>` and key-click `<button data-terminal-audio>`
-  right. Style changes call `applyStyle` (xterm theme, canvas addon, CRT,
-  audio) without creating another WebSocket. `applyStyle` clears
-  `data-terminal-fallback` so Modern is not stuck with CSS scanlines.
-  `dispose(windowId)` closes WS, xterm, CRT, audio, observers, and the
-  keydown listener. Loader order in `module-loader.js` is `xterm.css` →
-  `desktop-app-terminal.css` → `xterm.min.js` → `xterm-addon-fit.min.js` →
-  `xterm-addon-canvas.min.js` (`window.CanvasAddon.CanvasAddon`,
-  `@xterm/addon-canvas@0.7.0`) → `terminal-styles.js`
-  (`window.TerminalStyles`) → `terminal-crt.js` (`window.TerminalCrt.create`)
-  → `terminal-audio.js` (`window.TerminalAudio.create`) → `terminal.js`. Do
-  not change the `code-studio` xterm entry. No child DOX file needed.
+  `/api/code-studio/terminal`. Style catalog in `terminal-styles.js`
+  (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
+  `applyXterm`). IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
+  `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
+  `aurago.desktop.terminal.style` and audio mute
+  `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
+  `xterm-addon-canvas`, original WebGL CRT in `terminal-crt.js`
+  (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`),
+  CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
+  (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
+  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, canvas,
+  styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
+  and `dataset.animations === 'false'` disable flicker, burn-in, and audio.
+  WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Exposes
+  `window.TerminalApp = { render, dispose }` with a per-window instances Map.
+  Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*` and
+  `desktop.terminal_audio*` in all 16 desktop locales. No child DOX file
+  needed.
 - `notes.js` - Notes app entry and orchestrator: per-window `instances` Map,
   `window.NotesApp = { render, dispose, instances }`, markdown note list and
   editor under `Documents/Notes/`. `notifyError` uses
