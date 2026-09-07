@@ -1248,6 +1248,12 @@
         const size = sessionRestore
             ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
             : clampWindowSize(requestedSize);
+        if (appId === 'teevee' && !sessionRestore && !isMobileMode) {
+            // Fit the receiver as a whole when the desktop limits either dimension.
+            const scale = Math.min(size.width / requestedSize.width, size.height / requestedSize.height);
+            size.width = Math.floor(requestedSize.width * scale);
+            size.height = Math.floor(requestedSize.height * scale);
+        }
         const position = sessionRestore
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
             : nextWindowPosition(size);

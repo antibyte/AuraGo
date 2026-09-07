@@ -147,7 +147,22 @@ func TestDesktopTeeVeeBrowser(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	checkTubeAspect := func() {
+		t.Helper()
+		check("reference tube proportions", `()=>{const r=document.querySelector('.teevee-video-shell').getBoundingClientRect();return r.height>=100 && Math.abs(r.width/r.height-750/643)<.005}`)
+	}
+	page.MustSetViewport(1522, 673, 1, false)
+	open("?natural")
+	check("opening fits the short desktop proportionally", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect(),d=document.querySelector('#vd-workspace').getBoundingClientRect(),bar=document.querySelector('.vd-taskbar');return Math.abs(w.width/w.height-1500/845)<.005 && w.right<=d.right && w.bottom<=d.bottom-bar.offsetHeight}`)
+	check("compact menus do not cover window controls", `()=>document.querySelector('.vd-window-menubar').getBoundingClientRect().right<=document.querySelector('.vd-window-actions').getBoundingClientRect().left+1`)
+	checkTubeAspect()
+	screenshot("teevee-natural-short-desktop")
+	page.MustElement(`[data-action="maximize"]`).MustClick()
+	checkTubeAspect()
+	screenshot("teevee-maximized-short-desktop")
+	page.MustSetViewport(1700, 1020, 1, false)
 	open("")
+	checkTubeAspect()
 	check("reference state", `()=>document.querySelector('[data-list-count]').textContent==='567' && document.querySelector('[data-filter="favorites"] em').textContent==='3' && !document.querySelector('video').getAttribute('src')`)
 	check("all material assets decoded", `async()=>{await Promise.all([...document.querySelectorAll('.teevee-app img,.vd-window-titlebar img')].map(i=>i.decode().catch(()=>{})));return [...document.querySelectorAll('.teevee-app img,.vd-window-titlebar img')].every(i=>i.naturalWidth>0)}`)
 	check("reference heading fits", `()=>{const h=document.querySelector('[data-list-title]');return h.scrollWidth<=h.clientWidth}`)
@@ -156,9 +171,10 @@ func TestDesktopTeeVeeBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-channel-play]').length===1 && document.querySelector('[data-list-count]').textContent==='1'`)
 	page.MustElement(`[data-search]`).MustSelectAllText().MustInput("")
 	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-channel-play]').length===40`)
-	for _, size := range [][2]int{{1440, 900}, {1120, 720}, {960, 720}, {390, 844}} {
+	for _, size := range [][2]int{{1500, 610}, {1440, 900}, {1120, 720}, {960, 720}, {390, 844}} {
 		page.MustSetViewport(max(size[0]+30, 440), max(size[1]+80, 940), 1, false)
 		page.MustEval(`(width,height)=>{const w=document.querySelector('[data-app-id="teevee"]');w.style.width=width+'px';w.style.height=height+'px';}`, size[0], size[1])
+		checkTubeAspect()
 		check("no horizontal overflow", `()=>{const a=document.querySelector('.teevee-app');return a.scrollWidth<=a.clientWidth+1}`)
 		check("power and player fit", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect(),p=document.querySelector('.teevee-power').getBoundingClientRect(),v=document.querySelector('.teevee-video-shell').getBoundingClientRect();return p.bottom<=w.bottom && p.right<=w.right && v.height>=100 && v.width>=100}`)
 		check("window controls fit", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect(),a=document.querySelector('.vd-window-actions').getBoundingClientRect();return a.right<=w.right && a.left>w.left}`)

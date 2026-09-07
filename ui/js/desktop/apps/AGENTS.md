@@ -435,9 +435,11 @@ and `files.default_apps` via `/api/desktop/settings`.
   stays authentic and stays out of this bridge.
 - TeeVee is a theme-independent wood/metal CRT receiver. Its visual source is
   `documentation/assets/teevee-retro-reference.png`; retain the real shell menus
-  and window actions. Keep all `.teevee-*` out of the theme bridge. Material and
-  icon provenance lives in `ui/img/teevee/README.md`. CRT and glass have separate,
-  persisted View switches. The one existing video element owns decoding/audio;
+  and window actions. Keep all `.teevee-*` out of the theme bridge.
+  CRT bezel/tube proportions follow the reference at every window size; fit the
+  initial receiver bounds proportionally to the desktop instead of flattening it.
+  Material and icon provenance lives in `ui/img/teevee/README.md`. CRT and glass
+  have separate, persisted View switches. The one existing video element owns decoding/audio;
   `teevee-crt.js` owns only rendering. Blocked texture access or WebGL failure
   preserves native playback with a labelled basic filter. Never force CORS or
   globally proxy all streams to enable effects. Explicit reconnect applies only

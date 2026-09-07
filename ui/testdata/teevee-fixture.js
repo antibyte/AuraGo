@@ -51,6 +51,6 @@ window.fixtureReady=(async()=>{
     teeveeTest.openApp('teevee');
     const win=document.querySelector('[data-app-id="teevee"]');
     const size=new URLSearchParams(location.search);
-    Object.assign(win.style,{width:(size.get('width')||Math.min(1672,innerWidth))+'px',height:(size.get('height')||Math.min(941,innerHeight-64))+'px',left:'0px',top:'0px'});
+    if (!size.has('natural')) Object.assign(win.style,{width:(size.get('width')||Math.min(1672,innerWidth))+'px',height:(size.get('height')||Math.min(941,innerHeight-64))+'px',left:'0px',top:'0px'});
     document.addEventListener('playing',e=>{if(e.target.tagName==='VIDEO')e.target.loop=true;},true);
 })();
