@@ -414,18 +414,19 @@ func isSystemSecret(key string) bool {
 
 // isProtectedSystemPath returns true when the given path refers to a system-sensitive
 // file that the agent must never read or write via the filesystem tool:
-//   - The active config.yaml
+//   - The active config.yaml (case-insensitive)
 //   - The vault file (vault.bin) and its lock
+//   - Everything under directories.data_dir
 //   - All configured SQLite database files + WAL/SHM journals
-//   - Any file named .env or ending in .env
+//   - aurago_master.key and any file named .env or ending in .env
 //
 // rawPath may be absolute or relative; relative paths are resolved against workspaceDir.
+// User paths are symlink-resolved so a workdir link into vault.bin cannot bypass the list.
 func isProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) bool {
-	if rawPath == "" {
+	if rawPath == "" || cfg == nil {
 		return false
 	}
 
-	// Resolve to absolute path
 	var abs string
 	if filepath.IsAbs(rawPath) {
 		abs = filepath.Clean(rawPath)
@@ -433,13 +434,29 @@ func isProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) boo
 		abs = filepath.Clean(filepath.Join(workspaceDir, rawPath))
 	}
 
-	// Block .env files by name regardless of location
-	base := strings.ToLower(filepath.Base(abs))
-	if base == ".env" || strings.HasSuffix(base, ".env") {
-		return true
+	candidates := protectedPathCandidates(abs)
+	for _, cand := range candidates {
+		base := strings.ToLower(filepath.Base(cand))
+		if base == ".env" || strings.HasSuffix(base, ".env") {
+			return true
+		}
+		if strings.EqualFold(base, "aurago_master.key") ||
+			strings.EqualFold(base, "vault.bin") ||
+			strings.EqualFold(base, "vault.bin.lock") {
+			return true
+		}
 	}
 
-	// Build list of protected absolute paths from config
+	if dataDir := strings.TrimSpace(cfg.Directories.DataDir); dataDir != "" {
+		for _, dataRoot := range protectedPathCandidates(filepath.Clean(dataDir)) {
+			for _, cand := range candidates {
+				if pathHasProtectedPrefix(dataRoot, cand) {
+					return true
+				}
+			}
+		}
+	}
+
 	vaultBase := filepath.Join(cfg.Directories.DataDir, "vault.bin")
 	protected := append([]string{
 		cfg.ConfigPath,
@@ -448,21 +465,47 @@ func isProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) boo
 	}, config.SQLiteProtectedPaths(cfg)...)
 
 	for _, p := range protected {
-		if p == "" {
+		if strings.TrimSpace(p) == "" {
 			continue
 		}
-		cleanP := filepath.Clean(p)
-		if abs == cleanP {
-			return true
-		}
-		// Resolve symlinks on the stored path (covers Linux /proc/ or mount aliases)
-		if resolved, err := filepath.EvalSymlinks(cleanP); err == nil {
-			if abs == filepath.Clean(resolved) {
-				return true
+		for _, prot := range protectedPathCandidates(p) {
+			for _, cand := range candidates {
+				if pathsEqualFold(cand, prot) {
+					return true
+				}
 			}
 		}
 	}
 	return false
+}
+
+func protectedPathCandidates(path string) []string {
+	path = filepath.Clean(path)
+	out := []string{path}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		resolved = filepath.Clean(resolved)
+		if !pathsEqualFold(resolved, path) {
+			out = append(out, resolved)
+		}
+	}
+	return out
+}
+
+func pathsEqualFold(a, b string) bool {
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
+func pathHasProtectedPrefix(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	if err == nil {
+		if rel == "." {
+			return true
+		}
+		return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	}
+	rootSlash := strings.ToLower(filepath.ToSlash(filepath.Clean(root)))
+	candSlash := strings.ToLower(filepath.ToSlash(filepath.Clean(candidate)))
+	return candSlash == rootSlash || strings.HasPrefix(candSlash, rootSlash+"/")
 }
 
 func normalizeAdaptiveIntentText(s string) string {

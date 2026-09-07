@@ -33,7 +33,7 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 	if ff.AllowFilesystemWrite {
 		tools = append(tools,
 			tool("file_editor",
-				"Precisely edit text files in agent_workspace/workdir or project-root-relative paths: replace exact strings, insert lines relative to anchors, append/prepend content, delete line ranges, or use hashline operations after filesystem read_file with include_hashes=true for stale-context validation. Hashline hashes are content-only (not line-number based), so you can perform multiple edits in the same file without re-reading — just adjust anchor_line for lines shifted by inserts/deletes above them. Never use for Virtual Desktop paths such as Apps/ or Widgets/; use virtual_desktop read_file/write_file/open_in_app instead.",
+				"Precisely edit text files in agent_workspace (workdir, and ../skills or ../tools): replace exact strings, insert lines relative to anchors, append/prepend content, delete line ranges, or use hashline operations after filesystem read_file with include_hashes=true for stale-context validation. Hashline hashes are content-only (not line-number based), so you can perform multiple edits in the same file without re-reading — just adjust anchor_line for lines shifted by inserts/deletes above them. Never use for Virtual Desktop paths such as Apps/ or Widgets/; use virtual_desktop read_file/write_file/open_in_app instead.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",

@@ -36,6 +36,16 @@ func TestDispatchDockerCreateRunHardeningBlocksBeforeDocker(t *testing.T) {
 			code: "docker_managed_homepage_resource",
 		},
 		{
+			name: "reserved aurago app container inspect",
+			call: ToolCall{Action: "docker", Operation: "inspect", ContainerID: "aurago"},
+			code: "docker_managed_aurago_resource",
+		},
+		{
+			name: "reserved aurago app container exec",
+			call: ToolCall{Action: "docker", Operation: "exec", ContainerID: "aurago", Command: "env"},
+			code: "docker_managed_aurago_resource",
+		},
+		{
 			name: "reserved homepage create name",
 			call: ToolCall{Action: "docker", Operation: "create", Name: "aurago-homepage", Image: "alpine:latest"},
 			code: "docker_managed_homepage_resource",

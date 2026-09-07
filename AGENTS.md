@@ -545,6 +545,15 @@ Tools are defined in `internal/tools/`:
 - Config save must return HTTP 409 (`storage_switch_required`) when identity changes while available volumes exist, unless a single-use `X-AuraGo-Storage-Switch-Token` from `/api/virtual-computers/storage/switch/authorize` matches the target identity hash. Switch-without-migration marks volumes `previous_store` and may stop managed Garage; automated object-copy migration is optional/not required for the gate.
 - Agent Docker tools must hide and block lifecycle/inspect/exec/mount access to `aurago-boring-garage` and Garage data paths, same fail-closed pattern as Local LLM.
 
+### Agent Filesystem Jail Contract
+- Agent filesystem, file_editor, and other `secureResolve` paths jail to `agent_workspace`, not the AuraGo install root. From `workdir`, `../skills` and `../tools` stay reachable; `../../config.yaml` and `data/` must fail resolution.
+- `isProtectedSystemPath` is defense-in-depth: case-insensitive, symlink-resolved, and blocks `directories.data_dir`, configured config/vault/sqlite paths, `.env` files, and `aurago_master.key`.
+- Media registry and video-download bounds still use the install root via `detectAuraGoInstallRoot`. Guardian must not label `../../` as a safe in-project path.
+
+### Agent Docker Inspect Contract
+- Agent `docker inspect` environment redacts `AURAGO_*` and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. Administrator container APIs may still inspect the AuraGo app container.
+- The agent docker tool must hide and block inspect, lifecycle, log, exec, and copy access to the compose app container `aurago` (including compose-project prefixed replicas). Sidecars such as `aurago-local-llm`, `aurago_gotenberg`, and `aurago-homepage` keep their existing owner gates.
+
 ### GitHub Integration Contract
 - `github.allowed_repos` is a strict allowlist; prefer `owner/repo` entries. Legacy bare repo names only match the configured `github.owner`.
 - An empty `github.allowed_repos` list permits only repositories AuraGo created through the GitHub tool and tracks with `agent_created=true`.

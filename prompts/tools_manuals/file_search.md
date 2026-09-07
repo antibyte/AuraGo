@@ -24,7 +24,7 @@ Search for text patterns inside files or find files by name within the workspace
 - **`grep`** returns line numbers and matching content for each hit.
 - **`grep_recursive`** searches across all files matching the glob(s). Globs are evaluated against the relative path. Skips `.git/`, `node_modules/`, `__pycache__/`, `venv/`, and files larger than 10 MB.
 - **`find`** returns file paths matching the glob pattern (max 1000 results).
-- All paths are sandboxed to `agent_workspace/workdir`, with project-root files reachable via `../../`.
+- All paths are sandboxed to `agent_workspace`. Sibling directories such as `../skills` are reachable; install-root files are not.
 - Maximum 500 matches for grep operations.
 
 ### Examples

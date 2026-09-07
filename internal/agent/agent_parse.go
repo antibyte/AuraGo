@@ -2128,7 +2128,7 @@ func guardianPathScope(tc ToolCall, path string) string {
 	}
 	if tc.Action == "filesystem" || tc.Action == "filesystem_op" || tc.Action == "file_reader_advanced" || tc.Action == "smart_file_read" || tc.Action == "workspace_search" || tc.Action == "file_search" || tc.Action == "file_editor" {
 		clean := filepath.ToSlash(filepath.Clean(path))
-		if strings.HasPrefix(clean, "../../") {
+		if strings.HasPrefix(clean, "../") && !strings.HasPrefix(clean, "../../") {
 			return "project_root_relative"
 		}
 	}
@@ -2140,6 +2140,6 @@ func guardianDisplayPath(tc ToolCall, path string) string {
 		return path
 	}
 	clean := filepath.ToSlash(filepath.Clean(path))
-	clean = strings.TrimPrefix(clean, "../../")
+	clean = strings.TrimPrefix(clean, "../")
 	return "project_root/" + clean
 }

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1767,5 +1768,63 @@ func TestShouldReloadCoreMemory_RepeatedLoopsNoChange(t *testing.T) {
 	nowFunc = func() time.Time { return base.Add(4 * time.Minute) }
 	if ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
 		t.Error("expected no reload in third repeated loop with no changes (still within TTL)")
+	}
+}
+
+func TestIsProtectedSystemPathCaseInsensitiveAndDataDir(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+
+	configPath := filepath.Join(root, "config.yaml")
+	vaultPath := filepath.Join(dataDir, "vault.bin")
+	keyPath := filepath.Join(dataDir, "aurago_master.key")
+	dbPath := filepath.Join(dataDir, "short_term.db")
+	for _, path := range []string{configPath, vaultPath, keyPath, dbPath} {
+		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	cfg := &config.Config{}
+	cfg.ConfigPath = configPath
+	cfg.Directories.DataDir = dataDir
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.SQLite.ShortTermPath = dbPath
+
+	protected := []string{
+		filepath.Join("..", "..", "CONFIG.YAML"),
+		filepath.Join("..", "..", "data", "vault.bin"),
+		filepath.Join("..", "..", "data", "notes.txt"),
+		filepath.Join("..", "..", "data", "AURAGO_MASTER.KEY"),
+		".env",
+		"secrets.env",
+	}
+	for _, path := range protected {
+		if !isProtectedSystemPath(path, workdir, cfg) {
+			t.Fatalf("expected protected path %q", path)
+		}
+	}
+
+	if isProtectedSystemPath("notes.txt", workdir, cfg) {
+		t.Fatal("workdir notes.txt should not be protected")
+	}
+	if isProtectedSystemPath(filepath.Join("..", "skills", "helper.py"), workdir, cfg) {
+		t.Fatal("agent_workspace sibling should not be protected")
+	}
+
+	link := filepath.Join(workdir, "vault-link")
+	if err := os.Symlink(vaultPath, link); err != nil {
+		t.Logf("skipping symlink denylist check: %v", err)
+		return
+	}
+	if !isProtectedSystemPath("vault-link", workdir, cfg) {
+		t.Fatal("symlink into vault.bin should be protected")
 	}
 }

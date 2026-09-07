@@ -12,7 +12,7 @@ Read files with fine-grained control: paginated line ranges, head/tail, line cou
 | `count_lines` | Count total lines in a file | `file_path` |
 | `search_context` | Find pattern matches with surrounding context lines | `file_path`, `pattern` |
 
-All operations require `file_path` (alias `path`). Paths are resolved from `agent_workspace/workdir`, and project-root files are reachable via `../../`.
+All operations require `file_path` (alias `path`). Paths are resolved from `agent_workspace/workdir`. Sibling directories such as `../skills` are reachable; install-root files are not.
 
 ### Parameters
 

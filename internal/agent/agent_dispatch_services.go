@@ -580,6 +580,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestTargetsManagedHomepage(req) {
 				return dockerAgentError("docker_managed_homepage_resource", "AuraGo-managed homepage containers and the aurago-homepage image repository cannot be managed through the generic docker tool. Use homepage_project, homepage_file, or homepage_deploy.")
 			}
+			if dockerRequestTargetsAuraGoApp(req) {
+				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
+			}
 			var createCommand []string
 			var createRestart string
 			var createOptions tools.ContainerCreateOptions
@@ -609,6 +612,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.BoringGarageOwner) {
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API."}`
 			}
+			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.AppOwner) {
+				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
+			}
 			if dockerRequestMountsProtectedLocalLLMVolume(req.Volumes) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`
 			}
@@ -630,7 +636,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -1534,6 +1540,22 @@ func dockerAgentError(code, message string) string {
 		"message": message,
 	})
 	return "Tool Output: " + string(payload)
+}
+
+func dockerRequestTargetsAuraGoApp(req dockerArgs) bool {
+	operation := strings.ToLower(strings.TrimSpace(req.Operation))
+	switch operation {
+	case "inspect", "inspect_container", "start", "stop", "restart", "pause", "unpause",
+		"remove", "rm", "logs", "exec", "stats", "top", "port", "cp", "copy",
+		"connect", "disconnect", "create", "create_container", "run":
+		if dockerutil.IsAuraGoAppContainerName(req.targetContainerID()) {
+			return true
+		}
+		if dockerCreateRunOperation(operation) && dockerutil.IsAuraGoAppContainerName(req.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {

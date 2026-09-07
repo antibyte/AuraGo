@@ -25,6 +25,10 @@ const (
 	HomepageContainerName    = "aurago-homepage"
 	HomepageWebContainerName = "aurago-homepage-web"
 	HomepageImageRepository  = "aurago-homepage"
+
+	// AppOwner is the AuraGo application container from docker-compose.yml.
+	AppOwner         = "aurago-app"
+	AppContainerName = "aurago"
 )
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
@@ -89,6 +93,31 @@ func IsBoringGarageContainerName(name string) bool {
 func IsHomepageContainerName(name string) bool {
 	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
 	return name == HomepageContainerName || name == HomepageWebContainerName
+}
+
+// IsAuraGoAppContainerName recognizes the compose AuraGo application container
+// (`aurago`) and compose-project prefixed replicas (`project_aurago`, `project-aurago-1`).
+// Sidecars such as aurago-local-llm, aurago_gotenberg, and aurago-homepage are excluded.
+func IsAuraGoAppContainerName(name string) bool {
+	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
+	if name == "" {
+		return false
+	}
+	if name == AppContainerName {
+		return true
+	}
+	trimmed := name
+	i := len(trimmed) - 1
+	for i >= 0 && trimmed[i] >= '0' && trimmed[i] <= '9' {
+		i--
+	}
+	if i >= 0 && i < len(trimmed)-1 && (trimmed[i] == '-' || trimmed[i] == '_') {
+		trimmed = trimmed[:i]
+	}
+	if trimmed == AppContainerName {
+		return true
+	}
+	return strings.HasSuffix(trimmed, "_"+AppContainerName) || strings.HasSuffix(trimmed, "-"+AppContainerName)
 }
 
 // IsHomepageImageReference recognizes the reserved homepage image repository,

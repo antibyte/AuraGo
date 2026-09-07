@@ -59,7 +59,7 @@ func ResolveRegisteredMediaFilePath(filePath string, cfg *config.Config) (string
 	workspaceRoot := canonicalExistingRoot(cfg.Directories.WorkspaceDir)
 	projectRoot := ""
 	if workspaceRoot != "" {
-		projectRoot = canonicalExistingRoot(detectFilesystemProjectRoot(workspaceRoot))
+		projectRoot = canonicalExistingRoot(detectAuraGoInstallRoot(workspaceRoot))
 	}
 	dataDir := strings.TrimSpace(cfg.Directories.DataDir)
 	if dataDir != "" && !filepath.IsAbs(dataDir) && projectRoot != "" {

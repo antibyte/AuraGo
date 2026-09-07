@@ -306,12 +306,79 @@ func TestFilesystemRootsDetectAgentWorkspaceAncestor(t *testing.T) {
 	}
 
 	workspaceRoot, projectRoot := filesystemRoots(workdir)
-	wantProjectRoot := filepath.Join(root, "nested")
+	wantProjectRoot := filepath.Join(root, "nested", "agent_workspace")
 	if workspaceRoot != workdir {
 		t.Fatalf("workspaceRoot = %q, want %q", workspaceRoot, workdir)
 	}
 	if projectRoot != wantProjectRoot {
 		t.Fatalf("projectRoot = %q, want %q", projectRoot, wantProjectRoot)
+	}
+}
+
+func TestSecureResolveAllowsAgentWorkspaceSiblingsAndRejectsInstallRoot(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	skills := filepath.Join(root, "agent_workspace", "skills")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	if err := os.MkdirAll(skills, 0o755); err != nil {
+		t.Fatalf("mkdir skills: %v", err)
+	}
+	skillFile := filepath.Join(skills, "helper.py")
+	if err := os.WriteFile(skillFile, []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatalf("write skill: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "config.yaml"), []byte("secret: 1\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	got, err := secureResolve(workdir, filepath.Join("..", "skills", "helper.py"))
+	if err != nil {
+		t.Fatalf("sibling path should stay inside agent_workspace: %v", err)
+	}
+	if got != skillFile {
+		t.Fatalf("resolved sibling = %q, want %q", got, skillFile)
+	}
+
+	if _, err := secureResolve(workdir, filepath.Join("..", "..", "config.yaml")); err == nil {
+		t.Fatal("expected install-root config.yaml to be rejected")
+	}
+}
+
+func TestExecuteFilesystemRejectsInstallRootAndAllowsWorkspaceSkills(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	skills := filepath.Join(root, "agent_workspace", "skills")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	if err := os.MkdirAll(skills, 0o755); err != nil {
+		t.Fatalf("mkdir skills: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "config.yaml"), []byte("secret: 1\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(skills, "helper.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatalf("write skill: %v", err)
+	}
+
+	raw := ExecuteFilesystem("read_file", filepath.Join("..", "..", "config.yaml"), "", "", nil, workdir, 0, 0)
+	var blocked FSResult
+	if err := json.Unmarshal([]byte(raw), &blocked); err != nil {
+		t.Fatalf("unmarshal blocked result: %v", err)
+	}
+	if blocked.Status != "error" {
+		t.Fatalf("install-root read status = %q, want error (%s)", blocked.Status, raw)
+	}
+
+	raw = ExecuteFilesystem("read_file", filepath.Join("..", "skills", "helper.py"), "", "", nil, workdir, 0, 0)
+	var allowed FSResult
+	if err := json.Unmarshal([]byte(raw), &allowed); err != nil {
+		t.Fatalf("unmarshal allowed result: %v", err)
+	}
+	if allowed.Status != "success" {
+		t.Fatalf("workspace sibling read status = %q, want success (%s)", allowed.Status, raw)
 	}
 }
 

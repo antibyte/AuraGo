@@ -184,3 +184,29 @@ func TestDockerInspectRedactsGo2RTCInternalPassword(t *testing.T) {
 		t.Fatalf("Docker inspect environment leaked go2rtc credential: %s", output)
 	}
 }
+
+func TestDockerInspectRedactsPasswordSuffixAndAuraGoPrefix(t *testing.T) {
+	redacted := redactDockerInspectEnv([]interface{}{
+		"PATH=/usr/bin",
+		"POSTGRES_PASSWORD=db-secret",
+		"AURAGO_MASTER_KEY=hex-secret",
+		"SERVICE_TOKEN=tok-secret",
+		"OPENAI_API_KEY=sk-secret",
+		"HOSTNAME=aurago",
+	})
+	encoded, _ := json.Marshal(redacted)
+	output := string(encoded)
+	if !strings.Contains(output, "PATH=/usr/bin") || !strings.Contains(output, "HOSTNAME=aurago") {
+		t.Fatalf("non-secret environment was redacted: %s", output)
+	}
+	for _, leaked := range []string{"db-secret", "hex-secret", "tok-secret", "sk-secret"} {
+		if strings.Contains(output, leaked) {
+			t.Fatalf("Docker inspect environment leaked %q: %s", leaked, output)
+		}
+	}
+	for _, key := range []string{"POSTGRES_PASSWORD=••••••••", "AURAGO_MASTER_KEY=••••••••", "SERVICE_TOKEN=••••••••", "OPENAI_API_KEY=••••••••"} {
+		if !strings.Contains(output, key) {
+			t.Fatalf("expected redacted key %q in %s", key, output)
+		}
+	}
+}

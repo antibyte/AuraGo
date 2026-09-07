@@ -961,8 +961,14 @@ func resolveMediaRegistryFilesWebPath(db *sql.DB, workspaceDir, webPath string) 
 		}
 		dataDir := mediaRegistryDataDir(db)
 		if dataDir == "" && strings.TrimSpace(workspaceDir) != "" {
-			_, projectRoot := filesystemRoots(workspaceDir)
-			dataDir = filepath.Join(projectRoot, "data")
+			absWorkdir, err := filepath.EvalSymlinks(workspaceDir)
+			if err != nil {
+				absWorkdir, err = filepath.Abs(workspaceDir)
+				if err != nil {
+					absWorkdir = workspaceDir
+				}
+			}
+			dataDir = filepath.Join(detectAuraGoInstallRoot(absWorkdir), "data")
 		}
 		if dataDir == "" {
 			return "", "", fmt.Errorf("cannot resolve %q without media registry database path or workspace", webPath)

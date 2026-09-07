@@ -76,6 +76,9 @@ func TestHomepageManagedContainerDetectionRecognizesIDAndName(t *testing.T) {
 	if !DockerContainerManagedBy(DockerConfig{}, dockerutil.HomepageContainerName, dockerutil.HomepageOwner) {
 		t.Fatal("reserved homepage container name was not protected")
 	}
+	if !DockerContainerManagedBy(DockerConfig{}, dockerutil.AppContainerName, dockerutil.AppOwner) {
+		t.Fatal("reserved AuraGo app container name was not protected")
+	}
 
 	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/containers/abc123/json") {

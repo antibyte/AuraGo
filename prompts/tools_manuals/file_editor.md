@@ -20,7 +20,7 @@ Precisely edit text files with targeted operations. Safer than `write_file` for 
 | `hashline_insert_before` | Insert content before a hashed anchor line | `marker`, `content`, `anchor_line`, `anchor_hash` |
 | `hashline_delete` | Delete a line range anchored to a hashed line inside that range | `start_line`, `end_line`, `anchor_line`, `anchor_hash` |
 
-All operations require `file_path` (relative to `agent_workspace/workdir`). Project-root files are reachable via `../../`.
+All operations require `file_path` (relative to `agent_workspace/workdir`). Sibling directories such as `../skills` are reachable; install-root files (`../../config.yaml`, `../../data/`) are not.
 
 ### Key Behaviors
 

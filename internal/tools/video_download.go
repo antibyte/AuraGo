@@ -486,7 +486,7 @@ func resolveVideoDownloadDir(cfg *config.Config) (string, error) {
 		if base == "" {
 			return "", fmt.Errorf("workspace_dir is not configured")
 		}
-		root := detectFilesystemProjectRoot(base)
+		root := detectAuraGoInstallRoot(base)
 		if _, err := ensurePathInsideDir(root, cleanDir); err != nil {
 			return "", fmt.Errorf("download_dir must stay inside the AuraGo project directory")
 		}
@@ -496,7 +496,7 @@ func resolveVideoDownloadDir(cfg *config.Config) (string, error) {
 	if base == "" {
 		return "", fmt.Errorf("workspace_dir is not configured")
 	}
-	root := detectFilesystemProjectRoot(base)
+	root := detectAuraGoInstallRoot(base)
 	cleanDir := filepath.Clean(filepath.Join(root, filepath.FromSlash(dir)))
 	if _, err := ensurePathInsideDir(root, cleanDir); err != nil {
 		return "", fmt.Errorf("download_dir must stay inside the AuraGo project directory")

@@ -463,3 +463,46 @@ func TestDispatchFilesystemAccessTrackingHooks(t *testing.T) {
 		t.Fatalf("recent = %#v, want workdir/notes.txt with at least two tracked accesses", recent)
 	}
 }
+
+func TestDispatchFilesystemBlocksCaseInsensitiveConfigAndDataDir(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	configPath := filepath.Join(root, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("secret: 1\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "notes.txt"), []byte("vault-adjacent\n"), 0o600); err != nil {
+		t.Fatalf("write data file: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowFilesystemWrite = false
+	cfg.ConfigPath = configPath
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.DataDir = dataDir
+	dc := &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	for _, path := range []string{
+		filepath.Join("..", "..", "CONFIG.YAML"),
+		filepath.Join("..", "..", "data", "notes.txt"),
+	} {
+		output := dispatchFilesystem(context.Background(), ToolCall{
+			Action:    "filesystem",
+			Operation: "read_file",
+			FilePath:  path,
+		}, dc)
+		if !strings.Contains(output, "PERMISSION DENIED") {
+			t.Fatalf("path %q was not denied: %s", path, output)
+		}
+	}
+}

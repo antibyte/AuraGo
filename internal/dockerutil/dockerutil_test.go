@@ -96,6 +96,28 @@ func TestLocalLLMReservedNames(t *testing.T) {
 	}
 }
 
+func TestAuraGoAppContainerName(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"aurago", "/AURAGO", "homelab_aurago", "homelab-aurago-1"} {
+		if !IsAuraGoAppContainerName(name) {
+			t.Fatalf("AuraGo app container name %q was not recognized", name)
+		}
+	}
+	for _, name := range []string{
+		"aurago-local-llm",
+		"aurago_gotenberg",
+		"aurago_docker_proxy",
+		"aurago-homepage",
+		"aurago-homepage-web",
+		"custom-caddy",
+	} {
+		if IsAuraGoAppContainerName(name) {
+			t.Fatalf("unrelated container %q was recognized as AuraGo app", name)
+		}
+	}
+}
+
 func TestHomepageReservedResources(t *testing.T) {
 	t.Parallel()
 

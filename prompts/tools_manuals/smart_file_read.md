@@ -15,7 +15,7 @@ Inspect large files intelligently without dumping the whole file into the prompt
 
 | Parameter | Description |
 |---|---|
-| `file_path` | File path relative to `agent_workspace/workdir` (use `../../` for project-root files) |
+| `file_path` | File path relative to `agent_workspace/workdir` (use `../skills` or `../tools` for sibling directories; install-root files are not reachable) |
 | `query` | Optional focus question for `summarize` |
 | `line_count` | Number of lines per sample section for `sample` (default 20) |
 | `sampling_strategy` | `head`, `tail`, `distributed`, or `semantic` |

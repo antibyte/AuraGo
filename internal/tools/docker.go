@@ -463,32 +463,49 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 }
 
 func redactDockerInspectEnv(value interface{}) interface{} {
-	items, ok := value.([]interface{})
-	if !ok {
-		return value
-	}
-	redacted := make([]interface{}, len(items))
-	for i, item := range items {
-		text, ok := item.(string)
-		if !ok {
-			redacted[i] = item
-			continue
+	switch items := value.(type) {
+	case []string:
+		converted := make([]interface{}, len(items))
+		for i, item := range items {
+			converted[i] = item
 		}
-		if key, _, found := strings.Cut(text, "="); found {
-			k := strings.TrimSpace(key)
-			upper := strings.ToUpper(k)
-			if strings.EqualFold(k, "AURAGO_GO2RTC_API_PASSWORD") ||
-				strings.EqualFold(k, "GARAGE_S3_ACCESS_KEY_ID") ||
-				strings.EqualFold(k, "GARAGE_S3_SECRET_ACCESS_KEY") ||
-				strings.EqualFold(k, "GARAGE_RPC_SECRET") ||
-				(strings.HasPrefix(upper, "GARAGE_") && strings.Contains(upper, "SECRET")) {
+		return redactDockerInspectEnv(converted)
+	case []interface{}:
+		redacted := make([]interface{}, len(items))
+		for i, item := range items {
+			text, ok := item.(string)
+			if !ok {
+				redacted[i] = item
+				continue
+			}
+			if key, _, found := strings.Cut(text, "="); found && dockerInspectEnvKeySensitive(key) {
 				redacted[i] = key + "=••••••••"
 				continue
 			}
+			redacted[i] = text
 		}
-		redacted[i] = text
+		return redacted
+	default:
+		return value
 	}
-	return redacted
+}
+
+func dockerInspectEnvKeySensitive(key string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(key))
+	if upper == "" {
+		return false
+	}
+	if strings.HasPrefix(upper, "AURAGO_") {
+		return true
+	}
+	for _, suffix := range []string{
+		"PASSWORD", "SECRET", "TOKEN", "API_KEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY",
+	} {
+		if upper == suffix || strings.HasSuffix(upper, "_"+suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // DockerContainerManagedBy checks a container's ownership label without exposing its config.
@@ -503,6 +520,10 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 	}
 	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
 		dockerutil.IsHomepageContainerName(containerID) {
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.AppOwner) &&
+		dockerutil.IsAuraGoAppContainerName(containerID) {
 		return true
 	}
 	if validateDockerName(containerID) != nil {
@@ -527,6 +548,10 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
 				dockerutil.IsHomepageContainerName(info.Name) {
+				return true
+			}
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.AppOwner) &&
+				dockerutil.IsAuraGoAppContainerName(info.Name) {
 				return true
 			}
 			return dockerutil.ManagedBy(info.Config.Labels, owner)
@@ -611,6 +636,10 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 			}
 			if !volume && strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
 				dockerutil.IsHomepageContainerName(name) {
+				return true
+			}
+			if !volume && strings.EqualFold(strings.TrimSpace(owner), dockerutil.AppOwner) &&
+				dockerutil.IsAuraGoAppContainerName(name) {
 				return true
 			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) {

@@ -15,10 +15,7 @@ func TestResolveToolInputPathAllowsWorkspaceBoundFiles(t *testing.T) {
 	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll workspace: %v", err)
 	}
-	allowedFile := filepath.Join(repoRoot, "data", "sample.txt")
-	if err := os.MkdirAll(filepath.Dir(allowedFile), 0o755); err != nil {
-		t.Fatalf("MkdirAll data: %v", err)
-	}
+	allowedFile := filepath.Join(workspaceDir, "sample.txt")
 	if err := os.WriteFile(allowedFile, []byte("ok"), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -26,12 +23,35 @@ func TestResolveToolInputPathAllowsWorkspaceBoundFiles(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Directories.WorkspaceDir = workspaceDir
 
-	resolved, err := resolveToolInputPath("../../data/sample.txt", cfg)
+	resolved, err := resolveToolInputPath("sample.txt", cfg)
 	if err != nil {
 		t.Fatalf("resolveToolInputPath: %v", err)
 	}
 	if resolved != allowedFile {
 		t.Fatalf("resolved path = %q, want %q", resolved, allowedFile)
+	}
+}
+
+func TestResolveToolInputPathRejectsInstallDataEscape(t *testing.T) {
+	repoRoot := t.TempDir()
+	workspaceDir := filepath.Join(repoRoot, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workspace: %v", err)
+	}
+	dataFile := filepath.Join(repoRoot, "data", "sample.txt")
+	if err := os.MkdirAll(filepath.Dir(dataFile), 0o755); err != nil {
+		t.Fatalf("MkdirAll data: %v", err)
+	}
+	if err := os.WriteFile(dataFile, []byte("secret"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+
+	_, err := resolveToolInputPath("../../data/sample.txt", cfg)
+	if err == nil {
+		t.Fatal("expected install data path to be rejected")
 	}
 }
 

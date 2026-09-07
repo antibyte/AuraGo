@@ -142,7 +142,25 @@ func filesystemRoots(workspaceDir string) (string, string) {
 func detectFilesystemProjectRoot(absWorkdir string) string {
 	current := filepath.Clean(absWorkdir)
 	for {
-		if filepath.Base(current) == "agent_workspace" {
+		if strings.EqualFold(filepath.Base(current), "agent_workspace") {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return filepath.Clean(absWorkdir)
+}
+
+// detectAuraGoInstallRoot returns the directory that contains agent_workspace
+// (config.yaml, data/). Media registry and download bounds use this; the
+// agent filesystem jail does not.
+func detectAuraGoInstallRoot(absWorkdir string) string {
+	current := filepath.Clean(absWorkdir)
+	for {
+		if strings.EqualFold(filepath.Base(current), "agent_workspace") {
 			parent := filepath.Dir(current)
 			if parent != "" && parent != current {
 				return parent
@@ -155,22 +173,20 @@ func detectFilesystemProjectRoot(absWorkdir string) string {
 		}
 		current = parent
 	}
-
-	if filepath.Base(absWorkdir) == "workdir" {
+	if strings.EqualFold(filepath.Base(absWorkdir), "workdir") {
 		parent := filepath.Dir(absWorkdir)
-		if parent != "" && parent != absWorkdir && parent != current {
+		if parent != "" && parent != absWorkdir {
 			return parent
 		}
 	}
-
-	return absWorkdir
+	return filepath.Clean(absWorkdir)
 }
 
 func filesystemProjectRootHint(workspaceRoot, projectRoot string) string {
 	if workspaceRoot == projectRoot {
 		return "Paths are confined to the workspace root."
 	}
-	return "Use ../../ to reach project-root files from agent_workspace/workdir."
+	return "Use ../ to reach other agent_workspace directories (skills, tools) from workdir. Paths cannot leave agent_workspace."
 }
 
 func filesystemErrorData(workspaceDir, requestedPath, resolvedPath string) map[string]interface{} {
@@ -211,7 +227,6 @@ func filesystemWritableAlternatives() []string {
 	return []string{
 		".",
 		"./tmp",
-		"../../data",
 	}
 }
 
@@ -223,7 +238,7 @@ func filesystemWriteErrorResult(op, workspaceDir, requestedPath, resolvedPath st
 		data["suggested_alternatives"] = filesystemWritableAlternatives()
 		return FSResult{
 			Status:  "error",
-			Message: fmt.Sprintf("Failed to %s because the target location is mounted read-only. Try a writable path inside workdir or ../../data.", op),
+			Message: fmt.Sprintf("Failed to %s because the target location is mounted read-only. Try a writable path inside workdir.", op),
 			Data:    data,
 		}
 	}

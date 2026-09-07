@@ -1,6 +1,6 @@
 ## Tool: Filesystem Operations (`filesystem`)
 
-Perform file system tasks. Your working directory is `agent_workspace/workdir`. The project root containing `documentation/` and `config.yaml` is two levels up (`../../`). 
+Perform file system tasks. Your working directory is `agent_workspace/workdir`. Paths stay inside `agent_workspace`: use `../skills` or `../tools` for sibling directories. `config.yaml`, `data/`, and other install-root files are not reachable. 
 
 ### Operations
 

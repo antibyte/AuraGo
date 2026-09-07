@@ -54,13 +54,27 @@ func TestToolCallParamsMarksProjectRootRelativePaths(t *testing.T) {
 	params := toolCallParams(ToolCall{
 		Action:    "filesystem",
 		Operation: "read_file",
-		FilePath:  "../../prompts/tools_manuals/filesystem.md",
+		FilePath:  "../skills/helper.py",
 	})
 	if params["path_scope"] != "project_root_relative" {
 		t.Fatalf("path_scope = %q, want project_root_relative", params["path_scope"])
 	}
-	if params["file_path"] != "project_root/prompts/tools_manuals/filesystem.md" {
+	if params["file_path"] != "project_root/skills/helper.py" {
 		t.Fatalf("file_path = %q", params["file_path"])
+	}
+}
+
+func TestToolCallParamsLeavesInstallRootTraversalUnlabeled(t *testing.T) {
+	params := toolCallParams(ToolCall{
+		Action:    "filesystem",
+		Operation: "read_file",
+		FilePath:  "../../config.yaml",
+	})
+	if params["path_scope"] == "project_root_relative" {
+		t.Fatalf("install-root traversal must not be labeled project_root_relative: %#v", params)
+	}
+	if params["file_path"] != "../../config.yaml" {
+		t.Fatalf("file_path = %q, want raw install-root path", params["file_path"])
 	}
 }
 
@@ -95,7 +109,7 @@ func TestToolCallParamsSummarizesBatchItems(t *testing.T) {
 		"index=0",
 		"tmp/one.log",
 		"index=1",
-		"project_root/data/vault.bin",
+		"../../data/vault.bin",
 		"index=3",
 		"tmp/four.log",
 	} {
