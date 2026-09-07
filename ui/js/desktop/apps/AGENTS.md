@@ -26,6 +26,9 @@ Persisted keys: `windows.restore_session`, `appearance.dock_pins`,
 plus optional `alwaysOnTop`),
 and `files.default_apps` via `/api/desktop/settings`.
 
+Resize handles in `core/window-interactions-runtime.js` honor the shell's
+per-window minimum width/height, including the fixed opposite edge on west/north drags.
+
 ### Spaces v1 contract
 
 - Exactly three spaces (`1`, `2`, `3`); no create/delete in v1.
@@ -437,7 +440,10 @@ and `files.default_apps` via `/api/desktop/settings`.
   `documentation/assets/teevee-retro-reference.png`; retain the real shell menus
   and window actions. Keep all `.teevee-*` out of the theme bridge.
   CRT bezel/tube proportions follow the reference at every window size; fit the
-  initial receiver bounds proportionally to the desktop instead of flattening it.
+  initial receiver bounds proportionally to the desktop, then enforce the
+  1140x540 minimum so the left sidebar stays visible, including session restores.
+  Only desktops smaller than that minimum may use the compact layout; the tube
+  remains proportional independently of window bounds.
   Material and icon provenance lives in `ui/img/teevee/README.md`. CRT and glass
   have separate, persisted View switches. The one existing video element owns decoding/audio;
   `teevee-crt.js` owns only rendering. Blocked texture access or WebGL failure

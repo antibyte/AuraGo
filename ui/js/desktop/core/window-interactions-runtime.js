@@ -481,18 +481,20 @@ function wireWindow(win, id) {
 
     function applyResize(win, edge, start, dx, dy) {
         const workspace = workspaceBoundsForWindow();
+        const minWidth = parseFloat(win.style.minWidth) || WINDOW_MIN_W;
+        const minHeight = parseFloat(win.style.minHeight) || WINDOW_MIN_H;
         let left = start.left;
         let top = start.top;
         let width = start.width;
         let height = start.height;
-        if (edge.includes('e')) width = Math.max(WINDOW_MIN_W, start.width + dx);
-        if (edge.includes('s')) height = Math.max(WINDOW_MIN_H, start.height + dy);
+        if (edge.includes('e')) width = Math.max(minWidth, start.width + dx);
+        if (edge.includes('s')) height = Math.max(minHeight, start.height + dy);
         if (edge.includes('w')) {
-            width = Math.max(WINDOW_MIN_W, start.width - dx);
+            width = Math.max(minWidth, start.width - dx);
             left = start.left + (start.width - width);
         }
         if (edge.includes('n')) {
-            height = Math.max(WINDOW_MIN_H, start.height - dy);
+            height = Math.max(minHeight, start.height - dy);
             top = start.top + (start.height - height);
         }
         left = Math.max(8, Math.min(left, workspace.width - 80));

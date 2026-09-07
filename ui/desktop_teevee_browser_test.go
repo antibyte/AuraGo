@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // Real shell, HLS and decoder; network responses and video are reproducible local fixtures.
@@ -153,13 +154,24 @@ func TestDesktopTeeVeeBrowser(t *testing.T) {
 	}
 	page.MustSetViewport(1522, 673, 1, false)
 	open("?natural")
-	check("opening fits the short desktop proportionally", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect(),d=document.querySelector('#vd-workspace').getBoundingClientRect(),bar=document.querySelector('.vd-taskbar');return Math.abs(w.width/w.height-1500/845)<.005 && w.right<=d.right && w.bottom<=d.bottom-bar.offsetHeight}`)
+	check("opening fits the short desktop with sidebar visible", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect(),d=document.querySelector('#vd-workspace').getBoundingClientRect(),bar=document.querySelector('.vd-taskbar');return w.width>=1140 && w.right<=d.right && w.bottom<=d.bottom-bar.offsetHeight && getComputedStyle(document.querySelector('.teevee-sidebar')).display==='flex'}`)
 	check("compact menus do not cover window controls", `()=>document.querySelector('.vd-window-menubar').getBoundingClientRect().right<=document.querySelector('.vd-window-actions').getBoundingClientRect().left+1`)
 	checkTubeAspect()
 	screenshot("teevee-natural-short-desktop")
 	page.MustElement(`[data-action="maximize"]`).MustClick()
 	checkTubeAspect()
 	screenshot("teevee-maximized-short-desktop")
+	page.MustElement(`[data-action="maximize"]`).MustClick()
+	page.MustEval(`()=>document.querySelector('.vd-window').style.width='360px'`)
+	check("minimum width keeps sidebar visible", `()=>document.querySelector('.vd-window').getBoundingClientRect().width>=1140 && getComputedStyle(document.querySelector('.teevee-sidebar')).display==='flex'`)
+	edge := page.MustEval(`()=>{const r=document.querySelector('[data-resize="w"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,left:document.querySelector('.vd-window').getBoundingClientRect().left};}`)
+	page.Mouse.MustMoveTo(edge.Get("x").Num(), edge.Get("y").Num()).MustDown(proto.InputMouseButtonLeft).
+		MustMoveTo(edge.Get("x").Num()+400, edge.Get("y").Num()).MustUp(proto.InputMouseButtonLeft)
+	check("left resize stops at minimum without shifting the window", fmt.Sprintf(`()=>Math.abs(document.querySelector('.vd-window').getBoundingClientRect().left-%f)<1`, edge.Get("left").Num()))
+	page.MustEval(`()=>{teeveeTest.closeWindow(document.querySelector('.vd-window').dataset.windowId);teeveeTest.openApp('teevee',{sessionRestore:{width:720,height:400,left:16,top:16}});}`)
+	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-channel-play]').length===40`)
+	check("small saved bounds expand to sidebar minimum", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect();return w.width>=1140 && w.height>=540 && getComputedStyle(document.querySelector('.teevee-sidebar')).display==='flex'}`)
+	checkTubeAspect()
 	page.MustSetViewport(1700, 1020, 1, false)
 	open("")
 	checkTubeAspect()
@@ -171,9 +183,9 @@ func TestDesktopTeeVeeBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-channel-play]').length===1 && document.querySelector('[data-list-count]').textContent==='1'`)
 	page.MustElement(`[data-search]`).MustSelectAllText().MustInput("")
 	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-channel-play]').length===40`)
-	for _, size := range [][2]int{{1500, 610}, {1440, 900}, {1120, 720}, {960, 720}, {390, 844}} {
-		page.MustSetViewport(max(size[0]+30, 440), max(size[1]+80, 940), 1, false)
-		page.MustEval(`(width,height)=>{const w=document.querySelector('[data-app-id="teevee"]');w.style.width=width+'px';w.style.height=height+'px';}`, size[0], size[1])
+	for _, size := range [][2]int{{1500, 610}, {1440, 900}, {1140, 720}, {1120, 720}, {960, 720}, {390, 844}} {
+		page.MustSetViewport(size[0]+32, max(size[1]+80, 940), 1, false)
+		open(fmt.Sprintf("?width=%d&height=%d", size[0], size[1]))
 		checkTubeAspect()
 		check("no horizontal overflow", `()=>{const a=document.querySelector('.teevee-app');return a.scrollWidth<=a.clientWidth+1}`)
 		check("power and player fit", `()=>{const w=document.querySelector('.vd-window').getBoundingClientRect(),p=document.querySelector('.teevee-power').getBoundingClientRect(),v=document.querySelector('.teevee-video-shell').getBoundingClientRect();return p.bottom<=w.bottom && p.right<=w.right && v.height>=100 && v.width>=100}`)

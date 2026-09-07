@@ -5321,7 +5321,7 @@
 
     function appWindowMinSize(appId) {
         if (appId === 'radio') return { width: 360, height: 540 };
-        if (appId === 'teevee') return { width: 360, height: 540 };
+        if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
@@ -5565,6 +5565,7 @@
         }
 
         const requestedSize = appWindowSize(appId);
+        const minSize = appWindowMinSize(appId);
         const size = sessionRestore
             ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
             : clampWindowSize(requestedSize);
@@ -5573,6 +5574,11 @@
             const scale = Math.min(size.width / requestedSize.width, size.height / requestedSize.height);
             size.width = Math.floor(requestedSize.width * scale);
             size.height = Math.floor(requestedSize.height * scale);
+        }
+        if (appId === 'teevee') {
+            const availableMinimum = clampWindowSize(minSize);
+            size.width = Math.max(size.width, availableMinimum.width);
+            size.height = Math.max(size.height, availableMinimum.height);
         }
         const position = sessionRestore
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
@@ -5602,7 +5608,6 @@
 
         win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
         win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
-        const minSize = appWindowMinSize(appId);
         win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
         win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
 
@@ -6538,18 +6543,20 @@ function wireWindow(win, id) {
 
     function applyResize(win, edge, start, dx, dy) {
         const workspace = workspaceBoundsForWindow();
+        const minWidth = parseFloat(win.style.minWidth) || WINDOW_MIN_W;
+        const minHeight = parseFloat(win.style.minHeight) || WINDOW_MIN_H;
         let left = start.left;
         let top = start.top;
         let width = start.width;
         let height = start.height;
-        if (edge.includes('e')) width = Math.max(WINDOW_MIN_W, start.width + dx);
-        if (edge.includes('s')) height = Math.max(WINDOW_MIN_H, start.height + dy);
+        if (edge.includes('e')) width = Math.max(minWidth, start.width + dx);
+        if (edge.includes('s')) height = Math.max(minHeight, start.height + dy);
         if (edge.includes('w')) {
-            width = Math.max(WINDOW_MIN_W, start.width - dx);
+            width = Math.max(minWidth, start.width - dx);
             left = start.left + (start.width - width);
         }
         if (edge.includes('n')) {
-            height = Math.max(WINDOW_MIN_H, start.height - dy);
+            height = Math.max(minHeight, start.height - dy);
             top = start.top + (start.height - height);
         }
         left = Math.max(8, Math.min(left, workspace.width - 80));
