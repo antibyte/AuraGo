@@ -357,8 +357,8 @@
             }
             if (ctx.G.st === 'PAUSED') { ctx.updatePauseMenu(); return; }
             if (ctx.G.st === 'SETTINGS') { ctx.updateSettingsMenu(); return; }
-            if (ctx.G.st === 'SHOP') { ctx.updateShop(); return; }
-            if (ctx.G.evoChoiceOpen) { ctx.updateEvoChoice(); return; }
+            if (ctx.G.st === 'SHOP') { if (ctx.updateFX) ctx.updateFX(dt); ctx.updateShop(); return; }
+            if (ctx.G.evoChoiceOpen) { if (ctx.updateFX) ctx.updateFX(dt); ctx.updateEvoChoice(); return; }
             if (ctx.G.st === 'TITLE') {
                 ctx.G.tIdle += dt * 1000;
                 if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.demoMode) { ctx.startDemo(); }

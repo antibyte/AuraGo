@@ -876,10 +876,12 @@ registration lives in `internal/desktop/types.go`.
 - Combat-juice pack (2026-09) adds `superReady` / `heartbeat` / `multiKill`
   SFX (mute-guarded) plus a shimmer layer on `respawn`; `FX_SUPER_READY_DUR`,
   `FX_LASTLIFE_INTERVAL`, `FX_MULTIKILL_WINDOW/COUNT/HITSTOP` constants live in
-  `galaxa-constants.js`. `registerKill(x, y)` tracks the
+  `galaxa-constants.js`.   `registerKill(x, y)` tracks the
   `multiKillCount`/`multiKillWindow` cluster and fires `fxMultiKill` once per
   cluster; `superReadyFired` (reset in `startSuper` and below 100 % meter)
-  gates the one-shot super-ready cue in `updateFX`.
+  gates the one-shot super-ready cue in `updateFX`. Menu states (SHOP, evo
+  choice) tick `updateFX` so leftover gameplay FX decay instead of freezing
+  as artifacts over the menu panels.
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
