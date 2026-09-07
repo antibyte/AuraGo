@@ -25,6 +25,10 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 3. Keep the first implementation the smallest loop that is actually playable;
    extend it only after it validates.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
+   Supply `operation: "write"`, `path` and the complete `content`. Studio binds
+   `job_id` server-side and accepts an omitted operation when content is present.
+   A different explicit job ID is rejected. Check for `status: "ok"` before
+   validating: a rejected write leaves the previous source in place.
    If a write does not have the expected effect, fix the parameters and retry
    once; do not switch to `execute_python`, `execute_shell`, `filesystem`, or
    any tool outside the allowed Game Maker scope.
@@ -67,6 +71,10 @@ last allowed correction). Do not batch implementation calls with `set_plan`;
 remaining calls are skipped until the server starts the building round.
 
 Choose `shooter`, `platformer`, `topdown`, `blocks`, `board`, `minimal`, or `three`.
+Use `blocks` for Breakout/Arkanoid, `platformer` for jump-and-run, `topdown` for
+adventure, `shooter` for shooting games and `board` for cards/board games.
+`minimal` is for games without a matching template, such as Snake; it is only
+the schema example's default, not the recommended choice for every request.
 The server installs a new 2D template once; edits keep their existing code.
 Record objective, core_loop, 1–12 scope features, perspective, resolution (default
 960×540), camera, controls, states (including playing), progress/failure/completion
@@ -80,6 +88,14 @@ Add 1–8 `scenarios`, beyond immutable template minimums. A complete scenario:
 ```json
 {"id":"shooting","steps":[{"action":"key","key":"SPACE","ms":500}],"metric":"actions","compare":"increased","value":0}
 ```
+Movement uses position, not the primary-action counter:
+```json
+{"id":"paddle_move","steps":[{"action":"key","key":"RIGHT","ms":350}],"metric":"player_x","compare":"changed","value":0}
+```
+`actions` counts actual primary actions such as launching/shooting, `hits` counts
+actual collisions/rule effects, and `player_x/player_y` observe movement directly.
+Never increment `actions` every frame to satisfy a movement scenario. Each
+scenario starts from a restarted game; launch a waiting ball before checking hits.
 Allowed steps: key, pointer (logical x/y), wait, observe. Keys: LEFT/RIGHT/UP/DOWN,
 W/A/S/D/SPACE/R/ESC/ENTER. Maximum eight steps and six seconds per scenario,
 25 seconds combined. Compare increased/decreased/changed/equals. Metrics:

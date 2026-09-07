@@ -24,6 +24,13 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		return `Tool Output: {"status":"error","message":"Game Maker service is unavailable"}`, true
 	}
 	jobID := toolArgString(tc.Params, "job_id")
+	boundJobID := gamemaker.JobIDFromContext(ctx)
+	if boundJobID != "" {
+		if jobID != "" && jobID != boundJobID {
+			return gameMakerToolError(fmt.Errorf("job_id does not match this Studio job")), true
+		}
+		jobID = boundJobID
+	}
 	if jobID == "" {
 		return `Tool Output: {"status":"error","message":"job_id is required"}`, true
 	}
@@ -70,6 +77,13 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 
 	case "game_maker_file":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
+		if operation == "" && boundJobID != "" {
+			// A complete content payload is an unambiguous write in this isolated
+			// run. Keep other callers and ambiguous path-only calls explicit.
+			if _, hasContent := tc.Params["content"].(string); hasContent || tc.Content != "" {
+				operation = "write"
+			}
+		}
 		path := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path"))
 		if operation == "read" {
 			content, err := service.ReadJobFile(ctx, jobID, path)
@@ -88,7 +102,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		if err := service.WriteJobFile(ctx, jobID, path, content); err != nil {
 			return gameMakerToolError(err), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "path": path}), true
+		return gameMakerToolJSON(map[string]any{"status": "ok", "operation": "write", "path": path}), true
 
 	case "game_maker_validate":
 		result := service.ValidateJobScope(ctx, jobID, toolArgString(tc.Params, "scope"))

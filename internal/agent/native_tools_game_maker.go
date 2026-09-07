@@ -16,7 +16,7 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 			}, "job_id", "operation"),
 		),
 		tool("game_maker_file",
-			"Read or atomically write a source file in the current Game Maker staging workspace. Managed vendor and dist paths cannot be written.",
+			"Read or atomically write a source file in the current Game Maker staging workspace. Use operation=write, path and complete content; only validate after status=ok. Isolated Studio runs supply an omitted job_id and infer write when content is supplied without operation. Other callers must provide job_id and operation. Managed vendor and dist paths cannot be written.",
 			schema(map[string]interface{}{
 				"job_id":    prop("string", "Active Game Maker job ID"),
 				"operation": map[string]interface{}{"type": "string", "enum": []string{"read", "write"}},

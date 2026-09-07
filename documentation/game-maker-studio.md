@@ -172,6 +172,9 @@ common lifecycle resets state, physics and inputs. Keep standard Arrow/Space/R
 controls for minimum checks; ESC ends/forfeits a run. State counters reflect actual
 actions, hits, points, spawns, turns, timer ticks and terminal state. Do not invent
 actions or fabricate test counters for absent behavior.
+Planning examples distinguish position changes (`player_x`, `player_y`) from
+primary actions (`actions`). Breakout uses the `blocks` template; `minimal` is
+reserved for games without a matching starting template.
 `setup()` must assign `this.player` to the controlled object (for Breakout,
 `this.player = this.paddle`) before returning. A missing or foreign player is
 rejected immediately with a concrete binding diagnostic. Asset detail examples
@@ -181,7 +184,13 @@ frames before Phaser can substitute placeholder art.
 
 ## Builds, revisions, and export
 
-Each job works in its own staging copy. TypeScript and ES modules are compiled
+Each job works in its own staging copy with a server-bound job context for
+Studio tool dispatch. An omitted `job_id`
+uses that binding; an explicitly different job is rejected. A file call with
+complete `content` and no operation means `write` only in an isolated Studio run.
+Outside Studio, callers must still supply job ID and operation. Rejected writes
+leave previous source unchanged and must be corrected before validation.
+TypeScript and ES modules are compiled
 with the Pure-Go esbuild API, so Game Maker itself needs neither Docker nor a
 Node runtime. Successful validation atomically replaces the published project
 and records a revision whose file data is deduplicated in a SHA-256 blob store.

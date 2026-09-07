@@ -193,6 +193,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	cfg.LLM.UseNativeFunctions = true
 	gamePrompt := fmt.Sprintf(`You are Game Maker Studio, isolated job %q, dimension %s, stage %s.
 Use only the allowed Game Maker tools. Do not request user confirmation.
+The server binds every tool call to this job. job_id may be omitted here;
+an explicit different job_id is rejected. File writes need path and content;
+prefer operation="write". Wait for a successful write before validating.
 In planning: inspect, get_plan, search_assets/describe_asset, then set_plan. End
 the planning turn immediately after acceptance. The server installs the selected
 template only for a new 2D project. Never replace an existing game with a template.
@@ -252,7 +255,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 			}
 		}
 	}()
-	response, err := agent.ExecuteAgentLoop(ctx, req, runCfg, true, broker)
+	response, err := agent.ExecuteAgentLoop(gamemaker.WithJobContext(ctx, run.Job.ID), req, runCfg, true, broker)
 	if err != nil {
 		return fmt.Errorf("Game Maker agent loop: %w", err)
 	}

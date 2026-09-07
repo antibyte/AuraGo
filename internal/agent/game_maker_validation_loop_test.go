@@ -19,7 +19,7 @@ func TestGameMakerRepairsEndAtServerBoundary(t *testing.T) {
 	defer cleanup()
 	cfg.Config.LLM.UseNativeFunctions = true
 	cfg.Config.GameMaker.Enabled = true
-	cfg.Config.CircuitBreaker.MaxToolCalls = 2
+	cfg.Config.CircuitBreaker.MaxToolCalls = 3
 	cfg.AllowedTools = []string{"game_maker_file", "game_maker_validate"}
 	cfg.SuppressTurnSideEffects, cfg.IsMission = true, true
 	root := t.TempDir()
@@ -43,28 +43,31 @@ func TestGameMakerRepairsEndAtServerBoundary(t *testing.T) {
 		}
 		rounds++
 		cfg.SessionID = fmt.Sprintf("game-maker-validation-%d", rounds)
-		if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", fmt.Sprintf("invalid TypeScript <<< %d", rounds)); err != nil {
-			return err
-		}
 		if run.Stage == "building" {
-			return nil // The server detects the initial failure and starts repair.
+			// The server detects the initial failure and starts repair.
+			return s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "invalid TypeScript <<< 1")
 		}
 		call := func(id, name string, args map[string]any) openai.ToolCall {
-			args["job_id"] = run.Job.ID
 			data, _ := json.Marshal(args)
 			return openai.ToolCall{ID: id, Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: name, Arguments: string(data)}}
 		}
+		content := fmt.Sprintf("invalid TypeScript <<< %d", rounds)
+		// Reproduce Agnes' path/content-only write, followed by validation.
+		write := call("write", "game_maker_file", map[string]any{"path": "src/main.ts", "content": content})
 		validate := call("validate", "game_maker_validate", map[string]any{"scope": "full"})
 		tail := call("tail", "game_maker_file", map[string]any{"operation": "write", "path": "src/forbidden.ts", "content": "// must not dispatch"})
-		client := &circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{validate, tail}}}}}}}
+		client := &circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{write, validate, tail}}}}}}}
 		cfg.LLMClient = client
 		cfg.RunComplete = s.StopAfterValidation(run.Job.ID, run.Stage == "repair")
-		_, err := ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: cfg.Config.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: project.Description}}}, cfg, false, NoopBroker{})
+		_, err := ExecuteAgentLoop(gamemaker.WithJobContext(ctx, run.Job.ID), openai.ChatCompletionRequest{Model: cfg.Config.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: project.Description}}}, cfg, false, NoopBroker{})
 		if err != nil {
 			return err
 		}
 		if len(client.requests) != 1 {
 			return fmt.Errorf("continued model calls after validation: %d", len(client.requests))
+		}
+		if got, err := s.ReadJobFile(ctx, run.Job.ID, "src/main.ts"); err != nil || !strings.Contains(got, content) {
+			return fmt.Errorf("validation did not follow the repaired source: %q, %v", got, err)
 		}
 		if _, err := s.ReadJobFile(ctx, run.Job.ID, "src/forbidden.ts"); err == nil {
 			return fmt.Errorf("trailing native write executed after validation")

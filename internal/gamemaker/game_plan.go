@@ -380,6 +380,8 @@ func ExampleGamePlan(project Project) GamePlan {
 	if project.Dimension == "3d" {
 		p.Template = "three"
 		p.Perspective = "3d"
+	} else {
+		p.Scenarios = append(p.Scenarios, GameScenario{ID: "player_movement", Steps: []GameTestStep{{Action: "key", Key: "RIGHT", MS: 350}}, Metric: "player_x", Compare: "changed"})
 	}
 	p.Assets = []PlanAsset{{Role: "player", Direction: "none", DisplayHeight: 32, Origin: Point{.5, .5}, Collider: "rectangle", Fallback: "Replace with a specific procedural shape or choose exact library IDs"}}
 	if project.CurrentRevision > 0 {
