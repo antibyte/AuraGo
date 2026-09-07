@@ -1418,8 +1418,14 @@ registration lives in `internal/desktop/types.go`.
   `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
   needed.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
-  `/api/code-studio/terminal`. Exposes `window.TerminalApp`. No child DOX file
-  needed.
+  `/api/code-studio/terminal`. Exposes `window.TerminalApp`. Loader order in
+  `module-loader.js` is `xterm.css` → `desktop-app-terminal.css` →
+  `xterm.min.js` → `xterm-addon-fit.min.js` → `xterm-addon-canvas.min.js`
+  (`window.CanvasAddon.CanvasAddon`, `@xterm/addon-canvas@0.7.0`) →
+  `terminal-styles.js` (`window.TerminalStyles`) → `terminal-crt.js`
+  (`window.TerminalCrt.create`) → `terminal-audio.js`
+  (`window.TerminalAudio.create`) → `terminal.js`. Do not change the
+  `code-studio` xterm entry. No child DOX file needed.
 - `notes.js` - Notes app entry and orchestrator: per-window `instances` Map,
   `window.NotesApp = { render, dispose, instances }`, markdown note list and
   editor under `Documents/Notes/`. `notifyError` uses

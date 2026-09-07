@@ -127,6 +127,7 @@ Embedded under `ui/` (served via `go:embed`). Paths relative to repo root.
 | CodeMirror 6 (bundled) | `ui/js/vendor/codemirror-bundle.esm.js` | MIT | https://codemirror.net / https://github.com/codemirror/dev |
 | xterm.js | `ui/js/vendor/xterm.min.js`, `ui/css/xterm.css` | MIT | https://github.com/xtermjs/xterm.js |
 | xterm-addon-fit | `ui/js/vendor/xterm-addon-fit.min.js` | MIT | https://github.com/xtermjs/xterm.js |
+| xterm-addon-canvas 0.7.0 | `ui/js/vendor/xterm-addon-canvas.min.js` | MIT | https://github.com/xtermjs/xterm.js |
 | PDF.js | `ui/js/vendor/pdf.min.js`, `ui/js/vendor/pdf.worker.min.js` | Apache-2.0 | https://github.com/mozilla/pdf.js |
 | hls.js v1.5.20 | `ui/js/vendor/hls.min.js` | Apache-2.0 | https://github.com/video-dev/hls.js |
 | force-graph | `ui/js/vendor/force-graph.min.js` | MIT | https://github.com/vasturiano/force-graph |

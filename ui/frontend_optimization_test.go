@@ -714,6 +714,7 @@ func TestDesktopAppAssetsRegistryCoversLazyCSSForAllBuiltinApps(t *testing.T) {
 		"'/css/desktop-app-software-store.css'",
 		"'/css/cm-chessboard.css'",
 		"'/css/desktop-app-chess.css'",
+		"'/css/desktop-app-terminal.css'",
 		"'settings'",
 		"'calculator'",
 		"'todo'",

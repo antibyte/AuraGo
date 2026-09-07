@@ -100,3 +100,44 @@ func TestDesktopTerminalStyleI18n(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
+	t.Parallel()
+
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	start := strings.Index(loader, "        'terminal': {")
+	if start < 0 {
+		t.Fatal("terminal loader missing 'terminal' entry")
+	}
+	rest := loader[start+len("        'terminal': {"):]
+	endRel := strings.Index(rest, "\n        '")
+	if endRel < 0 {
+		t.Fatal("terminal loader entry is not followed by another app")
+	}
+	loader = loader[start : start+len("        'terminal': {")+endRel]
+	markers := []string{
+		`'/css/xterm.css'`,
+		`'/css/desktop-app-terminal.css'`,
+		`'/js/vendor/xterm.min.js'`,
+		`'/js/vendor/xterm-addon-fit.min.js'`,
+		`'/js/vendor/xterm-addon-canvas.min.js'`,
+		`'/js/desktop/apps/terminal-styles.js'`,
+		`'/js/desktop/apps/terminal-crt.js'`,
+		`'/js/desktop/apps/terminal-audio.js'`,
+		`'/js/desktop/apps/terminal.js'`,
+	}
+	prev := -1
+	for _, marker := range markers {
+		idx := strings.Index(loader, marker)
+		if idx < 0 {
+			t.Fatalf("terminal loader missing %s", marker)
+		}
+		if idx < prev {
+			t.Fatalf("terminal loader order wrong at %s", marker)
+		}
+		prev = idx
+	}
+	if !strings.Contains(readDesktopAssetText(t, "js/vendor/xterm-addon-canvas.min.js"), "CanvasAddon") {
+		t.Fatal("vendored canvas addon missing CanvasAddon export")
+	}
+}

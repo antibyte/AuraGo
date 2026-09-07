@@ -101,10 +101,14 @@
             ]
         },
         'terminal': {
-            styles: appStyles('/css/xterm.css'),
+            styles: appStyles('/css/xterm.css', '/css/desktop-app-terminal.css'),
             scripts: [
                 '/js/vendor/xterm.min.js',
                 '/js/vendor/xterm-addon-fit.min.js',
+                '/js/vendor/xterm-addon-canvas.min.js',
+                '/js/desktop/apps/terminal-styles.js',
+                '/js/desktop/apps/terminal-crt.js',
+                '/js/desktop/apps/terminal-audio.js',
                 '/js/desktop/apps/terminal.js'
             ]
         },
