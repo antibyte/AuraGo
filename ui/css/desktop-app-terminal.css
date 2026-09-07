@@ -1,0 +1,161 @@
+.vd-terminal-app {
+    --vd-term-bezel: transparent;
+    --vd-term-bezel-inner: transparent;
+    --vd-term-glow: transparent;
+    position: relative;
+    min-height: 0;
+}
+
+.vd-terminal-app .vd-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.vd-terminal-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.vd-terminal-toolbar-status {
+    min-width: 0;
+}
+
+.vd-terminal-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.vd-terminal-toolbar select[data-terminal-style] {
+    max-width: 16rem;
+    min-height: 32px;
+    background: var(--vd-theme-control-bg, var(--vd-theme-panel-bg));
+    color: var(--vd-theme-text, inherit);
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 8px;
+    padding: 4px 8px;
+}
+
+.vd-terminal-toolbar [data-terminal-audio] {
+    min-height: 32px;
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 8px;
+    background: var(--vd-theme-control-bg, var(--vd-theme-chrome-bg));
+    color: inherit;
+    padding: 4px 10px;
+}
+
+.vd-terminal-app[data-terminal-style="modern"] [data-terminal-audio] {
+    display: none;
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .vd-terminal-bezel {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.vd-terminal-stage {
+    min-height: 0;
+    height: 100%;
+    display: grid;
+}
+
+.vd-terminal-bezel {
+    display: grid;
+    min-height: 0;
+    padding: 14px;
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%),
+        var(--vd-term-bezel);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.vd-terminal-screen {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: inset 0 0 24px var(--vd-term-glow);
+}
+
+.vd-terminal-crt-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.vd-terminal-app[data-terminal-style="amber"],
+.vd-terminal-app[data-terminal-style="green"],
+.vd-terminal-app[data-terminal-style="vintage"],
+.vd-terminal-app[data-terminal-style="mono-green"],
+.vd-terminal-app[data-terminal-style="transparent-green"] {
+    --vd-term-bezel: #1a1612;
+    --vd-term-glow: rgba(255, 176, 0, 0.18);
+}
+
+.vd-terminal-app[data-terminal-style="green"],
+.vd-terminal-app[data-terminal-style="mono-green"],
+.vd-terminal-app[data-terminal-style="transparent-green"] {
+    --vd-term-glow: rgba(95, 255, 58, 0.2);
+}
+
+.vd-terminal-app[data-terminal-style="apple2"] {
+    --vd-term-bezel: #d8c3a5;
+    --vd-term-glow: rgba(51, 255, 51, 0.16);
+}
+
+.vd-terminal-app[data-terminal-style="commodore64"] {
+    --vd-term-bezel: #6c4f3d;
+    --vd-term-glow: rgba(108, 94, 181, 0.22);
+}
+
+.vd-terminal-app[data-terminal-style="ibm3278"] {
+    --vd-term-bezel: #7d868c;
+    --vd-term-glow: rgba(42, 223, 42, 0.16);
+}
+
+.vd-terminal-app[data-terminal-fallback="css"] .vd-terminal-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.04) 0,
+            rgba(255, 255, 255, 0.04) 1px,
+            transparent 2px,
+            transparent 3px
+        ),
+        radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
+    box-shadow: inset 0 0 40px var(--vd-term-glow);
+}
+
+.vd-terminal-app[data-terminal-style="transparent-green"] .vd-terminal-screen {
+    background: rgba(0, 17, 8, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-terminal-crt-overlay {
+        filter: none;
+    }
+}
