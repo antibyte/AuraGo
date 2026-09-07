@@ -55,6 +55,8 @@
         '}'
     ].join('\n');
 
+    const SOURCE_WAIT_MS = 2000;
+
     function reducedMotion() {
         return (document.body && document.body.dataset.animations === 'false')
             || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -90,6 +92,11 @@
             let ping = null;
             let pong = null;
             let writePing = true;
+            let burnFbo = null;
+            let burnW = 1;
+            let burnH = 1;
+            let sourceWaitStarted = 0;
+            let observer = null;
             let overlay = document.createElement('canvas');
             overlay.className = 'vd-terminal-crt-overlay';
             overlay.setAttribute('aria-hidden', 'true');
@@ -100,12 +107,19 @@
                 useFallback();
             };
 
+            function hideOverlay() {
+                if (!overlay) return;
+                overlay.style.display = 'none';
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            }
+
             function useFallback() {
                 fallback = true;
                 enabled = false;
                 if (host) host.setAttribute('data-terminal-fallback', 'css');
                 stopLoop();
                 destroyGl();
+                hideOverlay();
             }
 
             function destroyGl() {
@@ -115,11 +129,13 @@
                 if (gl && sourceTex) gl.deleteTexture(sourceTex);
                 if (gl && ping) gl.deleteTexture(ping);
                 if (gl && pong) gl.deleteTexture(pong);
+                if (gl && burnFbo) gl.deleteFramebuffer(burnFbo);
                 program = null;
                 buffer = null;
                 sourceTex = null;
                 ping = null;
                 pong = null;
+                burnFbo = null;
                 gl = null;
             }
 
@@ -156,21 +172,33 @@
                 sourceTex = createTexture(gl);
                 ping = createTexture(gl);
                 pong = createTexture(gl);
+                burnFbo = gl.createFramebuffer();
                 return true;
             }
 
             if (!initGl()) useFallback();
 
-            function visible() {
-                if (disposed || !enabled || fallback) return false;
+            function isOnScreen() {
                 if (document.hidden) return false;
                 const win = getWindowEl();
                 if (win && (win.style.display === 'none' || win.classList.contains('vd-space-hidden'))) return false;
                 return true;
             }
 
+            function capturePreviousOutput() {
+                if (!gl || !ping || !pong) return;
+                const dest = writePing ? pong : ping;
+                gl.bindTexture(gl.TEXTURE_2D, dest);
+                if (burnFbo) {
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, burnFbo);
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, dest, 0);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                }
+                gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, burnW, burnH, 0);
+            }
+
             function resize() {
-                if (!overlay || !screen) return;
+                if (!overlay || !screen || fallback) return;
                 const rect = screen.getBoundingClientRect();
                 const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
                 const width = Math.max(2, Math.floor(rect.width * dpr));
@@ -181,10 +209,10 @@
                 overlay.style.height = '100%';
                 scratch.width = width;
                 scratch.height = height;
+                burnW = Math.max(1, Math.floor(width / 2));
+                burnH = Math.max(1, Math.floor(height / 2));
                 if (gl) {
                     gl.viewport(0, 0, width, height);
-                    const burnW = Math.max(1, Math.floor(width / 2));
-                    const burnH = Math.max(1, Math.floor(height / 2));
                     [ping, pong].forEach(function (tex) {
                         gl.bindTexture(gl.TEXTURE_2D, tex);
                         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, burnW, burnH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -213,12 +241,24 @@
 
             function frame(now) {
                 raf = 0;
-                if (!visible() || !gl || !program) return;
-                const src = sourceCanvas();
-                if (!src) {
+                if (disposed || fallback || !enabled) return;
+                if (!isOnScreen() || !gl || !program) {
                     startLoop();
                     return;
                 }
+                const src = sourceCanvas();
+                if (!src) {
+                    const stamp = now || (window.performance && performance.now()) || Date.now();
+                    if (!sourceWaitStarted) sourceWaitStarted = stamp;
+                    if (stamp - sourceWaitStarted >= SOURCE_WAIT_MS) {
+                        useFallback();
+                        return;
+                    }
+                    startLoop();
+                    return;
+                }
+                sourceWaitStarted = 0;
+                const motion = reducedMotion() ? 0.0 : 1.0;
                 gl.useProgram(program);
                 gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
                 gl.enableVertexAttribArray(0);
@@ -240,10 +280,13 @@
                 gl.uniform1f(loc('u_flicker'), profile.flicker);
                 gl.uniform1f(loc('u_mask'), profile.mask);
                 gl.uniform1f(loc('u_alpha'), profile.alpha);
-                gl.uniform1f(loc('u_motion'), reducedMotion() ? 0.0 : 1.0);
+                gl.uniform1f(loc('u_motion'), motion);
                 gl.uniform1f(loc('u_scan'), profile.scan);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                if (!reducedMotion()) writePing = !writePing;
+                if (motion) {
+                    capturePreviousOutput();
+                    writePing = !writePing;
+                }
                 startLoop();
             }
 
@@ -257,6 +300,21 @@
                 raf = 0;
             }
 
+            function onVisibility() {
+                if (!disposed && enabled && !fallback) startLoop();
+            }
+
+            function watchWindow() {
+                if (observer) {
+                    observer.disconnect();
+                    observer = null;
+                }
+                const win = getWindowEl();
+                if (!win || typeof MutationObserver === 'undefined') return;
+                observer = new MutationObserver(onVisibility);
+                observer.observe(win, { attributes: true, attributeFilter: ['class', 'style', 'data-space-hidden'] });
+            }
+
             function setProfile(next) {
                 if (next && next.crt) profile = next.crt;
             }
@@ -265,6 +323,8 @@
                 enabled = !!next && !fallback;
                 if (enabled) {
                     if (host) host.removeAttribute('data-terminal-fallback');
+                    sourceWaitStarted = 0;
+                    watchWindow();
                     resize();
                     startLoop();
                 } else {
@@ -276,10 +336,17 @@
                 disposed = true;
                 enabled = false;
                 stopLoop();
+                document.removeEventListener('visibilitychange', onVisibility);
+                if (observer) {
+                    observer.disconnect();
+                    observer = null;
+                }
                 destroyGl();
-                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                hideOverlay();
             }
 
+            document.addEventListener('visibilitychange', onVisibility);
+            watchWindow();
             resize();
             return { setProfile, setEnabled, resize, dispose, usesFallback: function () { return fallback; } };
         }
