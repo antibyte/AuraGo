@@ -796,8 +796,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ## Resources
 
 - **README.md** - User-facing documentation
-- README presentation: English, positioning AuraGo as a personal self-hosted AI platform; use the Slate/ice-blue/turquoise editorial direction. Keep installation and capability claims aligned with current source.
-- README artwork lives in `assets/readme/`; label generated illustrations as conceptual and use authentic, unchanged product screenshots for proof. Keep essential copy and commands in Markdown and verify light/dark rendering at desktop and mobile widths.
+- README presentation: English, playful and geeky, with the original AuraGo gopher mascot. Use compact, casual copy that names the broad feature set and distinctive integrations; avoid corporate positioning and business slogans. Keep claims aligned with current source.
+- README artwork lives in `assets/readme/`; illustrate actual features, system structure and meaningful connections rather than abstract decorative objects. Check diagram labels and arrows against the runtime, retain authentic screenshots, keep essential explanations in Markdown, and verify light/dark rendering at desktop and mobile widths.
 - TeeVee's requested visual target is the supplied wood/metal CRT television, including glass reflection and a switchable video filter. `documentation/teevee-retro-ui-plan.md` and its unchanged reference image own the implementation plan; the redesign is not yet implemented. Preserve playback compatibility while replacing TeeVee's theme contract during implementation.
 - **documentation/** - Detailed guides
 - **config_template.yaml** - Full configuration reference (~600 lines)

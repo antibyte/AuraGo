@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="title desc">
+  <title id="title">Follow the cables: how AuraGo's systems connect</title>
+  <desc id="desc">Chat and automation triggers reach the agent loop. The loop uses model providers, retrieved memory and personality guidance, and can delegate subtasks to co-agents. Tool calls pass through integration permissions and Danger Zone gates. Handlers use vault credentials to operate enabled infrastructure, workspaces and media services, returning results to the loop. Channels and workers retain their own access rules.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#5de4ce" stroke-width="2"/></marker>
+    <marker id="gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#ffc477" stroke-width="2"/></marker>
+    <style>
+      text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#f6f0df}
+      .heading{font-size:29px;font-weight:750;letter-spacing:1px}
+      .body{font-size:24px;fill:#cbd3e4}
+      .note{font-size:22px;fill:#b5c1d6}
+      .wire{fill:none;stroke:#5de4ce;stroke-width:3;stroke-linejoin:round;marker-end:url(#arrow)}
+      .return{marker-start:url(#arrow)}
+      .guide{fill:none;stroke:#ffc477;stroke-width:3;stroke-dasharray:7 6;stroke-linejoin:round;marker-end:url(#gold)}
+      .panel{fill:#192439;stroke:#42536d;stroke-width:2}
+    </style>
+  </defs>
+  <rect width="1200" height="1100" rx="22" fill="#101827"/>
+  <text x="40" y="67" font-size="48" font-weight="800">Follow the cables.</text>
+  <text x="42" y="104" class="body">The agent loop, its memory, and the things it can actually do.</text>
+
+  <!-- Channels and triggers are separate admission paths, not identical trust scopes. -->
+  <rect class="panel" x="40" y="145" width="340" height="120" rx="12"/>
+  <text class="heading" x="60" y="184">YOU</text>
+  <text class="body" x="60" y="218">Chat · Desktop · Messengers</text>
+  <text class="body" x="60" y="248">Voice · MeshCore radio</text>
+  <rect class="panel" x="430" y="145" width="340" height="120" rx="12"/>
+  <text class="heading" x="450" y="184">TRIGGERS</text>
+  <text class="body" x="450" y="218">Missions · Schedules</text>
+  <text class="body" x="450" y="248">Webhooks · Events</text>
+  <rect class="panel" x="820" y="145" width="340" height="120" rx="12"/>
+  <text class="heading" x="840" y="184">MODEL PROVIDERS</text>
+  <text class="body" x="840" y="218">Local or hosted models</text>
+  <text class="body" x="840" y="248">Requests ↔ responses</text>
+  <path class="wire return" d="M210 274V300H480V338"/>
+  <path class="wire" d="M600 274V338"/>
+  <path class="wire return" d="M990 274V300H725V338"/>
+
+  <rect x="400" y="348" width="400" height="170" rx="15" fill="#163731" stroke="#5de4ce" stroke-width="3"/>
+  <text class="heading" x="428" y="393" fill="#5de4ce">THE AGENT LOOP</text>
+  <text class="body" x="428" y="434">Plan → act → read results</text>
+  <text class="body" x="428" y="467">Build context for the next turn</text>
+  <text class="note" x="428" y="500">Stream progress back to you</text>
+
+  <rect class="panel" x="40" y="348" width="310" height="170" rx="12"/>
+  <text class="heading" x="60" y="389">MEMORY</text>
+  <text class="body" x="60" y="427">History · Core Memory</text>
+  <text class="body" x="60" y="460">RAG · Knowledge Graph</text>
+  <text class="note" x="60" y="495">Retrieve relevant context</text>
+  <path class="wire return" d="M359 430H390"/>
+
+  <rect class="panel" x="850" y="348" width="310" height="170" rx="12"/>
+  <text class="heading" x="870" y="389">CO-AGENTS</text>
+  <text class="body" x="870" y="427">Delegated subtasks</text>
+  <text class="body" x="870" y="460">Separate limits</text>
+  <text class="note" x="870" y="495">Results return to the agent</text>
+  <path class="wire return" d="M810 430H840"/>
+
+  <rect class="panel" x="40" y="580" width="310" height="126" rx="12"/>
+  <text class="heading" x="60" y="620">PERSONALITY</text>
+  <text class="body" x="60" y="654">Traits · Mood · Inner voice</text>
+  <text class="note" x="60" y="687">Tone, never tool permissions</text>
+  <path class="guide" d="M359 642H375V488H390"/>
+
+  <path class="wire return" d="M600 528V580"/>
+  <rect x="400" y="590" width="400" height="150" rx="12" fill="#30291e" stroke="#ffc477" stroke-width="2"/>
+  <text class="heading" x="423" y="630">TOOL DISPATCH</text>
+  <text class="body" x="423" y="665">Integration + Danger Zone gates</text>
+  <text class="body" x="423" y="697">Scoped access · Guardian checks</text>
+  <text class="note" x="423" y="728">Enabled handlers only</text>
+
+  <rect class="panel" x="850" y="590" width="310" height="150" rx="12"/>
+  <text class="heading" x="870" y="632">VAULT</text>
+  <text class="body" x="870" y="666">Encrypted credentials</text>
+  <text class="note" x="870" y="698">Used by service clients,</text>
+  <text class="note" x="870" y="726">not dumped into prompts</text>
+  <path class="guide" d="M840 665H810"/>
+
+  <!-- Bidirectional tool paths carry calls and their results. -->
+  <path class="wire return" d="M480 750V799H205V850"/>
+  <path class="wire return" d="M600 750V850"/>
+  <path class="wire return" d="M725 750V799H995V850"/>
+  <rect class="panel" x="40" y="860" width="330" height="155" rx="12"/>
+  <text class="heading" x="60" y="900">HOME LAB</text>
+  <text class="body" x="60" y="936">Docker · Proxmox · SSH</text>
+  <text class="body" x="60" y="968">Home Assistant · Printers</text>
+  <text class="note" x="60" y="999">Invasion Control: remote Eggs</text>
+  <rect class="panel" x="435" y="860" width="330" height="155" rx="12"/>
+  <text class="heading" x="455" y="900">WORKSPACES</text>
+  <text class="body" x="455" y="936">Files · Shell · Browser VMs</text>
+  <text class="body" x="455" y="968">Skills · MCP · Studio agents</text>
+  <text class="note" x="455" y="999">Separate project / VM scopes</text>
+  <rect class="panel" x="830" y="860" width="330" height="155" rx="12"/>
+  <text class="heading" x="850" y="900">MEDIA + SERVICES</text>
+  <text class="body" x="850" y="936">Speech · Images · Music</text>
+  <text class="body" x="850" y="968">Messaging · Cloud APIs</text>
+  <text class="note" x="850" y="999">Optional local / remote tools</text>
+  <text class="note" x="40" y="1061">Simplified map. Each channel, integration and worker keeps its own access rules.</text>
+</svg>
