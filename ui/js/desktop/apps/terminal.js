@@ -134,7 +134,17 @@
             }
             if (audio) audio.setProfile(profile);
             syncAudioButton();
-            if (fit && typeof fit.fit === 'function') fit.fit();
+            function scheduleFit() {
+                if (!term) return;
+                if (fit && typeof fit.fit === 'function') fit.fit();
+                if (crt && typeof crt.resize === 'function') crt.resize();
+            }
+            scheduleFit();
+            if (document.fonts && typeof document.fonts.load === 'function') {
+                const family = String(profile.fontFamily || '').split(',')[0].trim() || 'monospace';
+                const spec = String(profile.fontSize || 13) + 'px ' + family;
+                document.fonts.load(spec).then(scheduleFit, scheduleFit);
+            }
         }
 
         function onKeyDown(event) {

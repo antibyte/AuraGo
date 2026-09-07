@@ -199,6 +199,9 @@ func TestDesktopTerminalCrtContract(t *testing.T) {
 		"dataset.animations",
 		"webgl",
 		"TEXTURE_2D",
+		"xterm-",
+		"-layer",
+		"NEAREST",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-crt.js missing %q", want)
@@ -256,6 +259,7 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"playKey",
 		"/api/code-studio/terminal",
 		"binaryType = 'arraybuffer'",
+		"fonts.load",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal.js missing %q", want)
