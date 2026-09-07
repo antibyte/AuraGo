@@ -92,7 +92,6 @@
             let ping = null;
             let pong = null;
             let writePing = true;
-            let burnFbo = null;
             let burnW = 1;
             let burnH = 1;
             let sourceWaitStarted = 0;
@@ -102,6 +101,8 @@
             overlay.setAttribute('aria-hidden', 'true');
             const scratch = document.createElement('canvas');
             const scratchCtx = scratch.getContext('2d', { alpha: true });
+            const burnCanvas = document.createElement('canvas');
+            const burnCtx = burnCanvas.getContext('2d', { alpha: true });
             const onLost = function (event) {
                 event.preventDefault();
                 useFallback();
@@ -111,6 +112,12 @@
                 if (!overlay) return;
                 overlay.style.display = 'none';
                 if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            }
+
+            function showOverlay() {
+                if (!overlay || fallback || !screen) return;
+                overlay.style.display = '';
+                if (!overlay.parentNode) screen.appendChild(overlay);
             }
 
             function useFallback() {
@@ -129,13 +136,11 @@
                 if (gl && sourceTex) gl.deleteTexture(sourceTex);
                 if (gl && ping) gl.deleteTexture(ping);
                 if (gl && pong) gl.deleteTexture(pong);
-                if (gl && burnFbo) gl.deleteFramebuffer(burnFbo);
                 program = null;
                 buffer = null;
                 sourceTex = null;
                 ping = null;
                 pong = null;
-                burnFbo = null;
                 gl = null;
             }
 
@@ -172,7 +177,6 @@
                 sourceTex = createTexture(gl);
                 ping = createTexture(gl);
                 pong = createTexture(gl);
-                burnFbo = gl.createFramebuffer();
                 return true;
             }
 
@@ -186,15 +190,14 @@
             }
 
             function capturePreviousOutput() {
-                if (!gl || !ping || !pong) return;
+                if (!gl || !ping || !pong || !burnCtx) return;
                 const dest = writePing ? pong : ping;
+                if (burnCanvas.width !== burnW) burnCanvas.width = burnW;
+                if (burnCanvas.height !== burnH) burnCanvas.height = burnH;
+                burnCtx.drawImage(overlay, 0, 0, burnW, burnH);
                 gl.bindTexture(gl.TEXTURE_2D, dest);
-                if (burnFbo) {
-                    gl.bindFramebuffer(gl.FRAMEBUFFER, burnFbo);
-                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, dest, 0);
-                    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-                }
-                gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, burnW, burnH, 0);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, burnCanvas);
             }
 
             function resize() {
@@ -211,6 +214,8 @@
                 scratch.height = height;
                 burnW = Math.max(1, Math.floor(width / 2));
                 burnH = Math.max(1, Math.floor(height / 2));
+                burnCanvas.width = burnW;
+                burnCanvas.height = burnH;
                 if (gl) {
                     gl.viewport(0, 0, width, height);
                     [ping, pong].forEach(function (tex) {
@@ -243,7 +248,7 @@
                 raf = 0;
                 if (disposed || fallback || !enabled) return;
                 if (!isOnScreen() || !gl || !program) {
-                    startLoop();
+                    stopLoop();
                     return;
                 }
                 const src = sourceCanvas();
@@ -265,6 +270,7 @@
                 gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, sourceTex);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
                 gl.uniform1i(loc('u_tex'), 0);
                 gl.activeTexture(gl.TEXTURE1);
@@ -291,7 +297,7 @@
             }
 
             function startLoop() {
-                if (raf || disposed || !enabled || fallback) return;
+                if (raf || disposed || !enabled || fallback || !isOnScreen()) return;
                 raf = window.requestAnimationFrame(frame);
             }
 
@@ -301,7 +307,9 @@
             }
 
             function onVisibility() {
-                if (!disposed && enabled && !fallback) startLoop();
+                if (disposed || !enabled || fallback) return;
+                if (isOnScreen()) startLoop();
+                else stopLoop();
             }
 
             function watchWindow() {
@@ -324,11 +332,13 @@
                 if (enabled) {
                     if (host) host.removeAttribute('data-terminal-fallback');
                     sourceWaitStarted = 0;
+                    showOverlay();
                     watchWindow();
                     resize();
                     startLoop();
                 } else {
                     stopLoop();
+                    hideOverlay();
                 }
             }
 
@@ -348,6 +358,7 @@
             document.addEventListener('visibilitychange', onVisibility);
             watchWindow();
             resize();
+            if (!enabled && !fallback) hideOverlay();
             return { setProfile, setEnabled, resize, dispose, usesFallback: function () { return fallback; } };
         }
     };
