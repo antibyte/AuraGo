@@ -1,4 +1,6 @@
 {
+  "config.local_llm.spark_option": "AuraGo-Spark (実験的)",
+  "config.local_llm.spark_quality": "実験的モデル：6 GB以上のVRAMが必要です。コンテキスト64K、Thinking有効。このファインチューニングではThinkingを使用した64K動作は未検証であり、言語表現や指示への対応が不安定な場合があります。",
   "config.local_llm.model_family": "モデル",
   "config.local_llm.ling_quality": "実験的なツール用モデル：修正テスト68/76件、再実行テスト49/49件に合格。一般知識には誤りが含まれる場合があります。",
   "config.sip.rtp_idle_timeout": "RTP idle timeout (seconds)",

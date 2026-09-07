@@ -355,6 +355,9 @@ func (c LocalLLMConfig) Family() string {
 }
 
 func (c LocalLLMConfig) ModelAlias() string {
+	if c.Family() == "spark" {
+		return "aurago-spark"
+	}
 	if c.Family() == "ling" {
 		return "aurago-ling"
 	}
@@ -362,10 +365,20 @@ func (c LocalLLMConfig) ModelAlias() string {
 }
 
 func (c LocalLLMConfig) ModelName() string {
+	if c.Family() == "spark" {
+		return "AuraGo-Spark"
+	}
 	if c.Family() == "ling" {
 		return "AuraGo-Ling"
 	}
 	return "AuraGo-Qwen"
+}
+
+func (c LocalLLMConfig) ReasoningMode() string {
+	if c.Family() == "spark" {
+		return "on"
+	}
+	return "off"
 }
 
 // Endpoint returns the private OpenAI-compatible endpoint used for the current deployment mode.

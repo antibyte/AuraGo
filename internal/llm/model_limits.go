@@ -191,18 +191,24 @@ func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 		limits.OutputSource = "model_registry"
 	}
 
-	// The managed Ling runtime has a fixed 16K contract, including before it
+	// Managed Ling and Spark have fixed context contracts, including before runtime
 	// starts. Neither an unavailable metadata probe nor a broader global cap
 	// may budget requests beyond that context on primary or fallback routes.
-	if strings.EqualFold(strings.TrimSpace(route.ProviderType), "aurago-local") &&
-		strings.EqualFold(strings.TrimSpace(route.Model), "aurago-ling") {
-		if limits.ContextWindow <= 0 || limits.ContextWindow > 16384 {
-			limits.ContextWindow, limits.ContextSource = 16384, "managed_runtime"
+	managedContext := 0
+	managedSpark := strings.EqualFold(strings.TrimSpace(route.Model), "aurago-spark")
+	if strings.EqualFold(strings.TrimSpace(route.Model), "aurago-ling") {
+		managedContext = 16384
+	} else if managedSpark {
+		managedContext = 65536
+	}
+	if strings.EqualFold(strings.TrimSpace(route.ProviderType), "aurago-local") && managedContext > 0 {
+		if limits.ContextWindow <= 0 || limits.ContextWindow > managedContext {
+			limits.ContextWindow, limits.ContextSource = managedContext, "managed_runtime"
 		}
 		if limits.MaxOutputTokens <= 0 || limits.MaxOutputTokens > ConservativeOutputTokens {
 			limits.MaxOutputTokens, limits.OutputSource = ConservativeOutputTokens, "managed_runtime"
 		}
-		limits.Reasoning = false
+		limits.Reasoning = managedSpark
 	}
 
 	if limits.ContextWindow <= 0 || limits.MaxOutputTokens <= 0 {

@@ -13,7 +13,7 @@ function localLLMEnsureData() {
     if (!data.model_variant) data.model_variant = data.model_family === 'ling' ? 'q4_k_l' : 'q4_k_m';
     if (!data.mtp) data.mtp = 'off';
     if (!data.context_size || Number(data.context_size) === 2048 || Number(data.context_size) === 8192) {
-        data.context_size = 16384;
+        data.context_size = data.model_family === 'spark' ? 65536 : 16384;
     }
     if (!data.idle_timeout_minutes) data.idle_timeout_minutes = 15;
     if (!data.listen_port) data.listen_port = 18081;
@@ -25,6 +25,7 @@ function renderLocalLLMSection(section) {
     section = section || _localLLMSection;
     const data = localLLMEnsureData();
     const ling = data.model_family === 'ling';
+    const spark = data.model_family === 'spark';
     const status = _localLLMStatus || {};
     const providers = (configData.providers || []).filter(provider => provider && provider.id && provider.id !== 'aurago-qwen-local');
     const displayedRole = data.enabled === false ? 'test_only' : (status.role || 'test_only');
@@ -39,25 +40,25 @@ function renderLocalLLMSection(section) {
     html += localLLMEnabledToggle(data.enabled === true, 'config.local_llm.enabled');
     html += '<div class="field-grid two-cols">';
     html += localLLMSelect('local_llm.model_family', data.model_family, 'config.local_llm.model_family', [
-        ['qwen', 'AuraGo-Qwen'], ['ling', 'AuraGo-Ling']
+        ['qwen', 'AuraGo-Qwen'], ['ling', 'AuraGo-Ling'], ['spark', 'AuraGo-Spark (' + t('config.local_llm.experimental') + ')']
     ]);
     html += localLLMSelect('local_llm.backend', data.backend, 'config.local_llm.backend', [
         ['auto', t('config.local_llm.backend_auto')], ['cuda', 'CUDA'], ['sycl', 'SYCL / Intel Arc'],
         ['vulkan', 'Vulkan'], ['cpu', 'CPU (' + t('config.local_llm.experimental') + ')']
     ]);
-    html += localLLMSelect('local_llm.model_variant', data.model_variant, 'config.local_llm.model_variant', ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [
+    html += localLLMSelect('local_llm.model_variant', data.model_variant, 'config.local_llm.model_variant', spark ? [['q4_k_m', 'Q4_K_M · 2.42 GiB']] : ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [
         ['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']
     ]);
-    html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', ling ? [['16384', '16K']] : [
+    html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', spark ? [['65536', '64K']] : ling ? [['16384', '16K']] : [
         ['16384', '16K'], ['32768', '32K']
     ], 'number');
     html += '</div>';
-    html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', ling ? [['off', t('config.local_llm.mtp_off')]] : [
+    html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', ling || spark ? [['off', t('config.local_llm.mtp_off')]] : [
         ['off', t('config.local_llm.mtp_off')], ['auto', t('config.local_llm.mtp_auto')],
         ['mtp2', 'MTP-2 (' + t('config.local_llm.experimental') + ')']
     ]);
-    if (!ling) html += '<div class="field-help">' + t('config.local_llm.mtp_storage_note') + '</div>';
-    html += '<div class="field-help">' + t(ling ? 'config.local_llm.ling_quality' : 'config.local_llm.quality') + '</div>';
+    if (!ling && !spark) html += '<div class="field-help">' + t('config.local_llm.mtp_storage_note') + '</div>';
+    html += '<div class="field-help">' + t(spark ? 'config.local_llm.spark_quality' : ling ? 'config.local_llm.ling_quality' : 'config.local_llm.quality') + '</div>';
     html += '<div class="cfg-group-title">' + t('config.refresh.runtime') + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.local_llm.hardware') + '</div>';
     html += localLLMNumber('local_llm.idle_timeout_minutes', data.idle_timeout_minutes, 'config.local_llm.idle_timeout', 1, 1440);
@@ -106,11 +107,11 @@ function renderLocalLLMSection(section) {
 }
 
 function localLLMChangeFamily(family) {
-    if (family !== 'qwen' && family !== 'ling') return;
+    if (family !== 'qwen' && family !== 'ling' && family !== 'spark') return;
     localLLMSetDraftValue('local_llm.model_family', family);
     localLLMSetDraftValue('local_llm.model_variant', family === 'ling' ? 'q4_k_l' : 'q4_k_m');
     localLLMSetDraftValue('local_llm.mtp', 'off');
-    if (family === 'ling') localLLMSetDraftValue('local_llm.context_size', 16384);
+    localLLMSetDraftValue('local_llm.context_size', family === 'spark' ? 65536 : 16384);
     renderLocalLLMSection(null);
 }
 

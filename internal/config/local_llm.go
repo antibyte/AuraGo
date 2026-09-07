@@ -20,8 +20,8 @@ func ValidateLocalLLMConfig(cfg *Config) error {
 		return fmt.Errorf("local_llm config is required")
 	}
 	local := &cfg.LocalLLM
-	if !oneOf(local.Family(), "qwen", "ling") {
-		return fmt.Errorf("local_llm.model_family must be qwen or ling")
+	if !oneOf(local.Family(), "qwen", "ling", "spark") {
+		return fmt.Errorf("local_llm.model_family must be qwen, ling, or spark")
 	}
 	if !oneOf(local.Backend, "auto", "cuda", "sycl", "vulkan", "cpu") {
 		return fmt.Errorf("local_llm.backend must be auto, cuda, sycl, vulkan, or cpu")
@@ -35,7 +35,11 @@ func ValidateLocalLLMConfig(cfg *Config) error {
 	if !oneOf(local.MTP, "off", "auto", "mtp2") {
 		return fmt.Errorf("local_llm.mtp must be off, auto, or mtp2")
 	}
-	if !oneOf(fmt.Sprint(local.ContextSize), "16384", "32768") {
+	if local.Family() == "spark" {
+		if local.ModelVariant != "q4_k_m" || local.MTP != "off" || local.ContextSize != 65536 {
+			return fmt.Errorf("AuraGo-Spark requires model_variant q4_k_m, mtp off, and context_size 65536")
+		}
+	} else if !oneOf(fmt.Sprint(local.ContextSize), "16384", "32768") {
 		return fmt.Errorf("local_llm.context_size must be 16384 or 32768")
 	}
 	if local.Family() == "ling" && local.ContextSize != 16384 {

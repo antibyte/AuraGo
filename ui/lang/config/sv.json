@@ -1,4 +1,6 @@
 {
+  "config.local_llm.spark_option": "AuraGo-Spark (experimentell)",
+  "config.local_llm.spark_quality": "Experimentell modell: kräver minst 6 GB VRAM. 64K kontext, Thinking på. 64K med Thinking har ännu inte validerats för denna finjustering; språk och efterlevnad av instruktioner kan vara opålitliga.",
   "config.local_llm.model_family": "Modell",
   "config.local_llm.ling_quality": "Experimentell verktygsmodell: 68/76 korrigeringstester och 49/49 upprepningstester godkända. Allmänna kunskaper kan vara felaktiga.",
   "config.sip.rtp_idle_timeout": "RTP idle timeout (seconds)",

@@ -1,4 +1,6 @@
 {
+  "config.local_llm.spark_option": "AuraGo-Spark (प्रायोगिक)",
+  "config.local_llm.spark_quality": "प्रायोगिक मॉडल: कम से कम 6 GB VRAM आवश्यक। 64K संदर्भ, Thinking चालू। इस फाइन-ट्यून के लिए Thinking के साथ 64K संचालन अभी सत्यापित नहीं है; भाषा और निर्देशों का पालन अविश्वसनीय हो सकता है।",
   "config.local_llm.model_family": "मॉडल",
   "config.local_llm.ling_quality": "प्रायोगिक टूल मॉडल: 68/76 सुधार परीक्षण और 49/49 दोहराव परीक्षण सफल। सामान्य ज्ञान गलत हो सकता है।",
   "config.sip.rtp_idle_timeout": "RTP idle timeout (seconds)",

@@ -196,7 +196,7 @@ func handleSetupLocalLLMProbe(s *Server) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
-		if request.ModelFamily != "" && request.ModelFamily != "qwen" && request.ModelFamily != "ling" {
+		if request.ModelFamily != "" && request.ModelFamily != "qwen" && request.ModelFamily != "ling" && request.ModelFamily != "spark" {
 			jsonError(w, "Invalid local model family", http.StatusBadRequest)
 			return
 		}

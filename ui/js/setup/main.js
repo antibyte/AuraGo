@@ -1053,14 +1053,16 @@ let setupLocalLLMAcknowledgementRequired = false;
 
 function onSetupLocalLLMFamilyChange() {
     const ling = document.getElementById('setup-local-llm-family').value === 'ling';
+    const spark = document.getElementById('setup-local-llm-family').value === 'spark';
     const model = document.getElementById('setup-local-llm-model');
-    model.replaceChildren(...(ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']])
+    model.replaceChildren(...(spark ? [['q4_k_m', 'Q4_K_M · 2.42 GiB']] : ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']])
         .map(([value, label]) => new Option(label, value)));
     const mtp = document.getElementById('setup-local-llm-mtp');
     mtp.value = 'off';
-    mtp.disabled = ling;
+    mtp.disabled = ling || spark;
     document.getElementById('setup-local-llm-ling-quality').classList.toggle('is-hidden', !ling);
-    document.getElementById('setup-local-llm-qwen-quality').classList.toggle('is-hidden', ling);
+    document.getElementById('setup-local-llm-spark-quality').classList.toggle('is-hidden', !spark);
+    document.getElementById('setup-local-llm-qwen-quality').classList.toggle('is-hidden', ling || spark);
     onSetupLocalLLMBackendChange();
 }
 
@@ -1118,7 +1120,7 @@ function applySetupLocalLLMPatch(patch) {
         model_family: document.getElementById('setup-local-llm-family').value,
         model_variant: document.getElementById('setup-local-llm-model').value,
         mtp: document.getElementById('setup-local-llm-mtp').value,
-        context_size: 16384,
+        context_size: document.getElementById('setup-local-llm-family').value === 'spark' ? 65536 : 16384,
         idle_timeout_minutes: 15,
         listen_port: 18081,
     };
@@ -1766,7 +1768,7 @@ async function saveConfig() {
 
 async function pollSetupLocalLLMJob(id, token) {
     const target = document.getElementById('local-llm-job-notice');
-    const modelName = document.getElementById('setup-local-llm-family')?.value === 'ling' ? 'AuraGo-Ling' : 'AuraGo-Qwen';
+    const modelName = { qwen: 'AuraGo-Qwen', ling: 'AuraGo-Ling', spark: 'AuraGo-Spark' }[document.getElementById('setup-local-llm-family')?.value] || 'AuraGo-Qwen';
     const modelText = key => t(key).replace('{model}', modelName);
     setupSetHidden(target, false);
     target.textContent = modelText('setup.local_llm_job_running');

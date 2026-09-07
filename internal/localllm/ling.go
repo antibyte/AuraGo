@@ -9,6 +9,9 @@ import (
 const LingEngineCommit = "f37a34cd4e502284ca297e141a6c4013bd151b18"
 
 func engineCommit(cfg config.LocalLLMConfig) string {
+	if cfg.Family() == "spark" {
+		return SparkEngineCommit
+	}
 	if cfg.Family() == "ling" {
 		return LingEngineCommit
 	}
@@ -16,6 +19,9 @@ func engineCommit(cfg config.LocalLLMConfig) string {
 }
 
 func (m *Manager) manifestFor(cfg config.LocalLLMConfig) Manifest {
+	if cfg.Family() == "spark" {
+		return SparkManifest()
+	}
 	if cfg.Family() == "ling" {
 		return LingManifest()
 	}

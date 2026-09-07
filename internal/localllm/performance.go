@@ -35,6 +35,9 @@ type runtimePerformanceProfile struct {
 }
 
 func performanceProfileFor(profile HardwareProfile, configs ...config.LocalLLMConfig) runtimePerformanceProfile {
+	if len(configs) > 0 && configs[0].Family() == "spark" {
+		return sparkPerformanceProfile(profile)
+	}
 	if len(configs) > 0 && configs[0].Family() == "ling" {
 		return lingPerformanceProfile(profile)
 	}
@@ -91,6 +94,9 @@ func performanceParameters(cfg config.LocalLLMConfig, profile HardwareProfile) [
 		fmt.Sprintf("--cache-reuse=%d", perf.CacheReuse),
 		"--cache-idle-slots",
 		"--no-slots",
+	}
+	if cfg.Family() == "spark" {
+		values = append(values, "--no-cpu-moe", "--chat-template-kwargs={\"enable_thinking\":true}", "LLAMA_KVFLASH=0")
 	}
 	if cfg.Family() == "ling" {
 		values = append(values, "--no-cpu-moe", "--chat-template-kwargs={\"enable_thinking\":false}", "LLAMA_KVFLASH=0")

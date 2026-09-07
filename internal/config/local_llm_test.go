@@ -34,9 +34,14 @@ func TestLocalLLMModelFamilyValidationAndRouting(t *testing.T) {
 		{"ling", "q4_k_l", "off", true}, {"ling", "q4_k_m", "off", false},
 		{"ling", "q4_k_l", "auto", false}, {"qwen", "q4_k_l", "off", false},
 		{"other", "q4_k_l", "off", false},
+		{"spark", "q4_k_m", "off", true}, {"spark", "q8_0", "off", false},
+		{"spark", "q4_k_m", "auto", false},
 	} {
 		cfg := validLocalLLMTestConfig()
 		cfg.LocalLLM.ModelFamily, cfg.LocalLLM.ModelVariant, cfg.LocalLLM.MTP = tc.family, tc.variant, tc.mtp
+		if tc.family == "spark" {
+			cfg.LocalLLM.ContextSize = 65536
+		}
 		if err := ValidateLocalLLMConfig(cfg); (err == nil) != tc.valid {
 			t.Fatalf("%+v: %v", tc, err)
 		}
@@ -48,6 +53,9 @@ func TestLocalLLMModelFamilyValidationAndRouting(t *testing.T) {
 			want := "aurago-qwen"
 			if tc.family == "ling" {
 				want = "aurago-ling"
+			}
+			if tc.family == "spark" {
+				want = "aurago-spark"
 			}
 			if cfg.LLM.Model != want {
 				t.Fatalf("wrong model alias for %s", tc.family)

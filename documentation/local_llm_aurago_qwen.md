@@ -1,10 +1,52 @@
 # AuraGo managed local test models
 
-AuraGo manages one local model at a time: **AuraGo-Qwen** or **AuraGo-Ling**.
+AuraGo manages one local model at a time: **AuraGo-Qwen**, **AuraGo-Ling**, or
+experimental **AuraGo-Spark**.
 Config and Setup select the family; the existing manager owns downloads,
 Docker lifecycle, authentication, hardware checks and provider routing.
 Switching families uses the regular restart/recreate flow and invalidates
 model/engine verification and RAM prompt caches. Downloaded Qwen files remain.
+
+## AuraGo-Spark (experimental)
+
+[AuraGo-Spark](https://huggingface.co/antibyte/AuraGo-Spark) is a tool-use
+fine-tune of Spark-X2.5-4B. It requires at least **6 GB VRAM**. Config and Setup
+select Q4_K_M, **64K context**, **Thinking on**, one slot and speculative decoding
+off. The embedded Spark tokenizer and chat template are retained; KVFlash and
+automatic context fitting are disabled. CUDA uses Q8 KV with flash attention;
+SYCL/Vulkan use conservative F16 KV. All backends remain experimental.
+
+```yaml
+local_llm:
+  model_family: spark
+  model_variant: q4_k_m
+  mtp: off
+  context_size: 65536
+```
+
+The alias is `aurago-spark`; the reserved provider ID remains unchanged.
+The public artifact `AuraGo-Spark-X2.5-4B-Q4_K_M.gguf` is pinned to revision
+`407abe58aa453e7a3ec4069232ad766f0c5980e2`, size 2,600,224,352 bytes, SHA256
+`3683da863f81a0f2f6c752fe47447845bf83f09fa7548d6f62407846f163039b`.
+The independent [hybrid engine](https://github.com/antibyte/llama-wackMall-hybrid)
+pin is `a67aee47326f0036311876e102142f52f2b914b7` (latest checked September 7, 2026).
+CUDA, SYCL and Vulkan images are published under `spark-sha-6fe2de00a2bf`
+and pinned by immutable digest in `SparkManifest`. Anonymous registry access,
+image metadata and entrypoint bytes were verified; the
+[container CI run](https://github.com/antibyte/aurago-llm/actions/runs/34147290661)
+passed all build and runtime-library checks. Installation requires an explicit
+experimental backend choice and acknowledgement.
+
+The model card's exported-model smoke test used 4K context on Windows CPU with
+Thinking off. Answer quality across the requested 64K/Thinking profile remains
+unvalidated for this fine-tune. Minimum VRAM is not a throughput or quality
+guarantee. Language, instruction following and arithmetic have known limitations.
+Native Linux GPU, tool and long-context checks remain necessary before backend
+qualification. Qwen and Ling engine/image pins are independent.
+Local WSL CPU validation of the patched engine passed 64K startup attestation
+with Thinking on, two authenticated tool-result rounds, streaming and measured
+prompt-cache reuse. This short-prompt check does not qualify native Linux GPU
+execution or answer quality across a filled 64K context.
 
 ## AuraGo-Ling
 
@@ -101,7 +143,7 @@ Primary or fallback routing is activated only after health, native tool-call, me
 
 ## Stable tools and RAM prefix cache
 
-Both local models use a deterministic core tool profile with at most 16 direct
+Managed local models use a deterministic core tool profile with at most 16 direct
 tools and 4,096 tool-schema tokens. Other permitted tools remain available
 through `discover_tools` followed by `invoke_tool`. Restricted runtimes such as
 SIP, missions, Game Maker, and co-agents keep their narrower allowlists; the

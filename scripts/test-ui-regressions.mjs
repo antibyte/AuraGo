@@ -1855,9 +1855,16 @@ function testLocalLLMFamilySelection() {
   config.localLLMChangeFamily('qwen');
   assert.equal(saved['local_llm.model_variant'], 'q4_k_m');
   assert.equal(saved['local_llm.mtp'], 'off');
+  config.localLLMChangeFamily('spark');
+  assert.equal(saved['local_llm.model_family'], 'spark');
+  assert.equal(saved['local_llm.model_variant'], 'q4_k_m');
+  assert.equal(saved['local_llm.context_size'], 65536);
+  assert.equal(saved['local_llm.mtp'], 'off');
+  config.localLLMChangeFamily('qwen');
+  assert.equal(saved['local_llm.context_size'], 16384);
   config.localLLMChangeFamily('invalid');
   assert.equal(saved['local_llm.model_family'], 'qwen');
-  assert.equal(renders, 2);
+  assert.equal(renders, 4);
 
   const elements = {};
   let invalidations = 0;
@@ -1877,11 +1884,16 @@ function testLocalLLMFamilySelection() {
   assert.equal(elements['setup-local-llm-model'].options[0].value, 'q4_k_l');
   assert.equal(elements['setup-local-llm-mtp'].value, 'off');
   assert.equal(elements['setup-local-llm-mtp'].disabled, true);
+  elements['setup-local-llm-family'].value = 'spark';
+  setup.onSetupLocalLLMFamilyChange();
+  assert.equal(elements['setup-local-llm-model'].options.length, 1);
+  assert.equal(elements['setup-local-llm-model'].options[0].value, 'q4_k_m');
+  assert.equal(elements['setup-local-llm-mtp'].disabled, true);
   elements['setup-local-llm-family'].value = 'qwen';
   setup.onSetupLocalLLMFamilyChange();
   assert.equal(elements['setup-local-llm-model'].options.length, 2);
   assert.equal(elements['setup-local-llm-mtp'].disabled, false);
-  assert.equal(invalidations, 2);
+  assert.equal(invalidations, 3);
 }
 
 const tests = [

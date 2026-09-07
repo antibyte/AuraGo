@@ -114,6 +114,16 @@ func TestManagedLingLimitsBeforeRuntimeStarts(t *testing.T) {
 	}
 }
 
+func TestManagedSparkLimitsBeforeRuntimeStarts(t *testing.T) {
+	for _, primary := range []bool{true, false} {
+		route := ModelRoute{ProviderType: "aurago-local", Model: "aurago-spark", Primary: primary}
+		limits := ResolveModelLimits(context.Background(), route, 131072, slog.Default())
+		if limits.ContextWindow != 65536 || limits.ContextSource != "managed_runtime" || !limits.Reasoning {
+			t.Fatalf("Spark limits do not preserve 64K and Thinking: %+v", limits)
+		}
+	}
+}
+
 func TestResolveModelLimitsUsesAndCachesProviderProbe(t *testing.T) {
 	InvalidateModelLimitCache()
 	defer InvalidateModelLimitCache()

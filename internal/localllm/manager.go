@@ -1204,6 +1204,9 @@ func validateStartupManifest(plan runtimePlan, startup startupManifest) error {
 	}
 	expectedDigest := plan.Image.Reference[strings.LastIndex(plan.Image.Reference, "@sha256:")+1:]
 	perf := performanceProfileFor(plan.Profile, plan.Config)
+	if plan.Config.Family() == "spark" && (startup.KVFlashTokens != 0 || startup.PrefillBatchSize != 0 || startup.PrefillUBatchSize != 0) {
+		return fmt.Errorf("startup_manifest_performance_mismatch")
+	}
 	if plan.Config.Family() == "ling" {
 		vulkanDisableF16 := ""
 		if perf.Name == "ling-vulkan-b580-full-context-v1" {
@@ -1397,8 +1400,8 @@ func (m *Manager) benchmark(ctx context.Context) (MTPDecision, error) {
 	default:
 		return MTPDecision{}, fmt.Errorf("invalid_mtp_mode")
 	}
-	if cfg.Family() == "ling" {
-		return decision, nil // Ling keeps its full 16K profile during this benchmark.
+	if cfg.Family() == "ling" || cfg.Family() == "spark" {
+		return decision, nil // Keep the family's context profile during this benchmark.
 	}
 	if err := m.verify32KCapability(ctx, plan); err != nil {
 		return decision, err
@@ -1884,6 +1887,9 @@ func (m *Manager) selectedArtifacts() (Artifact, *Artifact, error) {
 
 func (m *Manager) selectedArtifactsFor(cfg config.LocalLLMConfig) (Artifact, *Artifact, error) {
 	manifest := m.manifestFor(cfg)
+	if cfg.Family() == "spark" && (cfg.MTP != "off" || cfg.ModelVariant != "q4_k_m" || cfg.ContextSize != 65536) {
+		return Artifact{}, nil, fmt.Errorf("model_variant_unavailable")
+	}
 	if cfg.Family() == "ling" && (cfg.MTP != "off" || cfg.ModelVariant != "q4_k_l") {
 		return Artifact{}, nil, fmt.Errorf("model_variant_unavailable")
 	}
@@ -2277,7 +2283,7 @@ func resolvedParameters(cfg config.LocalLLMConfig, mtp bool) []string {
 		"--alias=" + cfg.ModelAlias(),
 		"--fit=off",
 		"--kv-offload=on",
-		"--reasoning=off",
+		"--reasoning=" + cfg.ReasoningMode(),
 		fmt.Sprintf("--ctx-size=%d", cfg.ContextSize),
 	}
 	if cfg.Family() == "qwen" {

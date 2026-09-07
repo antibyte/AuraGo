@@ -137,7 +137,7 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 		"AURAGO_API_KEY_FILE=/run/aurago-local-llm/api-key",
 		"AURAGO_FIT=off",
 		"AURAGO_KV_OFFLOAD=on",
-		"AURAGO_REASONING=off",
+		"AURAGO_REASONING=" + cfg.ReasoningMode(),
 		"AURAGO_CONTEXT_SIZE=" + strconv.Itoa(cfg.ContextSize),
 		"AURAGO_PARALLEL=1",
 		"AURAGO_CACHE_RAM=" + strconv.Itoa(perf.CacheRAMMiB),

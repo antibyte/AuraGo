@@ -35,6 +35,8 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"escapeHtml(localLLMStatusText(status))",
 		"local_llm.model_family",
 		"config.local_llm.ling_quality",
+		"config.local_llm.spark_quality",
+		"['65536', '64K']",
 		"cache.qualified",
 		"cache.decision_persisted",
 		"localLLMCacheErrorText",
@@ -88,6 +90,8 @@ func TestLocalLLMSetupIsOptionalAndInstallRunsAfterSetupSave(t *testing.T) {
 		`id="setup-local-llm-ack"`,
 		`id="setup-local-llm-family"`,
 		`data-i18n="config.local_llm.ling_quality"`,
+		`data-i18n="config.local_llm.spark_quality"`,
+		`<option value="spark"`,
 	} {
 		if !strings.Contains(html, required) {
 			t.Fatalf("setup Local LLM step missing %q", required)

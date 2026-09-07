@@ -460,10 +460,10 @@ fallback_llm:
 local_llm:
     enabled: false
     backend: auto                  # auto, cuda, sycl, vulkan, cpu (CPU is never automatic)
-    model_family: qwen             # qwen or ling; one managed model at a time
-    model_variant: q4_k_m          # Qwen: q4_k_m, q8_0; Ling: q4_k_l
-    mtp: off                       # off, auto, mtp2
-    context_size: 16384            # 16384 or 32768; 32K requires sufficient GPU memory
+    model_family: qwen             # qwen, ling, or experimental spark; one managed model at a time
+    model_variant: q4_k_m          # Qwen: q4_k_m, q8_0; Ling: q4_k_l; Spark: q4_k_m
+    mtp: off                       # Qwen: off, auto, mtp2; Ling/Spark: off
+    context_size: 16384            # Qwen: 16384/32768; Ling: 16384; Spark: 65536 (Thinking on, >=6 GB VRAM)
     idle_timeout_minutes: 15       # 1-1440
     listen_port: 18081             # native AuraGo only; loopback-bound
 home_assistant:
