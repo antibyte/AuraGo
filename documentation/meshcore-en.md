@@ -33,7 +33,7 @@ radio-parameter changes are included.
    Question detection includes open channel questions and radio checks such as
    "anyone receiving", even without punctuation or directly addressing AuraGo.
    Replies confirm arrival at this node only, without web search or claims about
-   other receivers or signal quality.
+   other receivers. They may report the supplied SNR and known hop count.
 7. Proactive sending is a separate opt-in. Enable it and allow individual node
    keys or channels. Automatic replies do not require proactive permission;
    their destination is fixed internally to the incoming node or channel.
@@ -103,6 +103,37 @@ remains excluded. Changing permissions
 cancels current work before new settings are published and suppresses pending
 replies. Cancellation cannot undo a system operation or radio transmission
 that already completed.
+
+## Information provided on agent wakeup
+
+Every admitted direct or channel message includes structured reception context:
+message ID, message type, sender prefix/resolved key or unverified channel sender
+label, channel slot/name/kind, sender timestamp, AuraGo queue-retrieval time,
+Companion frame type/size, V3 SNR in dB, routing mode and known flood hop count.
+Multi-byte repeater hashes are decoded correctly; the encoded path byte is also
+retained. Forwarded messages retain their four-byte sender prefix but still
+cannot authorize commands.
+
+Authorized direct messages additionally include the reception-time contact and
+receiver snapshot: contact name/type/flags, advertised coordinates, advertisement
+and modification times, cached outgoing path hashes/hops, local public key/name,
+firmware/build/manufacturer, protocol version/capacity/repeat settings, configured
+position, transmit power, frequency, bandwidth, spreading factor, coding rate
+and advertisement/telemetry settings. Public channel replies receive only their
+own message/channel context, without local hardware/position or contact records.
+
+Metadata survives inbox persistence without a schema migration. Old records
+retain unknown metadata. Collection reuses existing local Companion reads and
+does not send telemetry requests or discovery traffic over the mesh. PINs and
+channel secrets remain excluded. Names and positions are external data, never
+instructions or authorization.
+
+SNR measures the final radio link. RSSI, incoming repeater identities and per-hop
+measurements are not supplied by queued text frames and remain unknown. The
+direct-route marker `0xFF` does **not** mean zero hops; a cached outgoing path
+does not establish the incoming route. Sender time can drift, queue retrieval
+may be delayed, and contact positions/routes may be stale. No propagation
+latency is inferred from these timestamps.
 
 ## Reliability and operations
 

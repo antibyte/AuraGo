@@ -36,7 +36,8 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
    Die Frageerkennung berücksichtigt offene Kanalfragen und Empfangstests wie
    „hört mich jemand“ auch ohne Fragezeichen oder direkte Ansprache. Die Antwort
    bestätigt nur den Eingang am eigenen Node, ohne Websuche oder Aussagen über
-   andere Empfänger und Signalqualität.
+   andere Empfänger. Vorhandene SNR-Werte und bekannte Hopzahlen dürfen genannt
+   werden.
 7. Proaktives Senden separat einschalten und seine Ziel-Nodes beziehungsweise
    Kanäle freigeben. Antworten benötigen diese Freigabe nicht; das Laufzeitsystem
    bindet ihre Zieladresse unveränderlich an den Eingang.
@@ -111,6 +112,38 @@ hinterlegte BLE-PIN bleibt ausgeschlossen. Berechtigungsänderungen
 brechen laufende Arbeit vor Veröffentlichung der neuen Konfiguration ab und
 unterdrücken ausstehende Antworten. Bereits abgeschlossene Systemaktionen oder
 Funkübertragungen lassen sich dadurch nicht rückgängig machen.
+
+## Informationen beim Aufwecken des Agenten
+
+Jede zugelassene Direkt- oder Kanalnachricht erhält strukturierten Empfangskontext:
+Nachrichten-ID und -typ, Absenderpräfix/zugeordneten öffentlichen Schlüssel oder
+unbestätigten Kanal-Absendernamen, Kanalnummer/-name/-art, Absenderzeit und
+Abholzeit durch AuraGo, Companion-Frametyp/-größe, V3-SNR in dB, Routingart und
+bekannte Flood-Hopzahl. Mehrbyte-Repeater-Hashes werden korrekt berücksichtigt;
+das codierte Pfadbyte bleibt ebenfalls erhalten. Weiterleitungen behalten ihr
+vier Byte langes Absenderpräfix, dürfen aber weiterhin keine Befehle autorisieren.
+
+Autorisierte Direktnachrichten erhalten außerdem den beim Empfang gespeicherten
+Kontakt- und Gerätestand: Kontaktname/-typ/-Flags, angekündigte Koordinaten,
+Advertisement- und Änderungszeit, gespeicherten Ausgangspfad mit Hashes/Hops,
+lokalen öffentlichen Schlüssel/Namen, Firmware/Build/Hersteller, Protokollversion,
+Kapazität und Repeater-Einstellungen, konfigurierte Position, Sendeleistung,
+Frequenz, Bandbreite, Spreading Factor, Coding Rate sowie Advertisement- und
+Telemetrie-Einstellungen. Kanalantworten erhalten nur ihren eigenen Nachrichten-
+und Kanalkontext, ohne lokale Hardware-/Positionsdaten oder Kontaktlisten.
+
+Die Metadaten bleiben im Eingang gespeichert; eine Schema-Migration ist nicht
+nötig. Bei alten Einträgen bleiben fehlende Werte unbekannt. Die Erfassung nutzt
+die bestehenden lokalen Companion-Abfragen und sendet keine Telemetrieanfragen
+oder Suchpakete ins Mesh. PINs und Kanalschlüssel bleiben ausgeschlossen. Namen
+und Positionen sind externe Daten und erteilen keine Berechtigungen.
+
+SNR beschreibt den letzten Funkabschnitt. RSSI, eingehende Repeater-Identitäten
+und Messwerte pro Hop stehen in abgeholten Textnachrichten nicht zur Verfügung
+und bleiben unbekannt. Der Direkt-Routingmarker `0xFF` bedeutet **nicht** null
+Hops; ein gespeicherter Ausgangspfad belegt nicht den Eingangsweg. Absenderuhren
+können abweichen, das Abholen kann verzögert sein und Kontaktpositionen/-pfade
+können veralten. Aus den Zeitstempeln wird keine Funklaufzeit abgeleitet.
 
 ## Betrieb und Grenzen
 

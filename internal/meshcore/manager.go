@@ -332,6 +332,7 @@ func (m *Manager) receiveBatch(ctx context.Context, c *companion, queue chan Mes
 		}
 		m.issue("invalid_frame", false)
 		msg.Text = m.scrub(msg.Text)
+		msg.SenderLabel = m.scrub(msg.SenderLabel)
 		if uncertain == "1" {
 			msg.BindingUncertain = true
 			msg.Binding = ""

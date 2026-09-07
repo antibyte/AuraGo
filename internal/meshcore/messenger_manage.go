@@ -20,6 +20,10 @@ const publicChannelKey = "8b3387e9c5cdea6ac9e5edbaa115cd72"
 func (m *Manager) scrubStatus(st *Status) {
 	st.Name = m.scrub(st.Name)
 	st.Firmware = m.scrub(st.Firmware)
+	if st.Device != nil {
+		st.Device.BuildDate = m.scrub(st.Device.BuildDate)
+		st.Device.Manufacturer = m.scrub(st.Device.Manufacturer)
+	}
 	for i := range st.Contacts {
 		st.Contacts[i].Name = m.scrub(st.Contacts[i].Name)
 	}

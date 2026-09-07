@@ -193,11 +193,22 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 	}
 	slots := int(info[0][3])
 	st.ChannelCapacity = slots
+	st.Device = &DeviceInfo{ProtocolVersion: info[0][1], ContactCapacity: int(info[0][2]) * 2}
 	if slots < 1 || slots > 64 {
 		return st, fmt.Errorf("invalid channel capacity")
 	}
 	if len(info[0]) >= 80 {
 		st.Firmware = wireText(info[0][60:80])
+		st.Device.BuildDate = wireText(info[0][8:20])
+		st.Device.Manufacturer = wireText(info[0][20:60])
+	}
+	if len(info[0]) >= 81 {
+		repeat := info[0][80] != 0
+		st.Device.RepeatEnabled = &repeat
+	}
+	if len(info[0]) >= 82 {
+		mode := info[0][81]
+		st.Device.PathHashMode = &mode
 	}
 	self, err := c.request(ctx, []byte{1, 0, 0, 0, 0, 0, 0, 0, 'A', 'u', 'r', 'a', 'G', 'o'}, 5)
 	if err != nil {
@@ -209,6 +220,8 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 	st.IdentityKey = hex.EncodeToString(self[0][4:36])
 	st.Name = wireText(self[0][58:])
 	st.nameBytes = len(st.Name)
+	b := self[0]
+	st.Radio = &RadioInfo{Type: b[1], TxPower: int8(b[2]), MaxTxPower: int8(b[3]), Position: decodePosition(b[36:44]), MultiACKs: b[44], AdvertLocationPolicy: b[45], TelemetryMode: b[46], ManualAddContacts: b[47], FrequencyKHz: binary.LittleEndian.Uint32(b[48:52]), BandwidthHz: binary.LittleEndian.Uint32(b[52:56]), SpreadingFactor: b[56], CodingRate: b[57]}
 	if !ValidKey(st.IdentityKey) {
 		return st, fmt.Errorf("invalid device identity")
 	}
@@ -223,7 +236,11 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 		if len(b) < 148 {
 			return st, fmt.Errorf("invalid contact")
 		}
-		st.Contacts = append(st.Contacts, Contact{Key: hex.EncodeToString(b[1:33]), Type: b[33], Name: wireText(b[100:132])})
+		path, err := decodePath(b[35], b[36:100])
+		if err != nil {
+			return st, fmt.Errorf("invalid contact path: %w", err)
+		}
+		st.Contacts = append(st.Contacts, Contact{Key: hex.EncodeToString(b[1:33]), Type: b[33], Flags: b[34], OutPath: &path, Name: wireText(b[100:132]), LastAdvert: int64(binary.LittleEndian.Uint32(b[132:136])), Position: decodePosition(b[136:144]), LastModified: int64(binary.LittleEndian.Uint32(b[144:148]))})
 	}
 	for i := 0; i < slots; i++ {
 		frames, err := c.request(ctx, []byte{31, byte(i)}, 18)
@@ -242,6 +259,7 @@ func (c *companion) snapshot(ctx context.Context, salt []byte) (Status, error) {
 		st.Channels = append(st.Channels, Channel{Index: i, Name: name, Binding: channelBinding(st.IdentityKey, b, salt), Kind: channelKind(name, b[34:50])})
 		clear(b)
 	}
+	st.SnapshotAt = time.Now().Unix()
 	return st, nil
 }
 func channelBinding(identity string, b, salt []byte) string {
@@ -273,13 +291,19 @@ func decodeMessage(b []byte, st Status) (Message, error) {
 		return m, fmt.Errorf("empty message")
 	}
 	kind := b[0]
+	m.Reception = &ReceptionInfo{FrameType: kind, FrameBytes: len(b)}
+	m.Receiver = &ReceiverInfo{IdentityKey: st.IdentityKey, Name: st.Name, Firmware: st.Firmware, SnapshotAt: st.SnapshotAt, Device: st.Device, Radio: st.Radio}
 	b = b[1:]
 	if kind == 16 || kind == 17 {
 		if len(b) < 3 {
 			return m, fmt.Errorf("short v3 header")
 		}
+		snr := float64(int8(b[0])) / 4
+		m.Reception.SNR = &snr
+		m.Reception.Reserved = hex.EncodeToString(b[1:3])
 		b = b[3:]
 	}
+	var path byte
 	switch kind {
 	case 7, 16:
 		if len(b) < 12 {
@@ -289,7 +313,9 @@ func decodeMessage(b []byte, st Status) (Message, error) {
 		m.Sender = hex.EncodeToString(b[:6])
 		if contact, ok := uniqueContact(st, m.Sender); ok {
 			m.PeerKey = contact.Key
+			m.SenderContact = &contact
 		}
+		path = b[6]
 		m.TextType = b[7]
 		m.Timestamp = int64(binary.LittleEndian.Uint32(b[8:12]))
 		b = b[12:]
@@ -297,6 +323,7 @@ func decodeMessage(b []byte, st Status) (Message, error) {
 			if len(b) < 4 {
 				return m, fmt.Errorf("short forwarded message")
 			}
+			m.Reception.ForwardedSenderPrefix = hex.EncodeToString(b[:4])
 			b = b[4:]
 		}
 	case 8, 17:
@@ -305,21 +332,34 @@ func decodeMessage(b []byte, st Status) (Message, error) {
 		}
 		m.Kind = "channel"
 		m.Channel = int(b[0])
+		path = b[1]
 		m.TextType = b[2]
 		m.Timestamp = int64(binary.LittleEndian.Uint32(b[3:7]))
 		b = b[7:]
 		for _, ch := range st.Channels {
 			if ch.Index == m.Channel {
 				m.Binding = ch.Binding
+				m.ChannelName = ch.Name
+				m.ChannelKind = ch.Kind
 			}
 		}
 	default:
 		return m, fmt.Errorf("unsupported message type")
 	}
+	var err error
+	m.Reception.Path, err = decodePath(path, nil)
+	if err != nil {
+		return m, err
+	}
 	if len(b) == 0 || !utf8.Valid(b) || bytes.ContainsAny(b, "\x00") {
 		return m, fmt.Errorf("invalid message text")
 	}
 	m.Text = string(b)
+	if m.Kind == "channel" {
+		if label, _, ok := strings.Cut(m.Text, ": "); ok {
+			m.SenderLabel = label
+		}
+	}
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%s\x00%d\x00%s\x00%d\x00%d\x00%s", m.IdentityKey, m.Kind, m.Sender, m.Channel, m.Binding, m.TextType, m.Timestamp, m.Text)))
 	m.ID = hex.EncodeToString(sum[:])
 	return m, nil

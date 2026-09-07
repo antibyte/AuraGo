@@ -121,9 +121,14 @@ func ValidKey(key string) bool {
 }
 
 type Contact struct {
-	Key  string `json:"key"`
-	Name string `json:"name"`
-	Type byte   `json:"type"`
+	Key          string    `json:"key"`
+	Name         string    `json:"name"`
+	Type         byte      `json:"type"`
+	Flags        byte      `json:"flags"`
+	OutPath      *PathInfo `json:"out_path,omitempty"`
+	Position     *Position `json:"advertised_position,omitempty"`
+	LastAdvert   int64     `json:"last_advert_timestamp"`
+	LastModified int64     `json:"last_modified_timestamp"`
 }
 type Channel struct {
 	Index   int    `json:"index"`
@@ -133,37 +138,46 @@ type Channel struct {
 }
 type Status struct {
 	nameBytes        int
-	State            string    `json:"state"`
-	IdentityKey      string    `json:"identity_key"`
-	Name             string    `json:"name"`
-	Firmware         string    `json:"firmware"`
-	Contacts         []Contact `json:"contacts"`
-	Channels         []Channel `json:"channels"`
-	ErrorCode        string    `json:"error_code,omitempty"`
-	HardwareVerified bool      `json:"hardware_verified"`
-	ChannelCapacity  int       `json:"channel_capacity"`
+	State            string      `json:"state"`
+	IdentityKey      string      `json:"identity_key"`
+	Name             string      `json:"name"`
+	Firmware         string      `json:"firmware"`
+	Contacts         []Contact   `json:"contacts"`
+	Channels         []Channel   `json:"channels"`
+	ErrorCode        string      `json:"error_code,omitempty"`
+	HardwareVerified bool        `json:"hardware_verified"`
+	ChannelCapacity  int         `json:"channel_capacity"`
+	Device           *DeviceInfo `json:"device,omitempty"`
+	Radio            *RadioInfo  `json:"radio,omitempty"`
+	SnapshotAt       int64       `json:"snapshot_at,omitempty"`
 }
 type Message struct {
-	Direction        string     `json:"direction"`
-	ID               string     `json:"id"`
-	IdentityKey      string     `json:"identity_key"`
-	Kind             string     `json:"kind"`
-	Sender           string     `json:"sender"`
-	Channel          int        `json:"channel"`
-	Binding          string     `json:"-"`
-	TextType         byte       `json:"text_type"`
-	Timestamp        int64      `json:"timestamp"`
-	ReceivedAt       int64      `json:"received_at"`
-	Text             string     `json:"text"`
-	State            string     `json:"state"`
-	Review           string     `json:"review"`
-	Reason           string     `json:"reason"`
-	Reply            string     `json:"reply,omitempty"`
-	SendState        string     `json:"send_state,omitempty"`
-	PeerKey          string     `json:"peer_key,omitempty"` // resolved at reception, never inferred from historical prefixes
-	Origin           string     `json:"origin,omitempty"`
-	Parts            []SendPart `json:"parts,omitempty"`
-	BindingUncertain bool       `json:"binding_uncertain,omitempty"`
+	Direction        string         `json:"direction"`
+	ID               string         `json:"id"`
+	IdentityKey      string         `json:"identity_key"`
+	Kind             string         `json:"kind"`
+	Sender           string         `json:"sender"`
+	Channel          int            `json:"channel"`
+	Binding          string         `json:"-"`
+	TextType         byte           `json:"text_type"`
+	Timestamp        int64          `json:"timestamp"`
+	ReceivedAt       int64          `json:"received_at"`
+	Text             string         `json:"text"`
+	State            string         `json:"state"`
+	Review           string         `json:"review"`
+	Reason           string         `json:"reason"`
+	Reply            string         `json:"reply,omitempty"`
+	SendState        string         `json:"send_state,omitempty"`
+	PeerKey          string         `json:"peer_key,omitempty"` // resolved at reception, never inferred from historical prefixes
+	Origin           string         `json:"origin,omitempty"`
+	Parts            []SendPart     `json:"parts,omitempty"`
+	BindingUncertain bool           `json:"binding_uncertain,omitempty"`
+	Reception        *ReceptionInfo `json:"reception,omitempty"`
+	SenderContact    *Contact       `json:"sender_contact,omitempty"`
+	SenderLabel      string         `json:"sender_label,omitempty"` // unverified channel label
+	ChannelName      string         `json:"channel_name,omitempty"`
+	ChannelKind      string         `json:"channel_kind,omitempty"`
+	Receiver         *ReceiverInfo  `json:"receiver,omitempty"`
 }
 type Review struct {
 	Decision string
