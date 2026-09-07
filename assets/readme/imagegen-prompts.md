@@ -3,11 +3,27 @@
 Playful, geeky illustrations generated with the built-in ImageGen tool. The original [AuraGo mascot](../../ui/aurago_logo.png) is the character identity reference. These are illustrations, not UI screenshots. Screenshots and the original logo files remain unchanged.
 
 - [Masthead](gopher-masthead.webp): the original mascot's face and body translated into the feature map's inked style, with a wider home-lab workbench composition; displayed at 600px maximum width.
+- [Persona party](persona-party.webp): all ten characters from the [desktop group wallpaper](../../ui/img/wallpapers/groupshoot.jpg), redrawn in the feature map's inked style. The original wallpaper remains unchanged; heading and tagline stay in Markdown.
 - [Feature map](gopher-feature-map.webp): six capability groups connected to the gopher; cables show grouping, not exact runtime data flow.
 - [Memory map](gopher-memory-map.webp): four parallel context sources; retrieved context and the current request feed the model. One corrected edit removed invented business examples and tool names.
 - [System wiring](system-wiring.svg): editable, hand-authored SVG. Labels and arrows follow the agent/runtime contracts, memory, co-agent and Virtual Computers guides. Personality does not grant permissions; the vault supplies service credentials, not model context. Integration and channel scopes remain distinct.
 
 WebP exports use quality 94 with no crop or visual changes. Inspect labels and connections at full size, then check the README at 900px and 360px in light and dark modes. Essential explanations remain in Markdown. The prior abstract workstation/creation illustrations have been replaced.
+
+## Persona party — generation prompt
+
+References: `ui/img/wallpapers/groupshoot.jpg` for character identities and composition; `gopher-feature-map.webp` for style. Generated with built-in ImageGen; exported at 1676 × 939 without cropping.
+
+```text
+Use case: identity-preserve / style-transfer.
+Create one landscape illustration for the AuraGo README by redrawing reference image 1, the existing desktop persona group portrait, in the EXACT visual family of reference image 2. Reference 1 is the content and character-identity source; reference 2 is style and palette ONLY. Do not add the gopher from reference 2.
+
+Preserve ALL TEN original characters, their individual recognizable faces, hair, clothing, expressions, props, relative positions and two-row group arrangement. Back row, left to right: black-tuxedo butler with white glove; short silver-haired woman in a white turtleneck; smiling brown-haired man in a blue suit holding a clipboard; dark-haired woman with bun in a black uniform with gold trim; elderly white-bearded thinker with round glasses and book; tall black-haired mischievous vampire with a red-lined black cape; brunette secretary with bun, glasses, white blouse and notebook. Front row, left to right: wild green-haired comic character with tongue out and tan strapped jacket; magenta-haired punk woman with piercings and studded black leather jacket; smiling brown-haired friend in a blue hoodie. Exactly these ten, no duplication, no additional people, no gophers. Preserve their original clothing without making it more revealing. Everyone is a playful fictional character.
+
+Change the rendering from smooth 3D animation to beautiful hand-inked retro adventure-game instruction booklet art: confident dark outlines, textured matte cel shading, warm ivory highlights, subtle aged-paper grain, midnight navy shadows with turquoise, muted amber and purple accents. Keep the distinctive green and magenta hair. Match reference 2's tactile illustrated world, not a glossy 3D render, not photorealism. Preserve lively expressive faces; keep each face clearly separated and readable at README width.
+
+Landscape group portrait approximately 2200x1230, with a quiet dark navy and warm muted brick backdrop, subtle cozy light, no busy scenery. Keep all heads fully inside the canvas with generous breathing room above and beside the group. Maintain original waist-up/back row and seated/front row framing, no accidental cropped faces or hands. No text, headings, names, slogans, logos, watermarks or UI. The heading and tagline will be real Markdown outside this picture.
+```
 
 ## Masthead — generation prompt
 

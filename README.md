@@ -42,6 +42,14 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 </details>
 
+## Choose your agent
+
+**Many personalities. One goal: get your stuff done.**
+
+[![Ten AuraGo personas from the desktop group portrait, redrawn as an illustrated cast of friends, thinkers, punks and theatrical villains](assets/readme/persona-party.webp)](assets/readme/persona-party.webp)
+
+A friendly sidekick, a thoughtful philosopher, a punk or a wonderfully overdramatic villain? Pick your company in **Config → Personality**. Same toolbox, different attitude. [Meet the personalities](documentation/manual/en/10-personality.md).
+
 ## Under the hood
 
 [![AuraGo system wiring: channels and triggers reach the agent loop; models, memory and co-agents connect to it; gated tool dispatch reaches infrastructure, workspaces and media services](assets/readme/system-wiring.svg)](assets/readme/system-wiring.svg)
