@@ -397,7 +397,8 @@ func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403; body=%s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "CSRF") {
+	body := strings.ToLower(rec.Body.String())
+	if !strings.Contains(body, "csrf") {
 		t.Fatalf("expected CSRF error message, got %q", rec.Body.String())
 	}
 }

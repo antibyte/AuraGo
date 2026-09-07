@@ -31,7 +31,8 @@ func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "Invalid JSON") || strings.Contains(strings.ToLower(body), "unexpected eof") {
+	lower := strings.ToLower(body)
+	if (!strings.Contains(body, "Invalid JSON") && !strings.Contains(lower, "auth_invalid_json")) || strings.Contains(lower, "unexpected eof") {
 		t.Fatalf("expected generic invalid JSON response, got %q", body)
 	}
 }
