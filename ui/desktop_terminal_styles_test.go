@@ -207,3 +207,32 @@ func TestDesktopTerminalCrtContract(t *testing.T) {
 		t.Fatal("CRT engine must be original and must not load Chat CRT shaders")
 	}
 }
+
+func TestDesktopTerminalAudioContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-audio.js")
+	for _, want := range []string{
+		"window.TerminalAudio = {",
+		"create(",
+		"loadMuted",
+		"saveMuted",
+		"shouldSilence",
+		"setProfile",
+		"setMuted",
+		"playKey",
+		"dispose",
+		"aurago.desktop.terminal.audioMuted",
+		"AudioContext",
+		"event.repeat",
+		"commodore64",
+		"ibm3278",
+		"apple2",
+		"prefers-reduced-motion",
+		"dataset.animations",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-audio.js missing %q", want)
+		}
+	}
+}
