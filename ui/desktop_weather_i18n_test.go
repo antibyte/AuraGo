@@ -64,6 +64,8 @@ func TestDesktopWeatherWidgetI18n(t *testing.T) {
 		"t('desktop.weather_loading')",
 		"t('desktop.weather_load_error'",
 		"t('desktop.weather_network_error')",
+		"throw new Error('HTTP')",
+		"{ error: t('desktop.weather_network_error') }",
 		"t('desktop.weather_geolocation_unavailable')",
 		"t('desktop.weather_wind_kmh'",
 	} {
@@ -81,6 +83,8 @@ func TestDesktopWeatherWidgetI18n(t *testing.T) {
 		"Could not load weather:",
 		"Geolocation not available",
 		" km/h",
+		"'HTTP ' + res.status",
+		"err.message || t('desktop.weather_network_error')",
 	} {
 		if strings.Contains(shell, forbidden) {
 			t.Fatalf("weather widget still hardcodes English %q", forbidden)

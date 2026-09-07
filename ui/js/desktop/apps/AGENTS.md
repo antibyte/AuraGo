@@ -15,7 +15,11 @@ arrows; disabled on compact viewport), `core/shell-chrome-runtime.js`
 `core/window-shell-runtime.js` (widget frames, standalone widgets,
 `openApp`). Widget-frame and standalone-widget empty-state load
 failures use `desktop.load_failed`. Standalone Webamp notifications
-map `desktop.winamp_unsupported`. Styles:
+map `desktop.winamp_unsupported`. Weather HTTP throws the sentinel
+`HTTP` without a status; the catch interpolates
+`desktop.weather_load_error` with `desktop.weather_network_error`
+only. Widget persist toasts (location, auto-size, bounds) use
+`desktop.widget_update_failed`. Styles:
 `ui/css/desktop-chrome.css` (bundled into `desktop-shell.bundle.css`).
 Persisted keys: `windows.restore_session`, `appearance.dock_pins`,
 `session.windows` (snapshot v2 with `activeSpaceId` and per-window `spaceId`
@@ -86,8 +90,12 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Builtin widget catalog titles are UI-only via `widgetDisplayTitle`. Stored
   `widget.Title` stays the seed. Do not send the translated title in POST/PATCH.
 - Widget chrome errors and the sysmon host label use `desktop.quickchat_error`,
-  `desktop.widget_update_failed`, and `desktop.system_info_host`. Do not
-  hardcode English there.
+  `desktop.widget_update_failed`, and `desktop.system_info_host`. Weather
+  HTTP throws the sentinel `HTTP` without a status. The weather catch
+  interpolates `desktop.weather_load_error` with
+  `desktop.weather_network_error` only. Persist toasts for location,
+  auto-size, and bounds use `desktop.widget_update_failed`. Do not dump
+  `err.message` or an HTTP status there. Do not hardcode English there.
 - Sysmon uptime units and weather wind speed use
   `desktop.system_info_uptime_days_hours`,
   `desktop.system_info_uptime_hours_minutes`,
@@ -267,29 +275,48 @@ and `files.default_apps` via `/api/desktop/settings`.
   not hardcode English `markdown-it not loaded` there.
 - Pixel image-decode failures throw `pixel.error_load`. Pixel `t`
   stays key-only. Do not hardcode English `Failed to load image`.
-- Teevee catalog timeouts throw `desktop.teevee_catalog_error`.
-  Call `t(key)` with no second argument. Do not hardcode English
-  `Catalog request timed out`. Leave the iptv-org HTTP throw.
+- Teevee catalog timeouts and HTTP failures show
+  `desktop.teevee_catalog_error`. `fetchJSON` throws the sentinel
+  `iptv-org HTTP` without a status and must not call `t()` (it is
+  module-level). `loadCatalog` must not dump `err.message`. Call
+  Teevee `t(key)` with no second argument. Do not hardcode English
+  `Catalog request timed out` or `iptv-org HTTP ` plus a status.
+  Leave playback `formatPlaybackError`.
 - Viewer 3D missing-STLLoader errors throw and map to
   `viewer.error`. Map the English sentinel
   `Three.js STLLoader is unavailable`. Other init failures may
   still use `viewer.error` plus `err.message`.
+- Game Maker missing-modals throws use
+  `game_maker.modules_load_failed` via `state.context.t(key)` with
+  no placeholder map. Do not change `fail()` itself. Do not
+  hardcode English `Game Maker Studio modules failed to load`.
+- Radio catalog HTTP throws the sentinel `Radio Browser HTTP`
+  without a status. `loadActive` and `searchStations` show
+  `desktop.radio_catalog_error`. Playback `play()` shows
+  `desktop.radio_error` only, including the player toggle.
+  Radio `t` stays key-only. Do not dump `err.message` in those
+  catalog catches or the play catches.
+- People save/delete notifies and Notes `notifyError` use
+  `desktop.request_failed`. Keep Notes rename conflicts on
+  `desktop.notes_rename_exists` via `notesCode`. People uses
+  `t(context, key)`. Notes uses `state.t(key)` with no fallback
+  string. Do not dump `err.message` there except the rename
+  conflict.
 - Store container-app frame errors, terminal-preview frame errors,
   store start toasts, and external-open notifications reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
-  Leave Store asset-URL throws and the terminal-preview module
-  catch fallback unchanged.
 - Generated-app iframe title fallback uses
   `desktop.embed_frame_title`. Host SDK error fallback uses
   `desktop.embed_bridge_failed`. Do not hardcode English
   `Aura Desktop app` or `Desktop bridge request failed` there.
   Leave `aura-desktop-sdk.js` last-resort English when the parent
   sends no error text.
-- Store terminal-preview script load failures use
-  `desktop.store_terminal_load_failed`. Wrap both the AuraLazyAssets
-  path and the fallback `script.onerror` so the script URL does not
-  leak. Leave `desktop.store_terminal_module_unavailable` for a
-  loaded module without `render`.
+- Store terminal-preview module load and in-preview stylesheet/script
+  loads use `desktop.store_terminal_load_failed`. Wrap AuraLazyAssets
+  and the fallback `onerror` so the asset URL does not leak. Call
+  `t(key)` with no second argument. Leave
+  `desktop.store_terminal_module_unavailable` for a loaded module
+  without `render`.
 - Host clipboard throws use `desktop.clipboard_read_unavailable` and
   `desktop.clipboard_write_unavailable`. Do not hardcode English
   `Clipboard read/write is not available` there. Leave other SDK
@@ -617,6 +644,7 @@ registration lives in `internal/desktop/types.go`.
   is busy.
 - Game Maker visible strings use `game_maker.*` plus
   `desktop.app_game_maker_studio` in all 16 `ui/lang/desktop/*.json` files.
+  Missing skills/revisions modals throw `game_maker.modules_load_failed`.
   Destructive actions use shell-provided dialogs and never native browser
   dialogs.
 - Galaxa modules attach to the shared `window.GalaxaCore` (GC) namespace and
@@ -1043,10 +1071,16 @@ registration lives in `internal/desktop/types.go`.
 - `radio.js` - Station browser and player. Click counts use
   `desktop.radio_compact_thousands` and `desktop.radio_compact_millions`.
   MediaSession title fallback uses `desktop.app_radio`; album uses
-  `desktop.radio_album`. Exposes `window.RadioApp`. No child DOX file needed.
+  `desktop.radio_album`. Catalog HTTP throws the sentinel
+  `Radio Browser HTTP` without a status; `loadActive` and
+  `searchStations` show `desktop.radio_catalog_error`. Playback
+  `play()` and the player toggle show `desktop.radio_error` only
+  and must not dump `err.message`. Radio `t` stays key-only.
+  Exposes `window.RadioApp`. No child DOX file needed.
 - `people.js` - Address-book app. KG toggle, active label, and card badge
   use `desktop.people_kg`. Content empty-state load failures use
-  `desktop.load_failed` via `t(inst.context, key)`. Exposes
+  `desktop.load_failed` via `t(inst.context, key)`. Save and delete
+  notifies use `desktop.request_failed`. Exposes
   `window.PeopleApp`. No child DOX file needed.
 - `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
   fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
@@ -1174,7 +1208,10 @@ registration lives in `internal/desktop/types.go`.
   in the main shell. No child DOX file needed.
 - `store-terminal-preview.js` - CommandCode console-plus-preview
   host. Frame empty-state and start-toast failures reuse
-  `desktop.load_failed`. Loaded lazily. Exposes
+  `desktop.load_failed`. Stylesheet and script loads wrap
+  AuraLazyAssets and fallback `onerror` with
+  `desktop.store_terminal_load_failed` so the asset URL does not
+  leak. Loaded lazily. Exposes
   `window.StoreTerminalPreviewApp`. No child DOX file needed.
 - `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
   cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
@@ -1338,9 +1375,15 @@ registration lives in `internal/desktop/types.go`.
   Missing markdown-it shows `viewer.error` only. Viewer 3D missing
   STLLoader throws and maps `viewer.error`. No child DOX file
   needed.
-- `teevee.js` - IPTV catalog player. Catalog timeouts throw
-  `desktop.teevee_catalog_error`. Loaded lazily. Exposes
-  `window.TeeveeApp`. No child DOX file needed.
+- `teevee.js` - IPTV catalog player. Catalog HTTP throws the
+  sentinel `iptv-org HTTP` without a status. `fetchJSON` must
+  not call `t()`. `loadCatalog` shows `desktop.teevee_catalog_error`.
+  Loaded lazily. Exposes `window.TeeveeApp`. No child DOX file
+  needed.
+- `game-maker-studio.js` - Game Maker Studio shell. Missing
+  skills/revisions modals throw `game_maker.modules_load_failed`
+  via `state.context.t(key)`. Exposes `window.GameMakerStudioApp`.
+  No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -
   Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
@@ -1357,7 +1400,9 @@ registration lives in `internal/desktop/types.go`.
   needed.
 - `notes.js` - Notes app entry and orchestrator: per-window `instances` Map,
   `window.NotesApp = { render, dispose, instances }`, markdown note list and
-  editor under `Documents/Notes/`. Split across `notes-frontmatter.js`
+  editor under `Documents/Notes/`. `notifyError` uses
+  `desktop.request_failed`; rename conflicts keep
+  `desktop.notes_rename_exists` via `notesCode`. Split across `notes-frontmatter.js`
   (`window.NotesFrontmatter { parse, updateTags, strip, deriveTitle }`: YAML
   frontmatter parsing that only ever rewrites the tags line and preserves all
   other keys and line endings verbatim), `notes-list.js`

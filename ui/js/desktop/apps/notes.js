@@ -770,7 +770,9 @@
         const newPath = dirName(oldPath) + '/' + newName;
         if (newPath === oldPath) return;
         if (state.notes.some(n => n.path.toLowerCase() === newPath.toLowerCase())) {
-            throw new Error(state.t('desktop.notes_rename_exists', { name: newName }));
+            const existsErr = new Error(state.t('desktop.notes_rename_exists', { name: newName }));
+            existsErr.notesCode = 'rename_exists';
+            throw existsErr;
         }
         await state.api('/api/desktop/file', {
             method: 'PATCH',
@@ -1016,7 +1018,10 @@
     }
 
     function notifyError(state, err) {
-        state.notify({ title: state.t('desktop.notification'), message: (err && err.message) || String(err) });
+        const message = (err && err.notesCode === 'rename_exists' && err.message)
+            ? err.message
+            : state.t('desktop.request_failed');
+        state.notify({ title: state.t('desktop.notification'), message });
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────

@@ -231,8 +231,8 @@
                     state.stations = state.cache.get(cacheKey) || await fetchStations(`/json/stations/bytag/${encodeURIComponent(cat.tag)}?order=clickcount&limit=20&hidebroken=true`);
                     state.cache.set(cacheKey, state.stations);
                 }
-            } catch (err) {
-                state.error = err.message || String(err);
+            } catch (_) {
+                state.error = t('desktop.radio_catalog_error');
                 state.stations = [];
                 showToast(state.error);
             } finally {
@@ -252,8 +252,8 @@
             renderGrid();
             try {
                 state.stations = await fetchStations(`/json/stations/search?name=${encodeURIComponent(state.search)}&order=clickcount&reverse=true&limit=30&hidebroken=true`);
-            } catch (err) {
-                state.error = err.message || String(err);
+            } catch (_) {
+                state.error = t('desktop.radio_catalog_error');
                 state.stations = [];
                 showToast(state.error);
             } finally {
@@ -276,9 +276,9 @@
                 await audio.play();
                 state.playing = true;
                 updateMediaSession(station, t);
-            } catch (err) {
+            } catch (_) {
                 state.playing = false;
-                showToast(err.message || t('desktop.radio_error'));
+                showToast(t('desktop.radio_error'));
             }
             updatePlayer();
             renderGrid();
@@ -349,7 +349,7 @@
         toggleBtn.addEventListener('click', () => {
             if (!state.current) return;
             if (audio.paused) {
-                audio.play().then(() => { state.playing = true; updatePlayer(); }).catch(err => showToast(err.message || String(err)));
+                audio.play().then(() => { state.playing = true; updatePlayer(); }).catch(() => showToast(t('desktop.radio_error')));
             } else {
                 audio.pause();
                 state.playing = false;
@@ -411,7 +411,7 @@
 
     async function fetchJSON(path) {
         const response = await fetch(API_BASE + path, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Radio Browser HTTP ' + response.status);
+        if (!response.ok) throw new Error('Radio Browser HTTP');
         return response.json();
     }
 

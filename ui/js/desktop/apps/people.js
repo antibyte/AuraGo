@@ -495,7 +495,7 @@
                 loadData(inst);
             } catch (err) {
                 if (inst.context && typeof inst.context.notify === 'function') {
-                    inst.context.notify({ title: t(inst.context, 'desktop.notification'), message: err.message });
+                    inst.context.notify({ title: t(inst.context, 'desktop.notification'), message: t(inst.context, 'desktop.request_failed') });
                 }
             }
         });
@@ -518,7 +518,7 @@
             loadData(inst);
         } catch (err) {
             if (inst.context && typeof inst.context.notify === 'function') {
-                inst.context.notify({ title: t(inst.context, 'desktop.notification'), message: err.message });
+                inst.context.notify({ title: t(inst.context, 'desktop.notification'), message: t(inst.context, 'desktop.request_failed') });
             }
         }
     }

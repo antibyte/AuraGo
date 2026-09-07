@@ -208,8 +208,8 @@
             const actions = {
                 new: () => showCreateModal(state),
                 assets: () => window.GameMakerStudioAssets.show(state, modalHelpers),
-                skills: () => modals ? modals.showSkillsModal(state, modalHelpers) : fail(state, new Error('Game Maker Studio modules failed to load')),
-                revisions: () => modals ? modals.showRevisionsModal(state, modalHelpers) : fail(state, new Error('Game Maker Studio modules failed to load')),
+                skills: () => modals ? modals.showSkillsModal(state, modalHelpers) : fail(state, new Error(state.context.t('game_maker.modules_load_failed'))),
+                revisions: () => modals ? modals.showRevisionsModal(state, modalHelpers) : fail(state, new Error(state.context.t('game_maker.modules_load_failed'))),
                 code: () => openInCodeStudio(state),
                 export: () => exportProject(state),
                 stop: () => stopJob(state),

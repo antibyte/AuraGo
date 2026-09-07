@@ -4632,7 +4632,7 @@
             } catch (err) {
                 if (!imported) {
                     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(loc)); } catch (_) {}
-                    showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                    showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.widget_update_failed') });
                 }
             }
         }
@@ -4652,11 +4652,11 @@
                 '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6';
             try {
                 const res = await fetch(url);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                if (!res.ok) throw new Error('HTTP');
                 const data = await res.json();
                 renderWeatherData(data);
-            } catch (err) {
-                mainArea.innerHTML = '<div class="vd-weather-error">' + esc(t('desktop.weather_load_error', { error: err.message || t('desktop.weather_network_error') })) + '</div>';
+            } catch (_) {
+                mainArea.innerHTML = '<div class="vd-weather-error">' + esc(t('desktop.weather_load_error', { error: t('desktop.weather_network_error') })) + '</div>';
             }
         }
 
@@ -4956,8 +4956,8 @@
         }
         try {
             await persistWidgetRecord(widget, extras);
-        } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        } catch (_) {
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.widget_update_failed') });
         }
     }
 
@@ -4979,8 +4979,8 @@
                 body: JSON.stringify(updated)
             });
             await loadBootstrap();
-        } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        } catch (_) {
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.widget_update_failed') });
         }
     }
 

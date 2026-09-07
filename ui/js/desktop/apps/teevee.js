@@ -457,8 +457,8 @@
                 updateVisible();
                 migrateFavorites(state.entries);
                 renderFilterControls();
-            } catch (err) {
-                state.error = err.message || t('desktop.teevee_catalog_error');
+            } catch (_) {
+                state.error = t('desktop.teevee_catalog_error');
                 state.visible = [];
             } finally {
                 state.loading = false;
@@ -858,11 +858,11 @@
         try {
             const response = await fetch(url, { cache: cacheMode || 'force-cache', signal: controller.signal });
             clearTimeout(timeout);
-            if (!response.ok) throw new Error('iptv-org HTTP ' + response.status);
+            if (!response.ok) throw new Error('iptv-org HTTP');
             return response.json();
         } catch (err) {
             clearTimeout(timeout);
-            if (err && err.name === 'AbortError') throw new Error(t('desktop.teevee_catalog_error'));
+            if (err && err.name === 'AbortError') throw new Error('iptv-org HTTP');
             throw err;
         }
     }

@@ -8,17 +8,23 @@
     }
 
     async function ensureAssets(t) {
-        await Promise.all([loadStyle('/css/xterm.css')]);
-        await loadScript('/js/vendor/xterm.min.js');
-        await loadScript('/js/vendor/xterm-addon-fit.min.js');
+        await Promise.all([loadStyle('/css/xterm.css', t)]);
+        await loadScript('/js/vendor/xterm.min.js', t);
+        await loadScript('/js/vendor/xterm-addon-fit.min.js', t);
         if (!window.Terminal) {
             throw new Error(t('common.error'));
         }
     }
 
-    function loadStyle(href) {
+    function loadFailed(t) {
+        return new Error(t('desktop.store_terminal_load_failed'));
+    }
+
+    function loadStyle(href, t) {
         if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadStyle === 'function') {
-            return window.AuraLazyAssets.loadStyle(href);
+            return window.AuraLazyAssets.loadStyle(href).catch(() => {
+                throw loadFailed(t);
+            });
         }
         const existing = document.querySelector('link[data-store-terminal-href="' + href + '"],link[href="' + href + '"]');
         if (existing) return Promise.resolve(existing);
@@ -28,14 +34,16 @@
             link.dataset.storeTerminalHref = href;
             link.href = href;
             link.onload = () => resolve(link);
-            link.onerror = () => reject(new Error('Failed to load stylesheet: ' + href));
+            link.onerror = () => reject(loadFailed(t));
             document.head.appendChild(link);
         });
     }
 
-    function loadScript(src) {
+    function loadScript(src, t) {
         if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
-            return window.AuraLazyAssets.loadScript(src);
+            return window.AuraLazyAssets.loadScript(src).catch(() => {
+                throw loadFailed(t);
+            });
         }
         const existing = document.querySelector('script[data-store-terminal-src="' + src + '"],script[src="' + src + '"]');
         if (existing && existing.dataset.storeTerminalLoaded === '1') return Promise.resolve(existing);
@@ -46,7 +54,7 @@
                 script.dataset.storeTerminalLoaded = '1';
                 resolve(script);
             };
-            script.onerror = () => reject(new Error('Failed to load script: ' + src));
+            script.onerror = () => reject(loadFailed(t));
             if (!existing) {
                 script.src = src;
                 document.head.appendChild(script);
