@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "在窗口中打开",
   "desktop.phone_gadget_remove": "从桌面移除",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "无法打开打印预览。",
   "desktop.qc_add_server": "添加服务器",
   "desktop.qc_aurago_host": "AuraGo 主机",
   "desktop.qc_aurago_host_description": "当前 AuraGo Web 主机",

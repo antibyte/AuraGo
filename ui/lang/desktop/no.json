@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Åpne i vindu",
   "desktop.phone_gadget_remove": "Fjern fra skrivebordet",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Forhåndsvisningen for utskrift kunne ikke åpnes.",
   "desktop.qc_add_server": "Legg til server",
   "desktop.qc_aurago_host": "AuraGo-vert",
   "desktop.qc_aurago_host_description": "Gjeldende AuraGo-nettvert",

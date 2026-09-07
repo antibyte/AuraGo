@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Abrir em janela",
   "desktop.phone_gadget_remove": "Remover do ambiente de trabalho",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Não foi possível abrir a pré-visualização de impressão.",
   "desktop.qc_add_server": "Adicionar servidor",
   "desktop.qc_aurago_host": "Host AuraGo",
   "desktop.qc_aurago_host_description": "Host web atual do AuraGo",

@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Apri in finestra",
   "desktop.phone_gadget_remove": "Rimuovi dal desktop",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Impossibile aprire l'anteprima di stampa.",
   "desktop.qc_add_server": "Aggiungi server",
   "desktop.qc_aurago_host": "Host AuraGo",
   "desktop.qc_aurago_host_description": "Host web AuraGo attuale",

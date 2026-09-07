@@ -1022,7 +1022,9 @@
             const printWindow = frame.contentWindow;
             if (!printDoc || !printWindow) {
                 frame.remove();
-                throw new Error('print frame unavailable');
+                setStatus(t('desktop.print_failed'));
+                notify({ type: 'error', message: t('desktop.print_failed') });
+                return;
             }
             printDoc.open();
             printDoc.write(`<!doctype html><html><head><title>${esc(title)}</title><style>body{font-family:Segoe UI,sans-serif;padding:16px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 8px;font-size:12px}</style></head><body></body></html>`);

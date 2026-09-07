@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "विंडो में खोलें",
   "desktop.phone_gadget_remove": "डेस्कटॉप से हटाएँ",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "प्रिंट पूर्वावलोकन नहीं खोला जा सका।",
   "desktop.qc_add_server": "सर्वर जोड़ें",
   "desktop.qc_aurago_host": "AuraGo होस्ट",
   "desktop.qc_aurago_host_description": "वर्तमान AuraGo वेब होस्ट",

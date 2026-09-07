@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Ouvrir dans une fenêtre",
   "desktop.phone_gadget_remove": "Retirer du bureau",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Impossible d'ouvrir l'aperçu avant impression.",
   "desktop.qc_add_server": "Ajouter un serveur",
   "desktop.qc_aurago_host": "Hôte AuraGo",
   "desktop.qc_aurago_host_description": "Hôte web AuraGo actuel",

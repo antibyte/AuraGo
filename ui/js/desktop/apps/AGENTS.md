@@ -306,6 +306,11 @@ and `files.default_apps` via `/api/desktop/settings`.
   `desktop.request_failed`. Call Pet `t(key)` with no fallback
   string as the second argument. Leave `desktop.pet_import_invalid`
   for a bad ZIP name. Leave `pet-runtime.js` setting toasts.
+- Viewer, Writer, and Sheets missing print-frame errors use
+  `desktop.print_failed`. Viewer still prefixes `viewer.error`
+  plus the throw message. Writer and Sheets notify and return.
+  Call `t(key)` with no fallback string. Do not hardcode English
+  `print frame unavailable`.
 - Store container-app frame errors, terminal-preview frame errors,
   store start toasts, and external-open notifications reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
@@ -1065,7 +1070,8 @@ registration lives in `internal/desktop/types.go`.
   replace overlay with match highlighting. Search counts use
   `desktop.writer_match_count`; the close tooltip uses `desktop.close`.
   Enhanced formatting toolbar (font, size, color, background, alignment,
-  blockquote, code-block, image), and agent integration. Exposes
+  blockquote, code-block, image), and agent integration. Missing
+  print-frame errors notify `desktop.print_failed`. Exposes
   `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
   ZIP import. Scale text uses `desktop.pet_scale_value`. Load,
@@ -1220,6 +1226,9 @@ registration lives in `internal/desktop/types.go`.
   `desktop.store_terminal_load_failed` so the asset URL does not
   leak. Loaded lazily. Exposes
   `window.StoreTerminalPreviewApp`. No child DOX file needed.
+- `sheets.js` - Spreadsheet app. Missing print-frame errors notify
+  `desktop.print_failed`. Exposes `window.SheetsApp`. No child
+  DOX file needed.
 - `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
   cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
   functions, etc.). Exposes `window.SheetsFormulas`. No child DOX file needed.
@@ -1380,8 +1389,9 @@ registration lives in `internal/desktop/types.go`.
   load from `/api/desktop/viewer/content?path=&entry=` or
   `/api/desktop/archive/entry`; Viewer hides Edit for archive members.
   Missing markdown-it shows `viewer.error` only. Viewer 3D missing
-  STLLoader throws and maps `viewer.error`. No child DOX file
-  needed.
+  STLLoader throws and maps `viewer.error`. Missing print-frame
+  errors throw `desktop.print_failed`; the print catch still
+  prefixes `viewer.error`. No child DOX file needed.
 - `teevee.js` - IPTV catalog player. Catalog HTTP throws the
   sentinel `iptv-org HTTP` without a status. `fetchJSON` must
   not call `t()`. `loadCatalog` shows `desktop.teevee_catalog_error`.

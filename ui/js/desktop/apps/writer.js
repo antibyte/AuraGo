@@ -376,7 +376,8 @@
             const printWindow = frame.contentWindow;
             if (!printDoc || !printWindow) {
                 frame.remove();
-                throw new Error('print frame unavailable');
+                notify({ type: 'error', message: t('desktop.print_failed') });
+                return;
             }
             printDoc.open();
             printDoc.write(`<!doctype html><html><head><title>${esc(title)}</title><style>body{font-family:Georgia,serif;padding:24px;color:#111;line-height:1.5}</style></head><body>${bodyHtml}</body></html>`);

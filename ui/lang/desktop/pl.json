@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Otwórz w oknie",
   "desktop.phone_gadget_remove": "Usuń z pulpitu",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Nie udało się otworzyć podglądu wydruku.",
   "desktop.qc_add_server": "Dodaj serwer",
   "desktop.qc_aurago_host": "Host AuraGo",
   "desktop.qc_aurago_host_description": "Bieżący host WWW AuraGo",

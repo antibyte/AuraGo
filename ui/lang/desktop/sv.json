@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Öppna i fönster",
   "desktop.phone_gadget_remove": "Ta bort från skrivbordet",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Förhandsgranskningen för utskrift kunde inte öppnas.",
   "desktop.qc_add_server": "Lägg till server",
   "desktop.qc_aurago_host": "AuraGo-värd",
   "desktop.qc_aurago_host_description": "Aktuell AuraGo-webbvärd",

@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "ウィンドウで開く",
   "desktop.phone_gadget_remove": "デスクトップから削除",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "印刷プレビューを開けませんでした。",
   "desktop.qc_add_server": "サーバー追加",
   "desktop.qc_aurago_host": "AuraGo ホスト",
   "desktop.qc_aurago_host_description": "現在の AuraGo Web ホスト",

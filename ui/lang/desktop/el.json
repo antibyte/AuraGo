@@ -1290,6 +1290,7 @@
   "desktop.phone_gadget_open_window": "Άνοιγμα σε παράθυρο",
   "desktop.phone_gadget_remove": "Αφαίρεση από την επιφάνεια εργασίας",
   "desktop.pin_to_dock": "Pin to dock",
+  "desktop.print_failed": "Δεν ήταν δυνατό το άνοιγμα της προεπισκόπησης εκτύπωσης.",
   "desktop.qc_add_server": "Προσθήκη διακομιστή",
   "desktop.qc_aurago_host": "Κεντρικός υπολογιστής AuraGo",
   "desktop.qc_aurago_host_description": "Τρέχων κεντρικός υπολογιστής ιστού AuraGo",

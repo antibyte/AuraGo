@@ -183,7 +183,7 @@
             const printWindow = frame.contentWindow;
             if (!printDoc || !printWindow) {
                 cleanup();
-                throw new Error('print frame unavailable');
+                throw new Error(t('desktop.print_failed'));
             }
             const pages = [];
             for (let pageNumber = 1; pageNumber <= pdfDoc.numPages; pageNumber++) {
@@ -234,7 +234,7 @@
             const printWindow = frame.contentWindow;
             if (!printDoc || !printWindow) {
                 cleanup();
-                throw new Error('print frame unavailable');
+                throw new Error(t('desktop.print_failed'));
             }
             printDoc.open();
             printDoc.write(`<!doctype html><html><head><title>${esc(fileName)}</title><style>
