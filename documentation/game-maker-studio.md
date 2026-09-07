@@ -183,6 +183,14 @@ actions or fabricate test counters for absent behavior.
 Planning examples distinguish position changes (`player_x`, `player_y`) from
 primary actions (`actions`). Breakout uses the `blocks` template; `minimal` is
 reserved for games without a matching starting template.
+New templates embed exact library-role imports and preloading in `common.ts`.
+The blocks template uses `body(..., role)` for its player, ball and block variants;
+the helper fits opaque sprite bounds uniformly and follows a separate collision
+proxy. Extend this wiring instead of rewriting the library loader. Custom preload
+overrides must call `super.preload()`. The startup guard rejects pack JSON passed
+directly to Phaser as a texture key and explains the correct `createAsset` call.
+Additional collision tests need enough time for travel from launch to target;
+hit counters count actual contacts, including contacts with durable blocks.
 `setup()` must assign `this.player` to the controlled object (for Breakout,
 `this.player = this.paddle`) before returning. A missing or foreign player is
 rejected immediately with a concrete binding diagnostic. Asset detail examples

@@ -33,6 +33,8 @@ guidance and copies no TinySwords code, text, scripts, or assets.
    a failed asset integration. The build includes a loader guard for this error.
    Never substitute a catalog URL for the project copy or claim that loading a
    sheet proves gameplay.
+   A pack JSON object passed as a texture key is rejected during startup with
+   the correct createAsset call; fix every such call, including delayed spawns.
 
 Fix the root cause of a diagnostic, never the symptom. Never weaken, remove, or
 stub `window.__AURAGO_GAME_DIAGNOSTICS__` or other checks just to make
@@ -57,6 +59,9 @@ asset integrity are measured from the engine. Never fabricate observations.
 Test input resets with R between scenarios and after the run. Retain R restart
 and ESC end/forfeit. Required tests exercise input, primary action, rules,
 timed activity, terminal state, sprite integrity, and two successive restarts.
+For a missing hit, compare the accepted steps' duration with distance/speed and
+the actual collider route. Hits count collisions, not only destroyed targets.
+Do not fake the counter or disable a check; retain an observable first interaction.
 On restart recreate state in create(), cancel scene timers and release inputs;
 neither the first nor second restart may leave duplicate objects/listeners.
 

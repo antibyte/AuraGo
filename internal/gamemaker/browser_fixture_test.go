@@ -26,14 +26,17 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 		t.Skip("requires a real browser")
 	}
 	root := t.TempDir()
-	positive := append(templateNames()[:6], "sprite_example", "all_packs", "asset_detail", "assembly_detail")
-	names := append(append([]string{}, positive...), "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
+	positive := append(templateNames()[:6], "planned_blocks", "sprite_example", "all_packs", "asset_detail", "assembly_detail")
+	names := append(append([]string{}, positive...), "metadata_texture", "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
 	if os.Getenv("GAMEMAKER_BROWSER_EXPORTS_ONLY") == "1" {
 		names = positive
 	}
 	service := newTestService(t)
 	service.opts.MaxProjects = len(names)
 	templateFor := func(name string) string {
+		if name == "planned_blocks" {
+			return "blocks"
+		}
 		if slices.Contains(templateNames()[:6], name) {
 			return name
 		}
@@ -47,6 +50,25 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 		}
 		plan := ExampleGamePlan(project)
 		plan.Template = templateFor(name)
+		if name == "planned_blocks" {
+			for _, file := range []string{"sheet.png", "sheet.json"} {
+				data, err := bundledAssetPackFile("blocks-and-balls", file)
+				if err != nil {
+					t.Fatal(err)
+				}
+				path := filepath.Join(dir, "assets", "builtin", "blocks-and-balls", "2", file)
+				if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, data, 0o640); err != nil {
+					t.Fatal(err)
+				}
+			}
+			plan.Assets = nil
+			for _, selection := range [][2]string{{"player", "paddle_01"}, {"ball", "ball_01"}, {"block_red", "colored_block_01"}, {"block_blue", "colored_block_06"}} {
+				plan.Assets = append(plan.Assets, PlanAsset{Role: selection[0], PackID: "blocks-and-balls", Version: "2", AssetID: selection[1]})
+			}
+		}
 		if err := installGameTemplate(dir, plan); err != nil {
 			t.Fatal(err)
 		}
@@ -66,7 +88,7 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if slices.Contains([]string{"sprite_example", "all_packs", "asset_detail", "assembly_detail", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture"}, name) {
+		if slices.Contains([]string{"metadata_texture", "sprite_example", "all_packs", "asset_detail", "assembly_detail", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture"}, name) {
 			prepareAssetBrowserFixture(t, dir, name)
 		}
 		if result := buildDirectory(context.Background(), dir, 100, 30<<20); !result.OK {
@@ -204,6 +226,14 @@ addEventListener('message',async e=>{const d=e.data;if(e.source!==frame?.content
 		case report := <-done:
 			negative := !slices.Contains(positive, report.Name)
 			failed := len(report.Errors) > 0
+			if report.Name == "planned_blocks" {
+				if len(report.Observations) == 0 || report.Observations[0].Before["assets_used"] < 26 {
+					t.Error("planned blocks did not use the selected library sprites")
+				}
+			}
+			if report.Name == "metadata_texture" && !strings.Contains(strings.Join(report.Errors, " "), "pack JSON is not a Phaser texture key") {
+				t.Error("metadata misuse did not produce the concrete correction")
+			}
 			for _, check := range compareGameObservations(gameScenarios(&GamePlan{Template: templateFor(report.Name)}), report.Observations) {
 				if check.Status != "passed" {
 					failed = true
@@ -292,6 +322,8 @@ start(Assets);`
 		seed = "this.player=undefined;"
 	case "missing_texture":
 		seed = "this.add.sprite(480,270,'nonexistent-texture');"
+	case "metadata_texture":
+		seed = "this.add.sprite(480,270,packs.find(m=>m.id==='blocks-and-balls'),'paddle_01');"
 	case "sprite_example":
 		body, err := bundledSkills.ReadFile("skills/aurago-phaser4-gameplay/SKILL.md")
 		if err != nil {

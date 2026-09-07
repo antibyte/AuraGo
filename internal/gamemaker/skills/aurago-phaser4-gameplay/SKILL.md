@@ -60,6 +60,13 @@ Keep the installed `src/common.ts` template lifecycle:
 - Keep `common.ts` `create()`/`update()` and their state/input/restart wiring.
   Override `setup`, `step`, `action`, `tick`, and `paintHUD` as needed. Gameplay
   changes must update `this.state`, which is also read by the HUD and tests.
+- The installed `common.ts` already imports/preloads the plan's packs. Retain
+  `super.preload()` if adding a preload override. `this.body(x,y,w,h,color,fixed,role)`
+  uses the exact planned role and keeps a separate collision proxy. The blocks
+  template already connects player, ball and block variants; extend it in place.
+- `createAsset(this,meta,'paddle_01',x,y)` resolves the numeric frame. Never call
+  `this.add.sprite(x,y,meta,'paddle_01')`: JSON is not a texture key and an asset ID
+  is not a frame number. Merely importing createAsset does not use it.
 
 ```typescript
 import { GameScene, start } from './common';

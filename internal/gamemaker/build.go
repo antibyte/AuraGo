@@ -143,6 +143,19 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 const phaserSpriteGuard = `(function () {
   const loader = globalThis.Phaser && Phaser.Loader.LoaderPlugin.prototype;
   if (!loader || loader.__auragoSpriteGuard) return;
+  const textures = Phaser.Textures && Phaser.Textures.TextureManager.prototype;
+  if (textures) {
+    const get = textures.get;
+    textures.get = function (key) {
+      if (key && typeof key === 'object' && Array.isArray(key.assets) && typeof key.id === 'string') {
+        throw new Error('Game assets: pack JSON is not a Phaser texture key. Replace this.add.sprite(x,y,meta,assetID) with createAsset(this,meta,assetID,x,y), or retain the installed template body(...,role). preloadPack must run in preload().');
+      }
+      if (typeof key === 'string' && !this.exists(key)) {
+        throw new Error('Game assets: texture '+key+' is not loaded. Call preloadPack in preload(); use createAsset(this,meta,assetID,x,y) for library IDs.');
+      }
+      return get.apply(this, arguments);
+    };
+  }
   const addFile = loader.addFile;
   loader.addFile = function (input) {
     for (const file of Array.isArray(input) ? input : [input]) {

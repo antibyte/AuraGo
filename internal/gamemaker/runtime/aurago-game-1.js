@@ -1,5 +1,6 @@
 // AuraGo sprite/input helpers v1. Angles are radians; physics is owned by the game.
 const usage = new WeakMap();
+const visualBounds = new WeakMap();
 const keyFor = meta => `${meta.id}@${meta.version}`;
 const animKey = (meta, id) => `${keyFor(meta)}:${id}`;
 function need(value, message) { if (!value) throw new Error(`Game assets: ${message}`); return value; }
@@ -42,6 +43,34 @@ export function createAssembly(scene, meta, id, x, y) {
   });
   usage.set(container, { meta, a, parts, direction: a.direction, action: 'move', assembly: true });
   return container;
+}
+
+// Fit centered template art to a separate collision proxy, keeping pixel aspect.
+// Return the anchor offset; do not change the pack's origin or physics geometry.
+export function fitVisual(object, width, height) {
+  const u = need(usage.get(object), 'fitVisual requires a library asset');
+  need(width > 0 && height > 0 && Number.isFinite(width + height), 'fitVisual needs positive finite dimensions');
+  let b = visualBounds.get(u.a);
+  if (!b) {
+    b = {x:0,y:0,w:object.width,h:object.height};
+    if (!u.assembly) {
+      const frame=object.frame, canvas=document.createElement('canvas');
+      canvas.width=frame.width;canvas.height=frame.height;
+      const ctx=canvas.getContext('2d', {willReadFrequently:true});
+      ctx.drawImage(frame.source.image,frame.cutX,frame.cutY,frame.width,frame.height,0,0,frame.width,frame.height);
+      const pixels=ctx.getImageData(0,0,frame.width,frame.height).data;
+      let left=frame.width,top=frame.height,right=-1,bottom=-1;
+      for(let y=0;y<frame.height;y++)for(let x=0;x<frame.width;x++)if(pixels[(y*frame.width+x)*4+3]){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
+      need(right>=left, `${u.meta.id}/${u.a.id}: empty sprite frame`);
+      b={x:left,y:top,w:right-left+1,h:bottom-top+1};
+    }
+    visualBounds.set(u.a,b);
+  }
+  const scale=Math.min(width/b.w,height/b.h);
+  object.setScale(scale);
+  const offset={x:(object.width*u.a.origin.x-b.x-b.w/2)*scale,y:(object.height*u.a.origin.y-b.y-b.h/2)*scale,width:b.w*scale,height:b.h*scale};
+  object.setPosition(object.x+offset.x,object.y+offset.y);
+  return offset;
 }
 export function playAction(object, action) {
   const u = need(usage.get(object), 'object was not created by an asset helper');

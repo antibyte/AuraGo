@@ -114,6 +114,12 @@ Movement uses position, not the primary-action counter:
 actual collisions/rule effects, and `player_x/player_y` observe movement directly.
 Never increment `actions` every frame to satisfy a movement scenario. Each
 scenario starts from a restarted game; launch a waiting ball before checking hits.
+Allow travel time: a ball starting at y=465 and moving up at 300 px/s needs about
+one second to reach blocks at y=180. A hit check after 700 ms cannot observe that
+collision. Use a sufficient bounded interval, for example Space 200 ms then wait
+2200 ms. Keep an easy first target reachable in that interval; do not require a
+random power-up drop in a deterministic check. Count hits in the collision handler,
+even when a durable block needs multiple hits to be destroyed.
 Allowed steps: key, pointer (logical x/y), wait, observe. Keys: LEFT/RIGHT/UP/DOWN,
 W/A/S/D/SPACE/R/ESC/ENTER. Maximum eight steps and six seconds per scenario,
 25 seconds combined. Compare increased/decreased/changed/equals. Metrics:

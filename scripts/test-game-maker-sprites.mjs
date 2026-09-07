@@ -8,11 +8,23 @@ const calls = [];
 class Loader {
   addFile(input) { calls.push({ loader: this, input }); return this; }
 }
-const context = { Phaser: { Loader: { LoaderPlugin: Loader } } };
+class TextureManager {
+  exists(key) { return key === 'loaded'; }
+  get(key) { return key; }
+}
+const context = { Phaser: { Loader: { LoaderPlugin: Loader }, Textures: { TextureManager } } };
 vm.runInNewContext(guard, context);
 const wrapped = Loader.prototype.addFile;
 vm.runInNewContext(guard, context);
 assert.equal(Loader.prototype.addFile, wrapped, 'guard must install only once');
+const textures=new TextureManager(), get=textures.get;
+vm.runInNewContext(guard, context);
+assert.equal(textures.get,get);
+assert.throws(()=>textures.get({id:'blocks-and-balls',assets:[]}),/pack JSON.*createAsset/);
+assert.throws(()=>textures.get('absent'),/texture absent is not loaded/);
+assert.equal(textures.get('loaded'),'loaded');
+assert.equal(textures.get(undefined),undefined);
+const nativeTexture={key:'loaded'};assert.equal(textures.get(nativeTexture),nativeTexture);
 const loader = new Loader();
 const url = 'assets/builtin/space-shooter/1/sheet.png';
 const good = { type: 'spritesheet', url, config: { frameWidth: 64, frameHeight: 64 } };
@@ -44,7 +56,8 @@ const meta = JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_pac
 const recipes = JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_packs/vehicles-planes-top-down/sheet.json', import.meta.url)));
 const definitions = new Map(); let animationStarts = 0;
 class Sprite {
-  constructor(x,y,key,frame){Object.assign(this,{x,y,texture:{key},frame:{name:frame,width:64,height:64},rotation:0,scaleX:1,scaleY:1});this.anims={stop(){}};}
+  constructor(x,y,key,frame){Object.assign(this,{x,y,width:64,height:64,texture:{key},frame:{name:frame,width:64,height:64,cutX:0,cutY:0,source:{image:{}}},rotation:0,scaleX:1,scaleY:1});this.anims={stop(){}};}
+  setPosition(x,y){this.x=x;this.y=y;return this;}
   setOrigin(x,y){this.originX=x;this.originY=y;return this;}
   setRotation(value){this.rotation=value;return this;}
   setFlipX(value){this.flipX=value;return this;}
@@ -66,6 +79,15 @@ const anim=meta.animations.find(a=>a.id==='ranger_walk');
 assert.deepEqual(definitions.get(meta.id+'@'+meta.version+':ranger_walk').frames.map(f=>f.frame),anim.frames);
 assert.equal(definitions.get(meta.id+'@'+meta.version+':ranger_walk').sortFrames,false);
 const ranger=helpers.createAsset(scene,meta,'ranger_idle',100,120);
+let reads=0;
+globalThis.document={createElement:()=>({getContext:()=>({drawImage(){},getImageData(){reads++;const data=new Uint8ClampedArray(64*64*4);for(let y=20;y<36;y++)for(let x=8;x<56;x++)data[(y*64+x)*4+3]=255;return {data};}})})};
+const fitted=helpers.fitVisual(ranger,120,18);
+assert.equal(ranger.scaleX,ranger.scaleY,'fit must preserve pixel aspect');
+assert.equal(fitted.width,54);assert.equal(fitted.height,18);
+const second=helpers.createAsset(scene,meta,'ranger_idle',0,0);helpers.fitVisual(second,120,18);
+assert.equal(reads,1,'bounds must be shared across instances');
+assert.throws(()=>helpers.fitVisual(second,0,18),/positive finite/);
+delete globalThis.document;
 helpers.playAction(ranger,'walk');const starts=animationStarts;helpers.playAction(ranger,'walk');assert.equal(animationStarts,starts);
 helpers.setFacing(ranger,-1,0);assert.equal(ranger.flipX,true);helpers.setFacing(ranger,0,0);assert.equal(ranger.flipX,true);
 assert.throws(()=>helpers.playAction(ranger,'invented'),/unavailable/);

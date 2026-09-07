@@ -2,6 +2,7 @@ package gamemaker
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,28 @@ func installGameTemplate(stage string, plan GamePlan) error {
 	if !slices.Contains(templateNames()[:6], plan.Template) {
 		return fmt.Errorf("unknown 2D template %q", plan.Template)
 	}
+	var imports, entries []string
+	packNames := map[string]string{}
+	for _, a := range plan.Assets {
+		if a.PackID == "" {
+			continue
+		}
+		key := a.PackID + "@" + a.Version
+		name, ok := packNames[key]
+		if !ok {
+			name = fmt.Sprintf("pack%d", len(packNames))
+			packNames[key] = name
+			path, _ := json.Marshal("../assets/builtin/" + a.PackID + "/" + a.Version + "/sheet.json")
+			imports = append(imports, fmt.Sprintf("import %s from %s;", name, path))
+		}
+		role, _ := json.Marshal(a.Role)
+		id := a.AssetID
+		if a.AssemblyID != "" {
+			id = a.AssemblyID
+		}
+		assetID, _ := json.Marshal(id)
+		entries = append(entries, fmt.Sprintf("[%s]: {meta:%s, id:%s, assembly:%t}", role, name, assetID, a.AssemblyID != ""))
+	}
 	for source, target := range map[string]string{plan.Template + ".ts": "main.ts", "common.ts": "common.ts"} {
 		data, err := gameTemplates.ReadFile("templates/" + source)
 		if err != nil {
@@ -23,6 +46,8 @@ func installGameTemplate(stage string, plan GamePlan) error {
 		}
 		if source == "common.ts" {
 			data = []byte(strings.Replace(string(data), "width: 960, height: 540", fmt.Sprintf("width: %d, height: %d", plan.Width, plan.Height), 1))
+			data = []byte(strings.Replace(string(data), "// PLAN_ASSET_IMPORTS", strings.Join(imports, "\n"), 1))
+			data = []byte(strings.Replace(string(data), "const plannedAssets: any = {};", "const plannedAssets: any = {"+strings.Join(entries, ",\n")+"};", 1))
 		}
 		if err := os.WriteFile(filepath.Join(stage, "src", target), data, 0o640); err != nil {
 			return fmt.Errorf("install game template: %w", err)
