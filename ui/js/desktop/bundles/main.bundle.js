@@ -6199,7 +6199,7 @@ function wireWindow(win, id) {
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
-            if (event.target.closest('button, .vd-window-menubar')) return;
+            if (event.target.closest('button, .vd-window-menu-popover')) return;
             if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
             const dragItem = state.windows.get(id);
@@ -6251,7 +6251,7 @@ function wireWindow(win, id) {
         });
         if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
             bar.addEventListener('dblclick', event => {
-                if (event.target.closest('button, .vd-window-menubar')) return;
+                if (event.target.closest('button, .vd-window-menu-popover')) return;
                 toggleMaximizeWindow(id);
             });
         }

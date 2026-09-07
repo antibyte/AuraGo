@@ -113,6 +113,7 @@
 .has-reflection .teevee-glass { display: block; }
 .teevee-video-fullscreen { position: absolute; z-index: 4; top: 13%; right: 10%; display: grid; place-items: center; width: 47px; height: 50px; border: 1px solid #899e9c; border-radius: 9px; background: #0d131733; opacity: .65; }
 .teevee-video-fullscreen:hover, .teevee-video-fullscreen:focus-visible { opacity: 1; }
+.teevee-video-shell.controls-idle:not(:hover) .teevee-video-fullscreen:not(:focus-visible) { opacity: 0; pointer-events: none; }
 .teevee-video-fullscreen .teevee-control-icon { width: 16px; height: 16px; }
 .teevee-player-state { position: absolute; z-index: 4; left: 10%; right: 10%; bottom: 11%; display: grid; grid-template-columns: 28px minmax(0,1fr); grid-template-rows: auto auto; gap: 0 17px; min-height: 80px; padding: 12px 25px; border: 1px solid #a2997866; border-radius: 12px; background: #0d151478; box-shadow: inset 0 0 12px #92977b15,0 0 0 1px #c6c2a214; }
 .teevee-player-state strong { grid-area: 1 / 2; font-size: 24px; line-height: 1.2; color: var(--tv-mint); overflow: hidden; text-overflow: ellipsis; }

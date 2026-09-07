@@ -28,6 +28,8 @@ and `files.default_apps` via `/api/desktop/settings`.
 
 Resize handles in `core/window-interactions-runtime.js` honor the shell's
 per-window minimum width/height, including the fixed opposite edge on west/north drags.
+Free titlebar/menubar space supports dragging and double-click maximizing;
+buttons and menu popovers remain excluded from those gestures.
 
 ### Spaces v1 contract
 
@@ -444,6 +446,10 @@ per-window minimum width/height, including the fixed opposite edge on west/north
   1140x540 minimum so the left sidebar stays visible, including session restores.
   Only desktops smaller than that minimum may use the compact layout; the tube
   remains proportional independently of window bounds.
+  Free header space, including the decorative model logo, stays draggable.
+  Hide the on-tube fullscreen button two seconds after the first `playing` event
+  per stream; tube hover or keyboard focus reveals it. Reset the timer on source
+  reset/stop/disposal, and preserve this behavior with reduced motion enabled.
   Material and icon provenance lives in `ui/img/teevee/README.md`. CRT and glass
   have separate, persisted View switches. The one existing video element owns decoding/audio;
   `teevee-crt.js` owns only rendering. Blocked texture access or WebGL failure

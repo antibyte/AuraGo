@@ -239,10 +239,11 @@
             const titlebar = chrome.querySelector('.vd-window-titlebar');
             const titleIcon = chrome.querySelector('.vd-window-header-icon-wrap');
             if (titleIcon) titleIcon.innerHTML = tvIcon;
-            if (titlebar) titlebar.insertAdjacentHTML('beforeend', screws + '<div class="teevee-model" aria-hidden="true"><img src="/img/teevee/color-mark.png" alt=""><div>Color Television<small>MODEL 1984</small></div></div>');
+            if (titlebar) titlebar.insertAdjacentHTML('beforeend', screws + '<div class="teevee-model" aria-hidden="true"><img src="/img/teevee/color-mark.png" alt="" draggable="false"><div>Color Television<small>MODEL 1984</small></div></div>');
             chrome.querySelectorAll('.vd-window-button:not(.vd-window-ai-button)').forEach(button => { button.innerHTML = controlIcon(button.dataset.action); });
         }
         let listObserver = null;
+        let fullscreenHideTimer = 0;
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         function renderFilterControls() {
@@ -670,6 +671,9 @@
         }
 
         function resetPlayback() {
+            clearTimeout(fullscreenHideTimer);
+            fullscreenHideTimer = 0;
+            playerShell.classList.remove('controls-idle');
             if (crt) crt.reset();
             destroyHls();
             state.playbackID = (state.playbackID || 0) + 1;
@@ -857,6 +861,12 @@
         });
         video.addEventListener('playing', () => {
             if (state.disposed || !state.powered) { video.pause(); return; }
+            if (!fullscreenHideTimer && !playerShell.classList.contains('controls-idle')) {
+                fullscreenHideTimer = setTimeout(() => {
+                    fullscreenHideTimer = 0;
+                    playerShell.classList.add('controls-idle');
+                }, 2000);
+            }
             state.playing = true;
             state.buffering = false;
             state.error = '';
