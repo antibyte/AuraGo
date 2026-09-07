@@ -89,8 +89,13 @@ func TestMeshCoreMinimalLoopEnforcesSchemasDispatcherAndCallCount(t *testing.T) 
 		msg := openai.ChatCompletionMessage{Role: "assistant", Content: "Public answer"}
 		reason := openai.FinishReasonStop
 		if n == 1 {
+			msg.Content = `<tool_call> <function=brave_search> <parameter=query>LoRa</parameter> </function> </tool_call>`
+		} else if n == 2 {
 			if len(req.Tools) != 1 || req.Tools[0].Function.Name != "brave_search" {
 				t.Fatalf("schemas escaped scope: %+v", req.Tools)
+			}
+			if calls != 0 || !strings.Contains(req.Messages[0].Content, "It was not executed") {
+				t.Fatal("textual call was executed or correction was lost during request preparation")
 			}
 			msg.Content = ""
 			for _, id := range []string{"a", "b", "c"} {
@@ -103,7 +108,7 @@ func TestMeshCoreMinimalLoopEnforcesSchemasDispatcherAndCallCount(t *testing.T) 
 		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: msg, FinishReason: reason}}}, nil
 	}
 	res, hist, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Public only", "What is LoRa?", []openai.Tool{MeshCoreSearchSchema(), meshCoreToolSchema()}, dc, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), &MinimalLoopOptions{MaxToolRounds: 2, MaxToolCalls: 2})
-	if err != nil || res.Response != "Public answer" || res.ToolCalls != 2 || calls != 2 {
+	if err != nil || res.Response != "Public answer" || res.ToolCalls != 2 || calls != 2 || len(client.requests) != 3 {
 		t.Fatalf("%+v calls=%d %v", res, calls, err)
 	}
 	results := 0
@@ -111,6 +116,9 @@ func TestMeshCoreMinimalLoopEnforcesSchemasDispatcherAndCallCount(t *testing.T) 
 		if m.Role == "tool" {
 			results++
 		}
+	}
+	if _, dropped := SanitizeToolMessages(hist); dropped != 0 {
+		t.Fatalf("format correction broke tool result pairing: %d", dropped)
 	}
 	if results != 3 {
 		t.Fatalf("missing contiguous tool results: %d", results)

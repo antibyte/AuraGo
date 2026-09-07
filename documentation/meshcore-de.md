@@ -87,6 +87,13 @@ nicht absendersigniert. Signed-Plain-Nachrichten und Room-Weiterleitungen gelten
 ebenfalls nicht als autorisierte Direktbefehle. Slash-Commands gelangen nicht
 zum globalen Befehls-Handler.
 
+Werkzeugsyntax wird niemals als Funkantwort versendet. Schreibt ein Modell bei
+verfügbarer Suche einen XML-/JSON-Aufruf als Text, erhält es einmal die Anweisung,
+die native Schnittstelle zu nutzen oder eine reine Textantwort zu liefern.
+Erneut ungültige Ausgabe wird blockiert; werkzeuglose Sicherheitsprüfungen und
+abschließende Zusammenfassungen lehnen sie sofort ab. Die Grenze von zwei
+Suchaufrufen und sämtliche Zielfreigaben bleiben bestehen.
+
 Andere oder verdächtige Eingänge bleiben im geschützten Eingang. Dauerhafte
 Benachrichtigungen vom Typ `meshcore_message` enthalten ausschließlich feste
 Metadaten. Beim nächsten direkten Nutzerkontakt bekommt der Agent Anzahl,

@@ -115,6 +115,27 @@ func TestMeshCoreQuestionPromptAcceptsOpenRadioChecks(t *testing.T) {
 	}
 }
 
+func TestMeshCoreReplyRejectsTextToolCalls(t *testing.T) {
+	for _, searchEnabled := range []bool{false, true} {
+		s, client := meshCoreTestServer(t)
+		s.Cfg.BraveSearch.Enabled = searchEnabled
+		s.Cfg.BraveSearch.APIKey = "test-key"
+		client.response.Choices[0].Message.Content = `<tool_call> <function=brave_search> <parameter=query> Freifunk Mesh Netz Baden-Württemberg 2025 </parameter> </function> </tool_call>`
+		answer, err := s.runMeshCoreMessage(context.Background(), meshcore.Message{Kind: "channel", Text: "What is Freifunk?"}, "questions")
+		wantCalls := 1
+		if searchEnabled {
+			wantCalls = 2
+		}
+		if err == nil || answer != "" || client.requestCount() != wantCalls {
+			t.Fatalf("invalid answer available for radio send: %q, requests=%d, err=%v", answer, client.requestCount(), err)
+		}
+		before := client.requestCount()
+		if got := s.scanMeshCoreMessage(context.Background(), meshcore.Message{Text: "What is Freifunk?"}); got.Decision == "safe" || client.requestCount() != before+1 {
+			t.Fatalf("tool-free scan attempted recovery or accepted tool syntax: %+v", got)
+		}
+	}
+}
+
 func TestMeshCoreAdministrativeAPI(t *testing.T) {
 	s, _ := meshCoreTestServer(t)
 	if err := s.initMeshCore(context.Background()); err != nil {

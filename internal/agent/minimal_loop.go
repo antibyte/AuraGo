@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log/slog"
 	"strings"
 	"time"
@@ -119,6 +120,7 @@ func ExecuteMinimalLoop(
 		Tools:    reqTools,
 	}
 	tokenCache := newTokenCountCache(512)
+	formatRetried := false
 
 	for round := 0; round <= maxRounds; round++ {
 		if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls); err != nil {
@@ -143,9 +145,21 @@ func ExecuteMinimalLoop(
 			return result, req.Messages, fmt.Errorf("unexpected tool calls in a tool-free request")
 		}
 
-		// If no tool calls, we're done
+		// Textual tool syntax is never an answer or an executable fallback.
 		if len(msg.ToolCalls) == 0 {
-			result.Response = security.StripThinkingTags(msg.Content)
+			text, textErr := minimalLoopFinalText(msg.Content)
+			if textErr != nil {
+				if len(req.Tools) == 0 || formatRetried || choice.FinishReason != openai.FinishReasonStop {
+					return result, req.Messages, textErr
+				}
+				formatRetried = true
+				req.Messages = append(req.Messages, msg)
+				// Request preparation rebuilds the system message from this source.
+				baseSystemPrompt += "\nYour previous response contained tool-call syntax as text. It was not executed. Use only the provided native function-calling interface if a tool is needed, or give the final answer as plain text. Never write XML/JSON tool calls in the answer or claim an unexecuted search succeeded."
+				round-- // One format correction does not consume a tool round.
+				continue
+			}
+			result.Response = text
 			result.Duration = time.Since(start)
 			return result, req.Messages, nil
 		}
@@ -171,18 +185,7 @@ func ExecuteMinimalLoop(
 		}
 	}
 
-	// Max rounds exceeded — find last assistant message with content
-	for i := len(req.Messages) - 1; i >= 0; i-- {
-		if req.Messages[i].Role == openai.ChatMessageRoleAssistant {
-			content := security.StripThinkingTags(req.Messages[i].Content)
-			if content != "" {
-				result.Response = content
-				result.Duration = time.Since(start)
-				return result, req.Messages, nil
-			}
-		}
-	}
-	// Fallback: ask the LLM one more time without tools for a text summary
+	// Tool-round narration is not a final answer. Request a tool-free summary.
 	req.Tools = nil
 	if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls); err != nil {
 		return result, req.Messages, err
@@ -191,7 +194,7 @@ func ExecuteMinimalLoop(
 	if err != nil {
 		return result, req.Messages, fmt.Errorf("llm summary call failed: %w", err)
 	}
-	if len(resp.Choices) == 0 {
+	if len(resp.Choices) != 1 {
 		return result, req.Messages, fmt.Errorf("empty summary response from llm")
 	}
 	accumulateMinimalLoopUsage(&result, resp.Usage)
@@ -199,9 +202,23 @@ func ExecuteMinimalLoop(
 	if len(resp.Choices[0].Message.ToolCalls) > 0 || resp.Choices[0].Message.FunctionCall != nil {
 		return result, req.Messages, fmt.Errorf("unexpected tool calls in a tool-free summary")
 	}
-	result.Response = security.StripThinkingTags(resp.Choices[0].Message.Content)
+	result.Response, err = minimalLoopFinalText(resp.Choices[0].Message.Content)
+	if err != nil {
+		return result, req.Messages, err
+	}
 	result.Duration = time.Since(start)
 	return result, req.Messages, nil
+}
+
+func minimalLoopFinalText(content string) (string, error) {
+	text := security.StripThinkingTags(content)
+	// Detect escaped markup too, but preserve ordinary final text verbatim.
+	probe := html.UnescapeString(text)
+	_, toolMarkup := shouldSuppressStreamedToolCallText(probe)
+	if toolMarkup || shouldSuppressStreamedToolCallJSON(probe) || (strings.Contains(probe, "{") && ParseToolCall(probe).IsTool) {
+		return "", fmt.Errorf("unexpected tool-call text in llm response")
+	}
+	return text, nil
 }
 
 func accumulateMinimalLoopUsage(result *MinimalLoopResult, usage openai.Usage) {

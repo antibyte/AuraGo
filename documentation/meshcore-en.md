@@ -80,6 +80,12 @@ channel senders never authorize commands. Signed-plain and room-forwarded
 messages are also excluded from trusted direct commands. Slash commands are
 not passed to the global command handler.
 
+Tool-call syntax is never sent as a radio answer. If a model writes an XML/JSON
+call as text while search is available, it gets one correction to use the native
+interface or provide a plain-text answer. Repeated invalid output is blocked;
+tool-free security checks and final summaries reject it immediately. The two-call
+search limit and destination permissions remain enforced.
+
 Other messages and blocked input remain in the protected inbox. Typed
 `meshcore_message` notifications contain fixed metadata only. At the next
 direct user contact, the agent receives counts, validated source prefixes or

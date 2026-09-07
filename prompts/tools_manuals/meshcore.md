@@ -25,6 +25,11 @@ Question mode includes open channel questions and radio checks without an
 explicit assistant address or question mark. A radio-check reply only confirms
 arrival at this node; do not infer reception by others or signal quality.
 
+Use the provided native interface for an available web search; never put XML/JSON
+tool calls into a radio answer or claim a search succeeded without its result.
+The reply loop rejects tool syntax and allows at most one format correction while
+tools are available, without increasing the search limit.
+
 Settings, pairing, trust, channel assignments and quarantine review are
 administrator tasks in `/config#meshcore`. Firmware, raw protocol, radio
 parameters and channel keys are not available through this tool. Hardware

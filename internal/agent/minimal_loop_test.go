@@ -197,3 +197,49 @@ func TestExecuteMinimalLoopFailsClosedWhenRequiredToolSchemaCannotFit(t *testing
 		t.Fatalf("LLM calls = %d, want 0", len(client.requests))
 	}
 }
+
+func TestExecuteMinimalLoopNeverReturnsToolText(t *testing.T) {
+	for _, text := range []string{
+		`<tool_call> <function=brave_search> <parameter=query>Freifunk Mesh Netz Baden-Württemberg 2025</parameter> </function> </tool_call>`,
+		`<TOOL_CALL><function=execute_shell>`,
+		`&lt;tool_call&gt;&lt;function=brave_search&gt;`,
+		`[TOOL_CALL]{"action":"brave_search","query":"LoRa"}[/TOOL_CALL]`,
+		`{"name":"brave_search","arguments":{"query":"LoRa"}}`,
+		`{"action":"brave_search","query":"LoRa"}`,
+		`Searching: {"tool":"brave_search","query":"LoRa"}`,
+	} {
+		for _, path := range []string{"tool-free", "correction", "summary", "call-limit"} {
+			t.Run(path+"/"+text, func(t *testing.T) {
+				cfg := &config.Config{}
+				cfg.Agent.ContextWindow = 6000
+				tool := openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: "test_tool", Parameters: map[string]any{"type": "object"}}}
+				client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
+				client.respond = func(req openai.ChatCompletionRequest, _ int) (openai.ChatCompletionResponse, error) {
+					msg := openai.ChatCompletionMessage{Role: "assistant", Content: text}
+					reason := openai.FinishReasonStop
+					if (path == "summary" || path == "call-limit") && len(req.Tools) > 0 {
+						// Tool-round narration is not a final answer, even when it looks like prose.
+						msg.Content = "I will search now."
+						msg.ToolCalls = []openai.ToolCall{{ID: "call", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "test_tool", Arguments: `{}`}}}
+						reason = openai.FinishReasonToolCalls
+					}
+					return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: msg, FinishReason: reason}}}, nil
+				}
+				opts := &MinimalLoopOptions{MaxToolRounds: 1}
+				wantRequests, wantCalls := 2, 0
+				if path == "tool-free" {
+					opts.MaxToolRounds, wantRequests = 0, 1
+				} else if path == "summary" {
+					wantRequests, wantCalls = 3, 2
+				} else if path == "call-limit" {
+					opts.MaxToolCalls, wantCalls = 1, 1
+				}
+				dc := &DispatchContext{Cfg: cfg, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{"test_tool": {}}}
+				result, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Public answers only", "question", []openai.Tool{tool}, dc, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), opts)
+				if err == nil || result.Response != "" || len(client.requests) != wantRequests || result.ToolCalls != wantCalls {
+					t.Fatalf("tool text escaped or recovery was unbounded: result=%+v requests=%d err=%v", result, len(client.requests), err)
+				}
+			})
+		}
+	}
+}
