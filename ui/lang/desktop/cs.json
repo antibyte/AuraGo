@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Vybrat stanici",
+  "desktop.radio_tune_hint": "Otáčejte nebo použijte šipky. Kliknutím či Enterem spustíte stanici.",
+  "desktop.radio_empty_favorites": "Zatím žádné oblíbené stanice.",
+  "desktop.radio_popular": "Oblíbené",
   "cheater.agent_badge": "naposledy použitý {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Přetáhněte soubor sem nebo klikněte na tlačítko",

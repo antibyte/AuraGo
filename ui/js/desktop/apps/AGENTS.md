@@ -399,8 +399,13 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Log Viewer level colors and log-line semantics stay readable; toolbar,
   sidebar, and pane chrome use theme tokens. System Info gauge and chart
   accents may stay.
-- Radio keeps brand accent gradients on `--vd-theme-app-bg`; station cards and
-  player chrome use `--radio-*` aliases mapped to `--vd-theme-*`.
+- Radio owns a theme-independent wood/champagne-metal receiver skin, including
+  the existing window chrome scoped to `.vd-window[data-app-id="radio"]`.
+  Material assets live under `ui/img/radio/`; retain real shell menus/resize
+  handlers. Tuning selects current results without playing until activation.
+  Late catalog/stream results and disposal must not resume playback. Favorites
+  remain available when empty; meters animate only during playback and respect
+  reduced motion. Verify with `TestDesktopRadioBrowser`.
 - Camera viewport stays black (`#000`) for live preview; toolbar and controls
   use `--cam-*` aliases mapped to `--vd-theme-*`. Error banner keeps semantic
   danger colors.

@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Sender wählen",
+  "desktop.radio_tune_hint": "Drehen oder Pfeiltasten zum Auswählen. Klick oder Enter zum Abspielen.",
+  "desktop.radio_empty_favorites": "Noch keine Lieblingssender gespeichert.",
+  "desktop.radio_popular": "Beliebt",
   "cheater.agent_badge": "vor {{time}} benutzt",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Datei hier ablegen oder klicken",

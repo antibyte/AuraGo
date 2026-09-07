@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Vælg station",
+  "desktop.radio_tune_hint": "Drej eller brug piletasterne. Klik eller tryk Enter for at afspille.",
+  "desktop.radio_empty_favorites": "Ingen favoritstationer endnu.",
+  "desktop.radio_popular": "Populær",
   "cheater.agent_badge": "sidst brugt {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Slip filen her, eller klik",

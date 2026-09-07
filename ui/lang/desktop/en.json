@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Choose station",
+  "desktop.radio_tune_hint": "Turn or use arrow keys to select. Click or press Enter to play.",
+  "desktop.radio_empty_favorites": "No favorite stations saved yet.",
+  "desktop.radio_popular": "Popular",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

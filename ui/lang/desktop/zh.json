@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "选择电台",
+  "desktop.radio_tune_hint": "旋转或使用方向键选择，点击或按 Enter 播放。",
+  "desktop.radio_empty_favorites": "尚未保存收藏电台。",
+  "desktop.radio_popular": "热门",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

@@ -1286,6 +1286,7 @@ function modalDialog(options) {
             id: 'window',
             labelKey: 'desktop.menu_window',
             items: [
+                ...(item && item.appId === 'radio' ? [{ id: 'ai-context', labelKey: 'desktop.window_ai_context', icon: 'chat', action: () => openAgentChatForWindow(windowId) }] : []),
                 { id: 'minimize', labelKey: 'desktop.menu_minimize_window', icon: 'minus', action: () => minimizeWindow(windowId) },
                 {
                     id: 'maximize',

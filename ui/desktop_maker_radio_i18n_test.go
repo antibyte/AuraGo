@@ -28,8 +28,8 @@ func TestDesktopMakerRadioI18n(t *testing.T) {
 	if strings.Contains(radio, "Radio Browser HTTP '") {
 		t.Fatal("radio still builds Radio Browser HTTP with a trailing status fragment")
 	}
-	if strings.Count(radio, "t('desktop.radio_catalog_error')") < 2 {
-		t.Fatal("radio loadActive and searchStations must localize desktop.radio_catalog_error")
+	if !strings.Contains(radio, "async function loadCatalog(query)") || !strings.Contains(radio, "t('desktop.radio_catalog_error')") {
+		t.Fatal("radio shared catalog loader must localize desktop.radio_catalog_error")
 	}
 	if strings.Contains(radio, "state.error = err.message") {
 		t.Fatal("radio catalog catches still dump err.message")
@@ -43,7 +43,7 @@ func TestDesktopMakerRadioI18n(t *testing.T) {
 		if err := json.Unmarshal([]byte(rawDesktopAssetText(t, path)), &values); err != nil {
 			t.Fatalf("parse %s: %v", path, err)
 		}
-		for _, key := range []string{"desktop.radio_catalog_error", "game_maker.modules_load_failed"} {
+		for _, key := range []string{"desktop.radio_catalog_error", "desktop.radio_tune", "desktop.radio_tune_hint", "desktop.radio_empty_favorites", "desktop.radio_popular", "game_maker.modules_load_failed"} {
 			got := values[key]
 			if strings.TrimSpace(got) == "" {
 				t.Fatalf("%s missing non-empty %s", path, key)

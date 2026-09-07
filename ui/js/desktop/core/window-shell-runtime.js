@@ -960,7 +960,7 @@
             calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
-            radio: { width: 960, height: 680 },
+            radio: { width: 1320, height: 920 },
             openscad: { width: 1240, height: 760 },
             teevee: { width: 1120, height: 720 },
             gallery: { width: 1040, height: 700 },
@@ -1000,6 +1000,7 @@
     function shouldUseMobileWideWindow(appId) { return !!{ meshcore: true, files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'meshcore') return { width: 360, height: 480 };
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };

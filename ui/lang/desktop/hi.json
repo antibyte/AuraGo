@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "स्टेशन चुनें",
+  "desktop.radio_tune_hint": "चुनने के लिए घुमाएँ या तीर कुंजियाँ दबाएँ। चलाने के लिए क्लिक करें या Enter दबाएँ।",
+  "desktop.radio_empty_favorites": "अभी कोई पसंदीदा स्टेशन सहेजा नहीं गया है।",
+  "desktop.radio_popular": "लोकप्रिय",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

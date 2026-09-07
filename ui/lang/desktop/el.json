@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Επιλογή σταθμού",
+  "desktop.radio_tune_hint": "Περιστρέψτε ή χρησιμοποιήστε τα βέλη. Κλικ ή Enter για αναπαραγωγή.",
+  "desktop.radio_empty_favorites": "Δεν υπάρχουν ακόμη αγαπημένοι σταθμοί.",
+  "desktop.radio_popular": "Δημοφιλής",
   "cheater.agent_badge": "τελευταία χρήση {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Αποθέστε το αρχείο εδώ ή κάντε κλικ",

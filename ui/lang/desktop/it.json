@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Scegli stazione",
+  "desktop.radio_tune_hint": "Ruota o usa le frecce per scegliere. Fai clic o premi Invio per ascoltare.",
+  "desktop.radio_empty_favorites": "Nessuna stazione preferita salvata.",
+  "desktop.radio_popular": "Popolare",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

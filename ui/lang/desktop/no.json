@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Velg stasjon",
+  "desktop.radio_tune_hint": "Drei eller bruk piltastene. Klikk eller trykk Enter for å spille av.",
+  "desktop.radio_empty_favorites": "Ingen favorittstasjoner lagret ennå.",
+  "desktop.radio_popular": "Populær",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

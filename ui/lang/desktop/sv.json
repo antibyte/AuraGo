@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Välj station",
+  "desktop.radio_tune_hint": "Vrid eller använd piltangenterna. Klicka eller tryck på Enter för att spela.",
+  "desktop.radio_empty_favorites": "Inga favoritstationer sparade ännu.",
+  "desktop.radio_popular": "Populär",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

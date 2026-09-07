@@ -1,4 +1,8 @@
 {
+  "desktop.radio_tune": "Zender kiezen",
+  "desktop.radio_tune_hint": "Draai of gebruik de pijltjestoetsen. Klik of druk op Enter om af te spelen.",
+  "desktop.radio_empty_favorites": "Nog geen favoriete zenders opgeslagen.",
+  "desktop.radio_popular": "Populair",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

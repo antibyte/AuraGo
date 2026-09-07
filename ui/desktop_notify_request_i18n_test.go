@@ -33,7 +33,7 @@ func TestDesktopNotifyRequestI18n(t *testing.T) {
 	}
 
 	radio := readDesktopAssetText(t, "js/desktop/apps/radio.js")
-	if !strings.Contains(radio, ".catch(() => showToast(t('desktop.radio_error')))") {
+	if !strings.Contains(radio, "function resumePlayback()") || !strings.Contains(radio, "showToast(t('desktop.radio_error'))") {
 		t.Fatal("radio toggle play must localize desktop.radio_error")
 	}
 	if strings.Contains(radio, "err.message || String(err)") {

@@ -183,8 +183,8 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if strings.Contains(radio, "rgba(9, 18, 32") {
 		t.Fatalf("radio must not hardcode a dark glass wash in source aliases")
 	}
-	if !strings.Contains(radio, "var(--vd-theme-app-bg)") {
-		t.Fatalf("radio missing theme app background marker")
+	if !strings.Contains(radio, ".vd-window[data-app-id=\"radio\"]") || !strings.Contains(radio, "url('/img/radio/metal.png')") {
+		t.Fatalf("radio must scope its independent receiver material to its own window")
 	}
 
 	camera := readDesktopAssetText(t, "css/camera.css")
