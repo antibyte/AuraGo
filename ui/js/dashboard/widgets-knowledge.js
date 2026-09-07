@@ -866,8 +866,9 @@
 
         const KG_VISUAL_MIN_WIDTH = 320;
         const KG_VISUAL_MAX_WIDTH = 1600;
-        const KG_VISUAL_MIN_HEIGHT = 360;
-        const KG_VISUAL_MAX_HEIGHT = 460;
+        const KG_VISUAL_MIN_HEIGHT = 420;
+        const KG_VISUAL_MAX_HEIGHT = 560;
+        const KG_VIEW_STORAGE_KEY = 'aurago.dashboard.kgview.v1';
 
         function knowledgeGraphVisualSize(wrap) {
             const rect = wrap.getBoundingClientRect ? wrap.getBoundingClientRect() : { width: 0 };
@@ -881,12 +882,715 @@
             };
         }
 
+        function kgPrefersReducedMotion() {
+            try {
+                return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        let _kgWebglSupport = null;
+        function kgWebGLSupported() {
+            if (_kgWebglSupport !== null) return _kgWebglSupport;
+            let ok = false;
+            try {
+                const canvas = document.createElement('canvas');
+                ok = !!(window.WebGLRenderingContext && (canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+            } catch (_) {
+                ok = false;
+            }
+            _kgWebglSupport = ok;
+            return ok;
+        }
+
+        function kgStoredViewMode() {
+            try {
+                const mode = localStorage.getItem(KG_VIEW_STORAGE_KEY);
+                if (mode === '2d' || mode === '3d') return mode;
+            } catch (_) {}
+            return '3d';
+        }
+
+        function kgEffectiveViewMode() {
+            if (kgStoredViewMode() === '2d') return '2d';
+            if (kgWebGLSupported() && typeof ForceGraph3D === 'function') return '3d';
+            return '2d';
+        }
+
+        function setKnowledgeGraphViewMode(mode) {
+            try { localStorage.setItem(KG_VIEW_STORAGE_KEY, mode === '2d' ? '2d' : '3d'); } catch (_) {}
+            renderKnowledgeGraphVisual();
+        }
+
+        function kgUpdateViewToggle() {
+            const toggle = document.getElementById('knowledge-graph-view-toggle');
+            if (!toggle) return;
+            const effective = kgEffectiveViewMode();
+            const can3d = kgWebGLSupported() && typeof ForceGraph3D === 'function';
+            toggle.querySelectorAll('[data-kg-view]').forEach(btn => {
+                const is3D = btn.dataset.kgView === '3d';
+                const active = btn.dataset.kgView === effective;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-pressed', String(active));
+                if (is3D) {
+                    btn.disabled = !can3d;
+                    btn.title = can3d ? t('dashboard.knowledge_visual_view_3d_title') : t('dashboard.knowledge_visual_3d_unavailable');
+                }
+            });
+        }
+
+        function kgParseColor(color) {
+            const fallback = [148, 163, 184];
+            if (!color) return fallback;
+            const raw = String(color).trim();
+            const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(raw);
+            if (hex) {
+                let h = hex[1];
+                if (h.length === 3) h = h.split('').map(c => c + c).join('');
+                const num = parseInt(h, 16);
+                return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+            }
+            const rgb = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(raw);
+            if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+            return fallback;
+        }
+
+        function kgAlpha(color, alpha) {
+            const [r, g, b] = kgParseColor(color);
+            return `rgba(${r},${g},${b},${alpha})`;
+        }
+
+        function kgMix(color, other, weight) {
+            const a = kgParseColor(color);
+            const b = kgParseColor(other);
+            const w = Math.min(1, Math.max(0, weight));
+            return `rgb(${Math.round(a[0] + (b[0] - a[0]) * w)},${Math.round(a[1] + (b[1] - a[1]) * w)},${Math.round(a[2] + (b[2] - a[2]) * w)})`;
+        }
+
+        function kgIsLightTheme() {
+            return (document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'light';
+        }
+
+        function kgMulberry32(seed) {
+            let a = seed >>> 0;
+            return function () {
+                a |= 0; a = (a + 0x6D2B79F5) | 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function kgStarField(count, seed) {
+            const rand = kgMulberry32(seed);
+            const stars = [];
+            for (let i = 0; i < count; i++) {
+                stars.push({
+                    x: rand(),
+                    y: rand(),
+                    r: 0.4 + rand() * 1.2,
+                    a: 0.25 + rand() * 0.65,
+                    p: rand() * Math.PI * 2,
+                    s: 0.35 + rand() * 1.1,
+                });
+            }
+            return stars;
+        }
+
+        function kgPaintStars2D(wrap, ctx) {
+            if (!wrap._kgStars2d) wrap._kgStars2d = kgStarField(150, 0xA67A9);
+            const w = ctx.canvas.width;
+            const h = ctx.canvas.height;
+            if (!w || !h) return;
+            const reduced = kgPrefersReducedMotion();
+            const light = kgIsLightTheme();
+            const now = reduced ? 0 : performance.now() / 1000;
+            const dpr = window.devicePixelRatio || 1;
+            const base = light ? '100,116,139' : '203,213,225';
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            wrap._kgStars2d.forEach(star => {
+                const twinkle = reduced ? 1 : (0.55 + 0.45 * Math.sin(now * star.s + star.p));
+                ctx.fillStyle = `rgba(${base},${(star.a * twinkle * (light ? 0.35 : 0.55)).toFixed(3)})`;
+                ctx.beginPath();
+                ctx.arc(star.x * w, star.y * h, star.r * dpr, 0, Math.PI * 2, false);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        function kgPaintVignette2D(ctx) {
+            const w = ctx.canvas.width;
+            const h = ctx.canvas.height;
+            if (!w || !h) return;
+            const light = kgIsLightTheme();
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.75);
+            vignette.addColorStop(0, 'rgba(0,0,0,0)');
+            vignette.addColorStop(1, light ? 'rgba(100,116,139,0.08)' : 'rgba(2,6,23,0.38)');
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+        }
+
+        function kgBuildGraphData(model) {
+            const topLabels = new Set([...model.nodes]
+                .sort((a, b) => (b.importance_score ?? 0) - (a.importance_score ?? 0))
+                .slice(0, 8)
+                .map(n => n.id));
+            const colorById = new Map();
+            const nodes = model.nodes.map(n => {
+                const score = n.importance_score ?? 0;
+                const color = knowledgeGraphNodeColor(n);
+                colorById.set(n.id, color);
+                return {
+                    id: n.id,
+                    label: truncate(String(n.label || n.id || 'Node'), 18),
+                    meta: buildKnowledgeGraphNodeTooltip(n),
+                    type: n?.properties?.type || '',
+                    val: (n.r || 15) / 2,
+                    color: color,
+                    isFocus: n.isFocus || false,
+                    importance: score,
+                    topLabel: topLabels.has(n.id),
+                };
+            });
+            const links = model.edges.map(e => ({
+                source: e.source,
+                target: e.target,
+                relation: truncate(String(e.relation || ''), 18),
+                relationFull: String(e.relation || ''),
+            }));
+            return { nodes, links, colorById };
+        }
+
+        function kgLinkEndpointId(endpoint) {
+            return typeof endpoint === 'object' && endpoint ? endpoint.id : endpoint;
+        }
+
+        function kgComputeHover(state, graphData, node) {
+            state.hover = node || null;
+            state.links = new Set();
+            state.neighborIds = new Set();
+            if (!node) return;
+            state.neighborIds.add(node.id);
+            (graphData.links || []).forEach(link => {
+                const s = kgLinkEndpointId(link.source);
+                const tgt = kgLinkEndpointId(link.target);
+                if (s === node.id || tgt === node.id) {
+                    state.links.add(link);
+                    state.neighborIds.add(s);
+                    state.neighborIds.add(tgt);
+                }
+            });
+        }
+
+        function renderKnowledgeGraphVisual2D(wrap, model, graphSize) {
+            const graph = wrap._forceGraph;
+            const reduced = kgPrefersReducedMotion();
+            const light = kgIsLightTheme();
+            const labelColor = cv('--text-secondary') || '#94a3b8';
+            const labelStrongColor = cv('--text-primary') || '#f8fafc';
+            const haloColor = light ? 'rgba(248,250,252,0.92)' : 'rgba(2,6,23,0.88)';
+            const edgeBase = cv('--border-subtle') || '#334155';
+
+            const state = { hover: null, links: new Set(), neighborIds: new Set() };
+            const data = kgBuildGraphData(model);
+            const linkSourceColor = link => data.colorById.get(kgLinkEndpointId(link.source)) || edgeBase;
+
+            graph
+                .width(graphSize.width)
+                .height(graphSize.height)
+                .backgroundColor('transparent')
+                .graphData({ nodes: data.nodes, links: data.links })
+                .nodeId('id')
+                .nodeVal('val')
+                .nodeLabel('meta')
+                .linkLabel('relationFull')
+                .linkCurvature(0.14)
+                .linkDirectionalArrowLength(4)
+                .linkDirectionalArrowRelPos(1)
+                .linkDirectionalArrowColor(link => kgAlpha(linkSourceColor(link), 0.85))
+                .linkWidth(link => state.hover ? (state.links.has(link) ? 1.7 : 0.35) : 0.7)
+                .linkColor(link => {
+                    if (state.hover) {
+                        return state.links.has(link) ? kgAlpha(linkSourceColor(link), 0.9) : kgAlpha(edgeBase, 0.1);
+                    }
+                    return kgAlpha(edgeBase, light ? 0.55 : 0.65);
+                })
+                .linkDirectionalParticles(reduced ? 0 : 2)
+                .linkDirectionalParticleWidth(link => state.links.has(link) ? 2.6 : 1.7)
+                .linkDirectionalParticleSpeed(0.0045)
+                .linkDirectionalParticleColor(link => kgAlpha(linkSourceColor(link), 0.95))
+                .nodePointerAreaPaint((node, color, ctx) => {
+                    const radius = (node.isFocus ? node.val * 1.45 : node.val) + 4;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+                    ctx.fill();
+                })
+                .nodeCanvasObject((node, ctx, globalScale) => {
+                    const isHover = state.hover === node;
+                    const inNeighborhood = state.hover && state.neighborIds.has(node.id);
+                    const dimmed = state.hover && !isHover && !inNeighborhood;
+                    const radius = node.isFocus ? node.val * 1.45 : node.val;
+
+                    ctx.save();
+                    if (dimmed) ctx.globalAlpha = 0.14;
+
+                    // halo glow
+                    const glowRadius = radius * (node.isFocus ? 2.7 : 2.15);
+                    const glow = ctx.createRadialGradient(node.x, node.y, radius * 0.5, node.x, node.y, glowRadius);
+                    glow.addColorStop(0, kgAlpha(node.color, isHover ? 0.6 : (node.isFocus ? 0.5 : 0.38)));
+                    glow.addColorStop(1, kgAlpha(node.color, 0));
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, glowRadius, 0, 2 * Math.PI, false);
+                    ctx.fill();
+
+                    // focus pulse ring (repaint is driven by the directional particles)
+                    if (node.isFocus && !reduced) {
+                        const phase = ((performance.now() / 1000) % 1.6) / 1.6;
+                        const pulseRadius = radius * (1.25 + phase * 1.35);
+                        ctx.strokeStyle = kgAlpha(node.color, (1 - phase) * 0.75);
+                        ctx.lineWidth = (1.4 + (1 - phase) * 1.2) / globalScale;
+                        ctx.beginPath();
+                        ctx.arc(node.x, node.y, pulseRadius, 0, 2 * Math.PI, false);
+                        ctx.stroke();
+                    }
+
+                    // core sphere with a fake top-left light
+                    const core = ctx.createRadialGradient(
+                        node.x - radius * 0.38, node.y - radius * 0.42, radius * 0.12,
+                        node.x, node.y, radius
+                    );
+                    core.addColorStop(0, kgMix(node.color, '#ffffff', light ? 0.55 : 0.72));
+                    core.addColorStop(0.5, node.color);
+                    core.addColorStop(1, kgMix(node.color, '#020617', light ? 0.25 : 0.42));
+                    ctx.fillStyle = core;
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+                    ctx.fill();
+
+                    // rim light
+                    ctx.strokeStyle = isHover ? kgAlpha('#ffffff', 0.95) : kgAlpha(kgMix(node.color, '#ffffff', 0.45), node.isFocus ? 0.9 : 0.5);
+                    ctx.lineWidth = (isHover ? 1.7 : node.isFocus ? 1.4 : 0.9) / globalScale + 0.3;
+                    ctx.stroke();
+
+                    // label only where it adds value: focus, hover neighborhood, top nodes, deep zoom
+                    const showLabel = !dimmed && (node.isFocus || isHover || inNeighborhood || node.topLabel || globalScale >= 1.3);
+                    if (showLabel) {
+                        const fontSize = Math.max(12 / globalScale, 4.2);
+                        ctx.font = `600 ${fontSize}px 'Geist', 'Segoe UI', sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const textY = node.y + radius + 2.5 + fontSize / 2;
+                        ctx.lineWidth = fontSize / 4.5;
+                        ctx.strokeStyle = haloColor;
+                        ctx.strokeText(node.label, node.x, textY);
+                        ctx.fillStyle = (node.isFocus || isHover) ? labelStrongColor : labelColor;
+                        ctx.fillText(node.label, node.x, textY);
+                    }
+                    ctx.restore();
+                })
+                .onRenderFramePre((ctx) => kgPaintStars2D(wrap, ctx))
+                .onRenderFramePost((ctx) => kgPaintVignette2D(ctx))
+                .onNodeHover(node => {
+                    kgComputeHover(state, graph.graphData(), node);
+                    wrap.style.cursor = node ? 'pointer' : '';
+                })
+                .onNodeClick(node => {
+                    if (!node) return;
+                    KnowledgeGraphState.focusNodeId = node.id;
+                    loadKnowledgeGraphNodeDetail(node.id);
+                })
+                .warmupTicks(reduced ? 0 : 40)
+                .cooldownTime(reduced ? 600 : 6500);
+
+            setTimeout(() => {
+                if (wrap._forceGraph && typeof wrap._forceGraph.zoomToFit === 'function') {
+                    wrap._forceGraph.zoomToFit(reduced ? 0 : 650, 46);
+                }
+            }, 320);
+        }
+
+        let _kgGlowTexture = null;
+        function kgGlowTexture() {
+            if (_kgGlowTexture) return _kgGlowTexture;
+            const size = 128;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const g = canvas.getContext('2d');
+            const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            grad.addColorStop(0, 'rgba(255,255,255,0.85)');
+            grad.addColorStop(0.25, 'rgba(255,255,255,0.32)');
+            grad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = grad;
+            g.fillRect(0, 0, size, size);
+            _kgGlowTexture = new THREE.CanvasTexture(canvas);
+            return _kgGlowTexture;
+        }
+
+        function kgTextSprite3D(text, color) {
+            const fontSize = 42;
+            const padding = 18;
+            const font = `600 ${fontSize}px 'Geist', 'Segoe UI', sans-serif`;
+            const measure = document.createElement('canvas').getContext('2d');
+            measure.font = font;
+            const width = Math.ceil(measure.measureText(text).width) + padding * 2;
+            const height = fontSize + padding * 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const g = canvas.getContext('2d');
+            g.font = font;
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.lineWidth = 8;
+            g.strokeStyle = kgIsLightTheme() ? 'rgba(248,250,252,0.95)' : 'rgba(2,6,23,0.9)';
+            g.strokeText(text, width / 2, height / 2);
+            g.fillStyle = color;
+            g.fillText(text, width / 2, height / 2);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+            const sprite = new THREE.Sprite(material);
+            const scale = 0.14;
+            sprite.scale.set(width * scale, height * scale, 1);
+            return sprite;
+        }
+
+        function kgStarPoints3D() {
+            const rand = kgMulberry32(0x51F3D);
+            const count = 320;
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const radius = 260 + rand() * 520;
+                const theta = rand() * Math.PI * 2;
+                const phi = Math.acos(2 * rand() - 1);
+                positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = radius * Math.cos(phi);
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({
+                color: kgIsLightTheme() ? 0x94a3b8 : 0xcbd5e1,
+                size: 1.7,
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: kgIsLightTheme() ? 0.35 : 0.55,
+                depthWrite: false,
+            });
+            return new THREE.Points(geometry, material);
+        }
+
+        function kgApply3DNodeDim(graph, state) {
+            const nodes = (graph.graphData() && graph.graphData().nodes) || [];
+            nodes.forEach(n => {
+                const dim = !!(state.hover && !state.neighborIds.has(n.id));
+                if (n.__kgSphere) n.__kgSphere.material.opacity = dim ? 0.12 : n.__kgBase.sphereOpacity;
+                if (n.__kgGlow) n.__kgGlow.material.opacity = dim ? 0.04 : n.__kgBase.glowOpacity;
+                if (n.__kgLabel) n.__kgLabel.material.opacity = dim ? 0.05 : 1;
+            });
+        }
+
+        function renderKnowledgeGraphVisual3D(wrap, model, graphSize) {
+            const graph = wrap._forceGraph3d;
+            const reduced = kgPrefersReducedMotion();
+            const light = kgIsLightTheme();
+            const edgeBase = cv('--border-subtle') || '#334155';
+            const labelColor = cv('--text-primary') || '#f8fafc';
+            const glowTexture = kgGlowTexture();
+
+            const state = { hover: null, links: new Set(), neighborIds: new Set() };
+            const data = kgBuildGraphData(model);
+            const linkSourceColor = link => data.colorById.get(kgLinkEndpointId(link.source)) || edgeBase;
+
+            graph
+                .width(graphSize.width)
+                .height(graphSize.height)
+                .backgroundColor('rgba(0,0,0,0)')
+                .showNavInfo(false)
+                .graphData({ nodes: data.nodes, links: data.links })
+                .nodeId('id')
+                .nodeLabel('meta')
+                .linkLabel('relationFull')
+                .nodeThreeObject(node => {
+                    const group = new THREE.Group();
+                    const radius = (node.isFocus ? node.val * 1.6 : node.val) * 1.45;
+                    const sphere = new THREE.Mesh(
+                        new THREE.SphereGeometry(radius, 24, 18),
+                        new THREE.MeshLambertMaterial({
+                            color: kgMix(node.color, '#ffffff', 0.12),
+                            emissive: node.color,
+                            emissiveIntensity: 0.55,
+                            transparent: true,
+                            opacity: 0.98,
+                        })
+                    );
+                    group.add(sphere);
+
+                    const glowMaterial = new THREE.SpriteMaterial({
+                        map: glowTexture,
+                        color: node.color,
+                        transparent: true,
+                        opacity: node.isFocus ? 0.95 : 0.75,
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false,
+                    });
+                    const glow = new THREE.Sprite(glowMaterial);
+                    const glowScale = radius * (node.isFocus ? 6.8 : 5.2);
+                    glow.scale.set(glowScale, glowScale, 1);
+                    group.add(glow);
+
+                    node.__kgSphere = sphere;
+                    node.__kgGlow = glow;
+                    node.__kgGlowScale = glowScale;
+                    node.__kgBase = { sphereOpacity: 0.98, glowOpacity: glowMaterial.opacity };
+
+                    if (node.isFocus || node.topLabel) {
+                        const label = kgTextSprite3D(node.label, labelColor);
+                        label.position.set(0, radius + label.scale.y * 0.5 + 1.2, 0);
+                        group.add(label);
+                        node.__kgLabel = label;
+                    }
+                    return group;
+                })
+                .linkOpacity(light ? 0.3 : 0.42)
+                .linkWidth(link => state.links.has(link) ? 1.5 : 0.55)
+                .linkColor(link => state.hover
+                    ? (state.links.has(link) ? kgAlpha(linkSourceColor(link), 0.95) : kgAlpha(edgeBase, 0.06))
+                    : kgAlpha(edgeBase, light ? 0.5 : 0.75))
+                .linkCurvature(0.1)
+                .linkDirectionalArrowLength(3.4)
+                .linkDirectionalArrowRelPos(1)
+                .linkDirectionalParticles(reduced ? 0 : 2)
+                .linkDirectionalParticleWidth(link => state.links.has(link) ? 2.4 : 1.5)
+                .linkDirectionalParticleSpeed(0.0055)
+                .linkDirectionalParticleColor(link => kgAlpha(linkSourceColor(link), 0.95))
+                .onNodeHover(node => {
+                    kgComputeHover(state, graph.graphData(), node);
+                    kgApply3DNodeDim(graph, state);
+                    // Re-assigning the accessors triggers the library's own restyle pass
+                    graph
+                        .linkColor(graph.linkColor())
+                        .linkWidth(graph.linkWidth())
+                        .linkDirectionalParticleWidth(graph.linkDirectionalParticleWidth());
+                    wrap.style.cursor = node ? 'pointer' : '';
+                })
+                .onNodeClick(node => {
+                    if (!node) return;
+                    KnowledgeGraphState.focusNodeId = node.id;
+                    loadKnowledgeGraphNodeDetail(node.id);
+                })
+                .cooldownTime(reduced ? 800 : 9000)
+                .warmupTicks(80);
+
+            // spread the constellation so glow halos and labels stay readable
+            try {
+                const charge = typeof graph.d3Force === 'function' ? graph.d3Force('charge') : null;
+                if (charge && typeof charge.strength === 'function') charge.strength(-150);
+            } catch (_) {}
+
+            // focus glow pulse, driven by the still-warm force engine
+            if (!reduced) {
+                graph.onEngineTick(() => {
+                    const t = performance.now() / 1000;
+                    const nodes = (graph.graphData() && graph.graphData().nodes) || [];
+                    nodes.forEach(n => {
+                        if (n.isFocus && n.__kgGlow && n.__kgGlowScale) {
+                            const s = n.__kgGlowScale * (1 + 0.13 * Math.sin(t * 2.6));
+                            n.__kgGlow.scale.set(s, s, 1);
+                        }
+                    });
+                });
+            }
+
+            // starfield backdrop, one per 3D instance
+            if (!wrap._kgStars3d && typeof graph.scene === 'function') {
+                try {
+                    const stars = kgStarPoints3D();
+                    graph.scene().add(stars);
+                    wrap._kgStars3d = stars;
+                } catch (_) {}
+            }
+
+            // gentle auto-rotation with interaction pause
+            const controls = typeof graph.controls === 'function' ? graph.controls() : null;
+            if (controls && !wrap._kgRotateWired) {
+                wrap._kgRotateWired = true;
+                let resumeTimer = null;
+                if (!reduced) {
+                    controls.autoRotate = true;
+                    controls.autoRotateSpeed = 0.75;
+                }
+                controls.addEventListener('start', () => {
+                    controls.autoRotate = false;
+                    if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
+                });
+                controls.addEventListener('end', () => {
+                    if (resumeTimer) clearTimeout(resumeTimer);
+                    resumeTimer = setTimeout(() => {
+                        if (!kgPrefersReducedMotion()) controls.autoRotate = true;
+                    }, 7000);
+                });
+            }
+
+            // cinematic intro flight only once per instance, then settle into the frame
+            if (!reduced && !wrap._kg3dIntroDone && typeof graph.cameraPosition === 'function') {
+                try { graph.cameraPosition({ x: 0, y: -60, z: 560 }, { x: 0, y: 0, z: 0 }, 0); } catch (_) {}
+            }
+            setTimeout(() => {
+                if (!wrap._forceGraph3d || typeof wrap._forceGraph3d.cameraPosition !== 'function') return;
+                try {
+                    const first = !wrap._kg3dIntroDone;
+                    kg3DFitCamera(wrap._forceGraph3d, first ? (reduced ? 0 : 1500) : 600);
+                    wrap._kg3dIntroDone = true;
+                } catch (_) {}
+            }, wrap._kg3dIntroDone ? 260 : 420);
+        }
+
+        // kg3DFitCamera frames the node cloud tighter than the library's sphere-based
+        // zoomToFit: it uses the axis spans plus a slightly angled approach so the
+        // constellation fills the stage and reads as 3D immediately.
+        function kg3DFitCamera(graph, duration) {
+            const nodes = (graph.graphData() && graph.graphData().nodes) || [];
+            if (!nodes.length) return;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            nodes.forEach(n => {
+                if (typeof n.x !== 'number' || typeof n.y !== 'number' || typeof n.z !== 'number') return;
+                minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+                minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+                minZ = Math.min(minZ, n.z); maxZ = Math.max(maxZ, n.z);
+            });
+            if (!isFinite(minX)) return;
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+            const cz = (minZ + maxZ) / 2;
+            const camera = typeof graph.camera === 'function' ? graph.camera() : null;
+            const fov = (camera && camera.fov ? camera.fov : 50) * Math.PI / 180;
+            const aspect = (graph.width() || 1) / Math.max(1, graph.height() || 1);
+            const spanX = maxX - minX;
+            const spanY = maxY - minY;
+            const spanZ = maxZ - minZ;
+            const fitSpan = Math.max(spanY, spanX / Math.max(aspect, 0.1)) + spanZ * 0.6;
+            const dist = Math.max(140, (fitSpan / 2) / Math.tan(fov / 2) + 36);
+            const dir = { x: 0.35, y: -0.28, z: 1 };
+            const len = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+            graph.cameraPosition(
+                { x: cx + dir.x / len * dist, y: cy + dir.y / len * dist, z: cz + dir.z / len * dist },
+                { x: cx, y: cy, z: cz },
+                duration
+            );
+        }
+
+        function destroyKnowledgeGraphVisual(wrap) {
+            if (wrap._kgVisibilityHandler) {
+                document.removeEventListener('visibilitychange', wrap._kgVisibilityHandler);
+                delete wrap._kgVisibilityHandler;
+            }
+            if (wrap._forceGraph) {
+                try { wrap._forceGraph._destructor(); } catch (_) {}
+                delete wrap._forceGraph;
+            }
+            if (wrap._forceGraph3d) {
+                try { wrap._forceGraph3d._destructor(); } catch (_) {}
+                delete wrap._forceGraph3d;
+            }
+            if (wrap._forceGraphResizeObserver) {
+                wrap._forceGraphResizeObserver.disconnect();
+                delete wrap._forceGraphResizeObserver;
+            }
+            if (wrap._forceGraphResizeFrame) {
+                window.cancelAnimationFrame(wrap._forceGraphResizeFrame);
+                delete wrap._forceGraphResizeFrame;
+            }
+            if (wrap._kgStars3d) {
+                try {
+                    wrap._kgStars3d.geometry.dispose();
+                    wrap._kgStars3d.material.dispose();
+                } catch (_) {}
+                delete wrap._kgStars3d;
+            }
+            delete wrap._forceGraphSize;
+            delete wrap._kgRenderer;
+            delete wrap._kgStars2d;
+            delete wrap._kg3dIntroDone;
+            delete wrap._kgRotateWired;
+            wrap.innerHTML = '';
+        }
+
+        function ensureKnowledgeGraphVisualResize(wrap) {
+            if (wrap._forceGraphResizeObserver || typeof ResizeObserver !== 'function') return;
+            // ResizeObserver keeps the canvas dimensions in sync with the container,
+            // which matters for the KG visual that lives inside the (initially hidden)
+            // knowledge tab.
+            const ro = new ResizeObserver(() => {
+                if (wrap._forceGraphResizeFrame) return;
+                wrap._forceGraphResizeFrame = window.requestAnimationFrame(() => {
+                    wrap._forceGraphResizeFrame = 0;
+                    const instance = wrap._forceGraph || wrap._forceGraph3d;
+                    if (!instance || typeof instance.width !== 'function') return;
+                    const size = knowledgeGraphVisualSize(wrap);
+                    if (wrap._forceGraphSize && wrap._forceGraphSize.width === size.width && wrap._forceGraphSize.height === size.height) return;
+                    wrap._forceGraphSize = size;
+                    instance.width(size.width).height(size.height);
+                });
+            });
+            ro.observe(wrap);
+            wrap._forceGraphResizeObserver = ro;
+        }
+
+        function ensureKnowledgeGraphVisibilityPause(wrap) {
+            if (wrap._kgVisibilityHandler) return;
+            const handler = () => {
+                try {
+                    const instance = wrap._forceGraph3d || wrap._forceGraph;
+                    if (!instance) return;
+                    if (document.hidden && typeof instance.pauseAnimation === 'function') instance.pauseAnimation();
+                    else if (!document.hidden && typeof instance.resumeAnimation === 'function') instance.resumeAnimation();
+                } catch (_) {}
+            };
+            document.addEventListener('visibilitychange', handler);
+            wrap._kgVisibilityHandler = handler;
+        }
+
+        let _kgThemeListenerWired = false;
+        function ensureKnowledgeGraphThemeListener() {
+            if (_kgThemeListenerWired) return;
+            _kgThemeListenerWired = true;
+            window.addEventListener('aurago:themechange', () => {
+                const wrap = document.getElementById('knowledge-graph-visual');
+                if (!wrap) return;
+                // Rebuild theme-colored scene decorations, then repaint everything
+                if (wrap._kgStars3d) {
+                    try {
+                        if (wrap._kgStars3d.parent) wrap._kgStars3d.parent.remove(wrap._kgStars3d);
+                        wrap._kgStars3d.geometry.dispose();
+                        wrap._kgStars3d.material.dispose();
+                    } catch (_) {}
+                    delete wrap._kgStars3d;
+                }
+                delete wrap._kgStars2d;
+                renderKnowledgeGraphVisual();
+            });
+        }
+
         function renderKnowledgeGraphVisual() {
             const wrap = document.getElementById('knowledge-graph-visual');
             const mode = document.getElementById('knowledge-graph-mode');
             const caption = document.getElementById('knowledge-graph-caption');
             const resetButton = document.getElementById('knowledge-graph-reset');
             if (!wrap || !mode || !caption || !resetButton) return;
+
+            ensureKnowledgeGraphThemeListener();
+            kgUpdateViewToggle();
 
             const focusedModel = buildKnowledgeGraphFocusedModel(KnowledgeGraphState.focusPayload);
             const model = focusedModel || buildKnowledgeGraphOverviewModel(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
@@ -895,21 +1599,7 @@
                 mode.textContent = t('dashboard.knowledge_visual_overview');
                 caption.textContent = t('dashboard.knowledge_visual_empty');
                 resetButton.classList.add('is-hidden');
-                
-                // Clear any existing force graph instance + ResizeObserver to avoid leaks
-                if (wrap._forceGraph) {
-                    wrap._forceGraph._destructor();
-                    delete wrap._forceGraph;
-                }
-                if (wrap._forceGraphResizeObserver) {
-                    wrap._forceGraphResizeObserver.disconnect();
-                    delete wrap._forceGraphResizeObserver;
-                }
-                if (wrap._forceGraphResizeFrame) {
-                    window.cancelAnimationFrame(wrap._forceGraphResizeFrame);
-                    delete wrap._forceGraphResizeFrame;
-                }
-                delete wrap._forceGraphSize;
+                destroyKnowledgeGraphVisual(wrap);
                 wrap.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_visual_empty')}</div>`;
                 return;
             }
@@ -926,102 +1616,47 @@
                 renderKnowledgeGraphLegend();
             }
 
-            if (!wrap._forceGraph) {
-                wrap.innerHTML = '';
-                wrap._forceGraph = ForceGraph()(wrap);
-                // ResizeObserver keeps the canvas dimensions in sync with the container,
-                // which matters for the KG visual that lives inside the (initially hidden)
-                // knowledge tab and is also rendered into the focused-detail modal.
-                if (typeof ResizeObserver === 'function') {
-                    const ro = new ResizeObserver(() => {
-                        if (wrap._forceGraphResizeFrame) return;
-                        wrap._forceGraphResizeFrame = window.requestAnimationFrame(() => {
-                            wrap._forceGraphResizeFrame = 0;
-                            if (!wrap._forceGraph || typeof wrap._forceGraph.width !== 'function') return;
-                            const size = knowledgeGraphVisualSize(wrap);
-                            if (wrap._forceGraphSize && wrap._forceGraphSize.width === size.width && wrap._forceGraphSize.height === size.height) return;
-                            wrap._forceGraphSize = size;
-                            wrap._forceGraph.width(size.width).height(size.height);
-                        });
-                    });
-                    ro.observe(wrap);
-                    wrap._forceGraphResizeObserver = ro;
+            if (kgStoredViewMode() === '3d' && kgEffectiveViewMode() === '2d') {
+                caption.textContent += ` · ${t('dashboard.knowledge_visual_3d_unavailable')}`;
+            }
+
+            const viewMode = kgEffectiveViewMode();
+            if (wrap._kgRenderer && wrap._kgRenderer !== viewMode) {
+                destroyKnowledgeGraphVisual(wrap);
+            }
+
+            if (viewMode === '3d') {
+                if (!wrap._forceGraph3d) {
+                    wrap.innerHTML = '';
+                    try {
+                        wrap._forceGraph3d = ForceGraph3D({ controlType: 'orbit' })(wrap);
+                    } catch (err) {
+                        delete wrap._forceGraph3d;
+                        _kgWebglSupport = false;
+                        kgUpdateViewToggle();
+                    }
+                }
+                if (wrap._forceGraph3d) {
+                    wrap._kgRenderer = '3d';
+                    ensureKnowledgeGraphVisualResize(wrap);
+                    ensureKnowledgeGraphVisibilityPause(wrap);
+                    const size3d = knowledgeGraphVisualSize(wrap);
+                    wrap._forceGraphSize = size3d;
+                    renderKnowledgeGraphVisual3D(wrap, model, size3d);
+                    return;
                 }
             }
 
+            if (!wrap._forceGraph) {
+                wrap.innerHTML = '';
+                wrap._forceGraph = ForceGraph()(wrap);
+            }
+            wrap._kgRenderer = '2d';
+            ensureKnowledgeGraphVisualResize(wrap);
+            ensureKnowledgeGraphVisibilityPause(wrap);
             const graphSize = knowledgeGraphVisualSize(wrap);
             wrap._forceGraphSize = graphSize;
-            wrap._forceGraph
-                .width(graphSize.width)
-                .height(graphSize.height)
-                .backgroundColor('transparent')
-                .graphData({
-                    nodes: model.nodes.map(n => {
-                        const score = n.importance_score ?? 0;
-                        const type = n?.properties?.type || '';
-                        return {
-                            id: n.id,
-                            label: truncate(String(n.label || n.id || 'Node'), 18),
-                            meta: buildKnowledgeGraphNodeTooltip(n),
-                            type: type,
-                            val: (n.r || 15) / 2,
-                            color: knowledgeGraphNodeColor(n),
-                            isFocus: n.isFocus || false,
-                            importance: score
-                        };
-                    }),
-                    links: model.edges.map(e => ({
-                        source: e.source,
-                        target: e.target,
-                        relation: truncate(String(e.relation || ''), 18),
-                        relationFull: String(e.relation || '')
-                    }))
-                })
-                .nodeId('id')
-                .nodeVal('val')
-                .nodeColor('color')
-                .nodeLabel('meta')
-                .linkDirectionalArrowLength(3.5)
-                .linkDirectionalArrowRelPos(1)
-                .linkColor(() => cv('--border-subtle') || '#334155')
-                .linkLabel('relationFull')
-                .nodeCanvasObject((node, ctx, globalScale) => {
-                    const fontSize = Math.max(12 / globalScale, 4);
-                    let radius = node.val;
-                    if (node.isFocus) {
-                        radius = node.val * 1.5;
-                    }
-                    
-                    ctx.beginPath();
-                    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-                    ctx.fillStyle = node.color;
-                    ctx.fill();
-                    
-                    if (node.isFocus) {
-                        ctx.lineWidth = 2 / globalScale;
-                        ctx.strokeStyle = cv('--text-primary') || '#fff';
-                        ctx.stroke();
-                    }
-
-                    ctx.font = `${fontSize}px Sans-Serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = node.isFocus ? (cv('--text-primary') || '#f8fafc') : (cv('--text-secondary') || '#94a3b8');
-
-                    const textY = node.y + radius + 4 + fontSize/2;
-                    ctx.fillText(node.label, node.x, textY);
-                })
-                .onNodeClick(node => {
-                    KnowledgeGraphState.focusNodeId = node.id;
-                    loadKnowledgeGraphNodeDetail(node.id);
-                });
-            
-            // Add a small delay then run a quick pulse layout reset if needed
-            setTimeout(() => {
-                if (wrap._forceGraph && typeof wrap._forceGraph.zoomToFit === 'function') {
-                    wrap._forceGraph.zoomToFit(400, 20);
-                }
-            }, 300);
+            renderKnowledgeGraphVisual2D(wrap, model, graphSize);
         }
 
         function dedupeKnowledgeGraphNodes(nodes) {

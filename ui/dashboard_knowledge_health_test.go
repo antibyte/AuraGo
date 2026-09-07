@@ -114,14 +114,14 @@ func TestDashboardKnowledgeGraphVisualUsesBoundedCanvasSize(t *testing.T) {
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
 
 	for _, marker := range []string{
-		"const KG_VISUAL_MAX_HEIGHT = 460;",
+		"const KG_VISUAL_MAX_HEIGHT = 560;",
 		"function knowledgeGraphVisualSize(wrap)",
 		"parseFloat(style.height)",
 		"height: Math.min(KG_VISUAL_MAX_HEIGHT, Math.max(KG_VISUAL_MIN_HEIGHT, height))",
 		"window.requestAnimationFrame(() => {",
 		"if (wrap._forceGraphSize && wrap._forceGraphSize.width === size.width && wrap._forceGraphSize.height === size.height) return;",
-		"wrap._forceGraph.width(size.width).height(size.height)",
-		"wrap._forceGraph\n                .width(graphSize.width)\n                .height(graphSize.height)",
+		"instance.width(size.width).height(size.height)",
+		"graph\n                .width(graphSize.width)\n                .height(graphSize.height)",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
 			t.Fatalf("dashboard knowledge graph visual sizing missing JS marker %q", marker)
@@ -131,9 +131,9 @@ func TestDashboardKnowledgeGraphVisualUsesBoundedCanvasSize(t *testing.T) {
 		t.Fatal("dashboard knowledge graph visual must not size itself from content-driven clientHeight")
 	}
 	for _, marker := range []string{
-		"height: clamp(360px, 42vh, 460px);",
-		"min-height: 360px;",
-		"max-height: 460px;",
+		"height: clamp(420px, 52vh, 560px);",
+		"min-height: 420px;",
+		"max-height: 560px;",
 		"contain: layout paint;",
 		"overflow: hidden;",
 		".knowledge-visual-wrap > div",

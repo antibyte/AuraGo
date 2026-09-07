@@ -32,7 +32,9 @@
   <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
   <script src="/chart.min.js" defer></script>
-  <script src="/js/vendor/force-graph.min.js" defer></script>
+  <script src="/js/vendor/three.min.js?v={{.BuildVersion}}" defer></script>
+  <script src="/js/vendor/force-graph.min.js?v={{.BuildVersion}}" defer></script>
+  <script src="/js/vendor/3d-force-graph.min.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/dash-icons.js?v={{.BuildVersion}}" defer></script>
 </head>
 
@@ -582,7 +584,13 @@
             <div id="knowledge-graph-mode" class="knowledge-visual-mode" data-i18n="dashboard.knowledge_visual_overview"></div>
             <div id="knowledge-graph-caption" class="knowledge-visual-caption" data-i18n="dashboard.knowledge_visual_empty"></div>
           </div>
-          <button type="button" id="knowledge-graph-reset" class="btn btn-secondary btn-sm is-hidden" data-i18n="dashboard.knowledge_visual_reset"></button>
+          <div class="knowledge-visual-actions">
+            <div class="kg-view-toggle" id="knowledge-graph-view-toggle" role="group" data-i18n-aria-label="dashboard.knowledge_visual_view_label">
+              <button type="button" class="kg-view-btn" data-kg-view="2d" aria-pressed="false" data-i18n-title="dashboard.knowledge_visual_view_2d_title">2D</button>
+              <button type="button" class="kg-view-btn" data-kg-view="3d" aria-pressed="true" data-i18n-title="dashboard.knowledge_visual_view_3d_title">3D</button>
+            </div>
+            <button type="button" id="knowledge-graph-reset" class="btn btn-secondary btn-sm is-hidden" data-i18n="dashboard.knowledge_visual_reset"></button>
+          </div>
         </div>
         <div id="knowledge-graph-legend" class="knowledge-graph-legend"></div>
         <div id="knowledge-graph-visual" class="knowledge-visual-wrap">

@@ -715,6 +715,15 @@
             if (knowledgeGraphReset) {
                 knowledgeGraphReset.addEventListener('click', resetKnowledgeGraphFocus);
             }
+            const knowledgeGraphViewToggle = document.getElementById('knowledge-graph-view-toggle');
+            if (knowledgeGraphViewToggle) {
+                knowledgeGraphViewToggle.addEventListener('click', (e) => {
+                    const btn = e.target.closest('[data-kg-view]');
+                    if (btn && !btn.disabled && typeof setKnowledgeGraphViewMode === 'function') {
+                        setKnowledgeGraphViewMode(btn.dataset.kgView);
+                    }
+                });
+            }
             setupAuditControls();
             setupCronjobsControls();
             document.addEventListener('click', (e) => {

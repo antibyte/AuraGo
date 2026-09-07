@@ -366,7 +366,7 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 		`.chart-wrap-sm`,
 		`.log-viewer`,
 		`.knowledge-visual-wrap`,
-		`min-height: 360px;`,
+		`min-height: 420px;`,
 	} {
 		if !strings.Contains(css, preserved) {
 			t.Errorf("dashboard.css lost chart/log/KG layout contract %q", preserved)
