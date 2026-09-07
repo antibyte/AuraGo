@@ -50,6 +50,10 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 A friendly sidekick, a thoughtful philosopher, a punk or a wonderfully overdramatic villain? Pick your company in **Config → Personality**. Same toolbox, different attitude. [Meet the personalities](documentation/manual/en/10-personality.md).
 
+**AuraGo is fully translated to many languages.**
+
+[![Flags for all 16 UI languages: English, German, French, Spanish, Chinese, Japanese, Dutch, Portuguese, Polish, Czech, Italian, Swedish, Norwegian, Danish, Greek and Hindi](assets/readme/language-flags.webp)](assets/readme/language-flags.webp)
+
 ## Under the hood
 
 [![AuraGo system wiring: channels and triggers reach the agent loop; models, memory and co-agents connect to it; gated tool dispatch reaches infrastructure, workspaces and media services](assets/readme/system-wiring.svg)](assets/readme/system-wiring.svg)

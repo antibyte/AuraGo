@@ -4,11 +4,44 @@ Playful, geeky illustrations generated with the built-in ImageGen tool. The orig
 
 - [Masthead](gopher-masthead.webp): the original mascot's face and body translated into the feature map's inked style, with a wider home-lab workbench composition; displayed at 600px maximum width.
 - [Persona party](persona-party.webp): all ten characters from the [desktop group wallpaper](../../ui/img/wallpapers/groupshoot.jpg), redrawn in the feature map's inked style. The original wallpaper remains unchanged; heading and tagline stay in Markdown.
+- [Language flags](language-flags.webp): the 16 flag choices and order from `injectLanguageSwitcher()` in `ui/js/shared/shared-core.js`. All 16 locales have matching English translation-key coverage across `ui/lang/` catalogs. Empty vertical margins were cropped with explicit user approval; flag artwork is unchanged.
 - [Feature map](gopher-feature-map.webp): six capability groups connected to the gopher; cables show grouping, not exact runtime data flow.
 - [Memory map](gopher-memory-map.webp): four parallel context sources; retrieved context and the current request feed the model. One corrected edit removed invented business examples and tool names.
 - [System wiring](system-wiring.svg): editable, hand-authored SVG. Labels and arrows follow the agent/runtime contracts, memory, co-agent and Virtual Computers guides. Personality does not grant permissions; the vault supplies service credentials, not model context. Integration and channel scopes remain distinct.
 
-WebP exports use quality 94 with no crop or visual changes. Inspect labels and connections at full size, then check the README at 900px and 360px in light and dark modes. Essential explanations remain in Markdown. The prior abstract workstation/creation illustrations have been replaced.
+WebP exports use quality 94 with no visual changes; only the language strip has its empty margins cropped. Inspect labels and connections at full size, then check the README at 900px and 360px in light and dark modes. Essential explanations remain in Markdown. The prior abstract workstation/creation illustrations have been replaced.
+
+## Language flags — generation prompt
+
+Built-in ImageGen, with `gopher-masthead.webp` as the palette/texture reference. Final export crops the first 1983 × 793 output to `(0, 310, 1983, 460)`, producing a 1983 × 150 strip. A subsequent ImageGen framing edit still retained large blank margins and was not used.
+
+```text
+Create ONE extremely wide, very shallow horizontal FLAG STRIP for the AuraGo GitHub README. Canvas target 3200 x 320 pixels (10:1 panoramic ratio). This must be a single narrow ribbon, NOT a poster, NOT a square, NOT a multi-row grid.
+
+Exactly SIXTEEN distinct rectangular national flags in ONE straight horizontal row, each shown once, equal visual size and uniform gaps. All flags fully visible and geometrically accurate, no clipping, no overlapping. Order left to right is strictly:
+1 United Kingdom (Union Jack)
+2 Germany
+3 France
+4 Spain
+5 China
+6 Japan
+7 Netherlands
+8 Portugal
+9 Poland
+10 Czechia
+11 Italy
+12 Sweden
+13 Norway
+14 Denmark
+15 Greece
+16 India.
+
+These are the exact flag choices of AuraGo's language selector: English, German, French, Spanish, Chinese, Japanese, Dutch, Portuguese, Polish, Czech, Italian, Swedish, Norwegian, Danish, Greek, Hindi.
+
+Style: tasteful tiny hand-inked flag tiles in a retro adventure-game instruction booklet, crisp flat flag colors with VERY subtle paper grain and dark ink outlines. Midnight navy background matching the reference image. Each flag must be faithful to its real design, including the UK diagonals, Spain and Portugal emblems, Chinese stars, Nordic cross colors and offsets, Greek canton/stripes and India's navy Ashoka Chakra. Keep bright recognizable colors. Do not tint the actual flags amber. No weathering that damages symbols. No waving fabric or poles.
+
+Use the reference image ONLY for dark navy color and restrained illustrated texture. Do NOT include its characters, workbench, gadgets or words. Fill nearly the entire canvas width with the single centered row, with small outer margins and very little vertical empty space. No title, no country names, no text, no slogans, no extra symbols, no watermark. Output the wide strip itself.
+```
 
 ## Persona party — generation prompt
 
