@@ -48,6 +48,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				"unacknowledged": unack,
 			})
 			broadcastAgodeskSystemWarnings(s)
+			s.pushCydWarning(w)
 		}
 	}
 

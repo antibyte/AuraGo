@@ -2410,7 +2410,7 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 Von dieser Config-Seite aus kann das Board mit dem **Web-Flasher** programmiert werden (Chrome oder Edge, HTTPS oder localhost, USB). AuraGo schreibt Token und Display-URL in eine Factory-Partition, danach bleibt nur WLAN. Die Firmware liegt unter `internal/cyd/firmware/cyd/`.
 
-Das Glas-Dashboard hat vier Seiten: HOME, LOAD (CPU/RAM/Disk-Gauges), WORK und HOST. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`), Helligkeit und LED.
+Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`), Helligkeit und LED.
 
 ---
 

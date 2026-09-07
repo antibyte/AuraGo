@@ -2793,7 +2793,7 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 Flash a board from this config page with **Web flasher** (Chrome or Edge, HTTPS or localhost, USB). AuraGo writes the display token and Display URL into a factory partition, so the glass only needs Wi-Fi. Firmware images ship in `internal/cyd/firmware/cyd/`.
 
-The glass dashboard has four pages: HOME, LOAD (CPU/RAM/disk gauges), WORK, and HOST. Swipe or tap the footer dots. Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page (`status`/`home`/`load`/`work`/`host`), brightness, and LED.
+The glass dashboard has five pages: Home, Load, Work, Alerts (system warnings with a count badge), and Mesh (MeshCore inbox). After 10 seconds idle it rotates every 5 seconds; incoming notify, warning, or MeshCore traffic jumps immediately. Swipe or tap the footer dots. Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page (`status`/`home`/`load`/`work`/`host`), brightness, and LED.
 
 ---
 

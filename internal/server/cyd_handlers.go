@@ -14,6 +14,7 @@ import (
 	"aurago/internal/cyd"
 	"aurago/internal/prompts"
 	"aurago/internal/tools"
+	"aurago/internal/warnings"
 	"github.com/gorilla/websocket"
 )
 
@@ -157,7 +158,9 @@ func (s *Server) refreshCydSnapshot() {
 			in.LastUserH = h
 		}
 	}
+	fillCydFeeds(s, &in)
 	hub.SetInputs(in)
+	hub.BroadcastSnapshot()
 	if cfg.Cyd.MQTTMirror && cfg.MQTT.Enabled {
 		body, err := json.Marshal(hub.Snapshot())
 		if err == nil {
@@ -238,6 +241,86 @@ func handleCYDAck(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}
+}
+
+func fillCydFeeds(s *Server, in *cyd.Inputs) {
+	if s == nil || in == nil {
+		return
+	}
+	if s.WarningsRegistry != nil {
+		unack := s.WarningsRegistry.Unacknowledged()
+		in.AlertsCount = len(unack)
+		for i, w := range unack {
+			if i >= 3 {
+				break
+			}
+			in.Alerts = append(in.Alerts, cyd.FeedItem{
+				Sev:   w.Severity,
+				Title: cyd.Truncate(w.Title, 23),
+			})
+		}
+	}
+	if s.MeshCore == nil {
+		return
+	}
+	convos, err := s.MeshCore.Conversations()
+	if err != nil {
+		return
+	}
+	unread := 0
+	now := time.Now()
+	for _, c := range convos {
+		unread += c.Unread
+		if len(in.Mesh) >= 3 {
+			continue
+		}
+		if c.Unread <= 0 && c.LastAt <= 0 {
+			continue
+		}
+		name := strings.TrimSpace(c.Name)
+		if name == "" {
+			name = c.Kind
+		}
+		preview := c.Preview
+		if c.Protected {
+			preview = "locked"
+		}
+		age := uint32(0)
+		if c.LastAt > 0 {
+			d := now.Unix() - c.LastAt
+			if d > 0 {
+				age = uint32(d)
+			}
+		}
+		in.Mesh = append(in.Mesh, cyd.FeedItem{
+			From:      cyd.Truncate(name, 23),
+			Preview:   cyd.Truncate(preview, 31),
+			Protected: c.Protected,
+			AgeS:      age,
+		})
+	}
+	in.MeshUnread = unread
+}
+
+func (s *Server) pushCydWarning(w warnings.Warning) {
+	if s == nil || s.CydHub == nil || !s.CydHub.HasRecentDevice(2*time.Minute) {
+		return
+	}
+	s.refreshCydSnapshot()
+	if strings.EqualFold(w.Severity, warnings.SeverityCritical) {
+		s.CydHub.Notify(w.Title, cyd.Truncate(w.Description, 96), "critical", 60)
+		return
+	}
+	s.CydHub.SetPage("alerts")
+}
+
+func (s *Server) pushCydMeshIncoming() {
+	if s == nil || s.CydHub == nil || !s.CydHub.HasRecentDevice(2*time.Minute) {
+		return
+	}
+	s.refreshCydSnapshot()
+	s.CydHub.SetPage("mesh")
+	s.CydHub.Notify("MeshCore", "incoming", "high", 20)
 }
 
 func firstLANIPv4() string {

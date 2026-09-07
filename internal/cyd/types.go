@@ -20,6 +20,8 @@ type Snapshot struct {
 	Work    WorkInfo    `json:"work"`
 	Display DisplayInfo `json:"display"`
 	Notify  *Notify     `json:"notify"`
+	Alerts  AlertsInfo  `json:"alerts"`
+	Mesh    MeshInfo    `json:"mesh"`
 }
 
 type AgentInfo struct {
@@ -56,6 +58,26 @@ type Notify struct {
 	Body     string `json:"body"`
 	Priority string `json:"priority"`
 	TTLS     int    `json:"ttl_s"`
+}
+
+type FeedItem struct {
+	Sev       string `json:"sev,omitempty"`
+	Title     string `json:"title,omitempty"`
+	From      string `json:"from,omitempty"`
+	Body      string `json:"body,omitempty"`
+	Preview   string `json:"preview,omitempty"`
+	Protected bool   `json:"protected,omitempty"`
+	AgeS      uint32 `json:"age_s,omitempty"`
+}
+
+type AlertsInfo struct {
+	Count int        `json:"count"`
+	Items []FeedItem `json:"items,omitempty"`
+}
+
+type MeshInfo struct {
+	Unread int        `json:"unread"`
+	Items  []FeedItem `json:"items,omitempty"`
 }
 
 type Device struct {
@@ -95,6 +117,10 @@ type Inputs struct {
 	Page            string
 	Brightness      int
 	LED             string
+	AlertsCount     int
+	Alerts          []FeedItem
+	MeshUnread      int
+	Mesh            []FeedItem
 }
 
 func finite(v float64) float64 {
@@ -109,6 +135,18 @@ func Truncate(s string, max int) string {
 		return s
 	}
 	return s[:max]
+}
+
+func limitFeed(items []FeedItem, n int) []FeedItem {
+	if n <= 0 || len(items) == 0 {
+		return nil
+	}
+	if len(items) > n {
+		items = items[:n]
+	}
+	out := make([]FeedItem, len(items))
+	copy(out, items)
+	return out
 }
 
 func NotifyRank(priority string) int {
@@ -180,6 +218,8 @@ func BuildSnapshot(in Inputs, overlay *Notify) Snapshot {
 			Brightness: brightness,
 			LED:        led,
 		},
+		Alerts: AlertsInfo{Count: in.AlertsCount, Items: limitFeed(in.Alerts, 3)},
+		Mesh:   MeshInfo{Unread: in.MeshUnread, Items: limitFeed(in.Mesh, 3)},
 	}
 	if overlay != nil && overlay.ID != "" {
 		copyNotify := *overlay

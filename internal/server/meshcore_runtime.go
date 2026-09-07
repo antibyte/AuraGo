@@ -25,6 +25,11 @@ func (s *Server) initMeshCore(ctx context.Context) error {
 	m, err := meshcore.NewManager(ctx, cfg.Directories.DataDir, meshcore.Hooks{
 		Changed: func(change meshcore.Change) {
 			broadcastDesktopEvent(s, s.DesktopHub, desktop.Event{Type: "meshcore_changed", Payload: change})
+			if change.Incoming && !change.Muted {
+				s.pushCydMeshIncoming()
+			} else if s.CydHub != nil && s.CydHub.HasRecentDevice(2*time.Minute) {
+				s.refreshCydSnapshot()
+			}
 		},
 		Scan: s.scanMeshCoreMessage, Run: s.runMeshCoreMessage, Scrub: security.Scrub,
 		Notify: func(msg meshcore.Message) error {

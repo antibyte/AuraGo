@@ -14,6 +14,7 @@ import (
 	"aurago/internal/cyd"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/warnings"
 )
 
 func testCYDServer(t *testing.T) (*Server, string) {
@@ -37,6 +38,27 @@ func testCYDServer(t *testing.T) (*Server, string) {
 	cyd.SetGlobal(s.CydHub)
 	t.Cleanup(func() { cyd.SetGlobal(nil) })
 	return s, raw
+}
+
+func TestCYDSnapshotIncludesAlerts(t *testing.T) {
+	s, raw := testCYDServer(t)
+	s.WarningsRegistry = warnings.NewRegistry()
+	s.WarningsRegistry.Add(warnings.Warning{ID: "w1", Severity: "warning", Title: "disk 90%"})
+	s.refreshCydSnapshot()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/cyd/snapshot", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	handleCYDSnapshot(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	var snap cyd.Snapshot
+	if err := json.Unmarshal(rec.Body.Bytes(), &snap); err != nil {
+		t.Fatal(err)
+	}
+	if snap.Alerts.Count != 1 || len(snap.Alerts.Items) != 1 || snap.Alerts.Items[0].Title != "disk 90%" {
+		t.Fatalf("alerts = %+v", snap.Alerts)
+	}
 }
 
 func TestCYDSnapshotAuth(t *testing.T) {

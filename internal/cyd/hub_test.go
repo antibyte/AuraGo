@@ -76,6 +76,12 @@ func TestSetPageNames(t *testing.T) {
 	if NormalizePage("host") != "host" {
 		t.Fatalf("host: %s", NormalizePage("host"))
 	}
+	if NormalizePage("alerts") != "alerts" {
+		t.Fatalf("alerts: %s", NormalizePage("alerts"))
+	}
+	if NormalizePage("mesh") != "mesh" {
+		t.Fatalf("mesh: %s", NormalizePage("mesh"))
+	}
 	if NormalizePage("home") != "status" {
 		t.Fatalf("home: %s", NormalizePage("home"))
 	}
@@ -97,5 +103,20 @@ func TestBuildSnapshotTruncates(t *testing.T) {
 	}
 	if snap.Display.LED != "yellow" {
 		t.Fatalf("led = %s", snap.Display.LED)
+	}
+}
+
+func TestBuildSnapshotFeeds(t *testing.T) {
+	snap := BuildSnapshot(Inputs{
+		AlertsCount: 4,
+		Alerts:      []FeedItem{{Sev: "warning", Title: "disk 90%"}, {Sev: "info", Title: "vpn"}},
+		MeshUnread:  2,
+		Mesh:        []FeedItem{{From: "Alice", Preview: "ok", AgeS: 12}},
+	}, nil)
+	if snap.Alerts.Count != 4 || len(snap.Alerts.Items) != 2 {
+		t.Fatalf("alerts = %+v", snap.Alerts)
+	}
+	if snap.Mesh.Unread != 2 || snap.Mesh.Items[0].From != "Alice" {
+		t.Fatalf("mesh = %+v", snap.Mesh)
 	}
 }

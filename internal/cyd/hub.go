@@ -166,7 +166,7 @@ func (h *Hub) PinTask(task string, ttl int) {
 
 func NormalizePage(page string) string {
 	switch strings.ToLower(strings.TrimSpace(page)) {
-	case "load", "work", "host":
+	case "load", "work", "host", "alerts", "mesh":
 		return strings.ToLower(strings.TrimSpace(page))
 	case "home":
 		return "status"
@@ -201,6 +201,17 @@ func (h *Hub) SetBrightness(v int) {
 	defer h.mu.Unlock()
 	h.brightness = v
 	h.inputs.Brightness = v
+}
+
+func (h *Hub) BroadcastSnapshot() {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.dropExpiredLocked(time.Now())
+	snap := BuildSnapshot(h.inputs, h.overlay)
+	h.broadcastLocked(map[string]any{"type": "snapshot", "data": snap})
 }
 
 func (h *Hub) SetLED(color string) {
