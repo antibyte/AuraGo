@@ -1,12 +1,28 @@
 # README illustration sources
 
-Playful, geeky system illustrations generated with the built-in ImageGen tool. The original [AuraGo mascot](../../ui/aurago_logo.png) is the identity reference for both. These are explanatory illustrations, not UI screenshots. Screenshots and the original logo remain unchanged.
+Playful, geeky illustrations generated with the built-in ImageGen tool. The original [AuraGo mascot](../../ui/aurago_logo.png) is the character identity reference. These are illustrations, not UI screenshots. Screenshots and the original logo files remain unchanged.
 
+- [Masthead](gopher-masthead.webp): the original mascot's face and body translated into the feature map's inked style, with a wider home-lab workbench composition; displayed at 600px maximum width.
 - [Feature map](gopher-feature-map.webp): six capability groups connected to the gopher; cables show grouping, not exact runtime data flow.
 - [Memory map](gopher-memory-map.webp): four parallel context sources; retrieved context and the current request feed the model. One corrected edit removed invented business examples and tool names.
 - [System wiring](system-wiring.svg): editable, hand-authored SVG. Labels and arrows follow the agent/runtime contracts, memory, co-agent and Virtual Computers guides. Personality does not grant permissions; the vault supplies service credentials, not model context. Integration and channel scopes remain distinct.
 
 WebP exports use quality 94 with no crop or visual changes. Inspect labels and connections at full size, then check the README at 900px and 360px in light and dark modes. Essential explanations remain in Markdown. The prior abstract workstation/creation illustrations have been replaced.
+
+## Masthead — generation prompt
+
+References: `ui/aurago_logo_dark.png` for identity and `gopher-feature-map.webp` for illustration style. Generated with built-in ImageGen; final export retains the complete 1677 × 938 composition.
+
+```text
+Use case: identity-preserve / style-transfer.
+Create ONE wide illustrated masthead for the AuraGo GitHub README, approximately 1800 x 672, a horizontal composition. Reference image 1 is the ORIGINAL MASCOT and has absolute priority for character identity. Reference image 2 is STYLE ONLY: match its hand-inked retro adventure-game manual drawing, warm ivory accents, subtle paper grain, midnight navy background, turquoise, mint and muted amber, soft cel shading.
+
+Keep the original gopher as unchanged as possible: exact recognizable tall rounded turquoise body silhouette, huge round white eyes with thick dark rims, same pupil spacing and gaze, small round ears, tan double-lobed muzzle, oval dark nose, TWO separate white buck teeth, tiny tan hands and feet, friendly slightly surprised expression. Front-facing full body, no clothing, no glasses, no hat, no change to facial proportions, no added arms. Translate rendering into the inked illustrated style; do not redesign the character. No glowing transparent anatomy or circuitry on its skin.
+
+The gopher stands large and centered, occupying about 75% of image height, with its entire silhouette safely inside generous margins. Extend the scene horizontally on both sides with a restrained little home-lab workbench: left a compact server and coiled turquoise patch cable, right a small notebook with a simple node sketch and a tiny terminal. These are subordinate background accents, dimmer and smaller than the mascot. Calm dark navy textured space, a little cozy amber light, clear silhouette. Match the visual family of reference 2 without repeating its dense feature-map layout.
+
+No text, no wordmark, no slogans, no labels, no watermarks, no neural sphere or halo. Make the CANVAS wider, not the gopher's body. The mascot is the hero, nearly identical to reference 1 in face and body, drawn in the style of reference 2.
+```
 
 ## Feature map — generation prompt
 

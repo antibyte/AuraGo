@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="ui/aurago_logo_dark.png">
-    <img src="ui/aurago_logo.png" width="300" alt="AuraGo — the turquoise gopher with big eyes and two buck teeth">
-  </picture>
+  <a href="assets/readme/gopher-masthead.webp"><img src="assets/readme/gopher-masthead.webp" width="600" alt="AuraGo's turquoise gopher with big eyes and two buck teeth at a home-lab workbench, drawn in the README's illustrated style"></a>
 </p>
 
 <h1 align="center">AuraGo</h1>
