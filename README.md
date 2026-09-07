@@ -42,6 +42,16 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 </details>
 
+### AgoDesk — your agent, right on your desktop
+
+Prefer a desktop app? **AgoDesk for Windows and Linux** brings AuraGo to your machine: chat, voice conversations, drag-and-drop attachments and uploads to AuraGo's knowledge archive. Enable **computer and browser use** to let your agent work with local apps, web pages and files within the access you approve. Your favorite persona comes along, too.
+
+<p align="center">
+  <a href="assets/readme/agodesk.png"><img src="assets/readme/agodesk.png" width="640" alt="AgoDesk desktop chat connected to AuraGo, showing the punk persona, voice controls and attachment uploads"></a>
+</p>
+
+**[Get AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)** · [Downloads](https://github.com/antibyte/agodesk/releases)
+
 ## Choose your agent
 
 **Many personalities. One goal: get your stuff done.**
@@ -114,7 +124,7 @@ Your data is stored with your installation. **Hosted models and external service
 
 [English manual](documentation/manual/en/README.md) · [Deutsches Handbuch](documentation/manual/de/README.md) · [Local models](documentation/local_llm_aurago_qwen.md) · [Speech Lab](documentation/s2s_speech_lab.md) · [SIP](documentation/sip_telephony.md) · [Skills](documentation/manual/en/19-skills.md) · [API](documentation/manual/en/21-api-reference.md) · [Troubleshooting](documentation/manual/en/16-troubleshooting.md)
 
-[Releases](https://github.com/antibyte/AuraGo/releases) · [Website](https://antibyte.github.io/aurago-web/) · [AgoDesk for Windows](https://github.com/antibyte/agodesk/releases)
+[Releases](https://github.com/antibyte/AuraGo/releases) · [Website](https://antibyte.github.io/aurago-web/) · [AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)
 
 Want to tinker? Start with [AGENTS.md](AGENTS.md), build with `go build ./cmd/aurago`, and test with `go test ./...`.
 
