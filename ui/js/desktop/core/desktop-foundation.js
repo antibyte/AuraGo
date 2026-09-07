@@ -1213,7 +1213,7 @@
         const startButton = $('vd-start-button');
         if (!startButton) return;
         const startGlyph = startButton.querySelector('.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon');
-        if (startGlyph) startGlyph.outerHTML = iconMarkup('home', 'A', 'vd-sprite-start', 32);
+        if (startGlyph) startGlyph.outerHTML = iconMarkup('launchpad', 'A', 'vd-sprite-start', 32);
     }
 
     function runStartMenuMotion(menu, className, fallbackMs, done) { if (typeof animateThen === 'function') animateThen(menu, className, fallbackMs, done); else if (typeof done === 'function') done(); }

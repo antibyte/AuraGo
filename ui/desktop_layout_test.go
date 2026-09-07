@@ -72,7 +72,7 @@ func TestVirtualDesktopMaximizeUsesFullWorkspace(t *testing.T) {
 	}
 }
 
-func TestVirtualDesktopStartButtonUsesRoundPapirusHomeLauncher(t *testing.T) {
+func TestVirtualDesktopStartButtonUsesLaunchpadIcon(t *testing.T) {
 	t.Parallel()
 
 	htmlBytes, err := Content.ReadFile("desktop.html")
@@ -85,8 +85,8 @@ func TestVirtualDesktopStartButtonUsesRoundPapirusHomeLauncher(t *testing.T) {
 	}
 
 	js := readDesktopAssetText(t, "js/desktop/main.js")
-	if !strings.Contains(js, "iconMarkup('home', 'A', 'vd-sprite-start', 32)") {
-		t.Fatal("start button should use the Papirus home icon as the launcher glyph")
+	if !strings.Contains(js, "iconMarkup('launchpad', 'A', 'vd-sprite-start', 32)") {
+		t.Fatal("start button should use the themed launchpad icon as the launcher glyph")
 	}
 
 	css := readAllDesktopCSS(t)
