@@ -18,6 +18,8 @@
             renderWeatherWidget(container, widget);
         } else if (widget.id === 'builtin-sysmon') {
             renderSysmonWidget(container);
+        } else if (widget.id === 'builtin-meshcore') {
+            renderMeshCoreWidget(container);
         } else {
             container.innerHTML = `<div class="vd-widget-body">${esc(widgetDisplayTitle(widget))}</div>`;
         }
@@ -489,6 +491,9 @@
         }
         if (widgetID === 'builtin-sysmon') {
             return { x: right, y: top + 220 + gap, w: width, h: 220 };
+        }
+        if (widgetID === 'builtin-meshcore') {
+            return { x: right, y: top + 2 * (220 + gap), w: width, h: 220 };
         }
         const height = 56;
         return { x: right, y: top + index * (height + gap), w: width, h: height };

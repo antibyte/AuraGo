@@ -58,6 +58,13 @@
         if (weatherWasMoved || sysmonWasMoved) return;
         sysmon.style.left = weather.style.left;
         sysmon.style.top = Math.round(weather.offsetTop + weather.offsetHeight + 8) + 'px';
+        const meshcore = document.querySelector('.vd-widget[data-widget-id="builtin-meshcore"]');
+        if (!meshcore) return;
+        const meshcoreData = meshcore._widgetData || {};
+        const meshcoreWasMoved = Number(meshcoreData.x || meshcoreData.X || 0) !== 0 || Number(meshcoreData.y || meshcoreData.Y || 0) !== 0;
+        if (meshcoreWasMoved) return;
+        meshcore.style.left = sysmon.style.left;
+        meshcore.style.top = Math.round(sysmon.offsetTop + sysmon.offsetHeight + 8) + 'px';
     }
 
     function applyWidgetAutoSize(card, payload) {

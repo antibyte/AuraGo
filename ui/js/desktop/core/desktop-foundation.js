@@ -1547,6 +1547,7 @@
         if (id === 'builtin-analog-clock') return t('desktop.widget_analog_clock');
         if (id === 'builtin-quickchat') return t('desktop.widget_quickchat');
         if (id === 'builtin-sysmon') return t('desktop.widget_sysmon_title');
+        if (id === 'builtin-meshcore') return t('desktop.widget_meshcore_title');
         return widget.title || widget.id || '';
     }
 

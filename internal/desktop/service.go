@@ -571,6 +571,7 @@ func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 		{ID: "builtin-quickchat", Title: "Quick Chat", Icon: "chat", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 56, Visible: true, Builtin: true},
 		{ID: "builtin-weather", Title: "Weather", Icon: "weather", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},
 		{ID: "builtin-sysmon", Title: "System Monitor", Icon: "analytics", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},
+		{ID: "builtin-meshcore", Title: "MeshCore", Icon: "radio", AppID: "meshcore", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: false, Builtin: true},
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -581,9 +582,9 @@ func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 		widgetJSON, _ := json.Marshal(widget)
 		configJSON, _ := json.Marshal(widget.Config)
 		if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, widget_json, visible, builtin, created_at, updated_at)
-			VALUES(?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO NOTHING`,
-			widget.ID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON),
+			widget.ID, widget.AppID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON),
 			boolToInt(widget.Visible), boolToInt(widget.Builtin), now, now); err != nil {
 			return fmt.Errorf("seed desktop builtin widget %s: %w", widget.ID, err)
 		}

@@ -96,6 +96,15 @@ and `files.default_apps` via `/api/desktop/settings`.
 - Sysmon memory, disk, and network sizes use `desktop.bytes`,
   `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`. Do not
   hardcode `B`/`KiB`/`MiB`/`GiB`/`TiB` there. Leave the `/s` rate suffix.
+- The opt-in `builtin-meshcore` widget (`core/widget-meshcore-runtime.js`)
+  reads only `GET /api/meshcore/messenger/bootstrap` (conversations, status,
+  enabled) and refreshes on the metadata-only `aurago:meshcore-change`
+  document event plus a 30 s visibility-gated poll; all listeners and timers
+  are released via `registerWidgetCleanup`. Rows open the `meshcore` app with
+  a validated 64-hex `conversation_id`. Protected previews show the lock
+  placeholder and are never revealed; radio text renders via `textContent`
+  only. Strings use `desktop.widget_meshcore_*` plus reused
+  `desktop.meshcore_*` keys in all 16 desktop locales.
 - The System Info app reuses `hours_minutes` and `minutes`, and uses
   `desktop.system_info_uptime_days_hours_minutes` when days are present.
   Sysmon stays without minutes in the days/hours form.
