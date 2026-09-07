@@ -373,7 +373,7 @@ and `files.default_apps` via `/api/desktop/settings`.
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
   System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
-  launcher, TeeVee, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
+  launcher, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows.
 - Calculator programmer display (`.vd-calc-prog-display`) and history chrome
   use `--vd-theme-panel-bg` / `--vd-theme-border` / `--vd-theme-muted`. HEX,
@@ -433,10 +433,16 @@ and `files.default_apps` via `/api/desktop/settings`.
   `.oscad-primary` in the control `!important` bridge.
 - Webamp launcher chrome uses `--vd-theme-*`. The embedded Winamp player skin
   stays authentic and stays out of this bridge.
-- TeeVee chrome uses `--teevee-*` aliases mapped to `--vd-theme-*`. The video
-  letterbox and mount stay dark (`#02050a`). Brand teal/amber gradients,
-  live-dot danger, and accent-on `#06141b` stay. Do not put `.teevee-primary`
-  or `.teevee-icon-button.active` in the control `!important` bridge.
+- TeeVee is a theme-independent wood/metal CRT receiver. Its visual source is
+  `documentation/assets/teevee-retro-reference.png`; retain the real shell menus
+  and window actions. Keep all `.teevee-*` out of the theme bridge. Material and
+  icon provenance lives in `ui/img/teevee/README.md`. CRT and glass have separate,
+  persisted View switches. The one existing video element owns decoding/audio;
+  `teevee-crt.js` owns only rendering. Blocked texture access or WebGL failure
+  preserves native playback with a labelled basic filter. Never force CORS or
+  globally proxy all streams to enable effects. Explicit reconnect applies only
+  to the current station. Cancel renderer work while hidden/minimized and dispose
+  callbacks, observers and GPU resources. Keep `playbackID` and catalog guards.
 - Chess chrome uses `--chess-*` aliases mapped to `--vd-theme-*`. The wood
   frame (`--chess-board-frame*`) and felt (`--chess-felt`) stay the board
   surface. Warn/danger/good stay semantic.
@@ -1417,8 +1423,9 @@ registration lives in `internal/desktop/types.go`.
 - `teevee.js` - IPTV catalog player. Catalog HTTP throws the
   sentinel `iptv-org HTTP` without a status. `fetchJSON` must
   not call `t()`. `loadCatalog` shows `desktop.teevee_catalog_error`.
-  Loaded lazily. Exposes `window.TeeveeApp`. No child DOX file
-  needed.
+  Loaded lazily after `teevee-crt.js`. Exposes `window.TeeVeeApp`. The real-shell
+  `TestDesktopTeeVeeBrowser` covers video, HLS/AES, origin fallback, controls and
+  lifecycle; opt in with `AURAGO_RUN_BROWSER_SMOKE=1`. No child DOX file needed.
 - `game-maker-studio.js` - Game Maker Studio shell. Missing
   skills/revisions modals throw `game_maker.modules_load_failed`
   via `state.context.t(key)`. Exposes `window.GameMakerStudioApp`.

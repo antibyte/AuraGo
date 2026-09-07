@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Nicht verfügbar",
   "game_maker.check_skipped": "Übersprungen",
   "game_maker.check_reviewed": "Geprüft",
-  "game_maker.gameplay_unverified": "Start geprüft; der 3D-Spielablauf bleibt ungeprüft."
+  "game_maker.gameplay_unverified": "Start geprüft; der 3D-Spielablauf bleibt ungeprüft.",
+  "desktop.teevee_crt_filter": "Röhrenfilter",
+  "desktop.teevee_glass_reflection": "Glasreflexion",
+  "desktop.teevee_power": "Fernseher ein/aus",
+  "desktop.teevee_power_off": "Fernseher ausgeschaltet",
+  "desktop.teevee_buffering": "Wird gepuffert …",
+  "desktop.teevee_controls": "Wiedergabesteuerung",
+  "desktop.teevee_crt_limited": "Basisfilter: Der volle Röhreneffekt ist für diese Quelle nicht verfügbar.",
+  "desktop.teevee_crt_reconnect": "Für Röhrenfilter neu verbinden",
+  "desktop.teevee_fullscreen_error": "Vollbild konnte nicht geöffnet werden."
 }

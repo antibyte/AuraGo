@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Indisponível",
   "game_maker.check_skipped": "Ignorado",
   "game_maker.check_reviewed": "Revisto",
-  "game_maker.gameplay_unverified": "Arranque verificado; o funcionamento do jogo 3D continua por verificar."
+  "game_maker.gameplay_unverified": "Arranque verificado; o funcionamento do jogo 3D continua por verificar.",
+  "desktop.teevee_crt_filter": "Filtro CRT",
+  "desktop.teevee_glass_reflection": "Reflexo do vidro",
+  "desktop.teevee_power": "Ligar/desligar TV",
+  "desktop.teevee_power_off": "TV desligada",
+  "desktop.teevee_buffering": "A carregar buffer…",
+  "desktop.teevee_controls": "Controlos de reprodução",
+  "desktop.teevee_crt_limited": "Filtro básico: o efeito CRT completo não está disponível para esta fonte.",
+  "desktop.teevee_crt_reconnect": "Reconectar para o filtro CRT",
+  "desktop.teevee_fullscreen_error": "Não foi possível abrir o ecrã inteiro."
 }

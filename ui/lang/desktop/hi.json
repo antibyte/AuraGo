@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "अनुपलब्ध",
   "game_maker.check_skipped": "छोड़ा गया",
   "game_maker.check_reviewed": "समीक्षा की गई",
-  "game_maker.gameplay_unverified": "शुरुआत सत्यापित है; 3D गेमप्ले अभी सत्यापित नहीं है।"
+  "game_maker.gameplay_unverified": "शुरुआत सत्यापित है; 3D गेमप्ले अभी सत्यापित नहीं है।",
+  "desktop.teevee_crt_filter": "CRT फ़िल्टर",
+  "desktop.teevee_glass_reflection": "काँच का प्रतिबिंब",
+  "desktop.teevee_power": "TV चालू/बंद",
+  "desktop.teevee_power_off": "TV बंद है",
+  "desktop.teevee_buffering": "बफ़र हो रहा है…",
+  "desktop.teevee_controls": "प्लेबैक नियंत्रण",
+  "desktop.teevee_crt_limited": "बुनियादी फ़िल्टर: इस स्रोत के लिए पूरा CRT प्रभाव उपलब्ध नहीं है।",
+  "desktop.teevee_crt_reconnect": "CRT फ़िल्टर के लिए फिर से कनेक्ट करें",
+  "desktop.teevee_fullscreen_error": "पूर्ण स्क्रीन नहीं खुल सकी।"
 }

@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Μη διαθέσιμο",
   "game_maker.check_skipped": "Παραλείφθηκε",
   "game_maker.check_reviewed": "Ελέγχθηκε",
-  "game_maker.gameplay_unverified": "Η εκκίνηση ελέγχθηκε· η λειτουργία του παιχνιδιού 3D παραμένει ανεπιβεβαίωτη."
+  "game_maker.gameplay_unverified": "Η εκκίνηση ελέγχθηκε· η λειτουργία του παιχνιδιού 3D παραμένει ανεπιβεβαίωτη.",
+  "desktop.teevee_crt_filter": "Φίλτρο CRT",
+  "desktop.teevee_glass_reflection": "Αντανάκλαση γυαλιού",
+  "desktop.teevee_power": "Τροφοδοσία TV",
+  "desktop.teevee_power_off": "Η TV είναι κλειστή",
+  "desktop.teevee_buffering": "Προσωρινή αποθήκευση…",
+  "desktop.teevee_controls": "Χειριστήρια αναπαραγωγής",
+  "desktop.teevee_crt_limited": "Βασικό φίλτρο: το πλήρες εφέ CRT δεν είναι διαθέσιμο για αυτή την πηγή.",
+  "desktop.teevee_crt_reconnect": "Επανασύνδεση για φίλτρο CRT",
+  "desktop.teevee_fullscreen_error": "Δεν ήταν δυνατή η πλήρης οθόνη."
 }

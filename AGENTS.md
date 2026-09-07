@@ -798,7 +798,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - **README.md** - User-facing documentation
 - README presentation: English, playful and geeky, with the original AuraGo gopher mascot. Use compact, casual copy that names the broad feature set and distinctive integrations; avoid corporate positioning and business slogans. Keep claims aligned with current source.
 - README artwork lives in `assets/readme/`; illustrate actual features, system structure and meaningful connections rather than abstract decorative objects. Check diagram labels and arrows against the runtime, retain authentic screenshots, keep essential explanations in Markdown, and verify light/dark rendering at desktop and mobile widths.
-- TeeVee's requested visual target is the supplied wood/metal CRT television, including glass reflection and a switchable video filter. `documentation/teevee-retro-ui-plan.md` and its unchanged reference image own the implementation plan; the redesign is not yet implemented. Preserve playback compatibility while replacing TeeVee's theme contract during implementation.
+- TeeVee uses the supplied wood/metal CRT receiver as its theme-independent skin. `documentation/teevee-retro-ui-plan.md` records the source, renderer contract and validation. View independently switches the real video CRT filter and glass reflection; native playback survives blocked textures/WebGL failures. Preserve its single decoder and source-scoped explicit proxy reconnect. Hardware 1080p/60 and external live-stream acceptance remain separate from local fixture tests.
 - **documentation/** - Detailed guides
 - **config_template.yaml** - Full configuration reference (~600 lines)
 - **prompts/tools_manuals/** - Tool documentation (RAG-indexed)

@@ -16,6 +16,7 @@ func TestDesktopTeeVeeLazyAssetsAndRouting(t *testing.T) {
 		"'/css/teevee.css'",
 		"'/js/vendor/hls.min.js'",
 		"'/js/desktop/core/media-helpers.js'",
+		"'/js/desktop/apps/teevee-crt.js'",
 		"'/js/desktop/apps/teevee.js'",
 	} {
 		if !strings.Contains(loader, want) {
@@ -48,7 +49,7 @@ func TestDesktopTeeVeeLazyAssetsAndRouting(t *testing.T) {
 
 	windows := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
-		"teevee: { width: 1120, height: 720 }",
+		"teevee: { width: 1500, height: 845 }",
 		"teevee: true",
 	} {
 		if !strings.Contains(windows, want) {
@@ -139,18 +140,19 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		".teevee-control-grid",
 		".teevee-select-field",
 		".teevee-shortcuts-panel",
-		"grid-template-columns: repeat(2, minmax(0, 1fr));",
-		".teevee-filter:nth-child(-n+2)",
+		".teevee-bezel",
+		".teevee-glass",
+		".teevee-video-mount[data-crt-mode=\"webgl\"] video",
 		".teevee-favorites",
 		".teevee-shortcut-list",
 		".teevee-video-fullscreen",
 		".teevee-now strong",
 		".teevee-player",
-		"container-type: inline-size;",
+		"container: teevee / size;",
 		".teevee-channel-list",
 		".teevee-channel:hover",
 		".teevee-player-bar",
-		"@container (max-width: 620px)",
+		"@container teevee (max-width: 759px)",
 		".teevee-live-dot",
 		"@media (max-width: 820px)",
 		"@media (prefers-reduced-motion: reduce)",
@@ -315,6 +317,15 @@ func TestDesktopTeeVeeTranslations(t *testing.T) {
 		"desktop.teevee_fullscreen",
 		"desktop.teevee_source",
 		"desktop.teevee_now_playing",
+		"desktop.teevee_crt_filter",
+		"desktop.teevee_glass_reflection",
+		"desktop.teevee_power",
+		"desktop.teevee_power_off",
+		"desktop.teevee_buffering",
+		"desktop.teevee_controls",
+		"desktop.teevee_crt_limited",
+		"desktop.teevee_crt_reconnect",
+		"desktop.teevee_fullscreen_error",
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {

@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Unavailable",
   "game_maker.check_skipped": "Skipped",
   "game_maker.check_reviewed": "Reviewed",
-  "game_maker.gameplay_unverified": "Startup verified; 3D gameplay remains unverified."
+  "game_maker.gameplay_unverified": "Startup verified; 3D gameplay remains unverified.",
+  "desktop.teevee_crt_filter": "CRT filter",
+  "desktop.teevee_glass_reflection": "Glass reflection",
+  "desktop.teevee_power": "TV power",
+  "desktop.teevee_power_off": "TV powered off",
+  "desktop.teevee_buffering": "Buffering…",
+  "desktop.teevee_controls": "Playback controls",
+  "desktop.teevee_crt_limited": "Basic filter: the full CRT effect is unavailable for this source.",
+  "desktop.teevee_crt_reconnect": "Reconnect for CRT filter",
+  "desktop.teevee_fullscreen_error": "Could not enter fullscreen."
 }

@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Nedostupné",
   "game_maker.check_skipped": "Přeskočeno",
   "game_maker.check_reviewed": "Zkontrolováno",
-  "game_maker.gameplay_unverified": "Spuštění ověřeno; průběh 3D hry zůstává neověřený."
+  "game_maker.gameplay_unverified": "Spuštění ověřeno; průběh 3D hry zůstává neověřený.",
+  "desktop.teevee_crt_filter": "CRT filtr",
+  "desktop.teevee_glass_reflection": "Odraz skla",
+  "desktop.teevee_power": "Zapnout/vypnout TV",
+  "desktop.teevee_power_off": "TV je vypnutá",
+  "desktop.teevee_buffering": "Načítání do vyrovnávací paměti…",
+  "desktop.teevee_controls": "Ovládání přehrávání",
+  "desktop.teevee_crt_limited": "Základní filtr: plný CRT efekt není pro tento zdroj dostupný.",
+  "desktop.teevee_crt_reconnect": "Znovu připojit pro CRT filtr",
+  "desktop.teevee_fullscreen_error": "Nelze otevřít celou obrazovku."
 }

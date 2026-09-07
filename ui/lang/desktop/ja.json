@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "利用不可",
   "game_maker.check_skipped": "スキップ",
   "game_maker.check_reviewed": "確認済み",
-  "game_maker.gameplay_unverified": "起動は検証済みですが、3Dゲームプレイは未検証です。"
+  "game_maker.gameplay_unverified": "起動は検証済みですが、3Dゲームプレイは未検証です。",
+  "desktop.teevee_crt_filter": "CRTフィルター",
+  "desktop.teevee_glass_reflection": "ガラスの反射",
+  "desktop.teevee_power": "テレビの電源",
+  "desktop.teevee_power_off": "テレビの電源がオフです",
+  "desktop.teevee_buffering": "バッファリング中…",
+  "desktop.teevee_controls": "再生コントロール",
+  "desktop.teevee_crt_limited": "基本フィルター：このソースでは完全なCRT効果を利用できません。",
+  "desktop.teevee_crt_reconnect": "CRTフィルター用に再接続",
+  "desktop.teevee_fullscreen_error": "全画面表示にできませんでした。"
 }

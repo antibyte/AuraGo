@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Ikke tilgængelig",
   "game_maker.check_skipped": "Sprunget over",
   "game_maker.check_reviewed": "Kontrolleret",
-  "game_maker.gameplay_unverified": "Opstart kontrolleret; 3D-spilforløbet er endnu ikke kontrolleret."
+  "game_maker.gameplay_unverified": "Opstart kontrolleret; 3D-spilforløbet er endnu ikke kontrolleret.",
+  "desktop.teevee_crt_filter": "CRT-filter",
+  "desktop.teevee_glass_reflection": "Glasrefleksion",
+  "desktop.teevee_power": "Tænd/sluk TV",
+  "desktop.teevee_power_off": "TV er slukket",
+  "desktop.teevee_buffering": "Bufferlagring…",
+  "desktop.teevee_controls": "Afspilningskontroller",
+  "desktop.teevee_crt_limited": "Basisfilter: den fulde CRT-effekt er ikke tilgængelig for denne kilde.",
+  "desktop.teevee_crt_reconnect": "Tilslut igen til CRT-filter",
+  "desktop.teevee_fullscreen_error": "Kunne ikke åbne fuld skærm."
 }

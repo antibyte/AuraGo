@@ -1,899 +1,313 @@
-.teevee-app {
-    --teevee-bg: var(--vd-theme-app-bg);
-    --teevee-panel: var(--vd-theme-panel-bg);
-    --teevee-panel-strong: var(--vd-theme-panel-bg-strong);
-    --teevee-line: var(--vd-theme-border);
-    --teevee-muted: var(--vd-theme-muted);
-    --teevee-accent: #37d3c5;
-    --teevee-accent-strong: #6af3e8;
-    --teevee-warm: #ffb14a;
-    --teevee-blue: #4fb7ff;
-    --teevee-danger: #ff4b5f;
-    position: relative;
-    display: grid;
-    grid-template-columns: 268px minmax(0, 1fr);
-    min-height: 100%;
-    height: 100%;
-    color: var(--vd-text);
-    background:
-        radial-gradient(circle at 18% 12%, rgba(79, 183, 255, 0.2), transparent 28%),
-        radial-gradient(circle at 74% 78%, rgba(255, 75, 95, 0.16), transparent 34%),
-        var(--teevee-bg);
-    overflow: hidden;
+/* Physical receiver skin: deliberately independent of Desktop themes. */
+@font-face { font-family: 'TeeVee Labels'; src: url('/fonts/RobotoCondensed-Variable.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'TeeVee Display'; src: url('/fonts/ShareTechMono-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] {
+    --tv-metal: url('/img/teevee/metal.png'); --tv-text: #ded1bb; --tv-mint: #97f5cd;
+    container: teevee / size; display: flex; flex-direction: column; padding: 4px 40px 12px;
+    border: 0; border-radius: 15px; background: #623b26 url('/img/teevee/wood.png') center / 40px 934px;
+    box-shadow: inset 3px 0 5px #d4a277,inset -5px 0 6px #1e0d06,0 18px 38px #0009;
+    color: var(--tv-text); backdrop-filter: none; overflow: visible;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] > .vd-window-titlebar {
+    display: grid; grid-template-columns: 200px minmax(0,1fr) 235px 170px; grid-template-rows: 1fr;
+    align-items: center; gap: 0; position: relative; flex: 0 0 76px; min-height: 76px; height: 76px;
+    padding: 0 30px 0 49px; border: 3px ridge #b9a88e; border-radius: 5px 5px 0 0;
+    background: #b7b3ad var(--tv-metal) center / 440px 72px; background-blend-mode: multiply;
+    box-shadow: inset 0 1px 2px #ebdbbd,inset 0 -2px 3px #141412; backdrop-filter: none; color: var(--tv-text);
+}
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-title-group {
+    grid-area: 1 / 1; position: static; justify-content: flex-start; gap: 20px; padding: 0 18px;
+    height: 62px; min-width: 0; border: 2px groove #807663; border-right: 0; border-radius: 5px 0 0 5px;
+    background: #292926 var(--tv-metal) center / 440px 72px; background-blend-mode: multiply;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-title { color: var(--tv-text); font: 500 34px 'TeeVee Labels',sans-serif; text-shadow: 0 2px 1px #000; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-subtitle { display: none; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-header-icon-wrap { display: flex; width: 40px; height: 40px; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menubar {
+    grid-area: 1 / 2; display: flex; position: static; align-items: center; height: 62px; min-height: 0;
+    min-width: 0; padding: 0 12px; gap: 18px; margin: 0; border: 0; border-block: 2px groove #807663;
+    background: #292926 var(--tv-metal) center / 440px 72px; background-blend-mode: multiply;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu { flex: 0 1 auto; min-width: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu-button { min-height: 44px; padding: 3px 7px; border-radius: 2px; background: transparent; color: #ffbd69; font: 400 22px 'TeeVee Labels',sans-serif; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu-button:hover { background: #b9823c33; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu-popover { z-index: 25; min-width: 240px; max-height: min(70cqh,520px); overflow-y: auto; background: #302d27 var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; border: 2px ridge #bbaa8c; border-radius: 5px; color: #eadcc3; box-shadow: 0 8px 16px #000b; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu-item { color: #eedfc9; min-height: 34px; font: 500 19px 'TeeVee Labels',sans-serif; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu-item:hover { background: #ba83454d; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-actions { grid-area: 1 / 4; position: static; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 2px; padding: 5px; margin: 0; height: 55px; border: 3px ridge #b8a78b; border-radius: 4px; background: #090a08; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button.vd-window-ai-button { display: none; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button { position: relative; display: grid; place-items: center; width: 47px; min-width: 0; height: 39px; margin: 0; border: 2px ridge #8b816b; border-radius: 2px; background: #292822; box-shadow: inset 0 2px 4px #afa08244,inset 0 -4px 5px #000; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button::before,
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button::after { display: none; content: none; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button[data-action="close"] { background: #7a1510; }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button:hover { filter: brightness(1.3); }
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] > .vd-window-content { flex: 1 1 0; min-height: 0; padding: 4px 0 0; border: 0; overflow: hidden; background: #100e0b; }
+.teevee-model { grid-area: 1 / 3; display: flex; align-items: center; justify-content: center; gap: 12px; font: 500 23px/1.05 'TeeVee Labels',sans-serif; color: #100e0b; text-shadow: 0 1px #ad9e86; }
+.teevee-model img { width: 46px; height: 34px; object-fit: contain; }
+.teevee-model small { display: block; margin-top: 4px; letter-spacing: 4px; font-size: 12px; }
+.teevee-app { position: relative; display: grid; grid-template-columns: minmax(240px,22.2%) minmax(0,1fr) minmax(330px,29.8%); grid-template-rows: minmax(0,1fr) 59px; gap: 5px 6px; width: 100%; height: 100%; min-height: 0; padding: 0 3px; overflow: hidden; background: #fff var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; color: var(--tv-text,#ded1bb); font-family: 'TeeVee Labels',sans-serif; }
+.teevee-app *, .teevee-app *::before, .teevee-app *::after { box-sizing: border-box; }
+.teevee-app [hidden] { display: none !important; }
+.teevee-app button { cursor: pointer; font: inherit; color: inherit; }
+.teevee-app button:disabled { cursor: default; opacity: .5; }
+.teevee-app :is(button,input,select):focus-visible,
+.desktop-body[data-theme] .vd-window[data-app-id="teevee"] :is(.vd-window-button,.vd-window-menu-button):focus-visible { outline: 2px solid #c0ffe4; outline-offset: -3px; }
+.teevee-tv-icon { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.teevee-screw { position: absolute; z-index: 1; width: 18px; height: 18px; object-fit: contain; pointer-events: none; }
+.teevee-screw.tl { top: 4px; left: 3px; }
+.teevee-screw.tr { top: 4px; right: 3px; }
+.teevee-screw.bl { bottom: 4px; left: 3px; }
+.teevee-screw.br { bottom: 4px; right: 3px; }
+.vd-window-titlebar > .teevee-screw { top: 33px; bottom: auto; }
+.vd-window-titlebar > .teevee-screw.bl, .vd-window-titlebar > .teevee-screw.br { display: none; }
+.teevee-footer > .teevee-screw { top: 13px; bottom: auto; }
+.teevee-footer > .teevee-screw.bl, .teevee-footer > .teevee-screw.br { display: none; }
+.teevee-footer > .teevee-screw.tl { left: 9px; }
+.teevee-footer > .teevee-screw.tr { right: 9px; }
+.teevee-player-bar .teevee-icon-button:disabled { opacity: .9; }
+.teevee-player-state strong { font-weight: 500; }
+.teevee-control-icon { width: 24px; height: 24px; object-fit: contain; pointer-events: none; filter: invert(91%) sepia(10%) saturate(428%) hue-rotate(351deg) brightness(89%); }
+.teevee-sidebar, .teevee-player-bar, .teevee-list-panel, .teevee-footer { border: 3px ridge #aa9c85; border-radius: 5px; background: #fff var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; box-shadow: inset 0 0 3px #090807; }
+.teevee-sidebar { position: relative; margin-bottom: 3px; grid-area: 1 / 1; display: flex; flex-direction: column; gap: 6px; padding: 14px 19px 7px; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #a69981 #191815; }
+.teevee-display { position: relative; border: 6px ridge #595749; border-radius: 9px; background: #05100e; color: var(--tv-mint,#97f5cd); box-shadow: inset 0 0 15px 6px #000,0 1px 2px #000; text-shadow: 0 0 7px #51dbaa33; }
+.teevee-display::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .14; background: repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 3px); }
+.teevee-brand { flex: 0 0 114px; display: grid; grid-template-columns: 62px minmax(0,1fr) 33px; align-items: start; gap: 22px; padding: 14px 13px 21px; }
+.teevee-brand-icon { width: 62px; height: 65px; }
+.teevee-brand-icon img { width: 58px; height: 62px; margin-left: 10px; object-fit: contain; }
+.teevee-brand strong { display: block; font: 500 37px/1 'TeeVee Labels',sans-serif; white-space: nowrap; }
+.teevee-brand span:not(.teevee-brand-icon) { display: block; margin-top: 2px; font: 18px 'TeeVee Display',monospace; }
+.teevee-color-mark { width: 33px; height: 48px; object-fit: fill; }
+.teevee-brand small { position: absolute; bottom: 5px; right: 12px; font: 10px 'TeeVee Display',monospace; letter-spacing: 2.8px; color: #b7b2a0; }
+.teevee-search { display: flex; align-items: center; flex: 0 0 64px; gap: 16px; padding: 0 18px; border: 7px ridge #615d50; border-radius: 8px; background: #040d0a; box-shadow: inset 0 0 12px #000; }
+.teevee-search .teevee-control-icon { width: 20px; height: 20px; opacity: .7; }
+.teevee-search input { width: 100%; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--tv-mint); font: 20px 'TeeVee Display',monospace; outline-offset: 3px; }
+.teevee-search input::placeholder { color: var(--tv-mint); opacity: 1; }
+.teevee-control-grid { display: grid; gap: 6px; }
+.teevee-select-field select { appearance: auto; }
+.teevee-select-field { display: flex; flex-direction: column; min-width: 0; height: 90px; padding: 3px 7px 7px; border: 4px ridge #776e5d; border-radius: 7px; background: #252620; }
+.teevee-select-field > span { padding-left: 11px; margin-bottom: 3px; font: 500 17px 'TeeVee Labels',sans-serif; text-transform: uppercase; }
+.teevee-select-field select { width: 100%; min-width: 0; height: 50px; padding: 3px 15px; border: 4px ridge #777463; border-radius: 5px; background: #020c09; color: var(--tv-mint); color-scheme: dark; font: 23px 'TeeVee Display',monospace; }
+.teevee-filters { display: flex; flex-direction: column; gap: 4px; padding: 9px; border: 5px ridge #8d8069; border-radius: 10px; background: #111410; min-height: 335px; flex: 1 0 auto; }
+.teevee-filter { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; width: 100%; min-height: 35px; flex: 1; padding: 0 8px 0 6px; gap: 16px; border: 2px ridge #706b5b; border-radius: 5px; background: #282a25 var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; box-shadow: inset 0 1px 2px #bba87b44,inset 0 -3px 3px #000; text-align: left; }
+.teevee-filter .teevee-control-icon { width: 28px; height: 26px; margin: auto; }
+.teevee-filter span { font-size: 24px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.teevee-filter em { padding: 0 9px; border-radius: 12px; background: #3e3d33; font: 500 20px 'TeeVee Labels',sans-serif; box-shadow: inset 0 1px 1px #b4aa88; }
+.teevee-filter.active { color: #0f0d05; background: #ffa92d; border-color: #ffe5a2; box-shadow: inset 0 0 10px #fff0b4,0 0 7px #ffb440,0 0 14px #ff900066; }
+.teevee-filter.active .teevee-control-icon { filter: none; }
+.teevee-filter:hover:not(.active) { filter: brightness(1.25); }
+.teevee-receiver-label { flex: 0 0 22px; font: 11px/1.05 'TeeVee Display',monospace; text-align: center; letter-spacing: 2px; color: #11100b; text-shadow: 0 1px #a29176; }
+.teevee-main { display: contents; }
+.teevee-stage { grid-area: 1 / 2; min-width: 0; min-height: 0; }
+.teevee-player { display: flex; flex-direction: column; gap: 5px; width: 100%; height: 100%; }
+.teevee-video-shell { position: relative; flex: 1 1 0; min-height: 0; background: #080b09; border-radius: 9px; isolation: isolate; }
+.teevee-tube { position: absolute; inset: 7% 5% 6%; overflow: hidden; border-radius: 11% / 10%; background: #071212; box-shadow: inset 0 0 40px 12px #000; }
+.teevee-bezel { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+.teevee-video-mount { position: absolute; inset: 0; background: #061112; }
+.teevee-video-mount video, .teevee-crt-canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.teevee-video-mount video:not([src]) { visibility: hidden; }
+.teevee-video-mount[data-crt-mode="webgl"] video { visibility: hidden; }
+.teevee-video-mount::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .15; background: repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 4px); }
+.teevee-video-mount[data-crt-mode="webgl"]::after, .teevee-video-mount[data-crt-mode="off"]::after { display: none; }
+.teevee-glass { display: none; position: absolute; inset: 0; pointer-events: none; background: url('/img/teevee/glass.png') calc(50% + 20px) calc(50% - 5px) / 118% 110% no-repeat; mix-blend-mode: screen; z-index: 2; opacity: .8; }
+.has-reflection .teevee-glass { display: block; }
+.teevee-video-fullscreen { position: absolute; z-index: 4; top: 13%; right: 10%; display: grid; place-items: center; width: 47px; height: 50px; border: 1px solid #899e9c; border-radius: 9px; background: #0d131733; opacity: .65; }
+.teevee-video-fullscreen:hover, .teevee-video-fullscreen:focus-visible { opacity: 1; }
+.teevee-video-fullscreen .teevee-control-icon { width: 16px; height: 16px; }
+.teevee-player-state { position: absolute; z-index: 4; left: 10%; right: 10%; bottom: 11%; display: grid; grid-template-columns: 28px minmax(0,1fr); grid-template-rows: auto auto; gap: 0 17px; min-height: 80px; padding: 12px 25px; border: 1px solid #a2997866; border-radius: 12px; background: #0d151478; box-shadow: inset 0 0 12px #92977b15,0 0 0 1px #c6c2a214; }
+.teevee-player-state strong { grid-area: 1 / 2; font-size: 24px; line-height: 1.2; color: var(--tv-mint); overflow: hidden; text-overflow: ellipsis; }
+.teevee-player-state > span:last-child { grid-area: 2 / 2; color: #a7bea1; font-size: 21px; line-height: 1.2; }
+.teevee-live-dot { grid-area: 1 / 1 / 3 / 2; align-self: center; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ff3e31; background: #ff6250; box-shadow: 0 0 0 6px #9b231255,0 0 20px #ff2a17; }
+.teevee-player-bar { position: relative; display: flex; align-items: center; flex: 0 0 134px; min-height: 0; gap: 14px; padding: 8px 30px 23px 15px; min-width: 0; }
+.teevee-speaker { width: 90px; height: 96px; object-fit: fill; }
+.teevee-now { display: flex; align-items: center; gap: 25px; flex: 1 1 0; min-width: 0; height: 97px; padding: 12px 18px; }
+.teevee-now-icon { flex: 0 0 62px; width: 62px; height: 63px; padding: 3px; border: 1px solid #4e7275; border-radius: 6px; background: #12343c; box-shadow: inset 0 0 12px #41646d; }
+.teevee-now > div { min-width: 0; }
+.teevee-now div > span { display: block; margin-bottom: 2px; font: 17px 'TeeVee Display',monospace; text-transform: uppercase; }
+.teevee-now strong { display: block; font-size: 25px; line-height: 1.1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.teevee-now em { display: none; }
+.teevee-icon-button { display: grid; place-items: center; flex: 0 0 64px; width: 64px; height: 63px; padding: 5px; border: 6px ridge #9f8f76; border-radius: 8px; background: #a89c86 var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; box-shadow: 0 4px 4px #0009,inset 0 0 6px #0007; }
+.teevee-icon-button .teevee-control-icon { filter: drop-shadow(0 1px #d3c4a9); }
+.teevee-icon-button:hover { filter: brightness(1.2); }
+.teevee-icon-button.active { background-color: #d5b263; }
+.teevee-band-label { position: absolute; right: 21px; bottom: 3px; font: 12px 'TeeVee Display',monospace; color: #100e0a; text-shadow: 0 1px #b8a890; letter-spacing: 1px; }
+.teevee-list-panel { grid-area: 1 / 3; display: flex; flex-direction: column; gap: 8px; min-height: 0; margin-bottom: 49px; padding: 12px 10px 7px; }
+.teevee-list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 0 0 100px; min-width: 0; padding: 13px 22px; border: 7px ridge #615d50; border-radius: 9px; background: #04100c; color: var(--tv-mint); box-shadow: inset 0 0 15px #000; }
+.teevee-list-head > div { min-width: 0; }
+.teevee-list-head strong { display: block; font: 24px/1.2 'TeeVee Display',monospace; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.teevee-list-head span { display: block; margin-top: 3px; font: 20px/1.2 'TeeVee Display',monospace; }
+.teevee-refresh { align-self: flex-end; display: grid; place-items: center; width: 36px; height: 36px; padding: 4px; border: 0; background: transparent; }
+.teevee-refresh img { width: 27px; height: 22px; object-fit: contain; }
+.teevee-channel-list { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 7px 11px 8px 8px; border: 6px ridge #81765f; border-radius: 8px; background: #0b0d09; box-shadow: inset 0 0 10px #000; scrollbar-color: #b1a38a #201c14; scrollbar-width: auto; }
+.teevee-channel-list::-webkit-scrollbar { width: 18px; }
+.teevee-channel-list::-webkit-scrollbar-track { background: #171912; border-left: 1px solid #948570; }
+.teevee-channel-list::-webkit-scrollbar-thumb { background: #ab9b80 var(--tv-metal) center / 220px 36px; border: 3px ridge #baab8e; border-radius: 5px; box-shadow: inset 0 0 2px #070806; }
+.teevee-channel { position: relative; display: flex; align-items: stretch; min-width: 0; height: 78px; margin-bottom: 6px; padding: 3px; border: 3px ridge #555146; border-radius: 9px; background: #34352e var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; box-shadow: inset 0 1px 2px #d6bd8f44,0 2px 2px #000; }
+.teevee-channel:hover { background-color: #484a3d; }
+.teevee-channel.active { border-color: #b6cdb5; }
+.teevee-channel-play { display: flex; align-items: center; gap: 16px; flex: 1 1 0; min-width: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; text-align: left; }
+.teevee-channel-logo { display: flex; align-items: center; justify-content: center; flex: 0 0 65px; width: 65px; height: 62px; padding: 9px; border-radius: 6px; border: 1px solid #54574a; background: #252a25; box-shadow: inset 0 1px 3px #d4c3a533,0 1px 3px #000; }
+.teevee-channel-body { display: block; min-width: 0; }
+.teevee-channel-body strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 23px/1.12 'TeeVee Labels',sans-serif; color: #ece2ce; }
+.teevee-channel-body > span { display: block; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 18px/1.1 'TeeVee Labels',sans-serif; color: #c1b9a6; }
+.teevee-channel-side { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; flex: 0 0 64px; padding-right: 7px; }
+.teevee-live { display: flex; align-items: center; gap: 4px; padding: 0 5px; border: 1px solid #9d392b; border-radius: 9px; background: #a82723; color: #ffe8de; font: 500 20px/1.03 'TeeVee Labels',sans-serif; box-shadow: 0 0 8px #ce2e2188; }
+.teevee-live::before { content: ''; width: 10px; height: 10px; background: #ff6750; border-radius: 50%; box-shadow: 0 0 5px #ff5649; }
+.teevee-heart { display: grid; place-items: center; width: 32px; height: 31px; padding: 4px; border: 0; background: transparent; }
+.teevee-heart .teevee-control-icon { width: 21px; height: 21px; }
+.teevee-heart.active .teevee-control-icon { filter: invert(75%) sepia(67%) saturate(729%) hue-rotate(340deg); }
+.teevee-badge { color: #ffb087; font-size: 16px; }
+.teevee-empty, .teevee-status { padding: 18px; color: var(--tv-mint); font-size: 22px; }
+.teevee-empty { display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center; }
+.teevee-sentinel { height: 1px; }
+.teevee-skeleton { opacity: .4; }
+.teevee-footer { position: relative; grid-area: 2 / 1 / 3 / 4; display: flex; align-items: center; gap: 22px; padding: 0 42px; border-radius: 0 0 4px 4px; }
+.teevee-stripe { width: 28%; max-width: 425px; height: 18px; object-fit: fill; }
+.teevee-footer > span { color: #13110c; text-shadow: 0 1px #a99a80; font: 12px 'TeeVee Display',monospace; letter-spacing: 3px; white-space: nowrap; }
+.teevee-maker { position: absolute; bottom: 19px; right: 149px; width: 270px; height: 70px; display: flex; align-items: center; gap: 15px; color: #15120b; font: 500 16px/1.06 'TeeVee Labels',sans-serif; text-shadow: 0 1px #a99a80; }
+.teevee-maker img { width: 143px; height: 67px; object-fit: contain; }
+.teevee-power { position: absolute; right: 39px; bottom: 13px; width: 96px; height: 80px; padding: 0; border: 0; border-radius: 5px; background: #15160f; }
+.teevee-power > img { width: 100%; height: 100%; object-fit: fill; }
+.teevee-power > span { position: absolute; top: 6px; left: 0; right: 0; color: #ccbea2; font: 12px 'TeeVee Display',monospace; letter-spacing: 1px; z-index: 1; }
+.teevee-power[aria-pressed="false"] img { filter: brightness(.5) saturate(.25); }
+.teevee-shortcuts-panel, .teevee-transport { position: absolute; z-index: 12; left: 24px; top: 12px; width: min(420px,calc(100% - 48px)); max-height: calc(100% - 100px); overflow-y: auto; padding: 20px; border: 5px ridge #ad9a7a; border-radius: 6px; background: #292d25 var(--tv-metal) center / 440px 72px; background-blend-mode: multiply; box-shadow: 0 10px 30px #000b; }
+.teevee-shortcuts-panel h3 { margin: 6px 0 10px; font-size: 24px; color: var(--tv-mint); }
+.teevee-favorites { margin-top: 18px; }
+.teevee-shortcut-list { display: grid; gap: 5px; }
+.teevee-shortcut-list button { display: flex; justify-content: space-between; gap: 10px; min-height: 44px; border: 2px ridge #887a60; border-radius: 3px; padding: 8px; background: #111a12; text-align: left; font-size: 21px; }
+.teevee-shortcut-list span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.teevee-shortcut-list em { color: #aaba9d; }
+.teevee-popover-close { display: grid; place-items: center; width: 36px; height: 36px; margin: 0 0 5px auto; padding: 5px; border: 0; background: #181a16; border-radius: 3px; }
+.teevee-transport { left: auto; right: 25px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.teevee-transport .teevee-popover-close { flex-basis: 100%; margin-left: 90%; }
+.teevee-volume { width: 135px; min-width: 80px; flex: 1; accent-color: #d6a85c; }
+.teevee-toast, .teevee-filter-notice { position: absolute; z-index: 15; bottom: 160px; left: 25%; right: 32%; padding: 12px 18px; border: 2px ridge #9d8a6c; border-radius: 6px; background: #151e17f5; color: #f8dd9e; font: 500 20px/1.2 'TeeVee Labels',sans-serif; box-shadow: 0 4px 18px #000a; }
+.teevee-filter-notice { bottom: 220px; pointer-events: none; font-size: 16px; }
+.is-powered-off .teevee-tube { background: #050808; }
+.is-powered-off .teevee-video-mount { visibility: hidden; }
+.is-powered-off .teevee-now { color: #607568; text-shadow: none; }
+.teevee-video-shell:fullscreen { width: 100%; height: 100%; border-radius: 0; background: #000; }
+.teevee-video-shell:fullscreen .teevee-tube { inset: 0; border-radius: 0; }
+.teevee-video-shell:fullscreen .teevee-bezel { display: none; }
+.teevee-video-shell:fullscreen .teevee-video-fullscreen { display: none; }
+/* Nine-slice source borders keep the reference's physical bevels without baking in UI text. */
+.teevee-display, .teevee-search, .teevee-list-head { border-image: url('/img/teevee/display-frame.png') 12 / 12px stretch; }
+.teevee-channel { border-image: url('/img/teevee/channel-frame.png') 9 / 9px stretch; }
+.teevee-icon-button { border-image: url('/img/teevee/button-frame.png') 10 / 10px stretch; }
+@container teevee (max-width: 1399px) {
+    .teevee-screw { display: none; }
+    .teevee-app { grid-template-columns: 240px minmax(0,1fr) 330px; grid-template-rows: minmax(0,1fr) 58px; }
+    .teevee-sidebar { padding-inline: 9px; gap: 5px; }
+    .teevee-brand { grid-template-columns: 42px minmax(0,1fr) 22px; padding: 14px 7px 22px; gap: 9px; flex-basis: 104px; }
+    .teevee-brand-icon { width: 42px; height: 55px; }
+    .teevee-brand-icon img { width: 42px; height: 55px; margin: 0; }
+    .teevee-brand strong { font-size: 30px; }
+    .teevee-brand span:not(.teevee-brand-icon) { font-size: 15px; }
+    .teevee-brand small { font-size: 8px; letter-spacing: 1.5px; }
+    .teevee-color-mark { width: 22px; }
+    .teevee-search { gap: 8px; padding-inline: 8px; flex-basis: 54px; }
+    .teevee-search input { font-size: 18px; }
+    .teevee-select-field { height: 80px; }
+    .teevee-select-field select { font-size: 20px; padding-inline: 5px; }
+    .teevee-filters { min-height: 310px; padding: 6px; }
+    .teevee-filter { grid-template-columns: 30px minmax(0,1fr) auto; gap: 9px; padding-left: 3px; }
+    .teevee-filter span { font-size: 22px; }
+    .teevee-filter .teevee-control-icon { width: 24px; }
+    .teevee-list-panel { padding: 8px 5px 5px; }
+    .teevee-list-head { padding: 11px; flex-basis: 94px; }
+    .teevee-list-head strong { font-size: 19px; }
+    .teevee-list-head span { font-size: 18px; }
+    .teevee-channel-list { padding: 5px; }
+    .teevee-channel { height: 74px; }
+    .teevee-channel-logo { width: 48px; flex-basis: 48px; height: 57px; padding: 7px; }
+    .teevee-channel-play { gap: 10px; }
+    .teevee-channel-body strong { font-size: 20px; }
+    .teevee-channel-body > span { font-size: 16px; }
+    .teevee-channel-side { flex-basis: 52px; padding-right: 2px; }
+    .teevee-live { font-size: 17px; }
+    .teevee-player-bar { gap: 8px; flex-basis: 105px; padding: 7px 9px 19px; }
+    .teevee-speaker { width: 40px; height: 70px; object-fit: cover; }
+    .teevee-now { height: 77px; padding: 8px; gap: 8px; }
+    .teevee-now-icon { display: none; }
+    .teevee-now strong { font-size: 20px; }
+    .teevee-now div > span { font-size: 13px; }
+    .teevee-icon-button { width: 48px; height: 51px; flex-basis: 48px; border-width: 4px; }
+    .teevee-player-state { padding: 10px 13px; gap: 0 8px; grid-template-columns: 21px minmax(0,1fr); }
+    .teevee-player-state strong { font-size: 21px; }
+    .teevee-player-state > span:last-child { font-size: 18px; }
+    .teevee-footer { padding: 0 20px; gap: 15px; }
+    .teevee-footer > span { font-size: 8px; letter-spacing: 1px; }
+    .teevee-maker { right: 117px; width: 188px; gap: 8px; font-size: 13px; }
+    .teevee-maker img { width: 110px; }
+    .teevee-power { right: 17px; }
+}
+@container teevee (max-width: 1049px) {
+    .teevee-app { grid-template-columns: minmax(0,1fr) 310px; }
+    .teevee-sidebar { display: none; position: absolute; z-index: 10; top: 4px; bottom: 72px; left: 0; width: min(310px,100%); box-shadow: 5px 0 20px #000b; }
+    .teevee-app.show-filters .teevee-sidebar { display: flex; }
+    .teevee-stage { grid-column: 1; }
+    .teevee-list-panel { grid-column: 2; }
+    .teevee-footer { grid-column: 1 / 3; }
+    .teevee-footer > span { display: none; }
+    .teevee-speaker { display: none; }
+    .teevee-toast, .teevee-filter-notice { left: 15px; right: 325px; }
+}
+@container teevee (max-width: 759px) {
+    .teevee-app { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(180px,42%) minmax(110px,1fr) 82px; gap: 5px; }
+    .teevee-stage { grid-area: 1 / 1; }
+    .teevee-player-bar { flex-basis: 69px; padding: 4px 7px 13px; gap: 7px; }
+    .teevee-now { height: 48px; padding: 4px 8px; }
+    .teevee-now div > span { font-size: 11px; }
+    .teevee-now strong { font-size: 19px; }
+    .teevee-icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+    .teevee-band-label { font-size: 8px; bottom: 1px; }
+    .teevee-list-panel { grid-area: 2 / 1; margin: 0; padding: 3px; gap: 3px; }
+    .teevee-list-head { flex-basis: 54px; padding: 2px 12px; border-width: 4px; }
+    .teevee-list-head > div { display: flex; align-items: baseline; gap: 12px; }
+    .teevee-list-head strong { font-size: 18px; }
+    .teevee-channel-list { padding: 4px; }
+    .teevee-channel { height: 76px; }
+    .teevee-heart { width: 44px; height: 44px; }
+    .teevee-channel-side { flex-basis: 60px; }
+    .teevee-footer { grid-area: 3 / 1; padding: 0; }
+    .teevee-stripe { display: none; }
+    .teevee-maker { left: 12px; right: auto; bottom: 6px; }
+    .teevee-power { width: 78px; height: 66px; bottom: 9px; right: 12px; }
+    .teevee-power > span { font-size: 10px; }
+    .teevee-player-state { bottom: 13%; min-height: 50px; padding: 6px 10px; }
+    .teevee-player-state strong { font-size: 19px; }
+    .teevee-player-state > span:last-child { font-size: 16px; }
+    .teevee-video-fullscreen { width: 44px; height: 44px; top: 8%; right: 8%; }
+    .teevee-toast, .teevee-filter-notice { left: 12px; right: 12px; bottom: 90px; }
+    .teevee-filter { min-height: 44px; }
+    .teevee-filters { min-height: 392px; }
+}
+@container teevee (max-width: 1450px) {
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] > .vd-window-titlebar { grid-template-columns: 180px minmax(0,1fr) 180px 148px; padding-inline: 15px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menubar { gap: 4px; padding-inline: 5px; }
+    .teevee-model { font-size: 19px; gap: 6px; }
+    .teevee-model img { width: 35px; }
+    .teevee-model small { letter-spacing: 2px; }
+}
+@container teevee (max-width: 1049px) {
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] > .vd-window-titlebar { grid-template-columns: 145px minmax(0,1fr) 135px; padding-inline: 8px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-title-group { padding-inline: 8px; gap: 10px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-title { font-size: 28px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-actions { grid-column: 3; }
+    .teevee-model { display: none; }
+}
+@container teevee (max-width: 659px) {
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] > .vd-window-titlebar { grid-template-columns: minmax(0,1fr) 127px; grid-template-rows: 47px 38px; height: 88px; flex-basis: 88px; min-height: 88px; padding-inline: 5px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-title-group { height: 44px; border: 0; background: transparent; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-title { font-size: 28px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-header-icon-wrap { width: 32px; height: 32px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-actions { grid-area: 1 / 2; height: 43px; padding: 1px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-button { height: 36px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menubar { grid-area: 2 / 1 / 3 / 3; height: 38px; border: 0; gap: 13px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] .vd-window-menu-button { font-size: 20px; min-height: 36px; }
 }
-
-.teevee-app::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-    background-size: 42px 42px;
-    mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.65), transparent 72%);
-}
-
-.teevee-sidebar,
-.teevee-main,
-.teevee-toast {
-    position: relative;
-    z-index: 1;
-}
-
-.teevee-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-width: 0;
-    min-height: 0;
-    padding: 18px;
-    border-right: 1px solid var(--teevee-line);
-    background: var(--vd-theme-chrome-bg);
-    backdrop-filter: blur(18px);
-}
-
-.teevee-brand {
-    display: grid;
-    grid-template-columns: 46px minmax(0, 1fr);
-    align-items: center;
-    gap: 10px;
-    min-height: 54px;
-}
-
-.teevee-brand-icon {
-    display: grid;
-    place-items: center;
-    width: 46px;
-    height: 46px;
-    border: 1px solid rgba(55, 211, 197, 0.42);
-    border-radius: 8px;
-    color: #07141b;
-    background: linear-gradient(135deg, #74fff0, #4fb7ff 58%, #ffb14a);
-    box-shadow: 0 16px 34px rgba(55, 211, 197, 0.18);
-}
-
-.teevee-brand strong,
-.teevee-brand span,
-.teevee-now strong,
-.teevee-now em,
-.teevee-channel-body strong,
-.teevee-channel-body span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.teevee-brand strong {
-    display: block;
-    font-size: 1.05rem;
-    letter-spacing: 0;
-}
-
-.teevee-brand span {
-    display: block;
-    color: var(--teevee-muted);
-    font-size: 0.76rem;
-}
-
-.teevee-search {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 0 12px;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    background: var(--teevee-panel);
-}
-
-.teevee-search:focus-within,
-.teevee-select-field:focus-within {
-    border-color: rgba(106, 243, 232, 0.58);
-    box-shadow: 0 0 0 3px rgba(55, 211, 197, 0.12);
-}
-
-.teevee-search input {
-    min-width: 0;
-    border: 0;
-    outline: 0;
-    color: inherit;
-    background: transparent;
-    font: inherit;
-    font-size: 0.95rem;
-}
-
-.teevee-search input::placeholder {
-    color: var(--teevee-muted);
-}
-
-.teevee-control-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-}
-
-.teevee-select-field {
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-    padding: 10px;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    background: var(--vd-theme-control-bg);
-}
-
-.teevee-select-field span {
-    color: var(--teevee-muted);
-    font-size: 0.72rem;
-    font-weight: 850;
-    text-transform: uppercase;
-}
-
-.teevee-select-field select {
-    width: 100%;
-    min-width: 0;
-    min-height: 34px;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    color: inherit;
-    background: var(--vd-theme-control-bg);
-    font: inherit;
-    font-weight: 720;
-}
-
-.teevee-filters {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    flex: 0 0 auto;
-    min-height: 0;
-    overflow: visible;
-}
-
-.teevee-filter {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    min-width: 0;
-    min-height: 34px;
-    padding: 0 9px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: var(--teevee-muted);
-    background: transparent;
-    cursor: pointer;
-    font-weight: 720;
-    text-align: left;
-    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-
-.teevee-filter:hover,
-.teevee-filter:focus-visible {
-    color: inherit;
-    border-color: rgba(55, 211, 197, 0.34);
-    background: rgba(255, 255, 255, 0.07);
-}
-
-.teevee-filter span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.teevee-filter:nth-child(-n+2) {
-    grid-column: 1 / -1;
-}
-
-.teevee-filter.active {
-    color: #06141b;
-    background: linear-gradient(135deg, #69f5e9, #4fc2ff);
-    box-shadow: 0 12px 28px rgba(46, 203, 194, 0.2);
-}
-
-.teevee-filter em {
-    min-width: 24px;
-    border-radius: 999px;
-    padding: 2px 7px;
-    color: inherit;
-    background: rgba(255, 255, 255, 0.18);
-    font-size: 0.72rem;
-    font-style: normal;
-    text-align: center;
-}
-
-.teevee-shortcuts-panel {
-    display: grid;
-    gap: 12px;
-    flex: 1 1 140px;
-    min-height: 130px;
-    padding-top: 12px;
-    border-top: 1px solid var(--teevee-line);
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.teevee-favorites,
-.teevee-recent {
-    min-width: 0;
-}
-
-.teevee-recent:not([hidden]) + .teevee-favorites:not([hidden]) {
-    padding-top: 12px;
-    border-top: 1px solid var(--teevee-line);
-}
-
-.teevee-favorites h3,
-.teevee-recent h3 {
-    margin: 0 0 8px;
-    color: var(--teevee-muted);
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0;
-    text-transform: uppercase;
-}
-
-.teevee-shortcut-list {
-    display: grid;
-    gap: 6px;
-}
-
-.teevee-shortcut-list button {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    min-height: 32px;
-    padding: 0 9px;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    color: inherit;
-    background: rgba(255, 255, 255, 0.04);
-    cursor: pointer;
-    text-align: left;
-}
-
-.teevee-shortcut-list button:hover,
-.teevee-shortcut-list button:focus-visible {
-    border-color: rgba(55, 211, 197, 0.42);
-    background: rgba(55, 211, 197, 0.1);
-}
-
-.teevee-shortcut-list span,
-.teevee-shortcut-list em {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.teevee-shortcut-list span {
-    justify-self: start;
-}
-
-.teevee-shortcut-list em {
-    justify-self: end;
-    color: var(--teevee-muted);
-    font-size: 0.76rem;
-    font-style: normal;
-}
-
-.teevee-main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 370px;
-    min-width: 0;
-    min-height: 0;
-}
-
-.teevee-stage {
-    display: flex;
-    min-width: 0;
-    min-height: 0;
-    padding: 16px;
-}
-
-.teevee-player {
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    container-type: inline-size;
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 36%),
-        var(--teevee-panel);
-    overflow: hidden;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
-}
-
-.teevee-video-shell {
-    position: relative;
-    min-height: 0;
-    background:
-        radial-gradient(circle at 50% 45%, rgba(79, 183, 255, 0.09), transparent 35%),
-        #02050a;
-}
-
-.teevee-video-mount,
-.teevee-video-mount video {
-    width: 100%;
-    height: 100%;
-}
-
-.teevee-video-mount video {
-    display: block;
-    object-fit: contain;
-    background: #02050a;
-}
-
-.teevee-video-fullscreen {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 2;
-    display: inline-grid;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 8px;
-    color: #f4fbff;
-    background: rgba(4, 12, 22, 0.64);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
-    cursor: pointer;
-    opacity: 0.86;
-    backdrop-filter: blur(10px);
-    transition: border-color 150ms ease, background 150ms ease, opacity 150ms ease, transform 150ms ease;
-}
-
-.teevee-video-fullscreen:hover,
-.teevee-video-fullscreen:focus-visible {
-    border-color: rgba(55, 211, 197, 0.56);
-    background: rgba(55, 211, 197, 0.18);
-    opacity: 1;
-    transform: translateY(-1px);
-}
-
-.teevee-player-state {
-    position: absolute;
-    inset: auto 16px 16px 16px;
-    display: grid;
-    grid-template-columns: 10px minmax(0, 1fr);
-    gap: 5px 10px;
-    align-items: center;
-    max-width: min(520px, calc(100% - 32px));
-    padding: 12px 14px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    background: rgba(3, 9, 16, 0.78);
-    backdrop-filter: blur(12px);
-}
-
-.teevee-player-state strong,
-.teevee-player-state span:last-child {
-    grid-column: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.teevee-player-state span:last-child {
-    color: var(--teevee-muted);
-    font-size: 0.85rem;
-}
-
-.teevee-live-dot {
-    grid-row: 1 / span 2;
-    width: 9px;
-    height: 9px;
-    border-radius: 999px;
-    background: var(--teevee-danger);
-    box-shadow: 0 0 0 5px rgba(255, 75, 95, 0.15);
-}
-
-.teevee-player-bar {
-    display: grid;
-    grid-template-columns: 42px 42px minmax(150px, 1fr) 42px 42px minmax(78px, 112px) 42px;
-    align-items: center;
-    gap: 8px;
-    min-height: 64px;
-    padding: 10px;
-    border-top: 1px solid var(--teevee-line);
-    background:
-        linear-gradient(90deg, rgba(55, 211, 197, 0.08), transparent 46%, rgba(255, 177, 74, 0.07)),
-        var(--teevee-panel-strong);
-}
-
-.teevee-icon-button,
-.teevee-refresh {
-    display: inline-grid;
-    place-items: center;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    color: inherit;
-    background: var(--vd-theme-control-bg);
-    cursor: pointer;
-    transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
-}
-
-.teevee-icon-button {
-    width: 42px;
-    height: 42px;
-}
-
-.teevee-icon-button:hover,
-.teevee-refresh:hover,
-.teevee-icon-button:focus-visible,
-.teevee-refresh:focus-visible {
-    border-color: rgba(55, 211, 197, 0.48);
-    background: rgba(55, 211, 197, 0.14);
-    transform: translateY(-1px);
-}
-
-.teevee-icon-button.active {
-    color: #06141b;
-    border-color: transparent;
-    background: var(--teevee-accent);
-}
-
-.teevee-primary {
-    color: #06141b;
-    border-color: transparent;
-    background: linear-gradient(135deg, var(--teevee-accent-strong), #4bbcff);
-}
-
-.teevee-now {
-    display: grid;
-    min-width: 0;
-    gap: 2px;
-}
-
-.teevee-now span {
-    color: var(--teevee-muted);
-    font-size: 0.72rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.teevee-now strong {
-    display: -webkit-box;
-    font-size: 0.98rem;
-    line-height: 1.14;
-    white-space: normal;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-.teevee-now em {
-    color: var(--teevee-muted);
-    font-size: 0.8rem;
-    font-style: normal;
-}
-
-.teevee-volume {
-    width: 100%;
-    min-width: 0;
-    accent-color: var(--teevee-accent);
-}
-
-.teevee-list-panel {
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
-    min-width: 0;
-    min-height: 0;
-    border-left: 1px solid var(--teevee-line);
-    background: var(--vd-theme-chrome-bg);
-}
-
-.teevee-list-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 60px;
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--teevee-line);
-}
-
-.teevee-list-head div {
-    display: grid;
-    min-width: 0;
-    gap: 2px;
-}
-
-.teevee-list-head strong,
-.teevee-list-head span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.teevee-list-head span {
-    color: var(--teevee-muted);
-    font-size: 0.78rem;
-}
-
-.teevee-refresh {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 auto;
-}
-
-.teevee-status {
-    min-height: 34px;
-    padding: 9px 14px 0;
-    color: var(--teevee-muted);
-    font-size: 0.84rem;
-}
-
-.teevee-channel-list {
-    display: grid;
-    align-content: start;
-    gap: 8px;
-    min-height: 0;
-    padding: 12px 12px 16px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.teevee-channel {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
-    min-height: 62px;
-    padding: 9px;
-    border: 1px solid var(--teevee-line);
-    border-radius: 8px;
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
-        rgba(255, 255, 255, 0.035);
-    cursor: pointer;
-    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
-}
-
-.teevee-channel:hover,
-.teevee-channel:focus-visible,
-.teevee-channel.active {
-    border-color: rgba(55, 211, 197, 0.48);
-    background: rgba(55, 211, 197, 0.12);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
-    transform: translateY(-1px);
-}
-
-.teevee-channel.unsupported {
-    opacity: 0.72;
-}
-
-.teevee-channel-logo {
-    display: grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    overflow: hidden;
-}
-
-.teevee-channel-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    padding: 4px;
-}
-
-.teevee-channel-body {
-    display: grid;
-    min-width: 0;
-    gap: 4px;
-}
-
-.teevee-channel-body strong {
-    font-size: 0.94rem;
-}
-
-.teevee-channel-body span {
-    color: var(--teevee-muted);
-    font-size: 0.78rem;
-}
-
-.teevee-channel-side {
-    display: grid;
-    justify-items: end;
-    gap: 6px;
-}
-
-.teevee-live,
-.teevee-badge {
-    border-radius: 999px;
-    padding: 2px 7px;
-    font-size: 0.66rem;
-    font-weight: 850;
-}
-
-.teevee-live {
-    color: #fff;
-    background: var(--teevee-danger);
-}
-
-.teevee-badge {
-    color: var(--teevee-muted);
-    background: rgba(255, 255, 255, 0.09);
-}
-
-.teevee-heart {
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    font-size: 0.9rem;
-    line-height: 1;
-    color: var(--teevee-muted);
-    background: transparent;
-    cursor: pointer;
-    transition: color 0.15s ease, transform 0.15s ease;
-}
-
-.teevee-heart:hover,
-.teevee-heart.active {
-    color: var(--teevee-danger);
-}
-
-.teevee-heart:active {
-    transform: scale(0.92);
-}
-
-.teevee-empty {
-    display: grid;
-    place-items: center;
-    gap: 10px;
-    min-height: 180px;
-    border: 1px dashed var(--teevee-line);
-    border-radius: 8px;
-    color: var(--teevee-muted);
-    text-align: center;
-}
-
-.teevee-toast {
-    position: absolute;
-    right: 18px;
-    bottom: 80px;
-    z-index: 5;
-    max-width: min(420px, calc(100% - 36px));
-    padding: 11px 14px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 8px;
-    color: #fff;
-    background: rgba(5, 12, 20, 0.88);
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
-}
-
-.teevee-skeleton span,
-.teevee-skeleton strong,
-.teevee-skeleton em {
-    display: block;
-    border-radius: 8px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
-    background-size: 220% 100%;
-    animation: teevee-shimmer 1.25s ease-in-out infinite;
-}
-
-.teevee-skeleton span:first-child {
-    width: 44px;
-    height: 44px;
-}
-
-.teevee-skeleton strong {
-    width: 62%;
-    height: 12px;
-}
-
-.teevee-skeleton em {
-    width: 42px;
-    height: 18px;
-}
-
-@keyframes teevee-shimmer {
-    0% { background-position: 180% 0; }
-    100% { background-position: -40% 0; }
-}
-
-@container (max-width: 620px) {
-    .teevee-player-bar {
-        grid-template-columns: 42px 42px minmax(150px, 1fr) 42px 42px 42px;
-    }
-
-    .teevee-volume {
-        display: none;
-    }
-}
-
-@container (max-width: 500px) {
-    .teevee-player-bar {
-        grid-template-columns: 42px minmax(135px, 1fr) 42px 42px;
-    }
-
-    .teevee-player-bar [data-action="stop"],
-    .teevee-player-bar [data-action="mute"] {
-        display: none;
-    }
-}
-
-@media (max-width: 1020px) {
-    .teevee-app {
-        grid-template-columns: 226px minmax(0, 1fr);
-    }
-
-    .teevee-main {
-        grid-template-columns: minmax(0, 1fr) 300px;
-    }
-
-    .teevee-sidebar {
-        width: 210px;
-    }
-}
-
 @media (max-width: 820px) {
-    .teevee-app {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .teevee-sidebar {
-        display: grid;
-        grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1fr);
-        gap: 10px;
-        padding: 12px;
-        border-right: 0;
-        border-bottom: 1px solid var(--teevee-line);
-    }
-
-    .teevee-brand {
-        grid-column: 1;
-    }
-
-    .teevee-search {
-        grid-column: 2;
-    }
-
-    .teevee-filters {
-        grid-column: 1 / -1;
-        display: flex;
-        flex: 0 0 auto;
-        overflow-x: auto;
-    }
-
-    .teevee-control-grid {
-        grid-column: 1 / -1;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .teevee-filter {
-        flex: 0 0 auto;
-    }
-
-    .teevee-shortcuts-panel {
-        display: none;
-    }
-
-    .teevee-main {
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(340px, 58%) minmax(0, 1fr);
-    }
-
-    .teevee-stage {
-        padding: 10px;
-    }
-
-    .teevee-list-panel {
-        border-left: 0;
-        border-top: 1px solid var(--teevee-line);
-    }
+    .desktop-body[data-theme] .vd-window[data-app-id="teevee"] { padding-inline: 8px; padding-bottom: 5px; }
 }
-
-@media (max-width: 560px) {
-    .teevee-sidebar {
-        grid-template-columns: 1fr;
-        gap: 8px;
-        padding: 10px;
-    }
-
-    .teevee-brand {
-        min-height: 46px;
-    }
-
-    .teevee-brand-icon {
-        width: 40px;
-        height: 40px;
-    }
-
-    .teevee-search,
-    .teevee-brand,
-    .teevee-control-grid,
-    .teevee-filters {
-        grid-column: 1;
-    }
-
-    .teevee-control-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .teevee-select-field {
-        padding: 8px;
-    }
-
-    .teevee-main {
-        grid-template-rows: minmax(250px, 46%) minmax(0, 1fr);
-    }
-
-    .teevee-stage {
-        padding: 8px;
-    }
-
-    .teevee-list-head {
-        min-height: 52px;
-        padding: 10px 12px;
-    }
-
-    .teevee-channel-list {
-        gap: 6px;
-        padding: 8px;
-    }
-
-    .teevee-channel {
-        min-height: 56px;
-    }
-
-    .teevee-player-bar {
-        grid-template-columns: 40px 40px minmax(0, 1fr) 40px 40px;
-        min-height: 56px;
-        padding: 8px;
-    }
-
-    .teevee-volume,
-    .teevee-player-bar [data-action="fullscreen"] {
-        display: none;
-    }
-}
-
-.teevee-sentinel {
-    height: 1px;
-    margin: 4px 0;
-    pointer-events: none;
-    visibility: hidden;
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .teevee-skeleton span,
-    .teevee-skeleton strong,
-    .teevee-skeleton em {
-        animation: none;
-    }
+    .teevee-app *, .teevee-app *::before, .teevee-app *::after { animation: none !important; transition: none !important; }
 }

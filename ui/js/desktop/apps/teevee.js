@@ -8,6 +8,7 @@
     const FAVORITES_KEY = 'aurago.teevee.favorites.v2';
     const LEGACY_FAVORITES_KEY = 'aurago.teevee.favorites.v1';
     const RECENT_KEY = 'aurago.teevee.recent.v1';
+    const APPEARANCE_KEY = 'aurago.teevee.appearance.v1';
     const SEARCH_DELAY = 240;
     const MAX_FAVORITES = 80;
     const MAX_RECENT = 30;
@@ -36,14 +37,14 @@
     const updateMediaSession = Media.updateMediaSession;
 
     const filters = [
-        { id: 'all', label: 'desktop.teevee_filter_global', fallback: 'Global' },
-        { id: 'favorites', label: 'desktop.teevee_filter_favorites', fallback: 'Favorites', favorites: true },
-        { id: 'news', label: 'desktop.teevee_filter_news', fallback: 'News', category: 'news' },
-        { id: 'sports', label: 'desktop.teevee_filter_sports', fallback: 'Sports', category: 'sports' },
-        { id: 'movies', label: 'desktop.teevee_filter_movies', fallback: 'Movies', category: 'movies' },
-        { id: 'music', label: 'desktop.teevee_filter_music', fallback: 'Music', category: 'music' },
-        { id: 'kids', label: 'desktop.teevee_filter_kids', fallback: 'Kids', category: 'kids' },
-        { id: 'documentary', label: 'desktop.teevee_filter_documentary', fallback: 'Documentary', category: 'documentary' }
+        { id: 'all', icon: 'globe', label: 'desktop.teevee_filter_global', fallback: 'Global' },
+        { id: 'favorites', icon: 'heart', label: 'desktop.teevee_filter_favorites', fallback: 'Favorites', favorites: true },
+        { id: 'news', icon: 'news', label: 'desktop.teevee_filter_news', fallback: 'News', category: 'news' },
+        { id: 'sports', icon: 'sports', label: 'desktop.teevee_filter_sports', fallback: 'Sports', category: 'sports' },
+        { id: 'movies', icon: 'film', label: 'desktop.teevee_filter_movies', fallback: 'Movies', category: 'movies' },
+        { id: 'music', icon: 'music', label: 'desktop.teevee_filter_music', fallback: 'Music', category: 'music' },
+        { id: 'kids', icon: 'people', label: 'desktop.teevee_filter_kids', fallback: 'Kids', category: 'kids' },
+        { id: 'documentary', icon: 'news', label: 'desktop.teevee_filter_documentary', fallback: 'Documentary', category: 'documentary' }
     ];
 
     const resolutionFilters = [
@@ -61,6 +62,9 @@
         const esc = ctx.esc || escapeHTML;
         const t = ctx.t || ((key, fallback) => fallback || key);
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
+        const tvIcon = '<img class="teevee-tv-icon" src="/img/teevee/tv.png" alt="" draggable="false">';
+        const screws = ['tl', 'tr', 'bl', 'br'].map(corner => `<img class="teevee-screw ${corner}" src="/img/teevee/screw.png" alt="" draggable="false">`).join('');
+        const controlIcon = name => `<img class="teevee-control-icon" src="/img/teevee/${name}.svg" alt="" draggable="false">`;
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.playsInline = true;
@@ -86,22 +90,33 @@
             hls: null,
             catalogLoadedAt: 0,
             hlsErrorCount: 0,
-            playbackID: 0
+            playbackID: 0,
+            powered: true,
+            disposed: false,
+            buffering: false,
+            forceProxy: false,
+            appearance: loadAppearance(),
+            crtMode: 'waiting',
+            menuKey: '',
+            catalogRequest: 0
         };
         video.volume = state.volume;
 
         host.innerHTML = `<div class="teevee-app" data-teevee-app="${esc(windowId)}">
             <aside class="teevee-sidebar">
-                <div class="teevee-brand">
-                    <span class="teevee-brand-icon">${iconMarkup('teevee', 'TV', 'teevee-brand-glyph', 28)}</span>
+                ${screws}
+                <div class="teevee-brand teevee-display">
+                    <span class="teevee-brand-icon"><img src="/img/teevee/brand-tv.png" alt="" draggable="false"></span>
                     <div>
                         <strong>${esc(t('desktop.app_teevee'))}</strong>
                         <span>${esc(t('desktop.teevee_source'))}</span>
                     </div>
+                    <img class="teevee-color-mark" src="/img/teevee/color-mark.png" alt="">
+                    <small aria-hidden="true">BROADCAST THE WORLD</small>
                 </div>
                 <label class="teevee-search">
-                    ${iconMarkup('search', 'S', 'teevee-search-icon', 15)}
-                    <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.teevee_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    ${controlIcon('search')}
+                    <input type="search" data-search autocomplete="off" spellcheck="false" aria-label="${esc(t('desktop.teevee_search_placeholder'))}" placeholder="${esc(t('desktop.teevee_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </label>
                 <div class="teevee-control-grid">
                     <label class="teevee-select-field">
@@ -114,7 +129,10 @@
                     </label>
                 </div>
                 <nav class="teevee-filters" aria-label="${esc(t('desktop.teevee_filters'))}" data-filters></nav>
-                <div class="teevee-shortcuts-panel">
+                <div class="teevee-receiver-label" aria-hidden="true">TELEVISION RECEIVER<br>SOLID STATE</div>
+            </aside>
+                <div class="teevee-shortcuts-panel" data-shortcuts hidden>
+                    <button type="button" class="teevee-popover-close" data-action="close-shortcuts" aria-label="${esc(t('desktop.close'))}">${controlIcon('close')}</button>
                     <section class="teevee-recent" data-recent-section hidden>
                         <h3>${esc(t('desktop.teevee_recent'))}</h3>
                         <div class="teevee-shortcut-list" data-recent-list></div>
@@ -124,31 +142,32 @@
                         <div class="teevee-shortcut-list" data-favorites-list></div>
                     </section>
                 </div>
-            </aside>
             <main class="teevee-main">
                 <section class="teevee-stage">
                     <div class="teevee-player" data-player>
                         <div class="teevee-video-shell" data-video-shell>
-                            <div class="teevee-video-mount" data-video-mount></div>
-                            <button class="teevee-video-fullscreen" type="button" data-action="fullscreen-video" aria-label="${esc(t('desktop.teevee_fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
-                            <div class="teevee-player-state" data-player-state>
+                            <div class="teevee-tube">
+                                <div class="teevee-video-mount" data-video-mount></div>
+                                <div class="teevee-glass" aria-hidden="true"></div>
+                            </div>
+                            <img class="teevee-bezel" src="/img/teevee/bezel.png" alt="" draggable="false">
+                            <button class="teevee-video-fullscreen" type="button" data-action="fullscreen-video" aria-label="${esc(t('desktop.teevee_fullscreen'))}">${controlIcon('maximize')}</button>
+                            <div class="teevee-player-state" data-player-state role="status" aria-live="polite">
                                 <span class="teevee-live-dot"></span>
                                 <strong data-state-title>${esc(t('desktop.teevee_no_channel'))}</strong>
                                 <span data-state-meta>${esc(t('desktop.teevee_status_ready'))}</span>
                             </div>
                         </div>
                         <div class="teevee-player-bar">
-                            <button class="teevee-icon-button teevee-primary" type="button" data-action="toggle" aria-label="${esc(t('desktop.teevee_play'))}">${iconMarkup('video', 'P', 'teevee-button-icon', 17)}</button>
-                            <button class="teevee-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.teevee_stop'))}">${iconMarkup('stop', 'S', 'teevee-button-icon', 16)}</button>
-                            <div class="teevee-now">
-                                <span>${esc(t('desktop.teevee_now_playing'))}</span>
-                                <strong data-now-title>${esc(t('desktop.teevee_no_channel'))}</strong>
-                                <em data-now-meta></em>
+                            <img class="teevee-speaker" src="/img/teevee/speaker.png" alt="">
+                            <div class="teevee-now teevee-display">
+                                <span class="teevee-now-icon">${tvIcon}</span>
+                                <div><span>${esc(t('desktop.teevee_now_playing'))}</span>
+                                <strong data-now-title>${esc(t('desktop.teevee_no_channel'))}</strong><em data-now-meta></em></div>
                             </div>
-                            <button class="teevee-icon-button" type="button" data-action="favorite-current" aria-label="${esc(t('desktop.teevee_add_favorite'))}">${iconMarkup('heart', 'F', 'teevee-button-icon', 16)}</button>
-                            <button class="teevee-icon-button" type="button" data-action="mute" aria-label="${esc(t('desktop.teevee_mute'))}">${iconMarkup('audio', 'V', 'teevee-button-icon', 16)}</button>
-                            <input class="teevee-volume" type="range" min="0" max="100" value="78" data-volume aria-label="${esc(t('desktop.teevee_volume'))}">
-                            <button class="teevee-icon-button" type="button" data-action="fullscreen" aria-label="${esc(t('desktop.teevee_fullscreen'))}">${iconMarkup('maximize', 'F', 'teevee-button-icon', 16)}</button>
+                            <button class="teevee-icon-button" type="button" data-action="favorite-current" aria-label="${esc(t('desktop.teevee_add_favorite'))}">${controlIcon('heart')}</button>
+                            <button class="teevee-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.teevee_stop'))}">${controlIcon('stop')}</button>
+                            <small class="teevee-band-label" aria-hidden="true">VHF &nbsp; UHF &nbsp; STEREO</small>
                         </div>
                     </div>
                 </section>
@@ -158,12 +177,27 @@
                             <strong data-list-title>${esc(t('desktop.teevee_filter_germany'))}</strong>
                             <span data-list-count></span>
                         </div>
-                        <button class="teevee-refresh" type="button" data-action="refresh" aria-label="${esc(t('desktop.teevee_refresh'))}">${iconMarkup('refresh', 'R', 'teevee-button-icon', 15)}</button>
+                        <button class="teevee-refresh" type="button" data-action="refresh" aria-label="${esc(t('desktop.teevee_refresh'))}"><img src="/img/teevee/bars.png" alt=""></button>
                     </div>
                     <div class="teevee-status" data-status hidden></div>
                     <div class="teevee-channel-list" data-channel-list></div>
                 </section>
             </main>
+            <footer class="teevee-footer" aria-hidden="true">
+                ${screws}
+                <img class="teevee-stripe" src="/img/teevee/stripe.png" alt="">
+                <span>GOOD PROGRAMS · A BRIGHTER TOMORROW</span>
+            </footer>
+            <div class="teevee-maker"><img src="/img/teevee/signature.png" alt="TeeVee"><span aria-hidden="true">HOME<br>ENTERTAINMENT<br>SYSTEM</span></div>
+            <button class="teevee-power" type="button" data-action="power" aria-label="${esc(t('desktop.teevee_power'))}" aria-pressed="true"><span aria-hidden="true">POWER</span><img src="/img/teevee/power.png" alt=""></button>
+            <div class="teevee-transport" data-transport hidden>
+                <button class="teevee-popover-close" type="button" data-action="close-transport" aria-label="${esc(t('desktop.close'))}">${controlIcon('close')}</button>
+                <button class="teevee-icon-button teevee-primary" type="button" data-action="toggle" aria-label="${esc(t('desktop.teevee_play'))}">${controlIcon('play')}</button>
+                <button class="teevee-icon-button" type="button" data-action="mute" aria-label="${esc(t('desktop.teevee_mute'))}">${controlIcon('volume')}</button>
+                <input class="teevee-volume" type="range" min="0" max="100" value="78" data-volume aria-label="${esc(t('desktop.teevee_volume'))}">
+                <button class="teevee-icon-button" type="button" data-action="fullscreen" aria-label="${esc(t('desktop.teevee_fullscreen'))}">${controlIcon('maximize')}</button>
+            </div>
+            <div class="teevee-filter-notice" data-crt-notice role="status" hidden></div>
             <div class="teevee-toast" data-toast hidden></div>
         </div>`;
 
@@ -193,6 +227,21 @@
         const recentSection = host.querySelector('[data-recent-section]');
         const recentList = host.querySelector('[data-recent-list]');
         playerMount.appendChild(video);
+        const crt = window.TeeVeeCrt ? window.TeeVeeCrt.create({ video, mount: playerMount, onStatus: mode => {
+            state.crtMode = mode;
+            const notice = host.querySelector('[data-crt-notice]');
+            notice.hidden = mode !== 'basic' || !state.powered;
+            notice.textContent = t('desktop.teevee_crt_limited');
+            setWindowMenus();
+        } }) : null;
+        const chrome = host.closest('.vd-window');
+        if (chrome) {
+            const titlebar = chrome.querySelector('.vd-window-titlebar');
+            const titleIcon = chrome.querySelector('.vd-window-header-icon-wrap');
+            if (titleIcon) titleIcon.innerHTML = tvIcon;
+            if (titlebar) titlebar.insertAdjacentHTML('beforeend', screws + '<div class="teevee-model" aria-hidden="true"><img src="/img/teevee/color-mark.png" alt=""><div>Color Television<small>MODEL 1984</small></div></div>');
+            chrome.querySelectorAll('.vd-window-button:not(.vd-window-ai-button)').forEach(button => { button.innerHTML = controlIcon(button.dataset.action); });
+        }
         let listObserver = null;
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
@@ -223,13 +272,15 @@
                 const active = state.activeFilter === filter.id;
                 const count = filter.favorites ? favoriteEntries().length : '';
                 return `<button class="teevee-filter ${active ? 'active' : ''}" type="button" data-filter="${esc(filter.id)}" aria-pressed="${active ? 'true' : 'false'}">
+                    ${controlIcon(filter.icon)}
                     <span>${esc(t(filter.label, filter.fallback))}</span>
-                    ${count ? `<em>${esc(count)}</em>` : ''}
+                    ${filter.favorites ? `<em>${esc(count)}</em>` : ''}
                 </button>`;
             }).join('');
             filtersEl.querySelectorAll('[data-filter]').forEach(button => {
                 button.addEventListener('click', () => {
-                    state.activeFilter = button.dataset.filter || 'de';
+                    state.activeFilter = button.dataset.filter || 'all';
+                    state.visibleLimit = VISIBLE_BATCH;
                     updateVisible();
                     renderAll();
                 });
@@ -292,17 +343,10 @@
                 return;
             }
             listEl.innerHTML = state.visible.map(channelCard).join('');
-            listEl.querySelectorAll('[data-channel-id]').forEach(card => {
+            listEl.querySelectorAll('[data-channel-play]').forEach(card => {
                 card.addEventListener('click', event => {
                     const entry = state.entries.find(item => item.id === card.dataset.channelId);
                     if (entry) playChannel(entry);
-                });
-                card.addEventListener('keydown', event => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        const entry = state.entries.find(item => item.id === card.dataset.channelId);
-                        if (entry) playChannel(entry);
-                    }
                 });
                 card.addEventListener('contextmenu', event => {
                     const entry = state.entries.find(item => item.id === card.dataset.channelId);
@@ -322,7 +366,7 @@
                     if (entry) toggleFavorite(entry);
                 });
             });
-            if (state.visible.length < state.totalVisible) {
+            if (state.visible.length < Math.min(state.totalVisible, MAX_VISIBLE_CHANNELS)) {
                 const sentinel = document.createElement('div');
                 sentinel.className = 'teevee-sentinel';
                 sentinel.setAttribute('aria-hidden', 'true');
@@ -344,43 +388,54 @@
             const active = state.current && state.current.id === entry.id;
             const unsupported = entry.unsupported;
             const favorite = isFavorite(entry);
-            const logo = entry.logo || '';
-            const meta = [countryFlag(entry.country), entry.country, resolutionText(entry), categoryText(entry)].filter(Boolean).join(' | ');
-            return `<article class="teevee-channel ${active ? 'active' : ''} ${unsupported ? 'unsupported' : ''}" role="button" tabindex="0" data-channel-id="${esc(entry.id)}" aria-label="${esc(t('desktop.teevee_play'))} ${esc(entry.name)}">
-                <div class="teevee-channel-logo">
-                    ${logo ? `<img data-logo src="${esc(logo)}" alt="">` : iconMarkup('teevee', 'TV', 'teevee-channel-icon', 22)}
-                </div>
-                <div class="teevee-channel-body">
+            const meta = [entry.country, entry.language, resolutionText(entry), categoryText(entry)].filter(Boolean).join(' | ');
+            return `<article class="teevee-channel ${active ? 'active' : ''} ${unsupported ? 'unsupported' : ''}">
+                <button class="teevee-channel-play" type="button" data-channel-play data-channel-id="${esc(entry.id)}" aria-label="${esc(t('desktop.teevee_play'))} ${esc(entry.name)}">
+                <span class="teevee-channel-logo">${tvIcon}</span>
+                <span class="teevee-channel-body">
                     <strong title="${esc(entry.name)}">${esc(entry.name)}</strong>
-                    <span title="${esc(meta)}">${esc(meta || entry.url)}</span>
-                </div>
+                    <span title="${esc(meta)}">${esc(meta)}</span>
+                </span></button>
                 <div class="teevee-channel-side">
                     ${unsupported ? `<span class="teevee-badge" title="${esc(t('desktop.teevee_unsupported_hint'))}">${esc(t('desktop.teevee_unsupported_badge'))}</span>` : `<span class="teevee-live">${esc(t('desktop.teevee_live'))}</span>`}
-                    <button class="teevee-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-channel-id="${esc(entry.id)}" aria-label="${esc(favorite ? t('desktop.teevee_remove_favorite') : t('desktop.teevee_add_favorite'))}">${favorite ? '♥' : '♡'}</button>
+                    <button class="teevee-heart ${favorite ? 'active' : ''}" type="button" data-action="favorite" data-channel-id="${esc(entry.id)}" aria-pressed="${favorite}" aria-label="${esc(favorite ? t('desktop.teevee_remove_favorite') : t('desktop.teevee_add_favorite'))} · ${esc(entry.name)}">${controlIcon(favorite ? 'heart-filled' : 'heart')}</button>
                 </div>
             </article>`;
         }
 
         function renderPlayer() {
+            if (state.disposed) return;
             const current = state.current;
             const unavailable = state.error && current;
             nowTitle.textContent = current ? current.name : t('desktop.teevee_no_channel');
             nowMeta.textContent = current ? [countryFlag(current.country), current.country, resolutionText(current)].filter(Boolean).join(' | ') : '';
-            stateTitle.textContent = current ? current.name : t('desktop.teevee_no_channel');
-            stateMeta.textContent = unavailable ? state.error : (current ? [t('desktop.teevee_live'), current.country || '', resolutionText(current)].filter(Boolean).join(' | ') : t('desktop.teevee_status_ready'));
-            playerState.hidden = state.playing && !unavailable;
+            stateTitle.textContent = !state.powered ? t('desktop.teevee_power_off') : (current ? current.name : t('desktop.teevee_no_channel'));
+            stateMeta.textContent = !state.powered ? '' : state.buffering ? t('desktop.teevee_buffering') : unavailable ? state.error : (current ? [t('desktop.teevee_live'), current.country || '', resolutionText(current)].filter(Boolean).join(' | ') : t('desktop.teevee_status_ready'));
+            playerState.hidden = !state.powered || (state.playing && !unavailable && !state.buffering);
             root.classList.toggle('is-playing', state.playing);
             root.classList.toggle('is-muted', state.muted);
             toggleBtn.classList.toggle('active', state.playing);
             toggleBtn.setAttribute('aria-label', state.playing ? t('desktop.teevee_pause') : t('desktop.teevee_play'));
-            toggleBtn.innerHTML = iconMarkup(state.playing ? 'stop' : 'video', state.playing ? 'P' : 'P', 'teevee-button-icon', 17);
+            root.classList.toggle('is-powered-off', !state.powered);
+            root.classList.toggle('has-reflection', state.appearance.reflection);
+            root.classList.toggle('has-crt', state.appearance.crt);
+            toggleBtn.disabled = !current || current.unsupported;
+            toggleBtn.innerHTML = controlIcon(state.playing ? 'pause' : 'play');
             muteBtn.classList.toggle('active', state.muted);
             muteBtn.setAttribute('aria-label', state.muted ? t('desktop.teevee_unmute') : t('desktop.teevee_mute'));
             favoriteCurrentBtn.classList.toggle('active', current && isFavorite(current));
+            favoriteCurrentBtn.disabled = !current;
+            favoriteCurrentBtn.setAttribute('aria-pressed', String(!!(current && isFavorite(current))));
+            favoriteCurrentBtn.setAttribute('aria-label', current && isFavorite(current) ? t('desktop.teevee_remove_favorite') : t('desktop.teevee_add_favorite'));
+            host.querySelector('[data-action="power"]').setAttribute('aria-pressed', String(state.powered));
+            host.querySelector('[data-action="stop"]').disabled = !current || !state.powered;
+            if (crt) crt.setEnabled(state.appearance.crt && state.powered);
+            else playerMount.dataset.crtMode = state.appearance.crt ? 'basic' : 'off';
             setWindowMenus();
         }
 
         function renderAll() {
+            if (state.disposed) return;
             renderFilterControls();
             renderFilters();
             renderFavorites();
@@ -446,11 +501,14 @@
         }
 
         async function loadCatalog(force) {
+            if (state.disposed) return;
+            const request = ++state.catalogRequest;
             state.loading = true;
             state.error = '';
             renderAll();
             try {
                 const data = await fetchCatalog(force);
+                if (state.disposed || request !== state.catalogRequest) return;
                 state.entries = data.entries;
                 state.countries = data.countries || new Set();
                 state.catalogLoadedAt = data.loadedAt;
@@ -458,11 +516,14 @@
                 migrateFavorites(state.entries);
                 renderFilterControls();
             } catch (_) {
+                if (state.disposed || request !== state.catalogRequest) return;
                 state.error = t('desktop.teevee_catalog_error');
                 state.visible = [];
             } finally {
-                state.loading = false;
-                renderAll();
+                if (!state.disposed && request === state.catalogRequest) {
+                    state.loading = false;
+                    renderAll();
+                }
             }
         }
 
@@ -479,7 +540,9 @@
         }
 
         async function playChannel(entry) {
-            if (!entry) return;
+            if (!entry || state.disposed) return;
+            if (!state.current || state.current.id !== entry.id) state.forceProxy = false;
+            state.powered = true;
             if (entry.unsupported) {
                 resetPlayback();
                 state.current = entry;
@@ -493,6 +556,7 @@
             const playbackID = state.playbackID;
             state.current = entry;
             state.error = '';
+            state.buffering = true;
             state.hlsErrorCount = 0;
             renderPlayer();
             try {
@@ -501,6 +565,7 @@
                 await video.play();
                 if (state.playbackID !== playbackID || state.current !== entry) return;
                 state.playing = true;
+                state.buffering = false;
                 state.error = '';
                 rememberRecent(entry);
                 updateMediaSession(entry, 'AuraGo TeeVee');
@@ -523,7 +588,7 @@
                 }
                 throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             }
-            const playbackURL = streamPlaybackURL(url);
+            const playbackURL = streamPlaybackURL(url, state.forceProxy);
             video.src = playbackURL;
             video.load();
         }
@@ -593,7 +658,7 @@
                     hls.loadSource(streamPlaybackURL(entry.url, useProxy));
                 };
 
-                loadAttempt(false);
+                loadAttempt(state.forceProxy);
             });
         }
 
@@ -605,17 +670,59 @@
         }
 
         function resetPlayback() {
+            if (crt) crt.reset();
             destroyHls();
             state.playbackID = (state.playbackID || 0) + 1;
             video.pause();
             video.removeAttribute('src');
             video.load();
             state.playing = false;
+            state.buffering = false;
         }
 
         function stopPlayback() {
+            if (state.disposed) return;
+            state.error = '';
             resetPlayback();
             renderAll();
+        }
+
+        function togglePower() {
+            if (state.disposed) return;
+            state.powered = !state.powered;
+            if (!state.powered) stopPlayback();
+            else if (state.current) playChannel(state.current);
+            renderPlayer();
+        }
+
+        async function togglePlayback() {
+            if (state.disposed || !state.current || state.current.unsupported) return;
+            if (!state.powered || (!video.getAttribute('src') && !state.hls)) return playChannel(state.current);
+            if (!video.paused) { video.pause(); return; }
+            const playbackID = state.playbackID;
+            try {
+                await video.play();
+                if (state.disposed || playbackID !== state.playbackID) return;
+                state.playing = true;
+                renderPlayer();
+            } catch (err) {
+                if (state.disposed || playbackID !== state.playbackID) return;
+                state.error = formatPlaybackError(err);
+                showToast(state.error);
+                renderAll();
+            }
+        }
+
+        function toggleAppearance(key) {
+            state.appearance[key] = !state.appearance[key];
+            try { localStorage.setItem(APPEARANCE_KEY, JSON.stringify(state.appearance)); } catch (_) {}
+            renderPlayer();
+        }
+
+        function togglePanel(selector) {
+            const panel = host.querySelector(selector);
+            panel.hidden = !panel.hidden;
+            if (!panel.hidden) panel.querySelector('button,input')?.focus();
         }
 
         function toggleFavorite(entry) {
@@ -649,23 +756,40 @@
         }
 
         function setWindowMenus() {
-            if (typeof ctx.setWindowMenus !== 'function') return;
+            if (state.disposed || typeof ctx.setWindowMenus !== 'function') return;
+            const canReconnect = state.crtMode === 'basic' && state.current && teeveeCanProxyStream(state.current.url) && !state.forceProxy;
+            const menuKey = JSON.stringify([state.appearance, !!state.current, !!state.current?.unsupported, state.muted, state.powered, isFavorite(state.current), !!canReconnect]);
+            // Video events must not replace a menu while the user is navigating it.
+            if (menuKey === state.menuKey) return;
+            state.menuKey = menuKey;
             ctx.setWindowMenus(windowId, [
                 {
                     id: 'view',
                     labelKey: 'desktop.menu_view',
                     items: [
+                        { id: 'crt', labelKey: 'desktop.teevee_crt_filter', checked: state.appearance.crt, action: () => toggleAppearance('crt') },
+                        { id: 'reflection', labelKey: 'desktop.teevee_glass_reflection', checked: state.appearance.reflection, action: () => toggleAppearance('reflection') },
+                        { type: 'separator' },
+                        { id: 'filters', labelKey: 'desktop.teevee_filters', action: () => root.classList.toggle('show-filters') },
+                        { id: 'shortcuts', labelKey: 'desktop.teevee_recent', action: () => togglePanel('[data-shortcuts]') },
+                        { id: 'controls', labelKey: 'desktop.teevee_controls', action: () => togglePanel('[data-transport]') },
                         { id: 'refresh', labelKey: 'desktop.teevee_refresh', icon: 'refresh', shortcut: 'F5', action: () => loadCatalog(true) },
-                        { id: 'fullscreen', labelKey: 'desktop.teevee_fullscreen', icon: 'maximize', disabled: !state.current, action: requestPlayerFullscreen }
+                        { id: 'fullscreen', labelKey: 'desktop.teevee_fullscreen', icon: 'maximize', disabled: !state.current, action: requestPlayerFullscreen },
+                        ...(canReconnect ? [
+                            { type: 'separator' },
+                            { id: 'crt-reconnect', labelKey: 'desktop.teevee_crt_reconnect', action: () => { state.forceProxy = true; playChannel(state.current); } }
+                        ] : [])
                     ]
                 },
                 {
                     id: 'playback',
                     labelKey: 'desktop.menu_playback',
                     items: [
-                        { id: 'play-pause', labelKey: 'desktop.menu_play_pause', icon: 'video', disabled: !state.current || state.current.unsupported, action: () => toggleBtn.click() },
+                        { id: 'play-pause', labelKey: 'desktop.menu_play_pause', icon: 'video', disabled: !state.current || state.current.unsupported, action: togglePlayback },
                         { id: 'stop', labelKey: 'desktop.teevee_stop', icon: 'stop', disabled: !state.current, action: stopPlayback },
                         { id: 'mute', labelKey: 'desktop.menu_mute', icon: 'audio', checked: state.muted, action: () => muteBtn.click() },
+                        { id: 'volume', labelKey: 'desktop.teevee_volume', action: () => togglePanel('[data-transport]') },
+                        { id: 'power', labelKey: 'desktop.teevee_power', checked: state.powered, action: togglePower },
                         { id: 'favorite', labelKey: 'desktop.menu_favorite', icon: 'heart', disabled: !state.current, checked: state.current && isFavorite(state.current), action: () => favoriteCurrentBtn.click() }
                     ]
                 }
@@ -674,7 +798,7 @@
 
         function requestPlayerFullscreen() {
             if (playerShell && playerShell.requestFullscreen) {
-                playerShell.requestFullscreen().catch(() => {});
+                playerShell.requestFullscreen().catch(() => showToast(t('desktop.teevee_fullscreen_error')));
             }
         }
 
@@ -715,23 +839,10 @@
         host.querySelector('[data-action="fullscreen-video"]').addEventListener('click', requestPlayerFullscreen);
         playerShell.addEventListener('dblclick', requestPlayerFullscreen);
         host.querySelector('[data-action="stop"]').addEventListener('click', stopPlayback);
-        toggleBtn.addEventListener('click', () => {
-            if (!state.current || state.current.unsupported) return;
-            if (video.paused) {
-                video.play().then(() => {
-                    state.playing = true;
-                    renderPlayer();
-                }).catch(err => {
-                    state.error = err.message || t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
-                    showToast(state.error);
-                    renderAll();
-                });
-            } else {
-                video.pause();
-                state.playing = false;
-                renderPlayer();
-            }
-        });
+        host.querySelector('[data-action="power"]').addEventListener('click', togglePower);
+        host.querySelector('[data-action="close-shortcuts"]').addEventListener('click', () => togglePanel('[data-shortcuts]'));
+        host.querySelector('[data-action="close-transport"]').addEventListener('click', () => togglePanel('[data-transport]'));
+        toggleBtn.addEventListener('click', togglePlayback);
         muteBtn.addEventListener('click', () => {
             state.muted = !state.muted;
             video.muted = state.muted;
@@ -745,7 +856,9 @@
             video.volume = state.volume;
         });
         video.addEventListener('playing', () => {
+            if (state.disposed || !state.powered) { video.pause(); return; }
             state.playing = true;
+            state.buffering = false;
             state.error = '';
             renderPlayer();
         });
@@ -754,22 +867,28 @@
             renderPlayer();
         });
         video.addEventListener('error', () => {
-            if (!state.current || state.hls) return;
+            if (state.disposed || !state.powered || !video.getAttribute('src') || !state.current || state.hls) return;
             state.playing = false;
             state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
             showToast(state.error);
             renderAll();
         });
         video.addEventListener('stalled', () => {
-            if (!state.current || state.current.unsupported) return;
+            if (state.disposed || !state.powered || !state.current || state.current.unsupported) return;
             state.error = t('desktop.teevee_stream_stalled');
             showToast(state.error);
             renderPlayer();
         });
+        video.addEventListener('waiting', () => {
+            if (state.disposed || !state.powered || !state.current) return;
+            state.buffering = true;
+            renderPlayer();
+        });
+        video.addEventListener('ended', () => { state.playing = false; renderPlayer(); });
         if ('mediaSession' in navigator) {
             try {
                 navigator.mediaSession.setActionHandler('play', () => {
-                    if (state.current && !state.current.unsupported) video.play().catch(() => {});
+                    if (!state.disposed && video.paused) togglePlayback();
                 });
                 navigator.mediaSession.setActionHandler('pause', () => video.pause());
                 navigator.mediaSession.setActionHandler('stop', stopPlayback);
@@ -777,23 +896,18 @@
         }
 
         root.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                root.classList.remove('show-filters');
+                host.querySelector('[data-transport]').hidden = true;
+                host.querySelector('[data-shortcuts]').hidden = true;
+                return;
+            }
             const target = event.target;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            if (target && (target.closest('button,input,select,textarea') || target.isContentEditable)) return;
             switch (event.key) {
                 case ' ':
                     event.preventDefault();
-                    if (!state.current || state.current.unsupported) return;
-                    if (video.paused) {
-                        video.play().then(() => { state.playing = true; renderPlayer(); }).catch(err => {
-                            state.error = formatPlaybackError(err);
-                            showToast(state.error);
-                            renderAll();
-                        });
-                    } else {
-                        video.pause();
-                        state.playing = false;
-                        renderPlayer();
-                    }
+                    togglePlayback();
                     break;
                 case 'f':
                 case 'F':
@@ -811,8 +925,12 @@
         });
 
         disposers.set(windowId, () => {
+            state.disposed = true;
+            state.catalogRequest++;
             searchDebounce.clear();
             toastApi.clear();
+            if (listObserver) listObserver.disconnect();
+            if (crt) crt.dispose();
             resetPlayback();
             if (typeof ctx.clearWindowMenus === 'function') ctx.clearWindowMenus(windowId);
         });
@@ -890,6 +1008,7 @@
                 name,
                 url: clean(stream.url),
                 country,
+                language: Array.isArray(channel && channel.languages) ? channel.languages.map(clean).join(', ').toUpperCase() : '',
                 categories: channelCategories,
                 categoryNames: channelCategories.map(id => categoryByID.get(id) || id),
                 quality: clean(stream.quality || stream.label),
@@ -1054,6 +1173,13 @@
         } catch (_) {
             return [];
         }
+    }
+
+    function loadAppearance() {
+        try {
+            const value = JSON.parse(localStorage.getItem(APPEARANCE_KEY) || '{}');
+            return { crt: value?.crt !== false, reflection: value?.reflection !== false };
+        } catch (_) { return { crt: true, reflection: true }; }
     }
 
     function isLegacyFavoriteKey(key) {

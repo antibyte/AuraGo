@@ -23,7 +23,6 @@
     .cheater-modal-panel,
     .cheater-spotlight-panel,
     .cheater-context-menu,
-    .teevee-toast,
     .ad-toast,
     .nc-modal,
     .gm-modal
@@ -49,7 +48,6 @@
     .cheater-modal-panel,
     .cheater-spotlight-panel,
     .cheater-context-menu,
-    .teevee-toast,
     .ad-toast,
     .nc-modal,
     .gm-modal
@@ -144,9 +142,6 @@
     .oscad-inspector,
     .oscad-sidebar,
     .oscad-agent-panel,
-    .teevee-sidebar,
-    .teevee-player-bar,
-    .teevee-list-panel,
     .vd-chess-controls,
     .vd-chess-moves,
     .vd-chess-captured-panel,
@@ -200,9 +195,6 @@
     .oscad-inspector,
     .oscad-sidebar,
     .oscad-agent-panel,
-    .teevee-sidebar,
-    .teevee-player-bar,
-    .teevee-list-panel,
     .vd-chess-controls,
     .vd-chess-moves,
     .vd-chess-captured-panel,
@@ -257,7 +249,6 @@
     .oscad-defines-text,
     .oscad-define-number,
     .oscad-define-text,
-    .teevee-select-field select,
     .vd-chess-field select,
     .cheater-modal-panel input,
     .cheater-modal-panel textarea,
@@ -307,7 +298,6 @@
     .oscad-defines-text,
     .oscad-define-number,
     .oscad-define-text,
-    .teevee-select-field select,
     .vd-chess-field select,
     .cheater-modal-panel input,
     .cheater-modal-panel textarea,
@@ -357,7 +347,6 @@
     .vd-hp-studio,
     .gm-studio,
     .openscad-app,
-    .teevee-app,
     .vd-chess,
     .sysworld
 ) {
@@ -408,11 +397,6 @@
     --oscad-muted: var(--vd-theme-muted) !important;
     --oscad-glass: var(--vd-theme-chrome-bg) !important;
     --oscad-glass-border: var(--vd-theme-border) !important;
-    --teevee-bg: var(--vd-theme-app-bg) !important;
-    --teevee-panel: var(--vd-theme-panel-bg) !important;
-    --teevee-panel-strong: var(--vd-theme-panel-bg-strong) !important;
-    --teevee-line: var(--vd-theme-border) !important;
-    --teevee-muted: var(--vd-theme-muted) !important;
     --chess-ink: var(--vd-text) !important;
     --chess-muted: var(--vd-theme-muted) !important;
     --chess-panel: var(--vd-theme-panel-bg) !important;
@@ -436,7 +420,6 @@
     .vd-hp-studio,
     .gm-studio,
     .openscad-app,
-    .teevee-app,
     .vd-chess,
     .sysworld
 ) {
@@ -487,11 +470,6 @@
     --oscad-muted: var(--vd-theme-muted) !important;
     --oscad-glass: var(--vd-theme-chrome-bg) !important;
     --oscad-glass-border: var(--vd-theme-border) !important;
-    --teevee-bg: var(--vd-theme-app-bg) !important;
-    --teevee-panel: var(--vd-theme-panel-bg) !important;
-    --teevee-panel-strong: var(--vd-theme-panel-bg-strong) !important;
-    --teevee-line: var(--vd-theme-border) !important;
-    --teevee-muted: var(--vd-theme-muted) !important;
     --chess-ink: var(--vd-text) !important;
     --chess-muted: var(--vd-theme-muted) !important;
     --chess-panel: var(--vd-theme-panel-bg) !important;
@@ -974,8 +952,7 @@
     .vd-live-speech-lab,
     .gm-project-card,
     .vd-webamp-status,
-    .oscad-file,
-    .teevee-channel
+    .oscad-file
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);
@@ -1015,8 +992,7 @@
     .vd-live-speech-lab,
     .gm-project-card,
     .vd-webamp-status,
-    .oscad-file,
-    .teevee-channel
+    .oscad-file
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);

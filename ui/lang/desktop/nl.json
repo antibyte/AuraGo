@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "Niet beschikbaar",
   "game_maker.check_skipped": "Overgeslagen",
   "game_maker.check_reviewed": "Gecontroleerd",
-  "game_maker.gameplay_unverified": "Opstart gecontroleerd; het 3D-spelverloop blijft ongecontroleerd."
+  "game_maker.gameplay_unverified": "Opstart gecontroleerd; het 3D-spelverloop blijft ongecontroleerd.",
+  "desktop.teevee_crt_filter": "CRT-filter",
+  "desktop.teevee_glass_reflection": "Glasreflectie",
+  "desktop.teevee_power": "TV aan/uit",
+  "desktop.teevee_power_off": "TV uitgeschakeld",
+  "desktop.teevee_buffering": "Bufferen…",
+  "desktop.teevee_controls": "Afspeelbediening",
+  "desktop.teevee_crt_limited": "Basisfilter: het volledige CRT-effect is niet beschikbaar voor deze bron.",
+  "desktop.teevee_crt_reconnect": "Opnieuw verbinden voor CRT-filter",
+  "desktop.teevee_fullscreen_error": "Volledig scherm kon niet worden geopend."
 }

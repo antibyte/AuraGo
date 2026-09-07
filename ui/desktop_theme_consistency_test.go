@@ -34,7 +34,6 @@ func TestDesktopThemesShareShellAndAppMaterials(t *testing.T) {
 		".vd-qc-modal",
 		".vd-store-modal",
 		".cheater-modal-panel",
-		".teevee-toast",
 		"--cam-glass: var(--vd-theme-panel-bg) !important;",
 		"--cs-panel: var(--vd-theme-panel-bg) !important;",
 		"Chrome polish: physical edges, glass refraction, and theme-native chrome",
@@ -51,6 +50,10 @@ func TestDesktopThemesShareShellAndAppMaterials(t *testing.T) {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop theme consistency CSS is missing marker %q", marker)
 		}
+	}
+	bridge := readDesktopAssetText(t, "css/desktop-app-common.css")
+	if strings.Contains(bridge, ".teevee-") || strings.Contains(bridge, "--teevee-") {
+		t.Fatal("TeeVee's physical receiver skin must stay outside the theme bridge")
 	}
 }
 
@@ -141,8 +144,8 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-common.css", ".oscad-header"},
 		{"css/desktop-app-common.css", ".vd-webamp-status"},
 		{"css/teevee.css", ".teevee-app"},
-		{"css/teevee.css", "--teevee-bg: var(--vd-theme-app-bg)"},
-		{"css/teevee.css", "background: #02050a"},
+		{"css/teevee.css", ".vd-window[data-app-id=\"teevee\"]"},
+		{"css/teevee.css", "background: #061112"},
 		{"css/desktop-app-chess.css", ".vd-chess"},
 		{"css/desktop-app-chess.css", "--chess-panel: var(--vd-theme-panel-bg)"},
 		{"css/desktop-app-chess.css", "--chess-felt: #d7e5dc"},
@@ -154,7 +157,7 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-common.css", ".sysworld"},
 		{"css/desktop-app-common.css", "--sw-panel: var(--vd-theme-panel-bg)"},
 		{"css/desktop-app-common.css", ".sw-stats"},
-		{"css/desktop-app-common.css", ".teevee-sidebar"},
+		{"css/teevee.css", ".teevee-sidebar"},
 		{"css/desktop-app-common.css", ".vd-chess-controls"},
 		{"css/desktop-app-common.css", ".vd-people-toolbar"},
 		{"css/desktop-app-common.css", ".vd-launchpad-tile"},

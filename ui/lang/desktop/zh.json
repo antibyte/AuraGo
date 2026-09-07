@@ -2870,5 +2870,14 @@
   "game_maker.check_unavailable": "不可用",
   "game_maker.check_skipped": "已跳过",
   "game_maker.check_reviewed": "已检查",
-  "game_maker.gameplay_unverified": "启动已验证；3D游戏流程仍未验证。"
+  "game_maker.gameplay_unverified": "启动已验证；3D游戏流程仍未验证。",
+  "desktop.teevee_crt_filter": "CRT 滤镜",
+  "desktop.teevee_glass_reflection": "玻璃反光",
+  "desktop.teevee_power": "电视电源",
+  "desktop.teevee_power_off": "电视已关闭",
+  "desktop.teevee_buffering": "正在缓冲…",
+  "desktop.teevee_controls": "播放控制",
+  "desktop.teevee_crt_limited": "基础滤镜：此来源无法使用完整的 CRT 效果。",
+  "desktop.teevee_crt_reconnect": "为 CRT 滤镜重新连接",
+  "desktop.teevee_fullscreen_error": "无法进入全屏。"
 }

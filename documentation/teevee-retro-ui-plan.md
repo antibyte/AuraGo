@@ -1,6 +1,8 @@
 # TeeVee: originalgetreuer Fernseher mit Bildröhre
 
-Status: Umsetzungsplan, noch keine Änderung der Anwendung. Stand: 7. September 2026.
+Status: Implementiert und lokal geprüft. Stand: 7. September 2026.
+Der ursprüngliche Entwurf und die Bestandsanalyse bleiben unten nachvollziehbar;
+Abschnitt 10 dokumentiert das Ergebnis und die Grenzen der Prüfung.
 
 ## 1. Verbindliches Ziel
 
@@ -279,7 +281,7 @@ Voraussichtlich betroffene Dateien bei der Implementierung:
   sie betreffen. Bestehende Buildskripte verwenden; keine manuellen Bundle-Edits.
 - `ui/js/desktop/apps/AGENTS.md`: bisherigen Theme-Vertrag bei Ausführung durch
   die neue Referenzvorgabe ersetzen; Modul-/Testindex ergänzen. Heute unverändert,
-  weil dieser Plan den noch bestehenden Laufzeitvertrag nicht als umgesetzt ausgibt.
+  während der Planung; bei der Umsetzung wurde dieser Vertrag aktualisiert.
 
 Backendänderungen sind nicht vorab vorgesehen. Nur ein durch die Video-Probe
 nachgewiesener Fehler im vorhandenen Proxy rechtfertigt einen gesonderten Fix.
@@ -325,17 +327,62 @@ node scripts/build-ui-bundles.js --check
 go test ./ui -run 'TeeVee|Radio|Terminal' -count=1
 go test ./internal/server -run 'TeeVee' -count=1
 $env:AURAGO_RUN_BROWSER_SMOKE='1'
-$env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/teevee-retro'
+$env:AURAGO_BROWSER_ARTIFACT_DIR='../reports/teevee-browser'
 go test ./ui -run 'TestDesktopTeeVeeBrowser|TestDesktopRadioBrowser' -count=1
 ```
 
-Der neue TeeVee-Browsertest ist noch zu erstellen. Vorhandene Marker-Tests für
-das abgelöste Layout werden gezielt durch die neue Geometrie ersetzt; funktionale
-Verträge werden nicht gelöscht, um einen grünen Testlauf zu erzwingen.
+Der TeeVee-Browsertest ist erstellt. Marker-Tests für das abgelöste Layout wurden
+gezielt auf die neue Geometrie angepasst; funktionale Verträge bleiben erhalten.
 Browserfixtures verwenden echte Videodekodierung für den Shadernachweis und
 lokale Katalog-/Netzwerkdaten für reproduzierbare Zustände. Abnahme-Artefakte:
 Referenzvergleich, Filter-an/aus-Bilder, kurzer Bewegungsclip und Leistungsbericht.
 
-Der nächste Umsetzungsschritt ist die Video-/Textur-Probe aus Schritt 1. Sie
-klärt die größte technische Unsicherheit vor der aufwendigen
-Material- und Detailarbeit.
+## 10. Umgesetztes Ergebnis und lokale Nachweise
+
+- Eigene Holz-/Metalloberfläche mit echten Shell-Menüs und Fensteraktionen,
+  responsiver Senderliste, Power und unverändert dynamischen Katalogdaten.
+  Rahmen, Materialproben und grünes Markenemblem stammen direkt aus der Vorlage;
+  fehlende Bildelemente wurden mit Referenzbindung produziert. Herkunft und
+  Font-/Icon-Lizenzen: `ui/img/teevee/README.md`.
+- `teevee-crt.js` verarbeitet das vorhandene Video per WebGL: Bildwölbung,
+  Signalweichheit, Farbsäume, Strahlzeilen, RGB-Maske, dezentes Bloom und kurzes
+  Nachleuchten. Zwei begrenzte Bildpuffer, kein zweiter Decoder oder Audiozweig.
+  „Ansicht“ schaltet Röhrenfilter und Glasreflexion unabhängig und dauerhaft.
+- Lokaler echter Browsernachweis: MP4, HLS, AES-128-HLS, fremder Ursprung ohne
+  Texturrechte, expliziter Proxy-Neustart nur für den aktuellen Sender, fehlendes
+  WebGL und Kontextverlust mit Wiederherstellung. Filterwechsel lädt nichts neu.
+- Suche, Favoriten per Maus/Tastatur ohne Wiedergabestart, kompakte Filter mit
+  Escape, Stop/Resume, Power, gemeinsames Vollbild, Standard/Fruity, fünf Größen,
+  DPR 2, deaktivierte Desktop-Animationen, Minimieren/Space-Wechsel, pausiertes
+  Rendering, 20 Öffnen/Schließen-Zyklen und verspäteter Katalogabschluss geprüft.
+  Korrigiert wurden dabei auch flüchtig ersetzte Menüs bei Videoereignissen.
+- `node --check` für beide Module, Bundle-Abgleich, fokussierte UI-Verträge,
+  TeeVee-Servertests und Radio-Browsertest bestanden.
+  Ein zusätzlicher Frontend-Testlauf meldet den unabhängigen bestehenden Fehler
+  `setup.html:481` (Spark-Text innerhalb `data-i18n`); dieser fremde Arbeitsstand
+  wurde nicht verändert. Die gesamte Frontend-Suite wird daher nicht als grün
+  ausgewiesen.
+
+Reproduzierbare Artefakte liegen lokal in `reports/teevee-browser/`:
+`teevee-reference.png`, die Größen-/Theme-Bilder, `teevee-video-crt.png` und
+`teevee-video-native.png` bei demselben Videoframe (1,000 s), Fehlerfallbilder,
+`teevee-motion.mp4` sowie `performance-crt.json` / `performance-native.json`.
+`AURAGO_TEEVEE_RECORD=1` erzeugt zusätzlich Bewegungsframes und Leistungsmessung.
+Die MP4-Vorschau besteht aus Browseraufnahmen mit 10 Bildern/s; sie ist kein
+Beleg für die native Wiedergabeframerate. Die Testmedien sind synthetische,
+lokal erzeugte FFmpeg-Farbbalken mit bewegten Testmustern.
+
+Gemessen mit ANGLE / Microsoft Basic Render Driver, 640×360 bei 30 fps,
+Röhrenpuffer 674×559: CRT 60 Frames, 0 verworfen; nativ 61 Frames, 0 verworfen.
+RAF p95 16,8 / 16,7 ms. CPU-Submit und mit `gl.finish()` synchronisierte gesamte
+Renderpipeline lagen beide bei p95 1,9 ms. Letzteres umfasst CPU-Aufwand und
+GPU-Abschluss, ist **keine isolierte GPU-Zeit**. Der Softwaretreiber-Test ersetzt
+keine 1080p/60-Abnahme auf der Zielgrafikkarte.
+
+Grenzen: Die Referenz wird visuell angenähert; unterschiedliche Fonts,
+Bibliotheksicons und erzeugte Glas-/Bedienelemente sind keine garantierte
+pixelidentische Kopie. Externe Live-Sender, die vollständige 25/30/50/60-fps-
+und 4:3/16:9-Matrix sowie physische GPU-Leistung sind nicht vollständig geprüft.
+Die Gestaltung ist umgesetzt; diese weitergehenden Abnahmen werden nicht als
+bestanden ausgegeben. Der lokale Vergleich ist in `reports/teevee-design-qa.md`
+dokumentiert. Kein Deployment ist Bestandteil dieses Commits.
