@@ -122,6 +122,9 @@
                     crt.setProfile(profile);
                     crt.setEnabled(true);
                     crt.resize();
+                    if (typeof crt.usesFallback === 'function' && crt.usesFallback()) {
+                        root.setAttribute('data-terminal-fallback', 'css');
+                    }
                 }
             } else if (crt) {
                 crt.setEnabled(false);
