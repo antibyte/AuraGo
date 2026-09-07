@@ -55,9 +55,15 @@
     padding: 4px 10px;
 }
 
-.vd-terminal-app[data-terminal-style="modern"] [data-terminal-audio],
-.vd-terminal-app[data-terminal-style="modern"] .vd-terminal-bezel {
+.vd-terminal-app[data-terminal-style="modern"] [data-terminal-audio] {
     display: none;
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .vd-terminal-bezel {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .vd-terminal-stage {
