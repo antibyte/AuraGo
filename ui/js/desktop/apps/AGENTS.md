@@ -302,6 +302,10 @@ and `files.default_apps` via `/api/desktop/settings`.
   `t(context, key)`. Notes uses `state.t(key)` with no fallback
   string. Do not dump `err.message` there except the rename
   conflict.
+- Pet Picker load, activate, settings, and import notifies use
+  `desktop.request_failed`. Call Pet `t(key)` with no fallback
+  string as the second argument. Leave `desktop.pet_import_invalid`
+  for a bad ZIP name. Leave `pet-runtime.js` setting toasts.
 - Store container-app frame errors, terminal-preview frame errors,
   store start toasts, and external-open notifications reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
@@ -1064,10 +1068,13 @@ registration lives in `internal/desktop/types.go`.
   blockquote, code-block, image), and agent integration. Exposes
   `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
-  ZIP import. Scale text uses `desktop.pet_scale_value`. Exposes
-  `window.PetPickerApp`. The companion shell runtime
-  `core/pet-runtime.js` uses `desktop.pet_aria_label` for the fallback
-  sprite label. No child DOX file needed.
+  ZIP import. Scale text uses `desktop.pet_scale_value`. Load,
+  activate, settings, and import notifies use
+  `desktop.request_failed`. Invalid ZIP names stay on
+  `desktop.pet_import_invalid`. Exposes `window.PetPickerApp`.
+  The companion shell runtime `core/pet-runtime.js` uses
+  `desktop.pet_aria_label` for the fallback sprite label. No child
+  DOX file needed.
 - `radio.js` - Station browser and player. Click counts use
   `desktop.radio_compact_thousands` and `desktop.radio_compact_millions`.
   MediaSession title fallback uses `desktop.app_radio`; album uses

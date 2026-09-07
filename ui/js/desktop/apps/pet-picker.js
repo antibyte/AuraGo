@@ -87,7 +87,7 @@
                 syncPetBootstrap({ pets, active_pet_id: activeId, settings });
                 if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
-                notify({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: t('desktop.request_failed') });
             }
         }
 
@@ -121,7 +121,7 @@
                 renderGrid();
                 if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
-                notify({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: t('desktop.request_failed') });
             }
         }
 
@@ -135,7 +135,7 @@
                 syncPetBootstrap({ settings: body.settings || { [key]: value } });
                 if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
-                notify({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: t('desktop.request_failed') });
             }
         }
 
@@ -172,7 +172,7 @@
                 });
                 await load();
             } catch (err) {
-                notify({ title: t('desktop.notification'), message: err.message });
+                notify({ title: t('desktop.notification'), message: t('desktop.request_failed') });
             }
             fileInput.value = '';
         });
