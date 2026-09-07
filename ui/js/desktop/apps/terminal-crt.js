@@ -144,11 +144,12 @@
                 gl = null;
             }
 
-            function createTexture(targetGl) {
+            function createTexture(targetGl, nearest) {
                 const tex = targetGl.createTexture();
+                const filter = nearest ? targetGl.NEAREST : targetGl.LINEAR;
                 targetGl.bindTexture(targetGl.TEXTURE_2D, tex);
-                targetGl.texParameteri(targetGl.TEXTURE_2D, targetGl.TEXTURE_MIN_FILTER, targetGl.LINEAR);
-                targetGl.texParameteri(targetGl.TEXTURE_2D, targetGl.TEXTURE_MAG_FILTER, targetGl.LINEAR);
+                targetGl.texParameteri(targetGl.TEXTURE_2D, targetGl.TEXTURE_MIN_FILTER, filter);
+                targetGl.texParameteri(targetGl.TEXTURE_2D, targetGl.TEXTURE_MAG_FILTER, filter);
                 targetGl.texParameteri(targetGl.TEXTURE_2D, targetGl.TEXTURE_WRAP_S, targetGl.CLAMP_TO_EDGE);
                 targetGl.texParameteri(targetGl.TEXTURE_2D, targetGl.TEXTURE_WRAP_T, targetGl.CLAMP_TO_EDGE);
                 return tex;
@@ -174,9 +175,9 @@
                 buffer = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-                sourceTex = createTexture(gl);
-                ping = createTexture(gl);
-                pong = createTexture(gl);
+                sourceTex = createTexture(gl, true);
+                ping = createTexture(gl, false);
+                pong = createTexture(gl, false);
                 return true;
             }
 
@@ -230,14 +231,46 @@
                 const canvases = screen.querySelectorAll('canvas');
                 const layers = [];
                 for (let i = 0; i < canvases.length; i += 1) {
-                    if (canvases[i] !== overlay && canvases[i].width && canvases[i].height) layers.push(canvases[i]);
+                    const node = canvases[i];
+                    const cls = node.className || '';
+                    if (node === overlay || cls.indexOf('xterm-') < 0 || cls.indexOf('-layer') < 0) continue;
+                    if (!node.width || !node.height) continue;
+                    layers.push(node);
                 }
                 if (!layers.length || !scratchCtx) return null;
-                scratchCtx.clearRect(0, 0, scratch.width, scratch.height);
+                let width = 0;
+                let height = 0;
                 layers.forEach(function (layer) {
-                    scratchCtx.drawImage(layer, 0, 0, scratch.width, scratch.height);
+                    if (layer.width > width) width = layer.width;
+                    if (layer.height > height) height = layer.height;
+                });
+                if (scratch.width !== width) scratch.width = width;
+                if (scratch.height !== height) scratch.height = height;
+                scratchCtx.clearRect(0, 0, width, height);
+                layers.forEach(function (layer) {
+                    scratchCtx.drawImage(layer, 0, 0);
                 });
                 return scratch;
+            }
+
+            function syncOverlayToSource(src) {
+                if (!overlay || !src || !src.width || !src.height) return;
+                if (overlay.width !== src.width || overlay.height !== src.height) {
+                    overlay.width = src.width;
+                    overlay.height = src.height;
+                    burnW = Math.max(1, Math.floor(src.width / 2));
+                    burnH = Math.max(1, Math.floor(src.height / 2));
+                    if (gl) {
+                        gl.viewport(0, 0, src.width, src.height);
+                        [ping, pong].forEach(function (tex) {
+                            if (!tex) return;
+                            gl.bindTexture(gl.TEXTURE_2D, tex);
+                            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, burnW, burnH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                        });
+                    }
+                }
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
             }
 
             function loc(name) {
@@ -263,6 +296,7 @@
                     return;
                 }
                 sourceWaitStarted = 0;
+                syncOverlayToSource(src);
                 const motion = reducedMotion() ? 0.0 : 1.0;
                 gl.useProgram(program);
                 gl.bindBuffer(gl.ARRAY_BUFFER, buffer);

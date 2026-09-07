@@ -1426,13 +1426,16 @@ registration lives in `internal/desktop/types.go`.
   `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
   `xterm-addon-canvas`, original WebGL CRT in `terminal-crt.js`
-  (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`),
+  (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;
+  captures only `xterm-*-layer` canvases 1:1 with NEAREST, never stretched),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
   (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
   Load order: xterm.css, desktop-app-terminal.css, xterm, fit, canvas,
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, and audio.
-  WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Exposes
+  WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
+  changes wait for `document.fonts.load` then `fit` so pixel fonts do not
+  measure before they are ready. Exposes
   `window.TerminalApp = { render, dispose }` with a per-window instances Map.
   Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*` and
   `desktop.terminal_audio*` in all 16 desktop locales. No child DOX file
