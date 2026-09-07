@@ -304,7 +304,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	for _, want := range []string{
 		"const CHAT_SANITIZER_ALLOWED_TAGS = new Set([",
 		"const CHAT_SANITIZER_ALLOWED_ATTRS = new Set([",
-		"node.setAttribute('sandbox', 'allow-scripts allow-same-origin')",
+		"node.setAttribute('sandbox', 'allow-scripts')",
 		"keepBlobMedia",
 	} {
 		if !strings.Contains(chatCoreJS, want) {

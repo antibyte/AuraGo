@@ -184,6 +184,9 @@ func TestToolClassification(t *testing.T) {
 	if !isHighRiskTool("execute_shell") {
 		t.Error("execute_shell should be high risk")
 	}
+	if !isHighRiskTool("invoke_tool") {
+		t.Error("invoke_tool should be high risk so nested shell/python cannot skip Guardian Low")
+	}
 	if isHighRiskTool("docker") {
 		t.Error("docker should not be high risk")
 	}

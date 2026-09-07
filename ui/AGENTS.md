@@ -17,6 +17,9 @@ images, and browser-oriented regression tests.
 - Web Chat (`index.html`) and Virtual Desktop (`desktop.html`) retain their own
   established visual systems. `gallery.html` is also protected because the
   `/gallery` route redirects to `/media`.
+- Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
+  forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
+  `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
 
 ## Local Contracts
 

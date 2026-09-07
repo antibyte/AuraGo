@@ -17,7 +17,6 @@ import (
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
 	"github.com/gocolly/colly/v2"
 )
 
@@ -72,7 +71,7 @@ func (a *AgentScraper) FetchStatic(rawURL string) (*ScrapeResult, error) {
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 		colly.MaxDepth(1),
 	)
-	c.SetRequestTimeout(20 * time.Second)
+	c.SetClient(security.NewSSRFProtectedHTTPClient(20 * time.Second))
 
 	// Capture the full HTML response body.
 	c.OnResponse(func(r *colly.Response) {
@@ -133,7 +132,7 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 	}
 	defer browser.MustClose()
 
-	page, err := browser.Page(proto.TargetCreateTarget{URL: rawURL})
+	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("rod open page %s: %w", rawURL, err)
 	}

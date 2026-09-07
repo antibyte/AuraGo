@@ -78,22 +78,23 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
+		subject := guardianSubjectCall(*tc)
 		var regexLevel security.ThreatLevel
 		if guardian != nil {
-			scanText := toolCallScanText(*tc)
+			scanText := toolCallScanText(subject)
 			regexLevel = guardian.ScanForInjection(scanText).Level
 		}
 		// Build guardian context: prefer the triggering user message over tc.Content
 		guardianCtx := userContext
 		if guardianCtx == "" {
-			guardianCtx = tc.Content
+			guardianCtx = subject.Content
 		}
 		if len(guardianCtx) > 300 {
 			guardianCtx = guardianCtx[:300]
 		}
 		check := security.GuardianCheck{
-			Operation:  tc.Action,
-			Parameters: toolCallParams(*tc),
+			Operation:  subject.Action,
+			Parameters: toolCallParams(subject),
 			Context:    guardianCtx,
 			RegexLevel: regexLevel,
 		}
@@ -1964,6 +1965,25 @@ func calculateEffectivePromptTokenBudget(cfg *config.Config, tc ToolCall, homepa
 
 // toolCallScanText extracts the most security-relevant text fields from a ToolCall
 // for regex-based injection scanning.
+func guardianSubjectCall(tc ToolCall) ToolCall {
+	if !strings.EqualFold(strings.TrimSpace(tc.Action), "invoke_tool") {
+		return tc
+	}
+	toolName := stringValueFromMap(tc.Params, "tool_name", "name", "tool")
+	if toolName == "" {
+		return tc
+	}
+	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
+	if args == nil {
+		args = flattenedInvokeArgs(tc.Params)
+	}
+	inner := toolCallFromInvokeArgs(toolName, args)
+	if strings.TrimSpace(inner.Action) == "" {
+		inner.Action = toolName
+	}
+	return inner
+}
+
 func toolCallScanText(tc ToolCall) string {
 	parts := make([]string, 0, 4)
 	if tc.Command != "" {

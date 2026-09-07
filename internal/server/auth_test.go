@@ -405,6 +405,44 @@ func TestAuthMiddlewareAllowsSetupDependenciesWhenPasswordMissing(t *testing.T) 
 	}
 }
 
+func TestHandleAuthSetPasswordFirstSetupRejectsCrossOriginJSON(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	body := strings.NewReader(`{"new_password":"attacker-pass"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/password", body)
+	req.Host = "aurago.example"
+	req.Header.Set("Content-Type", "text/plain")
+	rec := httptest.NewRecorder()
+	handleAuthSetPassword(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("text/plain first-setup password status = %d, want 403", rec.Code)
+	}
+
+	body = strings.NewReader(`{"new_password":"attacker-pass"}`)
+	req = httptest.NewRequest(http.MethodPost, "/api/auth/password", body)
+	req.Host = "aurago.example"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://evil.example")
+	rec = httptest.NewRecorder()
+	handleAuthSetPassword(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin first-setup password status = %d, want 403", rec.Code)
+	}
+
+	body = strings.NewReader(`{"new_password":"attacker-pass"}`)
+	req = httptest.NewRequest(http.MethodPost, "/api/auth/password", body)
+	req.Host = "aurago.example"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://aurago.example")
+	rec = httptest.NewRecorder()
+	handleAuthSetPassword(s).ServeHTTP(rec, req)
+	if rec.Code == http.StatusForbidden {
+		t.Fatalf("same-origin JSON first-setup password was rejected as CSRF: %s", rec.Body.String())
+	}
+}
+
 func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
 	t.Parallel()
 

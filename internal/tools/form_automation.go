@@ -92,7 +92,7 @@ func ExecuteFormAutomation(operation, rawURL, fieldsJSON, selector, screenshotDi
 		_ = browser.Close()
 	}()
 
-	page, err := browser.Page(proto.TargetCreateTarget{URL: rawURL})
+	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
 	if err != nil {
 		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", err)})
 	}

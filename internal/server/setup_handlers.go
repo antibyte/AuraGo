@@ -529,6 +529,9 @@ func needsSetup(cfg *config.Config) bool {
 }
 
 func needsSetupReal(cfg *config.Config) bool {
+	if cfg != nil && strings.TrimSpace(cfg.Auth.PasswordHash) != "" {
+		return false
+	}
 	llmConfigured := false
 	// If the LLM has a resolved API key, the provider side is configured.
 	// This covers new-format configs where the key is loaded from vault.

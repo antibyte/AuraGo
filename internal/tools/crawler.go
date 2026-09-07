@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gocolly/colly/v2"
 )
@@ -88,6 +89,7 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		colly.MaxDepth(maxDepth),
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 	)
+	c.SetClient(security.NewSSRFProtectedHTTPClient(20 * time.Second))
 	c.Limit(&colly.LimitRule{
 		Parallelism: 2,
 	})

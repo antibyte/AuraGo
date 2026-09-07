@@ -98,6 +98,26 @@ func TestNeedsSetupRequiresPasswordWhenAuthEnabled(t *testing.T) {
 	}
 }
 
+func TestNeedsSetupClosesAfterPasswordEvenWithoutAPIKey(t *testing.T) {
+	defer withDebugForceSetup(false)()
+
+	cfg := &config.Config{
+		Providers: []config.ProviderEntry{{
+			ID:      "local",
+			Type:    "lmstudio",
+			BaseURL: "http://127.0.0.1:1234/v1",
+			Model:   "local-model",
+		}},
+	}
+	cfg.LLM.Provider = "local"
+	cfg.Auth.Enabled = true
+	cfg.Auth.PasswordHash = "hash"
+
+	if needsSetup(cfg) {
+		t.Fatal("setup must close once an admin password exists, including keyless local providers")
+	}
+}
+
 func TestNeedsSetupRequiresOAuthTokenForOAuthProvider(t *testing.T) {
 	defer withDebugForceSetup(false)()
 

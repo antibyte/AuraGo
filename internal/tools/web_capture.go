@@ -70,7 +70,7 @@ func WebCapture(ctx context.Context, operation, rawURL, selector string, fullPag
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", err)})
 	}
 
-	page, err := browser.Page(proto.TargetCreateTarget{URL: rawURL})
+	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
 	if err != nil {
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", err)})
 	}

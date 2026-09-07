@@ -93,6 +93,9 @@ func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) st
 	if err != nil {
 		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("set viewport failed: %v", err)})
 	}
+	if err := security.GuardRodPageSSRF(page); err != nil {
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("SSRF guard failed: %v", err)})
+	}
 
 	// Navigate and wait
 	if err := page.Navigate(rawURL); err != nil {

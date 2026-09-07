@@ -433,6 +433,7 @@ var highRiskTools = map[string]bool{
 	"execute_python":       true,
 	"execute_remote_shell": true,
 	"filesystem":           true,
+	"invoke_tool":          true,
 }
 
 // riskyTools are checked at GuardianMedium level (includes high-risk).
@@ -442,6 +443,7 @@ var riskyTools = map[string]bool{
 	"execute_python":       true,
 	"execute_remote_shell": true,
 	"filesystem":           true,
+	"invoke_tool":          true,
 	"api_request":          true,
 	"docker":               true,
 	"proxmox":              true,

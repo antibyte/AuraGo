@@ -14,6 +14,29 @@ func TestFetchStaticRejectsSSRF(t *testing.T) {
 	}
 }
 
+func TestFetchStaticRejectsRedirectToPrivateIP(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	private := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Fatal("private target must not be fetched")
+	}))
+	defer private.Close()
+
+	public := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://10.0.0.1/secret", http.StatusFound)
+	}))
+	defer public.Close()
+
+	_, err := New(nil).FetchStatic(public.URL + "/page")
+	if err == nil {
+		t.Fatal("expected redirect to private IP to be blocked")
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "internal") && !strings.Contains(msg, "ssrf") && !strings.Contains(msg, "blocked") && !strings.Contains(msg, "not allowed") {
+		t.Fatalf("expected SSRF/internal block, got %v", err)
+	}
+}
+
 func TestFetchStaticBuildsRequestAndCollectsLinks(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 

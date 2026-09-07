@@ -622,6 +622,8 @@ registration lives in `internal/desktop/types.go`.
   assembly mode. Reuse the window's existing preview timer and cleanup path.
 - Game Maker previews must use `sandbox="allow-scripts"` without
   `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
+  Preview HTTP responses also send CSP `sandbox allow-scripts` so "open in
+  new tab" cannot become a first-party AuraGo origin.
   Accept diagnostics only from the instance iframe when `event.source`, the
   random channel ID, the fixed source marker, and the bounded event type all
   match. Forward bounded, deduplicated reports through the authenticated

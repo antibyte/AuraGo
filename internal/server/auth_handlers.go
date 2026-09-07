@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"os"
 	"strings"
@@ -298,6 +299,15 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		// password and silently take over when auth is re-enabled.
 		firstSetup := existingHash == ""
 		authed := IsAuthenticated(r, secret)
+		if firstSetup {
+			mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+			if !strings.EqualFold(mediaType, "application/json") || !checkCSRFOriginWithPolicy(r, true) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(map[string]string{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token")})
+				return
+			}
+		}
 		if !firstSetup && !authed {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)

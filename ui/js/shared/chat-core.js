@@ -66,6 +66,7 @@
         if (!url || typeof url !== 'string') return false;
         const trimmed = url.trim();
         if (!trimmed) return false;
+        if (trimmed.startsWith('//')) return false;
         if (allowRelative && (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../'))) {
             return true;
         }
@@ -111,8 +112,9 @@
             if (node.tagName.toLowerCase() === 'img') {
                 node.setAttribute('loading', 'lazy');
             }
-            if (node.tagName.toLowerCase() === 'iframe' && !node.getAttribute('sandbox')) {
-                node.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+            if (node.tagName.toLowerCase() === 'iframe') {
+                node.setAttribute('sandbox', 'allow-scripts');
+                node.removeAttribute('allow');
             }
         }
         const sanitized = chatSanitizeTemplate.innerHTML;

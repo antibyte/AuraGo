@@ -118,6 +118,12 @@ func TestGameMakerPreviewIsTokenScopedAndIframeCompatible(t *testing.T) {
 	if got := rec.Header().Get("X-Frame-Options"); got != "" {
 		t.Fatalf("Game Maker preview X-Frame-Options = %q, want empty", got)
 	}
+	if !strings.Contains(gameMakerPreviewCSP, "sandbox allow-scripts") {
+		t.Fatalf("Game Maker preview CSP must sandbox the document: %s", gameMakerPreviewCSP)
+	}
+	if strings.Contains(gameMakerPreviewCSP, "allow-same-origin") {
+		t.Fatalf("Game Maker preview CSP must keep an opaque origin: %s", gameMakerPreviewCSP)
+	}
 	connectSrc := cspDirective(gameMakerPreviewCSP, "connect-src")
 	if connectSrc != "connect-src 'self'" {
 		t.Fatalf("Game Maker preview connect-src = %q, want local preview assets only", connectSrc)
