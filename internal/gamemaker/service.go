@@ -828,6 +828,9 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content stri
 	if int64(len(content)) > s.opts.MaxFileBytes {
 		return fmt.Errorf("game maker file exceeds configured limit")
 	}
+	if err := s.validateScriptAssetImports(ctx, jobID, rel, content); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return fmt.Errorf("create game maker file directory: %w", err)
 	}

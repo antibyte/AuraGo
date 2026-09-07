@@ -12,7 +12,12 @@ class TextureManager {
   exists(key) { return key === 'loaded'; }
   get(key) { return key; }
 }
-const context = { Phaser: { Loader: { LoaderPlugin: Loader }, Textures: { TextureManager } } };
+class GameObject { constructor(){this.body={gameObject:this};} }
+class ArcadeFactory {
+  collider(...args){return {factory:this,args};}
+  overlap(...args){return {factory:this,args};}
+}
+const context = { Phaser: { Loader: { LoaderPlugin: Loader }, Textures: { TextureManager }, Physics:{Arcade:{Factory:ArcadeFactory}}, GameObjects:{GameObject} } };
 vm.runInNewContext(guard, context);
 const wrapped = Loader.prototype.addFile;
 vm.runInNewContext(guard, context);
@@ -25,6 +30,18 @@ assert.throws(()=>textures.get('absent'),/texture absent is not loaded/);
 assert.equal(textures.get('loaded'),'loaded');
 assert.equal(textures.get(undefined),undefined);
 const nativeTexture={key:'loaded'};assert.equal(textures.get(nativeTexture),nativeTexture);
+const factory=new ArcadeFactory(), physicsObject=new GameObject();
+for(const method of ['collider','overlap']){
+  const wrapped=factory[method];vm.runInNewContext(guard,context);assert.equal(factory[method],wrapped);
+  for(const input of [{body:physicsObject,art:{}},[{body:physicsObject}]]){
+    assert.throws(()=>factory[method](input,physicsObject),/wrapper.*persistent group/);
+    assert.throws(()=>factory[method](physicsObject,input),/wrapper.*persistent group/);
+  }
+  for(const input of [physicsObject,[physicsObject],{isParent:true},physicsObject.body,undefined]){
+    const result=factory[method](input,physicsObject);
+    assert.equal(result.factory,factory);assert.equal(result.args[0],input);
+  }
+}
 const loader = new Loader();
 const url = 'assets/builtin/space-shooter/1/sheet.png';
 const good = { type: 'spritesheet', url, config: { frameWidth: 64, frameHeight: 64 } };

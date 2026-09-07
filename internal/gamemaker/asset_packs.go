@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/evanw/esbuild/pkg/api"
 )
 
 // Production source artwork is retained in git but never shipped in the binary.
@@ -47,6 +49,68 @@ type ImportedAssetPack struct {
 	Image         string `json:"image"`
 	Metadata      string `json:"metadata"`
 	PhaserExample string `json:"phaser_example"`
+}
+
+// Parse imports without loading dependencies or writing output. A hallucinated
+// pack must not replace the current source or consume a gameplay repair pass.
+func (s *Service) validateScriptAssetImports(ctx context.Context, jobID, rel, content string) error {
+	loader, script := map[string]api.Loader{
+		".ts": api.LoaderTS, ".mts": api.LoaderTS, ".cts": api.LoaderTS, ".tsx": api.LoaderTSX,
+		".js": api.LoaderJS, ".mjs": api.LoaderJS, ".cjs": api.LoaderJS, ".jsx": api.LoaderJSX,
+	}[strings.ToLower(filepath.Ext(rel))]
+	if !script {
+		return nil
+	}
+	packs, err := s.importedJobPacks(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	stage, err := s.JobDirectory(jobID)
+	if err != nil {
+		return err
+	}
+	present := map[string]string{}
+	var examples []string
+	for _, pack := range packs {
+		present[pack.Metadata] = pack.Image
+		path, _ := filepath.Rel(filepath.Dir(rel), filepath.FromSlash(pack.Metadata))
+		if !strings.HasPrefix(path, ".") {
+			path = "./" + path
+		}
+		examples = append(examples, filepath.ToSlash(path))
+	}
+	hint := "No complete packs are imported. Use search_assets/describe_asset, then import_pack before writing the import."
+	if len(examples) > 0 {
+		hint = "Available metadata imports from this file: " + strings.Join(examples[:min(8, len(examples))], ", ") + ". Use list_files for all project copies."
+	}
+	result := api.Build(api.BuildOptions{
+		Stdin:  &api.StdinOptions{Contents: content, Sourcefile: rel, Loader: loader},
+		Bundle: true, Write: false, LogLevel: api.LogLevelSilent,
+		TsconfigRaw: `{"compilerOptions":{"verbatimModuleSyntax":true}}`,
+		Plugins: []api.Plugin{{Name: "game-asset-imports", Setup: func(build api.PluginBuild) {
+			build.OnResolve(api.OnResolveOptions{Filter: ".*"}, func(args api.OnResolveArgs) (api.OnResolveResult, error) {
+				out := api.OnResolveResult{External: true}
+				path := filepath.ToSlash(filepath.Join(filepath.Dir(rel), filepath.FromSlash(args.Path)))
+				if !strings.Contains(strings.ReplaceAll(args.Path, "\\", "/"), "assets/builtin/") && !strings.HasPrefix(path, "assets/builtin/") {
+					return out, nil
+				}
+				image, exists := present[path]
+				_, _, metaErr := secureJoin(stage, path, false)
+				_, _, imageErr := secureJoin(stage, image, false)
+				if !(strings.HasPrefix(args.Path, "./") || strings.HasPrefix(args.Path, "../")) || !exists || metaErr != nil || imageErr != nil {
+					out.Errors = []api.Message{{Text: fmt.Sprintf("asset_import_invalid: %q does not reference an imported PNG/JSON pair from %s. File unchanged. %s Preserve the accepted plan and existing pack IDs; do not guess another pack or add ../ segments.", args.Path, rel, hint)}}
+				}
+				return out, nil
+			})
+		}}},
+	})
+	for _, diagnostic := range result.Errors {
+		if strings.HasPrefix(diagnostic.Text, "asset_import_invalid:") {
+			return fmt.Errorf("%s", diagnostic.Text)
+		}
+	}
+	// Other syntax/build errors retain the existing validation workflow.
+	return nil
 }
 
 // Report complete project copies, including older immutable pack versions.

@@ -26,15 +26,15 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 		t.Skip("requires a real browser")
 	}
 	root := t.TempDir()
-	positive := append(templateNames()[:6], "planned_blocks", "sprite_example", "all_packs", "asset_detail", "assembly_detail")
-	names := append(append([]string{}, positive...), "metadata_texture", "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
+	positive := append(templateNames()[:6], "planned_blocks", "multiball", "sprite_example", "all_packs", "asset_detail", "assembly_detail")
+	names := append(append([]string{}, positive...), "wrapped_bodies", "metadata_texture", "broken_input", "broken_restart", "late_error", "whole_sheet", "wrong_direction", "bad_animation", "shifted_assembly", "missing_preload", "missing_player", "missing_texture")
 	if os.Getenv("GAMEMAKER_BROWSER_EXPORTS_ONLY") == "1" {
 		names = positive
 	}
 	service := newTestService(t)
 	service.opts.MaxProjects = len(names)
 	templateFor := func(name string) string {
-		if name == "planned_blocks" {
+		if name == "planned_blocks" || name == "multiball" {
 			return "blocks"
 		}
 		if slices.Contains(templateNames()[:6], name) {
@@ -71,6 +71,29 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 		}
 		if err := installGameTemplate(dir, plan); err != nil {
 			t.Fatal(err)
+		}
+		if name == "multiball" {
+			data, err := bundledSkills.ReadFile("skills/aurago-phaser4-gameplay/SKILL.md")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, example, _ := strings.Cut(strings.ReplaceAll(string(data), "\r\n", "\n"), "## Spawned collision objects")
+			_, example, _ = strings.Cut(example, "```typescript\n")
+			example, _, _ = strings.Cut(example, "```")
+			if !strings.Contains(example, "start(Multiball)") {
+				t.Fatal("documented multiball example missing")
+			}
+			if err := os.WriteFile(filepath.Join(dir, "src/main.ts"), []byte(example), 0o640); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if name == "wrapped_bodies" {
+			path := filepath.Join(dir, "src/common.ts")
+			data, _ := os.ReadFile(path)
+			data = bytes.Replace(data, []byte("this.setup();"), []byte("this.setup(); this.physics.add.collider([{body:this.player,art:null}],this.player);"), 1)
+			if err := os.WriteFile(path, data, 0o640); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if name == "broken_input" || name == "broken_restart" || name == "late_error" {
 			path := filepath.Join(dir, "src", "common.ts")
@@ -234,6 +257,9 @@ addEventListener('message',async e=>{const d=e.data;if(e.source!==frame?.content
 			if report.Name == "metadata_texture" && !strings.Contains(strings.Join(report.Errors, " "), "pack JSON is not a Phaser texture key") {
 				t.Error("metadata misuse did not produce the concrete correction")
 			}
+			if report.Name == "wrapped_bodies" && !strings.Contains(strings.Join(report.Errors, " "), "received a wrapper whose body is a GameObject") {
+				t.Error("collider wrapper misuse did not produce the concrete correction")
+			}
 			for _, check := range compareGameObservations(gameScenarios(&GamePlan{Template: templateFor(report.Name)}), report.Observations) {
 				if check.Status != "passed" {
 					failed = true
@@ -329,7 +355,7 @@ start(Assets);`
 		if err != nil {
 			t.Fatal(err)
 		}
-		parts := strings.Split(string(body), "```typescript\n")
+		parts := strings.SplitN(strings.ReplaceAll(string(body), "\r\n", "\n"), "```typescript\n", 2)
 		if len(parts) != 2 {
 			t.Fatal("missing Phaser example")
 		}

@@ -61,6 +61,12 @@ and ESC end/forfeit. Required tests exercise input, primary action, rules,
 timed activity, terminal state, sprite integrity, and two successive restarts.
 For a missing hit, compare the accepted steps' duration with distance/speed and
 the actual collider route. Hits count collisions, not only destroyed targets.
+If input and assets passed but hits did not, retain those working parts. Read
+the current file and inspect the collider arguments/callback first. An array
+of `{body,art}` records is not an array of physics GameObjects; use a persistent
+group containing the actual objects and add later spawns to it. Do not rewrite
+the game or substitute packs to repair this. `asset_import_invalid` leaves the
+file unchanged and supplies existing imports; adding `../` cannot create a pack.
 Do not fake the counter or disable a check; retain an observable first interaction.
 On restart recreate state in create(), cancel scene timers and release inputs;
 neither the first nor second restart may leave duplicate objects/listeners.

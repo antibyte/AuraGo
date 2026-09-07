@@ -24,6 +24,14 @@ Ask for only assets that materially improve the current game.
   gives exact variants, actions, transform rules, missing actions and usage code.
   `list_packs`/`describe_pack` remain available. `import_pack` copies PNG and JSON together and returns exact local
   paths. It needs edit permission, not a media generator.
+- Pack IDs and versions come only from tool results or the accepted plan.
+  From `src/main.ts`, import `../assets/builtin/<id>/<version>/sheet.json`;
+  a runtime PNG URL remains `assets/builtin/<id>/<version>/sheet.png`.
+  For a nested source file, resolve the metadata import from that file's folder.
+  `asset_import_invalid` rejects a write before replacing the existing file and
+  lists usable imports. Correct that import, then resubmit the same focused edit.
+  Search/describe does not import a pack. Never invent a pack or change versions
+  to repair collisions; retain the existing sprite wiring and accepted plan.
 - Follow the import response's `phaser_example`, including for user-selected
   packs supplied in the initial context. Load the PNG with `load.spritesheet`
   and 64×64 frames. `load.image` loads the entire 640×640 sheet as one texture;

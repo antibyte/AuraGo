@@ -127,6 +127,12 @@ the metadata is not Phaser atlas JSON. Built games reject this incorrect loader
 usage with a diagnostic so it reaches the agent's repair loop.
 
 Each import publishes PNG/JSON together at `assets/builtin/<pack-id>/<version>/`.
+Script writes check literal built-in metadata imports against complete project
+copies before replacing source. Invalid pack IDs, versions or relative paths
+return `asset_import_invalid` with usable imports; source, preview and repair
+counts remain unchanged. Imports resolve from the source file's directory:
+`src/main.ts` uses `../assets/...`, while runtime image URLs use `assets/...`.
+Search/describe alone does not import a pack. Existing project versions remain valid.
 Identical pairs are reused; incomplete/modified copies are not overwritten.
 File, asset, file-count and project limits apply. Metadata includes stable IDs,
 numeric frames, origins, directions, ordered animations, FPS, repeat/yoyo,
@@ -326,14 +332,17 @@ Run `go test ./internal/gamemaker`, focused Game Maker agent/server/UI tests,
 `python scripts/pack_game_sprites.py --check`.
 For real Phaser acceptance set `GAMEMAKER_BROWSER_TEST=1` and run
 `go test ./internal/gamemaker -run TestGameMakerBrowserFixtures -v -timeout 15m`.
-Open its loopback URL and run the series: six templates, the complete documented
-sprite scene, all packs, and seven deliberately broken input/restart/late-event/
-sheet/direction/animation/assembly cases. This opt-in test never calls an LLM.
+Open its loopback URL and run the series: six templates, documented sprite and
+multiball scenes, all packs, and deliberate input/restart/late-event/asset/physics
+failures. This opt-in test never calls an LLM.
 Every case is loaded from the actual ZIP export with the production preview CSP,
 which blocks external network resources. Set `GAMEMAKER_BROWSER_EXPORTS_ONLY=1`
-to run only the eight positive exports. The diagnostic/test bridge is injected by
+to run only the positive exports. The diagnostic/test bridge is injected by
 the fixture server; exported files themselves contain neither that bridge nor
-internal plans/reports.
+internal plans/reports. The series also runs the exact documented multiball
+example and rejects collider arguments containing `{body,art}` wrapper records
+instead of physics GameObjects. Groups retain collision coverage for later spawns;
+fixing that wiring must preserve passing sprite/input behavior and pack imports.
 
 `game-maker-comparison.json` defines eight fixed weak-model cases and the recorded
 fields. Run both commits with the same configured provider/model and settings,

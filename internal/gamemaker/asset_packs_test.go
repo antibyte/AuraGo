@@ -149,6 +149,106 @@ func TestSpriteGuardIsBundledOnlyForPhaser(t *testing.T) {
 	}
 }
 
+func TestSpritePackImportWritePreservesSource(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
+		original, err := s.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+		if err != nil {
+			return err
+		}
+		pack := "../assets/builtin/blocks-and-balls/2/sheet.json"
+		if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "import meta from '"+pack+"';\n"+original); err == nil || !strings.Contains(err.Error(), "No complete packs") {
+			return fmt.Errorf("unimported pack accepted: %v", err)
+		}
+		if _, err := s.ImportAssetPack(ctx, run.Job.ID, "blocks-and-balls"); err != nil {
+			return err
+		}
+		original, err = s.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+		if err != nil {
+			return err
+		}
+		s.mu.RLock()
+		preview := s.previewCheck
+		s.mu.RUnlock()
+		for _, statement := range []string{
+			"import meta from '../assets/builtin/tile-bits/1/sheet.json';",
+			"import meta from '../../assets/builtin/tile-bits/1/sheet.json';",
+			"import meta from '../../assets/builtin/blocks-and-balls/2/sheet.json';",
+			"import meta from '../assets/builtin/blocks-and-balls/1/sheet.json';",
+			"export {default as meta} from '../assets/builtin/tile-bits/1/sheet.json';",
+			"const meta = require('../assets/builtin/tile-bits/1/sheet.json');",
+			"void import('../assets/builtin/tile-bits/1/sheet.json');",
+			`import meta from '../assets/\u0062uiltin/tile-bits/1/sheet.json';`,
+		} {
+			if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", statement+"\n"+original); err == nil || !strings.Contains(err.Error(), pack) || !strings.Contains(err.Error(), "File unchanged") {
+				return fmt.Errorf("missing concrete import correction for %s: %v", statement, err)
+			}
+			if current, err := s.ReadJobFile(ctx, run.Job.ID, "src/main.ts"); err != nil || current != original {
+				return fmt.Errorf("rejected write changed source: %v", err)
+			}
+		}
+		s.mu.RLock()
+		unchanged := s.previewCheck == preview && s.validationFailures[run.Job.ID] == 0
+		s.mu.RUnlock()
+		if !unchanged {
+			return fmt.Errorf("rejected write invalidated preview or consumed a repair")
+		}
+		// Resolve relative to each source file, including nested modules.
+		for _, file := range []string{"src/scene.ts", "src/nested/scene.mjs", "src/scene.tsx", "scene.js"} {
+			prefix := "../"
+			if strings.Contains(file, "nested") {
+				prefix = "../../"
+			} else if file == "scene.js" {
+				prefix = "./"
+			}
+			code := "import meta from '" + prefix + "assets/builtin/blocks-and-balls/2/sheet.json'; export default meta;"
+			if err := s.WriteJobFile(ctx, run.Job.ID, file, code); err != nil {
+				return err
+			}
+		}
+		stage, _ := s.JobDirectory(run.Job.ID)
+		image := filepath.Join(stage, "assets/builtin/blocks-and-balls/2/sheet.png")
+		png, _ := os.ReadFile(image)
+		if err := os.Remove(image); err != nil {
+			return err
+		}
+		if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "import meta from '"+pack+"';\n"+original); err == nil {
+			return fmt.Errorf("incomplete pack accepted")
+		}
+		if err := os.WriteFile(image, png, 0o640); err != nil {
+			return err
+		}
+		// Legacy versions are project-owned; the catalog's current version must
+		// not make their existing imports invalid.
+		legacy := filepath.Join(stage, "assets/builtin/blocks-and-balls/1")
+		if err := os.MkdirAll(legacy, 0o750); err != nil {
+			return err
+		}
+		for _, file := range []string{"sheet.json", "sheet.png"} {
+			data, err := os.ReadFile(filepath.Join(filepath.Dir(image), file))
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(legacy, file), data, 0o640); err != nil {
+				return err
+			}
+		}
+		if err := s.WriteJobFile(ctx, run.Job.ID, "src/legacy.ts", "export {default} from '../assets/builtin/blocks-and-balls/1/sheet.json';"); err != nil {
+			return err
+		}
+		// Text mentioning a path is not an import.
+		return s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "// import meta from '../assets/builtin/tile-bits/1/sheet.json';\nconst example = \"import '../assets/builtin/tile-bits/1/sheet.json'\";\n"+original)
+	}})
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done := waitJob(t, s, job.ID); done.Status != "ready" {
+		t.Fatalf("job failed: %+v", done)
+	}
+}
+
 func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")

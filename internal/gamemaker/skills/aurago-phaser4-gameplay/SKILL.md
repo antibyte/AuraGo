@@ -119,6 +119,55 @@ Phaser Groups use `group.clear(true, true)` to remove and destroy their children
 `removeAll()` belongs to Containers, not Groups. Clear groups before rebuilding
 a level and preserve their existing collider registrations.
 
+## Spawned collision objects
+
+Pass physics GameObjects or Groups to `physics.add.collider/overlap`, never your
+own `{body,art}` records (where `body` is actually a Rectangle). The build guard
+rejects that wrapper mistake. For growing collections, use persistent Groups:
+`records.map(r=>r.body)` is a snapshot that omits later spawns. Add each newly
+spawned ball to the registered group. Power-up collection overlaps the paddle
+with the power-up group; balls collide with the blocks and paddle.
+`body(...,role)` already creates/follows planned art; do not add a second sprite.
+Keep existing imports and roles when repairing a collision.
+
+Complete multiball wiring example for `src/main.ts` with the installed common.ts
+(the browser fixture runs this exact example):
+
+```typescript
+import { GameScene, start } from './common';
+class Multiball extends GameScene {
+  balls: any; blocks: any;
+  setup() {
+    this.player=this.body(480,490,120,18,0x5eead4,false,'player');
+    this.player.body.setImmovable(true);
+    this.balls=this.add.group();this.blocks=this.add.group();
+    const roles=this.assetRoles('block');
+    for(let col=0;col<8;col++)this.blocks.add(this.body(130+col*100,200,90,24,0xa78bfa,true,roles[col%roles.length]||''));
+    this.physics.add.collider(this.balls,this.player,(ball:any)=>ball.body.setVelocityY(-340));
+    this.physics.add.collider(this.balls,this.blocks,(_:any,block:any)=>{
+      block.destroy();this.state.hits++;this.state.score++;
+      if(!this.blocks.countActive())this.end();
+    });
+  }
+  spawnBall(x: number) {
+    const ball=this.body(x,465,16,16,0xfacc15,false,'ball');
+    ball.body.setBounce(1).setVelocity(0,-340);
+    this.balls.add(ball);this.state.spawns++;
+  }
+  action() {
+    if(this.balls.countActive()>=4)return;
+    this.spawnBall(this.player.x);this.spawnBall(this.player.x+40);
+    this.state.actions++;
+  }
+  step() { this.player.body.setVelocityX(this.inputKeys.vector().x*380); }
+}
+start(Multiball);
+```
+
+Phaser collider reference: https://docs.phaser.io/api-documentation/class/physics-arcade-factory#collider
+
+## Asset orientation
+
 Use setFacing(object,dx,dy): zero vector retains the last facing; four-view art
 selects the dominant axis (ties horizontal). Side-view art uses only horizontal
 facing. Rotatable art uses atan2(dy,dx) minus metadata.forward_radians. Phaser

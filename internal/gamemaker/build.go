@@ -143,6 +143,22 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 const phaserSpriteGuard = `(function () {
   const loader = globalThis.Phaser && Phaser.Loader.LoaderPlugin.prototype;
   if (!loader || loader.__auragoSpriteGuard) return;
+  const arcade = Phaser.Physics && Phaser.Physics.Arcade;
+  if (arcade && Phaser.GameObjects) {
+    for (const method of ['collider', 'overlap']) {
+      const original = arcade.Factory.prototype[method];
+      arcade.Factory.prototype[method] = function (a, b) {
+        for (const input of [a, b]) {
+          for (const object of Array.isArray(input) ? input : [input]) {
+            if (object && object.body instanceof Phaser.GameObjects.GameObject) {
+              throw new Error('Arcade Physics '+method+': received a wrapper whose body is a GameObject. Pass the actual physics GameObjects, not records like {body, art}. For spawned balls/powerups, add each physics object to a persistent group and register the collider/overlap once. Keep the current sprites and pack imports.');
+            }
+          }
+        }
+        return original.apply(this, arguments);
+      };
+    }
+  }
   const textures = Phaser.Textures && Phaser.Textures.TextureManager.prototype;
   if (textures) {
     const get = textures.get;
