@@ -168,3 +168,42 @@ func TestDesktopTerminalAppStylesheet(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTerminalCrtContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-crt.js")
+	for _, want := range []string{
+		"window.TerminalCrt = {",
+		"create(",
+		"setProfile",
+		"setEnabled",
+		"resize",
+		"dispose",
+		"usesFallback",
+		"vd-terminal-crt-overlay",
+		"data-terminal-fallback",
+		"u_phosphor",
+		"u_curve",
+		"u_bloom",
+		"u_burn",
+		"u_noise",
+		"u_flicker",
+		"u_mask",
+		"u_alpha",
+		"u_motion",
+		"1.25",
+		"vd-space-hidden",
+		"prefers-reduced-motion",
+		"dataset.animations",
+		"webgl",
+		"TEXTURE_2D",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-crt.js missing %q", want)
+		}
+	}
+	if strings.Contains(source, "crt-shader.js") || strings.Contains(source, "swordfish90") {
+		t.Fatal("CRT engine must be original and must not load Chat CRT shaders")
+	}
+}
