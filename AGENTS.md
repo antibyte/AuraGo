@@ -998,7 +998,6 @@ Top-level durable areas:
 - `docs/` and `documentation/` - User and operator documentation.
 - `internal/` - Private Go application packages and production logic.
 - `knowledge/` - Knowledge assets consumed by the application.
-- `Linux/`, `macOS/`, `Windows/` - Platform-specific release support assets.
 - `mcps/` - MCP connector/tool definitions.
 - `plans/` and `openspec/` - Planning, specification, and change-management artifacts.
 - `prompts/` - Agent prompts, templates, personalities, and tool manuals.
