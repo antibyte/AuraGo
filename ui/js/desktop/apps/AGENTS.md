@@ -1418,14 +1418,20 @@ registration lives in `internal/desktop/types.go`.
   `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
   needed.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
-  `/api/code-studio/terminal`. Exposes `window.TerminalApp`. Loader order in
-  `module-loader.js` is `xterm.css` → `desktop-app-terminal.css` →
-  `xterm.min.js` → `xterm-addon-fit.min.js` → `xterm-addon-canvas.min.js`
-  (`window.CanvasAddon.CanvasAddon`, `@xterm/addon-canvas@0.7.0`) →
-  `terminal-styles.js` (`window.TerminalStyles`) → `terminal-crt.js`
-  (`window.TerminalCrt.create`) → `terminal-audio.js`
-  (`window.TerminalAudio.create`) → `terminal.js`. Do not change the
-  `code-studio` xterm entry. No child DOX file needed.
+  `/api/code-studio/terminal`. Exposes `window.TerminalApp = { render, dispose }`
+  with a per-window `instances` Map. Toolbar: status left; style
+  `<select data-terminal-style>` and key-click `<button data-terminal-audio>`
+  right. Style changes call `applyStyle` (xterm theme, canvas addon, CRT,
+  audio) without creating another WebSocket. `applyStyle` clears
+  `data-terminal-fallback` so Modern is not stuck with CSS scanlines.
+  `dispose(windowId)` closes WS, xterm, CRT, audio, observers, and the
+  keydown listener. Loader order in `module-loader.js` is `xterm.css` →
+  `desktop-app-terminal.css` → `xterm.min.js` → `xterm-addon-fit.min.js` →
+  `xterm-addon-canvas.min.js` (`window.CanvasAddon.CanvasAddon`,
+  `@xterm/addon-canvas@0.7.0`) → `terminal-styles.js`
+  (`window.TerminalStyles`) → `terminal-crt.js` (`window.TerminalCrt.create`)
+  → `terminal-audio.js` (`window.TerminalAudio.create`) → `terminal.js`. Do
+  not change the `code-studio` xterm entry. No child DOX file needed.
 - `notes.js` - Notes app entry and orchestrator: per-window `instances` Map,
   `window.NotesApp = { render, dispose, instances }`, markdown note list and
   editor under `Documents/Notes/`. `notifyError` uses

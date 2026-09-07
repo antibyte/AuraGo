@@ -162,6 +162,7 @@ func TestDesktopTerminalAppStylesheet(t *testing.T) {
 		"[data-terminal-fallback=\"css\"]",
 		"prefers-reduced-motion",
 		"[data-terminal-audio]",
+		".vd-terminal-app .vd-sr-only",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop-app-terminal.css missing %q", want)
@@ -234,5 +235,36 @@ func TestDesktopTerminalAudioContract(t *testing.T) {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-audio.js missing %q", want)
 		}
+	}
+}
+
+func TestDesktopTerminalAppWiresStyles(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal.js")
+	for _, want := range []string{
+		"window.TerminalApp = { render, dispose }",
+		"const instances = new Map()",
+		"data-terminal-style",
+		"data-terminal-audio",
+		"data-terminal-bezel",
+		"TerminalStyles",
+		"TerminalCrt.create",
+		"TerminalAudio.create",
+		"CanvasAddon.CanvasAddon",
+		"applyXterm",
+		"playKey",
+		"/api/code-studio/terminal",
+		"binaryType = 'arraybuffer'",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal.js missing %q", want)
+		}
+	}
+	if strings.Count(source, "new WebSocket") != 1 {
+		t.Fatal("style changes must not create extra WebSocket constructors")
+	}
+	if strings.Contains(source, "onclick=") {
+		t.Fatal("terminal.js must not use inline onclick")
 	}
 }

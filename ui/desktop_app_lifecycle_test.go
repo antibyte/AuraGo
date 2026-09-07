@@ -55,6 +55,12 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"function dispose(windowId)",
 			"instances.delete(windowId)",
 		},
+		"ui/js/desktop/apps/terminal.js": {
+			"window.TerminalApp = { render, dispose }",
+			"const instances = new Map()",
+			"function dispose(windowId)",
+			"instances.delete(windowId)",
+		},
 	}
 
 	for path, wants := range markers {
