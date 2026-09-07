@@ -241,13 +241,17 @@
             }
         }
         function getComboTimeout() { const _rb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { comboBonus: 0 }; return ctx.COMBO_TIMEOUT + _rb.comboBonus; }
-        function registerKill() {
+        function registerKill(kx, ky) {
             ctx.G.combo++;
             ctx.G.comboTimer = getComboTimeout();
             // NEW: Fill super meter on kill (only when no super is active)
             if (ctx.G.superPhase === 'idle') {
                 ctx.G.superMeter = Math.min(100, (ctx.G.superMeter || 0) + 5);
             }
+            // NEW: Multi-kill cluster (galaxa-fx combat juice) — 3+ kills within a short window
+            ctx.G.multiKillCount = ctx.G.multiKillWindow > 0 ? ctx.G.multiKillCount + 1 : 1;
+            ctx.G.multiKillWindow = ctx.FX_MULTIKILL_WINDOW;
+            if (ctx.G.multiKillCount >= ctx.FX_MULTIKILL_COUNT && !ctx.G.multiKillFired) { ctx.G.multiKillFired = true; if (ctx.fxMultiKill) ctx.fxMultiKill(kx !== undefined ? kx : ctx.G.p.x, ky !== undefined ? ky : ctx.G.p.y); }
             if (ctx.G.combo >= 15) ctx.unlockAchievement('combo_king');
             if (ctx.G.combo >= 30) ctx.unlockAchievement('combo_god');
             let level = 0;
@@ -528,7 +532,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             if (!ctx.G.p.alive) {
                 if (ctx.G.p.reviveTimer > 0 && ctx.G.st === 'PLAYING') {
                     ctx.G.p.reviveTimer -= dt * 1000;
-                    if (ctx.G.p.reviveTimer <= 0) { ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 3000; ctx.G.p.reviveTimer = 0; ctx.SFX.respawn(); }
+                    if (ctx.G.p.reviveTimer <= 0) { ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 3000; ctx.G.p.reviveTimer = 0; ctx.SFX.respawn(); if (ctx.fxRespawnTeleport) ctx.fxRespawnTeleport(ctx.G.p.x, ctx.G.p.y); }
                 }
                 return;
             }
@@ -844,7 +848,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                                     se.hitF = Math.max(se.hitF || 0, 90);
                                     if (se.hp <= 0) {
                                         const spts = ctx.PTS[se.type] ? ctx.PTS[se.type][0] : 200;
-                                        ctx.registerKill(); ctx.addScore(spts, se.x, se.y, '#ff7722');
+                                        ctx.registerKill(se.x, se.y); ctx.addScore(spts, se.x, se.y, '#ff7722');
                                         ctx.boom(se.x, se.y, se.type === 'boss' || se.type === 'miniboss', se.type);
                                         ctx.SFX.eExplode(se.x); ctx.dropPU(se); se.st = 'DEAD';
                                         ctx.G.killCount++; ctx.G.stageKills = (ctx.G.stageKills || 0) + 1;
@@ -857,7 +861,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         ctx.G.stageAccuracyHits = (ctx.G.stageAccuracyHits || 0) + 1;
                         if (e.hp <= 0) {
                             const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][e.st === 'DIVING' ? 1 : 0] : 200;
-                            ctx.registerKill();
+                            ctx.registerKill(e.x, e.y);
                             ctx.addScore(pts, e.x, e.y, e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44');
                             if (e.st === 'DIVING') {
                                 ctx.G.scorePopups.push({ x: e.x, y: e.y - 16, text: 'HEADSHOT!', t: 0, dur: 800, col: '#ff8844', big: true });

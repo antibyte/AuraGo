@@ -873,6 +873,13 @@ registration lives in `internal/desktop/types.go`.
   `fxMuzzleSparks` / `fxBossKillSetPiece` / `fxMegaCombo` /
   `fxStageClearSetPiece`; signature FX honor `FX_CAPS` and
   `prefers-reduced-motion`.
+- Combat-juice pack (2026-09) adds `superReady` / `heartbeat` / `multiKill`
+  SFX (mute-guarded) plus a shimmer layer on `respawn`; `FX_SUPER_READY_DUR`,
+  `FX_LASTLIFE_INTERVAL`, `FX_MULTIKILL_WINDOW/COUNT/HITSTOP` constants live in
+  `galaxa-constants.js`. `registerKill(x, y)` tracks the
+  `multiKillCount`/`multiKillWindow` cluster and fires `fxMultiKill` once per
+  cluster; `superReadyFired` (reset in `startSuper` and below 100 % meter)
+  gates the one-shot super-ready cue in `updateFX`.
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
@@ -1066,7 +1073,12 @@ registration lives in `internal/desktop/types.go`.
   `fxBiomeWeather`, `fxRankSlam` (pixel-rect flash, no soft gradients),
   `fxHyperTunnel`, `fxMirrorRefract`, `fxHeatHaze`. Signature set-pieces:
   `fxMuzzleSparks`, `fxBossKillSetPiece`, `fxMegaCombo`, `fxStageClearSetPiece`
-  (all honor `FX_CAPS` and `prefers-reduced-motion`). Attaches
+  (all honor `FX_CAPS` and `prefers-reduced-motion`). Combat-juice set-pieces:
+  `fxSuperReady` (gold plasma rings + `fxSuperReadyT` overlay tint),
+  `fxLastLifeTick` (red edge-vignette pulse + heartbeat on the last life),
+  `fxRespawnTeleport` (converging particles, cyan/white ring, light pillar,
+  `FX_CAPS[].respawn`), `fxMultiKill` (hitstop, gold edge pulse, `MULTI KILL!`
+  popup). Attaches
   `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`, `ctx.fxPowerupSparkle()`,
   `ctx.fxSparkCone()`, `ctx.fxComboPulse()`, `ctx.updateFX(dt)` and
   `ctx.fxDraw{Back,Mid,Ghosts,Overlay}(c)` via `GC.createFx(ctx)`; caps scale

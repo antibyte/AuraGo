@@ -71,7 +71,7 @@
             combo(n) { const _p = pv(); beep('sine', (440 + n * 110) * _p, (440 + n * 110) * _p, 0.12, (0.25 + n * 0.05) * vv()); },
             bossWarning() { beep('sawtooth', 440, 220, 0.5, 0.3); setTimeout(() => beep('sawtooth', 440, 220, 0.5, 0.3), 500); },
             shieldHit() { const _p = pv(), _v = vv(); beep('triangle', 2000 * _p, 4000 * _p, 0.05, 0.3 * _v); beep('sine', 3000 * _p, 1500 * _p, 0.08, 0.2 * _v); },
-            respawn() { beep('sine', 200, 800, 0.3, 0.25); setTimeout(() => beep('sine', 600, 1200, 0.2, 0.2), 80); },
+            respawn() { if (ctx.G.muted) return; beep('sine', 200, 800, 0.3, 0.25); setTimeout(() => { if (ctx.G.muted) return; beep('sine', 600, 1200, 0.2, 0.2); }, 80); setTimeout(() => { if (ctx.G.muted) return; beep('sine', 1800, 3600, 0.28, 0.09); beep('triangle', 2400, 4800, 0.22, 0.06); noise(0.18, 0.05, 9000); }, 30); },
             shieldBreak() { noise(0.2, 0.5 * vv(), 3000); beep('sawtooth', 200 * pv(), 100, 0.15, 0.4 * vv()); },
             bossJingle() { [220, 262, 330, 220, 165, 220].forEach((f, i) => { setTimeout(() => beep('sawtooth', f, f, 0.15, 0.2 + i * 0.02), i * 100); }); },
             stageClear() { this.stageClearFanfare(); },
@@ -310,7 +310,37 @@
             mineDrop(panX) { if (ctx.G.muted) return; beep('square', 240, 110, 0.06, 0.16 * vv(), panX); },
             mineExplode(panX) { if (ctx.G.muted) return; beep('sawtooth', 90, 45, 0.14, 0.26 * vv(), panX); noise(0.2, 0.22 * vv(), 600, panX); },
             megabomb(panX) { if (ctx.G.muted) return; noise(0.75, 0.75 * vv(), 1400, panX); beep('sawtooth', 80, 25, 0.55, 0.55 * vv(), panX); setTimeout(() => beep('sine', 40, 20, 0.4, 0.35 * vv(), panX), 120); },
-            weatherCrack() { if (ctx.G.muted) return; noise(0.06, 0.14 * vv(), 7000); beep('sawtooth', 1200, 300, 0.04, 0.12 * vv()); }
+            weatherCrack() { if (ctx.G.muted) return; noise(0.06, 0.14 * vv(), 7000); beep('sawtooth', 1200, 300, 0.04, 0.12 * vv()); },
+            // NEW: Super-ready cue — bright ascending chime with reverb tail when the meter first fills
+            superReady(panX) { if (ctx.G.muted) return;
+                const a = audio(); if (!a) return;
+                const _p = pv(), _v = vv();
+                beep('sine', 880 * _p, 1320 * _p, 0.14, 0.26 * _v, panX);
+                beep('triangle', 1320 * _p, 1760 * _p, 0.12, 0.14 * _v, panX);
+                setTimeout(() => { if (ctx.G.muted) return; beep('sine', 1760, 2200, 0.12, 0.16 * _v, panX); }, 90);
+                const o = a.createOscillator(), g = a.createGain();
+                o.type = 'sine'; o.frequency.setValueAtTime(2637 * _p, a.currentTime + 0.16);
+                const peak = ctx.G.vol * 0.16 * _v;
+                g.gain.setValueAtTime(0.0001, a.currentTime + 0.16);
+                g.gain.exponentialRampToValueAtTime(Math.max(0.001, peak), a.currentTime + 0.175);
+                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.5);
+                o.connect(g); g.connect(a.destination);
+                if (ctx.reverbNode) { const rvbSend = a.createGain(); rvbSend.gain.value = 0.25; g.connect(rvbSend); rvbSend.connect(ctx.reverbNode); }
+                o.start(a.currentTime + 0.16); o.stop(a.currentTime + 0.55);
+            },
+            // NEW: Last-life heartbeat — two soft low thumps on a slow cadence
+            heartbeat() { if (ctx.G.muted) return;
+                const _v = vv();
+                beep('sine', 70, 45, 0.13, 0.18 * _v);
+                setTimeout(() => { if (ctx.G.muted) return; beep('sine', 62, 42, 0.11, 0.12 * _v); }, 150);
+            },
+            // NEW: Multi-kill sting — low boom + rising fifth (punchy cluster reward)
+            multiKill(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('sine', 90 * _p, 40 * _p, 0.18, 0.45 * _v, panX);
+                beep('sawtooth', 220 * _p, 110 * _p, 0.12, 0.24 * _v, panX);
+                setTimeout(() => { if (ctx.G.muted) return; beep('square', 392 * _p, 588 * _p, 0.14, 0.24 * _v, panX); beep('triangle', 588 * _p, 784 * _p, 0.12, 0.14 * _v, panX); }, 70);
+            }
         };
         ctx.SFX = SFX;
     };

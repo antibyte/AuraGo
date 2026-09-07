@@ -300,7 +300,7 @@
                                     ctx.boom(e.x, e.y, false, 'kamikaze');
                                     ctx.G.shkT = Math.max(ctx.G.shkT, 300); ctx.G.shkM = Math.max(ctx.G.shkM, 5);
                                 }
-                                ctx.registerKill(); ctx.addScore(ctx.PTS[e.type] ? ctx.PTS[e.type][1] : 200, e.x, e.y); ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); ctx.SFX.eExplode(e.x); if (ctx.G.chal) ctx.G.chalHits++; e.st = 'DEAD'; ctx.killP();
+                                ctx.registerKill(e.x, e.y); ctx.addScore(ctx.PTS[e.type] ? ctx.PTS[e.type][1] : 200, e.x, e.y); ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); ctx.SFX.eExplode(e.x); if (ctx.G.chal) ctx.G.chalHits++; e.st = 'DEAD'; ctx.killP();
                             }
                         }
                     }

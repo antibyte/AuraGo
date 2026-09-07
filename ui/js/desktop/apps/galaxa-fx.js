@@ -14,6 +14,7 @@
         let lastGhostT = 0;
         let lastGrazeT = 0;
         let lastFireTrailT = 0;
+        let lastLifeT = 0;
         // Persistent warp streak pool — allocated once, reused every frame
         // (no per-frame allocations while the warp effect is active).
         const streaks = [];
@@ -128,6 +129,62 @@
             if (!low && ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(ctx.W / 2, ctx.H / 2);
             if (!reducedMotion()) {
                 ctx.G.flashT = Math.max(ctx.G.flashT || 0, low ? 100 : 180);
+            }
+        }
+
+        // --- Super-ready cue: gold plasma rings around the player ------------
+        function fxSuperReady() {
+            const G = ctx.G;
+            G.fxSuperReadyT = GC.FX_SUPER_READY_DUR;
+            const n = ctx.settings.particles === 'low' ? 2 : 3;
+            const cols = ['#ffcc44', '#ffee88', '#ffffff'];
+            for (let i = 0; i < n; i++) {
+                G.plasmaRings.push({ x: G.p.x, y: G.p.y, r: 0, maxR: 26 + i * 13, t: 0, dur: 480 + i * 130, col: cols[i % cols.length] });
+            }
+        }
+
+        // --- Respawn teleport: converging particles + ring + light pillar ----
+        function fxRespawnTeleport(x, y) {
+            const G = ctx.G;
+            const n = caps().respawn;
+            for (let i = 0; i < n; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const d = 38 + Math.random() * 64;
+                G.part.push(ctx.getParticle({
+                    x: x + Math.cos(a) * d, y: y + Math.sin(a) * d,
+                    vx: -Math.cos(a) * d * 1.7, vy: -Math.sin(a) * d * 1.7,
+                    life: 320 + Math.random() * 180, t: 0,
+                    col: Math.random() < 0.4 ? '#ffffff' : '#66ddff',
+                    size: 1 + Math.floor(Math.random() * 2), spark: true, shape: 'diamond'
+                }));
+            }
+            G.fxRespawnFx = { x, y, t: 0, dur: 500 };
+        }
+
+        // --- Multi-kill cluster sting: hitstop + gold edge pulse + popup ------
+        function fxMultiKill(x, y) {
+            const G = ctx.G;
+            G.hitstopT = Math.max(G.hitstopT || 0, GC.FX_MULTIKILL_HITSTOP);
+            G.fxEdgePulse = { t: 0, dur: 500, col: '#ffcc44' };
+            if (!reducedMotion()) G.flashT = Math.max(G.flashT || 0, 90);
+            G.scorePopups.push({ x, y: y - 24, text: 'MULTI KILL!', t: 0, dur: 1000, col: '#ffcc44', big: true });
+            if (ctx.SFX && ctx.SFX.multiKill) ctx.SFX.multiKill(x);
+        }
+
+        // --- Last-life alarm: red edge vignette pulse + heartbeat -------------
+        function fxLastLifeTick(dtMs) {
+            const G = ctx.G;
+            const active = G.st === 'PLAYING' && G.p.alive && G.lives === 1 && G.p.inv <= 0;
+            if (!active) { lastLifeT = 0; G.fxLastLifePulse = null; return; }
+            lastLifeT += dtMs;
+            if (lastLifeT >= GC.FX_LASTLIFE_INTERVAL) {
+                lastLifeT = 0;
+                G.fxLastLifePulse = { t: 0, dur: Math.min(700, GC.FX_LASTLIFE_INTERVAL) };
+                if (ctx.SFX && ctx.SFX.heartbeat) ctx.SFX.heartbeat();
+            }
+            if (G.fxLastLifePulse) {
+                G.fxLastLifePulse.t += dtMs;
+                if (G.fxLastLifePulse.t >= G.fxLastLifePulse.dur) G.fxLastLifePulse = null;
             }
         }
 
@@ -464,6 +521,27 @@
             if (G.st === 'PLAYING' && ctx.isGameMode && ctx.isGameMode('hyperdrive')) {
                 G.fxHyperTunnelT = Math.max(G.fxHyperTunnelT || 0, 200);
             }
+            // NEW: Combat juice timers (super-ready, respawn ring, multi-kill window, last-life alarm)
+            if (G.fxSuperReadyT > 0) G.fxSuperReadyT -= dtMs;
+            if (G.fxRespawnFx) {
+                G.fxRespawnFx.t += dtMs;
+                if (G.fxRespawnFx.t >= G.fxRespawnFx.dur) G.fxRespawnFx = null;
+            }
+            if (G.multiKillWindow > 0) {
+                G.multiKillWindow -= dtMs;
+                if (G.multiKillWindow <= 0) { G.multiKillCount = 0; G.multiKillFired = false; }
+            }
+            fxLastLifeTick(dtMs);
+            // Super-ready cue fires once per full meter (covers kill fill + trickle fill)
+            if (G.st === 'PLAYING' && G.superMeter >= 100 && G.superPhase === 'idle') {
+                if (!G.superReadyFired) {
+                    G.superReadyFired = true;
+                    if (ctx.SFX && ctx.SFX.superReady) ctx.SFX.superReady(G.p.x);
+                    fxSuperReady();
+                }
+            } else if (G.superReadyFired && G.superMeter < 100) {
+                G.superReadyFired = false;
+            }
             if (G.st === 'PLAYING') fxBiomeWeatherTick(dtMs);
         }
 
@@ -646,6 +724,32 @@
                 c.restore();
                 c.globalAlpha = 1;
             }
+            // --- Respawn teleport ring + light pillar (galaxa-fx) -------------
+            if (G.fxRespawnFx) {
+                const rf = G.fxRespawnFx;
+                const pr = Math.min(1, rf.t / rf.dur);
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                const rad = easeOutCubic(pr) * 56;
+                c.globalAlpha = (1 - pr) * 0.9;
+                c.lineWidth = Math.max(1, 3.5 * (1 - pr));
+                c.strokeStyle = '#66ddff';
+                c.beginPath(); c.arc(rf.x, rf.y, rad, 0, Math.PI * 2); c.stroke();
+                c.globalAlpha = (1 - pr) * 0.7;
+                c.strokeStyle = '#ffffff';
+                c.lineWidth = Math.max(1, 2 * (1 - pr));
+                c.beginPath(); c.arc(rf.x, rf.y, rad * 0.8, 0, Math.PI * 2); c.stroke();
+                const ph = Math.min(ctx.H - rf.y, 120) * Math.min(1, pr * 3) * (1 - pr * 0.5);
+                const grad = c.createLinearGradient(0, rf.y - 10, 0, rf.y - 10 + ph);
+                grad.addColorStop(0, 'rgba(255,255,255,0)');
+                grad.addColorStop(0.3, 'rgba(190,240,255,' + ((1 - pr) * 0.85) + ')');
+                grad.addColorStop(1, 'rgba(102,221,255,0)');
+                c.globalAlpha = 1;
+                c.fillStyle = grad;
+                c.fillRect(rf.x - 7, rf.y - 10, 14, ph + 10);
+                c.restore();
+                c.globalAlpha = 1;
+            }
         }
 
         // --- Draw: afterimage ghosts under the live ship ----------------------
@@ -698,6 +802,39 @@
                 c.fillStyle = 'rgba(8,12,32,' + (0.35 * pr) + ')';
                 c.fillRect(0, 0, ctx.W, ctx.H);
                 c.restore();
+            }
+            // --- Super-ready gold edge tint (galaxa-fx) ------------------------
+            if (G.fxSuperReadyT > 0) {
+                const pr = 1 - G.fxSuperReadyT / GC.FX_SUPER_READY_DUR;
+                const alpha = Math.sin(Math.min(1, pr) * Math.PI) * 0.14;
+                if (alpha > 0.01) {
+                    const strip = 16 * Math.sin(Math.min(1, pr) * Math.PI) + 3;
+                    c.save();
+                    c.globalCompositeOperation = 'lighter';
+                    c.globalAlpha = alpha;
+                    c.fillStyle = '#ffcc44';
+                    c.fillRect(0, 0, ctx.W, strip);
+                    c.fillRect(0, ctx.H - strip, ctx.W, strip);
+                    c.fillRect(0, 0, strip, ctx.H);
+                    c.fillRect(ctx.W - strip, 0, strip, ctx.H);
+                    c.restore();
+                }
+            }
+            // --- Last-life red edge vignette pulse (galaxa-fx) -----------------
+            if (G.fxLastLifePulse) {
+                const pr = Math.min(1, G.fxLastLifePulse.t / G.fxLastLifePulse.dur);
+                const alpha = Math.sin(pr * Math.PI) * 0.16;
+                if (alpha > 0.01) {
+                    const strip = 20 * Math.sin(pr * Math.PI) + 4;
+                    c.save();
+                    c.globalAlpha = alpha;
+                    c.fillStyle = '#ff2222';
+                    c.fillRect(0, 0, ctx.W, strip);
+                    c.fillRect(0, ctx.H - strip, ctx.W, strip);
+                    c.fillRect(0, 0, strip, ctx.H);
+                    c.fillRect(ctx.W - strip, 0, strip, ctx.H);
+                    c.restore();
+                }
             }
             c.globalAlpha = 1;
         }
@@ -843,5 +980,9 @@
         ctx.fxHyperTunnel = fxHyperTunnel;
         ctx.fxMirrorRefract = fxMirrorRefract;
         ctx.fxHeatHaze = fxHeatHaze;
+        // NEW: Combat juice hooks (super-ready, respawn teleport, multi-kill)
+        ctx.fxSuperReady = fxSuperReady;
+        ctx.fxRespawnTeleport = fxRespawnTeleport;
+        ctx.fxMultiKill = fxMultiKill;
     };
 })();

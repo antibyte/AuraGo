@@ -20,6 +20,7 @@
             G.superPhaseT = 0;
             G.superBurstFired = false;
             G.superFreezeWorld = false;
+            G.superReadyFired = false;
             G.superType = ctx.settings.ship || 'classic';
             G.superActive = SUPER_DURATIONS[G.superType + '_burst'] || SUPER_DURATIONS.classic_burst;
             G.p.alive && (G.p.inv = SUPER_DURATIONS.charge + SUPER_DURATIONS.classic_burst + SUPER_DURATIONS.aftermath + 200);

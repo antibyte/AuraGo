@@ -1,6 +1,5 @@
 (function () {
     'use strict';
-
     const instances = new Map();
     let vendorPromise = null;
 
