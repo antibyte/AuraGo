@@ -93,13 +93,15 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 
 	persistBody := jsFunctionBodyInWindowMenuTest(t, source, "async function persistWidgetBounds(widget, card)")
 	for _, want := range []string{
-		"if (widgetShouldAutoSize(widget))",
-		"delete updated.w",
-		"delete updated.h",
+		"w: Math.round(card.offsetWidth)",
+		"h: Math.round(card.offsetHeight)",
 	} {
 		if !strings.Contains(persistBody, want) {
-			t.Fatalf("desktop widget drag persistence should not save autosized dimensions; missing %q", want)
+			t.Fatalf("desktop widget drag persistence should preserve the visible dimensions; missing %q", want)
 		}
+	}
+	if strings.Contains(persistBody, "delete updated.w") || strings.Contains(persistBody, "delete updated.h") {
+		t.Fatal("desktop widget drag persistence must not discard dimensions")
 	}
 }
 
@@ -129,6 +131,21 @@ func TestDesktopWidgetSDKCanReportContentSize(t *testing.T) {
 	} {
 		if !strings.Contains(shell, marker) {
 			t.Fatalf("desktop shell widget resize bridge missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopWidgetCanReloadItsFrameWithFreshEmbedToken(t *testing.T) {
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"function reloadWidgetFrame(widgetId, options)",
+		"desktop:widget:reload",
+		"await reloadWidgetFrame(client.widgetId, payload || {})",
+		"card._widgetStreamReloadAt",
+		"card._widgetStreamErrorReloaded",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop widget stream recovery missing %q", marker)
 		}
 	}
 }

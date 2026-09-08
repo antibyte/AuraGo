@@ -648,10 +648,6 @@
             w: Math.round(card.offsetWidth),
             h: Math.round(card.offsetHeight)
         });
-        if (widgetShouldAutoSize(widget)) {
-            delete updated.w;
-            delete updated.h;
-        }
         try {
             await api('/api/desktop/widgets', {
                 method: 'POST',
@@ -676,6 +672,21 @@
             card.innerHTML = `<div class="vd-widget-body">${esc(t('desktop.load_failed'))}</div>`;
             scheduleWidgetAutoSize(card.closest('.vd-widget'), widget);
         }
+    }
+
+    async function reloadWidgetFrame(widgetId, options) {
+        const card = document.querySelector(`.vd-widget[data-widget-id="${cssSel(String(widgetId || ''))}"]`);
+        const frameWrap = card && card.querySelector('.vd-widget-frame-wrap');
+        const widget = card && card._widgetData;
+        if (!card || !frameWrap || !widget || !widget.entry) throw new Error('Widget frame is unavailable.');
+        const reason = String(options && options.reason || '');
+        if (reason === 'error' && card._widgetStreamErrorReloaded) return false;
+        const now = Date.now();
+        if (now - Number(card._widgetStreamReloadAt || 0) < 2000) return false;
+        card._widgetStreamReloadAt = now;
+        card._widgetStreamErrorReloaded = reason === 'error';
+        await renderWidgetFrame(frameWrap, widget);
+        return true;
     }
 
     function widgetFramePath(widget) {

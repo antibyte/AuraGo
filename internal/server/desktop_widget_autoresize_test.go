@@ -132,6 +132,18 @@ func TestDesktopWidgetAutoResizeAddsDesktopTokenToStaticPrinterCameraProxy(t *te
 		t.Fatal("expected widget HTML to be served")
 	}
 	body := rec.Body.String()
+	for _, want := range []string{
+		desktopPrinterCameraRecoveryMarker,
+		"visibilitychange",
+		"desktop:widget:reload",
+		"MutationObserver",
+		"attributeFilter:['src']",
+		"reload('source')",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("served camera widget is missing stream recovery %q: %s", want, body)
+		}
+	}
 	if !strings.Contains(body, `/api/3d-printers/printer-1/camera/stream?desktop_token=`) {
 		t.Fatalf("served widget did not append desktop token to camera proxy: %s", rec.Body.String())
 	}
@@ -142,6 +154,22 @@ func TestDesktopWidgetAutoResizeAddsDesktopTokenToStaticPrinterCameraProxy(t *te
 	reqStream := httptest.NewRequest(http.MethodGet, "/api/3d-printers/printer-1/camera/stream?desktop_token="+streamToken, nil)
 	if !validDesktopEmbedResourceToken(reqStream, cfg.Auth.SessionSecret, time.Now()) {
 		t.Fatalf("camera proxy token is not valid for its exact stream path: %s", body)
+	}
+}
+
+func TestDesktopPrinterCameraRecoveryInjectionIsScopedAndIdempotent(t *testing.T) {
+	t.Parallel()
+
+	plain := prepareDesktopHTMLContentForEmbed([]byte(`<html><body><img src="/images/camera.jpg"></body></html>`), nil, "")
+	if strings.Contains(string(plain), desktopPrinterCameraRecoveryMarker) {
+		t.Fatal("plain image widget received printer stream recovery")
+	}
+
+	camera := []byte(`<html><body><img src="/api/3d-printers/printer-1/camera/stream"></body></html>`)
+	once := prepareDesktopHTMLContentForEmbed(camera, nil, "")
+	twice := prepareDesktopHTMLContentForEmbed(once, nil, "")
+	if strings.Count(string(twice), desktopPrinterCameraRecoveryMarker) != 1 {
+		t.Fatalf("printer stream recovery injection should be idempotent, got %d markers", strings.Count(string(twice), desktopPrinterCameraRecoveryMarker))
 	}
 }
 

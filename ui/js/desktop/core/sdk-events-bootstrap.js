@@ -79,7 +79,8 @@
         const msg = event.data;
         if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
         const client = findSDKClient(event.source);
-        if (!client || (!client.app && msg.action !== 'desktop:widget:resize')) return;
+        const widgetAction = msg.action === 'desktop:widget:resize' || msg.action === 'desktop:widget:reload';
+        if (!client || (!client.app && !widgetAction)) return;
         try {
             const result = await runSDKAction(client, msg.action, msg.payload || {});
             sendSDKResponse(event.source, msg.id, true, result);
@@ -103,6 +104,9 @@
                 if (!client.widgetId) throw new Error('Widget resize is only available inside widget frames.');
                 resizeWidgetToContent(client.widgetId, payload || {});
                 return { status: 'ok' };
+            case 'desktop:widget:reload':
+                if (!client.widgetId) throw new Error('Widget reload is only available inside widget frames.');
+                return { status: 'ok', reloaded: await reloadWidgetFrame(client.widgetId, payload || {}) };
             case 'desktop:menu:set':
                 if (!client.windowId) throw new Error('Menus are only available for app windows.');
                 setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));

@@ -25,6 +25,7 @@ const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modal
 const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
 const desktopNasscadEngineOrigin = "http://127.0.0.1:8765"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
+const desktopPrinterCameraRecoveryMarker = "data-aurago-printer-camera-recovery"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
 var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'<>\\\s)]+/camera/stream(?:\?[^"'<>\\\s)]*)?`)
@@ -213,6 +214,24 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(send).catch(fu
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();</script>`
 
+const desktopPrinterCameraRecoveryScript = `<script data-aurago-printer-camera-recovery>(function(){
+if(window.__auragoPrinterCameraRecovery||!window.parent||window.parent===window)return;
+window.__auragoPrinterCameraRecovery=true;
+function isStreamImage(target){return target&&target.tagName==='IMG'&&String(target.currentSrc||target.src||'').indexOf('/api/3d-printers/')>=0;}
+function reload(reason){
+if(document.hidden)return;
+window.parent.postMessage({type:'aurago.desktop.request',action:'desktop:widget:reload',payload:{reason:reason||''}},'*');
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)reload('visible');});
+document.addEventListener('error',function(event){
+var target=event&&event.target;
+if(isStreamImage(target))reload('error');
+},true);
+if(window.MutationObserver)new MutationObserver(function(records){
+for(var i=0;i<records.length;i++){if(isStreamImage(records[i].target)){reload('source');break;}}
+}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['src']});
+})();</script>`
+
 const desktopAppKeyBridgeScript = `<script data-aurago-app-key-bridge>(function(){
 if(window.__auragoAppKeyBridge)return;
 window.__auragoAppKeyBridge=true;
@@ -265,20 +284,24 @@ func shouldInjectDesktopWidgetAutoResize(r *http.Request) bool {
 }
 
 func injectDesktopWidgetAutoResizeHTML(content []byte) []byte {
-	if len(content) == 0 || bytes.Contains(content, []byte(desktopWidgetAutoResizeMarker)) {
+	return injectDesktopHTMLScript(content, desktopWidgetAutoResizeMarker, desktopWidgetAutoResizeScript)
+}
+
+func injectDesktopHTMLScript(content []byte, marker, script string) []byte {
+	if len(content) == 0 || bytes.Contains(content, []byte(marker)) {
 		return content
 	}
 	lower := bytes.ToLower(content)
 	if idx := bytes.LastIndex(lower, []byte("</body>")); idx >= 0 {
-		out := make([]byte, 0, len(content)+len(desktopWidgetAutoResizeScript))
+		out := make([]byte, 0, len(content)+len(script))
 		out = append(out, content[:idx]...)
-		out = append(out, desktopWidgetAutoResizeScript...)
+		out = append(out, script...)
 		out = append(out, content[idx:]...)
 		return out
 	}
-	out := make([]byte, 0, len(content)+len(desktopWidgetAutoResizeScript))
+	out := make([]byte, 0, len(content)+len(script))
 	out = append(out, content...)
-	out = append(out, desktopWidgetAutoResizeScript...)
+	out = append(out, script...)
 	return out
 }
 
@@ -586,7 +609,11 @@ func shouldCacheBustDesktopAppResource(value string) bool {
 func prepareDesktopHTMLContentForEmbed(content []byte, cfg *config.Config, embedToken string) []byte {
 	rewritten := tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content))
 	rewritten = appendDesktopTokenToPrinterCameraProxies(rewritten, desktopEmbedResourceTokenIssuer(cfg, embedToken))
-	return []byte(rewritten)
+	prepared := []byte(rewritten)
+	if desktopPrinterCameraProxyPattern.MatchString(rewritten) {
+		prepared = injectDesktopHTMLScript(prepared, desktopPrinterCameraRecoveryMarker, desktopPrinterCameraRecoveryScript)
+	}
+	return prepared
 }
 
 func desktopEmbedResourceTokenIssuer(cfg *config.Config, embedToken string) func(string) (string, error) {

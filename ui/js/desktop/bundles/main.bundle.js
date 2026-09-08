@@ -4968,10 +4968,6 @@
             w: Math.round(card.offsetWidth),
             h: Math.round(card.offsetHeight)
         });
-        if (widgetShouldAutoSize(widget)) {
-            delete updated.w;
-            delete updated.h;
-        }
         try {
             await api('/api/desktop/widgets', {
                 method: 'POST',
@@ -4996,6 +4992,21 @@
             card.innerHTML = `<div class="vd-widget-body">${esc(t('desktop.load_failed'))}</div>`;
             scheduleWidgetAutoSize(card.closest('.vd-widget'), widget);
         }
+    }
+
+    async function reloadWidgetFrame(widgetId, options) {
+        const card = document.querySelector(`.vd-widget[data-widget-id="${cssSel(String(widgetId || ''))}"]`);
+        const frameWrap = card && card.querySelector('.vd-widget-frame-wrap');
+        const widget = card && card._widgetData;
+        if (!card || !frameWrap || !widget || !widget.entry) throw new Error('Widget frame is unavailable.');
+        const reason = String(options && options.reason || '');
+        if (reason === 'error' && card._widgetStreamErrorReloaded) return false;
+        const now = Date.now();
+        if (now - Number(card._widgetStreamReloadAt || 0) < 2000) return false;
+        card._widgetStreamReloadAt = now;
+        card._widgetStreamErrorReloaded = reason === 'error';
+        await renderWidgetFrame(frameWrap, widget);
+        return true;
     }
 
     function widgetFramePath(widget) {
@@ -14868,7 +14879,8 @@ if (appId === 'pixel') {
         const msg = event.data;
         if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
         const client = findSDKClient(event.source);
-        if (!client || (!client.app && msg.action !== 'desktop:widget:resize')) return;
+        const widgetAction = msg.action === 'desktop:widget:resize' || msg.action === 'desktop:widget:reload';
+        if (!client || (!client.app && !widgetAction)) return;
         try {
             const result = await runSDKAction(client, msg.action, msg.payload || {});
             sendSDKResponse(event.source, msg.id, true, result);
@@ -14892,6 +14904,9 @@ if (appId === 'pixel') {
                 if (!client.widgetId) throw new Error('Widget resize is only available inside widget frames.');
                 resizeWidgetToContent(client.widgetId, payload || {});
                 return { status: 'ok' };
+            case 'desktop:widget:reload':
+                if (!client.widgetId) throw new Error('Widget reload is only available inside widget frames.');
+                return { status: 'ok', reloaded: await reloadWidgetFrame(client.widgetId, payload || {}) };
             case 'desktop:menu:set':
                 if (!client.windowId) throw new Error('Menus are only available for app windows.');
                 setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));
