@@ -193,7 +193,7 @@
         return map[normalized] || '';
     }
 
-    const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v1';
+    const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
     const RECENT_FILES_MAX = 12;
 
     function readRecentFiles() {
@@ -207,4 +207,16 @@
         const recent = readRecentFiles().filter(entry => entry.path !== normalized);
         recent.unshift({ path: normalized, name, appId: appId || '', openedAt: Date.now() });
         writeJSONStorage(RECENT_FILES_KEY, recent.slice(0, RECENT_FILES_MAX));
+    }
+
+    function removeRecentFilesAtPath(path) {
+        const normalized = normalizeDesktopPath(path);
+        if (!normalized) return;
+        const prefix = normalized + '/';
+        const recent = readRecentFiles();
+        const filtered = recent.filter(entry => {
+            const entryPath = normalizeDesktopPath(entry.path);
+            return entryPath !== normalized && !entryPath.startsWith(prefix);
+        });
+        if (filtered.length !== recent.length) writeJSONStorage(RECENT_FILES_KEY, filtered);
     }

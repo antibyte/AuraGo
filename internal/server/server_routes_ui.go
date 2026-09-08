@@ -23,6 +23,7 @@ import (
 
 const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
 const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+const desktopNasscadEngineOrigin = "http://127.0.0.1:8765"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
@@ -384,11 +385,14 @@ func desktopRequestOrigin(r *http.Request) string {
 }
 
 func desktopAppWorkspaceCSPForRequest(r *http.Request) string {
+	csp := desktopAppWorkspaceCSP
+	if r != nil && strings.HasPrefix(strings.TrimPrefix(filepath.ToSlash(r.URL.Path), "/files/desktop/"), "Apps/nasscad/") {
+		csp = strings.Replace(csp, "connect-src 'self'", "connect-src 'self' "+desktopNasscadEngineOrigin, 1)
+	}
 	origin := desktopRequestOrigin(r)
 	if origin == "" {
-		return desktopAppWorkspaceCSP
+		return csp
 	}
-	csp := desktopAppWorkspaceCSP
 	for _, directive := range []string{"script-src", "style-src", "font-src", "worker-src"} {
 		csp = strings.Replace(csp, directive+" ", directive+" "+origin+" ", 1)
 	}

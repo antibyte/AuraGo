@@ -1484,6 +1484,8 @@ registration lives in `internal/desktop/types.go`.
   changes wait for `document.fonts.load` then `fit` so pixel fonts do not
   measure before they are ready. Exposes
   `window.TerminalApp = { render, dispose }` with a per-window instances Map.
+  The standalone window opens at 960x720 (4:3 CRT framing); user resizing and
+  mobile maximization remain unchanged.
   Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*` and
   `desktop.terminal_audio*` in all 16 desktop locales. No child DOX file
   needed.

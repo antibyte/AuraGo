@@ -80,6 +80,19 @@ func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing
 	}
 }
 
+func TestDesktopNasscadCSPAllowsOnlyItsLocalEngine(t *testing.T) {
+	t.Parallel()
+
+	nasscadReq := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/nasscad/index.html", nil)
+	if csp := desktopAppWorkspaceCSPForRequest(nasscadReq); !strings.Contains(csp, "connect-src 'self' "+desktopNasscadEngineOrigin) {
+		t.Fatalf("NASSCAD CSP does not allow its local engine: %q", csp)
+	}
+	otherReq := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/other/index.html", nil)
+	if csp := desktopAppWorkspaceCSPForRequest(otherReq); strings.Contains(csp, desktopNasscadEngineOrigin) {
+		t.Fatalf("other app CSP allows NASSCAD engine: %q", csp)
+	}
+}
+
 func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	t.Parallel()
 

@@ -324,6 +324,9 @@
             return;
         }
         if (event.type === 'desktop_changed') {
+            const change = event.payload || {};
+            if (change.operation === 'delete_path') removeRecentFilesAtPath(change.path);
+            else if (change.operation === 'move_path') removeRecentFilesAtPath(change.old_path);
             await loadBootstrap();
             return;
         }

@@ -131,6 +131,7 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 			t.Fatalf("%s; browser errors: %s", name, page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())
 		}
 	}
+	check(t, "4:3 CRT opening", `()=>{const w=document.querySelector('.vd-window');return w && w.style.width==='960px' && w.style.height==='720px' && Math.abs((parseFloat(w.style.width)/parseFloat(w.style.height))-(4/3))<0.001;}`)
 	snapshot := func(name string) {
 		t.Helper()
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {

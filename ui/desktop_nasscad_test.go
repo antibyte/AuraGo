@@ -67,13 +67,16 @@ func TestNasscadDesktopAppAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read bundled nasscad html: %v", err)
 	}
-	if len(bundledHTML) < 20*1024*1024 {
-		t.Fatalf("bundled nasscad html looks too small: %d bytes", len(bundledHTML))
+	if len(bundledHTML) < 1024*1024 {
+		t.Fatalf("bundled nasscad source looks too small: %d bytes", len(bundledHTML))
 	}
-	if !strings.Contains(string(bundledHTML[:2048]), "NASSCAD V4.3.0") {
-		t.Fatal("bundled nasscad AIO should identify itself as NASSCAD V4.3.0")
+	if !strings.Contains(string(bundledHTML[:2048]), "NASSCAD V4.7.0") {
+		t.Fatal("bundled nasscad source should identify itself as NASSCAD V4.7.0")
 	}
-	if nasscadExternalScriptTagPattern.Match(bundledHTML) {
-		t.Fatal("bundled nasscad AIO must not depend on sibling script files")
+	if !nasscadExternalScriptTagPattern.Match(bundledHTML) {
+		t.Fatal("bundled nasscad source should reference the vendored runtime modules")
+	}
+	if info, err := os.Stat(filepath.Join(bundledDir, "opencascade.wasm.wasm")); err != nil || info.Size() != 65_864_037 {
+		t.Fatalf("bundled nasscad OCCT kernel missing or invalid: info=%v err=%v", info, err)
 	}
 }

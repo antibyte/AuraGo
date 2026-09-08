@@ -5288,7 +5288,7 @@
             'quick-connect': { width: 960, height: 680 },
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
-            terminal: { width: 880, height: 520 },
+            terminal: { width: 960, height: 720 },
             notes: { width: 1060, height: 680 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
@@ -7732,7 +7732,7 @@ function wireWindow(win, id) {
         return map[normalized] || '';
     }
 
-    const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v1';
+    const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
     const RECENT_FILES_MAX = 12;
 
     function readRecentFiles() {
@@ -7746,6 +7746,18 @@ function wireWindow(win, id) {
         const recent = readRecentFiles().filter(entry => entry.path !== normalized);
         recent.unshift({ path: normalized, name, appId: appId || '', openedAt: Date.now() });
         writeJSONStorage(RECENT_FILES_KEY, recent.slice(0, RECENT_FILES_MAX));
+    }
+
+    function removeRecentFilesAtPath(path) {
+        const normalized = normalizeDesktopPath(path);
+        if (!normalized) return;
+        const prefix = normalized + '/';
+        const recent = readRecentFiles();
+        const filtered = recent.filter(entry => {
+            const entryPath = normalizeDesktopPath(entry.path);
+            return entryPath !== normalized && !entryPath.startsWith(prefix);
+        });
+        if (filtered.length !== recent.length) writeJSONStorage(RECENT_FILES_KEY, filtered);
     }
 
 ;
@@ -15101,6 +15113,9 @@ if (appId === 'pixel') {
             return;
         }
         if (event.type === 'desktop_changed') {
+            const change = event.payload || {};
+            if (change.operation === 'delete_path') removeRecentFilesAtPath(change.path);
+            else if (change.operation === 'move_path') removeRecentFilesAtPath(change.old_path);
             await loadBootstrap();
             return;
         }

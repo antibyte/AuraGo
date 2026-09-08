@@ -153,6 +153,33 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 	}
 }
 
+func TestDesktopRecentFilesDropDeletedAndMovedPaths(t *testing.T) {
+	t.Parallel()
+
+	session := readDesktopAssetText(t, "js/desktop/core/session-runtime.js")
+	for _, marker := range []string{
+		"aurago.desktop.recentFiles.v2",
+		"function removeRecentFilesAtPath(path)",
+		"entryPath !== normalized && !entryPath.startsWith(prefix)",
+	} {
+		if !strings.Contains(session, marker) {
+			t.Fatalf("recent-file cleanup missing marker %q", marker)
+		}
+	}
+
+	events := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
+	for _, marker := range []string{
+		"change.operation === 'delete_path'",
+		"removeRecentFilesAtPath(change.path)",
+		"change.operation === 'move_path'",
+		"removeRecentFilesAtPath(change.old_path)",
+	} {
+		if !strings.Contains(events, marker) {
+			t.Fatalf("desktop change handling missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 	t.Parallel()
 
