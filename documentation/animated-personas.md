@@ -3,6 +3,9 @@
 The reviewed assets are ready for integration. This import does not change the
 current avatar renderer or connect live voice events.
 
+For the implementation task and verified voice-panel entry points, see the
+[Codex integration handoff](handoff-animated-personas-codex.md).
+
 ## Files
 
 - `/img/personas/animated/catalog.json`: AuraGo personality IDs, relative Rive
