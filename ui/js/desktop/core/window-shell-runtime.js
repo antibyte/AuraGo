@@ -993,7 +993,7 @@
             'network-cameras': { width: 1120, height: 720 },
             meshcore: { width: 1080, height: 720 },
             'sip-phone': { width: 420, height: 760 },
-            'live-speech': { width: 440, height: 600 },
+            'live-speech': { width: 440, height: 520 },
             viewer: { width: 900, height: 700 },
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },

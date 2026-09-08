@@ -44,16 +44,26 @@
         window.AuraRealtimeSpeechUI.mount(panel, {
             surface: 'webchat',
             compact: true,
+            visible: false,
             chatSessionId: currentSessionID
         });
 
+        let returnFocus = launcher;
+        overlay.inert = true;
         const setOpen = open => {
+            const wasOpen = overlay.classList.contains('is-open');
+            if (open && !wasOpen) returnFocus = document.activeElement;
             overlay.classList.toggle('is-open', !!open);
-            overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+            overlay.inert = !open;
             launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
+            window.AuraRealtimeSpeechUI.setVisible(panel, open);
             if (open) {
+                overlay.setAttribute('aria-hidden', 'false');
                 const focusTarget = overlay.querySelector('select, button');
                 if (focusTarget) focusTarget.focus();
+            } else {
+                if (wasOpen) (returnFocus && returnFocus.isConnected ? returnFocus : launcher).focus();
+                overlay.setAttribute('aria-hidden', 'true');
             }
         };
         launcher.addEventListener('click', () => setOpen(!overlay.classList.contains('is-open')));
@@ -62,7 +72,15 @@
             if (event.target === overlay) setOpen(false);
         });
         document.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && overlay.classList.contains('is-open')) setOpen(false);
+            if (!overlay.classList.contains('is-open')) return;
+            if (event.key === 'Escape') { event.preventDefault(); setOpen(false); }
+            if (event.key === 'Tab') {
+                const elements = Array.from(overlay.querySelectorAll('button:not(:disabled), select:not(:disabled), [tabindex="0"]'))
+                    .filter(element => element.getClientRects().length);
+                const first = elements[0], last = elements[elements.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
         });
 
         window.AuraRealtimeSpeech.addEventListener('display', event => {

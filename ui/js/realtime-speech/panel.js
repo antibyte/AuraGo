@@ -117,25 +117,20 @@
 
     function render(root, options) {
         root.innerHTML = `<section class="realtime-speech-panel" data-realtime-panel data-state="idle">
-            <header class="realtime-speech-panel-header">
-                <div class="realtime-speech-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
-                <div>
-                    <h3>${escapeHTML(text('chat.realtime_title', 'Live Speech'))}</h3>
-                    <p data-realtime-privacy></p>
+            <div class="realtime-speech-conversation">
+                <div class="realtime-speech-avatar" data-realtime-avatar aria-hidden="true"></div>
+                <div class="realtime-speech-conversation-text">
+                    <div class="realtime-speech-status-row" role="status">
+                        <span class="realtime-speech-state-dot" aria-hidden="true"></span>
+                        <strong data-realtime-state></strong>
+                    </div>
+                    <div class="realtime-speech-live-caption" data-realtime-caption aria-live="polite" tabindex="0"></div>
                 </div>
-            </header>
-            <div class="realtime-speech-status-row">
-                <span class="realtime-speech-state-dot"></span>
-                <strong data-realtime-state></strong>
-                <span class="realtime-speech-live-caption" data-realtime-caption aria-live="polite"></span>
             </div>
             <label class="realtime-speech-profile-label">
                 <span>${escapeHTML(text('chat.realtime_profile', 'Profile'))}</span>
                 <select data-realtime-profile></select>
             </label>
-            <div class="realtime-speech-wave" aria-hidden="true">
-                ${Array.from({ length: 24 }, (_, index) => `<i style="--bar:${index}"></i>`).join('')}
-            </div>
             <div class="realtime-speech-controls">
                 <button type="button" class="realtime-speech-primary" data-realtime-start>
                     <span class="realtime-speech-control-icon" data-realtime-start-icon aria-hidden="true"></span>
@@ -150,6 +145,7 @@
                     <span>${escapeHTML(text('chat.realtime_cancel_task', 'Cancel task'))}</span>
                 </button>
             </div>
+            <p class="realtime-speech-privacy" data-realtime-privacy></p>
             <div class="realtime-speech-notice" data-realtime-notice hidden>
                 <span aria-hidden="true">◉</span>
                 ${escapeHTML(text('chat.realtime_parked_privacy', 'Parked: the provider connection is paused, while local voice detection keeps the microphone ready.'))}
@@ -206,7 +202,7 @@
     function refreshAll() {
         mounts.forEach((options, root) => {
             if (!root.isConnected) {
-                mounts.delete(root);
+                options.unmount();
                 return;
             }
             updatePanel(root, options);
@@ -232,15 +228,33 @@
 
     function mount(root, options) {
         if (!root) return () => { };
-        mounts.set(root, Object.assign({ surface: 'webchat', compact: false }, options || {}));
-        void runtime.initialize().catch(error => {
-            root.innerHTML = `<div class="realtime-speech-load-error">${escapeHTML(error.message)}</div>`;
-        }).finally(refreshAll);
-        render(root, mounts.get(root));
-        return () => {
+        const previous = mounts.get(root);
+        if (previous) previous.unmount();
+        const mounted = Object.assign({ surface: 'webchat', compact: false }, options || {});
+        let disposed = false;
+        const unmount = () => {
+            if (disposed) return;
+            disposed = true;
+            if (mounted.avatar) mounted.avatar.dispose();
             mounts.delete(root);
             root.innerHTML = '';
         };
+        mounted.unmount = unmount;
+        mounts.set(root, mounted);
+        render(root, mounted);
+        if (window.AuraRealtimeSpeechAvatar) mounted.avatar = window.AuraRealtimeSpeechAvatar.mount(
+            root.querySelector('[data-realtime-avatar]'), { runtime, visible: mounted.visible });
+        void runtime.initialize().catch(error => {
+            if (disposed) return;
+            if (mounted.avatar) mounted.avatar.dispose();
+            root.innerHTML = `<div class="realtime-speech-load-error">${escapeHTML(error.message)}</div>`;
+        }).finally(refreshAll);
+        return unmount;
+    }
+
+    function setVisible(root, visible) {
+        const mounted = mounts.get(root);
+        if (mounted && mounted.avatar) mounted.avatar.setVisible(visible);
     }
 
     runtime.addEventListener('state', refreshAll);
@@ -258,5 +272,5 @@
         });
     });
 
-    window.AuraRealtimeSpeechUI = { mount, refresh: refreshAll, stateText, sessionActivity };
+    window.AuraRealtimeSpeechUI = { mount, setVisible, refresh: refreshAll, stateText, sessionActivity };
 })();

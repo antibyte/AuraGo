@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import './test-realtime-speech-avatar.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const languages = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
@@ -556,13 +557,13 @@ function testProviderContractAndSecurityBoundaries() {
   const realtimeStyles = read('ui/css/realtime-speech.css');
   assert.match(
     realtimeStyles,
-    /\.realtime-speech-status-row\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?overflow:\s*hidden;/,
-    'the Live Speech status row must constrain long captions to the card'
+    /\.realtime-speech-conversation\s*\{[^}]*minmax\(0, 1fr\)/,
+    'the Live Speech caption column must shrink within the card'
   );
   assert.match(
     realtimeStyles,
-    /\.realtime-speech-live-caption\s*\{[\s\S]*?flex:\s*1 1 0;[\s\S]*?text-overflow:\s*ellipsis;/,
-    'long Live Speech captions must shrink and use an ellipsis'
+    /\.realtime-speech-live-caption\s*\{[^}]*max-height:[^}]*overflow-y:\s*auto;[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*pre-wrap;/,
+    'long Live Speech captions must wrap and remain scrollable'
   );
   assert.match(core, /action\.cancelled\s*=\s*true/, 'explicit cancellation must mark the in-flight action');
   assert.match(core, /if \(action\.cancelled\) status = 'cancelled'/, 'a completed stream must not overwrite cancellation');

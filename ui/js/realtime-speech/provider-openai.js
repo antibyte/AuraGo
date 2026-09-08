@@ -128,7 +128,9 @@
         }
 
         getOutputLevel() {
-            if (!this.outputTap) return 0;
+            const audio = this.remoteAudio;
+            if (!this.outputTap || !audio || audio.paused || audio.ended || audio.muted || audio.volume === 0 ||
+                !this.outputContext || this.outputContext.state !== 'running') return 0;
             return Common.analyserLevel(this.outputTap.analyser, this.outputTap.buffer);
         }
 

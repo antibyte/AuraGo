@@ -169,7 +169,9 @@
         }
 
         getOutputLevel() {
-            if (!this.outputAnalyser || !this.outputBuffer) return 0;
+            const audio = this.outputAudio;
+            if (!this.outputSource || !this.outputAnalyser || !this.outputBuffer || !audio || audio.paused || audio.ended ||
+                audio.muted || audio.volume === 0 || !this.outputContext || this.outputContext.state !== 'running') return 0;
             return Common.analyserLevel(this.outputAnalyser, this.outputBuffer);
         }
 

@@ -110,7 +110,7 @@
         }
 
         getOutputLevel() {
-            if (!this.analyser || !this.active) return 0;
+            if (!this.analyser || !this.active || !this.context || this.context.state !== 'running') return 0;
             return analyserLevel(this.analyser, this.analyserTime);
         }
 

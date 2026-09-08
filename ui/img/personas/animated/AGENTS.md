@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Reviewed Rive payloads for future live voice UI integration.
+Reviewed Rive payloads for the shared Live Speech persona renderer.
 
 ## Ownership
 
@@ -21,8 +21,10 @@ Reviewed Rive payloads for future live voice UI integration.
   `@rive-app/canvas@2.42.0`. Preserve its license and file hashes.
 - State machine `VoicePersona` exposes `mode`, `viseme`, `mouthOpen`, `headTilt`.
   Control values and robot speech styles are documented in the catalog.
-- These are prepared assets. Existing static avatars remain the active UI until
-  a separate integration connects live voice events to the state machine.
+- `ui/js/realtime-speech/avatar.js` integrates these assets into Webchat and
+  Desktop Live Speech. Static chat-message avatars remain separate.
+- `mouthOpen` only gates the discrete pose selected by `viseme`; it does not
+  continuously resize an AA mouth. Speech energy must change actual poses.
 - Preserve the original PNG fallback, including `custom` (no animated payload).
 
 ## Work Guidance

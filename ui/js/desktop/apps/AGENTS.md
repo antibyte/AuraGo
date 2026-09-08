@@ -570,8 +570,12 @@ buttons and menu popovers remain excluded from those gestures.
   revision history, change requests, and a live game preview in one maximized
   desktop window.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
-  compact single-column window (preset 440×600, min 340×460 in
+  compact window (preset 440×520, min 340×460 in
   `window-shell-runtime.js`; panel mounted with `compact: true`).
+  The shared panel places its animated persona beside wrapping, scrollable
+  captions; small windows scroll vertically. Avatar disposal uses the existing
+  panel unmount and preserves `keepSession`. The decorative FX remain separate
+  from the avatar and never control its mouth from microphone levels.
   OpenAI, xAI, and Gemini stay on their existing streaming adapters. Speech
   Lab is a keyless `local_s2s` profile that transcribes and speaks through
   the managed or external s2s container. The app shows `/api/speech-lab/status`

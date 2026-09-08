@@ -23,6 +23,11 @@ func TestChatIndexLoadsAllRealtimeSpeechProviders(t *testing.T) {
 	if coreIndex < 0 {
 		t.Fatal("index.html must load /js/realtime-speech/core.js")
 	}
+	avatarIndex := strings.Index(indexHTML, "/js/realtime-speech/avatar.js?v={{.BuildVersion}}")
+	panelIndex := strings.Index(indexHTML, "/js/realtime-speech/panel.js")
+	if avatarIndex < coreIndex || panelIndex < avatarIndex {
+		t.Fatal("webchat must load the versioned avatar controller between core and panel")
+	}
 	for _, marker := range []string{
 		"/js/realtime-speech/provider-common.js",
 		"/js/realtime-speech/provider-openai.js",

@@ -2,7 +2,7 @@
 
 Date: 2026-09-09. Audience: Codex in VS Code, working in the AuraGo repository.
 
-## Task to continue
+## Original implementation brief
 
 Integrate the twelve prepared Rive personas into the existing live voice panel.
 Start with webchat and reuse the shared panel for Desktop Live Speech. The avatar
@@ -10,8 +10,10 @@ should follow the selected personality, listen, think and move its mouth with
 the assistant's audible speech. Preserve the existing voice providers, session
 handling, controls, captions and static chat-message avatars.
 
-This is an implementation handoff. The asset import is complete; the live UI
-integration has not been implemented or tested yet.
+The shared Live Speech integration now implements this brief. See
+[animated-personas.md](animated-personas.md) for the current lifecycle, checks
+and energy-driven discrete-pose behavior; the following import details and
+initial suggestions are historical handoff context.
 
 ## Workspace and completed work
 

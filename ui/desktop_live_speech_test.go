@@ -15,6 +15,11 @@ func TestDesktopLiveSpeechLoadsSpeechLabProvider(t *testing.T) {
 	if !strings.Contains(loader, "/js/realtime-speech/provider-speech-lab.js") {
 		t.Fatal("live-speech module must load the Speech Lab realtime adapter")
 	}
+	avatarIndex := strings.Index(loader, "/js/realtime-speech/avatar.js")
+	panelIndex := strings.Index(loader, "/js/realtime-speech/panel.js")
+	if avatarIndex < 0 || panelIndex < avatarIndex {
+		t.Fatal("desktop must load the shared persona controller before its panel")
+	}
 	fxIndex := strings.Index(loader, "/js/desktop/apps/live-speech-fx.js")
 	appIndex := strings.Index(loader, "/js/desktop/apps/live-speech.js")
 	if fxIndex < 0 || appIndex < 0 || fxIndex > appIndex {

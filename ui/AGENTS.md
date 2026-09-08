@@ -167,6 +167,19 @@ images, and browser-oriented regression tests.
 - Realtime Speech consumes the answer from `final_response`; `done` is a
   contentless terminator. SIP Phone surfaces
   `outbound_policy_migration_required` as a localized setup blocker.
+- Live Speech's shared panel owns one `AuraRealtimeSpeechAvatar` per mount.
+  Webchat passes `visible: false` until its overlay opens and calls
+  `AuraRealtimeSpeechUI.setVisible`; unmount disposes the avatar. Desktop
+  visibility also follows intersection/tab state. Animation never starts audio.
+  Catalog membership selects local Rive assets; initial personality resolution
+  must also work before Desktop Agent Chat opens. Preserve custom PNG fallback.
+  Both Rive asset CDN and WASM fallback CDN are disabled. Reduced motion uses
+  the selected PNG; stale loads and detached mounts cannot revive a player.
+  Output analysers alone drive the mouth, including queued audio tails; paused
+  media and suspended contexts return zero. `mouthOpen` is a gate in these
+  assets, not a morph: use energy-dependent discrete poses and prompt closure
+  in short pauses, never a permanently open AA pose or claimed phoneme timing.
+  Verify with `node scripts/test-realtime-speech.mjs` (includes avatar checks).
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.

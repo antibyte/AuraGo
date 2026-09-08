@@ -86,6 +86,7 @@
                 '/js/realtime-speech/provider-gemini.js',
                 '/js/realtime-speech/provider-speech-lab.js',
                 '/js/realtime-speech/core.js',
+                '/js/realtime-speech/avatar.js',
                 '/js/realtime-speech/panel.js',
                 '/js/desktop/apps/live-speech-fx.js',
                 '/js/desktop/apps/live-speech.js'

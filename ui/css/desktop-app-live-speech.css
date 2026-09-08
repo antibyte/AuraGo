@@ -17,6 +17,7 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
+    opacity: .45;
 }
 
 .vd-live-speech-content {
@@ -28,6 +29,8 @@
     gap: 12px;
     min-height: 0;
     padding: 14px 16px 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .vd-live-speech-header {
@@ -96,15 +99,15 @@
 }
 
 .vd-live-speech-app [data-live-speech-panel] {
-    display: flex;
-    flex: 1;
-    align-items: flex-end;
-    min-height: 0;
+    flex: 0 0 auto;
 }
 
 .vd-live-speech-app .realtime-speech-panel {
     --rt-accent: var(--vd-accent, #2fc5a9);
     --rt-surface: var(--vd-theme-panel-bg);
+    --text-primary: var(--vd-text);
+    --text-muted: var(--vd-theme-muted);
+    --border: var(--vd-theme-border);
     width: 100%;
     margin: 0;
     background: var(--rt-surface);
@@ -112,7 +115,5 @@
     backdrop-filter: blur(14px);
 }
 
-/* The full-window canvas replaces the decorative panel wave on this surface. */
-.vd-live-speech-app .realtime-speech-wave {
-    display: none;
-}
+.vd-live-speech-header,
+.vd-live-speech-lab { flex-shrink: 0; }
