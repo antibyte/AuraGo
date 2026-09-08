@@ -1464,12 +1464,22 @@ registration lives in `internal/desktop/types.go`.
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
   `xterm-addon-canvas`, original WebGL CRT in `terminal-crt.js`
   (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;
-  captures only `xterm-*-layer` canvases 1:1 with NEAREST, never stretched),
+  captures only `xterm-*-layer` canvases at their CSS offsets and scale;
+  output is capped at DPR 1.25 and 30 fps, never stretches text to fill the tube),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
   (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
   Load order: xterm.css, desktop-app-terminal.css, xterm, fit, canvas,
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
-  and `dataset.animations === 'false'` disable flicker, burn-in, and audio.
+  and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
+  Retro appearance follows cool-retro-term's luminous phosphor, scanlines,
+  curved glass and recessed bezel using original rendering code. Share Tech
+  Mono is embedded as `Aura Terminal`; pixel profiles retain Press Start 2P.
+  Additive bloom and decaying persistence share a half-resolution blurred
+  source buffer; never feed warped output back into the source. The native
+  xterm layer stays interactive and is visually hidden only after a WebGL frame.
+  Keep canvas addon 0.5.0 paired with xterm 5.3.0; provenance and license are
+  beside `js/vendor/xterm-addon-canvas.min.js`. Browser verification is
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopTerminalRetroBrowser -count=1`.
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` then `fit` so pixel fonts do not
   measure before they are ready. Exposes

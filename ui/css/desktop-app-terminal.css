@@ -1,6 +1,14 @@
+@font-face {
+    font-family: 'Aura Terminal';
+    src: url('/fonts/ShareTechMono-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 .vd-terminal-app {
     --vd-term-bezel: transparent;
-    --vd-term-bezel-inner: transparent;
+    --vd-term-ink: #ffc16c;
     --vd-term-glow: transparent;
     position: relative;
     min-height: 0;
@@ -23,6 +31,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .vd-terminal-toolbar-status {
@@ -34,6 +43,7 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
+    min-width: 0;
 }
 
 .vd-terminal-toolbar select[data-terminal-style] {
@@ -68,29 +78,68 @@
 
 .vd-terminal-stage {
     min-height: 0;
-    height: 100%;
+    min-width: 0;
     display: grid;
 }
 
 .vd-terminal-bezel {
     display: grid;
     min-height: 0;
-    padding: 14px;
-    border-radius: 18px;
+    min-width: 0;
+    padding: 12px;
+    border-radius: 5px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.055), transparent 45%),
         var(--vd-term-bezel);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        inset 0 -8px 16px rgba(0, 0, 0, 0.35);
+        inset 0 1px 1px rgba(255, 255, 255, 0.1),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.65);
 }
 
 .vd-terminal-screen {
     position: relative;
     min-height: 0;
-    overflow: hidden;
-    border-radius: 10px;
-    box-shadow: inset 0 0 24px var(--vd-term-glow);
+    overflow: clip;
+    min-width: 0;
+    border-radius: 5% / 7%;
+    box-shadow: 0 0 0 2px #090a08, 0 3px 2px rgba(255, 255, 255, 0.1), 0 -3px 6px #000;
+}
+
+.vd-terminal-app:not([data-terminal-style="modern"]) .vd-terminal-screen {
+    background: #070906;
+}
+
+.vd-terminal-app:not([data-terminal-style="modern"]) .xterm {
+    padding: clamp(16px, 3%, 30px);
+}
+
+.vd-terminal-screen .xterm {
+    height: 100%;
+}
+
+.vd-terminal-app[data-terminal-renderer="webgl"] .xterm-screen {
+    opacity: 0;
+}
+
+.vd-terminal-app[data-terminal-renderer="webgl"] .xterm-viewport {
+    background: transparent !important;
+    scrollbar-width: thin;
+}
+
+.vd-terminal-app:not([data-terminal-style="modern"]) .vd-terminal-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(ellipse at 50% -65%, rgba(255, 244, 215, 0.055), transparent 70%);
+    box-shadow: inset 0 0 3px 2px #000, inset 0 0 22px 6px rgba(0, 0, 0, 0.65), inset 0 -1px 2px rgba(255, 255, 230, 0.15);
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .vd-terminal-screen {
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .vd-terminal-crt-overlay {
@@ -107,7 +156,7 @@
 .vd-terminal-app[data-terminal-style="vintage"],
 .vd-terminal-app[data-terminal-style="mono-green"],
 .vd-terminal-app[data-terminal-style="transparent-green"] {
-    --vd-term-bezel: #1a1612;
+    --vd-term-bezel: #24231f;
     --vd-term-glow: rgba(255, 176, 0, 0.18);
 }
 
@@ -115,21 +164,25 @@
 .vd-terminal-app[data-terminal-style="mono-green"],
 .vd-terminal-app[data-terminal-style="transparent-green"] {
     --vd-term-glow: rgba(95, 255, 58, 0.2);
+    --vd-term-ink: #80ff76;
 }
 
 .vd-terminal-app[data-terminal-style="apple2"] {
     --vd-term-bezel: #d8c3a5;
     --vd-term-glow: rgba(51, 255, 51, 0.16);
+    --vd-term-ink: #80ff76;
 }
 
 .vd-terminal-app[data-terminal-style="commodore64"] {
     --vd-term-bezel: #6c4f3d;
     --vd-term-glow: rgba(108, 94, 181, 0.22);
+    --vd-term-ink: #b6aaff;
 }
 
 .vd-terminal-app[data-terminal-style="ibm3278"] {
     --vd-term-bezel: #7d868c;
     --vd-term-glow: rgba(42, 223, 42, 0.16);
+    --vd-term-ink: #80ff76;
 }
 
 .vd-terminal-app[data-terminal-fallback="css"] .vd-terminal-screen::after {
@@ -141,13 +194,17 @@
     background:
         repeating-linear-gradient(
             to bottom,
-            rgba(255, 255, 255, 0.04) 0,
-            rgba(255, 255, 255, 0.04) 1px,
+            rgba(0, 0, 0, 0.16) 0,
+            rgba(0, 0, 0, 0.16) 1px,
             transparent 2px,
             transparent 3px
         ),
         radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
     box-shadow: inset 0 0 40px var(--vd-term-glow);
+}
+
+.vd-terminal-app[data-terminal-fallback="css"] .xterm-screen {
+    filter: drop-shadow(0 0 2px var(--vd-term-ink));
 }
 
 .vd-terminal-app[data-terminal-style="transparent-green"] .vd-terminal-screen {

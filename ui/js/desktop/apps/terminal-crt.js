@@ -11,7 +11,7 @@
     ].join('\n');
 
     const FRAG = [
-        'precision mediump float;',
+        'precision highp float;',
         'varying vec2 v_uv;',
         'uniform sampler2D u_tex;',
         'uniform sampler2D u_prev;',
@@ -27,30 +27,35 @@
         'uniform float u_alpha;',
         'uniform float u_motion;',
         'uniform float u_scan;',
+        'uniform float u_mono;',
+        'uniform vec2 u_size;',
         'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+        'vec3 phosphor(vec3 c) {',
+        '    float light = max(c.r, max(c.g, c.b));',
+        '    return mix(c, u_phosphor * light, u_mono);',
+        '}',
         'void main() {',
         '    vec2 cc = v_uv - 0.5;',
-        '    float r2 = dot(cc, cc);',
-        '    vec2 curved = cc * (1.0 + r2 * u_curve) + 0.5;',
+        '    vec2 curved = cc * (1.0 + cc.yx * cc.yx * u_curve) + 0.5;',
         '    if (curved.x < 0.0 || curved.x > 1.0 || curved.y < 0.0 || curved.y > 1.0) {',
         '        gl_FragColor = vec4(0.0, 0.0, 0.0, u_alpha);',
         '        return;',
         '    }',
         '    vec3 src = texture2D(u_tex, curved).rgb;',
         '    vec3 prev = texture2D(u_prev, curved).rgb;',
-        '    vec2 px = 1.0 / max(u_res, vec2(1.0));',
-        '    vec3 bloom = (texture2D(u_tex, curved + vec2(px.x, 0.0)).rgb + texture2D(u_tex, curved - vec2(px.x, 0.0)).rgb + texture2D(u_tex, curved + vec2(0.0, px.y)).rgb + texture2D(u_tex, curved - vec2(0.0, px.y)).rgb) * 0.25;',
-        '    float scan = 0.55 + 0.45 * sin(curved.y * u_res.y * 3.14159);',
-        '    float flicker = 1.0 - u_flicker * u_motion * (0.5 + 0.5 * sin(u_time * 37.0));',
-        '    float grain = (hash(curved * u_res + u_time) - 0.5) * u_noise;',
-        '    float mask = 1.0 - u_mask * 0.35 * abs(sin(curved.x * u_res.x * 3.14159));',
-        '    vec3 color = mix(src, bloom, u_bloom);',
-        '    color = mix(color, prev, u_burn * u_motion);',
-        '    color *= mix(1.0, scan, u_scan);',
-        '    color *= flicker * mask;',
-        '    color += grain;',
-        '    color *= u_phosphor;',
-        '    color *= smoothstep(0.95, 0.35, length(cc));',
+        '    vec3 bloom = prev;',
+        '    float scan = 1.0 - u_scan * (0.14 + 0.14 * cos(curved.y * u_size.y * 3.14159));',
+        '    float flicker = 1.0 - u_flicker * u_motion * (0.5 + 0.5 * sin(u_time * 47.0));',
+        '    float grain = (hash(floor(v_uv * u_res) + floor(u_time * 24.0)) - 0.5) * u_noise;',
+        '    float mask = 1.0 - u_mask * 0.12 * (0.5 + 0.5 * cos(curved.x * u_size.x * 3.14159));',
+        '    vec3 light = max(src, prev * u_burn * u_motion);',
+        '    vec3 color = phosphor(light) * 1.18 + phosphor(bloom) * u_bloom * 1.35;',
+        '    color += pow(max(light.r, max(light.g, light.b)), 3.0) * u_phosphor * 0.12;',
+        '    color *= scan * flicker * mask;',
+        '    float vignette = 1.0 - 0.48 * smoothstep(0.15, 0.72, length(cc));',
+        '    float edge = min(min(curved.x, 1.0 - curved.x), min(curved.y, 1.0 - curved.y));',
+        '    color += u_phosphor * (0.018 + grain * 0.35);',
+        '    color *= vignette * smoothstep(0.0, 0.018, edge);',
         '    gl_FragColor = vec4(color, u_alpha);',
         '}'
     ].join('\n');
@@ -84,14 +89,15 @@
             let disposed = false;
             let fallback = false;
             let profile = { phosphor: [1, 1, 1], curve: 0, bloom: 0, burn: 0, noise: 0, flicker: 0, mask: 0, alpha: 1, scan: 0 };
+            let background = '#000000';
+            let monochrome = true;
             let raf = 0;
             let gl = null;
             let program = null;
             let buffer = null;
             let sourceTex = null;
-            let ping = null;
-            let pong = null;
-            let writePing = true;
+            let historyTex = null;
+            let lastFrame = 0;
             let burnW = 1;
             let burnH = 1;
             let sourceWaitStarted = 0;
@@ -109,6 +115,7 @@
             };
 
             function hideOverlay() {
+                if (host) host.removeAttribute('data-terminal-renderer');
                 if (!overlay) return;
                 overlay.style.display = 'none';
                 if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -134,13 +141,11 @@
                 if (gl && program) gl.deleteProgram(program);
                 if (gl && buffer) gl.deleteBuffer(buffer);
                 if (gl && sourceTex) gl.deleteTexture(sourceTex);
-                if (gl && ping) gl.deleteTexture(ping);
-                if (gl && pong) gl.deleteTexture(pong);
+                if (gl && historyTex) gl.deleteTexture(historyTex);
                 program = null;
                 buffer = null;
                 sourceTex = null;
-                ping = null;
-                pong = null;
+                historyTex = null;
                 gl = null;
             }
 
@@ -156,7 +161,7 @@
             }
 
             function initGl() {
-                if (!screen) return false;
+                if (!screen || !scratchCtx || !burnCtx) return false;
                 screen.appendChild(overlay);
                 gl = overlay.getContext('webgl') || overlay.getContext('experimental-webgl');
                 if (!gl) return false;
@@ -176,8 +181,7 @@
                 gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
                 sourceTex = createTexture(gl, true);
-                ping = createTexture(gl, false);
-                pong = createTexture(gl, false);
+                historyTex = createTexture(gl, false);
                 return true;
             }
 
@@ -190,13 +194,19 @@
                 return true;
             }
 
-            function capturePreviousOutput() {
-                if (!gl || !ping || !pong || !burnCtx) return;
-                const dest = writePing ? pong : ping;
-                if (burnCanvas.width !== burnW) burnCanvas.width = burnW;
-                if (burnCanvas.height !== burnH) burnCanvas.height = burnH;
-                burnCtx.drawImage(overlay, 0, 0, burnW, burnH);
-                gl.bindTexture(gl.TEXTURE_2D, dest);
+            function capturePreviousOutput(src, elapsed, motion) {
+                if (!gl || !historyTex || !burnCtx) return;
+                // Accumulate unwarped text, never feed the distorted glass back into itself.
+                burnCtx.globalCompositeOperation = 'source-over';
+                burnCtx.filter = 'none';
+                burnCtx.fillStyle = background;
+                burnCtx.globalAlpha = motion ? 1 - Math.exp(-elapsed / (45 + profile.burn * 220)) : 1;
+                burnCtx.fillRect(0, 0, burnW, burnH);
+                burnCtx.globalAlpha = 1;
+                burnCtx.globalCompositeOperation = 'lighten';
+                burnCtx.filter = 'blur(2px)';
+                burnCtx.drawImage(src, 0, 0, burnW, burnH);
+                gl.bindTexture(gl.TEXTURE_2D, historyTex);
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, burnCanvas);
             }
@@ -207,6 +217,7 @@
                 const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
                 const width = Math.max(2, Math.floor(rect.width * dpr));
                 const height = Math.max(2, Math.floor(rect.height * dpr));
+                if (overlay.width === width && overlay.height === height) return;
                 overlay.width = width;
                 overlay.height = height;
                 overlay.style.width = '100%';
@@ -219,10 +230,6 @@
                 burnCanvas.height = burnH;
                 if (gl) {
                     gl.viewport(0, 0, width, height);
-                    [ping, pong].forEach(function (tex) {
-                        gl.bindTexture(gl.TEXTURE_2D, tex);
-                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, burnW, burnH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-                    });
                 }
             }
 
@@ -238,39 +245,17 @@
                     layers.push(node);
                 }
                 if (!layers.length || !scratchCtx) return null;
-                let width = 0;
-                let height = 0;
+                const rect = screen.getBoundingClientRect();
+                if (!rect.width || !rect.height) return null;
+                const scaleX = scratch.width / rect.width;
+                const scaleY = scratch.height / rect.height;
+                scratchCtx.fillStyle = background;
+                scratchCtx.fillRect(0, 0, scratch.width, scratch.height);
                 layers.forEach(function (layer) {
-                    if (layer.width > width) width = layer.width;
-                    if (layer.height > height) height = layer.height;
-                });
-                if (scratch.width !== width) scratch.width = width;
-                if (scratch.height !== height) scratch.height = height;
-                scratchCtx.clearRect(0, 0, width, height);
-                layers.forEach(function (layer) {
-                    scratchCtx.drawImage(layer, 0, 0);
+                    const bounds = layer.getBoundingClientRect();
+                    scratchCtx.drawImage(layer, (bounds.left - rect.left) * scaleX, (bounds.top - rect.top) * scaleY, bounds.width * scaleX, bounds.height * scaleY);
                 });
                 return scratch;
-            }
-
-            function syncOverlayToSource(src) {
-                if (!overlay || !src || !src.width || !src.height) return;
-                if (overlay.width !== src.width || overlay.height !== src.height) {
-                    overlay.width = src.width;
-                    overlay.height = src.height;
-                    burnW = Math.max(1, Math.floor(src.width / 2));
-                    burnH = Math.max(1, Math.floor(src.height / 2));
-                    if (gl) {
-                        gl.viewport(0, 0, src.width, src.height);
-                        [ping, pong].forEach(function (tex) {
-                            if (!tex) return;
-                            gl.bindTexture(gl.TEXTURE_2D, tex);
-                            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, burnW, burnH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-                        });
-                    }
-                }
-                overlay.style.width = '100%';
-                overlay.style.height = '100%';
             }
 
             function loc(name) {
@@ -284,6 +269,9 @@
                     stopLoop();
                     return;
                 }
+                if (lastFrame && now - lastFrame < 1000 / 30) { startLoop(); return; }
+                const elapsed = lastFrame ? now - lastFrame : 1000;
+                lastFrame = now;
                 const src = sourceCanvas();
                 if (!src) {
                     const stamp = now || (window.performance && performance.now()) || Date.now();
@@ -296,7 +284,6 @@
                     return;
                 }
                 sourceWaitStarted = 0;
-                syncOverlayToSource(src);
                 const motion = reducedMotion() ? 0.0 : 1.0;
                 gl.useProgram(program);
                 gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -308,10 +295,12 @@
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
                 gl.uniform1i(loc('u_tex'), 0);
                 gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, writePing ? ping : pong);
+                capturePreviousOutput(src, elapsed, motion);
                 gl.uniform1i(loc('u_prev'), 1);
                 gl.uniform2f(loc('u_res'), overlay.width, overlay.height);
-                gl.uniform1f(loc('u_time'), now / 1000);
+                gl.uniform2f(loc('u_size'), screen.clientWidth, screen.clientHeight);
+                gl.uniform1f(loc('u_time'), motion ? now / 1000 : 0);
+                gl.uniform1f(loc('u_mono'), monochrome ? 1 : 0);
                 gl.uniform3f(loc('u_phosphor'), profile.phosphor[0], profile.phosphor[1], profile.phosphor[2]);
                 gl.uniform1f(loc('u_curve'), profile.curve);
                 gl.uniform1f(loc('u_bloom'), profile.bloom);
@@ -323,10 +312,7 @@
                 gl.uniform1f(loc('u_motion'), motion);
                 gl.uniform1f(loc('u_scan'), profile.scan);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                if (motion) {
-                    capturePreviousOutput();
-                    writePing = !writePing;
-                }
+                if (host) host.setAttribute('data-terminal-renderer', 'webgl');
                 startLoop();
             }
 
@@ -358,7 +344,13 @@
             }
 
             function setProfile(next) {
-                if (next && next.crt) profile = next.crt;
+                if (next && next.crt) {
+                    profile = next.crt;
+                    background = next.theme.background;
+                    monochrome = next.id !== 'commodore64';
+                    if (burnCtx) burnCtx.clearRect(0, 0, burnW, burnH);
+                    lastFrame = 0;
+                }
             }
 
             function setEnabled(next) {
