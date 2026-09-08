@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -50,6 +51,77 @@ func TestElegooCentauriCarbonStatusSendsSDCPCommand(t *testing.T) {
 	})
 	if !strings.Contains(out, `"Progress":42`) {
 		t.Fatalf("unexpected status output: %s", out)
+	}
+}
+
+func TestElegooSnapshotWaitsPastAcknowledgementAndUnrelatedPush(t *testing.T) {
+	for _, cmd := range []int{sdcpCmdStatus, sdcpCmdAttributes} {
+		for _, nested := range []bool{false, true} {
+			key, other := "Status", "Attributes"
+			if cmd == sdcpCmdAttributes {
+				key, other = other, key
+			}
+			t.Run(fmt.Sprintf("%s/nested=%t", key, nested), func(t *testing.T) {
+				wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+					requestID := payload["Data"].(map[string]interface{})["RequestID"]
+					snapshot := map[string]interface{}{key: map[string]interface{}{"PrintInfo": map[string]interface{}{"Progress": 42}}}
+					if nested {
+						snapshot = map[string]interface{}{"Data": snapshot}
+					}
+					for _, response := range []map[string]interface{}{
+						{other: map[string]interface{}{"Name": "printer"}},
+						{"Data": map[string]interface{}{"RequestID": requestID, "Data": map[string]interface{}{"Ack": 0}}},
+						{key: nil},
+						{key: map[string]interface{}{}},
+						snapshot,
+					} {
+						if err := conn.WriteJSON(response); err != nil {
+							t.Errorf("write response: %v", err)
+							return
+						}
+					}
+				})
+				defer closeServer()
+				out := elegooCentauriCarbonCommandJSON(context.Background(), ElegooCentauriCarbonPrinter{URL: wsURL, TimeoutSeconds: 2}, cmd, nil)
+				if !strings.Contains(out, `"Progress":42`) {
+					t.Fatalf("wanted snapshot, got %s", out)
+				}
+			})
+		}
+	}
+}
+
+func TestElegooSnapshotFailsWithoutData(t *testing.T) {
+	for _, ack := range []int{0, 1} {
+		t.Run(fmt.Sprint(ack), func(t *testing.T) {
+			wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+				requestID := payload["Data"].(map[string]interface{})["RequestID"]
+				_ = conn.WriteJSON(map[string]interface{}{"Data": map[string]interface{}{
+					"RequestID": requestID, "Data": map[string]interface{}{"Ack": ack},
+				}})
+			})
+			defer closeServer()
+			_, err := elegooCentauriCarbonCommand(context.Background(), ElegooCentauriCarbonPrinter{URL: wsURL, TimeoutSeconds: 2}, sdcpCmdStatus, nil)
+			if err == nil || (ack != 0 && !strings.Contains(err.Error(), "rejected")) {
+				t.Fatalf("expected missing snapshot or rejected command error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestElegooCommandCancellationInterruptsRead(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+		cancel()
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, _, _ = conn.ReadMessage()
+	})
+	defer closeServer()
+	started := time.Now()
+	_, err := elegooCentauriCarbonCommand(ctx, ElegooCentauriCarbonPrinter{URL: wsURL, TimeoutSeconds: 10}, sdcpCmdStatus, nil)
+	if err == nil || time.Since(started) > time.Second {
+		t.Fatalf("canceled read was not interrupted promptly: %v", err)
 	}
 }
 
@@ -162,10 +234,15 @@ func TestElegooCentauriCarbonMutationAndInfoCommandsUseExpectedSDCPCommands(t *t
 					"Data": map[string]interface{}{
 						"Cmd":       tt.wantCmd,
 						"RequestID": requestID,
-						"Ack":       true,
+						"Data":      map[string]interface{}{"Ack": 0},
 					},
 				}); err != nil {
 					t.Fatalf("WriteJSON error = %v", err)
+				}
+				if tt.wantCmd == sdcpCmdAttributes {
+					if err := conn.WriteJSON(map[string]interface{}{"Attributes": map[string]interface{}{"Name": "Lab printer"}}); err != nil {
+						t.Errorf("write attributes: %v", err)
+					}
 				}
 			})
 			defer closeServer()

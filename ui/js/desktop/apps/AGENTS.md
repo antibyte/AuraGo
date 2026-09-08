@@ -1152,7 +1152,11 @@ registration lives in `internal/desktop/types.go`.
 - `agent-chat.js` - Desktop Agent Chat. Missing-host throws reuse
   `desktop.load_failed` via `desktopText(key)` with no second
   argument. Loaded lazily. Exposes `window.AgentChatApp`. No child
-  DOX file needed.
+  DOX file needed. Finish and release the active streaming bubble at each
+  `tool_call`; its narration replaces that round's streamed draft instead of
+  duplicating it. `final_response` replaces the current final draft. Pending
+  scrolls target the newest log item, never an earlier round's bubble.
+  Verify with `node scripts/test-ui-regressions.mjs`.
 - `live-speech.js` - Desktop Live Speech. Missing-host throws reuse
   `desktop.load_failed` via `text(key)` with no fallback. Loaded
   lazily. Exposes `window.LiveSpeechApp`. No child DOX file needed.

@@ -461,6 +461,7 @@ Tools are defined in `internal/tools/`:
 - The opt-in `builtin-meshcore` desktop widget (hidden by default, added via the widget drawer) is read-only: it renders the sanitized conversation projection from `GET /api/meshcore/messenger/bootstrap`, refreshes on metadata-only `meshcore_changed` desktop events plus a visibility-gated poll, opens the Messenger app with a validated conversation ID on click, and never reveals protected text or sends messages.
 
 ### 3D Printer Integration Contract
+- Elegoo SDCP status/attributes reads wait for a nonempty matching `Status`/`Attributes` snapshot (top-level or under `Data`), not a command ACK or unrelated push. Negative ACKs fail; the whole command shares one deadline and honors cancellation. Verify with `go test ./internal/tools -run 'Elegoo|ThreeDPrinter'`.
 - Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.
 - Normal 3D-printer operations require an explicit `printer_id` unless `three_d_printers.default_printer` is configured. `list_printers` and ad-hoc `/api/3d-printers/test` are the setup exceptions.
 - Camera snapshot and stream APIs must enforce `three_d_printers.enabled`. Klipper snapshots prefer Moonraker `snapshot_url`; live streams require a valid HTTP(S) `stream_url` on the configured printer host.

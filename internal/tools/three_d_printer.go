@@ -740,6 +740,11 @@ func elegooCentauriCarbonCommand(ctx context.Context, printer ElegooCentauriCarb
 		return nil, fmt.Errorf("connect Elegoo Centauri Carbon websocket: %w", err)
 	}
 	defer conn.Close()
+	stopClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopClose()
+	deadline, _ := ctx.Deadline()
+	_ = conn.SetWriteDeadline(deadline)
+	_ = conn.SetReadDeadline(deadline)
 	requestID := randomRequestID()
 	payload := map[string]interface{}{
 		"Id": "",
@@ -757,12 +762,32 @@ func elegooCentauriCarbonCommand(ctx context.Context, printer ElegooCentauriCarb
 	}
 	unrelatedResponses := 0
 	for {
-		_ = conn.SetReadDeadline(time.Now().Add(timeout))
 		var resp map[string]interface{}
 		if err := conn.ReadJSON(&resp); err != nil {
 			return nil, fmt.Errorf("read SDCP response for command %d: %w", cmd, err)
 		}
-		if responseMatches(resp, requestID) || cmd == sdcpCmdStatus || cmd == sdcpCmdAttributes {
+		matches := responseMatches(resp, requestID)
+		if cmd == sdcpCmdStatus || cmd == sdcpCmdAttributes {
+			// SDCP acknowledges the request separately from the requested snapshot.
+			if matches {
+				body, _ := resp["Data"].(map[string]interface{})
+				result, _ := body["Data"].(map[string]interface{})
+				if ack, ok := result["Ack"].(float64); ok && ack != 0 {
+					return nil, fmt.Errorf("SDCP command %d rejected with Ack %g", cmd, ack)
+				}
+			}
+			key := "Status"
+			if cmd == sdcpCmdAttributes {
+				key = "Attributes"
+			}
+			snapshot, _ := resp[key].(map[string]interface{})
+			if len(snapshot) == 0 {
+				body, _ := resp["Data"].(map[string]interface{})
+				snapshot, _ = body[key].(map[string]interface{})
+			}
+			matches = len(snapshot) > 0
+		}
+		if matches {
 			return resp, nil
 		}
 		unrelatedResponses++

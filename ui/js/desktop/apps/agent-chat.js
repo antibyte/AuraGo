@@ -1115,6 +1115,7 @@
                 chatScrollFrame = schedule(() => {
                     chatScrollFrame = 0;
                     if (!pendingScrollTarget) return;
+                    pendingScrollTarget = chatLog.lastElementChild || pendingScrollTarget;
                     pendingScrollTarget.scrollIntoView({
                         block: 'end',
                         behavior: pendingScrollSmooth ? 'smooth' : 'auto'
@@ -1127,8 +1128,22 @@
                 if (finalized) return;
                 finalized = true;
                 clearAbortHandle();
-                flushStreamingBubble();
                 if (statusEl && statusEl.parentNode) statusEl.remove();
+                const finalMessage = petAnnouncementText || streamingContent;
+                announceAgentResponseToPet(petAnnouncementText || streamingContent);
+                finishStreamingBubble();
+                scheduleChatScroll(chatLog.lastElementChild, false);
+                if (finalMessage.trim()) dispatchDesktopVisibleMessage('assistant', finalMessage);
+                resolve();
+            }
+
+            function finishStreamingBubble() {
+                if (streamTextFrame) {
+                    const cancel = window.cancelAnimationFrame || window.clearTimeout;
+                    cancel(streamTextFrame);
+                    streamTextFrame = 0;
+                }
+                flushStreamingBubble();
                 if (streamingBubble) {
                     streamingBubble.classList.remove('vd-streaming');
                     if (renderer && streamingContent.trim()) {
@@ -1141,13 +1156,9 @@
                         }
                     }
                     scheduleChatScroll(streamingBubble, false);
-                } else {
-                    cancelChatScroll();
                 }
-                announceAgentResponseToPet(petAnnouncementText || streamingContent);
-                const finalMessage = petAnnouncementText || streamingContent;
-                if (finalMessage.trim()) dispatchDesktopVisibleMessage('assistant', finalMessage);
-                resolve();
+                streamingBubble = null;
+                streamingContent = '';
             }
 
             function doReject(err) {
@@ -1197,7 +1208,7 @@
                     });
                 }
                 function handleStreamEvent(data) {
-                    if (!data) return;
+                    if (!data || finalized) return;
                     const event = data.event || data.type;
                     if (event !== 'llm_stream_delta' && event !== 'token_update') forwardAgentStreamEventToPet(data);
                     if (data.event === 'llm_stream_delta' || data.type === 'llm_stream_delta') {
@@ -1239,14 +1250,17 @@
                             }
                         }
                     } else if (event === 'tool_call') {
+                        const hadStreamingBubble = !!streamingBubble;
                         if (renderer) {
                             const text = renderer.extractToolCallNarration(data.detail || data.message || '');
-                            if (text) {
+                            if (hadStreamingBubble && text) streamingContent = text;
+                            if (text && !hadStreamingBubble) {
                                 renderer.appendRichBubble(chatLog, 'agent', text, lastRole);
                                 lastRole = 'agent';
                                 keepAgentStatusAtEnd();
                             }
                         }
+                        finishStreamingBubble();
                     } else if (event === 'image') {
                         try {
                             const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
@@ -1303,7 +1317,7 @@
                                     lastRole = 'agent';
                                 }
                                 petAnnouncementText = text;
-                            } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
+                            } else if (streamingBubble && text.trim()) {
                                 streamingContent = text;
                                 petAnnouncementText = text;
                                 flushStreamingBubble();

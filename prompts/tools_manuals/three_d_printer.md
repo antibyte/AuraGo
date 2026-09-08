@@ -21,6 +21,7 @@ Supported protocols:
 
 - `list_printers`: list configured printers and the default printer.
 - `test_connection` / `status`: request current printer status.
+- For Elegoo print progress, use `status` and inspect `Status.PrintInfo` (or `Data.Status.PrintInfo`): report `Progress`, layer counts and timing only when the printer supplies them. A command acknowledgement alone is not a print status; missing values stay unknown.
 - `attributes`: fetch printer metadata and capabilities.
 - `files`: list G-code files. Elegoo accepts optional `directory`, default `/local`; Klipper lists Moonraker `gcodes`.
 - `history`: fetch print history IDs.

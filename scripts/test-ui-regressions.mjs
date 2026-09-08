@@ -1896,7 +1896,103 @@ function testLocalLLMFamilySelection() {
   assert.equal(invalidations, 3);
 }
 
+async function testDesktopChatSeparatesStreamedToolRounds() {
+  const source = sourceBetween(read('ui/js/desktop/apps/agent-chat.js'),
+    '    async function sendDesktopChatStream(', '    function appendChat(');
+  for (const streamed of [true, false]) {
+    const frames = new Map();
+    let frameID = 0;
+    const scrolls = [];
+    const bubbles = [];
+    const announced = [];
+    const log = {
+      children: [],
+      get lastElementChild() { return this.children.at(-1); },
+      appendChild(el) {
+        this.children = this.children.filter(child => child !== el);
+        this.children.push(el);
+        el.parentNode = this;
+      }
+    };
+    function element() {
+      return {
+        dataset: {}, className: '', textContent: '',
+        set innerHTML(text) { this.textContent = text; },
+        classList: {
+          contains(name) { return this.owner.className.split(' ').includes(name); },
+          remove(name) { this.owner.className = this.owner.className.replace(name, ''); }
+        },
+        scrollIntoView() { scrolls.push(this); },
+        remove() { log.children = log.children.filter(child => child !== this); this.parentNode = null; }
+      };
+    }
+    function createElement() {
+      const el = element();
+      el.classList.owner = el;
+      return el;
+    }
+    function flushFrames() {
+      while (frames.size) {
+        const pending = [...frames.values()];
+        frames.clear();
+        pending.forEach(callback => callback());
+      }
+    }
+    const renderer = {
+      resetDedupSets() {}, createThinkingStatus: createElement,
+      appendAvatar(_log, _role, bubble) { log.appendChild(bubble); bubbles.push(bubble); },
+      appendTimestamp() {}, renderMarkdown: text => text,
+      processImages() {}, enhanceCodeBlocks() {},
+      extractToolCallNarration: text => text, updateStatus() {}, formatAgentActionStatus: () => 'Working',
+      appendRichBubble(_log, _role, text) {
+        const bubble = createElement();
+        bubble.textContent = text;
+        log.appendChild(bubble);
+        bubbles.push(bubble);
+      }
+    };
+    const context = {
+      document: { createElement }, AbortController, lastRole: 'user',
+      fetch: async () => ({ ok: true }),
+      desktopText: key => key, forwardAgentStreamEventToPet() {},
+      announceAgentResponseToPet: text => announced.push(text), dispatchDesktopVisibleMessage() {},
+      window: {
+        DesktopChatRenderer: renderer,
+        requestAnimationFrame(callback) { frames.set(++frameID, callback); return frameID; },
+        cancelAnimationFrame: id => frames.delete(id),
+        AuraChatStreamParser: {
+          async readFetchEventStream(_response, { onEvent, onDone }) {
+            for (const narration of ['I will inspect the printer status.', 'I will check the active print.']) {
+              if (streamed) onEvent({ event: 'llm_stream_delta', content: narration });
+              // Leave a pending text frame at the round boundary.
+              onEvent({ event: 'tool_call', detail: narration });
+              onEvent({ event: 'tool_start' });
+              flushFrames();
+            }
+            assert.equal(bubbles.length, 2, 'tool narration must appear once per round');
+            if (streamed) onEvent({ event: 'llm_stream_delta', content: 'Partial final' });
+            onEvent({ event: 'final_response', detail: 'The print is 42% complete.' });
+            onEvent({ event: 'done' });
+            onEvent({ event: 'llm_stream_delta', content: 'late ignored text' });
+            onDone();
+            flushFrames();
+          }
+        }
+      }
+    };
+    vm.runInNewContext(source, context);
+    await context.sendDesktopChatStream({ querySelector: () => log }, 'Printer progress?', {});
+    assert.deepEqual(bubbles.map(bubble => bubble.textContent), [
+      'I will inspect the printer status.', 'I will check the active print.', 'The print is 42% complete.'
+    ]);
+    assert.deepEqual(announced, ['The print is 42% complete.']);
+    assert.equal(scrolls.at(-1), log.lastElementChild, 'final scroll must target the latest message');
+    assert.equal(frames.size, 0);
+  }
+}
+
 const tests = [
+  ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
   ['Game Maker stops reports from expired or finished validation', testGameMakerPreviewStopsExpiredValidation],
