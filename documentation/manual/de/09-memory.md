@@ -325,6 +325,16 @@ Der Helper LLM ist ein sekundäres, kostengünstigeres LLM, das Hintergrundwartu
 | **Inhaltszusammenfassungen** | Erstellt Zusammenfassungen von Inhalten | Bei Bedarf |
 | **RAG-Stapel** | Stapelverarbeitung für Retrieval-Augmented Generation | Periodisch |
 
+### Nächtliche Speicher-Hygiene
+
+Die nächtliche Wartung hält Langzeit- und Journal-Einträge sauber:
+
+- Exakt doppelte, automatisch erzeugte Journal-Fehlermeldungen werden konsolidiert.
+- Veraltete Notizen mit niedriger Priorität werden archiviert – mit Limits pro Lauf und Verfolgung wiederholter Fehlversuche.
+- Als `protected` oder `keep_forever` markierte Notizen werden nie automatisch archiviert.
+- Automatisch extrahierte Behauptungen, ein Tool, eine Funktion, eine API oder ein Endpoint sei defekt, gelten als vorübergehend und gelangen nie ins Langzeitgedächtnis.
+- Findings, die nur eine Prüfung durch den Nutzer rechtfertigen (Review-only) oder als riskant gelten, werden nie automatisch gelöscht.
+
 ### Turn-Analyse
 
 Nach jedem Gesprächsstrang analysiert der Helper LLM:

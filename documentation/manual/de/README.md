@@ -2,9 +2,9 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** 5. August 2026
+> 📅 **Stand:** 8. September 2026
 > 🔄 **Version:** 2.x kompatibel  
-> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Speech Lab, native SIP-Telefonie, Game Maker Studio, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM und Operational Issues)
+> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (MeshCore-Funk, AuraGo-Ling/Spark, here.now, Managed Garage Storage, Config-Verbindungstests, CYD-Display, erneuerte Virtual-Desktop-Apps und Dashboard-3D-Wissensgraph)
 
 ---
 
@@ -41,9 +41,12 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **🎙️ Speech Lab** | Lokaler ASR-/TTS-Stack für Chat und klassische Telefonie |
 | **☎️ Native SIP-Telefonie** | Browser-Telefon und optionaler Telefon-Agent mit expliziten Richtlinien |
 | **🎮 Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung im Virtual Desktop |
-| **🖥️ Virtual Computers** | Verwaltete Boring Computers mit VNC, Terminal, Volumes und Agent-Jobs |
+| **🖥️ Virtual Computers** | Verwaltete Boring Computers mit VNC, Terminal, Volumes und Agent-Workspaces |
+| **📻 MeshCore-Funk** | Companion-Funkgerät mit vertrauensbasiertem Eingang und Desktop-Messenger |
+| **🖥️ Cheap Yellow Display** | ESP32-Schreibtischdisplay für Status, Warnungen und Agent-Overlays |
+| **🌍 here.now** | Permanente statische Sites direkt aus dem Agent veröffentlichen |
 | **🗣️ Realtime Speech** | Live-Sprachsessions mit OpenAI-, xAI-, Gemini- oder Speech-Lab-Profilen |
-| **🧪 Lokales LLM** | Verwaltete AuraGo-Qwen-Laufzeit für Tests und Fallback |
+| **🧪 Lokales LLM** | Verwaltete AuraGo-Qwen-, AuraGo-Ling- und experimentelle AuraGo-Spark-Laufzeit |
 
 ---
 
@@ -183,6 +186,7 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-05 | Virtual Desktop, Desktop Software Store, Pixel-Bildeditor, Code Studio, Task-Rules-API und erweiterte Output Compression aktualisiert |
 | 2026-03 | **Chat-Commands /sudopwd** hinzugefügt |
 | 2026-08 | **Speech Lab, SIP-Telefonie, Game Maker, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, Netzwerkfreigaben, Operational Issues und neue APIs synchronisiert** |
+| 2026-09 | **MeshCore-Funk (inkl. Desktop-Messenger), here.now, Managed Garage Storage, AuraGo-Ling/-Spark, Config-Verbindungstests, Qualitätsprüfung agenten-erstellter Skills, Workspace-Jail, Docker-Inspect-Redaktion, erneuerte Virtual-Desktop-Apps, Dashboard-3D-Wissensgraph und Affect-Timeline dokumentiert** |
 
 ---
 

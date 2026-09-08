@@ -395,6 +395,15 @@ tools:
 
 ---
 
+## Agent-Dateisystem und Docker-Isolation
+
+Zwei zusätzliche Standardgrenzen begrenzen, was der Agent unabhängig von Tool-Berechtigungen erreichen kann:
+
+- **Workspace-Jail:** Der Agent-Dateizugriff (Filesystem- und File-Editor-Tools) ist auf `agent_workspace` eingesperrt. Vom Arbeitsverzeichnis aus bleiben `../skills` und `../tools` erreichbar; Zugriffe wie `../../config.yaml` oder auf `data/` scheitern an der Pfadauflösung. Defense-in-Depth blockiert zusätzlich case-insensitiv und symlink-aufgelöst die geschützten Systempfade (Datenverzeichnis, `config.yaml`, Vault, SQLite-Datenbanken, `.env` und Master-Key-Datei).
+- **Docker-Inspect-Redaktion:** Agent-`docker inspect`-Ausgaben redigieren `AURAGO_*`-Umgebungsvariablen und Keys mit Endungen wie `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY` oder `_MASTER_KEY`. Der Agent-Container selbst (compose-App `aurago`) bleibt für Inspect-, Lifecycle-, Log-, Exec- und Copy-Zugriffe ausgeblendet; der verwaltete Garage-Container ist ebenfalls unsichtbar.
+
+---
+
 ## Read-only vs Read-write Modus
 
 ### Vergleich

@@ -79,10 +79,13 @@ AuraGo provides a comprehensive REST API for programmatic access to all features
 68. [OmniRoute API](#omniroute-api)
 69. [EvoMap API](#evomap-api)
 70. [Network Shares API](#network-shares-api)
-71. [Operational Issues API](#operational-issues-api)
-72. [SSE Events](#sse-events)
-73. [Error Handling](#error-handling)
-74. [Related Links](#related-links)
+71. [MeshCore API](#meshcore-api)
+72. [here.now API](#herenow-api)
+73. [Desktop Log API](#desktop-log-api)
+74. [Operational Issues API](#operational-issues-api)
+75. [SSE Events](#sse-events)
+76. [Error Handling](#error-handling)
+77. [Related Links](#related-links)
 
 ---
 
@@ -2304,6 +2307,8 @@ GET    /api/virtual-computers/templates
 GET    /api/virtual-computers/volumes
 GET    /api/virtual-computers/volumes/{id}
 POST   /api/virtual-computers/storage/test
+POST   /api/virtual-computers/storage/switch/preview
+POST   /api/virtual-computers/storage/switch/authorize
 GET    /api/virtual-computers/tasks
 POST   /api/virtual-computers/tasks
 GET    /api/virtual-computers/tasks/{id}
@@ -2316,6 +2321,64 @@ including screenshots, publish, fork, save, execute, VNC, TTY, and agent
 channels. VNC and TTY are WebSocket endpoints and require Desktop write access;
 the server keeps boringd credentials and private upstream URLs out of the
 browser.
+
+The storage-mode switch responds with HTTP 409 (`storage_switch_required`)
+while volumes exist and no valid `X-AuraGo-Storage-Switch-Token` from
+`storage/switch/authorize` is supplied.
+
+---
+
+## MeshCore API
+
+All MeshCore endpoints are administrator-protected.
+
+```http
+GET  /api/meshcore/status
+GET  /api/meshcore/devices
+GET  /api/meshcore/contacts
+GET  /api/meshcore/channels
+GET  /api/meshcore/messages          # newest 100 records; limit<=100, offset
+POST /api/meshcore/scan
+POST /api/meshcore/pair
+POST /api/meshcore/test
+POST /api/meshcore/recheck
+GET  /api/meshcore/messenger/bootstrap
+GET  /api/meshcore/messenger/conversations
+GET  /api/meshcore/messenger/messages      # exclusive before cursor, max 50/page
+POST /api/meshcore/messenger/send
+POST /api/meshcore/messenger/conversation
+POST /api/meshcore/messenger/reveal
+POST /api/meshcore/messenger/invitation
+POST /api/meshcore/messenger/manage
+POST /api/meshcore/messenger/settings
+```
+
+Channel keys, BLE PINs, and protected message bodies never appear in API
+responses; `reveal` releases sanitized plain text only for an explicit
+administrator request. Connection and test failures surface through the
+Operational Issue lifecycle.
+
+---
+
+## here.now API
+
+```http
+GET  /api/here-now/status
+POST /api/here-now/test-connection
+GET  /api/here-now/accounts
+```
+
+---
+
+## Desktop Log API
+
+```http
+GET  /api/desktop/logs/files
+GET  /api/desktop/logs/tail
+GET  /api/desktop/logs/stream        # SSE live tail
+GET  /api/desktop/logs/search
+GET  /api/desktop/logs/download      # HTTP 403 in desktop read-only mode
+```
 
 ---
 

@@ -154,6 +154,13 @@ In the Web UI (Configuration → Danger Zone):
 - Red indicators for dangerous features
 - Confirmation dialogs for critical changes
 
+## Agent Filesystem and Docker Isolation
+
+Two additional default boundaries limit what the agent can reach regardless of tool permissions:
+
+- **Workspace jail:** agent file access (filesystem and file-editor tools) is jailed to `agent_workspace`. From the working directory, `../skills` and `../tools` stay reachable; attempts such as `../../config.yaml` or `data/` fail path resolution. Defense-in-depth additionally blocks protected system paths (data directory, `config.yaml`, vault, SQLite databases, `.env`, and the master key file) case-insensitively and with symlinks resolved.
+- **Docker inspect redaction:** agent `docker inspect` output redacts `AURAGO_*` environment variables and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. The AuraGo app container itself (compose service `aurago`) is hidden from inspect, lifecycle, log, exec, and copy access, and the managed Garage container is invisible as well.
+
 ## File Locks and Instance Prevention
 
 AuraGo uses file locks to prevent multiple instances from running simultaneously:

@@ -220,7 +220,7 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 
 ## Virtual Desktop
 
-Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Desktop. Er ist für Dateiarbeit, Coding, Medienbearbeitung und verwaltete Docker-Apps gedacht, ohne die Web-UI verlassen zu müssen.
+Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Desktop. Er ist für Dateiarbeit, Coding, Medienbearbeitung und verwaltete Docker-Apps gedacht, ohne die Web-UI verlassen zu müssen. Drei virtuelle **Spaces** (Taskbar-Pager, `Strg+Alt+←/→`, Flächenübersicht per `F3` oder `Strg+Alt+↑`) gruppieren Fenster pro Arbeitsbereich; Desktop-Icons, Widgets und Gadgets bleiben global.
 
 ### Enthaltene Apps
 
@@ -228,13 +228,40 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 |-----|-------|
 | **Files** | Virtuellen Desktop-Workspace durchsuchen und Dateien in der passenden App öffnen |
 | **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
+| **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look) |
+| **Writer / Sheets / Notes / Viewer** | Textverarbeitung, Tabellenkalkulation, Markdown-Notizen (Liste, Live-Vorschau, Tags) und Dateibetrachter |
 | **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
+| **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
+| **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV), Geräusche- und Musikgenerator |
+| **Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung mit Sprite-Bibliothek und Asset-Browser |
+| **OpenSCAD / 3D Viewer** | Parametrisches 3D-Modellieren mit Vorschau bzw. STL-Betrachter |
+| **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen |
 | **Software Store** | Verwaltete Docker-Apps wie Arcane, Termix, code-server, Dozzle, Beszel und Node-RED installieren und bedienen |
+| **Quick Connect** | SSH-/VNC-Verbindungen verwalten |
+| **Network Cameras** | go2rtc-Kamera-Streams ansehen |
+| **Virtual Computers** | Boring-Computers-Maschinen und Workspaces steuern |
+| **MeshCore** | Desktop-Messenger für das MeshCore-Funkgerät (siehe Kapitel 8) |
+| **Phone** | SIP-Softphone (Browser-Telefon) |
+| **Live Speech / Agent Chat** | Realtime-Sprachfenster und Desktop-Chat mit dem Agenten |
+| **Mission Control / Looper** | Automatisierte Aufgaben und iterative Agent-Workflows |
+| **Calendar / Todo / People / Pet Picker** | Terminplanung, Aufgaben, Kontakte (mit KG-Anreicherung) und Desktop-Begleiter |
+| **Cheater** | Cheat-Sheet-Verwaltung mit Markdown und Anhängen |
+| **Calculator / Settings / System Info / Log Viewer** | Rechner, Desktop-Einstellungen, Systemdiagnose und Live-Logtail |
+| **Galaxa Deluxe / Chess / NASSCAD / Sysworld** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und 3D-Systemvisualisierung |
+
+### Widgets
+
+Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend.
 
 ### Hinweise zum Software Store
 
 Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Apps können Zugangsdaten über den Vault bereitstellen, Operationsfortschritt anzeigen und Open-Links für konfigurierte Ports liefern. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix bringt einen `guacd`-Companion-Container für RDP/VNC mit und unterstützt zusätzlich SSH- und Telnet-Verwaltung über die eigene Web-UI.
+
+### Themes
+
+- **Chat:** 13 Themes, darunter Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee und das LCARS-inspirierte **Galaxy**.
+- **Virtual Desktop:** **Fruity** (Apple-inspiriert mit Dock und Topbar) und **Standard** (Windows-/Ubuntu-artige Produktivitätsoberfläche mit Taskbar).
 
 ## Mission Control
 

@@ -599,6 +599,16 @@ The Helper LLM is a secondary, lower-cost LLM that handles background maintenanc
 | **Content Summaries** | Generates summaries of content | On demand |
 | **RAG Batch** | Batch processing for retrieval-augmented generation | Periodic |
 
+### Nightly Memory Hygiene
+
+Nightly maintenance keeps long-term and journal entries clean:
+
+- Exact duplicates of auto-generated journal error entries are consolidated.
+- Stale low-priority notes are archived — with per-run limits and repeated-failure tracking.
+- Notes marked `protected` or `keep_forever` are never auto-archived.
+- Automatically extracted claims that a tool, function, API, or endpoint is broken are treated as transient and never enter long-term memory.
+- Review-only or high-risk findings are never deleted automatically.
+
 ### Turn Analysis
 
 After each conversation turn, the Helper LLM analyzes:

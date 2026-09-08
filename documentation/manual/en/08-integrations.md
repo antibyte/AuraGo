@@ -868,6 +868,35 @@ netlify:
     allow_env_management: false
 ```
 
+## here.now Integration
+
+here.now hosts permanent static sites behind the fixed API base `https://here.now`. The agent can list, describe, publish, update, duplicate, and restore versions of sites, and manage access rules. The API key is stored only in Vault key `here_now_api_key`; anonymous or unauthenticated publishing paths are deliberately unsupported.
+
+### Web UI Setup
+1. Open **Config → Integrations → here.now**.
+2. Enable the integration and store the API key in the Vault.
+3. Enable only the granular permissions you need.
+
+### Agent Tools
+
+- `here_now_sites` — list/read sites and versions (read-only).
+- `here_now_site` — mutations: `publish`, `update`, `duplicate`, `restore_version`, `update_metadata`, `update_access`, `set_password`, `remove_password`, `delete_site`, `delete_version` (deletions additionally require `confirm: true`).
+- Homepage projects can alternatively publish through the Homepage `deploy_here_now` operation; the ledger records the deployment only after finalization and URL verification.
+
+Publishing first snapshots the project directory into a private temporary tree (path traversal, symlink, special-file, and count checks, at most 1,000 files) and uploads only that snapshot; the snapshot is always removed afterward. Uploads use DNS-pinned connections, upload redirects are blocked, and every redirect of a site verification is re-pinned and validated. Ambiguous outcomes are reported as `here_now_outcome_unknown` and are never replayed automatically.
+
+### YAML Reference
+```yaml
+here_now:
+    enabled: true
+    readonly: true
+    allow_publish: false
+    allow_site_management: false
+    allow_access_management: false
+    allow_delete: false
+    default_account: ""       # empty = personal account
+```
+
 ---
 
 ## Paperless NGX Integration
@@ -2668,10 +2697,20 @@ virtual_computers:
     allow_publish: false
     allow_volumes: false
     allow_agent_tasks: false
-    agent_provider: ""       # Anthropic provider ID for agent tasks
+    agent_provider: ""       # Anthropic provider ID for legacy agent tasks only
+    storage:
+        mode: managed_garage   # managed_garage (default) or external_s3
+    agent_control:
+        enabled: false         # stateful workspaces with AuraGo as the agent
+        default_template: desktop
+        max_active_workspaces: 2
 ```
 
-The Chat integrations drawer opens `/boring-computers/` when the integration is running. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side. Agent tasks require a configured Anthropic provider and use a separate allowlist.
+The Chat integrations drawer opens `/boring-computers/` when the integration is running. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side.
+
+**Volume storage:** the default is **Managed Garage** — AuraGo runs a pinned Garage container (`aurago-boring-garage`, bound only to `127.0.0.1:3900`) with data under `data/sidecars/garage`. Garage keys (`virtual_computers_garage_*`) are stored separately from external S3 keys in the Vault and are never exported to Python/skills. `external_s3` remains available for existing setups. Switching the storage mode while volumes exist requires a one-time authorization token; source objects are never auto-deleted. The agent cannot see or manage the Garage container (same fail-closed pattern as the local-LLM manager).
+
+**Agent modes:** `allow_agent_tasks` only starts the legacy boringd LLM agent with a configured Anthropic provider. Prefer `agent_control.enabled` instead: stateful shell/browser workspaces where the normal AuraGo agent keeps reasoning, tools, and Guardian. Legacy jobs are superseded by workspaces.
 
 See [Virtual Computers](../../virtual_computers.md) for setup modes, screenshots, VNC, headless terminals, volumes, task history, and repair behavior.
 
@@ -2793,18 +2832,32 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 Flash a board from this config page with **Web flasher** (Chrome or Edge, HTTPS or localhost, USB). AuraGo writes the display token and Display URL into a factory partition, so the glass only needs Wi-Fi. Firmware images ship in `internal/cyd/firmware/cyd/`.
 
-The glass dashboard has five pages: Home, Load, Work, Alerts (system warnings with a count badge), and Mesh (MeshCore inbox). After 10 seconds idle it rotates every 5 seconds; incoming notify, warning, or MeshCore traffic jumps immediately. Swipe or tap the footer dots. Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page (`status`/`home`/`load`/`work`/`host`), brightness, and LED.
+The glass dashboard has five pages: Home, Load, Work, Alerts (system warnings with a count badge), and Mesh (MeshCore inbox). After 10 seconds idle it rotates every 5 seconds; incoming notify, warning, or MeshCore traffic jumps immediately. Swipe or tap the footer dots. Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), brightness, and LED.
 
 ---
 
 ## MeshCore radio
 
-Connect one Companion over USB or native Linux Bluetooth in **Settings → MeshCore**.
-Confirm its identity, assign channel rules, and explicitly allow full node keys.
-Replies and proactive sends have separate permissions; public channel replies
-use an isolated assistant with optional Brave search. See the
-[MeshCore setup, security and reliability guide](../../meshcore-en.md).
-Hardware acceptance is still pending on all supported platforms.
+AuraGo connects to exactly one MeshCore Companion radio. USB works on Linux, Windows, and macOS (115200 baud); Bluetooth is native-Linux BlueZ only, and unavailable in Docker, where USB needs an explicit device passthrough. Firmware flashing, repeater administration, and radio-parameter changes are out of scope.
+
+### Setup
+
+1. Open **Config → MeshCore**, pick the transport and port (dropdown of discovered serial ports) or a previously paired BLE address, enable, and save. A BLE PIN applies only to the current pairing attempt and is never stored.
+2. Compare the displayed full device key and click **Confirm this device identity**. The connection test reads saved settings only and never sends a radio message.
+3. Allow full public keys (64 characters) of trusted nodes — or adopt them via the searchable node list into the trust or proactive-target list. Only unambiguous synchronized chat contacts may trigger direct plain-text commands; names, channel senders, and forwarded messages never authorize anything.
+4. Map channels and choose receive, prefix (`!aura`), or automatic question detection per channel. Question detection also answers open channel questions and radio checks such as "anyone hearing me" — without web search; measured SNR values and known hop counts may be reported.
+5. Replies (`direct_replies`) and proactive sending (`proactive_send` with destination allowlist) are separate permissions. Automatic channel replies carry the fixed `[AuraGo KI]` disclosure and run in an isolated minimal context with at most two native Brave searches.
+6. Location disclosure is off by default. Only the administrator-entered public description may be shared — positions, coordinates, and routes stay private.
+
+### Security and limits
+
+Every input passes format, duplicate, and injection checks plus a separate Guardian LLM verdict; errors, truncation, and tool calls quarantine the message. Inbound traffic never creates general chat notifications — at the next direct contact the agent receives a summarized inbox overview. Every admitted message carries structured reception context (SNR, flood hops, timestamps, channel and sender data); none of it grants authority or derived inference. Direct commands must be at most 600 seconds old; interrupted or unclear sends remain `outcome_unknown` and are never replayed automatically. Storage: seven days, 1,000 messages, queue of 128, two runs per node/channel and twelve per minute. Connection and test failures use the Operational Issue lifecycle.
+
+### Tool, API, and Desktop Messenger
+
+The agent tool `meshcore` offers `status`, `contacts`, `channels`, `send_direct`, and `send_channel` — no raw protocol or device administration. Administrative endpoints: GET under `/api/meshcore/{status,devices,contacts,channels,messages}`, POST under `/api/meshcore/{scan,pair,test,recheck}`; the inbox shows the newest 100 records with pagination. The **MeshCore** desktop app shares the same device (no second USB/BT connection) and provides a conversation list, drafts, per-part send states, protected text revealed only explicitly, and a separate messenger history (`history_days: 90`, `history_messages: 10000`). Private-channel invitations are transient admin-only exports with no browser storage. The opt-in **builtin-meshcore** desktop widget shows the latest conversations read-only.
+
+See the [MeshCore setup, security and reliability guide](../../meshcore-en.md). Hardware acceptance is still pending on all supported platforms.
 
 ## Next Steps
 

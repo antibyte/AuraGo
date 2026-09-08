@@ -78,10 +78,13 @@ AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf all
 68. [OmniRoute API](#omniroute-api)
 69. [EvoMap API](#evomap-api)
 70. [Network Shares API](#network-shares-api)
-71. [Operational-Issues-API](#operational-issues-api)
-72. [SSE Events](#sse-events)
-73. [Fehlerbehandlung](#fehlerbehandlung)
-74. [Weiterführende Links](#weiterführende-links)
+71. [MeshCore API](#meshcore-api)
+72. [here.now API](#herenow-api)
+73. [Desktop Log API](#desktop-log-api)
+74. [Operational-Issues-API](#operational-issues-api)
+75. [SSE Events](#sse-events)
+76. [Fehlerbehandlung](#fehlerbehandlung)
+77. [Weiterführende Links](#weiterführende-links)
 
 ---
 
@@ -2303,6 +2306,8 @@ GET    /api/virtual-computers/templates
 GET    /api/virtual-computers/volumes
 GET    /api/virtual-computers/volumes/{id}
 POST   /api/virtual-computers/storage/test
+POST   /api/virtual-computers/storage/switch/preview
+POST   /api/virtual-computers/storage/switch/authorize
 GET    /api/virtual-computers/tasks
 POST   /api/virtual-computers/tasks
 GET    /api/virtual-computers/tasks/{id}
@@ -2314,6 +2319,64 @@ Maschinenspezifische Aktionen liegen unter `/api/virtual-computers/machines/{id}
 darunter Screenshots, Publish, Fork, Save, Exec, VNC, TTY und Agent-Kanäle.
 VNC und TTY sind WebSocket-Endpunkte und benötigen Desktop-Schreibrechte;
 boringd-Credentials und private Upstream-URLs bleiben serverseitig.
+
+Der Speichermodus-Wechsel antwortet mit HTTP 409 (`storage_switch_required`),
+solange Volumes existieren und kein gültiger `X-AuraGo-Storage-Switch-Token`
+von `storage/switch/authorize` mitgeliefert wird.
+
+---
+
+## MeshCore API
+
+Alle MeshCore-Endpunkte sind administrator-geschützt.
+
+```http
+GET  /api/meshcore/status
+GET  /api/meshcore/devices
+GET  /api/meshcore/contacts
+GET  /api/meshcore/channels
+GET  /api/meshcore/messages          # neueste 100 Einträge; limit<=100, offset
+POST /api/meshcore/scan
+POST /api/meshcore/pair
+POST /api/meshcore/test
+POST /api/meshcore/recheck
+GET  /api/meshcore/messenger/bootstrap
+GET  /api/meshcore/messenger/conversations
+GET  /api/meshcore/messenger/messages      # exklusiver before-Cursor, max. 50/Seite
+POST /api/meshcore/messenger/send
+POST /api/meshcore/messenger/conversation
+POST /api/meshcore/messenger/reveal
+POST /api/meshcore/messenger/invitation
+POST /api/meshcore/messenger/manage
+POST /api/meshcore/messenger/settings
+```
+
+Kanalschlüssel, BLE-PINs und geschützte Nachrichtentexte erscheinen in keiner
+API-Antwort; `reveal` gibt bereinigten Klartext nur nach ausdrücklicher
+Administratoren-Anfrage frei. Verbindungs- und Prüfprobleme erscheinen im
+Operational-Issue-Lebenszyklus.
+
+---
+
+## here.now API
+
+```http
+GET  /api/here-now/status
+POST /api/here-now/test-connection
+GET  /api/here-now/accounts
+```
+
+---
+
+## Desktop Log API
+
+```http
+GET  /api/desktop/logs/files
+GET  /api/desktop/logs/tail
+GET  /api/desktop/logs/stream        # SSE Live-Tail
+GET  /api/desktop/logs/search
+GET  /api/desktop/logs/download      # im Desktop-Read-only-Modus HTTP 403
+```
 
 ---
 

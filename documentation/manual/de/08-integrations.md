@@ -1039,6 +1039,32 @@ netlify:
   allow_env_management: false
 ```
 
+## here.now Integration
+
+here.now hostet permanente statische Sites unter der festen API-Basis `https://here.now`. Der Agent kann Sites listen, beschreiben, veröffentlichen, aktualisieren, duplizieren, Versionen wiederherstellen und Zugriffsregeln verwalten. Der API-Key liegt ausschließlich im Vault-Schlüssel `here_now_api_key`; anonyme oder nicht authentifizierte Pfade werden bewusst nicht unterstützt.
+
+**Web-UI:** Config → Integrationen → here.now → Integration aktivieren und API-Key im Vault speichern. Wähle dann die benötigten granularen Berechtigungen.
+
+### Agent-Tools
+
+- `here_now_sites` – Sites und Versionen listen/lesen (schreibgeschützt).
+- `here_now_site` – Mutationen: `publish`, `update`, `duplicate`, `restore_version`, `update_metadata`, `update_access`, `set_password`, `remove_password`, `delete_site`, `delete_version` (Löschungen zusätzlich mit `confirm: true`).
+- Homepage-Projekte können alternativ über die Homepage-Operation `deploy_here_now` veröffentlicht werden; der Einsatz wird erst nach Abschluss und URL-Prüfung im Homepage-Ledger vermerkt.
+
+Publishing snapshotzt zuerst das Projektverzeichnis in einen privaten temporären Baum (Traversal-, Symlink-, Sonderdatei- und Mengenprüfungen, maximal 1.000 Dateien) und lädt nur diesen Snapshot hoch; der Snapshot wird danach immer entfernt. Uploads verwenden DNS-gepinnte Verbindungen, Upload-Redirects werden blockiert und jeder Redirect einer Site-Verifikation wird neu verankert und geprüft. Mehrdeutige Ergebnisse werden als `here_now_outcome_unknown` gemeldet und nie automatisch wiederholt.
+
+### YAML-Referenz
+```yaml
+here_now:
+  enabled: true
+  readonly: true
+  allow_publish: false
+  allow_site_management: false
+  allow_access_management: false
+  allow_delete: false
+  default_account: ""       # leer = persönliches Konto
+```
+
 ## Paperless NGX
 
 Dokumentenmanagement und Durchsuchung.
@@ -2282,10 +2308,20 @@ virtual_computers:
   allow_publish: false
   allow_volumes: false
   allow_agent_tasks: false
-  agent_provider: ""       # Anthropic-Provider-ID für Agent-Jobs
+  agent_provider: ""       # Anthropic-Provider-ID nur für Legacy-Agent-Jobs
+  storage:
+    mode: managed_garage   # managed_garage (Standard) oder external_s3
+  agent_control:
+    enabled: false         # zustandsbehaftete Workspaces mit AuraGo als Agent
+    default_template: desktop
+    max_active_workspaces: 2
 ```
 
-Der Chat-Integrationsdrawer öffnet `/boring-computers/`, sobald die Integration läuft. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig. Agent-Jobs benötigen einen konfigurierten Anthropic-Provider und eine eigene Allowlist.
+Der Chat-Integrationsdrawer öffnet `/boring-computers/`, sobald die Integration läuft. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig.
+
+**Speicher (Volumes):** Standard ist **Managed Garage** – AuraGo betreibt dafür einen gepinnten Garage-Container (`aurago-boring-garage`, ausschließlich `127.0.0.1:3900`) mit Daten unter `data/sidecars/garage`. Die Garage-Schlüssel (`virtual_computers_garage_*`) liegen getrennt von externen S3-Schlüsseln im Vault und werden nie an Python/Skills exportiert. `external_s3` bleibt für bestehende Setups verfügbar. Beim Wechsel des Speichermodus mit vorhandenen Volumes verlangt die API eine einmalige Bestätigung; Quell-Objekte werden dabei nie automatisch gelöscht. Der Agent sieht und verwaltet den Garage-Container nicht (gleiches Fail-Closed-Muster wie bei der Local-LLM-Verwaltung).
+
+**Agent-Arbeitsweisen:** `allow_agent_tasks` startet nur den Legacy-boringd-Agenten mit einem konfigurierten Anthropic-Provider. Empfohlen ist stattdessen `agent_control.enabled`: zustandsbehaftete Workspaces (Shell/Browser), in denen der normale AuraGo-Agent reasoning, Tools und Guardian behält. Legacy-Jobs werden beim Start durch Workspaces ersetzt.
 
 Siehe [Virtual Computers](../../virtual_computers.md) für Modi, Screenshots, VNC, Headless-Terminals, Volumes, Task-Historie und Repair-Verhalten.
 
@@ -2410,17 +2446,31 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 Von dieser Config-Seite aus kann das Board mit dem **Web-Flasher** programmiert werden (Chrome oder Edge, HTTPS oder localhost, USB). AuraGo schreibt Token und Display-URL in eine Factory-Partition, danach bleibt nur WLAN. Die Firmware liegt unter `internal/cyd/firmware/cyd/`.
 
-Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`), Helligkeit und LED.
+Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), Helligkeit und LED.
 
 ---
 
 ## MeshCore-Funk
 
-Unter **Einstellungen → MeshCore** ein Companion-Gerät über USB oder natives
-Linux-Bluetooth verbinden, seine Identität bestätigen, Kanalregeln festlegen und
-vollständige Node-Schlüssel freigeben. Antworten und proaktives Senden sind
-getrennt erlaubt; Kanalantworten nutzen einen isolierten Assistenten mit optionaler
-Brave-Websuche. Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md).
-Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
+AuraGo verbindet sich mit genau einem MeshCore-Companion-Funkgerät. USB funktioniert unter Linux, Windows und macOS (115200 Baud), Bluetooth nativ nur unter Linux mit BlueZ; in Docker ist Bluetooth nicht verfügbar und USB braucht eine ausdrückliche Gerätedurchreichung. Firmware-Flashing, Repeater-Verwaltung und Funkparameter-Änderungen gehören nicht zur Integration.
+
+### Einrichtung
+
+1. **Config → MeshCore** öffnen, Transport und Port (Dropdown erkannter serieller Anschlüsse) bzw. zuvor gekoppelte BLE-Adresse wählen, aktivieren und speichern. Eine BLE-PIN gilt nur für den aktuellen Kopplungsversuch und wird nie gespeichert.
+2. Den angezeigten vollständigen Geräteschlüssel vergleichen und **Geräteidentität bestätigen**. Der Verbindungstest liest nur gespeicherte Einstellungen und sendet keine Funknachricht.
+3. Vollständige öffentliche Schlüssel (64 Zeichen) sicherer Nodes freigeben – alternativ über die durchsuchbare Nodeliste in die Vertrauens- oder Sendeliste übernehmen. Nur eindeutige synchronisierte Chat-Kontakte dürfen direkte Plain-Text-Befehle auslösen; Namen, Kanalabsender und weitergeleitete Nachrichten autorisieren nie.
+4. Kanäle zuordnen und pro Kanal Empfang, Präfix (`!aura`) oder automatische Frageerkennung wählen. Die Frageerkennung beantwortet auch offene Kanalfragen und Empfangstests wie „hört mich jemand“ – ohne Websuche; gemessene SNR-Werte und bekannte Hopzahlen dürfen genannt werden.
+5. Antworten (`direct_replies`) und proaktives Senden (`proactive_send` mit Ziel-Freigabe) sind getrennte Berechtigungen. Kanalantworten tragen die feste KI-Kennzeichnung `[AuraGo KI]` und laufen in einem isolierten Minimal-Kontext mit höchstens zwei nativen Brave-Suchaufrufen.
+6. Die Standortfreigabe ist standardmäßig aus. Nur der vom Administrator eingetragene öffentliche Beschreibungstext darf genannt werden – Positionen, Koordinaten und Routen bleiben privat.
+
+### Sicherheit und Grenzen
+
+Vor jeder Verarbeitung laufen Format-, Duplikat- und Injection-Prüfung plus eine separate Wächter-LLM-Prüfung; Fehler, abgeschnittene Ausgaben und Werkzeugaufrufe führen zur Quarantäne. Eingänge erzeugen keine allgemeinen Chat-Systemmeldungen – beim nächsten direkten Kontakt erhält der Agent eine zusammengefasste Eingangsübersicht. Jede zugelassene Nachricht bekommt strukturierten Empfangskontext (SNR, Flood-Hops, Zeitstempel, Kanal- und Absenderdaten); daraus werden keine Berechtigungen oder Laufzeit-Schlüsse abgeleitet. Direktbefehle dürfen höchstens 600 Sekunden alt sein; unterbrochene oder unklare Sendungen bleiben `outcome_unknown` und werden nicht automatisch wiederholt. Speicher: sieben Tage, 1.000 Nachrichten, Warteschlange 128, zwei Läufe je Node/Kanal und zwölf pro Minute. Verbindungs- und Prüfprobleme laufen über den Operational-Issue-Lebenszyklus.
+
+### Werkzeug, API und Desktop-Messenger
+
+Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`, `send_direct` und `send_channel` – keine Rohprotokoll- oder Geräteverwaltung. Administrative Endpunkte: GET unter `/api/meshcore/{status,devices,contacts,channels,messages}`, POST unter `/api/meshcore/{scan,pair,test,recheck}`; der Eingang zeigt die neuesten 100 Einträge mit Pagination. Die Desktop-App **MeshCore** teilt dasselbe Gerät (keine zweite USB-/BT-Verbindung), bietet Gesprächsliste, Entwürfe, Sendestatus, geschützten Text nur nach explizitem Aufdecken und einen getrennten Messenger-Verlauf (`history_days: 90`, `history_messages: 10000`). Private-Kanal-Einladungen sind rein transiente Admin-Exporte ohne Browser-Speicherung. Das opt-in Widget **builtin-meshcore** im Desktop zeigt die neuesten Gespräche nur lesend.
+
+Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md). Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
 
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

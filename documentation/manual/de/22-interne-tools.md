@@ -214,6 +214,9 @@ Alle verfügbaren Tools durchsuchen, inklusive adaptiv gefilterter. Browsen nach
 | `query` | string | Suchbegriff |
 | `tool_name` | string | Tool-Name für Detail-Info |
 
+### `workspace_search`
+Residenter Volltextindex über den gesamten Agent-Workspace. Operationen: `find` (semantische/frecency-gestützte Dateisuche), `grep` (Inhaltssuche), `glob` (Muster), `recent` (zuletzt genutzte Dateien), `rescan` (Index neu aufbauen) und `status`. Aktivierbar über `workspace_search.enabled`; Dateiinhalte werden nicht persistiert, nur Zugriffsmetadaten landen in `data/workspace_search.db`. Legacy-`file_search`-Aufrufe werden transparent weitergeleitet.
+
 ---
 
 ## System & Prozesse
@@ -467,7 +470,7 @@ Sendet proaktiven Text an einen verbundenen **AgoDesk/AgoChat**-Desktop-Client.
 **Voraussetzung:** AgoDesk gekoppelt über `/api/agodesk/ws`; **Config → Integrationen → Fernsteuerung** (`remote_control.enabled: true`). Siehe Kap. 08 **Remote Control** und `documentation/agodesk_backend_protocol.md`.
 
 ### `send_notification` / `notification_center` / `send_push_notification` / `web_push`
-Push-Benachrichtigungen über konfigurierte Provider (ntfy, Pushover) oder Browser Web Push (PWA) senden. `notification_center` listet aktuelle Benachrichtigungen; `web_push` zielt auf abonnierte PWA-Clients per VAPID. Siehe Kap. 08 **Notifications** und **Web Push / PWA-Benachrichtigungen**.
+Push-Benachrichtigungen über konfigurierte Provider (ntfy, Pushover) oder Browser Web Push (PWA) senden. `notification_center` listet aktuelle Benachrichtigungen; `web_push` zielt auf abonnierte PWA-Clients per VAPID. Mit `channel: "cyd"` erscheint die Meldung zusätzlich auf dem Cheap Yellow Display. Siehe Kap. 08 **Notifications** und **Web Push / PWA-Benachrichtigungen**.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
@@ -475,6 +478,9 @@ Push-Benachrichtigungen über konfigurierte Provider (ntfy, Pushover) oder Brows
 | `message` | string | Nachrichtentext |
 | `priority` | string | normal, high, low (providerabhängig) |
 | `url` | string | Optional: Klick-Ziel-URL (Web Push) |
+
+### `cyd_display`
+Cheap Yellow Display (ESP32-2432S028R) steuern: `notify`, `show`, `clear`, `page`, `brightness`, `led`, `status`. Benötigt `cyd.enabled` und ein gekoppeltes Display; Seite/Helligkeit/LED benötigen `cyd.allow_agent_control`. Siehe Kap. 08 **Cheap Yellow Display**.
 
 ### `pin_message`
 Chat-Nachricht in der Web-UI-Historie anheften oder lösen.
@@ -642,6 +648,15 @@ Fernsteuerung verbundener Remote-Geräte.
 | `operation` | enum | list_devices, device_status, execute_command, read_file, write_file, edit_file |
 | `device_id` | string | Geräte-ID |
 | `command` | string | Shell-Befehl |
+
+### `meshcore`
+MeshCore-Companion-Funk steuern: `status`, `contacts`, `channels`, `send_direct` (mit `node_key`/`text`) und `send_channel` (mit `channel`/`text`). Benötigt die aktivierte MeshCore-Integration; keine Rohprotokoll- oder Geräteverwaltung. Details in Kapitel 8.
+
+### `bluetooth`
+Bluetooth-Geräte suchen, verbinden, Status lesen und Audio wiedergeben (`play`/`speak`/`status`/`stop`). Kopplung/Verbinden benötigt `bluetooth.readonly: false`, Wiedergabe zusätzlich `bluetooth.allow_playback: true` und ein nutzbares PipeWire-/PulseAudio-Backend. Akzeptiert nur Workspace-Dateien oder Media-Registry-IDs – keine URLs.
+
+### `network_shares`
+Lokale SMB-/NFS-Freigaben lesen und (mit granularer Freigabe) erstellen, ändern oder entfernen. Lesezugriff nur, wenn ein konfiguriertes Protokoll tatsächlich lesbar ist; Mutationen benötigen `readonly: false`, die passende Berechtigung und ein kanonisches Verzeichnis innerhalb der erlaubten Roots. Nur AuraGo-erstellte Freigaben dürfen verändert werden.
 
 ---
 
@@ -834,6 +849,9 @@ MeshCentral Geräte über den Control-WebSocket verwalten.
 
 ### `vercel`
 Vercel-Projekte, Deployments, Umgebungsvariablen und Domains verwalten.
+
+### `here_now_sites` / `here_now_site`
+here.now-Website-Hosting: `here_now_sites` listet/liest Sites und Versionen (schreibgeschützt). `here_now_site` führt Mutationen aus – `publish`, `update`, `duplicate`, `restore_version`, `update_metadata`, `update_access`, `set_password`, `remove_password`, `delete_site`, `delete_version` (mit `confirm: true`). Benötigt `here_now.enabled` plus die jeweilige granulare Berechtigung; der API-Key liegt im Vault unter `here_now_api_key`.
 
 ### `obsidian`
 Obsidian Vault über Local REST API Plugin durchsuchen und bearbeiten (Notizen lesen, erstellen, suchen).

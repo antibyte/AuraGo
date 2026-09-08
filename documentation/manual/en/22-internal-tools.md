@@ -169,6 +169,9 @@ Compare two text strings and show differences.
 ### `discover_tools`
 List all currently available tools for the agent (context-aware).
 
+### `workspace_search`
+Resident full-text index across the entire agent workspace. Operations: `find` (semantic/frecency-aware file search), `grep` (content search), `glob` (patterns), `recent` (recently used files), `rescan` (rebuild the index), and `status`. Gated by `workspace_search.enabled`; file content is never persisted — only access metadata is stored in `data/workspace_search.db`. Legacy `file_search` calls delegate transparently.
+
 ### `file_editor`
 Precise text file editing (str_replace, insert, delete).
 
@@ -667,6 +670,15 @@ Control connected remote devices.
 | `device_id` | string | Device ID |
 | `command` | string | Shell command |
 
+### `meshcore`
+Operate the MeshCore Companion radio: `status`, `contacts`, `channels`, `send_direct` (with `node_key`/`text`), and `send_channel` (with `channel`/`text`). Requires the enabled MeshCore integration; no raw protocol or device administration. See chapter 8.
+
+### `bluetooth`
+Discover Bluetooth devices, connect, read status, and play audio (`play`/`speak`/`status`/`stop`). Pairing/connecting requires `bluetooth.readonly: false`; playback additionally requires `bluetooth.allow_playback: true` and a usable PipeWire/PulseAudio backend. Accepts only workspace files or Media Registry IDs — never URLs.
+
+### `network_shares`
+Read local SMB/NFS shares and — with granular permissions — create, update, or remove them. Reads require a configured protocol that is actually readable; mutations require `readonly: false`, the matching permission, and an existing canonical directory inside the allowed roots. Only AuraGo-created shares may be modified.
+
 ---
 
 ## Integrations (Smart Home)
@@ -839,6 +851,9 @@ Manage local Ollama LLM instance.
 
 ### `vercel`
 Manage Vercel projects, deployments, and environment variables.
+
+### `here_now_sites` / `here_now_site`
+here.now website hosting: `here_now_sites` lists/reads sites and versions (read-only). `here_now_site` performs mutations — `publish`, `update`, `duplicate`, `restore_version`, `update_metadata`, `update_access`, `set_password`, `remove_password`, `delete_site`, `delete_version` (with `confirm: true`). Requires `here_now.enabled` plus the matching granular permission; the API key lives in Vault key `here_now_api_key`.
 
 ### `obsidian`
 Read and search Obsidian vault notes.

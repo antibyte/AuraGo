@@ -428,6 +428,10 @@ skillspector scan <target> --no-llm --format json
 
 Es werden kein SkillSpector-MCP-Server, kein Sidecar und keine LLM-Zugangsdaten verwendet. Die Ergebnisse fließen in den normalen Sicherheitsstatus ein: `SAFE` wird `clean`, `CAUTION` wird `warning`, und `DO_NOT_INSTALL` wird `dangerous`. Mit dem Button **Scanner testen** in den Skill-Manager-Einstellungen prüfst du, ob der konfigurierte Befehl verfügbar ist.
 
+### Qualitätsprüfung agenten-erstellter Skills
+
+Die nächtliche Wartung prüft Skills und `SKILL.md`-Pakete, deren gespeicherte Herkunft exakt `agent` ist. Nichts davon gilt für System-, Nutzer- oder kuratierte Skills – diese bleiben unveränderlich. Eine Verbesserung erfordert hohe Klassifizierer-Konfidenz (mindestens 0,95) plus vollständige Staging-Validierung und ein sauberes Sicherheits-Ergebnis; eine Löschung erfordert mindestens 0,98 plus deterministische, objektive Nachweise und entfernt Dateien, Registry und Versionen endgültig (zurück bleibt nur ein wartungsseitiger Grabstein ohne Quellenangabe). Fehlende Nutzung allein rechtfertigt nie eine Löschung. Schreibgeschützte Skills, Mehrdeutigkeit, Abbruch, Credential-Signale, Scanner-Warnungen, feste Referenzen oder gescheiterte Daemon-Stops verhindern jede Mutation.
+
 ### Skill erstellen
 
 1. **Dateien erstellen**: Lege `.json` und `.py` Dateien in `agent_workspace/skills/` an

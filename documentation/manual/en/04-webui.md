@@ -220,7 +220,7 @@ Here you edit the `config.yaml` via a web form.
 
 ## Virtual Desktop
 
-The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It is designed for file work, coding, media editing, and managed Docker apps without leaving the Web UI.
+The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It is designed for file work, coding, media editing, and managed Docker apps without leaving the Web UI. Three virtual **Spaces** (taskbar pager, `Ctrl+Alt+←/→`, Spaces overview via `F3` or `Ctrl+Alt+↑`) group windows per workspace; desktop icons, widgets, and gadgets stay global.
 
 ### Included Apps
 
@@ -228,13 +228,40 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 |-----|---------|
 | **Files** | Browse the virtual desktop workspace and open files in the right app |
 | **Code Studio** | Container-backed IDE with file tree, editor, search, terminal, and agent context |
+| **Terminal** | Workspace terminal with selectable CRT styles (retro tube look) |
+| **Writer / Sheets / Notes / Viewer** | Word processing, spreadsheets, Markdown notes (list, live preview, tags), and a file viewer |
 | **Pixel** | Image editor for local files, canvas edits, filters, crop/resize, and optional AI generation/enhancement |
 | **Zipper** | Browse ZIP archives and extract files into the workspace |
+| **Camera / Gallery / Music Player** | Camera capture, gallery, and music playback |
+| **Radio / TeeVee / Noisemaker** | Vintage stereo radio receiver, CRT television for live streams (IPTV), and a sound/music generator |
+| **Game Maker Studio** | Isolated offline 2D/3D game creation with a sprite library and asset browser |
+| **OpenSCAD / 3D Viewer** | Parametric 3D modeling with preview and an STL viewer |
+| **Homepage Studio** | Build, validate, and deploy managed website projects |
 | **Software Store** | Install and operate managed Docker apps such as Arcane, Termix, code-server, Dozzle, Beszel, and Node-RED |
+| **Quick Connect** | Manage SSH/VNC connections |
+| **Network Cameras** | View go2rtc camera streams |
+| **Virtual Computers** | Operate Boring Computers machines and workspaces |
+| **MeshCore** | Desktop messenger for the MeshCore radio (see Chapter 8) |
+| **Phone** | SIP softphone (browser phone) |
+| **Live Speech / Agent Chat** | Realtime voice window and desktop chat with the agent |
+| **Mission Control / Looper** | Automated tasks and iterative agent workflows |
+| **Calendar / Todo / People / Pet Picker** | Scheduling, tasks, contacts (KG-enriched), and the desktop pet |
+| **Cheater** | Cheat-sheet manager with Markdown and attachments |
+| **Calculator / Settings / System Info / Log Viewer** | Calculator, desktop settings, system diagnostics, and a live log tail |
+| **Galaxa Deluxe / Chess / NASSCAD / Sysworld** | Arcade shooter, chess (with agent opponent), docking game, and a 3D system visualization |
+
+### Widgets
+
+The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only.
 
 ### Software Store Notes
 
 The Software Store uses AuraGo-managed Docker containers. Apps can expose credentials through the Vault, show operation progress, and provide open links for their configured ports. Arcane uses a Docker socket proxy companion for Docker management access. Termix includes a `guacd` companion container for RDP/VNC support and also supports SSH and Telnet management from its own Web UI.
+
+### Themes
+
+- **Chat:** 13 themes, including Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee, and the LCARS-inspired **Galaxy**.
+- **Virtual Desktop:** **Fruity** (Apple-inspired with dock and topbar) and **Standard** (Windows/Ubuntu-style productivity surface with taskbar).
 
 ## Mission Control
 

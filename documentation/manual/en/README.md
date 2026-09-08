@@ -2,9 +2,9 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** August 5, 2026
+> 📅 **Updated:** September 8, 2026
 > 🔄 **Version:** 2.x compatible  
-> 📝 **Last Update:** Documentation sync with current codebase (Speech Lab, native SIP telephony, Game Maker Studio, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, and operational issue handling)
+> 📝 **Last Update:** Documentation sync with current codebase (MeshCore radio, AuraGo-Ling/Spark, here.now, managed Garage storage, Config connection tests, CYD display, refreshed Virtual Desktop apps, and the dashboard 3D knowledge graph)
 
 ---
 
@@ -41,9 +41,12 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **🎙️ Speech Lab** | Local ASR/TTS stack for chat and classic telephone flows |
 | **☎️ Native SIP Phone** | Browser phone and optional telephone agent with explicit call policies |
 | **🎮 Game Maker Studio** | Isolated offline 2D/3D game creation in the Virtual Desktop |
-| **🖥️ Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent tasks |
+| **🖥️ Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent workspaces |
+| **📻 MeshCore radio** | Companion radio with a trust-based inbox and desktop messenger |
+| **🖥️ Cheap Yellow Display** | ESP32 desk display for status, warnings, and agent overlays |
+| **🌍 here.now** | Publish permanent static sites straight from the agent |
 | **🗣️ Realtime Speech** | Live voice sessions with OpenAI, xAI, Gemini, or Speech Lab profiles |
-| **🧪 Local LLM** | Managed AuraGo-Qwen test and fallback runtime |
+| **🧪 Local LLM** | Managed AuraGo-Qwen, AuraGo-Ling, and experimental AuraGo-Spark runtimes |
 
 ---
 
@@ -183,6 +186,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-05 | Updated Virtual Desktop, Desktop Software Store, Pixel image editor, Code Studio, Task Rules API, and advanced Output Compression documentation |
 | 2026-03 | **Added Chat Command /sudopwd** |
 | 2026-08 | **Synced Speech Lab, SIP telephony, Game Maker, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, network shares, Operational Issues, and new APIs** |
+| 2026-09 | **Documented MeshCore radio (including the desktop messenger), here.now, managed Garage storage, AuraGo-Ling/-Spark, Config connection tests, agent-skill quality maintenance, the workspace jail, Docker inspect redaction, refreshed Virtual Desktop apps, and the dashboard 3D knowledge graph with the affect timeline** |
 
 ---
 

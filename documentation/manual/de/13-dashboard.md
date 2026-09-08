@@ -60,6 +60,7 @@ Der Tab **Agent** fokussiert Persönlichkeit und Gedächtnis.
 - **Aktuelle Stimmung** (Mood-Badge) und Auslöser-Text.
 - **Emotionaler Zustand** (mit aktivem Emotion Synthesizer): Beschreibung, Ursache, Antwortstil und Emotionsverlauf.
 - **Stimmungsverlauf** mit wählbaren Zeiträumen: 1 h, 6 h, 24 h, 7 d, 30 d.
+- **Affect-Timeline und gelebte Notizen:** Die Karte zeigt Valenz/Arousal, die letzten bereinigten Affect-Ereignisse und gelebte Charakter-Notizen (user-reversibel, maximal zwei Vorschläge pro Tag durch die Reflexion).
 
 | API | Zweck |
 |-----|-------|
@@ -114,7 +115,7 @@ Der Tab **Knowledge Graph** ist die vollständige KG-Verwaltungsansicht.
 | **Zusammenfassung** | Knoten-/Kanten-Zahlen, Typ-Verteilung, Suchfeld | `GET /api/knowledge-graph/stats`, `GET /api/knowledge-graph/search` |
 | **Graph Quality** | Geschützte, isolierte, untypisierte und Duplikat-Kandidaten | `GET /api/knowledge-graph/quality` |
 | **KG Explorer** | Suchergebnisse, letzte Knoten und Kanten | `GET /api/knowledge-graph/nodes`, `GET /api/knowledge-graph/edges`, `GET /api/knowledge-graph/important` |
-| **Graph View** | Interaktive Übersichts-/Fokus-Grafik (force-graph) | Aus geladenen Knoten und Kanten |
+| **Graph View** | Interaktive Übersicht als 3D-Konstellation (WebGL) mit 2D-Canvas-Fallback; Umschalter 2D↔3D, automatischer Fallback bei fehlendem WebGL | Aus geladenen Knoten und Kanten |
 | **Node Inspector** | Eigenschaften, Nachbarn, Schutz/Bearbeitung | `GET /api/knowledge-graph/node`, `POST /api/knowledge-graph/node/protect` |
 
 Klicke einen Knoten in Liste oder Grafik, um den Node Inspector zu öffnen.

@@ -19,8 +19,8 @@ Diese Startseite bündelt alle gepflegten Handbücher und Einstiegslinks.
 - [Sicherheit](de/14-sicherheit.md) / [Security](en/14-security.md)
 
 ## Hinweise
-- Die Manuals wurden am 5. August 2026 erneut gegen den aktuellen Repo-Stand geprüft.
-- Die Ergänzung umfasst unter anderem Speech Lab, native SIP-Telefonie, Game Maker Studio, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, lokale SMB/NFS-Freigaben und Operational Issues.
+- Die Manuals wurden am 8. September 2026 erneut gegen den aktuellen Repo-Stand geprüft.
+- Die Ergänzung umfasst unter anderem MeshCore-Funk mit Desktop-Messenger, AuraGo-Ling/-Spark, here.now, Managed Garage Storage, Config-Verbindungstests, die Qualitätsprüfung agenten-erstellter Skills, Workspace-Jail, Docker-Inspect-Redaktion, erneuerte Virtual-Desktop-Apps und den Dashboard-3D-Wissensgraphen.
 - Interne Verlinkungen, API-Referenz, Konfigurationsbeispiele und go2rtc-Sicherheitsdetails wurden nachgeschärft.
 
 ## Weitere Dokumentation (Repository)

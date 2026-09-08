@@ -479,6 +479,10 @@ skillspector scan <target> --no-llm --format json
 
 No SkillSpector MCP server, sidecar, or LLM credentials are used. Results are folded into the normal security status: `SAFE` becomes `clean`, `CAUTION` becomes `warning`, and `DO_NOT_INSTALL` becomes `dangerous`. Use the **Test Scanner** button in the Skill Manager settings to check whether the configured command is available.
 
+### Quality maintenance for agent-created skills
+
+Nightly maintenance reviews Python skills and `SKILL.md` packages whose persisted provenance is exactly `agent`. User, system, and curated skills are never touched and remain immutable. Improvement requires high classifier confidence (at least 0.95) plus complete staging validation and a clean security result; deletion requires at least 0.98 plus deterministic objective evidence and permanently removes files, registry, and versions — only a maintenance tombstone without source references remains. Missing usage alone never justifies deletion. Read-only skills, ambiguity, cancellation, credential signals, scan warnings, fixed references, or failed daemon stops always prevent mutation.
+
 ### Create a skill
 
 1. **Create files**: Create `.json` and `.py` files in `agent_workspace/skills/`

@@ -60,6 +60,7 @@ The **Agent** tab focuses on personality and memory.
 - **Current mood badge** and trigger text.
 - **Emotional state** (when the emotion synthesizer is active): description, cause, response style, and an emotion timeline.
 - **Mood timeline chart** with selectable ranges: 1 h, 6 h, 24 h, 7 d, 30 d.
+- **Affect timeline and lived notes:** the card shows valence/arousal, the most recent sanitized affect events, and lived character notes (user-reversible; reflection proposes at most two notes per day).
 
 | API | Purpose |
 |-----|---------|
@@ -114,7 +115,7 @@ The **Knowledge Graph** tab is a full KG operations view.
 | **Summary** | Node/edge counts, type breakdown, search bar | `GET /api/knowledge-graph/stats`, `GET /api/knowledge-graph/search` |
 | **Graph Quality** | Protected, isolated, untyped, and duplicate-candidate nodes | `GET /api/knowledge-graph/quality` |
 | **KG Explorer** | Search results, recent nodes, recent edges | `GET /api/knowledge-graph/nodes`, `GET /api/knowledge-graph/edges`, `GET /api/knowledge-graph/important` |
-| **Graph View** | Interactive overview/focus graph (force-graph) | Built from loaded nodes and edges |
+| **Graph View** | Interactive overview rendered as a 3D constellation (WebGL) with an enhanced 2D canvas fallback; 2D↔3D toggle and automatic fallback when WebGL is unavailable | Built from loaded nodes and edges |
 | **Node Inspector** | Properties, neighbors, protect/edit actions | `GET /api/knowledge-graph/node`, `POST /api/knowledge-graph/node/protect` |
 
 Click a node in the list or graph to open the Node Inspector modal.

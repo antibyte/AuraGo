@@ -71,6 +71,8 @@ The easiest way to configure AuraGo is through the built-in Web UI:
 
 > 💡 **Tip:** The Web UI validates configuration before saving, preventing syntax errors.
 
+Schema-rendered integration sections (including Telegram, Discord, Rocket.Chat, Home Assistant, Proxmox, S3, Frigate, and Ansible) expose a read-only **Test connection** button. Tests work only with the **saved** configuration and stored Vault credentials — dirty or incomplete sections stay locked with a visible reason. The tests send only read-only status/authentication requests: they never send messages, execute playbooks, or mutate remote state.
+
 #### Which Changes Require a Restart?
 
 | Change | Restart Required? |
@@ -912,14 +914,21 @@ AuraGo-Qwen is a small local model tuned for AuraGo tool-call shapes. It is inte
 local_llm:
     enabled: false
     backend: auto             # auto, cuda, sycl, vulkan, cpu
-    model_variant: q4_k_m     # q4_k_m or q8_0
-    mtp: off                  # off, auto, mtp2
-    context_size: 16384       # 16384 or 32768
+    model_family: qwen        # qwen, ling, or experimental spark
+    model_variant: q4_k_m     # qwen: q4_k_m/q8_0; ling: q4_k_l; spark: q4_k_m
+    mtp: off                  # qwen: off/auto/mtp2; ling/spark: off
+    context_size: 16384       # qwen: 16384/32768; ling: 16384; spark: 65536
     idle_timeout_minutes: 15
     listen_port: 18081        # native mode only, loopback-bound
 ```
 
-The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
+Exactly one model family is managed at a time:
+
+- **AuraGo-Qwen** (default): variants `q4_k_m` and `q8_0`, 16K or 32K context, optional MTP.
+- **AuraGo-Ling**: fixed `q4_k_l` with MTP off and 16K context (32K requires separate qualification), with its own pinned hybrid runtime.
+- **AuraGo-Spark** (experimental): fixed `q4_k_m`, MTP off, fixed 64K context, Thinking on, a single slot without speculative decoding; at least 6 GB VRAM.
+
+The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`; display name and API model alias derive from the selected family. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
 
 ### Speech Lab
 
@@ -929,15 +938,21 @@ Speech Lab connects the local s2s ASR/TTS pipeline to AuraGo. The active ASR, TT
 speech_lab:
     enabled: false
     base_url: http://s2s-vulkan:8765
+    deployment:
+        mode: managed            # managed: AuraGo provisions the verified GHCR bundle; external: existing s2s stack
+        bundle: stable
+        gpu_backend: auto        # auto, vulkan, or cpu test fallback
+        auto_start: true
+        auto_update: false
     language: en
-    chat_llm_provider_id: ""
+    chat_llm_provider_id: ""     # optional AuraGo provider for Speech-Lab-transcribed webchat turns
     timeout_seconds: 60
     sip_enabled: false
     chat_input_enabled: false
     chat_output_enabled: false
 ```
 
-In managed mode the verified bundle is downloaded only after administrator confirmation. `AURAGO_SPEECH_LAB_BASE_URL` can override the URL at runtime; the Browser Lab is normally derived from the current AuraGo host on port `8766`. There is no silent cloud fallback. See [Speech Lab](../../s2s_speech_lab.md).
+In managed mode AuraGo provisions the cryptographically signed bundle stack (pinned signing key) only after administrator confirmation; `auto_update: false` keeps the verified bundle until an admin refreshes it. `AURAGO_SPEECH_LAB_BASE_URL` can override the URL at runtime; the Browser Lab is normally derived from the current AuraGo host on port `8766`. There is no silent cloud fallback. See [Speech Lab](../../s2s_speech_lab.md).
 
 ### Native SIP telephony
 
