@@ -31,6 +31,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/widget-drawer-runtime.js',
   'ui/js/desktop/core/widget-sysmon-runtime.js',
   'ui/js/desktop/core/widget-meshcore-runtime.js',
+  'ui/js/desktop/core/widget-printer-runtime.js',
   'ui/js/desktop/core/media-keys-runtime.js',
   'ui/js/desktop/apps/calendar.js',
   'ui/js/desktop/core/menus-and-routing.js',

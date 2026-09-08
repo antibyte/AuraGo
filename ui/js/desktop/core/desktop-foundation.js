@@ -1548,6 +1548,7 @@
         if (id === 'builtin-quickchat') return t('desktop.widget_quickchat');
         if (id === 'builtin-sysmon') return t('desktop.widget_sysmon_title');
         if (id === 'builtin-meshcore') return t('desktop.widget_meshcore_title');
+        if (id === 'builtin-printer') return t('desktop.widget_printer_title');
         return widget.title || widget.id || '';
     }
 

@@ -79,6 +79,13 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### Widget config contract
 
+- `builtin-printer` is hidden by default and added through the widget drawer.
+  It opens at 300px wide, remembers the selected configured ID in browser storage,
+  polls read-only status every 30 seconds while visible, and shows progress,
+  available estimated remaining time, layers, nozzle/bed temperatures and filename.
+  Elegoo `TotalTicks - CurrentTicks` is seconds; absent timing is never estimated
+  from progress. Text uses `desktop.widget_printer_*` in all 16 desktop locales.
+
 - Weather location lives in `widget.Config.location` (`{ lat, lon, name, country }`).
   `localStorage` key `vd-weather-location` is a one-time import only. After a
   successful POST upsert, stop using it as the source of truth.

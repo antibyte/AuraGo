@@ -20,6 +20,8 @@
             renderSysmonWidget(container);
         } else if (widget.id === 'builtin-meshcore') {
             renderMeshCoreWidget(container);
+        } else if (widget.id === 'builtin-printer') {
+            renderPrinterWidget(container);
         } else {
             container.innerHTML = `<div class="vd-widget-body">${esc(widgetDisplayTitle(widget))}</div>`;
         }
@@ -483,6 +485,7 @@
         const gap = 8;
         const right = Math.max(12, workspaceWidth - width - 12);
         const widgetID = String(widget && widget.id || '');
+        if (widgetID === 'builtin-printer') return { x: 12, y: top, w: 300, h: 340 };
         if (widgetID === 'builtin-quickchat') {
             return { x: Math.max(12, Math.round((workspaceWidth - width) / 2)), y: top, w: width, h: 56 };
         }

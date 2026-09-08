@@ -23,6 +23,12 @@ images, and browser-oriented regression tests.
 
 ## Local Contracts
 
+- The opt-in `builtin-printer` widget lives in `js/desktop/core/widget-printer-runtime.js`.
+  Keep missing printer metrics unknown, render filenames as text, and stop status
+  requests/camera streams on document hiding or widget disposal. Its native dialog
+  moves the existing camera image rather than opening a second stream. Verify with
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopPrinterWidgetBrowser`.
+
 - Operational pages share one canonical skeleton inside `main.pw-page-frame`:
   a page heading (`pw-page-heading` with `pw-page-heading-copy` and
   `h1.pw-page-title`, optional `p.pw-page-description`), then an optional status strip (`pw-status-strip` with

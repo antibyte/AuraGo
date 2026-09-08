@@ -567,6 +567,7 @@ func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
 func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	defaults := []Widget{
+		{ID: "builtin-printer", Title: "3D Printer", Icon: "printer", Type: "builtin", Runtime: BuiltinRuntime, W: 300, H: 340, Visible: false, Builtin: true},
 		{ID: "builtin-analog-clock", Title: "Analog Clock", Icon: "calculator", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: false, Builtin: true},
 		{ID: "builtin-quickchat", Title: "Quick Chat", Icon: "chat", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 56, Visible: true, Builtin: true},
 		{ID: "builtin-weather", Title: "Weather", Icon: "weather", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},

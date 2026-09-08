@@ -6278,6 +6278,24 @@
         opacity: 1;
     }
 }
+/* Compact read-only printer card; camera expansion reuses the existing stream. */
+.vd-printer { padding: 12px; color: var(--vd-text); display: grid; gap: 8px; font-size: 12px; }
+.vd-printer select, .vd-printer button { font: inherit; color: var(--vd-text); background: var(--vd-theme-control-bg); border: 1px solid var(--vd-border); border-radius: 6px; padding: 6px 8px; min-height: 36px; }
+.vd-printer select { width: 100%; min-width: 0; }
+.vd-printer-camera { aspect-ratio: 16 / 7; background: var(--vd-bg); border-radius: 6px; overflow: hidden; display: grid; place-items: center; }
+.vd-printer-camera img { width: 100%; height: 100%; object-fit: contain; }
+.vd-printer-line, .vd-printer-actions { display: flex; justify-content: space-between; gap: 8px; }
+.vd-printer progress { width: 100%; height: 8px; accent-color: var(--vd-accent); }
+.vd-printer-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-printer dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vd-printer dt { color: var(--vd-text-muted); }
+.vd-printer dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+.vd-printer-dialog { margin: auto; max-width: 92vw; max-height: 92vh; padding: 12px; border: 1px solid var(--vd-border); border-radius: 10px; color: var(--vd-text); background: var(--vd-bg); }
+.vd-printer-dialog::backdrop { background: #000b; }
+.vd-printer-dialog img { display: block; width: min(960px, 85vw); max-height: 75vh; object-fit: contain; }
+.vd-printer-dialog button { display: block; margin: 0 0 8px auto; }
+.vd-printer [hidden] { display: none; }
+.vd-printer button:focus-visible, .vd-printer select:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
 
 /* ui/css/desktop-modals.css */
 /* desktop-modals.css — context menus, modals, dialogs, overlays, lightbox */
