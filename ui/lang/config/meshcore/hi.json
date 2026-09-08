@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "कोई सीरियल पोर्ट नहीं मिला",
   "config.meshcore.port_unavailable": "नहीं मिला",
   "config.meshcore.searching": "डिवाइस खोजे जा रहे हैं…",
-  "config.meshcore.use_device": "डिवाइस चुनें"
+  "config.meshcore.use_device": "डिवाइस चुनें",
+  "config.meshcore.allow_location_disclosure": "एजेंट को स्थान बताने की अनुमति दें",
+  "config.meshcore.disclosed_location": "सार्वजनिक स्थान विवरण",
+  "config.meshcore.disclosed_location_help": "केवल यही टेक्स्ट बताया जा सकता है। डिवाइस स्थान, निर्देशांक, मार्ग और अनुमानित स्थान निजी रहेंगे।",
+  "config.meshcore.inbox_help": "नवीनतम 100 संदेश दिखाता है, प्रति पृष्ठ 25।"
 }

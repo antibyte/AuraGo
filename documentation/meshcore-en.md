@@ -34,6 +34,9 @@ radio-parameter changes are included.
    "anyone receiving", even without punctuation or directly addressing AuraGo.
    Replies confirm arrival at this node only, without web search or claims about
    other receivers. They may report the supplied SNR and known hop count.
+   Location disclosure is off by default. To allow it, enter a public location
+   description and enable the adjacent option. Replies may disclose exactly that
+   text; radio positions, coordinates, routes and inferred locations stay private.
 7. Proactive sending is a separate opt-in. Enable it and allow individual node
    keys or channels. Automatic replies do not require proactive permission;
    their destination is fixed internally to the incoming node or channel.
@@ -86,13 +89,17 @@ interface or provide a plain-text answer. Repeated invalid output is blocked;
 tool-free security checks and final summaries reject it immediately. The two-call
 search limit and destination permissions remain enforced.
 
-Other messages and blocked input remain in the protected inbox. Typed
-`meshcore_message` notifications contain fixed metadata only. At the next
-direct user contact, the agent receives counts, validated source prefixes or
-channel numbers, and inbox references; external message text is not injected
-into its privileged context. Administrators can inspect text and request a new
-security check. Already attempted commands and unknown outcomes cannot be
-retried through this action.
+Other messages and blocked input remain in the protected inbox and do not
+create system notifications in the general chat. At the next direct user
+contact, the agent receives counts, validated source prefixes or channel
+numbers, and inbox references; external message text is not injected into its
+privileged context. Administrators can inspect text and request a new security
+check. Already attempted commands and unknown outcomes cannot be retried
+through this action.
+
+The Settings inbox is an independently scrollable view of the latest 100
+records, paginated in groups of 25. Older records remain subject to the existing
+retention settings and are not deleted by this display limit.
 
 Device identity changes or changed channel assignments block automatic work
 until explicitly confirmed again. Bindings use a local keyed fingerprint of
@@ -163,7 +170,8 @@ latency is inferred from these timestamps.
 
 The administrative API is `/api/meshcore/{status,devices,contacts,channels,messages}`
 (GET) and `/api/meshcore/{scan,pair,test,recheck}` (POST). All routes require
-administrator access. Message pagination uses `limit` (up to 100) and `offset`.
+administrator access. The message endpoint exposes only the latest 100 records;
+pagination uses `limit` (up to 100) and `offset` within that window.
 Connection/security failures use the Operational Issues lifecycle.
 
 The `meshcore` agent tool supports `status`, `contacts`, `channels`,

@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "未找到串行端口",
   "config.meshcore.port_unavailable": "未找到",
   "config.meshcore.searching": "正在搜索设备…",
-  "config.meshcore.use_device": "使用此设备"
+  "config.meshcore.use_device": "使用此设备",
+  "config.meshcore.allow_location_disclosure": "允许代理透露位置",
+  "config.meshcore.disclosed_location": "公开位置描述",
+  "config.meshcore.disclosed_location_help": "只能透露此文本。设备位置、坐标、路由和推断的位置仍保持私密。",
+  "config.meshcore.inbox_help": "显示最新 100 条消息，每页 25 条。"
 }

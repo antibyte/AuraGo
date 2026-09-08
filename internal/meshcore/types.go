@@ -14,24 +14,26 @@ import (
 const ProtocolRevision = "0679dbeffc504d562d2f09eb072fdc223f8ffc2a"
 
 type Config struct {
-	Enabled                bool          `yaml:"enabled" json:"enabled"`
-	Transport              string        `yaml:"transport" json:"transport"`
-	Port                   string        `yaml:"port" json:"port"`
-	Address                string        `yaml:"address" json:"address"`
-	IdentityKey            string        `yaml:"identity_key" json:"identity_key"`
-	TrustedNodes           []string      `yaml:"trusted_nodes" json:"trusted_nodes"`
-	DirectReplies          bool          `yaml:"direct_replies" json:"direct_replies"`
-	ProactiveSend          bool          `yaml:"proactive_send" json:"proactive_send"`
-	SendNodes              []string      `yaml:"send_nodes" json:"send_nodes"`
-	Channels               []ChannelRule `yaml:"channels" json:"channels"`
-	MaxCommandAgeSeconds   int           `yaml:"max_command_age_seconds" json:"max_command_age_seconds"`
-	FutureToleranceSeconds int           `yaml:"future_tolerance_seconds" json:"future_tolerance_seconds"`
-	RetentionDays          int           `yaml:"retention_days" json:"retention_days"`
-	MaxMessages            int           `yaml:"max_messages" json:"max_messages"`
-	PeerRunsPerMinute      int           `yaml:"peer_runs_per_minute" json:"peer_runs_per_minute"`
-	RunsPerMinute          int           `yaml:"runs_per_minute" json:"runs_per_minute"`
-	HistoryDays            int           `yaml:"history_days" json:"history_days"`
-	HistoryMessages        int           `yaml:"history_messages" json:"history_messages"`
+	Enabled                 bool          `yaml:"enabled" json:"enabled"`
+	Transport               string        `yaml:"transport" json:"transport"`
+	Port                    string        `yaml:"port" json:"port"`
+	Address                 string        `yaml:"address" json:"address"`
+	IdentityKey             string        `yaml:"identity_key" json:"identity_key"`
+	TrustedNodes            []string      `yaml:"trusted_nodes" json:"trusted_nodes"`
+	DirectReplies           bool          `yaml:"direct_replies" json:"direct_replies"`
+	AllowLocationDisclosure bool          `yaml:"allow_location_disclosure" json:"allow_location_disclosure"`
+	DisclosedLocation       string        `yaml:"disclosed_location" json:"disclosed_location"`
+	ProactiveSend           bool          `yaml:"proactive_send" json:"proactive_send"`
+	SendNodes               []string      `yaml:"send_nodes" json:"send_nodes"`
+	Channels                []ChannelRule `yaml:"channels" json:"channels"`
+	MaxCommandAgeSeconds    int           `yaml:"max_command_age_seconds" json:"max_command_age_seconds"`
+	FutureToleranceSeconds  int           `yaml:"future_tolerance_seconds" json:"future_tolerance_seconds"`
+	RetentionDays           int           `yaml:"retention_days" json:"retention_days"`
+	MaxMessages             int           `yaml:"max_messages" json:"max_messages"`
+	PeerRunsPerMinute       int           `yaml:"peer_runs_per_minute" json:"peer_runs_per_minute"`
+	RunsPerMinute           int           `yaml:"runs_per_minute" json:"runs_per_minute"`
+	HistoryDays             int           `yaml:"history_days" json:"history_days"`
+	HistoryMessages         int           `yaml:"history_messages" json:"history_messages"`
 }
 
 type ChannelRule struct {
@@ -60,6 +62,10 @@ func (c *Config) Normalize() error {
 	c.IdentityKey = strings.ToLower(strings.TrimSpace(c.IdentityKey))
 	if c.IdentityKey != "" && !ValidKey(c.IdentityKey) {
 		return fmt.Errorf("meshcore: invalid device public key")
+	}
+	c.DisclosedLocation = strings.TrimSpace(c.DisclosedLocation)
+	if len([]rune(c.DisclosedLocation)) > 160 || strings.ContainsAny(c.DisclosedLocation, "\x00\r\n") {
+		return fmt.Errorf("meshcore: disclosed location must be a single line of at most 160 characters")
 	}
 	for _, list := range [][]string{c.TrustedNodes, c.SendNodes} {
 		seen := map[string]bool{}
@@ -186,7 +192,6 @@ type Review struct {
 type Hooks struct {
 	Scan    func(context.Context, Message) Review
 	Run     func(context.Context, Message, string) (string, error)
-	Notify  func(Message) error
 	Issue   func(string, bool)
 	Scrub   func(string) string
 	Changed func(Change)

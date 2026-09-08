@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Δεν βρέθηκαν σειριακές θύρες",
   "config.meshcore.port_unavailable": "δεν βρέθηκε",
   "config.meshcore.searching": "Αναζήτηση συσκευών…",
-  "config.meshcore.use_device": "Χρήση συσκευής"
+  "config.meshcore.use_device": "Χρήση συσκευής",
+  "config.meshcore.allow_location_disclosure": "Να επιτρέπεται στον agent να αποκαλύπτει τοποθεσία",
+  "config.meshcore.disclosed_location": "Δημόσια περιγραφή τοποθεσίας",
+  "config.meshcore.disclosed_location_help": "Μόνο αυτό το κείμενο επιτρέπεται να κοινοποιείται. Θέσεις συσκευών, συντεταγμένες, διαδρομές και συμπεράσματα τοποθεσίας παραμένουν ιδιωτικά.",
+  "config.meshcore.inbox_help": "Εμφανίζει τα 100 πιο πρόσφατα μηνύματα, 25 ανά σελίδα."
 }

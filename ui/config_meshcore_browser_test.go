@@ -56,7 +56,10 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
                 await new Promise(resolve=>{window.meshCompleteScan=resolve;});
                 body={devices:[{address:'aa:bb:cc:dd:ee:ff',name:'<img src=x onerror="window.meshInjection=true">'}, {address:'11:22:33:44:55:66'}, {address:'invalid'}]};
             }
-            if (url.includes('/messages')) body={messages:[{id:'44'.repeat(32),direction:'incoming',kind:'channel',channel:0,received_at:1800000000,state:'quarantine',review:'suspicious',text:'<img src=x onerror="window.meshInjection=true">'}]};
+            if (url.includes('/messages')) {
+                const offset=Number(new URL(url,location.origin).searchParams.get('offset')||0);
+                body={messages:Array.from({length:25},(_,i)=>({id:(offset+i).toString(16).padStart(64,'4'),direction:'incoming',kind:'channel',channel:0,received_at:1800000000-i,state:'quarantine',review:'suspicious',text:i?'Message '+(offset+i+1):'<img src=x onerror="window.meshInjection=true">'})),has_more:offset<75,max_messages:100};
+            }
             return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
         };
     }`)
@@ -65,6 +68,13 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	if page.MustEval(`() => !!window.meshInjection || !!document.querySelector('#meshcore-inbox img, #meshcore-contacts script')`).Bool() {
 		t.Fatal("external HTML executed")
 	}
+	if !page.MustEval(`() => document.querySelector('[data-path="meshcore.disclosed_location"]').maxLength===160 && !AuraConfigState.get('meshcore.allow_location_disclosure') && document.querySelector('#meshcore-inbox-page').textContent==='1–25 / 100' && !document.querySelector('[data-mesh-action="next"]').disabled`).Bool() {
+		t.Fatal("location controls or bounded inbox pagination missing")
+	}
+	page.MustElement(`[data-mesh-action="next"]`).MustClick()
+	waitForJSBool(t, page, `() => meshRequests.some(r=>r.url.includes('offset=25')) && document.querySelector('#meshcore-inbox-page').textContent==='26–50 / 100'`)
+	page.MustElement(`[data-mesh-action="previous"]`).MustClick()
+	waitForJSBool(t, page, `() => document.querySelector('#meshcore-inbox-page').textContent==='1–25 / 100'`)
 	page.MustElement(`[data-mesh-action="test"]`).MustClick()
 	waitForJSBool(t, page, `() => !!window.meshCompleteTest && !document.querySelector('#meshcore-test-status').hidden && !!document.querySelector('#meshcore-test-status .spinner') && document.querySelector('#meshcore-test-status').getAttribute('aria-busy')==='true' && document.querySelector('[data-mesh-action="test"]').disabled`)
 	page.MustEval(`() => meshCompleteTest()`)
@@ -159,6 +169,9 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 				page.MustEval(`() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
 				if !page.MustEval(`() => {const nodes=document.querySelector('#meshcore-contacts');nodes.scrollTop=100;return nodes.children.length===220 && nodes.tabIndex===0 && nodes.clientHeight<=Math.min(384,innerHeight/2)+1 && nodes.scrollHeight>nodes.clientHeight && nodes.scrollTop>0 && nodes.scrollWidth<=nodes.clientWidth+1;}`).Bool() {
 					t.Fatalf("node list must scroll independently without horizontal overflow at %d / %s / %s", width, theme, density)
+				}
+				if !page.MustEval(`() => {const inbox=document.querySelector('#meshcore-inbox');inbox.scrollTop=100;return inbox.children.length===25 && inbox.tabIndex===0 && inbox.clientHeight<=Math.min(512,innerHeight*.55)+1 && inbox.scrollHeight>inbox.clientHeight && inbox.scrollTop>0 && inbox.scrollWidth<=inbox.clientWidth+1;}`).Bool() {
+					t.Fatalf("inbox must scroll independently without horizontal overflow at %d / %s / %s", width, theme, density)
 				}
 				if page.MustEval(`() => {const el=document.getElementById('content'),dock=document.querySelector('.save-bar');return el.scrollWidth>el.clientWidth+1 || el.getBoundingClientRect().bottom>dock.getBoundingClientRect().top+1}`).Bool() {
 					t.Fatalf("overflow at %d", width)

@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Ingen serieporter funnet",
   "config.meshcore.port_unavailable": "ikke funnet",
   "config.meshcore.searching": "Søker etter enheter…",
-  "config.meshcore.use_device": "Bruk enhet"
+  "config.meshcore.use_device": "Bruk enhet",
+  "config.meshcore.allow_location_disclosure": "Tillat agenten å oppgi en posisjon",
+  "config.meshcore.disclosed_location": "Offentlig stedsbeskrivelse",
+  "config.meshcore.disclosed_location_help": "Bare denne teksten kan oppgis. Enhetsposisjoner, koordinater, ruter og utledede steder forblir private.",
+  "config.meshcore.inbox_help": "Viser de nyeste 100 meldingene, 25 per side."
 }

@@ -34,6 +34,9 @@ local device/radio snapshot. All metadata is isolated external data; names,
 positions and route hashes never authorize actions. Public channel turns never
 receive private receiver/contact snapshots. Contact positions and outgoing
 routes may be stale and do not describe this message's incoming route.
+Location disclosure is disabled by default. When the administrator enables it,
+replies may disclose exactly the configured public location description and no
+device position, coordinates, route or inferred location.
 SNR is final-link reception, not RSSI. Queued text does not supply RSSI, incoming
 repeater identities or per-hop signal values. A direct route (`0xFF`) has unknown
 incoming hops, not zero. Null/missing values stay unknown; retrieval time minus
@@ -49,6 +52,7 @@ Settings, pairing, trust, channel assignments and quarantine review are
 administrator tasks in `/config#meshcore`. Firmware, raw protocol, radio
 parameters and channel keys are not available through this tool. Hardware
 support remains practically unverified until platform-specific acceptance.
+The Settings inbox shows at most the newest 100 records in a paginated scroll area.
 
 The **MeshCore** Desktop Messenger is for administrators: human messages use a
 separate authorized send path and do not invoke an LLM. Its contact/channel

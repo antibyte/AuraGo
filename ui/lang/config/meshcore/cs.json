@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Nebyly nalezeny žádné sériové porty",
   "config.meshcore.port_unavailable": "nenalezen",
   "config.meshcore.searching": "Hledání zařízení…",
-  "config.meshcore.use_device": "Použít zařízení"
+  "config.meshcore.use_device": "Použít zařízení",
+  "config.meshcore.allow_location_disclosure": "Povolit agentovi sdělit polohu",
+  "config.meshcore.disclosed_location": "Veřejný popis polohy",
+  "config.meshcore.disclosed_location_help": "Smí být sdělen pouze tento text. Poloha zařízení, souřadnice, trasy a odvozená poloha zůstávají soukromé.",
+  "config.meshcore.inbox_help": "Zobrazuje nejnovějších 100 zpráv, 25 na stránku."
 }

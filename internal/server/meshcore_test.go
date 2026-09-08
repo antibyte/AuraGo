@@ -151,6 +151,17 @@ func TestMeshCoreAdministrativeAPI(t *testing.T) {
 			t.Fatalf("%s %d %s", path, w.Code, w.Body)
 		}
 	}
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", "/api/meshcore/messages?limit=100&offset=75", nil))
+	var page struct {
+		Limit       int  `json:"limit"`
+		Offset      int  `json:"offset"`
+		MaxMessages int  `json:"max_messages"`
+		HasMore     bool `json:"has_more"`
+	}
+	if w.Code != 200 || json.NewDecoder(w.Body).Decode(&page) != nil || page.Limit != 25 || page.Offset != 75 || page.MaxMessages != 100 || page.HasMore {
+		t.Fatalf("bounded inbox page: %d %+v", w.Code, page)
+	}
 	for _, body := range []string{`{"raw_command":1}`, `{} {}`, strings.Repeat("x", 5000)} {
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, httptest.NewRequest("POST", "/api/meshcore/test", strings.NewReader(body)))
@@ -158,7 +169,7 @@ func TestMeshCoreAdministrativeAPI(t *testing.T) {
 			t.Fatalf("bad request: %d", w.Code)
 		}
 	}
-	w := httptest.NewRecorder()
+	w = httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/api/meshcore/test", strings.NewReader(`{}`))
 	r.Header.Set("Origin", "https://hostile.example")
 	mux.ServeHTTP(w, r)

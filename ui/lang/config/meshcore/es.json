@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "No se encontraron puertos serie",
   "config.meshcore.port_unavailable": "no encontrado",
   "config.meshcore.searching": "Buscando dispositivos…",
-  "config.meshcore.use_device": "Usar dispositivo"
+  "config.meshcore.use_device": "Usar dispositivo",
+  "config.meshcore.allow_location_disclosure": "Permitir que el agente revele una ubicación",
+  "config.meshcore.disclosed_location": "Descripción pública de la ubicación",
+  "config.meshcore.disclosed_location_help": "Solo se puede revelar este texto. Las posiciones de dispositivos, coordenadas, rutas y ubicaciones inferidas siguen siendo privadas.",
+  "config.meshcore.inbox_help": "Muestra los 100 mensajes más recientes, 25 por página."
 }

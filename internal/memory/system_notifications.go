@@ -79,7 +79,7 @@ func (s *SQLiteMemory) GetUnreadSystemNotifications() ([]SystemNotification, err
 		if err := rows.Scan(&n.ID, &n.Type, &n.Title, &n.Message, &dataJSON, &n.SourceID, &n.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan system notification: %w", err)
 		}
-		if n.Type == "internal" || isInternalSystemNotification(n.Message) {
+		if n.Type == "internal" || n.Type == "meshcore_message" || isInternalSystemNotification(n.Message) {
 			internalIDs = append(internalIDs, n.ID)
 			continue
 		}

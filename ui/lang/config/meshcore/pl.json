@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Nie znaleziono portów szeregowych",
   "config.meshcore.port_unavailable": "nie znaleziono",
   "config.meshcore.searching": "Wyszukiwanie urządzeń…",
-  "config.meshcore.use_device": "Użyj urządzenia"
+  "config.meshcore.use_device": "Użyj urządzenia",
+  "config.meshcore.allow_location_disclosure": "Zezwól agentowi ujawniać lokalizację",
+  "config.meshcore.disclosed_location": "Publiczny opis lokalizacji",
+  "config.meshcore.disclosed_location_help": "Można ujawnić tylko ten tekst. Pozycje urządzeń, współrzędne, trasy i lokalizacje wywnioskowane pozostają prywatne.",
+  "config.meshcore.inbox_help": "Wyświetla 100 najnowszych wiadomości, po 25 na stronę."
 }

@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Keine seriellen Ports gefunden",
   "config.meshcore.port_unavailable": "nicht gefunden",
   "config.meshcore.searching": "Geräte werden gesucht…",
-  "config.meshcore.use_device": "Gerät übernehmen"
+  "config.meshcore.use_device": "Gerät übernehmen",
+  "config.meshcore.allow_location_disclosure": "Dem Agenten die Standortangabe erlauben",
+  "config.meshcore.disclosed_location": "Freigegebene Standortbeschreibung",
+  "config.meshcore.disclosed_location_help": "Nur dieser Text darf genannt werden. Gerätepositionen, Koordinaten, Routen und abgeleitete Standorte bleiben privat.",
+  "config.meshcore.inbox_help": "Zeigt die neuesten 100 Nachrichten, 25 pro Seite."
 }

@@ -22,7 +22,7 @@ func TestConfigMeshCoreTranslationsAndBoundaries(t *testing.T) {
 	if !strings.Contains(main, "meshcore: { m: 'meshcore', fn: 'renderMeshCoreSection' }") {
 		t.Fatal("lazy renderer missing")
 	}
-	for _, wanted := range []string{"window.AuraConfigState.get('meshcore')", "window.AuraConfigState.isDirty()", "AbortController", "aurago:config-saved", "text.textContent = msg.text", "pin.value = ''", "set('identity_key', runtime.status.identity_key)", "binding: channel.binding", "data-type=\"array-lines\""} {
+	for _, wanted := range []string{"window.AuraConfigState.get('meshcore')", "window.AuraConfigState.isDirty()", "AbortController", "aurago:config-saved", "text.textContent = msg.text", "pin.value = ''", "set('identity_key', runtime.status.identity_key)", "binding: channel.binding", "data-type=\"array-lines\"", "allow_location_disclosure", "disclosed_location", "Math.min(75", "result.has_more === true"} {
 		if !strings.Contains(module, wanted) {
 			t.Fatalf("UI contract missing %s", wanted)
 		}

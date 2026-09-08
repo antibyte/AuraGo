@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Inga serieportar hittades",
   "config.meshcore.port_unavailable": "hittades inte",
   "config.meshcore.searching": "Söker efter enheter…",
-  "config.meshcore.use_device": "Använd enhet"
+  "config.meshcore.use_device": "Använd enhet",
+  "config.meshcore.allow_location_disclosure": "Tillåt agenten att uppge en plats",
+  "config.meshcore.disclosed_location": "Offentlig platsbeskrivning",
+  "config.meshcore.disclosed_location_help": "Endast denna text får uppges. Enhetspositioner, koordinater, rutter och härledda platser förblir privata.",
+  "config.meshcore.inbox_help": "Visar de senaste 100 meddelandena, 25 per sida."
 }

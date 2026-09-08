@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "シリアルポートが見つかりません",
   "config.meshcore.port_unavailable": "見つかりません",
   "config.meshcore.searching": "デバイスを検索中…",
-  "config.meshcore.use_device": "このデバイスを使用"
+  "config.meshcore.use_device": "このデバイスを使用",
+  "config.meshcore.allow_location_disclosure": "エージェントによる場所の開示を許可",
+  "config.meshcore.disclosed_location": "公開する場所の説明",
+  "config.meshcore.disclosed_location_help": "開示できるのはこのテキストだけです。端末位置、座標、経路、推測した場所は非公開のままです。",
+  "config.meshcore.inbox_help": "最新100件を1ページ25件ずつ表示します。"
 }

@@ -72,12 +72,27 @@ func registerMeshCoreRoutes(mux *http.ServeMux, s *Server) {
 		case "messages":
 			limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 			offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+			if limit < 1 || limit > 100 {
+				limit = 25
+			}
+			if offset < 0 {
+				offset = 0
+			}
+			if offset >= 100 {
+				limit = 0
+			} else if limit > 100-offset {
+				limit = 100 - offset
+			}
+			if limit == 0 {
+				writeJSON(w, map[string]interface{}{"messages": []meshcore.Message{}, "limit": 0, "offset": offset, "has_more": false, "max_messages": 100})
+				return
+			}
 			messages, err := s.MeshCore.Messages(limit, offset)
 			if err != nil {
 				jsonError(w, "Inbox unavailable", 503)
 				return
 			}
-			writeJSON(w, map[string]interface{}{"messages": messages})
+			writeJSON(w, map[string]interface{}{"messages": messages, "limit": limit, "offset": offset, "has_more": len(messages) == limit && offset+len(messages) < 100, "max_messages": 100})
 		case "test":
 			st, err := s.MeshCore.Test(ctx)
 			if err != nil {

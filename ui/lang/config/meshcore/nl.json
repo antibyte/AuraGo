@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Geen seriële poorten gevonden",
   "config.meshcore.port_unavailable": "niet gevonden",
   "config.meshcore.searching": "Apparaten zoeken…",
-  "config.meshcore.use_device": "Apparaat gebruiken"
+  "config.meshcore.use_device": "Apparaat gebruiken",
+  "config.meshcore.allow_location_disclosure": "Agent toestaan een locatie te delen",
+  "config.meshcore.disclosed_location": "Openbare locatiebeschrijving",
+  "config.meshcore.disclosed_location_help": "Alleen deze tekst mag worden gedeeld. Apparaatposities, coördinaten, routes en afgeleide locaties blijven privé.",
+  "config.meshcore.inbox_help": "Toont de nieuwste 100 berichten, 25 per pagina."
 }

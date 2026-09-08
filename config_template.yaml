@@ -136,6 +136,8 @@ meshcore:
     identity_key: ""                  # full Companion public key, confirmed by administrator
     trusted_nodes: []                 # full public keys; only direct plain text may execute
     direct_replies: false             # independent of proactive sending
+    allow_location_disclosure: false  # lets MeshCore replies disclose only disclosed_location
+    disclosed_location: ""            # public description only; never inferred from radio/GPS data
     proactive_send: false
     send_nodes: []                    # full public keys for proactive direct messages
     channels: []                      # index, binding, mode (receive/prefix/questions), prefix (!aura), allow_send

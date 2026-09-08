@@ -72,6 +72,10 @@ func TestSystemNotificationsAreTypedIdempotentAndReadByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add legacy notification: %v", err)
 	}
+	meshCoreID, _, err := stm.AddSystemNotification(SystemNotification{Type: "meshcore_message", Message: "MeshCore inbox"})
+	if err != nil {
+		t.Fatalf("add legacy MeshCore notification: %v", err)
+	}
 
 	all, err := stm.GetUnreadSystemNotifications()
 	if err != nil || len(all) != 2 {
@@ -79,6 +83,10 @@ func TestSystemNotificationsAreTypedIdempotentAndReadByID(t *testing.T) {
 	}
 	if all[0].Type != "morning_briefing" || all[0].Data["status"] != "completed" {
 		t.Fatalf("typed notification = %#v", all[0])
+	}
+	var meshCoreRead bool
+	if err := stm.db.QueryRow(`SELECT is_read FROM system_notifications WHERE id = ?`, meshCoreID).Scan(&meshCoreRead); err != nil || !meshCoreRead {
+		t.Fatalf("legacy MeshCore notification was not hidden and acknowledged: read=%v err=%v", meshCoreRead, err)
 	}
 	if err := stm.MarkNotificationsReadByIDs([]int64{firstID}); err != nil {
 		t.Fatalf("MarkNotificationsReadByIDs: %v", err)

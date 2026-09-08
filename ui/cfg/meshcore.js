@@ -18,13 +18,13 @@ function renderMeshCoreSection(section) {
                     + '<div id="meshcore-test-status" class="pw-status" role="status" aria-live="polite" aria-busy="false" hidden></div>'
                     + '<p id="meshcore-saved-reason" class="field-help" hidden></p>'
                     + form.disclosure({ title: tr('pairing'), className: 'meshcore-pairing', content: form.note({ text: tr('ble_help') }) + form.password({ id: 'meshcore-pin', label: tr('pin') }).replace('autocomplete="off"', 'autocomplete="off" maxlength="16"') + form.actions([{ html: button('scan', 'scan') + button('pair', 'pair') }]) + '<div id="meshcore-discovery" role="region" aria-label="' + escapeHtml(tr('scan')) + '" aria-busy="false"></div>' }) },
-            { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('proactive_send'), list('send_nodes')], content:
+            { title: tr('permissions'), fields: [toggle('direct_replies'), list('trusted_nodes'), toggle('allow_location_disclosure'), field('disclosed_location', { help: tr('disclosed_location_help') }).replace('<input ', '<input maxlength="160" '), toggle('proactive_send'), list('send_nodes')], content:
                 '<div class="meshcore-node-controls"><label>' + escapeHtml(tr('search_nodes')) + '<input id="meshcore-node-search" type="search" class="field-input pw-search" aria-controls="meshcore-contacts"></label>'
                 + '<label>' + escapeHtml(tr('add_to')) + '<select id="meshcore-node-target" class="field-select"><option value="send_nodes">' + escapeHtml(tr('send_nodes')) + '</option><option value="trusted_nodes">' + escapeHtml(tr('trusted_nodes')) + '</option></select></label></div>'
                 + '<p id="meshcore-node-status" class="field-help" role="status" aria-live="polite"></p><div id="meshcore-contacts" tabindex="0" role="region" aria-label="MeshCore"></div>' },
             { title: tr('channels'), content: form.note({ text: tr('channels_help') }) + '<div id="meshcore-channels"></div>' },
             { title: tr('limits'), content: form.disclosure({ titleKey: 'config.precision.advanced_title', content: Object.entries(limits).map(([key, values]) => form.number({ path: 'meshcore.' + key, label: tr(key), value: data[key] || values[0], min: 1, max: values[1] })).join('') }) },
-            { title: tr('inbox'), content: '<div id="meshcore-inbox"></div>' + form.actions([{ html: button('previous', 'previous') + button('next', 'next') }]) }
+            { title: tr('inbox'), content: form.note({ text: tr('inbox_help') }) + '<div id="meshcore-inbox" tabindex="0" role="region" aria-label="' + escapeHtml(tr('inbox')) + '"></div><p id="meshcore-inbox-page" class="field-help" role="status" aria-live="polite"></p>' + form.actions([{ html: button('previous', 'previous') + button('next', 'next') }]) }
         ]
     });
     const root = document.getElementById('content').querySelector('.cfg-section');
@@ -32,6 +32,7 @@ function renderMeshCoreSection(section) {
     let offset = 0;
     let busy = false;
     let lastPageSize = 0;
+    let hasMore = false;
     const status = root.querySelector('#meshcore-status');
     const testStatus = root.querySelector('#meshcore-test-status');
     const portSelect = root.querySelector('select[data-path="meshcore.port"]');
@@ -102,7 +103,7 @@ function renderMeshCoreSection(section) {
         }
         root.querySelector('[data-mesh-action="confirm"]').disabled = busy || !runtime?.status.identity_key;
         root.querySelector('[data-mesh-action="previous"]').disabled = busy || offset === 0;
-        root.querySelector('[data-mesh-action="next"]').disabled = busy || lastPageSize < 25;
+        root.querySelector('[data-mesh-action="next"]').disabled = busy || !hasMore;
         root.querySelectorAll('[data-mesh-action="select_device"]').forEach(button => {
             button.disabled = busy;
             button.setAttribute('aria-pressed', String(draft().transport === 'ble' && draft().address === button.dataset.address));
@@ -195,6 +196,9 @@ function renderMeshCoreSection(section) {
         const reviews = ['safe', 'suspicious', 'dangerous'];
         const sends = ['not_sent', 'device_accepted', 'delivered', 'outcome_unknown'];
         lastPageSize = result.messages.length;
+        hasMore = result.has_more === true;
+        box.scrollTop = 0;
+        root.querySelector('#meshcore-inbox-page').textContent = lastPageSize ? (offset + 1) + '–' + (offset + lastPageSize) + ' / ' + (result.max_messages || 100) : '0 / ' + (result.max_messages || 100);
         if (!lastPageSize) box.textContent = tr('empty');
         for (const msg of result.messages) {
             const row = document.createElement('article'); row.className = 'field-group';
@@ -239,7 +243,7 @@ function renderMeshCoreSection(section) {
             testStatus.innerHTML = '<span class="spinner" aria-hidden="true"></span> ' + escapeHtml(t('config.common.loading'));
         }
         try {
-            if (action === 'previous' || action === 'next') { offset = Math.max(0, offset + (action === 'next' ? 25 : -25)); await inbox(); }
+            if (action === 'previous' || action === 'next') { offset = Math.max(0, Math.min(75, offset + (action === 'next' ? 25 : -25))); await inbox(); }
             else if (action === 'refresh') await refresh();
             else if (action === 'scan') await scanDevices();
             else if (action === 'pair') {

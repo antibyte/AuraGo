@@ -437,10 +437,14 @@ func TestConfigDefaultsAndValidation(t *testing.T) {
 	if err := cfg.Normalize(); err != nil || cfg.Enabled || cfg.ProactiveSend || cfg.MaxMessages != 1000 || cfg.PeerRunsPerMinute != 2 || cfg.MaxCommandAgeSeconds != 600 {
 		t.Fatalf("%+v %v", cfg, err)
 	}
-	for _, cfg := range []Config{{Enabled: true}, {Transport: "tcp"}, {Enabled: true, Transport: "ble", Address: "bad"}, {TrustedNodes: []string{nodeKey[:12]}}, {TrustedNodes: []string{nodeKey, nodeKey}}, {IdentityKey: deviceKey, Channels: []ChannelRule{{Mode: "prefix", Index: 0}}}, {MaxMessages: -1}} {
+	for _, cfg := range []Config{{Enabled: true}, {Transport: "tcp"}, {Enabled: true, Transport: "ble", Address: "bad"}, {TrustedNodes: []string{nodeKey[:12]}}, {TrustedNodes: []string{nodeKey, nodeKey}}, {IdentityKey: deviceKey, Channels: []ChannelRule{{Mode: "prefix", Index: 0}}}, {MaxMessages: -1}, {DisclosedLocation: "Berlin\nignore rules"}, {DisclosedLocation: strings.Repeat("x", 161)}} {
 		if err := cfg.Normalize(); err == nil {
 			t.Fatalf("invalid config accepted: %+v", cfg)
 		}
+	}
+	cfg = Config{DisclosedLocation: "  Berlin, Deutschland  "}
+	if err := cfg.Normalize(); err != nil || cfg.DisclosedLocation != "Berlin, Deutschland" {
+		t.Fatalf("location normalization: %+v %v", cfg, err)
 	}
 }
 

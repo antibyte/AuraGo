@@ -353,7 +353,6 @@ func (m *Manager) receiveBatch(ctx context.Context, c *companion, queue chan Mes
 			msg.State = "received"
 			msg.Reason = "queue_full"
 			m.save(msg)
-			m.notify(msg)
 		}
 	}
 	m.mu.Lock()
@@ -363,11 +362,6 @@ func (m *Manager) receiveBatch(ctx context.Context, c *companion, queue chan Mes
 		m.issue("persistence", true)
 	}
 	return nil
-}
-func (m *Manager) notify(msg Message) {
-	if m.hooks.Notify != nil {
-		m.issue("notification", m.hooks.Notify(msg) != nil)
-	}
 }
 func uniqueContact(st Status, key string) (Contact, bool) {
 	if len(key) != 12 && !ValidKey(key) {
@@ -479,9 +473,7 @@ func (m *Manager) process(ctx context.Context, msg Message) {
 	msg.Reason = m.scrub(review.Reason)
 	if review.Decision != "safe" || ctx.Err() != nil {
 		msg.State = "quarantine"
-		if m.save(msg) {
-			m.notify(msg)
-		}
+		m.save(msg)
 		return
 	}
 	m.mu.Lock()
@@ -495,9 +487,7 @@ func (m *Manager) process(ctx context.Context, msg Message) {
 	if c == nil || err != nil {
 		msg.State = "received"
 		msg.Reason = "connection_unavailable"
-		if m.save(msg) {
-			m.notify(msg)
-		}
+		m.save(msg)
 		return
 	}
 	mode, admitted := admit(msg, cfg, st, time.Now())
@@ -510,9 +500,7 @@ func (m *Manager) process(ctx context.Context, msg Message) {
 		if mode != "" {
 			msg.Reason = "rate_limited"
 		}
-		if m.save(msg) {
-			m.notify(msg)
-		}
+		m.save(msg)
 		return
 	}
 	if m.hooks.Run == nil {
@@ -562,9 +550,7 @@ func (m *Manager) process(ctx context.Context, msg Message) {
 		msg.Reply = ""
 		msg.State = "received"
 		msg.Reason = "not_a_question"
-		if m.save(msg) {
-			m.notify(msg)
-		}
+		m.save(msg)
 		return
 	}
 	if !m.save(msg) {

@@ -38,6 +38,10 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
    bestätigt nur den Eingang am eigenen Node, ohne Websuche oder Aussagen über
    andere Empfänger. Vorhandene SNR-Werte und bekannte Hopzahlen dürfen genannt
    werden.
+   Die Standortfreigabe ist standardmäßig aus. Bei Bedarf eine öffentliche
+   Standortbeschreibung eintragen und die Option daneben aktivieren. Antworten
+   dürfen genau diesen Text nennen; Funkpositionen, Koordinaten, Routen und
+   abgeleitete Standorte bleiben privat.
 7. Proaktives Senden separat einschalten und seine Ziel-Nodes beziehungsweise
    Kanäle freigeben. Antworten benötigen diese Freigabe nicht; das Laufzeitsystem
    bindet ihre Zieladresse unveränderlich an den Eingang.
@@ -95,13 +99,17 @@ Erneut ungültige Ausgabe wird blockiert; werkzeuglose Sicherheitsprüfungen und
 abschließende Zusammenfassungen lehnen sie sofort ab. Die Grenze von zwei
 Suchaufrufen und sämtliche Zielfreigaben bleiben bestehen.
 
-Andere oder verdächtige Eingänge bleiben im geschützten Eingang. Dauerhafte
-Benachrichtigungen vom Typ `meshcore_message` enthalten ausschließlich feste
-Metadaten. Beim nächsten direkten Nutzerkontakt bekommt der Agent Anzahl,
-validierte Herkunftspräfixe beziehungsweise Kanalnummern und Eingangsverweise.
-Fremder Nachrichtentext gelangt dabei nicht in seinen privilegierten Kontext.
-Administratoren können Inhalte einsehen und eine neue Prüfung anfordern. Bereits
-begonnene Befehle und unklare Ergebnisse lassen sich damit nicht wiederholen.
+Andere oder verdächtige Eingänge bleiben im geschützten Eingang und erzeugen
+keine Systemmeldungen im allgemeinen Chat. Beim nächsten direkten Nutzerkontakt
+bekommt der Agent Anzahl, validierte Herkunftspräfixe beziehungsweise
+Kanalnummern und Eingangsverweise. Fremder Nachrichtentext gelangt dabei nicht
+in seinen privilegierten Kontext. Administratoren können Inhalte einsehen und
+eine neue Prüfung anfordern. Bereits begonnene Befehle und unklare Ergebnisse
+lassen sich damit nicht wiederholen.
+
+Der Eingang in den Einstellungen ist ein eigener Scrollbereich für die neuesten
+100 Einträge mit jeweils 25 Einträgen pro Seite. Ältere Einträge unterliegen
+weiterhin den Aufbewahrungsregeln und werden durch diese Anzeigegrenze nicht gelöscht.
 
 Gerätewechsel und geänderte Kanalzuordnungen sperren die Automatik bis zur
 erneuten Bestätigung. Die Kanalbindung verwendet einen lokalen schlüsselbasierten
@@ -175,8 +183,9 @@ können veralten. Aus den Zeitstempeln wird keine Funklaufzeit abgeleitet.
 
 Die administrativen GET-Endpunkte liegen unter
 `/api/meshcore/{status,devices,contacts,channels,messages}`, POST-Aktionen unter
-`/api/meshcore/{scan,pair,test,recheck}`. Nachrichten unterstützen `limit`
-(höchstens 100) und `offset`. Verbindungs- und Prüffehler erscheinen im bestehenden
+`/api/meshcore/{scan,pair,test,recheck}`. Der Nachrichtenendpunkt zeigt nur die
+neuesten 100 Einträge; `limit` (höchstens 100) und `offset` gelten innerhalb
+dieses Fensters. Verbindungs- und Prüffehler erscheinen im bestehenden
 Operational-Issue-Lebenszyklus.
 
 Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`,

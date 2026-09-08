@@ -75,5 +75,9 @@
   "config.meshcore.no_ports": "Aucun port série trouvé",
   "config.meshcore.port_unavailable": "introuvable",
   "config.meshcore.searching": "Recherche d’appareils…",
-  "config.meshcore.use_device": "Utiliser cet appareil"
+  "config.meshcore.use_device": "Utiliser cet appareil",
+  "config.meshcore.allow_location_disclosure": "Autoriser l’agent à divulguer une localisation",
+  "config.meshcore.disclosed_location": "Description publique de la localisation",
+  "config.meshcore.disclosed_location_help": "Seul ce texte peut être divulgué. Les positions des appareils, coordonnées, routes et localisations déduites restent privées.",
+  "config.meshcore.inbox_help": "Affiche les 100 messages les plus récents, 25 par page."
 }

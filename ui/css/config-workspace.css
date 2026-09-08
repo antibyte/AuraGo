@@ -1598,6 +1598,19 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
+.pw-page[data-workspace-page="config"] #meshcore-inbox {
+    display: grid;
+    gap: 12px;
+    max-height: min(32rem, 55vh);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding-right: 8px;
+}
+.pw-page[data-workspace-page="config"] #meshcore-inbox:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
 .pw-page[data-workspace-page="config"] .meshcore-channel {
     display: grid;
     gap: 16px;
