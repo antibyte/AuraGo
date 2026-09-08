@@ -1,0 +1,4 @@
+# Preserve the pinned upstream bytes and their recorded hashes on every platform.
+rive.js -text whitespace=-blank-at-eol
+rive.wasm binary
+LICENSE.txt -text

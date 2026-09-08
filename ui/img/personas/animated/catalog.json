@@ -1,0 +1,182 @@
+{
+  "schema": "aurago-animated-personas/1",
+  "stateMachine": "VoicePersona",
+  "runtime": {
+    "package": "@rive-app/canvas",
+    "version": "2.42.0",
+    "script": "/js/vendor/rive/rive.js",
+    "wasm": "/js/vendor/rive/rive.wasm"
+  },
+  "inputs": {
+    "mode": {
+      "idle": 0,
+      "listening": 1,
+      "thinking": 2,
+      "speaking": 3,
+      "happy": 4
+    },
+    "viseme": {
+      "rest": 0,
+      "AA": 1,
+      "EE": 2,
+      "OO": 3,
+      "FV": 4
+    },
+    "mouthOpen": {
+      "min": 0,
+      "max": 1,
+      "closedAtOrBelow": 0.08
+    },
+    "headTilt": {
+      "min": -1,
+      "max": 1,
+      "unit": "normalized 2D tilt; approximately -3 to +3 degrees"
+    }
+  },
+  "personas": [
+    {
+      "key": "servant",
+      "sourceId": "01-butler",
+      "name": "Butler",
+      "file": "servant.riv",
+      "poster": "/img/personas/servant.png",
+      "revision": 2,
+      "artboard": "Aurago Butler",
+      "speechStyle": "human-visemes",
+      "bytes": 2037354,
+      "sha256": "5d316c63d8c22b65a685da9d78a15c43aa17394a61aab5adbfe388c681535f75"
+    },
+    {
+      "key": "neutral",
+      "sourceId": "02-silver",
+      "name": "Silver",
+      "file": "neutral.riv",
+      "poster": "/img/personas/neutral.png",
+      "revision": 6,
+      "artboard": "Aurago Silver",
+      "speechStyle": "human-visemes",
+      "bytes": 3559557,
+      "sha256": "53f6cca88a65cbbe6327d36a450bd5370614bfd12dd9fc2001db6d61054020b2"
+    },
+    {
+      "key": "professional",
+      "sourceId": "03-manager",
+      "name": "Manager",
+      "file": "professional.riv",
+      "poster": "/img/personas/professional.png",
+      "revision": 2,
+      "artboard": "Aurago Manager",
+      "speechStyle": "human-visemes",
+      "bytes": 2000088,
+      "sha256": "c097609ba5efb082e4b778652ce11000fcd5133dd881604bb6e43448e90f2b22"
+    },
+    {
+      "key": "mistress",
+      "sourceId": "04-kommandantin",
+      "name": "Kommandantin",
+      "file": "mistress.riv",
+      "poster": "/img/personas/mistress.png",
+      "revision": 2,
+      "artboard": "Aurago Kommandantin",
+      "speechStyle": "human-visemes",
+      "bytes": 2110451,
+      "sha256": "463bf52a279320427d9be1831c05af1ccef37fafdeeb1efbe1a3ac1c8887b2fa"
+    },
+    {
+      "key": "thinker",
+      "sourceId": "05-professor",
+      "name": "Professor",
+      "file": "thinker.riv",
+      "poster": "/img/personas/thinker.png",
+      "revision": 3,
+      "artboard": "Aurago Professor",
+      "speechStyle": "human-visemes",
+      "bytes": 2605585,
+      "sha256": "ed20848515255b0beccf7bcf0f857a5ba60c3f7d3e9cbf26b9c54fd405831d83"
+    },
+    {
+      "key": "evil",
+      "sourceId": "06-vampir",
+      "name": "Vampir",
+      "file": "evil.riv",
+      "poster": "/img/personas/evil.png",
+      "revision": 2,
+      "artboard": "Aurago Vampir",
+      "speechStyle": "human-visemes",
+      "bytes": 2238547,
+      "sha256": "f789b72bd5efec5c3ddfb84b877abd4c85979b28e610dbf50c28db1b0d9f3c77"
+    },
+    {
+      "key": "secretary",
+      "sourceId": "07-assistentin",
+      "name": "Assistentin",
+      "file": "secretary.riv",
+      "poster": "/img/personas/secretary.png",
+      "revision": 2,
+      "artboard": "Aurago Assistentin",
+      "speechStyle": "human-visemes",
+      "bytes": 2031209,
+      "sha256": "1eb6355456cb7696ee4e18cf90c65ec26c2d8a398954441f959006fb2bf206f9"
+    },
+    {
+      "key": "psycho",
+      "sourceId": "08-green",
+      "name": "Green",
+      "file": "psycho.riv",
+      "poster": "/img/personas/psycho.png",
+      "revision": 2,
+      "artboard": "Aurago Green",
+      "speechStyle": "human-visemes",
+      "bytes": 2407626,
+      "sha256": "cd1f317ce59d5adf2897507821823ac41dc65ca20b01a9d5d4d72a1589119a95"
+    },
+    {
+      "key": "punk",
+      "sourceId": "09-punk",
+      "name": "Punk",
+      "file": "punk.riv",
+      "poster": "/img/personas/punk.png",
+      "revision": 3,
+      "artboard": "Aurago Punk",
+      "speechStyle": "human-visemes",
+      "bytes": 2410338,
+      "sha256": "d804aeb60a3264cff08f209a62a268cc7ce1ab5ed756bf634973697fe03820d8"
+    },
+    {
+      "key": "friend",
+      "sourceId": "10-hoodie",
+      "name": "Hoodie",
+      "file": "friend.riv",
+      "poster": "/img/personas/friend.png",
+      "revision": 3,
+      "artboard": "Aurago Hoodie",
+      "speechStyle": "human-visemes",
+      "bytes": 2140818,
+      "sha256": "5f8824b558adf500e5744553ddb7d76e762bf2a575e8363b873b11a85dd92e5d"
+    },
+    {
+      "key": "mcp",
+      "sourceId": "11-mcp",
+      "name": "MCP",
+      "file": "mcp.riv",
+      "poster": "/img/personas/mcp.png",
+      "revision": 2,
+      "artboard": "Aurago MCP",
+      "speechStyle": "display",
+      "bytes": 2409473,
+      "sha256": "7d9518eb14a89a2bfeed1aa30963d89d4e561b99cee03e69214465a8be917011"
+    },
+    {
+      "key": "terminator",
+      "sourceId": "12-terminator",
+      "name": "Terminator",
+      "file": "terminator.riv",
+      "poster": "/img/personas/terminator.png",
+      "revision": 4,
+      "artboard": "Aurago Terminator",
+      "speechStyle": "mechanical-jaw",
+      "bytes": 2731145,
+      "sha256": "8560936ce09bf507288d9d4329684ebc9c670bff42e38c0bfe2e24850bbf4970"
+    }
+  ]
+}

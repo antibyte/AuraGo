@@ -313,5 +313,8 @@ images, and browser-oriented regression tests.
 
 ## Child DOX Index
 
+- `img/personas/animated/AGENTS.md` - Reviewed Rive persona payloads, catalog
+  mapping and the paired local runtime under `js/vendor/rive/`; authoring lives
+  in the separate sibling `personas` project.
 - `js/desktop/apps/AGENTS.md` - Built-in Virtual Desktop application modules
   and their lifecycle, asset, and app-specific contracts.

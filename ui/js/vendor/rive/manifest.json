@@ -1,0 +1,20 @@
+{
+  "package": "@rive-app/canvas",
+  "version": "2.42.0",
+  "license": "MIT",
+  "source": "https://www.npmjs.com/package/@rive-app/canvas/v/2.42.0",
+  "files": {
+    "rive.js": {
+      "bytes": 450514,
+      "sha256": "df46dfda51e023ed4df5bb763af74b0ecc42a832e4d5255c6bfe984d8929a1d7"
+    },
+    "rive.wasm": {
+      "bytes": 1892288,
+      "sha256": "8b48d33a20b89809228c8a4e27d8ed9a72c05c95de01c2eda816409349df2095"
+    },
+    "LICENSE.txt": {
+      "bytes": 1066,
+      "sha256": "8a1efa755d19446b51a18e1c15f6308728da0b36283c4d38050698ad6954b69a"
+    }
+  }
+}
