@@ -27,7 +27,7 @@
            EPIC BACKGROUND ANIMATION - WebGL + CSS Fallback
            ═══════════════════════════════════════════════════════════════ */
 
-        /* AuraGo teal/cyan aurora — always under neural net / CSS fallback */
+        /* AuraGo blue/slate aurora — always under neural net / CSS fallback */
         .login-color-aurora {
             position: fixed;
             inset: 0;
@@ -35,7 +35,7 @@
             overflow: hidden;
             pointer-events: none;
             background:
-                radial-gradient(ellipse 120% 80% at 50% 120%, #041016 0%, #050a12 45%, #020617 100%);
+                radial-gradient(ellipse 120% 80% at 50% 120%, #0d1726 0%, #0a1420 45%, #07101a 100%);
         }
 
         .login-aurora-blob {
@@ -53,8 +53,8 @@
             top: -18%;
             left: -12%;
             background: radial-gradient(circle at 40% 40%,
-                rgba(45, 212, 191, 0.75) 0%,
-                rgba(20, 184, 166, 0.35) 42%,
+                rgba(131, 186, 255, 0.75) 0%,
+                rgba(84, 197, 215, 0.35) 42%,
                 transparent 70%);
             animation: login-aurora-drift-a 22s ease-in-out infinite,
                        login-aurora-hue-a 18s ease-in-out infinite;
@@ -66,8 +66,8 @@
             right: -14%;
             bottom: -10%;
             background: radial-gradient(circle at 55% 45%,
-                rgba(34, 211, 238, 0.65) 0%,
-                rgba(13, 148, 136, 0.4) 48%,
+                rgba(178, 213, 255, 0.65) 0%,
+                rgba(40, 100, 180, 0.4) 48%,
                 transparent 72%);
             animation: login-aurora-drift-b 26s ease-in-out infinite,
                        login-aurora-hue-b 20s ease-in-out infinite;
@@ -80,8 +80,8 @@
             top: 28%;
             left: 32%;
             background: radial-gradient(circle at 50% 50%,
-                rgba(94, 234, 212, 0.55) 0%,
-                rgba(6, 182, 212, 0.28) 46%,
+                rgba(131, 186, 255, 0.55) 0%,
+                rgba(84, 197, 215, 0.28) 46%,
                 transparent 70%);
             animation: login-aurora-drift-c 24s ease-in-out infinite,
                        login-aurora-hue-c 16s ease-in-out infinite;
@@ -94,8 +94,8 @@
             top: 8%;
             right: 18%;
             background: radial-gradient(circle at 50% 50%,
-                rgba(45, 212, 191, 0.4) 0%,
-                rgba(56, 189, 248, 0.22) 50%,
+                rgba(131, 186, 255, 0.4) 0%,
+                rgba(178, 213, 255, 0.22) 50%,
                 transparent 72%);
             animation: login-aurora-drift-d 28s ease-in-out infinite,
                        login-aurora-hue-d 22s ease-in-out infinite;
@@ -108,13 +108,13 @@
             inset: -30%;
             background:
                 conic-gradient(from 120deg at 50% 50%,
-                    rgba(45, 212, 191, 0.0) 0deg,
-                    rgba(45, 212, 191, 0.14) 60deg,
-                    rgba(34, 211, 238, 0.1) 130deg,
-                    rgba(13, 148, 136, 0.16) 200deg,
-                    rgba(56, 189, 248, 0.1) 270deg,
-                    rgba(94, 234, 212, 0.12) 330deg,
-                    rgba(45, 212, 191, 0.0) 360deg);
+                    rgba(131, 186, 255, 0.0) 0deg,
+                    rgba(131, 186, 255, 0.14) 60deg,
+                    rgba(178, 213, 255, 0.1) 130deg,
+                    rgba(40, 100, 180, 0.16) 200deg,
+                    rgba(84, 197, 215, 0.1) 270deg,
+                    rgba(178, 213, 255, 0.12) 330deg,
+                    rgba(131, 186, 255, 0.0) 360deg);
             filter: blur(40px);
             opacity: 0.7;
             mix-blend-mode: soft-light;
@@ -147,15 +147,15 @@
         @keyframes login-aurora-hue-a {
             0%, 100% {
                 background: radial-gradient(circle at 40% 40%,
-                    rgba(45, 212, 191, 0.78) 0%,
-                    rgba(20, 184, 166, 0.32) 42%,
+                    rgba(131, 186, 255, 0.78) 0%,
+                    rgba(84, 197, 215, 0.32) 42%,
                     transparent 70%);
                 opacity: 0.58;
             }
             50% {
                 background: radial-gradient(circle at 45% 35%,
-                    rgba(94, 234, 212, 0.82) 0%,
-                    rgba(6, 182, 212, 0.38) 44%,
+                    rgba(178, 213, 255, 0.82) 0%,
+                    rgba(40, 100, 180, 0.38) 44%,
                     transparent 72%);
                 opacity: 0.72;
             }
@@ -164,15 +164,15 @@
         @keyframes login-aurora-hue-b {
             0%, 100% {
                 background: radial-gradient(circle at 55% 45%,
-                    rgba(34, 211, 238, 0.68) 0%,
-                    rgba(13, 148, 136, 0.38) 48%,
+                    rgba(178, 213, 255, 0.68) 0%,
+                    rgba(40, 100, 180, 0.38) 48%,
                     transparent 72%);
                 opacity: 0.52;
             }
             50% {
                 background: radial-gradient(circle at 50% 50%,
-                    rgba(45, 212, 191, 0.7) 0%,
-                    rgba(56, 189, 248, 0.36) 46%,
+                    rgba(131, 186, 255, 0.7) 0%,
+                    rgba(84, 197, 215, 0.36) 46%,
                     transparent 74%);
                 opacity: 0.68;
             }
@@ -181,15 +181,15 @@
         @keyframes login-aurora-hue-c {
             0%, 100% {
                 background: radial-gradient(circle at 50% 50%,
-                    rgba(94, 234, 212, 0.5) 0%,
-                    rgba(15, 118, 110, 0.28) 48%,
+                    rgba(131, 186, 255, 0.5) 0%,
+                    rgba(22, 43, 64, 0.28) 48%,
                     transparent 70%);
                 opacity: 0.48;
             }
             50% {
                 background: radial-gradient(circle at 50% 50%,
-                    rgba(34, 211, 238, 0.58) 0%,
-                    rgba(45, 212, 191, 0.3) 46%,
+                    rgba(178, 213, 255, 0.58) 0%,
+                    rgba(131, 186, 255, 0.3) 46%,
                     transparent 72%);
                 opacity: 0.62;
             }
@@ -198,15 +198,15 @@
         @keyframes login-aurora-hue-d {
             0%, 100% {
                 background: radial-gradient(circle at 50% 50%,
-                    rgba(56, 189, 248, 0.42) 0%,
-                    rgba(20, 184, 166, 0.22) 50%,
+                    rgba(178, 213, 255, 0.42) 0%,
+                    rgba(84, 197, 215, 0.22) 50%,
                     transparent 72%);
                 opacity: 0.4;
             }
             50% {
                 background: radial-gradient(circle at 50% 50%,
-                    rgba(45, 212, 191, 0.5) 0%,
-                    rgba(103, 232, 249, 0.28) 48%,
+                    rgba(131, 186, 255, 0.5) 0%,
+                    rgba(178, 213, 255, 0.28) 48%,
                     transparent 74%);
                 opacity: 0.58;
             }
@@ -224,7 +224,7 @@
 
         [data-theme="light"] .login-color-aurora {
             background:
-                radial-gradient(ellipse 120% 80% at 50% 120%, #e8f7f5 0%, #f0f9ff 50%, #f8fafc 100%);
+                radial-gradient(ellipse 120% 80% at 50% 120%, #edf3fa 0%, #e4ecf5 50%, #ffffff 100%);
         }
 
         [data-theme="light"] .login-aurora-blob {
@@ -252,9 +252,9 @@
             z-index: 0;
             overflow: hidden;
             background: 
-                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.08), transparent),
-                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(13, 148, 136, 0.05), transparent),
-                radial-gradient(ellipse 50% 30% at 20% 100%, rgba(45, 212, 191, 0.04), transparent);
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(131, 186, 255, 0.08), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(40, 100, 180, 0.05), transparent),
+                radial-gradient(ellipse 50% 30% at 20% 100%, rgba(131, 186, 255, 0.04), transparent);
         }
 
         .css-fallback-bg::before {
@@ -262,9 +262,9 @@
             position: absolute;
             inset: -50%;
             background: 
-                radial-gradient(circle at 30% 30%, rgba(45, 212, 191, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 70% 70%, rgba(13, 148, 136, 0.1) 0%, transparent 45%),
-                radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.05) 0%, transparent 50%);
+                radial-gradient(circle at 30% 30%, rgba(131, 186, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 70% 70%, rgba(40, 100, 180, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(131, 186, 255, 0.05) 0%, transparent 50%);
             animation: aurora-move 20s ease-in-out infinite;
         }
 
@@ -304,7 +304,7 @@
         .orb-1 {
             width: 400px;
             height: 400px;
-            background: radial-gradient(circle, rgba(45, 212, 191, 0.4) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(131, 186, 255, 0.4) 0%, transparent 70%);
             top: -100px;
             left: -100px;
             animation-delay: 0s;
@@ -313,7 +313,7 @@
         .orb-2 {
             width: 300px;
             height: 300px;
-            background: radial-gradient(circle, rgba(13, 148, 136, 0.3) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(40, 100, 180, 0.3) 0%, transparent 70%);
             bottom: -50px;
             right: -50px;
             animation-delay: -5s;
@@ -322,7 +322,7 @@
         .orb-3 {
             width: 250px;
             height: 250px;
-            background: radial-gradient(circle, rgba(45, 212, 191, 0.25) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(131, 186, 255, 0.25) 0%, transparent 70%);
             top: 50%;
             left: 50%;
             animation-delay: -10s;
@@ -345,8 +345,8 @@
             position: absolute;
             inset: 0;
             background-image: 
-                linear-gradient(rgba(45, 212, 191, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(45, 212, 191, 0.03) 1px, transparent 1px);
+                linear-gradient(rgba(131, 186, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(131, 186, 255, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
             animation: grid-pulse 4s ease-in-out infinite;
         }
@@ -375,12 +375,12 @@
             background: rgba(17, 24, 39, 0.7);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(45, 212, 191, 0.15);
+            border: 1px solid rgba(131, 186, 255, 0.15);
             border-radius: var(--radius-4xl);
             padding: var(--space-10) var(--space-8);
             box-shadow: 
                 0 24px 64px rgba(2, 6, 23, 0.4),
-                0 0 0 1px rgba(45, 212, 191, 0.1),
+                0 0 0 1px rgba(131, 186, 255, 0.1),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05);
             animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -404,7 +404,7 @@
             position: absolute;
             inset: -1px;
             border-radius: 25px;
-            background: linear-gradient(135deg, rgba(45, 212, 191, 0.2), transparent 40%, transparent 60%, rgba(13, 148, 136, 0.1));
+            background: linear-gradient(135deg, rgba(131, 186, 255, 0.2), transparent 40%, transparent 60%, rgba(40, 100, 180, 0.1));
             z-index: -1;
             opacity: 0;
             animation: glow-in 1s ease 0.5s forwards;
@@ -426,13 +426,13 @@
             width: 64px;
             height: 64px;
             border-radius: var(--radius-2xl);
-            background: linear-gradient(135deg, #2dd4bf, #0d9488);
+            background: linear-gradient(135deg, #83baff, #2864b4);
             display: grid;
             place-items: center;
             font-size: var(--text-xl);
             box-shadow: 
-                0 0 40px rgba(45, 212, 191, 0.4),
-                0 0 80px rgba(45, 212, 191, 0.2),
+                0 0 40px rgba(131, 186, 255, 0.4),
+                0 0 80px rgba(131, 186, 255, 0.2),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
             animation: logo-pulse 3s ease-in-out infinite;
         }
@@ -440,13 +440,13 @@
         @keyframes logo-pulse {
             0%, 100% { 
                 box-shadow: 
-                    0 0 40px rgba(45, 212, 191, 0.4),
-                    0 0 80px rgba(45, 212, 191, 0.2);
+                    0 0 40px rgba(131, 186, 255, 0.4),
+                    0 0 80px rgba(131, 186, 255, 0.2);
             }
             50% { 
                 box-shadow: 
-                    0 0 50px rgba(45, 212, 191, 0.6),
-                    0 0 100px rgba(45, 212, 191, 0.3);
+                    0 0 50px rgba(131, 186, 255, 0.6),
+                    0 0 100px rgba(131, 186, 255, 0.3);
             }
         }
 
@@ -497,7 +497,7 @@
 
         .login-input:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15), 0 0 20px rgba(45, 212, 191, 0.1);
+            box-shadow: 0 0 0 3px rgba(131, 186, 255, 0.15), 0 0 20px rgba(131, 186, 255, 0.1);
         }
 
         .login-input.error-field {
@@ -542,7 +542,7 @@
             content: '';
             flex: 1;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.3), transparent);
+            background: linear-gradient(90deg, transparent, rgba(131, 186, 255, 0.3), transparent);
         }
 
         /* Login button */
@@ -552,7 +552,7 @@
             font-size: var(--text-base);
             font-weight: 600;
             font-family: inherit;
-            background: linear-gradient(135deg, #2dd4bf, #0d9488);
+            background: linear-gradient(135deg, #83baff, #2864b4);
             color: #fff;
             border: none;
             border-radius: var(--radius-xl);
@@ -560,8 +560,8 @@
             transition: all var(--transition-base);
             margin-top: var(--space-2);
             box-shadow: 
-                0 4px 16px rgba(45, 212, 191, 0.3),
-                0 0 0 1px rgba(45, 212, 191, 0.2),
+                0 4px 16px rgba(131, 186, 255, 0.3),
+                0 0 0 1px rgba(131, 186, 255, 0.2),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
             display: flex;
             align-items: center;
@@ -574,8 +574,8 @@
         .btn-login:hover {
             transform: translateY(-2px);
             box-shadow: 
-                0 8px 24px rgba(45, 212, 191, 0.4),
-                0 0 0 1px rgba(45, 212, 191, 0.3),
+                0 8px 24px rgba(131, 186, 255, 0.4),
+                0 0 0 1px rgba(131, 186, 255, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
 
@@ -640,7 +640,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.3), transparent);
+            background: linear-gradient(90deg, transparent, rgba(131, 186, 255, 0.3), transparent);
             animation: scan 8s linear infinite;
             z-index: 5;
             pointer-events: none;
@@ -653,22 +653,22 @@
 
         [data-theme="light"] .css-fallback-bg {
             background:
-                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(15, 143, 132, 0.12), transparent),
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(40, 100, 180, 0.12), transparent),
                 radial-gradient(ellipse 60% 42% at 84% 82%, rgba(56, 189, 248, 0.09), transparent),
                 radial-gradient(ellipse 48% 30% at 16% 100%, rgba(250, 204, 21, 0.06), transparent);
         }
 
         [data-theme="light"] .css-fallback-bg::before {
             background:
-                radial-gradient(circle at 30% 30%, rgba(15, 143, 132, 0.16) 0%, transparent 40%),
+                radial-gradient(circle at 30% 30%, rgba(40, 100, 180, 0.16) 0%, transparent 40%),
                 radial-gradient(circle at 70% 70%, rgba(56, 189, 248, 0.11) 0%, transparent 45%),
                 radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.07) 0%, transparent 50%);
         }
 
         [data-theme="light"] .particle-grid {
             background-image:
-                linear-gradient(rgba(15, 143, 132, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(15, 143, 132, 0.04) 1px, transparent 1px);
+                linear-gradient(rgba(40, 100, 180, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(40, 100, 180, 0.04) 1px, transparent 1px);
         }
 
         [data-theme="light"] .vignette {
@@ -677,21 +677,21 @@
         }
 
         [data-theme="light"] .scan-line {
-            background: linear-gradient(90deg, transparent, rgba(15, 143, 132, 0.16), transparent);
+            background: linear-gradient(90deg, transparent, rgba(40, 100, 180, 0.16), transparent);
             opacity: 0.6;
         }
 
         [data-theme="light"] .login-card {
             background: rgba(237, 245, 240, 0.88);
-            border-color: rgba(15, 118, 110, 0.18);
+            border-color: rgba(40, 100, 180, 0.18);
             box-shadow:
                 0 24px 64px rgba(83, 97, 122, 0.22),
-                0 0 0 1px rgba(15, 118, 110, 0.1),
+                0 0 0 1px rgba(40, 100, 180, 0.1),
                 inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
         [data-theme="light"] .login-card::before {
-            background: linear-gradient(135deg, rgba(15, 118, 110, 0.16), transparent 40%, transparent 60%, rgba(14, 165, 233, 0.07));
+            background: linear-gradient(135deg, rgba(40, 100, 180, 0.16), transparent 40%, transparent 60%, rgba(14, 165, 233, 0.07));
         }
 
         [data-theme="light"] .login-title {
@@ -705,14 +705,14 @@
         }
 
         [data-theme="light"] .login-input:hover {
-            border-color: rgba(15, 118, 110, 0.22);
+            border-color: rgba(40, 100, 180, 0.22);
             box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
         }
 
         [data-theme="light"] .login-input:focus {
             box-shadow:
-                0 0 0 3px rgba(15, 143, 132, 0.16),
-                0 0 24px rgba(15, 143, 132, 0.1);
+                0 0 0 3px rgba(40, 100, 180, 0.16),
+                0 0 24px rgba(40, 100, 180, 0.1);
         }
 
         [data-theme="light"] .eye-btn {
@@ -720,7 +720,7 @@
         }
 
         [data-theme="light"] .eye-btn:hover {
-            color: #0f766e;
+            color: #2864b4;
         }
 
         [data-theme="light"] .login-subtitle,
@@ -730,8 +730,8 @@
 
         [data-theme="light"] .btn-login:hover {
             box-shadow:
-                0 10px 26px rgba(15, 118, 110, 0.24),
-                0 0 0 1px rgba(15, 118, 110, 0.16),
+                0 10px 26px rgba(40, 100, 180, 0.24),
+                0 0 0 1px rgba(40, 100, 180, 0.16),
                 inset 0 1px 0 rgba(255, 255, 255, 0.18);
         }
 
@@ -840,6 +840,10 @@
 .pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) {
     background: var(--pw-canvas);
     color: var(--pw-text);
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-color-aurora {
+    background: var(--pw-canvas);
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-bg-host {

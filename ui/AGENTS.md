@@ -79,7 +79,9 @@ images, and browser-oriented regression tests.
   Precision and legacy layers, permanently appended/delimited adapter blocks,
   superseded legacy surface tokens, glassmorphism, or glows. Gradients, shadows
   and decorative animations remain prohibited outside Config; Config's bounded
-  surface and interaction effects are defined below. Entry-page additions remain scoped with
+  surface and interaction effects are defined below. Shared Precision `--pw-*`
+  hues match Config's blue/slate palette so operational and entry pages share
+  one canvas/accent family. Entry-page additions remain scoped with
   `data-entry-page`.
 - `window.AuraPrecisionWorkspace` owns the browser-local
   `aurago.workspace.density.v1` preference and exposes `init()`,
@@ -88,9 +90,12 @@ images, and browser-oriented regression tests.
   directly.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
-- Config owns its blue/slate palette and form presentation in `config-workspace.css`
-  and `js/config/presentation.js`, scoped to `data-workspace-page="config"`.
-  Keep Geist, 16px inputs and 44px controls in both densities. Below 1100px the
+- Config owns form presentation in `config-workspace.css` and
+  `js/config/presentation.js`, scoped to `data-workspace-page="config"`.
+  Shared Precision Workspace owns the blue/slate `--pw-*` palette in
+  `precision-workspace.css` for every opted-in operational and entry page.
+  Config may still remap the same hues plus `--cfg-*` card tints and bounded
+  shadows. Keep Geist, 16px inputs and 44px controls in both densities. Below 1100px the
   labeled sidebar becomes a keyboard-accessible drawer; the save dock stays in
   the viewport layout without covering the scrollable form.
 - Config uses one visible card level: named topic cards containing flat fields,
@@ -100,8 +105,8 @@ images, and browser-oriented regression tests.
 - Config topic boundaries are explicit renderer headings/groups or exact selectors
   in `AuraConfigCatalog.presentation`; never infer cards from nested field wrappers.
   Card headings use 18px text, fields 16px, help 14px, with 24px spacing (16px
-  compact/mobile). Switches sit beside their label and help. Keep blue/slate
-  surfaces, softly tinted blue/cyan card heads and subtle blue-tinted shadows.
+  compact/mobile). Switches sit beside their label and help. Keep the shared
+  blue/slate surfaces, softly tinted blue/cyan card heads and subtle blue-tinted shadows.
   Use 16px card corners, the `--cfg-card-heading` tint and `--surface-shadow`
   (0 6px 20px, 16% dark / 7% light); dialogs use `--surface-shadow-strong`.
   Interactive entry cards may lift at most 2px; switches/disclosures use 140–180ms

@@ -68,11 +68,11 @@ function currentTheme() {
 }
 
 function colorForTheme(theme) {
-  // AuraGo teal fire (RGB 0-1).
+  // Config blue/slate fire (RGB 0-1).
   if (theme === "light") {
-    return [0.08, 0.55, 0.5];
+    return [0.157, 0.392, 0.706];
   }
-  return [0.18, 0.83, 0.75];
+  return [0.514, 0.729, 1];
 }
 
 function readCardRadius(card) {

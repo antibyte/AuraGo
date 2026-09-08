@@ -14,7 +14,7 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 	for _, marker := range []string{
 		`.pw-page {`,
 		`font-family: 'Geist'`,
-		`--pw-accent: #6f98bd;`,
+		`--pw-accent: #83baff;`,
 		`[data-theme="light"] .pw-page`,
 		`.pw-page[data-density="compact"]`,
 		`@media (prefers-reduced-motion: reduce)`,
@@ -72,25 +72,27 @@ func TestPrecisionWorkspaceSlatePaletteTokens(t *testing.T) {
 
 	foundation := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
 	for _, token := range []string{
-		`--pw-canvas: #10161e;`, `--pw-surface: #151f2b;`,
-		`--pw-surface-elevated: #1b2938;`, `--pw-surface-soft: #26384c;`,
-		`--pw-text: #edf2f7;`, `--pw-muted: #aab7c4;`,
-		`--pw-subtle: #7d8b99;`, `--pw-accent: #6f98bd;`,
-		`--pw-accent-strong: #91b5d6;`,
+		`--pw-canvas: #0d1726;`, `--pw-surface: #17283c;`,
+		`--pw-surface-elevated: #20364e;`, `--pw-surface-soft: #273c52;`,
+		`--pw-text: #edf3fa;`, `--pw-muted: #b3c2d2;`,
+		`--pw-subtle: #96a9bc;`, `--pw-accent: #83baff;`,
+		`--pw-accent-strong: #b2d5ff;`, `--pw-line: #30455e;`,
+		`--pw-line-strong: #526a82;`,
 	} {
 		if !strings.Contains(foundation, token) {
-			t.Errorf("missing dark slate token %q", token)
+			t.Errorf("missing dark blue/slate token %q", token)
 		}
 	}
 	for _, token := range []string{
-		`--pw-canvas: #eef2f6;`, `--pw-surface: #fbfcfe;`,
-		`--pw-surface-elevated: #f1f5f9;`, `--pw-surface-soft: #e3eaf1;`,
-		`--pw-text: #182431;`, `--pw-muted: #5f6f7f;`,
-		`--pw-subtle: #7b8997;`, `--pw-accent: #426d93;`,
-		`--pw-accent-strong: #5d87aa;`,
+		`--pw-canvas: #edf3fa;`, `--pw-surface: #ffffff;`,
+		`--pw-surface-elevated: #e4ecf5;`, `--pw-surface-soft: #d7e3ef;`,
+		`--pw-text: #162b40;`, `--pw-muted: #455e76;`,
+		`--pw-subtle: #546c83;`, `--pw-accent: #2864b4;`,
+		`--pw-accent-strong: #1d4e93;`, `--pw-line: #cad6e2;`,
+		`--pw-line-strong: #8098af;`,
 	} {
 		if !strings.Contains(foundation, token) {
-			t.Errorf("missing light slate token %q", token)
+			t.Errorf("missing light blue/slate token %q", token)
 		}
 	}
 	for _, alias := range []string{

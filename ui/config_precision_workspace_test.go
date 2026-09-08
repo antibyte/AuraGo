@@ -46,9 +46,9 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 	foundation := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
 	for _, marker := range []string{
 		`.pw-page {`,
-		`--pw-canvas: #10161e;`,
-		`--pw-surface: #151f2b;`,
-		`--pw-accent: #6f98bd;`,
+		`--pw-canvas: #0d1726;`,
+		`--pw-surface: #17283c;`,
+		`--pw-accent: #83baff;`,
 		`--pw-control-size: 1rem;`,
 		`--pw-label-size: 0.9375rem;`,
 		`--pw-help-size: 0.875rem;`,

@@ -88,27 +88,27 @@
         function getWebGLTheme(theme) {
             if (theme === 'light') {
                 return {
-                    clearColor: 0xd8e4df,
-                    fogColor: 0xd8e4df,
-                    particleStart: 0x0f766e,
-                    particleEnd: 0x0d9488,
-                    nodeFlash: 0xecfeff,
-                    lineColor: 0x0f766e,
-                    trailColor: 0x22d3ee,
-                    pulseColor: 0x5eead4,
-                    orbColors: [0x5eead4, 0x2dd4bf, 0x115e59]
+                    clearColor: 0xedf3fa,
+                    fogColor: 0xedf3fa,
+                    particleStart: 0x2864b4,
+                    particleEnd: 0x1d4e93,
+                    nodeFlash: 0xffffff,
+                    lineColor: 0x2864b4,
+                    trailColor: 0x83baff,
+                    pulseColor: 0x54c5d7,
+                    orbColors: [0x2864b4, 0x54c5d7, 0x8098af]
                 };
             }
             return {
-                clearColor: 0x0b0f1a,
-                fogColor: 0x0b0f1a,
-                particleStart: 0x2dd4bf,
-                particleEnd: 0x0d9488,
-                nodeFlash: 0xccfbf1,
-                lineColor: 0x2dd4bf,
-                trailColor: 0x67e8f9,
-                pulseColor: 0x99f6e4,
-                orbColors: [0x2dd4bf, 0x0d9488, 0x115e59]
+                clearColor: 0x0d1726,
+                fogColor: 0x0d1726,
+                particleStart: 0x83baff,
+                particleEnd: 0x2864b4,
+                nodeFlash: 0xedf3fa,
+                lineColor: 0x83baff,
+                trailColor: 0xb2d5ff,
+                pulseColor: 0x54c5d7,
+                orbColors: [0x83baff, 0x54c5d7, 0x20364e]
             };
         }
 
