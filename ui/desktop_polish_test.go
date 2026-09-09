@@ -22,7 +22,7 @@ func TestVirtualDesktopPolishRegressions(t *testing.T) {
 		"function clampDesktopIconPosition",
 		"case 'Delete':",
 		"case 'F2':",
-		"setTimeout(() => clearSaveError",
+		"case 'dismiss':notice('')",
 		"function setCellFromInput",
 	} {
 		if !strings.Contains(source, marker) {

@@ -568,11 +568,18 @@ function wireWindow(win, id) {
         }
     }
 
-    function closeWindow(id) {
+    async function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
         if (win.isGadget) return; // gadgets are closed via their own context menu
-        if (win.closing) return;
+        if (win.closing || win.checkingClose) return;
+        if (typeof win.beforeClose === 'function') {
+            win.checkingClose = true;
+            try { if (!await win.beforeClose()) return; }
+            catch (error) { console.warn('Window close was cancelled', error); return; }
+            finally { win.checkingClose = false; }
+            if (!state.windows.has(id)) return;
+        }
         win.closing = true;
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';

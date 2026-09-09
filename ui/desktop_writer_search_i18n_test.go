@@ -10,12 +10,12 @@ import (
 func TestDesktopWriterSearchI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/writer.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/writer-panels.js")
 	for _, want := range []string{
-		"t('desktop.writer_match_count'",
-		"current: searchState.currentMatch + 1",
-		"total: searchState.matches.length",
-		`title="${esc(t('desktop.close'))}"`,
+		"tr('match_count'",
+		"current:matchIndex+1",
+		"total:matches.length",
+		"tr('close')",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("writer search i18n missing marker %q", want)

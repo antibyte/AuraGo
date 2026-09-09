@@ -76,12 +76,16 @@ func TestOfficeAppsSendOptimisticVersion(t *testing.T) {
 			t.Fatalf("read %s: %v", app, err)
 		}
 		source := string(sourceBytes)
-		for _, marker := range []string{
-			"let officeVersion = null;",
-			"officeVersion = body.office_version || null;",
-			"office_version: officeVersion",
-			"officeVersion = body.office_version || officeVersion;",
-		} {
+		markers := []string{"If-Match", "If-None-Match", "response.headers.get('ETag')", "error?.status === 412"}
+		if app == "sheets.js" {
+			markers = []string{
+				"let officeVersion = null;",
+				"officeVersion = body.office_version || null;",
+				"office_version: officeVersion",
+				"officeVersion = body.office_version || officeVersion;",
+			}
+		}
+		for _, marker := range markers {
 			if !strings.Contains(source, marker) {
 				t.Fatalf("%s missing optimistic office version marker %q", app, marker)
 			}
@@ -101,13 +105,12 @@ func TestOfficeAppsExposeNewAndSaveAsMenus(t *testing.T) {
 			name: "writer",
 			file: "writer.js",
 			markers: []string{
-				"function newDocument()",
+				"case 'new':",
 				"function saveAs()",
-				"id: 'new-document'",
-				"labelKey: 'desktop.writer_new'",
-				"id: 'save-as'",
-				"labelKey: 'desktop.writer_save_as'",
-				"ctx.promptDialog",
+				"item('new','new','Ctrl+N'",
+				"item('saveAs','save_as'",
+				"ctx.saveFileDialog",
+				"await guard()",
 			},
 		},
 		{
@@ -167,14 +170,9 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 			name: "writer",
 			path: "js/desktop/apps/writer.js",
 			markers: []string{
-				"id: 'agent'",
-				"labelKey: 'desktop.menu_agent'",
-				"id: 'agent-task'",
-				"labelKey: 'desktop.agent_task_for_agent'",
-				"id: 'agent-send-chat'",
-				"labelKey: 'desktop.agent_send_to_chat'",
-				"ctx.openAgentChatForFile",
-				"await save()",
+				"id:'agent'",
+				"labelKey:'desktop.menu_agent'",
+				"item('assist','assist')",
 			},
 		},
 		{

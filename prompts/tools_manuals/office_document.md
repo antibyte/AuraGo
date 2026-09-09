@@ -13,6 +13,14 @@ If `tools.office_document.readonly` is enabled, only `read` is allowed. `write`,
 - `patch`: use `path`, optional seed `content`, `title`, `prepend_text`, `append_text`, and `replacements:[{find,replace}]`.
 - `export`: use `path`, `output_path`, and `format` (`docx`, `html`, `md`, or `txt`).
 
+Complex DOCX files created by Autor or other word processors may contain layout,
+comments, tracked changes, images or notes outside this tool's simplified model.
+`write` and `patch` reject an existing DOCX when those details cannot be preserved.
+Do not retry by deleting the original. Use Autor for native editing, or create a
+clearly named new copy only when the user requests a simplified result. DOCX-to-DOCX
+export preserves the complete source package; HTML, Markdown and text copies lose
+review and page-layout information.
+
 `office_version.modified` and `office_version.mod_time` are equivalent RFC3339 timestamps; prefer `modified` in new callers.
 
 ## Examples

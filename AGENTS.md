@@ -453,6 +453,19 @@ Tools are defined in `internal/tools/`:
 - The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
 - Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
 
+### Desktop Office Document Contract
+- Autor uses the exact Apache-2.0 DOCX core 2.16.0, local fonts/WASM, and an MIT
+  review extension; no paid Pro dependency. The UI remains Vanilla JavaScript.
+- `/api/desktop/office/document?representation=docx` reads complete DOCX bytes;
+  writes require `If-Match` or `If-None-Match: *` and use the desktop's atomic
+  conditional-write path. Keep the legacy JSON API compatible.
+- Legacy Office/agent writes must reject a DOCX they cannot preserve. Explicit
+  simpler-format copies are allowed; DOCX-to-DOCX exports pass through full bytes.
+- `/api/desktop/office/assist` is bounded, revision-bound and tool-free, without
+  general chat history or file access. Applying a suggestion is a client decision.
+- Desktop windows may install an asynchronous `beforeClose` guard. Await it before
+  animation/disposal; refusal or errors leave the window open.
+
 ### Operational Issue Notification Contract
 - Background and maintenance contexts only record operational issues; they never send user notices themselves.
 - New or changed issue revisions are surfaced by the supervisor at the next direct chat contact, with at most two issues ordered by severity, change, and recency. A one-off `tool_failure` warning stays internal until its second occurrence. High-severity open issues may repeat after 24 hours only after another occurrence or while explicitly awaiting a user decision.

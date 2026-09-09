@@ -5497,7 +5497,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ meshcore: true, files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ meshcore: true, files: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, notes: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'radio') return { width: 360, height: 540 };
@@ -6812,11 +6812,18 @@ function wireWindow(win, id) {
         }
     }
 
-    function closeWindow(id) {
+    async function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
         if (win.isGadget) return; // gadgets are closed via their own context menu
-        if (win.closing) return;
+        if (win.closing || win.checkingClose) return;
+        if (typeof win.beforeClose === 'function') {
+            win.checkingClose = true;
+            try { if (!await win.beforeClose()) return; }
+            catch (error) { console.warn('Window close was cancelled', error); return; }
+            finally { win.checkingClose = false; }
+            if (!state.windows.has(id)) return;
+        }
         win.closing = true;
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -11403,7 +11410,10 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     function officeAppContext(context) {
-        return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog });
+        return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, confirmDialog,
+            registerWindowCleanup,
+            setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
+        });
     }
 
     function viewerAppContext(context) {

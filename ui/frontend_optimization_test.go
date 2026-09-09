@@ -680,7 +680,7 @@ func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
 		"'system-info'",
 		"'log-viewer'",
 		"/js/vendor/xterm.min.js",
-		"/js/vendor/quill.js",
+		"/js/vendor/writer/engine.css",
 		"/js/vendor/pdf.min.js",
 		"/js/vendor/three.min.js",
 		"/js/vendor/hls.min.js",

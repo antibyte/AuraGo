@@ -94,6 +94,10 @@ func TestDesktopAuroraBrowser(t *testing.T) {
 	if phase == "" {
 		phase = "after"
 	}
+	if os.Getenv("AURAGO_WRITER_MATRIX") == "1" {
+		verifyWriterShell(t, page, dir)
+		return
+	}
 	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
 		page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 		page.MustEval(`async()=>{await fixtureOpen('files');await fixtureOpen('settings');await fixtureOpen('agent-chat');fixtureArrange()}`)

@@ -22,7 +22,7 @@ func TestDesktopPrintFrameI18n(t *testing.T) {
 	}
 
 	writer := readDesktopAssetText(t, "js/desktop/apps/writer.js")
-	if !strings.Contains(writer, "notify({ type: 'error', message: t('desktop.print_failed') })") {
+	if !strings.Contains(writer, "notice(ctx.t('desktop.print_failed'),true)") {
 		t.Fatal("writer print must notify desktop.print_failed")
 	}
 	if strings.Contains(writer, "print frame unavailable") {

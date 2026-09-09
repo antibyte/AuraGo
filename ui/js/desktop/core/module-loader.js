@@ -26,8 +26,8 @@
             styles: appStyles('/css/desktop-app-office.css')
         },
         'writer': {
-            styles: appStyles('/css/quill.snow.css', '/css/desktop-app-office.css'),
-            scripts: ['/js/vendor/quill.js', '/js/desktop/apps/writer.js']
+            styles: appStyles('/js/vendor/writer/engine.css', '/css/desktop-app-writer.css'),
+            scripts: ['/js/vendor/purify.min.js', '/js/vendor/marked.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/writer-panels.js', '/js/desktop/apps/writer.js']
         },
         'sheets': {
             styles: appStyles('/css/desktop-app-office.css'),

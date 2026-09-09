@@ -334,7 +334,12 @@ func officeWriteDocument(ctx context.Context, svc *desktop.Service, rawPath stri
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	entry, err := svc.WriteFileBytesConditional(ctx, rawPath, data, desktop.SourceAgent, nil)
+	entry, err := svc.WriteFileBytesConditional(ctx, rawPath, data, desktop.SourceAgent, func(current desktop.FileWriteState) error {
+		if current.Exists {
+			return office.CheckLegacyDocumentRewrite(rawPath, current.Data)
+		}
+		return nil
+	})
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}

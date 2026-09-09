@@ -10,10 +10,10 @@ func TestDesktopWriterAppMarkers(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/writer.js")
 	for _, marker := range []string{
-		"WriterApp.render",
-		"WriterApp.dispose",
+		"window.WriterApp={render,dispose,instances}",
+		"queue?.dispose()",
 		"dispose(windowId);",
-		"instAfter.quill = editor",
+		"editor?.destroy()",
 		"/api/desktop/office/document",
 	} {
 		if !strings.Contains(source, marker) {

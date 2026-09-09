@@ -45,7 +45,7 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"instances.delete(windowId)",
 		},
 		"ui/js/desktop/apps/writer.js": {
-			"WriterApp.dispose",
+			"window.WriterApp={render,dispose,instances}",
 			"instances.delete(windowId)",
 		},
 		"ui/js/desktop/apps/chess.js": {

@@ -21,6 +21,10 @@ func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
 			return
 		}
+		if r.URL.Query().Get("representation") == "docx" {
+			handleDesktopNativeDocument(s, w, r)
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -172,6 +176,10 @@ func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
+		if r.Method == http.MethodPost {
+			handleDesktopWriterSnapshotExport(w, r)
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -197,6 +205,11 @@ func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 		var mimeType string
 		switch format {
 		case "docx", "html", "htm", "md", "txt":
+			if format == "docx" && strings.EqualFold(filepath.Ext(entry.Name), ".docx") {
+				output = data
+				mimeType = office.DOCXMIME
+				break
+			}
 			doc, err := office.DecodeDocument(entry.Name, data)
 			if err != nil {
 				jsonError(w, err.Error(), http.StatusBadRequest)
@@ -297,7 +310,13 @@ func officeVersionForEntry(entry desktop.FileEntry, data []byte) officeVersion {
 
 func writeOfficeFileBytesChecked(ctx context.Context, svc *desktop.Service, path string, data []byte, expected *officeVersion) (*officeVersion, error) {
 	entry, err := svc.WriteFileBytesConditional(ctx, path, data, desktop.SourceUser, func(current desktop.FileWriteState) error {
-		return checkOfficeVersion(current, expected)
+		if err := checkOfficeVersion(current, expected); err != nil {
+			return err
+		}
+		if current.Exists {
+			return office.CheckLegacyDocumentRewrite(path, current.Data)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

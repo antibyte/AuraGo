@@ -311,7 +311,7 @@ func TestDesktopTerminalAndNotesApps(t *testing.T) {
 
 	writer := readDesktopAssetText(t, "js/desktop/apps/writer.js")
 	sheets := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
-	if !strings.Contains(writer, "function printDocument()") {
+	if !strings.Contains(writer, "panels.print(await editor.save()") {
 		t.Fatalf("writer must support print")
 	}
 	if !strings.Contains(sheets, "function printWorkbook()") {

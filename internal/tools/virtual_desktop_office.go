@@ -71,6 +71,9 @@ func virtualDesktopExportOffice(sourceName string, data []byte, outputPath, form
 			outputExt = ".docx"
 		}
 	}
+	if outputExt == ".docx" && strings.EqualFold(path.Ext(sourceName), ".docx") {
+		return data, nil
+	}
 	switch outputExt {
 	case ".docx", ".html", ".htm", ".md", ".txt":
 		doc, err := office.DecodeDocument(sourceName, data)

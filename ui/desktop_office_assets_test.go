@@ -25,8 +25,9 @@ func TestDesktopOfficeAssetsAreEmbeddedAndRouted(t *testing.T) {
 
 	moduleLoader := readDesktopAssetText(t, filepath.Join("js", "desktop", "core", "module-loader.js"))
 	requiredLazyAssets := []string{
-		"/css/quill.snow.css",
-		"/js/vendor/quill.js",
+		"/js/vendor/writer/engine.css",
+		"/js/desktop/apps/writer-session.js",
+		"/js/desktop/apps/writer-panels.js",
 		"/js/desktop/apps/writer.js",
 		"/js/desktop/apps/sheets.js",
 	}
@@ -222,7 +223,11 @@ func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 		}
 	}
 
-	for _, app := range []string{"writer.js", "sheets.js"} {
+	writer := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "writer.js"))
+	if !strings.Contains(writer, "mode:ctx.readonly?'view':undefined") {
+		t.Fatal("Writer must enforce native read-only mode")
+	}
+	for _, app := range []string{"sheets.js"} {
 		source := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", app))
 		for _, marker := range []string{
 			"const readonly = !!ctx.readonly;",

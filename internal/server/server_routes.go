@@ -564,6 +564,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/upload", handleDesktopUpload(s))
 	mux.HandleFunc("/api/desktop/download", handleDesktopDownload(s))
 	mux.HandleFunc("/api/desktop/office/document", handleDesktopOfficeDocument(s))
+	mux.HandleFunc("/api/desktop/office/assist", handleDesktopWriterAssist(s))
 	mux.HandleFunc("/api/desktop/office/workbook", handleDesktopOfficeWorkbook(s))
 	mux.HandleFunc("/api/desktop/office/export", handleDesktopOfficeExport(s))
 	mux.HandleFunc("/api/desktop/viewer/content", handleDesktopViewerContent(s))
