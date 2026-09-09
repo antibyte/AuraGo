@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "この付箋を削除",
+  "desktop.sticky_delete_msg": "この付箋とその内容は削除され、元に戻せません。新しい付箋は引き続き作成できます。",
   "desktop.sticky_note": "付箋",
   "desktop.sticky_add": "付箋を追加",
   "desktop.sticky_placeholder": "メモを書こう…",

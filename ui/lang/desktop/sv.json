@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Ta bort denna anteckning",
+  "desktop.sticky_delete_msg": "Denna fästis och dess innehåll tas bort och kan inte återställas. Du kan fortfarande skapa nya fästisar.",
   "desktop.sticky_note": "Klisterlapp",
   "desktop.sticky_add": "Lägg till klisterlapp",
   "desktop.sticky_placeholder": "Skriv en anteckning…",

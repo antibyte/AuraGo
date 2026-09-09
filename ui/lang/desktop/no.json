@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Slett denne notisen",
+  "desktop.sticky_delete_msg": "Denne klistrelappen og innholdet slettes og kan ikke gjenopprettes. Du kan fortsatt opprette nye klistrelapper.",
   "desktop.sticky_note": "Gul huskelapp",
   "desktop.sticky_add": "Legg til huskelapp",
   "desktop.sticky_placeholder": "Skriv en lapp…",

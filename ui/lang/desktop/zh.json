@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "删除此便签",
+  "desktop.sticky_delete_msg": "此便签及其内容将被删除，且无法恢复。你仍然可以创建新的便签。",
   "desktop.sticky_note": "便签",
   "desktop.sticky_add": "添加便签",
   "desktop.sticky_placeholder": "随手记点什么…",

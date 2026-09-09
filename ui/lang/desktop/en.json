@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Delete this note",
+  "desktop.sticky_delete_msg": "This sticky note and its content will be deleted and cannot be restored. You can still create new sticky notes.",
   "desktop.sticky_note": "Sticky note",
   "desktop.sticky_add": "Add sticky note",
   "desktop.sticky_placeholder": "Jot something down…",

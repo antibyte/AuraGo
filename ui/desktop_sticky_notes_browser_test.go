@@ -37,7 +37,7 @@ func TestDesktopStickyNotesBrowser(t *testing.T) {
 	if cut < 0 {
 		t.Fatal("shell startup seam missing")
 	}
-	shell = shell[:cut] + `window.aurora={state,renderWidgets,loadBootstrap,editStickyNote,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,showDesktopContextMenu,closeContextMenu};})();`
+	shell = shell[:cut] + `window.aurora={state,renderWidgets,loadBootstrap,editStickyNote,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,showDesktopContextMenu,closeContextMenu,showWidgetManager};})();`
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, html) })
@@ -152,9 +152,36 @@ func TestDesktopStickyNotesBrowser(t *testing.T) {
 	page.MustElement(".vd-sticky-editor [type=submit]").MustClick()
 	waitForJSBool(t, page, `()=>document.querySelectorAll('.vd-sticky-note').length===6`)
 	page.MustEval(`()=>document.querySelector('[data-widget-id="'+noteId+'"] .vd-sticky-menu').click()`)
+	if got := page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="3"]`).MustText(); !strings.Contains(got, "Diese Notiz löschen") {
+		t.Fatalf("note menu deletion label: %q", got)
+	}
 	page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="3"]`).MustClick()
+	if !page.MustEval(`()=>document.querySelector('.vd-modal').textContent.includes(t('desktop.sticky_delete_msg'))`).Bool() {
+		t.Fatal("note menu must explain what is deleted")
+	}
+	page.MustElement(".vd-modal [data-cancel]").MustClick()
+	page.MustEval(`()=>{
+        aurora.state.bootstrap.all_widgets.push({id:'custom-demo',title:'Custom widget',type:'html'}, {id:'builtin-weather',type:'builtin',builtin:true});
+        aurora.showWidgetManager();
+    }`)
+	if !page.MustEval(`()=>{
+        const button=id=>document.querySelector('.vd-wm-card[data-widget-id="'+id+'"] [data-action="delete"]');
+        return button(noteId).textContent===t('desktop.sticky_delete') && button('custom-demo').textContent===t('desktop.widget_delete_permanent') && !button('builtin-weather');
+    }`).Bool() {
+		t.Fatal("manager must distinguish note deletion, custom widget deletion and builtins")
+	}
+	page.MustElement(`.vd-wm-card[data-widget-id="custom-demo"] [data-action="delete"]`).MustClick()
+	if !page.MustEval(`()=>document.querySelector('.vd-modal').textContent.includes(t('desktop.widget_confirm_delete')) && !document.querySelector('.vd-modal').textContent.includes(t('desktop.sticky_delete_msg'))`).Bool() {
+		t.Fatal("custom widgets must retain their widget deletion confirmation")
+	}
+	page.MustElement(".vd-modal [data-cancel]").MustClick()
+	page.MustEval(`()=>document.querySelector('.vd-wm-card[data-widget-id="'+noteId+'"] [data-action="delete"]').click()`)
+	if !page.MustEval(`()=>document.querySelector('.vd-modal').textContent.includes(t('desktop.sticky_delete_msg')) && !!document.querySelector('.vd-sticky-note[data-widget-id="'+noteId+'"]')`).Bool() {
+		t.Fatal("manager note deletion must explain content loss and wait for confirmation")
+	}
 	page.MustElement(".vd-modal [type=submit]").MustClick()
 	waitForJSBool(t, page, `()=>!document.querySelector('[data-widget-id="'+noteId+'"]')`)
+	page.MustElement(".vd-widget-manager [data-close]").MustClick()
 	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
 		page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
@@ -186,7 +213,7 @@ func TestDesktopStickyNotesTranslations(t *testing.T) {
 		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/"+locale+".json")), &words); err != nil {
 			t.Fatal(err)
 		}
-		for _, key := range []string{"desktop.sticky_note", "desktop.sticky_add", "desktop.sticky_placeholder", "desktop.sticky_actions"} {
+		for _, key := range []string{"desktop.sticky_note", "desktop.sticky_add", "desktop.sticky_placeholder", "desktop.sticky_actions", "desktop.sticky_delete", "desktop.sticky_delete_msg"} {
 			if strings.TrimSpace(words[key]) == "" {
 				t.Errorf("%s missing %s", locale, key)
 			}

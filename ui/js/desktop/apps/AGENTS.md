@@ -107,6 +107,11 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### Widget config contract
 
+- Sticky notes are individual `type: sticky-note` records. Their manager and
+  context-menu deletion uses `desktop.sticky_delete` / `sticky_delete_msg` to
+  explain that only this note and its content are removed; creation remains
+  available. Reserve `widget_delete_permanent` for custom widget registrations.
+
 - `builtin-printer` is hidden by default and added through the widget drawer.
   It uses the shared 320px widget width, remembers the selected configured ID in browser storage,
   polls read-only status every 30 seconds while visible, and shows progress,

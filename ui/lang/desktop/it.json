@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Elimina questa nota",
+  "desktop.sticky_delete_msg": "Questa nota adesiva e il suo contenuto verranno eliminati definitivamente. Potrai continuare a creare nuove note adesive.",
   "desktop.sticky_note": "Nota adesiva",
   "desktop.sticky_add": "Aggiungi nota adesiva",
   "desktop.sticky_placeholder": "Scrivi un appunto…",

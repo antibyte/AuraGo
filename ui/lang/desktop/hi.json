@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "यह नोट हटाएँ",
+  "desktop.sticky_delete_msg": "यह स्टिकी नोट और इसकी सामग्री हमेशा के लिए हटा दी जाएगी। आप फिर भी नए स्टिकी नोट बना सकेंगे।",
   "desktop.sticky_note": "स्टिकी नोट",
   "desktop.sticky_add": "स्टिकी नोट जोड़ें",
   "desktop.sticky_placeholder": "कुछ लिखो…",

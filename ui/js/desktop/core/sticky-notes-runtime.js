@@ -49,8 +49,8 @@
             { label: t('desktop.edit'), icon: 'edit', fallback: 'E', disabled: readonly, action: () => editStickyNote(widget) },
             { label: t('desktop.fm.duplicate'), icon: 'copy', fallback: '+', disabled: readonly, action: () => editStickyNote(null, x + 24, y + 24, widgetConfig(widget).text) },
             { separator: true },
-            { label: t('desktop.delete'), icon: 'trash', fallback: 'X', disabled: readonly, action: async () => {
-                if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'))) return;
+            { label: t('desktop.sticky_delete'), icon: 'trash', fallback: 'X', disabled: readonly, action: async () => {
+                if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'), t('desktop.sticky_delete_msg'))) return;
                 try {
                     await api('/api/desktop/widgets?id=' + encodeURIComponent(widget.id), { method: 'DELETE' });
                     await loadBootstrap();

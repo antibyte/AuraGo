@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Deze notitie verwijderen",
+  "desktop.sticky_delete_msg": "Deze plaknotitie en de inhoud worden onherroepelijk verwijderd. Je kunt nog steeds nieuwe plaknotities maken.",
   "desktop.sticky_note": "Plaknotitie",
   "desktop.sticky_add": "Plaknotitie toevoegen",
   "desktop.sticky_placeholder": "Schrijf iets op…",

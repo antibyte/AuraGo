@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Slet denne note",
+  "desktop.sticky_delete_msg": "Denne huskeseddel og dens indhold slettes og kan ikke gendannes. Du kan stadig oprette nye huskesedler.",
   "desktop.sticky_note": "Gul huskeseddel",
   "desktop.sticky_add": "Tilføj huskeseddel",
   "desktop.sticky_placeholder": "Skriv en note…",

@@ -10039,8 +10039,8 @@ function updateTaskbarSystemButtonsForMobile() {
             { label: t('desktop.edit'), icon: 'edit', fallback: 'E', disabled: readonly, action: () => editStickyNote(widget) },
             { label: t('desktop.fm.duplicate'), icon: 'copy', fallback: '+', disabled: readonly, action: () => editStickyNote(null, x + 24, y + 24, widgetConfig(widget).text) },
             { separator: true },
-            { label: t('desktop.delete'), icon: 'trash', fallback: 'X', disabled: readonly, action: async () => {
-                if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'))) return;
+            { label: t('desktop.sticky_delete'), icon: 'trash', fallback: 'X', disabled: readonly, action: async () => {
+                if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'), t('desktop.sticky_delete_msg'))) return;
                 try {
                     await api('/api/desktop/widgets?id=' + encodeURIComponent(widget.id), { method: 'DELETE' });
                     await loadBootstrap();
@@ -11716,7 +11716,8 @@ function modalDialog(options) {
                     actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-add" data-action="show" data-id="${esc(widget.id)}">${esc(t('desktop.widget_add_to_desktop'))}</button>`);
                 }
                 if (!isBuiltin) {
-                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-delete" data-action="delete" data-id="${esc(widget.id)}">${esc(t('desktop.widget_delete_permanent'))}</button>`);
+                    const deleteLabel = widget.type === 'sticky-note' ? 'desktop.sticky_delete' : 'desktop.widget_delete_permanent';
+                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-delete" data-action="delete" data-id="${esc(widget.id)}">${esc(t(deleteLabel))}</button>`);
                 }
                 const iconKey = widget.icon || 'widgets';
                 return `<div class="vd-wm-card${isBuiltin ? ' vd-wm-card-builtin' : ''}" data-widget-id="${esc(widget.id)}">
@@ -11760,7 +11761,11 @@ function modalDialog(options) {
                 btn.addEventListener('click', async () => {
                     const widget = ((state.bootstrap && state.bootstrap.all_widgets) || []).find(w => w.id === btn.dataset.id);
                     const name = widget ? widgetDisplayTitle(widget) : btn.dataset.id;
-                    const confirmed = await confirmDialog(t('desktop.widget_confirm_delete'), t('desktop.widget_confirm_delete_msg', { name }));
+                    const isStickyNote = widget && widget.type === 'sticky-note';
+                    const confirmed = await confirmDialog(
+                        t(isStickyNote ? 'desktop.notes_delete_confirm' : 'desktop.widget_confirm_delete'),
+                        t(isStickyNote ? 'desktop.sticky_delete_msg' : 'desktop.widget_confirm_delete_msg', { name })
+                    );
                     if (!confirmed) return;
                     try {
                         await api('/api/desktop/widgets?id=' + encodeURIComponent(btn.dataset.id), { method: 'DELETE' });

@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Smazat tuto poznámku",
+  "desktop.sticky_delete_msg": "Tato samolepicí poznámka a její obsah budou nenávratně smazány. Nové poznámky můžete vytvářet i nadále.",
   "desktop.sticky_note": "Lepicí poznámka",
   "desktop.sticky_add": "Přidat lepicí poznámku",
   "desktop.sticky_placeholder": "Napiš si poznámku…",

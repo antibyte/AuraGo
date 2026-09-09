@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Diese Notiz löschen",
+  "desktop.sticky_delete_msg": "Diese Haftnotiz und ihr Inhalt werden unwiderruflich gelöscht. Du kannst weiterhin neue Haftnotizen erstellen.",
   "desktop.sticky_note": "Haftnotiz",
   "desktop.sticky_add": "Haftnotiz hinzufügen",
   "desktop.sticky_placeholder": "Schreib etwas auf…",

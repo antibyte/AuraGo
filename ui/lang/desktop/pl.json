@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Usuń tę notatkę",
+  "desktop.sticky_delete_msg": "Ta karteczka i jej treść zostaną nieodwracalnie usunięte. Nadal możesz tworzyć nowe karteczki.",
   "desktop.sticky_note": "Karteczka samoprzylepna",
   "desktop.sticky_add": "Dodaj karteczkę",
   "desktop.sticky_placeholder": "Zapisz coś…",

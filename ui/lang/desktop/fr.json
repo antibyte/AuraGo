@@ -1,4 +1,6 @@
 {
+  "desktop.sticky_delete": "Supprimer cette note",
+  "desktop.sticky_delete_msg": "Cette note adhésive et son contenu seront supprimés définitivement. Vous pourrez toujours créer de nouvelles notes adhésives.",
   "desktop.sticky_note": "Pense-bête",
   "desktop.sticky_add": "Ajouter un pense-bête",
   "desktop.sticky_placeholder": "Écris une note…",
