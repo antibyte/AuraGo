@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/ysmood/gson"
@@ -24,7 +25,8 @@ import (
 
 func TestGalaxyEmbeddedAssetsAndLocales(t *testing.T) {
 	for name, size := range map[string][2]int{
-		"space-4k.webp": {3840, 2160}, "space-2k.webp": {2048, 1152},
+		"space-nebula-4k.webp": {3840, 2160}, "space-nebula-2k.webp": {2048, 1152},
+		"orb-companion.png": {1024, 1024}, "orbit-mark.png": {512, 512},
 		"poster-4k.webp": {3840, 2160}, "poster-2k.webp": {2048, 1152}, "poster-mobile.webp": {1080, 1920},
 		"earth-day-4k.jpg": {4096, 2048}, "earth-day-2k.jpg": {2048, 1024},
 		"earth-night.png": {2048, 1024}, "earth-clouds.jpg": {1024, 512}, "galaxy-detail.jpg": {4096, 1310},
@@ -48,11 +50,22 @@ func TestGalaxyEmbeddedAssetsAndLocales(t *testing.T) {
 	for _, locale := range locales {
 		var dict map[string]string
 		data, err := Content.ReadFile("lang/chat/" + locale.Name())
-		if err != nil || json.Unmarshal(data, &dict) != nil || dict["chat.theme_galaxy"] != "Galaxy" {
+		if err != nil || json.Unmarshal(data, &dict) != nil || dict["chat.theme_galaxy"] != "Galaxy" || dict["chat.galaxy_title"] == "" || dict["chat.galaxy_tools"] == "" {
 			t.Errorf("Galaxy label missing in %s", locale.Name())
 		}
 	}
-	for _, path := range []string{"fonts/BarlowCondensed-SemiBold.ttf", "fonts/BarlowCondensed-LICENSE.txt", "img/galaxy/CREDITS.md", "img/chat-ui-icons/theme-galaxy.png"} {
+	for _, name := range []string{"orb-companion.png", "orbit-mark.png"} {
+		data, _ := Content.ReadFile("img/galaxy/" + name)
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, _, alpha := img.At(0, 0).RGBA()
+		if alpha != 0 {
+			t.Errorf("%s must have a transparent canvas", name)
+		}
+	}
+	for _, path := range []string{"fonts/BarlowCondensed-SemiBold.ttf", "fonts/BarlowCondensed-LICENSE.txt", "img/galaxy/CREDITS.md", "img/chat-ui-icons/theme-galaxy.png", "img/galaxy/control-symbols.svg", "img/galaxy/LUCIDE-LICENSE.txt"} {
 		if data, err := Content.ReadFile(path); err != nil || len(data) == 0 {
 			t.Errorf("missing embedded Galaxy asset %s", path)
 		}
@@ -78,6 +91,12 @@ func TestGalaxyBrowserSmoke(t *testing.T) {
 		extract("js/chat/main/state-dom.js", `(?ms)^function applyChatIcon\(.*?^}`) + "\n" +
 		extract("js/chat/main/bootstrap.js", `(?ms)^const THEME_ICON_KEYS = \{.*?^};`) + "\n" +
 		extract("js/chat/main/bootstrap.js", `(?ms)^function initChatThemePicker\(.*?^}`)
+	controls += "\nconst _desktopMQ=window.matchMedia('(min-width:768px)'); const composerPanel=document.getElementById('composer-panel'),composerMoreBtn=document.getElementById('composer-more-btn'); function closeMoodFeedbackRow(){} function closeCheatsheetPicker(){}\n" +
+		extract("js/chat/main/i18n-ui-chrome.js", `(?ms)^function isDesktopView\(.*?^}`) + "\n" +
+		extract("js/chat/main/i18n-ui-chrome.js", `(?ms)^function closeComposerPanel\(.*?^}`) + "\n" +
+		extract("js/chat/main/i18n-ui-chrome.js", `(?ms)^function toggleComposerPanel\(.*?^}`) + "\n" +
+		extract("js/chat/main/composer-uploads.js", `(?ms)^if \(composerMoreBtn && composerPanel\) \{.*?^}`) + "\n" +
+		extract("js/chat/main/composer-uploads.js", `(?ms)^if \(composerPanel\) \{.*?^}`)
 	scene := strings.Replace(readDesktopAssetText(t, "js/chat/galaxy-scene.js"), "    window.AuraGoGalaxy =", `
     window.__galaxy = {get runtime(){return runtime}, draw, resize, updateQuality,
         stats(){const r=runtime;return r ? {ready:r.ready,quality:r.quality,mobile:r.mobile,time:r.time,frameBudget:r.frameBudget,
@@ -90,7 +109,7 @@ func TestGalaxyBrowserSmoke(t *testing.T) {
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "index.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	fixture := `<script>
-window.BUILD_VERSION='galaxy-browser-test';window.I18N=Object.assign(` + readDesktopAssetText(t, "lang/common/de.json") + `,` + readDesktopAssetText(t, "lang/chat/de.json") + `);
+document.documentElement.lang='de';window.BUILD_VERSION='galaxy-browser-test';window.I18N=Object.assign(` + readDesktopAssetText(t, "lang/common/de.json") + `,` + readDesktopAssetText(t, "lang/chat/de.json") + `);
 window.__errors=[];addEventListener('error',e=>__errors.push(e.message));
 const error=console.error;console.error=(...a)=>{__errors.push(a.join(' '));error(...a)};
 window.__pending=new Set();const nativeRAF=requestAnimationFrame.bind(window),nativeCancel=cancelAnimationFrame.bind(window);
@@ -105,13 +124,15 @@ if(location.search.includes('no-webgl')){const get=HTMLCanvasElement.prototype.g
 <script>` + controls + `
 document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
 document.querySelectorAll('[data-i18n-aria-label]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.i18nAriaLabel)));
-document.getElementById('chat-content').innerHTML='<div class="greeting-row"><div class="greeting-text">GALAXY</div></div><div class="msg-row bot"><div class="avatar bot">A</div><div class="message-stack"><div class="bubble bot"><p>Willkommen an Bord.</p><p>Wir halten Position im Orbit. Die Galaxie liegt vor uns – womit darf ich dir helfen?</p></div></div></div><div class="msg-row user"><div class="message-stack"><div class="bubble user">Zeig mir, was heute wichtig ist.</div></div><div class="avatar human">Du</div></div><div class="msg-row bot"><div class="avatar bot">A</div><div class="message-stack"><div class="bubble bot"><p><strong>Alles im Blick.</strong></p><p>Deine Projekte, Termine und Ideen. Bereit, gemeinsam den nächsten Schritt zu gehen.</p></div></div></div>';
 document.querySelector('.greeting-text').textContent=t('chat.greeting');
 document.getElementById('user-input').placeholder=t('chat.input_placeholder');
 document.getElementById('tokenCounter').textContent='0 Token';
-document.getElementById('moodText').textContent='Besorgt';
+document.getElementById('moodText').textContent='Fokussiert';
+AuraChatIcons.applyIcon(document.getElementById('moodEmoji'),'target');
+document.getElementById('personality-label').textContent='Thinker';
+document.getElementById('personality-current-icon').src='/img/personas/thinker.png';
 document.getElementById('moodToggle').style.display='flex';
-document.getElementById('debug-pill').textContent='debuggen';
+document.getElementById('debug-pill').classList.add('is-hidden');
 document.getElementById('connectionPill').textContent='Verbunden';
 document.getElementById('logout-btn').classList.remove('is-hidden');
 document.getElementById('logout-btn').textContent=t('chat.logout_label');
@@ -200,7 +221,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	p.MustElement("#chat-theme-btn").MustHover()
 	p.MustEval(`() => new Promise(resolve=>setTimeout(resolve,200))`)
 	if p.MustEval(`() => getComputedStyle(document.getElementById('chat-theme-btn')).backgroundColor`).Str() == color {
-		t.Fatal("LCARS button hover state is overridden")
+		t.Fatal("Galaxy button hover state is overridden")
 	}
 	p.MustElement("#chat-box").MustHover()
 	// Read real GPU pixels with only the star layer visible, so background drift
@@ -244,65 +265,51 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	artifact("galaxy-fleet-detail")
 	p.MustEval(`() => {__galaxy.draw(__galaxy.runtime);delete document.hidden;document.dispatchEvent(new Event('visibilitychange'))}`)
 
-	for _, size := range [][2]int{{1920, 1080}, {2560, 1440}, {1536, 864}, {768, 1024}, {1024, 768}, {390, 844}, {430, 932}} {
+	for _, size := range [][2]int{{1672, 941}, {1920, 1080}, {1366, 768}, {1180, 800}, {768, 1024}, {1024, 768}, {390, 844}, {430, 932}} {
 		p.MustSetViewport(size[0], size[1], 1, size[0] < 768)
 		p.MustReload().MustWaitLoad()
 		ready()
-		p.MustEval(`() => document.fonts.ready`)
-		p.MustEval(`() => document.querySelector('.header-actions').scrollLeft=0`)
+		p.MustEval(`async () => {await document.fonts.ready; await new Promise(r=>setTimeout(r,300))}`)
 		check(`() => {
-            const g=__galaxy.stats();const buttons=[...document.querySelectorAll('.app-header button:not(.chat-theme-option),.btn-composer-primary,.session-edge-tab,.integrations-edge-tab')].filter(e=>e.getClientRects().length && getComputedStyle(e).visibility!=='hidden');
+            const g=__galaxy.stats();const buttons=[...document.querySelectorAll('.app-header button:not(.chat-theme-option),#chat-form > button,.galaxy-nav > a,.galaxy-nav > button,.galaxy-agents')].filter(e=>e.getClientRects().length && getComputedStyle(e).visibility!=='hidden');
             return document.body.scrollWidth<=innerWidth && g.width*g.height<=3840*2160 && g.stars===(innerWidth<768?850:3500) && buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44});
         }`, fmt.Sprintf("layout, touch target or resolution budget at %v", size))
 		check(`() => {
-            const left=document.getElementById('session-toggle-btn').getBoundingClientRect().right,right=document.getElementById('integrations-toggle-btn').getBoundingClientRect().left;
-            return [...document.querySelectorAll('.bubble,.greeting-text')].every(e=>{const r=e.getBoundingClientRect();return r.left>=left && r.right<=right});
-        }`, fmt.Sprintf("drawer tabs can obscure message text at %v", size))
-		artifact(fmt.Sprintf("galaxy-%dx%d", size[0], size[1]))
-		if size[0] == 1920 || size[0] == 390 {
-			p.MustEval(`async () => {const c=document.getElementById('chat-content');window.__messages=c.innerHTML;c.innerHTML=c.querySelector('.greeting-row').outerHTML;await Promise.all(c.getAnimations({subtree:true}).map(a=>a.finished))}`)
-			artifact(fmt.Sprintf("galaxy-greeting-%dx%d", size[0], size[1]))
-			p.MustEval(`() => document.getElementById('chat-content').innerHTML=__messages`)
+            const nav=document.querySelector('.galaxy-nav').getBoundingClientRect(),g=document.querySelector('.greeting-row').getBoundingClientRect();
+            const input=document.getElementById('user-input').getBoundingClientRect(),send=document.getElementById('send-btn').getBoundingClientRect();
+            return g.left>=nav.right && g.right<=innerWidth && input.width>=100 && send.right<=innerWidth && input.top>=0 && send.bottom<=innerHeight;
+        }`, fmt.Sprintf("greeting, navigation or composer bounds at %v", size))
+		if size[0] == 1672 {
+			check(`() => {
+                const g=document.querySelector('.greeting-row').getBoundingClientRect(),i=document.getElementById('user-input').getBoundingClientRect();
+                return Math.abs(g.x-326)<12 && Math.abs(g.y-375)<12 && Math.abs(g.width-968)<12 && Math.abs(g.height-225)<12 && Math.abs(i.x-510)<12 && Math.abs(i.y-754)<12;
+            }`, "Galaxy reference geometry drifted")
 		}
-		// Exercise the visible tool strip; the normal fixture starts collapsed on mobile.
-		p.MustEval(`async () => {const panel=document.getElementById('composer-panel');panel.classList.remove('is-hidden');await Promise.all(panel.getAnimations().map(a=>a.finished))}`)
-		artifact(fmt.Sprintf("galaxy-toolbar-%dx%d", size[0], size[1]))
-		check(`() => [['.app-header','.header-actions'],['.app-footer','#chat-form']].every(([frame,controls])=>{
-            const f=document.querySelector(frame).getBoundingClientRect(),c=document.querySelector(controls).getBoundingClientRect();
-            return Math.abs((f.left+f.right-c.left-c.right)/2)<=1 && Math.abs((f.top+f.bottom-c.top-c.bottom)/2)<=1;
-        })`, fmt.Sprintf("Galaxy control blocks are not centered in their decorative frames at %v", size))
-		check(`() => {
-            const logout=document.getElementById('logout-btn'),box=logout.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(logout);
-            const text=range.getBoundingClientRect(),header=getComputedStyle(document.querySelector('.app-header')),rail=getComputedStyle(document.body,'::after');
-            const badge=document.getElementById('warnings-badge'),icon=document.querySelector('#warnings-btn .warnings-icon');
-            const style=getComputedStyle(badge),a=badge.getBoundingClientRect(),b=icon.getBoundingClientRect();
-            return Math.abs((text.top+text.bottom-box.top-box.bottom)/2)<4 && Math.abs((text.left+text.right-box.left-box.right)/2)<2 &&
-                a.left>=b.right && a.height>=24 && parseFloat(style.fontSize)>=12 && style.color==='rgb(255, 224, 185)' && style.backgroundColor==='rgb(5, 6, 13)' &&
-                rail.borderBottomLeftRadius==='0px' && parseFloat(header.borderBottomRightRadius)>=12;
-        }`, fmt.Sprintf("logout centering, warning badge legibility or frame corners at %v: %s", size, p.MustEval(`() => {
-            const e=document.getElementById('logout-btn'),range=document.createRange();range.selectNodeContents(e);
-            const s=getComputedStyle(document.getElementById('warnings-badge'));
-            return JSON.stringify({button:e.getBoundingClientRect(),text:range.getBoundingClientRect(),badge:[s.color,s.backgroundColor,s.fontSize,s.height],rail:getComputedStyle(document.body,'::after').borderBottomLeftRadius});
-        }`).Str()))
+		artifact(fmt.Sprintf("galaxy-greeting-%dx%d", size[0], size[1]))
+		p.MustElement("#chat-theme-btn").MustClick()
+		check(`() => {const d=document.getElementById('chat-theme-dropdown'),r=d.getBoundingClientRect();return !d.hidden && r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight && r.height>100}`, "Galaxy theme menu must remain reachable inside a scrolling header")
+		p.MustElement(`.chat-theme-option[data-theme="galaxy"]`).MustClick()
+		p.Timeout(10 * time.Second).MustElement(".galaxy-suggestion").MustClick()
+		check(`() => document.getElementById('user-input').value===t('chat.galaxy_ideas') && document.activeElement.id==='user-input' && !window.__submitted`, "suggestion must prepare a draft without sending")
+		p.Timeout(10 * time.Second).MustElement("#composer-more-btn").MustClick()
+		check(`() => !document.getElementById('composer-panel').classList.contains('is-hidden') && document.getElementById('composer-more-btn').getAttribute('aria-expanded')==='true' && document.getElementById('upload-btn').parentElement.id==='chat-form' && document.getElementById('realtime-speech-btn').parentElement.id==='composer-panel'`, "Galaxy tools or live speech placement failed")
+		artifact(fmt.Sprintf("galaxy-tools-%dx%d", size[0], size[1]))
+		p.Keyboard.MustType(input.Escape)
+		check(`() => document.getElementById('composer-panel').classList.contains('is-hidden')`, "Escape did not close Galaxy tools")
+		p.MustEval(`() => {
+            const status=document.getElementById('connectionPill');status.className='pill pill-disconnected';status.textContent='Getrennt';
+        }`)
+		p.MustWait(`() => document.querySelector('.galaxy-welcome-status').dataset.state==='disconnected' && document.querySelector('.galaxy-welcome-status').textContent==='Getrennt'`)
+		p.MustEval(`() => {const status=document.getElementById('connectionPill');status.className='pill pill-active';status.textContent='Verbunden'}`)
 		check(`() => {
             const badge=document.getElementById('warnings-badge'),button=document.getElementById('warnings-btn');badge.textContent='128';
-            const r=badge.getBoundingClientRect(),b=button.getBoundingClientRect();
-            const fits=r.left>b.left && r.right<b.right && badge.scrollWidth<=badge.clientWidth;
-            badge.classList.add('seen');const seen=getComputedStyle(badge).color==='rgb(211, 209, 225)';
-            badge.classList.remove('seen');badge.textContent='3';return fits && seen;
-        }`, "multi-digit or already-read warning count is clipped or loses contrast")
-		check(`() => {
-            const panel=document.getElementById('composer-panel'),style=getComputedStyle(panel),form=getComputedStyle(document.getElementById('chat-form'));
-            const buttons=[...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn,#chat-theme-btn,#speaker-toggle,#warnings-btn')].filter(e=>e.getClientRects().length);
-            const controls=buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44 && parseFloat(getComputedStyle(e).borderTopLeftRadius)<=3});
-            const input=document.getElementById('user-input').getBoundingClientRect(),send=document.getElementById('send-btn').getBoundingClientRect();
-            return controls && send.right<=innerWidth && input.width>=100 && input.right<=send.left && form.backgroundImage!=='none' && (innerWidth<768 || (style.borderTopWidth==='0px' && style.backgroundColor==='rgba(0, 0, 0, 0)'));
-        }`, fmt.Sprintf("LCARS toolbar geometry or continuous footer surface at %v: %s", size, p.MustEval(`() => JSON.stringify([...document.querySelectorAll('.btn-composer-primary,.composer-tool-btn')].filter(e=>e.getClientRects().length).map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,radius:getComputedStyle(e).borderTopLeftRadius})))`).Str()))
-		if size[0] < 768 {
-			p.MustEval(`() => {const row=document.querySelector('.header-actions');row.scrollLeft=row.scrollWidth}`)
-			check(`() => document.getElementById('logout-btn').getBoundingClientRect().right<=document.getElementById('radialTrigger').getBoundingClientRect().left`, "mobile navigation covers logout")
-			artifact(fmt.Sprintf("galaxy-header-end-%d", size[0]))
-		}
+            const r=badge.getBoundingClientRect(),b=button.getBoundingClientRect();const fits=r.left>=b.left && r.right<=b.right && badge.scrollWidth<=badge.clientWidth;
+            badge.classList.add('seen');const readable=parseFloat(getComputedStyle(badge).fontSize)>=12;
+            badge.classList.remove('seen');badge.textContent='3';return fits && readable;
+        }`, "warning counts are clipped or unreadable")
+		p.MustEval(`() => {const c=document.getElementById('chat-content');c.insertAdjacentHTML('beforeend','<div class="msg-row user"><div class="message-stack"><div class="bubble user">Zeig mir, was heute wichtig ist.</div></div></div><div class="msg-row bot"><div class="message-stack"><div class="bubble bot"><p>Alles im Blick.</p><p>Deine Projekte, Termine und Ideen. Bereit für den nächsten Schritt.</p></div></div></div>')}`)
+		p.MustWait(`() => !document.getElementById('chat-content').classList.contains('galaxy-welcome-only')`)
+		artifact(fmt.Sprintf("galaxy-chat-%dx%d", size[0], size[1]))
 	}
 	p.MustSetViewport(2560, 1440, 2, false)
 	p.MustReload().MustWaitLoad()
@@ -333,7 +340,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	ready()
 	for i := 0; i < 10; i++ {
 		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.info.memory.textures===0 && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
-		check(`() => [...document.querySelectorAll('.galaxy-console-id,.galaxy-rail-labels')].every(e=>!e.getClientRects().length)`, "Galaxy console decorations remain visible in another theme")
+		check(`() => !document.querySelector('.galaxy-nav,.galaxy-clock,.galaxy-welcome,.galaxy-glyph') && document.getElementById('upload-btn').parentElement.id==='composer-panel' && document.getElementById('composer-more-btn').previousElementSibling.id==='send-btn' && !document.getElementById('composer-panel').classList.contains('is-hidden')`, "Galaxy controls were not restored to the default arrangement")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
 		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===7 && s.calls===10}`, "theme restart grew resources")

@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "La trascrizione Speech Lab non è riuscita.",
   "chat.speech_lab_transcribe": "Trascrivi",
   "chat.speech_lab_audio_warning": "Non è stato possibile generare l’audio di Speech Lab. La risposta testuale resta disponibile.",
-  "chat.speech_lab_capture_unavailable": "Questo browser non supporta né la registrazione WAV per Speech Lab né il riconoscimento vocale."
+  "chat.speech_lab_capture_unavailable": "Questo browser non supporta né la registrazione WAV per Speech Lab né il riconoscimento vocale.",
+  "chat.galaxy_title": "Ciao! Sono AuraGo.",
+  "chat.galaxy_subtitle": "Quale compito posso svolgere per te?",
+  "chat.galaxy_eyebrow": "AURAGO · IL TUO AGENTE IA",
+  "chat.galaxy_ideas": "Sviluppare idee",
+  "chat.galaxy_write": "Scrivere testi",
+  "chat.galaxy_analyze": "Analizzare",
+  "chat.galaxy_other": "O qualcos’altro …",
+  "chat.galaxy_voice": "Voce",
+  "chat.galaxy_tools": "Strumenti",
+  "chat.galaxy_file": "File",
+  "chat.galaxy_agents": "Agenti",
+  "chat.galaxy_send": "Invia",
+  "chat.galaxy_live": "Conversazione dal vivo",
+  "chat.galaxy_placeholder": "Assegna un compito al tuo agente …",
+  "chat.galaxy_persona": "La tua personalità",
+  "chat.galaxy_mood": "Umore attuale"
 }

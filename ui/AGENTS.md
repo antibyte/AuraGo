@@ -284,26 +284,25 @@ worker. Keep packaging, recovery and offline instructions in
   Pause hidden tabs; release all GPU resources on exit and reject stale loads.
   Reduced motion, unavailable WebGL, missing textures and context loss expose
   the complete local poster. Keep posters aligned with the rendered scene and
-  preserve source provenance in `img/galaxy/CREDITS.md`. LCARS rules belong
-  only under `[data-theme="galaxy"]` in `css/chat-themes.css`; keep Geist for
-  chat prose, local Barlow for labels, actual status signals and 44px targets.
-  Use rectangular controls with 3px corners, straight vertical color segments
-  and rounded header/footer contours. Center logout content; warning counts
-  sit beside the icon in a high-contrast 24px badge, including multi-digit counts.
-  On mobile, reserve space beside the scrolling controls for the radial menu.
-  Match the LCARS reference with double lavender contours, subtle static bevels,
-  dark inset consoles, framed messages/greeting and matching outlined header
-  controls/composer rows. The colored LCARS segments continue beneath the
-  transparent outer console area; this area exposes the HUD colors, not space.
-  Align that backing with the edge rails and keep its labels dark for contrast.
-  Keep vertical padding compact, with 44px controls intact.
-  Center both control blocks against the full decorative frame, including its
-  asymmetric borders. Logo/identifiers must not shift that center; hide the
-  logo on narrow headers and reserve equal side space for the mobile menu.
-  The desktop toolbar stays transparent within that row; only the mobile popover
-  has its own surface. Decorative LCARS identifiers are aria-hidden, desktop-only
-  and hidden outside Galaxy; connection and notification states remain real.
-  Mobile chat gutters keep framed messages clear of the fixed drawer tabs.
+  preserve source provenance in `img/galaxy/CREDITS.md`.
+  Galaxy chat follows the supplied orbital-glass reference: a violet/cyan/gold
+  outlined header, local orbit wordmark, left navigation rail, orb welcome card
+  and wide floating composer with Voice, Tools, File and Agents controls.
+  Keep its styles scoped to `[data-theme="galaxy"]` in `css/chat-themes.css`.
+  `galaxy-interface.js` lazily relocates the real composer/drawer controls;
+  comment anchors restore the exact original order on theme exit. Do not clone
+  actionable controls or change other themes' inline desktop toolbar behavior.
+  The Tools popover owns the remaining controls, including live speech and Stop.
+  Agents links to the existing dashboard activity card; suggestions only prepare
+  a draft and never send automatically. Rebuild the welcome card after chat reset.
+  Use local Geist, the licensed Lucide control sprite and generated image assets.
+  Preserve 44px targets, visible keyboard focus, real connection/persona/mood and
+  notification state, and all 16 chat locales. The welcome status mirrors the
+  real connection pill. On mobile use a scrollable header, compact left rail,
+  input above the five composer controls and an accessible Tools popover.
+  Theme exit removes owned nodes/observers/timers; hidden tabs pause the clock.
+  No additional render loop. Keep matching full-scene fallback posters current.
+
 
 ## Work Guidance
 

@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Speech Lab 转写失败。",
   "chat.speech_lab_transcribe": "转写",
   "chat.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。",
-  "chat.speech_lab_capture_unavailable": "此浏览器既不支持 Speech Lab 的 WAV 录音，也不支持语音识别。"
+  "chat.speech_lab_capture_unavailable": "此浏览器既不支持 Speech Lab 的 WAV 录音，也不支持语音识别。",
+  "chat.galaxy_title": "你好！我是 AuraGo。",
+  "chat.galaxy_subtitle": "有什么任务需要我来完成？",
+  "chat.galaxy_eyebrow": "AURAGO · 你的 AI 智能体",
+  "chat.galaxy_ideas": "构思创意",
+  "chat.galaxy_write": "撰写文字",
+  "chat.galaxy_analyze": "分析",
+  "chat.galaxy_other": "或其他事情 …",
+  "chat.galaxy_voice": "语音",
+  "chat.galaxy_tools": "工具",
+  "chat.galaxy_file": "文件",
+  "chat.galaxy_agents": "智能体",
+  "chat.galaxy_send": "发送",
+  "chat.galaxy_live": "实时对话",
+  "chat.galaxy_placeholder": "给你的智能体一项任务 …",
+  "chat.galaxy_persona": "你的个性",
+  "chat.galaxy_mood": "当前心情"
 }

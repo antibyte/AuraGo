@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Speech Lab-transkriberingen misslyckades.",
   "chat.speech_lab_transcribe": "Transkribera",
   "chat.speech_lab_audio_warning": "Speech Lab-ljudet kunde inte skapas. Textsvaret är fortfarande tillgängligt.",
-  "chat.speech_lab_capture_unavailable": "Den här webbläsaren stöder varken WAV-inspelning för Speech Lab eller taligenkänning."
+  "chat.speech_lab_capture_unavailable": "Den här webbläsaren stöder varken WAV-inspelning för Speech Lab eller taligenkänning.",
+  "chat.galaxy_title": "Hej! Jag är AuraGo.",
+  "chat.galaxy_subtitle": "Vilken uppgift kan jag hjälpa dig med?",
+  "chat.galaxy_eyebrow": "AURAGO · DIN AI-AGENT",
+  "chat.galaxy_ideas": "Utveckla idéer",
+  "chat.galaxy_write": "Skriva texter",
+  "chat.galaxy_analyze": "Analysera",
+  "chat.galaxy_other": "Eller något annat …",
+  "chat.galaxy_voice": "Tal",
+  "chat.galaxy_tools": "Verktyg",
+  "chat.galaxy_file": "Fil",
+  "chat.galaxy_agents": "Agenter",
+  "chat.galaxy_send": "Skicka",
+  "chat.galaxy_live": "Livesamtal",
+  "chat.galaxy_placeholder": "Ge din agent en uppgift …",
+  "chat.galaxy_persona": "Din personlighet",
+  "chat.galaxy_mood": "Aktuellt humör"
 }

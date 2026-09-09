@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Speech Lab ट्रांसक्रिप्शन विफल रहा।",
   "chat.speech_lab_transcribe": "ट्रांसक्राइब करें",
   "chat.speech_lab_audio_warning": "Speech Lab ऑडियो बनाया नहीं जा सका। टेक्स्ट उत्तर उपलब्ध है।",
-  "chat.speech_lab_capture_unavailable": "यह ब्राउज़र Speech Lab के लिए WAV रिकॉर्डिंग या वाक् पहचान का समर्थन नहीं करता।"
+  "chat.speech_lab_capture_unavailable": "यह ब्राउज़र Speech Lab के लिए WAV रिकॉर्डिंग या वाक् पहचान का समर्थन नहीं करता।",
+  "chat.galaxy_title": "नमस्ते! मैं AuraGo हूँ।",
+  "chat.galaxy_subtitle": "मैं आपके लिए कौन-सा काम करूँ?",
+  "chat.galaxy_eyebrow": "AURAGO · आपका AI एजेंट",
+  "chat.galaxy_ideas": "विचार विकसित करें",
+  "chat.galaxy_write": "लिखें",
+  "chat.galaxy_analyze": "विश्लेषण करें",
+  "chat.galaxy_other": "या कुछ और …",
+  "chat.galaxy_voice": "आवाज़",
+  "chat.galaxy_tools": "टूल",
+  "chat.galaxy_file": "फ़ाइल",
+  "chat.galaxy_agents": "एजेंट",
+  "chat.galaxy_send": "भेजें",
+  "chat.galaxy_live": "लाइव बातचीत",
+  "chat.galaxy_placeholder": "अपने एजेंट को कोई काम दें …",
+  "chat.galaxy_persona": "आपका व्यक्तित्व",
+  "chat.galaxy_mood": "वर्तमान मनोदशा"
 }

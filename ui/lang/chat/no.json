@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Speech Lab-transkripsjonen mislyktes.",
   "chat.speech_lab_transcribe": "Transkriber",
   "chat.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er fortsatt tilgjengelig.",
-  "chat.speech_lab_capture_unavailable": "Denne nettleseren støtter verken WAV-opptak for Speech Lab eller talegjenkjenning."
+  "chat.speech_lab_capture_unavailable": "Denne nettleseren støtter verken WAV-opptak for Speech Lab eller talegjenkjenning.",
+  "chat.galaxy_title": "Hei! Jeg er AuraGo.",
+  "chat.galaxy_subtitle": "Hvilken oppgave kan jeg hjelpe deg med?",
+  "chat.galaxy_eyebrow": "AURAGO · DIN KI-AGENT",
+  "chat.galaxy_ideas": "Utvikle ideer",
+  "chat.galaxy_write": "Skrive tekster",
+  "chat.galaxy_analyze": "Analysere",
+  "chat.galaxy_other": "Eller noe annet …",
+  "chat.galaxy_voice": "Tale",
+  "chat.galaxy_tools": "Verktøy",
+  "chat.galaxy_file": "Fil",
+  "chat.galaxy_agents": "Agenter",
+  "chat.galaxy_send": "Send",
+  "chat.galaxy_live": "Direktesamtale",
+  "chat.galaxy_placeholder": "Gi agenten din en oppgave …",
+  "chat.galaxy_persona": "Din personlighet",
+  "chat.galaxy_mood": "Nåværende humør"
 }

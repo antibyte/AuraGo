@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Přepis v Speech Lab se nezdařil.",
   "chat.speech_lab_transcribe": "Přepsat",
   "chat.speech_lab_audio_warning": "Zvuk Speech Lab se nepodařilo vygenerovat. Textová odpověď zůstává dostupná.",
-  "chat.speech_lab_capture_unavailable": "Tento prohlížeč nepodporuje nahrávání WAV pro Speech Lab ani rozpoznávání řeči."
+  "chat.speech_lab_capture_unavailable": "Tento prohlížeč nepodporuje nahrávání WAV pro Speech Lab ani rozpoznávání řeči.",
+  "chat.galaxy_title": "Ahoj! Jsem AuraGo.",
+  "chat.galaxy_subtitle": "S čím ti mohu pomoci?",
+  "chat.galaxy_eyebrow": "AURAGO · TVŮJ AI AGENT",
+  "chat.galaxy_ideas": "Rozvíjet nápady",
+  "chat.galaxy_write": "Psát texty",
+  "chat.galaxy_analyze": "Analyzovat",
+  "chat.galaxy_other": "Nebo něco jiného …",
+  "chat.galaxy_voice": "Hlas",
+  "chat.galaxy_tools": "Nástroje",
+  "chat.galaxy_file": "Soubor",
+  "chat.galaxy_agents": "Agenti",
+  "chat.galaxy_send": "Odeslat",
+  "chat.galaxy_live": "Živý rozhovor",
+  "chat.galaxy_placeholder": "Zadej svému agentovi úkol …",
+  "chat.galaxy_persona": "Tvá osobnost",
+  "chat.galaxy_mood": "Aktuální nálada"
 }

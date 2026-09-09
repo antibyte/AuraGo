@@ -24,8 +24,8 @@ Direct original downloads:
 - [Font](https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/BarlowCondensed-SemiBold.ttf) and [font license](https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/OFL.txt)
 
 NASA/ESA credits apply to the source imagery and derivatives; no affiliation
-or endorsement is implied. The interface is an original LCARS-inspired design;
-it includes no Star Trek logos, screenshots, sounds or proprietary fonts.
+or endorsement is implied. The interface is an original orbital-glass design based on the user-supplied
+Galaxy chat reference. No proprietary UI assets or fonts are included.
 
 ## Background generation prompt
 
@@ -41,6 +41,28 @@ is intentionally shared between quality levels.
 
 `galaxy-scene.js` appends the current build version to textures, posters and
 the font. `prepaint-theme.js` versions the saved Galaxy poster before rendering.
-CSS has a `galaxy-1` revision fallback for immediate first-time selection; bump
+CSS has a `galaxy-2` revision fallback for immediate first-time selection; bump
 that revision whenever posters are replaced. Refresh the posters with the same
 camera, lighting and time-zero pose whenever the scene composition changes.
+
+## Orbital-glass refresh (2026-09-09)
+
+- `space-nebula-{4k,2k}.webp`: original OpenAI Imagegen panorama following the
+  supplied composition. The generated master is 1672x941; 3840x2160 and
+  2048x1152 are delivery sizes, not native generated 4K detail. Original master
+  and generation prompt are retained in the local `disposable/galaxy-assets/space/`.
+- `orb-companion.png`: Imagegen original, 1024x1024 RGBA, transparent glossy
+  black spherical assistant with two blue-violet eyes and an illuminated orbit.
+- `orbit-mark.png`: Imagegen original, 1024x1024 RGBA master, resized to 512x512.
+  A glossy violet planet with a diagonal pink/cyan ring, transparent background.
+  Masters and prompts for both transparent assets are retained locally under
+  `disposable/galaxy-assets/orb/` and `disposable/galaxy-assets/mark/`.
+- `control-symbols.svg`: unmodified path geometry from
+  [Lucide 0.468.0](https://github.com/lucide-icons/lucide/tree/0.468.0/icons),
+  assembled as SVG symbols with a shared 1.7px stroke. ISC license, including
+  Feather attribution, in `LUCIDE-LICENSE.txt`. This is a static local asset;
+  the interface does not load an icon library or CDN at runtime.
+
+The existing NASA map credits above also apply to the refreshed night-side
+Earth and regenerated fallback posters. The generated illustration assets are
+artistic compositions, not scientific imagery.

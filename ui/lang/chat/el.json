@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Η μεταγραφή Speech Lab απέτυχε.",
   "chat.speech_lab_transcribe": "Μεταγραφή",
   "chat.speech_lab_audio_warning": "Δεν ήταν δυνατή η δημιουργία ήχου Speech Lab. Η απάντηση κειμένου παραμένει διαθέσιμη.",
-  "chat.speech_lab_capture_unavailable": "Αυτό το πρόγραμμα περιήγησης δεν υποστηρίζει εγγραφή WAV για το Speech Lab ούτε αναγνώριση ομιλίας."
+  "chat.speech_lab_capture_unavailable": "Αυτό το πρόγραμμα περιήγησης δεν υποστηρίζει εγγραφή WAV για το Speech Lab ούτε αναγνώριση ομιλίας.",
+  "chat.galaxy_title": "Γεια! Είμαι το AuraGo.",
+  "chat.galaxy_subtitle": "Ποια εργασία να αναλάβω για σένα;",
+  "chat.galaxy_eyebrow": "AURAGO · Ο AI ΒΟΗΘΟΣ ΣΟΥ",
+  "chat.galaxy_ideas": "Ανάπτυξη ιδεών",
+  "chat.galaxy_write": "Σύνταξη κειμένων",
+  "chat.galaxy_analyze": "Ανάλυση",
+  "chat.galaxy_other": "Ή κάτι άλλο …",
+  "chat.galaxy_voice": "Φωνή",
+  "chat.galaxy_tools": "Εργαλεία",
+  "chat.galaxy_file": "Αρχείο",
+  "chat.galaxy_agents": "Πράκτορες",
+  "chat.galaxy_send": "Αποστολή",
+  "chat.galaxy_live": "Ζωντανή συνομιλία",
+  "chat.galaxy_placeholder": "Δώσε στον βοηθό σου μια εργασία …",
+  "chat.galaxy_persona": "Η προσωπικότητά σου",
+  "chat.galaxy_mood": "Τρέχουσα διάθεση"
 }

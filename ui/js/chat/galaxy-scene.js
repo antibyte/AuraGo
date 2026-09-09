@@ -43,15 +43,18 @@
             vec3 linear = pow(albedo, vec3(2.2));
             float clouds = texture2D(uCloud, vUv + vec2(uCloudOffset + 0.003, 0.002)).r;
             float diffuse = max(0.0, sun) * (1.0 - clouds * uCloudShadow);
-            vec3 col = linear * (0.025 + diffuse * 1.65);
+            vec3 col = linear * vec3(0.48, 0.68, 1.0) * (0.009 + diffuse * 1.65);
             float sea = smoothstep(0.015, 0.08, albedo.b - albedo.r) * (1.0 - smoothstep(0.2, 0.45, albedo.r));
             float specular = pow(max(0.0, dot(reflect(-uSun, n), view)), 70.0);
             col += vec3(0.85, 0.92, 1.0) * specular * sea * max(0.0, sun) * 0.65;
             vec3 city = texture2D(uNight, vUv).rgb;
             float night = 1.0 - smoothstep(-0.18, 0.15, sun);
-            col += pow(city, vec3(1.6)) * vec3(1.0, 0.63, 0.28) * night * 1.8 * (1.0 - clouds * 0.65);
+            // The night map includes a blue terrain base; only its bright pixels emit gold light.
+            float cityLight = smoothstep(0.10, 0.32, dot(city, vec3(0.3, 0.6, 0.1)));
+            col += pow(city, vec3(1.6)) * vec3(1.0, 0.63, 0.28) * cityLight * night * 1.8 * (1.0 - clouds * 0.65);
+            col += pow(city, vec3(2.2)) * vec3(0.1, 0.3, 0.75) * night * 0.3;
             float rim = pow(1.0 - max(0.0, dot(n, view)), 3.8);
-            col += vec3(0.05, 0.25, 0.68) * rim * smoothstep(-0.22, 0.55, sun) * 0.5;
+            col += vec3(0.08, 0.4, 1.0) * rim * 1.6;
             gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
         }
     `;
@@ -64,7 +67,7 @@
         void main() {
             float cloud = smoothstep(0.16, 0.85, texture2D(uCloud, vUv).r);
             float light = smoothstep(-0.15, 0.7, dot(normalize(vNormal), uSun));
-            gl_FragColor = vec4(mix(vec3(0.10, 0.15, 0.23), vec3(0.94, 0.97, 1.0), light), cloud * 0.9);
+            gl_FragColor = vec4(mix(vec3(0.035, 0.07, 0.14), vec3(0.94, 0.97, 1.0), light), cloud * mix(0.22, 0.9, light));
         }
     `;
     const atmosphereFragment = `
@@ -77,7 +80,7 @@
             vec3 view = normalize(cameraPosition - vWorld);
             float rim = pow(1.0 - abs(dot(n, view)), 4.5);
             float lit = smoothstep(-0.4, 0.6, dot(n, uSun));
-            gl_FragColor = vec4(vec3(0.12, 0.42, 1.0), rim * (0.025 + lit * 0.4));
+            gl_FragColor = vec4(vec3(0.12, 0.42, 1.0), rim * (0.22 + lit * 0.6));
         }
     `;
 
@@ -99,13 +102,13 @@
 
     function createScene(rt, maps) {
         const [space, day, night, cloud, detail] = maps;
-        const sun = new THREE.Vector3(-0.75, 0.5, 0.55).normalize();
+        const sun = new THREE.Vector3(-0.35, 0.3, -1.0).normalize();
         const sphere = new THREE.SphereGeometry(1, rt.mobile ? 64 : 128, rt.mobile ? 32 : 64);
         const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
             depthTest: false, depthWrite: false,
             uniforms: {
                 uSpace: { value: space }, uDetail: { value: detail || space },
-                uDetailWeight: { value: detail ? 0.16 : 0 },
+                uDetailWeight: { value: detail ? 0.04 : 0 },
                 uAspect: { value: 1 }, uDrift: { value: new THREE.Vector2() }
             },
             vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.999,1.0);}',
@@ -167,11 +170,11 @@
                 float bands = sin(vUv.y * 85.0 + turbulence * 5.0) * 0.5 + 0.5;
                 vec3 col = mix(vec3(0.30,0.25,0.28),vec3(0.46,0.35,0.32),bands);
                 col += turbulence * 0.07;
-                col *= 0.08 + max(0.0,dot(normalize(vNormal),uSun)) * 0.75;
+                col *= 0.24 + max(0.0,dot(normalize(vNormal),normalize(uSun + vec3(-0.4,0.3,1.7)))) * 0.75;
                 gl_FragColor=vec4(col,1.0);
             }
         `, { uSun: { value: sun }, uCloud: { value: cloud } }));
-        rt.distant.scale.setScalar(0.075);
+        rt.distant.scale.setScalar(0.095);
         rt.distant.rotation.z = 0.3;
         rt.scene.add(rt.distant);
 
@@ -335,9 +338,9 @@
         rt.renderer.setPixelRatio(ratio);
         rt.renderer.setSize(width, height, false);
         if (!rt.ready) return;
-        rt.planet.position.set(aspect * (aspect < 1 ? 0.74 : 0.78), -0.66, 1);
-        rt.planet.scale.setScalar(aspect < 1 ? 0.48 : 0.73);
-        rt.distant.position.set(-aspect * 0.73, -0.48, -2);
+        rt.planet.position.set(aspect * (aspect < 1 ? 0.88 : 1.04), -0.77, 1);
+        rt.planet.scale.setScalar(aspect < 1 ? 0.64 : 1.08);
+        rt.distant.position.set(-aspect * 0.78, -0.18, -2);
         rt.backdrop.material.uniforms.uAspect.value = aspect;
         rt.stars.material.uniforms.uPixelRatio.value = ratio;
     }
@@ -355,8 +358,8 @@
 
     function draw(rt) {
         const angle = rt.time * Math.PI * 2 / 1200;
-        rt.surface.rotation.y = 2.1 + angle;
-        rt.clouds.rotation.y = 2.1 + angle * 1.06;
+        rt.surface.rotation.y = 3.9 + angle;
+        rt.clouds.rotation.y = 3.9 + angle * 1.06;
         rt.surface.material.uniforms.uCloudOffset.value = angle * 0.06 / (Math.PI * 2);
         rt.distant.rotation.y = rt.time * 0.002;
         const phase = rt.time * Math.PI * 2 / 180;
@@ -456,7 +459,7 @@
         document.body.prepend(canvas);
         resize();
         const size = rt.mobile ? '2k' : '4k';
-        const names = ['space-' + size + '.webp', 'earth-day-' + size + '.jpg', 'earth-night.png', 'earth-clouds.jpg'];
+        const names = ['space-nebula-' + size + '.webp', 'earth-day-' + size + '.jpg', 'earth-night.png', 'earth-clouds.jpg'];
         if (!rt.mobile) names.push('galaxy-detail.jpg');
         Promise.all(names.map(name => loadTexture(rt, name))).then(maps => {
             if (runtime !== rt || rt.closed || rt.lost || generation !== rt.generation) return;

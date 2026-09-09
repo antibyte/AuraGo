@@ -373,6 +373,7 @@ if (composerPanel) {
     applyDesktopComposerState();
     /* React to viewport changes (e.g. resize, orientation change) */
     _desktopMQ.addEventListener('change', applyDesktopComposerState);
+    window.addEventListener('aurago:themechange', applyDesktopComposerState);
 }
 
 if (feedbackToggleBtn && moodFeedbackRow) {

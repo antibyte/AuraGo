@@ -352,12 +352,12 @@ function chatSetHidden(el, hidden) {
 /* ── Desktop detection for inline footer buttons ── */
 const _desktopMQ = window.matchMedia('(min-width: 768px)');
 function isDesktopView() {
-    return _desktopMQ.matches;
+    return _desktopMQ.matches && document.documentElement.dataset.theme !== 'galaxy';
 }
 
 function closeComposerPanel() {
     if (!composerMoreBtn || !composerPanel) return;
-    /* On desktop the panel is always visible – ignore close requests */
+    /* With inline desktop controls the panel is always visible – ignore close requests */
     if (isDesktopView()) return;
     composerPanel.classList.add('is-hidden');
     composerMoreBtn.classList.remove('is-open');
@@ -370,7 +370,7 @@ function closeMoodFeedbackRow() {
 
 function toggleComposerPanel(forceOpen) {
     if (!composerMoreBtn || !composerPanel) return;
-    /* On desktop the panel is always visible – no toggle needed */
+    /* With inline desktop controls the panel is always visible – no toggle needed */
     if (isDesktopView()) return;
     const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : composerPanel.classList.contains('is-hidden');
     composerPanel.classList.toggle('is-hidden', !shouldOpen);
@@ -1082,6 +1082,7 @@ if (composerPanel) {
     applyDesktopComposerState();
     /* React to viewport changes (e.g. resize, orientation change) */
     _desktopMQ.addEventListener('change', applyDesktopComposerState);
+    window.addEventListener('aurago:themechange', applyDesktopComposerState);
 }
 
 if (feedbackToggleBtn && moodFeedbackRow) {

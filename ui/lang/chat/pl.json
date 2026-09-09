@@ -266,5 +266,21 @@
   "chat.speech_lab_transcription_failed": "Transkrypcja Speech Lab nie powiodła się.",
   "chat.speech_lab_transcribe": "Transkrybuj",
   "chat.speech_lab_audio_warning": "Nie udało się wygenerować dźwięku Speech Lab. Odpowiedź tekstowa pozostaje dostępna.",
-  "chat.speech_lab_capture_unavailable": "Ta przeglądarka nie obsługuje nagrywania WAV dla Speech Lab ani rozpoznawania mowy."
+  "chat.speech_lab_capture_unavailable": "Ta przeglądarka nie obsługuje nagrywania WAV dla Speech Lab ani rozpoznawania mowy.",
+  "chat.galaxy_title": "Cześć! Jestem AuraGo.",
+  "chat.galaxy_subtitle": "Jakie zadanie mogę dla ciebie wykonać?",
+  "chat.galaxy_eyebrow": "AURAGO · TWÓJ AGENT AI",
+  "chat.galaxy_ideas": "Rozwijać pomysły",
+  "chat.galaxy_write": "Pisać teksty",
+  "chat.galaxy_analyze": "Analizować",
+  "chat.galaxy_other": "Lub coś innego …",
+  "chat.galaxy_voice": "Głos",
+  "chat.galaxy_tools": "Narzędzia",
+  "chat.galaxy_file": "Plik",
+  "chat.galaxy_agents": "Agenci",
+  "chat.galaxy_send": "Wyślij",
+  "chat.galaxy_live": "Rozmowa na żywo",
+  "chat.galaxy_placeholder": "Zleć zadanie swojemu agentowi …",
+  "chat.galaxy_persona": "Twoja osobowość",
+  "chat.galaxy_mood": "Obecny nastrój"
 }

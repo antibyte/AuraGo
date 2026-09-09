@@ -31,7 +31,7 @@
             scripts: ['/js/chat/sandstorm-particles.js']
         },
         'galaxy': {
-            scripts: ['/js/vendor/three.min.js', '/js/chat/galaxy-scene.js']
+            scripts: ['/js/chat/galaxy-interface.js', '/js/vendor/three.min.js', '/js/chat/galaxy-scene.js']
         },
         'threedee': {
             scripts: [
