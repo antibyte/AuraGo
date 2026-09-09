@@ -1259,6 +1259,9 @@ registration lives in `internal/desktop/types.go`.
   (standard, scientific, programmer) with expression tokenizer/parser, context
   menu for clipboard operations, and window cleanup. Loaded lazily by
   `module-loader.js` as a standalone app. Exposes `window.CalculatorApp`.
+  The programmer section starts hidden; mode tabs must fit the content width.
+  Verify all three modes in the default and narrow windows with
+  `TestDesktopCalculatorLayoutBrowser`.
 - `settings.js` implements the Settings app, a virtual desktop configuration
   panel with sidebar navigation, global search, hamburger menu on mobile,
   and full desktop shell re-render on changes (icons, widgets, start menu,

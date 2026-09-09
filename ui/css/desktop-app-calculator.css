@@ -1,6 +1,7 @@
 /* desktop-app-calculator.css */
 .vd-calc {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto 1fr auto;
     gap: 10px;
     padding: 12px;
@@ -39,7 +40,8 @@
 }
 
 .vd-calc-tabs {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     position: relative;
     z-index: 1;
@@ -54,9 +56,12 @@
     color: var(--vd-muted);
     background: var(--vd-theme-control-bg);
     border-radius: 6px;
-    padding: 5px 10px;
+    min-width: 0;
+    padding: 5px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.3px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -153,6 +158,7 @@
 .vd-calc-keys {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(32px, 1fr);
     gap: 6px;
     position: relative;
     z-index: 1;
@@ -392,6 +398,7 @@
 
 .vd-calc-base button {
     flex: 1;
+    min-height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

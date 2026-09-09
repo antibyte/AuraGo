@@ -316,7 +316,7 @@
                 <button type="button" data-mode="scientific">${esc(t('desktop.calc_scientific'))}</button>
                 <button type="button" data-mode="programmer">${esc(t('desktop.calc_programmer'))}</button>
             </div>
-            <div class="vd-calc-prog-section" data-prog-section>
+            <div class="vd-calc-prog-section" data-prog-section hidden>
                 <div class="vd-calc-base" data-base-selector>
                     <button type="button" class="active" data-base="10">${esc(t('desktop.calc_dec'))}</button>
                     <button type="button" data-base="16">${esc(t('desktop.calc_hex'))}</button>
