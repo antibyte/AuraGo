@@ -76,7 +76,7 @@ func TestDesktopLogViewerRegistrationAndLifecycle(t *testing.T) {
 
 	foundation := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	for _, marker := range []string{
-		"'log-viewer': 'monitor'",
+		"'log-viewer': 'text'",
 		"'log-viewer': 'LogViewerApp'",
 		"callAppDispose(window.LogViewerApp, win.id)",
 	} {

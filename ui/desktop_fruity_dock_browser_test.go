@@ -95,11 +95,39 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 	page.MustSetViewport(1366, 900, 1, false)
 	page.MustEval(`async()=>{
         await fixtureReady;
-        aurora.state.bootstrap.installed_apps=[{id:'custom-dock',name:'Custom dock app',icon:'apps',dock_visible:true}];
+        aurora.state.bootstrap.installed_apps=[{id:'system-info',name:'System',icon:'monitor',dock_visible:true},{id:'custom-dock',name:'Custom dock app',icon:'apps',dock_visible:true}];
         aurora.state.appsCacheBootstrap=null;
         fixtureTheme('fruity-light');
         aurora.renderTaskbar();
     }`)
+	if problems := page.MustEval(`async()=>{
+        const seen=new Map(),problems=[];
+        for(const button of document.querySelectorAll('.vd-dock-button')){
+            if(button.dataset.appId==='custom-dock')continue;
+            const icon=button.querySelector('.vd-dock-icon');
+            const url=icon.querySelector('img')?.src || getComputedStyle(icon).backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
+            if(!url){problems.push(button.dataset.appId+': missing icon');continue;}
+            const bytes=await(await fetch(url)).arrayBuffer();
+            const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).join(',');
+            if(seen.has(hash))problems.push(button.dataset.appId+' shares its icon with '+seen.get(hash));
+            seen.set(hash,button.dataset.appId);
+        }
+        for(const name of ['live-speech','video','terminal-app','heart','globe','network']){
+            const image=new Image();image.src='/img/whitesur/icons/'+name+'.svg';await image.decode();
+            const canvas=document.createElement('canvas');canvas.width=canvas.height=64;
+            const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0,64,64);
+            const pixels=ctx.getImageData(0,0,64,64).data;
+            let opaque=0,bright=0;
+            for(let i=0;i<pixels.length;i+=4){
+                if(pixels[i+3]<200)continue;opaque++;
+                if(Math.max(pixels[i],pixels[i+1],pixels[i+2])>180)bright++;
+            }
+            if(opaque<2048 || bright<120)problems.push(name+': icon is too small or dark');
+        }
+        return problems.join('\n');
+    }`).Str(); problems != "" {
+		t.Fatal(problems)
+	}
 	if !page.MustEval(`()=>{const apps=[...aurora.state.bootstrap.builtin_apps,...aurora.state.bootstrap.installed_apps].filter(a=>!a.internal && a.dock_visible!==false);const ids=[...document.querySelectorAll('.vd-dock-button')].map(b=>b.dataset.appId);return apps.length===ids.length && apps.every(a=>ids.includes(a.id));}`).Bool() {
 		t.Error("dock must include every app enabled for the dock, beyond the default pins")
 	}
@@ -118,6 +146,11 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 			t.Errorf("%s hover label is clipped: %s", theme, page.MustEval(`()=>{const b=document.querySelector('.vd-dock-button[data-app-id="writer"]');return JSON.stringify({label:b.querySelector('.vd-dock-label').getBoundingClientRect(),scroll:b.closest('.vd-dock-scroll').getBoundingClientRect(),buttonOverflow:getComputedStyle(b).overflow});}`).Str())
 		}
 		page.Mouse.MustMoveTo(20, 100)
+		page.MustEval(`()=>{const track=document.querySelector('.vd-dock-scroll');track.scrollTo({left:track.scrollWidth,behavior:'instant'});}`)
+		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+			page.MustScreenshot(filepath.Join(dir, "dock-end-"+theme+".png"))
+		}
+		page.MustEval(`()=>document.querySelector('.vd-dock-scroll').scrollTo({left:0,behavior:'instant'})`)
 	}
 	for _, width := range []int{1920, 900, 390} {
 		page.MustSetViewport(width, 900, 1, false)

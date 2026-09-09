@@ -1,6 +1,6 @@
-<svg version="1.1" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
- <defs>
-  <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#363636; }</style>
- </defs>
- <path class="ColorScheme-Text" fill="currentColor" d="M8 14 7.1 13.2C3.7 10.1 2 8.6 2 6.2 2 4.4 3.4 3 5.2 3 6.3 3 7.3 3.5 8 4.4 8.7 3.5 9.7 3 10.8 3 12.6 3 14 4.4 14 6.2c0 2.4-1.7 3.9-5.1 7L8 14z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="tile" x2="0" y2="1"><stop stop-color="#ff9bbb"/><stop offset="1" stop-color="#dc3d73"/></linearGradient></defs>
+  <rect x="3" y="4" width="58" height="58" rx="14" fill="#ac2556"/>
+  <rect x="3" y="2" width="58" height="58" rx="14" fill="url(#tile)" stroke="#ffd7e5" stroke-opacity=".7"/>
+  <path d="M32 49 16 34C4 22 20 9 32 22 44 9 60 22 48 34Z" fill="#fff"/>
 </svg>
