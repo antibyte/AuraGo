@@ -643,6 +643,13 @@ Tools are defined in `internal/tools/`:
 
 ### Server Architecture
 - Single HTTP server with SSE for streaming
+- `internal/httpstream.WithWriteTimeout` wraps the outer HTTP handler for local,
+  HTTPS and Tailscale listeners/proxies. Successful SSE and MJPEG responses renew
+  the existing finite write budget per write/flush; ordinary/error responses keep
+  their absolute timeout. Write/flush failure cancels the request and must never
+  revive a failed stream. Preserve WebSocket hijacking and response-controller
+  access. Verify with `go test ./internal/httpstream` and server
+  `TestAgentHTTPServerKeepsSSEAliveThroughMiddleware` plus Tailscale proxy tests.
 - RESTful API under `/api/`
 - Web UI served from embedded files
 - TLS/HTTPS via Let's Encrypt (automated)

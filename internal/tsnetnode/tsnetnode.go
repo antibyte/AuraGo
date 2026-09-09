@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httpstream"
 
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -2030,7 +2031,7 @@ func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) 
 		return fmt.Errorf("start store app proxy %s: %w", spec.ID, err)
 	}
 	httpSrv := &http.Server{
-		Handler:      handler,
+		Handler:      httpstream.WithWriteTimeout(handler, 5*time.Minute),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -2380,7 +2381,7 @@ func (m *Manager) startMainListener(ctx context.Context, srv *tsnet.Server, hand
 	}
 
 	httpSrv := &http.Server{
-		Handler:      handler,
+		Handler:      httpstream.WithWriteTimeout(handler, 5*time.Minute),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -2518,7 +2519,7 @@ func (m *Manager) startHomepageListener(ctx context.Context, srv *tsnet.Server) 
 	}
 
 	homepageSrv := &http.Server{
-		Handler:      proxy,
+		Handler:      httpstream.WithWriteTimeout(proxy, 5*time.Minute),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -2572,7 +2573,7 @@ func (m *Manager) startSpeechLabListener(ctx context.Context, srv *tsnet.Server,
 		http.Error(w, "Speech Lab backend unavailable", http.StatusBadGateway)
 	}
 	speechLabSrv := &http.Server{
-		Handler:      proxy,
+		Handler:      httpstream.WithWriteTimeout(proxy, 5*time.Minute),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -2784,7 +2785,7 @@ func (m *Manager) startManifestListener(ctx context.Context, _ *tsnet.Server) er
 	}
 
 	manifestSrv := &http.Server{
-		Handler:      proxy,
+		Handler:      httpstream.WithWriteTimeout(proxy, 5*time.Minute),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -3010,7 +3011,7 @@ func (m *Manager) startSpaceAgentListener(ctx context.Context) error {
 	}
 
 	spaceAgentSrv := &http.Server{
-		Handler:      proxy,
+		Handler:      httpstream.WithWriteTimeout(proxy, 5*time.Minute),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,

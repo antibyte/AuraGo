@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httpstream"
 )
 
 const (
@@ -66,7 +67,7 @@ func InternalAPIURL(cfg *config.Config) string {
 func newAgentHTTPServer(addr string, handler http.Handler) *http.Server {
 	return &http.Server{
 		Addr:         addr,
-		Handler:      handler,
+		Handler:      httpstream.WithWriteTimeout(handler, agentHTTPWriteTimeout),
 		ReadTimeout:  agentHTTPReadTimeout,
 		WriteTimeout: agentHTTPWriteTimeout,
 		IdleTimeout:  agentHTTPIdleTimeout,

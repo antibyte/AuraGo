@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httpstream"
 )
 
 func (s *Server) reconcileSpaceAgentHTTPSProxy() {
@@ -68,7 +69,7 @@ func (s *Server) startSpaceAgentHTTPSProxy(cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      handler,
+		Handler:      httpstream.WithWriteTimeout(handler, 5*time.Minute),
 		TLSConfig:    tlsCfg,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
