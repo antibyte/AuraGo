@@ -473,6 +473,8 @@ buttons and menu popovers remain excluded from those gestures.
   danger colors.
 - Code Studio editor/terminal surfaces follow `--cs-*` aliases mapped to
   `--vd-theme-*`; CodeMirror theme selection stays in `code-studio/editor.js`.
+  Editor text defaults to 12px in CodeMirror and the textarea fallback; saved
+  zoom preferences remain authoritative and View > Reset Zoom restores 12px.
 - Network Cameras live tiles and detail video stay dark viewports (`#05080d` /
   `#030509`); toolbar, cards, and modal chrome use `--nc-*` aliases mapped to
   `--vd-theme-*`. Online/offline and danger badges stay semantic.

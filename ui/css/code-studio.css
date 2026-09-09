@@ -710,7 +710,7 @@
 
 .code-studio-editor .cm-editor {
     height: 100%;
-    font-size: var(--cs-editor-font-size, 13px);
+    font-size: var(--cs-editor-font-size, 12px);
     background: var(--cs-panel-soft);
     color: var(--cs-text);
 }
@@ -788,7 +788,7 @@
     resize: none;
     color: var(--cs-text);
     background: var(--cs-panel-soft);
-    font: var(--cs-editor-font-size, 13px)/1.5 var(--cs-mono-font);
+    font: var(--cs-editor-font-size, 12px)/1.5 var(--cs-mono-font);
     white-space: pre;
     overflow: auto;
 }

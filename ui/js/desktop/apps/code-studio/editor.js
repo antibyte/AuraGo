@@ -76,7 +76,7 @@
             ].filter(Boolean)),
             cm.EditorView.theme({
                 '&': {
-                    fontSize: 'var(--cs-editor-font-size, 13px)',
+                    fontSize: 'var(--cs-editor-font-size, 12px)',
                     fontFamily: 'var(--cs-mono-font)',
                     backgroundColor: 'var(--cs-panel-soft)',
                     color: 'var(--cs-text)'

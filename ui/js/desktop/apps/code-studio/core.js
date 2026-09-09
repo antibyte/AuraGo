@@ -1,7 +1,7 @@
 (function () {
     const STATE_KEY = 'aurago.codeStudio.state.v1';
     const WORKSPACE_ROOT = '/workspace';
-    const DEFAULT_EDITOR_FONT_SIZE = 13;
+    const DEFAULT_EDITOR_FONT_SIZE = 12;
     const MIN_EDITOR_FONT_SIZE = 10;
     const MAX_EDITOR_FONT_SIZE = 24;
     const MIN_SIDEBAR_WIDTH = 180;
