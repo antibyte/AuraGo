@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Lepicí poznámka",
+  "desktop.sticky_add": "Přidat lepicí poznámku",
+  "desktop.sticky_placeholder": "Napiš si poznámku…",
+  "desktop.sticky_actions": "Akce poznámky",
   "desktop.widget_printer_title": "3D tiskárna",
   "desktop.widget_printer_camera": "Kamera",
   "desktop.widget_printer_enlarge": "Zvětšit kameru",

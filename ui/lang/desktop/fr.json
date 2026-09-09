@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Pense-bête",
+  "desktop.sticky_add": "Ajouter un pense-bête",
+  "desktop.sticky_placeholder": "Écris une note…",
+  "desktop.sticky_actions": "Actions du pense-bête",
   "desktop.widget_printer_title": "Imprimante 3D",
   "desktop.widget_printer_camera": "Caméra",
   "desktop.widget_printer_enlarge": "Agrandir la caméra",

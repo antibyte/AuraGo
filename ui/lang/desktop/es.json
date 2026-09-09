@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Nota adhesiva",
+  "desktop.sticky_add": "Añadir nota adhesiva",
+  "desktop.sticky_placeholder": "Escribe una nota…",
+  "desktop.sticky_actions": "Acciones de la nota",
   "desktop.widget_printer_title": "Impresora 3D",
   "desktop.widget_printer_camera": "Cámara",
   "desktop.widget_printer_enlarge": "Ampliar cámara",

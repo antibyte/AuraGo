@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "便签",
+  "desktop.sticky_add": "添加便签",
+  "desktop.sticky_placeholder": "随手记点什么…",
+  "desktop.sticky_actions": "便签菜单",
   "desktop.widget_printer_title": "3D 打印机",
   "desktop.widget_printer_camera": "摄像头",
   "desktop.widget_printer_enlarge": "放大摄像头画面",

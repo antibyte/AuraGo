@@ -1,5 +1,152 @@
 /* desktop-widgets.css — widgets, widget manager, quickchat */
 
+.vd-widget.vd-sticky-note {
+    padding: 42px 22px 30px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    overflow: visible;
+    transform: rotate(var(--sticky-angle, -1deg));
+    transform-origin: 50% 18px;
+    color: #43391d;
+    cursor: grab;
+}
+
+.vd-sticky-paper {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: hsl(var(--sticky-hue) 94% 77%);
+    background-image:
+        linear-gradient(174deg, #ffffff30, transparent 22%, #b1961120 96%),
+        linear-gradient(96deg, transparent calc(var(--sticky-crease) - 3%), #8a700b0d var(--sticky-crease), #fff3 calc(var(--sticky-crease) + 0.6%), transparent calc(var(--sticky-crease) + 4%)),
+        linear-gradient(15deg, transparent 43%, #9b7f070c 46%, #fff2 46.5%, transparent 51%),
+        repeating-linear-gradient(0deg, #ffffff08 0 1px, transparent 1px 3px);
+    border-radius: 1px 2px 14px 3px / 2px 2px 5px 3px;
+    box-shadow: inset 0 18px 20px -16px #8e731d45, 1px 5px 7px #0003, 4px 16px 15px -10px #0006;
+}
+
+.vd-sticky-paper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(142deg, transparent 61%, #97770e0d 64.5%, #fff3 65%, transparent 69%);
+    border-top: 1px solid #fff6;
+}
+
+.vd-sticky-paper::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: var(--sticky-fold);
+    height: var(--sticky-fold);
+    background: linear-gradient(135deg, hsl(var(--sticky-hue) 76% 67%) 42%, #fff4 49%, hsl(var(--sticky-hue) 90% 85%) 52%);
+    border-radius: 100% 0 12px 0;
+    box-shadow: -2px -2px 3px #78601618;
+}
+
+.vd-sticky-note[data-paper="1"] .vd-sticky-paper {
+    border-radius: 2px 1px 3px 18px / 1px 1px 2px 6px;
+    box-shadow: inset 0 20px 18px -18px #8e731d55, -2px 5px 7px #0003, -6px 17px 14px -12px #0007;
+}
+
+.vd-sticky-note[data-paper="1"] .vd-sticky-paper::after {
+    right: auto;
+    left: 0;
+    transform: scaleX(-1);
+}
+
+.vd-sticky-note[data-paper="2"] .vd-sticky-paper::before {
+    transform: scaleX(-1);
+    background: linear-gradient(34deg, transparent 30%, #8b731210 32.5%, #fff3 33%, transparent 37%, transparent 60%, #967b0e0c 62.5%, #fff2 63%, transparent 67%);
+}
+
+.vd-sticky-note[data-paper="3"] .vd-sticky-paper::after {
+    bottom: auto;
+    top: 0;
+    transform: scaleY(-1);
+}
+
+.vd-sticky-text {
+    position: relative;
+    height: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow-y: auto;
+    font: 17px/1.45 'Segoe Print', 'Bradley Hand', cursive;
+    scrollbar-width: thin;
+    scrollbar-color: #84762a60 transparent;
+    user-select: none;
+}
+
+.vd-sticky-menu {
+    position: absolute;
+    top: 3px;
+    right: 7px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #554416;
+    font: bold 24px/1 sans-serif;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 120ms;
+}
+
+.vd-sticky-note:hover .vd-sticky-menu,
+.vd-sticky-note:focus-within .vd-sticky-menu { opacity: 1; }
+.vd-sticky-note:hover,
+.vd-sticky-note:focus-within { z-index: 2; }
+.vd-sticky-menu:hover { background: #99740918; }
+.vd-sticky-menu:focus-visible,
+.vd-sticky-text:focus-visible { outline: 2px solid #665112; outline-offset: 2px; }
+.vd-sticky-note.vd-dragging { transform: rotate(var(--sticky-angle)) scale(1.025); box-shadow: none; cursor: grabbing; }
+
+.vd-sticky-editor {
+    width: min(420px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 24px;
+    border: 1px solid var(--vd-border, #53606b);
+    border-radius: 14px;
+    background: var(--vd-bg, #202830);
+    color: var(--vd-text, #eee);
+    box-shadow: 0 20px 80px #0006;
+}
+.vd-sticky-editor::backdrop { background: #0006; }
+.vd-sticky-editor h2 { margin: 0 0 18px; font-size: 18px; }
+.vd-sticky-editor label { display: block; margin-bottom: 8px; font-size: 13px; }
+.vd-sticky-editor textarea {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    max-height: 50dvh;
+    min-height: 120px;
+    padding: 16px;
+    border: 1px solid #c8ad45;
+    border-radius: 3px;
+    background: #fff09c;
+    color: #43391d;
+    font: 17px/1.5 'Segoe Print', 'Bradley Hand', cursive;
+    resize: vertical;
+}
+.vd-sticky-editor textarea:focus-visible { outline: 2px solid var(--vd-accent, #99bfff); outline-offset: 2px; }
+.vd-sticky-editor .vd-button { min-height: 44px; }
+.vd-sticky-error { font-size: 13px; }
+.vd-sticky-error:empty { display: none; }
+@media (hover: none), (pointer: coarse) {
+    .vd-sticky-menu { opacity: 1; width: 44px; height: 44px; top: 0; right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .vd-sticky-menu { transition: none; }
+}
+
 
 
 .vd-widgets {

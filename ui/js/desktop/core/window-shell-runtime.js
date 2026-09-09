@@ -534,6 +534,7 @@
             drag = null;
         }
         handle.addEventListener('pointerdown', event => {
+            if (desktopReadonly()) return;
             if (event.button !== 0 || isWidgetInteractiveTarget(event.target)) return;
             const touchDrag = isTouchLikePointer(event);
             drag = {

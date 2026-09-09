@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Karteczka samoprzylepna",
+  "desktop.sticky_add": "Dodaj karteczkę",
+  "desktop.sticky_placeholder": "Zapisz coś…",
+  "desktop.sticky_actions": "Menu karteczki",
   "desktop.widget_printer_title": "Drukarka 3D",
   "desktop.widget_printer_camera": "Kamera",
   "desktop.widget_printer_enlarge": "Powiększ kamerę",

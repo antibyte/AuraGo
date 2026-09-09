@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Haftnotiz",
+  "desktop.sticky_add": "Haftnotiz hinzufügen",
+  "desktop.sticky_placeholder": "Schreib etwas auf…",
+  "desktop.sticky_actions": "Notizmenü",
   "desktop.widget_printer_title": "3D-Drucker",
   "desktop.widget_printer_camera": "Kamera",
   "desktop.widget_printer_enlarge": "Kamera vergrößern",

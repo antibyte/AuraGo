@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "स्टिकी नोट",
+  "desktop.sticky_add": "स्टिकी नोट जोड़ें",
+  "desktop.sticky_placeholder": "कुछ लिखो…",
+  "desktop.sticky_actions": "नोट की कार्रवाइयाँ",
   "desktop.widget_printer_title": "3D प्रिंटर",
   "desktop.widget_printer_camera": "कैमरा",
   "desktop.widget_printer_enlarge": "कैमरा बड़ा करें",

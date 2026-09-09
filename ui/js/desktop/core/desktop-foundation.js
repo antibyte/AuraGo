@@ -1551,6 +1551,7 @@
 
     function widgetDisplayTitle(widget) {
         if (!widget) return '';
+        if (widget.type === 'sticky-note') return t('desktop.sticky_note');
         const id = String(widget.id || '');
         if (id === 'builtin-weather') return t('desktop.weather_title');
         if (id === 'builtin-analog-clock') return t('desktop.widget_analog_clock');
@@ -1583,6 +1584,7 @@
     }
 
     function updateWidgetCard(card, widget, index) {
+        if (widget.type === 'sticky-note') return updateStickyNoteCard(card, widget);
         const bounds = widgetBounds(widget, index);
         const autoSize = widgetShouldAutoSize(widget);
         const signature = widgetContentSignature(widget);
@@ -1617,6 +1619,7 @@
     }
 
     function renderWidgetRuntime(card, widget, changed) {
+        if (widget.type === 'sticky-note') return;
         const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
         if (isBuiltinType) {
             if (changed || !card._widgetRuntimeReady || widget.id === 'builtin-analog-clock') {

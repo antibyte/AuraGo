@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "付箋",
+  "desktop.sticky_add": "付箋を追加",
+  "desktop.sticky_placeholder": "メモを書こう…",
+  "desktop.sticky_actions": "付箋メニュー",
   "desktop.widget_printer_title": "3Dプリンター",
   "desktop.widget_printer_camera": "カメラ",
   "desktop.widget_printer_enlarge": "カメラを拡大",

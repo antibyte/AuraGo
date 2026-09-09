@@ -30,6 +30,12 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- Desktop sticky notes use the existing widget API/storage (`type: sticky-note`),
+  plain `config.text`, and stable ID-derived paper wear. The background menu adds
+  notes; hover/focus/touch exposes edit, duplicate and delete. Preserve server
+  read-only gates, escaped text, retryable drafts and existing widget dragging.
+  Verify with `TestDesktopStickyNotesBrowser` and the widget persistence tests.
+
 - The opt-in `builtin-printer` widget lives in `js/desktop/core/widget-printer-runtime.js`.
   Keep missing printer metrics unknown, render filenames as text, and stop status
   requests/camera streams on document hiding or widget disposal. Its native dialog

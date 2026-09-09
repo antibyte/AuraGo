@@ -454,6 +454,7 @@
         event.preventDefault();
         selectDesktopIcon(null);
         const items = contextMenuReadonlyGuard([
+            { id: 'new-sticky-note', label: t('desktop.sticky_add'), icon: 'notes', fallback: '+', disabled: desktopReadonly(), action: () => editStickyNote(null, event.clientX, event.clientY) },
             { id: 'new-file', label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
             { id: 'new-folder', label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', id: 'paste', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
@@ -570,6 +571,7 @@
 
     function showWidgetContextMenu(event, widget) {
         event.preventDefault();
+        if (widget.type === 'sticky-note') return showStickyNoteMenu(event.clientX, event.clientY, widget);
         const autoSize = widgetShouldAutoSize(widget);
         showContextMenu(event.clientX, event.clientY, [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => widget.app_id && openApp(widget.app_id) },

@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Gul huskelapp",
+  "desktop.sticky_add": "Legg til huskelapp",
+  "desktop.sticky_placeholder": "Skriv en lapp…",
+  "desktop.sticky_actions": "Handlinger for huskelapp",
   "desktop.widget_printer_title": "3D-skriver",
   "desktop.widget_printer_camera": "Kamera",
   "desktop.widget_printer_enlarge": "Forstørr kamera",

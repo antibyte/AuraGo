@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Plaknotitie",
+  "desktop.sticky_add": "Plaknotitie toevoegen",
+  "desktop.sticky_placeholder": "Schrijf iets op…",
+  "desktop.sticky_actions": "Notitiemenu",
   "desktop.widget_printer_title": "3D-printer",
   "desktop.widget_printer_camera": "Camera",
   "desktop.widget_printer_enlarge": "Camera vergroten",

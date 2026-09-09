@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Αυτοκόλλητη σημείωση",
+  "desktop.sticky_add": "Προσθήκη αυτοκόλλητης σημείωσης",
+  "desktop.sticky_placeholder": "Γράψε μια σημείωση…",
+  "desktop.sticky_actions": "Ενέργειες σημείωσης",
   "desktop.widget_printer_title": "Εκτυπωτής 3D",
   "desktop.widget_printer_camera": "Κάμερα",
   "desktop.widget_printer_enlarge": "Μεγέθυνση κάμερας",

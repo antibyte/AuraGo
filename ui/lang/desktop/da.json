@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Gul huskeseddel",
+  "desktop.sticky_add": "Tilføj huskeseddel",
+  "desktop.sticky_placeholder": "Skriv en note…",
+  "desktop.sticky_actions": "Handlinger for huskeseddel",
   "desktop.widget_printer_title": "3D-printer",
   "desktop.widget_printer_camera": "Kamera",
   "desktop.widget_printer_enlarge": "Forstør kamera",

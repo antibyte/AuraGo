@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Sticky note",
+  "desktop.sticky_add": "Add sticky note",
+  "desktop.sticky_placeholder": "Jot something down…",
+  "desktop.sticky_actions": "Note actions",
   "desktop.widget_printer_title": "3D Printer",
   "desktop.widget_printer_camera": "Camera",
   "desktop.widget_printer_enlarge": "Enlarge camera",

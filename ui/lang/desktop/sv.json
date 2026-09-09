@@ -1,4 +1,8 @@
 {
+  "desktop.sticky_note": "Klisterlapp",
+  "desktop.sticky_add": "Lägg till klisterlapp",
+  "desktop.sticky_placeholder": "Skriv en anteckning…",
+  "desktop.sticky_actions": "Åtgärder för klisterlapp",
   "desktop.widget_printer_title": "3D-skrivare",
   "desktop.widget_printer_camera": "Kamera",
   "desktop.widget_printer_enlarge": "Förstora kamera",
