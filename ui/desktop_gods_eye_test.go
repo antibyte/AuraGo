@@ -2,11 +2,33 @@ package ui
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestGodsEyeLogosAreValidSVG(t *testing.T) {
+	for _, path := range []string{
+		"img/desktop/store/gods-eye-view.svg",
+		"img/papirus/icons/gods-eye-view.svg",
+		"img/whitesur/icons/gods-eye-view.svg",
+	} {
+		t.Run(path, func(t *testing.T) {
+			data, err := Content.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var svg struct {
+				XMLName xml.Name `xml:"http://www.w3.org/2000/svg svg"`
+			}
+			if err := xml.Unmarshal(data, &svg); err != nil {
+				t.Fatalf("logo is not a valid SVG document: %v", err)
+			}
+		})
+	}
+}
 
 func TestGodsEyeDesktopTranslations(t *testing.T) {
 	files, err := filepath.Glob("lang/desktop/*.json")
