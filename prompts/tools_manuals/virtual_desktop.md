@@ -87,6 +87,7 @@ Example flow:
 5. Call `diagnose_widget` with `widget_id` to verify it.
 
 Standalone widgets should not use the SDK bridge unless they explicitly need desktop actions. Keep them simple and self-contained.
+All desktop widgets share a 320px outer width (narrower on small screens), with automatic height sizing. Make content responsive within the card; content resize requests do not widen it. Widget movement snaps to an 8px grid.
 
 ### Quick Start: App-Backed Widget
 

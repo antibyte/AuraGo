@@ -34,8 +34,8 @@
         card.style.setProperty('--sticky-hue', String(48 + seed % 10));
         card.style.setProperty('--sticky-fold', (16 + seed % 15) + 'px');
         card.style.setProperty('--sticky-crease', (22 + seed % 48) + '%');
-        const size = Math.min(220, Math.max(140, ($('vd-workspace').clientWidth || window.innerWidth) - 32));
-        const pos = clampToWorkspace(Number(widget.x) || 16, Number(widget.y) || 16, size, 220);
+        const size = widgetWidth();
+        const pos = snapWidgetPosition(Number(widget.x) || 16, Number(widget.y) || 16, size, 220);
         card.style.left = pos.x + 'px';
         card.style.top = pos.y + 'px';
         card.style.width = size + 'px';
@@ -66,11 +66,12 @@
         closeContextMenu();
         const previousFocus = document.activeElement;
         const workspace = $('vd-workspace').getBoundingClientRect();
-        const pos = clampToWorkspace((clientX ?? workspace.left + 40) - workspace.left, (clientY ?? workspace.top + 40) - workspace.top, 220, 220);
+        const width = widgetWidth();
+        const pos = snapWidgetPosition((clientX ?? workspace.left + 40) - workspace.left, (clientY ?? workspace.top + 40) - workspace.top, width, 220);
         const record = widget || {
             id: 'sticky-' + Date.now().toString(36) + '-' + crypto.getRandomValues(new Uint32Array(1))[0].toString(36),
             title: t('desktop.sticky_note'), type: 'sticky-note', icon: 'notes',
-            x: Math.round(pos.x), y: Math.round(pos.y), w: 220, h: 220, visible: true, builtin: false,
+            x: pos.x, y: pos.y, w: width, h: 220, visible: true, builtin: false,
             config: { auto_size: false }
         };
         const dialog = document.createElement('dialog');

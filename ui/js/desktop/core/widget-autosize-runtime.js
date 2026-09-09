@@ -58,14 +58,14 @@
         const sysmonWasMoved = Number(sysmonData.x || sysmonData.X || 0) !== 0 || Number(sysmonData.y || sysmonData.Y || 0) !== 0;
         if (weatherWasMoved || sysmonWasMoved) return;
         sysmon.style.left = weather.style.left;
-        sysmon.style.top = Math.round(weather.offsetTop + weather.offsetHeight + 8) + 'px';
+        sysmon.style.top = Math.ceil((weather.offsetTop + weather.offsetHeight + 8) / WIDGET_GRID) * WIDGET_GRID + 'px';
         const meshcore = document.querySelector('.vd-widget[data-widget-id="builtin-meshcore"]');
         if (!meshcore) return;
         const meshcoreData = meshcore._widgetData || {};
         const meshcoreWasMoved = Number(meshcoreData.x || meshcoreData.X || 0) !== 0 || Number(meshcoreData.y || meshcoreData.Y || 0) !== 0;
         if (meshcoreWasMoved) return;
         meshcore.style.left = sysmon.style.left;
-        meshcore.style.top = Math.round(sysmon.offsetTop + sysmon.offsetHeight + 8) + 'px';
+        meshcore.style.top = Math.ceil((sysmon.offsetTop + sysmon.offsetHeight + 8) / WIDGET_GRID) * WIDGET_GRID + 'px';
     }
 
     function applyWidgetAutoSize(card, payload) {
@@ -122,14 +122,6 @@
         if (!card || card.dataset.widgetAutoSize !== 'true') return;
         const data = payload && typeof payload === 'object' ? payload : {};
         card._widgetLastResizePayload = data;
-        const reportedWidth = Number(data.width || data.w || 0);
-        const reportedViewportWidth = Number(data.viewportWidth || data.viewport_width || 0);
-        if (reportedWidth > 16) {
-            const shouldGrowWidth = !reportedViewportWidth || reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD;
-            const desiredWidth = shouldGrowWidth ? reportedWidth + WIDGET_FRAME_CHROME_BUFFER : widgetPreferredWidth(card);
-            const nextWidth = Math.max(220, Math.min(Math.ceil(desiredWidth), widgetMaxWidth(card)));
-            setWidgetWidthIfChanged(card, nextWidth);
-        }
         applyWidgetAutoSize(card, data);
     }
 
@@ -155,28 +147,8 @@
         return Math.max(WIDGET_MIN_HEIGHT, workspaceHeight - top - WIDGET_MAX_BOTTOM_GAP);
     }
 
-    function widgetMaxWidth(card) {
-        const workspace = $('vd-workspace');
-        const workspaceWidth = (workspace && workspace.clientWidth) || window.innerWidth || 960;
-        const left = parseInt(card.style.left, 10) || card.offsetLeft || 0;
-        return Math.max(220, workspaceWidth - left - 18);
-    }
-
-    function widgetPreferredWidth(card) {
-        const configured = Number(card && card.dataset.widgetDefaultWidth || 0);
-        const preferred = configured > 16 ? configured : 320;
-        return Math.max(220, Math.min(preferred, WIDGET_AUTO_WIDTH_MAX));
-    }
-
     function setWidgetPixelVar(element, name, value) {
         if (!element) return;
         const next = Math.ceil(value) + 'px';
         if (element.style.getPropertyValue(name) !== next) element.style.setProperty(name, next);
-    }
-
-    function setWidgetWidthIfChanged(card, width) {
-        if (!card) return;
-        const next = Math.ceil(width);
-        const current = Math.round(parseFloat(card.style.width) || card.offsetWidth || 0);
-        if (Math.abs(current - next) > 1) card.style.width = next + 'px';
     }

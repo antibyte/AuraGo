@@ -22,13 +22,8 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"--vd-widget-frame-height",
 		"WIDGET_AUTO_SIZE_PADDING",
 		"WIDGET_FRAME_SCROLLBAR_BUFFER",
-		"WIDGET_FRAME_CHROME_BUFFER",
-		"WIDGET_WIDTH_GROW_THRESHOLD",
-		"WIDGET_AUTO_WIDTH_MAX",
 		"function widgetMeasuredContentHeight(",
 		"function widgetElementBottom(",
-		"function widgetMaxWidth(",
-		"function widgetPreferredWidth(",
 		"function clearWidgetRuntime",
 		"state.widgetCleanups",
 		"clearInterval",
@@ -79,16 +74,14 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 	resizeBody := jsFunctionBodyInWindowMenuTest(t, source, "function resizeWidgetToContent(widgetId, payload)")
 	for _, want := range []string{
 		"card._widgetLastResizePayload = data",
-		"reportedViewportWidth",
-		"reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD",
-		"widgetPreferredWidth(card)",
-		"setWidgetWidthIfChanged(card, nextWidth)",
-		"reportedWidth + WIDGET_FRAME_CHROME_BUFFER",
-		"widgetMaxWidth(card)",
+		"applyWidgetAutoSize(card, data)",
 	} {
 		if !strings.Contains(resizeBody, want) {
-			t.Fatalf("desktop widget autosize should expand the outer card for iframe chrome; missing %q", want)
+			t.Fatalf("desktop widget autosize should still adapt content height; missing %q", want)
 		}
+	}
+	if strings.Contains(resizeBody, "style.width") || strings.Contains(source, "setWidgetWidthIfChanged") {
+		t.Fatal("content resize must preserve the shared widget width")
 	}
 
 	persistBody := jsFunctionBodyInWindowMenuTest(t, source, "async function persistWidgetBounds(widget, card)")

@@ -479,15 +479,25 @@
         });
     }
 
+    function widgetWidth() {
+        return Math.max(1, Math.min(WIDGET_WIDTH, (($('vd-workspace')?.clientWidth) || window.innerWidth) - 16));
+    }
+
+    function snapWidgetPosition(x, y, w, h) {
+        const pos = clampToWorkspace(Math.round(x / WIDGET_GRID) * WIDGET_GRID, Math.round(y / WIDGET_GRID) * WIDGET_GRID, w, h);
+        // Round clamped edges inward so every position stays on the same grid.
+        return { x: Math.floor(pos.x / WIDGET_GRID) * WIDGET_GRID, y: Math.floor(pos.y / WIDGET_GRID) * WIDGET_GRID };
+    }
+
     function defaultWidgetBounds(widget, index) {
         const workspace = $('vd-workspace');
         const workspaceWidth = (workspace && workspace.clientWidth) || window.innerWidth;
-        const width = 320;
-        const top = 12;
+        const width = widgetWidth();
+        const top = 8;
         const gap = 8;
-        const right = Math.max(12, workspaceWidth - width - 12);
+        const right = Math.max(8, workspaceWidth - width - 8);
         const widgetID = String(widget && widget.id || '');
-        if (widgetID === 'builtin-printer') return { x: 12, y: top, w: 300, h: 340 };
+        if (widgetID === 'builtin-printer') return { x: 8, y: top, w: width, h: 320 };
         if (widgetID === 'builtin-quickchat') {
             return { x: Math.max(12, Math.round((workspaceWidth - width) / 2)), y: top, w: width, h: 56 };
         }
@@ -506,13 +516,18 @@
 
     function widgetBounds(widget, index) {
         const fallback = defaultWidgetBounds(widget, index);
-        const w = Number(widget.w || widget.W || 0);
         const h = Number(widget.h || widget.H || 0);
+        const height = h > 16 ? h : fallback.h;
+        const pos = snapWidgetPosition(
+            Number(widget.x || widget.X || fallback.x) || fallback.x,
+            Number(widget.y || widget.Y || fallback.y) || fallback.y,
+            fallback.w, height
+        );
         return {
-            x: Number(widget.x || widget.X || fallback.x) || fallback.x,
-            y: Number(widget.y || widget.Y || fallback.y) || fallback.y,
-            w: w > 16 ? w : fallback.w,
-            h: h > 16 ? h : fallback.h
+            x: pos.x,
+            y: pos.y,
+            w: fallback.w,
+            h: height
         };
     }
 
@@ -570,7 +585,7 @@
             drag.moved = true;
             card.classList.add('vd-dragging');
             if (drag.touchDrag) document.body.classList.add('vd-touch-drag-active');
-            const pos = clampToWorkspace(drag.left + dx, drag.top + dy, card.offsetWidth, card.offsetHeight);
+            const pos = snapWidgetPosition(drag.left + dx, drag.top + dy, card.offsetWidth, card.offsetHeight);
             card.style.left = pos.x + 'px';
             card.style.top = pos.y + 'px';
         });

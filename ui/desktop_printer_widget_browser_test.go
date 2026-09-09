@@ -24,7 +24,7 @@ func TestDesktopPrinterWidgetBrowser(t *testing.T) {
 			mux := http.NewServeMux()
 			mux.Handle("/", http.FileServer(http.FS(Content)))
 			mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, `<html lang="`+lang+`"><link rel="stylesheet" href="/css/desktop-widgets.css"><style>body{--vd-text:#eee;--vd-text-muted:#aaa;--vd-bg:#20242a;--vd-theme-control-bg:#30343a;--vd-accent:#7abaff;--vd-border:#555}#card{width:300px}</style><div id="card"></div><script>
+				fmt.Fprint(w, `<html lang="`+lang+`"><link rel="stylesheet" href="/css/desktop-widgets.css"><style>body{--vd-text:#eee;--vd-text-muted:#aaa;--vd-bg:#20242a;--vd-theme-control-bg:#30343a;--vd-accent:#7abaff;--vd-border:#555}#card{width:320px}</style><div id="card"></div><script>
 const words=`+words+`;const t=k=>words[k]||k;const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const cleanups=[];const registerWidgetCleanup=f=>cleanups.push(f);window.requests=[];window.failed=false;
 window.raw={Status:{PrintInfo:{Status:13,Progress:42,CurrentTicks:60,TotalTicks:3660,CurrentLayer:12,TotalLayer:100,Filename:'<img src=x onerror=alert(1)>'},TempOfNozzle:210,TempOfHotbed:60}};
@@ -37,7 +37,7 @@ const api=async(url,opts)=>{requests.push(url);if(failed)throw Error('offline');
 			defer page.Close()
 			page.MustWaitLoad()
 			waitForJSBool(t, page, `()=>document.querySelector('progress').value===42`)
-			if !page.MustEval(`()=>{const p=document.querySelector('.vd-printer');return p.scrollWidth<=300 && p.getBoundingClientRect().height<410}`).Bool() {
+			if !page.MustEval(`()=>{const p=document.querySelector('.vd-printer');return p.scrollWidth<=320 && p.getBoundingClientRect().height<350}`).Bool() {
 				t.Fatal("printer widget must remain compact")
 			}
 			if !page.MustEval(`()=>{const missing=printerWidgetData({Status:{PrintInfo:{Progress:null,CurrentTicks:null,TotalTicks:500}}});const klipper=printerWidgetData({result:{status:{print_stats:{state:'printing'},virtual_sdcard:{progress:0.5}}}});return missing.progress===null&&missing.remaining===null&&klipper.progress===50&&klipper.remaining===null}`).Bool() {
