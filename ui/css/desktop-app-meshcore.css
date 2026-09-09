@@ -30,7 +30,7 @@
 }
 
 /* === Fruity light adjustments === */
-.desktop-body[data-theme="fruity"] .vd-meshcore {
+.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-meshcore {
     --mc-accent-text: #0d9488;
     --mc-accent-soft: rgba(20, 184, 160, 0.12);
     --mc-accent-soft-2: rgba(20, 184, 160, 0.2);
@@ -350,7 +350,8 @@
 }
 .vd-meshcore .mc-outgoing {
     margin-left: auto;
-    background: linear-gradient(135deg, var(--mc-accent) 0%, var(--mc-accent-2) 100%);
+    /* Keep small white labels readable across the entire teal gradient. */
+    background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
     color: var(--mc-on-accent);
     border-bottom-right-radius: 6px;
     box-shadow: 0 3px 12px var(--mc-bubble-shadow);
@@ -365,7 +366,7 @@
 .mc-protected .mc-message-text { font-style: italic; opacity: 0.88; }
 .mc-lock { width: 13px; height: 13px; margin-right: 5px; vertical-align: -2px; color: var(--mc-warn); }
 .mc-message-meta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; margin-top: 4px; font-size: 10.5px; color: var(--vd-theme-muted); }
-.mc-outgoing .mc-message-meta { color: rgba(255, 255, 255, 0.82); }
+.mc-outgoing .mc-message-author, .mc-outgoing .mc-message-meta { color: inherit; }
 .mc-send-state { display: inline-flex; align-items: center; gap: 4px; }
 .mc-state-icon { width: 12px; height: 12px; }
 .vd-meshcore .mc-message-meta button {
@@ -383,7 +384,7 @@
 .vd-meshcore .mc-message:focus-within .mc-message-meta button { opacity: 1; }
 .vd-meshcore .mc-message-meta button:hover:not(:disabled) { background: rgba(127, 127, 127, 0.2); }
 .vd-meshcore .mc-message-meta button .mc-icon { width: 13px; height: 13px; }
-.mc-part-states { display: block; margin-top: 6px; font-size: 10.5px; color: inherit; opacity: 0.72; }
+.mc-part-states { display: block; margin-top: 6px; font-size: 10.5px; color: inherit; opacity: 0.9; }
 
 /* === Jump-to-latest pill === */
 .vd-meshcore .mc-new {

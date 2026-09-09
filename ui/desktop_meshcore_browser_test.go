@@ -27,7 +27,7 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 	page.MustEval(`async () => {
         window.translations=await (await fetch('/lang/desktop/de.json')).json();
         window.conv='a'.repeat(64);window.channel='b'.repeat(64);window.identity='c'.repeat(64);
-        window.requests=[];window.messageRows=[{id:'protected',seq:1,conversation_id:conv,direction:'incoming',origin:'radio',text:'',at:1800000000,protected:true,review:'suspicious',parts:[]}, {id:'safe',seq:2,conversation_id:conv,direction:'incoming',origin:'radio',text:'Hallo aus dem Mesh! 👋',at:1800000001,protected:false,parts:[]}, {id:'agent',seq:3,conversation_id:conv,direction:'outgoing',origin:'agent',text:'Die nächste Wetterstation ist erreichbar.',at:1800000002,send_state:'delivered',parts:[{number:1,state:'delivered'}]}];
+        window.requests=[];window.messageRows=[{id:'protected',seq:1,conversation_id:conv,direction:'incoming',origin:'radio',text:'',at:1800000000,protected:true,review:'suspicious',parts:[]}, {id:'safe',seq:2,conversation_id:conv,direction:'incoming',origin:'radio',text:'Hallo aus dem Mesh! 👋',at:1800000001,protected:false,parts:[]}, {id:'agent',seq:3,conversation_id:conv,direction:'outgoing',origin:'agent',text:'Die nächste Wetterstation ist erreichbar.',at:1800000002,send_state:'delivered',parts:[{number:1,state:'delivered'},{number:2,state:'delivered'}]}];
         window.fetch=async (url,opt={})=>{
             requests.push({url:String(url),body:opt.body?JSON.parse(opt.body):null,signal:opt.signal});
             let value={ok:true};
@@ -46,6 +46,34 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 	if !page.MustEval(`() => savedContext.conversation_id===conv && document.querySelector('[data-message-id="protected"] .mc-message-text').textContent===translations['desktop.meshcore_protected']`).Bool() {
 		t.Fatal("protected text/context")
 	}
+	themes := []struct{ name, mode string }{{"standard", "light"}, {"fruity", "light"}, {"fruity", "dark"}}
+	for _, theme := range themes {
+		page.MustEval(`(theme,mode)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;}`, theme.name, theme.mode)
+		failures := page.MustEval(`() => {
+            const rgb=value=>value.match(/[\d.]+/g).map(Number);
+            const blend=(fg,bg,opacity=1)=>fg.slice(0,3).map((v,i)=>v*(fg[3]??1)*opacity+bg[i]*(1-(fg[3]??1)*opacity));
+            const luminance=color=>color.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+            const appBG=rgb(getComputedStyle(document.querySelector('.vd-meshcore')).backgroundColor);
+            const failures=[];
+            for(const bubble of document.querySelectorAll('.mc-message')) {
+                const style=getComputedStyle(bubble);
+                const backgrounds=(style.backgroundImage.match(/rgba?\([^)]+\)/g)||[style.backgroundColor]).map(color=>blend(rgb(color),appBG));
+                for(const el of bubble.querySelectorAll('.mc-message-text,.mc-message-author,.mc-message-meta,.mc-part-states')) {
+                    const textStyle=getComputedStyle(el);
+                    for(const bg of backgrounds) {
+                        const fg=blend(rgb(textStyle.color),bg,Number(textStyle.opacity));
+                        const a=luminance(fg)+.05,b=luminance(bg)+.05,ratio=Math.max(a,b)/Math.min(a,b);
+                        if(ratio<4.5) failures.push(bubble.dataset.messageId+' '+el.className+': '+ratio.toFixed(2));
+                    }
+                }
+            }
+            return failures.join('; ');
+        }`).Str()
+		if failures != "" {
+			t.Errorf("unreadable MeshCore bubbles %s %s: %s", theme.name, theme.mode, failures)
+		}
+	}
+	page.MustEval(`() => {document.body.dataset.theme='standard';document.body.dataset.fruityMode='light';}`)
 	page.MustElement(`[data-message-id="protected"] button`).MustClick()
 	waitForJSBool(t, page, `() => document.querySelector('[data-message-id="protected"] .mc-message-text').textContent.startsWith('<img')`)
 	if page.MustEval(`() => !!window.injected || !!document.querySelector('.mc-message img')`).Bool() {
@@ -105,8 +133,8 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 		t.Fatal("new message moved scroll")
 	}
 	page.MustElement(`[data-mc="latest"]`).MustClick()
-	for _, theme := range []string{"standard", "fruity"} {
-		page.MustEval(`theme=>document.body.dataset.theme=theme`, theme)
+	for _, theme := range themes {
+		page.MustEval(`(theme,mode)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;}`, theme.name, theme.mode)
 		for _, width := range []int{1080, 600, 390} {
 			page.MustEval(`width=>document.getElementById('host').style.width=width+'px'`, width)
 			page.MustEval(`() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
@@ -118,10 +146,10 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
                     return Math.abs(gap-expected)<0.1;
                 });
             }`).Bool() {
-				t.Fatalf("incorrect message spacing %s %d", theme, width)
+				t.Fatalf("incorrect message spacing %s %s %d", theme.name, theme.mode, width)
 			}
 			if page.MustEval(`() => {const el=document.querySelector('.vd-meshcore');return el.scrollWidth>el.clientWidth+1}`).Bool() {
-				t.Fatalf("overflow %s %d", theme, width)
+				t.Fatalf("overflow %s %s %d", theme.name, theme.mode, width)
 			}
 			if width < 700 && !page.MustEval(`() => getComputedStyle(document.querySelector('.mc-sidebar')).display==='none' && getComputedStyle(document.querySelector('.mc-chat')).display==='flex'`).Bool() {
 				t.Fatal("narrow chat layout")
@@ -130,9 +158,9 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 				if err := os.MkdirAll(dir, 0755); err != nil {
 					t.Fatal(err)
 				}
-				name := theme + "-wide.png"
+				name := theme.name + "-" + theme.mode + "-wide.png"
 				if width == 390 {
-					name = theme + "-narrow.png"
+					name = theme.name + "-" + theme.mode + "-narrow.png"
 				}
 				if err := os.WriteFile(filepath.Join(dir, "meshcore-messenger-"+name), page.MustScreenshot(), 0644); err != nil {
 					t.Fatal(err)
