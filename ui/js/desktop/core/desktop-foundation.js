@@ -537,17 +537,17 @@
     }
 
     function dockApps() {
-        const pinned = dockPinIds().map(id => appById(id)).filter(Boolean);
-        const runningIds = new Set([...state.windows.values()].map(win => win.appId).filter(Boolean));
-        const running = userFacingApps().filter(app => runningIds.has(app.id) && !isAppDockPinned(app.id));
+        const runningIds = new Set(taskbarWindows().map(win => win.appId).filter(Boolean));
+        const available = userFacingApps().filter(app => app.dock_visible !== false || runningIds.has(app.id));
+        const pinned = dockPinIds().map(id => available.find(app => app.id === id)).filter(Boolean);
         const seen = new Set();
         const merged = [];
-        pinned.concat(running).forEach(app => {
+        pinned.concat(available).forEach(app => {
             if (!app || seen.has(app.id)) return;
             seen.add(app.id);
             merged.push(app);
         });
-        return merged.length ? merged : userFacingApps().filter(app => app.dock_visible !== false).slice(0, 8);
+        return merged;
     }
 
     function appById(appId) {

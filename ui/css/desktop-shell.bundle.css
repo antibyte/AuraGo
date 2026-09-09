@@ -1421,8 +1421,9 @@
 .desktop-body[data-theme="fruity"] .vd-dock-scroll {
     min-width: 0;
     max-width: 100%;
-    margin-top: -28px;
-    padding-top: 28px;
+    /* Leave room for the lifted icon and its label inside the scroll clip. */
+    margin-top: -64px;
+    padding-top: 64px;
     overflow: auto hidden;
     scrollbar-width: none;
     scroll-behavior: smooth;

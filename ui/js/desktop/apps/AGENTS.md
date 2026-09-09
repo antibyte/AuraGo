@@ -71,6 +71,10 @@ buttons and menu popovers remain excluded from those gestures.
   `appearance.wallpaper`; compact viewport keeps one shared wallpaper.
 - Taskbar/dock pins stay global; running window buttons and Ctrl+Tab switcher
   list only the active space.
+- Fruity lists every user-facing app with `dock_visible !== false`, with pins
+  first and no fixed item limit. Hidden apps appear temporarily only while
+  running on the active space. Keep hover-label headroom inside `.vd-dock-scroll`
+  so its vertical overflow clip cannot leave label fragments above the dock.
 - `findExistingAppWindow` prefers the current space; a match in another space
   triggers `switchSpace` then focus (no duplicate window).
 - Compact viewport (`isCompactViewport()`) keeps single-space behavior and hides
