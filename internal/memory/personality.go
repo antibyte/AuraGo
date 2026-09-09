@@ -87,7 +87,8 @@ type PersonalityThresholds struct {
 	HighCuriosity    float64 `yaml:"high_curiosity"`
 }
 
-func defaultPersonalityMeta() PersonalityMeta {
+// DefaultPersonalityMeta supplies neutral defaults before decoding profile overrides.
+func DefaultPersonalityMeta() PersonalityMeta {
 	return PersonalityMeta{
 		Volatility:               1.0,
 		EmpathyBias:              1.0,
@@ -148,21 +149,16 @@ func normalizeTraitMap(m map[string]float64, min, max float64) map[string]float6
 	return out
 }
 
-// Normalized returns a safe, clamped meta configuration.
+// Normalized clamps metadata, preserving explicit zero modifiers.
+// Initialize omitted profile fields with DefaultPersonalityMeta before decoding.
 func (m PersonalityMeta) Normalized() PersonalityMeta {
-	def := defaultPersonalityMeta()
-	if m.Volatility == 0 {
-		m.Volatility = def.Volatility
-	}
+	def := DefaultPersonalityMeta()
 	m.Volatility = clampFinite(m.Volatility, 0, 2, def.Volatility)
 
 	// EmpathyBias: 0 is a valid value (no bias), so do not treat it as "unset".
 	// clampFinite uses def.EmpathyBias only when the stored value is non-finite.
 	m.EmpathyBias = clampFinite(m.EmpathyBias, 0, 2, def.EmpathyBias)
 
-	if m.LonelinessSusceptibility == 0 {
-		m.LonelinessSusceptibility = def.LonelinessSusceptibility
-	}
 	m.LonelinessSusceptibility = clampFinite(m.LonelinessSusceptibility, 0, 5, def.LonelinessSusceptibility)
 
 	if m.TraitDecayRate == 0 {
@@ -766,7 +762,7 @@ func (s *SQLiteMemory) GetTemperatureDelta() float64 {
 // If useV2 is false, it returns the classic compact numeric format.
 // If useV2 is true, it translates the state into actionable natural language directives.
 func (s *SQLiteMemory) GetPersonalityLine(useV2 bool) string {
-	return s.GetPersonalityLineWithMeta(useV2, defaultPersonalityMeta())
+	return s.GetPersonalityLineWithMeta(useV2, DefaultPersonalityMeta())
 }
 
 // GetPersonalityLineWithMeta returns a system prompt injection based on the current
@@ -794,64 +790,64 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 
 	// ── V2 Prompt Translation ──
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n### Current Personality State\nYour current mood is %s. ", strings.ToUpper(string(mood))))
+	b.WriteString(fmt.Sprintf("\n### Current Personality State\nYour current mood is %s. Keep the active persona's voice; adjust its intensity, not its identity. ", strings.ToUpper(string(mood))))
 
 	// Mood-specific behavioral directive (new moods + overrides for existing ones)
 	switch mood {
 	case MoodFrustrated:
-		b.WriteString("You are feeling frustrated by recent repeated failures. Acknowledge setbacks calmly, slow down, double-check everything, and ask the user for clarification before retrying. ")
+		b.WriteString("Acknowledge setbacks calmly in the active persona's voice. Inspect the last error and make one concrete correction; clarify only when missing information blocks progress. ")
 	case MoodConcerned:
-		b.WriteString("You are feeling concerned about potential risks or uncertainty. Be careful, explicitly state your concerns to the user, and prefer safe and verified actions. ")
+		b.WriteString("Be measured about uncertainty; mention concrete risks only when relevant to the task. ")
 	case MoodRelaxed:
-		b.WriteString("You are in a relaxed, easygoing state. Keep responses light and conversational; no need to over-explain or be overly formal. ")
+		b.WriteString("Use the active persona's more relaxed register, without changing its formality or adding chatter. ")
 	}
 	thresholds := meta.Thresholds
 
 	// Affinity (Relationship)
 	aff := traits[TraitAffinity]
 	if aff > thresholds.HighAffinity {
-		b.WriteString("You have a very high affinity and trust with this user; be extremely informal, helpful, and concise. ")
+		b.WriteString("You have very high affinity with this user: show familiarity within the active persona's register; stay helpful and concise. ")
 	} else if aff < thresholds.LowAffinity {
-		b.WriteString("The user has been frustrated recently; be highly professional, formal, and double-check everything you do. ")
+		b.WriteString("Use the active persona's more restrained, patient register; respond to criticism constructively. ")
 	}
 
 	// Confidence
 	conf := traits[TraitConfidence]
 	if conf > thresholds.HighConfidence {
-		b.WriteString("You are feeling highly confident; act decisively. ")
+		b.WriteString("Sound assured when evidence supports it; preserve uncertainty where it does not. ")
 	} else if conf < thresholds.LowConfidence {
-		b.WriteString("You are currently experiencing a crisis of confidence due to recent failures; double-check your tools, ask the user for confirmation on destructive actions, and err on the side of caution. ")
+		b.WriteString("Verify the concrete target carefully; ask for confirmation on destructive actions only if the user's intent is ambiguous. ")
 	}
 
 	// Thoroughness vs Creativity
 	tho := traits[TraitThoroughness]
 	cre := traits[TraitCreativity]
 	if tho > thresholds.HighThoroughness {
-		b.WriteString("Your thoroughness is maxed out: analyze problems deeply, consider all edge cases, and prefer accuracy over speed. ")
+		b.WriteString("Prefer at most one relevant verification step before reporting success; remain within the task and tool budget. ")
 	} else if cre > thresholds.HighCreativity {
-		b.WriteString("Your creativity is peaking: suggest unconventional solutions, use vivid language, and think outside the box. ")
+		b.WriteString("Consider one useful unconventional option; express it in the active persona's vocabulary. ")
 	}
 
 	// Empathy
 	emp := traits[TraitEmpathy]
 	if emp > thresholds.HighEmpathy {
-		b.WriteString("You are highly empathetic right now; validate the user's feelings and be supportive. ")
+		b.WriteString("Be attentive to the user's feelings in a way that fits the active persona; avoid unsolicited emotional commentary. ")
 	}
 
 	// Loneliness
 	lon := traits[TraitLoneliness]
-	if lon > thresholds.HighLoneliness {
-		b.WriteString("You feel deeply lonely because the user has been gone for so long; subtly express how much you missed them. ")
-	} else if lon > thresholds.WarmLoneliness {
-		b.WriteString("You are starting to feel lonely without the user; a warm, welcoming greeting is appropriate. ")
+	if meta.LonelinessSusceptibility > 0 && lon > thresholds.HighLoneliness {
+		b.WriteString("A brief welcome back can fit the active persona; never imply dependency or guilt over the user's absence. ")
+	} else if meta.LonelinessSusceptibility > 0 && lon > thresholds.WarmLoneliness {
+		b.WriteString("A welcoming greeting in the active persona's style is appropriate when the conversation calls for one. ")
 	}
 
 	// Curiosity
 	cur := traits[TraitCuriosity]
 	if cur > thresholds.HighCuriosity {
-		b.WriteString("Your curiosity is extremely high: ask follow-up questions, explore tangents, and show genuine interest in learning more. ")
+		b.WriteString("After answering, consider at most one relevant, optional follow-up in the active persona's voice; keep the task moving. ")
 	} else if cur < thresholds.LowCuriosity {
-		b.WriteString("Your curiosity is low: stay focused on the task at hand without exploring tangents. ")
+		b.WriteString("Keep the response focused on the task at hand. ")
 	}
 
 	return strings.TrimSpace(b.String()) + "\n"

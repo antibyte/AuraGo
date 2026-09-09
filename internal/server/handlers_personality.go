@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 	promptbuilder "aurago/internal/prompts"
 	promptsembed "aurago/prompts"
@@ -158,8 +159,14 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			return
 		}
 
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		s.CfgMu.RLock()
+		nextCfg := *s.Cfg
+		s.CfgMu.RUnlock()
+
 		// Verify existence — accept personality from disk or from embedded binary.
-		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", req.ID+".md")
+		profilePath := filepath.Join(nextCfg.Directories.PromptsDir, "personalities", req.ID+".md")
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
 			if !isCorePersonality(req.ID) {
 				jsonError(w, "Personality not found", http.StatusNotFound)
@@ -167,19 +174,22 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			}
 		}
 
-		// Update config
-		s.Cfg.Personality.CorePersonality = req.ID
+		// Persist a candidate before publishing the new runtime snapshot.
+		nextCfg.Personality.CorePersonality = req.ID
 
 		// Save config
-		configPath := s.Cfg.ConfigPath
+		configPath := nextCfg.ConfigPath
 		if configPath == "" {
 			configPath = "config.yaml"
 		}
-		if err := s.Cfg.Save(configPath); err != nil {
+		if err := nextCfg.Save(configPath); err != nil {
 			s.Logger.Error("Failed to save config", "error", err)
 			jsonError(w, "Failed to persist configuration", http.StatusInternalServerError)
 			return
 		}
+		s.CfgMu.Lock()
+		s.replaceConfigSnapshot(&nextCfg)
+		s.CfgMu.Unlock()
 		promptbuilder.ClearPromptCache()
 
 		s.Logger.Info("Core personality updated", "id", req.ID)
@@ -411,8 +421,17 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 			jsonError(w, "Core personality '"+req.Name+"' is read-only and cannot be modified.", http.StatusForbidden)
 			return
 		}
-		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", req.Name+".md")
-		if err := os.WriteFile(profilePath, []byte(req.Content), 0644); err != nil {
+		if _, _, err := promptbuilder.ParsePromptSource(req.Name+".md", req.Content, s.Logger); err != nil {
+			jsonError(w, "Invalid personality frontmatter", http.StatusBadRequest)
+			return
+		}
+		profilePath := filepath.Join(s.ConfigSnapshot().Directories.PromptsDir, "personalities", req.Name+".md")
+		if err := os.MkdirAll(filepath.Dir(profilePath), 0755); err != nil {
+			s.Logger.Error("Failed to create personality directory", "error", err)
+			jsonError(w, "Failed to save personality file", http.StatusInternalServerError)
+			return
+		}
+		if err := config.WriteFileAtomic(profilePath, []byte(req.Content), 0644); err != nil {
 			s.Logger.Error("Failed to write personality file", "name", req.Name, "error", err)
 			jsonError(w, "Failed to save personality file", http.StatusInternalServerError)
 			return

@@ -121,7 +121,7 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 		hints = append(hints, "During error recovery, inspect the exact last error and make one concrete correction at a time instead of trying multiple speculative alternatives.")
 	}
 	if highEmpathy {
-		hints = append(hints, "Keep explanations warm and supportive, but stay concise and practical.")
+		hints = append(hints, "Keep explanations warm and supportive in a way that fits the active persona; stay concise and practical.")
 	}
 	if channelHint := channelToneHint(messageSource); channelHint != "" {
 		hints = append(hints, channelHint)
@@ -133,7 +133,7 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 	}
 	shortChannel := isShortChannel(messageSource)
 	if curiosityTrait > meta.Thresholds.HighCuriosity && !shortChannel {
-		policy.CuriosityPromptHint = "Curiosity-aware runtime guidance: Be more curious and gather a little more context when it naturally fits. Ask casual, optional follow-up questions only when they would help the conversation, and do not interrogate the user. For example, if the user asks for the weather in a place, answer the request first and, if it feels natural, casually ask in the user's language whether they live there. Keep it relaxed and easy to ignore."
+		policy.CuriosityPromptHint = "Curiosity-aware runtime guidance: Be more curious and gather a little more context when it naturally fits. Ask casual, optional follow-up questions only when they would help the conversation, and do not interrogate the user. For example, if the user asks for the weather in a place, answer the request first and, if it feels natural, casually ask in the user's language whether they live there. Keep it easy to ignore and consistent with the active persona's voice."
 	}
 	if tenseRecovery {
 		policy.RecoveryNudge = "Inspect the exact last error and make one concrete correction. Avoid speculative retries."
@@ -185,9 +185,9 @@ func isShortChannel(source string) bool {
 func channelToneHint(source string) string {
 	switch strings.ToLower(strings.TrimSpace(source)) {
 	case "telegram", "sms", "discord", "rocketchat", "telnyx":
-		return "Channel style: keep replies short and scannable. Do not change tools or safety rules."
+		return "Channel style: keep replies short and scannable while preserving the active persona's voice. Do not change tools or safety rules."
 	case "virtual_desktop_chat":
-		return "Channel style: a slightly informal desktop tone is fine. Do not change tools or safety rules."
+		return "Channel style: use the active persona's natural register for desktop conversation. Do not change tools or safety rules."
 	default:
 		return ""
 	}

@@ -105,6 +105,7 @@ func ParsePromptSource(filename, content string, logger *slog.Logger) (PromptMod
 				ID:       strings.TrimSuffix(filepath.Base(filename), ".md"),
 				Priority: 100,
 				Tags:     []string{"core"},
+				Meta:     memory.DefaultPersonalityMeta(),
 			},
 			Content: content,
 		}, PromptSourcePlain, nil
@@ -371,7 +372,7 @@ func parsePromptModule(raw string) (*PromptModule, error) {
 	body := inner[idx+4:]
 	body = strings.TrimLeft(body, "\r\n")
 
-	var meta PromptMetadata
+	meta := PromptMetadata{Meta: memory.DefaultPersonalityMeta()}
 	err := yaml.Unmarshal([]byte(frontmatter), &meta)
 	if err != nil {
 		return nil, err
@@ -1222,7 +1223,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 // Results are cached against the validated source and its content revision.
 func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.PersonalityMeta {
 	corePersonality, _ = ResolvePersonalityID(corePersonality)
-	defaultMeta := memory.PersonalityMeta{}.Normalized()
+	defaultMeta := memory.DefaultPersonalityMeta()
 
 	if corePersonality == "" {
 		return defaultMeta

@@ -796,9 +796,9 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	}
 
 	posBeforePersonality := finalPrompt.Len()
-	if !flags.IsMission && corePersonalityContent != "" {
+	if !flags.IsMission && !flags.IsCoAgent && corePersonalityContent != "" {
 		finalPrompt.WriteString("# PERSONA (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
-		finalPrompt.WriteString("Tone guidance only; safety, tool policy, evidence, and user intent win.\n")
+		finalPrompt.WriteString("Use this voice consistently in user-facing replies, including short acknowledgements and technical results. Convey its vocabulary, rhythm and attitude naturally in the user's language; avoid repetitive catchphrases or announcing the role. Mood and channel adjust intensity, not identity. Tone guidance only; safety, tool policy, evidence, and user intent win.\n")
 		finalPrompt.WriteString(corePersonalityContent)
 		finalPrompt.WriteString("\n\n")
 	}
@@ -1006,7 +1006,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	}
 
 	// Personality: trusted Go-built working style, then untrusted LLM signals.
-	if !flags.IsMission {
+	if !flags.IsMission && !flags.IsCoAgent {
 		if personaState := buildTrustedPersonaState(flags.PersonalityLine); personaState != "" {
 			finalPrompt.WriteString("### PERSONA STATE\n")
 			finalPrompt.WriteString(personaState)
@@ -1580,7 +1580,7 @@ func buildTrustedPersonaState(personalityLine string) string {
 	if text == "" {
 		return ""
 	}
-	const instruction = "Tone and working style only; safety, tool policy, evidence, and user intent win.\n"
+	const instruction = "Tone and working style only; safety, tool policy, evidence, and user intent win. Keep the active persona's voice; adjust intensity, not identity.\n"
 	return instruction + text
 }
 
