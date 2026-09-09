@@ -47,21 +47,17 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-start-button {
-    border-radius: 13px;
-    transform: translateY(-3px);
-    background: var(--vd-shell-context-menu-bg);
+    border-radius: 9px;
+    transform: none;
+    background: var(--vd-theme-control-bg);
     border: 1px solid var(--vd-shell-context-menu-border);
-    box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    box-shadow: inset 0 1px 0 var(--vd-border);
 }
 
 .desktop-body[data-theme="standard"] .vd-start-button:hover {
-    transform: translateY(-5px);
-    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.09));
-    box-shadow:
-        0 12px 32px rgba(0, 0, 0, 0.34),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transform: none;
+    background: var(--vd-theme-control-hover);
+    box-shadow: inset 0 1px 0 var(--vd-border-bright);
 }
 
 /* Subtle inner-top shine */
@@ -484,13 +480,13 @@
 }
 
 .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-dock-button {
-    animation: vd-dock-pop-fruity 360ms cubic-bezier(0.16, 1.18, 0.28, 1) backwards;
+    animation: vd-dock-pop-fruity 220ms cubic-bezier(0.16, 1.18, 0.28, 1) backwards;
     animation-delay: calc(var(--dock-index, 0) * 18ms);
 }
 
 .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-dock-button.running .vd-dock-icon,
 .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-dock-button.active .vd-dock-icon {
-    animation: vd-dock-icon-pulse-fruity 320ms cubic-bezier(0.16, 1.18, 0.28, 1);
+    animation: vd-dock-icon-pulse-fruity 220ms cubic-bezier(0.16, 1.18, 0.28, 1);
 }
 
 @keyframes vd-task-pop-standard {
@@ -567,9 +563,9 @@
     }
 }
 
-/* Premium floating island taskbar on touch-like compact devices */
+/* Compact touch taskbar; Fruity keeps its separate dock layout. */
 @media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
-    .vd-taskbar {
+    .desktop-body:not([data-theme="fruity"]) .vd-taskbar {
         position: fixed;
         left: 50%;
         right: auto;

@@ -54,11 +54,11 @@
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
     border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-lg);
+    border-radius: 14px;
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
-    backdrop-filter: blur(44px) saturate(160%);
-    -webkit-backdrop-filter: blur(44px) saturate(160%);
+    backdrop-filter: var(--vd-theme-blur);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
     z-index: var(--vd-z-menu);
     overflow: hidden;
 }
@@ -80,11 +80,9 @@
     bottom: calc(var(--vd-fruity-dock-reserve, 96px) + env(safe-area-inset-bottom, 0px));
     width: min(720px, calc(100vw - 64px));
     max-height: min(560px, calc(100vh - 150px));
-    border-color: rgba(255, 255, 255, 0.32);
-    border-radius: 28px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.34)),
-        rgba(255, 255, 255, 0.28);
+    border-color: var(--vd-theme-border);
+    border-radius: 18px;
+    background: var(--vd-theme-panel-bg-strong);
     box-shadow:
         0 34px 90px rgba(52, 64, 84, 0.24),
         inset 0 1px 0 rgba(255, 255, 255, 0.74);
@@ -149,16 +147,18 @@
     align-items: center;
     gap: 10px;
     border: 0;
-    border-radius: var(--ds-radius-md);
+    border-radius: 6px;
     background: transparent;
     color: var(--vd-text);
-    padding: 9px;
+    padding: 7px 10px;
     text-align: left;
     cursor: pointer;
     transition:
         background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
         border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
         transform var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+
+    font-size: 13px;
 }
 
 .vd-start-item:focus-visible {

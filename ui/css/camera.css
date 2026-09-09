@@ -348,12 +348,12 @@
     position: relative;
     z-index: 12;
     display: grid;
-    gap: 10px;
-    padding: 14px 18px 12px;
+    gap: 8px;
+    padding: 10px 16px;
     border-top: 1px solid var(--cam-line);
     background: var(--cam-glass-strong);
-    backdrop-filter: blur(24px);
-    box-shadow: var(--cam-shadow);
+    backdrop-filter: none;
+    box-shadow: 0 -1px 0 rgba(255,255,255,.04);
 }
 
 .camera-dock-live {
@@ -392,21 +392,23 @@
     gap: 2px;
     padding: 3px;
     border: 1px solid var(--cam-line);
-    border-radius: 999px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
 }
 
 .camera-mode button {
     border: 0;
-    border-radius: 999px;
+    border-radius: 5px;
     background: transparent;
     color: var(--cam-text-muted);
     cursor: pointer;
     font: inherit;
-    font-size: 0.72rem;
+    font-size: 12px;
     letter-spacing: 0.02em;
     padding: 5px 16px;
     transition: background 160ms ease, color 160ms ease;
+
+    min-height: 28px;
 }
 
 .camera-mode button.is-active {
@@ -431,12 +433,12 @@
     height: 38px;
     padding: 0 10px;
     border: 1px solid var(--cam-line);
-    border-radius: 12px;
+    border-radius: 7px;
     background: rgba(255, 255, 255, 0.05);
     color: var(--cam-text-muted);
     cursor: pointer;
     font: inherit;
-    font-size: 0.72rem;
+    font-size: 12px;
     font-variant-numeric: tabular-nums;
     transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 150ms ease;
 }
@@ -469,11 +471,11 @@
     max-width: 190px;
     padding: 0 10px;
     border: 1px solid var(--cam-line);
-    border-radius: 12px;
+    border-radius: 7px;
     background: rgba(255, 255, 255, 0.05);
     color: var(--vd-text);
     font: inherit;
-    font-size: 0.72rem;
+    font-size: 12px;
     outline: none;
     text-overflow: ellipsis;
 }

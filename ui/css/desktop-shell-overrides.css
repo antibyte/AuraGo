@@ -2,30 +2,30 @@
 
 /* === Theme material bridge: keep shell, apps, modals and toasts visually aligned === */
 .desktop-body[data-theme="standard"] {
-    --vd-theme-app-bg: rgba(17, 24, 39, 0.88);
-    --vd-theme-panel-bg: rgba(11, 15, 24, 0.92);
-    --vd-theme-panel-bg-strong: rgba(18, 25, 38, 0.96);
-    --vd-theme-chrome-bg: rgba(13, 18, 28, 0.94);
+    --vd-theme-app-bg: #20252d;
+    --vd-theme-panel-bg: #262c35;
+    --vd-theme-panel-bg-strong: rgba(37, 43, 53, 0.97);
+    --vd-theme-chrome-bg: rgba(37, 43, 52, 0.94);
     --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
     --vd-theme-control-bg: rgba(255, 255, 255, 0.075);
     --vd-theme-control-hover: rgba(255, 255, 255, 0.12);
     --vd-theme-border: rgba(255, 255, 255, 0.12);
     --vd-theme-border-strong: rgba(255, 255, 255, 0.18);
-    --vd-theme-muted: #a8b3c4;
+    --vd-theme-muted: #aeb7c6;
     --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
     --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
     --vd-theme-radius-panel: 10px;
-    --vd-theme-radius-modal: 12px;
-    --vd-theme-shadow-panel: 0 24px 64px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --vd-theme-radius-modal: 14px;
+    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
     --vd-theme-shadow-modal: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
-    --vd-theme-blur: blur(28px) saturate(1.22);
+    --vd-theme-blur: blur(24px) saturate(1.15);
 }
 
 .desktop-body[data-theme="fruity"] {
-    --vd-theme-app-bg: rgba(255, 255, 255, 0.46);
-    --vd-theme-panel-bg: rgba(255, 255, 255, 0.58);
-    --vd-theme-panel-bg-strong: rgba(255, 255, 255, 0.78);
-    --vd-theme-chrome-bg: rgba(249, 251, 255, 0.72);
+    --vd-theme-app-bg: #f8f9fb;
+    --vd-theme-panel-bg: #f0f2f6;
+    --vd-theme-panel-bg-strong: rgba(249, 250, 253, 0.96);
+    --vd-theme-chrome-bg: rgba(236, 239, 246, 0.88);
     --vd-theme-overlay-bg: rgba(34, 47, 70, 0.28);
     --vd-theme-control-bg: rgba(255, 255, 255, 0.42);
     --vd-theme-control-hover: rgba(255, 255, 255, 0.64);
@@ -34,43 +34,45 @@
     --vd-theme-muted: #4f5a73;
     --vd-theme-accent-soft: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.12);
     --vd-theme-accent-border: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.26);
-    --vd-theme-radius-panel: 14px;
+    --vd-theme-radius-panel: 12px;
     --vd-theme-radius-modal: 18px;
-    --vd-theme-shadow-panel: 0 24px 58px rgba(52, 64, 84, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
     --vd-theme-shadow-modal: 0 34px 84px rgba(52, 64, 84, 0.24), 0 8px 24px rgba(52, 64, 84, 0.12);
-    --vd-theme-blur: blur(34px) saturate(1.35);
+    --vd-theme-blur: blur(28px) saturate(1.2);
+
+    font-family: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
-        --vd-theme-app-bg: rgba(24, 30, 42, 0.78);
-        --vd-theme-panel-bg: rgba(24, 30, 42, 0.84);
-        --vd-theme-panel-bg-strong: rgba(31, 38, 52, 0.9);
-        --vd-theme-chrome-bg: rgba(38, 44, 58, 0.76);
+        --vd-theme-app-bg: #23252c;
+        --vd-theme-panel-bg: #2b2d35;
+        --vd-theme-panel-bg-strong: rgba(43, 45, 54, 0.97);
+        --vd-theme-chrome-bg: rgba(47, 49, 59, 0.9);
         --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
         --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
         --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
         --vd-theme-border: rgba(255, 255, 255, 0.13);
         --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
         --vd-theme-muted: #a1a1aa;
-        --vd-theme-shadow-panel: 0 26px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
         --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
     }
 }
 
 /* Explicit fruity dark mode must flip the same tokens even on a light OS */
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] {
-    --vd-theme-app-bg: rgba(24, 30, 42, 0.78);
-    --vd-theme-panel-bg: rgba(24, 30, 42, 0.84);
-    --vd-theme-panel-bg-strong: rgba(31, 38, 52, 0.9);
-    --vd-theme-chrome-bg: rgba(38, 44, 58, 0.76);
+    --vd-theme-app-bg: #23252c;
+    --vd-theme-panel-bg: #2b2d35;
+    --vd-theme-panel-bg-strong: rgba(43, 45, 54, 0.97);
+    --vd-theme-chrome-bg: rgba(47, 49, 59, 0.9);
     --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
     --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
     --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
     --vd-theme-border: rgba(255, 255, 255, 0.13);
     --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
     --vd-theme-muted: #a1a1aa;
-    --vd-theme-shadow-panel: 0 26px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
     --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
 }
 
@@ -146,7 +148,7 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-content {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 42%), var(--vd-theme-app-bg);
+    background: var(--vd-theme-app-bg);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-titlebar,

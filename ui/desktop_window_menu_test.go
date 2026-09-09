@@ -367,8 +367,8 @@ func TestDesktopWindowMenuDoesNotRenderMojibakeArrows(t *testing.T) {
 			t.Fatalf("desktop window menu source contains mojibake marker %q", forbidden)
 		}
 	}
-	if !strings.Contains(source, `vd-window-menu-arrow">&rsaquo;</span>`) {
-		t.Fatalf("desktop window menu should render submenu arrow with an HTML entity")
+	if !strings.Contains(source, `vd-window-menu-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span>`) {
+		t.Fatalf("desktop window menu should render submenu arrow with the shared symbol sprite")
 	}
 }
 

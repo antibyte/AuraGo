@@ -104,7 +104,6 @@
     .cs-toolbar,
     .cs-statusbar,
     .vd-settings-sidebar,
-    .vd-setting-row,
     .vd-chat-form,
     .vd-chat-sidebar,
     .vd-store-sidebar,
@@ -157,7 +156,6 @@
     .cs-toolbar,
     .cs-statusbar,
     .vd-settings-sidebar,
-    .vd-setting-row,
     .vd-chat-form,
     .vd-chat-sidebar,
     .vd-store-sidebar,
@@ -896,27 +894,10 @@
     box-shadow: inset 3px 0 0 var(--vd-accent);
 }
 
-.desktop-body[data-theme="standard"] .vd-setting-row {
-    border-radius: 10px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
 
-.desktop-body[data-theme="standard"] .vd-setting-row:hover {
-    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 8%) !important;
-}
 
-.desktop-body[data-theme="fruity"] .vd-setting-row {
-    border-radius: 12px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
-}
 
-.desktop-body[data-theme="fruity"] .vd-setting-row:hover {
-    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 14%) !important;
-}
 
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-setting-row {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
 
 .desktop-body[data-theme="standard"] :where(
     .vd-todo-card,
@@ -996,7 +977,6 @@
 ) {
     border-color: var(--vd-theme-border);
     color: var(--vd-text);
-    box-shadow: var(--vd-theme-shadow-panel);
 }
 
 .desktop-body[data-theme="standard"] :where(.vd-chat-form, .vd-chat-composer) {
@@ -1034,4 +1014,27 @@
 .desktop-body[data-theme="fruity"] .fm-list-row.selected,
 .desktop-body[data-theme="fruity"] .vd-file-row.selected {
     background: rgba(10, 132, 255, 0.12) !important;
+}
+
+
+.desktop-body .vd-window-content :where(button, input, select, textarea) { font-family: inherit; }
+.desktop-body .vd-window-content :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--vd-accent);
+    outline-offset: 2px;
+}
+.desktop-body .vd-window-content :where(.vd-toolbar, .office-toolbar, .fm-toolbar, .vd-gallery-toolbar) {
+    padding: var(--vd-toolbar-padding);
+    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-theme-border);
+    gap: 6px;
+}
+.desktop-body .vd-window-content :where(.vd-tool-button, .vd-button, .fm-btn, .office-toolbar button) {
+    min-height: var(--vd-control-height);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    box-shadow: inset 0 1px 0 var(--vd-border);
+}
+.desktop-body .vd-window-content :where(.vd-setting-row, .vd-settings-nav, .vd-settings-pane) {
+    box-shadow: none !important;
 }

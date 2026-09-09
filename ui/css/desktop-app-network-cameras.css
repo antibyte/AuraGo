@@ -20,7 +20,11 @@
     display: grid;
     gap: 14px;
     grid-template-columns: minmax(180px, auto) minmax(180px, 1fr) auto;
-    padding: 12px 16px;
+    padding: var(--vd-toolbar-padding);
+
+    background: var(--vd-theme-chrome-bg);
+
+    min-height: 42px;
 }
 
 .nc-brand,
@@ -175,11 +179,13 @@
 .nc-card {
     background: var(--nc-panel);
     border: 1px solid var(--nc-border);
-    border-radius: 12px;
+    border-radius: 8px;
     min-width: 0;
     overflow: hidden;
     position: relative;
     transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+
+    box-shadow: none;
 }
 .nc-card:hover { border-color: color-mix(in srgb, var(--nc-accent) 45%, var(--nc-border)); transform: translateY(-1px); }
 .nc-card.is-selected { border-color: var(--nc-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--nc-accent) 16%, transparent); }

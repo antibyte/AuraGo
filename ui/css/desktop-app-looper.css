@@ -12,7 +12,7 @@
 
 /* ── Header / Toolbar ── */
 .vd-looper-header {
-    padding: 10px 14px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--vd-theme-border);
     background: var(--vd-theme-chrome-bg);
     flex-shrink: 0;
@@ -145,6 +145,8 @@
     min-width: 220px;
     flex-shrink: 0;
     overflow-y: auto;
+
+    background: var(--vd-theme-panel-bg);
 }
 
 .vd-looper-step-btn {
@@ -226,8 +228,12 @@
 .vd-looper-editor-header {
     font-size: 13px;
     font-weight: 700;
-    padding: 2px 4px;
+    padding: 8px 12px;
     flex-shrink: 0;
+
+    border-radius: 0;
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-looper-editor textarea {

@@ -241,7 +241,9 @@
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    padding: 16px 26px 6px;
+    padding: 6px 12px;
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .sip-phone-clock {
@@ -431,13 +433,17 @@
     align-items: baseline;
     justify-content: space-between;
     margin: 6px 2px 12px;
+
+    padding: 12px 16px;
+
+    gap: 12px;
 }
 
 .sip-phone-view-header h2 {
     margin: 0;
-    font-size: 1.52rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -.02em;
 }
 
 .sip-phone-view-header > span {
@@ -1088,12 +1094,14 @@
 
 .sip-phone-card {
     margin: 0 0 14px;
-    padding: 14px 16px;
+    padding: 16px;
     border: 1px solid var(--sip-card-border);
-    border-radius: 20px;
+    border-radius: 10px;
     background: var(--sip-card);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+
+    box-shadow: none;
 }
 
 .sip-phone-card h3 {

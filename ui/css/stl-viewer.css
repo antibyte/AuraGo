@@ -8,10 +8,7 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    background:
-        radial-gradient(circle at 24% 18%, rgba(128, 182, 255, 0.22), transparent 32%),
-        radial-gradient(circle at 78% 75%, rgba(86, 214, 188, 0.16), transparent 34%),
-        linear-gradient(145deg, rgba(8, 13, 24, 0.94), rgba(19, 26, 41, 0.98));
+    background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--vd-theme-panel-bg) 90%, #7792ad), var(--vd-theme-app-bg));
 }
 
 .vd-viewer-3d-stage::after,

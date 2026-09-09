@@ -148,8 +148,8 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.25rem .75rem;
+    gap: 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--cheater-border);
     background: rgba(255, 255, 255, 0.02);
 }
@@ -177,9 +177,11 @@
 .cheater-library-toolbar {
     display: flex;
     align-items: center;
-    gap: .75rem;
-    padding: .75rem 1.25rem;
+    gap: 8px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--cheater-border);
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .cheater-library-search {
@@ -239,20 +241,20 @@
 
 .cheater-library-card-btn {
     width: 100%;
-    min-height: 8.5rem;
+    min-height: 110px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: .45rem;
-    padding: .9rem 1rem 1rem;
-    border-radius: 12px;
+    padding: 12px;
+    border-radius: 8px;
     border: 1px solid var(--cheater-border);
     background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)), var(--cheater-surface-elevated);
     color: inherit;
     text-align: left;
     cursor: pointer;
     transition: border-color 200ms ease, transform 120ms ease, box-shadow 200ms ease;
-    box-shadow: 0 10px 24px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.05);
+    box-shadow: none;
 }
 
 .cheater-library-card-btn:hover {

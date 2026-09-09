@@ -355,12 +355,15 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
+        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
             api('/img/papirus/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
-            api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
+            api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
+            api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
+        state.miniIconManifest = miniManifest;
+        refreshMiniIconTheme();
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
         state.iconThemeManifests = {
             papirus: defaultThemeManifest,
@@ -442,7 +445,11 @@
         return `<span class="${esc(className)}" aria-hidden="true" style="--vd-sprite-x:${x}px;--vd-sprite-y:${y}px;--vd-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
     }
 
-    function iconMarkup(key, fallback, className, size) {
+    function iconMarkup(key, fallback, className, size, usage) {
+        if (usage === 'action' || (!usage && miniIconRole(className))) {
+            const miniature = miniIconMarkup(key, className, size);
+            if (miniature) return miniature;
+        }
         const logoPath = String(key || '').startsWith('logo:') ? String(key).slice(5).replace(/[\r\n"<>]/g, '').trim() : '';
         if (logoPath) {
             const pixels = Number(size || 42) || 42;
@@ -637,6 +644,7 @@
         const sizes = { small: 34, medium: 42, large: 52 };
         body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
         refreshThemeIconElements(document);
+        refreshMiniIconTheme();
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.sync === 'function') window.SipPhoneGadget.sync();
@@ -715,6 +723,7 @@
      */
 
     function updateViewportMetrics() {
+        syncDesktopMenuBar();
         const visual = window.visualViewport;
         const height = visual && visual.height ? visual.height : window.innerHeight;
         document.documentElement.style.setProperty('--vd-visual-height', Math.max(1, Math.round(height)) + 'px');

@@ -587,12 +587,15 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
+        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
             api('/img/papirus/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
-            api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
+            api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
+            api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
+        state.miniIconManifest = miniManifest;
+        refreshMiniIconTheme();
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
         state.iconThemeManifests = {
             papirus: defaultThemeManifest,
@@ -674,7 +677,11 @@
         return `<span class="${esc(className)}" aria-hidden="true" style="--vd-sprite-x:${x}px;--vd-sprite-y:${y}px;--vd-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
     }
 
-    function iconMarkup(key, fallback, className, size) {
+    function iconMarkup(key, fallback, className, size, usage) {
+        if (usage === 'action' || (!usage && miniIconRole(className))) {
+            const miniature = miniIconMarkup(key, className, size);
+            if (miniature) return miniature;
+        }
         const logoPath = String(key || '').startsWith('logo:') ? String(key).slice(5).replace(/[\r\n"<>]/g, '').trim() : '';
         if (logoPath) {
             const pixels = Number(size || 42) || 42;
@@ -869,6 +876,7 @@
         const sizes = { small: 34, medium: 42, large: 52 };
         body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
         refreshThemeIconElements(document);
+        refreshMiniIconTheme();
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.sync === 'function') window.SipPhoneGadget.sync();
@@ -947,6 +955,7 @@
      */
 
     function updateViewportMetrics() {
+        syncDesktopMenuBar();
         const visual = window.visualViewport;
         const height = visual && visual.height ? visual.height : window.innerHeight;
         document.documentElement.style.setProperty('--vd-visual-height', Math.max(1, Math.round(height)) + 'px');
@@ -1928,6 +1937,136 @@
         if (typeof injectRadialMenu === 'function') injectRadialMenu();
         if (typeof initRadialMenu === 'function') initRadialMenu();
         return anchor;
+    }
+
+;
+/* ui/js/desktop/core/mini-icons-runtime.js */
+    // Action roles are semantic: a 16px taskbar logo is still an app icon.
+    const MINI_SYMBOLS = new Set(["chevron-left","chevron-right","chevron-up","chevron-down","arrow-up","arrow-down","plus","minus","x","check","square","check-square","maximize","restore","refresh","undo","redo","menu","list","sort","play","pause","stop","external","eye","eye-off","zoom-in","zoom-out","grid","columns","layout","keyboard","contrast","mesh"]);
+    const MINI_ALIASES = {
+        'arrow-left': 'chevron-left', back: 'chevron-left', 'arrow-right': 'chevron-right',
+        'folder-open': 'folder', documents: 'file', 'file-text': 'file', paste: 'clipboard',
+        cut: 'scissors', delete: 'trash', 'trash-empty': 'trash', 'trash-full': 'trash',
+        'gallery-action-delete': 'trash', 'gallery-action-download': 'download',
+        'gallery-action-edit': 'edit', 'gallery-action-preview': 'eye', 'check_square': 'check-square',
+        'agent-chat': 'chat', agent: 'chat', 'message-square': 'chat', attach: 'attachment',
+        audio: 'music', 'audio-player': 'music', 'music-player': 'music', volume: 'speaker',
+        'volume-2': 'speaker', lock: 'shield', 'unlock': 'key', tools: 'sliders',
+        widgets: 'layout', launchpad: 'apps', desktop: 'monitor',
+        browser: 'globe', 'theme-threedee': 'cube', 'code-studio': 'code', cheater: 'notes',
+        'file-code': 'code', 'file-archive': 'archive',
+        'git-branch': 'network', 'git-commit': 'code', 'git-merge': 'network',
+        'settings-2': 'sliders', 'user': 'users', 'image-plus': 'image', 'pencil': 'edit',
+        'hard-drive': 'server', 'refresh-cw': 'refresh', 'rotate-cw': 'refresh',
+        'rotate-ccw': 'undo', 'maximize-2': 'maximize', 'minimize': 'minus',
+        'more-horizontal': 'menu', 'more-vertical': 'menu', 'check-circle': 'check',
+        'file-minus': 'file', 'external-link': 'external', 'zoom-reset': 'search'
+    };
+    function miniIconRole(className) {
+        return /(?:^|\s)(?:vd-(?:tool|context-papirus|window-menu-papirus|settings-nav|settings-pane-papirus|settings-hamburger|modal-action|window-ai-button|quickchat-send|dock-scroll|todo-action|calendar-(?:action|mini)|gallery-action|chess-action|chat-(?:toolbar|sidebar|scroll|voice|send|context)|qc-(?:btn|filter|close|input)|launchpad-action|store-(?:btn|terminal-action|terminal-tab-close)|hp-(?:btn|send)|viewer-action)|fm-(?:btn|search|sort-indicator|drop|context)|cs-(?:button|icon-button|file-action|tab-close)|pixel-toolbar|oscad-btn|camera-btn)-icon(?:\s|$)/.test(String(className || ''));
+    }
+    function miniIconName(key) {
+        const name = normalizeIconName(key).replace(/^(?:papirus|whitesur):/, '').replace(/_/g, '-').replace(/-symbolic$/, '');
+        return MINI_ALIASES[name] || name;
+    }
+    function miniIconMarkup(key, className, size) {
+        const name = miniIconName(key);
+        const pixels = Math.max(8, Math.min(64, Number(size) || 16));
+        if (MINI_SYMBOLS.has(name)) {
+            return '<svg class="' + esc(className) + ' vd-mini-symbol" aria-hidden="true" focusable="false" width="' + pixels + '" height="' + pixels + '"><use href="' + esc(versionedIconAssetPath('/img/desktop-mini/symbols.svg')) + '#' + name + '"></use></svg>';
+        }
+        const manifest = state.miniIconManifest, icon = manifest && manifest.icons && manifest.icons[name];
+        if (!icon) return '';
+        const scale = pixels / manifest.icon_size;
+        return '<span class="' + esc(className) + ' vd-mini-icon" data-vd-mini-key="' + esc(name) + '" aria-hidden="true" style="width:' + pixels + 'px;height:' + pixels + 'px;--vd-mini-position:' + (-icon.x*scale) + 'px ' + (-icon.y*scale) + 'px;--vd-mini-size:' + manifest.width*scale + 'px ' + manifest.height*scale + 'px"></span>';
+    }
+    function refreshMiniIconTheme() {
+        const manifest = state.miniIconManifest;
+        if (!manifest || !manifest.images) return;
+        const path = manifest.images[isFruityTheme() ? 'fruity' : 'standard'];
+        if (path) document.body.style.setProperty('--vd-mini-sheet', iconUrlStyle(path));
+    }
+
+;
+/* ui/js/desktop/core/global-menu-runtime.js */
+    // Move the existing menu DOM; actions and shortcuts keep their window owner.
+    function windowMenuBar(windowId) {
+        const win = state.windows.get(windowId);
+        const local = win && win.element.querySelector('.vd-window-menubar');
+        if (local) return local;
+        const global = document.querySelector('#vd-global-menu-host > .vd-window-menubar');
+        return global && global.dataset.ownerWindow === windowId ? global : null;
+    }
+    function syncDesktopMenuBar() {
+        const enabled = isFruityTheme() && !isCompactViewport();
+        let top = document.getElementById('vd-global-bar');
+        const taskbar = document.querySelector('.vd-taskbar');
+        if (!taskbar) return;
+        if (!top && enabled) {
+            top = document.createElement('header');
+            top.id = 'vd-global-bar';
+            top.className = 'vd-global-bar';
+            top.innerHTML = '<button type="button" class="vd-global-brand" aria-label="' + esc(t('desktop.start_menu')) + '">A<span aria-hidden="true">✦</span></button><span class="vd-global-appname"></span><div id="vd-global-menu-host"></div>';
+            top.querySelector('.vd-global-brand').addEventListener('click', toggleStartMenu);
+            document.body.appendChild(top);
+        }
+        document.body.dataset.globalMenus = enabled ? 'true' : 'false';
+        if (!top) return;
+        top.hidden = !enabled;
+        const system = document.querySelector('.vd-taskbar-system');
+        const systemParent = enabled ? top : taskbar;
+        if (system && system.parentElement !== systemParent) systemParent.appendChild(system);
+        const active = state.windows.get(state.activeWindowId);
+        const visible = active && !active.minimized && !active.minimizing && !active.closing && isWindowOnActiveSpace(active);
+        const owner = enabled && visible ? active.id : '';
+        const host = top.querySelector('#vd-global-menu-host');
+        const old = host.querySelector('.vd-window-menubar');
+        if (old && old.dataset.ownerWindow !== owner) {
+            closeWindowMenu();
+            const previous = state.windows.get(old.dataset.ownerWindow);
+            if (previous && !previous.closing) previous.element.querySelector('.vd-window-titlebar').appendChild(old);
+            else old.remove();
+        }
+        state.windows.forEach(win => {
+            const menu = windowMenuBar(win.id);
+            const global = enabled && !!menu;
+            win.element.classList.toggle('has-global-menu', global);
+            if (menu && owner === win.id && menu.parentElement !== host) {
+                menu.dataset.ownerWindow = win.id;
+                host.appendChild(menu);
+            }
+        });
+        top.querySelector('.vd-global-appname').textContent = visible ? active.title : 'AuraGo';
+    }
+
+    function positionDesktopSubmenus(menu) {
+        menu.querySelectorAll('.vd-context-submenu, .vd-window-menu-submenu').forEach(item => {
+            const fit = () => {
+                const pop = item.querySelector(':scope > .vd-context-submenu-popover, :scope > .vd-window-menu-popover');
+                if (!pop) return;
+                pop.style.left = ''; pop.style.right = ''; pop.style.top = '';
+                const rect = pop.getBoundingClientRect();
+                if (rect.right > window.innerWidth - 8) { pop.style.left = 'auto'; pop.style.right = 'calc(100% + 4px)'; }
+                const placed = pop.getBoundingClientRect();
+                if (placed.left < 8) { pop.style.right = 'auto'; pop.style.left = (8 - item.getBoundingClientRect().left) + 'px'; }
+                const dy = Math.max(8 - placed.top, Math.min(0, window.innerHeight - 8 - placed.bottom));
+                pop.style.top = (-7 + dy) + 'px';
+            };
+            item.addEventListener('pointerenter', fit);
+            item.addEventListener('focusin', fit);
+        });
+    }
+
+
+    function fitWindowMenu(menu) {
+        const pop = menu.querySelector(':scope > .vd-window-menu-popover');
+        if (!pop) return;
+        // Fixed positioning escapes the compact menubar's horizontal scroll clip.
+        pop.style.position = isCompactViewport() ? 'fixed' : '';
+        pop.style.left = '0px'; pop.style.top = '0px';
+        const bounds = menu.getBoundingClientRect(), origin = pop.getBoundingClientRect();
+        pop.style.left = (Math.max(8, Math.min(bounds.left, innerWidth - origin.width - 8)) - origin.left) + 'px';
+        pop.style.top = (Math.max(8, Math.min(bounds.bottom + 4, innerHeight - origin.height - 8)) - origin.top) + 'px';
     }
 
 ;
@@ -5078,6 +5217,7 @@
     }
 
     function renderTaskbar() {
+        syncDesktopMenuBar();
         const host = $('vd-taskbar-apps');
         if (!host) return;
         host.classList.toggle('vd-dock', isFruityTheme());
@@ -5487,9 +5627,9 @@
                 <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
-                ${aiButtonMarkup('widget:' + safeWidgetId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
-                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>
-                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                ${aiButtonMarkup('widget:' + safeWidgetId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}">${iconMarkup('minus', '', 'vd-window-control-icon', 14, 'action')}</button>
+                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}">${iconMarkup('maximize', '', 'vd-window-control-icon', 14, 'action')}</button>
+                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
             </div>
         </header>
         <div class="vd-window-content" data-window-content><div class="vd-empty">${esc(t('desktop.loading'))}</div></div>
@@ -5626,9 +5766,11 @@
         win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
         win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
 
-        if (!isResizable || (isMobileMode && forceMaximized)) {
+        if (!isResizable) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';
+        }
+        if (!isResizable || (isMobileMode && forceMaximized)) {
             win.style.resize = 'none';
         }
         win.style.zIndex = String(++state.z);
@@ -5639,9 +5781,9 @@
                 <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
-                ${aiButtonMarkup(appId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
-                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>` : ''}
-                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                ${aiButtonMarkup(appId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}">${iconMarkup('minus', '', 'vd-window-control-icon', 14, 'action')}</button>
+                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}">${iconMarkup('maximize', '', 'vd-window-control-icon', 14, 'action')}</button>` : ''}
+                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
             </div>
         </header>
         <div class="vd-window-content" data-window-content></div>
@@ -10776,7 +10918,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">&rsaquo;</span></button>
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
@@ -10787,6 +10929,7 @@ function updateTaskbarSystemButtonsForMobile() {
         menu.className = 'vd-context-menu vd-scroll';
         menu.setAttribute('role', 'menu');
         menu.innerHTML = renderItems(items, []);
+        positionDesktopSubmenus(menu);
         menu.querySelectorAll('.vd-context-item').forEach((btn, idx) => btn.style.setProperty('--context-item-index', String(idx)));
         document.body.appendChild(menu);
         const usableBottom = contextMenuUsableBottom();
@@ -11435,7 +11578,7 @@ function modalDialog(options) {
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.widget_manager'))}</div>
                 <div class="vd-window-actions">
-                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
                 </div>
             </div>
             <div class="vd-wm-cards vd-scroll">${renderCards()}</div>
@@ -11529,7 +11672,7 @@ function modalDialog(options) {
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.app_manager'))}</div>
                 <div class="vd-window-actions">
-                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
                 </div>
             </div>
             <div class="vd-wm-cards vd-scroll">${renderCards()}</div>
@@ -11674,7 +11817,7 @@ function modalDialog(options) {
             if (item.type === 'submenu') {
                 return `<div class="vd-window-menu-submenu${disabled}" role="none">
                     <button type="button" class="vd-window-menu-item${checked}" role="menuitem" ${disabled ? 'disabled' : ''}>
-                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">&rsaquo;</span>
+                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span>
                     </button>
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
@@ -11696,9 +11839,10 @@ function modalDialog(options) {
         state.windowMenus.delete(windowId);
         if (!win || !win.element) return;
         win.element.classList.remove('has-window-menu');
-        const bar = win.element.querySelector('.vd-window-menubar');
+        const bar = windowMenuBar(windowId);
         if (bar) bar.remove();
         if (state.openWindowMenu && state.openWindowMenu.windowId === windowId) state.openWindowMenu = null;
+        syncDesktopMenuBar();
     }
 
     function renderWindowMenus(windowId) {
@@ -11712,19 +11856,22 @@ function modalDialog(options) {
         win.element.classList.toggle('has-window-menu', menus.length > 0);
         const titlebar = win.element.querySelector('.vd-window-titlebar');
         if (!titlebar) return;
-        let bar = titlebar.querySelector('.vd-window-menubar');
+        let bar = windowMenuBar(windowId);
         if (!menus.length) {
             if (bar) bar.remove();
+            syncDesktopMenuBar();
             return;
         }
         if (!bar) {
             titlebar.insertAdjacentHTML('beforeend', '<nav class="vd-window-menubar" role="menubar"></nav>');
             bar = titlebar.querySelector('.vd-window-menubar');
+            bar.dataset.ownerWindow = windowId;
         }
         bar.innerHTML = menus.map(menu => `<div class="vd-window-menu" data-menu-id="${esc(menu.id)}">
             <button type="button" class="vd-window-menu-button" role="menuitem" data-window-menu="${esc(menu.id)}">${esc(menuLabel(menu))}</button>
             <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(menu.items)}</div>
         </div>`).join('');
+        positionDesktopSubmenus(bar);
         bar.querySelectorAll('[data-window-menu]').forEach(button => {
             const open = event => toggleWindowMenu(event, windowId, button.dataset.windowMenu);
             button.addEventListener('click', open);
@@ -11740,6 +11887,7 @@ function modalDialog(options) {
                 runWindowMenuAction(windowId, button.dataset.menuAction);
             });
         });
+        syncDesktopMenuBar();
     }
 
     function toggleWindowMenu(event, windowId, menuId) {
@@ -11747,12 +11895,13 @@ function modalDialog(options) {
         event.stopPropagation();
         focusWindow(windowId);
         const win = state.windows.get(windowId);
-        const menu = win && win.element.querySelector(`.vd-window-menu[data-menu-id="${cssSel(menuId)}"]`);
+        const menu = win && windowMenuBar(windowId)?.querySelector(`.vd-window-menu[data-menu-id="${cssSel(menuId)}"]`);
         if (!menu) return;
         const isOpen = menu.classList.contains('open');
         closeWindowMenu();
         if (isOpen) return;
         menu.classList.add('open');
+        fitWindowMenu(menu);
         state.openWindowMenu = { windowId, menuId };
     }
 

@@ -10,7 +10,7 @@
     min-height: 100%;
     color: var(--vd-text, #eff7ff);
     background: var(--vd-theme-app-bg);
-    font-size: 0.86rem;
+    font-size: 13px;
     user-select: none;
 }
 
@@ -19,9 +19,11 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 5px 8px;
+    padding: 5px 10px;
     border-bottom: 1px solid var(--pixel-line);
     flex-wrap: wrap;
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .pixel-toolbar-sep {
@@ -81,14 +83,12 @@
     width: 32px;
     height: 32px;
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.13);
-    border-radius: 8px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035)),
-        var(--pixel-surface);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
     color: inherit;
     cursor: pointer;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    box-shadow: none;
     transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
@@ -110,12 +110,12 @@
 
 .pixel-btn-icon .vd-theme-icon,
 .pixel-btn-icon .vd-papirus-icon {
-    filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    filter: none;
 }
 
 .desktop-body[data-theme="light"] .pixel-btn-icon .vd-theme-icon,
 .desktop-body[data-theme="light"] .pixel-btn-icon .vd-papirus-icon {
-    filter: brightness(0) saturate(100%) invert(22%) sepia(20%) saturate(1238%) hue-rotate(176deg) brightness(88%) contrast(86%);
+    filter: none;
 }
 
 .pixel-btn-group {
@@ -147,13 +147,15 @@
     flex: 0 0 auto;
     padding: 4px 12px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: 5px;
     background: none;
     color: var(--pixel-muted);
     font: inherit;
     font-size: 0.82rem;
     cursor: pointer;
     transition: all 120ms ease;
+
+    min-height: 30px;
 }
 
 .pixel-tab:hover {
@@ -191,12 +193,11 @@
     align-items: center;
     justify-content: center;
     background: #0e1117;
-    background-image: linear-gradient(45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
-        linear-gradient(-45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.03) 75%),
-        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.03) 75%);
-    background-size: 20px 20px;
+    background-image: conic-gradient(var(--vd-theme-panel-bg) 25%, transparent 0 50%, var(--vd-theme-panel-bg) 0 75%, transparent 0);
+    background-size: 16px 16px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+
+    background-color: var(--vd-theme-app-bg);
 }
 
 .pixel-canvas-wrap {
@@ -376,12 +377,12 @@
 
 .pixel-panel {
     flex: 0 0 clamp(320px, 24vw, 360px);
-    width: clamp(320px, 24vw, 360px);
+    width: 240px;
     box-sizing: border-box;
     overflow-y: auto;
     overflow-x: hidden;
     border-left: 1px solid var(--pixel-line);
-    background: var(--vd-theme-chrome-bg);
+    background: var(--vd-theme-panel-bg);
     padding: 10px;
 }
 
@@ -628,9 +629,9 @@
     gap: 12px;
     padding: 4px 10px;
     border-top: 1px solid var(--pixel-line);
-    font-size: 0.76rem;
+    font-size: 11px;
     color: var(--pixel-muted);
-    background: var(--pixel-surface);
+    background: var(--vd-theme-chrome-bg);
     font-variant-numeric: tabular-nums;
     overflow: hidden;
 }

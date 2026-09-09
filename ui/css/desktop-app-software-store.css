@@ -3,9 +3,11 @@
 .vd-store {
     height: 100%;
     min-height: 0;
-    display: grid;
+    display: flex;
     grid-template-rows: auto 1fr;
     background: var(--vd-theme-app-bg);
+
+    flex-direction: column;
 }
 
 .vd-store-toolbar {
@@ -13,8 +15,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 14px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--vd-theme-border);
+
+    background: var(--vd-theme-chrome-bg);
+
+    min-height: 44px;
+
+    flex-shrink: 0;
 }
 
 .vd-store-heading {
@@ -22,8 +30,8 @@
 }
 
 .vd-store-title {
-    font-size: 17px;
-    font-weight: 800;
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: 0;
 }
 
@@ -50,6 +58,8 @@
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     align-content: start;
     gap: 12px;
+
+    flex: 1;
 }
 
 .vd-store-card {
@@ -58,10 +68,12 @@
     align-content: start;
     min-width: 0;
     border: 1px solid var(--vd-theme-border);
-    border-radius: var(--ds-radius-md);
+    border-radius: 10px;
     background: var(--vd-theme-panel-bg);
     padding: 12px;
     gap: 10px;
+
+    box-shadow: none;
 }
 
 .vd-store-card-head {
@@ -121,10 +133,12 @@
 }
 
 .vd-store-card-title {
-    font-weight: 800;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    font-size: 14px;
 }
 
 .vd-store-card-image {
@@ -150,20 +164,24 @@
 }
 
 .vd-store-warning {
-    border: 1px solid rgba(234,179,8,0.32);
+    border: 0;
     background: rgba(234,179,8,0.12);
-    color: #fde68a;
-    border-radius: 7px;
+    color: var(--vd-text);
+    border-radius: 0;
     padding: 10px 12px;
     font-size: 12px;
     line-height: 1.4;
-    font-weight: 700;
+    font-weight: 500;
+
+    flex-shrink: 0;
+
+    border-bottom: 1px solid var(--vd-theme-border);
 }
 
 .vd-store-card-warning {
     border: 1px solid rgba(234,179,8,0.24);
     background: rgba(234,179,8,0.08);
-    color: #fde68a;
+    color: var(--vd-text);
     border-radius: 7px;
     padding: 7px 9px;
     font-size: 11px;

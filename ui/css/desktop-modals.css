@@ -35,8 +35,8 @@
 
 .vd-context-menu {
     position: fixed;
-    min-width: 214px;
-    padding: 6px;
+    min-width: 230px;
+    padding: 5px;
     border: 1px solid var(--vd-shell-context-menu-border);
     border-radius: 12px;
     background: var(--vd-shell-context-menu-bg);
@@ -44,22 +44,24 @@
     backdrop-filter: var(--vd-shell-context-menu-blur);
     -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
     z-index: var(--vd-z-context-menu);
+
+    max-height: calc(100dvh - 16px);
 }
 
 .vd-context-item {
     width: 100%;
     display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) auto auto;
+    grid-template-columns: 20px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 8px;
-    min-height: 44px;
-    padding: 10px 14px;
+    min-height: var(--vd-menu-row-height, 34px);
+    padding: 4px 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     background: transparent;
     color: var(--vd-text);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: 13px;
     text-align: left;
     cursor: pointer;
     transition: background 100ms var(--ds-motion-ease-standard);
@@ -72,7 +74,9 @@
 }
 
 .vd-context-item:focus-visible {
-    outline: none;
+    outline: 2px solid var(--vd-accent);
+
+    outline-offset: -2px;
 }
 
 .vd-context-submenu {
@@ -92,6 +96,10 @@
     box-shadow: var(--vd-shell-context-menu-shadow);
     backdrop-filter: var(--vd-shell-context-menu-blur);
     -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
+
+    max-height: calc(100dvh - 16px);
+
+    overflow-y: auto;
 }
 
 .vd-context-submenu:hover > .vd-context-submenu-popover,
@@ -148,7 +156,7 @@
 }
 
 .vd-context-icon {
-    color: var(--vd-accent);
+    color: var(--vd-text);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -309,8 +317,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 14px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--vd-border);
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-file-dialog-footer {
@@ -319,8 +329,8 @@
 }
 
 .vd-file-dialog-title {
-    font-size: 1rem;
-    font-weight: 900;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .vd-file-dialog-status {
@@ -352,6 +362,8 @@
     overflow: auto;
     padding: 12px;
     border-right: 1px solid var(--vd-border);
+
+    background: var(--vd-theme-panel-bg);
 }
 
 .vd-file-dialog-sidebar-item {
@@ -380,6 +392,8 @@
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     padding: 12px;
+
+    background: var(--vd-theme-app-bg);
 }
 
 .vd-file-dialog-breadcrumbs {
@@ -439,7 +453,7 @@
 
 .vd-file-dialog-row {
     width: 100%;
-    min-height: 42px;
+    min-height: var(--vd-menu-row-height);
     display: grid;
     grid-template-columns: 28px minmax(0, 1fr) minmax(88px, 140px) 72px;
     align-items: center;
@@ -452,6 +466,10 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
+
+    font-size: 13px;
+
+    border-radius: 5px;
 }
 
 .vd-file-dialog-row:hover,

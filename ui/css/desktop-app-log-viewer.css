@@ -6,10 +6,7 @@
     height: 100%;
     min-height: 0;
     color: var(--vd-text);
-    background:
-        radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--vd-accent, #27c7a6) 18%, transparent), transparent 38%),
-        radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--vd-coral, #ff8066) 12%, transparent), transparent 28%),
-        var(--vd-theme-app-bg);
+    background: var(--vd-theme-app-bg);
     overflow: hidden;
 }
 
@@ -18,23 +15,26 @@
 .vd-logviewer-list,
 .vd-logviewer-detail {
     border: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-chrome-bg);
-    box-shadow: var(--vd-theme-shadow-panel);
-    backdrop-filter: var(--vd-theme-blur);
+    background: var(--vd-theme-panel-bg);
+    box-shadow: none;
+    backdrop-filter: none;
+    border-radius: 0;
 }
 
 .vd-logviewer-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin: 10px 10px 0;
-    padding: 10px 12px;
-    border-radius: 14px;
+    gap: 6px;
+    margin: 0;
+    padding: var(--vd-toolbar-padding);
+    border-radius: 0;
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-logviewer-kicker {
-    display: block;
+    display: none;
     color: var(--vd-accent);
     font-size: 0.66rem;
     font-weight: 800;
@@ -71,12 +71,12 @@
 .vd-logviewer-toolbar button,
 .vd-logviewer-jump {
     border: 1px solid var(--vd-theme-border);
-    border-radius: 999px;
+    border-radius: 5px;
     background: var(--vd-theme-control-bg);
     color: var(--vd-theme-muted);
     font: inherit;
-    font-size: 0.74rem;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -96,8 +96,8 @@
 
 .vd-logviewer-chip[data-level="DEBUG"].is-on { border-color: rgba(160, 176, 192, 0.4); }
 .vd-logviewer-chip[data-level="INFO"].is-on { border-color: color-mix(in srgb, var(--vd-accent) 45%, transparent); }
-.vd-logviewer-chip[data-level="WARN"].is-on { color: var(--vd-amber, #e0a23a); border-color: color-mix(in srgb, var(--vd-amber, #e0a23a) 45%, transparent); }
-.vd-logviewer-chip[data-level="ERROR"].is-on { color: var(--vd-coral, #ff8066); border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 45%, transparent); }
+.vd-logviewer-chip[data-level="WARN"].is-on { color: color-mix(in srgb, var(--vd-text) 65%, #e0a23a); border-color: color-mix(in srgb, var(--vd-amber, #e0a23a) 45%, transparent); }
+.vd-logviewer-chip[data-level="ERROR"].is-on { color: color-mix(in srgb, var(--vd-text) 65%, #ff8066); border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 45%, transparent); }
 
 .vd-logviewer-chip-count {
     min-width: 1.4em;
@@ -152,9 +152,9 @@
 .vd-logviewer-body {
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr) 280px;
-    gap: 10px;
+    gap: 0;
     min-height: 0;
-    padding: 10px;
+    padding: 0;
 }
 
 .vd-logviewer.is-detail-closed .vd-logviewer-body {
@@ -176,8 +176,8 @@
 .vd-logviewer-pane-title {
     padding: 10px 12px 6px;
     color: var(--vd-theme-muted);
-    font-size: 0.72rem;
-    font-weight: 800;
+    font-size: 11px;
+    font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }

@@ -415,7 +415,7 @@
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">&rsaquo;</span></button>
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
@@ -426,6 +426,7 @@
         menu.className = 'vd-context-menu vd-scroll';
         menu.setAttribute('role', 'menu');
         menu.innerHTML = renderItems(items, []);
+        positionDesktopSubmenus(menu);
         menu.querySelectorAll('.vd-context-item').forEach((btn, idx) => btn.style.setProperty('--context-item-index', String(idx)));
         document.body.appendChild(menu);
         const usableBottom = contextMenuUsableBottom();
@@ -1074,7 +1075,7 @@ function modalDialog(options) {
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.widget_manager'))}</div>
                 <div class="vd-window-actions">
-                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
                 </div>
             </div>
             <div class="vd-wm-cards vd-scroll">${renderCards()}</div>
@@ -1168,7 +1169,7 @@ function modalDialog(options) {
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.app_manager'))}</div>
                 <div class="vd-window-actions">
-                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
                 </div>
             </div>
             <div class="vd-wm-cards vd-scroll">${renderCards()}</div>
@@ -1313,7 +1314,7 @@ function modalDialog(options) {
             if (item.type === 'submenu') {
                 return `<div class="vd-window-menu-submenu${disabled}" role="none">
                     <button type="button" class="vd-window-menu-item${checked}" role="menuitem" ${disabled ? 'disabled' : ''}>
-                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">&rsaquo;</span>
+                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span>
                     </button>
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
@@ -1335,9 +1336,10 @@ function modalDialog(options) {
         state.windowMenus.delete(windowId);
         if (!win || !win.element) return;
         win.element.classList.remove('has-window-menu');
-        const bar = win.element.querySelector('.vd-window-menubar');
+        const bar = windowMenuBar(windowId);
         if (bar) bar.remove();
         if (state.openWindowMenu && state.openWindowMenu.windowId === windowId) state.openWindowMenu = null;
+        syncDesktopMenuBar();
     }
 
     function renderWindowMenus(windowId) {
@@ -1351,19 +1353,22 @@ function modalDialog(options) {
         win.element.classList.toggle('has-window-menu', menus.length > 0);
         const titlebar = win.element.querySelector('.vd-window-titlebar');
         if (!titlebar) return;
-        let bar = titlebar.querySelector('.vd-window-menubar');
+        let bar = windowMenuBar(windowId);
         if (!menus.length) {
             if (bar) bar.remove();
+            syncDesktopMenuBar();
             return;
         }
         if (!bar) {
             titlebar.insertAdjacentHTML('beforeend', '<nav class="vd-window-menubar" role="menubar"></nav>');
             bar = titlebar.querySelector('.vd-window-menubar');
+            bar.dataset.ownerWindow = windowId;
         }
         bar.innerHTML = menus.map(menu => `<div class="vd-window-menu" data-menu-id="${esc(menu.id)}">
             <button type="button" class="vd-window-menu-button" role="menuitem" data-window-menu="${esc(menu.id)}">${esc(menuLabel(menu))}</button>
             <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(menu.items)}</div>
         </div>`).join('');
+        positionDesktopSubmenus(bar);
         bar.querySelectorAll('[data-window-menu]').forEach(button => {
             const open = event => toggleWindowMenu(event, windowId, button.dataset.windowMenu);
             button.addEventListener('click', open);
@@ -1379,6 +1384,7 @@ function modalDialog(options) {
                 runWindowMenuAction(windowId, button.dataset.menuAction);
             });
         });
+        syncDesktopMenuBar();
     }
 
     function toggleWindowMenu(event, windowId, menuId) {
@@ -1386,12 +1392,13 @@ function modalDialog(options) {
         event.stopPropagation();
         focusWindow(windowId);
         const win = state.windows.get(windowId);
-        const menu = win && win.element.querySelector(`.vd-window-menu[data-menu-id="${cssSel(menuId)}"]`);
+        const menu = win && windowMenuBar(windowId)?.querySelector(`.vd-window-menu[data-menu-id="${cssSel(menuId)}"]`);
         if (!menu) return;
         const isOpen = menu.classList.contains('open');
         closeWindowMenu();
         if (isOpen) return;
         menu.classList.add('open');
+        fitWindowMenu(menu);
         state.openWindowMenu = { windowId, menuId };
     }
 

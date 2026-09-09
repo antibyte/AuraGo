@@ -19,6 +19,10 @@
     align-items: center;
     margin-bottom: 12px;
     flex-wrap: wrap;
+
+    padding: var(--vd-toolbar-padding);
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-launchpad-search {
@@ -227,6 +231,10 @@
 
 .lp-icon-panel {
     display: none;
+
+    border-radius: 10px;
+
+    box-shadow: var(--vd-theme-shadow-panel);
 }
 
 .lp-icon-panel.active {

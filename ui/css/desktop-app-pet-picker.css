@@ -10,9 +10,11 @@
 
 .vd-pet-picker-header h2 {
     margin: 0 0 6px;
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 600;
     color: var(--vd-text);
+
+    letter-spacing: -.025em;
 }
 
 .vd-pet-picker-subtitle {
@@ -45,8 +47,10 @@
     padding: 14px 10px;
     background: var(--vd-theme-panel-bg);
     border: 1px solid var(--vd-theme-border);
-    border-radius: 14px;
+    border-radius: 10px;
     transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+
+    box-shadow: none;
 }
 
 .vd-pet-picker-card:hover {

@@ -21,7 +21,7 @@
 
     position: relative;
     display: grid;
-    grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
     height: 100%;
     min-height: 0;
     color: var(--notes-text);
@@ -58,8 +58,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 10px;
     border-bottom: 1px solid var(--notes-border);
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-notes-new-btn {
@@ -176,14 +178,16 @@
     flex-direction: column;
     gap: 3px;
     width: 100%;
-    padding: 8px 30px 8px 10px;
+    padding: 10px 12px;
     border: 1px solid transparent;
-    border-radius: 9px;
+    border-radius: 7px;
     background: transparent;
     color: inherit;
     text-align: left;
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease;
+
+    box-shadow: none;
 }
 
 .vd-notes-card-btn:hover {
@@ -198,7 +202,7 @@
 .vd-notes-card-title {
     overflow: hidden;
     color: var(--notes-text);
-    font-size: 0.84rem;
+    font-size: 13px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -208,8 +212,8 @@
     display: -webkit-box;
     overflow: hidden;
     color: var(--notes-muted);
-    font-size: 0.74rem;
-    line-height: 1.35;
+    font-size: 12px;
+    line-height: 1.5;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }

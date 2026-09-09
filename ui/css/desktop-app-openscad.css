@@ -14,7 +14,7 @@
     --oscad-glass: var(--vd-theme-chrome-bg);
     --oscad-glass-border: var(--vd-theme-border);
     --oscad-accent-gradient: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
-    --oscad-icon-filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    --oscad-icon-filter: none;
     --oscad-icon-filter-strong: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(900%) hue-rotate(140deg) brightness(95%) contrast(95%);
     position: relative;
     display: grid;
@@ -34,11 +34,11 @@
 .desktop-body[data-theme="light"] .openscad-app {
     --oscad-text: var(--vd-text);
     --oscad-surface: var(--vd-theme-panel-bg);
-    --oscad-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(20%) saturate(1238%) hue-rotate(176deg) brightness(88%) contrast(86%);
+    --oscad-icon-filter: none;
 }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .openscad-app {
-    --oscad-icon-filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    --oscad-icon-filter: none;
 }
 
 .oscad-workbench {
@@ -73,10 +73,10 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 12px;
-    min-height: 54px;
-    padding: 8px 12px;
+    min-height: 42px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--oscad-border);
-    background: var(--oscad-glass);
+    background: var(--vd-theme-chrome-bg);
     backdrop-filter: blur(18px);
 }
 
@@ -233,6 +233,8 @@
 .oscad-sidebar {
     grid-column: 5;
     grid-row: 1;
+
+    background: var(--vd-theme-panel-bg);
 }
 
 .oscad-splitter {
@@ -298,6 +300,10 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
+
+    border-radius: 0;
+
+    box-shadow: none;
 }
 
 .oscad-issues {

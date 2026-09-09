@@ -51,7 +51,7 @@
     display: flex;
     align-items: center;
     gap: var(--ds-space-2);
-    padding: 8px 12px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--vd-theme-border);
     background: var(--vd-theme-chrome-bg);
     flex-shrink: 0;
@@ -162,10 +162,12 @@
 .vd-mc-status-bar {
     display: flex;
     gap: var(--ds-space-2);
-    padding: 8px 12px;
+    padding: 6px 12px;
     border-bottom: 1px solid var(--vd-theme-border);
     flex-shrink: 0;
     overflow-x: auto;
+
+    font-size: 11px;
 }
 
 .vd-mc-stat {
@@ -358,11 +360,13 @@
 /* ── Mission Card (Grid) ── */
 .vd-mc-card {
     border: 1px solid var(--vd-theme-border);
-    border-radius: var(--ds-radius-md);
+    border-radius: 8px;
     background: var(--vd-theme-panel-bg-strong);
     overflow: hidden;
     transition: border-color 0.2s, box-shadow 0.2s;
     animation: vd-mc-card-enter 0.3s ease both;
+
+    box-shadow: none;
 }
 
 .vd-mc-card:hover {

@@ -230,12 +230,12 @@
 .vd-button-primary .vd-papirus-icon,
 .vd-qc-btn-primary .vd-papirus-icon,
 .fm-btn.primary .vd-papirus-icon {
-    filter: brightness(0) saturate(100%) invert(5%) sepia(16%) saturate(1555%) hue-rotate(132deg) brightness(94%) contrast(96%);
+    filter: none;
     opacity: 1;
 }
 
 .vd-qc-btn-danger .vd-papirus-icon {
-    filter: brightness(0) invert(1);
+    filter: none;
     opacity: 1;
 }
 
@@ -293,7 +293,7 @@
 
 .vd-qc-device-papirus-icon.vd-papirus-icon,
 .vd-qc-placeholder-papirus-icon.vd-papirus-icon {
-    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%) drop-shadow(0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2));
+    filter: none;
 }
 
 .vd-icon-button {
@@ -324,4 +324,26 @@
 
 .vd-icon-button .vd-papirus-icon {
     pointer-events: none;
+}
+
+
+/* Packed action artwork keeps its own colors; symbols use the readable foreground. */
+.vd-mini-icon {
+    display: inline-block;
+    flex: 0 0 auto;
+    vertical-align: middle;
+    background-image: var(--vd-mini-sheet);
+    background-size: var(--vd-mini-size);
+    background-position: var(--vd-mini-position);
+    background-repeat: no-repeat;
+    filter: none !important;
+}
+.vd-mini-symbol {
+    display: inline-block;
+    flex: 0 0 auto;
+    vertical-align: middle;
+    color: currentColor;
+    background: none !important;
+    filter: none !important;
+    overflow: visible;
 }

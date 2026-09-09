@@ -54,7 +54,7 @@ func TestDesktopWindowCanOpenMetadataAppsMaximized(t *testing.T) {
 	}
 }
 
-func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
+func TestDesktopWindowChromeUsesSymbolsInsteadOfTextFallbacks(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/main.js")
 	openAppBody := jsFunctionBodyInWindowMenuTest(t, source, "function openApp(appId, context)")
 	for _, bad := range []string{"â", ">_</button>", ">x</button>"} {
@@ -63,9 +63,9 @@ func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		`data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>`,
-		`data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>`,
-		`data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>`,
+		`data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}">${iconMarkup('minus', '', 'vd-window-control-icon', 14, 'action')}</button>`,
+		`data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}">${iconMarkup('maximize', '', 'vd-window-control-icon', 14, 'action')}</button>`,
+		`data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>`,
 	} {
 		if !strings.Contains(openAppBody, want) {
 			t.Fatalf("desktop window chrome missing icon-only button markup %q", want)
@@ -74,8 +74,8 @@ func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
 
 	css := readAllDesktopCSS(t)
 	for _, want := range []string{
-		`.vd-window-button[data-action="maximize"]::before`,
-		"border: 2px solid currentColor;",
+		`.vd-window-control-icon`,
+		"width: 10px;",
 		`.desktop-body[data-theme="fruity"] .vd-window-button::before`,
 	} {
 		if !strings.Contains(css, want) {

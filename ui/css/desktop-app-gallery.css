@@ -9,6 +9,10 @@
 
 .vd-gallery-toolbar {
     gap: 8px;
+
+    padding: var(--vd-toolbar-padding);
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .vd-gallery-grid {
@@ -36,8 +40,10 @@
     min-height: 192px;
     overflow: hidden;
     border: 1px solid var(--vd-theme-border);
-    border-radius: var(--ds-radius-sm);
+    border-radius: 8px;
     background: var(--vd-theme-panel-bg);
+
+    box-shadow: none;
 }
 
 .vd-gallery-preview {
@@ -67,8 +73,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: 7px;
-    padding: 8px;
+    gap: 5px;
+    padding: 8px 10px;
     min-width: 0;
 }
 
@@ -89,7 +95,7 @@
 }
 
 .vd-gallery-action-icon.vd-papirus-icon {
-    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%);
+    filter: none;
 }
 
 .vd-media-preview-backdrop {

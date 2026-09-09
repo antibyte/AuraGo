@@ -757,6 +757,7 @@
     }
 
     function renderTaskbar() {
+        syncDesktopMenuBar();
         const host = $('vd-taskbar-apps');
         if (!host) return;
         host.classList.toggle('vd-dock', isFruityTheme());
@@ -1166,9 +1167,9 @@
                 <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
-                ${aiButtonMarkup('widget:' + safeWidgetId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
-                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>
-                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                ${aiButtonMarkup('widget:' + safeWidgetId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}">${iconMarkup('minus', '', 'vd-window-control-icon', 14, 'action')}</button>
+                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}">${iconMarkup('maximize', '', 'vd-window-control-icon', 14, 'action')}</button>
+                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
             </div>
         </header>
         <div class="vd-window-content" data-window-content><div class="vd-empty">${esc(t('desktop.loading'))}</div></div>
@@ -1305,9 +1306,11 @@
         win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
         win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
 
-        if (!isResizable || (isMobileMode && forceMaximized)) {
+        if (!isResizable) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';
+        }
+        if (!isResizable || (isMobileMode && forceMaximized)) {
             win.style.resize = 'none';
         }
         win.style.zIndex = String(++state.z);
@@ -1318,9 +1321,9 @@
                 <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
-                ${aiButtonMarkup(appId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
-                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>` : ''}
-                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+                ${aiButtonMarkup(appId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}">${iconMarkup('minus', '', 'vd-window-control-icon', 14, 'action')}</button>
+                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}">${iconMarkup('maximize', '', 'vd-window-control-icon', 14, 'action')}</button>` : ''}
+                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '', 'vd-window-control-icon', 14, 'action')}</button>
             </div>
         </header>
         <div class="vd-window-content" data-window-content></div>

@@ -17,7 +17,7 @@
     --hp-accent-gradient: linear-gradient(135deg, var(--hp-accent), #65c7ff);
     --hp-accent-soft: var(--vd-theme-accent-soft, color-mix(in srgb, var(--hp-accent) 14%, transparent));
     --hp-accent-ring: color-mix(in srgb, var(--hp-accent) 32%, transparent);
-    --hp-icon-filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    --hp-icon-filter: none;
     --hp-icon-filter-strong: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(900%) hue-rotate(140deg) brightness(95%) contrast(95%);
     position: relative;
     display: grid;
@@ -35,11 +35,11 @@
 
 .desktop-body[data-theme="fruity"] .vd-hp-studio,
 .desktop-body[data-theme="light"] .vd-hp-studio {
-    --hp-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(20%) saturate(1238%) hue-rotate(176deg) brightness(88%) contrast(86%);
+    --hp-icon-filter: none;
 }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-hp-studio {
-    --hp-icon-filter: brightness(0) saturate(100%) invert(88%) sepia(15%) saturate(495%) hue-rotate(176deg) brightness(101%) contrast(98%);
+    --hp-icon-filter: none;
 }
 
 /* Themed icons render as-is on dark glass; retint them to the foreground
@@ -69,10 +69,10 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 12px;
-    min-height: 54px;
+    min-height: 44px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--hp-border);
-    background: var(--hp-glass);
+    background: var(--vd-theme-chrome-bg);
     backdrop-filter: blur(18px);
 }
 
@@ -133,11 +133,11 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    min-height: 26px;
+    min-height: 24px;
     max-width: 100%;
-    padding: 0 10px;
+    padding: 0 7px;
     border: 1px solid var(--hp-border);
-    border-radius: 999px;
+    border-radius: 5px;
     background: rgba(255, 255, 255, 0.05);
     font-size: 11px;
     font-weight: 760;

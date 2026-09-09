@@ -12,11 +12,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px;
+    padding: var(--vd-toolbar-padding);
     gap: 6px;
     border-bottom: 1px solid var(--vd-theme-border);
     background: var(--vd-theme-chrome-bg);
     flex-shrink: 0;
+
+    min-height: 42px;
 }
 
 .vd-viewer-toolbar-left {

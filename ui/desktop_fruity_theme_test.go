@@ -265,8 +265,8 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 	if !strings.Contains(dockBody, "max-width: calc(100vw - 300px);") {
 		t.Fatalf("fruity dock must reserve horizontal space for the system card: %q", dockBody)
 	}
-	if !strings.Contains(cssText, "max-width: min(calc(100vw - 112px), calc(44px * 4 + 20px));") {
-		t.Fatal("fruity mobile dock must keep room for several icons while avoiding the system card")
+	if !strings.Contains(cssText, "max-width: calc(100vw - 24px);") || !strings.Contains(cssText, "flex-direction: column;") {
+		t.Fatal("fruity mobile dock and system controls must stack within the viewport")
 	}
 	if !strings.Contains(cssText, "overflow-y: hidden;") {
 		t.Fatal("fruity mobile desktop must suppress vertical page scrolling")

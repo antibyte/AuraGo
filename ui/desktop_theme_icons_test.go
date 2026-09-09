@@ -49,7 +49,7 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 		"launchpad: 'apps'",
 		"appIconKeys['code-studio'] = 'code'",
 	} {
-		if strings.Contains(source, forbidden) {
+		if strings.Contains(rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js"), forbidden) {
 			t.Fatalf("desktop app icon mapping must not reuse placeholder/file-type marker %q", forbidden)
 		}
 	}
@@ -83,7 +83,7 @@ func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 		"pixel: 'image'",
 		"Trash: 'trash',",
 	} {
-		if strings.Contains(source, placeholder) {
+		if strings.Contains(rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js"), placeholder) {
 			t.Fatalf("desktop app icon mapping still uses placeholder marker %q", placeholder)
 		}
 	}
@@ -168,7 +168,7 @@ func TestDesktopStoreAppsUseDedicatedThemeIcons(t *testing.T) {
 		"'store-dozzle': 'terminal'",
 		"'store-termix': 'terminal'",
 	} {
-		if strings.Contains(source, placeholder) {
+		if strings.Contains(rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js"), placeholder) {
 			t.Fatalf("desktop store app icon mapping still uses placeholder marker %q", placeholder)
 		}
 	}

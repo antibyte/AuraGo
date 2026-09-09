@@ -34,9 +34,11 @@
     flex: 0 0 auto;
     justify-content: space-between;
     gap: 18px;
-    padding: 16px 18px 14px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-panel-bg);
+    background: var(--vd-theme-chrome-bg);
+
+    min-height: 44px;
 }
 
 .vc-heading { gap: 12px; min-width: 0; }
@@ -51,7 +53,11 @@
 }
 .vc-heading-icon { width: 38px; height: 38px; border-radius: 11px; }
 .vc-heading h2, .vc-section-header h3, .vc-detail-header h3, .vc-modal h3 { margin: 0; }
-.vc-heading h2 { font-size: 17px; letter-spacing: -.01em; }
+.vc-heading h2 {
+    font-size: 16px;
+    letter-spacing: -.02em;
+    font-weight: 600;
+}
 .vc-eyebrow {
     display: block;
     margin-bottom: 3px;

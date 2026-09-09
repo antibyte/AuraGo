@@ -27,7 +27,11 @@
     border-bottom: 1px solid var(--nm-border);
     display: flex;
     gap: 14px;
-    padding: 12px 16px;
+    padding: 8px 14px;
+
+    min-height: 44px;
+
+    background: var(--vd-theme-chrome-bg);
 }
 
 .nm-brand { align-items: center; display: flex; gap: 10px; min-width: 0; }
@@ -383,13 +387,15 @@
 .nm-onboarding-card {
     background: var(--nm-panel);
     border: 1px solid var(--nm-border);
-    border-radius: 16px;
+    border-radius: 12px;
     display: grid;
     gap: 12px;
     justify-items: center;
     max-width: 430px;
-    padding: 34px 30px;
+    padding: 20px;
     text-align: center;
+
+    box-shadow: none;
 }
 .nm-onboarding-icon {
     align-items: center;

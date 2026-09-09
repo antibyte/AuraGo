@@ -83,10 +83,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    min-height: 60px;
-    padding: 10px 16px;
+    min-height: 42px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--vd-theme-border);
-    background: color-mix(in srgb, var(--vd-theme-chrome-bg, var(--vd-theme-panel-bg)) 92%, transparent);
+    background: var(--vd-theme-chrome-bg);
 }
 .mc-brand { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
 .mc-logo {
@@ -160,9 +160,10 @@
     flex: 0 0 300px;
     min-width: 0;
     border-right: 1px solid var(--vd-theme-border);
-    background: color-mix(in srgb, var(--vd-theme-chrome-bg, var(--vd-theme-panel-bg)) 90%, transparent);
+    background: var(--vd-theme-panel-bg);
 }
-.mc-sidebar-tools { padding: 14px 14px 10px; display: grid; gap: 10px; }
+.mc-sidebar-tools {
+    padding: 10px 12px; display: grid; gap: 10px; }
 .mc-search { position: relative; }
 .mc-search > .mc-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--vd-theme-muted); pointer-events: none; }
 .mc-search > input { padding-left: 34px; border-radius: 11px; }

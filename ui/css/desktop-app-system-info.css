@@ -2,15 +2,12 @@
 .vd-sysinfo {
     display: grid;
     grid-template-rows: auto auto 1fr auto;
-    gap: 12px;
+    gap: 10px;
     height: 100%;
-    padding: 14px;
+    padding: 12px;
     box-sizing: border-box;
     color: var(--vd-text);
-    background:
-        radial-gradient(circle at 12% 0%, rgba(39, 199, 166, 0.16), transparent 36%),
-        radial-gradient(circle at 88% 8%, rgba(255, 128, 102, 0.13), transparent 30%),
-        var(--vd-theme-app-bg);
+    background: var(--vd-theme-app-bg);
     overflow: auto;
 }
 
@@ -20,8 +17,10 @@
 .vd-sysinfo-detail {
     border: 1px solid var(--vd-theme-border);
     background: var(--vd-theme-panel-bg);
-    box-shadow: var(--vd-theme-shadow-panel);
-    backdrop-filter: var(--vd-theme-blur);
+    box-shadow: none;
+
+
+    border-radius: 6px;
 }
 
 .vd-sysinfo-hero {
@@ -29,12 +28,18 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 14px;
-    border-radius: var(--ds-radius-xl);
+    padding: 6px 2px 12px;
+    border-radius: 0;
+
+    border: 0;
+
+    border-bottom: 1px solid var(--vd-theme-border);
+
+    background: transparent;
 }
 
 .vd-sysinfo-kicker {
-    display: block;
+    display: none;
     margin-bottom: 4px;
     color: var(--vd-accent);
     font-size: 0.68rem;
@@ -45,22 +50,26 @@
 
 .vd-sysinfo-hero h2 {
     margin: 0;
-    font-size: clamp(1rem, 2vw, 1.6rem);
+    font-size: 18px;
     line-height: 1.1;
+
+    font-weight: 600;
 }
 
 .vd-sysinfo-status {
     flex: 0 0 auto;
     max-width: 44%;
-    padding: 6px 10px;
+    padding: 6px 12px;
     border: 1px solid rgba(39, 199, 166, 0.28);
-    border-radius: 999px;
+    border-radius: 5px;
     color: var(--vd-theme-muted);
-    background: var(--vd-theme-accent-soft);
-    font-size: 0.72rem;
+    background: var(--vd-theme-chrome-bg);
+    font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+
+    border-color: var(--vd-theme-border);
 }
 
 .vd-sysinfo-gauges {
@@ -73,7 +82,7 @@
     position: relative;
     min-height: 120px;
     padding: 10px 10px 14px;
-    border-radius: var(--ds-radius-xl);
+    border-radius: 8px;
     overflow: hidden;
 }
 
@@ -124,17 +133,17 @@
 .vd-sysinfo-history {
     min-height: 140px;
     padding: 10px 12px;
-    border-radius: var(--ds-radius-xl);
+    border-radius: 8px;
     overflow: hidden;
 }
 
 .vd-sysinfo-section-title {
     margin: 0 0 6px;
     color: var(--vd-theme-muted);
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .vd-sysinfo-chart-wrap {

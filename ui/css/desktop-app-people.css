@@ -24,10 +24,14 @@
     display: flex;
     gap: 10px;
     align-items: center;
-    padding: 10px 14px;
+    padding: var(--vd-toolbar-padding);
     border-bottom: 1px solid var(--vd-theme-border);
     flex-shrink: 0;
     flex-wrap: wrap;
+
+    background: var(--vd-theme-chrome-bg);
+
+    min-height: 42px;
 }
 .vd-people-search-wrap {
     display: flex;
@@ -119,11 +123,11 @@
 .vd-people-sidebar {
     width: var(--vd-people-sidebar-w);
     min-width: var(--vd-people-sidebar-w);
-    padding: 10px 8px;
+    padding: 12px 8px;
     border-right: 1px solid var(--vd-theme-border);
     overflow-y: auto;
     flex-shrink: 0;
-    background: var(--vd-theme-chrome-bg);
+    background: var(--vd-theme-panel-bg);
 }
 .vd-people-sidebar-section {
     margin-bottom: 12px;
@@ -141,9 +145,9 @@
     display: block;
     width: 100%;
     text-align: left;
-    padding: 6px 10px;
+    padding: 6px 9px;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     background: transparent;
     color: var(--vd-text);
     font-size: 12px;
@@ -152,6 +156,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    min-height: var(--vd-menu-row-height);
 }
 .vd-people-sidebar-item:hover { background: var(--vd-theme-control-hover); }
 .vd-people-sidebar-item.active {

@@ -617,3 +617,158 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
         box-shadow: none !important;
     }
 }
+
+/* Aurora shell chrome. Existing dock/space/session behavior owns all state. */
+.desktop-body {
+    --vd-menu-row-height: 34px;
+    --vd-control-height: 34px;
+    --vd-toolbar-padding: 6px 12px;
+    --vd-sidebar-width: 208px;
+    --vd-app-inset: 16px;
+    --vd-font-ui: 'Geist', system-ui, sans-serif;
+    font-family: var(--vd-font-ui);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+}
+.desktop-body[data-density="compact"] {
+    --vd-menu-row-height: 30px;
+    --vd-control-height: 30px;
+    --vd-toolbar-padding: 4px 10px;
+    --vd-app-inset: 12px;
+}
+.vd-global-bar[hidden] { display: none; }
+.vd-global-bar {
+    position: fixed;
+    inset: 0 0 auto;
+    height: calc(34px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--vd-text);
+    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-theme-border);
+    box-shadow: inset 0 1px 0 var(--vd-border-bright), 0 2px 12px #00000012;
+    backdrop-filter: var(--vd-theme-blur);
+    z-index: var(--vd-z-menu);
+}
+.vd-global-brand {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 5px;
+    padding: 3px 7px;
+    background: transparent;
+    color: var(--vd-text);
+    font: 700 15px 'Geist', sans-serif;
+    cursor: pointer;
+}
+.vd-global-brand span { color: var(--vd-accent); font-size: 11px; }
+.vd-global-brand:hover { background: var(--vd-theme-control-hover); }
+.vd-global-appname {
+    font-size: 13px;
+    font-weight: 650;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#vd-global-menu-host { flex: 1; min-width: 0; }
+.vd-global-bar .vd-window-menubar {
+    display: flex;
+    height: 32px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    gap: 1px;
+    align-items: center;
+}
+.vd-global-bar .vd-window-menu-button {
+    min-height: 28px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 450;
+    border: 0;
+    border-radius: 5px;
+}
+.vd-global-bar .vd-window-menu-popover { top: calc(100% + 4px); min-width: 230px; }
+.desktop-body[data-global-menus="true"] .vd-shell {
+    padding-top: calc(34px + env(safe-area-inset-top, 0px));
+}
+.desktop-body[data-global-menus="true"] .vd-window.has-global-menu {
+    grid-template-rows: 42px minmax(0, 1fr) !important;
+}
+.desktop-body[data-global-menus="true"] .vd-window.has-global-menu > .vd-window-titlebar {
+    min-height: 42px;
+    height: 42px;
+    grid-template-rows: 42px !important;
+}
+.desktop-body[data-global-menus="true"] .vd-window.has-global-menu > .vd-window-titlebar > .vd-window-actions {
+    top: 21px !important;
+}
+.desktop-body[data-global-menus="true"] .vd-window > .vd-window-titlebar > .vd-window-actions {
+    gap: 8px;
+}
+.desktop-body[data-global-menus="true"] .vd-taskbar-system {
+    position: static;
+    height: 30px;
+    padding: 0;
+    margin: 0 0 0 auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    color: var(--vd-text);
+    flex-shrink: 0;
+}
+.desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-agent-button {
+    font-size: 0;
+    gap: 0;
+    width: 24px;
+    padding: 0;
+    min-width: 0;
+}
+.desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-agent-button > span:last-child { display:none; }
+.desktop-body[data-global-menus="true"] .vd-clock { font-size: 12px; color: var(--vd-text); }
+.desktop-body[data-global-menus="true"] .vd-space-pager { gap: 2px; }
+.desktop-body[data-global-menus="true"] .vd-space-pager button { min-width:22px; min-height:22px; }
+.desktop-body[data-theme="fruity"] .vd-window-button::after {
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    padding: 0;
+    text-align: center;
+}
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps {
+    background: var(--vd-theme-chrome-bg);
+    border-color: var(--vd-theme-border-strong);
+    box-shadow: 0 12px 32px #00000025, inset 0 1px 0 var(--vd-border-bright);
+    transition-duration: 200ms;
+}
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps::before {
+    background: linear-gradient(180deg, #ffffff24, transparent 45%);
+    box-shadow: inset 0 0 0 1px var(--vd-border);
+}
+.desktop-body[data-theme="fruity"] .vd-dock-button:hover { transform: translateY(-4px) scale(1.12); }
+.desktop-body .vd-window-menu-item:focus-visible,
+.desktop-body .vd-global-brand:focus-visible {
+    outline: 2px solid var(--vd-accent);
+    outline-offset: -2px;
+}
+.desktop-body .vd-context-separator { margin: 5px 9px; opacity: .7; }
+.desktop-body .vd-window-subtitle { font-weight:400; letter-spacing:0; }
+@media (pointer: coarse) {
+    .desktop-body[data-density] { --vd-menu-row-height: 44px; --vd-control-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .desktop-body .vd-dock-button,
+    .desktop-body .vd-taskbar-apps,
+    .desktop-body .vd-global-bar { animation: none !important; transition: none !important; }
+}
+
+.desktop-body[data-global-menus="true"] .vd-window-titlebar > .vd-window-menubar { display: none; }
+
+.desktop-body[data-theme="fruity"] { --vd-font-ui: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif; }

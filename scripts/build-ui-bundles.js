@@ -8,6 +8,8 @@ const checkOnly = process.argv.includes('--check');
 const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/mini-icons-runtime.js',
+  'ui/js/desktop/core/global-menu-runtime.js',
   'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
   'ui/js/desktop/core/sip-phone-runtime.js',
