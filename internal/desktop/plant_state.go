@@ -138,7 +138,7 @@ func advancePlant(input PlantState, now time.Time) PlantState {
 						b.Nodes = append(b.Nodes, p.AgeHours)
 					}
 				}
-			} else if !b.Capped && p.GrowthHours%3 == 0 && len(b.Nodes) < plantMaxNodes {
+			} else if !b.Capped && len(b.Nodes) < plantMaxNodes {
 				b.Nodes = append(b.Nodes, p.AgeHours)
 			}
 		}

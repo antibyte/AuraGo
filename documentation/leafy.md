@@ -3,7 +3,9 @@
 Enable **Leafy** in the desktop Widget Manager, open its pot or the leaf button in
 the taskbar, then choose **Plant**. It starts as a seedling and grows across open
 windows. Uncovered areas stay clickable. The shell and care palette stay above
-the foliage.
+the foliage. A healthy, uncut stem adds one visible segment and a leaf every
+complete hour. Side branches appear every twelve growth hours; cut stems rest
+for six hours before producing a new shoot.
 
 Water every 24–36 hours and fertilize weekly. Neglect first stops growth, then
 causes wilting and eventually death. Water and nutrients can restore a living

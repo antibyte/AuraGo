@@ -41,6 +41,8 @@ worker. Keep packaging, recovery and offline instructions in
   from frames or client time. Preserve click-through foliage, the shell escape
   control, reduced motion, context-loss fallback, and the 16-locale care UI.
   Server state and revisioned actions live in `internal/desktop/plant_*.go`.
+  Healthy uncapped stems add a node each server hour. Scheduled snapshots must
+  redraw this growth even when no care action changes the revision.
   See `documentation/leafy.md` for care, atlas baking and browser checks.
 - The opt-in `builtin-printer` widget lives in `js/desktop/core/widget-printer-runtime.js`.
   Keep missing printer metrics unknown, render filenames as text, and stop status

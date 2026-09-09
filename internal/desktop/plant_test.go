@@ -15,6 +15,18 @@ func TestLeafyClockAndGrowth(t *testing.T) {
 	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 	p := newPlant(731, now)
 	p.Revision = 1
+	early := advancePlant(p, now.Add(time.Hour-time.Nanosecond))
+	if early.AgeHours != 0 || len(early.Branches[0].Nodes) != 2 {
+		t.Fatal("plant grew before its first complete hour")
+	}
+	for h := int64(1); h <= 2; h++ {
+		grown := advancePlant(p, now.Add(time.Duration(h)*time.Hour))
+		for _, branch := range grown.Branches {
+			if len(branch.Nodes) != 2+int(h) || branch.Nodes[len(branch.Nodes)-1] != h {
+				t.Fatalf("hour %d: expected a visible new growth node per hour, got %v", h, branch.Nodes)
+			}
+		}
+	}
 	before, _ := json.Marshal(p)
 	one := advancePlant(p, now.Add(24*time.Hour))
 	split := p

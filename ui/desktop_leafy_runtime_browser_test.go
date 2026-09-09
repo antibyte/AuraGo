@@ -159,6 +159,12 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
   aurora.state.bootstrap.settings['appearance.wallpaper']='paper_waves';
   aurora.applyDesktopSettings();
   aurora.state.bootstrap.widgets=[{id:'builtin-leafy',title:'Leafy',type:'builtin',runtime:'builtin',visible:true,builtin:true,icon:'leafy'}];
+  window.leafyNativeTimeout=window.setTimeout;
+  window.setTimeout=(fn,delay,...args)=>{
+    const id=leafyNativeTimeout(fn,delay,...args);
+    if(fn.name==='refresh')window.leafyPoll={id,run:fn,delay};
+    return id;
+  };
   aurora.renderWidgets();
  }`)
 	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>!!window.AuraLeafy?.active?.layout`)); err != nil {
@@ -169,6 +175,21 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.Timeout(10 * time.Second).MustElement("[data-action='replant']").MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().revision===1`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-seedling.png"))
+	// Drive the scheduled refresh across real server simulation hours, without
+	// a care action, event, remount or revision change to trigger the redraw.
+	for hour := 1; hour <= 2; hour++ {
+		clockMu.Lock()
+		now = now.Add(time.Hour)
+		clockMu.Unlock()
+		page.MustEval(`()=>{const p=window.leafyPoll;if(!p || p.delay!==3600000)throw Error('Hourly refresh not scheduled');clearTimeout(p.id);p.run();}`)
+		page.Timeout(10*time.Second).MustWait(`hour=>AuraLeafy.active.metrics().age===hour`, hour)
+		page.MustEval(`hour=>{
+            const p=AuraLeafy.active;
+            if(p.metrics().revision!==1 || p.layout.branches.some(b=>b.points.length!==hour+2) || p.layout.leaves.length!==3*(hour+1))throw Error('Hourly growth was not drawn without a care action');
+        }`, hour)
+		page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("desktop-hour-%d.png", hour)))
+	}
+	page.MustEval(`()=>{window.setTimeout=leafyNativeTimeout;delete window.leafyNativeTimeout;delete window.leafyPoll;}`)
 	page.MustEval(`async()=>{const r=await nativeFetch('/fixture-grow');if(!r.ok)throw Error(await r.text());await aurora.handleDesktopEvent({type:'plant_changed'});}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().age>=500`)
 	for _, theme := range []string{"standard", "fruity-dark", "fruity-light"} {
