@@ -1717,6 +1717,28 @@
     pointer-events: auto;
 }
 
+/* Follow the top controls; the mobile taskbar reverses the direction below. */
+.desktop-body[data-theme="fruity"] .radial-items {
+    top: calc(100% + 16px);
+    bottom: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    width: max-content;
+    max-height: calc(100dvh - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.desktop-body[data-theme="fruity"] .radial-item {
+    position: relative;
+    bottom: auto;
+    flex-shrink: 0;
+    transform-origin: right top;
+}
+
 .desktop-body[data-theme="fruity"] .radial-backdrop,
 .desktop-body[data-theme="fruity"] .radial-backdrop.open {
     background: transparent;
@@ -2029,6 +2051,11 @@
         order: 2;
         max-width: 100%;
         box-shadow: none;
+    }
+
+    .desktop-body[data-theme="fruity"] .radial-items {
+        top: auto;
+        bottom: calc(100% + 12px);
     }
 }
 

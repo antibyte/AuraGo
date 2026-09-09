@@ -13,19 +13,21 @@ import (
 	"time"
 
 	"aurago/internal/desktop"
+	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 func TestDesktopFruityDockBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
-	html = strings.Replace(html, "</body>", `<script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/dock-shell.js"></script><script src="/testdata/aurora-fixture.js"></script></body>`, 1)
+	html = strings.Replace(html, "</body>", `<script>window._auragoSharedInitialized=true;</script><script src="/js/shared/shared-core.js"></script><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/dock-shell.js"></script><script src="/testdata/aurora-fixture.js"></script></body>`, 1)
 	shell := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
 	if cut < 0 {
 		t.Fatal("shell startup seam missing")
 	}
-	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,closeContextMenu,renderTaskbar,dockApps};})();`
+	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,closeContextMenu,renderTaskbar,dockApps,ensureDesktopRadialMenuAnchor};})();`
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, html) })
@@ -43,6 +45,54 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 	defer page.Close()
 	page.MustSetViewport(1366, 900, 1, false)
 	page.MustWaitLoad()
+	page.MustEval(`async()=>{
+        await fixtureReady;
+        Object.assign(window.I18N, await (await fetch('/lang/common/de.json')).json());
+        aurora.ensureDesktopRadialMenuAnchor();
+        document.querySelectorAll('.radial-item[href]').forEach(link=>link.addEventListener('click',event=>{
+            event.preventDefault();window.navigationClicked=link.getAttribute('href');
+        }));
+    }`)
+	for _, size := range [][2]int{{1366, 900}, {900, 360}, {790, 667}, {390, 667}} {
+		page.MustSetViewport(size[0], size[1], 1, false)
+		for _, theme := range []string{"fruity-light", "fruity-dark"} {
+			page.MustEval(`theme=>fixtureTheme(theme)`, theme)
+			page.MustElement("#radialTrigger").MustClick()
+			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+				page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("navigation-%s-%dx%d.png", theme, size[0], size[1])))
+			}
+			links := page.MustElements(".radial-item[href]")
+			for _, link := range links {
+				link.MustScrollIntoView()
+				if !link.MustEval(`function(){const r=this.getBoundingClientRect(),trigger=document.getElementById('radialTrigger').getBoundingClientRect();return (innerWidth<=820?r.bottom<=trigger.top:r.top>=trigger.bottom) && r.top>=0 && r.bottom<=innerHeight && r.left>=0 && r.right<=innerWidth && this.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}`).Bool() {
+					t.Fatalf("%s %dx%d: navigation link is offscreen or covered: %s", theme, size[0], size[1], link.MustEval(`function(){const r=this.getBoundingClientRect();return JSON.stringify({href:this.getAttribute('href'),rect:r,list:this.parentElement.getBoundingClientRect(),hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML});}`).Str())
+				}
+				point := link.MustEval(`function(){const r=this.getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2];}`).Arr()
+				page.Mouse.MustMoveTo(point[0].Num(), point[1].Num()).MustClick(proto.InputMouseButtonLeft)
+				if page.MustEval(`()=>window.navigationClicked`).Str() != *link.MustAttribute("href") {
+					t.Fatal("navigation link did not receive the click")
+				}
+			}
+			page.Keyboard.MustType(input.Escape)
+			if page.MustEval(`()=>document.getElementById('radialMenu').classList.contains('open')`).Bool() {
+				t.Fatal("Escape did not close navigation")
+			}
+			page.MustElement("#radialTrigger").MustClick()
+			page.Mouse.MustMoveTo(8, 100).MustClick(proto.InputMouseButtonLeft)
+			if page.MustEval(`()=>document.getElementById('radialMenu').classList.contains('open')`).Bool() {
+				t.Fatal("outside click did not close navigation")
+			}
+			page.MustElement("#radialTrigger").MustClick()
+			page.MustElement("#radialTrigger").MustClick()
+			if page.MustEval(`()=>document.getElementById('radialMenu').classList.contains('open')`).Bool() {
+				t.Fatal("trigger did not close navigation")
+			}
+		}
+	}
+	page.MustSetViewport(1366, 900, 1, false)
 	page.MustEval(`async()=>{
         await fixtureReady;
         aurora.state.bootstrap.installed_apps=[{id:'custom-dock',name:'Custom dock app',icon:'apps',dock_visible:true}];
