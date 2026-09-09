@@ -52,6 +52,7 @@
         let key = window._activePersonaIconKey || null, player = null, inputs = null, entry = null;
         let frame = 0, loadTimer = 0, lastTime = 0, mouth = 0, lastVoice = -Infinity, lastAdapter = null;
         let peak = 0.12, quietSince = 0, pose = 0, poseSince = 0;
+        let nextExpression = 0, expressionUntil = 0, expressionMode = 0;
         host.innerHTML = '<img alt="" decoding="async"><canvas aria-hidden="true"></canvas>';
         const poster = host.querySelector('img'), canvas = host.querySelector('canvas');
         const fallback = versioned('/img/personas/custom.png');
@@ -68,6 +69,7 @@
             quietSince = 0;
             pose = 0;
             poseSince = 0;
+            nextExpression = expressionUntil = 0;
             if (inputs) { inputs.mode.value = 0; inputs.mouthOpen.value = 0; inputs.viseme.value = 0; inputs.headTilt.value = 0; }
         }
         function stopFrames() {
@@ -115,7 +117,18 @@
             const speaking = !blocked && (mouth > 0.08 || now - lastVoice < 140);
             const restMode = runtime.sessionId && ['listening', 'speaking', 'executing'].includes(state)
                 ? (runtime.actionActive ? 2 : 1) : 0;
-            inputs.mode.value = speaking ? 3 : restMode;
+            // Brief idle expressions are decorative; conversation activity always takes priority.
+            const canExpress = !speaking && !runtime.userSpeaking && !runtime.providerSpeaking && !runtime.actionActive &&
+                ['idle', 'closed', 'listening'].includes(state);
+            if (!canExpress) nextExpression = expressionUntil = 0;
+            else if (!nextExpression) nextExpression = now + 8000 + Math.random() * 8000;
+            else if (now >= nextExpression) {
+                const expressions = restMode === 1 ? [2, 4] : [1, 2, 4];
+                expressionMode = expressions[Math.floor(Math.random() * expressions.length)];
+                expressionUntil = now + 1200 + Math.random() * 1000;
+                nextExpression = expressionUntil + 8000 + Math.random() * 8000;
+            }
+            inputs.mode.value = speaking ? 3 : canExpress && now < expressionUntil ? expressionMode : restMode;
             inputs.mouthOpen.value = mouth > 0.08 ? mouth : 0;
             // mouthOpen only gates these discrete assets; it does not morph an AA mouth.
             // ponytail: energy selects narrow/rounded/wide poses, not phonemes; use timed cues when available.

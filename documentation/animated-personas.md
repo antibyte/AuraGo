@@ -97,8 +97,12 @@ to 15 seconds with a static fallback, without either CDN fallback.
 The output lookup follows the current adapter, then its PCMPlayer. Microphone
 `level` events never drive lips. Paused/ended/muted media and suspended output
 contexts return zero. Response completion does not cut off queued playback;
-interruption, stop and error close the mouth. Happy mode is reserved for an
-explicit preview/application cue, never inferred from arbitrary transcripts.
+interruption, stop and error close the mouth. In quiet idle or passive listening,
+an existing attentive, thoughtful or happy expression appears after 8–16 seconds
+for 1.2–2.2 seconds, then returns to the current default face. Speech, active
+listening, pending output, work and errors take priority. Hiding, reduced motion
+and persona changes reset the interval. These expressions are decorative, never
+inferred from transcripts or represented as the agent's actual emotional state.
 
 ## Verification
 

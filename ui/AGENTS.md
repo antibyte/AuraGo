@@ -179,6 +179,10 @@ images, and browser-oriented regression tests.
   media and suspended contexts return zero. `mouthOpen` is a gate in these
   assets, not a morph: use energy-dependent discrete poses and prompt closure
   in short pauses, never a permanently open AA pose or claimed phoneme timing.
+  Quiet idle/passive listening may briefly vary existing facial expressions
+  (8–16 second gaps, 1.2–2.2 second duration), then restore the runtime face.
+  Speech, user voice, pending output, actions and errors override decoration;
+  hidden/reduced-motion views and persona switches reset its schedule.
   Verify with `node scripts/test-realtime-speech.mjs` (includes avatar checks).
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.

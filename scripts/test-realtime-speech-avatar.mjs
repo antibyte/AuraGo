@@ -156,6 +156,40 @@ assert.equal(h.frames.size, 0); assert.equal(h.timers.size, 0);
 for (const target of [h.window, h.document, h.runtime, h.motion]) assert.equal(target.listeners.size, 0);
 assert.ok(h.observers.every(observer => observer.disconnected));
 
+// Idle expressions briefly vary the face, then return to the actual runtime mode.
+const idle = harness(), idleView = idle.mount(true); await flush();
+const idleInputs = idle.players[0].inputs;
+idle.step(); idle.step(7999);
+assert.equal(idleInputs.mode.value, 0, 'opening must leave time before a decorative expression');
+idle.step(8001);
+assert.ok([1, 2, 4].includes(idleInputs.mode.value), 'quiet idle uses an existing non-speaking expression');
+assert.equal(idleInputs.mouthOpen.value, 0);
+idle.step(2201);
+assert.equal(idleInputs.mode.value, 0, 'the short expression must return to default');
+idle.step(16000);
+assert.ok([1, 2, 4].includes(idleInputs.mode.value), 'expressions recur after a quiet interval');
+idleView.setVisible(false); idle.step(30000); idleView.setVisible(true); idle.step();
+assert.equal(idleInputs.mode.value, 0, 'reopening must not replay an overdue expression');
+idle.runtime.sessionId = 'test'; idle.runtime.state = 'listening';
+idle.step(17000);
+assert.ok([2, 4].includes(idleInputs.mode.value), 'a passive listening expression must differ from its default');
+idle.step(2201);
+assert.equal(idleInputs.mode.value, 1, 'passive listening returns to the listening face');
+idle.step(17000);
+idle.runtime.adapter = { getOutputLevel: () => 0.3 }; idle.step(50);
+assert.equal(idleInputs.mode.value, 3, 'audible playback must replace an idle expression');
+idle.runtime.adapter = null;
+idle.runtime.userSpeaking = true; emit(idle.runtime, 'state'); idle.step(17000);
+assert.equal(idleInputs.mode.value, 1, 'active listening must not be interrupted by decoration');
+idle.runtime.userSpeaking = false; idle.runtime.actionActive = true;
+idle.step(17000); assert.equal(idleInputs.mode.value, 2);
+idle.runtime.actionActive = false; idle.runtime.providerSpeaking = true;
+idle.step(17000); assert.equal(idleInputs.mode.value, 1, 'pending speech must suppress decorative expressions');
+idle.runtime.providerSpeaking = false; idle.runtime.state = 'error'; emit(idle.runtime, 'state');
+idle.step(17000); assert.equal(idleInputs.mode.value, 0, 'errors must never turn into a decorative smile');
+idleView.dispose();
+assert.equal(idle.frames.size, 0); assert.equal(idle.timers.size, 0);
+
 // Late Rive callbacks, reduced motion on first open, and failure fallback.
 const late = harness({ key: 'neutral', autoLoad: false });
 const lateView = late.mount(true); await flush();
