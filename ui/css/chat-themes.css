@@ -4854,6 +4854,7 @@
 /* === chat-galaxy.css === */
 [data-theme="galaxy"] {
     color-scheme: dark;
+    --galaxy-bar-height: 96px; --galaxy-bar-padding: 12px; --galaxy-bar-right: 184px;
     --accent: #b7afff; --accent-secondary: #ca94ff; --accent-tertiary: #81b9ff;
     --accent-dim: #9789ff20; --accent-glow: #8b67ff40;
     --bg-primary: #05060d; --bg-secondary: #0c1023; --bg-tertiary: #141a35;
@@ -4898,7 +4899,7 @@
     border-radius: inherit; background: none; z-index: -1;
 }
 [data-theme="galaxy"] .app-header {
-    flex: 0 0 96px; min-height: 96px; margin: 34px 194px 0 44px; padding: 12px 14px 12px 28px;
+    flex: 0 0 var(--galaxy-bar-height); min-height: var(--galaxy-bar-height); margin: 16px var(--galaxy-bar-right) 0 16px; padding: var(--galaxy-bar-padding) 14px var(--galaxy-bar-padding) 28px;
     display: flex; justify-content: space-between; gap: 24px; border-radius: 35px 19px 24px 30px;
     z-index: 40; overflow: visible;
 }
@@ -4922,8 +4923,7 @@
 [data-theme="galaxy"] #moodToggle,
 [data-theme="galaxy"] #logout-btn,
 [data-theme="galaxy"] .galaxy-suggestion,
-[data-theme="galaxy"] #chat-form > button,
-[data-theme="galaxy"] .galaxy-agents {
+[data-theme="galaxy"] #chat-form > button {
     background: linear-gradient(145deg, #19244beb, #0b112bdd 58%, #41407b99);
     border: 1px solid #8885d5; color: #e1e2ff;
     box-shadow: inset 0 1px 3px #a7aafa44, inset 0 -2px 5px #7b68ff33, 0 2px 5px #0007;
@@ -4970,9 +4970,9 @@
 [data-theme="galaxy"] #warnings-badge.seen { color: #bac1df; }
 [data-theme="galaxy"] #logout-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0 16px !important; gap: 10px; white-space: nowrap; text-decoration: none; font-size: 13px; }
 [data-theme="galaxy"] #debug-pill { height: 30px; }
-[data-theme="galaxy"] .radial-menu { top: 44px; right: 46px; z-index: 61; }
+[data-theme="galaxy"] .radial-menu { top: 25px; right: 29px; z-index: 61; }
 [data-theme="galaxy"] #radialTrigger { width: 44px; height: 44px; min-width: 44px; border: 1px solid #8589cd; border-radius: 11px; color: #edf0ff; background: #070c1ccf; box-shadow: inset 0 1px 2px #b9acff55; }
-[data-theme="galaxy"] .galaxy-clock { position: fixed; right: 33px; top: 30px; width: 151px; height: 117px; border: 1px solid #ad9aa7; border-radius: 20px; background: var(--galaxy-glass); box-shadow: var(--galaxy-edge); z-index: 30; display: flex; align-items: flex-end; flex-direction: column; justify-content: flex-end; padding: 14px 16px; pointer-events: none; }
+[data-theme="galaxy"] .galaxy-clock { position: fixed; right: 16px; top: 16px; width: 151px; height: var(--galaxy-bar-height); border: 1px solid #ad9aa7; border-radius: 20px; background: var(--galaxy-glass); box-shadow: var(--galaxy-edge); z-index: 30; display: flex; align-items: flex-end; flex-direction: column; justify-content: flex-end; padding: 14px 16px; pointer-events: none; }
 [data-theme="galaxy"] .galaxy-clock time { font-size: 14px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
 [data-theme="galaxy"] .galaxy-clock small { font-size: 8px; letter-spacing: 1.3px; text-transform: uppercase; color: #b7c5fd; margin-top: 3px; }
 [data-theme="galaxy"] .galaxy-nav { position: fixed; left: 18px; top: 17.5vh; bottom: 24.5vh; width: 54px; min-height: 335px; z-index: 45; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 14px 0; border: 1px solid #9b8be0; border-radius: 18px; background: var(--galaxy-glass); box-shadow: var(--galaxy-edge), -1px 0 7px #ac62fc55; }
@@ -4986,7 +4986,6 @@
 [data-theme="galaxy"] .galaxy-motto::after { content: ''; display: block; width: 26px; margin-top: 14px; border-top: 1px solid #dfb47e; }
 [data-theme="galaxy"] .galaxy-motto-left { left: 7.2%; top: 19.5%; }
 [data-theme="galaxy"] .galaxy-motto-right { left: 73%; top: 25%; }
-[data-theme="galaxy"] .galaxy-signature { position: fixed; bottom: 3%; left: 6%; z-index: 2; color: #b2bbf7; font-size: 8px; font-weight: 600; letter-spacing: 4px; pointer-events: none; }
 [data-theme="galaxy"] #chat-box { position: relative; flex: 1; min-height: 0; z-index: 3; background: transparent; margin: 0 105px; padding: 32px 25px; scrollbar-color: #626aad88 transparent; }
 [data-theme="galaxy"] #chat-content { max-width: 970px; width: 100%; margin: 0 auto; padding: 0; }
 [data-theme="galaxy"] #chat-content.galaxy-welcome-only { height: 100%; display: flex; align-items: center; justify-content: center; padding-top: 110px; }
@@ -5004,24 +5003,25 @@
 [data-theme="galaxy"] .msg-row { margin-bottom: 24px; }
 [data-theme="galaxy"] .bubble { border: 1px solid #838ec955; border-radius: 19px; box-shadow: inset 0 1px 1px #c5c9ff22, 0 8px 25px #0007; backdrop-filter: blur(12px); }
 [data-theme="galaxy"] .bubble.user { border-color: #b69aed66; }
-[data-theme="galaxy"] .app-footer { flex: 0 0 auto; margin: 0 44px 8vh; padding: 26px 48px 26px 54px; border-radius: 38px; z-index: 35; max-width: none; }
+[data-theme="galaxy"] .app-footer { flex: 0 0 auto; min-height: var(--galaxy-bar-height); margin: 0 var(--galaxy-bar-right) 16px 16px; padding: var(--galaxy-bar-padding) 20px; border-radius: 38px; z-index: 35; max-width: none; }
 [data-theme="galaxy"] #chat-form { position: relative; display: flex; align-items: center; flex-wrap: nowrap; gap: 13px; max-width: none; width: 100%; padding: 0; margin: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
-[data-theme="galaxy"] #chat-form > button,
-[data-theme="galaxy"] .galaxy-agents { display: flex; flex: 0 0 90px; width: 90px; min-width: 44px; height: 86px; margin: 0; padding: 10px 8px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; border-radius: 13px; text-decoration: none; font: inherit; cursor: pointer; }
+[data-theme="galaxy"] #chat-form > button { display: flex; flex: 0 0 90px; width: 90px; min-width: 44px; height: calc(var(--galaxy-bar-height) - 2 * var(--galaxy-bar-padding) - 2px); margin: 0; padding: 8px; align-items: center; justify-content: center; flex-direction: column; gap: 7px; border-radius: 13px; text-decoration: none; font: inherit; cursor: pointer; }
 [data-theme="galaxy"] .galaxy-control-label { display: block; font-size: 12px; line-height: 1.25; font-weight: 400; color: #e1e3ff; }
-[data-theme="galaxy"] #chat-form > button .chat-ui-icon,
-[data-theme="galaxy"] .galaxy-agents .chat-ui-icon { width: 27px; height: 27px; }
+[data-theme="galaxy"] #chat-form > button .chat-ui-icon { width: 27px; height: 27px; }
+[data-theme="galaxy"] .realtime-speech-launcher-wave { width: 27px; height: 27px; justify-content: center; }
+[data-theme="galaxy"] .realtime-speech-launcher-wave i { height: 10px; }
+[data-theme="galaxy"] .realtime-speech-launcher-wave i:nth-child(2) { height: 20px; }
 [data-theme="galaxy"] #chat-form > #voice-btn { border-color: #d4baff; background: linear-gradient(135deg, #453089ed, #231358ef 65%, #45288cf2); box-shadow: inset 0 1px 7px #e2baff99, inset 0 -2px 12px #a080ff66, 0 0 13px #a173ff80; }
 [data-theme="galaxy"] #voice-btn.recording { box-shadow: inset 0 0 16px #ffb0b999, 0 0 18px #ff637b; border-color: #ffb6c1; }
 [data-theme="galaxy"] #upload-btn > .tool-label { display: none; }
-[data-theme="galaxy"] #chat-form > #send-btn { flex-basis: 145px; width: 145px; height: 78px; flex-direction: row; gap: 10px; margin-left: 7px; color: #ffedc7; border: 2px solid #ffe2a4; background: linear-gradient(140deg, #806139dd, #21190deb 65%, #956426dd); box-shadow: inset 0 0 12px #ffa44499, 0 0 10px #ffc964bb; }
+[data-theme="galaxy"] #chat-form > #send-btn { flex-basis: 145px; width: 145px; flex-direction: row; gap: 10px; margin-left: 7px; color: #ffedc7; border: 2px solid #ffe2a4; background: linear-gradient(140deg, #806139dd, #21190deb 65%, #956426dd); box-shadow: inset 0 0 12px #ffa44499, 0 0 10px #ffc964bb; }
 [data-theme="galaxy"] #send-btn .galaxy-control-label { font-size: 16px; color: #fff1d3; }
 [data-theme="galaxy"] #chat-form > button:disabled { opacity: .48; cursor: default; }
 [data-theme="galaxy"] .input-wrap { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; }
-[data-theme="galaxy"] #user-input { width: 100%; min-height: 84px; max-height: 180px; padding: 26px 24px; margin: 0; box-sizing: border-box; background: linear-gradient(140deg, #101a35eb, #060c1fe6); border: 1px solid #b7b5ec; border-radius: 17px; box-shadow: inset 0 1px 5px #c5cfff55, inset 0 -3px 9px #6977d944; color: #f6f1ff; font-family: inherit; font-size: 18px; line-height: 1.6; }
+[data-theme="galaxy"] #user-input { width: 100%; min-height: calc(var(--galaxy-bar-height) - 2 * var(--galaxy-bar-padding) - 2px); max-height: 180px; padding: 18px 24px; margin: 0; box-sizing: border-box; background: linear-gradient(140deg, #101a35eb, #060c1fe6); border: 1px solid #b7b5ec; border-radius: 17px; box-shadow: inset 0 1px 5px #c5cfff55, inset 0 -3px 9px #6977d944; color: #f6f1ff; font-family: inherit; font-size: 18px; line-height: 1.6; }
 [data-theme="galaxy"] #user-input::placeholder { color: #8992b6; opacity: 1; }
 [data-theme="galaxy"] #user-input:focus { outline: 2px solid #acafff; outline-offset: 2px; }
-[data-theme="galaxy"] #composer-panel { position: absolute; inset: auto auto calc(100% + 30px) 85px; display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; max-width: min(640px, calc(100vw - 130px)); padding: 14px; border: 1px solid #a79cde; border-radius: 18px; background: #0c1128f5; box-shadow: var(--galaxy-edge); backdrop-filter: blur(18px); z-index: 60; }
+[data-theme="galaxy"] #composer-panel { position: absolute; inset: auto auto calc(100% + 20px) 0; display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; max-width: min(640px, calc(100vw - 130px)); padding: 14px; border: 1px solid #a79cde; border-radius: 18px; background: #0c1128f5; box-shadow: var(--galaxy-edge); backdrop-filter: blur(18px); z-index: 60; }
 [data-theme="galaxy"] #composer-panel.is-hidden { display: none !important; }
 [data-theme="galaxy"] #composer-panel > button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; min-width: 70px; min-height: 60px; border-radius: 9px; border: 1px solid #717cab66; padding: 10px; background: #28325766; color: #e1e3ff; }
 [data-theme="galaxy"] #composer-panel > button:disabled { opacity: .4; }
@@ -5033,7 +5033,8 @@
 [data-theme="galaxy"] .mood-panel { background: #0b1028f5; border: 1px solid #878fce; border-radius: 14px; box-shadow: var(--galaxy-edge); backdrop-filter: blur(20px); }
 [data-theme="galaxy"] #agentStatusContainer { z-index: 4; margin: 0 110px 12px; }
 @media (max-width: 1500px) {
-    [data-theme="galaxy"] .app-header { margin-right: 142px; padding-left: 18px; gap: 16px; }
+    [data-theme="galaxy"] { --galaxy-bar-right: 140px; }
+    [data-theme="galaxy"] .app-header { padding-left: 18px; gap: 16px; }
     [data-theme="galaxy"] .app-header > .logo { flex-basis: 215px; }
     [data-theme="galaxy"] .logo-wordmark-accent,
     [data-theme="galaxy"] .logo-wordmark-base { font-size: 24px; letter-spacing: 3px; }
@@ -5046,27 +5047,25 @@
     [data-theme="galaxy"] #moodToggle { font-size: 14px; }
     [data-theme="galaxy"] .pill { font-size: 11px; padding: 0 7px; }
     [data-theme="galaxy"] #logout-btn { padding: 0 10px !important; }
-    [data-theme="galaxy"] .galaxy-clock { width: 108px; right: 24px; padding: 12px 9px; }
+    [data-theme="galaxy"] .galaxy-clock { width: 108px; padding: 12px 9px; }
     [data-theme="galaxy"] .galaxy-clock small { font-size: 6px; letter-spacing: .4px; }
-    [data-theme="galaxy"] .radial-menu { right: 38px; }
-    [data-theme="galaxy"] .app-footer { padding: 17px 20px; margin-left: 36px; margin-right: 36px; }
-    [data-theme="galaxy"] #chat-form > button,
-    [data-theme="galaxy"] .galaxy-agents { flex-basis: 72px; width: 72px; height: 78px; }
-    [data-theme="galaxy"] #chat-form > #send-btn { flex-basis: 120px; width: 120px; height: 72px; }
-    [data-theme="galaxy"] #user-input { min-height: 78px; padding: 23px 20px; font-size: 16px; }
+    [data-theme="galaxy"] #chat-form > button { flex-basis: 72px; width: 72px; }
+    [data-theme="galaxy"] #chat-form > #send-btn { flex-basis: 120px; width: 120px; }
+    [data-theme="galaxy"] #user-input { padding: 18px 20px; font-size: 16px; }
     [data-theme="galaxy"] #chat-content.galaxy-welcome-only { padding-top: 45px; }
 }
 @media (max-width: 1200px) {
-    [data-theme="galaxy"] .app-header { margin: 22px 104px 0 28px; padding: 8px 12px; min-height: 78px; flex-basis: 78px; }
+    [data-theme="galaxy"] { --galaxy-bar-height: 78px; --galaxy-bar-padding: 6px; --galaxy-bar-right: 104px; }
+    [data-theme="galaxy"] .app-header { padding-inline: 12px; }
     [data-theme="galaxy"] .app-header > .logo { flex-basis: 52px; height: 52px; padding: 0; }
     [data-theme="galaxy"] .logo-icon { width: 52px; height: 52px; margin: 0; }
     [data-theme="galaxy"] .logo-wordmark-accent,
     [data-theme="galaxy"] .logo-wordmark-base,
     [data-theme="galaxy"] .galaxy-brand-tag { display: none; }
-    [data-theme="galaxy"] .galaxy-clock { top: 20px; width: 74px; height: 80px; right: 19px; padding: 7px; }
+    [data-theme="galaxy"] .galaxy-clock { width: 74px; padding: 7px; }
     [data-theme="galaxy"] .galaxy-clock small { display: none; }
     [data-theme="galaxy"] .galaxy-clock time { font-size: 10px; }
-    [data-theme="galaxy"] .radial-menu { top: 27px; right: 33px; }
+    [data-theme="galaxy"] .radial-menu { top: 23px; right: 30px; }
     [data-theme="galaxy"] .header-actions::before { display: none; }
     [data-theme="galaxy"] .app-header .header-actions { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
     [data-theme="galaxy"] .chat-theme-dropdown,
@@ -5080,13 +5079,14 @@
     [data-theme="galaxy"] .galaxy-suggestion { padding: 10px; font-size: 11px; }
     [data-theme="galaxy"] .galaxy-motto { display: none; }
     [data-theme="galaxy"] #chat-form { gap: 9px; }
-    [data-theme="galaxy"] #chat-form > button,
-    [data-theme="galaxy"] .galaxy-agents { flex-basis: 58px; width: 58px; height: 70px; }
+    [data-theme="galaxy"] #user-input { padding-block: 17px; }
+    [data-theme="galaxy"] #chat-form > button { flex-basis: 58px; width: 58px; padding: 6px; }
     [data-theme="galaxy"] #chat-form > #send-btn { flex-basis: 88px; width: 88px; margin: 0; }
     [data-theme="galaxy"] .galaxy-control-label { font-size: 10px; }
 }
 @media (max-width: 767px) {
-    [data-theme="galaxy"] .app-header { margin: 15px 75px 0 15px; padding: 7px; gap: 4px; min-height: 70px; flex-basis: 70px; border-radius: 22px; }
+    [data-theme="galaxy"] { --galaxy-bar-height: 70px; }
+    [data-theme="galaxy"] .app-header { margin: 12px 75px 0 12px; padding: 7px; gap: 4px; border-radius: 22px; }
     [data-theme="galaxy"] .app-header > .logo { display: none; }
     [data-theme="galaxy"] .app-header .header-actions { --chat-header-control-size: 46px; justify-content: flex-start; min-height: 52px; overflow-x: auto; }
     [data-theme="galaxy"] .header-actions > * { flex-shrink: 0; }
@@ -5094,8 +5094,8 @@
     [data-theme="galaxy"] #personality-select { display: inline-flex !important; min-width: 155px; }
     [data-theme="galaxy"] .app-header #personality-mobile-btn { display: none !important; }
     [data-theme="galaxy"] .app-header .header-actions #moodWidget { min-width: 140px; }
-    [data-theme="galaxy"] .galaxy-clock { top: 14px; right: 12px; width: 54px; height: 72px; border-radius: 17px; padding: 5px; }
-    [data-theme="galaxy"] .radial-menu { top: 19px; right: 17px; }
+    [data-theme="galaxy"] .galaxy-clock { top: 12px; right: 12px; width: 54px; border-radius: 17px; padding: 5px; }
+    [data-theme="galaxy"] .radial-menu { top: 17px; right: 17px; }
     [data-theme="galaxy"] .galaxy-nav { top: 110px; left: 10px; width: 46px; bottom: 245px; min-height: 295px; padding: 3px 0; }
     [data-theme="galaxy"] .galaxy-nav > a,
     [data-theme="galaxy"] .galaxy-nav > button { width: 44px; height: 44px; flex-basis: 44px; padding: 10px; }
@@ -5111,26 +5111,22 @@
     [data-theme="galaxy"] .galaxy-suggestions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 14px; width: 100%; }
     [data-theme="galaxy"] .galaxy-suggestion { min-height: 44px; font-size: 10px; padding: 7px; gap: 5px; border-radius: 10px; text-align: left; }
     [data-theme="galaxy"] .galaxy-suggestion .chat-ui-icon { flex: 0 0 17px; width: 17px; height: 17px; }
-    [data-theme="galaxy"] .app-footer { margin: 0 13px max(20px, env(safe-area-inset-bottom)); padding: 13px; border-radius: 26px; }
+    [data-theme="galaxy"] .app-footer { margin: 0 12px max(12px, env(safe-area-inset-bottom)); padding: 10px; border-radius: 26px; }
     [data-theme="galaxy"] #chat-form { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)) 60px; gap: 8px; }
     [data-theme="galaxy"] .input-wrap { grid-row: 1; grid-column: 1 / -1; }
-    [data-theme="galaxy"] #user-input { min-height: 58px; max-height: 105px; padding: 16px; font-size: 16px; border-radius: 14px; }
-    [data-theme="galaxy"] #chat-form > button,
-    [data-theme="galaxy"] .galaxy-agents { grid-row: 2; width: 100%; height: 58px; min-width: 44px; padding: 6px 2px; gap: 5px; border-radius: 10px; }
-    [data-theme="galaxy"] #chat-form > #send-btn { width: 100%; height: 58px; flex-direction: column; gap: 5px; padding: 6px 2px; }
+    [data-theme="galaxy"] #user-input { min-height: 54px; max-height: 105px; padding: 13px; font-size: 16px; border-radius: 14px; }
+    [data-theme="galaxy"] #chat-form > button { grid-row: 2; width: 100%; height: 54px; min-width: 44px; padding: 6px 2px; gap: 5px; border-radius: 10px; }
+    [data-theme="galaxy"] #chat-form > #send-btn { width: 100%; height: 54px; flex-direction: column; gap: 5px; padding: 6px 2px; }
     [data-theme="galaxy"] #send-btn .galaxy-control-label { font-size: 10px; }
     [data-theme="galaxy"] #chat-form > button .chat-ui-icon,
-    [data-theme="galaxy"] .galaxy-agents .chat-ui-icon { width: 22px; height: 22px; }
+    [data-theme="galaxy"] .realtime-speech-launcher-wave { width: 22px; height: 22px; }
     [data-theme="galaxy"] #composer-panel { inset: auto 0 calc(100% + 23px) 0; max-width: none; }
     [data-theme="galaxy"] #agentStatusContainer { margin: 0 70px 10px; }
-    [data-theme="galaxy"] .galaxy-signature { display: none; }
     [data-theme="galaxy"] .chat-theme-dropdown,
     [data-theme="galaxy"] .personality-dropdown,
     [data-theme="galaxy"] .mood-panel { position: fixed !important; top: 96px !important; right: 14px !important; left: 14px !important; max-width: none; width: auto; max-height: calc(100dvh - 120px); }
 }
 @media (max-height: 650px) {
-    [data-theme="galaxy"] .app-header { margin-top: 13px; }
-    [data-theme="galaxy"] .app-footer { margin-bottom: 18px; }
     [data-theme="galaxy"] .galaxy-nav { top: 115px; bottom: 195px; min-height: 0; overflow-y: auto; justify-content: flex-start; scrollbar-width: none; }
     [data-theme="galaxy"] .galaxy-nav > a,
     [data-theme="galaxy"] .galaxy-nav > button { flex: 1 1 44px; min-height: 44px; }

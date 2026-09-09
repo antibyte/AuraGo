@@ -287,14 +287,17 @@ worker. Keep packaging, recovery and offline instructions in
   preserve source provenance in `img/galaxy/CREDITS.md`.
   Galaxy chat follows the supplied orbital-glass reference: a violet/cyan/gold
   outlined header, local orbit wordmark, left navigation rail, orb welcome card
-  and wide floating composer with Voice, Tools, File and Agents controls.
+  and a floating composer ordered Voice, Live, File, Tools, input, Send.
+  Desktop header/composer share width and resting height, with 16px edge gaps;
+  narrow touch views retain the input above the controls and 12px edge gaps.
   Keep its styles scoped to `[data-theme="galaxy"]` in `css/chat-themes.css`.
   `galaxy-interface.js` lazily relocates the real composer/drawer controls;
   comment anchors restore the exact original order on theme exit. Do not clone
   actionable controls or change other themes' inline desktop toolbar behavior.
-  The Tools popover owns the remaining controls, including live speech and Stop.
-  Agents links to the existing dashboard activity card; suggestions only prepare
-  a draft and never send automatically. Rebuild the welcome card after chat reset.
+  Live is the existing realtime-speech launcher and retains its dialog and session
+  indicators. The Tools popover owns the remaining controls, including Stop.
+  Suggestions only prepare a draft and never send automatically. Rebuild the
+  welcome card after chat reset.
   Use local Geist, the licensed Lucide control sprite and generated image assets.
   Preserve 44px targets, visible keyboard focus, real connection/persona/mood and
   notification state, and all 16 chat locales. The welcome status mirrors the

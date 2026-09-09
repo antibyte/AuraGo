@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "आवाज़",
   "chat.galaxy_tools": "टूल",
   "chat.galaxy_file": "फ़ाइल",
-  "chat.galaxy_agents": "एजेंट",
   "chat.galaxy_send": "भेजें",
-  "chat.galaxy_live": "लाइव बातचीत",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "अपने एजेंट को कोई काम दें …",
   "chat.galaxy_persona": "आपका व्यक्तित्व",
   "chat.galaxy_mood": "वर्तमान मनोदशा"

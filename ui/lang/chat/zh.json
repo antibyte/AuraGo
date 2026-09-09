@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "语音",
   "chat.galaxy_tools": "工具",
   "chat.galaxy_file": "文件",
-  "chat.galaxy_agents": "智能体",
   "chat.galaxy_send": "发送",
-  "chat.galaxy_live": "实时对话",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "给你的智能体一项任务 …",
   "chat.galaxy_persona": "你的个性",
   "chat.galaxy_mood": "当前心情"

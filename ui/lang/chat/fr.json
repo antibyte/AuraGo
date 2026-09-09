@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "Voix",
   "chat.galaxy_tools": "Outils",
   "chat.galaxy_file": "Fichier",
-  "chat.galaxy_agents": "Agents",
   "chat.galaxy_send": "Envoyer",
-  "chat.galaxy_live": "Conversation en direct",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Confie une tâche à ton agent …",
   "chat.galaxy_persona": "Ta personnalité",
   "chat.galaxy_mood": "Humeur actuelle"

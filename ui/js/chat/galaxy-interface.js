@@ -127,15 +127,10 @@
         active = true;
         const form = byId('chat-form'), input = form.querySelector('.input-wrap');
         const panel = byId('composer-panel');
-        move(byId('composer-more-btn'), form, input);
         move(byId('upload-btn'), form, input);
-        move(byId('realtime-speech-btn'), panel);
-        move(panel, form, byId('upload-btn'));
+        move(byId('composer-more-btn'), form, input);
+        move(panel, form, input);
         for (const [id, key] of [['voice-btn', 'voice'], ['composer-more-btn', 'tools'], ['upload-btn', 'file'], ['send-btn', 'send'], ['realtime-speech-btn', 'live']]) label(byId(id), key);
-        const agents = link('/dashboard#card-activity', 'network', 'chat.galaxy_agents', 'galaxy-agents');
-        label(agents, 'agents');
-        own(agents, form);
-        input.before(agents);
 
         const logo = document.querySelector('.app-header .logo');
         logo.style.setProperty('--galaxy-mark', 'url("' + asset('orbit-mark.png') + '")');
@@ -154,8 +149,7 @@
         clock();
         const left = own(element('div', 'galaxy-motto galaxy-motto-left', 'EXPLORE.\nTHINK.\nCREATE\nTOGETHER'), document.body);
         const right = own(element('div', 'galaxy-motto galaxy-motto-right', 'A MORE\nINTELLIGENT\nTOMORROW\n— TOGETHER'), document.body);
-        const foot = own(element('div', 'galaxy-signature', 'AURAGO · BEYOND IDEAS'), document.body);
-        [left, right, foot].forEach(node => node.setAttribute('aria-hidden', 'true'));
+        [left, right].forEach(node => node.setAttribute('aria-hidden', 'true'));
         label(byId('personality-select'), 'persona');
         label(byId('moodToggle'), 'mood');
         originalPlaceholder = byId('user-input').placeholder;

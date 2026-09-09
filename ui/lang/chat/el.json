@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "Φωνή",
   "chat.galaxy_tools": "Εργαλεία",
   "chat.galaxy_file": "Αρχείο",
-  "chat.galaxy_agents": "Πράκτορες",
   "chat.galaxy_send": "Αποστολή",
-  "chat.galaxy_live": "Ζωντανή συνομιλία",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Δώσε στον βοηθό σου μια εργασία …",
   "chat.galaxy_persona": "Η προσωπικότητά σου",
   "chat.galaxy_mood": "Τρέχουσα διάθεση"

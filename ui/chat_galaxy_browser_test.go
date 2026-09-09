@@ -120,6 +120,8 @@ if(location.search.includes('no-webgl')){const get=HTMLCanvasElement.prototype.g
 <script src="/js/shared/prepaint-theme.js?v=galaxy-browser-test"></script>
 <script src="/js/shared/shared-core.js"></script><script src="/js/shared/lazy-assets.js"></script>
 <script src="/js/shared/shared-chat.js"></script><script src="/js/chat/ui-icons.js"></script>
+<script src="/js/realtime-speech/provider-common.js"></script><script src="/js/realtime-speech/core.js"></script>
+<script src="/js/realtime-speech/panel.js"></script><script src="/js/realtime-speech/webchat.js"></script>
 <script src="/js/chat/modules/session-drawer.js"></script><script src="/js/chat/modules/integrations-drawer.js"></script>
 <script>` + controls + `
 document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
@@ -151,6 +153,9 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		case "/js/chat/galaxy-scene.js":
 			w.Header().Set("Content-Type", "application/javascript")
 			_, _ = w.Write([]byte(scene))
+		case "/api/realtime-speech/config", "/api/realtime-speech/catalog":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"enabled":true,"profiles":[{"id":"local","name":"Live fixture","provider":"speech_lab","enabled":true}]}`))
 		case "/api/chat/sessions", "/api/chat/sessions/default", "/api/integrations/webhosts":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"sessions":[],"webhosts":[],"session":{"id":"default"}}`))
@@ -271,7 +276,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		ready()
 		p.MustEval(`async () => {await document.fonts.ready; await new Promise(r=>setTimeout(r,300))}`)
 		check(`() => {
-            const g=__galaxy.stats();const buttons=[...document.querySelectorAll('.app-header button:not(.chat-theme-option),#chat-form > button,.galaxy-nav > a,.galaxy-nav > button,.galaxy-agents')].filter(e=>e.getClientRects().length && getComputedStyle(e).visibility!=='hidden');
+            const g=__galaxy.stats();const buttons=[...document.querySelectorAll('.app-header button:not(.chat-theme-option),#chat-form > button,.galaxy-nav > a,.galaxy-nav > button')].filter(e=>e.getClientRects().length && getComputedStyle(e).visibility!=='hidden');
             return document.body.scrollWidth<=innerWidth && g.width*g.height<=3840*2160 && g.stars===(innerWidth<768?850:3500) && buttons.every(e=>{const r=e.getBoundingClientRect();return r.width>=44 && r.height>=44});
         }`, fmt.Sprintf("layout, touch target or resolution budget at %v", size))
 		check(`() => {
@@ -279,12 +284,14 @@ SessionDrawer.init();initTheme();initChatThemePicker();
             const input=document.getElementById('user-input').getBoundingClientRect(),send=document.getElementById('send-btn').getBoundingClientRect();
             return g.left>=nav.right && g.right<=innerWidth && input.width>=100 && send.right<=innerWidth && input.top>=0 && send.bottom<=innerHeight;
         }`, fmt.Sprintf("greeting, navigation or composer bounds at %v", size))
-		if size[0] == 1672 {
-			check(`() => {
-                const g=document.querySelector('.greeting-row').getBoundingClientRect(),i=document.getElementById('user-input').getBoundingClientRect();
-                return Math.abs(g.x-326)<12 && Math.abs(g.y-375)<12 && Math.abs(g.width-968)<12 && Math.abs(g.height-225)<12 && Math.abs(i.x-510)<12 && Math.abs(i.y-754)<12;
-            }`, "Galaxy reference geometry drifted")
-		}
+		check(`() => {
+            const h=document.querySelector('.app-header').getBoundingClientRect(),f=document.querySelector('.app-footer').getBoundingClientRect();
+            return h.top<=16 && innerHeight-f.bottom<=16 && (innerWidth<768 || (Math.abs(h.height-f.height)<1 && Math.abs(h.width-f.width)<1 && h.left===f.left));
+        }`, fmt.Sprintf("Galaxy bar size or edge spacing at %v", size))
+		check(`() => {
+            const controls=[...document.querySelectorAll('#chat-form > button')].map(b=>b.id);
+            return controls.join(',')==='voice-btn,realtime-speech-btn,upload-btn,composer-more-btn,send-btn' && document.querySelector('#realtime-speech-btn .galaxy-control-label').textContent==='Live' && !document.querySelector('.galaxy-agents');
+        }`, "Galaxy primary control order or Live label changed")
 		artifact(fmt.Sprintf("galaxy-greeting-%dx%d", size[0], size[1]))
 		p.MustElement("#chat-theme-btn").MustClick()
 		check(`() => {const d=document.getElementById('chat-theme-dropdown'),r=d.getBoundingClientRect();return !d.hidden && r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight && r.height>100}`, "Galaxy theme menu must remain reachable inside a scrolling header")
@@ -292,10 +299,29 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		p.Timeout(10 * time.Second).MustElement(".galaxy-suggestion").MustClick()
 		check(`() => document.getElementById('user-input').value===t('chat.galaxy_ideas') && document.activeElement.id==='user-input' && !window.__submitted`, "suggestion must prepare a draft without sending")
 		p.Timeout(10 * time.Second).MustElement("#composer-more-btn").MustClick()
-		check(`() => !document.getElementById('composer-panel').classList.contains('is-hidden') && document.getElementById('composer-more-btn').getAttribute('aria-expanded')==='true' && document.getElementById('upload-btn').parentElement.id==='chat-form' && document.getElementById('realtime-speech-btn').parentElement.id==='composer-panel'`, "Galaxy tools or live speech placement failed")
+		check(`() => !document.getElementById('composer-panel').classList.contains('is-hidden') && document.getElementById('composer-more-btn').getAttribute('aria-expanded')==='true' && document.getElementById('upload-btn').parentElement.id==='chat-form' && document.getElementById('realtime-speech-btn').parentElement.id==='chat-form'`, "Galaxy tools or live speech placement failed")
 		artifact(fmt.Sprintf("galaxy-tools-%dx%d", size[0], size[1]))
 		p.Keyboard.MustType(input.Escape)
 		check(`() => document.getElementById('composer-panel').classList.contains('is-hidden')`, "Escape did not close Galaxy tools")
+		p.MustElement("#realtime-speech-btn").MustClick()
+		p.MustWait(`() => getComputedStyle(document.getElementById('realtime-speech-overlay')).opacity==='1'`)
+		check(`() => {
+            const overlay=document.getElementById('realtime-speech-overlay');
+            return overlay.classList.contains('is-open') && !overlay.inert && overlay.getAttribute('aria-hidden')==='false' && overlay.contains(document.activeElement) && document.getElementById('realtime-speech-btn').getAttribute('aria-expanded')==='true' && !!overlay.querySelector('[data-realtime-start]') && !AuraRealtimeSpeech.sessionId;
+        }`, "Live did not open the real speech dialog without starting a session")
+		if size[0] == 1672 || size[0] == 390 {
+			artifact(fmt.Sprintf("galaxy-live-%dx%d", size[0], size[1]))
+		}
+		p.Keyboard.MustType(input.Escape)
+		check(`() => document.getElementById('realtime-speech-overlay').inert && document.activeElement.id==='realtime-speech-btn' && document.activeElement.getAttribute('aria-expanded')==='false'`, "Live dialog did not close and restore launcher focus")
+
+		check(`() => {
+            const r=AuraRealtimeSpeech,b=document.getElementById('realtime-speech-btn');
+            try {
+                r.sessionId='fixture'; r.adapter={connected:true}; r.state='listening'; r.userSpeaking=true; r.emit('state');
+                return b.dataset.active==='true' && b.dataset.transmitting==='true' && b.getAttribute('aria-pressed')==='true' && b.querySelector('.galaxy-control-label').textContent==='Live';
+            } finally {r.sessionId='';r.adapter=null;r.state='idle';r.userSpeaking=false;r.emit('state')}
+        }`, "Live launcher lost its real session activity indicator")
 		p.MustEval(`() => {
             const status=document.getElementById('connectionPill');status.className='pill pill-disconnected';status.textContent='Getrennt';
         }`)
@@ -340,7 +366,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	ready()
 	for i := 0; i < 10; i++ {
 		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.info.memory.textures===0 && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
-		check(`() => !document.querySelector('.galaxy-nav,.galaxy-clock,.galaxy-welcome,.galaxy-glyph') && document.getElementById('upload-btn').parentElement.id==='composer-panel' && document.getElementById('composer-more-btn').previousElementSibling.id==='send-btn' && !document.getElementById('composer-panel').classList.contains('is-hidden')`, "Galaxy controls were not restored to the default arrangement")
+		check(`() => !document.querySelector('.galaxy-nav,.galaxy-clock,.galaxy-welcome,.galaxy-glyph') && document.getElementById('upload-btn').parentElement.id==='composer-panel' && document.getElementById('composer-more-btn').previousElementSibling.id==='send-btn' && document.getElementById('realtime-speech-btn').previousElementSibling.id==='voice-btn' && !document.querySelector('#realtime-speech-btn .galaxy-control-label') && !document.getElementById('composer-panel').classList.contains('is-hidden')`, "Galaxy controls were not restored to the default arrangement")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
 		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===7 && s.calls===10}`, "theme restart grew resources")

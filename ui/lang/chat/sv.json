@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "Tal",
   "chat.galaxy_tools": "Verktyg",
   "chat.galaxy_file": "Fil",
-  "chat.galaxy_agents": "Agenter",
   "chat.galaxy_send": "Skicka",
-  "chat.galaxy_live": "Livesamtal",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Ge din agent en uppgift …",
   "chat.galaxy_persona": "Din personlighet",
   "chat.galaxy_mood": "Aktuellt humör"

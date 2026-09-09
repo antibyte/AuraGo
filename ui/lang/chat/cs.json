@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "Hlas",
   "chat.galaxy_tools": "Nástroje",
   "chat.galaxy_file": "Soubor",
-  "chat.galaxy_agents": "Agenti",
   "chat.galaxy_send": "Odeslat",
-  "chat.galaxy_live": "Živý rozhovor",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Zadej svému agentovi úkol …",
   "chat.galaxy_persona": "Tvá osobnost",
   "chat.galaxy_mood": "Aktuální nálada"

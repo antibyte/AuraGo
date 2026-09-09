@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "Tale",
   "chat.galaxy_tools": "Værktøjer",
   "chat.galaxy_file": "Fil",
-  "chat.galaxy_agents": "Agenter",
   "chat.galaxy_send": "Send",
-  "chat.galaxy_live": "Live samtale",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Giv din agent en opgave …",
   "chat.galaxy_persona": "Din personlighed",
   "chat.galaxy_mood": "Aktuelt humør"

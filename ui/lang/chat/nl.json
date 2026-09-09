@@ -277,9 +277,8 @@
   "chat.galaxy_voice": "Spraak",
   "chat.galaxy_tools": "Tools",
   "chat.galaxy_file": "Bestand",
-  "chat.galaxy_agents": "Agenten",
   "chat.galaxy_send": "Verstuur",
-  "chat.galaxy_live": "Livegesprek",
+  "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Geef je agent een taak …",
   "chat.galaxy_persona": "Jouw persoonlijkheid",
   "chat.galaxy_mood": "Huidige stemming"
