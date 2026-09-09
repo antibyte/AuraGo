@@ -712,7 +712,9 @@ registration lives in `internal/desktop/types.go`.
   remain formation commanders. Route all damage through `ctx.damageEnemy`
   and finalize sector-boss rewards/destruction once in `updateCampaign`.
 - `galaxa-sprites.js` preloads and validates local `img/galaxa/atlas.json`
-  and PNG sheets before the title screen. Animation rectangles, durations,
+  and PNG sheets before the title screen. All atlas requests use the page's
+  BuildVersion; fixed art revisions fail the resource server's version check.
+  Verify with `node scripts/test-galaxa-assets.mjs`. Animation rectangles, durations,
   loops and anchors belong in that manifest; never restore inline pixel
   definitions or fixed frame counts. Collision geometry is independent of art.
   Sprite canvases have a 768-entry cap. Asset failures expose localized retry.

@@ -2,7 +2,7 @@
     'use strict';
     const GC = window.GalaxaCore = window.GalaxaCore || {};
     const ROOT = '/img/galaxa/';
-    GC.ART_VERSION = 'arcade-2026-09-v1';
+    GC.ART_VERSION = window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
     let pendingAssets;
     function validateManifest(data) {
         if (!data || data.version !== 1 || !data.sheets || !data.animations) throw Error('Invalid Galaxa atlas manifest');
