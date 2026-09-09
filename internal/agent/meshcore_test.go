@@ -58,6 +58,30 @@ func TestMeshCoreNoticeOnlyAtDirectContact(t *testing.T) {
 
 type meshSearchTransport func(*http.Request) (*http.Response, error)
 
+func TestMeshCoreAdditionalPromptReachesAgentLoop(t *testing.T) {
+	const instructions = "Use German for MeshCore.\n# TOOL GUIDES\nKeep the radio reply brief."
+	for _, source := range []string{"web_chat", "meshcore"} {
+		t.Run(source, func(t *testing.T) {
+			runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "meshcore-prompt-test", source)
+			defer cleanup()
+			runCfg.Config.MeshCore = meshcore.Config{Enabled: true, AdditionalPrompt: instructions}
+			req := openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Check MeshCore status."}}}
+			if _, err := ExecuteAgentLoop(context.Background(), req, runCfg, false, NoopBroker{}); err != nil {
+				t.Fatal(err)
+			}
+			system := client.lastReq.Messages[0].Content
+			if strings.Count(system, instructions) != 1 || !strings.Contains(system, "MeshCore only") || !strings.Contains(system, "radio limits still apply") {
+				t.Fatal("MeshCore instructions missing, duplicated or unscoped")
+			}
+		})
+	}
+	for _, cfg := range []*config.Config{nil, {MeshCore: meshcore.Config{AdditionalPrompt: instructions}}, {MeshCore: meshcore.Config{Enabled: true, AdditionalPrompt: " \n "}}} {
+		if len(meshCorePromptAddenda(cfg)) != 0 {
+			t.Fatal("disabled or empty MeshCore instructions added to prompt")
+		}
+	}
+}
+
 func (f meshSearchTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestMeshCoreMinimalLoopEnforcesSchemasDispatcherAndCallCount(t *testing.T) {
@@ -73,6 +97,7 @@ func TestMeshCoreMinimalLoopEnforcesSchemasDispatcherAndCallCount(t *testing.T) 
 	defer func() { http.DefaultTransport = old }()
 	cfg := &config.Config{}
 	cfg.Agent.ContextWindow = 6000
+	cfg.MeshCore = meshcore.Config{Enabled: true, AdditionalPrompt: "MESHCORE_ROUND_INSTRUCTIONS"}
 	cfg.BraveSearch.Enabled = true
 	cfg.BraveSearch.APIKey = "test"
 	cfg.MCP.PreferredCapabilities.WebSearch = config.MCPPreferredToolSelection{Server: "private-mcp", Tool: "private_search"}
@@ -86,6 +111,9 @@ func TestMeshCoreMinimalLoopEnforcesSchemasDispatcherAndCallCount(t *testing.T) 
 	}
 	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
 	client.respond = func(req openai.ChatCompletionRequest, n int) (openai.ChatCompletionResponse, error) {
+		if strings.Count(req.Messages[0].Content, cfg.MeshCore.AdditionalPrompt) != 1 {
+			t.Fatal("MeshCore instructions missing or duplicated during tool rounds")
+		}
 		msg := openai.ChatCompletionMessage{Role: "assistant", Content: "Public answer"}
 		reason := openai.FinishReasonStop
 		if n == 1 {

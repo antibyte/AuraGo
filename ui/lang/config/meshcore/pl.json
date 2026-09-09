@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Dodatkowe instrukcje dla agenta",
+  "config.meshcore.additional_prompt_help": "Opcjonalne wskazówki dotyczące odpowiedzi MeshCore i korzystania z narzędzia MeshCore, np. języka lub stylu odpowiedzi. Maksymalnie 2000 znaków. Uprawnienia, zasady bezpieczeństwa i limity radiowe nadal obowiązują.",
   "config.meshcore.search_nodes": "Szukaj węzłów według nazwy lub klucza",
   "config.meshcore.add_to": "Dodaj do",
   "config.meshcore.use_node": "Dodaj węzeł",

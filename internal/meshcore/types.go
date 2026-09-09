@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const ProtocolRevision = "0679dbeffc504d562d2f09eb072fdc223f8ffc2a"
@@ -21,6 +22,7 @@ type Config struct {
 	IdentityKey             string        `yaml:"identity_key" json:"identity_key"`
 	TrustedNodes            []string      `yaml:"trusted_nodes" json:"trusted_nodes"`
 	DirectReplies           bool          `yaml:"direct_replies" json:"direct_replies"`
+	AdditionalPrompt        string        `yaml:"additional_prompt" json:"additional_prompt"`
 	AllowLocationDisclosure bool          `yaml:"allow_location_disclosure" json:"allow_location_disclosure"`
 	DisclosedLocation       string        `yaml:"disclosed_location" json:"disclosed_location"`
 	ProactiveSend           bool          `yaml:"proactive_send" json:"proactive_send"`
@@ -66,6 +68,10 @@ func (c *Config) Normalize() error {
 	c.DisclosedLocation = strings.TrimSpace(c.DisclosedLocation)
 	if len([]rune(c.DisclosedLocation)) > 160 || strings.ContainsAny(c.DisclosedLocation, "\x00\r\n") {
 		return fmt.Errorf("meshcore: disclosed location must be a single line of at most 160 characters")
+	}
+	c.AdditionalPrompt = strings.TrimSpace(strings.ReplaceAll(c.AdditionalPrompt, "\r\n", "\n"))
+	if !utf8.ValidString(c.AdditionalPrompt) || utf8.RuneCountInString(c.AdditionalPrompt) > 2000 || strings.ContainsRune(c.AdditionalPrompt, '\x00') {
+		return fmt.Errorf("meshcore: additional instructions must be valid text of at most 2000 characters without NUL")
 	}
 	for _, list := range [][]string{c.TrustedNodes, c.SendNodes} {
 		seen := map[string]bool{}

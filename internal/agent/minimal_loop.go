@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
@@ -100,6 +101,10 @@ func ExecuteMinimalLoop(
 		reqTools = nil
 		maxRounds = 0
 	}
+	var addenda []prompts.PromptAddendum
+	if dispatchCtx.MessageSource == "meshcore_reply" && !noTools {
+		addenda = meshCorePromptAddenda(dispatchCtx.Cfg)
+	}
 
 	messages := make([]openai.ChatCompletionMessage, 0, len(history)+2)
 	baseSystemPrompt := ""
@@ -123,7 +128,7 @@ func ExecuteMinimalLoop(
 	formatRetried := false
 
 	for round := 0; round <= maxRounds; round++ {
-		if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls); err != nil {
+		if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, addenda...); err != nil {
 			return result, req.Messages, err
 		}
 		resp, err := client.CreateChatCompletion(ctx, req)
@@ -187,7 +192,7 @@ func ExecuteMinimalLoop(
 
 	// Tool-round narration is not a final answer. Request a tool-free summary.
 	req.Tools = nil
-	if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls); err != nil {
+	if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, addenda...); err != nil {
 		return result, req.Messages, err
 	}
 	resp, err := client.CreateChatCompletion(ctx, req)

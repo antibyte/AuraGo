@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Additional agent instructions",
+  "config.meshcore.additional_prompt_help": "Optional guidance for MeshCore replies and use of the MeshCore tool, such as language or reply style. Up to 2000 characters. Permissions, security rules and radio limits still apply.",
   "config.meshcore.search_nodes": "Search nodes by name or key",
   "config.meshcore.add_to": "Add to",
   "config.meshcore.use_node": "Add node",

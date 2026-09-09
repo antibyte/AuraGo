@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Ekstra instruksjoner til agenten",
+  "config.meshcore.additional_prompt_help": "Valgfrie instruksjoner for MeshCore-svar og bruk av MeshCore-verktøyet, for eksempel språk eller svarstil. Maksimalt 2000 tegn. Tillatelser, sikkerhetsregler og radiogrenser gjelder fortsatt.",
   "config.meshcore.search_nodes": "Søk etter noder med navn eller nøkkel",
   "config.meshcore.add_to": "Legg til i",
   "config.meshcore.use_node": "Legg til node",

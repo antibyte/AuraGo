@@ -448,6 +448,21 @@ func TestConfigDefaultsAndValidation(t *testing.T) {
 	}
 }
 
+func TestMeshCoreAdditionalPromptValidation(t *testing.T) {
+	for _, text := range []string{strings.Repeat("ä", 2001), "before\x00after", string([]byte{0xff})} {
+		cfg := Config{AdditionalPrompt: text}
+		if err := cfg.Normalize(); err == nil {
+			t.Fatal("invalid agent instructions accepted")
+		}
+	}
+	for _, text := range []string{"", strings.Repeat("ä", 2000), "Antworte auf Deutsch.\nHalte Dich kurz."} {
+		cfg := Config{AdditionalPrompt: " \r\n" + strings.ReplaceAll(text, "\n", "\r\n") + " \r\n"}
+		if err := cfg.Normalize(); err != nil || cfg.AdditionalPrompt != text {
+			t.Fatalf("instruction normalization failed: %v", err)
+		}
+	}
+}
+
 func TestBLEBoundsAndExecutionTombstones(t *testing.T) {
 	for _, tt := range []struct {
 		mtu uint16

@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "एजेंट के लिए अतिरिक्त निर्देश",
+  "config.meshcore.additional_prompt_help": "MeshCore के जवाबों और MeshCore टूल के उपयोग के लिए वैकल्पिक निर्देश, जैसे भाषा या जवाब देने की शैली। अधिकतम 2000 अक्षर। अनुमतियाँ, सुरक्षा नियम और रेडियो सीमाएँ लागू रहेंगी।",
   "config.meshcore.search_nodes": "नाम या कुंजी से नोड खोजें",
   "config.meshcore.add_to": "इसमें जोड़ें",
   "config.meshcore.use_node": "नोड जोड़ें",

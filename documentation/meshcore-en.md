@@ -7,6 +7,13 @@ radio-parameter changes are included.
 
 ## Setup
 
+**Additional agent instructions** optionally sets language, reply style or other
+MeshCore-specific guidance for automatic replies and agent tool use. Enter up to
+2000 characters and save; clear the field and save to remove the guidance.
+Permissions, security checks, location privacy and radio limits still apply.
+The separate inbound security scan and manual Desktop Messenger messages do not
+use these instructions. The configuration key is `meshcore.additional_prompt`.
+
 1. Install the Companion firmware appropriate for USB or BLE on your device.
 2. Open **Settings → MeshCore**. Select the transport, choose a serial port or enter a
    Bluetooth address, enable the integration, and save. USB uses 115200 baud.

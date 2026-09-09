@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Zusätzliche Agent-Anweisungen",
+  "config.meshcore.additional_prompt_help": "Optionale Vorgaben für MeshCore-Antworten und die Nutzung des MeshCore-Werkzeugs, etwa Sprache oder Antwortstil. Maximal 2000 Zeichen. Berechtigungen, Sicherheitsregeln und Funklimits gelten weiterhin.",
   "config.meshcore.search_nodes": "Nodes nach Name oder Schlüssel suchen",
   "config.meshcore.add_to": "Übernehmen in",
   "config.meshcore.use_node": "Node übernehmen",

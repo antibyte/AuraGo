@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Πρόσθετες οδηγίες για τον πράκτορα",
+  "config.meshcore.additional_prompt_help": "Προαιρετικές οδηγίες για απαντήσεις μέσω MeshCore και χρήση του εργαλείου MeshCore, όπως γλώσσα ή ύφος απάντησης. Έως 2000 χαρακτήρες. Τα δικαιώματα, οι κανόνες ασφαλείας και τα όρια ασυρμάτου εξακολουθούν να ισχύουν.",
   "config.meshcore.search_nodes": "Αναζήτηση κόμβων με όνομα ή κλειδί",
   "config.meshcore.add_to": "Προσθήκη σε",
   "config.meshcore.use_node": "Προσθήκη κόμβου",

@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Instructions supplémentaires pour l’agent",
+  "config.meshcore.additional_prompt_help": "Consignes facultatives pour les réponses MeshCore et l’utilisation de l’outil MeshCore, par exemple la langue ou le style de réponse. Maximum 2000 caractères. Les autorisations, règles de sécurité et limites radio restent applicables.",
   "config.meshcore.search_nodes": "Rechercher des nœuds par nom ou clé",
   "config.meshcore.add_to": "Ajouter à",
   "config.meshcore.use_node": "Ajouter le nœud",

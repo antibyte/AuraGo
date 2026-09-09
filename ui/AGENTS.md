@@ -213,6 +213,7 @@ worker. Keep packaging, recovery and offline instructions in
   copy AuraGo provider keys. Keep all 16 Desktop locales and the local upstream
   logo plus MIT notice synchronized. See the Desktop app child contract.
 - MeshCore's serial-port field is a native dropdown populated by `/api/meshcore/devices`. Refresh preserves the selected draft value; a missing saved port remains selected and visibly marked, and enumeration failure never clears it.
+- MeshCore's optional `additional_prompt` textarea uses the shared saved/draft path, a 2000-character limit, and all 16 Config locales. Clearing and saving removes the MeshCore-specific agent guidance; it never changes permissions or manual Messenger sending.
 - MeshCore connection tests show immediate busy feedback and a persistent result beside the action buttons, independently of the general runtime status. Successful transport tests still show required identity confirmation; they never confirm identity automatically.
 - MeshCore's synchronized node list has a viewport-bounded independent vertical scroll area, keyboard focus and wrapping full keys; large contact tables must not stretch the settings page over many screens.
 - MeshCore node search matches names and full keys locally. Click adoption adds the full key once to an explicitly selected trust or proactive-target draft list (default: send targets); only other chat nodes are eligible. Persist through the shared Save action and never enable proactive sending implicitly.

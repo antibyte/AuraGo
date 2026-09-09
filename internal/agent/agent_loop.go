@@ -1323,6 +1323,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			Text: basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget,
 			Addenda: append([]prompts.PromptAddendum(nil), s.runCfg.TrustedPromptAddenda...),
 		}
+		fitRequest.Addenda = append(fitRequest.Addenda, meshCorePromptAddenda(cfg)...)
 		if budgetHint != "" {
 			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "budget_status", Text: budgetHint})
 		}

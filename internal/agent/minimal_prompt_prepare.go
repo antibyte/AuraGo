@@ -22,7 +22,7 @@ type minimalPromptPreparation struct {
 	Usage           []RequestTokenUsage
 }
 
-func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int) (minimalPromptPreparation, error) {
+func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
 	if req == nil {
 		return minimalPromptPreparation{}, fmt.Errorf("chat completion request is required")
 	}
@@ -68,6 +68,7 @@ func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client l
 		}
 		promptResult, err = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{
 			Text: baseSystemPrompt, Tokens: -1, Model: req.Model, TokenBudget: systemBudget,
+			Addenda: addenda,
 		}, logger)
 		prompts.RecordPromptFit(prompts.PromptFitRecord{
 			Timestamp:       time.Now(),

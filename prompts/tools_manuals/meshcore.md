@@ -1,6 +1,12 @@
 # meshcore
 
-Access one configured MeshCore Companion radio. Operations:
+Access one configured MeshCore Companion radio.
+
+Optional administrator guidance from `meshcore.additional_prompt` is supplied
+as MeshCore-specific agent instructions. Follow it for MeshCore replies and tool
+use while preserving security, privacy, destination permissions and radio limits.
+
+Operations:
 
 - `status`: connection state and confirmed device information.
 - `contacts`: synchronized public keys, names/types/flags, advertised positions,

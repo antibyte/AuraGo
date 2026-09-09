@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Instruções adicionais para o agente",
+  "config.meshcore.additional_prompt_help": "Orientações opcionais para respostas MeshCore e uso da ferramenta MeshCore, como idioma ou estilo de resposta. Máximo de 2000 caracteres. As permissões, regras de segurança e limites de rádio continuam em vigor.",
   "config.meshcore.search_nodes": "Pesquisar nós por nome ou chave",
   "config.meshcore.add_to": "Adicionar a",
   "config.meshcore.use_node": "Adicionar nó",

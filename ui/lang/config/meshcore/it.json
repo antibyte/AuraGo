@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Istruzioni aggiuntive per l’agente",
+  "config.meshcore.additional_prompt_help": "Indicazioni facoltative per le risposte MeshCore e l’uso dello strumento MeshCore, ad esempio lingua o stile delle risposte. Massimo 2000 caratteri. Restano validi permessi, regole di sicurezza e limiti radio.",
   "config.meshcore.search_nodes": "Cerca nodi per nome o chiave",
   "config.meshcore.add_to": "Aggiungi a",
   "config.meshcore.use_node": "Aggiungi nodo",

@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Další pokyny pro agenta",
+  "config.meshcore.additional_prompt_help": "Volitelné pokyny pro odpovědi přes MeshCore a používání nástroje MeshCore, například jazyk nebo styl odpovědí. Nejvýše 2000 znaků. Oprávnění, pravidla zabezpečení a limity rádia zůstávají v platnosti.",
   "config.meshcore.search_nodes": "Hledat uzly podle názvu nebo klíče",
   "config.meshcore.add_to": "Přidat do",
   "config.meshcore.use_node": "Přidat uzel",

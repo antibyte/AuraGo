@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "Aanvullende instructies voor de agent",
+  "config.meshcore.additional_prompt_help": "Optionele aanwijzingen voor MeshCore-antwoorden en het gebruik van de MeshCore-tool, zoals taal of antwoordstijl. Maximaal 2000 tekens. Machtigingen, beveiligingsregels en radiolimieten blijven gelden.",
   "config.meshcore.search_nodes": "Nodes zoeken op naam of sleutel",
   "config.meshcore.add_to": "Toevoegen aan",
   "config.meshcore.use_node": "Node toevoegen",

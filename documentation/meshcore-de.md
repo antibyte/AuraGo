@@ -7,6 +7,14 @@ Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
 
 ## Einrichtung
 
+Unter **Zusätzliche Agent-Anweisungen** kannst Du optional Sprache, Antwortstil
+oder andere MeshCore-Vorgaben für automatische Antworten und die Werkzeugnutzung
+festlegen. Bis zu 2000 Zeichen eintragen und speichern; zum Entfernen das Feld
+leeren und erneut speichern. Berechtigungen, Sicherheitsprüfungen, Standortschutz
+und Funklimits gelten weiterhin. Die separate Eingangsprüfung und manuelle
+Nachrichten im Desktop-Messenger verwenden diese Hinweise nicht.
+Der Konfigurationsschlüssel heißt `meshcore.additional_prompt`.
+
 1. Auf dem Gerät muss die zum Transport passende USB- oder BLE-Companion-Firmware
    installiert sein.
 2. **Einstellungen → MeshCore** öffnen, Transport und seriellen Port beziehungsweise

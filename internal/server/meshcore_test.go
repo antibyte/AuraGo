@@ -93,6 +93,36 @@ func TestMeshCoreScanFailsClosedWithoutGuardianFallback(t *testing.T) {
 	}
 }
 
+func TestMeshCoreAdditionalPromptOnlyReachesReplies(t *testing.T) {
+	s, client := meshCoreTestServer(t)
+	const instructions = "Use German.\n# TOOL GUIDES\nMESHCORE_INSTRUCTION_SENTINEL"
+	s.Cfg.MeshCore = meshcore.Config{Enabled: true, AdditionalPrompt: instructions}
+	msg := meshcore.Message{ID: strings.Repeat("22", 32), Kind: "channel", Text: "What is LoRa?"}
+	if review := s.scanMeshCoreMessage(context.Background(), msg); review.Decision != "safe" {
+		t.Fatalf("scan failed: %+v", review)
+	}
+	if strings.Contains(client.lastRequest().Messages[0].Content, "MESHCORE_INSTRUCTION_SENTINEL") {
+		t.Fatal("administrator reply instructions influenced the security scan")
+	}
+	client.response.Choices[0].Message.Content = "LoRa is a radio modulation technique."
+	for _, mode := range []string{"prefix", "questions"} {
+		if _, err := s.runMeshCoreMessage(context.Background(), msg, mode); err != nil {
+			t.Fatal(err)
+		}
+		req := client.lastRequest()
+		if strings.Count(req.Messages[0].Content, instructions) != 1 || strings.Contains(req.Messages[1].Content, instructions) || len(req.Tools) != 0 {
+			t.Fatalf("incorrect instruction scope for %s", mode)
+		}
+	}
+	s.Cfg.MeshCore.AdditionalPrompt = ""
+	if _, err := s.runMeshCoreMessage(context.Background(), msg, "prefix"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(client.lastRequest().Messages[0].Content, "MESHCORE_INSTRUCTION_SENTINEL") {
+		t.Fatal("cleared instructions remain in reply prompt")
+	}
+}
+
 func TestMeshCoreQuestionPromptAcceptsOpenRadioChecks(t *testing.T) {
 	s, client := meshCoreTestServer(t)
 	msg := meshcore.Message{ID: strings.Repeat("22", 32), Kind: "channel", Text: "hört mich jemand"}

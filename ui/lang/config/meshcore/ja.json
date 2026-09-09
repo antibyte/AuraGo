@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "エージェントへの追加指示",
+  "config.meshcore.additional_prompt_help": "MeshCoreでの返信やMeshCoreツールの使用に関する任意の指示です。言語や返信スタイルなどを指定できます。最大2000文字。権限、セキュリティルール、無線の制限は引き続き適用されます。",
   "config.meshcore.search_nodes": "名前またはキーでノードを検索",
   "config.meshcore.add_to": "追加先",
   "config.meshcore.use_node": "ノードを追加",

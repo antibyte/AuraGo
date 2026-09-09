@@ -1,4 +1,6 @@
 {
+  "config.meshcore.additional_prompt": "额外的代理指令",
+  "config.meshcore.additional_prompt_help": "针对 MeshCore 回复和 MeshCore 工具使用的可选指令，例如语言或回复风格。最多 2000 个字符。权限、安全规则和无线电限制仍然有效。",
   "config.meshcore.search_nodes": "按名称或密钥搜索节点",
   "config.meshcore.add_to": "添加到",
   "config.meshcore.use_node": "添加节点",

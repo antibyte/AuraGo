@@ -14,6 +14,7 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	browser := newSmokeBrowser(t)
 	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview")
 	page = page.Timeout(30 * time.Second)
+	page.MustWaitLoad()
 	defer func() {
 		_, _ = page.Eval(`() => window.removeEventListener('beforeunload', handleConfigBeforeUnload)`)
 		_ = page.Close()
@@ -33,7 +34,7 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
         const original = window.fetch;
         window.meshRequests = [];
         window.meshPorts = ['COM3', 'COM10', 'COM4', 'COM4'];
-        const settings = {...configData.meshcore, enabled:true, port:'COM3', channels:[{index:7,mode:'prefix',binding:'55'.repeat(32)}]};
+        const settings = {...configData.meshcore, enabled:true, port:'COM3', additional_prompt:'Antworte kurz.\n</textarea><script>window.meshInjection=true</script>', channels:[{index:7,mode:'prefix',binding:'55'.repeat(32)}]};
         configData.meshcore = settings; AuraConfigState.init(configData);
         window.fetch = async (url, options={}) => {
             if (!String(url).startsWith('/api/meshcore/')) return original(url,options);
@@ -67,6 +68,9 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => !!document.querySelector('#meshcore-inbox pre') && !document.querySelector('[data-mesh-action="test"]').disabled`)
 	if page.MustEval(`() => !!window.meshInjection || !!document.querySelector('#meshcore-inbox img, #meshcore-contacts script')`).Bool() {
 		t.Fatal("external HTML executed")
+	}
+	if !page.MustEval(`() => {const el=document.querySelector('textarea[data-path="meshcore.additional_prompt"]');return el && el.maxLength===2000 && el.value===configData.meshcore.additional_prompt && !el.required;}`).Bool() {
+		t.Fatal("optional MeshCore instructions not restored safely")
 	}
 	if !page.MustEval(`() => document.querySelector('[data-path="meshcore.disclosed_location"]').maxLength===160 && !AuraConfigState.get('meshcore.allow_location_disclosure') && document.querySelector('#meshcore-inbox-page').textContent==='1–25 / 100' && !document.querySelector('[data-mesh-action="next"]').disabled`).Bool() {
 		t.Fatal("location controls or bounded inbox pagination missing")
@@ -132,6 +136,14 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	page.MustEval(`() => meshCompleteScan()`)
 	waitForJSBool(t, page, `() => document.querySelectorAll('.meshcore-device-choice').length===2 && !document.querySelector('[data-mesh-action="scan"]').disabled`)
 	page.MustElement(`[data-mesh-action="confirm"]`).MustClick()
+	page.MustEval(`() => {const el=document.querySelector('[data-path="meshcore.additional_prompt"]');el.value='Antworte auf Deutsch.\nHalte Dich kurz.';el.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	if !page.MustEval(`() => AuraConfigState.buildPatch().meshcore.additional_prompt==='Antworte auf Deutsch.\nHalte Dich kurz.'`).Bool() {
+		t.Fatal("multiline MeshCore instructions missing from save patch")
+	}
+	page.MustEval(`() => {const el=document.querySelector('[data-path="meshcore.additional_prompt"]');el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	if !page.MustEval(`() => AuraConfigState.buildPatch().meshcore.additional_prompt===''`).Bool() {
+		t.Fatal("clearing MeshCore instructions missing from save patch")
+	}
 	page.MustEval(`() => {const rows=document.querySelectorAll('.meshcore-channel');if(rows.length!==2)throw Error('Missing orphaned rule');rows[1].querySelector('button:last-child').click();}`)
 	page.MustElement(`#meshcore-channels button`).MustClick()
 	page.MustEval(`() => {const select=document.querySelector('#meshcore-channels select');select.value='prefix';select.dispatchEvent(new Event('change',{bubbles:true}));}`)
@@ -200,4 +212,6 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => document.querySelector('#meshcore-node-status').textContent==='' && document.querySelector('[data-path="meshcore.port"]').getAttribute('aria-busy')==='false'`)
 	page.MustEval(`() => document.querySelector('.section-header').scrollIntoView({block:'start'})`)
 	capture("meshcore-config.png")
+	page.MustEval(`() => document.querySelector('[data-path="meshcore.additional_prompt"]').scrollIntoView({block:'center'})`)
+	capture("meshcore-agent-instructions.png")
 }

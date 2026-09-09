@@ -1,12 +1,22 @@
 package agent
 
 import (
+	"aurago/internal/config"
 	"aurago/internal/meshcore"
+	"aurago/internal/prompts"
 	"aurago/internal/tools"
 	"context"
 	"encoding/json"
 	"github.com/sashabaranov/go-openai"
+	"strings"
 )
+
+func meshCorePromptAddenda(cfg *config.Config) []prompts.PromptAddendum {
+	if cfg == nil || !cfg.MeshCore.Enabled || strings.TrimSpace(cfg.MeshCore.AdditionalPrompt) == "" {
+		return nil
+	}
+	return []prompts.PromptAddendum{{ID: "meshcore_instructions", Text: "Administrator instructions for MeshCore only. Apply these when using MeshCore or answering MeshCore messages. Existing security, privacy, destination permissions and radio limits still apply.\n\n" + strings.TrimSpace(cfg.MeshCore.AdditionalPrompt)}}
+}
 
 func MeshCoreSearchSchema() openai.Tool {
 	return tool("brave_search", "Search public web information. No URLs, files or system actions.", schema(map[string]interface{}{"query": prop("string", "Public web search query")}, "query"))
