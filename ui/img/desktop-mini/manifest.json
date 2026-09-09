@@ -1,15 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "icon_size": 64,
   "width": 512,
-  "height": 512,
+  "height": 640,
   "images": {
     "standard": "/img/desktop-mini/standard.png",
     "fruity": "/img/desktop-mini/fruity.png"
   },
   "sources": {
     "standard": "2f746bae3e2fef3aa0c8308a20901fb5fc2d1feb2a4e2f457d9f8fbe610db2ac",
-    "fruity": "402ffbd65cb8000677fe357d74c49bf1ebe50481a989e3069b3595b2246d44a2"
+    "standard-actions": "f9ad6ad5dcc857daae8944f06fc5a509ca1b026148db268cb3c0cbafaa7e73cb",
+    "fruity": "402ffbd65cb8000677fe357d74c49bf1ebe50481a989e3069b3595b2246d44a2",
+    "fruity-actions": "af25217da792f60bf82ea149ec6a434fdbf4a016267f56bc7e15f9308cd8f394"
   },
   "icons": {
     "file-plus": {
@@ -267,6 +269,70 @@
     "info": {
       "x": 448,
       "y": 448
+    },
+    "check-square": {
+      "x": 0,
+      "y": 512
+    },
+    "square": {
+      "x": 64,
+      "y": 512
+    },
+    "sort": {
+      "x": 128,
+      "y": 512
+    },
+    "refresh": {
+      "x": 192,
+      "y": 512
+    },
+    "undo": {
+      "x": 256,
+      "y": 512
+    },
+    "redo": {
+      "x": 320,
+      "y": 512
+    },
+    "list": {
+      "x": 384,
+      "y": 512
+    },
+    "grid": {
+      "x": 448,
+      "y": 512
+    },
+    "columns": {
+      "x": 0,
+      "y": 576
+    },
+    "eye": {
+      "x": 64,
+      "y": 576
+    },
+    "eye-off": {
+      "x": 128,
+      "y": 576
+    },
+    "zoom-in": {
+      "x": 192,
+      "y": 576
+    },
+    "zoom-out": {
+      "x": 256,
+      "y": 576
+    },
+    "external": {
+      "x": 320,
+      "y": 576
+    },
+    "keyboard": {
+      "x": 384,
+      "y": 576
+    },
+    "contrast": {
+      "x": 448,
+      "y": 576
     }
   }
 }

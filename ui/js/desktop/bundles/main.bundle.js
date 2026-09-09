@@ -1972,10 +1972,11 @@
     function miniIconMarkup(key, className, size) {
         const name = miniIconName(key);
         const pixels = Math.max(8, Math.min(64, Number(size) || 16));
-        if (MINI_SYMBOLS.has(name)) {
+        const manifest = state.miniIconManifest, icon = manifest && manifest.icons && manifest.icons[name];
+        // Prefer colored action artwork; structural glyphs retain sharp SVGs.
+        if (!icon && MINI_SYMBOLS.has(name)) {
             return '<svg class="' + esc(className) + ' vd-mini-symbol" aria-hidden="true" focusable="false" width="' + pixels + '" height="' + pixels + '"><use href="' + esc(versionedIconAssetPath('/img/desktop-mini/symbols.svg')) + '#' + name + '"></use></svg>';
         }
-        const manifest = state.miniIconManifest, icon = manifest && manifest.icons && manifest.icons[name];
         if (!icon) return '';
         const scale = pixels / manifest.icon_size;
         return '<span class="' + esc(className) + ' vd-mini-icon" data-vd-mini-key="' + esc(name) + '" aria-hidden="true" style="width:' + pixels + 'px;height:' + pixels + 'px;--vd-mini-position:' + (-icon.x*scale) + 'px ' + (-icon.y*scale) + 'px;--vd-mini-size:' + manifest.width*scale + 'px ' + manifest.height*scale + 'px"></span>';

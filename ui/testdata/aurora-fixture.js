@@ -128,7 +128,7 @@ window.fixtureCheckMenus=()=>{
 window.fixtureCheckIcons=()=>{
     const check=(ok,message)=>{if(!ok)throw Error(message);};
     const manifest=aurora.state.miniIconManifest;
-    check(Object.keys(manifest.icons).length===64,'Mini atlas coverage changed');
+    check(Object.keys(manifest.icons).length===80,'Mini atlas coverage changed');
     const host=document.createElement('div');document.body.appendChild(host);
     for(const size of [16,20,24]){
         host.innerHTML=aurora.iconMarkup('settings','S','',size,'action');
@@ -142,6 +142,14 @@ window.fixtureCheckIcons=()=>{
         fixtureTheme('fruity-light');
         check(!aurora.iconMarkup('settings','S','vd-taskbar-icon',16).includes('vd-mini-icon'),'Small app logo routed to mini');
         check(aurora.iconMarkup('check','V','',size,'action').includes('symbols.svg'),'Check must use SVG');
+        for(const key of ['check-square','square','sort','refresh','widgets','layout','undo','redo','list','grid','columns','eye','eye-off','zoom-in','zoom-out','external','keyboard','contrast']){
+            for(const role of ['vd-context-papirus-icon','vd-window-menu-papirus-icon','vd-tool-icon']){
+                check(aurora.iconMarkup(key,'',role,size).includes('vd-mini-icon'),'Action used monochrome fallback: '+key);
+            }
+        }
+        for(const key of ['chevron-right','x','minus','maximize']){
+            check(aurora.iconMarkup(key,'','',size,'action').includes('symbols.svg'),'Structural glyph must stay sharp: '+key);
+        }
         check(!aurora.iconMarkup('missing-icon','?','',size,'action').includes('vd-mini-icon'),'Unknown icon must fall back');
     }
     host.remove();return '';

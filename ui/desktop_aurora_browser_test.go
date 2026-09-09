@@ -35,7 +35,7 @@ func TestDesktopAuroraBrowser(t *testing.T) {
 	if cut < 0 {
 		t.Fatal("shell startup seam missing")
 	}
-	shell = shell[:cut] + `window.aurora={state,openApp,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,renderTaskbar,closeWindow,focusWindow,minimizeWindow,toggleMaximizeWindow,switchSpace,setWindowMenus,clearWindowMenus,showContextMenu,closeContextMenu,iconMarkup,wireShellChromeControls,bindViewportMetrics,applyWindowSnap,disposeWebampMusic,handleDesktopKeydown,showWidgetManager,showAppManager,openDesktopFileDialog,openStartMenu,closeStartMenu,launchStandaloneWebamp};})();`
+	shell = shell[:cut] + `window.aurora={state,openApp,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,renderTaskbar,closeWindow,focusWindow,minimizeWindow,toggleMaximizeWindow,switchSpace,setWindowMenus,clearWindowMenus,showContextMenu,showDesktopContextMenu,closeContextMenu,iconMarkup,wireShellChromeControls,bindViewportMetrics,applyWindowSnap,disposeWebampMusic,handleDesktopKeydown,showWidgetManager,showAppManager,openDesktopFileDialog,openStartMenu,closeStartMenu,launchStandaloneWebamp};})();`
 	apps, _ := json.Marshal(desktop.BuiltinApps())
 	words := map[string]string{}
 	fs.WalkDir(Content, "lang", func(path string, d fs.DirEntry, err error) error {
@@ -99,6 +99,30 @@ func TestDesktopAuroraBrowser(t *testing.T) {
 		page.MustEval(`async()=>{await fixtureOpen('files');await fixtureOpen('settings');await fixtureOpen('agent-chat');fixtureArrange()}`)
 		page.MustScreenshot(filepath.Join(dir, phase+"-"+theme+".png"))
 		page.MustEval(`()=>fixtureCloseAll()`)
+		for _, density := range []string{"comfortable", "compact"} {
+			for _, dpr := range []int{1, 2} {
+				page.MustSetViewport(1366, 768, float64(dpr), false)
+				page.MustEval(`density=>{
+                    aurora.state.bootstrap.settings['appearance.density']=density;
+                    aurora.applyDesktopSettings();
+                    aurora.showDesktopContextMenu({target:document.body,preventDefault(){},clientX:80,clientY:80});
+                    const menu=document.querySelector('.vd-context-menu');
+                    for(const item of menu.querySelectorAll(':scope > button, :scope > .vd-context-submenu > button')){
+                        const icon=item.querySelector('.vd-context-icon > *');
+                        if(!icon?.classList.contains('vd-mini-icon'))throw Error('Mixed menu icon family: '+item.textContent);
+                    }
+                }`, density)
+				screenshot := filepath.Join(dir, fmt.Sprintf("context-%s-%s-dpr%d.png", theme, density, dpr))
+				if dpr == 1 {
+					page.MustElement(".vd-context-menu").MustScreenshot(screenshot)
+				} else {
+					// Rod's element clip uses CSS pixels at DPR 2; capture the viewport.
+					page.MustScreenshot(screenshot)
+				}
+				page.MustEval(`()=>aurora.closeContextMenu(true)`)
+			}
+		}
+		page.MustSetViewport(1920, 1080, 1, false)
 	}
 	if phase == "before" {
 		return
