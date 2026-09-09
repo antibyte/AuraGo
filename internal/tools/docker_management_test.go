@@ -134,9 +134,10 @@ func TestResolveDockerCopyHostPathRejectsEscape(t *testing.T) {
 		t.Fatalf("mkdir workspace: %v", err)
 	}
 
-	_, err := resolveDockerCopyHostPath(DockerConfig{WorkspaceDir: workspaceDir}, filepath.Join("..", "..", "..", "outside.txt"))
-	if err == nil {
-		t.Fatal("expected path escape error")
+	for _, path := range []string{filepath.Join("..", "..", "..", "outside.txt"), filepath.Join("..", "..", "data", "artifact.txt")} {
+		if _, err := resolveDockerCopyHostPath(DockerConfig{WorkspaceDir: workspaceDir}, path); err == nil {
+			t.Fatalf("expected path escape error for %q", path)
+		}
 	}
 }
 
@@ -147,11 +148,11 @@ func TestResolveDockerCopyHostPathAllowsProjectPath(t *testing.T) {
 		t.Fatalf("mkdir workspace: %v", err)
 	}
 
-	got, err := resolveDockerCopyHostPath(DockerConfig{WorkspaceDir: workspaceDir}, filepath.Join("..", "..", "data", "artifact.txt"))
+	got, err := resolveDockerCopyHostPath(DockerConfig{WorkspaceDir: workspaceDir}, filepath.Join("..", "data", "artifact.txt"))
 	if err != nil {
 		t.Fatalf("resolveDockerCopyHostPath returned error: %v", err)
 	}
-	want := filepath.Join(root, "data", "artifact.txt")
+	want := filepath.Join(root, "agent_workspace", "data", "artifact.txt")
 	if got != want {
 		t.Fatalf("resolved path = %q, want %q", got, want)
 	}

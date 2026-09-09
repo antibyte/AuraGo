@@ -1513,10 +1513,12 @@ registration lives in `internal/desktop/types.go`.
   STLLoader throws and maps `viewer.error`. Missing print-frame
   errors throw `desktop.print_failed`; the print catch still
   prefixes `viewer.error`. No child DOX file needed.
-- `teevee.js` - IPTV catalog player. Catalog HTTP throws the
+- `teevee.js` - IPTV player; `teevee-catalog.js` owns catalog loading,
+  stream identities, search and display labels. Catalog HTTP throws the
   sentinel `iptv-org HTTP` without a status. `fetchJSON` must
   not call `t()`. `loadCatalog` shows `desktop.teevee_catalog_error`.
-  Loaded lazily after `teevee-crt.js`. Exposes `window.TeeVeeApp`. The real-shell
+  Loaded lazily after `teevee-crt.js` and `teevee-catalog.js` (which exposes
+  `window.AuraTeeVeeCatalog`). Exposes `window.TeeVeeApp`. The real-shell
   `TestDesktopTeeVeeBrowser` covers video, HLS/AES, origin fallback, controls and
   lifecycle; opt in with `AURAGO_RUN_BROWSER_SMOKE=1`. No child DOX file needed.
 - `game-maker-studio.js` - Game Maker Studio shell. Missing

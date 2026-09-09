@@ -103,8 +103,8 @@ func TestDesktopFruityWorkbenchesDoNotPaintDarkGlassOnLightText(t *testing.T) {
 		t.Fatalf("OpenSCAD must read theme tokens in source CSS")
 	}
 	teevee := readDesktopAssetText(t, "css/teevee.css")
-	if !strings.Contains(teevee, "--teevee-bg: var(--vd-theme-app-bg)") {
-		t.Fatalf("TeeVee must read theme tokens in source CSS")
+	if !strings.Contains(teevee, "--tv-text: #ded1bb") || !strings.Contains(teevee, "color: var(--tv-text)") {
+		t.Fatalf("TeeVee's theme-independent receiver must supply its own readable text color")
 	}
 	if strings.Contains(teevee, `.desktop-body[data-theme="light"] .teevee-app`) {
 		t.Fatalf("TeeVee must not duplicate light palette overrides; shell theme tokens own light/dark")

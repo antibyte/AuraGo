@@ -490,13 +490,19 @@ async function testServiceWorkerPreservesMediaRangeResponses() {
   vm.runInNewContext(read('ui/sw.js'), context);
 
   let responsePromise;
-  const request = new Request('https://aurago.test/img/audio/galaga.mp3', {
+  const request = new Request('https://aurago.test/img/audio/galaga.mp3?v=test', {
     headers: { Range: 'bytes=0-1023' }
   });
   handlers.fetch({ request, respondWith(value) { responsePromise = Promise.resolve(value); } });
   assert.ok(responsePromise, 'range request must be handled directly');
   const response = await responsePromise;
   assert.equal(response.status, 206);
+  assert.equal(networkRequests, 1);
+  assert.equal(cacheOpened, false);
+
+  responsePromise = null;
+  handlers.fetch({ request: new Request('https://aurago.test/img/audio/galaga.mp3', { headers: { Range: 'bytes=0-1023' } }), respondWith(value) { responsePromise = value; } });
+  assert.equal(responsePromise, null, 'unversioned media must remain browser network requests');
   assert.equal(networkRequests, 1);
   assert.equal(cacheOpened, false);
 
@@ -512,7 +518,7 @@ async function testServiceWorkerPreservesMediaRangeResponses() {
     };
   };
   responsePromise = null;
-  const scriptRequest = new Request('https://aurago.test/js/example.js');
+  const scriptRequest = new Request('https://aurago.test/js/example.js?v=test');
   handlers.fetch({ request: scriptRequest, respondWith(value) { responsePromise = Promise.resolve(value); } });
   const scriptResponse = await responsePromise;
   assert.equal(scriptResponse.status, 200, 'cache write failures must not replace valid responses');
@@ -973,9 +979,12 @@ function testVirtualComputersExpiryCountdownFormatting() {
   vm.runInContext(`${helperSource}; globalThis.formatCountdown = formatExpiryCountdown;`, context);
 
   const now = Date.parse('2026-07-16T18:00:00Z');
+  const translations = JSON.parse(read('ui/lang/desktop/en.json'));
+  const i18n = { t: (key, args) => translations[key].replace(/\{\{(\w+)\}\}/g, (_, name) => args[name]) };
   assert.equal(context.formatCountdown('2026-07-16T18:01:05Z', now), '01:05');
   assert.equal(context.formatCountdown('2026-07-16T19:01:01Z', now), '01:01:01');
-  assert.equal(context.formatCountdown('2026-07-17T19:01:01Z', now), '1d 01:01:01');
+  assert.equal(context.formatCountdown('2026-07-17T19:01:01Z', now, i18n), '1d 01:01:01');
+  assert.equal(context.formatCountdown('2026-07-17T19:01:01Z', now), '1 01:01:01');
   assert.equal(context.formatCountdown('2026-07-16T17:59:59Z', now), '00:00');
   assert.equal(context.formatCountdown('', now), '—');
 }

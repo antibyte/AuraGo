@@ -145,6 +145,10 @@ func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testin
 	t.Parallel()
 
 	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	autosize := rawDesktopAssetText(t, "js/desktop/core/widget-autosize-runtime.js")
+	if !strings.Contains(autosize, "function resizeWidgetToContent(widgetId, payload)") {
+		t.Fatal("widget autosize runtime missing SDK resize helper")
+	}
 	for _, want := range []string{
 		"function disposeAppWindow(win)",
 		"function clearWidgetRuntime()",
@@ -152,7 +156,6 @@ func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testin
 		"function widgetShouldAutoSize(widget)",
 		"function scheduleWidgetAutoSize(card, widget)",
 		"function applyWidgetAutoSize(card, payload)",
-		"function resizeWidgetToContent(widgetId, payload)",
 		"function renderAppError(id, appId, err)",
 	} {
 		if !strings.Contains(foundation, want) {

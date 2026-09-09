@@ -50,7 +50,7 @@ func TestDesktopTeeVeeBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/teevee.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	html = strings.Replace(html, "</body>", `<script src="/teevee-shell.js"></script><script src="/js/vendor/hls.min.js"></script><script src="/js/desktop/core/media-helpers.js"></script><script src="/js/desktop/apps/teevee-crt.js"></script><script src="/js/desktop/apps/teevee.js"></script><script src="/teevee-fixture.js"></script></body>`, 1)
+	html = strings.Replace(html, "</body>", `<script src="/teevee-shell.js"></script><script src="/js/vendor/hls.min.js"></script><script src="/js/desktop/core/media-helpers.js"></script><script src="/js/desktop/apps/teevee-crt.js"></script><script src="/js/desktop/apps/teevee-catalog.js"></script><script src="/js/desktop/apps/teevee.js"></script><script src="/teevee-fixture.js"></script></body>`, 1)
 	shell := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
 	if cut < 0 {

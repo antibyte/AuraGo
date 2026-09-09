@@ -10,7 +10,7 @@ import (
 func TestDesktopCatalogPlayI18n(t *testing.T) {
 	t.Parallel()
 
-	teevee := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	teevee := readDesktopAssetText(t, "js/desktop/apps/teevee.js") + readDesktopAssetText(t, "js/desktop/apps/teevee-catalog.js")
 	if !strings.Contains(teevee, "throw new Error('iptv-org HTTP')") {
 		t.Fatal("teevee fetchJSON must throw the iptv-org HTTP sentinel without a status")
 	}

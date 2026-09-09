@@ -75,8 +75,10 @@ func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"function normalizeWindowZIndexes()",
-		"wins.forEach((win, i) =>",
-		"state.z = wins.length * 10;",
+		"normal.forEach(win =>",
+		"onTop.forEach(win =>",
+		"String(WINDOW_ALWAYS_ON_TOP_Z + z)",
+		"state.z = z;",
 	} {
 		if !strings.Contains(windowInteractions, marker) {
 			t.Fatalf("window interaction runtime missing normalize z-index marker %q", marker)

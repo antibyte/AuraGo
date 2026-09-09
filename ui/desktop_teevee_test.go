@@ -17,6 +17,7 @@ func TestDesktopTeeVeeLazyAssetsAndRouting(t *testing.T) {
 		"'/js/vendor/hls.min.js'",
 		"'/js/desktop/core/media-helpers.js'",
 		"'/js/desktop/apps/teevee-crt.js'",
+		"'/js/desktop/apps/teevee-catalog.js'",
 		"'/js/desktop/apps/teevee.js'",
 	} {
 		if !strings.Contains(loader, want) {
@@ -61,7 +62,7 @@ func TestDesktopTeeVeeLazyAssetsAndRouting(t *testing.T) {
 func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 	t.Parallel()
 
-	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js") + readDesktopAssetText(t, "js/desktop/apps/teevee-catalog.js")
 	for _, want := range []string{
 		"const IPTV_API_BASE = 'https://iptv-org.github.io/api'",
 		"const CHANNELS_ENDPOINT = IPTV_API_BASE + '/channels.json'",
@@ -213,7 +214,7 @@ func TestDesktopTeeVeeMediaHelpers(t *testing.T) {
 func TestDesktopTeeVeePerformanceMarkers(t *testing.T) {
 	t.Parallel()
 
-	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js") + readDesktopAssetText(t, "js/desktop/apps/teevee-catalog.js")
 	for _, forbidden := range []string{
 		"state.entries.forEach(entry => {\n                if (/^[A-Z]{2}$/.test(entry.country)) seen.add(entry.country);",
 		"fetch(url, { cache: 'force-cache' })",
@@ -238,7 +239,7 @@ func TestDesktopTeeVeePerformanceMarkers(t *testing.T) {
 func TestDesktopTeeVeeStableIdentity(t *testing.T) {
 	t.Parallel()
 
-	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
+	app := readDesktopAssetText(t, "js/desktop/apps/teevee-catalog.js")
 	for _, forbidden := range []string{
 		"clean(stream.channel || stream.title || 'stream') + ':' + index",
 		"favoriteKey: clean(stream.url || stream.channel || stream.title)",

@@ -67,10 +67,10 @@ func TestNasscadDesktopAppAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read bundled nasscad html: %v", err)
 	}
-	if len(bundledHTML) < 1024*1024 {
-		t.Fatalf("bundled nasscad source looks too small: %d bytes", len(bundledHTML))
+	if !strings.HasSuffix(strings.TrimSpace(string(bundledHTML)), "</html>") {
+		t.Fatal("bundled nasscad document is incomplete")
 	}
-	if !strings.Contains(string(bundledHTML[:2048]), "NASSCAD V4.7.0") {
+	if !strings.Contains(string(bundledHTML[:min(len(bundledHTML), 2048)]), "NASSCAD V4.7.0") {
 		t.Fatal("bundled nasscad source should identify itself as NASSCAD V4.7.0")
 	}
 	if !nasscadExternalScriptTagPattern.Match(bundledHTML) {
