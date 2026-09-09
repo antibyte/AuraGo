@@ -22,6 +22,7 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 	browser := newSmokeBrowser(t)
 	page := browser.MustPage(srv.URL + "/fixture").Timeout(40 * time.Second)
 	defer page.Close()
+	page.MustWaitLoad()
 	page.MustSetViewport(1100, 760, 1, false)
 	page.MustEval(`async () => {
         window.translations=await (await fetch('/lang/desktop/de.json')).json();
@@ -96,7 +97,7 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 	page.MustEval(`() => document.querySelectorAll('.mc-conversation')[0].click()`)
 	waitForJSBool(t, page, `() => savedContext.conversation_id===conv && document.querySelectorAll('.mc-message').length===3`)
 	// Incoming updates must not move a reader away from older messages.
-	page.MustEval(`() => {messageRows=Array.from({length:30},(_,i)=>({id:'row'+i,seq:i+10,direction:i%2?'incoming':'outgoing',origin:i%2?'radio':'manual',text:'Nachricht '+i+'\nFunkverbindung zur Bergstation',at:1800000100+i,send_state:'device_accepted',parts:[]}));document.querySelector('[data-mc="refresh"]').click();}`)
+	page.MustEval(`() => {messageRows=Array.from({length:30},(_,i)=>({id:'row'+i,seq:i+10,direction:Math.floor(i/3)%2?'incoming':'outgoing',origin:Math.floor(i/3)%2?'radio':'manual',text:'Nachricht '+i+'\nFunkverbindung zur Bergstation',at:1800000100+i,send_state:'device_accepted',parts:[]}));document.querySelector('[data-mc="refresh"]').click();}`)
 	waitForJSBool(t, page, `() => document.querySelectorAll('.mc-message').length>=30 && !document.querySelector('[data-mc="refresh"]').disabled`)
 	page.MustEval(`() => {const box=document.querySelector('[data-mc-role="messages"]');box.scrollTop=120;window.previousTop=box.scrollTop;messageRows.push({id:'latest',seq:99,direction:'incoming',origin:'radio',text:'Neue Nachricht',at:1800001000,parts:[]});document.dispatchEvent(new CustomEvent('aurago:meshcore-change',{detail:{conversation_id:conv}}));}`)
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-message-id="latest"]')`)
@@ -109,6 +110,16 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 		for _, width := range []int{1080, 600, 390} {
 			page.MustEval(`width=>document.getElementById('host').style.width=width+'px'`, width)
 			page.MustEval(`() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+			if !page.MustEval(`() => {
+                const rows=[...document.querySelectorAll('.mc-message')];
+                return document.querySelector('.mc-incoming.mc-group-mid') && document.querySelector('.mc-outgoing.mc-group-mid') && rows.slice(1).every((row,i)=>{
+                    const gap=row.getBoundingClientRect().top-rows[i].getBoundingClientRect().bottom;
+                    const expected=row.matches('.mc-group-mid,.mc-group-end')?3:10;
+                    return Math.abs(gap-expected)<0.1;
+                });
+            }`).Bool() {
+				t.Fatalf("incorrect message spacing %s %d", theme, width)
+			}
 			if page.MustEval(`() => {const el=document.querySelector('.vd-meshcore');return el.scrollWidth>el.clientWidth+1}`).Bool() {
 				t.Fatalf("overflow %s %d", theme, width)
 			}

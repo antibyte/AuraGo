@@ -355,8 +355,7 @@
     border-bottom-right-radius: 6px;
     box-shadow: 0 3px 12px var(--mc-bubble-shadow);
 }
-.vd-meshcore .mc-group-start { margin-bottom: 3px; }
-.vd-meshcore .mc-group-mid, .vd-meshcore .mc-group-end { margin-top: -7px; }
+.vd-meshcore .mc-group-start, .vd-meshcore .mc-group-mid { margin-bottom: 3px; }
 .vd-meshcore .mc-group-mid.mc-incoming, .vd-meshcore .mc-group-end.mc-incoming { border-top-left-radius: 6px; }
 .vd-meshcore .mc-group-mid.mc-outgoing, .vd-meshcore .mc-group-end.mc-outgoing { border-top-right-radius: 6px; }
 .vd-meshcore .mc-group-mid.mc-incoming, .vd-meshcore .mc-group-start.mc-incoming { border-bottom-left-radius: 6px; }
