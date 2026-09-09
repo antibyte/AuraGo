@@ -1263,7 +1263,9 @@ registration lives in `internal/desktop/types.go`.
   panel with sidebar navigation, global search, hamburger menu on mobile,
   and full desktop shell re-render on changes (icons, widgets, start menu,
   start button). Loaded lazily by `module-loader.js`. Exposes
-  `window.SettingsApp`.
+  `window.SettingsApp`. Info and editable rows share inset spacing; bounded
+  control columns must not let long provider/model names squeeze their labels.
+  Keep full workspace paths wrappable and Info values at normal text weight.
 - `camera.js` implements the Camera app (device webcam): photo mode with
   optional self-timer countdown, mirror toggle and rule-of-thirds grid, and
   MediaRecorder-based video mode with a centered REC badge. Live video, photo
