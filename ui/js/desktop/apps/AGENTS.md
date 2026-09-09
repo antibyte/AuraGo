@@ -1573,11 +1573,14 @@ registration lives in `internal/desktop/types.go`.
   beside `js/vendor/xterm-addon-canvas.min.js`. Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopTerminalRetroBrowser -count=1`.
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
-  changes wait for `document.fonts.load` then `fit` so pixel fonts do not
-  measure before they are ready. Exposes
+  changes wait for `document.fonts.load` before changing xterm options or
+  creating the canvas renderer, then fit once. Ignore stale font completions
+  after another style selection or disposal. Exposes
   `window.TerminalApp = { render, dispose }` with a per-window instances Map.
-  The standalone window opens at 960x720 (4:3 CRT framing); user resizing and
-  mobile maximization remain unchanged.
+  The standalone window opens at 960x720 (4:3 CRT framing), scaling both axes
+  together on smaller desktops; saved session bounds, user resizing and mobile
+  maximization remain unchanged. Browser coverage delays the C64 font on first
+  load and checks its measured glyph width as well as constrained opening sizes.
   Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*` and
   `desktop.terminal_audio*` in all 16 desktop locales. No child DOX file
   needed.

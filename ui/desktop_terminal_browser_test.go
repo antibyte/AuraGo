@@ -14,12 +14,13 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // Real shell, xterm and CRT; the socket never opens a host shell.
 const terminalRetroFixture = `
 window.fixtureErrors=[];
-addEventListener('error',e=>fixtureErrors.push(e.message));
+addEventListener('error',e=>fixtureErrors.push(e.error?.stack||e.message));
 addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 window.fixtureSockets=[];window.fixtureCrt=[];window.fixtureTerms=[];window.fixtureDraws=0;
 const draw=WebGLRenderingContext.prototype.drawArrays;
@@ -69,9 +70,9 @@ window.fixtureWrite=()=>new Promise(resolve=>fixtureTerms.at(-1).write(
 window.fixtureReady=(async()=>{
  const words=await (await nativeFetch('/lang/desktop/de.json')).json();
  window.i18n={t:key=>words[key]||key};window.t=key=>words[key]||key;
- localStorage.setItem('aurago.desktop.terminal.style','amber');
+ localStorage.setItem('aurago.desktop.terminal.style',new URLSearchParams(location.search).get('style')||'amber');
  localStorage.setItem('aurago.desktop.terminal.audioMuted','true');
- terminalTest.state.bootstrap={enabled:true,builtin_apps:[{id:'terminal',name:'Terminal',icon:'terminal'}],apps:[],widgets:[],shortcuts:[],desktop_files:[],settings:{'appearance.theme':'standard','windows.restore_session':false}};
+ terminalTest.state.bootstrap={enabled:true,builtin_apps:[{id:'terminal',name:'Terminal',icon:'terminal'}],apps:[],widgets:[],shortcuts:[],desktop_files:[],settings:{'appearance.theme':'standard','windows.restore_session':false,'windows.animations':false}};
  document.body.dataset.theme='standard';document.body.dataset.animations='false';
  document.getElementById('vd-disabled').hidden=true;
  await terminalTest.loadIconManifest();terminalTest.openApp('terminal');
@@ -96,9 +97,14 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	if cut < 0 {
 		t.Fatal("desktop startup seam missing")
 	}
-	shell = shell[:cut] + `window.terminalTest={state,openApp,loadIconManifest,closeWindow};})();`
+	shell = shell[:cut] + `window.terminalTest={state,openApp,loadIconManifest,closeWindow,applyDesktopSettings,renderTaskbar};})();`
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
+	mux.HandleFunc("/fonts/press-start-2p-latin-400-normal.woff2", func(w http.ResponseWriter, r *http.Request) {
+		// Exercise first-open glyph metrics with an uncached, late pixel font.
+		time.Sleep(750 * time.Millisecond)
+		http.FileServer(http.FS(Content)).ServeHTTP(w, r)
+	})
 	for route, source := range map[string]string{"/fixture": html, "/terminal-shell.js": shell, "/terminal-fixture.js": terminalRetroFixture} {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			if route == "/fixture" {
@@ -121,8 +127,11 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	defer browser.MustClose()
 	page := browser.MustPage().Timeout(120 * time.Second)
 	defer page.Close()
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
+		t.Fatal(err)
+	}
 	page.MustSetViewport(1280, 850, 2, false)
-	page.MustNavigate(srv.URL + "/fixture").MustWaitLoad()
+	page.MustNavigate(srv.URL + "/fixture?style=commodore64").MustWaitLoad()
 	page.MustEval(`async()=>{await fixtureReady;}`)
 	waitForJSBool(t, page, `()=>fixtureTerms.length===1 && document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
 	check := func(t *testing.T, name, js string) {
@@ -132,6 +141,15 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 		}
 	}
 	check(t, "4:3 CRT opening", `()=>{const w=document.querySelector('.vd-window');return w && w.style.width==='960px' && w.style.height==='720px' && Math.abs((parseFloat(w.style.width)/parseFloat(w.style.height))-(4/3))<0.001;}`)
+	check(t, "cold C64 font metrics", `async()=>{
+        await document.fonts.load('13px "Press Start 2P"');
+        await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+        const term=fixtureTerms[0],canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+        ctx.font='13px "Press Start 2P"';
+        const expected=ctx.measureText('W').width,actual=term._core._renderService.dimensions.css.cell.width;
+        if(Math.abs(actual-expected)>0.6)throw Error('C64 cell width '+actual+' differs from loaded font '+expected);
+        return true;
+    }`)
 	snapshot := func(name string) {
 		t.Helper()
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
@@ -143,6 +161,19 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 			}
 		}
 	}
+	page.MustEval(`async()=>{await fixtureWrite();}`)
+	snapshot("terminal-c64-cold-open")
+	check(t, "late font completion cannot revert a newer style", `async()=>{
+        const load=document.fonts.load.bind(document.fonts),loaded=document.fonts.check.bind(document.fonts);let release;
+        document.fonts.check=spec=>!spec.includes('Press Start')&&loaded(spec);
+        document.fonts.load=spec=>spec.includes('Press Start')?new Promise(resolve=>release=resolve):load(spec);
+        try{
+            fixtureStyle('commodore64');fixtureStyle('modern');
+            await load('13px monospace');await new Promise(r=>setTimeout(r,30));
+            release([]);await new Promise(r=>setTimeout(r,30));
+            return fixtureTerms[0].options.fontFamily===TerminalStyles.profile('modern').fontFamily && !document.querySelector('.vd-terminal-crt-overlay');
+        }finally{document.fonts.load=load;document.fonts.check=loaded;}
+    }`)
 	page.MustEval(`()=>{const w=document.querySelector('.vd-window');w.style.width='960px';w.style.height='690px';w.style.left='150px';w.style.top='70px';}`)
 	for _, style := range []string{"amber", "green", "vintage", "apple2", "commodore64", "ibm3278", "mono-green", "transparent-green"} {
 		t.Run(style, func(t *testing.T) {
@@ -181,5 +212,31 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	check(t, "context loss reveals native terminal", `()=>document.querySelector('[data-terminal-fallback="css"]')!==null && !document.querySelector('.vd-terminal-crt-overlay') && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1'`)
 	page.MustEval(`()=>TerminalApp.dispose()`)
 	check(t, "disposed session", `async()=>{const n=fixtureDraws;await new Promise(r=>setTimeout(r,100));return n===fixtureDraws && fixtureSockets[0].readyState===3 && !document.querySelector('.vd-terminal-crt-overlay');}`)
+	for _, viewport := range [][2]int{{1366, 768}, {1024, 600}, {900, 700}} {
+		page.MustSetViewport(viewport[0], viewport[1], 2, false)
+		for _, theme := range []string{"standard", "fruity"} {
+			page.MustEval(`async theme=>{
+                [...terminalTest.state.windows.keys()].forEach(id=>terminalTest.closeWindow(id));
+                terminalTest.state.bootstrap.settings['appearance.theme']=theme;
+                terminalTest.state.bootstrap.settings['appearance.fruity_mode']='dark';
+                terminalTest.applyDesktopSettings();terminalTest.renderTaskbar();
+                terminalTest.openApp('terminal');
+                await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+            }`, theme)
+			check(t, fmt.Sprintf("4:3 opening on %s %dx%d", theme, viewport[0], viewport[1]), `()=>{
+                const w=document.querySelector('.vd-window'),r=w.getBoundingClientRect();
+                const ok=Math.abs(r.width/r.height-4/3)<0.003 && r.width<=960 && r.height<=720 && r.left>=0 && r.top>=0 && r.right<=innerWidth && r.bottom<=innerHeight;
+                if(!ok)throw Error(JSON.stringify({rect:r,style:w.style.cssText,viewport:[innerWidth,innerHeight],workspace:document.getElementById('vd-workspace').getBoundingClientRect()}));
+                return ok;
+            }`)
+		}
+	}
+	page.MustEval(`async()=>{
+        [...terminalTest.state.windows.keys()].forEach(id=>terminalTest.closeWindow(id));
+        terminalTest.openApp('terminal',{sessionRestore:{left:30,top:50,width:700,height:400}});
+        await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    }`)
+	check(t, "saved custom bounds remain authoritative", `()=>{const s=document.querySelector('.vd-window').style;return s.width==='700px' && s.height==='400px';}`)
+	page.MustEval(`()=>TerminalApp.dispose()`)
 	check(t, "no browser errors", `()=>fixtureErrors.length===0`)
 }

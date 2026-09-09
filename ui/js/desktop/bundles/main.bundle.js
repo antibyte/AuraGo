@@ -5749,8 +5749,8 @@
         const size = sessionRestore
             ? clampWindowSize({ width: sessionRestore.width || requestedSize.width, height: sessionRestore.height || requestedSize.height })
             : clampWindowSize(requestedSize);
-        if (appId === 'teevee' && !sessionRestore && !isMobileMode) {
-            // Fit the receiver as a whole when the desktop limits either dimension.
+        if ((appId === 'teevee' || appId === 'terminal') && !sessionRestore && !isMobileMode) {
+            // Fit monitor windows proportionally when the desktop limits either dimension.
             const scale = Math.min(size.width / requestedSize.width, size.height / requestedSize.height);
             size.width = Math.floor(requestedSize.width * scale);
             size.height = Math.floor(requestedSize.height * scale);

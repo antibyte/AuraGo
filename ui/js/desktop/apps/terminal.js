@@ -64,6 +64,7 @@
         let crt = null;
         let audio = window.TerminalAudio ? window.TerminalAudio.create() : null;
         let observer = null;
+        let styleRevision = 0;
         const inst = { root: host };
 
         if (select) select.value = initial;
@@ -102,11 +103,20 @@
             }
         }
 
-        function applyStyle(id) {
+        async function applyStyle(id) {
+            const revision = ++styleRevision;
             const next = styles.save(id);
             root.setAttribute('data-terminal-style', next);
             root.removeAttribute('data-terminal-fallback');
             const profile = styles.profile(next);
+            if (document.fonts && typeof document.fonts.load === 'function') {
+                const family = String(profile.fontFamily || '').split(',')[0].trim() || 'monospace';
+                const spec = String(profile.fontSize || 13) + 'px ' + family;
+                if (typeof document.fonts.check !== 'function' || !document.fonts.check(spec)) {
+                    try { await document.fonts.load(spec); } catch (_) { /* Keep the fallback font usable. */ }
+                }
+            }
+            if (!term || revision !== styleRevision) return;
             styles.applyXterm(term, profile);
             ensureCanvas(profile.retro);
             if (profile.retro) {
@@ -134,17 +144,8 @@
             }
             if (audio) audio.setProfile(profile);
             syncAudioButton();
-            function scheduleFit() {
-                if (!term) return;
-                if (fit && typeof fit.fit === 'function') fit.fit();
-                if (crt && typeof crt.resize === 'function') crt.resize();
-            }
-            scheduleFit();
-            if (document.fonts && typeof document.fonts.load === 'function') {
-                const family = String(profile.fontFamily || '').split(',')[0].trim() || 'monospace';
-                const spec = String(profile.fontSize || 13) + 'px ' + family;
-                document.fonts.load(spec).then(scheduleFit, scheduleFit);
-            }
+            if (fit && typeof fit.fit === 'function') fit.fit();
+            if (crt && typeof crt.resize === 'function') crt.resize();
         }
 
         function onKeyDown(event) {
