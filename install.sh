@@ -925,8 +925,10 @@ if $BUILD_FROM_SOURCE; then
     mkdir -p bin data data/embeddings agent_workspace/workdir agent_workspace/tools log
 
     info "Building AuraGo from source (GOOS=linux GOARCH=$GOARCH)..."
+    go run ./cmd/assetpack -out deploy -stage assets/web || die "Failed to package web resources."
+    ASSET_LDFLAGS="$(cat deploy/web-assets.ldflags)"
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
-        go build -trimpath -ldflags="-s -w" -o bin/aurago_linux ./cmd/aurago
+        go build -trimpath -ldflags="-s -w $ASSET_LDFLAGS" -o bin/aurago_linux ./cmd/aurago
     ok "bin/aurago_linux built."
 
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
@@ -982,14 +984,16 @@ else
     [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$INSTALL_DIR/"
     [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$INSTALL_DIR/"
     [ -d "$TMPEXT/ui" ]               && cp -a "$TMPEXT/ui"               "$INSTALL_DIR/" 2>/dev/null || true
-    [ -d "$TMPEXT/assets" ]           && cp -a "$TMPEXT/assets"           "$INSTALL_DIR/"
+    mkdir -p "$INSTALL_DIR/assets"
+    for asset_dir in "$TMPEXT/assets/"*; do
+        [ -d "$asset_dir" ] || continue
+        [ "$(basename "$asset_dir")" = web ] || cp -a "$asset_dir" "$INSTALL_DIR/assets/"
+    done
 
     # Save the freshly shipped template for merge/copy after config-merger is available.
     if [ -f "$TMPEXT/config.yaml" ]; then
         cp "$TMPEXT/config.yaml" "$INSTALL_DIR/config.yaml.new_template"
     fi
-    rm -rf "$TMPEXT"
-    TMPEXT=""
     ok "Resources extracted."
 
     # Download binaries
@@ -1013,6 +1017,12 @@ else
 fi
 
 chmod +x bin/aurago_linux bin/config-merger_linux bin/aurago-remote_linux 2>/dev/null || true
+if [ -n "${TMPEXT:-}" ] && [ -d "$TMPEXT/assets/web" ]; then
+    bin/aurago_linux --assets-dir "$INSTALL_DIR/assets/web" --import-assets-dir "$TMPEXT/assets/web" || die "Failed to import matching web resources."
+    rm -rf "$TMPEXT"
+    TMPEXT=""
+fi
+bin/aurago_linux --assets-dir "$INSTALL_DIR/assets/web" --check-assets || die "Binary and web resources do not match."
 ok "Binaries ready."
 
 if ! $BUILD_FROM_SOURCE; then

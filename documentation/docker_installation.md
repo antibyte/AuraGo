@@ -502,3 +502,5 @@ For production environments:
 7. **Regular updates**: Subscribe to release notifications for security patches
 
 8. **Audit configuration**: Periodically review config.yaml for security settings
+
+Full browser resources are supplied by the version-bound local asset set. The installer and Docker image include it; bare executables retain a small recovery/login page. See [resource packaging and offline installation](web-assets.md).

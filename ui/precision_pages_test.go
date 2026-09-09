@@ -290,7 +290,7 @@ func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 	}
 
 	dashboardAt := strings.Index(html, `/css/dashboard.css?v={{.BuildVersion}}`)
-	enhancementsAt := strings.Index(html, `/css/enhancements.css?v=20260425a`)
+	enhancementsAt := strings.Index(html, `/css/enhancements.css?v={{.BuildVersion}}`)
 	foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
 	componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
 	if dashboardAt < 0 || enhancementsAt < 0 || foundationAt < 0 || componentsAt < 0 ||
@@ -1522,7 +1522,7 @@ func TestPrecisionWorkspaceOperationsIntegration(t *testing.T) {
 				t.Errorf("%s missing Precision body opt-in", test.template)
 			}
 			pageCSSAt := strings.Index(html, test.stylesheet)
-			enhancementsAt := strings.Index(html, `/css/enhancements.css?v=20260425a`)
+			enhancementsAt := strings.Index(html, `/css/enhancements.css?v={{.BuildVersion}}`)
 			foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
 			componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
 			if pageCSSAt < 0 || enhancementsAt < 0 || foundationAt < 0 || componentsAt < 0 ||
@@ -1916,8 +1916,8 @@ func TestPrecisionEntryPagesOptInWithoutOperationalWorkspace(t *testing.T) {
 		pageCSS    string
 		pageCSSPos string
 	}{
-		{name: "Login", template: "login.html", entryPage: "login", pageCSS: `/css/login.css`, pageCSSPos: `/css/enhancements.css?v=20260425a`},
-		{name: "Setup", template: "setup.html", entryPage: "setup", pageCSS: `/css/setup.css`, pageCSSPos: `/css/enhancements.css?v=20260425a`},
+		{name: "Login", template: "login.html", entryPage: "login", pageCSS: `/css/login.css`, pageCSSPos: `/css/enhancements.css?v={{.BuildVersion}}`},
+		{name: "Setup", template: "setup.html", entryPage: "setup", pageCSS: `/css/setup.css`, pageCSSPos: `/css/enhancements.css?v={{.BuildVersion}}`},
 		{name: "NotFound", template: "404.html", entryPage: "not-found", pageCSS: `/css/not-found.css?v={{.BuildVersion}}`, pageCSSPos: `/css/precision-workspace.css?v={{.BuildVersion}}`},
 	}
 

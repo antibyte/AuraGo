@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "roots": [
+    {"source": "ui", "target": "ui", "directories": ["3d", "cfg", "css", "js", "lang", "fonts", "img"], "extensions": [".html", ".css", ".js", ".mjs", ".json", ".txt", ".webmanifest", ".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".woff", ".woff2", ".ttf", ".otf", ".glb", ".gltf", ".bin", ".riv", ".wasm", ".onnx", ".mp3", ".ogg", ".wav", ".mp4", ".webm"]},
+    {"source": "internal/desktop/bundled_apps/nasscad", "target": "desktop/bundled_apps/nasscad", "extensions": [".html", ".js", ".css", ".wasm", ".json", ".txt"]},
+    {"source": "internal/desktop/pets_assets", "target": "desktop/pets_assets", "extensions": [".webp", ".json", ".txt"]},
+    {"source": "internal/gamemaker/runtime", "target": "gamemaker/runtime", "extensions": [".js", ".txt"]},
+    {"source": "internal/gamemaker/asset_packs", "target": "gamemaker/asset_packs", "extensions": [".png", ".json"], "exclude": ["production"]}
+  ]
+}

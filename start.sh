@@ -27,7 +27,8 @@ else
     echo "Node.js not found; using committed UI bundles."
 fi
 
-if ! go build -o bin/aurago ./cmd/aurago; then
+go run ./cmd/assetpack -out deploy -stage assets/web || exit 1
+if ! go build -ldflags="$(cat deploy/web-assets.ldflags)" -o bin/aurago ./cmd/aurago; then
     echo "Build of aurago failed!"
     exit 1
 fi

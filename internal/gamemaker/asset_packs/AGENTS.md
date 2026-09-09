@@ -7,7 +7,8 @@ Offline, original pixel-art library consumed by Game Maker Studio and its agent.
 This folder owns eighteen runtime PNG/JSON pairs, `catalog.json`, and retained
 Imagegen source artwork plus production instructions under `production/`.
 The Go service, authenticated HTTP routes and Studio UI remain with their
-parent owners. Only the runtime pairs/catalog are embedded in the binary.
+parent owners. Only the runtime pairs/catalog enter the external resource set;
+production artwork is excluded from both the executable and that set.
 
 # Local Contracts
 
@@ -45,7 +46,7 @@ parent owners. Only the runtime pairs/catalog are embedded in the binary.
 
 - `python scripts/pack_game_sprites.py --check`
 - `go test ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
-- Studio Assets previews and an exported game using embedded Phaser 4.2.1.
+- Studio Assets previews and an exported game using locally packaged Phaser 4.2.1.
 
 # Child DOX Index
 

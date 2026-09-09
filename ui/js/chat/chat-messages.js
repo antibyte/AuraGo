@@ -1,6 +1,6 @@
 // AuraGo Chat — Message rendering & DOM utilities
 
-window.PERSONA_ASSET_VERSION = '20260502-persona-refresh';
+window.PERSONA_ASSET_VERSION = window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
 let cachedMarkdownRenderer = null;
 
 function getMarkdownRenderer() {

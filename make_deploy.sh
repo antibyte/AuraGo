@@ -222,6 +222,12 @@ mkdir -p "$TMPDIR_RES/assets/skill_samples"
 cp -r assets/skill_samples/. "$TMPDIR_RES/assets/skill_samples/"
 
 # Pack
+# Carry the unpacked set once for old updaters, which already copy assets/.
+# A separate archive also supports bare-binary and offline repair.
+go run ./cmd/assetpack -out "$DEPLOY_DIR" -stage "$TMPDIR_RES/assets/web" -release "${AURAGO_RELEASE_TAG:-}"
+MAIN_LDFLAGS="$MAIN_LDFLAGS $(cat "$DEPLOY_DIR/web-assets.ldflags")"
+ASSET_SET_ID=$(sed -n 's/.*"asset_set_id": "\([a-f0-9]*\)".*/\1/p' "$DEPLOY_DIR/web-assets.json")
+RELEASE_DEPLOY_ASSETS+=("aurago-web-assets-${ASSET_SET_ID}.tar.gz" web-assets.json)
 tar -czf "$DEPLOY_DIR/$RESOURCES" -C "$TMPDIR_RES" .
 tar -tzf "$DEPLOY_DIR/$RESOURCES" >/dev/null
 echo "    → resources.dat ($(du -h "$DEPLOY_DIR/$RESOURCES" | cut -f1))"
@@ -287,6 +293,17 @@ for target in "${REMOTE_TARGETS[@]}"; do
 done
 
 # ── Step 4: Copy release scripts + checksums ─────────────────────────────
+if command -v node >/dev/null 2>&1; then
+  node scripts/check-web-assets.mjs
+fi
+# Every shipped main binary uses the same initial stripped-size ceiling.
+for asset in "${RELEASE_BIN_ASSETS[@]}" "${RELEASE_DEPLOY_ASSETS[@]}"; do
+  case "$asset" in
+    aurago_linux*|aurago_windows*|aurago_darwin*)
+      binary="$DEPLOY_DIR/$asset"; [ -f "$binary" ] || binary="bin/$asset"
+      [ "$(wc -c < "$binary")" -le 120000000 ] || { echo "Binary exceeds 120 MB: $binary" >&2; exit 1; } ;;
+  esac
+done
 echo "[4/5] Copying release scripts and generating checksums ..."
 cp install.sh "$DEPLOY_DIR/install.sh"
 cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true

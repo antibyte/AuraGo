@@ -1213,8 +1213,8 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 			t.Fatalf("css/chat-themes.css missing Schoolbell chat marker %q", marker)
 		}
 	}
-	if !strings.Contains(string(indexContent), `/fonts/fonts.css?v=20260502a`) {
-		t.Fatal("index.html must bump fonts.css cache version after adding Schoolbell")
+	if !strings.Contains(string(indexContent), `/fonts/fonts.css?v={{.BuildVersion}}`) {
+		t.Fatal("index.html must bind fonts.css to the resource-set version")
 	}
 
 	info, err := os.Stat(filepath.Join("fonts", "schoolbell-latin-400-normal.woff2"))
@@ -2413,9 +2413,9 @@ func TestChatRobotMascotUsesRedSpriteForAggressivePersonas(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{
-		"--chat-robot-sprite-image: url('/img/image.png?v=20260425a');",
+		"--chat-robot-sprite-image: url('/img/image.png');",
 		".chat-robot-mascot.is-aggressive-persona",
-		"--chat-robot-sprite-image: url('/img/redrobot.png?v=20260520a');",
+		"--chat-robot-sprite-image: url('/img/redrobot.png');",
 		"background-image: var(--chat-robot-sprite-image);",
 	} {
 		if !strings.Contains(string(cssContent), marker) {

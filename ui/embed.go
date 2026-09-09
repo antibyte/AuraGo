@@ -1,6 +1,18 @@
+// Package ui exposes the source tree to frontend regression tests. Production
+// servers use internal/webassets and do not link this package or embed this tree.
 package ui
 
-import "embed"
+import (
+	"os"
+	"path/filepath"
+	"runtime"
 
-//go:embed index.html 404.html config.html dashboard.html desktop.html plans.html missions_v2.html setup.html login.html invasion_control.html cheatsheets.html gallery.html media.html knowledge.html containers.html truenas.html skills.html config_help.json site.webmanifest sw.js tailwind.min.js chart.min.js shared.css shared-variables.css shared-utilities.css shared-components.css shared-animations.css *.png *.ico *.svg *.jpg 3d/* cfg/*.js css/*.css js/*.js js/*/*.js js/*/*/*.js js/*/*/*/*.js js/*/*/*.json js/*/*/*.txt js/*/*/*.mjs js/*/*/*.wasm js/*/*/*.onnx lang/*.json lang/*/*.json lang/*/*/*.json fonts/* img/* img/*/*
-var Content embed.FS
+	"aurago/internal/webassets"
+)
+
+var Content = sourceFiles()
+
+func sourceFiles() webassets.Files {
+	_, file, _, _ := runtime.Caller(0)
+	return webassets.Files{FS: os.DirFS(filepath.Dir(file))}
+}

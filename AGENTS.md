@@ -4,11 +4,11 @@
 
 ## Project Overview
 
-**AuraGo** is a fully autonomous AI agent written in Go, designed for home lab environments. It ships as a single portable binary with an embedded Web UI and has zero external dependencies for the core functionality.
+**AuraGo** is a fully autonomous AI agent written in Go, designed for home lab environments. It ships as a single portable binary with a version-bound external Web UI and has zero external dependencies for the core functionality.
 
 ### Key Characteristics
 - **Single binary deployment** - Pure Go with embedded SQLite (no CGO)
-- **Self-contained** - Web UI baked in via `go:embed`
+- **Portable backend** - Small recovery UI embedded; full UI in a verified local resource set
 - **Home lab focused** - Docker, Proxmox, Home Assistant, SSH device management, and 50+ integrations
 - **Multi-platform** - Linux, macOS, Windows (amd64, arm64)
 - **50+ built-in tools** - Shell, Python execution, file system, HTTP requests, cron, and many more
@@ -21,7 +21,7 @@
 | Web Framework | Standard library `net/http` with gorilla/mux patterns |
 | Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
 | Vector DB | chromem-go (embedded) |
-| Frontend | Vanilla JavaScript SPA (embedded via go:embed) |
+| Frontend | Vanilla JavaScript SPA (external versioned resource set) |
 | Python Runtime | Python 3.10+ (for sandboxed execution in venv) |
 | Container | Docker, Docker Compose |
 
@@ -89,12 +89,12 @@ AuraGo/
 │   ├── personalities/            # Personality profiles
 │   ├── templates/                # Prompt templates
 │   └── tools_manuals/            # Tool documentation for RAG
-├── ui/                           # Embedded Web UI (single-file SPA)
+├── ui/                           # Web UI sources (external resource set)
 │   ├── *.html                    # Page templates (index.html, config.html, etc.)
 │   ├── css/                      # Stylesheets
 │   ├── js/                       # JavaScript modules
 │   ├── lang/                     # i18n translations (15 languages)
-│   └── embed.go                  # go:embed directives
+│   └── embed.go                  # Source fixture access for frontend tests
 ├── data/                         # Runtime data (databases, vault, state)
 ├── documentation/                # Detailed setup guides
 ├── bin/                          # Compiled binaries (git-ignored)
@@ -858,9 +858,16 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
 
 # DOX framework
 
+## External browser resource contract
+
+- `internal/webassets/AGENTS.md` owns verified immutable resource sets and installation.
+- `assets/web-assets.json` is the production manifest; `cmd/assetpack` emits the shared archive, installed set and exact binary ldflags. Full UI, CAD, pets and Game Maker runtime/art must not be embedded.
+- Only the tiny recovery/login page remains in the server binary. Keep installer, updater, Docker, source builds, offline repair and size gates synchronized with `documentation/web-assets.md`.
+- Set BuildVersion to the resource digest. Keep configured auth/TOTP and CSRF intact in recovery; activate installations only after restart. Preserve user-edited workspace apps and rollback sets.
+
 ## Game Maker sprite library contract
 
-- `internal/gamemaker/asset_packs/` owns eighteen embedded 10×10 RGBA sheets (64px
+- `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed
   crops remain in `production/` but are excluded from the binary. Rebuild with
   `python scripts/pack_game_sprites.py`; verify with `--check` (Pillow 12.2).
@@ -986,7 +993,8 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 
 Current child AGENTS.md files:
 - `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
-- `ui/AGENTS.md` — Embedded Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
+- `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
+- `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.
 
@@ -1005,6 +1013,6 @@ Top-level durable areas:
 - `plans/` and `openspec/` - Planning, specification, and change-management artifacts.
 - `prompts/` - Agent prompts, templates, personalities, and tool manuals.
 - `scripts/` and `tools/` - Developer and runtime helper tooling.
-- `ui/` - Embedded Web UI HTML, CSS, JavaScript, translations, and UI tests.
+- `ui/` - External Web UI HTML, CSS, JavaScript, translations, and UI tests.
 
 Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.venv/`, `.worktrees/`, and `terminals/` are not child DOX owners.

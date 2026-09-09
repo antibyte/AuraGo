@@ -1,0 +1,28 @@
+name: Web resource packaging
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  asset-contract:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: node scripts/build-ui-bundles.js --check
+      - run: go test ./internal/webassets ./cmd/assetpack
+      - run: go run ./cmd/assetpack -out deploy -stage assets/web
+      - shell: bash
+        run: |
+          go build -trimpath -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o deploy/aurago-test ./cmd/aurago
+          deploy/aurago-test --assets-dir assets/web --check-assets
+          node scripts/check-web-assets.mjs deploy/aurago-test

@@ -111,7 +111,8 @@ Open **http://localhost:8088**. The stack uses persistent volumes and a restrict
 ```bash
 git clone https://github.com/antibyte/AuraGo.git
 cd AuraGo
-go build -o aurago ./cmd/aurago
+go run ./cmd/assetpack -out deploy -stage assets/web
+go build -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 ```
 
 Copy `config_template.yaml` to `config.yaml`. Set a persistent, random 64-character hexadecimal `AURAGO_MASTER_KEY` in your environment or a protected `.env` before running `./aurago`. Keep the key with your backups. [Configuration](documentation/configuration.md).
@@ -126,6 +127,10 @@ Your data is stored with your installation. **Hosted models and external service
 
 [Releases](https://github.com/antibyte/AuraGo/releases) · [Website](https://antibyte.github.io/aurago-web/) · [AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)
 
-Want to tinker? Start with [AGENTS.md](AGENTS.md), build with `go build ./cmd/aurago`, and test with `go test ./...`.
+The executable contains a small recovery/login page. The full UI is a matching,
+locally served resource set included by the installer and Docker image.
+[Resource packaging and offline installation](documentation/web-assets.md).
+
+Want to tinker? Start with [AGENTS.md](AGENTS.md), follow the build steps above, and test with `go test ./...`.
 
 **[MIT licensed](LICENSE).** Have fun. Mind the permissions.

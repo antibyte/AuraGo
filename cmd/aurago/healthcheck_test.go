@@ -9,7 +9,31 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/webassets"
 )
+
+func TestRunCLIHealthcheckBindsRunningAssetSet(t *testing.T) {
+	previous := webassets.SetID
+	webassets.SetID = "expected-set"
+	defer func() { webassets.SetID = previous }()
+	for _, set := range []string{"", "old-set", "expected-set"} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-AuraGo-Asset-Set", set)
+			w.Header().Set("X-AuraGo-Assets-Ready", "true")
+			w.Write([]byte(`{"status":"ready"}`))
+		}))
+		endpoint, _ := url.Parse(server.URL)
+		port, _ := strconv.Atoi(endpoint.Port())
+		cfg := &config.Config{}
+		cfg.Server.Host = endpoint.Hostname()
+		cfg.Server.Port = port
+		err := runCLIHealthcheck(cfg, time.Second, false)
+		server.Close()
+		if (err == nil) != (set == "expected-set") {
+			t.Fatalf("running set %q: %v", set, err)
+		}
+	}
+}
 
 func TestRunCLIHealthcheckRequestsTsNetReadiness(t *testing.T) {
 	var gotRequire string

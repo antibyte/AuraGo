@@ -2,8 +2,8 @@ package desktop
 
 import (
 	"bytes"
-	"embed"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -23,7 +23,7 @@ func isNasscadInlineSiblingAsset(src string) bool {
 	return ext == ".js" || ext == ".mjs"
 }
 
-func buildMonolithicNasscadHTML(indexHTML []byte, assets embed.FS, assetPrefix string) ([]byte, error) {
+func buildMonolithicNasscadHTML(indexHTML []byte, assets fs.FS, assetPrefix string) ([]byte, error) {
 	if len(indexHTML) == 0 {
 		return nil, fmt.Errorf("bundled nasscad index is empty")
 	}
@@ -39,7 +39,7 @@ func buildMonolithicNasscadHTML(indexHTML []byte, assets embed.FS, assetPrefix s
 			return match
 		}
 		assetPath := assetPrefix + "/" + filepath.ToSlash(src)
-		data, err := assets.ReadFile(assetPath)
+		data, err := fs.ReadFile(assets, assetPath)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("read bundled nasscad asset %s: %w", src, err)

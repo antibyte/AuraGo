@@ -134,6 +134,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
+node scripts\build-ui-bundles.js || exit /b 1
+go run ./cmd/assetpack -out deploy -stage "%TMPSTAGE%\assets\web" -release "!VERSION!" || exit /b 1
+set /p ASSET_LDFLAGS=<deploy\web-assets.ldflags
+set /p ASSET_ARCHIVE=<deploy\web-assets.name
+
 tar -czf "deploy\resources.dat" -C "%TMPSTAGE%" .
 if errorlevel 1 (
     echo [ERROR] Failed to create deploy\resources.dat.
@@ -156,41 +161,43 @@ set CGO_ENABLED=0
 
 echo   Linux amd64...
 set "GOOS=linux" & set "GOARCH=amd64"
-go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
+go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"   ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/        || goto :build_error
 echo     [OK] Linux amd64
 
 echo   Linux arm64...
 set "GOOS=linux" & set "GOARCH=arm64"
-go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux_arm64"        ./cmd/aurago/        || goto :build_error
+go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "bin\aurago_linux_arm64"        ./cmd/aurago/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux_arm64" ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux_arm64" ./cmd/remote/        || goto :build_error
 echo     [OK] Linux arm64
 
 echo   macOS amd64...
 set "GOOS=darwin" & set "GOARCH=amd64"
-go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
+go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_amd64" ./cmd/remote/ || goto :build_error
 echo     [OK] macOS amd64
 
 echo   macOS arm64...
 set "GOOS=darwin" & set "GOARCH=arm64"
-go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
+go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_arm64" ./cmd/remote/ || goto :build_error
 echo     [OK] macOS arm64
 
 echo   Windows amd64...
 set "GOOS=windows" & set "GOARCH=amd64"
-go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
+go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_amd64.exe" ./cmd/remote/ || goto :build_error
 echo     [OK] Windows amd64
 
 echo   Windows arm64...
 set "GOOS=windows" & set "GOARCH=arm64"
-go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
+go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_arm64.exe" ./cmd/remote/ || goto :build_error
 echo     [OK] Windows arm64
+
+node scripts\check-web-assets.mjs "deploy\aurago_windows_amd64.exe" "bin\aurago_linux" || exit /b 1
 
 copy "install.sh" "deploy\install.sh" >nul
 copy "update.sh" "deploy\update.sh" >nul
@@ -199,6 +206,7 @@ echo     [OK] deploy\update.sh
 
 for %%F in (
     "deploy\resources.dat"
+    "deploy\!ASSET_ARCHIVE!"
     "deploy\install.sh"
     "deploy\update.sh"
 ) do (
@@ -218,6 +226,8 @@ powershell -nologo -noprofile -command ^
   "function Get-Sha256Hex([string]$file) { $sha = [System.Security.Cryptography.SHA256]::Create(); $stream = [IO.File]::OpenRead($file); try { $bytes = $sha.ComputeHash($stream); return -join ($bytes | ForEach-Object { $_.ToString('x2') }); } finally { $stream.Dispose(); $sha.Dispose(); } };" ^
   "$files = @(" ^
   "  'deploy\\resources.dat'," ^
+  "  'deploy\\!ASSET_ARCHIVE!'," ^
+  "  'deploy\\web-assets.json'," ^
   "  'deploy\\install.sh'," ^
   "  'deploy\\update.sh'," ^
   "  'bin\\aurago_linux'," ^
@@ -298,7 +308,9 @@ if errorlevel 1 (
 echo     Uploading release assets...
 for %%F in (
     "deploy\resources.dat"
+    "deploy\!ASSET_ARCHIVE!"
     "deploy\SHA256SUMS"
+    "deploy\web-assets.json"
     "deploy\SHA256SUMS.sig"
     "deploy\SHA256SUMS.pem"
     "bin\aurago_linux"

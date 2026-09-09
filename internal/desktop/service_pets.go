@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"aurago/internal/webassets"
 )
 
 const petsDirName = "Pets"
@@ -348,7 +351,6 @@ func bundledDefaultPets() []bundledPet {
 				SpritesheetPath: "spritesheet.webp",
 				Category:        "mascot",
 			},
-			Spritesheet: defaultPetSpritesheet,
 		},
 		{
 			Manifest: PetJSON{
@@ -358,7 +360,6 @@ func bundledDefaultPets() []bundledPet {
 				SpritesheetPath: "spritesheet.webp",
 				Category:        "mascot",
 			},
-			Spritesheet: snoopyPetSpritesheet,
 		},
 		{
 			Manifest: PetJSON{
@@ -368,7 +369,6 @@ func bundledDefaultPets() []bundledPet {
 				SpritesheetPath: "spritesheet.webp",
 				Category:        "mascot",
 			},
-			Spritesheet: clippitPetSpritesheet,
 		},
 		{
 			Manifest: PetJSON{
@@ -378,7 +378,6 @@ func bundledDefaultPets() []bundledPet {
 				SpritesheetPath: "spritesheet.webp",
 				Category:        "mascot",
 			},
-			Spritesheet: tuxPetSpritesheet,
 		},
 		{
 			Manifest: PetJSON{
@@ -388,7 +387,6 @@ func bundledDefaultPets() []bundledPet {
 				SpritesheetPath: "spritesheet.webp",
 				Category:        "mascot",
 			},
-			Spritesheet: wallEPetSpritesheet,
 		},
 		{
 			Manifest: PetJSON{
@@ -398,7 +396,6 @@ func bundledDefaultPets() []bundledPet {
 				SpritesheetPath: "spritesheet.webp",
 				Category:        "mascot",
 			},
-			Spritesheet: dobbyPetSpritesheet,
 		},
 	}
 }
@@ -409,6 +406,9 @@ func ensureBundledDefaultPets(workspaceDir string) error {
 			continue
 		}
 		if err := installBundledPet(workspaceDir, pet); err != nil {
+			if errors.Is(err, webassets.ErrUnavailable) {
+				return nil
+			}
 			return err
 		}
 	}
@@ -437,7 +437,11 @@ func installBundledPet(workspaceDir string, pet bundledPet) error {
 		return fmt.Errorf("invalid bundled pet id %q", pet.Manifest.ID)
 	}
 	if len(pet.Spritesheet) == 0 {
-		return fmt.Errorf("bundled pet %q spritesheet is empty", pet.Manifest.ID)
+		data, err := petAssets.ReadFile("pets_assets/" + pet.Manifest.ID + "/spritesheet.webp")
+		if err != nil {
+			return fmt.Errorf("load bundled pet %q: %w", pet.Manifest.ID, err)
+		}
+		pet.Spritesheet = data
 	}
 	petDir := filepath.Join(workspaceDir, petsDirName, pet.Manifest.ID)
 	if err := os.MkdirAll(petDir, 0o700); err != nil {

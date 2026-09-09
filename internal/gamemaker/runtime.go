@@ -1,17 +1,16 @@
 package gamemaker
 
 import (
-	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"aurago/internal/webassets"
 )
 
 // runtimeFS contains the exact browser runtimes shipped with every exported
 // project. The files are sourced from the pinned upstream npm releases.
-//
-//go:embed runtime/*
-var runtimeFS embed.FS
+var runtimeFS = webassets.Namespace("gamemaker")
 
 type runtimeAsset struct {
 	embeddedPath string

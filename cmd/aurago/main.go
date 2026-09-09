@@ -115,6 +115,12 @@ func main() {
 	flag.DurationVar(&healthcheckTimeout, "healthcheck-timeout", 60*time.Second, "Maximum wait for --healthcheck")
 	flag.BoolVar(&healthcheckRequireTsNet, "healthcheck-require-tsnet", false, "Require the main tsnet node and listener to be ready")
 	flag.BoolVar(&printTsNetStateDirOnly, "print-tsnet-state-dir", false, "Print the configured tsnet state directory and exit")
+	assetsDir := flag.String("assets-dir", os.Getenv("AURAGO_ASSETS_DIR"), "Versioned web asset root (default: <binary directory>/assets/web)")
+	assetsInfo := flag.Bool("assets-info", false, "Print this binary's pinned asset metadata and exit")
+	assetsCheck := flag.Bool("check-assets", false, "Verify the matching installed resource set and exit")
+	assetsArchive := flag.String("install-assets", "", "Verify and install an offline resource archive, then exit")
+	assetsImport := flag.String("import-assets-dir", "", "Verify and atomically import an unpacked resource root, then exit")
+	recoveryAddress := flag.String("recovery-address", "127.0.0.1:8088", "Listen address for a fresh binary without config or web resources")
 	flag.Parse()
 
 	appLog := logger.Setup(debug)
@@ -122,6 +128,16 @@ func main() {
 	webAccessLog := appLog.With("component", "web-access")
 	exePath, _ := os.Executable()
 	installDir := filepath.Dir(exePath)
+	if handleAssetFlags(installDir, *assetsDir, *assetsInfo, *assetsCheck, *assetsArchive, *assetsImport) {
+		return
+	}
+	if !runSetup && !initOnly && !checkConfig && !healthcheck && !printTsNetStateDirOnly && assetsNeedFreshRecovery(configFile) {
+		if err := server.RunAssetRecovery(*recoveryAddress, appLog); err != nil {
+			appLog.Error("Recovery server stopped", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	// Load secrets in priority order -- each step only sets vars not already present:
 	//   1. systemd EnvironmentFile (already in env before process starts)
@@ -215,6 +231,7 @@ func main() {
 			}
 			cfg = relCfg
 			err = nil
+			loadDotEnv(filepath.Join(filepath.Dir(configFile), ".env"), appLog)
 		}
 		if err != nil {
 			// If we can't load config and we're not in setup, we can't safely proceed

@@ -18,7 +18,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/tools"
-	"aurago/ui"
+	"aurago/internal/webassets"
 )
 
 const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
@@ -32,18 +32,9 @@ var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'
 var desktopAppResourceAttrPattern = regexp.MustCompile(`\b(src|href)=(["'])([^"']+)(["'])`)
 var desktopAppExternalScriptPattern = regexp.MustCompile(`(?is)<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*</script>`)
 
-// uiBuildVersion is set once at server start and used as a cache-busting
-// query parameter for all embedded static assets. Formatted as a compact
-// timestamp (e.g. "20260509T143012a").
-var uiBuildVersion string
-
-func init() {
-	uiBuildVersion = formatUIBuildVersion(time.Now())
-}
-
-func formatUIBuildVersion(now time.Time) string {
-	return now.Format("20060102T150405") + "a"
-}
+// A backend restart must not change the identity of browser resources.
+var uiBuildVersion = webassets.SetID
+var uiFiles fs.FS = webassets.Namespace("ui")
 
 func castMediaContentType(filename string) string {
 	if contentType, ok := tools.CastMediaMIMEType(filename); ok {
@@ -664,363 +655,365 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	_ = mime.AddExtensionType(".mov", "video/quicktime")
 	_ = mime.AddExtensionType(".ogv", "video/ogg")
 
-	// Serve the embedded Web UI at root via html/template for i18n injection
-	uiFS, err := fs.Sub(ui.Content, ".")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create UI filesystem: %w", err)
-	}
+	s.registerAssetRecoveryRoutes(mux)
+	uiFS := uiFiles
+	if _, err := fs.Stat(uiFS, "index.html"); err != nil {
+		s.registerRecoveryUI(mux)
+	} else {
 
-	// Load i18n translations from embedded ui/lang/ directory
-	loadI18N(uiFS, s.Logger)
+		// Load i18n translations from embedded ui/lang/ directory
+		loadI18N(uiFS, s.Logger)
 
-	tmpl, err := template.ParseFS(uiFS, "index.html")
-	if err != nil {
-		s.Logger.Error("Failed to parse UI template", "error", err)
-	}
-
-	// Config page (separate template, guarded by WebConfig.Enabled)
-	if s.Cfg.WebConfig.Enabled {
-		cfgTmpl, cfgErr := template.ParseFS(uiFS, "config.html")
-		if cfgErr != nil {
-			s.Logger.Error("Failed to parse config UI template", "error", cfgErr)
+		tmpl, err := template.ParseFS(uiFS, "index.html")
+		if err != nil {
+			s.Logger.Error("Failed to parse UI template", "error", err)
 		}
-		mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-			if cfgTmpl == nil {
-				http.Error(w, "Config template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "config")
-			setTemplateDataJSON(data, map[string]any{
-				"i18nMeta": json.RawMessage(getI18NMetaJSON()),
-			})
-			if err := cfgTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute config template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		// Serve the help texts JSON
-		mux.HandleFunc("/config_help.json", func(w http.ResponseWriter, r *http.Request) {
-			helpData, err := fs.ReadFile(uiFS, "config_help.json")
-			if err != nil {
-				http.Error(w, "Not found", http.StatusNotFound)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(helpData)
-		})
-		s.Logger.Info("Config UI enabled at /config")
 
-		// Dashboard page (separate template, guarded by WebConfig.Enabled)
-		dashTmpl, dashErr := template.ParseFS(uiFS, "dashboard.html")
-		if dashErr != nil {
-			s.Logger.Error("Failed to parse dashboard UI template", "error", dashErr)
-		}
-		mux.HandleFunc("/dashboard", func(w http.ResponseWriter, r *http.Request) {
-			if dashTmpl == nil {
-				http.Error(w, "Dashboard template error", http.StatusInternalServerError)
-				return
+		// Config page (separate template, guarded by WebConfig.Enabled)
+		if s.Cfg.WebConfig.Enabled {
+			cfgTmpl, cfgErr := template.ParseFS(uiFS, "config.html")
+			if cfgErr != nil {
+				s.Logger.Error("Failed to parse config UI template", "error", cfgErr)
 			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "dashboard")
-			if err := dashTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute dashboard template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Dashboard UI enabled at /dashboard")
-
-		desktopTmpl, desktopErr := template.ParseFS(uiFS, "desktop.html")
-		if desktopErr != nil {
-			s.Logger.Error("Failed to parse desktop UI template", "error", desktopErr)
-		}
-		mux.HandleFunc("/desktop", func(w http.ResponseWriter, r *http.Request) {
-			if desktopTmpl == nil {
-				http.Error(w, "Desktop template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "desktop")
-			if err := desktopTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute desktop template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		mux.HandleFunc("/virtual-computers", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/desktop?app=virtual-computers", http.StatusFound)
-		})
-		s.Logger.Info("Virtual Desktop UI enabled at /desktop")
-
-		plansTmpl, plansErr := template.ParseFS(uiFS, "plans.html")
-		if plansErr != nil {
-			s.Logger.Error("Failed to parse plans UI template", "error", plansErr)
-		}
-		mux.HandleFunc("/plans", func(w http.ResponseWriter, r *http.Request) {
-			if plansTmpl == nil {
-				http.Error(w, "Plans template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "plans")
-			if err := plansTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute plans template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Plans UI enabled at /plans")
-
-		// Mission Control page (legacy v1)
-		mux.HandleFunc("/missions", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/missions/v2", http.StatusMovedPermanently)
-		})
-		s.Logger.Info("Mission Control UI /missions redirects to /missions/v2")
-
-		// Mission Control V2 page (enhanced with triggers)
-		missionV2Tmpl, missionV2Err := template.ParseFS(uiFS, "missions_v2.html")
-		if missionV2Err != nil {
-			s.Logger.Error("Failed to parse mission V2 UI template", "error", missionV2Err)
-		}
-		mux.HandleFunc("/missions/v2", func(w http.ResponseWriter, r *http.Request) {
-			if missionV2Tmpl == nil {
-				http.Error(w, "Mission V2 template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "missions")
-			if err := missionV2Tmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute mission V2 template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Mission Control V2 UI enabled at /missions/v2")
-
-		// Cheat Sheet Editor page
-		cheatsheetTmpl, cheatsheetErr := template.ParseFS(uiFS, "cheatsheets.html")
-		if cheatsheetErr != nil {
-			s.Logger.Error("Failed to parse cheatsheet UI template", "error", cheatsheetErr)
-		}
-		mux.HandleFunc("/cheatsheets", func(w http.ResponseWriter, r *http.Request) {
-			if cheatsheetTmpl == nil {
-				http.Error(w, "Cheatsheet template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "cheatsheets")
-			if err := cheatsheetTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute cheatsheet template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Cheat Sheet Editor UI enabled at /cheatsheets")
-
-		// ── Media View Page (replaces Gallery) ──
-		mediaTmpl, mediaTmplErr := template.ParseFS(uiFS, "media.html")
-		if mediaTmplErr != nil {
-			s.Logger.Error("Failed to parse media UI template", "error", mediaTmplErr)
-		}
-		serveMediaPage := func(w http.ResponseWriter, r *http.Request) {
-			if mediaTmpl == nil {
-				http.Error(w, "Media template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "media")
-			if err := mediaTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute media template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		}
-		mux.HandleFunc("/media", serveMediaPage)
-		// Legacy /gallery redirect for backward compatibility
-		mux.HandleFunc("/gallery", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/media", http.StatusMovedPermanently)
-		})
-		s.Logger.Info("Media View UI enabled at /media (/gallery redirects here)")
-
-		// ── Knowledge Center Page ──
-		knowledgeTmpl, knowledgeTmplErr := template.ParseFS(uiFS, "knowledge.html")
-		if knowledgeTmplErr != nil {
-			s.Logger.Error("Failed to parse knowledge UI template", "error", knowledgeTmplErr)
-		}
-		mux.HandleFunc("/knowledge", func(w http.ResponseWriter, r *http.Request) {
-			if knowledgeTmpl == nil {
-				http.Error(w, "Knowledge template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "knowledge")
-			if err := knowledgeTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute knowledge template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Knowledge Center UI enabled at /knowledge")
-
-		// ── Containers Page ──
-		containersTmpl, containersTmplErr := template.ParseFS(uiFS, "containers.html")
-		if containersTmplErr != nil {
-			s.Logger.Error("Failed to parse containers UI template", "error", containersTmplErr)
-		}
-		mux.HandleFunc("/containers", func(w http.ResponseWriter, r *http.Request) {
-			if containersTmpl == nil {
-				http.Error(w, "Containers template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "containers")
-			if err := containersTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute containers template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Containers UI enabled at /containers")
-
-		// ── TrueNAS Storage Page ──
-		truenasTmpl, truenasTmplErr := template.ParseFS(uiFS, "truenas.html")
-		if truenasTmplErr != nil {
-			s.Logger.Error("Failed to parse TrueNAS UI template", "error", truenasTmplErr)
-		}
-		mux.HandleFunc("/truenas", func(w http.ResponseWriter, r *http.Request) {
-			if truenasTmpl == nil {
-				http.Error(w, "TrueNAS template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "truenas")
-			if err := truenasTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute TrueNAS template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("TrueNAS Storage UI enabled at /truenas")
-
-		// ── Skills Manager Page ──
-		skillsTmpl, skillsTmplErr := template.ParseFS(uiFS, "skills.html")
-		if skillsTmplErr != nil {
-			s.Logger.Error("Failed to parse Skills UI template", "error", skillsTmplErr)
-		}
-		mux.HandleFunc("/skills", func(w http.ResponseWriter, r *http.Request) {
-			if skillsTmpl == nil {
-				http.Error(w, "Skills template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang, "skills")
-			if err := skillsTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute Skills template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Skills Manager UI enabled at /skills")
-	}
-
-	// Invasion Control UI page (always registered — same pattern as /setup)
-	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
-	if invasionErr != nil {
-		s.Logger.Error("Failed to parse invasion control UI template", "error", invasionErr)
-	}
-	mux.HandleFunc("/invasion", func(w http.ResponseWriter, r *http.Request) {
-		if invasionTmpl == nil {
-			http.Error(w, "Invasion Control template error", http.StatusInternalServerError)
-			return
-		}
-		lang := normalizeLang(s.Cfg.Server.UILanguage)
-		data := uiTemplateData(lang, "invasion")
-		if err := invasionTmpl.Execute(w, data); err != nil {
-			s.Logger.Error("Failed to execute invasion control template", "error", err)
-			http.Error(w, "Template render error", http.StatusInternalServerError)
-		}
-	})
-	s.Logger.Info("Invasion Control UI registered at /invasion")
-
-	// Quick Setup wizard page (always available — parsed outside WebConfig guard)
-	setupTmpl, setupErr := template.ParseFS(uiFS, "setup.html")
-	if setupErr != nil {
-		s.Logger.Error("Failed to parse setup UI template", "error", setupErr)
-	}
-	mux.HandleFunc("/setup", func(w http.ResponseWriter, r *http.Request) {
-		if setupTmpl == nil {
-			http.Error(w, "Setup template error", http.StatusInternalServerError)
-			return
-		}
-		lang := normalizeLang(s.Cfg.Server.UILanguage)
-		data := uiTemplateData(lang, "setup")
-		if err := setupTmpl.Execute(w, data); err != nil {
-			s.Logger.Error("Failed to execute setup template", "error", err)
-			http.Error(w, "Template render error", http.StatusInternalServerError)
-		}
-	})
-
-	// Auth login / logout pages (registered here so they can use uiFS)
-	mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handleAuthLoginPage(s, uiFS)(w, r)
-		case http.MethodPost:
-			handleAuthLogin(s)(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
-	mux.HandleFunc("/auth/logout", handleAuthLogout(s))
-
-	// 404 page template
-	notFoundTmpl, notFoundErr := template.ParseFS(uiFS, "404.html")
-	if notFoundErr != nil {
-		s.Logger.Error("Failed to parse 404 UI template", "error", notFoundErr)
-	}
-
-	staticHandler := http.FileServer(http.FS(uiFS))
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			// Redirect to setup wizard if LLM is not configured (first start)
-			s.CfgMu.RLock()
-			showSetup := needsSetup(s.Cfg)
-			s.CfgMu.RUnlock()
-
-			if showSetup && r.URL.Query().Get("skip_setup") != "1" {
-				http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
-				return
-			}
-
-			if tmpl != nil {
-				lang := normalizeLang(s.Cfg.Server.UILanguage)
-				data := uiTemplateData(lang, "chat")
-				setTemplateDataJSON(data, map[string]any{
-					"showToolResults":    s.Cfg.Agent.ShowToolResults,
-					"debugMode":          agent.GetDebugMode(),
-					"personalityEnabled": s.Cfg.Personality.Engine,
-				})
-				if err := tmpl.Execute(w, data); err != nil {
-					s.Logger.Error("Failed to execute UI template", "error", err)
-					http.Error(w, "Template render error", http.StatusInternalServerError)
+			mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+				if cfgTmpl == nil {
+					http.Error(w, "Config template error", http.StatusInternalServerError)
 					return
 				}
-			} else {
-				http.Error(w, "Template error", http.StatusInternalServerError)
-			}
-			return
-		}
-		// Serve static assets from embedded UI FS, fall through to 404 for HTML requests
-		nfw := &notFoundResponseWriter{ResponseWriter: w, path: r.URL.Path}
-		staticHandler.ServeHTTP(nfw, r)
-		if nfw.notFound {
-			// Static file not found — serve branded 404 page for HTML requests
-			accept := r.Header.Get("Accept")
-			if strings.Contains(accept, "text/html") && notFoundTmpl != nil {
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				w.WriteHeader(http.StatusNotFound)
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
-				data := uiTemplateData(lang, "404")
-				if err := notFoundTmpl.Execute(w, data); err != nil {
-					s.Logger.Error("Failed to execute 404 template", "error", err)
+				data := uiTemplateData(lang, "config")
+				setTemplateDataJSON(data, map[string]any{
+					"i18nMeta": json.RawMessage(getI18NMetaJSON()),
+				})
+				if err := cfgTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute config template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
-			} else {
+			})
+			// Serve the help texts JSON
+			mux.HandleFunc("/config_help.json", func(w http.ResponseWriter, r *http.Request) {
+				helpData, err := fs.ReadFile(uiFS, "config_help.json")
+				if err != nil {
+					http.Error(w, "Not found", http.StatusNotFound)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(helpData)
+			})
+			s.Logger.Info("Config UI enabled at /config")
+
+			// Dashboard page (separate template, guarded by WebConfig.Enabled)
+			dashTmpl, dashErr := template.ParseFS(uiFS, "dashboard.html")
+			if dashErr != nil {
+				s.Logger.Error("Failed to parse dashboard UI template", "error", dashErr)
+			}
+			mux.HandleFunc("/dashboard", func(w http.ResponseWriter, r *http.Request) {
+				if dashTmpl == nil {
+					http.Error(w, "Dashboard template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "dashboard")
+				if err := dashTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute dashboard template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Dashboard UI enabled at /dashboard")
+
+			desktopTmpl, desktopErr := template.ParseFS(uiFS, "desktop.html")
+			if desktopErr != nil {
+				s.Logger.Error("Failed to parse desktop UI template", "error", desktopErr)
+			}
+			mux.HandleFunc("/desktop", func(w http.ResponseWriter, r *http.Request) {
+				if desktopTmpl == nil {
+					http.Error(w, "Desktop template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "desktop")
+				if err := desktopTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute desktop template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			mux.HandleFunc("/virtual-computers", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/desktop?app=virtual-computers", http.StatusFound)
+			})
+			s.Logger.Info("Virtual Desktop UI enabled at /desktop")
+
+			plansTmpl, plansErr := template.ParseFS(uiFS, "plans.html")
+			if plansErr != nil {
+				s.Logger.Error("Failed to parse plans UI template", "error", plansErr)
+			}
+			mux.HandleFunc("/plans", func(w http.ResponseWriter, r *http.Request) {
+				if plansTmpl == nil {
+					http.Error(w, "Plans template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "plans")
+				if err := plansTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute plans template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Plans UI enabled at /plans")
+
+			// Mission Control page (legacy v1)
+			mux.HandleFunc("/missions", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/missions/v2", http.StatusMovedPermanently)
+			})
+			s.Logger.Info("Mission Control UI /missions redirects to /missions/v2")
+
+			// Mission Control V2 page (enhanced with triggers)
+			missionV2Tmpl, missionV2Err := template.ParseFS(uiFS, "missions_v2.html")
+			if missionV2Err != nil {
+				s.Logger.Error("Failed to parse mission V2 UI template", "error", missionV2Err)
+			}
+			mux.HandleFunc("/missions/v2", func(w http.ResponseWriter, r *http.Request) {
+				if missionV2Tmpl == nil {
+					http.Error(w, "Mission V2 template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "missions")
+				if err := missionV2Tmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute mission V2 template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Mission Control V2 UI enabled at /missions/v2")
+
+			// Cheat Sheet Editor page
+			cheatsheetTmpl, cheatsheetErr := template.ParseFS(uiFS, "cheatsheets.html")
+			if cheatsheetErr != nil {
+				s.Logger.Error("Failed to parse cheatsheet UI template", "error", cheatsheetErr)
+			}
+			mux.HandleFunc("/cheatsheets", func(w http.ResponseWriter, r *http.Request) {
+				if cheatsheetTmpl == nil {
+					http.Error(w, "Cheatsheet template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "cheatsheets")
+				if err := cheatsheetTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute cheatsheet template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Cheat Sheet Editor UI enabled at /cheatsheets")
+
+			// ── Media View Page (replaces Gallery) ──
+			mediaTmpl, mediaTmplErr := template.ParseFS(uiFS, "media.html")
+			if mediaTmplErr != nil {
+				s.Logger.Error("Failed to parse media UI template", "error", mediaTmplErr)
+			}
+			serveMediaPage := func(w http.ResponseWriter, r *http.Request) {
+				if mediaTmpl == nil {
+					http.Error(w, "Media template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "media")
+				if err := mediaTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute media template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			}
+			mux.HandleFunc("/media", serveMediaPage)
+			// Legacy /gallery redirect for backward compatibility
+			mux.HandleFunc("/gallery", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/media", http.StatusMovedPermanently)
+			})
+			s.Logger.Info("Media View UI enabled at /media (/gallery redirects here)")
+
+			// ── Knowledge Center Page ──
+			knowledgeTmpl, knowledgeTmplErr := template.ParseFS(uiFS, "knowledge.html")
+			if knowledgeTmplErr != nil {
+				s.Logger.Error("Failed to parse knowledge UI template", "error", knowledgeTmplErr)
+			}
+			mux.HandleFunc("/knowledge", func(w http.ResponseWriter, r *http.Request) {
+				if knowledgeTmpl == nil {
+					http.Error(w, "Knowledge template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "knowledge")
+				if err := knowledgeTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute knowledge template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Knowledge Center UI enabled at /knowledge")
+
+			// ── Containers Page ──
+			containersTmpl, containersTmplErr := template.ParseFS(uiFS, "containers.html")
+			if containersTmplErr != nil {
+				s.Logger.Error("Failed to parse containers UI template", "error", containersTmplErr)
+			}
+			mux.HandleFunc("/containers", func(w http.ResponseWriter, r *http.Request) {
+				if containersTmpl == nil {
+					http.Error(w, "Containers template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "containers")
+				if err := containersTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute containers template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Containers UI enabled at /containers")
+
+			// ── TrueNAS Storage Page ──
+			truenasTmpl, truenasTmplErr := template.ParseFS(uiFS, "truenas.html")
+			if truenasTmplErr != nil {
+				s.Logger.Error("Failed to parse TrueNAS UI template", "error", truenasTmplErr)
+			}
+			mux.HandleFunc("/truenas", func(w http.ResponseWriter, r *http.Request) {
+				if truenasTmpl == nil {
+					http.Error(w, "TrueNAS template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "truenas")
+				if err := truenasTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute TrueNAS template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("TrueNAS Storage UI enabled at /truenas")
+
+			// ── Skills Manager Page ──
+			skillsTmpl, skillsTmplErr := template.ParseFS(uiFS, "skills.html")
+			if skillsTmplErr != nil {
+				s.Logger.Error("Failed to parse Skills UI template", "error", skillsTmplErr)
+			}
+			mux.HandleFunc("/skills", func(w http.ResponseWriter, r *http.Request) {
+				if skillsTmpl == nil {
+					http.Error(w, "Skills template error", http.StatusInternalServerError)
+					return
+				}
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				data := uiTemplateData(lang, "skills")
+				if err := skillsTmpl.Execute(w, data); err != nil {
+					s.Logger.Error("Failed to execute Skills template", "error", err)
+					http.Error(w, "Template render error", http.StatusInternalServerError)
+				}
+			})
+			s.Logger.Info("Skills Manager UI enabled at /skills")
+		}
+
+		// Invasion Control UI page (always registered — same pattern as /setup)
+		invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
+		if invasionErr != nil {
+			s.Logger.Error("Failed to parse invasion control UI template", "error", invasionErr)
+		}
+		mux.HandleFunc("/invasion", func(w http.ResponseWriter, r *http.Request) {
+			if invasionTmpl == nil {
+				http.Error(w, "Invasion Control template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := uiTemplateData(lang, "invasion")
+			if err := invasionTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute invasion control template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Invasion Control UI registered at /invasion")
+
+		// Quick Setup wizard page (always available — parsed outside WebConfig guard)
+		setupTmpl, setupErr := template.ParseFS(uiFS, "setup.html")
+		if setupErr != nil {
+			s.Logger.Error("Failed to parse setup UI template", "error", setupErr)
+		}
+		mux.HandleFunc("/setup", func(w http.ResponseWriter, r *http.Request) {
+			if setupTmpl == nil {
+				http.Error(w, "Setup template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := uiTemplateData(lang, "setup")
+			if err := setupTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute setup template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+
+		// Auth login / logout pages (registered here so they can use uiFS)
+		mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleAuthLoginPage(s, uiFS)(w, r)
+			case http.MethodPost:
+				handleAuthLogin(s)(w, r)
+			default:
 				http.NotFound(w, r)
 			}
-		}
-	})
+		})
+		mux.HandleFunc("/auth/logout", handleAuthLogout(s))
 
+		// 404 page template
+		notFoundTmpl, notFoundErr := template.ParseFS(uiFS, "404.html")
+		if notFoundErr != nil {
+			s.Logger.Error("Failed to parse 404 UI template", "error", notFoundErr)
+		}
+
+		staticHandler := versionedUIHandler(uiFS, uiBuildVersion)
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-store")
+			if r.URL.Path == "/" {
+				// Redirect to setup wizard if LLM is not configured (first start)
+				s.CfgMu.RLock()
+				showSetup := needsSetup(s.Cfg)
+				s.CfgMu.RUnlock()
+
+				if showSetup && r.URL.Query().Get("skip_setup") != "1" {
+					http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
+					return
+				}
+
+				if tmpl != nil {
+					lang := normalizeLang(s.Cfg.Server.UILanguage)
+					data := uiTemplateData(lang, "chat")
+					setTemplateDataJSON(data, map[string]any{
+						"showToolResults":    s.Cfg.Agent.ShowToolResults,
+						"debugMode":          agent.GetDebugMode(),
+						"personalityEnabled": s.Cfg.Personality.Engine,
+					})
+					if err := tmpl.Execute(w, data); err != nil {
+						s.Logger.Error("Failed to execute UI template", "error", err)
+						http.Error(w, "Template render error", http.StatusInternalServerError)
+						return
+					}
+				} else {
+					http.Error(w, "Template error", http.StatusInternalServerError)
+				}
+				return
+			}
+			// Serve static assets from embedded UI FS, fall through to 404 for HTML requests
+			nfw := &notFoundResponseWriter{ResponseWriter: w, path: r.URL.Path}
+			staticHandler.ServeHTTP(nfw, r)
+			if nfw.notFound {
+				// Static file not found — serve branded 404 page for HTML requests
+				accept := r.Header.Get("Accept")
+				if strings.Contains(accept, "text/html") && notFoundTmpl != nil {
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					w.WriteHeader(http.StatusNotFound)
+					lang := normalizeLang(s.Cfg.Server.UILanguage)
+					data := uiTemplateData(lang, "404")
+					if err := notFoundTmpl.Execute(w, data); err != nil {
+						s.Logger.Error("Failed to execute 404 template", "error", err)
+					}
+				} else {
+					http.NotFound(w, r)
+				}
+			}
+		})
+
+	}
 	// Serve generated documents from the document_creator output directory
 	docDir := s.Cfg.Tools.DocumentCreator.OutputDir
 	if docDir == "" {

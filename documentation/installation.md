@@ -255,3 +255,5 @@ ls deploy/
 ```
 
 Upload the contents of `deploy/` to a GitHub Release.
+
+Full browser resources are supplied by the version-bound local asset set. The installer and Docker image include it; bare executables retain a small recovery/login page. See [resource packaging and offline installation](web-assets.md).

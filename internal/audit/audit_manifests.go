@@ -186,6 +186,7 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/webassets/", Classification: "fixed-pinned-release-download-with-allowlisted-https-redirects"},
 		{Path: "cmd/aurago/", Classification: "internal-loopback-and-configured-cron", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/a2a/", Classification: "configured-agent-endpoint", Credentialed: true},
 		{Path: "internal/agent/", Classification: "agent-managed-http-tools", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},

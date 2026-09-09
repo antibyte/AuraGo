@@ -23,8 +23,9 @@ RUN go mod download
 
 # Copy source and build the production binaries
 COPY . .
+RUN go run ./cmd/assetpack -out /asset-artifacts -stage /web-assets
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w -X aurago/internal/buildinfo.BuildID=${AURAGO_BUILD_ID}" -o /aurago ./cmd/aurago
+    go build -trimpath -ldflags="-s -w -X aurago/internal/buildinfo.BuildID=${AURAGO_BUILD_ID} $(cat /asset-artifacts/web-assets.ldflags)" -o /aurago ./cmd/aurago
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /config-merger ./cmd/config-merger
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
@@ -63,6 +64,10 @@ WORKDIR /app
 
 # Binaries from builder stage
 COPY --from=builder /aurago /app/aurago
+COPY --from=builder /web-assets /opt/aurago/web-assets
+# Installation staging is private; the image's non-root user needs read access.
+RUN chmod -R a+rX /opt/aurago/web-assets
+ENV AURAGO_ASSETS_DIR=/opt/aurago/web-assets
 COPY --from=builder /config-merger /app/config-merger
 COPY --from=builder /aurago-remote /app/aurago-remote
 COPY --from=builder /deploy /app/deploy

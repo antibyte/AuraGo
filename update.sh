@@ -1498,6 +1498,9 @@ if command -v go >/dev/null 2>&1; then
     GO_FOUND=true
 fi
 
+# Binary installations consume release pairs even when Go happens to be present.
+if $BINARY_ONLY; then GO_FOUND=false; fi
+
 STAGED_RELEASE_DIR=""
 REQUIRED_BINS=()
 OPTIONAL_BINS=()
@@ -1540,7 +1543,11 @@ if $BINARY_ONLY; then
     # own, which produces spurious "Operation not permitted" warnings with cp -a.
     [ -d "$TMPEXT/prompts" ]           && cp -r "$TMPEXT/prompts"           "$DIR/"
     [ -d "$TMPEXT/agent_workspace" ]   && cp -r "$TMPEXT/agent_workspace"   "$DIR/"
-    [ -d "$TMPEXT/assets" ]            && cp -r "$TMPEXT/assets"            "$DIR/"
+    mkdir -p "$DIR/assets"
+    for asset_dir in "$TMPEXT/assets/"*; do
+        [ -d "$asset_dir" ] || continue
+        [ "$(basename "$asset_dir")" = web ] || cp -r "$asset_dir" "$DIR/assets/"
+    done
     [ -d "$TMPEXT/ui" ]                && cp -r "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
 
     # Treat the extracted config.yaml as the new template for the merger below
@@ -1555,6 +1562,12 @@ if $BINARY_ONLY; then
         warn "Could not refresh update.sh from verified release asset."
     fi
 
+    ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux"
+    [ "$GOARCH" != "arm64" ] || ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux_arm64"
+    chmod +x "$ASSET_BIN"
+    if [ -d "$TMPEXT/assets/web" ]; then
+        "$ASSET_BIN" --assets-dir "$DIR/assets/web" --import-assets-dir "$TMPEXT/assets/web" || abort_update "Failed to import matching web resources."
+    fi
     rm -rf "$TMPEXT"
     ok "Resources updated from release $RELEASE_TAG"
 else
@@ -1864,7 +1877,9 @@ if $GO_FOUND; then
     fi
 
     info "Building aurago_linux ($GOARCH)..."
-    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/aurago_linux ./cmd/aurago; then
+    go run ./cmd/assetpack -out deploy -stage assets/web || abort_update "Failed to package web resources."
+    ASSET_LDFLAGS="$(cat deploy/web-assets.ldflags)"
+    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags="-s -w $ASSET_LDFLAGS" -o bin/aurago_linux ./cmd/aurago; then
         ok "bin/aurago_linux built from source"
     else
         abort_update "Failed to build required bin/aurago_linux. Update aborted."
@@ -1937,6 +1952,19 @@ else
         done
     fi
 
+    ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux"
+    [ "$GOARCH" != "arm64" ] || ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux_arm64"
+    chmod +x "$ASSET_BIN"
+    # Source checkouts without Go also need the release's pinned resource set.
+    # Reuse an already verified local set before downloading its shared archive.
+    if ! "$ASSET_BIN" --assets-dir "$DIR/assets/web" --check-assets >/dev/null 2>&1; then
+        ASSET_SET_ID="$("$ASSET_BIN" --assets-info | sed -n 's/.*"asset_set_id":"\([a-f0-9]\{64\}\)".*/\1/p')"
+        [ "${#ASSET_SET_ID}" -eq 64 ] || abort_update "Release binary has no valid resource pin."
+        ASSET_ARCHIVE="aurago-web-assets-${ASSET_SET_ID}.tar.gz"
+        download_release_asset "$ASSET_ARCHIVE" "$STAGED_RELEASE_DIR/$ASSET_ARCHIVE" || abort_update "Matching web resource download failed."
+        "$ASSET_BIN" --assets-dir "$DIR/assets/web" --install-assets "$STAGED_RELEASE_DIR/$ASSET_ARCHIVE" || abort_update "Matching web resource installation failed."
+    fi
+    "$ASSET_BIN" --assets-dir "$DIR/assets/web" --check-assets || abort_update "Release binary and web resources do not match."
     mkdir -p "$DIR/bin"
     for BIN_NAME in "${REQUIRED_BINS[@]}" "${OPTIONAL_BINS[@]}"; do
         [ -f "$STAGED_RELEASE_DIR/$BIN_NAME" ] || continue
@@ -2103,6 +2131,7 @@ section "Restart"
 
 LAUNCH_BIN="$DIR/bin/aurago_linux"
 [ -x "$LAUNCH_BIN" ] || LAUNCH_BIN="$DIR/bin/aurago"
+"$LAUNCH_BIN" --assets-dir "$DIR/assets/web" --check-assets || abort_update "Installed web resource validation failed."
 STARTED_AFTER_UPDATE=false
 START_MODE=""
 

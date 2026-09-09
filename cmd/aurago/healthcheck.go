@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/webassets"
 )
 
 func printTsNetStateDir(cfg *config.Config) error {
@@ -95,6 +96,9 @@ func runCLIHealthcheck(cfg *config.Config, timeout time.Duration, requireTsNet b
 			}
 			cancel()
 			if resp.StatusCode == http.StatusOK {
+				if webassets.SetID != "" && (resp.Header.Get("X-AuraGo-Asset-Set") != webassets.SetID || resp.Header.Get("X-AuraGo-Assets-Ready") != "true") {
+					return fmt.Errorf("running server does not have this binary's verified asset set")
+				}
 				fmt.Fprintln(os.Stdout, "ready")
 				return nil
 			}

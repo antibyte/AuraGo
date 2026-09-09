@@ -24,7 +24,7 @@
     const chatSanitizeTemplate = document.createElement('template');
 
     function personaIconUrl(key) {
-        const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
+        const version = window.PERSONA_ASSET_VERSION || window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
         if (key === 'user') {
             return `/img/persona-icons/user.png?v=${version}`;
         }
@@ -32,7 +32,7 @@
     }
 
     function personaImageUrl(key) {
-        const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
+        const version = window.PERSONA_ASSET_VERSION || window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
         return `/img/personas/${key}.png?v=${version}`;
     }
 

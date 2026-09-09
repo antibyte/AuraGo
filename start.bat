@@ -6,7 +6,9 @@ echo Building AuraGo for Windows...
 
 if not exist bin mkdir bin
 
-go build -o aurago.exe ./cmd/aurago
+go run ./cmd/assetpack -out deploy -stage assets/web || exit /b 1
+set /p ASSET_LDFLAGS=<deploy\web-assets.ldflags
+go build -ldflags="%ASSET_LDFLAGS%" -o aurago.exe ./cmd/aurago
 if %ERRORLEVEL% neq 0 (
     echo Build of aurago failed!
     exit /b %ERRORLEVEL%

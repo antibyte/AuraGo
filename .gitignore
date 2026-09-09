@@ -150,6 +150,7 @@ disposable/
 /.github/*
 !/.github/workflows/
 /.github/workflows/*
+!/.github/workflows/web-assets.yml
 !/.github/workflows/training-dataset.yml
 !/disposable/
 /disposable/*
@@ -166,3 +167,5 @@ diff.txt
 *.orig
 data/missions_v2.json
 terminals/
+# Generated, immutable browser resource sets (cmd/assetpack).
+/assets/web/

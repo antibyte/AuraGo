@@ -25,6 +25,7 @@ import (
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 	"aurago/internal/warnings"
+	"aurago/internal/webassets"
 )
 
 func (s *Server) run(shutdownCh chan struct{}) error {
@@ -358,6 +359,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// and is actively accepting connections. Used by Docker HEALTHCHECK and load balancers.
 	mux.HandleFunc("/api/ready", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-AuraGo-Asset-Set", webassets.Default.Pin.ID)
+		w.Header().Set("X-AuraGo-Assets-Ready", fmt.Sprint(webassets.Default.Ready()))
 		if !s.ready.Load() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]string{"status": "initializing"})

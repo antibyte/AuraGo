@@ -10,6 +10,7 @@ import (
 	"aurago/internal/buildinfo"
 	"aurago/internal/services/optimizer"
 	"aurago/internal/tools"
+	"aurago/internal/webassets"
 )
 
 func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster) {
@@ -527,6 +528,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 			"go_version":       runtime.Version(),
 			"go_arch":          runtime.GOARCH,
 			"build_id":         build.BuildID,
+			"asset_set_id":     webassets.Default.Pin.ID,
+			"assets_ready":     fmt.Sprintf("%t", webassets.Default.Ready()),
 			"vcs_revision":     build.VCSRevision,
 			"vcs_time":         build.VCSTime,
 			"vcs_modified":     fmt.Sprintf("%t", build.VCSModified),

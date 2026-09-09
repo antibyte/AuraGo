@@ -1,5 +1,5 @@
 (() => {
-    const ICON_VERSION = '20260501a';
+    const ICON_VERSION = window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
     const ICON_BASE_PATH = '/img/chat-ui-icons';
     const DEFAULT_ICON_KEY = 'generic';
     const CHAT_UI_ICON_STYLE_PRESET = 'ai-generated-activity-3d';

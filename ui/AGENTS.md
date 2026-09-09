@@ -2,8 +2,15 @@
 
 ## Purpose
 
-This subtree owns AuraGo's embedded HTML, CSS, JavaScript, translations, fonts,
+This subtree owns AuraGo's externally packaged HTML, CSS, JavaScript, translations, fonts,
 images, and browser-oriented regression tests.
+
+Production uses the verified resource set from `internal/webassets`, built with
+`cmd/assetpack` and `assets/web-assets.json`. `ui.Content` exposes source files to
+tests only; this tree must never be embedded into the server. BuildVersion is
+the asset digest. Unversioned subresources remain network-only in the service
+worker. Keep packaging, recovery and offline instructions in
+`documentation/web-assets.md` synchronized.
 
 ## Ownership
 

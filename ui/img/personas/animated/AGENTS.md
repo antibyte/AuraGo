@@ -36,8 +36,9 @@ Reviewed Rive payloads for the shared Live Speech persona renderer.
 
 - The authoring collection provides `verify_collection.py`, `check.html` and
   `alignment-check.html`; verify new animation revisions there before importing.
-- `go list -json ./ui` must include all catalog payloads and local runtime files
-  in `EmbedFiles`. `node scripts/build-ui-bundles.js --check` stays read-only.
+- `cmd/assetpack` must include all catalog payloads and local runtime files in
+  its manifest. They are external resources, never Go `EmbedFiles`.
+  `node scripts/build-ui-bundles.js --check` stays read-only.
 
 ## Child DOX Index
 

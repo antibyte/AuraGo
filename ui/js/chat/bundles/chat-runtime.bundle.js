@@ -371,7 +371,7 @@
     const chatSanitizeTemplate = document.createElement('template');
 
     function personaIconUrl(key) {
-        const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
+        const version = window.PERSONA_ASSET_VERSION || window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
         if (key === 'user') {
             return `/img/persona-icons/user.png?v=${version}`;
         }
@@ -379,7 +379,7 @@
     }
 
     function personaImageUrl(key) {
-        const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
+        const version = window.PERSONA_ASSET_VERSION || window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
         return `/img/personas/${key}.png?v=${version}`;
     }
 
@@ -997,7 +997,7 @@
 ;
 /* ui/js/chat/ui-icons.js */
 (() => {
-    const ICON_VERSION = '20260501a';
+    const ICON_VERSION = window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
     const ICON_BASE_PATH = '/img/chat-ui-icons';
     const DEFAULT_ICON_KEY = 'generic';
     const CHAT_UI_ICON_STYLE_PRESET = 'ai-generated-activity-3d';
@@ -6778,7 +6778,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 /* ui/js/chat/chat-messages.js */
 // AuraGo Chat — Message rendering & DOM utilities
 
-window.PERSONA_ASSET_VERSION = '20260502-persona-refresh';
+window.PERSONA_ASSET_VERSION = window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev';
 let cachedMarkdownRenderer = null;
 
 function getMarkdownRenderer() {
@@ -9171,7 +9171,7 @@ const PERSONA_DESCRIPTION_KEYS = new Set([
     'punk', 'secretary', 'servant', 'terminator', 'thinker',
 ]);
 function personaPreviewImageUrl(key) {
-    return `/img/personas/${key}.png?v=${window.PERSONA_ASSET_VERSION || '20260502-persona-refresh'}`;
+    return `/img/personas/${key}.png?v=${window.PERSONA_ASSET_VERSION || window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev'}`;
 }
 
 function personaPreviewKey(name, isCore) {
@@ -9348,7 +9348,7 @@ async function initPage() {
                     opt.setAttribute('role', 'option');
                     const icon = document.createElement('img');
                     icon.className = 'personality-option-icon persona-option-avatar';
-                    icon.src = `/img/persona-icons/${previewKey}.png?v=${window.PERSONA_ASSET_VERSION || '20260502-persona-refresh'}`;
+                    icon.src = `/img/persona-icons/${previewKey}.png?v=${window.PERSONA_ASSET_VERSION || window.BUILD_VERSION || window.AURAGO_BUILD_VERSION || 'dev'}`;
                     icon.alt = '';
                     icon.width = 32;
                     icon.height = 32;

@@ -1,5 +1,5 @@
 // AuraGo Service Worker — versioned static assets and Web Push delivery.
-const CACHE_SCHEMA_VERSION = '3';
+const CACHE_SCHEMA_VERSION = '4';
 const SERVICE_WORKER_BUILD = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE_VERSION = `aurago-${CACHE_SCHEMA_VERSION}-${SERVICE_WORKER_BUILD}`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
@@ -13,7 +13,7 @@ const CORE_ASSETS = [
     '/favicon-96x96.png',
     '/apple-touch-icon.png',
     '/aurago_logo_dark.png'
-];
+].map(asset => `${asset}?v=${encodeURIComponent(SERVICE_WORKER_BUILD)}`);
 
 const NETWORK_ONLY_PATH_PREFIXES = ['/api/', '/v1/', '/auth/', '/events'];
 const STATIC_EXTENSIONS = ['.js', '.css', '.woff', '.woff2', '.ttf', '.otf', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp', '.ico', '.webmanifest', '.json', '.wasm', '.glb'];
@@ -68,6 +68,9 @@ self.addEventListener('fetch', event => {
     if (url.origin !== self.location.origin || isApiRequest(url) || !isStaticAsset(url)) {
         return;
     }
+    // Nested CSS/vendor URLs without a version must never survive an upgrade
+    // in Cache Storage (which otherwise ignores HTTP Cache-Control).
+    if (!url.searchParams.get('v')) return;
     // Media elements use byte ranges for seeking and progressive playback.
     // Cache Storage rejects 206 responses, so range requests must go straight
     // to the network instead of turning a valid response into an offline 503.

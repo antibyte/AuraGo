@@ -1,4 +1,5 @@
 # Build artifacts
+assets/web/
 bin/
 deploy/*
 !deploy/
@@ -45,3 +46,5 @@ agent_workspace/skills/client_secrets.json
 *.lock
 *.md
 !README.md
+!**/THIRD_PARTY_NOTICES.md
+!**/LICENSE*

@@ -16,8 +16,8 @@ the asset import. The current runtime contract is below.
 - `/js/vendor/rive/rive.js` and `/js/vendor/rive/rive.wasm`: local
   `@rive-app/canvas@2.42.0`, with `manifest.json` and `LICENSE.txt`.
 
-The existing `ui/embed.go` directory patterns include these files. Rebuild
-AuraGo to serve the updated embedded UI; copying source files does not update
+The production manifest `assets/web-assets.json` includes these files. Rebuild
+the resource set and its pinned AuraGo executable; copying source files does not update
 an already running binary.
 
 | AuraGo key | Authoring persona |

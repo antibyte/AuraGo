@@ -120,7 +120,8 @@ git clone https://github.com/antibyte/AuraGo.git
 cd AuraGo
 
 # Build
-go build -o aurago cmd/aurago/main.go
+go run ./cmd/assetpack -out deploy -stage assets/web
+go build -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 
 # Or build release artifacts
 ./make_deploy.sh  # Linux/macOS
@@ -332,3 +333,5 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 - **[Quick Start](03-quickstart.md)** – First 5 minutes with AuraGo
 - **[Web Interface](04-webui.md)** – Learn the UI
 - **[Configuration](07-configuration.md)** – Fine-tuning
+
+The full web interface is installed as a matching local resource set; the binary retains a small recovery/login page. See [resources and offline installation](../../web-assets.md).

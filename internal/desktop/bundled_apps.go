@@ -3,16 +3,16 @@ package desktop
 import (
 	"bytes"
 	"context"
-	"database/sql"
-	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/webassets"
 )
 
-//go:embed bundled_apps/nasscad/*
-var bundledAppAssets embed.FS
+var bundledAppAssets = webassets.Namespace("desktop")
 
 const nasscadBundledVersion = "4.7.0-github.844d9420"
 
@@ -24,41 +24,23 @@ func (s *Service) seedBundledBuiltinAppsLocked(ctx context.Context) error {
 }
 
 func (s *Service) seedNasscadAppLocked(ctx context.Context) error {
+	// Existing workspace apps belong to the user, even after a bundled upgrade.
+	if _, err := os.Lstat(filepath.Join(s.cfg.WorkspaceDir, "Apps", "nasscad", "index.html")); err == nil {
+		return nil
+	}
 	const metaKey = "desktop_bundled_app_nasscad_version"
 	runtimeAssets := []string{"nasscad_occt_wasm.js", "opencascade.wasm.wasm"}
-	var seededVersion string
-	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = ?`, metaKey).Scan(&seededVersion)
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("read nasscad bundled app seed state: %w", err)
-	}
-	if seededVersion == nasscadBundledVersion {
-		if data, err := os.ReadFile(filepath.Join(s.cfg.WorkspaceDir, "Apps", "nasscad", "index.html")); err == nil {
-			if bytesContainsNasscadMonolithMarkers(data) {
-				complete := true
-				for _, name := range runtimeAssets {
-					info, err := os.Stat(filepath.Join(s.cfg.WorkspaceDir, "Apps", "nasscad", name))
-					if err != nil || info.IsDir() || info.Size() == 0 {
-						complete = false
-						break
-					}
-				}
-				if complete {
-					return nil
-				}
-			}
-		}
-	}
 
 	indexHTML, err := bundledAppAssets.ReadFile("bundled_apps/nasscad/index.html")
+	if errors.Is(err, webassets.ErrUnavailable) {
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("read bundled nasscad index: %w", err)
 	}
 	monolithic, err := buildMonolithicNasscadHTML(indexHTML, bundledAppAssets, "bundled_apps/nasscad")
 	if err != nil {
 		return fmt.Errorf("build monolithic nasscad html: %w", err)
-	}
-	if err := s.seedWorkspaceFileLocked("Apps/nasscad/index.html", monolithic); err != nil {
-		return fmt.Errorf("seed nasscad app: %w", err)
 	}
 	for _, name := range runtimeAssets {
 		data, err := bundledAppAssets.ReadFile("bundled_apps/nasscad/" + name)
@@ -70,6 +52,10 @@ func (s *Service) seedNasscadAppLocked(ctx context.Context) error {
 		}
 	}
 
+	// Publish the entry page last, so a failed first install remains retryable.
+	if err := s.seedWorkspaceFileLocked("Apps/nasscad/index.html", monolithic); err != nil {
+		return fmt.Errorf("seed nasscad app: %w", err)
+	}
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES(?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, metaKey, nasscadBundledVersion); err != nil {
 		return fmt.Errorf("mark nasscad bundled app seeded: %w", err)

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="{{.Lang}}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark light">
+<title>AuraGo</title><link rel="icon" href="data:,">
+<style>
+:root{font:16px/1.55 system-ui,sans-serif;color-scheme:light dark;background:#f0f3f6;color:#1c2938}*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px}main{width:min(100%,580px);padding:32px;border:1px solid #9aabb844;border-radius:20px;background:#ffffff}header{font-weight:700;letter-spacing:.08em;color:#287579}h1{font-size:1.65rem;line-height:1.25}p{color:#536271}button,input{font:inherit;border-radius:8px;border:1px solid #80939c;padding:10px 14px}button{background:#226c71;color:white;cursor:pointer}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #29a1ad;outline-offset:3px}input{width:100%;margin:4px 0 16px;background:transparent;color:inherit}label{display:block}pre{padding:14px;background:#e8edf1;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}small{overflow-wrap:anywhere;display:block;color:#667887}.actions{display:flex;gap:10px;flex-wrap:wrap}[hidden]{display:none!important}#status{min-height:1.6em}@media(prefers-color-scheme:dark){:root{background:#10191e;color:#e3edf3}main{background:#19252c}p,small{color:#a6b9c5}pre{background:#111d24}}@media(max-width:420px){body{padding:12px}main{padding:22px}}
+</style>
+<main><header>AURAGO</header><h1 id="title"></h1><p id="description"></p>
+<form id="login" hidden><label><span id="passwordLabel"></span><input name="password" type="password" autocomplete="current-password" required></label><label id="totpLabel" hidden><span id="codeLabel"></span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label><button id="loginButton" type="submit"></button></form>
+<section id="repair"><small id="version"></small><p id="offline"></p><pre id="command"></pre><div class="actions"><button id="download" type="button"></button><button id="restart" type="button" hidden></button><button id="reload" type="button"></button></div></section>
+<p id="status" role="status" aria-live="polite"></p></main>
+<script>
+(() => {
+'use strict';
+const pin = {{.Pin}};
+const translations = {
+en:['Web interface resources','Install the resource set matching this binary to open Chat, Config and Desktop.','Download resources','Offline: import the matching release archive, then restart AuraGo.','Restart AuraGo','Sign in','Password','Authenticator code','Please wait…','Resources installed. Restart AuraGo to activate them.','The operation failed. Check the credentials or server log.','Reload'],
+de:['Ressourcen der Weboberfläche','Installiere das zu diesem Binary passende Paket für Chat, Konfiguration und Desktop.','Ressourcen herunterladen','Offline: Passendes Release-Archiv importieren, danach AuraGo neu starten.','AuraGo neu starten','Anmelden','Passwort','Authenticator-Code','Bitte warten…','Ressourcen installiert. Zum Aktivieren AuraGo neu starten.','Vorgang fehlgeschlagen. Zugangsdaten oder Serverprotokoll prüfen.','Neu laden'],
+cs:['Soubory webového rozhraní','Pro Chat, nastavení a plochu nainstalujte balíček odpovídající tomuto programu.','Stáhnout soubory','Offline: importujte odpovídající archiv vydání a restartujte AuraGo.','Restartovat AuraGo','Přihlásit se','Heslo','Ověřovací kód','Čekejte…','Soubory nainstalovány. Restartujte AuraGo.','Operace selhala. Zkontrolujte přihlašovací údaje nebo protokol serveru.','Obnovit'],
+da:['Webgrænsefladens filer','Installer den pakke, der passer til programmet, for at åbne chat, indstillinger og skrivebord.','Hent filer','Offline: importer det tilsvarende udgivelsesarkiv, og genstart AuraGo.','Genstart AuraGo','Log ind','Adgangskode','Godkendelseskode','Vent…','Filer installeret. Genstart AuraGo.','Handlingen mislykkedes. Kontroller loginoplysninger eller serverlog.','Genindlæs'],
+el:['Αρχεία διεπαφής ιστού','Εγκαταστήστε το αντίστοιχο πακέτο για συνομιλία, ρυθμίσεις και επιφάνεια εργασίας.','Λήψη αρχείων','Εκτός σύνδεσης: εισαγάγετε το αντίστοιχο αρχείο έκδοσης και επανεκκινήστε το AuraGo.','Επανεκκίνηση AuraGo','Σύνδεση','Κωδικός πρόσβασης','Κωδικός επαλήθευσης','Περιμένετε…','Τα αρχεία εγκαταστάθηκαν. Επανεκκινήστε το AuraGo.','Η ενέργεια απέτυχε. Ελέγξτε τα στοιχεία σύνδεσης ή το αρχείο καταγραφής.','Ανανέωση'],
+es:['Archivos de la interfaz web','Instala el paquete correspondiente a este programa para abrir el chat, la configuración y el escritorio.','Descargar archivos','Sin conexión: importa el archivo de la versión correspondiente y reinicia AuraGo.','Reiniciar AuraGo','Iniciar sesión','Contraseña','Código de autenticación','Espera…','Archivos instalados. Reinicia AuraGo.','La operación falló. Revisa las credenciales o el registro del servidor.','Recargar'],
+fr:['Fichiers de l’interface web','Installez le paquet correspondant à ce programme pour ouvrir le chat, les paramètres et le bureau.','Télécharger les fichiers','Hors ligne : importez l’archive de la version correspondante, puis redémarrez AuraGo.','Redémarrer AuraGo','Connexion','Mot de passe','Code d’authentification','Veuillez patienter…','Fichiers installés. Redémarrez AuraGo.','Échec de l’opération. Vérifiez les identifiants ou le journal du serveur.','Actualiser'],
+hi:['वेब इंटरफ़ेस की फ़ाइलें','चैट, सेटिंग और डेस्कटॉप खोलने के लिए इस प्रोग्राम से मेल खाने वाला पैकेज इंस्टॉल करें।','फ़ाइलें डाउनलोड करें','ऑफ़लाइन: संबंधित रिलीज़ आर्काइव इंपोर्ट करें, फिर AuraGo पुनः शुरू करें।','AuraGo पुनः शुरू करें','साइन इन','पासवर्ड','प्रमाणीकरण कोड','कृपया प्रतीक्षा करें…','फ़ाइलें इंस्टॉल हो गईं। AuraGo पुनः शुरू करें।','कार्रवाई विफल रही। लॉगिन जानकारी या सर्वर लॉग जाँचें।','रीलोड करें'],
+it:['File dell’interfaccia web','Installa il pacchetto corrispondente a questo programma per aprire chat, impostazioni e desktop.','Scarica i file','Offline: importa l’archivio della versione corrispondente, poi riavvia AuraGo.','Riavvia AuraGo','Accedi','Password','Codice di autenticazione','Attendi…','File installati. Riavvia AuraGo.','Operazione non riuscita. Controlla le credenziali o il registro del server.','Ricarica'],
+ja:['Web インターフェースのファイル','チャット、設定、デスクトップを開くには、このプログラムに対応するパッケージをインストールしてください。','ファイルをダウンロード','オフライン：対応するリリースのアーカイブをインポートし、AuraGo を再起動してください。','AuraGo を再起動','ログイン','パスワード','認証コード','お待ちください…','インストール完了。AuraGo を再起動してください。','操作に失敗しました。認証情報またはサーバーログを確認してください。','再読み込み'],
+nl:['Bestanden voor de webinterface','Installeer het pakket dat bij dit programma hoort om chat, instellingen en bureaublad te openen.','Bestanden downloaden','Offline: importeer het bijbehorende releasearchief en herstart AuraGo.','AuraGo herstarten','Inloggen','Wachtwoord','Authenticatiecode','Even geduld…','Bestanden geïnstalleerd. Herstart AuraGo.','De bewerking is mislukt. Controleer de inloggegevens of het serverlogboek.','Vernieuwen'],
+no:['Filer for nettgrensesnittet','Installer pakken som passer til programmet for å åpne chat, innstillinger og skrivebord.','Last ned filer','Frakoblet: importer det tilhørende utgivelsesarkivet og start AuraGo på nytt.','Start AuraGo på nytt','Logg inn','Passord','Bekreftelseskode','Vent…','Filer installert. Start AuraGo på nytt.','Operasjonen mislyktes. Kontroller påloggingsinformasjonen eller serverloggen.','Last inn på nytt'],
+pl:['Pliki interfejsu internetowego','Zainstaluj pakiet pasujący do programu, aby otworzyć czat, ustawienia i pulpit.','Pobierz pliki','Offline: zaimportuj odpowiednie archiwum wydania i uruchom ponownie AuraGo.','Uruchom ponownie AuraGo','Zaloguj się','Hasło','Kod uwierzytelniania','Czekaj…','Pliki zainstalowane. Uruchom ponownie AuraGo.','Operacja nie powiodła się. Sprawdź dane logowania lub dziennik serwera.','Odśwież'],
+pt:['Ficheiros da interface web','Instale o pacote correspondente a este programa para abrir o chat, as definições e o ambiente de trabalho.','Descarregar ficheiros','Offline: importe o arquivo da versão correspondente e reinicie o AuraGo.','Reiniciar AuraGo','Iniciar sessão','Palavra-passe','Código de autenticação','Aguarde…','Ficheiros instalados. Reinicie o AuraGo.','A operação falhou. Verifique as credenciais ou o registo do servidor.','Recarregar'],
+sv:['Webbgränssnittets filer','Installera paketet som matchar programmet för att öppna chatt, inställningar och skrivbord.','Hämta filer','Offline: importera motsvarande versionsarkiv och starta om AuraGo.','Starta om AuraGo','Logga in','Lösenord','Autentiseringskod','Vänta…','Filer installerade. Starta om AuraGo.','Åtgärden misslyckades. Kontrollera inloggningsuppgifterna eller serverloggen.','Ladda om'],
+zh:['网页界面资源','安装与此程序匹配的资源包，即可打开聊天、设置和桌面。','下载资源','离线：导入对应版本的归档文件，然后重启 AuraGo。','重启 AuraGo','登录','密码','身份验证代码','请稍候…','资源已安装。请重启 AuraGo。','操作失败。请检查登录信息或服务器日志。','刷新']
+};
+const t = translations[document.documentElement.lang] || translations.en;
+const el = id => document.getElementById(id);
+const login = location.pathname === '/auth/login';
+for (const [id, index] of Object.entries({title:login?5:0,description:1,download:2,offline:3,restart:4,loginButton:5,passwordLabel:6,codeLabel:7,reload:11})) el(id).textContent = t[index];
+el('login').hidden = !login; el('repair').hidden = login; el('description').hidden = login;
+el('version').textContent = pin.asset_set_id || '—';
+el('download').disabled = !pin.download_url;
+el('command').textContent = pin.asset_set_id ? './aurago --install-assets aurago-web-assets-'+pin.asset_set_id+'.tar.gz' : 'go run ./cmd/assetpack\n# documentation/web-assets.md';
+el('reload').addEventListener('click',()=>location.reload());
+async function post(url, body) {
+ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+ if (!r.ok) throw new Error(); return r.json();
+}
+el('login').addEventListener('submit',async event=>{
+ event.preventDefault(); el('loginButton').disabled=true; el('status').textContent=t[8];
+ try { await post('/auth/login',{password:el('login').elements.password.value,totp_code:el('login').elements.code.value,redirect:'/'}); location.replace('/'); }
+ catch { el('status').textContent=t[10]; el('loginButton').disabled=false; }
+});
+if (login) { el('login').elements.password.focus(); fetch('/api/auth/status').then(r=>r.json()).then(a=>{el('totpLabel').hidden=!a.totp_enabled; el('login').elements.code.required=!!a.totp_enabled;}).catch(()=>{}); }
+el('download').addEventListener('click',async()=>{
+ el('download').disabled=true; el('status').textContent=t[8];
+ try { await post('/api/assets/install'); el('status').textContent=t[9]; el('restart').hidden=false; el('restart').focus(); }
+ catch { el('status').textContent=t[10]; el('download').disabled=false; }
+});
+el('restart').addEventListener('click',async()=>{
+ el('restart').disabled=true; el('status').textContent=t[8];
+ try { await post('/api/assets/restart'); setTimeout(()=>location.replace('/'),3000); }
+ catch { el('status').textContent=t[10]; el('restart').disabled=false; }
+});
+})();
+</script></html>

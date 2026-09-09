@@ -589,8 +589,8 @@
     async function loadIconManifest() {
         const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=5').catch(() => null),
-            api('/img/whitesur/manifest.json?v=4').catch(() => null)
+            api('/img/papirus/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
+            api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));

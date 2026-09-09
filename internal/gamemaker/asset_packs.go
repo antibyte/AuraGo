@@ -3,7 +3,6 @@ package gamemaker
 import (
 	"bytes"
 	"context"
-	"embed"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -12,13 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/webassets"
+
 	"github.com/evanw/esbuild/pkg/api"
 )
 
-// Production source artwork is retained in git but never shipped in the binary.
-//
-//go:embed asset_packs/catalog.json asset_packs/*/sheet.png asset_packs/*/sheet.json
-var assetPackFS embed.FS
+// Only runtime sheets and catalog are included in the external resource set.
+var assetPackFS = webassets.Namespace("gamemaker")
 
 type AssetPackSummary struct {
 	ID          string   `json:"id"`

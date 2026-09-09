@@ -108,3 +108,5 @@ A `BroadcastChannel` lease and a backend lease permit only one microphone sessio
 | `POST /api/realtime-speech/turns` | Idempotently persist a final direct voice turn |
 
 Mutation endpoints enforce same-origin requests, authenticated AuraGo routing, bounded request sizes, lease ownership, and rate limits. Standard tests use simulated provider endpoints. Live provider tests must remain opt-in and require explicit environment credentials.
+
+Full browser resources are supplied by the version-bound local asset set. The installer and Docker image include it; bare executables retain a small recovery/login page. See [resource packaging and offline installation](web-assets.md).
