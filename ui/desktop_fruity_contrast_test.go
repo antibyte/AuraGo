@@ -27,8 +27,8 @@ func TestDesktopFruityLightKeepsDarkTextOnLightRaisedSurfaces(t *testing.T) {
 
 	css := readDesktopAssetText(t, "css/desktop-base.css")
 	for _, want := range []string{
-		"--ds-color-fg-primary: #1a2030;",
-		"--ds-color-bg-raised: rgba(255, 255, 255, 0.72);",
+		"--ds-color-fg-primary: #192334;",
+		"--ds-color-bg-raised: #e5eaf2;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("fruity light editor tokens missing %q", want)

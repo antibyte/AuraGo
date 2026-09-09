@@ -450,9 +450,9 @@
 
 .desktop-body[data-theme="standard"] {
     color-scheme: dark;
-    --vd-bg: #191d24;
-    --vd-surface: #262c35;
-    --vd-surface-strong: #303743;
+    --vd-bg: #0c1016;
+    --vd-surface: #171d26;
+    --vd-surface-strong: #1d2530;
     --vd-border: rgba(255, 255, 255, 0.12);
     --vd-border-bright: rgba(255, 255, 255, 0.18);
     --vd-text: #edf1f7;
@@ -469,10 +469,10 @@
     --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     --vd-control-bg: rgba(255, 255, 255, 0.06);
     --vd-control-hover: rgba(255, 255, 255, 0.1);
-    --vd-shell-panel: #303030;
-    --vd-shell-panel-strong: #363636;
+    --vd-shell-panel: #171d26;
+    --vd-shell-panel-strong: #1d2530;
     --vd-shell-panel-border: rgba(255, 255, 255, 0.12);
-    --vd-shell-context-menu-bg: rgba(35, 41, 51, 0.96);
+    --vd-shell-context-menu-bg: rgba(19, 25, 34, 0.97);
     --vd-shell-context-menu-border: rgba(255, 255, 255, 0.1);
     --vd-shell-context-menu-shadow:
         0 0 0 1px rgba(255, 255, 255, 0.05) inset,
@@ -482,24 +482,24 @@
     --vd-shell-taskbar: var(--vd-shell-context-menu-bg);
     --vd-shell-taskbar-border: var(--vd-shell-context-menu-border);
     --vd-shell-window: var(--vd-shell-context-menu-bg);
-    --vd-shell-window-chrome: var(--vd-shell-context-menu-bg);
+    --vd-shell-window-chrome: rgba(23, 30, 40, 0.97);
     --vd-shell-menu: var(--vd-shell-context-menu-bg);
     --vd-shell-accent-secondary: #f59e0b;
     --vd-shell-radius-window: 12px;
-    --vd-shell-shadow-window: 0 28px 70px rgba(0, 0, 0, 0.48), 0 8px 24px rgba(0, 0, 0, 0.26);
+    --vd-shell-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.62), 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--vd-accent) 8%, transparent);
     --ds-color-fg-primary: #edf1f7;
     --ds-color-fg-secondary: #d0d0d0;
     --ds-color-fg-muted: #aeb7c6;
     --ds-color-fg-disabled: #6b6b6b;
-    --ds-color-bg-canvas: #191d24;
-    --ds-color-bg-raised: #20252d;
-    --ds-color-bg-overlay: #303030;
-    --ds-color-bg-modal: #363636;
+    --ds-color-bg-canvas: #0c1016;
+    --ds-color-bg-raised: #171d26;
+    --ds-color-bg-overlay: #1d2530;
+    --ds-color-bg-modal: #222c39;
 
-    --ds-color-surface-0: #1d1d1d;
-    --ds-color-surface-1: #262c35;
-    --ds-color-surface-2: #2d3440;
-    --ds-color-surface-3: #363636;
+    --ds-color-surface-0: #11151c;
+    --ds-color-surface-1: #171d26;
+    --ds-color-surface-2: #1d2530;
+    --ds-color-surface-3: #222c39;
 
     --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
     --ds-color-border-default: rgba(255, 255, 255, 0.18);
@@ -626,54 +626,54 @@
 
 .desktop-body[data-theme="fruity"] {
     color-scheme: light;
-    --vd-bg: #f4f8fc;
-    --vd-surface: rgba(255, 255, 255, 0.55);
-    --vd-surface-strong: rgba(255, 255, 255, 0.74);
-    --vd-border: rgba(78, 92, 118, 0.12);
-    --vd-border-bright: rgba(78, 92, 118, 0.2);
-    --vd-text: #222635;
-    --vd-muted: #4f5a73;
+    --vd-bg: #d6deea;
+    --vd-surface: rgba(208, 219, 233, 0.9);
+    --vd-surface-strong: rgba(226, 234, 244, 0.97);
+    --vd-border: rgba(49, 66, 94, 0.24);
+    --vd-border-bright: rgba(49, 66, 94, 0.38);
+    --vd-text: #192334;
+    --vd-muted: #43516a;
     --vd-accent: #0a84ff;
     --vd-coral: #ff5f57;
     --vd-amber: #ffbd2e;
-    --vd-shadow: 0 24px 58px rgba(52, 64, 84, 0.18);
+    --vd-shadow: 0 28px 66px rgba(24, 38, 60, 0.3);
     --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     --vd-accent-glow: rgba(10, 132, 255, 0.14);
     --fruity-window-close: #ff5f57;
     --fruity-window-minimize: #ffbd2e;
     --fruity-window-maximize: #28c840;
-    --fruity-window-chrome: rgba(239, 242, 248, 0.94);
+    --fruity-window-chrome: rgba(203, 210, 220, 0.96);
     --fruity-window-button-inactive: rgba(32, 38, 53, 0.14);
     --fruity-window-glyph: rgba(32, 38, 53, 0.68);
 }
 
 .desktop-body[data-theme="fruity"] {
-    --ds-color-fg-primary: #1a2030;
-    --ds-color-fg-secondary: #3a455a;
-    --ds-color-fg-muted: #4f5a73;
-    --ds-color-fg-disabled: #97a1b5;
+    --ds-color-fg-primary: #192334;
+    --ds-color-fg-secondary: #35425a;
+    --ds-color-fg-muted: #43516a;
+    --ds-color-fg-disabled: #707d90;
 
-    --ds-color-bg-canvas: #f4f8fc;
-    --ds-color-bg-raised: rgba(255, 255, 255, 0.72);
-    --ds-color-bg-overlay: rgba(255, 255, 255, 0.78);
-    --ds-color-bg-modal: rgba(255, 255, 255, 0.82);
+    --ds-color-bg-canvas: #d6deea;
+    --ds-color-bg-raised: #e5eaf2;
+    --ds-color-bg-overlay: #d8e0eb;
+    --ds-color-bg-modal: #e5eaf2;
 
-    --ds-color-surface-0: #f4f8fc;
-    --ds-color-surface-1: rgba(255, 255, 255, 0.55);
-    --ds-color-surface-2: rgba(255, 255, 255, 0.72);
-    --ds-color-surface-3: rgba(255, 255, 255, 0.84);
+    --ds-color-surface-0: #eff2f6;
+    --ds-color-surface-1: #d8e0eb;
+    --ds-color-surface-2: #e5eaf2;
+    --ds-color-surface-3: #eff2f6;
 
-    --ds-color-border-subtle: rgba(78, 92, 118, 0.12);
-    --ds-color-border-default: rgba(78, 92, 118, 0.2);
-    --ds-color-border-strong: rgba(78, 92, 118, 0.3);
+    --ds-color-border-subtle: rgba(49, 66, 94, 0.24);
+    --ds-color-border-default: rgba(49, 66, 94, 0.38);
+    --ds-color-border-strong: rgba(49, 66, 94, 0.56);
     --ds-color-border-focus: #0a84ff;
 
     --ds-color-accent-500: #0a84ff;
     --ds-color-accent-600: #0066cc;
     --ds-color-accent-glow: rgba(10, 132, 255, 0.14);
 
-    --ds-color-control-bg: rgba(255, 255, 255, 0.6);
-    --ds-color-control-hover: rgba(10, 132, 255, 0.12);
+    --ds-color-control-bg: #fafcff;
+    --ds-color-control-hover: #e2e9f3;
     --ds-color-control-active: rgba(10, 132, 255, 0.2);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.6);
 
@@ -727,31 +727,31 @@
 /* Fruity dark mode - explicit attribute selector (takes precedence over media query) */
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] {
     color-scheme: dark;
-    --vd-bg: #1c1c1e;
-    --vd-surface: rgba(40, 40, 44, 0.55);
-    --vd-surface-strong: rgba(52, 52, 58, 0.74);
+    --vd-bg: #0d0f14;
+    --vd-surface: rgba(24, 27, 35, 0.88);
+    --vd-surface-strong: rgba(29, 34, 44, 0.96);
     --vd-border: rgba(255, 255, 255, 0.12);
     --vd-border-bright: rgba(255, 255, 255, 0.2);
     --vd-text: #f5f5f7;
-    --vd-muted: #a1a1aa;
-    --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
-    --fruity-window-chrome: rgba(47, 49, 59, 0.94);
+    --vd-muted: #aeb7c8;
+    --vd-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+    --fruity-window-chrome: rgba(28, 32, 41, 0.96);
     --fruity-window-button-inactive: rgba(255, 255, 255, 0.16);
     --fruity-window-glyph: rgba(255, 255, 255, 0.72);
 
     --ds-color-fg-primary: #f5f5f7;
     --ds-color-fg-secondary: #d4dbe7;
-    --ds-color-fg-muted: #a1a1aa;
+    --ds-color-fg-muted: #aeb7c8;
     --ds-color-fg-disabled: #6b7785;
 
-    --ds-color-bg-canvas: #1c1c1e;
-    --ds-color-bg-raised: rgba(52, 52, 58, 0.74);
-    --ds-color-bg-overlay: rgba(64, 64, 72, 0.88);
-    --ds-color-bg-modal: rgba(64, 64, 72, 0.92);
-    --ds-color-surface-0: #1c1c1e;
-    --ds-color-surface-1: rgba(40, 40, 44, 0.55);
-    --ds-color-surface-2: rgba(52, 52, 58, 0.72);
-    --ds-color-surface-3: rgba(64, 64, 72, 0.88);
+    --ds-color-bg-canvas: #0d0f14;
+    --ds-color-bg-raised: #1b1e26;
+    --ds-color-bg-overlay: #202631;
+    --ds-color-bg-modal: #202631;
+    --ds-color-surface-0: #121419;
+    --ds-color-surface-1: #1b1e26;
+    --ds-color-surface-2: #202631;
+    --ds-color-surface-3: #262e3c;
 
     --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
     --ds-color-border-default: rgba(255, 255, 255, 0.18);
@@ -844,15 +844,6 @@
     box-shadow: 0 22px 52px rgba(0, 0, 0, 0.38);
 }
 
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-button,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-start-button,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-agent-button,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-tool-button,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-chat-send,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-setting-select,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-modal-input,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-settings-sidebar,
-
 .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(238, 247, 255, 0.64) 42%, rgba(251, 253, 255, 0.9)),
@@ -878,11 +869,9 @@
 .desktop-body[data-theme="fruity"] .vd-window {
     grid-template-rows: 48px 1fr;
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.76);
-    border-color: rgba(78, 92, 118, 0.16);
-    box-shadow:
-        0 34px 78px rgba(52, 64, 84, 0.22),
-        0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    background: var(--vd-theme-app-bg);
+    border-color: var(--vd-theme-border-strong);
+    box-shadow: 0 28px 64px rgba(20, 32, 52, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.65);
     backdrop-filter: blur(40px) saturate(1.3);
 }
 
@@ -906,8 +895,8 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.active {
-    border-color: rgba(10, 132, 255, 0.42);
-    box-shadow: 0 28px 72px rgba(52, 64, 84, 0.24), 0 0 0 1px rgba(10, 132, 255, 0.12);
+    border-color: var(--vd-theme-accent-border);
+    box-shadow: var(--vd-shadow), 0 0 0 1px var(--vd-theme-accent-border), 0 0 28px color-mix(in srgb, var(--vd-accent) 8%, transparent);
 }
 
 
@@ -1205,9 +1194,9 @@
 .desktop-body[data-theme="fruity"] .vd-chat-send,
 .desktop-body[data-theme="fruity"] .vd-setting-select,
 .desktop-body[data-theme="fruity"] .vd-modal-input {
-    background: rgba(255, 255, 255, 0.62);
-    border-color: rgba(78, 92, 118, 0.18);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    background: var(--vd-theme-control-bg);
+    border-color: var(--vd-theme-border-strong);
+    box-shadow: var(--vd-chrome-highlight);
 }
 
 .desktop-body[data-theme="fruity"] .vd-button:hover,
@@ -1855,30 +1844,30 @@
     /* Dark mode fallback when no explicit fruity-mode is set - macOS dark appearance */
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
         color-scheme: dark;
-        --vd-bg: #1c1c1e;
-        --vd-surface: rgba(40, 40, 44, 0.55);
-        --vd-surface-strong: rgba(52, 52, 58, 0.74);
+        --vd-bg: #0d0f14;
+        --vd-surface: rgba(24, 27, 35, 0.88);
+        --vd-surface-strong: rgba(29, 34, 44, 0.96);
         --vd-border: rgba(255, 255, 255, 0.12);
         --vd-text: #f5f5f7;
-        --vd-muted: #a1a1aa;
-        --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
-        --fruity-window-chrome: rgba(54, 54, 60, 0.74);
+        --vd-muted: #aeb7c8;
+        --vd-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+        --fruity-window-chrome: rgba(28, 32, 41, 0.96);
         --fruity-window-button-inactive: rgba(255, 255, 255, 0.16);
         --fruity-window-glyph: rgba(255, 255, 255, 0.72);
 
         --ds-color-fg-primary: #f5f5f7;
         --ds-color-fg-secondary: #d4dbe7;
-        --ds-color-fg-muted: #a1a1aa;
+        --ds-color-fg-muted: #aeb7c8;
         --ds-color-fg-disabled: #6b7785;
 
-        --ds-color-bg-canvas: #1c1c1e;
-        --ds-color-bg-raised: rgba(52, 52, 58, 0.74);
-        --ds-color-bg-overlay: rgba(64, 64, 72, 0.88);
-        --ds-color-bg-modal: rgba(64, 64, 72, 0.92);
-        --ds-color-surface-0: #1c1c1e;
-        --ds-color-surface-1: rgba(40, 40, 44, 0.55);
-        --ds-color-surface-2: rgba(52, 52, 58, 0.72);
-        --ds-color-surface-3: rgba(64, 64, 72, 0.88);
+        --ds-color-bg-canvas: #0d0f14;
+        --ds-color-bg-raised: #1b1e26;
+        --ds-color-bg-overlay: #202631;
+        --ds-color-bg-modal: #202631;
+        --ds-color-surface-0: #121419;
+        --ds-color-surface-1: #1b1e26;
+        --ds-color-surface-2: #202631;
+        --ds-color-surface-3: #262e3c;
     }
 
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"])[data-wallpaper="aurora"] {
@@ -7031,15 +7020,15 @@
 
 /* === Theme material bridge: keep shell, apps, modals and toasts visually aligned === */
 .desktop-body[data-theme="standard"] {
-    --vd-theme-app-bg: #20252d;
-    --vd-theme-panel-bg: #262c35;
-    --vd-theme-panel-bg-strong: rgba(37, 43, 53, 0.97);
-    --vd-theme-chrome-bg: rgba(37, 43, 52, 0.94);
+    --vd-theme-app-bg: #11151c;
+    --vd-theme-panel-bg: #191f28;
+    --vd-theme-panel-bg-strong: rgba(24, 30, 39, 0.98);
+    --vd-theme-chrome-bg: rgba(25, 32, 42, 0.94);
     --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.075);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.12);
-    --vd-theme-border: rgba(255, 255, 255, 0.12);
-    --vd-theme-border-strong: rgba(255, 255, 255, 0.18);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.055);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.1);
+    --vd-theme-border: rgba(191, 210, 235, 0.14);
+    --vd-theme-border-strong: rgba(191, 210, 235, 0.28);
     --vd-theme-muted: #aeb7c6;
     --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
     --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
@@ -7051,22 +7040,22 @@
 }
 
 .desktop-body[data-theme="fruity"] {
-    --vd-theme-app-bg: #f8f9fb;
-    --vd-theme-panel-bg: #f0f2f6;
-    --vd-theme-panel-bg-strong: rgba(249, 250, 253, 0.96);
-    --vd-theme-chrome-bg: rgba(236, 239, 246, 0.88);
+    --vd-theme-app-bg: #eff2f6;
+    --vd-theme-panel-bg: #d8e0eb;
+    --vd-theme-panel-bg-strong: rgba(225, 232, 242, 0.98);
+    --vd-theme-chrome-bg: rgba(203, 210, 220, 0.94);
     --vd-theme-overlay-bg: rgba(34, 47, 70, 0.28);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.42);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.64);
-    --vd-theme-border: rgba(78, 92, 118, 0.13);
-    --vd-theme-border-strong: rgba(78, 92, 118, 0.22);
-    --vd-theme-muted: #4f5a73;
-    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.12);
+    --vd-theme-control-bg: #fafcff;
+    --vd-theme-control-hover: #e2e9f3;
+    --vd-theme-border: rgba(49, 66, 94, 0.24);
+    --vd-theme-border-strong: rgba(49, 66, 94, 0.56);
+    --vd-theme-muted: #43516a;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.2);
     --vd-theme-accent-border: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.26);
     --vd-theme-radius-panel: 12px;
     --vd-theme-radius-modal: 18px;
-    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 34px 84px rgba(52, 64, 84, 0.24), 0 8px 24px rgba(52, 64, 84, 0.12);
+    --vd-theme-shadow-panel: 0 6px 18px rgba(27, 44, 70, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    --vd-theme-shadow-modal: 0 34px 84px rgba(24, 38, 60, 0.32), 0 8px 24px rgba(24, 38, 60, 0.18);
     --vd-theme-blur: blur(28px) saturate(1.2);
 
     font-family: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif;
@@ -7074,35 +7063,43 @@
 
 @media (prefers-color-scheme: dark) {
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
-        --vd-theme-app-bg: #23252c;
-        --vd-theme-panel-bg: #2b2d35;
-        --vd-theme-panel-bg-strong: rgba(43, 45, 54, 0.97);
-        --vd-theme-chrome-bg: rgba(47, 49, 59, 0.9);
+        --vd-theme-app-bg: #121419;
+        --vd-theme-panel-bg: #1b1e26;
+        --vd-theme-panel-bg-strong: rgba(26, 29, 37, 0.98);
+        --vd-theme-chrome-bg: rgba(30, 34, 43, 0.94);
         --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
-        --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
-        --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
-        --vd-theme-border: rgba(255, 255, 255, 0.13);
-        --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
-        --vd-theme-muted: #a1a1aa;
+        --vd-theme-control-bg: rgba(255, 255, 255, 0.06);
+        --vd-theme-control-hover: rgba(255, 255, 255, 0.11);
+        --vd-theme-border: rgba(200, 211, 233, 0.14);
+        --vd-theme-border-strong: rgba(200, 211, 233, 0.28);
+        --vd-theme-muted: #aeb7c8;
         --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-        --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
+        --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.66), 0 10px 28px rgba(0, 0, 0, 0.42);
     }
 }
 
 /* Explicit fruity dark mode must flip the same tokens even on a light OS */
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] {
-    --vd-theme-app-bg: #23252c;
-    --vd-theme-panel-bg: #2b2d35;
-    --vd-theme-panel-bg-strong: rgba(43, 45, 54, 0.97);
-    --vd-theme-chrome-bg: rgba(47, 49, 59, 0.9);
+    --vd-theme-app-bg: #121419;
+    --vd-theme-panel-bg: #1b1e26;
+    --vd-theme-panel-bg-strong: rgba(26, 29, 37, 0.98);
+    --vd-theme-chrome-bg: rgba(30, 34, 43, 0.94);
     --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
-    --vd-theme-border: rgba(255, 255, 255, 0.13);
-    --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
-    --vd-theme-muted: #a1a1aa;
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.06);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.11);
+    --vd-theme-border: rgba(200, 211, 233, 0.14);
+    --vd-theme-border-strong: rgba(200, 211, 233, 0.28);
+    --vd-theme-muted: #aeb7c8;
     --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
+    --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.66), 0 10px 28px rgba(0, 0, 0, 0.42);
+}
+
+/* Legacy controls resolve through the same light/dark material tokens. */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) {
+    --vd-control-bg: var(--vd-theme-control-bg);
+    --vd-control-hover: var(--vd-theme-control-hover);
+    --ds-color-control-bg: var(--vd-theme-control-bg);
+    --ds-color-control-hover: var(--vd-theme-control-hover);
 }
 
 .desktop-body[data-theme="standard"] :where(
@@ -7364,8 +7361,9 @@
 
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 68%),
-        color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.07));
+        radial-gradient(ellipse at 18% 0, color-mix(in srgb, var(--vd-accent) 10%, transparent), transparent 65%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.065), transparent 72%),
+        var(--vd-shell-window-chrome);
 }
 
 .desktop-body[data-theme="standard"] .vd-window-content {
@@ -7377,14 +7375,15 @@
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar,
 .desktop-body[data-theme="fruity"] .vd-window.active > .vd-window-titlebar {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.06) 56%, transparent),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 62%),
         var(--fruity-window-chrome);
 }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window > .vd-window-titlebar,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window.active > .vd-window-titlebar {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 64%),
+        radial-gradient(ellipse at 18% 0, color-mix(in srgb, var(--vd-accent) 9%, transparent), transparent 65%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.065), transparent 64%),
         var(--fruity-window-chrome);
 }
 

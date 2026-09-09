@@ -723,7 +723,7 @@
     .pixel-toolbar,
     .vd-logviewer-toolbar
 ) {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+    box-shadow: var(--vd-chrome-highlight);
 }
 
 .desktop-body[data-theme="standard"] :where(
@@ -766,7 +766,7 @@
     .pixel-tool-rail,
     .vd-logviewer-sidebar
 ) {
-    background: color-mix(in srgb, var(--vd-theme-chrome-bg), #fff 8%) !important;
+    background: var(--vd-theme-panel-bg) !important;
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.28);
 }
 
@@ -851,7 +851,8 @@
 }
 
 .desktop-body[data-theme="fruity"] :where(.fm-search-input, .vd-settings-search-input, .vd-setting-select) {
-    background: rgba(255, 255, 255, 0.56) !important;
+    background: var(--vd-theme-control-bg) !important;
+    border-color: var(--vd-theme-border-strong);
     border-radius: 10px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
@@ -870,7 +871,7 @@
 }
 
 .desktop-body[data-theme="fruity"] :where(.fm-list-row:hover, .vd-file-row:hover) {
-    background: rgba(10, 132, 255, 0.08) !important;
+    background: var(--vd-theme-accent-soft) !important;
 }
 
 .desktop-body[data-theme="standard"] .vd-settings-nav {
@@ -886,11 +887,11 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-settings-nav:hover {
-    background: rgba(10, 132, 255, 0.1);
+    background: var(--vd-theme-accent-soft);
 }
 
 .desktop-body[data-theme="fruity"] .vd-settings-nav.active {
-    background: rgba(10, 132, 255, 0.14);
+    background: var(--vd-theme-accent-soft);
     box-shadow: inset 3px 0 0 var(--vd-accent);
 }
 
@@ -1013,7 +1014,7 @@
 
 .desktop-body[data-theme="fruity"] .fm-list-row.selected,
 .desktop-body[data-theme="fruity"] .vd-file-row.selected {
-    background: rgba(10, 132, 255, 0.12) !important;
+    background: var(--vd-theme-accent-soft) !important;
 }
 
 

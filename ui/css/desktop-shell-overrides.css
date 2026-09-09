@@ -2,15 +2,15 @@
 
 /* === Theme material bridge: keep shell, apps, modals and toasts visually aligned === */
 .desktop-body[data-theme="standard"] {
-    --vd-theme-app-bg: #20252d;
-    --vd-theme-panel-bg: #262c35;
-    --vd-theme-panel-bg-strong: rgba(37, 43, 53, 0.97);
-    --vd-theme-chrome-bg: rgba(37, 43, 52, 0.94);
+    --vd-theme-app-bg: #11151c;
+    --vd-theme-panel-bg: #191f28;
+    --vd-theme-panel-bg-strong: rgba(24, 30, 39, 0.98);
+    --vd-theme-chrome-bg: rgba(25, 32, 42, 0.94);
     --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.075);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.12);
-    --vd-theme-border: rgba(255, 255, 255, 0.12);
-    --vd-theme-border-strong: rgba(255, 255, 255, 0.18);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.055);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.1);
+    --vd-theme-border: rgba(191, 210, 235, 0.14);
+    --vd-theme-border-strong: rgba(191, 210, 235, 0.28);
     --vd-theme-muted: #aeb7c6;
     --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
     --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
@@ -22,22 +22,22 @@
 }
 
 .desktop-body[data-theme="fruity"] {
-    --vd-theme-app-bg: #f8f9fb;
-    --vd-theme-panel-bg: #f0f2f6;
-    --vd-theme-panel-bg-strong: rgba(249, 250, 253, 0.96);
-    --vd-theme-chrome-bg: rgba(236, 239, 246, 0.88);
+    --vd-theme-app-bg: #eff2f6;
+    --vd-theme-panel-bg: #d8e0eb;
+    --vd-theme-panel-bg-strong: rgba(225, 232, 242, 0.98);
+    --vd-theme-chrome-bg: rgba(203, 210, 220, 0.94);
     --vd-theme-overlay-bg: rgba(34, 47, 70, 0.28);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.42);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.64);
-    --vd-theme-border: rgba(78, 92, 118, 0.13);
-    --vd-theme-border-strong: rgba(78, 92, 118, 0.22);
-    --vd-theme-muted: #4f5a73;
-    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.12);
+    --vd-theme-control-bg: #fafcff;
+    --vd-theme-control-hover: #e2e9f3;
+    --vd-theme-border: rgba(49, 66, 94, 0.24);
+    --vd-theme-border-strong: rgba(49, 66, 94, 0.56);
+    --vd-theme-muted: #43516a;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.2);
     --vd-theme-accent-border: rgba(var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255), 0.26);
     --vd-theme-radius-panel: 12px;
     --vd-theme-radius-modal: 18px;
-    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 34px 84px rgba(52, 64, 84, 0.24), 0 8px 24px rgba(52, 64, 84, 0.12);
+    --vd-theme-shadow-panel: 0 6px 18px rgba(27, 44, 70, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    --vd-theme-shadow-modal: 0 34px 84px rgba(24, 38, 60, 0.32), 0 8px 24px rgba(24, 38, 60, 0.18);
     --vd-theme-blur: blur(28px) saturate(1.2);
 
     font-family: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif;
@@ -45,35 +45,43 @@
 
 @media (prefers-color-scheme: dark) {
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
-        --vd-theme-app-bg: #23252c;
-        --vd-theme-panel-bg: #2b2d35;
-        --vd-theme-panel-bg-strong: rgba(43, 45, 54, 0.97);
-        --vd-theme-chrome-bg: rgba(47, 49, 59, 0.9);
+        --vd-theme-app-bg: #121419;
+        --vd-theme-panel-bg: #1b1e26;
+        --vd-theme-panel-bg-strong: rgba(26, 29, 37, 0.98);
+        --vd-theme-chrome-bg: rgba(30, 34, 43, 0.94);
         --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
-        --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
-        --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
-        --vd-theme-border: rgba(255, 255, 255, 0.13);
-        --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
-        --vd-theme-muted: #a1a1aa;
+        --vd-theme-control-bg: rgba(255, 255, 255, 0.06);
+        --vd-theme-control-hover: rgba(255, 255, 255, 0.11);
+        --vd-theme-border: rgba(200, 211, 233, 0.14);
+        --vd-theme-border-strong: rgba(200, 211, 233, 0.28);
+        --vd-theme-muted: #aeb7c8;
         --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-        --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
+        --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.66), 0 10px 28px rgba(0, 0, 0, 0.42);
     }
 }
 
 /* Explicit fruity dark mode must flip the same tokens even on a light OS */
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] {
-    --vd-theme-app-bg: #23252c;
-    --vd-theme-panel-bg: #2b2d35;
-    --vd-theme-panel-bg-strong: rgba(43, 45, 54, 0.97);
-    --vd-theme-chrome-bg: rgba(47, 49, 59, 0.9);
+    --vd-theme-app-bg: #121419;
+    --vd-theme-panel-bg: #1b1e26;
+    --vd-theme-panel-bg-strong: rgba(26, 29, 37, 0.98);
+    --vd-theme-chrome-bg: rgba(30, 34, 43, 0.94);
     --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
-    --vd-theme-border: rgba(255, 255, 255, 0.13);
-    --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
-    --vd-theme-muted: #a1a1aa;
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.06);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.11);
+    --vd-theme-border: rgba(200, 211, 233, 0.14);
+    --vd-theme-border-strong: rgba(200, 211, 233, 0.28);
+    --vd-theme-muted: #aeb7c8;
     --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
+    --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.66), 0 10px 28px rgba(0, 0, 0, 0.42);
+}
+
+/* Legacy controls resolve through the same light/dark material tokens. */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) {
+    --vd-control-bg: var(--vd-theme-control-bg);
+    --vd-control-hover: var(--vd-theme-control-hover);
+    --ds-color-control-bg: var(--vd-theme-control-bg);
+    --ds-color-control-hover: var(--vd-theme-control-hover);
 }
 
 .desktop-body[data-theme="standard"] :where(
@@ -335,8 +343,9 @@
 
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 68%),
-        color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.07));
+        radial-gradient(ellipse at 18% 0, color-mix(in srgb, var(--vd-accent) 10%, transparent), transparent 65%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.065), transparent 72%),
+        var(--vd-shell-window-chrome);
 }
 
 .desktop-body[data-theme="standard"] .vd-window-content {
@@ -348,14 +357,15 @@
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar,
 .desktop-body[data-theme="fruity"] .vd-window.active > .vd-window-titlebar {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.06) 56%, transparent),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 62%),
         var(--fruity-window-chrome);
 }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window > .vd-window-titlebar,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window.active > .vd-window-titlebar {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 64%),
+        radial-gradient(ellipse at 18% 0, color-mix(in srgb, var(--vd-accent) 9%, transparent), transparent 65%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.065), transparent 64%),
         var(--fruity-window-chrome);
 }
 
