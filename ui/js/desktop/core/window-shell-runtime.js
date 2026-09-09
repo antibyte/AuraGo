@@ -10,7 +10,9 @@
     function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
-        if (widget.id === 'builtin-analog-clock') {
+        if (widget.id === 'builtin-leafy') {
+            renderLeafyWidget(container);
+        } else if (widget.id === 'builtin-analog-clock') {
             renderAnalogClockWidget(container);
         } else if (widget.id === 'builtin-quickchat') {
             renderQuickChatWidget(container);

@@ -571,6 +571,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/apps", handleDesktopApps(s))
 	mux.HandleFunc("/api/desktop/shortcuts", handleDesktopShortcuts(s))
 	mux.HandleFunc("/api/desktop/widgets", handleDesktopWidgets(s))
+	mux.HandleFunc("/api/desktop/plant", handleDesktopPlant(s))
+	mux.HandleFunc("/api/desktop/plant/actions", handleDesktopPlant(s))
 	mux.HandleFunc("/api/desktop/settings", handleDesktopSettings(s))
 	mux.HandleFunc("/api/desktop/embed-token", handleDesktopEmbedToken(s))
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))

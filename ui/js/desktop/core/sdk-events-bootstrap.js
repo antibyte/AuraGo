@@ -307,6 +307,10 @@
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'plant_changed' || event.type === 'welcome') {
+            document.dispatchEvent(new CustomEvent('aurago:plant-change', { detail: event.payload || {} }));
+            if (event.type === 'plant_changed') return;
+        }
         if (event.type === 'meshcore_changed') {
             const change = event.payload || {};
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: change }));

@@ -1,6 +1,7 @@
     const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
 
     function widgetShouldAutoSize(widget) {
+        if (widget?.id === "builtin-leafy") return false;
         if (!widget) return true;
         const configAutoSize = widget.config && widget.config.auto_size;
         const configured = widget.auto_size !== undefined

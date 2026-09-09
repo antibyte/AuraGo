@@ -36,6 +36,12 @@ worker. Keep packaging, recovery and offline instructions in
   read-only gates, escaped text, retryable drafts and existing widget dragging.
   Verify with `TestDesktopStickyNotesBrowser` and the widget persistence tests.
 
+- Leafy is an opt-in installation-wide plant. Its foreground runtime in
+  `js/desktop/leafy/` belongs to the widget cleanup scope; never simulate biology
+  from frames or client time. Preserve click-through foliage, the shell escape
+  control, reduced motion, context-loss fallback, and the 16-locale care UI.
+  Server state and revisioned actions live in `internal/desktop/plant_*.go`.
+  See `documentation/leafy.md` for care, atlas baking and browser checks.
 - The opt-in `builtin-printer` widget lives in `js/desktop/core/widget-printer-runtime.js`.
   Keep missing printer metrics unknown, render filenames as text, and stop status
   requests/camera streams on document hiding or widget disposal. Its native dialog

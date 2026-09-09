@@ -1102,6 +1102,7 @@
     }
 
     function widgetShouldAutoSize(widget) {
+        if (widget?.id === 'builtin-leafy') return false;
         if (!widget) return true;
         const configAutoSize = widget.config && widget.config.auto_size;
         const configured = widget.auto_size !== undefined
@@ -1553,6 +1554,7 @@
         if (!widget) return '';
         if (widget.type === 'sticky-note') return t('desktop.sticky_note');
         const id = String(widget.id || '');
+        if (id === 'builtin-leafy') return 'Leafy';
         if (id === 'builtin-weather') return t('desktop.weather_title');
         if (id === 'builtin-analog-clock') return t('desktop.widget_analog_clock');
         if (id === 'builtin-quickchat') return t('desktop.widget_quickchat');

@@ -1334,6 +1334,7 @@
     }
 
     function widgetShouldAutoSize(widget) {
+        if (widget?.id === 'builtin-leafy') return false;
         if (!widget) return true;
         const configAutoSize = widget.config && widget.config.auto_size;
         const configured = widget.auto_size !== undefined
@@ -1785,6 +1786,7 @@
         if (!widget) return '';
         if (widget.type === 'sticky-note') return t('desktop.sticky_note');
         const id = String(widget.id || '');
+        if (id === 'builtin-leafy') return 'Leafy';
         if (id === 'builtin-weather') return t('desktop.weather_title');
         if (id === 'builtin-analog-clock') return t('desktop.widget_analog_clock');
         if (id === 'builtin-quickchat') return t('desktop.widget_quickchat');
@@ -4474,7 +4476,9 @@
     function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
-        if (widget.id === 'builtin-analog-clock') {
+        if (widget.id === 'builtin-leafy') {
+            renderLeafyWidget(container);
+        } else if (widget.id === 'builtin-analog-clock') {
             renderAnalogClockWidget(container);
         } else if (widget.id === 'builtin-quickchat') {
             renderQuickChatWidget(container);
@@ -6970,6 +6974,7 @@ function wireWindow(win, id) {
     const WIDGET_FRAME_SHRINK_THRESHOLD = 18;
 
     function widgetShouldAutoSize(widget) {
+        if (widget?.id === "builtin-leafy") return false;
         if (!widget) return true;
         const configAutoSize = widget.config && widget.config.auto_size;
         const configured = widget.auto_size !== undefined
@@ -10129,6 +10134,33 @@ function updateTaskbarSystemButtonsForMobile() {
         document.body.appendChild(dialog);
         dialog.showModal();
         input.focus();
+    }
+
+;
+/* ui/js/desktop/core/widget-leafy-runtime.js */
+    function renderLeafyWidget(container) {
+        let disposed = false, runtime = null;
+        registerWidgetCleanup(() => { disposed = true; runtime?.dispose(); });
+        container.closest('.vd-widget')?.setAttribute('data-leafy-owner', '');
+        async function start() {
+            try {
+                await window.AuraLazyAssets.loadAll({
+                    styles: ['/css/desktop-leafy.css'],
+                    scripts: ['/js/desktop/leafy/geometry.js', '/js/desktop/leafy/fallback.js', '/js/desktop/leafy/runtime.js']
+                });
+                if (!disposed) runtime = window.AuraLeafy.mount({ api, t, esc, confirm: confirmDialog, readonly: desktopReadonly });
+            } catch (err) {
+                if (!disposed) {
+                    container.closest('.vd-widget')?.removeAttribute('data-leafy-owner');
+                    container.textContent = t('desktop.leafy_error');
+                    const retry = document.createElement('button');
+                    retry.textContent = t('desktop.leafy_retry');
+                    retry.onclick = () => { container.textContent = ''; container.closest('.vd-widget')?.setAttribute('data-leafy-owner', ''); start(); };
+                    container.appendChild(retry);
+                }
+            }
+        }
+        start();
     }
 
 ;
@@ -15546,6 +15578,10 @@ if (appId === 'pixel') {
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'plant_changed' || event.type === 'welcome') {
+            document.dispatchEvent(new CustomEvent('aurago:plant-change', { detail: event.payload || {} }));
+            if (event.type === 'plant_changed') return;
+        }
         if (event.type === 'meshcore_changed') {
             const change = event.payload || {};
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: change }));

@@ -12,6 +12,7 @@
     "Papirus-Light"
   ],
   "icons": {
+    "leafy": "img/papirus/icons/leafy.svg",
     "analytics": "img/papirus/icons/analytics.svg",
     "agent-chat": "img/papirus/icons/agent-chat.svg",
     "apps": "img/papirus/icons/apps.svg",

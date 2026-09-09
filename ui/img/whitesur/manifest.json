@@ -10,6 +10,7 @@
                    "WhiteSur"
                ],
     "icons":  {
+                  "leafy": "img/whitesur/icons/leafy.svg",
                   "analytics":  "img/whitesur/icons/analytics.svg",
                   "agent-chat":  "img/whitesur/icons/agent-chat.svg",
                   "apps":  "img/whitesur/icons/apps.svg",

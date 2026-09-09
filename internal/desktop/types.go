@@ -353,6 +353,7 @@ var desktopPreferredIconNames = []string{
 	"go",
 	"grid",
 	"heart",
+	"leafy",
 	"help",
 	"home",
 	"html",
