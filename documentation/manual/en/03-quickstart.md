@@ -1,6 +1,10 @@
 # Chapter 3: Quick Start
 
-Your first 5 minutes with AuraGo – from installation to productive chat.
+<p align="center">
+  <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="560" alt="AuraGo gopher chatting at a retro computer"></a>
+</p>
+
+Five minutes. Click through setup, ask something harmless, do not poke the config file.
 
 ## Prerequisites
 
@@ -165,8 +169,10 @@ AuraGo has over 100 built-in tools. Here are some to try:
 ```
 You: List all files in the current directory
 You: Create a folder "projects"
-You: Read the file config.yaml
+You: Show me system information
 ```
+
+File tools stay inside `agent_workspace`. `config.yaml` and `data/` are not readable from there — that is the workspace jail, not a bug.
 
 ### Web & Search
 ```
@@ -193,11 +199,12 @@ Click the **Radial Menu** (☰ top right) for the main menu:
 
 | Area | Function |
 |------|----------|
-| 💬 Chat | Main chat interface |
-| 📊 Dashboard | System metrics and analytics |
-| 🚀 Missions | Automated tasks |
-| 🥚 Invasion | Remote deployment |
-| ⚙️ Config | Edit settings |
+| Chat | Main conversation |
+| Desktop | Experimental workspace with apps |
+| Dashboard | Metrics, issues, affect |
+| Missions | Scheduled work — not eggs/nests |
+| Invasion | Remote eggs on nests |
+| Config | Settings |
 
 ## Dark/Light Theme
 

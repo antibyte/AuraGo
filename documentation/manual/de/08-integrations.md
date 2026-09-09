@@ -1,8 +1,22 @@
 # Kapitel 8: Integrationen
 
-AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
+<p align="center">
+  <a href="../images/manual-radio.webp"><img src="../images/manual-radio.webp" width="560" alt="AuraGo-Gopher mit einem selbstgebauten Mesh-Funkgerät"></a>
+</p>
 
-> 💡 **Web-UI zuerst:** Jede Integration in diesem Kapitel wird über **Menü → Config** konfiguriert. Nutze die Sidebar-Suche oder Gruppen wie **Messenger**, **Smart Home**, **Netzwerk & Remote**, **Externe KI** und **Gefahrenzone**. YAML-Blöcke sind Alternativen für Headless- oder Skript-Setups.
+Vom NAS bis zum Funkgerät. Jede Integration hat einen Schalter. Die gefährlichen bleiben standardmäßig aus.
+
+> **Web-UI zuerst.** Sidebar-Suche oder die Gruppen **Messenger**, **Smart Home**, **Netzwerk & Remote**, **Externe KI**, **Gefahrenzone**. YAML nur für Headless und GitOps. Verbindungstests sind POST und nur lesend.
+
+### Sprungmarken
+
+| Gruppe | Abschnitte |
+|--------|------------|
+| Home Lab | [Docker](#docker-integration), [Proxmox](#proxmox-integration), [TrueNAS](#truenas-integration), [Home Assistant](#home-assistant-integration), [MQTT](#mqtt-integration), [Fritz!Box](#fritzbox-integration), [AdGuard](#adguard-home-integration), [Tailscale](#tailscale), [Inventar](#inventar-system) |
+| Stimme und Funk | [Telegram](#telegram-bot-setup), [Discord](#discord-bot-setup), [SIP](#native-sip-telefonie), [Speech Lab](#speech-lab-integration), [MeshCore](#meshcore-funk), [Bluetooth](#bluetooth-integration), [Realtime Speech](#realtime-speech) |
+| Kameras und Schreibtisch | [go2rtc](#go2rtc-kameraintegration), [Frigate](#frigate-integration), [CYD](#cheap-yellow-display) |
+| Bauen und veröffentlichen | [Homepage](#homepage--und-website-projekte), [Game Maker](#game-maker-studio), [here.now](#herenow-integration), [Virtual Computers](#virtual-computers) |
+| Autopilot | Missionen sind [Kapitel 11](11-missions.md). Hier: [Invasion](#invasion-control), [Heartbeat](#heartbeat-system), [Webhooks](#webhooks) |
 
 ## Integrationen über die Web-UI einrichten
 
@@ -11,7 +25,7 @@ Die bevorzugte Art, Integrationen zu konfigurieren, ist die Web-UI:
 1. Öffne die AuraGo Web-UI im Browser.
 2. Navigiere zu **Menü → Config → Integrationen**.
 3. Suche die gewünschte Integration in der Liste.
-4. Aktiviere den Toggle **Enabled**.
+4. Aktiviere den Toggle **Aktiviert**.
 5. Fülle die Pflichtfelder aus (z. B. URL, Host, Username).
 6. Speichere Credentials sicher im **Vault** – niemals direkt in der `config.yaml`!
 7. Klicke auf **Speichern** und starte AuraGo bei Bedarf neu.
@@ -27,7 +41,7 @@ Dieses Kapitel beschreibt Einrichtung, Anwendungsfälle und Web-UI-Workflows. F�
 | Provider-System, LLM, Embeddings, Agent-Verhalten | [Das Provider-System](07-konfiguration.md#das-provider-system), [Agent-Verhalten](07-konfiguration.md#agent-verhalten) |
 | Tool-Berechtigungen, Skill Manager, Media Registry, Daemon Skills | [Tool-Konfiguration](07-konfiguration.md#tool-konfiguration), [Skill Manager](07-konfiguration.md#skill-manager) |
 | Co-Agents, Personality, Logging, Umgebungsvariablen | [Co-Agents](07-konfiguration.md#co-agents--parallele-sub-agenten), [Personality](07-konfiguration.md#personality--persönlichkeit), [Umgebungsvariablen](07-konfiguration.md#umgebungsvariablen) |
-| Erweiterte Integrations-YAML-Blöcke | [Weitere Konfigurationsblöcke](07-konfiguration.md#weitere-konfigurationsblöcke-übersicht), [Erweiterte Konfigurationsblöcke](07-konfiguration.md#erweiterte-konfigurationsblöcke) |
+| Erweiterte Integrations-YAML-Blöcke | [Kompakte YAML-Referenz](07-konfiguration.md#kompakte-yaml-referenz) |
 | Vollständige Parameterliste | `config_template.yaml` im Projektverzeichnis |
 
 ---
@@ -741,7 +755,7 @@ mcp:
       allow_destructive: false
 ```
 
-Wenn `transport` fehlt, bleibt AuraGo beim bisherigen Verhalten und startet den Server als lokalen stdio-Prozess. Netzwerk-Transports brauchen eine URL; Header-Werte koennen MCP-Vault-Secrets mit `{{alias}}` referenzieren. In der Web-UI prueft **Verbindung testen** Initialize und Tool-Discovery vor dem Speichern.
+Wenn `transport` fehlt, bleibt AuraGo beim bisherigen Verhalten und startet den Server als lokalen stdio-Prozess. Netzwerk-Transports brauchen eine URL; Header-Werte können MCP-Vault-Secrets mit `{{alias}}` referenzieren. In der Web-UI prüft **Verbindung testen** Initialize und Tool-Discovery vor dem Speichern.
 
 AuraGo handelt standardmäßig MCP `2025-11-25` aus und akzeptiert `2024-11-05` weiterhin zur Kompatibilität. Verwende `streamable_http` für den aktuellen Streamable-HTTP-Transport. `sse` ist nur für einen älteren HTTP+SSE-Endpunkt vorgesehen.
 
@@ -1006,7 +1020,7 @@ ist standardmäßig verfügbar. Koppeln und Verbindungen ändern erfordert einen
 deaktivierten Nur-Lesen-Modus; die Wiedergabe benötigt zusätzlich eine
 erreichbare PipeWire- oder PulseAudio-Benutzersitzung und `allow_playback`.
 
-Unter **Konfiguration → Smart Home → Bluetooth** kannst Du neu erkennen, Geräte
+Unter **Konfiguration → Smart Home → Bluetooth** kannst du neu erkennen, Geräte
 suchen, koppeln, verbinden und einen lokalen Testton abspielen. AuraGo routet
 nur seinen eigenen Audiostream und ändert das Standard-Ausgabegerät des Systems
 nicht. Pakete, Konfiguration, Docker-Einschränkungen und Fehlerdiagnose stehen
@@ -1812,7 +1826,7 @@ three_d_printers:
         timeout_seconds: 10
 ```
 
-**API:** `GET /api/3d-printers/test`, Kamera-Snapshot/Stream pro `printer_id`.
+**API:** `POST /api/3d-printers/test` (nur Status, keine Mutation), Kamera-Snapshot/Stream pro `printer_id`.
 
 **Agent-Tool:** `three_d_printer` — u. a. `status`, `camera_snapshot`, `show_live_stream`, `start_print`, `pause_print` (Schreibzugriff erfordert `readonly: false`).
 
@@ -1859,7 +1873,7 @@ grafana:
 
 [Manifest](https://manifest.build) ist ein OpenAI-kompatibles LLM-Gateway mit verwaltetem Dashboard. AuraGo kann Manifest als **managed Docker-Sidecar** (Manifest + Postgres) oder als externe Instanz betreiben.
 
-**Web-UI:** Config → Integrationen → Manifest → Modus wählen, Secrets im Vault speichern, Test: `GET /api/manifest/test`.
+**Web-UI:** Config → Integrationen → Manifest → Modus wählen, Secrets im Vault speichern, Test: `POST /api/manifest/test`.
 
 ### Provider-Routing
 ```yaml
@@ -2116,7 +2130,7 @@ homepage:
 
 ## go2rtc-Kameraintegration
 
-AuraGo kann einen fest gekoppelten und gehärteten go2rtc-Docker-Sidecar für Kamerastreams betreiben. Kameraquellen bleiben ausschließlich im Vault. Unter **Config → Netzwerk & Remote → go2rtc-Kameras** kannst Du die gespeicherte Konfiguration testen und den Container verwalten. Die Virtual-Desktop-App **Netzwerkkameras** (`/desktop?app=network-cameras`) bietet Kameraansichten, begrenzte ONVIF-Suche, manuelle Einrichtung und Snapshots. Die originale go2rtc-Weboberfläche ist optional und schreibgeschützt.
+AuraGo kann einen fest gekoppelten und gehärteten go2rtc-Docker-Sidecar für Kamerastreams betreiben. Kameraquellen bleiben ausschließlich im Vault. Unter **Config → Netzwerk & Remote → go2rtc-Kameras** kannst du die gespeicherte Konfiguration testen und den Container verwalten. Die Virtual-Desktop-App **Netzwerkkameras** (`/desktop?app=network-cameras`) bietet Kameraansichten, begrenzte ONVIF-Suche, manuelle Einrichtung und Snapshots. Die originale go2rtc-Weboberfläche ist optional und schreibgeschützt.
 
 Standardmäßig verwendet AuraGo MSE/HLS/MP4/MJPEG über den Proxy. Direktes LAN-WebRTC muss mit einer konkreten privaten LAN-IP ausdrücklich aktiviert werden, weil WebRTC-Medien nicht vollständig durch einen HTTP-Proxy laufen. Die automatische Suche benötigt ebenfalls lokalen Broadcast-Zugriff; bei Docker-Bridge-Betrieb nutzt Du in der App die manuelle lokale IP oder Stream-URL.
 
@@ -2395,6 +2409,8 @@ API-Key und Node-Secret sind Vault-only (`evomap_api_key` und `evomap_node_secre
 
 ## Integrationen testen
 
+Config-Verbindungstests sind **POST** und nur lesend. Es gibt keine `/api/health/telegram`, `/api/health/email`, `/api/health/homeassistant` oder `/api/health/docker`. Ausnahme: `GET /api/health/discord`.
+
 ### Test über Chat
 - "Zeige meine Telegram-Config."
 - "Sende eine Test-E-Mail an mich."
@@ -2417,7 +2433,7 @@ agent:
 
 Logs prüfen:
 ```bash
-tail -f log/supervisor.log | grep -i telegram
+tail -f log/aurago.log | grep -i telegram
 ```
 
 ## Fehlerbehebung

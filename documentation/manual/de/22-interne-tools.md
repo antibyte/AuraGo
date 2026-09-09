@@ -1,8 +1,12 @@
 # Interne Tools
 
-Diese Dokumentation listet alle internen Tools, die AuraGo dem Agenten zur Verfügung stellt. Diese Tools werden vom LLM über native Function Calling aufgerufen.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="480" alt="AuraGo-Gopher vor der Werkzeugkiste"></a>
+</p>
 
-> 📅 **Stand:** Juni 2026
+Native Function Calling. Die Liste ist feature-gated — nicht jede Installation sieht jeden Namen.
+
+> Stand: 9. September 2026. „100+“ ist die dokumentierte Größenordnung, keine feste Zählung.
 > 🔢 **Anzahl:** 100+ Tools
 
 ---

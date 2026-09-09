@@ -1,6 +1,10 @@
 # Kapitel 13: Dashboard
 
-Das AuraGo-Dashboard ist dein operatives Kontrollzentrum für den Agenten. Es zeigt Systemzustand, Gedächtnis, Persönlichkeit, Missionen, Knowledge-Graph-Qualität, Audit-Protokolle und mehr — organisiert in Tabs, die bei Bedarf nachgeladen werden.
+<p align="center">
+  <a href="../../../assets/readme/system-wiring.svg"><img src="../../../assets/readme/system-wiring.svg" width="640" alt="AuraGo-Systemverdrahtung als Übersicht"></a>
+</p>
+
+Zahlen, Issues, Affect, 3D-Graph. Kein zweiter Chat.
 
 Erreichbar unter `http://localhost:8088/dashboard` oder über das Radialmenü (☰ → 📊 Dashboard). Bei aktivierter Web-UI-Authentifizierung ist ein Login erforderlich.
 

@@ -1,6 +1,12 @@
 # Kapitel 12: Invasion Control
 
-> ⚠️ **Hinweis:** Invasion Control ist über **Web-UI** und **REST API** verfügbar. Dedizierte CLI-Befehle für Nest-/Egg-Verwaltung sind nicht implementiert. Der Agent kann bei aktiviertem Feature das Tool `invasion_control` nutzen.
+<p align="center">
+  <a href="../images/manual-missions.webp"><img src="../images/manual-missions.webp" width="480" alt="AuraGo-Gopher mit Helfern und Autopilot-Werkbank"></a>
+</p>
+
+Eggs schlüpfen auf Nests. Die Namen sind ernst gemeint.
+
+> Web-UI und REST API. Agent-Tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`. Der alte Name `invasion_control` bleibt kompatibel. Extra-CLI gibt es nicht.
 
 Invasion Control deployt **AuraGo-Sub-Agenten** (Eggs) auf Remote- oder lokale Ziele (Nests). Der Master überträgt ein Worker-Binary plus generierte `config.yaml`, das Egg startet im **egg_mode** und verbindet sich per WebSocket zurück zum Master.
 

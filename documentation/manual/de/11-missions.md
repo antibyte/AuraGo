@@ -1,8 +1,12 @@
 # Kapitel 11: Mission Control
 
-> ⚠️ **Hinweis:** Mission Control ist primär über die **Web-UI** und **REST API** verfügbar. CLI-Befehle sind in der aktuellen Version nicht implementiert.
+<p align="center">
+  <a href="../images/manual-missions.webp"><img src="../images/manual-missions.webp" width="560" alt="AuraGo-Gopher mit Klemmbrett und zwei kleinen Helfer-Gophers"></a>
+</p>
 
-Mission Control ist das Automatisierungszentrum von AuraGo. Hier definierst du wiederkehrende Aufgaben, die der Agent eigenständig ausführt – von einfachen Backups bis zu komplexen Monitoring-Routinen.
+Geplante Chats, keine Shell-Skripte. Eggs und Nests wohnen in [Invasion Control](12-invasion.md).
+
+> Mission Control läuft über **Web-UI** und **REST API**. Extra-CLI gibt es nicht.
 
 ---
 
@@ -344,7 +348,7 @@ agent:
 
 Logs prüfen:
 ```bash
-tail -f log/supervisor.log | grep -i mission
+tail -f log/aurago.log | grep -i mission
 ```
 
 ---

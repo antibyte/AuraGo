@@ -1,6 +1,10 @@
 # Kapitel 5: Chat-Grundlagen
 
-Effektive Kommunikation mit AuraGo – von einfachen Befehlen bis zu komplexen Workflows.
+<p align="center">
+  <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="560" alt="AuraGo-Gopher am Chat-Rechner"></a>
+</p>
+
+Sag, was du willst. Nicht, welches Tool er nehmen soll — außer du musst.
 
 ## Grundlagen der Kommunikation
 

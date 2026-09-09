@@ -1,9 +1,12 @@
 # Chapter 21: REST API Reference
 
-AuraGo provides a comprehensive REST API for programmatic access to all features. The API follows REST principles and uses JSON for data transfer.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="400" alt="AuraGo gopher in front of the toolbox"></a>
+</p>
 
-> 📅 **Updated:** August 5, 2026
-> 🔌 **Base URL:** `http://localhost:8088` (default)
+JSON, admin auth where it hurts, SSE at `GET /events`. No public chat `/ws`. Default origin: `http://localhost:8088`.
+
+> Updated: 9 September 2026. Routes are what the server registers, not a wish list.
 
 ---
 
@@ -83,9 +86,12 @@ AuraGo provides a comprehensive REST API for programmatic access to all features
 72. [here.now API](#herenow-api)
 73. [Desktop Log API](#desktop-log-api)
 74. [Operational Issues API](#operational-issues-api)
-75. [SSE Events](#sse-events)
-76. [Error Handling](#error-handling)
-77. [Related Links](#related-links)
+75. [go2rtc API](#go2rtc-api)
+76. [Bluetooth API](#bluetooth-api)
+77. [Cheap Yellow Display API](#cheap-yellow-display-api)
+78. [SSE Events](#sse-events)
+79. [Error Handling](#error-handling)
+80. [Related Links](#related-links)
 
 ---
 
@@ -2115,7 +2121,7 @@ Or acknowledge all:
 
 ### Test Connection
 ```http
-GET /api/3d-printers/test
+POST /api/3d-printers/test
 ```
 
 ### Camera Snapshot / Stream
@@ -2362,6 +2368,8 @@ Operational Issue lifecycle.
 
 ## here.now API
 
+Status and account catalog. Publish mutations stay in the Homepage/here.now contract; see [Chapter 8](08-integrations.md#herenow-integration).
+
 ```http
 GET  /api/here-now/status
 POST /api/here-now/test-connection
@@ -2461,6 +2469,45 @@ List filters include `status`, `kind`, `severity`, `source`, `limit`, and
 resolve actions preserve the issue history.
 
 ---
+
+## go2rtc API
+
+Admin setup; viewer routes need `go2rtc.view`. Sources and the internal password stay in the vault. The viewer proxy strips caller cookies.
+
+```http
+GET /api/go2rtc/status
+POST /api/go2rtc/test
+GET /api/go2rtc/viewer/{stream_id}
+GET /api/go2rtc/thumbnail/{stream_id}.jpg
+```
+
+Stream mutations and ONVIF discovery are admin POST/PUT. HTTP 202 means the desired state is stored and runtime will catch up. Details: [go2rtc](../../go2rtc.md).
+
+## Bluetooth API
+
+Linux/BlueZ only. Discover and pair need `readonly: false`. Playback is workspace files or the media registry, never URLs.
+
+```http
+GET /api/bluetooth/status
+POST /api/bluetooth/reprobe
+POST /api/bluetooth/discover
+POST /api/bluetooth/devices/action
+POST /api/bluetooth/audio/test
+POST /api/bluetooth/audio/stop
+```
+
+## Cheap Yellow Display API
+
+Device endpoints for the ESP32 glass. Do not log the token. Config tests and firmware provision are admin.
+
+```http
+GET /api/cyd/status
+POST /api/cyd/test
+GET /api/cyd/snapshot
+POST /api/cyd/heartbeat
+POST /api/cyd/ack
+GET /api/cyd/ws
+```
 
 ## SSE Events
 

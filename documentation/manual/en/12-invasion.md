@@ -1,6 +1,12 @@
 # Chapter 12: Invasion Control
 
-> ⚠️ **Important:** Invasion Control is available via **Web UI** and **REST API** only. Dedicated CLI commands for nest/egg management are not implemented. The agent can also use the `invasion_control` tool when enabled.
+<p align="center">
+  <a href="../images/manual-missions.webp"><img src="../images/manual-missions.webp" width="480" alt="AuraGo gopher with helpers at an autopilot bench"></a>
+</p>
+
+Eggs hatch on nests. The names are serious.
+
+> **Web UI** and **REST API** only. Agent tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`. The older name `invasion_control` stays compatible.
 
 Invasion Control deploys **AuraGo sub-agents** (Eggs) to remote or local targets (Nests). The master pushes a worker binary plus generated `config.yaml`, the Egg starts in **egg mode**, and connects back to the master over WebSocket.
 
@@ -65,7 +71,7 @@ An **Egg** describes *how* the deployed worker behaves:
 ### Web UI Setup
 1. Open **Config → Web Config & Login** and ensure the Web UI/API is enabled (`web_config.enabled`).
 2. Open **Config → Databases** and verify the invasion database path (`sqlite.invasion_path`).
-3. To expose the `invasion_control` agent tool, set `invasion_control.enabled: true` in YAML (no dedicated Config sidebar section yet).
+3. To expose `invasion_nests`, `invasion_tasks` and `invasion_artifacts`, set `invasion_control.enabled: true` in YAML (no dedicated Config sidebar section yet).
 4. Manage nests and eggs at **Invasion Control** (`/invasion`) from the radial menu.
 
 ### YAML Reference
@@ -75,7 +81,7 @@ web_config:
   enabled: true          # required for /api/invasion/* REST endpoints
 
 invasion_control:
-  enabled: false         # exposes the invasion_control agent tool (default: false)
+  enabled: false         # exposes the focused Invasion Control agent tools (default: false)
   readonly: false        # true = block hatch/stop/send_task/send_secret and other mutations
 
 sqlite:
@@ -479,9 +485,9 @@ The master generates this configuration during hatch. You do not edit `egg_mode`
 
 ---
 
-## Agent Tool: `invasion_control`
+## Agent tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`
 
-When `invasion_control.enabled` is true, the agent can manage nests and eggs programmatically:
+When `invasion_control.enabled` is true, the agent can manage nests, eggs, tasks and artifacts. The focused tools are `invasion_nests`, `invasion_tasks` and `invasion_artifacts`; `invasion_control` remains a compatible dispatch alias.
 
 | Operation | Description |
 |-----------|-------------|

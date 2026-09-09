@@ -524,4 +524,16 @@ SQL  → Structured Query Language
 
 ---
 
-> 💡 **Tip:** Bookmark this glossary for quick reference when reading other documentation or configuration files. Many terms are used consistently across AuraGo's codebase and documentation.
+## Current terms
+
+| Term | Meaning |
+|------|---------|
+| **Web assets** | Versioned UI set beside the binary; an unpinned build is recovery only |
+| **Workspace jail** | File tools stay in `agent_workspace`; `config.yaml` and `data/` are off limits |
+| **MeshCore** | Companion radio with a trust model and desktop messenger |
+| **AgoDesk** | Desktop client (Windows/Linux), not the web UI |
+| **Managed Garage** | AuraGo-managed S3 storage for Virtual Computers |
+| **Speech Lab** | Local ASR/TTS stack; chat routing only after Lab ASR |
+| **Operational issues** | Sanitized ops problems; the agent does not notify on its own |
+
+> Bookmark this glossary when a Config label or log line looks like jargon.

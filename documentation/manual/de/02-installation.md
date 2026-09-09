@@ -1,19 +1,23 @@
 # Kapitel 2: Installation
 
-Dieses Kapitel führt dich Schritt für Schritt durch die Installation von AuraGo.
+<p align="center">
+  <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="560" alt="AuraGo-Gopher packt Binary und Ressourcenpaket an der Werkbank aus"></a>
+</p>
+
+Drei Wege, derselbe Gopher: Installer, Docker oder selbst bauen. Die volle UI kommt als **passendes Ressourcenpaket** mit — nicht als zweite Website und nicht vollständig im Binary.
 
 ## Systemanforderungen
 
 ### Minimal
 - 64-bit Betriebssystem (Linux, macOS, Windows 10+)
-- 2 GB RAM
-- 500 MB freier Speicherplatz
-- Internetverbindung (für LLM-API)
+- 512 MB RAM (ohne lokale Modelle)
+- 500 MB freier Speicherplatz plus das UI-Paket
+- Internetverbindung, sobald ein gehostetes Modell oder der erste Download nötig ist
 
 ### Empfohlen
-- 4 GB RAM oder mehr
-- Python 3.10+ (für Tool-Ausführung)
-- SSD für bessere Performance
+- 2 GB RAM oder mehr (lokale Modelle und GPU-Runtimes brauchen deutlich mehr)
+- Python 3.10+ (für Skill-Ausführung)
+- SSD
 
 ### Unterstützte Plattformen
 
@@ -54,38 +58,30 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | A
 Die sicherste Methode – AuraGo läuft in einem Container:
 
 ```bash
-# Verzeichnis erstellen
-mkdir aurago && cd aurago
-
-# Compose-File und Config herunterladen
-curl -O https://raw.githubusercontent.com/antibyte/AuraGo/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/antibyte/AuraGo/main/config.yaml
-
-# Konfigurieren (API-Key eintragen)
-nano config.yaml
-
-# Starten
+git clone https://github.com/antibyte/AuraGo.git
+cd AuraGo
 docker compose up -d
 ```
 
-> 💡 **Docker-Vorteil:** Vollständige Isolation, einfaches Backup, keine Python-Abhängigkeiten auf dem Host.
+Öffne **http://localhost:8088**. Das Image bringt Volumes und das UI-Paket mit. Es erzeugt einen Vault-Key, wenn keiner gesetzt ist. Key mit den Daten sichern.
 
-> ⚠️ **Wichtig für Docker:** Setze den Host auf `0.0.0.0` unter **Config → Server → Host** (YAML-Alternative in `config.yaml`):
-> ```yaml
-> server:
->   host: "0.0.0.0"
-> ```
+Lege **kein** `config.yaml` aus dem GitHub-Root daneben — die Datei existiert im Repo nicht. Vorlage ist `config_template.yaml`. Ein Host-Mount namens `./config.yaml` wird unter Docker leicht zum Verzeichnis. Optional: `config/config.yaml`. Details: [Docker-Guide](../../docker_installation.md).
+
+> **Docker-Vorteil:** Isolation, einfacheres Backup, Python nicht auf dem Host.
+
+> Für LAN-Zugriff Host unter **Config → Server** auf `0.0.0.0` setzen.
 
 ### Option C: Manuelle Installation
 
 **Schritt 1: Download**
 
-Lade zwei Dateien von GitHub Releases herunter:
+Lade von GitHub Releases:
 
 | Datei | Beschreibung |
 |-------|--------------|
-| `aurago_<os>_<arch>` | Die AuraGo-Executable |
-| `resources.dat` | Ressourcen-Archiv (Prompts, Skills, Tools) |
+| `aurago_<os>_<arch>` | Die AuraGo-Executable (muss auf dasselbe Ressourcen-Set gepinnt sein) |
+| `aurago-web-assets-<id>.tar.gz` | Volle Web-UI, Desktop, Game-Maker-Runtimes |
+| `resources.dat` | Prompts, Skills und andere Backend-Ressourcen — **ersetzt die UI nicht** |
 
 **Schritt 2: Verzeichnis erstellen**
 
@@ -106,7 +102,16 @@ Das Setup:
 - Generiert einen Master-Key (gespeichert in `.env`)
 - Installiert einen System-Service (optional)
 
-### Option D: Build from Source
+Danach das UI-Paket einspielen und prüfen:
+
+```bash
+./aurago --install-assets aurago-web-assets-<id>.tar.gz
+./aurago --check-assets
+```
+
+Ohne passendes Paket oder ungepinntes Binary siehst du nur die Reparaturseite.
+
+### Option D: Aus dem Quellcode bauen
 
 Für Entwickler oder wenn du den Code modifizieren willst:
 
@@ -203,7 +208,7 @@ launchctl load ~/Library/LaunchAgents/com.aurago.agent.plist
 **Windows:**
 ```powershell
 # Wird automatisch beim Setup erstellt
-# Manuel starten:
+# Manuell starten:
 schtasks /Run /TN AuraGo
 ```
 
@@ -226,7 +231,7 @@ sudo systemctl start aurago
 
 # Oder via Service
 sudo journalctl -u aurago -f   # Linux
-tail -f log/supervisor.log     # Direkt
+tail -f log/aurago.log     # Direkt
 ```
 
 Du solltest sehen:
@@ -251,24 +256,19 @@ Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 ├── .env                      # Master Key (GEHEIM HALTEN!)
 ├── config.yaml               # Deine Konfiguration
 ├── agent_workspace/
-│   ├── prompts/              # System-Prompts & Persönlichkeiten
-│   ├── skills/               # Vorgefertigte Python-Skills
+│   ├── skills/               # Python-Skills
 │   ├── tools/                # Agent-erstellte Tools
-│   └── workdir/              # Arbeitsverzeichnis
-│       └── attachments/      # Hochgeladene Dateien
+│   └── workdir/              # Sandkasten (Jail-Wurzel für Datei-Tools)
+├── prompts/                  # Identity, Regeln, Persönlichkeiten (nicht unter workdir)
+├── assets/web/               # Installiertes UI-Ressourcenpaket
 ├── data/
-│   ├── short_term.db         # SQLite – Chat-Verlauf & Kurzzeitgedächtnis
-│   ├── core_memory.md        # Persistentes Kern-Gedächtnis (Markdown)
-│   ├── knowledge_graph.db    # Knowledge Graph (Entities/Relations)
-│   ├── system_tasks.db       # Hintergrundaufgaben & Cron
-│   ├── mission_history.db    # Missions-Historie
-│   ├── media_registry.db     # Generierte Medien (Bilder/Audio/Video)
-│   ├── inventory.db          # SSH-Geräte-Inventar
-│   ├── invasion.db           # Invasion-Control Eggs/Nests
-│   ├── vault.bin             # Verschlüsselte Secrets (AES-256-GCM)
-│   └── vectordb/             # Vektor-Datenbank (chromem-go)
+│   ├── short_term.db         # Chat-Verlauf
+│   ├── vault.bin             # Secrets (AES-256-GCM)
+│   ├── vectordb/             # Semantisches Gedächtnis
+│   └── *.db                  # Inventar, Invasion, Medien, Knowledge Graph, …
 └── log/
-    └── aurago_YYYY-MM-DD.log # Strukturierte Tages-Logs (slog)
+    ├── aurago.log            # Anwendung
+    └── web_access.log        # HTTP-Zugriff
 ```
 
 ## Update durchführen
@@ -316,7 +316,8 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 
 | Problem | Lösung |
 |---------|--------|
-| `resources.dat not found` | Datei muss im gleichen Verzeichnis wie `aurago` liegen |
+| Nur Reparatur-/Anmeldeseite | Binary ist ungepinnt oder das UI-Paket fehlt. `./aurago --check-assets`, `--install-assets`, sonst mit Asset-Flags neu bauen. [Web-Assets](../../web-assets.md) |
+| `resources.dat not found` | Datei neben die Binary legen (Prompts/Skills — nicht die UI) |
 | `AURAGO_MASTER_KEY is missing` | `.env` laden: `export $(cat .env \| xargs)` |
 | Port bereits belegt | Port unter **Config → Server** ändern (YAML: `server.port`) |
 | Python venv Fehler | Python 3.10+ installieren: `sudo apt install python3 python3-venv` |

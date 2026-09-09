@@ -1,6 +1,12 @@
 # Chapter 9: Memory & Knowledge
 
-> ⚠️ **Note:** This documentation describes the current implementation of the AuraGo memory system. Some features may evolve as the system is further developed.
+<p align="center">
+  <a href="../../../assets/readme/gopher-memory-map.webp"><img src="../../../assets/readme/gopher-memory-map.webp" width="640" alt="Memory map: history, core facts, semantic search and the knowledge graph feed one context tray"></a>
+</p>
+
+Different shelves. One useful context. The drawing simplifies the system; it is not a screenshot.
+
+> Core Memory lives in SQLite. An old `data/core_memory.md` is migrated on startup and renamed `.migrated`.
 
 AuraGo's memory system is what transforms it from a simple chatbot into a truly personal assistant. This chapter explores how AuraGo remembers, organizes, and retrieves information across conversations.
 

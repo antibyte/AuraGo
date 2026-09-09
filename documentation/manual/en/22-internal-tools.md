@@ -1,8 +1,12 @@
 # Internal Tools
 
-This documentation lists all internal tools that AuraGo makes available to the agent. These tools are invoked by the LLM via native function calling.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="480" alt="AuraGo gopher in front of the toolbox"></a>
+</p>
 
-> 📅 **Updated:** June 2026
+Native function calling. The list is feature-gated — not every install sees every name.
+
+> Updated: 9 September 2026. “100+” is the documented ballpark, not a fixed count.
 > 🔢 **Count:** 100+ Tools
 
 ---
@@ -1252,7 +1256,7 @@ Inspect and control configured Elegoo Centauri Carbon and Klipper/Moonraker prin
 | `prompt` | string | Vision prompt for `analyze_camera` |
 | `light_on` | boolean | Elegoo camera light (`set_camera_light`) |
 
-**API:** `GET /api/3d-printers/test`, camera snapshot/stream endpoints per printer ID.
+**API:** `POST /api/3d-printers/test`, camera snapshot/stream endpoints per printer ID.
 
 ### `composio_call`
 Search Composio toolkits/tools and execute user-approved Composio actions (`composio.enabled` + vault `composio_api_key`).

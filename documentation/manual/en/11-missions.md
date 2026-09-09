@@ -1,8 +1,12 @@
 # Chapter 11: Mission Control
 
-> ⚠️ **Important:** Mission Control is available via **Web UI** and **REST API** only. CLI commands for mission management are not implemented.
+<p align="center">
+  <a href="../images/manual-missions.webp"><img src="../images/manual-missions.webp" width="560" alt="AuraGo gopher with a clipboard and two smaller helper gophers"></a>
+</p>
 
-Mission Control is AuraGo's automation center. Define recurring tasks that the agent executes on its own — from simple backups to complex monitoring routines.
+Scheduled chats, not shell scripts. Eggs and nests live in [Invasion Control](12-invasion.md).
+
+> Mission Control is **Web UI** and **REST API** only. There is no extra CLI.
 
 > **Note:** Nests and Eggs belong to [Invasion Control](12-invasion.md), not Mission Control. Missions are **prompt-based agent tasks**, not shell/script templates.
 

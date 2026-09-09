@@ -1,6 +1,10 @@
 # Kapitel 14: Sicherheit
 
-Dieses Kapitel behandelt alle Sicherheitsaspekte von AuraGo – vom verschlüsselten Vault bis zur Zwei-Faktor-Authentifizierung. Für Produktivumgebungen sind diese Einstellungen essenziell.
+<p align="center">
+  <a href="../images/manual-security.webp"><img src="../images/manual-security.webp" width="560" alt="AuraGo-Gopher neben einem Messing-Tresor, das Danger-Zone-Hebel ist aus"></a>
+</p>
+
+Vault zu, Jail an, Danger Zone bewusst. Persönlichkeit ändert daran nichts.
 
 > ⚠️ **Kritisch:** AuraGo führt Code auf deinem System aus. Eine korrekte Sicherheitskonfiguration ist nicht optional, sondern zwingend erforderlich.
 
@@ -715,6 +719,20 @@ hmac = SHA256(secret + payload)
 - **Ablauf:** Konfigurierbar (Standard: 24 Stunden)
 
 ---
+
+## Öffentlicher Zugang
+
+| Schutz | Empfehlung |
+|--------|------------|
+| Login | Auth an, bevor irgendetwas nicht mehr nur localhost ist |
+| TOTP | 2FA für jeden internetseitigen Zugriff |
+| Security Proxy | Verwaltetes Caddy für TLS, Rate-Limit, IP-Filter |
+| Tunnel / VPN | Cloudflare Tunnel oder Tailscale statt Port-Forward |
+| Webhooks | Token oder HMAC, enge Scopes, Rate-Limits |
+| Danger Zone | Aus, bis du das Feature wirklich brauchst |
+| Backups | `.ago`-Backups verschlüsseln, Passphrase nicht ins Repo |
+
+Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs lesen, Vault-Secrets neu erzeugen.
 
 ## Zusammenfassung
 

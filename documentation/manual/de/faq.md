@@ -1,49 +1,60 @@
-# AuraGo FAQ (Deutsch)
+# AuraGo FAQ
 
-Zurück zur [Handbuch-Startseite](../README.md) | [Deutsche Übersicht](README.md)
+Zurück zur [Handbuch-Startseite](../README.md) · [Deutsche Übersicht](README.md)
 
----
+<p align="center">
+  <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="480" alt="AuraGo-Gopher mit Handbuch"></a>
+</p>
 
-## 📋 Allgemein
+## Start
 
-### Wie starte ich AuraGo am schnellsten?
-Nutze die Installationsschritte aus [Kapitel 2: Installation](02-installation.md) und danach den [Schnellstart](03-schnellstart.md).
+### Wie komme ich am schnellsten hin?
+Linux: One-Liner in [Kapitel 2](02-installation.md), danach [Schnellstart](03-schnellstart.md). Docker: Repo klonen und `docker compose up -d` — nicht `config.yaml` von GitHub ziehen, die Datei liegt nicht im Repository.
 
-### Brauche ich zwingend Docker?
-Nein. Der Kern läuft als Single-Binary. Docker wird für Isolation und Sidecars (z. B. Gotenberg) empfohlen. Siehe [Docker-Installation](../../docker_installation.md).
+### Brauche ich Docker?
+Nein. Der Kern ist eine Binary. Docker ist die sauberere Isolation und bringt Sidecars mit. Siehe [Docker-Guide](../../docker_installation.md).
 
-### Wie viele Tools gibt es aktuell?
-Die aktuelle Plattform dokumentiert über 100 integrierte Tools plus integrationsspezifische Funktionen. Siehe [Kapitel 6: Werkzeuge](06-tools.md).
+### Warum sehe ich nur eine Reparatur-/Anmeldeseite?
+Die volle UI ist ein **versioniertes Ressourcenpaket**, nicht komplett im Binary. Ungepinntes `go build` oder fehlendes `aurago-web-assets-*.tar.gz` landen in Recovery. `./aurago --check-assets`, bei Bedarf `--install-assets`, sonst Binary mit Asset-Flags neu bauen. [Web-Assets](../../web-assets.md).
 
----
+### Welche URL?
+Default ist **http://127.0.0.1:8088** bzw. **http://localhost:8088**. Docker und LAN binden oft `0.0.0.0:8088`.
 
-## 🔒 Sicherheit
+## Sicherheit
 
-### Wo speichere ich API-Keys und Passwörter?
-Im verschlüsselten AuraGo-Vault. **Speichere keine Secrets in Markdown-Dateien, Commits oder unverschlüsselten Exports.** Siehe [Kapitel 14: Sicherheit](14-sicherheit.md).
+### Wohin mit API-Keys?
+In den Vault. Nicht in Markdown, Git oder unverschlüsselte Exports. [Kapitel 14](14-sicherheit.md).
 
-### Darf AuraGo direkt aus dem Internet erreichbar sein?
-Ja, **aber nur mit HTTPS, Login-Schutz und idealerweise 2FA.** Siehe [Kapitel 14: Sicherheit](14-sicherheit.md) und [Installation](02-installation.md).
+### Darf das Ding ins Internet?
+Nur mit HTTPS, Login und am besten 2FA. VPN ist die gemütlichere Variante.
 
----
+### Warum kann der Agent `config.yaml` nicht lesen?
+Absicht. Datei-Tools sitzen in `agent_workspace`. `../../config.yaml` und `data/` sind gejailt. Frag nach Systeminformationen oder lege eine Datei im Workspace ab.
 
-## 🔌 Integrationen und Features
+### Wo liegen die Logs?
+`log/aurago.log` und `log/web_access.log`. Es gibt kein `supervisor.log`.
 
-### Wo konfiguriere ich Telegram und Discord?
-In [Kapitel 8: Integrationen](08-integrations.md) sowie im separaten [Telegram-Setup-Leitfaden](../../telegram_setup.md).
+## Spielzeuge
 
-### Gibt es verteilte Orchestrierung?
-Ja. Invasion Control und Remote Control sind in [Kapitel 12](12-invasion.md) und [Kapitel 15](15-coagents.md) beschrieben.
+### Wie viele Tools sind es wirklich?
+Der Katalog ist groß und **feature-gated**. Handbücher sagen „100+“, weil das die Größenordnung der dokumentierten nativen Tools ist. Deine Instanz zeigt nur, was Config und Integrationen erlauben. [Kapitel 6](06-tools.md) · [Kapitel 22](22-interne-tools.md).
+
+### Telegram, Discord, MeshCore, SIP?
+Alles in [Kapitel 8](08-integrations.md). Telegram extra: [telegram_setup.md](../../telegram_setup.md). MeshCore: [meshcore-de.md](../../meshcore-de.md).
+
+### Gibt es eine Desktop-App?
+Ja. [AgoDesk](https://github.com/antibyte/agodesk) für Windows und Linux. Das ist nicht die Web-UI.
+
+### Wo bleiben Eggs und Nests?
+[Invasion Control](12-invasion.md) — nicht unter Mission Control. Missionen sind geplante Chats; Invasion ist Remote-Deployment.
 
 ### Unterstützt AuraGo MCP?
-Ja, sowohl als Client als auch als MCP-Server. Siehe [Kapitel 8: Integrationen](08-integrations.md) und [Kapitel 7: Konfiguration](07-konfiguration.md).
+Ja, Client und Server, hinter `agent.allow_mcp`. [Kapitel 8](08-integrations.md).
 
----
+## Wenn es knirscht
 
-## 🐛 Fehlerbehebung
+### UI da, Aktionen tot?
+Logs, Danger-Zone-Schalter, Provider-Key. Dann [Kapitel 16](16-troubleshooting.md).
 
-### Die UI lädt, aber Aktionen schlagen fehl – was zuerst prüfen?
-Prüfe die Logs, Danger-Zone-Flags und Provider-Credentials. Starte mit [Kapitel 16: Troubleshooting](16-troubleshooting.md).
-
-### Ein Abschnitt wirkt veraltet – was ist maßgeblich?
-Codebasis und Konfigurationsschema sind die Quelle der Wahrheit. Aktualisiere die Dokumentation entsprechend, siehe [Kapitel 7: Konfiguration](07-konfiguration.md).
+### Was ist die Wahrheitsquelle?
+Der Code und `config_template.yaml`. Dieses Handbuch folgt ihnen, nicht umgekehrt.

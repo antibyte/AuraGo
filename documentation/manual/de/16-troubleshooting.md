@@ -1,12 +1,16 @@
 # Kapitel 16: Troubleshooting
 
-Dieses Kapitel hilft dir bei häufigen Problemen und deren Lösungen.
+<p align="center">
+  <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="480" alt="AuraGo-Gopher beim Auspacken der Installation"></a>
+</p>
+
+Erst die Logs, dann die Schalter, dann das Ressourcenpaket. `log/aurago.log` ist die Spur — nicht `supervisor.log`.
 
 ## Systematische Fehlersuche
 
 Bevor du einzelne Lösungen ausprobierst, gehe systematisch vor:
 
-1. **Logs prüfen** – In `log/supervisor.log` stehen meist die Antworten
+1. **Logs prüfen** – In `log/aurago.log` stehen meist die Antworten
 2. **Kürzliche Änderungen** – Was wurde zuletzt geändert?
 3. **Isolation testen** – Tritt das Problem nur bei bestimmten Aktionen auf?
 4. **Schrittweise einschränken** – Ein Feature nach dem anderen deaktivieren
@@ -21,20 +25,27 @@ Bevor du einzelne Lösungen ausprobierst, gehe systematisch vor:
 | `cannot execute binary` | Falsche Architektur | Richtige Binary für dein System downloaden |
 | `no such file or directory` | Fehlende Bibliotheken | Statisch gelinkte Binary verwenden oder Abhängigkeiten installieren |
 
+### Nur die Reparatur-/Anmeldeseite
+
+Die volle UI fehlt oder das Binary ist nicht auf das Ressourcen-Set gepinnt.
+
+```bash
+./aurago --assets-info
+./aurago --check-assets
+./aurago --install-assets aurago-web-assets-<id>.tar.gz
+```
+
+`assetpack` allein repariert ein ungepinntes Binary nicht. Mit den generierten ldflags neu bauen, prüfen, neu starten. [Web-Assets](../../web-assets.md).
+
 ### Resources.dat nicht gefunden
+
+`resources.dat` ist das **Backend-Archiv** (Prompts, Skills, Vorlage). Es ersetzt die Web-UI nicht. Fehlt nur die Oberfläche, siehe oben `--check-assets`.
 
 ```
 Fehler: resources.dat not found in working directory
 ```
 
-**Lösung:**
-```bash
-# Stelle sicher, dass resources.dat im gleichen Verzeichnis liegt
-ls -la aurago resources.dat
-
-# Falls nicht, kopiere es
-cp /pfad/zu/resources.dat ./
-```
+**Lösung:** Datei neben die Binary legen (Release-Asset `resources.dat`), nicht eine UI-`tar.gz` umbenennen.
 
 ### Python venv Fehler
 
@@ -79,7 +90,7 @@ Symptom: Keine Antwort auf Nachrichten
 
 **Logs prüfen:**
 ```bash
-tail -f log/supervisor.log | grep -i telegram
+tail -f log/aurago.log | grep -i telegram
 ```
 
 ## LLM/API-Fehler
@@ -196,7 +207,7 @@ sudo chmod 666 /var/run/docker.sock
 
 | Datei | Inhalt |
 |-------|--------|
-| `log/supervisor.log` | Haupt-Anwendungslog |
+| `log/aurago.log` | Haupt-Anwendungslog |
 | `log/agent.log` | Agent-spezifische Aktionen |
 | `log/http.log` | Web-UI Zugriffe |
 
@@ -204,13 +215,13 @@ sudo chmod 666 /var/run/docker.sock
 
 ```bash
 # Nur Fehler anzeigen
-grep -i "error\|fatal" log/supervisor.log
+grep -i "error\|fatal" log/aurago.log
 
 # Letzte 100 Zeilen mit Kontext
-tail -100 log/supervisor.log
+tail -100 log/aurago.log
 
 # Echtzeit-Monitoring
-tail -f log/supervisor.log | grep -i "tool\|error"
+tail -f log/aurago.log | grep -i "tool\|error"
 ```
 
 ## Debug-Modus
@@ -326,7 +337,7 @@ echo "Go Version: $(go version 2>/dev/null || echo 'not installed')"
 echo "Python Version: $(python3 --version 2>/dev/null || echo 'not installed')"
 
 # Letzte 50 Log-Zeilen
-tail -50 log/supervisor.log > problem-report.log
+tail -50 log/aurago.log > problem-report.log
 ```
 
 ### Community-Ressourcen
@@ -335,7 +346,7 @@ tail -50 log/supervisor.log > problem-report.log
 |-----------|-------------|
 | GitHub Issues | github.com/antibyte/AuraGo/issues |
 | Dokumentation | Ordner `documentation/` |
-| Beispiel-Configs | `agent_workspace/prompts/` |
+| Vorlage | `config_template.yaml` |
 
 ---
 
@@ -349,8 +360,14 @@ tail -50 log/supervisor.log > problem-report.log
 | File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, verwaiste Nodes prüfen |
 | Video Generation | Provider-Key im Vault, Tageslimit, Modellname, `POST /api/video-generation/test` |
 | A2A | Agent Card, Auth-Modus, Remote-Agent-URL, aktivierte Bindings |
+| Speech Lab / SIP | `/ready`-Snapshot, Ports 8765/8766, kein Cloud-Fallback |
+| MeshCore | Companion verbunden? Operational Issues, nicht der normale Chat |
+| go2rtc | Vault-Quellen, Container-Status, Viewer nur same-origin |
+| Web-Assets | `./aurago --check-assets` — ungepinntes Binary bleibt Recovery |
 
-Bei schwer reproduzierbaren Fehlern zuerst Debug Mode aktivieren, dann die spezifischen Status-Endpunkte prüfen. Viele moderne Features laufen über verwaltete Sidecars oder Hintergrunddienste; deshalb reicht ein reiner Chat-Fehler oft nicht zur Diagnose.
+Es gibt **keine** Fehlercodes `E001`–`E008`. Maßgeblich sind die Logzeile und das JSON-`error`-Feld. Vault-Fehler heißen fast immer falscher `AURAGO_MASTER_KEY`. `config.yaml` im Chat ist die Jail, kein Bug.
+
+Bei schwer reproduzierbaren Fehlern zuerst Debug Mode, dann die Status-Endpunkte. Sidecars erklären mehr als der Chat allein.
 
 ---
 

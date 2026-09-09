@@ -1,6 +1,10 @@
 # Chapter 14: Security
 
-This chapter covers all security aspects of AuraGo – from the encrypted vault to two-factor authentication. These settings are essential for production environments.
+<p align="center">
+  <a href="../images/manual-security.webp"><img src="../images/manual-security.webp" width="560" alt="AuraGo gopher beside a brass vault with the Danger Zone lever off"></a>
+</p>
+
+Vault closed, jail on, Danger Zone on purpose. Personality does not change that.
 
 > ⚠️ **Critical:** AuraGo executes code on your system. Proper security configuration is not optional but mandatory.
 
@@ -58,6 +62,27 @@ export AURAGO_MASTER_KEY="your-generated-key"
 # Start AuraGo – vault will be created automatically
 ./aurago
 ```
+
+## LLM Guardian
+
+An optional second model looks at tool calls and untrusted content before dispatch. Personality never bypasses it.
+
+**Config → Security → LLM Guardian.** Use a dedicated provider ID, not the main chat model. `fail_safe: block` is the closed default; MeshCore and other untrusted inlets still fail closed even if a global allow is set.
+
+```yaml
+llm_guardian:
+  enabled: false
+  provider: ""
+  model: ""
+  default_level: medium   # low | medium | high | strict
+  fail_safe: block        # block | quarantine | allow
+```
+
+The German chapter has the full level table and document/email scan flags. This is the operational minimum.
+
+## Sudo
+
+`/sudopwd` stores the password in the vault. `sudo_enabled` must be on. `sudo_unrestricted` is a second gate and needs a systemd unit without `ProtectSystem=strict`. Writes outside the install directory stay denied until both are true.
 
 ## Web UI Authentication
 

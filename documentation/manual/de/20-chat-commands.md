@@ -1,8 +1,12 @@
 # Chat-Commands
 
-AuraGo unterstützt sogenannte **Slash-Commands** – Befehle, die direkt im Chat eingegeben werden können, um bestimmte Aktionen auszuführen. Alle Commands beginnen mit einem Schrägstrich `/`.
+<p align="center">
+  <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="400" alt="AuraGo-Gopher am Chat-Rechner"></a>
+</p>
 
-> 📅 **Stand:** Juni 2026
+Slash-Commands beginnen mit `/`. Abkürzungen, keine zweite API.
+
+> Stand: 9. September 2026
 
 ---
 

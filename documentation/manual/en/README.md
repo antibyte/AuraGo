@@ -1,193 +1,147 @@
-# AuraGo User Manual
+<p align="center">
+  <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="560" alt="AuraGo's turquoise gopher reading a hand-inked home-lab field guide at a workbench"></a>
+</p>
 
-Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
+<h1 align="center">AuraGo User Manual</h1>
 
-> 📅 **Updated:** September 8, 2026
-> 🔄 **Version:** 2.x compatible  
-> 📝 **Last Update:** Documentation sync with current codebase (MeshCore radio, AuraGo-Ling/Spark, here.now, managed Garage storage, Config connection tests, CYD display, refreshed Virtual Desktop apps, and the dashboard 3D knowledge graph)
+<p align="center"><strong>One gopher. A ridiculous toolbox. Now with page numbers.</strong></p>
 
----
+Your self-hosted agent can SSH into a NAS, answer over mesh radio, build a browser game and remember what you were doing yesterday. This handbook is how you install it, talk to it and switch the toys on — without leaving the Danger Zone wide open.
 
-## What is AuraGo?
+<p align="center">
+  <a href="#the-toy-box">Chapters</a> · <a href="03-quickstart.md">Quick start</a> · <a href="faq.md">FAQ</a> · <a href="../de/README.md">Deutsch</a>
+</p>
 
-AuraGo is a fully autonomous AI agent shipped as a single portable binary with an embedded web UI. Connect it to any OpenAI-compatible LLM provider and it becomes a personal assistant that can execute code, manage files, control smart-home devices, send emails, remember everything, and even improve its own source code.
+[![Illustrated AuraGo feature map: the original gopher connects home-lab tools, memory, creative studios, voice and radio, automation and virtual workspaces](../../../assets/readme/gopher-feature-map.webp)](../../../assets/readme/gopher-feature-map.webp)
 
-### Highlights
+The drawings are instruction-booklet art, not UI screenshots. Click any image for full size.
 
-| Feature | Description |
-|---------|-------------|
-| **🧠 Personality Engine V2** | Learns your preferences and adapts to you |
-| **🛡️ LLM Guardian** | AI-based security monitoring |
-| **⚡ Adaptive Tools** | Intelligent tool filtering saves tokens |
-| **📄 Document AI** | PDF creation and analysis |
-| **🎬 Video Generation** | AI text-to-video and image-to-video generation |
-| **🔐 AES-256 Vault** | Secure storage of all secrets |
-| **🌐 50+ Integrations** | From S3 to OneDrive to TrueNAS, including HuggingFace Hub |
-| **☁️ Cloudflare Tunnel** | Secure remote access without public IP |
-| **🗄️ SQL Connections** | Direct database queries (PostgreSQL, MySQL) |
-| **📱 Chromecast** | Send TTS and media to Cast devices |
-| **🔍 Network Tools** | Ping, port scan, mDNS/UPnP discovery |
-| **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
-| **🎨 Built-in Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, or Lollipop |
-| **📊 YepAPI** | SEO, SERP, scraping, YouTube/TikTok/Instagram/Amazon data |
-| **🗄️ Inventory + WOL** | Device registry with Wake-on-LAN support |
-| **⏰ Heartbeat** | Background agent wake-up scheduler |
-| **🧠 Knowledge Graph** | LLM-based entity extraction from conversations |
-| **📦 Browser Automation** | Headless Chrome for forms and screenshots |
-| **📝 Obsidian** | Connect to your personal knowledge vault |
-| **🔧 Output Compression** | Token-saving deduplication of tool outputs |
-| **🖥️ Virtual Desktop** | Workspace-backed desktop apps, Code Studio, Pixel, Zipper, and app launch workflows |
-| **🛒 Desktop Software Store** | Managed Docker apps such as Termix, code-server, Dozzle, Beszel, and Node-RED |
-| **🎙️ Speech Lab** | Local ASR/TTS stack for chat and classic telephone flows |
-| **☎️ Native SIP Phone** | Browser phone and optional telephone agent with explicit call policies |
-| **🎮 Game Maker Studio** | Isolated offline 2D/3D game creation in the Virtual Desktop |
-| **🖥️ Virtual Computers** | Managed Boring Computers with VNC, terminal, volumes, and agent workspaces |
-| **📻 MeshCore radio** | Companion radio with a trust-based inbox and desktop messenger |
-| **🖥️ Cheap Yellow Display** | ESP32 desk display for status, warnings, and agent overlays |
-| **🌍 here.now** | Publish permanent static sites straight from the agent |
-| **🗣️ Realtime Speech** | Live voice sessions with OpenAI, xAI, Gemini, or Speech Lab profiles |
-| **🧪 Local LLM** | Managed AuraGo-Qwen, AuraGo-Ling, and experimental AuraGo-Spark runtimes |
+## The toy box
 
----
+- **Your home lab, on speaking terms.** Docker, Proxmox, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH and Wake-on-LAN.
+- **A desktop with side quests.** Chat, files, terminal, gallery, calendar, radio, a Winamp-style player. Plus Code Studio, Homepage Studio and Game Maker.
+- **It remembers.** History, core facts, local embeddings, document RAG, a knowledge graph, notes, a journal. Personality changes the tone, not the permissions.
+- **Autopilot.** Missions, cron, webhooks, co-agents. **Invasion Control** hatches worker “Eggs” on remote “Nests”. Yes, those are the actual names.
+- **Voice and radio.** Telegram, Discord, Rocket.Chat, email, realtime speech, SIP, Speech Lab. **MeshCore** for trusted direct messages and restricted channel replies.
+- **The weird stuff.** 3D printers, go2rtc cameras, Bluetooth audio, an ESP32 Cheap Yellow Display, here.now, local models (Qwen, Ling, experimental Spark). Skills and MCP if that still is not enough.
 
-## Who is this manual for?
+[All integrations](08-integrations.md) · [Tool catalog](22-internal-tools.md) · [Personalities](10-personality.md) · [AgoDesk](https://github.com/antibyte/agodesk)
 
-| If you are... | Start with... |
-|---------------|---------------|
-| New to AuraGo | [Chapter 1: Introduction](01-introduction.md) → [Chapter 2: Installation](02-installation.md) |
-| Want to get started quickly | [Chapter 3: Quick Start](03-quickstart.md) |
-| Want to understand the interface | [Chapter 4: Web UI](04-webui.md) |
-| Want to learn about features | [Chapter 6: Tools](06-tools.md) |
-| Looking for advanced topics | [Chapters 11-15](11-missions.md) |
-| Have a problem | [Chapter 16: Troubleshooting](16-troubleshooting.md) |
+### Yes, there is an actual desktop
 
----
+[![Real AuraGo Virtual Desktop: app launcher, media gallery, radio and a Winamp-style player](../../screenshots/desktop.png)](../../screenshots/desktop.png)
 
-## Screenshots
+*Real screenshot. The desktop is experimental.*
 
-AuraGo has some built-in themes to choose from:
+<details>
+<summary>Chat themes</summary>
 
 | Cyberwar | Retro CRT | Dark Sun | Lollipop |
 |:--------:|:---------:|:--------:|:--------:|
-| ![Cyberwar](../../screenshots/theme1.png) | ![Retro CRT](../../screenshots/theme2.png) | ![Dark Sun](../../screenshots/theme3.png) | ![Lollipop](../../screenshots/theme4.png) |
+| [![Cyberwar](../../screenshots/theme1.png)](../../screenshots/theme1.png) | [![Retro CRT](../../screenshots/theme2.png)](../../screenshots/theme2.png) | [![Dark Sun](../../screenshots/theme3.png)](../../screenshots/theme3.png) | [![Lollipop](../../screenshots/theme4.png)](../../screenshots/theme4.png) |
 
-### Main Interface Screenshots
+There are 13 chat themes, including Standard and Light. Virtual Desktop has **Fruity** and **Standard**.
 
-| Chat Interface | Dashboard |
-|----------------|-----------|
-| ![Chat](../../screenshots/chat.png) | ![Dashboard](../../screenshots/dashboard.png) |
+</details>
 
-| Configuration | Containers |
-|---------------|------------|
-| ![Config](../../screenshots/config.png) | ![Containers](../../screenshots/containers.png) |
+### AgoDesk — the same agent, on your machine
 
----
+<p align="center">
+  <a href="../../../assets/readme/agodesk.png"><img src="../../../assets/readme/agodesk.png" width="640" alt="AgoDesk desktop chat connected to AuraGo"></a>
+</p>
 
-## Manual Structure
+**[AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)** gives you chat, voice and uploads without a browser. Computer and browser use stay inside the access you approve.
 
-### Part 1: Basics
-1. [Introduction](01-introduction.md) – What is AuraGo?
-2. [Installation](02-installation.md) – System setup
-3. [Quick Start](03-quickstart.md) – First 5 minutes
-4. [Web Interface](04-webui.md) – Navigation & UI
-5. [Chat Basics](05-chat-basics.md) – Communication
+## How it connects
 
-### Part 2: Features in Detail
-6. [Tools](06-tools.md) – Using 100+ tools
-7. [Configuration](07-configuration.md) – Fine-tuning with provider system
-8. [Integrations](08-integrations.md) – Telegram, Discord, email, etc.
-9. [Memory & Knowledge](09-memory.md) – Understanding storage
-10. [Personality](10-personality.md) – Customizing character
+[![AuraGo system wiring: channels and triggers reach the agent loop; models, memory and co-agents connect to it; gated tool dispatch reaches infrastructure and media](../../../assets/readme/system-wiring.svg)](../../../assets/readme/system-wiring.svg)
 
-### Part 3: Advanced (Web UI/API)
-11. [Mission Control](11-missions.md) – Automation
-12. [Invasion Control](12-invasion.md) – Remote deployment
-13. [Dashboard](13-dashboard.md) – Analytics & metrics
+Messages and mission triggers reach the **agent loop**. It builds context, calls your model, runs allowed tools and reads the results. **Co-agents** return subtasks. Service clients take credentials from the **vault**. The full web UI is a **versioned local resource set**; the binary keeps a small recovery/login page.
 
-### Part 4: For Professionals
-14. [Security](14-security.md) – Vault, auth, best practices
-15. [Co-Agents](15-coagents.md) – Parallel agents
-16. [Troubleshooting](16-troubleshooting.md) – Problem solving
-17. [Glossary](17-glossary.md) – Terms explained
-18. [Appendix](18-appendix.md) – Reference material
-19. [Skills](19-skills.md) – Creating custom Python skills
+Personality changes the tone, not the permissions. Shell, Python, writes, network and remote execution have their own Danger Zone gates. Guardian adds checks. Enable what you need.
 
-### Part 5: Reference
-20. [Chat Commands](20-chat-commands.md) – All available chat commands
-21. [API Reference](21-api-reference.md) – Complete REST API documentation
-22. [Internal Tools](22-internal-tools.md) – All 100+ internal agent tools
+[Memory](09-memory.md) · [Security](14-security.md) · [Web assets](../../web-assets.md) · [Architecture](../../architecture.md)
 
-### Part 6: Internals
-23. [Internals](23-internals.md) – Architecture, modules, and internal workings
+## Quick start
 
----
+> **Still a work in progress.** One maintainer, uneven tests, occasional rough edges. Linux comes first; Windows and macOS are less tested. Features depend on permissions, providers, hardware and often Docker.
 
-## Important Notes
-
-### ⚠️ CLI vs. Web UI
-
-Some advanced features (Mission Control, Invasion Control) are **primarily available via the Web UI and REST API**. CLI commands for these do not exist in the current version.
-
-### 🆕 Provider System (New in 2.x)
-
-The configuration now uses a central provider system for LLM connections. See [Chapter 7: Configuration](07-configuration.md).
-
-### 🔒 Security
-
-> **Important:** AuraGo can execute arbitrary shell commands and modify system files. Never expose the Web UI unprotected to the internet. Always use VPN, reverse proxy with authentication, or firewall rules.
-
----
-
-## Quick Navigation
-
-### Most important chat commands
-```
-/help          - Show all commands
-/reset         - Clear chat history
-/stop          - Cancel current action
-/restart       - Restart AuraGo server
-/debug on/off  - Toggle debug mode
-/personality   - Switch personality
-/budget        - Show cost overview
-/voice         - Toggle voice output
-/warnings      - Show system warnings
-/sudopwd       - Store sudo password in vault
-/addssh        - Register SSH server
-/credits       - Show OpenRouter credits
+```bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```
 
-### All Agent Tools
-A complete overview of all 100+ internal tools can be found in the [Internal Tools](22-internal-tools.md) section. Additionally, more Python skills and user-defined tools can be added dynamically.
+The installer starts AuraGo and prints your URL and first-login password. Usually **http://localhost:8088**. Change the password, finish `/setup`, pick a model, then try something harmless like **“Show me system information.”**
 
-### Quick Links
-- [Manual Start Page](../README.md)
-- [FAQ](faq.md)
-- [Complete configuration reference](../../configuration.md)
-- [Telegram Setup](../../telegram_setup.md)
-- [Docker Installation Guide](../../docker_installation.md)
+Your data stays with the installation. **Hosted models still see their request inputs.** Self-hosted does not automatically mean offline. For internet-facing access use login, HTTPS and optional 2FA. More in [Chapter 14](14-security.md).
 
----
+[Chapter 2: Installation](02-installation.md) · [Chapter 3: Quick start](03-quickstart.md) · [Docker guide](../../docker_installation.md)
 
-## Updates
+## Manual map
 
-| Date | Change |
-|------|--------|
-| 2026-03 | Revision for version 2.x (Provider system, tool documentation, LLM Guardian) |
-| 2026-03 | Added Adaptive Tools documentation |
-| 2026-03 | Added Document Creator & PDF Extractor |
-| 2026-03 | **Documented SQL Connections, OneDrive, S3, Homepage integrations** |
-| 2026-03 | **Added Cloudflare Tunnel, AI Gateway, Chromecast** |
-| 2026-03 | **Documented Network Tools, Web Capture, Form Automation** |
-| 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
-| 2026-04 | **Chapter 23: Internals** – Architecture, modules, and internal workings documented |
-| 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
-| 2026-04 | Video generation, send_video, LDAP, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
-| 2026-04 | Added YepAPI, Inventory/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression to Integrations chapter |
-| 2026-05 | Updated Virtual Desktop, Desktop Software Store, Pixel image editor, Code Studio, Task Rules API, and advanced Output Compression documentation |
-| 2026-03 | **Added Chat Command /sudopwd** |
-| 2026-08 | **Synced Speech Lab, SIP telephony, Game Maker, Virtual Computers, Realtime Speech, Manus, OmniRoute, EvoMap, Local LLM, Workspace Search, network shares, Operational Issues, and new APIs** |
-| 2026-09 | **Documented MeshCore radio (including the desktop messenger), here.now, managed Garage storage, AuraGo-Ling/-Spark, Config connection tests, agent-skill quality maintenance, the workspace jail, Docker inspect redaction, refreshed Virtual Desktop apps, and the dashboard 3D knowledge graph with the affect timeline** |
+### Part 1 — Arrive
+1. [Introduction](01-introduction.md) — What it is, and what it is not
+2. [Installation](02-installation.md) — Binary, Docker, build, resource set
+3. [Quick start](03-quickstart.md) — The first five minutes
+4. [Web UI](04-webui.md) — Chat, desktop, Config, themes
+5. [Chat basics](05-chat-basics.md) — How to talk to the agent
 
----
+### Part 2 — The toys
+6. [Tools](06-tools.md) — The big toolbox
+7. [Configuration](07-configuration.md) — Provider system and fine-tuning
+8. [Integrations](08-integrations.md) — From NAS boxes to radios
+9. [Memory](09-memory.md) — History, core facts, RAG, graph
+10. [Personality](10-personality.md) — Same toolbox, different attitude
 
-*This manual is continuously updated. The German version can be found [here](../de/README.md).*
+### Part 3 — Autopilot
+11. [Mission Control](11-missions.md) — Scheduled work
+12. [Invasion Control](12-invasion.md) — Eggs and nests
+13. [Dashboard](13-dashboard.md) — Numbers, issues, affect, 3D graph
+
+### Part 4 — Care and depth
+14. [Security](14-security.md) — Vault, jail, Guardian, 2FA
+15. [Co-agents](15-coagents.md) — Helpers for subtasks
+16. [Troubleshooting](16-troubleshooting.md) — When you only get the recovery page
+17. [Glossary](17-glossary.md) — Terms
+18. [Appendix](18-appendix.md) — Short reference
+19. [Skills](19-skills.md) — Python skills and Agent Skills
+
+### Part 5 — Look up
+20. [Chat commands](20-chat-commands.md)
+21. [API reference](21-api-reference.md)
+22. [Internal tools](22-internal-tools.md)
+23. [Internals](23-internals.md)
+
+[FAQ](faq.md) · [Handbook hub](../README.md)
+
+## Chat shortcuts
+
+```
+/help          All commands
+/reset         Clear chat history
+/stop          Cancel the current action
+/restart       Restart AuraGo
+/debug on/off  Debug mode
+/budget        Cost overview
+/personality   Switch personality
+/voice         Voice output
+/warnings      System warnings
+/sudopwd       Store a sudo password in the vault
+/addssh        Remember an SSH host
+/credits       OpenRouter credits
+```
+
+The native tool list is large and feature-gated — not every install advertises the same 100+ names. [Chapter 22](22-internal-tools.md) and whatever Config currently allows are the source of truth.
+
+## Important notes
+
+**Web UI first.** Mission Control and Invasion Control live in the UI and the REST API, not as extra CLI commands.
+
+**Workspace jail.** File tools stay inside `agent_workspace`. `config.yaml` and `data/` are not readable from there. Ask for system information, not for the config file.
+
+**Expose it on purpose.** AuraGo can touch a shell and files. Facing the internet: VPN, a reverse proxy, or built-in auth plus 2FA.
+
+The UI speaks **16 languages**. Pick your company in **Config → Personality**.
+
+[![Flags for all 16 UI languages](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
+
+*Updated 9 September 2026. German edition [here](../de/README.md).*

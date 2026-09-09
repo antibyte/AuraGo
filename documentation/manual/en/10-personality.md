@@ -1,6 +1,10 @@
 # Chapter 10: Personality
 
-AuraGo offers a personality system that influences the AI's behavior and communication style.
+<p align="center">
+  <a href="../../../assets/readme/persona-party.webp"><img src="../../../assets/readme/persona-party.webp" width="640" alt="Ten AuraGo personalities as an illustrated group"></a>
+</p>
+
+Same toolbox. Different attitude. Permissions do not come from the persona.
 
 ---
 

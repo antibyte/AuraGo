@@ -1,6 +1,10 @@
 # Chapter 13: Dashboard
 
-The AuraGo Dashboard is the operational control panel for your agent. It shows system health, memory, personality, missions, knowledge graph quality, audit trails, and more — organized into tabs that load on demand.
+<p align="center">
+  <a href="../../../assets/readme/system-wiring.svg"><img src="../../../assets/readme/system-wiring.svg" width="640" alt="AuraGo system wiring overview"></a>
+</p>
+
+Numbers, issues, affect, 3D graph. Not a second chat.
 
 Access it at `http://localhost:8088/dashboard` or via the radial menu (☰ → 📊 Dashboard). Authentication is required when Web UI auth is enabled.
 

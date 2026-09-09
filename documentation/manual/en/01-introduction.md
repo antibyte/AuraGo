@@ -1,132 +1,71 @@
 # Chapter 1: Introduction
 
-Welcome to AuraGo – your personal, autonomous AI agent.
+<p align="center">
+  <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="560" alt="AuraGo gopher with a hand-inked handbook at a home-lab workbench"></a>
+</p>
 
-## What is AuraGo?
+AuraGo is not a chat box with plugins. It is a self-hosted Go agent that lives on your machine, runs tools and remembers what you already talked about.
 
-AuraGo is a fully autonomous AI agent written in Go and shipped as a single portable binary. Unlike simple chatbots, AuraGo can actively take action:
+The executable is portable. The **full web UI** sits beside it as a matching local resource set. The binary keeps a small recovery/login page. A plain `go build` without asset flags is recovery on purpose — not the whole app. Details: [web assets](../../web-assets.md).
 
-- **🧠 Think & Plan** — Multi-step reasoning with automatic error recovery
-- **💻 Execute Code** — Python and shell commands in an isolated environment
-- **📁 Manage Files** — Read, write, organize
-- **🏠 Control Smart Homes** — Home Assistant, Chromecast, network devices
-- **📧 Communicate** — Email, Telegram, Discord, SMS/voice
-- **🧠 Remember Everything** — Short and long-term memory with semantic search
-- **🔄 Self-Improve** — Modify its own source code
-- **⚡ Parallel Tasks** — Co-agents for complex workflows
+Connect an OpenAI-compatible model (hosted or local). Enable the integrations you actually want. Leave the rest off.
 
-### The Core Idea
+## What it can do
 
-Imagine a personal assistant that:
+- **Think and follow through** — several tool rounds, read the error, try again
+- **Run code** — Python and shell, if you open the Danger Zone
+- **Files in the workspace** — read, write, search. Not `config.yaml` or `data/`
+- **Touch the home lab** — Docker, Proxmox, SSH, Home Assistant, cameras, printers
+- **Talk** — web chat, Telegram, Discord, email, SIP, Speech Lab, MeshCore
+- **Remember** — history, core facts, RAG, knowledge graph, notes
+- **Autopilot** — missions, co-agents, eggs on nests
+- **Make things** — documents, images, music, sites, offline games in Game Maker
 
-| Trait | Description |
-|-------|-------------|
-| **Is available** | 24/7 via Web, Telegram, Discord, or Email |
-| **Has context** | Remembers all previous conversations and facts |
-| **Takes action** | Executes tasks, not just gives answers |
-| **Adapts** — Personality evolves over time |
-| **Is secure** — AES-256 encryption, vault system, access control |
+It does not “improve its own source code” because it is friendly. Self-update and workspace writes are separate, switchable capabilities.
 
-## Who is AuraGo for?
+## Who it is for
 
-| Profile | Usage |
-|---------|-------|
-| **🏠 Home Users** | Personal assistant for daily tasks, research, organization |
-| **👨‍💻 Developers** | Code reviews, automation, system administration, API testing |
-| **🖥️ System Administrators** | Server monitoring, Docker management, backup automation |
-| **🏡 Smart Home Enthusiasts** | Central control of all devices, automations |
-| **🔬 AI Researchers** | Experiments with personality engines, co-agents, memory systems |
+A home lab, a NAS closet, someone who wants an agent next to Docker and Home Assistant. Developers who will hand reviews and automation to a machine with permissions. Less so: a hosted SaaS product or a research framework.
 
-## Key Features Overview
+The UI speaks 16 languages. Personalities change the attitude, not the permissions.
 
-### 🤖 Agent Core
-- **100+ built-in tools** — From filesystem to Docker, from WebDAV to Proxmox
-- **Native Function Calling** — OpenAI-compatible tool calls
-- **Dynamic tool creation** — Agent can write new Python tools at runtime
-- **Multi-step reasoning** — Automatic tool dispatch, error recovery
-- **Co-agent system** — Parallel sub-agents for complex tasks
-- **Adaptive Tools** — Intelligent tool filtering saves tokens
+<p align="center">
+  <a href="../../../assets/readme/persona-party.webp"><img src="../../../assets/readme/persona-party.webp" width="640" alt="Ten AuraGo personalities as an illustrated group"></a>
+</p>
 
-### 🧠 Memory & Knowledge
-- **Short-term memory** — SQLite-based conversation history
-- **Long-term memory (RAG)** — Vector-based semantic search
-- **Knowledge graph** — Structured entities and relationships
-- **Core memory** — Permanent facts the agent always remembers
-- **Notes & to-dos** — Categorized, prioritized, with due dates
-- **Journal** — Chronological event logging
+[Personalities](10-personality.md) · [AgoDesk](https://github.com/antibyte/agodesk) if you want to skip the browser.
 
-### 🎭 Personality
-- **Personality Engine V2** — LLM-based mood and behavior analysis
-- **User profiling** — Automatic detection of your preferences
-- **Built-in personalities** — Friend, professional, punk, neutral, terminator and more
-- **Custom profiles** — Create your own personalities
+## The wiring
 
-### 🛡️ Security
-- **AES-256-GCM vault** — Encrypted storage of all API keys
-- **Web UI auth** — Optional with bcrypt password and TOTP 2FA
-- **LLM Guardian** — AI-powered monitoring of all tool calls
-- **Danger zone** — Granular control over capabilities
-- **Sandboxing** — Python runs in isolated venv or Docker
-
-### 🔌 Integrations
-- **Web UI** — Complete chat interface with dashboard
-- **Telegram** — Voice messages, image analysis, inline commands
-- **Discord** — Bot integration with message bridge
-- **Email** — IMAP monitoring + SMTP sending
-- **Home Assistant** — Smart home control
-- **Docker & Proxmox** — Container and VM management
-- **Google Workspace** — Gmail, Calendar, Drive, Docs
-
-## Architecture Briefly Explained
+[![System wiring from channels through the agent loop to tools and the vault](../../../assets/readme/system-wiring.svg)](../../../assets/readme/system-wiring.svg)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  User Interfaces                                        │
-│  (Web UI / Telegram / Discord / Email)                 │
-└────────────────┬────────────────────────────────────────┘
-                 │
-┌────────────────▼────────────────────────────────────────┐
-│  AuraGo Core                                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │   Agent     │  │   Memory    │  │   Tools     │     │
-│  │   Loop      │  │   System    │  │   (100+)    │     │
-│  └─────────────┘  └─────────────┘  └─────────────┘     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │ Personality │  │   Vault     │  │   LLM       │     │
-│  │   Engine    │  │ (AES-256)   │  │  Guardian   │     │
-│  └─────────────┘  └─────────────┘  └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────┐
-│  LLM Provider (OpenAI-compatible)                       │
-│  OpenRouter, Ollama, OpenAI, etc.                      │
-└─────────────────────────────────────────────────────────┘
+Channels / missions
+        │
+        ▼
+   Agent loop  ──  model (provider or local)
+        │
+        ├── memory (STM, core, RAG, graph)
+        ├── co-agents
+        └── tools (only what Config allows)
+                │
+                └── vault for secrets, never as prompt fodder
 ```
 
-## Important Security Notes
+Personality sits on tone. Guardian and the Danger Zone sit on the tools.
 
-> ⚠️ **Critical: Isolated Environment**
-> AuraGo executes code on your system. It is **strongly recommended** to run AuraGo in an isolated environment:
-> - Virtual machine
-> - Docker container
-> - Dedicated PC/server
->
-> LLM errors or misconfigured prompts can have unintended effects.
+## Safety before you start
 
-> ⚠️ **Never expose unprotected**
-> The Web UI should never be directly reachable from the internet. Always use:
-> - VPN (WireGuard, Tailscale)
-> - Reverse proxy with authentication
-> - Firewall rules
-> - Or the integrated auth with 2FA
+> AuraGo runs code on **your** system. A VM, Docker or a dedicated box is the sensible default. A misunderstood prompt plus an open shell is not a theoretical risk.
 
-## Next Steps
+> Do not hang the web UI naked on the internet. Use a VPN (Tailscale, WireGuard), a reverse proxy with auth, or the built-in login plus 2FA.
 
-1. **[Installation](02-installation.md)** – Set up AuraGo on your system
-2. **[Quick Start](03-quickstart.md)** – First 5 minutes with AuraGo
-3. **[Chat Basics](05-chat-basics.md)** – Communicate effectively
+File tools stay inside `agent_workspace`. `../../config.yaml` and `data/` fail on purpose. More: [Chapter 14](14-security.md).
 
----
+## Next steps
 
-> 💡 **Tip for beginners:** Start with the Web UI and a simple chat. You'll be surprised how intuitive it is!
+1. **[Installation](02-installation.md)** — binary, Docker or source, plus the resource set
+2. **[Quick start](03-quickstart.md)** — setup, first chat, harmless commands
+3. **[Web UI](04-webui.md)** — chat, desktop, Config
+
+> Tip: start with the web UI. Ask for system information, not for the config file.

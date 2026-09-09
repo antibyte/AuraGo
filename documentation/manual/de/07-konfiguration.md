@@ -1,6 +1,10 @@
 # Kapitel 7: Konfiguration
 
-Dieses Kapitel erklärt die Konfiguration von AuraGo. Der bevorzugte Weg ist die **Web-UI** – YAML-Änderungen sind nur noch für spezielle Szenarien oder Docker-Deployments nötig.
+<p align="center">
+  <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="480" alt="AuraGo-Gopher beim Einrichten"></a>
+</p>
+
+Web-UI zuerst. YAML für Headless und GitOps. Secrets in den Vault, nicht in die Datei.
 
 ---
 
@@ -24,13 +28,13 @@ Die einfachste und sicherste Methode, AuraGo zu konfigurieren:
 4. **Navigiere links durch die Kategorien:**
    - **Provider** – LLM-Verbindungen anlegen und testen
    - **Agent** – Sprache, Verhalten, Danger-Zone-Toggles
-   - **Integrations** – Telegram, Discord, Home Assistant, Docker, etc.
+   - **Integrationen** – Telegram, Discord, Home Assistant, Docker, MeshCore, Kameras
    - **Tools** – Einzelne Tools aktivieren/deaktivieren
    - **Regeln** – aufgabenbezogene Agent-Leitplanken bearbeiten
    - **Server** – Host, Port, HTTPS
    - **Memory / Tasks / Sandbox** – weitere Systemeinstellungen
-5. **Aktiviere Toggles, fülle Felder aus** und klicke unten auf **"Save"**
-6. Einige Änderungen (z. B. Server-Port, Provider-Wechsel, Danger-Zone-Berechtigungen) erfordern einen **Neustart** – die UI zeigt dies entsprechend an
+5. **Aktiviere Toggles, fülle Felder aus** und klicke unten auf **Speichern**
+6. Einige Änderungen (z. B. Server-Port, Provider-Wechsel, Danger-Zone-Berechtigungen) erfordern einen **Neustart** – die UI zeigt das an
 
 > 💡 **Tipp:** Sensible Werte wie API-Keys oder Passwörter werden automatisch im Vault gespeichert, wenn sie über die Web-UI eingegeben werden.
 
@@ -751,9 +755,30 @@ AuraGo validiert die Konfiguration beim Start:
 
 ---
 
+## Kompakte YAML-Referenz
+
+Für Headless und GitOps. Alltag bleibt **Menü → Config**. Die Quelle der Wahrheit ist `config_template.yaml`, nicht dieser Kasten.
+
+| Block | Zweck |
+|-------|--------|
+| `auth` | Login, Session, TOTP |
+| `llm_guardian` | LLM-Prüfung von Tool-Calls und externen Inhalten |
+| `local_llm` | Qwen, Ling, experimentelles Spark |
+| `speech_lab` / `sip` / `realtime_speech` | Sprache und Telefonie |
+| `meshcore` | Companion-Funk |
+| `go2rtc` / `three_d_printers` / `bluetooth` | Kameras, Drucker, BlueZ |
+| `here_now` / `homepage` / `game_maker` | Sites, Homepage-Projekte, Offline-Spiele |
+| `virtual_computers` | Boring Computers, optional Managed Garage |
+| `network_shares` / `workspace_search` | Host-Freigaben, Workspace-Index |
+| `mcp` / `mcp_server` / `a2a` | Externe Protokolle |
+| `security_proxy` / `cloudflare_tunnel` / `tailscale` | Öffentlicher Zugang |
+| `egg_mode` / `invasion_control` | Worker und Master |
+
+Die englische Fassung hat YAML-Schnipsel zu denselben Blöcken. Secrets bleiben im Vault.
+
 ## Erweiterte Konfigurationsblöcke
 
-Diese Ergänzung synchronisiert die deutsche Referenz mit den aktuellen englischen Kapiteln und dem aktuellen `config_template.yaml`.
+Restliche Medien- und Hintergrundblöcke. Die aktuelle Übersicht steht in der [kompakten YAML-Referenz](#kompakte-yaml-referenz).
 
 ### Medien- und Generierungsfeatures
 

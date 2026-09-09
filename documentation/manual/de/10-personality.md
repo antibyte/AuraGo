@@ -1,6 +1,10 @@
 # Kapitel 10: Persönlichkeit
 
-AuraGo bietet ein Persönlichkeitssystem, das das Verhalten und den Kommunikationsstil der KI beeinflusst.
+<p align="center">
+  <a href="../../../assets/readme/persona-party.webp"><img src="../../../assets/readme/persona-party.webp" width="640" alt="Zehn AuraGo-Persönlichkeiten als gezeichnete Gruppe"></a>
+</p>
+
+Dieselbe Toolbox. Andere Haltung. Rechte kommen nicht aus der Persona.
 
 ---
 

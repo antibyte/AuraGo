@@ -1,6 +1,10 @@
 # Kapitel 9: Gedächtnis & Wissen
 
-AuraGo verfügt über ein mehrschichtiges Gedächtnissystem, das es der KI ermöglicht, Kontext zu bewahren und sich an vergangene Gespräche zu erinnern.
+<p align="center">
+  <a href="../../../assets/readme/gopher-memory-map.webp"><img src="../../../assets/readme/gopher-memory-map.webp" width="640" alt="Gedächtniskarte: Verlauf, Kernfakten, semantische Suche und Knowledge Graph speisen eine Kontext-Schale"></a>
+</p>
+
+Mehrere Regale, ein nützlicher Kontext. Die Zeichnung vereinfacht — sie ist kein Screenshot.
 
 > ⚠️ **Hinweis:** Dieses Kapitel beschreibt die aktuelle Implementierung. Einige fortgeschrittene Features aus früheren Versionen (wie konfigurierbare RAG-Parameter) sind in der aktuellen Version nicht verfügbar.
 
@@ -13,7 +17,7 @@ AuraGo implementiert ein hierarchisches Gedächtnismodell:
 | Gedächtnistyp | Speichermedium | Zugriffsgeschwindigkeit | Verfallsdauer |
 |---------------|----------------|------------------------|---------------|
 | **Kurzzeitgedächtnis (STM)** | SQLite | Sehr schnell | Konfigurierbar (Standard: letzte Nachrichten) |
-| **Kernspeicher (Core Memory)** | Markdown-Datei | Sofort | Permanent |
+| **Kernspeicher (Core Memory)** | SQLite (ältere `core_memory.md` wird migriert) | Sofort | Permanent |
 | **Langzeitgedächtnis (LTM)** | Vektordatenbank | Schnell | Permanent (wenn aktiviert) |
 
 ---
@@ -51,7 +55,7 @@ Der Kernspeicher enthält permanente Fakten, die AuraGo über den Benutzer und d
 ### Speicherort
 
 ```
-data/core_memory.md
+SQLite (nach Start-Migration; eine alte data/core_memory.md wird nach .migrated verschoben)
 ```
 
 ### Struktur
@@ -436,8 +440,8 @@ llm:
    ```
 
 3. **Core Memory regelmäßig aufräumen**
-   - Überprüfe `data/core_memory.md`
-   - Entferne veraltete Informationen
+   - Über die Memory-UI oder den Agenten, nicht über eine Markdown-Datei
+   - Veraltete Fakten löschen oder ersetzen
 
 #### ❌ Zu vermeiden
 
@@ -451,7 +455,6 @@ llm:
 
 ```bash
 # Wichtige Dateien sichern
-cp data/core_memory.md backup/
 cp data/short_term.db backup/
 cp -r data/vectordb backup/  # Falls Embeddings aktiviert
 ```

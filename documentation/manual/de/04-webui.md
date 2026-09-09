@@ -1,10 +1,14 @@
 # Kapitel 4: Die Web-Oberfläche
 
-Die Web-Oberfläche ist dein Kontrollzentrum für AuraGo. Dieses Kapitel erklärt alle Elemente und Funktionen.
+<p align="center">
+  <a href="../images/manual-desktop.webp"><img src="../images/manual-desktop.webp" width="560" alt="AuraGo-Gopher in einem gezeichneten Retro-Desktop mit CRT und Mini-Fenstern"></a>
+</p>
 
-## Übersicht
+Chat, Config, Desktop, Missions — eigene Seiten, kein Single-Page-Framework. Die Dateien kommen aus dem **lokalen Ressourcenpaket**, nicht aus `go:embed` der ganzen `ui/`-Quelle. Fehlt das Paket, bleibt die Reparaturseite.
 
-Die Web-UI ist eine **mehrseitige eingebettete Anwendung** — jeder Bereich (Chat, Config, Dashboard, Missions, …) hat eine eigene HTML-Seite. Navigation zwischen Bereichen lädt die Seite neu. Die meisten Seiten erfordern `web_config.enabled: true`.
+Die meisten Seiten brauchen `web_config.enabled: true`. Navigation lädt neu.
+
+[![Echter Virtual Desktop](../../screenshots/desktop.png)](../../screenshots/desktop.png)
 
 ```
 ┌────────────────────────────────────────────────────────────┐

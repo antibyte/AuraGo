@@ -1,6 +1,10 @@
 # Chapter 6: Tools
 
-AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous agent.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="560" alt="AuraGo gopher in front of an overflowing home-lab toolbox"></a>
+</p>
+
+The catalog is large and feature-gated. “100+” is the documented native-tool ballpark — your install only shows what Config currently allows.
 
 ---
 
@@ -15,7 +19,7 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 | **🖥️ Proxmox** | VMs, LXCs, snapshots | Yes |
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D printer, go2rtc, network shares | Yes (partial) |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | No (partial) |
-| **📧 Communication** | Email, Telegram, Discord, Telnyx, native SIP telephony, Rocket.Chat, MQTT, MeshCentral | No (partial) |
+| **📧 Communication** | Email, Telegram, Discord, Telnyx, native SIP telephony, Rocket.Chat, MQTT, MeshCentral, MeshCore, Bluetooth | No (partial) |
 | **🎬 Media Generation** | Images, music, videos, TTS, vision, Piper, Supertonic, media registry | No (provider limits apply) |
 | **🔧 System** | Metrics, processes, cron, sandbox, background tasks, daemon skills | Partial |
 | **🧠 Memory** | Memory, notes, knowledge graph, cheatsheets, core memory | No |
@@ -61,6 +65,11 @@ The current version includes several powerful extensions:
 | **Manus** | Policy-gated asynchronous tasks and controlled file transfers |
 | **OmniRoute** | Managed or external OpenAI-compatible gateway |
 | **EvoMap** | Optional GEP/A2A integration with a secure read-only default |
+| **MeshCore** | Companion radio, trust-based inbox, desktop messenger |
+| **go2rtc** | Managed cameras, vault sources, same-origin viewer |
+| **here.now** | Permanent sites from a workspace snapshot |
+| **Local LLM** | Qwen, Ling, experimental Spark — not every GPU runtime is qualified |
+| **Bluetooth** | BlueZ, Just Works pairing, playback from the workspace only |
 
 ---
 

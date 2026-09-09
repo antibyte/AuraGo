@@ -1,8 +1,22 @@
 # Chapter 8: Integrations
 
-AuraGo connects with numerous external services to extend its capabilities. This chapter covers all available integrations and their configuration.
+<p align="center">
+  <a href="../images/manual-radio.webp"><img src="../images/manual-radio.webp" width="560" alt="AuraGo gopher with a homemade mesh radio"></a>
+</p>
 
-> 💡 **Web UI first:** Every integration in this chapter is configured through **Menu → Config**. Use the sidebar search or browse groups such as **Messenger**, **Smart Home**, **Network & Remote**, **External AI**, and **Danger Zone**. YAML blocks are alternatives for headless or scripted setups.
+From NAS boxes to radios. Every integration has a switch. The dangerous ones stay off by default.
+
+> **Web UI first.** Sidebar search or the groups **Messenger**, **Smart Home**, **Network & Remote**, **External AI**, **Danger Zone**. YAML is for headless and GitOps. Connection tests are POST and read-only.
+
+### Jump list
+
+| Group | Sections |
+|-------|----------|
+| Home lab | [Docker](#docker-integration), [Proxmox](#proxmox-integration), [TrueNAS](#truenas-integration), [Home Assistant](#home-assistant-integration), [MQTT](#mqtt-integration), [Fritz!Box](#fritzbox-integration), [AdGuard](#adguard-home-integration), [Tailscale](#tailscale-integration), [Inventory](#inventory-system) |
+| Voice and radio | [Telegram](#telegram-bot-setup), [Discord](#discord-bot-setup), [SIP](#native-sip-telephony), [Speech Lab](#speech-lab-integration), [MeshCore](#meshcore-radio), [Bluetooth](#bluetooth-integration), [Realtime Speech](#realtime-speech) |
+| Cameras and desk | [go2rtc](#go2rtc-camera-integration), [Frigate](#frigate-integration), [CYD](#cheap-yellow-display) |
+| Make and publish | [Homepage](#homepage-and-site-projects), [Game Maker](#game-maker-studio), [here.now](#herenow-integration), [Virtual Computers](#virtual-computers) |
+| Autopilot | Missions live in [Chapter 11](11-missions.md). Here: [Invasion](#invasion-control-integration), [Heartbeat](#heartbeat-system), [Webhooks](#webhooks) |
 
 ## Setting Up Integrations via the Web UI
 
@@ -2166,7 +2180,7 @@ Monitor and control 3D printers via the `three_d_printer` tool. Supports **Elego
 3. Add printers under **Elegoo Centauri Carbon** or **Klipper** with `id`, `name`, and `url`.
 4. Enter optional Klipper Moonraker API keys in the UI; they are vault-only and are not stored in `config.yaml`.
 5. Set `readonly: true` for monitoring-only access (blocks start/pause/cancel).
-6. Test: `GET /api/3d-printers/test`.
+6. Test: `POST /api/3d-printers/test` (status only, no mutation).
 
 ### YAML Reference
 ```yaml
@@ -2246,7 +2260,7 @@ grafana:
 2. Enable the integration and choose **managed** or **external** mode.
 3. For managed mode: AuraGo starts `manifestdotbuild/manifest` and a Postgres container automatically.
 4. Store secrets in the Vault (never in `config.yaml`): `manifest_api_key`, `manifest_postgres_password`, `manifest_better_auth_secret`.
-5. Test via **Config → Integrations → Manifest → Test Connection** (`GET /api/manifest/test`).
+5. Test via **Config → Integrations → Manifest → Test Connection** (`POST /api/manifest/test`).
 
 ### Provider routing
 Add a provider entry with `type: manifest` to route LLM calls through Manifest:
@@ -2784,15 +2798,14 @@ The API key and node secret are Vault-only (`evomap_api_key` and `evomap_node_se
 
 ## Testing Integrations
 
-### Health Check Commands
-Test individual integrations via API:
+### Health checks
+A dedicated live health route exists for Discord:
+
 ```bash
-curl http://localhost:8088/api/health/telegram
 curl http://localhost:8088/api/health/discord
-curl http://localhost:8088/api/health/email
-curl http://localhost:8088/api/health/homeassistant
-curl http://localhost:8088/api/health/docker
 ```
+
+Telegram, email, Home Assistant, Proxmox and similar Config tests are **POST** routes on their own integration APIs. They must not send messages or change remote state. There are no `/api/health/telegram`, `/api/health/email`, `/api/health/homeassistant` or `/api/health/docker` endpoints.
 
 ### Integration Status in Web UI
 The dashboard shows status indicators:

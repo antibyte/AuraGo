@@ -1,6 +1,10 @@
 # Chapter 18: Appendix
 
-Comprehensive reference material for AuraGo including complete configuration options, API endpoints, command reference, and additional resources.
+<p align="center">
+  <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="400" alt="AuraGo gopher with a handbook"></a>
+</p>
+
+Short reference. The long truth lives in `config_template.yaml` and [Chapter 21](21-api-reference.md).
 
 ---
 
@@ -382,7 +386,6 @@ sqlite:
 | GET | `/api/memory/long-term` | Long-term memory | Yes* |
 | POST | `/api/memory/query` | Query memories | Yes* |
 | GET | `/api/tools` | List available tools | Yes* |
-| POST | `/api/tools/execute` | Execute tool | Yes* |
 | GET | `/api/vault/status` | Vault status | Yes* |
 | POST | `/api/vault/rotate` | Rotate master key | Yes* |
 | GET | `/api/dashboard/activity` | Dashboard activity (includes `coagents`) | Yes* |
@@ -394,16 +397,28 @@ sqlite:
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/events` | Server-Sent Events stream |
-| `/ws` | WebSocket for real-time chat |
+| `GET /events` | Server-Sent Events (chat and live UI) |
+| `GET /api/agodesk/ws` | AgoDesk desktop client |
+| `WS /api/invasion/ws` | Invasion eggs |
 
-### Static Files
+There is no public `/ws` chat socket and no `/api/tools/execute`. The full UI is a resource set; `/` without a pin is recovery.
+
+Current surfaces (full list in [Chapter 21](21-api-reference.md)):
+
+| Feature | Endpoints |
+|---------|-----------|
+| go2rtc | `GET /api/go2rtc/status`, `POST /api/go2rtc/test` |
+| MeshCore | `GET /api/meshcore/status`, `POST /api/meshcore/test` |
+| Bluetooth | `GET /api/bluetooth/status`, `POST /api/bluetooth/reprobe` |
+| CYD | `GET /api/cyd/status`, `POST /api/cyd/test` |
+
+### Static files
 
 | Endpoint | Description |
 |----------|-------------|
-| `/` | Web UI (SPA) |
-| `/assets/*` | Static assets |
-| `/attachments/*` | User file uploads |
+| `/` | Chat or recovery, depending on the UI set |
+| `/desktop`, `/config`, `/dashboard` | Multi-page UI |
+| `/attachments/*` | User uploads |
 
 ---
 
@@ -927,28 +942,25 @@ AuraGo/
 ├── aurago                    # Main executable
 ├── config.yaml               # Configuration
 ├── .env                      # Environment variables
+├── prompts/                  # Identity, rules, personalities
+├── assets/web/               # Installed UI resource set
 ├── agent_workspace/
-│   ├── prompts/              # System prompts
-│   │   ├── personalities/    # Personality templates
-│   │   └── tools_manuals/    # Tool documentation
 │   ├── skills/               # Python skills
 │   ├── tools/                # Agent-created tools
 │   │   └── manifest.json     # Tool registry
-│   └── workdir/              # Working directory
+│   └── workdir/              # Sandbox (jail root for file tools)
 │       ├── attachments/      # Uploaded files
 │       └── venv/             # Python virtual env
 ├── data/
-│   ├── short_term.db         # Short-term memory (SQLite)
-│   ├── inventory.db          # Device inventory (SQLite)
-│   ├── invasion.db           # Remote deployment (SQLite)
-│   ├── system_tasks.db       # Cron + background task persistence (SQLite)
-│   ├── vectordb/             # Long-term memory (chromem vector store)
-│   │   └── ...
+│   ├── short_term.db         # Chat / STM (SQLite)
+│   ├── inventory.db          # Device inventory
+│   ├── invasion.db           # Remote deployment
+│   ├── system_tasks.db       # Cron + background tasks
 │   ├── vault.bin             # Encrypted secrets (AES-256-GCM)
-│   ├── core_memory.md        # Permanent memory
-│   └── chat_history.json     # Chat UI state
+│   └── vectordb/             # Semantic memory (chromem)
 └── log/
-    └── supervisor.log        # Application logs
+    ├── aurago.log            # Application logs
+    └── web_access.log        # HTTP access
 ```
 
 ### Platform-Specific Paths
@@ -968,32 +980,15 @@ AuraGo/
 | `.env` | Environment variables | 1. Working directory 2. `~/.aurago/` |
 | `prompts/` | System prompts | Config: `directories.prompts_dir` |
 
-### Log Rotation
+### Logs
 
-Logs are automatically rotated when they reach 100MB:
-- `supervisor.log` - Current log
-- `supervisor.log.1` - Previous log
-- `supervisor.log.2.gz` - Compressed older logs
+Application output goes to `log/aurago.log`. HTTP access goes to `log/web_access.log`. There is no `supervisor.log` rotation scheme.
 
 ---
 
 ## Update History / Changelog
 
-### Version History
-
-#### v1.0.0 (Initial Release)
-- Core agent loop with tool dispatch
-- SQLite-based short-term memory
-- Vector database for long-term memory
-- Knowledge graph for structured facts
-- Web UI with real-time chat
-- Telegram and Discord integrations
-- 100+ built-in tools
-- AES-256-GCM encrypted vault
-- Personality engine V1
-- Co-agent system
-- Budget tracking
-- Circuit breaker protection
+Version numbers and feature lists belong in GitHub Releases. This handbook describes the state as of **9 September 2026**.
 
 ### Update Checklist
 
@@ -1009,13 +1004,6 @@ When updating AuraGo:
 □ Verify functionality with /help command
 □ Check logs for errors
 ```
-
-### Migration Notes
-
-#### v0.x to v1.0
-- Config format changed - review and update
-- Database schemas auto-migrate on first start
-- Vault format unchanged - master key still valid
 
 ---
 

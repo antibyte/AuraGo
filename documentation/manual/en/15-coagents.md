@@ -1,6 +1,10 @@
 # Chapter 15: Co-Agents
 
-Co-agents are parallel sub-agents that process complex tasks concurrently. They use a separate LLM model, have their own limits, and are isolated from the main agent.
+<p align="center">
+  <a href="../images/manual-missions.webp"><img src="../images/manual-missions.webp" width="480" alt="Two smaller helper gophers beside the main gopher"></a>
+</p>
+
+Helpers for subtasks. Their own model, their own limits, no access to your personality notes.
 
 ---
 

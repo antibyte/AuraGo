@@ -1,6 +1,10 @@
 # Kapitel 23: Interna – Die Architektur von AuraGo
 
-> 📅 **Stand:** 27. Mai 2026
+<p align="center">
+  <a href="../../../assets/readme/system-wiring.svg"><img src="../../../assets/readme/system-wiring.svg" width="640" alt="AuraGo-Systemverdrahtung"></a>
+</p>
+
+> 📅 **Stand:** 9. September 2026 (UI-Paket und Recovery korrigiert; der Rest dieses Kapitels ist immer noch ein Architektur-Tiefgang)
 > 🎯 **Zielgruppe:** Entwickler, Beitragende und fortgeschrittene Nutzer  
 > 🔧 **Voraussetzung:** Grundverständnis von Go, SQLite und REST-APIs
 
@@ -41,7 +45,7 @@ AuraGo folgt einem **Schichtenmodell** mit vier Ebenen:
 ```mermaid
 flowchart TB
     subgraph Presentation["🖥️ Presentation Layer"]
-        WEB["Web UI<br/>eingebettete Mehrseiten-UI"]
+        WEB["Web UI<br/>lokales Ressourcenpaket"]
         TG["Telegram Bot"]
         DC["Discord Bot"]
         RC["Rocket.Chat"]
@@ -76,11 +80,13 @@ flowchart TB
 
 | Prinzip | Umsetzung |
 |---------|-----------|
-| **Single Binary** | Alle Assets via `go:embed` eingebettet, keine externen Abhängigkeiten |
+| **Portable Binary** | Kern ohne CGO. Volle UI ist ein versioniertes lokales Ressourcenpaket; Recovery/Login bleibt im Binary |
 | **Pure Go** | Kein CGO – SQLite via `modernc.org/sqlite`, Cross-Compilation trivial |
 | **Goroutine-basiert** | Jeder Request, jeder Co-Agent, jeder Background-Service läuft in eigenen Goroutines |
 | **Interface-basiert** | `ChatClient`, `VectorDB`, `FeedbackBroker` – alle Kernkomponenten über Interfaces |
 | **Konfigurationsgetrieben** | Alle Features über `config.yaml` aktivierbar/deaktivierbar |
+
+Dieses Kapitel ist ein Architektur-Tiefgang, kein Ersatz für die Verträge zu MeshCore, SIP, Speech Lab, Game Maker, go2rtc oder [Web-Assets](../../web-assets.md).
 
 ### Nebenläufigkeitsmodell
 
@@ -173,7 +179,7 @@ Migrationen erfolgen automatisch beim Start – das Schema wird bei Bedarf aktua
 
 ## 3. Der Agent-Loop
 
-Der Agent-Loop ist das Herzstück von AuraGo und in [`internal/agent/agent_loop.go`](../../../internal/agent/agent_loop.go) implementiert (~2500 Zeilen). Die zentrale Funktion ist `ExecuteAgentLoop()`.
+Der Agent-Loop ist das Herzstück von AuraGo und in [`internal/agent/agent_loop.go`](../../../internal/agent/agent_loop.go) implementiert (große Datei, nicht an einer Zeilenzahl festmachen). Die zentrale Funktion ist `ExecuteAgentLoop()`.
 
 ### 3.1 Ablauf
 
@@ -281,17 +287,9 @@ flowchart LR
 
 ### 4.2 Tool-Kategorien
 
-Tools sind in 7 Kategorien organisiert (definiert in [`tool_categories.go`](../../../internal/agent/tool_categories.go)):
+Die Kategorien stehen in [`tool_categories.go`](../../../internal/agent/tool_categories.go). Die Laufzeitliste ist **feature-gated** — feste Stückzahlen in einer Tabelle lügen nach dem nächsten MeshCore- oder Game-Maker-Tool. `system` allein enthält inzwischen Game-Maker- und Skill-Tools.
 
-| Kategorie | Label | Anzahl Tools |
-|-----------|-------|-------------|
-| `system` | System & Automation | 16 |
-| `files` | Files & Documents | 14 |
-| `network` | Network & Web | 15 |
-| `media` | Media & Content | 10 |
-| `smart_home` | Smart Home & IoT | 13 |
-| `infrastructure` | Infrastructure & DevOps | 17 |
-| `communication` | Communication & Messaging | 13 |
+Grobe Gruppen: System, Dateien, Netz, Medien, Smart Home, Infrastruktur, Kommunikation. Was Config nicht einschaltet, erscheint nicht im Schema.
 
 ### 4.3 Native Function Calling
 
@@ -511,7 +509,7 @@ Die [`ModelCapabilities`](../../../internal/agent/tooling_policy.go) zentralisie
 
 ### 7.1 Prompt Builder
 
-Der [`PromptBuilder`](../../../internal/prompts/builder.go) (~1345 Zeilen) baut den System-Prompt dynamisch zusammen:
+Der [`PromptBuilder`](../../../internal/prompts/builder.go) baut den System-Prompt dynamisch zusammen:
 
 1. **Module laden**: Identität, Regeln, Persönlichkeit, Tool-Guides, Kontext
 2. **Caching**: Datei-basiertes Cache mit ModTime-Invalidierung
@@ -641,16 +639,16 @@ Die Sandbox in [`internal/sandbox/`](../../../internal/sandbox/) isoliert Code-A
 
 ### 9.1 HTTP-Server
 
-Der Server ist in [`internal/server/server.go`](../../../internal/server/server.go) implementiert (~1040 Zeilen):
+Der Server lebt in [`internal/server/`](../../../internal/server/). `server.go` ist der Einstieg, die Handler sind auf viele Dateien verteilt:
 
 - **Standard Library**: `net/http` mit Gorilla-Mux-Patterns
-- **Embedded UI**: Web-UI via `go:embed` direkt ins Binary
+- **UI-Paket**: volle Oberfläche aus `assets/web/<set-id>/`; nur Recovery/Login ist `go:embed`
 - **TLS/HTTPS**: Automatisches Let's Encrypt via `golang.org/x/crypto/acme`
 - **Loopback-URL**: `InternalAPIURL()` – einheitliche interne API-URL
 
 ### 9.2 REST API
 
-Die API-Handler sind in [`internal/server/`](../../../internal/server/) organisiert (~95 Handler-Dateien):
+Die API-Handler liegen in [`internal/server/`](../../../internal/server/) — derzeit **128** `*_handlers.go`-Dateien, plus SSE, Assets und Routing. Eine Auswahl:
 
 | Handler-Datei | Zuständig für |
 |---------------|-------------|
@@ -664,6 +662,10 @@ Die API-Handler sind in [`internal/server/`](../../../internal/server/) organisi
 | `mcp_handlers.go` | MCP-Server |
 | `setup_handlers.go` | Setup-Wizard |
 | `tool_bridge_handlers.go` | Tool-Status |
+| `go2rtc_handlers.go` | Kameras |
+| `meshcore_handlers.go` | Funk und Messenger |
+| `cyd_handlers.go` | Cheap Yellow Display |
+| `assets_handlers.go` | Recovery und UI-Paket |
 
 ### 9.3 SSE (Server-Sent Events)
 
@@ -689,7 +691,7 @@ Co-Agenten ermöglichen parallele Agenten-Ausführung für spezialisierte Aufgab
 
 ### 10.1 Architektur
 
-Implementiert in [`internal/agent/coagent.go`](../../../internal/agent/coagent.go) (~850 Zeilen):
+Implementiert in [`internal/agent/coagent.go`](../../../internal/agent/coagent.go):
 
 - **CoAgentRegistry**: Verwaltet aktive Co-Agenten
 - **CoAgentRequest**: Task-Beschreibung mit Specialist, Priority, ContextHints
@@ -908,6 +910,10 @@ Das A2A-Protokoll in [`internal/a2a/`](../../../internal/a2a/) ermöglicht Inter
 
 [`internal/push/manager.go`](../../../internal/push/manager.go) – Push-Benachrichtigungen an mobile Geräte.
 
+### 17.6 MeshCore und native SIP
+
+[`internal/meshcore/`](../../../internal/meshcore/) besitzt genau ein Companion-Gerät, versionierte Inbox und USB/BLE. [`internal/sipphone/`](../../../internal/sipphone/) (Diago) ist ein Endpoint, ein Vault-Passwort, höchstens ein aktiver Call. Verträge: [meshcore-de.md](../../meshcore-de.md), [sip_telephony.md](../../sip_telephony.md).
+
 ---
 
 ## 18. Smart Home und IoT
@@ -977,12 +983,11 @@ Das A2A-Protokoll in [`internal/a2a/`](../../../internal/a2a/) ermöglicht Inter
 
 ### 19.5 Homepage
 
-[`internal/tools/homepage.go`](../../../internal/tools/homepage.go) – Homepage Dashboard Builder:
+[`internal/tools/homepage.go`](../../../internal/tools/homepage.go) und `data/homepage_registry.db` — verwaltete **Website-Projekte**, kein Widget-Dashboard:
 
-- Projekt-Erstellung und -Verwaltung
-- Git-Integration für Deployment
-- Proxy für lokale Entwicklung
-- Revision-Management
+- Projekt-Identität ist das Verzeichnis relativ zu `homepage.workspace_path`
+- Ledger für Dateien, Revisionen, Deploy-Ziele und Drift
+- here.now und andere Provider hängen erst nach einem verifizierten Publish dran
 
 ### 19.6 Weitere Infrastruktur-Tools
 

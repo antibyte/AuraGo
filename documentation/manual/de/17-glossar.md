@@ -160,7 +160,7 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 
 | Pfad | Inhalt |
 |------|--------|
-| `agent_workspace/prompts/` | System-Prompts und Persönlichkeiten |
+| `prompts/` | Identity, Regeln, Persönlichkeiten |
 | `agent_workspace/skills/` | Python-Skills |
 | `agent_workspace/tools/` | Vom Agent erstellte Tools |
 | `agent_workspace/workdir/` | Arbeitsverzeichnis (Sandkasten) |
@@ -194,6 +194,13 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 | **Video Generation** | KI-Generierung kurzer Videos aus Text- oder Bildvorgaben |
 | **Media Registry** | Datenbank für generierte oder importierte Medien mit Suche, Tags und Metadaten |
 | **Mission Preparation** | LLM-gestützte Voranalyse von Missionen vor der Ausführung |
+| **Web-Assets** | Versioniertes UI-Paket neben der Binary; ungepinntes Build = nur Recovery |
+| **Workspace-Jail** | Datei-Tools bleiben in `agent_workspace`; `config.yaml` und `data/` sind tabu |
+| **MeshCore** | Companion-Funk mit Vertrauensmodell und Desktop-Messenger |
+| **AgoDesk** | Desktop-Client (Windows/Linux), nicht die Web-UI |
+| **Managed Garage** | Von AuraGo verwalteter S3-Speicher für Virtual Computers |
+| **Speech Lab** | Lokaler ASR-/TTS-Stack; Chat-Routing nur nach Lab-ASR |
+| **Operational Issues** | Sanitized Betriebsprobleme; der Agent benachrichtigt nicht selbst |
 
 ---
 

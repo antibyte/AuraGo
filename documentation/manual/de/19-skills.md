@@ -1,6 +1,10 @@
 # Kapitel 19: Skills
 
-Erstelle wiederverwendbare Python-Skills zur Erweiterung von AuraGos Fähigkeiten.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="480" alt="AuraGo-Gopher vor der Werkzeugkiste"></a>
+</p>
+
+Zwei Familien: **Python-Skills** zum Ausführen, **Agent Skills** (`SKILL.md`) für wiederholbare Abläufe. Neue Agent Skills nur über den Skill Manager, nicht per Hand in den Ordner legen.
 
 > 💡 **Skill Manager:** Uploads, Aktivierung und Sicherheits-Scan über **Config → Tools → Fähigkeiten-Manager** oder die Seite **Skills** (`/skills`).
 

@@ -1,9 +1,12 @@
 # Kapitel 21: REST API Referenz
 
-AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf alle Funktionen. Die API folgt den REST-Prinzipien und verwendet JSON für die Datenübertragung.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="400" alt="AuraGo-Gopher vor der Werkzeugkiste"></a>
+</p>
 
-> 📅 **Stand:** 5. August 2026
-> 🔌 **Basis-URL:** `http://localhost:8088` (Standard)
+JSON, Admin-Auth wo es weh tut, SSE unter `GET /events`. Kein öffentlicher Chat-`/ws`. Default-Origin: `http://localhost:8088`.
+
+> Stand: 9. September 2026. Routen ohne spezifizierte Mutation sind so, wie der Server sie registriert — nicht wie ein Wunschkonzert.
 
 ---
 
@@ -66,6 +69,7 @@ AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf all
 55. [Todos API](#todos-api)
 56. [Preferences API](#preferences-api)
 57. [Space Agent API](#space-agent-api)
+58. [Warnings API](#warnings-api)
 59. [3D Printer API](#3d-printer-api)
 60. [AgentMail API](#agentmail-api)
 61. [Native SIP API](#native-sip-api)
@@ -82,9 +86,12 @@ AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf all
 72. [here.now API](#herenow-api)
 73. [Desktop Log API](#desktop-log-api)
 74. [Operational-Issues-API](#operational-issues-api)
-75. [SSE Events](#sse-events)
-76. [Fehlerbehandlung](#fehlerbehandlung)
-77. [Weiterführende Links](#weiterführende-links)
+75. [go2rtc API](#go2rtc-api)
+76. [Bluetooth API](#bluetooth-api)
+77. [Cheap Yellow Display API](#cheap-yellow-display-api)
+78. [SSE Events](#sse-events)
+79. [Fehlerbehandlung](#fehlerbehandlung)
+80. [Weiterführende Links](#weiterführende-links)
 
 ---
 
@@ -2114,7 +2121,7 @@ Oder alle bestätigen:
 
 ### Verbindung testen
 ```http
-GET /api/3d-printers/test
+POST /api/3d-printers/test
 ```
 
 ### Kamera-Snapshot / Stream
@@ -2360,6 +2367,8 @@ Operational-Issue-Lebenszyklus.
 
 ## here.now API
 
+Status und Account-Katalog. Publish-Mutationen bleiben im Homepage-/here.now-Vertrag, siehe [Kapitel 8](08-integrations.md#herenow-integration).
+
 ```http
 GET  /api/here-now/status
 POST /api/here-now/test-connection
@@ -2458,6 +2467,45 @@ Datensätze sind bereinigt und verwenden nicht umkehrbare öffentliche IDs.
 Archivieren und Auflösen bewahren die Historie.
 
 ---
+
+## go2rtc API
+
+Admin-Setup, Viewer nur mit `go2rtc.view`. Quellen und das interne Passwort bleiben im Vault. Der Viewer-Proxy strippt Caller-Cookies.
+
+```http
+GET /api/go2rtc/status
+POST /api/go2rtc/test
+GET /api/go2rtc/viewer/{stream_id}
+GET /api/go2rtc/thumbnail/{stream_id}.jpg
+```
+
+Stream-Mutationen und ONVIF-Discovery sind Admin-POST/PUT. Ein HTTP 202 heißt: gewünschter Zustand ist gespeichert, die Runtime holt nach. Details: [go2rtc](../../go2rtc.md).
+
+## Bluetooth API
+
+Nur Linux/BlueZ. Entdecken und Pairing brauchen `readonly: false`. Wiedergabe nur Workspace-Dateien oder Media-Registry, keine URLs.
+
+```http
+GET /api/bluetooth/status
+POST /api/bluetooth/reprobe
+POST /api/bluetooth/discover
+POST /api/bluetooth/devices/action
+POST /api/bluetooth/audio/test
+POST /api/bluetooth/audio/stop
+```
+
+## Cheap Yellow Display API
+
+Geräte-Endpunkte für das ESP32-Glas. Token nicht loggen. Config-Tests und Firmware-Provision sind Admin.
+
+```http
+GET /api/cyd/status
+POST /api/cyd/test
+GET /api/cyd/snapshot
+POST /api/cyd/heartbeat
+POST /api/cyd/ack
+GET /api/cyd/ws
+```
 
 ## SSE Events
 

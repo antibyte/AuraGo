@@ -1,8 +1,10 @@
 # Chapter 7: Configuration
 
-> 💡 **Web UI first:** AuraGo is fully configurable through **Menu → Config** in the Web UI. Use the sidebar to find providers, agent behavior, tools, integrations, and security settings. The `config.yaml` file and YAML snippets in this chapter are alternatives for headless servers, automation, and advanced setups.
+<p align="center">
+  <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="480" alt="AuraGo gopher setting things up"></a>
+</p>
 
-AuraGo's behavior is controlled through the Web UI, a central configuration file (`config.yaml`), and environment variables. This chapter explains all configuration options and how to customize AuraGo for your needs.
+Web UI first. YAML for headless and GitOps. Secrets in the vault, not the file. `config_template.yaml` is the schema; a file named `config.yaml` in the GitHub root does not exist.
 
 ## Table of Contents
 
@@ -1041,7 +1043,14 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `mission_preparation` | Pre-analyze missions via LLM. | `mission_preparation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  timeout_seconds: 120`<br>`  max_essential_tools: 5` |
 | `s3` | S3-compatible storage. | `s3:`<br>`  enabled: false`<br>`  readonly: false`<br>`  endpoint: ""`<br>`  region: us-east-1`<br>`  bucket: ""` |
 | `sql_connections` | External DB connections. | `sql_connections:`<br>`  enabled: false`<br>`  max_pool_size: 5`<br>`  connection_timeout_sec: 30`<br>`  query_timeout_sec: 120` |
-| `homepage` | Personal dashboard deploy. | `homepage:`<br>`  enabled: false`<br>`  allow_deploy: false`<br>`  allow_container_management: true`<br>`  webserver_port: 8080` |
+| `homepage` | Managed website projects (not a widget dashboard). | `homepage:`<br>`  enabled: false`<br>`  allow_deploy: false`<br>`  allow_container_management: true`<br>`  webserver_port: 8080` |
+| `meshcore` | Companion radio, inbox, messenger. | `meshcore:`<br>`  enabled: false` |
+| `go2rtc` | Managed cameras; sources stay in the vault. | `go2rtc:`<br>`  enabled: false` |
+| `sip` / `speech_lab` | Native SIP and local ASR/TTS. | see [SIP](../../sip_telephony.md) / [Speech Lab](../../s2s_speech_lab.md) |
+| `local_llm` | Qwen, Ling, experimental Spark. | see the Local LLM block above |
+| `bluetooth` | BlueZ status and playback. | `bluetooth:`<br>`  enabled: false`<br>`  readonly: true` |
+| `three_d_printers` | Klipper / Elegoo. | `three_d_printers:`<br>`  enabled: false` |
+| `here_now` | Permanent static sites. | `here_now:`<br>`  enabled: false` |
 | `netlify` | Netlify site management. | `netlify:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_deploy: false`<br>`  allow_site_management: false` |
 | `cloudflare_tunnel` | cloudflared integration. | `cloudflare_tunnel:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: auto`<br>`  auto_start: true` |
 | `tailscale` | Tailscale VPN integration. | `tailscale:`<br>`  enabled: false`<br>`  readonly: false`<br>`  tailnet: ""`<br>`  tsnet:`<br>`    enabled: false`<br>`    hostname: "aurago"`<br>`    serve_http: false`<br>`    expose_homepage: false`<br>`    funnel: false`<br>`    allow_http_fallback: false` |

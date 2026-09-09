@@ -1,6 +1,10 @@
 # Chapter 16: Troubleshooting
 
-This chapter helps you diagnose and resolve common issues with AuraGo. From installation problems to runtime errors, you'll find solutions and guidance here.
+<p align="center">
+  <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="480" alt="AuraGo gopher unpacking an installation crate"></a>
+</p>
+
+Logs first, then toggles, then the resource set. `log/aurago.log` is the trail — not `supervisor.log`.
 
 ---
 
@@ -24,7 +28,7 @@ This chapter helps you diagnose and resolve common issues with AuraGo. From inst
 
 When encountering issues, follow this systematic approach:
 
-1. **Check the logs** – Always start with `log/supervisor.log`
+1. **Check the logs** – Always start with `log/aurago.log`
 2. **Verify configuration** – Check settings in **Menu → Config** (or validate `config.yaml` on headless installs)
 3. **Test connectivity** – Check network and API access
 4. **Isolate the problem** – Disable integrations one by one
@@ -35,7 +39,7 @@ When encountering issues, follow this systematic approach:
 ```
 □ Is AuraGo running? (check process/systemctl status)
 □ Is the Web UI accessible? (http://localhost:8088)
-□ Are logs being written? (check log/supervisor.log)
+□ Are logs being written? (check log/aurago.log)
 □ Is the LLM API key valid? (test with curl)
 □ Is the master key set? (echo $AURAGO_MASTER_KEY)
 □ Is the config.yaml valid? (check with YAML linter)
@@ -54,18 +58,25 @@ When encountering issues, follow this systematic approach:
 | `resources.dat not found` | Resource file missing | Ensure `resources.dat` is in the same directory |
 | `no such file or directory` | Architecture mismatch | Download correct binary for your OS/arch |
 
+### Recovery / login page only
+
+The full UI is missing, or the binary is not pinned to the resource set.
+
+```bash
+./aurago --assets-info
+./aurago --check-assets
+./aurago --install-assets aurago-web-assets-<id>.tar.gz
+```
+
+`assetpack` alone cannot repair an unpinned binary. Rebuild with the generated ldflags, verify, restart. [Web assets](../../web-assets.md).
+
 ### Missing Resources
+
+`resources.dat` is the **backend archive** (prompts, skills, template). It does not replace the Web UI. If only the UI is missing, use `--check-assets` above.
 
 > ⚠️ **Error:** `resources.dat not found or corrupted`
 
-**Solution:**
-```bash
-# Re-download resources.dat
-curl -O https://github.com/antibyte/AuraGo/releases/latest/download/resources.dat
-
-# Or run setup again
-./aurago --setup
-```
+**Solution:** Place the release asset `resources.dat` next to the binary. Do not rename a UI `tar.gz` to `resources.dat`. Then run `./aurago --setup` if prompts or skills are missing.
 
 ### Build from Source Failures
 
@@ -398,7 +409,7 @@ docker compose up -d
 
 | Platform | Log Location |
 |----------|--------------|
-| Native | `./log/supervisor.log` |
+| Native | `log/aurago.log` (plus `log/web_access.log`) |
 | Docker | `docker compose logs -f` |
 | Systemd | `journalctl -u aurago -f` |
 
@@ -436,16 +447,16 @@ AuraGo uses structured logging with these levels:
 
 ```bash
 # View only errors
-grep ERROR log/supervisor.log
+grep ERROR log/aurago.log
 
 # Follow logs in real-time
-tail -f log/supervisor.log
+tail -f log/aurago.log
 
 # Last 100 lines
-tail -n 100 log/supervisor.log
+tail -n 100 log/aurago.log
 
 # Search for specific tool
-grep "execute_shell" log/supervisor.log
+grep "execute_shell" log/aurago.log
 ```
 
 ---
@@ -716,19 +727,17 @@ Contact: [Security contact information from project]
 
 ---
 
-## Quick Reference: Error Codes
+## Extra checks for current features
 
-| Error | Meaning | Action |
-|-------|---------|--------|
-| `E001` | Vault decryption failed | Check AURAGO_MASTER_KEY |
-| `E002` | Config parse error | Validate YAML syntax |
-| `E003` | Database locked | Kill duplicate processes |
-| `E004` | LLM timeout | Increase timeout or check API |
-| `E005` | Tool execution failed | Check tool parameters |
-| `E006` | Rate limited | Wait or increase step_delay |
-| `E007` | Circuit breaker open | Wait for retry interval |
-| `E008` | Budget exceeded | Check /budget, reset at midnight |
+| Area | Check |
+|------|--------|
+| Speech Lab / SIP | `/ready` snapshot, ports 8765/8766, no cloud fallback |
+| MeshCore | Companion connected? Operational Issues, not the normal chat inbox |
+| go2rtc | Vault sources, container status, same-origin viewer only |
+| Web assets | `./aurago --check-assets` — an unpinned binary stays on recovery |
 
----
+## Quick reference
 
-> 💡 **Remember:** Most issues can be resolved by checking logs, verifying configuration, and ensuring network connectivity. When in doubt, restart AuraGo – it's designed to be stateless and recover gracefully.
+There is no `E001`…`E008` catalog. Read the log line and the HTTP/JSON `error` field. Vault problems almost always mean `AURAGO_MASTER_KEY`. A recovery page without a resource ID means an unpinned binary. Chat cannot read `config.yaml` — that is the workspace jail.
+
+> Logs, toggles, then the resource set. Restart is cheap; a missing master key is not.

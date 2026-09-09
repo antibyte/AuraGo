@@ -1,10 +1,14 @@
 # Chapter 4: The Web Interface
 
-The web interface is your control center for AuraGo. This chapter explains all elements and functions.
+<p align="center">
+  <a href="../images/manual-desktop.webp"><img src="../images/manual-desktop.webp" width="560" alt="AuraGo gopher inside a hand-inked retro desktop with a CRT and tiny windows"></a>
+</p>
 
-## Overview
+Chat, Config, Desktop, Missions — separate pages, not a SPA framework. The files come from the **local resource set**, not from `go:embed` of the whole `ui/` tree. Missing set: recovery page.
 
-The Web UI is a **multi-page embedded application** — each major area (Chat, Config, Dashboard, Missions, etc.) has its own HTML page. Navigation between areas triggers a full page load. Most pages require `web_config.enabled: true`.
+Most pages need `web_config.enabled: true`. Navigation reloads the page.
+
+[![Real Virtual Desktop](../../screenshots/desktop.png)](../../screenshots/desktop.png)
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -265,14 +269,9 @@ The Software Store uses AuraGo-managed Docker containers. Apps can expose creden
 
 ## Mission Control
 
-Interface for automated tasks.
+Scheduled work and prepared prompts — **not** eggs and nests. Those live under [Invasion Control](12-invasion.md).
 
-### Tabs
-
-| Tab | Content |
-|-----|---------|
-| Nests | Connections to servers (SSH, Docker, etc.) |
-| Eggs | Templates for deployments |
+Typical pieces: queue, execution, history, and prepared missions.
 
 ### Card View
 

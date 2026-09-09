@@ -1,6 +1,10 @@
 # Chapter 19: Skills
 
-Create reusable Python skills to extend AuraGo's capabilities.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="480" alt="AuraGo gopher in front of the toolbox"></a>
+</p>
+
+Two families: **Python skills** for execution, **Agent Skills** (`SKILL.md`) for repeatable workflows. Create new Agent Skills through the Skill Manager — do not drop folders in by hand.
 
 ---
 

@@ -1,6 +1,10 @@
 # Kapitel 6: Werkzeuge
 
-AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen Chatbot zu einem autonomen Agenten machen.
+<p align="center">
+  <a href="../images/manual-tools.webp"><img src="../images/manual-tools.webp" width="560" alt="AuraGo-Gopher vor einer übervollen Home-Lab-Werkzeugkiste"></a>
+</p>
+
+Der Katalog ist groß und feature-gated. „100+“ ist die Größenordnung der dokumentierten nativen Tools — deine Instanz zeigt nur, was Config gerade erlaubt.
 
 ---
 
@@ -15,7 +19,7 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 | **🖥️ Proxmox** | VMs, LXCs, Snapshots | Ja |
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D-Drucker, go2rtc, Netzwerkfreigaben | Ja (teilweise) |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | Nein (teilweise) |
-| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx, native SIP-Telefonie, Rocket.Chat, MQTT, MeshCentral | Nein (teilweise) |
+| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx, native SIP-Telefonie, Rocket.Chat, MQTT, MeshCentral, MeshCore, Bluetooth | Nein (teilweise) |
 | **🎬 Medien-Generierung** | Bilder, Musik, Videos, TTS, Vision, Piper, Supertonic, Media Registry | Nein (Provider-Limits) |
 | **🔧 System** | Metriken, Prozesse, Cron, Sandbox, Background Tasks, Daemon Skills | Teilweise |
 | **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph, Cheatsheets, Core Memory | Nein |
@@ -61,6 +65,11 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **Manus** | Richtliniengeschützte asynchrone Aufgaben und kontrollierte Dateiübertragung |
 | **OmniRoute** | Verwaltetes oder externes OpenAI-kompatibles Gateway |
 | **EvoMap** | Optionale GEP-/A2A-Integration mit sicherem Read-only-Standard |
+| **MeshCore** | Companion-Funk, vertrauensbasierter Inbox, Desktop-Messenger |
+| **go2rtc** | Verwaltete Kameras, Vault-Quellen, Viewer same-origin |
+| **here.now** | Permanente Sites aus einem Workspace-Snapshot |
+| **Lokales LLM** | Qwen, Ling, experimentelles Spark — nicht jede GPU-Runtime ist qualifiziert |
+| **Bluetooth** | BlueZ, Just-Works-Pairing, Wiedergabe nur aus dem Workspace |
 
 ---
 
@@ -306,8 +315,8 @@ Die Suche ist vom semantischen RAG-Indexer getrennt: Sie liefert Dateitreffer un
 agent:
   adaptive_tools:
     enabled: true
-    max_tools: 10               # Limit fuer adaptive/bevorzugte Tools
-    max_total_tools: 20         # Gesamtlimit fuer native Tool-Schemas
+    max_tools: 10               # Limit für adaptive/bevorzugte Tools
+    max_total_tools: 20         # Gesamtlimit für native Tool-Schemas
     max_schema_tokens: 6500     # Grobe Schema-Token-Grenze (0 = unbegrenzt)
     provider_profiles_enabled: true
     session_tool_retention_turns: 8
@@ -328,7 +337,7 @@ agent:
 
 Die Einstellung `max_tools` begrenzt nur adaptive beziehungsweise bevorzugte Tools. AuraGo behält zuerst hart benötigte Recovery-Tools, danach den kleinen weichen Always-Include-Kern und zuletzt genutzte Session-Tools, dann adaptive Tools. Tools wie `ddg_search`, `api_request`, `docker`, `execute_python`, `file_editor`, `manage_missions` und Virtual-Desktop-Helfer werden normalerweise über Intent, Kanal, letzte Nutzung oder `discover_tools` eingeblendet.
 
-Das finale native Schema-Budget wird ueber `max_total_tools` gesteuert, wo es moeglich ist. Providerprofile sind nur Stabilitaets-Overlays; normaler Chat, Bots, Missionen, Hintergrundaufgaben und Desktop-Sessions nutzen denselben Budgetpfad.
+Das finale native Schema-Budget wird über `max_total_tools` gesteuert, wo es möglich ist. Providerprofile sind nur Stabilitäts-Overlays; normaler Chat, Bots, Missionen, Hintergrundaufgaben und Desktop-Sessions nutzen denselben Budgetpfad.
 
 ---
 

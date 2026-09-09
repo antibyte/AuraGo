@@ -1,6 +1,10 @@
 # Chapter 5: Chat Basics
 
-Effective communication with AuraGo – from simple messages to complex workflows.
+<p align="center">
+  <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="560" alt="AuraGo gopher at the chat computer"></a>
+</p>
+
+Say what you want. Not which tool to pick — unless you have to.
 
 ## How to Communicate Effectively with AuraGo
 

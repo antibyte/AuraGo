@@ -1,6 +1,10 @@
 # Kapitel 18: Anhang
 
-Referenzmaterial, vollständige Konfigurationen und nützliche Ressourcen.
+<p align="center">
+  <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="400" alt="AuraGo-Gopher mit Handbuch"></a>
+</p>
+
+Kurzreferenz. Die lange Wahrheit liegt in `config_template.yaml` und [Kapitel 21](21-api-reference.md).
 
 ## Vollständige Konfigurationsreferenz
 
@@ -34,7 +38,7 @@ llm:
 server:
   host: "127.0.0.1"           # Bind address (0.0.0.0 for LAN)
   port: 8088                  # HTTP port
-  max_body_bytes: 33554432    # Max upload size (32MB)
+  max_body_bytes: 10485760    # Max upload size (10MB, Template-Default)
 
 embeddings:
   provider: "local-granite"   # Standard bei Neuinstallationen; eigene Provider bleiben möglich
@@ -265,8 +269,11 @@ web_config:
 
 | Endpoint | Zweck |
 |----------|-------|
-| `/events` | Server-Sent Events für Echtzeit-Updates |
-| `/ws` | WebSocket für bidirektionale Kommunikation |
+| `GET /events` | Server-Sent Events (Chat und Live-UI) |
+| `GET /api/agodesk/ws` | AgoDesk |
+| `WS /api/invasion/ws` | Invasion-Eggs |
+
+Es gibt keinen öffentlichen Chat-`/ws` und kein `/api/tools/execute`. Ohne UI-Paket ist `/` die Reparaturseite. Vollständige Liste: [Kapitel 21](21-api-reference.md).
 
 ## Chat-Befehle Referenz
 
@@ -489,7 +496,8 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 │   ├── system_tasks.db       # Cron + Hintergrundtasks (SQLite)
 │   └── vectordb/             # Langzeit-Speicher (chromem)
 └── log/
-    └── supervisor.log        # Haupt-Log
+    ├── aurago.log            # Anwendung
+    └── web_access.log        # HTTP-Zugriff
 ```
 
 ### Plattform-spezifische Pfade
@@ -502,14 +510,7 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 
 ## Update-Historie (Changelog)
 
-### v1.0.0 (Template)
-- ✨ Initiale Version
-- 🤖 Agent Core mit 50+ Tools
-- 🧠 Memory System (STM, LTM, Knowledge Graph)
-- 🎭 Personality Engine V1/V2
-- 🔐 AES-256 Vault
-- 💬 Web UI, Telegram, Discord
-- 📊 Dashboard & Analytics
+Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch beschreibt den Stand vom **9. September 2026**.
 
 ## Nützliche Ressourcen
 
@@ -547,6 +548,10 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 | File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, `POST /api/debug/kg-file-sync-cleanup` |
 | A2A | `GET /api/a2a/status`, `GET /api/a2a/card`, `GET /api/a2a/remote-agents`, `POST /api/a2a/test` |
 | Backup/Restore | `POST /api/backup/create`, `POST /api/backup/import` |
+| go2rtc | `GET /api/go2rtc/status`, `POST /api/go2rtc/test` |
+| MeshCore | `GET /api/meshcore/status`, `POST /api/meshcore/test` |
+| Bluetooth | `GET /api/bluetooth/status`, `POST /api/bluetooth/reprobe` |
+| CYD | `GET /api/cyd/status`, `POST /api/cyd/test` |
 
 ## Aktualisierte Tool-Kurzreferenz
 

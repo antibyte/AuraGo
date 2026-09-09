@@ -1,6 +1,10 @@
 # Kapitel 3: Schnellstart
 
-Deine ersten 5 Minuten mit AuraGo – von der Installation zum produktiven Chat.
+<p align="center">
+  <a href="../images/manual-chat.webp"><img src="../images/manual-chat.webp" width="560" alt="AuraGo-Gopher am Retro-Rechner im Chat"></a>
+</p>
+
+Fünf Minuten. Setup durchklicken, etwas Harmloses fragen, nicht die Config-Datei anfassen.
 
 ## Voraussetzungen
 
@@ -165,8 +169,10 @@ AuraGo hat über 100 eingebaute Tools. Hier sind einige zum Ausprobieren:
 ```
 Du: Liste alle Dateien im aktuellen Verzeichnis
 Du: Erstelle einen Ordner "projekte"
-Du: Lies die Datei config.yaml
+Du: Zeig mir Systeminformationen
 ```
+
+Datei-Tools bleiben in `agent_workspace`. `config.yaml` und `data/` sind von dort aus nicht lesbar — das ist die Workspace-Jail, kein Bug.
 
 ### Web & Suche
 ```
@@ -193,11 +199,12 @@ Klicke auf das **Radial-Menü** (☰ oben rechts) für den Hauptmenü:
 
 | Bereich | Funktion |
 |---------|----------|
-| 💬 Chat | Haupt-Chat-Oberfläche |
-| 📊 Dashboard | System-Metriken, Mood-Verlauf |
-| 🚀 Missions | Automatisierte Aufgaben |
-| 🥚 Invasion | Remote-Deployment |
-| ⚙️ Config | Einstellungen bearbeiten |
+| Chat | Hauptgespräch |
+| Desktop | Experimenteller Workspace mit Apps |
+| Dashboard | Metriken, Issues, Affect |
+| Missions | Geplante Arbeit — nicht Eggs/Nests |
+| Invasion | Remote-Eggs auf Nests |
+| Config | Einstellungen |
 
 ## Dark/Light Theme
 

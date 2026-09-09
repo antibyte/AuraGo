@@ -1,19 +1,23 @@
 # Chapter 2: Installation
 
-This chapter guides you step by step through installing AuraGo.
+<p align="center">
+  <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="560" alt="AuraGo gopher unpacking the binary and resource bundle at a workbench"></a>
+</p>
+
+Three roads, same gopher: installer, Docker, or build it yourself. The full UI arrives as a **matching resource set** — not a second website, and not entirely inside the binary.
 
 ## System Requirements
 
 ### Minimum
 - 64-bit operating system (Linux, macOS, Windows 10+)
-- 2 GB RAM
-- 500 MB free disk space
-- Internet connection (for LLM API)
+- 512 MB RAM (without local models)
+- 500 MB free disk plus the UI set
+- Internet, once a hosted model or the first download is needed
 
 ### Recommended
-- 4 GB RAM or more
-- Python 3.10+ (for tool execution)
-- SSD for better performance
+- 2 GB RAM or more (local models and GPU runtimes want much more)
+- Python 3.10+ (for skill execution)
+- SSD
 
 ### Supported Platforms
 
@@ -54,38 +58,30 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | A
 The safest method – AuraGo runs in a container:
 
 ```bash
-# Create directory
-mkdir aurago && cd aurago
-
-# Download compose file and config
-curl -O https://raw.githubusercontent.com/antibyte/AuraGo/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/antibyte/AuraGo/main/config.yaml
-
-# Configure (add API key)
-nano config.yaml
-
-# Start
+git clone https://github.com/antibyte/AuraGo.git
+cd AuraGo
 docker compose up -d
 ```
 
-> 💡 **Docker advantage:** Complete isolation, easy backup, no Python dependencies on host.
+Open **http://localhost:8088**. The image ships volumes and the UI set. It creates a vault key if none is supplied. Keep that key with the backups.
 
-> ⚠️ **Important for Docker:** Set host to `0.0.0.0` in **Config → Server → Host** (YAML alternative in `config.yaml`):
-> ```yaml
-> server:
->   host: "0.0.0.0"
-> ```
+Do **not** curl `config.yaml` from the GitHub root — that file is not in the repo. The template is `config_template.yaml`. A host bind named `./config.yaml` easily becomes a directory under Docker. Optional: `config/config.yaml`. Details: [Docker guide](../../docker_installation.md).
+
+> **Docker advantage:** isolation, easier backups, no Python on the host.
+
+> For LAN access set the host to `0.0.0.0` under **Config → Server**.
 
 ### Option C: Manual Installation
 
 **Step 1: Download**
 
-Download two files from GitHub Releases:
+Download from GitHub Releases:
 
 | File | Description |
 |------|-------------|
-| `aurago_<os>_<arch>` | The AuraGo executable |
-| `resources.dat` | Resource archive (prompts, skills, tools) |
+| `aurago_<os>_<arch>` | The AuraGo executable (must be pinned to the same resource set) |
+| `aurago-web-assets-<id>.tar.gz` | Full web UI, desktop, Game Maker runtimes |
+| `resources.dat` | Prompts, skills and other backend resources — **not a UI replacement** |
 
 **Step 2: Create directory**
 
@@ -106,7 +102,16 @@ The setup will:
 - Generate a master key (saved in `.env`)
 - Install a system service (optional)
 
-### Option D: Build from Source
+Then install and verify the UI set:
+
+```bash
+./aurago --install-assets aurago-web-assets-<id>.tar.gz
+./aurago --check-assets
+```
+
+Without a matching set — or with an unpinned binary — you only get the recovery page.
+
+### Option D: Build from source
 
 For developers or if you want to modify the code:
 
@@ -232,7 +237,7 @@ sudo systemctl start aurago
 
 # Or via service
 sudo journalctl -u aurago -f   # Linux
-tail -f log/supervisor.log     # Direct
+tail -f log/aurago.log     # Direct
 ```
 
 You should see:
@@ -257,24 +262,19 @@ You should see the login screen or chat (depending on auth configuration).
 ├── .env                      # Master key (KEEP SECRET!)
 ├── config.yaml               # Your configuration
 ├── agent_workspace/
-│   ├── prompts/              # System prompts & personalities
-│   ├── skills/               # Pre-built Python skills
+│   ├── skills/               # Python skills
 │   ├── tools/                # Agent-created tools
-│   └── workdir/              # Working directory
-│       └── attachments/      # Uploaded files
+│   └── workdir/              # Sandbox (jail root for file tools)
+├── prompts/                  # Identity, rules, personalities (not under workdir)
+├── assets/web/               # Installed UI resource set
 ├── data/
-│   ├── short_term.db         # SQLite – chat history & short-term memory
-│   ├── core_memory.md        # Persistent core memory (Markdown)
-│   ├── knowledge_graph.db    # Knowledge graph (entities/relations)
-│   ├── system_tasks.db       # Background tasks & cron jobs
-│   ├── mission_history.db    # Mission history
-│   ├── media_registry.db     # Generated media (images/audio/video)
-│   ├── inventory.db          # SSH device inventory
-│   ├── invasion.db           # Invasion control eggs/nests
-│   ├── vault.bin             # Encrypted secrets (AES-256-GCM)
-│   └── vectordb/             # Vector database (chromem-go)
+│   ├── short_term.db         # Chat history
+│   ├── vault.bin             # Secrets (AES-256-GCM)
+│   ├── vectordb/             # Semantic memory
+│   └── *.db                  # Inventory, invasion, media, knowledge graph, …
 └── log/
-    └── aurago_YYYY-MM-DD.log # Structured daily logs (slog)
+    ├── aurago.log            # Application
+    └── web_access.log        # HTTP access
 ```
 
 ## Updating
@@ -322,7 +322,8 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 
 | Problem | Solution |
 |---------|----------|
-| `resources.dat not found` | File must be in same directory as `aurago` |
+| Recovery/login page only | Unpinned binary or missing UI set. `./aurago --check-assets`, `--install-assets`, or rebuild with asset flags. [Web assets](../../web-assets.md) |
+| `resources.dat not found` | Put the file next to the binary (prompts/skills — not the UI) |
 | `AURAGO_MASTER_KEY is missing` | Load `.env`: `export $(cat .env \| xargs)` |
 | Port already in use | Change port in **Config → Server** (YAML: `server.port`) |
 | Python venv error | Install Python 3.10+: `sudo apt install python3 python3-venv` |
