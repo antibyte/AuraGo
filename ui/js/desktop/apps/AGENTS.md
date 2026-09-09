@@ -33,6 +33,10 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### God's Eye View Store setup
 
+- Store operation failures remain as escaped, accessible text on the app card
+  until retry, including when install rollback removes the installed record.
+  Notify before refreshing Desktop bootstrap; refresh failures must not hide
+  the original operation error. Polling errors must remain visible as well.
 - `software-store.js` adds `Einrichten` for installed `gods-eye-view` only.
   GET/PUT `/api/desktop/store/apps/gods-eye-view/config` returns flags/origins,
   never saved keys. Empty fields preserve, checkboxes explicitly delete, and
@@ -46,6 +50,8 @@ buttons and menu popovers remain excluded from those gestures.
   frame, adds microphone only for this app, passes `aurago_lang` to the managed
   notice and keeps external-open disabled. No new proxy path or auto-start is
   introduced. Logo/license live under `img/desktop/store/gods-eye-view.*`.
+  Papirus and WhiteSur register `gods-eye-view` with copies of that SVG carrying
+  its MIT notice; keep them synchronized with the backend preferred-icon list.
 - Verify `TestGodsEyeDesktopTranslations`, bundle `--check`, and opt-in
   `TestGodsEyeDesktopBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1` and
   `AURAGO_GEV_BROWSER=1`: reviewed image on 127.0.0.1:14173, allowed frame origin

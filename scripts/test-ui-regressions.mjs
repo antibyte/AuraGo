@@ -1991,7 +1991,37 @@ async function testDesktopChatSeparatesStreamedToolRounds() {
   }
 }
 
+async function testStoreOperationFailuresRemainVisible() {
+  const source = read('ui/js/desktop/apps/software-store.js');
+  const notifications = [];
+  const operationErrors = new Map();
+  const appID = 'gods-eye-view';
+  const context = {
+    operationErrors, busy: new Map(), pollingOperations: new Set(), instance: { disposed: false },
+    t: key => key, renderCards() {}, scheduleLoad() {}, delay: async () => {},
+    notify: message => notifications.push(message.message),
+    loadBootstrap: async () => { throw new Error('bootstrap unavailable'); },
+    api: async () => ({ operation: { status: 'failed', type: 'install', error: 'desktop registration failed' } })
+  };
+  vm.runInNewContext(sourceBetween(source, 'function showOperationError(', 'function delay('), context);
+  await context.pollOperation(appID, 'install-1');
+  assert.equal(operationErrors.get(appID), 'desktop registration failed');
+  assert.deepEqual(notifications, ['desktop registration failed']);
+  assert.equal(context.pollingOperations.size, 0);
+  context.api = async () => { throw new Error('operation request unavailable'); };
+  await context.pollOperation(appID, 'install-2');
+  assert.equal(operationErrors.get(appID), 'operation request unavailable');
+  context.api = async () => {
+    assert.equal(operationErrors.has(appID), false, 'retry must clear the old error');
+    return {};
+  };
+  await context.startOperation(appID, 'install', '/install', 'POST', {});
+  assert.equal(operationErrors.has(appID), false);
+  assert.match(source, /role="alert">\$\{esc\(operationError\)\}/, 'card errors must be escaped and accessible');
+}
+
 const tests = [
+  ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],

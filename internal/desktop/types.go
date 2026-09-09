@@ -349,6 +349,7 @@ var desktopPreferredIconNames = []string{
 	"gallery-action-edit",
 	"gallery-action-preview",
 	"globe",
+	"gods-eye-view",
 	"go",
 	"grid",
 	"heart",

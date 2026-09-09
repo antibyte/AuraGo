@@ -404,6 +404,10 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   Store operation slot. GET returns configured flags, exact allowed HTTP(S)
   origins and pending status only; PUT accepts known keys, explicit removals and
   at most eight origins. Blank/omitted key fields preserve existing values.
+- Every Store catalog icon must pass the real Desktop icon allowlist before
+  app/shortcut registration. `gods-eye-view` is a dedicated allowed icon using
+  the packaged logo. Verify catalog icons and installation with the real
+  Desktop service/Vault, not only the Store's mock adapters.
 - Desired and previous active provider settings live only in encrypted Vault
   `desktop_store_gods-eye-view_config`. SQLite and operation JSON contain no
   provider values, only the active revision. Resolve credentials when creating

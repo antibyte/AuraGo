@@ -28,6 +28,7 @@
         let catalog = [];
         let installed = [];
         let busy = new Map();
+        const operationErrors = new Map();
         const pollingOperations = new Set();
         const instance = { disposed: false, onDesktopEvent: null, pollingOperations, loadDebounceTimer: null };
         let dockerAvailable = true;
@@ -214,6 +215,7 @@
                 const fallback = `<div class="vd-store-logo-fallback"${!themedStoreIcon && entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed');
                 const warningText = hostAccessWarning(entry);
+                const operationError = operationErrors.get(entry.id) || (app && app.error);
                 return `<article class="vd-store-card" data-app-id="${esc(entry.id)}">
                     <div class="vd-store-card-head">
                         <div class="vd-store-logo-wrap">${logo}${fallback}</div>
@@ -224,6 +226,7 @@
                     </div>
                     <div class="vd-store-card-desc">${esc(entry.metadata && entry.metadata.description_key ? t(entry.metadata.description_key) : entry.description)}</div>
                     ${warningText ? `<div class="vd-store-card-warning">${esc(warningText)}</div>` : ''}
+                    ${operationError ? `<div class="vd-store-card-warning" role="alert">${esc(operationError)}</div>` : ''}
                     <div class="vd-store-meta">
                         <span class="vd-store-status status-${esc(status)}">${esc(statusLabel(status, operation))}</span>
                         <span>${esc(access)}</span>
@@ -591,7 +594,16 @@
             }
         }
 
+        function showOperationError(appId, message) {
+            message = message || t('desktop.store.operation_failed');
+            operationErrors.set(appId, message);
+            renderCards();
+            notify({ title: t('desktop.store.title'), message });
+        }
+
         async function startOperation(appId, action, url, method, payload) {
+            operationErrors.delete(appId);
+            renderCards();
             try {
                 const body = await api(url, {
                     method,
@@ -604,7 +616,7 @@
                     pollOperation(appId, body.operation.id);
                 }
             } catch (err) {
-                notify({ title: t('desktop.store.title'), message: err.message });
+                showOperationError(appId, err.message);
             }
         }
 
@@ -618,19 +630,24 @@
                     if (instance.disposed) return;
                     const body = await api('/api/desktop/store/operations/' + encodeURIComponent(operationId));
                     const op = body.operation;
+                    if (!op) throw new Error(t('desktop.store.operation_failed'));
                     busy.set(appId, op);
                     renderCards();
-                    if (!op || op.status === 'succeeded' || op.status === 'failed') {
+                    if (op.status === 'succeeded' || op.status === 'failed') {
                         busy.delete(appId);
+                        if (op.status === 'failed') showOperationError(appId, appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : op.error);
                         scheduleLoad(true, true);
-                        await loadBootstrap();
-                        if (op && op.status === 'failed') notify({ title: t('desktop.store.title'), message: appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : (op.error || t('desktop.store.operation_failed')) });
+                        // A shell refresh failure must not hide the operation result.
+                        try { await loadBootstrap(); } catch (_) {}
                         return;
                     }
                 }
             } catch (err) {
                 busy.delete(appId);
-                if (!instance.disposed) scheduleLoad(true, true);
+                if (!instance.disposed) {
+                    showOperationError(appId, err.message);
+                    scheduleLoad(true, true);
+                }
             } finally {
                 pollingOperations.delete(operationId);
             }
