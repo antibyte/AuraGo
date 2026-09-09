@@ -116,11 +116,12 @@ type Status struct {
 
 // StoreAppProxySpec describes one managed HTTPS proxy for a desktop store app.
 type StoreAppProxySpec struct {
-	ID           string `json:"id"`
-	Port         int    `json:"port"`
-	TargetURL    string `json:"target_url"`
-	APITargetURL string `json:"api_target_url,omitempty"`
-	Enabled      bool   `json:"enabled"`
+	PreserveFramePolicy bool   `json:"preserve_frame_policy,omitempty"`
+	ID                  string `json:"id"`
+	Port                int    `json:"port"`
+	TargetURL           string `json:"target_url"`
+	APITargetURL        string `json:"api_target_url,omitempty"`
+	Enabled             bool   `json:"enabled"`
 }
 
 // StoreAppProxyStatus is the public status for one active store app proxy.
@@ -1974,7 +1975,7 @@ func (m *Manager) ReconcileStoreAppProxies(specs []StoreAppProxySpec) error {
 	var toStop []StoreAppProxyStatus
 	for id, active := range m.storeProxySpecs {
 		desired, ok := want[id]
-		if ok && desired.Port == active.Port && desired.TargetURL == active.TargetURL && desired.APITargetURL == active.APITargetURL {
+		if ok && desired.Port == active.Port && desired.TargetURL == active.TargetURL && desired.APITargetURL == active.APITargetURL && desired.PreserveFramePolicy == active.PreserveFramePolicy {
 			continue
 		}
 		toStop = append(toStop, StoreAppProxyStatus{ID: id, Port: active.Port, TargetURL: active.TargetURL, APITargetURL: active.APITargetURL})
@@ -2063,6 +2064,9 @@ func newStoreAppProxyHandler(spec StoreAppProxySpec, logger *slog.Logger) (http.
 		return nil, fmt.Errorf("parse store app proxy target: %w", err)
 	}
 	uiProxy := newStoreAppReverseProxy(target, logger)
+	if spec.PreserveFramePolicy {
+		uiProxy.ModifyResponse = nil
+	}
 	if spec.APITargetURL == "" {
 		return uiProxy, nil
 	}

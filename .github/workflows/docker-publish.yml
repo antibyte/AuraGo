@@ -11,6 +11,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   CODE_STUDIO_IMAGE_NAME: ${{ github.repository_owner }}/aurago-code-studio
   COMMANDCODE_IMAGE_NAME: ${{ github.repository_owner }}/aurago-commandcode
+  GODS_EYE_IMAGE_NAME: ${{ github.repository_owner }}/aurago-gods-eye-view
   SUPERTONIC_IMAGE_NAME: ${{ github.repository_owner }}/aurago-supertonic
 
 jobs:
@@ -44,6 +45,7 @@ jobs:
           echo "IMAGE_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "CODE_STUDIO_IMAGE_LC=${CODE_STUDIO_IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "COMMANDCODE_IMAGE_LC=${COMMANDCODE_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "GODS_EYE_IMAGE_LC=${GODS_EYE_IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "SUPERTONIC_IMAGE_LC=${SUPERTONIC_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       # Needed for multi-platform (arm64) emulation
@@ -160,6 +162,33 @@ jobs:
             [ -n "$image" ] || continue
             cosign sign --yes "$image"
           done <<< "${{ steps.commandcode-meta.outputs.tags }}"
+
+      - name: Build and push God's Eye View image
+        id: gods-eye-build
+        uses: docker/build-push-action@v7
+        with:
+          context: internal/desktopstore/gods_eye_assets
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.GODS_EYE_IMAGE_LC }}:gev-7596522-1
+          provenance: true
+          sbom: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.GODS_EYE_IMAGE_LC }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GODS_EYE_IMAGE_LC }}:buildcache,mode=max
+
+      - name: Sign God's Eye View image
+        env:
+          IMAGE_DIGEST: ${{ steps.gods-eye-build.outputs.digest }}
+        run: cosign sign --yes "${REGISTRY}/${GODS_EYE_IMAGE_LC}@${IMAGE_DIGEST}"
+
+      - name: Verify God's Eye View signature
+        env:
+          IMAGE_DIGEST: ${{ steps.gods-eye-build.outputs.digest }}
+        run: >-
+          cosign verify
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          --certificate-identity "https://github.com/${GITHUB_WORKFLOW_REF}"
+          "${REGISTRY}/${GODS_EYE_IMAGE_LC}@${IMAGE_DIGEST}"
 
       - name: Extract Supertonic metadata (tags, labels)
         id: supertonic-meta

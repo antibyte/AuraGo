@@ -5,6 +5,18 @@ package desktopstore
 func DefaultCatalog() []CatalogEntry {
 	return withCatalogDefaults([]CatalogEntry{
 		{
+			ID:          GodsEyeAppID,
+			Name:        "God's Eye View",
+			Description: "Explore a 3D globe with live flights, satellites and public data. Optional provider keys enable additional maps, ships and voice control.",
+			Image:       "ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1",
+			Icon:        "gods-eye-view",
+			LogoSlug:    "gods-eye-view",
+			LogoURL:     "/img/desktop/store/gods-eye-view.svg",
+			PrimaryPort: PortSpec{ContainerPort: 4173, Protocol: "tcp"},
+			Volumes:     []VolumeTemplate{{NameSuffix: "cache", ContainerPath: "/app/.gev-cache"}},
+			Metadata:    map[string]string{"open_maximized": "true", "description_key": "desktop.store.gev_description"},
+		},
+		{
 			ID:          "homarr",
 			Name:        "Homarr",
 			Description: "Dashboard for home-lab services and quick links.",

@@ -372,3 +372,7 @@
     align-items: center;
     gap: 4px;
 }
+/* Stored provider keys never prefill this dialog. */
+.vd-gev-config { max-height: 85vh; overflow-y: auto; }
+.vd-gev-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.vd-gev-key-row .vd-store-choice { margin-bottom: 12px; }

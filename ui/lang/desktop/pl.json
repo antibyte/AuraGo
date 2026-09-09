@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITARNY SZTURM",
   "galaxa.stage_boss": "BOSS SEKTORA",
   "galaxa.mode_daily": "Codzienny",
-  "galaxa.daily_challenge": "WYZWANIE DNIA"
+  "galaxa.daily_challenge": "WYZWANIE DNIA",
+  "desktop.store.gev_configure": "Konfiguruj",
+  "desktop.store.gev_description": "Odkrywaj globus 3D z lotami na żywo, satelitami i danymi publicznymi. Opcjonalne klucze włączają dodatkowe mapy, statki i sterowanie głosem.",
+  "desktop.store.gev_intro": "Klucze są opcjonalne i przechowywane w sejfie AuraGo. Zapis odtwarza kontener; potem otwórz okno aplikacji ponownie.",
+  "desktop.store.gev_key_hint": "Puste pole zachowuje zapisaną wartość. Wybierz Usuń, aby usunąć klucz.",
+  "desktop.store.gev_client_keys": "Klucze Google Maps i Cesium są widoczne w przeglądarce aplikacji. Ogranicz je u dostawcy.",
+  "desktop.store.gev_origins": "Dozwolone adresy AuraGo",
+  "desktop.store.gev_origins_hint": "Jeden pełny origin w wierszu z http:// lub https:// i ewentualnym portem; bez ścieżek i symboli wieloznacznych. Puste blokuje osadzanie.",
+  "desktop.store.gev_lan_warning": "Dostęp LAN pozwala innym urządzeniom zużywać limity dostawców. Włączaj go tylko w zaufanej sieci. Głos wymaga HTTPS lub localhost i zgody na mikrofon.",
+  "desktop.store.gev_pending": "Zapisano, ale nie aktywowano. Zapisz ponownie, aby spróbować jeszcze raz; po udanym przywróceniu działa poprzednia konfiguracja.",
+  "desktop.store.gev_key_set": "Skonfigurowano",
+  "desktop.store.gev_key_empty": "Nie skonfigurowano"
 }

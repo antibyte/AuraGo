@@ -222,7 +222,7 @@
                             <div class="vd-store-card-image">${esc(entry.image)}</div>
                         </div>
                     </div>
-                    <div class="vd-store-card-desc">${esc(entry.description)}</div>
+                    <div class="vd-store-card-desc">${esc(entry.metadata && entry.metadata.description_key ? t(entry.metadata.description_key) : entry.description)}</div>
                     ${warningText ? `<div class="vd-store-card-warning">${esc(warningText)}</div>` : ''}
                     <div class="vd-store-meta">
                         <span class="vd-store-status status-${esc(status)}">${esc(statusLabel(status, operation))}</span>
@@ -235,6 +235,7 @@
                         ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>` : ''}
                         ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop'))}</span></button>` : ''}
                         ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update'))}</span></button>
+                            ${entry.id === 'gods-eye-view' ? `<button type="button" class="vd-store-btn" data-action="configure-gev" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.gev_configure'))}</span></button>` : ''}
                             ${hasExposedCredentials(entry) ? `<button type="button" class="vd-store-btn" data-action="credentials">${iconMarkup('key', 'K', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.credentials'))}</span></button>` : ''}
                             ${entry.id === 'beszel' ? `<button type="button" class="vd-store-btn" data-action="configure-agent" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'A', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.configure_agent'))}</span></button>` : ''}
                             <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install'))}</span></button>`}
@@ -308,11 +309,13 @@
             if (action === 'open-port') return openStorePort(appId, portId);
             if (action === 'credentials') return openCredentialsModal(appId);
             if (action === 'configure-agent') return openBeszelAgentModal(appId);
+            if (action === 'configure-gev') return openGodsEyeModal();
             if (action === 'uninstall') return openUninstallModal(appId);
             return startOperation(appId, action, '/api/desktop/store/apps/' + encodeURIComponent(appId) + '/' + encodeURIComponent(action), 'POST');
         }
 
         function isMutatingAction(action) {
+            if (action === 'configure-gev') return true;
             return action === 'install' || action === 'start' || action === 'stop' || action === 'restart' || action === 'update' || action === 'uninstall';
         }
 
@@ -353,6 +356,7 @@
             overlay.className = 'vd-modal-backdrop';
             overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
                 <div class="vd-modal-title">${esc(t('desktop.store.install_title'))}: ${esc(entry.name)}</div>
+                ${appId === 'gods-eye-view' ? `<p class="vd-store-modal-copy">${esc(t('desktop.store.gev_lan_warning'))}</p>` : ''}
                 <div class="vd-store-modal-copy">${esc(t('desktop.store.install_copy'))}</div>
                 <label class="vd-store-choice"><input type="radio" name="bind" value="local" checked><span><b>${esc(t('desktop.store.bind_local'))}</b><small>127.0.0.1</small></span></label>
                 <label class="vd-store-choice"><input type="radio" name="bind" value="lan"><span><b>${esc(t('desktop.store.bind_lan'))}</b><small>0.0.0.0</small></span></label>
@@ -374,6 +378,7 @@
                 startOperation(appId, 'install', '/api/desktop/store/install', 'POST', {
                     app_id: appId,
                     bind_mode: bind,
+                    ...(appId === 'gods-eye-view' ? { allowed_origins: [window.location.origin] } : {}),
                     tailscale_enabled: tailscale
                 });
             });
@@ -498,6 +503,94 @@
             });
         }
 
+        async function openGodsEyeModal() {
+            const appId = 'gods-eye-view';
+            const url = '/api/desktop/store/apps/' + appId + '/config';
+            const fields = [
+                ['CESIUM_ION_TOKEN', 'Cesium ion'], ['GOOGLE_MAPS_API_KEY', 'Google Maps'],
+                ['OPENAI_API_KEY', 'OpenAI'], ['AISSTREAM_API_KEY', 'AISStream'],
+                ['FIRMS_MAP_KEY', 'NASA FIRMS'], ['TOMTOM_API_KEY', 'TomTom'],
+                ['OPENSKY_CLIENT_ID', 'OpenSky Client ID'], ['OPENSKY_CLIENT_SECRET', 'OpenSky Client Secret'],
+                ['LL2_API_TOKEN', 'Launch Library']
+            ];
+            try {
+                const config = await api(url);
+                if (instance.disposed) return;
+                if (instance.closeConfig) instance.closeConfig();
+                const overlay = document.createElement('div');
+                overlay.className = 'vd-modal-backdrop';
+                overlay.innerHTML = `<form class="vd-modal vd-store-modal vd-gev-config" role="dialog" aria-modal="true" aria-label="${esc(t('desktop.store.gev_configure'))}">
+                    <div class="vd-modal-title">God's Eye View · ${esc(t('desktop.store.gev_configure'))}</div>
+                    <p class="vd-store-modal-copy">${esc(t('desktop.store.gev_intro'))}</p>
+                    <p class="vd-store-modal-copy">${esc(t('desktop.store.gev_key_hint'))}</p>
+                    <p class="vd-store-card-warning">${esc(t('desktop.store.gev_client_keys'))}</p>
+                    ${fields.map(([key, label]) => `<div class="vd-gev-key-row">
+                        <label class="vd-store-field"><span>${esc(label)} · ${esc(t(config.configured[key] ? 'desktop.store.gev_key_set' : 'desktop.store.gev_key_empty'))}</span><input type="password" name="${key}" autocomplete="new-password" maxlength="512"></label>
+                        <label class="vd-store-choice"><input type="checkbox" data-clear="${key}"><span>${esc(t('desktop.delete'))}</span></label>
+                    </div>`).join('')}
+                    <label class="vd-store-field"><span>${esc(t('desktop.store.gev_origins'))}</span><textarea name="origins" rows="3" spellcheck="false">${esc((config.allowed_origins || []).join('\n'))}</textarea></label>
+                    <p class="vd-store-modal-copy">${esc(t('desktop.store.gev_origins_hint'))}</p>
+                    <p class="vd-store-modal-copy">${esc(t('desktop.store.gev_lan_warning'))}</p>
+                    <p role="status" class="vd-store-card-warning" data-config-status>${config.pending ? esc(t('desktop.store.gev_pending')) : ''}</p>
+                    <div class="vd-modal-actions"><button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button><button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.save'))}</button></div>
+                </form>`;
+                const previousFocus = document.activeElement;
+                const form = overlay.querySelector('form');
+                let submitting = false;
+                const close = () => {
+                    form.querySelectorAll('input[type="password"]').forEach(input => { input.value = ''; });
+                    overlay.remove();
+                    instance.closeConfig = null;
+                    if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+                };
+                instance.closeConfig = close;
+                overlay.addEventListener('keydown', event => {
+                    if (event.key === 'Escape' && !submitting) { event.preventDefault(); event.stopPropagation(); close(); }
+                    if (event.key === 'Tab') {
+                        const controls = [...form.querySelectorAll('input, textarea, button')].filter(el => !el.disabled);
+                        const first = controls[0], last = controls[controls.length - 1];
+                        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                    }
+                });
+                form.querySelector('[data-action="cancel"]').addEventListener('click', () => { if (!submitting) close(); });
+                overlay.addEventListener('click', event => { if (event.target === overlay && !submitting) close(); });
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    if (submitting) return;
+                    const keys = {}, clear = [];
+                    fields.forEach(([key]) => {
+                        if (form.querySelector(`[data-clear="${key}"]`).checked) clear.push(key);
+                        else if (form.elements[key].value.trim()) keys[key] = form.elements[key].value.trim();
+                    });
+                    const payload = { keys, clear, allowed_origins: form.elements.origins.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean) };
+                    const status = form.querySelector('[data-config-status]');
+                    submitting = true;
+                    form.querySelectorAll('button').forEach(button => { button.disabled = true; });
+                    try {
+                        const body = await api(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        close();
+                        if (instance.disposed) return;
+                        if (body.operation) {
+                            busy.set(appId, body.operation);
+                            renderCards();
+                            pollOperation(appId, body.operation.id);
+                        }
+                    } catch (err) {
+                        status.textContent = err.message || t('desktop.store.operation_failed');
+                    } finally {
+                        fields.forEach(([key]) => { delete keys[key]; });
+                        submitting = false;
+                        form.querySelectorAll('button').forEach(button => { button.disabled = false; });
+                    }
+                });
+                document.body.appendChild(overlay);
+                form.querySelector('input').focus();
+            } catch (err) {
+                notify({ title: t('desktop.store.title'), message: err.message });
+            }
+        }
+
         async function startOperation(appId, action, url, method, payload) {
             try {
                 const body = await api(url, {
@@ -531,7 +624,7 @@
                         busy.delete(appId);
                         scheduleLoad(true, true);
                         await loadBootstrap();
-                        if (op && op.status === 'failed') notify({ title: t('desktop.store.title'), message: op.error || t('desktop.store.operation_failed') });
+                        if (op && op.status === 'failed') notify({ title: t('desktop.store.title'), message: appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : (op.error || t('desktop.store.operation_failed')) });
                         return;
                     }
                 }
@@ -566,6 +659,7 @@
         const instance = instances.get(windowId);
         if (!instance) return;
         instance.disposed = true;
+        if (instance.closeConfig) instance.closeConfig();
         if (instance.loadDebounceTimer) {
             clearTimeout(instance.loadDebounceTimer);
             instance.loadDebounceTimer = null;

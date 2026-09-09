@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITEANGRIFF",
   "galaxa.stage_boss": "SEKTORBOSS",
   "galaxa.mode_daily": "Täglich",
-  "galaxa.daily_challenge": "TAGES-CHALLENGE"
+  "galaxa.daily_challenge": "TAGES-CHALLENGE",
+  "desktop.store.gev_configure": "Einrichten",
+  "desktop.store.gev_description": "Erkunde einen 3D-Globus mit Live-Flügen, Satelliten und öffentlichen Daten. Optionale Schlüssel aktivieren weitere Karten, Schiffe und Sprachsteuerung.",
+  "desktop.store.gev_intro": "Alle Provider-Schlüssel sind optional und liegen im AuraGo-Vault. Speichern erstellt den App-Container neu; öffne danach das Fenster erneut.",
+  "desktop.store.gev_key_hint": "Lass ein Feld leer, um den gespeicherten Wert zu behalten. Wähle Löschen, um einen Schlüssel zu entfernen.",
+  "desktop.store.gev_client_keys": "Google-Maps- und Cesium-Schlüssel sind im App-Browser sichtbar. Beschränke sie beim Provider.",
+  "desktop.store.gev_origins": "Erlaubte AuraGo-Adressen",
+  "desktop.store.gev_origins_hint": "Pro Zeile ein vollständiger Ursprung mit http:// oder https:// und gegebenenfalls Port; keine Pfade oder Platzhalter. Leer sperrt die Einbettung.",
+  "desktop.store.gev_lan_warning": "LAN-Zugriff erlaubt anderen Geräten, konfigurierte Provider-Kontingente zu nutzen. Aktiviere ihn nur in einem vertrauenswürdigen Netz. Sprache benötigt HTTPS oder localhost und Mikrofonfreigabe.",
+  "desktop.store.gev_pending": "Gespeichert, aber noch nicht aktiv. Speichere erneut, um die Übernahme zu wiederholen; nach erfolgreicher Wiederherstellung bleibt die bisherige Konfiguration aktiv.",
+  "desktop.store.gev_key_set": "Eingerichtet",
+  "desktop.store.gev_key_empty": "Nicht eingerichtet"
 }

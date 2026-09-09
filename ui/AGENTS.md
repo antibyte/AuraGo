@@ -194,6 +194,12 @@ worker. Keep packaging, recovery and offline instructions in
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
+- God's Eye View uses the regular container-app window, starts maximized, and
+  grants microphone capability only to its own frame. Closing removes the frame;
+  service start/stop remains in the Store. The Store setup dialog owns optional
+  provider keys and allowed AuraGo origins; never prefill stored credentials or
+  copy AuraGo provider keys. Keep all 16 Desktop locales and the local upstream
+  logo plus MIT notice synchronized. See the Desktop app child contract.
 - MeshCore's serial-port field is a native dropdown populated by `/api/meshcore/devices`. Refresh preserves the selected draft value; a missing saved port remains selected and visibly marked, and enumeration failure never clears it.
 - MeshCore connection tests show immediate busy feedback and a persistent result beside the action buttons, independently of the general runtime status. Successful transport tests still show required identity confirmation; they never confirm identity automatically.
 - MeshCore's synchronized node list has a viewport-bounded independent vertical scroll area, keyboard focus and wrapping full keys; large contact tables must not stretch the settings page over many screens.

@@ -1136,6 +1136,12 @@
             }
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
+            if (storeAppId === 'gods-eye-view') {
+                const localizedURL = new URL(frameURL, window.location.href);
+                localizedURL.searchParams.set('aurago_lang', document.documentElement.lang || 'en');
+                frame.src = localizedURL.toString();
+                frame.setAttribute('allow', frame.getAttribute('allow') + '; microphone');
+            }
             host.replaceChildren(frame);
         } catch (err) {
             closeExternalStoreWindow(pendingExternalWindow);

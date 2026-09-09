@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITNÍ ÚTOK",
   "galaxa.stage_boss": "BOSS SEKTORU",
   "galaxa.mode_daily": "Denní",
-  "galaxa.daily_challenge": "DENNÍ VÝZVA"
+  "galaxa.daily_challenge": "DENNÍ VÝZVA",
+  "desktop.store.gev_configure": "Nastavit",
+  "desktop.store.gev_description": "Prozkoumej 3D glóbus s živými lety, satelity a veřejnými daty. Volitelné klíče zpřístupní další mapy, lodě a hlasové ovládání.",
+  "desktop.store.gev_intro": "Klíče poskytovatelů jsou volitelné a uložené v trezoru AuraGo. Uložení znovu vytvoří kontejner; poté znovu otevři okno aplikace.",
+  "desktop.store.gev_key_hint": "Prázdné pole zachová uloženou hodnotu. Odstranit smaže klíč.",
+  "desktop.store.gev_client_keys": "Klíče Google Maps a Cesium jsou viditelné v prohlížeči aplikace. Omez je u poskytovatele.",
+  "desktop.store.gev_origins": "Povolené adresy AuraGo",
+  "desktop.store.gev_origins_hint": "Jeden úplný původ na řádek včetně http:// nebo https:// a případného portu; bez cest a zástupných znaků. Prázdné pole zakáže vložení.",
+  "desktop.store.gev_lan_warning": "Přístup LAN umožní dalším zařízením využívat kvóty poskytovatelů. Zapni ho jen v důvěryhodné síti. Hlas vyžaduje HTTPS nebo localhost a povolení mikrofonu.",
+  "desktop.store.gev_pending": "Nastavení je uložené, ale není aktivní. Zkus ho znovu uložit; po úspěšném obnovení zůstává aktivní předchozí konfigurace.",
+  "desktop.store.gev_key_set": "Nastaveno",
+  "desktop.store.gev_key_empty": "Nenastaveno"
 }

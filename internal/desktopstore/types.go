@@ -24,6 +24,7 @@ const (
 
 	OperationInstall   = "install"
 	OperationUpdate    = "update"
+	OperationConfigure = "configure"
 	OperationStart     = "start"
 	OperationStop      = "stop"
 	OperationRestart   = "restart"
@@ -259,9 +260,10 @@ type Operation struct {
 
 // InstallRequest is the public request for installing a catalog app.
 type InstallRequest struct {
-	AppID            string `json:"app_id"`
-	BindMode         string `json:"bind_mode"`
-	TailscaleEnabled bool   `json:"tailscale_enabled"`
+	AppID            string   `json:"app_id"`
+	BindMode         string   `json:"bind_mode"`
+	TailscaleEnabled bool     `json:"tailscale_enabled"`
+	AllowedOrigins   []string `json:"allowed_origins,omitempty"`
 }
 
 // OperationRequest carries action-specific options.

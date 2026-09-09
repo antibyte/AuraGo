@@ -396,6 +396,37 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 - **Skill Quality Maintenance**: Nightly maintenance reviews Python skills and `SKILL.md` packages only when persisted provenance is exactly `agent`. Unknown disk discoveries remain `legacy_unknown`; user/system/curated skills are immutable to this phase. Improvement requires classifier confidence at least 0.95 plus complete staging validation and a clean security result. Deletion requires confidence at least 0.98 plus deterministic objective evidence, permanently removes files/registry/versions, and retains only a source-free maintenance tombstone. Missing usage alone never justifies deletion; read-only, ambiguity, cancellation, credential signals, scan warnings, fixed references, or failed daemon stops always prevent mutation.
 - **FTS Migration State**: External-content FTS5 indexes for notes, journal entries, episodic memories, and activity turns use version `1` markers in `memory_schema_meta` (`fts.notes`, `fts.journal_entries`, `fts.episodic_memories`, `fts.activity_turns`). Missing or outdated markers require an FTS5 `rebuild`; write the marker only after a successful rebuild.
 
+### God's Eye View Store Contract
+
+- `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID
+  `gods-eye-view`. The admin GET/PUT `/api/desktop/store/apps/gods-eye-view/config`
+  uses existing authentication, CSRF, Desktop/Docker write gates and the exclusive
+  Store operation slot. GET returns configured flags, exact allowed HTTP(S)
+  origins and pending status only; PUT accepts known keys, explicit removals and
+  at most eight origins. Blank/omitted key fields preserve existing values.
+- Desired and previous active provider settings live only in encrypted Vault
+  `desktop_store_gods-eye-view_config`. SQLite and operation JSON contain no
+  provider values, only the active revision. Resolve credentials when creating
+  a container, never inherit AuraGo provider credentials, and preserve the old
+  runtime configuration on failed replacement. Retain settings on uninstall
+  unless `delete_data` explicitly removes both cache volume and Vault settings.
+- `internal/desktopstore/gods_eye_assets/` builds pinned upstream commit
+  `759652207fd1279ece97f0f19af566feb9a82146` with Node 24 and `npm ci`. The full
+  Vite service on 4173 retains live proxies, runs as non-root and mounts only
+  the named `.gev-cache` volume. Installations pull the published
+  `ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1` image; never build locally
+  during installation. Catalog inclusion alone does not start the service.
+- The image adapter removes upstream POWER-UP settings and rejects `/api/setup`
+  writes. `frame-ancestors` allows only configured AuraGo origins and defaults
+  to none. The app-specific Tailscale proxy preserves that policy. Local, LAN
+  and Tailscale access keep the existing Store paths; LAN access is optional
+  and grants access to configured provider quotas. Google/Cesium keys remain
+  browser-visible by upstream design; other keys stay server-side.
+- The release workflow builds amd64/arm64, runs the adapter/provider mock test
+  within each image build, generates provenance/SBOM and signs the image digest.
+  Verify with Store/handler/Tailscale `TestGodsEye*`, the UI browser contract,
+  and anonymous image pulls for both architectures before claiming publication.
+
 ### Tool System
 
 - Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally

@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITEAANVAL",
   "galaxa.stage_boss": "SECTORBAAS",
   "galaxa.mode_daily": "Dagelijks",
-  "galaxa.daily_challenge": "DAGUITDAGING"
+  "galaxa.daily_challenge": "DAGUITDAGING",
+  "desktop.store.gev_configure": "Instellen",
+  "desktop.store.gev_description": "Verken een 3D-globe met livevluchten, satellieten en openbare gegevens. Optionele sleutels bieden extra kaarten, schepen en spraakbesturing.",
+  "desktop.store.gev_intro": "Sleutels zijn optioneel en worden in de AuraGo-kluis opgeslagen. Opslaan maakt de container opnieuw; open daarna het venster opnieuw.",
+  "desktop.store.gev_key_hint": "Een leeg veld behoudt de opgeslagen waarde. Kies Verwijderen om een sleutel te wissen.",
+  "desktop.store.gev_client_keys": "Google Maps- en Cesium-sleutels zijn zichtbaar in de appbrowser. Beperk ze bij de aanbieder.",
+  "desktop.store.gev_origins": "Toegestane AuraGo-adressen",
+  "desktop.store.gev_origins_hint": "Eén volledige origin per regel met http:// of https:// en zo nodig een poort; geen paden of jokertekens. Leeg blokkeert insluiting.",
+  "desktop.store.gev_lan_warning": "LAN-toegang laat andere apparaten de ingestelde quota gebruiken. Gebruik alleen een vertrouwd netwerk. Spraak vereist HTTPS of localhost en microfoontoestemming.",
+  "desktop.store.gev_pending": "Opgeslagen, maar niet actief. Sla opnieuw op om het nogmaals te proberen; na geslaagd herstel blijft de vorige configuratie actief.",
+  "desktop.store.gev_key_set": "Ingesteld",
+  "desktop.store.gev_key_empty": "Niet ingesteld"
 }

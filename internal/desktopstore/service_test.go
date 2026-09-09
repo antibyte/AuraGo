@@ -23,6 +23,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		icon    string
 		runtime string
 	}{
+		"gods-eye-view":       {image: "ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1", port: 4173, icon: "gods-eye-view", runtime: RuntimeContainerWebApp},
 		"homarr":              {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home", runtime: RuntimeContainerWebApp},
 		"n8n":                 {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "n8n", runtime: RuntimeContainerWebApp},
 		"node-red":            {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "node-red", runtime: RuntimeContainerWebApp},

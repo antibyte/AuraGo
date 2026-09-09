@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITANFALL",
   "galaxa.stage_boss": "SEKTORBOSS",
   "galaxa.mode_daily": "Daglig",
-  "galaxa.daily_challenge": "DAGENS UTMANING"
+  "galaxa.daily_challenge": "DAGENS UTMANING",
+  "desktop.store.gev_configure": "Konfigurera",
+  "desktop.store.gev_description": "Utforska en 3D-glob med flyg i realtid, satelliter och offentliga data. Valfria nycklar aktiverar fler kartor, fartyg och röststyrning.",
+  "desktop.store.gev_intro": "Nycklarna är valfria och sparas i AuraGo-valvet. Spara återskapar containern; öppna sedan appfönstret igen.",
+  "desktop.store.gev_key_hint": "Ett tomt fält behåller det sparade värdet. Välj Ta bort för att radera en nyckel.",
+  "desktop.store.gev_client_keys": "Google Maps- och Cesium-nycklar syns i appens webbläsare. Begränsa dem hos leverantören.",
+  "desktop.store.gev_origins": "Tillåtna AuraGo-adresser",
+  "desktop.store.gev_origins_hint": "Ett fullständigt ursprung per rad med http:// eller https:// och eventuell port; inga sökvägar eller jokertecken. Tomt blockerar inbäddning.",
+  "desktop.store.gev_lan_warning": "LAN-åtkomst låter andra enheter använda leverantörskvoterna. Använd bara ett betrott nätverk. Röst kräver HTTPS eller localhost och mikrofontillstånd.",
+  "desktop.store.gev_pending": "Sparat men inte aktivt. Spara igen för att försöka på nytt; efter lyckad återställning är den tidigare konfigurationen fortsatt aktiv.",
+  "desktop.store.gev_key_set": "Konfigurerad",
+  "desktop.store.gev_key_empty": "Inte konfigurerad"
 }

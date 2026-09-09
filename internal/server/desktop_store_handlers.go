@@ -247,6 +247,10 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			handleDesktopStoreOpenURL(s, appID)(w, r)
 			return
 		}
+		if appID == desktopstore.GodsEyeAppID && action == "config" && len(parts) == 2 {
+			handleDesktopStoreGodsEyeConfig(s)(w, r)
+			return
+		}
 		if action == "preview-status" {
 			handleDesktopStorePreviewStatus(s, appID)(w, r)
 			return
@@ -791,10 +795,11 @@ func desktopStoreTailscaleProxySpecs(apps []desktopstore.InstalledApp) ([]tsnetn
 				id = app.AppID + "-" + strings.ToLower(strings.TrimSpace(port.ID))
 			}
 			specs = append(specs, tsnetnode.StoreAppProxySpec{
-				ID:        id,
-				Port:      port.HostPort,
-				TargetURL: fmtStoreLocalTarget(port.HostPort),
-				Enabled:   true,
+				PreserveFramePolicy: app.AppID == desktopstore.GodsEyeAppID,
+				ID:                  id,
+				Port:                port.HostPort,
+				TargetURL:           fmtStoreLocalTarget(port.HostPort),
+				Enabled:             true,
 			})
 			if i == 0 {
 				active[app.AppID] = struct{}{}

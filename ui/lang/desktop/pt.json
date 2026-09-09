@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ASSALTO DE ELITE",
   "galaxa.stage_boss": "CHEFE DO SETOR",
   "galaxa.mode_daily": "Diário",
-  "galaxa.daily_challenge": "DESAFIO DIÁRIO"
+  "galaxa.daily_challenge": "DESAFIO DIÁRIO",
+  "desktop.store.gev_configure": "Configurar",
+  "desktop.store.gev_description": "Explora um globo 3D com voos em direto, satélites e dados públicos. Chaves opcionais ativam mais mapas, navios e controlo por voz.",
+  "desktop.store.gev_intro": "As chaves são opcionais e ficam no cofre AuraGo. Guardar recria o contentor; volta a abrir a janela depois.",
+  "desktop.store.gev_key_hint": "Um campo vazio mantém o valor guardado. Seleciona Eliminar para remover uma chave.",
+  "desktop.store.gev_client_keys": "As chaves Google Maps e Cesium são visíveis no navegador da aplicação. Restringe-as no fornecedor.",
+  "desktop.store.gev_origins": "Endereços AuraGo permitidos",
+  "desktop.store.gev_origins_hint": "Uma origem completa por linha com http:// ou https:// e porta se necessário; sem caminhos ou curingas. Vazio bloqueia a incorporação.",
+  "desktop.store.gev_lan_warning": "O acesso LAN permite a outros dispositivos consumir as quotas configuradas. Usa apenas uma rede de confiança. A voz requer HTTPS ou localhost e permissão do microfone.",
+  "desktop.store.gev_pending": "Guardado, mas não ativo. Guarda novamente para tentar de novo; após recuperação bem-sucedida, a configuração anterior continua ativa.",
+  "desktop.store.gev_key_set": "Configurado",
+  "desktop.store.gev_key_empty": "Não configurado"
 }

@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "精英突袭",
   "galaxa.stage_boss": "星区首领",
   "galaxa.mode_daily": "每日",
-  "galaxa.daily_challenge": "每日挑战"
+  "galaxa.daily_challenge": "每日挑战",
+  "desktop.store.gev_configure": "配置",
+  "desktop.store.gev_description": "探索包含实时航班、卫星和公开数据的3D地球仪。可选密钥可启用更多地图、船舶和语音控制。",
+  "desktop.store.gev_intro": "所有提供商密钥均为可选，并存储在AuraGo保险库中。保存会重新创建容器；之后请重新打开应用窗口。",
+  "desktop.store.gev_key_hint": "留空可保留已保存的值。选择删除可移除密钥。",
+  "desktop.store.gev_client_keys": "Google Maps和Cesium密钥在应用浏览器中可见。请在提供商处限制其使用范围。",
+  "desktop.store.gev_origins": "允许的AuraGo地址",
+  "desktop.store.gev_origins_hint": "每行填写一个完整来源，包含http://或https://及所需端口；不允许路径或通配符。留空将禁止嵌入。",
+  "desktop.store.gev_lan_warning": "LAN访问允许其他设备使用已配置的提供商配额。请仅在可信网络中启用。语音需要HTTPS或localhost以及麦克风权限。",
+  "desktop.store.gev_pending": "设置已保存但尚未生效。请再次保存以重试；成功恢复后将继续使用先前配置。",
+  "desktop.store.gev_key_set": "已配置",
+  "desktop.store.gev_key_empty": "未配置"
 }

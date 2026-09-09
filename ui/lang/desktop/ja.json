@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "精鋭部隊の襲撃",
   "galaxa.stage_boss": "セクターボス",
   "galaxa.mode_daily": "日替わり",
-  "galaxa.daily_challenge": "デイリーチャレンジ"
+  "galaxa.daily_challenge": "デイリーチャレンジ",
+  "desktop.store.gev_configure": "設定",
+  "desktop.store.gev_description": "ライブ航空便、衛星、公開データを3D地球儀で探索できます。任意のキーで追加地図、船舶、音声操作を有効にできます。",
+  "desktop.store.gev_intro": "キーは任意で、AuraGoの保管庫に保存されます。保存するとコンテナが再作成されるため、その後ウィンドウを開き直してください。",
+  "desktop.store.gev_key_hint": "空欄は保存済みの値を維持します。キーを削除するには「削除」を選択してください。",
+  "desktop.store.gev_client_keys": "Google MapsとCesiumのキーはアプリのブラウザーから見えます。提供元で利用制限を設定してください。",
+  "desktop.store.gev_origins": "許可するAuraGoアドレス",
+  "desktop.store.gev_origins_hint": "各行にhttp://またはhttps://と必要なポートを含むオリジンを入力してください。パスやワイルドカードは不可です。空欄は埋め込みを禁止します。",
+  "desktop.store.gev_lan_warning": "LANアクセスでは他の端末も設定済みの利用枠を消費できます。信頼できるネットワークでのみ有効にしてください。音声にはHTTPSまたはlocalhostとマイクの許可が必要です。",
+  "desktop.store.gev_pending": "保存済みですが未適用です。再度保存して適用を試してください。復旧に成功した場合、以前の設定が引き続き有効です。",
+  "desktop.store.gev_key_set": "設定済み",
+  "desktop.store.gev_key_empty": "未設定"
 }

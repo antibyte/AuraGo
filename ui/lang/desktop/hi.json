@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "विशिष्ट हमला",
   "galaxa.stage_boss": "सेक्टर बॉस",
   "galaxa.mode_daily": "दैनिक",
-  "galaxa.daily_challenge": "दैनिक चुनौती"
+  "galaxa.daily_challenge": "दैनिक चुनौती",
+  "desktop.store.gev_configure": "कॉन्फ़िगर करें",
+  "desktop.store.gev_description": "लाइव उड़ानों, उपग्रहों और सार्वजनिक डेटा वाला 3D ग्लोब देखें। वैकल्पिक कुंजियाँ अधिक नक्शे, जहाज़ और ध्वनि नियंत्रण सक्षम करती हैं।",
+  "desktop.store.gev_intro": "प्रदाता कुंजियाँ वैकल्पिक हैं और AuraGo वॉल्ट में रहती हैं। सहेजने पर कंटेनर फिर बनता है; उसके बाद ऐप विंडो दोबारा खोलें।",
+  "desktop.store.gev_key_hint": "सहेजा मान रखने के लिए फ़ील्ड खाली छोड़ें। कुंजी हटाने के लिए हटाएँ चुनें।",
+  "desktop.store.gev_client_keys": "Google Maps और Cesium कुंजियाँ ऐप ब्राउज़र में दिखाई देती हैं। प्रदाता पर उनका उपयोग सीमित करें।",
+  "desktop.store.gev_origins": "अनुमत AuraGo पते",
+  "desktop.store.gev_origins_hint": "हर पंक्ति में http:// या https:// और आवश्यक पोर्ट वाला पूरा ओरिजिन दें; पथ या वाइल्डकार्ड नहीं। खाली रखने पर एम्बेड बंद रहेगा।",
+  "desktop.store.gev_lan_warning": "LAN पहुँच से दूसरे उपकरण प्रदाता कोटा इस्तेमाल कर सकते हैं। केवल विश्वसनीय नेटवर्क पर चालू करें। आवाज़ के लिए HTTPS या localhost और माइक्रोफ़ोन अनुमति चाहिए।",
+  "desktop.store.gev_pending": "सेटिंग सहेजी गई पर सक्रिय नहीं है। फिर सहेजकर प्रयास करें; सफल बहाली के बाद पिछली सेटिंग सक्रिय रहती है।",
+  "desktop.store.gev_key_set": "कॉन्फ़िगर किया गया",
+  "desktop.store.gev_key_empty": "कॉन्फ़िगर नहीं किया गया"
 }

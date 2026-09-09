@@ -31,6 +31,28 @@ per-window minimum width/height, including the fixed opposite edge on west/north
 Free titlebar/menubar space supports dragging and double-click maximizing;
 buttons and menu popovers remain excluded from those gestures.
 
+### God's Eye View Store setup
+
+- `software-store.js` adds `Einrichten` for installed `gods-eye-view` only.
+  GET/PUT `/api/desktop/store/apps/gods-eye-view/config` returns flags/origins,
+  never saved keys. Empty fields preserve, checkboxes explicitly delete, and
+  pending changes remain visibly inactive after a failed container replacement.
+  Keep the dialog keyboard accessible, focus trapped and disposed on app close.
+- Installation preselects the current AuraGo origin. The dialog accepts further
+  exact HTTP(S) origins and explains optional LAN access/provider quota use,
+  browser-visible Google/Cesium credentials, and secure-context microphone
+  permission. Keep `desktop.store.gev_*` in all 16 Desktop locale files.
+- `quickconnect-launchpad-chat.js` uses the existing sandboxed container-app
+  frame, adds microphone only for this app, passes `aurago_lang` to the managed
+  notice and keeps external-open disabled. No new proxy path or auto-start is
+  introduced. Logo/license live under `img/desktop/store/gods-eye-view.*`.
+- Verify `TestGodsEyeDesktopTranslations`, bundle `--check`, and opt-in
+  `TestGodsEyeDesktopBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1` and
+  `AURAGO_GEV_BROWSER=1`: reviewed image on 127.0.0.1:14173, allowed frame origin
+  `http://127.0.0.1:18099`. The test exercises the globe, free live data, controls,
+  resizing, close/reopen and key-free setup retrieval. Real provider acceptance
+  remains separate from image adapter tests with synthetic responses.
+
 ### Spaces v1 contract
 
 - Exactly three spaces (`1`, `2`, `3`); no create/delete in v1.

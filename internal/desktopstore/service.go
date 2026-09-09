@@ -18,6 +18,7 @@ import (
 
 	"aurago/internal/dbutil"
 	"aurago/internal/desktop"
+	"aurago/internal/security"
 
 	_ "modernc.org/sqlite"
 )
@@ -434,6 +435,13 @@ func (s *Service) scheduleInterruptedInstallDockerCleanup(app InstalledApp) {
 // goroutine via RunOperation.
 func (s *Service) StartInstall(ctx context.Context, req InstallRequest) (Operation, error) {
 	req.AppID = normalizeAppID(req.AppID)
+	if req.AppID == GodsEyeAppID {
+		origins, err := validateGodsEyeOrigins(req.AllowedOrigins)
+		if err != nil {
+			return Operation{}, err
+		}
+		req.AllowedOrigins = origins
+	}
 	if _, ok := s.catalogByID[req.AppID]; !ok {
 		return Operation{}, fmt.Errorf("store app %q is not in the allowlist", req.AppID)
 	}
@@ -562,7 +570,7 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 		} else {
 			runErr = s.install(ctx, op, req)
 		}
-	case OperationUpdate:
+	case OperationUpdate, OperationConfigure:
 		runErr = s.update(ctx, op)
 	case OperationStart:
 		runErr = s.start(ctx, op)
@@ -581,6 +589,12 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 		runErr = fmt.Errorf("unsupported operation %q", op.Type)
 	}
 	if runErr != nil {
+		if op.AppID == GodsEyeAppID {
+			runErr = errors.New(security.Scrub(runErr.Error()))
+		}
+		if op.Type == OperationConfigure {
+			runErr = fmt.Errorf("configuration saved but not active: %w", runErr)
+		}
 		_ = s.updateOperation(ctx, op.ID, OperationFailed, "", runErr.Error())
 		return runErr
 	}
@@ -872,6 +886,11 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if isNativeManagedEntry(entry) {
 		return s.installNativeManaged(ctx, op, entry)
 	}
+	if entry.ID == GodsEyeAppID {
+		if err := s.prepareGodsEyeInstall(req); err != nil {
+			return err
+		}
+	}
 	hostPort, err := s.portAllocator(ctx, entry.PrimaryPort.ContainerPort)
 	if err != nil {
 		return fmt.Errorf("allocate port: %w", err)
@@ -920,7 +939,10 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if err := s.createAutoCompanions(ctx, &record); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
-	spec := containerSpecFromRecord(record)
+	spec, err := s.runtimeContainerSpec(record)
+	if err != nil {
+		return s.failInstall(ctx, record, err)
+	}
 	containerID, err := s.requireDocker().CreateContainer(ctx, spec)
 	if err != nil {
 		return s.failInstall(ctx, record, err)
@@ -995,7 +1017,14 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if isNativeManagedEntry(entry) {
 		return s.updateNativeManaged(ctx, op, entry, record)
 	}
+	previousSpec, err := s.runtimeContainerSpec(previous)
+	if err != nil {
+		return err
+	}
 	record.Image = entry.Image
+	if op.Type == OperationConfigure {
+		record.Image = previous.Image
+	}
 	ports, err := s.updatePortBindings(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("update port bindings: %w", err)
@@ -1035,7 +1064,13 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	record.LastOperationID = op.ID
 	record.LastOperationType = op.Type
 	record.LastOperationState = OperationRunning
-	if err := s.saveInstalled(ctx, record); err != nil {
+	progress := record
+	if record.AppID == GodsEyeAppID {
+		// The stored revision identifies active credentials until replacement
+		// has actually succeeded; desired credentials remain in the vault.
+		progress.Env = previous.Env
+	}
+	if err := s.saveInstalled(ctx, progress); err != nil {
 		return err
 	}
 	companionsTouched := false
@@ -1087,7 +1122,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 				return restorePrevious(runErr)
 			}
 		}
-		rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(previous))
+		rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, previousSpec)
 		if rollbackErr != nil {
 			previous.Status = AppStatusError
 			previous.Error = fmt.Sprintf("%v; rollback failed: %v", runErr, rollbackErr)
@@ -1104,7 +1139,13 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		previous.Error = ""
 		return restorePrevious(runErr)
 	}
-	if err := s.ensureCatalogImage(ctx, entry); err != nil {
+	if op.Type != OperationConfigure {
+		if err := s.ensureCatalogImage(ctx, entry); err != nil {
+			return restorePrevious(err)
+		}
+	}
+	nextSpec, err := s.runtimeContainerSpec(record)
+	if err != nil {
 		return restorePrevious(err)
 	}
 	if networkName := privateStoreNetworkName(entry); networkName != "" {
@@ -1118,9 +1159,15 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	}
 	_ = s.requireDocker().StopContainer(ctx, record.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, record.ContainerName, true); err != nil {
+		if previousWasRunning {
+			if restartErr := s.requireDocker().StartContainer(ctx, previous.ContainerName); restartErr != nil {
+				previous.Status = AppStatusError
+				previous.Error = fmt.Sprintf("restart previous container: %v", restartErr)
+			}
+		}
 		return restorePreviousWithCompanions(fmt.Errorf("remove old container: %w", err))
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(record))
+	containerID, err := s.requireDocker().CreateContainer(ctx, nextSpec)
 	if err != nil {
 		return rollbackPrevious(fmt.Errorf("create updated container: %w", err))
 	}
@@ -1142,7 +1189,11 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	record.Status = previous.Status
 	record.Error = ""
 	record.LastOperationState = OperationSucceeded
-	return s.saveInstalled(ctx, record)
+	if err := s.saveInstalled(ctx, record); err != nil {
+		_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
+		return rollbackPrevious(fmt.Errorf("save updated container: %w", err))
+	}
+	return nil
 }
 
 func (s *Service) updateNativeManaged(ctx context.Context, op Operation, entry CatalogEntry, record InstalledApp) error {
@@ -1323,6 +1374,11 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		return err
 	}
 	if deleteData {
+		if app.AppID == GodsEyeAppID && s.cfg.Secrets != nil {
+			if err := s.cfg.Secrets.DeleteSecret(godsEyeVaultKey); err != nil {
+				return fmt.Errorf("delete God's Eye View settings")
+			}
+		}
 		removed := map[string]struct{}{}
 		for _, volume := range app.Volumes {
 			removed[volume.Name] = struct{}{}
@@ -1826,6 +1882,9 @@ func (s *Service) updateEnv(entry CatalogEntry, app InstalledApp, previous Insta
 }
 
 func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv []string, previousRefs []SecretRef) ([]string, []SecretRef, error) {
+	if entry.ID == GodsEyeAppID {
+		return s.godsEyeEnvironment()
+	}
 	env := applyEnvTemplates(entry.Env, app, nil)
 	refs := make([]SecretRef, 0, len(entry.GeneratedSecrets))
 	for _, secret := range entry.GeneratedSecrets {
@@ -2166,6 +2225,9 @@ func (s *Service) upsertLaunchpad(ctx context.Context, entry CatalogEntry, app I
 }
 
 func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
+	if app.AppID == GodsEyeAppID {
+		app.Error = security.Scrub(app.Error)
+	}
 	app.UpdatedAt = time.Now().UTC()
 	if app.CreatedAt.IsZero() {
 		app.CreatedAt = app.UpdatedAt

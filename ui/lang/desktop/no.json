@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITEANGREP",
   "galaxa.stage_boss": "SEKTORBOSS",
   "galaxa.mode_daily": "Daglig",
-  "galaxa.daily_challenge": "DAGENS UTFORDRING"
+  "galaxa.daily_challenge": "DAGENS UTFORDRING",
+  "desktop.store.gev_configure": "Konfigurer",
+  "desktop.store.gev_description": "Utforsk en 3D-globus med fly i sanntid, satellitter og offentlige data. Valgfrie nøkler gir flere kart, skip og stemmestyring.",
+  "desktop.store.gev_intro": "Nøkler er valgfrie og lagres i AuraGo-hvelvet. Lagring oppretter containeren på nytt; åpne deretter appvinduet igjen.",
+  "desktop.store.gev_key_hint": "Et tomt felt beholder den lagrede verdien. Velg Slett for å fjerne en nøkkel.",
+  "desktop.store.gev_client_keys": "Google Maps- og Cesium-nøkler er synlige i appens nettleser. Begrens dem hos leverandøren.",
+  "desktop.store.gev_origins": "Tillatte AuraGo-adresser",
+  "desktop.store.gev_origins_hint": "Én full opprinnelse per linje med http:// eller https:// og eventuell port; ingen stier eller jokertegn. Tomt blokkerer innebygging.",
+  "desktop.store.gev_lan_warning": "LAN-tilgang lar andre enheter bruke leverandørkvotene. Bruk bare et betrodd nettverk. Stemme krever HTTPS eller localhost og mikrofontillatelse.",
+  "desktop.store.gev_pending": "Lagret, men ikke aktivt. Lagre på nytt for å prøve igjen; etter vellykket gjenoppretting forblir forrige konfigurasjon aktiv.",
+  "desktop.store.gev_key_set": "Konfigurert",
+  "desktop.store.gev_key_empty": "Ikke konfigurert"
 }

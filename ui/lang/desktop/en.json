@@ -2947,5 +2947,16 @@
   "galaxa.stage_elite": "ELITE ASSAULT",
   "galaxa.stage_boss": "SECTOR BOSS",
   "galaxa.mode_daily": "Daily",
-  "galaxa.daily_challenge": "DAILY CHALLENGE"
+  "galaxa.daily_challenge": "DAILY CHALLENGE",
+  "desktop.store.gev_configure": "Configure",
+  "desktop.store.gev_description": "Explore a 3D globe with live flights, satellites and public data. Optional keys unlock more maps, ships and voice control.",
+  "desktop.store.gev_intro": "All provider keys are optional and stored in the AuraGo vault. Saving recreates the app container; reopen its window afterwards.",
+  "desktop.store.gev_key_hint": "Leave a field blank to keep its saved value. Select Delete to remove a key.",
+  "desktop.store.gev_client_keys": "Google Maps and Cesium tokens are visible in the app browser. Restrict them at the provider.",
+  "desktop.store.gev_origins": "Allowed AuraGo addresses",
+  "desktop.store.gev_origins_hint": "One complete origin per line, including http:// or https:// and the port if needed; no paths or wildcards. Empty blocks embedding.",
+  "desktop.store.gev_lan_warning": "LAN access lets other devices use the configured provider quotas. Enable it only on a trusted network. Voice needs HTTPS or localhost and microphone permission.",
+  "desktop.store.gev_pending": "Settings saved but not active. Save again to retry applying them; the previous configuration remains active where recovery succeeded.",
+  "desktop.store.gev_key_set": "Configured",
+  "desktop.store.gev_key_empty": "Not configured"
 }
