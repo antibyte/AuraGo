@@ -25,6 +25,12 @@ Persisted keys: `windows.restore_session`, `appearance.dock_pins`,
 `session.windows` (snapshot v2 with `activeSpaceId` and per-window `spaceId`
 plus optional `alwaysOnTop`),
 and `files.default_apps` via `/api/desktop/settings`.
+The shell owns its settings writer; the pet runtime's private writer is not
+available to session, dock or default-app helpers. Enabling session restore
+captures current windows immediately; `pagehide` flushes pending geometry with
+a keepalive request. Startup restores before opening an `?app=` deep link,
+preserving separate instances and the normal bounds of maximized windows.
+Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
 
 Resize handles in `core/window-interactions-runtime.js` honor the shell's
 per-window minimum width/height, including the fixed opposite edge on west/north drags.

@@ -303,6 +303,9 @@
             if (updates.length > 1) {
                 for (const u of updates) ctx.state.bootstrap.settings[u.key] = u.value;
             }
+            if (key === 'windows.restore_session' && value === 'true' && ctx.persistSessionSnapshot) {
+                await ctx.persistSessionSnapshot();
+            }
             ctx.applyDesktopSettings();
             ctx.renderStartButtonIcon();
             ctx.renderIcons();

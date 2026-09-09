@@ -2,6 +2,15 @@
     const SESSION_CONTEXT_KEYS = ['path', 'category'];
     let sessionPersistTimer = 0;
 
+    function saveSetting(key, value, keepalive = false) {
+        return api('/api/desktop/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value }),
+            keepalive
+        });
+    }
+
     function defaultDockPinIds() {
         return ['files', 'writer', 'code-studio', 'settings', 'calendar'];
     }
@@ -66,12 +75,13 @@
             if (SESSION_SKIP_APP_IDS.has(item.appId)) return;
             const el = item.element;
             if (!el) return;
+            const bounds = (item.maximized && item.restoreBounds) || el.style;
             windows.push({
                 appId: item.appId,
-                left: parseInt(el.style.left, 10) || 0,
-                top: parseInt(el.style.top, 10) || 0,
-                width: parseInt(el.style.width, 10) || 800,
-                height: parseInt(el.style.height, 10) || 600,
+                left: parseInt(bounds.left, 10) || 0,
+                top: parseInt(bounds.top, 10) || 0,
+                width: parseInt(bounds.width, 10) || 800,
+                height: parseInt(bounds.height, 10) || 600,
                 maximized: !!item.maximized,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
@@ -93,17 +103,20 @@
         sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
     }
 
-    async function persistSessionSnapshot() {
+    async function persistSessionSnapshot(keepalive = false) {
+        if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = 0;
         if (!sessionRestoreEnabled() || state.sessionRestoring) return;
         try {
             const snapshot = captureSessionSnapshot();
             const json = JSON.stringify(snapshot);
-            await saveSetting('session.windows', json);
+            await saveSetting('session.windows', json, keepalive);
             if (state.bootstrap) {
                 state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
             }
-        } catch (_) { /* ignore persist errors */ }
+        } catch (err) {
+            if (!keepalive) showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
     }
 
     function parseSessionSnapshot() {
@@ -132,6 +145,7 @@
             if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
             if (!appById(entry.appId)) continue;
             const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
+                forceNew: true,
                 sessionRestore: {
                     left: entry.left,
                     top: entry.top,

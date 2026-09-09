@@ -699,6 +699,9 @@
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
+        window.addEventListener('pagehide', () => {
+            if (state._initialAppOpened) persistSessionSnapshot(true);
+        });
         // Load icon manifests and bootstrap state in parallel, then render once.
         mark('parallel-fetch-start');
         await Promise.all([
@@ -720,9 +723,8 @@
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();
         refreshPetRuntime();
         mark('first-render');
+        await restoreDesktopSession();
         openInitialDesktopApp();
-        const bootApp = new URLSearchParams(window.location.search || '').get('app');
-        if (!bootApp) restoreDesktopSession();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();

@@ -7696,6 +7696,15 @@ function wireWindow(win, id) {
     const SESSION_CONTEXT_KEYS = ['path', 'category'];
     let sessionPersistTimer = 0;
 
+    function saveSetting(key, value, keepalive = false) {
+        return api('/api/desktop/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value }),
+            keepalive
+        });
+    }
+
     function defaultDockPinIds() {
         return ['files', 'writer', 'code-studio', 'settings', 'calendar'];
     }
@@ -7760,12 +7769,13 @@ function wireWindow(win, id) {
             if (SESSION_SKIP_APP_IDS.has(item.appId)) return;
             const el = item.element;
             if (!el) return;
+            const bounds = (item.maximized && item.restoreBounds) || el.style;
             windows.push({
                 appId: item.appId,
-                left: parseInt(el.style.left, 10) || 0,
-                top: parseInt(el.style.top, 10) || 0,
-                width: parseInt(el.style.width, 10) || 800,
-                height: parseInt(el.style.height, 10) || 600,
+                left: parseInt(bounds.left, 10) || 0,
+                top: parseInt(bounds.top, 10) || 0,
+                width: parseInt(bounds.width, 10) || 800,
+                height: parseInt(bounds.height, 10) || 600,
                 maximized: !!item.maximized,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
@@ -7787,17 +7797,20 @@ function wireWindow(win, id) {
         sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
     }
 
-    async function persistSessionSnapshot() {
+    async function persistSessionSnapshot(keepalive = false) {
+        if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = 0;
         if (!sessionRestoreEnabled() || state.sessionRestoring) return;
         try {
             const snapshot = captureSessionSnapshot();
             const json = JSON.stringify(snapshot);
-            await saveSetting('session.windows', json);
+            await saveSetting('session.windows', json, keepalive);
             if (state.bootstrap) {
                 state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
             }
-        } catch (_) { /* ignore persist errors */ }
+        } catch (err) {
+            if (!keepalive) showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
     }
 
     function parseSessionSnapshot() {
@@ -7826,6 +7839,7 @@ function wireWindow(win, id) {
             if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
             if (!appById(entry.appId)) continue;
             const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
+                forceNew: true,
                 sessionRestore: {
                     left: entry.left,
                     top: entry.top,
@@ -12180,7 +12194,7 @@ function modalDialog(options) {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -15964,6 +15978,9 @@ if (appId === 'pixel') {
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
+        window.addEventListener('pagehide', () => {
+            if (state._initialAppOpened) persistSessionSnapshot(true);
+        });
         // Load icon manifests and bootstrap state in parallel, then render once.
         mark('parallel-fetch-start');
         await Promise.all([
@@ -15985,9 +16002,8 @@ if (appId === 'pixel') {
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();
         refreshPetRuntime();
         mark('first-render');
+        await restoreDesktopSession();
         openInitialDesktopApp();
-        const bootApp = new URLSearchParams(window.location.search || '').get('app');
-        if (!bootApp) restoreDesktopSession();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();
