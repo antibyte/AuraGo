@@ -424,6 +424,9 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   browser-visible by upstream design; other keys stay server-side.
 - The release workflow builds amd64/arm64, runs the adapter/provider mock test
   within each image build, generates provenance/SBOM and signs the image digest.
+  Manual `docker-publish.yml` dispatch accepts `image=gods-eye-view` to publish
+  only this Store image with the workflow's package-write/OIDC credentials.
+  Keep cosign-installer on a verified release tag; the bare `v4` ref is absent.
   Verify with Store/handler/Tailscale `TestGodsEye*`, the UI browser contract,
   and anonymous image pulls for both architectures before claiming publication.
 
