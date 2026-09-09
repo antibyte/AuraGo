@@ -704,6 +704,33 @@ registration lives in `internal/desktop/types.go`.
   world}.js`, `galaxa-audio-{core, sfx, music}.js`, `galaxa-enemy-motion.js`.
   Orchestrator glue stays in `galaxa-entities.js`, `galaxa-render.js`, and
   `galaxa-audio.js`.
+- `galaxa-campaign.js` owns seeded run randomness, the pause-aware game
+  scheduler, 30-stage sector waves and six sector-boss encounters. Classic,
+  Mirror and Daily use `GC.getStagePlan`; Boss Rush uses those six bosses.
+  Gauntlet remains twelve waves; Endless and Hyperdrive retain their spawners.
+  Sector bosses use `sectorBoss` and three HP phases; legacy `boss` enemies
+  remain formation commanders. Route all damage through `ctx.damageEnemy`
+  and finalize sector-boss rewards/destruction once in `updateCampaign`.
+- `galaxa-sprites.js` preloads and validates local `img/galaxa/atlas.json`
+  and PNG sheets before the title screen. Animation rectangles, durations,
+  loops and anchors belong in that manifest; never restore inline pixel
+  definitions or fixed frame counts. Collision geometry is independent of art.
+  Sprite canvases have a 768-entry cap. Asset failures expose localized retry.
+- `ctx.stepFrame` runs a fixed 60 Hz simulation independently of rendering.
+  Use `ctx.scheduleGame`, not wall-clock timers, for combat transitions.
+  `resetRun` resets the run generation and seeded RNG; delayed work cannot
+  cross run/disposal boundaries. Desktop `isActive` gates all controls;
+  focus loss pauses and releases held input. The 540x720 field fits the
+  available viewport at DPR 1/2 without cropping; touch has Parry/Super buttons.
+- New gameplay audio is synthesized. Separate music/SFX buses feed the
+  master compressor; SFX have a 32-voice priority cap and cached noise.
+  Music is scheduled against the audio clock with 120 ms lookahead and
+  bar-boundary transitions. Keep `img/audio/galaga.mp3` unchanged for title
+  and demo, and stop it before synthesized gameplay. Persist volume zero.
+- Arcade acceptance: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run
+  'Galaxa|AdaptiveMusic' -count=1`; the 30-minute real-time browser run also
+  needs `AURAGO_GALAXA_SOAK_SECONDS=1800` and Go `-timeout 35m`.
+  `AURAGO_BROWSER_ARTIFACT_DIR` optionally saves screenshots/audio/metrics.
 - Enemy movement visuals live in `galaxa-enemy-motion.js` with per-type presets
   in `GC.ENEMY_MOTION_FX` (pulse scale, dive trails, blink invisibility).
 - Weapon power-ups (rare/legendary): `rocket_launcher` / `mega_rocket` (homing
@@ -1101,23 +1128,12 @@ registration lives in `internal/desktop/types.go`.
   and hooks (`modesOnRunStart`, `modesOnStageStart`, `modesShouldOpenShop`,
   `modesGetBaseMusicTheme`). Settings mode cycle reads/writes `settings.mode`.
   Achievements: `gauntlet_clear`, `hyper_survivor`, `mirror_master`.
-- `galaxa-fx.js` - Supplementary Galaxa visual-effects package: chromatic boss
-  shockwave rings, warp speed-line streaks, powerup sparkle bursts + rising
-  glints, directional bullet-impact spark cones, combo screen-edge pulses, ship
-  afterimage ghosts, plus mode/FX juice: `fxScreenShatter`, `fxBulletTime`,
-  `fxBiomeWeather`, `fxRankSlam` (pixel-rect flash, no soft gradients),
-  `fxHyperTunnel`, `fxMirrorRefract`, `fxHeatHaze`. Signature set-pieces:
-  `fxMuzzleSparks`, `fxBossKillSetPiece`, `fxMegaCombo`, `fxStageClearSetPiece`
-  (all honor `FX_CAPS` and `prefers-reduced-motion`). Combat-juice set-pieces:
-  `fxSuperReady` (gold plasma rings + `fxSuperReadyT` overlay tint),
-  `fxLastLifeTick` (red edge-vignette pulse + heartbeat on the last life),
-  `fxRespawnTeleport` (converging particles, cyan/white ring, light pillar,
-  `FX_CAPS[].respawn`), `fxMultiKill` (hitstop, gold edge pulse, `MULTI KILL!`
-  popup). Attaches
-  `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`, `ctx.fxPowerupSparkle()`,
-  `ctx.fxSparkCone()`, `ctx.fxComboPulse()`, `ctx.updateFX(dt)` and
-  `ctx.fxDraw{Back,Mid,Ghosts,Overlay}(c)` via `GC.createFx(ctx)`; caps scale
-  with `ctx.settings.particles` via `GC.FX_CAPS`. No child DOX file needed.
+- `galaxa-fx.js` retains capped particle/ring producers and `fxDrawBack`.
+  Atlas explosions, impacts, shields and parries render through the common
+  world renderer. Decorative effects precede `renderDangers`; HUD uses a
+  fixed transform after camera shake. Do not restore removed overlay/ghost
+  drawing passes or ordinary-hit hitstop. Respect particles, shake and
+  reduced-motion settings. No child DOX file needed.
 - `writer.js` - Word-processing editor: Quill rich-text, auto-save with 800 ms
   debounce, dirty-state tracking, word/character/page status bar, find &
   replace overlay with match highlighting. Search counts use

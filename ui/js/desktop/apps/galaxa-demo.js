@@ -16,18 +16,7 @@
         }
 
         function startDemo() {
-            ctx.G.score = 0;
-            ctx.G.lives = ctx.diffMod('lives');
-            ctx.G.stage = 1;
-            ctx.G.p.dual = false;
-            ctx.G.p.cap = null;
-            ctx.G.weaponLv = 1;
-            ctx.G.killCount = 0;
-            ctx.G.displayScore = 0;
-            ctx.G.deathParts = [];
-            ctx.G.collectedPU = new Set();
-            ctx.G.perfectCount = 0;
-            ctx.G.demoMode = true;
+            ctx.resetRun(Date.now(), true);
             clearAI();
             ctx.startStage();
             ctx.MusicEngine.play('gameplay');

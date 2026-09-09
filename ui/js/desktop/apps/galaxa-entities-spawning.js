@@ -4,6 +4,8 @@
 
     GC.createEntitiesSpawning = function (ctx) {
                 function mkFormation() {
+            if (ctx.isCampaign() || ctx.settings.mode === 'boss_rush') return ctx.mkCampaignFormation();
+            ctx.G.wavePlan = null; ctx.G.encounterBoss = null; ctx.G.bossDeath = null;
             ctx.G.enemies = []; ctx.G.chal = ctx.isChal(ctx.G.stage); ctx.G.chalHits = 0; ctx.G.chalTot = 0;
             ctx.G.bossWarningShown = false;
             const isMini = ctx.isMiniBossStage();
@@ -13,17 +15,15 @@
             function pushEnemy(type, r, col, fx, fy, hp) {
                 if (ctx.G.glassCannon && type !== 'boss') hp = 1;
                 const side = idx % 2 === 0 ? -1 : 1;
-                const diveDelay = ctx.G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
-                const animSpeed = GC.ENEMY_ANIM_SPEED[type] || 120;
-                const animFrames = GC.ENEMY_FRAME_COUNT[type] || 3;
-                const enemy = { type, r, col, x: ctx.W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
+                const diveDelay = ctx.G.chal ? (800 + idx * 200) : (1000 + ctx.random() * 3000 + idx * 50);
+                const enemy = { type, r, col, x: ctx.W / 2 + side * (120 + ctx.random() * 80), y: -30 - (idx % 8) * 20,
                     fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100,
                     fr: 0, frT: 0, dTmr: diveDelay / ctx.diffMod('diveRate'), dPath: null,
-                    sTmr: (type === 'spinner' || type === 'bomber' || type === 'lasher') ? 800 + Math.random() * 1200 : 0,
+                    sTmr: (type === 'spinner' || type === 'bomber' || type === 'lasher') ? 800 + ctx.random() * 1200 : 0,
                     shootPh: 0, hasCap: false, hitF: 0, elite: type === 'hunter',
                     bossPhase: (type === 'boss' || type === 'miniboss') ? 1 : 0,
                     bossPhaseTransition: 0, bossPhaseHP: [0.6, 0.3, 0],
-                    animFrame: 0, animTimer: 0, animSpeed, animFrames,
+                    animTime: 0,
                     spawnAnim: 0, spawnDur: GC.ENEMY_SPAWN_DURATION, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5,
                     weakPoint: (type === 'boss' || type === 'miniboss') ? { x: 0, y: -10, angle: 0 } : null,
                     rageMode: 0, rageSpeedMult: 1, phaseTimer: 0 };
@@ -34,14 +34,6 @@
             if (isMini) {
                 const mbHP = 4 + Math.floor(ctx.G.stage / 5);
                 pushEnemy('miniboss', 0, 4, ctx.W / 2, ctx.FTOP, mbHP);
-            }
-            if (ctx.settings.mode === 'boss_rush') {
-                const bossHP = 3 + Math.floor(ctx.G.stage * 0.8);
-                pushEnemy('boss', 0, 4, ctx.W / 2, ctx.FTOP, bossHP);
-                ctx.G.chalTot = ctx.G.enemies.length;
-                ctx.G.dTmr = 500 / ctx.diffMod('diveRate');
-                ctx.G.fX = 0; ctx.mkNebula(); ctx.initBG();
-                return;
             }
 
             for (let r = 0; r < ctx.FROWS; r++) for (let col = 0; col < ctx.FCOLS; col++) {
@@ -106,37 +98,37 @@
                     }
                 }
                 const eliteChance = 0.22 + Math.min(ctx.G.stage, 12) * 0.035;
-                if (ctx.G.stage >= 2 && Math.random() < eliteChance) {
+                if (ctx.G.stage >= 2 && ctx.random() < eliteChance) {
                     const hunterHP = 2 + Math.floor(ctx.G.stage / 3);
-                    pushEnemy('hunter', 0, 5, ctx.W / 2 + (Math.random() - 0.5) * 100, ctx.FTOP + ctx.ESP_Y * 0.5, hunterHP);
+                    pushEnemy('hunter', 0, 5, ctx.W / 2 + (ctx.random() - 0.5) * 100, ctx.FTOP + ctx.ESP_Y * 0.5, hunterHP);
                 }
-                if (ctx.G.stage >= 3 && Math.random() < 0.38) {
-                    pushEnemy('spinner', 2, 3, ctx.W / 2 + (Math.random() - 0.5) * 130, ctx.FTOP + ctx.ESP_Y * 2, 2);
+                if (ctx.G.stage >= 3 && ctx.random() < 0.38) {
+                    pushEnemy('spinner', 2, 3, ctx.W / 2 + (ctx.random() - 0.5) * 130, ctx.FTOP + ctx.ESP_Y * 2, 2);
                 }
-                if (ctx.G.stage >= 4 && Math.random() < 0.32) {
-                    pushEnemy('bomber', 1, 6, ctx.W / 2 + (Math.random() - 0.5) * 110, ctx.FTOP + ctx.ESP_Y, 2);
+                if (ctx.G.stage >= 4 && ctx.random() < 0.32) {
+                    pushEnemy('bomber', 1, 6, ctx.W / 2 + (ctx.random() - 0.5) * 110, ctx.FTOP + ctx.ESP_Y, 2);
                 }
-                if (ctx.G.stage >= 5 && Math.random() < 0.28) {
-                    pushEnemy('lasher', 0, 2, ctx.W / 2 + (Math.random() - 0.5) * 70, ctx.FTOP, 1);
+                if (ctx.G.stage >= 5 && ctx.random() < 0.28) {
+                    pushEnemy('lasher', 0, 2, ctx.W / 2 + (ctx.random() - 0.5) * 70, ctx.FTOP, 1);
                 }
                 // NEW: Additional enemy types at higher stages
-                if (ctx.G.stage >= 4 && Math.random() < 0.2) {
-                    pushEnemy('shield_bee', 1, 4, ctx.W / 2 + (Math.random() - 0.5) * 100, ctx.FTOP + ctx.ESP_Y, 2);
+                if (ctx.G.stage >= 4 && ctx.random() < 0.2) {
+                    pushEnemy('shield_bee', 1, 4, ctx.W / 2 + (ctx.random() - 0.5) * 100, ctx.FTOP + ctx.ESP_Y, 2);
                 }
-                if (ctx.G.stage >= 6 && Math.random() < 0.18) {
-                    pushEnemy('kamikaze', 0, 2, ctx.W / 2 + (Math.random() - 0.5) * 80, ctx.FTOP, 1);
+                if (ctx.G.stage >= 6 && ctx.random() < 0.18) {
+                    pushEnemy('kamikaze', 0, 2, ctx.W / 2 + (ctx.random() - 0.5) * 80, ctx.FTOP, 1);
                 }
-                if (ctx.G.stage >= 7 && Math.random() < 0.22) {
-                    pushEnemy('weaver', 1, 5, ctx.W / 2 + (Math.random() - 0.5) * 120, ctx.FTOP + ctx.ESP_Y, 1);
+                if (ctx.G.stage >= 7 && ctx.random() < 0.22) {
+                    pushEnemy('weaver', 1, 5, ctx.W / 2 + (ctx.random() - 0.5) * 120, ctx.FTOP + ctx.ESP_Y, 1);
                 }
-                if (ctx.G.stage >= 8 && Math.random() < 0.16) {
-                    pushEnemy('splitter', 2, 3, ctx.W / 2 + (Math.random() - 0.5) * 100, ctx.FTOP + ctx.ESP_Y * 2, 2);
+                if (ctx.G.stage >= 8 && ctx.random() < 0.16) {
+                    pushEnemy('splitter', 2, 3, ctx.W / 2 + (ctx.random() - 0.5) * 100, ctx.FTOP + ctx.ESP_Y * 2, 2);
                 }
-                if (ctx.G.stage >= 9 && Math.random() < 0.14) {
-                    pushEnemy('carrier', 0, 4, ctx.W / 2 + (Math.random() - 0.5) * 90, ctx.FTOP, 3);
+                if (ctx.G.stage >= 9 && ctx.random() < 0.14) {
+                    pushEnemy('carrier', 0, 4, ctx.W / 2 + (ctx.random() - 0.5) * 90, ctx.FTOP, 3);
                 }
-                if (ctx.G.stage >= 10 && Math.random() < 0.12) {
-                    pushEnemy('teleporter', 1, 6, ctx.W / 2 + (Math.random() - 0.5) * 110, ctx.FTOP + ctx.ESP_Y, 2);
+                if (ctx.G.stage >= 10 && ctx.random() < 0.12) {
+                    pushEnemy('teleporter', 1, 6, ctx.W / 2 + (ctx.random() - 0.5) * 110, ctx.FTOP + ctx.ESP_Y, 2);
                 }
             }
             ctx.G.chalTot = ctx.G.enemies.length;
@@ -146,21 +138,22 @@
             if (isMini) ctx.SFX.miniBossWarning();
         }
                 function spawnHazards() {
+            if (ctx.isCampaign() || ctx.settings.mode === 'boss_rush') { ctx.G.envHazards = []; ctx.G.voidZones = []; return; }
             ctx.G.envHazards = [];
             ctx.G.solarFlareT = 0; ctx.G.solarFlareActive = false; ctx.G.emStormT = 0;
             const theme = ctx.G.bgTheme;
             if (theme === 'asteroid') {
                 for (let i = 0; i < 4; i++) {
-                    ctx.G.envHazards.push({ type: 'asteroid_h', x: 40 + Math.random() * (ctx.W - 80), y: 80 + Math.random() * (ctx.H - 200), hp: 2, maxHp: 2, r: 8 + Math.random() * 6, vx: (Math.random() - 0.5) * 20, vy: 8 + Math.random() * 12, rot: Math.random() * 6.28, rotSpd: (Math.random() - 0.5) * 2 });
+                    ctx.G.envHazards.push({ type: 'asteroid_h', x: 40 + ctx.random() * (ctx.W - 80), y: 80 + ctx.random() * (ctx.H - 200), hp: 2, maxHp: 2, r: 8 + ctx.random() * 6, vx: (ctx.random() - 0.5) * 20, vy: 8 + ctx.random() * 12, rot: ctx.random() * 6.28, rotSpd: (ctx.random() - 0.5) * 2 });
                 }
             } else if (theme === 'nebula' && ctx.G.stage >= 8) {
-                ctx.G.solarFlareT = 5000 + Math.random() * 3000;
+                ctx.G.solarFlareT = 5000 + ctx.random() * 3000;
             } else if (theme === 'crystal') {
                 for (let i = 0; i < 3; i++) {
-                    ctx.G.envHazards.push({ type: 'crystal_h', x: 60 + Math.random() * (ctx.W - 120), y: 100 + Math.random() * 200, r: 5, t: 0, collected: false });
+                    ctx.G.envHazards.push({ type: 'crystal_h', x: 60 + ctx.random() * (ctx.W - 120), y: 100 + ctx.random() * 200, r: 5, t: 0, collected: false });
                 }
             } else if (theme === 'storm') {
-                ctx.G.emStormT = 8000 + Math.random() * 5000;
+                ctx.G.emStormT = 8000 + ctx.random() * 5000;
             }
         }
         ctx.mkFormation = mkFormation;

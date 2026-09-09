@@ -12,7 +12,7 @@
         } catch (e) { /* localStorage unavailable, skip backup */ }
     }
     function loadSettings() {
-        try { const s = JSON.parse(localStorage.getItem('galaxa_settings') || '{}'); return { vol: s.vol || 30, diff: s.diff || 'normal', mute: s.mute || false, ship: s.ship || 'classic', mode: s.mode || 'classic', crt: s.crt !== undefined ? s.crt : true, particles: s.particles || 'high', shake: s.shake !== undefined ? s.shake : 1, parry: s.parry !== undefined ? s.parry : true, riskIt: s.riskIt || false, adaptiveMusic: s.adaptiveMusic !== undefined ? s.adaptiveMusic : true }; } catch (e) { return { vol: 30, diff: 'normal', mute: false, ship: 'classic', mode: 'classic', crt: true, particles: 'high', shake: 1, parry: true, riskIt: false, adaptiveMusic: true }; }
+        try { const s = JSON.parse(localStorage.getItem('galaxa_settings') || '{}'); return { vol: Number.isFinite(s.vol) ? Math.max(0, Math.min(100, s.vol)) : 30, musicVol: Number.isFinite(s.musicVol) ? Math.max(0, Math.min(100, s.musicVol)) : 70, sfxVol: Number.isFinite(s.sfxVol) ? Math.max(0, Math.min(100, s.sfxVol)) : 85, reducedMotion: !!s.reducedMotion, diff: s.diff || 'normal', mute: s.mute || false, ship: s.ship || 'classic', mode: s.mode || 'classic', crt: s.crt !== undefined ? s.crt : true, particles: s.particles || 'high', shake: s.shake !== undefined ? s.shake : 1, parry: s.parry !== undefined ? s.parry : true, riskIt: s.riskIt || false, adaptiveMusic: s.adaptiveMusic !== undefined ? s.adaptiveMusic : true }; } catch (e) { return { vol: 30, musicVol: 70, sfxVol: 85, reducedMotion: false, diff: 'normal', mute: false, ship: 'classic', mode: 'classic', crt: true, particles: 'high', shake: 1, parry: true, riskIt: false, adaptiveMusic: true }; }
     }
     function loadAchievements() { try { const a = JSON.parse(localStorage.getItem('galaxa_achievements') || '{}'); return a; } catch (e) { return {}; } }
 
@@ -24,6 +24,9 @@
         { id: 'sound', label: 'SOUND', type: 'toggle', key: 'mute' },
         { id: 'difficulty', label: 'DIFFICULTY', type: 'cycle', key: 'diff', values: ['easy', 'normal', 'hard'] },
         { id: 'volume', label: 'VOLUME', type: 'slider', key: 'vol', min: 0, max: 100, step: 10 },
+        { id: 'musicVolume', label: 'MUSIC VOLUME', type: 'slider', key: 'musicVol', min: 0, max: 100, step: 10 },
+        { id: 'sfxVolume', label: 'SFX VOLUME', type: 'slider', key: 'sfxVol', min: 0, max: 100, step: 10 },
+        { id: 'reducedMotion', label: 'REDUCED MOTION', type: 'toggle', key: 'reducedMotion' },
         { id: 'ship', label: 'SHIP', type: 'cycle', key: 'ship', values: 'SHIPS' },
         { id: 'mode', label: 'MODE', type: 'cycle', key: 'mode', values: ['classic', 'endless', 'boss_rush', 'gauntlet', 'hyperdrive', 'mirror'], onChange: 'modeSelect' },
         { id: 'crt', label: 'CRT EFFECT', type: 'toggle', key: 'crt' },
@@ -50,6 +53,8 @@
                     if (s.crt) ctx.wrapEl.classList.add('galaxa-crt');
                     else ctx.wrapEl.classList.remove('galaxa-crt');
                 }
+                if (item.key === 'reducedMotion') ctx.wrapEl.classList.toggle('galaxa-reduced-motion', s.reducedMotion);
+                if (ctx.applyAudioSettings) ctx.applyAudioSettings();
                 if (ctx.saveSettings) ctx.saveSettings();
                 if (item.onChange && ctx.SFX && typeof ctx.SFX[item.onChange] === 'function') ctx.SFX[item.onChange]();
                 return true;
@@ -61,6 +66,7 @@
                 const idx = pool.indexOf(s[item.key]);
                 const next = pool[(idx + pool.length + (dir < 0 ? -1 : 1)) % pool.length];
                 s[item.key] = next;
+                if (ctx.applyAudioSettings) ctx.applyAudioSettings();
                 if (ctx.saveSettings) ctx.saveSettings();
                 if (item.onChange && ctx.SFX && typeof ctx.SFX[item.onChange] === 'function') ctx.SFX[item.onChange]();
                 return true;
@@ -79,7 +85,8 @@
                             ctx.GalagaMusic.el.volume = ctx.G.muted ? 0 : Math.max(0, Math.min(1, ctx.G.vol * 0.7));
                         }
                     }
-                    if (ctx.saveSettings) ctx.saveSettings();
+                    if (ctx.applyAudioSettings) ctx.applyAudioSettings();
+                if (ctx.saveSettings) ctx.saveSettings();
                     return true;
                 }
                 return false;
@@ -90,11 +97,14 @@
 
     function render(host, windowId, context) {
         if (!host) return;
+        dispose(windowId);
         const ctx = context || {};
         const esc = ctx.esc || (v => String(v == null ? '' : v));
         const t = ctx.t || ((k, f) => f || k);
         const api = ctx.api || ((url, opts) => fetch(url, opts).then(r => r.json()));
         const state = { disposed: false };
+        host.tabIndex = 0;
+        const isActive = () => !document.hidden && (ctx.isActive ? ctx.isActive() : host.contains(document.activeElement) || document.activeElement === document.body);
         instances.set(windowId, state);
 
         host.innerHTML = '<div class="galaxa-app"><div class="galaxa-canvas-wrap galaxa-crt"><canvas class="galaxa-canvas" data-gc></canvas></div>' +
@@ -109,6 +119,7 @@
         const settings = loadSettings();
         backupSettingsIfNeeded();
         if (!settings.crt) wrapEl.classList.remove('galaxa-crt');
+        wrapEl.classList.toggle('galaxa-reduced-motion', settings.reducedMotion);
 
         function saveSettings() { try { localStorage.setItem('galaxa_settings', JSON.stringify(settings)); } catch (e) {} }
         function saveAchievements() { try { localStorage.setItem('galaxa_achievements', JSON.stringify(gameCtx.G.achievements)); } catch (e) {} }
@@ -126,7 +137,7 @@
             return { diveRate: 1, ebSpd: 1, lives: 3 + ship.lifeMod, puFromBee: true }[key];
         }
         function getShipSpeed() { return GC.PLAYER_SPEED * (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).speedMult; }
-        function getShipHitbox() { const mod = (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).hitboxMod; return { x: gameCtx.G.p.x - 8 + mod, y: gameCtx.G.p.y - 8 + mod, w: 16 - mod * 2, h: 16 - mod * 2 }; }
+        function getShipHitbox() { const mod = (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).hitboxMod; return { x: gameCtx.G.p.x - 6 - mod / 2, y: gameCtx.G.p.y - 6 - mod / 2, w: 12 + mod, h: 12 + mod }; }
         function getShipInvMult() { return (GC.SHIP_TYPES[settings.ship] || GC.SHIP_TYPES.classic).invMult; }
         function setPUClass(type) {
             const cls = ['galaxa-powerup-active'];
@@ -139,12 +150,12 @@
             const now = performance.now();
             const raw = clockT ? (now - clockT) / 1000 : (1 / 60);
             clockT = now;
-            return Math.min(Math.max(raw, 0.001), 0.05);
+            return Math.min(Math.max(raw, 0.001), 0.25);
         }
 
         const gameCtx = Object.create(GC);
         Object.assign(gameCtx, {
-            esc, t, api, state, canvas, overlayEl, wrapEl, c, settings,
+            esc, t, api, state, canvas, overlayEl, wrapEl, c, settings, isActive,
             scale, tick: 0, rafId: 0, clockT: 0, resizeRaf: 0, _frameBudgetSkip: 0,
             actx: null, masterCompressor: null, reverbNode: null, reverbGain: null,
             frameDelta, saveSettings, saveAchievements, unlockAchievement,
@@ -167,9 +178,10 @@
         GC.createGame(gameCtx);
         GC.createShop(gameCtx);
         GC.createRelics(gameCtx);
+        GC.createCampaign(gameCtx);
 
         gameCtx.G = {
-            st: 'TITLE', score: 0, lives: 3, stage: 1, hi: 10000, hiScores: [],
+            st: 'LOADING', simTime: 0, animTime: 0, runGeneration: 0, score: 0, lives: 3, stage: 1, hi: 10000, hiScores: [],
             p: { x: GC.W / 2, y: GC.H - 50, alive: true, inv: 0, dual: false, cap: null, reviveTimer: 0 },
             bul: [], ebul: [], enemies: [], exp: [], part: [],
             fX: 0, fTmr: 0, dTmr: 0, sTmr: 0, tIdle: 0,
@@ -239,6 +251,18 @@
             playerMines: [], mineDropT: 0
         };
         gameCtx.G.lives = diffMod('lives');
+        gameCtx.pauseForFocus = () => {
+            for (const source of ['kb', 'gp', 'inp']) for (const key of Object.keys(gameCtx.G[source])) gameCtx.G[source][key] = false;
+            if (['PLAYING', 'STAGE_INTRO'].includes(gameCtx.G.st)) {
+                gameCtx.G._prevSt = gameCtx.G.st; gameCtx.G.st = 'PAUSED'; gameCtx.G.pauseSel = 0;
+            }
+        };
+        const focusLost = () => { if (!isActive() || document.hidden) gameCtx.pauseForFocus(); };
+        const activate = () => host.focus({ preventScroll: true });
+        window.addEventListener('blur', gameCtx.pauseForFocus);
+        document.addEventListener('visibilitychange', focusLost);
+        host.addEventListener('pointerdown', activate);
+        if (ctx.onReady) ctx.onReady(gameCtx);
 
         gameCtx.initBG();
         gameCtx.mkNebula();
@@ -252,13 +276,34 @@
         });
         ro.observe(host);
         gameCtx.resize();
-        gameCtx.loadHS().then(() => { gameCtx.showTitle(); gameCtx.rafId = requestAnimationFrame(gameCtx.loop); if (gameCtx.checkDailyStreak) gameCtx.checkDailyStreak(); });
+        async function load() {
+            overlayEl.classList.add('active'); overlayEl.replaceChildren();
+            const status = document.createElement('p'); status.textContent = t('galaxa.loading_assets'); overlayEl.appendChild(status);
+            try {
+                await Promise.all([gameCtx.loadSprites(), gameCtx.loadHS(), document.fonts.load('12px "Share Tech Mono"')]);
+                if (state.disposed) return;
+                overlayEl.classList.remove('active'); overlayEl.replaceChildren();
+                gameCtx.G.st = 'TITLE'; gameCtx.showTitle(); activate();
+                gameCtx.rafId = requestAnimationFrame(gameCtx.loop);
+                if (gameCtx.checkDailyStreak) gameCtx.checkDailyStreak();
+            } catch (error) {
+                state.loadError = String(error);
+                if (state.disposed) return;
+                status.textContent = t('galaxa.load_failed');
+                const retry = document.createElement('button'); retry.textContent = t('galaxa.retry');
+                retry.addEventListener('click', load, { once: true }); overlayEl.appendChild(retry);
+            }
+        }
+        load();
         if (gameCtx.setupTouch) gameCtx.setupTouch();
 
         state.dispose = function () {
             state.disposed = true; cancelAnimationFrame(gameCtx.rafId); gameCtx.MusicEngine.stop(); if (gameCtx.GalagaMusic) gameCtx.GalagaMusic.stop(); gameCtx.G.pendingBooms = []; gameCtx.G.levelSkipTimer = 0;
             gameCtx.G.demoMode = false; if (gameCtx.G.ai) { Object.keys(gameCtx.G.ai).forEach(function(k) { gameCtx.G.ai[k] = false; }); }
             document.removeEventListener('keydown', gameCtx.onKey); document.removeEventListener('keyup', gameCtx.onKeyUp);
+            window.removeEventListener('blur', gameCtx.pauseForFocus); document.removeEventListener('visibilitychange', focusLost);
+            host.removeEventListener('pointerdown', activate); cancelAnimationFrame(gameCtx.resizeRaf);
+            gameCtx.clearGameSchedule(); if (gameCtx.disposeAudio) gameCtx.disposeAudio();
             ro.disconnect(); gameCtx.radialGradientCache.clear(); if (gameCtx.clearSpriteAtlasCache) gameCtx.clearSpriteAtlasCache();
             if (gameCtx.reverbNode) try { gameCtx.reverbNode.disconnect(); } catch (_) {}
             if (gameCtx.reverbGain) try { gameCtx.reverbGain.disconnect(); } catch (_) {}

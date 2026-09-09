@@ -1688,7 +1688,7 @@ if (appId === 'pixel') {
                 window.AuraDesktopModules.loadAppScript('galaxa-deluxe').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+            if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, isActive: () => state.activeWindowId === id }));
         }
         if (appId === 'chess') {
             if (!window.ChessApp) {

@@ -1,238 +1,92 @@
 (function () {
     'use strict';
     const GC = window.GalaxaCore = window.GalaxaCore || {};
-
     GC.createAudioMusic = function (ctx) {
-        const audio = () => ctx.audio();
-        const beep = (...args) => ctx.beep(...args);
-        const schedNoise = (...args) => ctx.schedNoise(...args);
-                const MusicEngine = {
-            nodes: [], masterGain: null, playing: null, loopId: 0, tempoMult: 1, stopped: false, intensity: 5,
-            themes: {
-                title: {
-                    bpm: 120,
-                    bass: { wave: 'triangle', vol: 0.06, notes: [{ f: 131, d: 2 }, { f: 0, d: 2 }, { f: 156, d: 2 }, { f: 0, d: 2 }, { f: 131, d: 2 }, { f: 0, d: 1 }, { f: 117, d: 1 }, { f: 0, d: 2 }, { f: 156, d: 2 }, { f: 0, d: 1 }, { f: 131, d: 1 }, { f: 0, d: 2 }] },
-                    lead: { wave: 'sine', vol: 0.08, notes: [{ f: 262, d: 1 }, { f: 233, d: 1 }, { f: 311, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 2 }, { f: 233, d: 2 }, { f: 349, d: 1 }, { f: 311, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 1 }, { f: 233, d: 2 }, { f: 262, d: 2 }] },
-                    harmony: { wave: 'sine', vol: 0.04, notes: [{ f: 311, d: 2 }, { f: 349, d: 2 }, { f: 262, d: 2 }, { f: 294, d: 2 }, { f: 349, d: 2 }, { f: 311, d: 2 }, { f: 262, d: 2 }, { f: 233, d: 2 }] },
-                    arpeggio: { wave: 'square', vol: 0.02, notes: [{ f: 262, d: 0.5 }, { f: 311, d: 0.5 }, { f: 349, d: 0.5 }, { f: 262, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 233, d: 0.5 }, { f: 262, d: 0.5 }, { f: 311, d: 0.5 }, { f: 349, d: 0.5 }, { f: 262, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 233, d: 0.5 }] },
-                    percussion: { vol: 0.04, notes: [{ f: -1, d: 1 }, { f: 0, d: 1 }, { f: -2, d: 0.5 }, { f: 0, d: 0.5 }, { f: -1, d: 1 }, { f: 0, d: 1 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 1 }, { f: 0, d: 1 }, { f: -2, d: 0.5 }, { f: 0, d: 0.5 }, { f: -1, d: 1 }, { f: 0, d: 1 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }] }
-                },
-                gameplay: {
-                    bpm: 140,
-                    bass: { wave: 'triangle', vol: 0.07, notes: [{ f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 0, d: 0.5 }, { f: 156, d: 0.5 }, { f: 156, d: 0.5 }, { f: 156, d: 0.5 }, { f: 0, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 0, d: 0.5 }, { f: 117, d: 0.5 }, { f: 117, d: 0.5 }, { f: 117, d: 0.5 }, { f: 0, d: 0.5 }, { f: 131, d: 0.5 }, { f: 156, d: 0.5 }, { f: 175, d: 0.5 }, { f: 0, d: 0.5 }, { f: 156, d: 0.5 }, { f: 175, d: 0.5 }, { f: 196, d: 0.5 }, { f: 0, d: 0.5 }, { f: 131, d: 0.5 }, { f: 147, d: 0.5 }, { f: 175, d: 0.5 }, { f: 0, d: 0.5 }, { f: 117, d: 0.5 }, { f: 131, d: 0.5 }, { f: 156, d: 0.5 }, { f: 0, d: 0.5 }] },
-                    lead: { wave: 'square', vol: 0.05, notes: [{ f: 262, d: 0.5 }, { f: 311, d: 0.5 }, { f: 392, d: 0.5 }, { f: 262, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 233, d: 0.5 }, { f: 207, d: 0.5 }, { f: 262, d: 0.5 }, { f: 311, d: 0.5 }, { f: 207, d: 0.5 }, { f: 196, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 196, d: 0.5 }, { f: 349, d: 0.5 }, { f: 392, d: 0.5 }, { f: 440, d: 1 }, { f: 392, d: 0.5 }, { f: 349, d: 0.5 }, { f: 440, d: 1 }, { f: 392, d: 0.5 }, { f: 349, d: 0.5 }, { f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 392, d: 1 }, { f: 294, d: 0.5 }, { f: 233, d: 0.5 }, { f: 262, d: 1 }, { f: 233, d: 0.5 }, { f: 196, d: 0.5 }] },
-                    harmony: { wave: 'sine', vol: 0.03, notes: [{ f: 262, d: 1 }, { f: 311, d: 1 }, { f: 233, d: 1 }, { f: 294, d: 1 }, { f: 207, d: 1 }, { f: 262, d: 1 }, { f: 196, d: 1 }, { f: 233, d: 1 }, { f: 349, d: 1 }, { f: 392, d: 1 }, { f: 440, d: 1 }, { f: 392, d: 1 }, { f: 294, d: 1 }, { f: 349, d: 1 }, { f: 262, d: 1 }, { f: 233, d: 1 }] },
-                    arpeggio: { wave: 'sine', vol: 0.02, notes: [{ f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 156, d: 0.25 }, { f: 233, d: 0.25 }, { f: 311, d: 0.25 }, { f: 233, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 117, d: 0.25 }, { f: 175, d: 0.25 }, { f: 233, d: 0.25 }, { f: 175, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 156, d: 0.25 }, { f: 233, d: 0.25 }, { f: 311, d: 0.25 }, { f: 233, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 117, d: 0.25 }, { f: 175, d: 0.25 }, { f: 233, d: 0.25 }, { f: 175, d: 0.25 }] },
-                    percussion: { vol: 0.04, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }] }
-                },
-                boss: {
-                    bpm: 160,
-                    bass: { wave: 'sawtooth', vol: 0.05, notes: [{ f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 110, d: 1 }, { f: 123, d: 1 }, { f: 131, d: 1 }, { f: 147, d: 1 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }] },
-                    lead: { wave: 'square', vol: 0.04, notes: [{ f: 220, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 220, d: 0.5 }, { f: 247, d: 0.5 }, { f: 294, d: 0.5 }, { f: 330, d: 0.5 }, { f: 247, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 440, d: 0.5 }, { f: 262, d: 0.5 }, { f: 247, d: 0.5 }, { f: 294, d: 0.5 }, { f: 330, d: 0.5 }, { f: 247, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 440, d: 0.5 }, { f: 330, d: 0.5 }, { f: 294, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 440, d: 0.5 }, { f: 330, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 220, d: 0.5 }, { f: 262, d: 1 }, { f: 330, d: 1 }, { f: 220, d: 1 }, { f: 247, d: 1 }] },
-                    harmony: { wave: 'sine', vol: 0.03, notes: [{ f: 165, d: 1 }, { f: 196, d: 1 }, { f: 220, d: 1 }, { f: 247, d: 1 }, { f: 262, d: 1 }, { f: 165, d: 1 }, { f: 247, d: 1 }, { f: 294, d: 1 }, { f: 220, d: 1 }, { f: 262, d: 1 }, { f: 330, d: 1 }, { f: 440, d: 1 }, { f: 294, d: 1 }, { f: 330, d: 1 }, { f: 220, d: 1 }, { f: 247, d: 1 }] },
-                    arpeggio: { wave: 'sawtooth', vol: 0.02, notes: [{ f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }, { f: 123, d: 0.25 }, { f: 185, d: 0.25 }, { f: 247, d: 0.25 }, { f: 185, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 123, d: 0.25 }, { f: 185, d: 0.25 }, { f: 247, d: 0.25 }, { f: 185, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }, { f: 123, d: 0.25 }, { f: 185, d: 0.25 }, { f: 247, d: 0.25 }, { f: 185, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 123, d: 0.25 }, { f: 185, d: 0.25 }, { f: 247, d: 0.25 }, { f: 185, d: 0.25 }] },
-                    percussion: { vol: 0.05, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }] }
-                },
-                miniboss: {
-                    bpm: 150,
-                    bass: { wave: 'sawtooth', vol: 0.06, notes: [{ f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 123, d: 0.5 }, { f: 123, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 175, d: 0.5 }, { f: 175, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }] },
-                    lead: { wave: 'square', vol: 0.04, notes: [{ f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 440, d: 0.5 }, { f: 294, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }, { f: 262, d: 0.5 }, { f: 349, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 349, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }, { f: 440, d: 0.5 }, { f: 330, d: 0.5 }] },
-                    harmony: { wave: 'sine', vol: 0.03, notes: [{ f: 220, d: 1 }, { f: 262, d: 1 }, { f: 294, d: 1 }, { f: 330, d: 1 }, { f: 349, d: 1 }, { f: 262, d: 1 }, { f: 294, d: 1 }, { f: 220, d: 1 }] },
-                    arpeggio: { wave: 'sawtooth', vol: 0.015, notes: [{ f: 147, d: 0.25 }, { f: 220, d: 0.25 }, { f: 294, d: 0.25 }, { f: 220, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }, { f: 123, d: 0.25 }, { f: 185, d: 0.25 }, { f: 247, d: 0.25 }, { f: 185, d: 0.25 }, { f: 147, d: 0.25 }, { f: 220, d: 0.25 }, { f: 294, d: 0.25 }, { f: 220, d: 0.25 }, { f: 175, d: 0.25 }, { f: 262, d: 0.25 }, { f: 349, d: 0.25 }, { f: 262, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }] },
-                    percussion: { vol: 0.05, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }] }
-                },
-                gameover: {
-                    bpm: 100,
-                    bass: { wave: 'triangle', vol: 0.06, notes: [{ f: 131, d: 1 }, { f: 117, d: 1 }, { f: 104, d: 1 }, { f: 98, d: 1 }, { f: 87, d: 1 }, { f: 78, d: 2 }, { f: 131, d: 0.5 }, { f: 0, d: 0.5 }, { f: 117, d: 0.5 }, { f: 0, d: 0.5 }, { f: 104, d: 1 }, { f: 78, d: 2 }] },
-                    lead: { wave: 'sine', vol: 0.1, notes: [{ f: 262, d: 1 }, { f: 233, d: 1 }, { f: 207, d: 1 }, { f: 196, d: 1 }, { f: 175, d: 1 }, { f: 156, d: 2 }, { f: 262, d: 0.5 }, { f: 233, d: 0.5 }, { f: 207, d: 0.5 }, { f: 196, d: 0.5 }, { f: 175, d: 1 }, { f: 156, d: 2 }] },
-                    harmony: { wave: 'sine', vol: 0.04, notes: [{ f: 311, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 1 }, { f: 233, d: 1 }, { f: 207, d: 1 }, { f: 0, d: 2 }, { f: 311, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 1 }, { f: 233, d: 1 }, { f: 207, d: 1 }, { f: 0, d: 2 }] },
-                    percussion: { vol: 0.03, notes: [{ f: -1, d: 1 }, { f: 0, d: 2 }, { f: -1, d: 1 }, { f: 0, d: 3 }, { f: -1, d: 1 }, { f: 0, d: 5 }] }
-                },
-                challenge: {
-                    bpm: 170,
-                    bass: { wave: 'sawtooth', vol: 0.06, notes: [{ f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 165, d: 0.5 }, { f: 165, d: 0.5 }, { f: 98, d: 0.25 }, { f: 131, d: 0.25 }, { f: 98, d: 0.25 }, { f: 131, d: 0.25 }, { f: 110, d: 0.25 }, { f: 147, d: 0.25 }, { f: 110, d: 0.25 }, { f: 147, d: 0.25 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 165, d: 0.5 }, { f: 165, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }] },
-                    lead: { wave: 'square', vol: 0.05, notes: [{ f: 196, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }, { f: 440, d: 0.5 }, { f: 392, d: 0.5 }, { f: 330, d: 0.5 }, { f: 262, d: 0.5 }, { f: 220, d: 0.5 }, { f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 440, d: 0.5 }, { f: 349, d: 0.5 }, { f: 294, d: 0.5 }, { f: 262, d: 0.25 }, { f: 330, d: 0.25 }, { f: 392, d: 0.25 }, { f: 523, d: 0.25 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 659, d: 0.5 }, { f: 523, d: 0.5 }, { f: 440, d: 0.5 }, { f: 349, d: 0.5 }, { f: 294, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }] },
-                    harmony: { wave: 'sine', vol: 0.03, notes: [{ f: 196, d: 1 }, { f: 262, d: 1 }, { f: 330, d: 1 }, { f: 392, d: 1 }, { f: 440, d: 1 }, { f: 349, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 1 }, { f: 330, d: 1 }, { f: 392, d: 1 }, { f: 440, d: 1 }, { f: 523, d: 1 }, { f: 659, d: 1 }, { f: 523, d: 1 }, { f: 440, d: 1 }, { f: 349, d: 1 }] },
-                    arpeggio: { wave: 'square', vol: 0.02, notes: [{ f: 98, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 110, d: 0.25 }, { f: 147, d: 0.25 }, { f: 220, d: 0.25 }, { f: 294, d: 0.25 }, { f: 131, d: 0.25 }, { f: 165, d: 0.25 }, { f: 262, d: 0.25 }, { f: 330, d: 0.25 }, { f: 147, d: 0.25 }, { f: 196, d: 0.25 }, { f: 294, d: 0.25 }, { f: 392, d: 0.25 }, { f: 98, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 110, d: 0.25 }, { f: 147, d: 0.25 }, { f: 220, d: 0.25 }, { f: 294, d: 0.25 }, { f: 131, d: 0.25 }, { f: 165, d: 0.25 }, { f: 262, d: 0.25 }, { f: 330, d: 0.25 }, { f: 147, d: 0.25 }, { f: 196, d: 0.25 }, { f: 294, d: 0.25 }, { f: 392, d: 0.25 }] },
-                    percussion: { vol: 0.05, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.25 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.25 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }] }
-                },
-                deep_boss: {
-                    bpm: 170,
-                    bass: { wave: 'sawtooth', vol: 0.06, notes: [{ f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 87, d: 0.5 }, { f: 87, d: 0.5 }, { f: 87, d: 0.5 }, { f: 87, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 82, d: 1 }, { f: 98, d: 1 }, { f: 110, d: 1 }, { f: 131, d: 1 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 82, d: 0.5 }, { f: 82, d: 0.5 }] },
-                    lead: { wave: 'square', vol: 0.04, notes: [{ f: 196, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 196, d: 0.5 }, { f: 220, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 220, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 392, d: 0.5 }, { f: 233, d: 0.5 }, { f: 220, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 220, d: 0.5 }, { f: 392, d: 0.5 }, { f: 466, d: 0.5 }, { f: 392, d: 0.5 }, { f: 294, d: 0.5 }, { f: 262, d: 0.5 }, { f: 392, d: 0.5 }, { f: 466, d: 0.5 }, { f: 392, d: 0.5 }, { f: 294, d: 0.5 }, { f: 233, d: 0.5 }, { f: 294, d: 0.5 }, { f: 196, d: 0.5 }, { f: 233, d: 1 }, { f: 294, d: 1 }, { f: 196, d: 1 }, { f: 220, d: 1 }] },
-                    harmony: { wave: 'sine', vol: 0.025, notes: [{ f: 147, d: 1 }, { f: 175, d: 1 }, { f: 196, d: 1 }, { f: 220, d: 1 }, { f: 233, d: 1 }, { f: 147, d: 1 }, { f: 220, d: 1 }, { f: 262, d: 1 }, { f: 196, d: 1 }, { f: 233, d: 1 }, { f: 294, d: 1 }, { f: 392, d: 1 }, { f: 262, d: 1 }, { f: 294, d: 1 }, { f: 196, d: 1 }, { f: 220, d: 1 }] },
-                    arpeggio: { wave: 'sawtooth', vol: 0.015, notes: [{ f: 98, d: 0.25 }, { f: 147, d: 0.25 }, { f: 196, d: 0.25 }, { f: 147, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }, { f: 98, d: 0.25 }, { f: 147, d: 0.25 }, { f: 196, d: 0.25 }, { f: 147, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }, { f: 131, d: 0.25 }, { f: 196, d: 0.25 }, { f: 262, d: 0.25 }, { f: 196, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }] },
-                    percussion: { vol: 0.06, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }] }
-                },
-                victory: {
-                    bpm: 180,
-                    bass: { wave: 'triangle', vol: 0.08, notes: [{f:131,d:0.5},{f:0,d:0.5},{f:165,d:0.5},{f:0,d:0.5},{f:196,d:0.5},{f:0,d:0.5},{f:262,d:1},{f:220,d:0.5},{f:0,d:0.5},{f:262,d:0.5},{f:0,d:0.5},{f:330,d:0.5},{f:0,d:0.5},{f:392,d:1}] },
-                    lead: { wave: 'sine', vol: 0.14, notes: [{f:523,d:0.5},{f:659,d:0.5},{f:784,d:0.5},{f:1047,d:1.5},{f:880,d:0.5},{f:1047,d:0.5},{f:1175,d:0.5},{f:1397,d:1.5}] },
-                    harmony: { wave: 'sine', vol: 0.07, notes: [{f:392,d:1},{f:494,d:1},{f:587,d:1},{f:784,d:2},{f:659,d:1},{f:784,d:1},{f:880,d:1},{f:1047,d:2}] },
-                    arpeggio: { wave: 'triangle', vol: 0.04, notes: [{f:262,d:0.25},{f:330,d:0.25},{f:392,d:0.25},{f:523,d:0.25},{f:330,d:0.25},{f:392,d:0.25},{f:523,d:0.25},{f:659,d:0.25},{f:440,d:0.25},{f:523,d:0.25},{f:659,d:0.25},{f:880,d:0.25},{f:523,d:0.25},{f:659,d:0.25},{f:880,d:0.25},{f:1047,d:0.25}] },
-                    percussion: { vol: 0.07, notes: [{f:-1,d:0.5},{f:-2,d:0.5},{f:-2,d:0.5},{f:-1,d:0.5},{f:-2,d:0.5},{f:-1,d:0.5},{f:-3,d:0.5},{f:-2,d:0.5},{f:-1,d:0.5},{f:-2,d:0.5},{f:-2,d:0.5},{f:-1,d:0.5},{f:-3,d:0.5},{f:-1,d:0.5},{f:-2,d:0.5},{f:-1,d:0.5}] }
-                },
-                gauntlet: {
-                    bpm: 155,
-                    bass: { wave: 'sawtooth', vol: 0.07, notes: [{ f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }] },
-                    lead: { wave: 'square', vol: 0.05, notes: [{ f: 196, d: 0.5 }, { f: 247, d: 0.5 }, { f: 294, d: 0.5 }, { f: 392, d: 0.5 }, { f: 330, d: 0.5 }, { f: 262, d: 0.5 }, { f: 220, d: 0.5 }, { f: 196, d: 0.5 }] },
-                    harmony: { wave: 'triangle', vol: 0.03, notes: [{ f: 147, d: 1 }, { f: 175, d: 1 }, { f: 196, d: 1 }, { f: 220, d: 1 }] },
-                    arpeggio: { wave: 'sawtooth', vol: 0.02, notes: [{ f: 98, d: 0.25 }, { f: 147, d: 0.25 }, { f: 196, d: 0.25 }, { f: 147, d: 0.25 }, { f: 110, d: 0.25 }, { f: 165, d: 0.25 }, { f: 220, d: 0.25 }, { f: 165, d: 0.25 }] },
-                    percussion: { vol: 0.05, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -3, d: 0.5 }] }
-                },
-                hyperdrive: {
-                    bpm: 168,
-                    bass: { wave: 'sawtooth', vol: 0.075, notes: [{ f: 110, d: 0.25 }, { f: 110, d: 0.25 }, { f: 131, d: 0.25 }, { f: 131, d: 0.25 }, { f: 147, d: 0.25 }, { f: 147, d: 0.25 }, { f: 165, d: 0.25 }, { f: 165, d: 0.25 }] },
-                    lead: { wave: 'square', vol: 0.055, notes: [{ f: 440, d: 0.25 }, { f: 523, d: 0.25 }, { f: 659, d: 0.25 }, { f: 784, d: 0.5 }, { f: 659, d: 0.25 }, { f: 523, d: 0.25 }, { f: 440, d: 0.25 }, { f: 392, d: 0.25 }] },
-                    harmony: { wave: 'sine', vol: 0.03, notes: [{ f: 220, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }] },
-                    arpeggio: { wave: 'square', vol: 0.025, notes: [{ f: 220, d: 0.125 }, { f: 330, d: 0.125 }, { f: 440, d: 0.125 }, { f: 330, d: 0.125 }, { f: 262, d: 0.125 }, { f: 392, d: 0.125 }, { f: 523, d: 0.125 }, { f: 392, d: 0.125 }] },
-                    percussion: { vol: 0.055, notes: [{ f: -1, d: 0.25 }, { f: -2, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.25 }, { f: -3, d: 0.25 }, { f: -2, d: 0.25 }, { f: -1, d: 0.25 }, { f: -2, d: 0.25 }] }
-                },
-                mirror: {
-                    bpm: 132,
-                    bass: { wave: 'triangle', vol: 0.06, notes: [{ f: 131, d: 1 }, { f: 117, d: 1 }, { f: 131, d: 1 }, { f: 147, d: 1 }] },
-                    lead: { wave: 'sine', vol: 0.07, notes: [{ f: 523, d: 0.5 }, { f: 659, d: 0.5 }, { f: 784, d: 0.5 }, { f: 659, d: 0.5 }, { f: 523, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 659, d: 0.5 }] },
-                    harmony: { wave: 'sine', vol: 0.035, notes: [{ f: 262, d: 1 }, { f: 330, d: 1 }, { f: 392, d: 1 }, { f: 330, d: 1 }] },
-                    arpeggio: { wave: 'triangle', vol: 0.02, notes: [{ f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }, { f: 523, d: 0.5 }, { f: 392, d: 0.5 }, { f: 330, d: 0.5 }, { f: 262, d: 0.5 }, { f: 220, d: 0.5 }] },
-                    percussion: { vol: 0.035, notes: [{ f: -1, d: 1 }, { f: 0, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 1 }, { f: 0, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 1 }, { f: 0, d: 0.5 }] }
-                }
+        const motifs = {
+            nebula:    { root: 57, bpm: 124, notes: [12,0,7,10,12,0,15,14,12,7,10,0,7,5,3,7], bass: [0,0,8,10], wave: 'triangle' },
+            asteroid:  { root: 50, bpm: 132, notes: [0,12,0,3,7,0,6,7,12,0,10,7,6,3,0,3], bass: [0,0,3,1], wave: 'sawtooth' },
+            crystal:   { root: 62, bpm: 116, notes: [12,19,24,22,19,15,14,19,12,14,19,22,24,19,15,14], bass: [0,8,5,10], wave: 'sine' },
+            storm:     { root: 52, bpm: 140, notes: [0,7,12,7,0,10,14,10,0,7,15,14,12,10,7,3], bass: [0,0,10,8], wave: 'square' },
+            blackhole: { root: 48, bpm: 108, notes: [12,0,7,0,13,12,0,7,10,0,6,0,7,6,3,0], bass: [0,1,8,7], wave: 'sine' },
+            void:      { root: 45, bpm: 144, notes: [12,7,15,14,12,3,7,10,12,19,17,15,14,10,7,0], bass: [0,8,5,7], wave: 'triangle' }
+        };
+        const hz = midi => 440 * Math.pow(2, (midi - 69) / 12);
+        let timer = 0, nextTime = 0, step = 0, pending = null, paused = false;
+        const layers = new Map();
+        const MusicEngine = {
+            themes: {}, playing: null, masterGain: null, tempoMult: 1, intensity: 3, semitoneOffset: 0,
+            resolve(name) {
+                if (name === 'title' || ctx.G.demoMode) return null;
+                if (['boss', 'miniboss', 'deep_boss'].includes(name)) return (ctx.G.biome || 'nebula') + '_boss';
+                if (name === 'gameplay') return ctx.G.biome || 'nebula';
+                return name;
             },
-            play(theme) {
-                if (this.playing === theme && !this.stopped) return;
-                const prevTheme = this.playing;
-                const prevGain = this.masterGain;
-                this.stop(); this.playing = theme; this.stopped = false;
-                const a = audio(); if (!a) return;
-                if (prevGain) { prevGain.gain.linearRampToValueAtTime(0, a.currentTime + 0.3); setTimeout(() => { try { prevGain.disconnect(); } catch (_) {} }, 350); }
-                if (prevTheme && prevTheme !== theme && !ctx.G.muted) {
-                    const stingerVol = ctx.G.vol * 0.15;
-                    if (theme === 'boss' || theme === 'miniboss' || theme === 'deep_boss') {
-                        beep('sawtooth', 220, 110, 0.3, stingerVol);
-                        setTimeout(() => beep('sawtooth', 165, 82, 0.2, stingerVol), 150);
-                    } else if (theme === 'gameplay' && (prevTheme === 'boss' || prevTheme === 'victory')) {
-                        [523, 659, 784].forEach((f, i) => setTimeout(() => beep('sine', f, f, 0.1, stingerVol), i * 60));
-                    } else if (theme === 'victory') {
-                        [784, 988, 1175, 1568].forEach((f, i) => setTimeout(() => beep('sine', f, f, 0.12, stingerVol), 2800 + i * 150));
-                    }
-                }
-                this.masterGain = a.createGain();
-                this.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35;
-                this.masterGain.connect(ctx.masterCompressor || a.destination);
-                const th = this.themes[theme]; if (!th) return;
-                const beatDur = (60 / th.bpm) / this.tempoMult;
-                const loop = theme !== 'gameover' && theme !== 'victory';
-                const schedVoices = () => {
-                    if (this.stopped || !this.masterGain) return;
-                    this.nodes = [];
-                    let maxDur = 0;
-                    const percBoost = this.intensity <= 2 ? 0.7 : this.intensity <= 4 ? 1 : this.intensity <= 7 ? 1.3 : 1.6;
-                    for (const vn of ['bass', 'lead', 'harmony', 'arpeggio']) {
-                        const voice = th[vn]; if (!voice) continue;
-                        const iFactor = this.intensity <= 2 ? (vn === 'bass' || vn === 'harmony' ? 1 : vn === 'lead' ? 0.2 : 0)
-                            : this.intensity <= 4 ? (vn === 'arpeggio' ? 0.3 : 1)
-                            : this.intensity <= 7 ? (vn === 'arpeggio' ? 0.7 : 1) : 1;
-                        if (iFactor <= 0) continue;
-                        let offset = 0;
-                        for (const n of voice.notes) {
-                            if (n.f > 0) {
-                                const o = a.createOscillator(), g = a.createGain();
-                                o.type = voice.wave; o.frequency.value = n.f;
-                                g.gain.setValueAtTime(voice.vol * (ctx.G.muted ? 0 : 1) * iFactor, a.currentTime + offset);
-                                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + offset + n.d * beatDur + 0.01);
-                                if (vn === 'bass') {
-                                    const filt = a.createBiquadFilter(); filt.type = 'lowpass';
-                                    filt.frequency.setValueAtTime(250, a.currentTime + offset);
-                                    filt.frequency.linearRampToValueAtTime(700, a.currentTime + offset + n.d * beatDur * 0.3);
-                                    filt.frequency.linearRampToValueAtTime(180, a.currentTime + offset + n.d * beatDur);
-                                    o.connect(filt).connect(g).connect(this.masterGain);
-                                } else { o.connect(g).connect(this.masterGain); }
-                                if (ctx.reverbNode && (vn === 'lead' || vn === 'harmony')) {
-                                    const rvbSend = a.createGain(); rvbSend.gain.value = 0.08;
-                                    g.connect(rvbSend); rvbSend.connect(ctx.reverbNode);
-                                }
-                                o.start(a.currentTime + offset); o.stop(a.currentTime + offset + n.d * beatDur + 0.02);
-                                this.nodes.push(o);
-                            }
-                            offset += n.d * beatDur;
-                        }
-                        maxDur = Math.max(maxDur, offset);
-                    }
-                    if (th.percussion) {
-                        let offset = 0;
-                        for (const n of th.percussion.notes) {
-                            if (n.f === -1) {
-                                const o = a.createOscillator(), g = a.createGain();
-                                o.frequency.setValueAtTime(150, a.currentTime + offset);
-                                o.frequency.exponentialRampToValueAtTime(40, a.currentTime + offset + 0.08);
-                                g.gain.setValueAtTime(th.percussion.vol * 1.8 * percBoost, a.currentTime + offset);
-                                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + offset + 0.15);
-                                o.connect(g).connect(this.masterGain);
-                                o.start(a.currentTime + offset); o.stop(a.currentTime + offset + 0.16);
-                                this.nodes.push(o);
-                                const ns = schedNoise(a.currentTime + offset, 0.06, th.percussion.vol * 0.6, 120, this.masterGain);
-                                if (ns) this.nodes.push(ns);
-                            }
-                            else if (n.f === -2) {
-                                const ns = schedNoise(a.currentTime + offset, 0.04, th.percussion.vol * 0.7, 9000, this.masterGain);
-                                if (ns) this.nodes.push(ns);
-                                const ns2 = schedNoise(a.currentTime + offset, 0.02, th.percussion.vol * 0.3, 3000, this.masterGain);
-                                if (ns2) this.nodes.push(ns2);
-                            }
-                            else if (n.f === -3) {
-                                const ns = schedNoise(a.currentTime + offset, 0.07, th.percussion.vol * 0.8, 2500, this.masterGain);
-                                if (ns) this.nodes.push(ns);
-                                const o = a.createOscillator(), g = a.createGain();
-                                o.frequency.setValueAtTime(200, a.currentTime + offset);
-                                o.frequency.exponentialRampToValueAtTime(80, a.currentTime + offset + 0.1);
-                                g.gain.setValueAtTime(th.percussion.vol * 0.5, a.currentTime + offset);
-                                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + offset + 0.12);
-                                o.connect(g).connect(this.masterGain);
-                                o.start(a.currentTime + offset); o.stop(a.currentTime + offset + 0.13);
-                                this.nodes.push(o);
-                            }
-                            offset += n.d * beatDur;
-                        }
-                        maxDur = Math.max(maxDur, offset);
-                    }
-                    if (loop) { this.loopId = setTimeout(() => { schedVoices(); }, maxDur * 1000 + 50); }
-                };
-                schedVoices();
+            play(name) {
+                const id = this.resolve(name);
+                if (!id) { this.stop(); return; }
+                if (id === this.playing || id === pending) return;
+                const a = ctx.audio(); if (!a) return;
+                this.masterGain = ctx.musicBus;
+                if (ctx.GalagaMusic) ctx.GalagaMusic.stop();
+                if (this.playing) pending = id;
+                else { this.playing = id; nextTime = a.currentTime + 0.15; step = 0; }
+                pump();
             },
-            stop() { this.stopped = true; clearTimeout(this.loopId); for (const n of this.nodes) try { n.stop(); } catch (e) {} this.nodes = []; if (this.masterGain) try { this.masterGain.disconnect(); } catch (e) {} this.playing = null; },
-            setTempo(mult) { this.tempoMult = mult; if (this.playing) this.play(this.playing); },
-            setMuted(m) { if (this.masterGain) this.masterGain.gain.value = m ? 0 : ctx.G.vol * 0.35; if (ctx.GalagaMusic) ctx.GalagaMusic.setMuted(m); },
-            setIntensity(level) {
-                this.intensity = level;
-                const volMult = 1 + Math.min(level, 5) * 0.08;
-                if (this.masterGain) this.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35 * volMult;
+            stop() { clearTimeout(timer); timer = 0; ctx.stopMusicVoices(); this.playing = null; pending = null; },
+            setPaused(value) {
+                if (value === paused) return;
+                paused = value;
+                if (value) { clearTimeout(timer); timer = 0; ctx.stopMusicVoices(); }
+                else if (this.playing) { nextTime = (ctx.actx ? ctx.actx.currentTime : 0) + 0.05; pump(); }
             },
-            addLayer(layerId, layerDef) {
-                if (!this.layerGains) this.layerGains = {};
-                const a = audio(); if (!a) return null;
-                const gainNode = a.createGain();
-                gainNode.gain.value = 0;
-                gainNode.connect(this.masterGain || a.destination);
-                this.layerGains[layerId] = { gain: gainNode, def: layerDef, active: false };
-                return this.layerGains[layerId];
-            },
-            removeLayer(themeId, layerId) {
-                if (!this.layerGains || !this.layerGains[layerId]) return;
-                try { this.layerGains[layerId].gain.disconnect(); } catch (_) {}
-                delete this.layerGains[layerId];
-            },
-            setLayerGain(themeId, layerId, value) {
-                if (!this.layerGains || !this.layerGains[layerId]) return;
-                this.layerGains[layerId].gain.gain.value = Math.min(0.04, value);
-            },
-            transpose(semitones) {
-                if (!this.semitoneOffset) this.semitoneOffset = 0;
-                this.semitoneOffset = semitones;
-                if (this.playing) {
-                    const wasPlaying = this.playing;
-                    this.play(wasPlaying);
+            setTempo(mult) { this.tempoMult = Math.max(0.8, Math.min(1.35, mult)); },
+            setMuted(m) { ctx.G.muted = m; ctx.applyAudioSettings(); },
+            setIntensity(value) { this.intensity = Math.max(0, Math.min(10, value)); },
+            transpose(value) { this.semitoneOffset = value; },
+            addLayer(id, def) { const layer = { def, gain: Math.min(0.04, def.vol || 0.03) }; layers.set(id, layer); return layer; },
+            removeLayer(theme, id) { layers.delete(id); },
+            setLayerGain(theme, id, gain) { if (layers.has(id)) layers.get(id).gain = Math.min(0.04, gain); }
+        };
+        for (const [id, motif] of Object.entries(motifs)) {
+            MusicEngine.themes[id] = motif; MusicEngine.themes[id + '_boss'] = { ...motif, bpm: motif.bpm + 10 };
+        }
+        Object.assign(MusicEngine.themes, { gameplay: motifs.nebula, boss: motifs.void, challenge: { ...motifs.crystal, bpm: 144 },
+            shop: { ...motifs.nebula, bpm: 88 }, victory: { ...motifs.crystal, bpm: 110 }, gameover: { ...motifs.blackhole, bpm: 84 },
+            gauntlet: motifs.asteroid, hyperdrive: motifs.storm, mirror: motifs.crystal, title: { bpm: 120 } });
+        function sequence(time) {
+            const m = MusicEngine, th = m.themes[m.playing] || motifs.nebula, beat = 60 / (th.bpm * m.tempoMult);
+            const boss = m.playing.endsWith('_boss'), quiet = m.playing === 'shop' || m.playing === 'gameover';
+            const root = th.root + (ctx.settings.adaptiveMusic ? m.semitoneOffset : 0), bar = Math.floor(step / 16);
+            const note = th.notes[step % 16], gain = quiet ? 0.11 : 0.17;
+            const tone = (wave, pitch, length, volume, pan, fm) => ctx.synthTone(wave, hz(pitch), hz(pitch), length, volume, pan, time, ctx.musicBus, fm);
+            if (!quiet || step % 2 === 0) tone(th.wave, root + note, beat * 0.32, gain, ctx.W * 0.65, th.wave === 'sine' ? 2 : 0);
+            if (step % 4 === 0) {
+                tone('triangle', root - 24 + th.bass[bar % 4], beat * 0.85, 0.30, ctx.W * 0.4);
+                if (!quiet) ctx.synthTone('sine', 110, 38, 0.15, 0.34, undefined, time, ctx.musicBus);
+            }
+            if (!quiet && step % 8 === 4) ctx.schedNoise(time, 0.12, 0.17, 2600, ctx.musicBus);
+            if (!quiet && step % (boss ? 1 : 2) === 0) ctx.schedNoise(time, 0.025, 0.05, 8500, ctx.musicBus);
+            if (boss && step % 4 === 2) tone('square', root + note - 12, beat * 0.2, 0.11, ctx.W * 0.25);
+            if (ctx.settings.adaptiveMusic && m.intensity > 6 && step % 4 === 0) tone('triangle', root + note + 12, beat * 0.5, 0.08);
+            if (step % 16 === 0) for (const layer of layers.values()) {
+                const n = layer.def.notes && layer.def.notes[bar % layer.def.notes.length];
+                if (n && n.f > 0) ctx.synthTone(layer.def.wave, n.f, n.f, Math.min(2, beat * 3.5), layer.gain, undefined, time, ctx.musicBus);
+            }
+            nextTime += beat / 4; step++;
+        }
+        function pump() {
+            clearTimeout(timer); timer = 0;
+            const a = ctx.actx;
+            if (!a || ctx.state.disposed || !MusicEngine.playing || paused) return;
+            if (a.state === 'running') {
+                if (nextTime < a.currentTime - 0.1) nextTime = a.currentTime + 0.02;
+                while (nextTime < a.currentTime + 0.12) {
+                    if (step % 16 === 0 && pending) { MusicEngine.playing = pending; pending = null; }
+                    sequence(nextTime);
                 }
             }
-        };
+            timer = setTimeout(pump, 25);
+        }
 
         const GalagaMusic = {
             el: null,
@@ -248,7 +102,7 @@
                 a.src = this._url;
                 a.loop = true;
                 a.preload = 'auto';
-                a.volume = Math.max(0, Math.min(1, (ctx.G.vol || 0.3) * 0.7));
+                a.volume = Math.max(0, Math.min(1, (ctx.G.vol ?? 0.3) * (ctx.settings.musicVol ?? 70) / 100));
                 a.addEventListener('playing', () => { if (this.el === a) this._playing = true; });
                 a.addEventListener('pause', () => { if (this.el === a) this._playing = false; });
                 a.addEventListener('error', () => {
@@ -304,7 +158,7 @@
             },
             setMuted(m) {
                 if (!this.el && !m) this._ensure();
-                if (this.el) this.el.volume = m ? 0 : Math.max(0, Math.min(1, (ctx.G.vol || 0.3) * 0.7));
+                if (this.el) this.el.volume = m ? 0 : Math.max(0, Math.min(1, (ctx.G.vol ?? 0.3) * (ctx.settings.musicVol ?? 70) / 100));
                 if (m && this._playing) { try { this.el.pause(); } catch (_) {} this._playing = false; }
                 else if (!m && this._shouldPlay && !this._playing) { this.play(); }
             }

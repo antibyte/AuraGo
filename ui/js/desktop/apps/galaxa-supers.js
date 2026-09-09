@@ -23,13 +23,18 @@
             G.superReadyFired = false;
             G.superType = ctx.settings.ship || 'classic';
             G.superActive = SUPER_DURATIONS[G.superType + '_burst'] || SUPER_DURATIONS.classic_burst;
-            G.p.alive && (G.p.inv = SUPER_DURATIONS.charge + SUPER_DURATIONS.classic_burst + SUPER_DURATIONS.aftermath + 200);
+            G.p.alive && (G.p.inv = SUPER_DURATIONS.charge + G.superActive + SUPER_DURATIONS.aftermath + 200);
             ctx.SFX.superChargeStart();
             return true;
         }
 
         function updateSupers(dt) {
             const G = ctx.G;
+            for (const clone of G.clones || []) {
+                clone.life -= dt * 1000; clone.fireT -= dt * 1000;
+                if (clone.life > 0 && clone.fireT <= 0) { clone.fireT = 150; G.bul.push({ x: clone.x, y: clone.y - 24, w: 4, h: 10, vx: 0, vy: -600, kind: 'phase_blade', dmg: 2 }); }
+            }
+            if (G.clones) G.clones = G.clones.filter(clone => clone.life > 0);
             if (G.superPhase === 'idle') {
                 G.superActive = 0;
                 if (G.superMeter < 100) G.superMeter = Math.min(100, G.superMeter + dt * 0.001);
@@ -38,7 +43,7 @@
             if (G.superPhase === 'cooldown') G.superActive = 0;
             else G.superActive = 1;
 
-            G.superPhaseT += dt;
+            G.superPhaseT += dt * 1000;
             const ship = ctx.settings.ship || 'classic';
             let phaseDur = 0;
             if (G.superPhase === 'charge') phaseDur = SUPER_DURATIONS.charge;
@@ -61,7 +66,7 @@
                     G.superPhase = 'aftermath';
                     G.superFreezeWorld = false;
                     G.comboMult = Math.min(16, G.comboMult + 2);
-                    setTimeout(() => ctx.duckMusic(0.3, 1000), 100);
+                    ctx.scheduleGame(() => ctx.duckMusic(0.3, 1000), 100);
                 } else if (G.superPhase === 'aftermath') {
                     G.superPhase = 'cooldown';
                     G.camZoom = 1;
@@ -103,7 +108,7 @@
             p.x = GC.W - p.x;
             if (ctx.fxSpawnPhaseDashGhosts) ctx.fxSpawnPhaseDashGhosts(oldX, oldY, p.x, p.y);
             for (let i = 0; i < 8; i++) {
-                setTimeout(() => {
+                ctx.scheduleGame(() => {
                     G.bul.push({ x: p.x, y: p.y - 8, w: 2, h: 10, vx: 0, vy: -500, kind: 'phase_blade', dmg: 3 });
                 }, i * 50);
             }
@@ -114,7 +119,9 @@
             const G = ctx.G;
             const p = G.p;
             // Wide front beam for 1.2s (handled via updateSupers timer)
-            G.beam = { x: p.x, y: p.y - 8, w: 200, h: 20, life: 1200, dmg: 5, kind: 'aegis' };
+            for (let wave = 0; wave < 6; wave++) ctx.scheduleGame(() => {
+                for (let lane = -2; lane <= 2; lane++) G.bul.push({ x: p.x + lane * 16, y: p.y - 24, w: 12, h: 32, vx: 0, vy: -550, dmg: 3, laser: true, kind: 'aegis' });
+            }, wave * 180);
             ctx.SFX.superAegisCannon();
         }
 

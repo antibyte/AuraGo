@@ -75,7 +75,7 @@ func TestGalaxaSplitModulesUseCtxExports(t *testing.T) {
 	ctxOnly := []string{
 		"getParticle",
 		"recycleParticles",
-		"renderFlame",
+		"drawParticle",
 	}
 
 	appsDir := filepath.Join("js", "desktop", "apps")

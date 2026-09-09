@@ -83,11 +83,11 @@
                                 const ne = ctx.G.enemies[k];
                                 if (ne.st === 'DEAD') continue;
                                 if (Math.hypot(ne.x - m.x, ne.y - m.y) < 52) {
-                                    ne.hp--;
-                                    if (ne.hp <= 0) {
+                                    ctx.damageEnemy(ne, 1);
+                                    if (ne.hp <= 0 && !ne.sectorBoss) {
                                         const pts = ctx.PTS[ne.type] ? ctx.PTS[ne.type][0] : 200;
                                         ctx.registerKill(ne.x, ne.y); ctx.addScore(pts, ne.x, ne.y, '#ccaa44');
-                                        ctx.boom(ne.x, ne.y, ne.type === 'boss' || ne.type === 'miniboss', ne.type);
+                                        ctx.boom(ne.x, ne.y, !!ne.sectorBoss, ne.type);
                                         ctx.SFX.eExplode(ne.x); ctx.dropPU(ne); ne.st = 'DEAD';
                                     } else { ne.hitF = 120; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(ne.type, ne.x); }
                                 }

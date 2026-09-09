@@ -99,7 +99,7 @@
         }
 
         function shouldOpenShop() {
-            return !isMode('gauntlet');
+            return !isMode('gauntlet') && !isMode('boss_rush');
         }
 
         function allowContinue() {
@@ -110,7 +110,7 @@
             if (isMode('hyperdrive')) return 'hyperdrive';
             if (isMode('gauntlet')) return 'gauntlet';
             if (isMode('mirror')) return 'mirror';
-            return chal ? 'challenge' : 'gameplay';
+            return chal ? 'challenge' : (ctx.G.biome || 'nebula');
         }
 
         function onStageClearBeforeAdvance() {
@@ -136,7 +136,7 @@
         }
 
         function getModeLabel() {
-            return ctx.t('galaxa.mode_' + modeId(), modeId().replace(/_/g, ' ').toUpperCase());
+            return ctx.t('galaxa.mode_' + (ctx.settings.mode === 'daily' ? 'daily' : modeId()), modeId().replace(/_/g, ' ').toUpperCase());
         }
 
         function mirrorGhostDamageMult() {

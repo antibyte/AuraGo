@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "createdFor": "AuraGo Galaxa Deluxe arcade overhaul",
+  "tool": "image_gen",
+  "artDirection": "Original top-down arcade pixel art; distinct silhouettes, metallic shading, upper-left light, transparent sprite backgrounds. Six coordinated sector scenes.",
+  "production": "Original generated PNG outputs, unchanged pixels. Frame rectangles and source-space anchors curated from alpha bounds in atlas.json; fixed logical pivots and uniform per-animation scale keep silhouettes aligned. Runtime Canvas 2D crops with nearest-neighbor sampling.",
+  "files": [
+    {
+      "file": "player-classic.png",
+      "source": "exec-81f7b106-afcc-4085-a93f-4275c0bf32a6.png",
+      "sha256": "2ae9e4a1c4dbfa365c2086e94c7945543210bb2b7e588df4b78f1488ad974587",
+      "bytes": 1762081
+    },
+    {
+      "file": "player-interceptor.png",
+      "source": "exec-7da30512-9b54-4f2f-916e-90a944f06c2a.png",
+      "sha256": "6844d8282fcb181998a7a16fff0b8290e02d509aca319b35c6e693eb75b3dc07",
+      "bytes": 1579092
+    },
+    {
+      "file": "player-heavy.png",
+      "source": "exec-141b6aac-9da7-4a55-a7a9-fca757cffc2e.png",
+      "sha256": "09b5e86d0a7557c0dbc90f041db00c782ba2860f340e886bf180313ff4efc690",
+      "bytes": 1588766
+    },
+    {
+      "file": "player-stealth.png",
+      "source": "exec-236f025b-c950-4114-817b-52a11a2b2d2e.png",
+      "sha256": "88887c1c81aad3e0852ad5c36e234641592ba25d908df761fd4a31e506421128",
+      "bytes": 1341204
+    },
+    {
+      "file": "enemies-a.png",
+      "source": "exec-d5a81553-7bb5-465b-859f-98f53896af9c.png",
+      "sha256": "4fc4c0d5143e1ff93fafc3ad8be53e47ede6cafb9d9b49c2073b2478520e0196",
+      "bytes": 1342886
+    },
+    {
+      "file": "enemies-b.png",
+      "source": "exec-4407cc93-f698-48aa-a153-d643b8e0f97a.png",
+      "sha256": "4b2519f0b3b2619d36e3e8484f4d09a39a1cab4d156303d648c2bbfeb395b5e4",
+      "bytes": 1813187
+    },
+    {
+      "file": "enemies-c.png",
+      "source": "exec-b9447340-1e0e-4d29-b1bb-ee9bfb254a4f.png",
+      "sha256": "21b16c9969611868da7e41aff3d9edea6c93662a8c40c9464dd3213c37f2ee68",
+      "bytes": 1221623
+    },
+    {
+      "file": "enemies-d.png",
+      "source": "exec-27ea3ca4-54ab-4213-b147-857c5b34bcaa.png",
+      "sha256": "ff47429bcf7a186ae224ad0b9bc54cb6c8cb93dc4f8fb206a2bbd716cceeea54",
+      "bytes": 2195884
+    },
+    {
+      "file": "boss-nebula.png",
+      "source": "exec-bc3a7b34-cb83-4c0d-8962-570ac98913d2.png",
+      "sha256": "550630a066a5cfdcab009c2371f6cb234c9818157e98a71f5e7cfa0eed8c6b40",
+      "bytes": 2893969
+    },
+    {
+      "file": "boss-asteroid.png",
+      "source": "exec-d3fe2b3e-cd4e-47ed-bc75-ccdafbf6a45f.png",
+      "sha256": "72882e473520ecff666fa36e57b9605de1374252d59a247f54cb60329e1a4e38",
+      "bytes": 2333635
+    },
+    {
+      "file": "boss-crystal.png",
+      "source": "exec-d3e9147f-f56d-4785-9376-67867dd85a9a.png",
+      "sha256": "e157407cd08d88c3b2ae0659fa7a9e3be849056d3e6603f05708aa9660a94bd2",
+      "bytes": 2145456
+    },
+    {
+      "file": "boss-storm.png",
+      "source": "exec-3bc76bff-9848-4127-b39d-eea1afa13908.png",
+      "sha256": "02ad78503d94786598bfd200268900934b2aa943f1101865137de0b7937d3a8d",
+      "bytes": 2410019
+    },
+    {
+      "file": "boss-blackhole.png",
+      "source": "exec-48c189a9-ed19-41a9-ad3b-16ef34c43045.png",
+      "sha256": "23481c605111fd7ef13fdf6e7058827e6a93db9a0a0cbfb8a76f300939ab08ca",
+      "bytes": 2387001
+    },
+    {
+      "file": "boss-void.png",
+      "source": "exec-76854d06-d964-43b7-a021-5bc3af2f571a.png",
+      "sha256": "577f151aa802c49969bc2b988f24ff52002a07f75917bea70f96d26afd8ef559",
+      "bytes": 2401712
+    },
+    {
+      "file": "effects.png",
+      "source": "exec-f472fa73-4b71-4023-b32a-0d70350f33b0.png",
+      "sha256": "54b98c93c49edc87150dac349d17909278b29aee33d9b52f86a2a52c69016f6f",
+      "bytes": 1444530
+    },
+    {
+      "file": "items.png",
+      "source": "exec-72067998-d362-49b7-a353-be8747365a78.png",
+      "sha256": "bd80303f03fa554508cce373553f7faf9bfb19b6cff68ea63db1ae0ac83c09f7",
+      "bytes": 1502493
+    },
+    {
+      "file": "backgrounds.png",
+      "source": "exec-b188381f-1a31-42a7-9dad-5580762a4c42.png",
+      "sha256": "8f967cffb841628fe893c48d874c8499edc6d10da064791052f04c8c3b6463be",
+      "bytes": 2419383
+    }
+  ]
+}

@@ -4,28 +4,27 @@
     GC.createGame = function (ctx) {
         function resize() {
             if (!ctx.wrapEl) return;
-            // OPTIMIZATION: use bit-shift for integer divide and clamp to a
-            // minimum of 1px so a degenerate layout never produces a 0×0
-            // canvas (which breaks imageSmoothingEnabled and the raf loop).
-            // The old Math.max/min with || 1 fallback handled 0-width but not
-            // negative ratios from sub-pixel zoom out.
             const ww = ctx.wrapEl.clientWidth | 0;
             const hh = ctx.wrapEl.clientHeight | 0;
-            const sx = Math.max(1, Math.floor(ww / ctx.W));
-            const sy = Math.max(1, Math.floor(hh / ctx.H));
-            ctx.scale = Math.min(sx, sy);
-            ctx.canvas.width = ctx.W * ctx.scale; ctx.canvas.height = ctx.H * ctx.scale;
-            ctx.canvas.style.width = (ctx.W * ctx.scale) + 'px'; ctx.canvas.style.height = (ctx.H * ctx.scale) + 'px';
+            const fit = Math.max(0.01, Math.min(ww / ctx.W, hh / ctx.H));
+            ctx.displayScale = fit >= 1 ? Math.floor(fit) : fit;
+            ctx.scale = ctx.displayScale * Math.min(2, window.devicePixelRatio || 1);
+            const width = Math.round(ctx.W * ctx.scale), height = Math.round(ctx.H * ctx.scale);
+            if (ctx.canvas.width !== width) ctx.canvas.width = width;
+            if (ctx.canvas.height !== height) ctx.canvas.height = height;
+            ctx.canvas.style.width = (ctx.W * ctx.displayScale) + 'px'; ctx.canvas.style.height = (ctx.H * ctx.displayScale) + 'px';
             ctx.c.imageSmoothingEnabled = false;
         }
 
         function isChal(s) {
             const m = ctx.settings.mode;
+            if (ctx.isCampaign()) return GC.getStagePlan(s, m).kind === 'bonus';
+            if (m === 'boss_rush') return false;
             if (m === 'endless' || m === 'hyperdrive') return false;
             return s >= 3 && (s - 3) % 4 === 0;
         }
 
-        function isMiniBossStage() { return ctx.G.stage >= 5 && ctx.G.stage % 5 === 0; }
+        function isMiniBossStage() { return ctx.settings.mode === 'boss_rush' || ctx.stagePlan().kind === 'boss'; }
 
         function restoreTimeScale() {
             return ctx.modesRestoreTimeScale ? ctx.modesRestoreTimeScale() : 1;
@@ -35,24 +34,34 @@
             return ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(!!chal) : (chal ? 'challenge' : 'gameplay');
         }
 
-        function dailySeed() {
-            const d = new Date();
+        function resetRun(seed, demo) {
+            const G = ctx.G;
+            ctx.clearGameSchedule();
+            Object.assign(G, { score: 0, displayScore: 0, stage: 1, lives: ctx.diffMod('lives'), killCount: 0,
+                simTime: 0, runGeneration: (G.runGeneration || 0) + 1, demoMode: !!demo,
+                activePU: null, puTimer: 0, puUpgrade: null, shieldHits: 0, startShieldHits: 3,
+                weaponLv: 1, weaponXP: 0, weaponEvo: null, evoChoiceOpen: false,
+                superPhase: 'idle', superPhaseT: 0, superMeter: 0, superActive: 0, superCooldown: 0,
+                superFreezeWorld: false, superBurstFired: false, parryActive: 0, parryCooldown: 0,
+                parryCount: 0, parrySuccessFlash: 0, hitstopT: 0, timeScale: 1, slowMoT: 0,
+                combo: 0, comboMult: 1, comboTimer: 0, scoreMult: 1, nextScoreMult: 0,
+                contTmr: 0, contCnt: 0, perfectCount: 0, levelSkipTimer: 0, pendingBooms: [],
+                deathParts: [], collectedPU: new Set(), drones: [], droneTimer: 0, clones: [],
+                orbitalShields: null, orbitalShieldTimer: 0, playerMines: [], blackhole: null, gravityBomb: null
+            });
+            Object.assign(G.p, { dual: false, cap: null, alive: true, reviveTimer: 0 });
+            ctx.seedRun(seed); if (ctx.modesOnRunStart) ctx.modesOnRunStart();
+        }
+
+        function dailySeed(d = new Date()) {
             return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
         }
 
-        function seededRandom(seed) {
-            let s = seed;
-            return function() { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
-        }
 
         function startDailyChallenge() {
             const seed = dailySeed();
-            const rng = seededRandom(seed);
-            ctx.G.dailySeed = seed;
-            ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1;
-            ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0;
-            ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set();
-            ctx.G.perfectCount = 0; ctx.G.chal = true;
+            ctx.settings.mode = 'daily'; ctx.resetRun(seed);
+            const rng = ctx.random; ctx.G.dailySeed = seed;
             const mods = ctx.STAGE_MODIFIERS;
             const mod1 = mods[Math.floor(rng() * mods.length)];
             let mod2 = mods[Math.floor(rng() * mods.length)];
@@ -60,9 +69,10 @@
             mod1.apply(ctx.G); mod2.apply(ctx.G);
             ctx.G.stageModifier = [mod1, mod2];
             ctx.settings.mode = 'daily';
+            ctx.G.dailyMods = [mod1, mod2];
             ctx.startStage();
             ctx.MusicEngine.play('challenge');
-            ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 40, text: 'DAILY CHALLENGE', t: 0, dur: 2000, col: '#ff88ff', big: true });
+            ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2 - 40, text: ctx.t('galaxa.daily_challenge'), t: 0, dur: 2000, col: '#ff88ff', big: true });
         }
 
         function checkDailyStreak() {
@@ -70,10 +80,11 @@
             const lastDaily = parseInt(localStorage.getItem('galaxa_last_daily') || '0');
             const streak = ctx.G.dailyStreak;
             if (lastDaily === today) return;
-            const yesterday = dailySeed() - 1;
-            if (lastDaily === yesterday || lastDaily === today - 1) {
+            const previousDay = new Date(); previousDay.setDate(previousDay.getDate() - 1);
+            const yesterday = dailySeed(previousDay);
+            if (lastDaily === yesterday) {
                 ctx.G.dailyStreak = streak + 1;
-            } else if (lastDaily < today - 1) {
+            } else {
                 ctx.G.dailyStreak = 1;
             }
             try {
@@ -91,19 +102,11 @@
             if (ctx.modesOnStageClearBeforeAdvance) {
                 const clearResult = ctx.modesOnStageClearBeforeAdvance();
                 if (clearResult === 'gauntlet_win') {
-                    ctx.G.stageClearLock = 600;
-                    setTimeout(() => {
-                        if (ctx.state.disposed) return;
-                        if (ctx.G.score > 0 && ctx.isHS(ctx.G.score)) {
-                            ctx.G.st = 'HIGH_SCORE';
-                            ctx.G.ne = { ch: [65, 65, 65], pos: 0, done: false };
-                            ctx.showHSOverlay();
-                        } else {
-                            ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.showTitle(); ctx.MusicEngine.play('title');
-                        }
-                    }, 2500);
-                    return;
+                    ctx.G.st = 'RUN_CLEAR'; ctx.G.runSummaryT = 5000; ctx.MusicEngine.play('victory'); return;
                 }
+            }
+            if (ctx.settings.mode === 'boss_rush' && ctx.G.stage === 6) {
+                ctx.G.st = 'RUN_CLEAR'; ctx.G.runSummaryT = 5000; ctx.MusicEngine.play('victory'); return;
             }
             ctx.G.stageClearLock = 600;
             ctx.G.stageEmptyT = 0;
@@ -123,7 +126,7 @@
             if (ctx.G.stage >= 10) ctx.unlockAchievement('survivor');
             if (ctx.G.stage >= 20) ctx.unlockAchievement('legend');
             if (ctx.G.score >= 1000000) ctx.unlockAchievement('millionaire');
-            const stageTime = (performance.now ? performance.now() : Date.now()) - ctx.G.stageStartTime;
+            const stageTime = ctx.G.simTime - ctx.G.stageStartTime;
             if (stageTime < 30000 && ctx.G.stage > 2) ctx.unlockAchievement('speed_demon');
             // Intensity Director
             const _accuracy = (ctx.G.stageAccuracyShots || 0) > 0 ? (ctx.G.stageAccuracyHits || 0) / ctx.G.stageAccuracyShots : 0.5;
@@ -141,11 +144,14 @@
             if (!ctx.G.chal && !fromSkip) {
                 ctx.MusicEngine.play('victory');
                 const _victoryTheme = baseMusicTheme(false);
-                setTimeout(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play(_victoryTheme); }, 3500);
+                ctx.scheduleGame(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play(_victoryTheme); }, 3500);
                 if (ctx.SFX.stageClear) ctx.SFX.stageClear();
                 if (ctx.fxStageClearSetPiece) ctx.fxStageClearSetPiece();
             }
-            if (ctx.G.stage % 3 === 0 && !fromSkip && ctx.openShop && (!ctx.modesShouldOpenShop || ctx.modesShouldOpenShop())) {
+            if (ctx.isCampaign() && (ctx.G.stage - 1) % 30 === 0) {
+                ctx.G.st = 'LOOP_CLEAR'; ctx.G.loopSummaryT = 5000;
+                ctx.MusicEngine.play('victory');
+            } else if ((ctx.isCampaign() ? (ctx.G.stage - 1) % 5 === 0 : ctx.G.stage % 3 === 0) && !fromSkip && ctx.openShop && (!ctx.modesShouldOpenShop || ctx.modesShouldOpenShop())) {
                 ctx.openShop();
             } else {
                 ctx.startStage();
@@ -153,11 +159,12 @@
         }
 
         function startStage() {
+            ctx.clearGameSchedule();
             ctx.G.enemies = [];
             ctx.G.chal = ctx.isChal(ctx.G.stage);
             ctx.G.st = 'STAGE_INTRO';
             ctx.G.introTmr = 1200;
-            ctx.G.stageStartTime = performance.now ? performance.now() : Date.now();
+            ctx.G.stageStartTime = ctx.G.simTime || 0;
             // NEW: Biome progression + reveal cinematic
             const _biome = ctx.getBiomeForStage ? ctx.getBiomeForStage(ctx.G.stage) : null;
             if (_biome) {
@@ -172,12 +179,12 @@
             if (ctx.G.bonusStage) { ctx.G.bonusStageT = ctx.BONUS_STAGE_DURATION; if (ctx.SFX.bonusStart) ctx.SFX.bonusStart(); }
             ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.pendingBooms = []; ctx.G.levelSkipTimer = 0;
             ctx.G.playerMines = []; ctx.G.mineDropT = 0;
-            ctx.G.beam = null; ctx.G.powerups = []; ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.G.shieldHits = 0;
+            ctx.G.beam = null; ctx.G.powerups = [];
             ctx.G.scorePopups = []; ctx.G.warpT = 0; ctx.G.warpFlash = 0; ctx.G.perfectT = 0;
             ctx.G.combo = 0; ctx.G.comboTimer = 0; ctx.G.comboMult = 1; ctx.G.comboBanner = null; ctx.G._comboLevel = 0; ctx.G.fxMegaComboBurst = 0;
             ctx.G.trails = []; ctx.G.timeScale = 1; ctx.G.timeSlowTimer = 0; ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0;
             ctx.G.bossWarningT = 0; ctx.G.bossWarningShown = false;
-            ctx.G.weaponLv = Math.max(1, ctx.G.weaponLv); ctx.G.puUpgrade = null; ctx.G.upgradeBanner = null; ctx.G.killCount = 0; ctx.G.slowMoT = 0;
+            ctx.G.weaponLv = Math.max(1, ctx.G.weaponLv); ctx.G.upgradeBanner = null; ctx.G.killCount = 0; ctx.G.slowMoT = 0;
             ctx.G.swipeT = 0; ctx.G.portalT = 0; ctx.G.glitchT = 0; ctx.G.glitchStrips = [];
             ctx.G._closeCallCooldown = 0; ctx.G._synergyChecked = null; ctx.G.shieldReflect = false; ctx.G.laserSlow = false; ctx.G.droneRicochet = false;
             ctx.G.scoreMult = 1; ctx.G.glassCannon = false; ctx.G.bulletStorm = false; ctx.G.powerSurge = false; ctx.G.darkness = false; ctx.G.turbo = false;
@@ -185,25 +192,29 @@
             if (!(ctx.modesIsMirrorPermanent && ctx.modesIsMirrorPermanent())) {
                 ctx.G.mirrorActive = false; ctx.G.mirrorTimer = 0;
             }
-            ctx.G.orbitalShields = null; ctx.G.orbitalShieldTimer = 0;
+
             ctx.G.stageKills = 0; ctx.G.stageDamageTaken = 0; ctx.G.stageAccuracyShots = 0; ctx.G.stageAccuracyHits = 0;
             ctx.G.stageRank = null;
             ctx.G.pacifistStage = true; ctx.G.overcharge = 0; ctx.G.overchargeTimer = 0;
-            ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.alive = true; ctx.G.p.inv = 2000; ctx.G.p.cap = null; ctx.G.p.dual = false; ctx.G.p.reviveTimer = 0;
+            ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 90; ctx.G.p.alive = true; ctx.G.p.inv = 2000; ctx.G.p.cap = null; ctx.G.p.reviveTimer = 0;
             ctx.G.stageEmptyT = 0;
-            ctx.setPUClass(null);
+            ctx.setPUClass(ctx.G.activePU && ctx.G.activePU.type);
             if (ctx.modesOnStageStart) ctx.modesOnStageStart();
+            if (ctx.G.nextScoreMult) { ctx.G.scoreMult = ctx.G.nextScoreMult; ctx.G.nextScoreMult = 0; }
+            if (ctx.settings.mode === 'daily') for (const mod of ctx.G.dailyMods || []) mod.apply(ctx.G);
             if (ctx.G.chal) ctx.SFX.challenge();
-            ctx.MusicEngine.setTempo(1 + ctx.G.stage * 0.05);
+            ctx.MusicEngine.setTempo(Math.min(1.25, 1 + (ctx.stagePlan().loop - 1) * 0.05));
             const _baseTheme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(ctx.G.chal) : (ctx.G.chal ? 'challenge' : 'gameplay');
             ctx.MusicEngine.play(_baseTheme);
             ctx.mkFormation();
             if (ctx.spawnHazards) ctx.spawnHazards();
-            if (ctx.relic_applyRelics) ctx.relic_applyRelics(ctx.G);
+            if (ctx.relic_applyRelics && ctx.G.relicAppliedRun !== ctx.G.runGeneration) {
+                ctx.relic_applyRelics(ctx.G); ctx.G.relicAppliedRun = ctx.G.runGeneration;
+            }
             // Mutation start notification
             if (ctx.G.stageModifier) { for (const _m of (Array.isArray(ctx.G.stageModifier) ? ctx.G.stageModifier : [ctx.G.stageModifier])) { if (_m && (_m.id === 'mirror_field' || _m.id === 'gravity_well' || _m.id === 'phasing' || _m.id === 'ricochet_world')) { ctx.SFX.mutationStart(); ctx.G.mutationStages = (ctx.G.mutationStages || 0) + 1; if (ctx.G.mutationStages >= 5) ctx.unlockAchievement('mutation_master'); } } }
             // NEW: Apply stage archetype if scheduled
-            const archetypeId = GC.ARCHETYPE_SCHEDULE[(ctx.G.stage - 1) % GC.ARCHETYPE_SCHEDULE.length];
+            const archetypeId = ctx.isCampaign() || ctx.settings.mode === 'boss_rush' ? null : GC.ARCHETYPE_SCHEDULE[(ctx.G.stage - 1) % GC.ARCHETYPE_SCHEDULE.length];
             if (archetypeId === 'swarm_wave') {
                 const arch = GC.ARCHETYPES[archetypeId];
                 ctx.G.archetype = archetypeId;
@@ -216,7 +227,7 @@
                 ctx.G.archetype = archetypeId;
                 ctx.G.archetypeT = 0;
                 ctx.G.archetypeDur = arch.duration;
-                ctx.G.vipShip = { x: GC.W / 2, y: 100, hp: arch.vipHp, maxHp: arch.vipHp, w: 24, h: 24, col: arch.hue };
+                ctx.G.vipShip = ctx.newEnemy('boss', GC.W / 2, 100, 0, arch.vipHp);
                 ctx.G.enemies.push(ctx.G.vipShip);
             } else if (archetypeId === 'asteroid_field') {
                 const arch = GC.ARCHETYPES[archetypeId];
@@ -227,11 +238,11 @@
                 // Spawn initial asteroids
                 for (let i = 0; i < 5; i++) {
                     ctx.G.asteroids.push({
-                        x: Math.random() * GC.W,
-                        y: Math.random() * GC.H,
-                        vx: (Math.random() - 0.5) * 100,
-                        vy: Math.random() * 80 + 40,
-                        r: 12 + Math.random() * 8,
+                        x: ctx.random() * GC.W,
+                        y: ctx.random() * GC.H,
+                        vx: (ctx.random() - 0.5) * 100,
+                        vy: ctx.random() * 80 + 40,
+                        r: 12 + ctx.random() * 8,
                         col: arch.hue
                     });
                 }
@@ -277,7 +288,7 @@
             ctx.G.scorePopups.length = slen;
             if (ctx.G.flashT > 0) ctx.G.flashT -= dtMs;
             // NEW: Hitstop countdown — freezes gameplay timeScale briefly for impact weight
-            if (ctx.G.hitstopT > 0) { ctx.G.hitstopT -= dtMs; if (ctx.G.hitstopT <= 0) { ctx.G.hitstopT = 0; ctx.G.timeScale = restoreTimeScale(); } else ctx.G.timeScale = 0.001; }
+
             // NEW: Biome reveal timer + bonus sub-stage timer
             if (ctx.G.biomeRevealT > 0) ctx.G.biomeRevealT -= dtMs;
             if (ctx.G.bonusStage && ctx.G.bonusStageT > 0) { ctx.G.bonusStageT -= dtMs; if (ctx.G.bonusStageT <= 0) ctx.G.bonusStageT = 0; }
@@ -337,8 +348,8 @@
                 if (dp.t < dp.life) ctx.G.deathParts[dlen++] = dp;
             }
             ctx.G.deathParts.length = dlen;
-            if (Math.random() < 0.008) {
-                ctx.G.trails.push({ x: Math.random() * ctx.W, y: 0, vx: -30 - Math.random() * 50, vy: 100 + Math.random() * 80, life: 400, t: 0, col: '#ffffff', size: 1, spark: true });
+            if (ctx.random() < 0.008) {
+                ctx.G.trails.push({ x: ctx.random() * ctx.W, y: 0, vx: -30 - ctx.random() * 50, vy: 100 + ctx.random() * 80, life: 400, t: 0, col: '#ffffff', size: 1, spark: true });
             }
             // NEW: Supplementary FX state update (rings, glints, ghosts, warp streaks, edge pulse)
             if (ctx.updateFX) ctx.updateFX(dt);
@@ -347,37 +358,47 @@
         function update(dt, now) {
             if (dt > 0.1) dt = 0.1;
             const dtMs = dt * 1000;
-            ctx.updateBackground(dt);
-            if (ctx.updateDuck) ctx.updateDuck(dtMs);
-            if (ctx.updateTweens) ctx.updateTweens(dtMs);
-            ctx.updateCombo(dtMs);
             if (ctx.G.inp.p && !ctx.G.inp.pp) {
                 if (ctx.G.st === 'PAUSED') { ctx.G.st = ctx.G._prevSt; } else if (ctx.G.st === 'PLAYING') { ctx.G._prevSt = ctx.G.st; ctx.G.st = 'PAUSED'; ctx.G.pauseSel = 0; }
                 else if (ctx.G.st === 'SETTINGS') { ctx.G.st = 'TITLE'; }
             }
             if (ctx.G.st === 'PAUSED') { ctx.updatePauseMenu(); return; }
+            if (ctx.G.hitstopT > 0 && ctx.G.st === 'PLAYING') { ctx.G.hitstopT = Math.max(0, ctx.G.hitstopT - dtMs); return; }
+            ctx.G.animTime = (ctx.G.animTime || 0) + dtMs;
+            for (const popup of ctx.G.achievementPopups) popup.t += dtMs;
+            ctx.G.achievementPopups = ctx.G.achievementPopups.filter(p => p.t < p.dur);
+            ctx.updateBackground(dt);
+            if (ctx.updateDuck) ctx.updateDuck(dtMs);
+            if (ctx.updateTweens) ctx.updateTweens(dtMs);
+            if (ctx.G.st === 'PLAYING') ctx.updateCombo(dtMs);
+            if (ctx.G.st === 'RUN_CLEAR') {
+                ctx.G.runSummaryT -= dtMs;
+                if (ctx.G.runSummaryT <= 0 || (ctx.G.inp.s && !ctx.G.inp.sp)) {
+                    ctx.G.st = 'HIGH_SCORE'; ctx.G.ne = { ch: [65,65,65], pos: 0, done: false }; ctx.showHSOverlay();
+                }
+                return;
+            }
+            if (ctx.G.st === 'LOOP_CLEAR') {
+                ctx.G.loopSummaryT -= dtMs;
+                if (ctx.G.loopSummaryT <= 0 || (ctx.G.inp.s && !ctx.G.inp.sp)) ctx.openShop();
+                return;
+            }
             if (ctx.G.st === 'SETTINGS') { ctx.updateSettingsMenu(); return; }
             if (ctx.G.st === 'SHOP') { if (ctx.updateFX) ctx.updateFX(dt); ctx.updateShop(); return; }
             if (ctx.G.evoChoiceOpen) { if (ctx.updateFX) ctx.updateFX(dt); ctx.updateEvoChoice(); return; }
             if (ctx.G.st === 'TITLE') {
+                if (ctx.G.inp.l && !ctx.G.inp.lp || ctx.G.inp.r && !ctx.G.inp.rp) GC.applySettingsInput(ctx, ctx.SETTINGS_ITEMS.find(item => item.key === 'ship'), ctx.G.inp.l ? -1 : 1);
                 ctx.G.tIdle += dt * 1000;
                 if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.demoMode) { ctx.startDemo(); }
                 else if (ctx.G.inp.s && !ctx.G.inp.sp) {
                     ctx.SFX.coinInsert();
-                    ctx.G.titleParts = [];
-                    ctx.G.score = 0;
-                    ctx.G.lives = ctx.isGameMode && ctx.isGameMode('gauntlet') ? 3 : ctx.diffMod('lives');
-                    ctx.G.stage = 1;
-                    ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0;
-                    ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0;
-                    ctx.G.bossKillTotal = 0; ctx.G.startShieldHits = 3;
-                    if (ctx.modesOnRunStart) ctx.modesOnRunStart();
+                    ctx.resetRun(Date.now());
                     ctx.startStage();
                     const _theme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(false) : 'gameplay';
                     ctx.MusicEngine.play(_theme);
                 }
                 if (!ctx.G.demoMode) {
-                    if (Math.random() < 0.04) { const _tc = ['#4488ff','#ffcc00','#ff4444','#00ffcc','#ff88aa']; ctx.G.titleParts.push({ x: Math.random() * ctx.W, y: ctx.H + 5, vx: (Math.random()-0.5)*20, vy: -30 - Math.random()*40, life: 2500, t: 0, col: _tc[Math.floor(Math.random()*_tc.length)], size: 1 + Math.floor(Math.random()*2) }); }
+                    if (ctx.random() < 0.04) { const _tc = ['#4488ff','#ffcc00','#ff4444','#00ffcc','#ff88aa']; ctx.G.titleParts.push({ x: ctx.random() * ctx.W, y: ctx.H + 5, vx: (ctx.random()-0.5)*20, vy: -30 - ctx.random()*40, life: 2500, t: 0, col: _tc[Math.floor(ctx.random()*_tc.length)], size: 1 + Math.floor(ctx.random()*2) }); }
                     let _tplen = 0; for (let _ti = 0; _ti < ctx.G.titleParts.length; _ti++) { const _tp = ctx.G.titleParts[_ti]; _tp.x += _tp.vx * dt; _tp.y += _tp.vy * dt; _tp.t += dt * 1000; if (_tp.t < _tp.life && _tp.y >= -10) ctx.G.titleParts[_tplen++] = _tp; } ctx.G.titleParts.length = _tplen;
                 }
                 return;
@@ -394,7 +415,7 @@
             if (ctx.G.st === 'GAME_OVER') {
                 ctx.G.sTmr -= dt * 1000; ctx.updateExp(dt);
                 if (ctx.G.contTmr > 0) { ctx.G.contTmr -= dt; ctx.G.contCnt = Math.ceil(ctx.G.contTmr); }
-                if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp && (!ctx.modesAllowContinue || ctx.modesAllowContinue())) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 50; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = restoreTimeScale(); ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.mkFormation(); ctx.MusicEngine.play(baseMusicTheme(ctx.G.chal)); }
+                if (ctx.G.contTmr > 0 && ctx.G.inp.s && !ctx.G.inp.sp && (!ctx.modesAllowContinue || ctx.modesAllowContinue())) { ctx.G.lives = ctx.diffMod('lives'); ctx.G.st = 'PLAYING'; ctx.G.p.alive = true; ctx.G.p.x = ctx.W / 2; ctx.G.p.y = ctx.H - 90; ctx.G.p.inv = 3000; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.powerups = []; ctx.G.timeScale = restoreTimeScale(); ctx.G.freezeT = 0; ctx.G.damageVignetteT = 0; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.clearGameSchedule(); ctx.mkFormation(); ctx.MusicEngine.play(baseMusicTheme(ctx.G.chal)); }
                 if (ctx.G.sTmr <= 0 && ctx.G.contTmr <= 0) {
                     if (ctx.relic_earnShards) ctx.relic_earnShards(ctx.G.score, ctx.G.stage);
                     if (ctx.G.demoMode) { ctx.startDemo(); }
@@ -405,7 +426,9 @@
             }
             if (ctx.G.st === 'HIGH_SCORE') { ctx.handleName(); return; }
             if (ctx.G.st === 'PLAYING') {
+                ctx.tickGameSchedule(dtMs * ctx.G.timeScale);
                 ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt);
+                if (ctx.isCampaign() || ctx.settings.mode === 'boss_rush') ctx.updateCampaign(dt * ctx.G.timeScale);
                 if (ctx.updateHazards) ctx.updateHazards(dt);
                 // Super activation check (C / left shoulder / Y button)
                 if (ctx.G.inp.super && !ctx.G.inp.superp && ctx.G.superPhase === 'idle' && ctx.G.superMeter >= 100) {
@@ -417,7 +440,7 @@
                 if (ctx.modulateMusic) {
                     ctx.modulateMusic('combo', ctx.G.combo || 0);
                     ctx.modulateMusic('health', ctx.G.lives || 0);
-                    if (ctx.G.bossPhase) ctx.modulateMusic('bossPhase', ctx.G.bossPhase);
+                    ctx.modulateMusic('bossPhase', ctx.G.encounterBoss?.bossPhase || 0);
                 }
                 // NEW: Bonus sub-stage auto-advance when timer hits zero (no death penalty)
                 if (ctx.G.bonusStage && ctx.G.bonusStageT <= 0 && ctx.G.stageClearLock <= 0) {
@@ -425,30 +448,17 @@
                     const _rating = ctx.G.stageKills >= 30 ? 'S' : ctx.G.stageKills >= 20 ? 'A' : ctx.G.stageKills >= 10 ? 'B' : 'C';
                     ctx.G.bonusRating = _rating;
                     if (ctx.SFX.bonusEnd) ctx.SFX.bonusEnd(_rating);
-                    ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2, text: 'BONUS RANK: ' + _rating, t: 0, dur: 2000, col: '#ffcc00', big: true });
+                    ctx.G.scorePopups.push({ x: ctx.W / 2, y: ctx.H / 2, text: ctx.t('galaxa.stage_rank') + ': ' + _rating, t: 0, dur: 2000, col: '#ffcc00', big: true });
                     ctx.unlockAchievement('bonus_hunter');
                     ctx.advanceToNextStage(true);
                 }
                 if (ctx.G.shkT > 0) ctx.G.shkT -= dt * 1000;
                 if (ctx.G.p.cap) { ctx.G.p.cap.y -= 100 * dt; if (ctx.G.p.cap.y < ctx.G.p.y - 20) { ctx.G.p.dual = true; ctx.G.p.cap = null; ctx.SFX.rescue(); ctx.unlockAchievement('dual_wielder'); } }
-                let bossAlive = false, minibossAlive = false, _aliveN = 0;
-                for (let _ai = 0; _ai < ctx.G.enemies.length; _ai++) { const _ae = ctx.G.enemies[_ai]; if (_ae.st === 'DEAD') continue; _aliveN++; if (_ae.type === 'boss') bossAlive = true; else if (_ae.type === 'miniboss') { bossAlive = true; minibossAlive = true; } }
-                if (_aliveN === 0 && ctx.G.levelSkipTimer <= 0 && ctx.G.stageClearLock <= 0) {
-                    ctx.G.stageEmptyT += dtMs;
-                    if (ctx.G.stageEmptyT > 350) {
-                        ctx.G.stageEmptyT = 0;
-                        ctx.mkFormation();
-                        let _recovered = 0;
-                        for (let _ri = 0; _ri < ctx.G.enemies.length; _ri++) { if (ctx.G.enemies[_ri].st !== 'DEAD') _recovered++; }
-                        if (_recovered === 0) ctx.advanceToNextStage(false);
-                    }
-                } else {
-                    ctx.G.stageEmptyT = 0;
-                }
+                let bossAlive = false, _aliveN = 0;
+                for (const e of ctx.G.enemies) { if (e.st !== 'DEAD') { _aliveN++; if (e.sectorBoss) bossAlive = true; } }
                 const baseTheme = ctx.modesGetBaseMusicTheme ? ctx.modesGetBaseMusicTheme(ctx.G.chal) : (ctx.G.chal ? 'challenge' : 'gameplay');
-                const bossTheme = minibossAlive ? 'miniboss' : 'boss';
-                const effectiveBossTheme = ctx.G.stage >= 15 ? 'deep_boss' : bossTheme;
-                if (bossAlive && ctx.MusicEngine.playing !== effectiveBossTheme) { ctx.SFX.bossJingle(); ctx.MusicEngine.play(effectiveBossTheme); }
+                const effectiveBossTheme = ctx.G.biome + '_boss';
+                if (bossAlive && ctx.MusicEngine.playing !== effectiveBossTheme) ctx.MusicEngine.play(effectiveBossTheme);
                 else if (!bossAlive && (ctx.MusicEngine.playing === 'boss' || ctx.MusicEngine.playing === 'miniboss' || ctx.MusicEngine.playing === 'deep_boss')) ctx.MusicEngine.play(baseTheme);
                 else if (!bossAlive && ctx.MusicEngine.playing !== baseTheme && ctx.MusicEngine.playing !== 'challenge' && ctx.MusicEngine.playing !== 'victory') ctx.MusicEngine.play(baseTheme);
                 if (_aliveN !== ctx.MusicEngine._lastIntensity) { ctx.MusicEngine.setIntensity(_aliveN); ctx.MusicEngine._lastIntensity = _aliveN; }
@@ -488,10 +498,17 @@
             let h = '<div class="galaxa-overlay-box"><h2>' + ctx.esc(ctx.t('galaxa.game_over')) + '</h2>';
             h += '<p>' + ctx.esc(ctx.t('galaxa.score')) + ': ' + ctx.G.score + '</p><p>' + ctx.esc(ctx.t('galaxa.stage')) + ': ' + ctx.G.stage + '</p>';
             h += '<p style="margin-top:12px">' + ctx.esc(ctx.t('galaxa.enter_name')) + '</p>';
-            h += '<div class="galaxa-name-entry" data-ne>';
-            for (let i = 0; i < 3; i++) h += '<div class="galaxa-name-char' + (i === 0 ? ' active' : '') + '" data-ci="' + i + '">A</div>';
-            h += '</div><p style="font-size:10px;color:#666">\u2191\u2193 change  \u2190\u2192 select  ENTER confirm</p></div>';
+            h += '<form class="galaxa-name-entry"><input aria-label="' + ctx.esc(ctx.t('galaxa.enter_name')) + '" maxlength="3" pattern="[A-Za-z]{1,3}" value="AAA" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="submit">' + ctx.esc(ctx.t('desktop.save')) + '</button><p role="alert"></p></form></div>';
             ctx.overlayEl.innerHTML = h;
+            const form = ctx.overlayEl.querySelector('form'), input = form.querySelector('input');
+            input.addEventListener('input', () => {
+                input.value = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+                ctx.G.ne.ch = [...input.value.padEnd(3, 'A')].map(ch => ch.charCodeAt(0));
+            });
+            form.addEventListener('submit', event => {
+                event.preventDefault(); if (ctx.G.ne.done) return;
+                ctx.G.ne.done = true; ctx.submitHS(String.fromCharCode(...ctx.G.ne.ch), ctx.G.score, ctx.G.stage);
+            });
         }
 
         function handleName() {
@@ -501,18 +518,25 @@
             if (d) ne.ch[ne.pos] = ne.ch[ne.pos] <= 65 ? 90 : ne.ch[ne.pos] - 1;
             if (l) ne.pos = Math.max(0, ne.pos - 1);
             if (r) ne.pos = Math.min(2, ne.pos + 1);
-            ctx.overlayEl.querySelectorAll('[data-ci]').forEach((el, i) => { el.textContent = String.fromCharCode(ne.ch[i]); el.classList.toggle('active', i === ne.pos); });
+            const input = ctx.overlayEl.querySelector('input');
+            if (input && document.activeElement !== input) { input.value = String.fromCharCode(...ne.ch); input.setSelectionRange(ne.pos, ne.pos + 1); }
             if (f) { if (ne.pos < 2) ne.pos++; else { ne.done = true; ctx.submitHS(String.fromCharCode(ne.ch[0], ne.ch[1], ne.ch[2]), ctx.G.score, ctx.G.stage); } }
         }
 
         function isHS(s) { return ctx.G.hiScores.length < 10 || s > ctx.G.hiScores[ctx.G.hiScores.length - 1].score; }
         async function loadHS() { try { const d = await ctx.api('/api/desktop/galaxa/highscore'); ctx.G.hiScores = Array.isArray(d) ? d : []; if (ctx.G.hiScores.length) ctx.G.hi = ctx.G.hiScores[0].score; } catch (e) {} }
         async function submitHS(name, score, stage) {
-            try { const d = await ctx.api('/api/desktop/galaxa/highscore/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, score, stage }) }); ctx.G.hiScores = Array.isArray(d) ? d : []; if (ctx.G.hiScores.length) ctx.G.hi = ctx.G.hiScores[0].score; } catch (e) {}
+            try { const d = await ctx.api('/api/desktop/galaxa/highscore/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, score, stage }) }); ctx.G.hiScores = Array.isArray(d) ? d : []; if (ctx.G.hiScores.length) ctx.G.hi = ctx.G.hiScores[0].score; } catch (e) {
+                if (ctx.state.disposed) return; ctx.G.ne.done = false;
+                const error = ctx.overlayEl.querySelector('[role="alert"]'); if (error) error.textContent = ctx.t('desktop.request_failed'); return;
+            }
+            if (ctx.state.disposed) return;
             ctx.overlayEl.classList.remove('active'); ctx.overlayEl.innerHTML = ''; ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.showTitle();
         }
 
         function pollGP() {
+            Object.keys(ctx.G.gp).forEach(key => { ctx.G.gp[key] = false; });
+            if (!ctx.isActive()) return;
             ctx.G.gp.l = false; ctx.G.gp.r = false; ctx.G.gp.u = false; ctx.G.gp.d = false; ctx.G.gp.f = false; ctx.G.gp.s = false; ctx.G.gp.p = false;
             try {
                 const gps = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -549,7 +573,8 @@
         }
 
         function onKey(e) {
-            if (ctx.state.disposed) return; const k = e.key;
+            if (ctx.state.disposed || !ctx.isActive() || /INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) return; const k = e.key;
+            if (ctx.resumeAudio) ctx.resumeAudio();
             if (ctx.GalagaMusic) ctx.GalagaMusic.resumeFromGesture();
             if (ctx.G.demoMode) {
                 ctx.G.demoMode = false;
@@ -563,6 +588,9 @@
                 ctx.setPUClass(null);
                 ctx.showTitle(); ctx.MusicEngine.play('title');
             }
+            if (!e.repeat && ctx.G.st === 'TITLE' && k.toLowerCase() === 's') { ctx.G.st = 'SETTINGS'; ctx.G.settingsSel = 0; e.preventDefault(); return; }
+            if (!e.repeat && ctx.G.st === 'TITLE' && k.toLowerCase() === 'd') { ctx.SFX.coinInsert(); ctx.startDailyChallenge(); e.preventDefault(); return; }
+            if (!e.repeat && ctx.G.st === 'TITLE' && k.toLowerCase() === 'r') { ctx.renderRelics(); e.preventDefault(); return; }
             if (k === 'ArrowLeft' || k === 'a') { ctx.G.kb.l = true; e.preventDefault(); }
             if (k === 'ArrowRight' || k === 'd') { ctx.G.kb.r = true; e.preventDefault(); }
             if (k === 'ArrowUp' || k === 'w') { ctx.G.kb.u = true; e.preventDefault(); }
@@ -596,13 +624,13 @@
         const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
         function onTouchStart(e) {
-            if (ctx.state.disposed) return;
+            if (ctx.state.disposed || !['PLAYING', 'STAGE_INTRO'].includes(ctx.G.st) || ctx.G.evoChoiceOpen) return;
             if (ctx.GalagaMusic) ctx.GalagaMusic.resumeFromGesture();
             e.preventDefault();
             for (const touch of e.changedTouches) {
                 const rect = ctx.canvas.getBoundingClientRect();
-                const tx = (touch.clientX - rect.left) / ctx.scale;
-                const ty = (touch.clientY - rect.top) / ctx.scale;
+                const tx = (touch.clientX - rect.left) * ctx.W / rect.width;
+                const ty = (touch.clientY - rect.top) * ctx.H / rect.height;
                 if (tx < ctx.W / 2) {
                     touchJoystick = { id: touch.identifier, startX: tx, startY: ty, curX: tx, curY: ty };
                     touchStartY = ty;
@@ -620,8 +648,8 @@
             for (const touch of e.changedTouches) {
                 if (touchJoystick && touch.identifier === touchJoystick.id) {
                     const rect = ctx.canvas.getBoundingClientRect();
-                    touchJoystick.curX = (touch.clientX - rect.left) / ctx.scale;
-                    touchJoystick.curY = (touch.clientY - rect.top) / ctx.scale;
+                    touchJoystick.curX = (touch.clientX - rect.left) * ctx.W / rect.width;
+                    touchJoystick.curY = (touch.clientY - rect.top) * ctx.H / rect.height;
                     const dx = touchJoystick.curX - touchJoystick.startX;
                     const dy = touchJoystick.curY - touchJoystick.startY;
                     ctx.G.kb.l = dx < -8;
@@ -641,7 +669,7 @@
                     const dx = touchJoystick.curX - touchStartX;
                     if (dy < -50 && Math.abs(dx) < 40) {
                         ctx.G.kb.s = true;
-                        setTimeout(() => { ctx.G.kb.s = false; }, 100);
+                        ctx.scheduleGame(() => { ctx.G.kb.s = false; }, 100);
                     }
                     touchJoystick = null;
                     ctx.G.kb.l = false;
@@ -656,37 +684,87 @@
             }
         }
 
+        function onMenuPointer(event) {
+            if (!ctx.isActive() || ctx.state.disposed) return;
+            ctx.resumeAudio();
+            const rect = ctx.canvas.getBoundingClientRect(), x = (event.clientX - rect.left) * ctx.W / rect.width, y = (event.clientY - rect.top) * ctx.H / rect.height;
+            const G = ctx.G;
+            function confirm(fn) { G.inp.f = true; G.inp.fp = false; fn(); G.inp.f = false; }
+            if (G.evoChoiceOpen && y >= 239 && y < 467) { ctx.selectEvolution(Math.floor((y - 239) / 76)); return; }
+            if (G.st === 'TITLE') {
+                if (y >= 180 && y < 302 && x >= 30 && x < 518) {
+                    ctx.settings.ship = Object.keys(ctx.SHIP_TYPES)[Math.min(3, Math.floor((x - 30) / 122))]; ctx.saveSettings();
+                } else if (y >= 397 && y <= 446) {
+                    G.inp.s = true; G.inp.sp = false; ctx.update(1 / 60, G.simTime); G.inp.s = false;
+                } else if (y >= 350 && y < 389) GC.applySettingsInput(ctx, ctx.SETTINGS_ITEMS.find(i => i.key === 'mode'), 1);
+                else if (y >= 633 && y < 664) {
+                    if (x < 160) { G.st = 'SETTINGS'; G.settingsSel = 0; }
+                    else if (x < 363) ctx.startDailyChallenge();
+                    else ctx.renderRelics();
+                }
+            } else if (G.st === 'SETTINGS' && y >= 83 && y < 601) {
+                G.settingsSel = Math.floor((y - 83) / 37);
+                const item = ctx.SETTINGS_ITEMS[G.settingsSel];
+                if (item.type === 'action') G.st = 'TITLE';
+                else GC.applySettingsInput(ctx, item, x < ctx.W / 2 ? -1 : 1);
+            } else if (G.st === 'SHOP' && y >= 104 && y <= 593) ctx.shopClick(Math.floor((y - 104) / 44));
+            else if (G.st === 'PAUSED' && y >= 329 && y < 488) {
+                G.pauseSel = Math.floor((y - 329) / 53); confirm(ctx.updatePauseMenu);
+            } else if (['LOOP_CLEAR', 'RUN_CLEAR', 'GAME_OVER'].includes(G.st)) {
+                G.inp.s = true; G.inp.sp = false; ctx.update(1 / 60, G.simTime); G.inp.s = false;
+            }
+        }
         function setupTouch() {
+            ctx.canvas.addEventListener('pointerup', onMenuPointer);
             if (!isTouchDevice) return;
             ctx.canvas.addEventListener('touchstart', onTouchStart, { passive: false });
             ctx.canvas.addEventListener('touchmove', onTouchMove, { passive: false });
             ctx.canvas.addEventListener('touchend', onTouchEnd, { passive: false });
             ctx.canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
+            const bar = document.createElement('div'); bar.className = 'galaxa-touch-actions';
+            for (const action of ['parry', 'super']) {
+                const button = document.createElement('button'); button.type = 'button'; button.textContent = ctx.t('galaxa.action_' + action);
+                button.addEventListener('pointerdown', event => { event.preventDefault(); event.stopPropagation(); if (!ctx.isActive() || ctx.G.st !== 'PLAYING') return; button.setPointerCapture(event.pointerId); ctx.G.kb[action] = true; });
+                const release = () => { ctx.G.kb[action] = false; };
+                button.addEventListener('pointerup', release); button.addEventListener('pointercancel', release);
+                bar.appendChild(button);
+            }
+            ctx.wrapEl.appendChild(bar); ctx.touchActions = bar;
         }
 
-        let _frameBudgetSkip = 0;
         function syncGalagaMusic() {
             if (!ctx.GalagaMusic) return;
             const st = ctx.G.st;
             const isDemoPlay = ctx.G.demoMode && (st === 'PLAYING' || st === 'STAGE_INTRO' || st === 'STAGE_CLEAR' || st === 'GAME_OVER' || st === 'SHOP');
-            const shouldPlay = st === 'TITLE' || isDemoPlay;
+            const shouldPlay = (st === 'TITLE' || isDemoPlay) && ctx.isActive();
             if (shouldPlay) {
+                ctx.MusicEngine.stop();
                 if (!ctx.G.muted) ctx.GalagaMusic.play();
                 else ctx.GalagaMusic.stop();
             } else {
                 ctx.GalagaMusic.stop();
             }
         }
+        let accumulator = 0;
+        ctx.stepFrame = function (dt) {
+            accumulator += Math.min(0.25, Math.max(0, dt));
+            ctx.pollGP(); ctx.mergeInput();
+            while (accumulator + 1e-9 >= 1 / 60) {
+                const step = 1 / 60;
+                if (ctx.G.demoMode && ctx.updateDemo) { ctx.updateDemo(step); ctx.mergeInput(); }
+                if ((ctx.G.st === 'PLAYING' || ctx.G.st === 'STAGE_INTRO') && !ctx.G.evoChoiceOpen && ctx.G.hitstopT <= 0) ctx.G.simTime = (ctx.G.simTime || 0) + step * 1000 * ctx.G.timeScale;
+                ctx.update(step, ctx.G.simTime || 0);
+                ctx.savePrev(); ctx.tick++; accumulator -= step;
+            }
+        };
         function loop() {
             if (ctx.state.disposed) return;
             const dt = ctx.frameDelta();
-            ctx.savePrev(); ctx.pollGP(); ctx.mergeInput();
-            if (ctx.G.demoMode && ctx.updateDemo) ctx.updateDemo(dt);
-            ctx.update(dt, performance.now());
+            if (!ctx.isActive()) ctx.pauseForFocus();
+            ctx.stepFrame(dt);
             syncGalagaMusic();
-            ctx.tick++;
+            ctx.MusicEngine.setPaused(ctx.G.st === 'PAUSED' || !ctx.isActive());
             ctx.renderFrame(dt);
-            if (dt > 0.018) { _frameBudgetSkip = Math.min(3, _frameBudgetSkip + 1); } else if (_frameBudgetSkip > 0) _frameBudgetSkip--;
             ctx.rafId = requestAnimationFrame(ctx.loop);
         }
 
@@ -696,6 +774,7 @@
         ctx.getBiomeForStage = GC.getBiomeForStage;
         ctx.advanceToNextStage = advanceToNextStage;
         ctx.startStage = startStage;
+        ctx.resetRun = resetRun;
         ctx.updateExp = updateExp;
         ctx.update = update;
         ctx.startDailyChallenge = startDailyChallenge;

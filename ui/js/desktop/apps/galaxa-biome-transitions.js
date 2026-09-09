@@ -18,15 +18,15 @@
             G.transitionType = 'wipe';
             G.pendingBiome = newBiome;
             ctx.duckMusic(0.5, 1500);
-            setTimeout(() => ctx.SFX.biomeReveal && ctx.SFX.biomeReveal(), 300);
+            ctx.scheduleGame(() => ctx.SFX.biomeReveal && ctx.SFX.biomeReveal(), 300);
         }
 
         function updateTransitions(dt) {
             const G = ctx.G;
             if (!G.transitionActive) return;
-            G.transitionT += dt;
+            G.transitionT += dt * 1000;
 
-            if (G.transitionT === dt && G.pendingBiome) {
+            if (G.transitionT === dt * 1000 && G.pendingBiome) {
                 G.biome = G.pendingBiome.id;
                 G.biomeName = G.pendingBiome.name;
                 G.pendingBiome = null;

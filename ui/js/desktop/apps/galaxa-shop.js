@@ -20,16 +20,19 @@
         let shopItems = [];
         let shopBought = {};
         let shopVisits = 0;
+        let purchasedPowerups = [];
 
         function openShop() {
             shopSel = 0;
             shopBought = {};
+            purchasedPowerups = [];
             shopItems = GC.SHOP_ITEMS.filter(function(item) {
                 if (item.id === 'weapon_up' && ctx.G.weaponLv >= 4) return false;
                 return true;
             });
             ctx.G.shopOpen = true;
             ctx.G.st = 'SHOP';
+            ctx.MusicEngine.play('shop');
             shopVisits++;
             if (shopVisits >= 10) ctx.unlockAchievement('shopaholic');
             ctx.SFX.coinInsert();
@@ -37,8 +40,9 @@
 
         function closeShop() {
             ctx.G.shopOpen = false;
-            ctx.G.st = 'STAGE_INTRO';
-            ctx.G.introTmr = 1200;
+            ctx.startStage();
+            for (const type of purchasedPowerups) ctx.collectPU({ type, x: ctx.G.p.x, y: ctx.G.p.y });
+            purchasedPowerups = [];
         }
 
         function buyItem(item) {
@@ -50,8 +54,9 @@
             try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch (e) {}
             if (item.apply) {
                 item.apply(ctx);
+                if (item.id === 'score_mult') ctx.G.nextScoreMult = 1.5;
             } else if (item.puType) {
-                ctx.G.powerups.push({ x: ctx.G.p.x, y: ctx.G.p.y - 30, type: item.puType, t: 0 });
+                purchasedPowerups.push(item.puType);
             }
             ctx.SFX.shopBuy();
             if (ctx.fxPowerupSparkle) ctx.fxPowerupSparkle(ctx.W / 2, ctx.H / 2, '#ffcc00', 'uncommon');
@@ -63,6 +68,7 @@
         }
 
         function updateShop() {
+            if (ctx.G.inp.p && !ctx.G.inp.pp) { closeShop(); return; }
             const u = ctx.G.inp.u && !ctx.G.inp.up;
             const d = ctx.G.inp.d && !ctx.G.inp.dp;
             const f = ctx.G.inp.f && !ctx.G.inp.fp;
@@ -78,73 +84,33 @@
         }
 
         function renderShop() {
-            ctx.c.fillStyle = 'rgba(0,0,0,0.88)';
-            ctx.c.fillRect(0, 0, ctx.W, ctx.H);
-
-            ctx.c.textAlign = 'center';
-            ctx.c.fillStyle = '#ffcc00';
-            ctx.c.font = 'bold 22px "Courier New",monospace';
-            ctx.c.shadowBlur = 10;
-            ctx.c.shadowColor = '#ffcc00';
-            ctx.c.fillText('SHOP', ctx.W / 2, 50);
-            ctx.c.shadowBlur = 0;
-
-            ctx.c.fillStyle = '#44ff88';
-            ctx.c.font = 'bold 14px "Courier New",monospace';
-            ctx.c.fillText('CREDITS: ' + ctx.G.credits, ctx.W / 2, 80);
-
-            const startY = 110;
-            const itemH = 44;
-            for (let i = 0; i < shopItems.length; i++) {
-                const item = shopItems[i];
-                const y = startY + i * itemH;
-                const sel = i === shopSel;
-                const bought = shopBought[item.id] || 0;
-                const maxed = item.maxBuy && bought >= item.maxBuy;
-                const canAfford = ctx.G.credits >= item.cost;
-
-                if (sel) {
-                    ctx.c.fillStyle = 'rgba(68,136,255,0.15)';
-                    ctx.c.fillRect(20, y - 14, ctx.W - 40, itemH - 4);
-                    ctx.c.strokeStyle = '#4488ff';
-                    ctx.c.lineWidth = 1;
-                    ctx.c.strokeRect(20, y - 14, ctx.W - 40, itemH - 4);
-                }
-
-                ctx.c.textAlign = 'left';
-                ctx.c.fillStyle = sel ? '#ffcc00' : (canAfford && !maxed ? '#aaccee' : '#555');
-                ctx.c.font = sel ? 'bold 12px "Courier New",monospace' : '11px "Courier New",monospace';
-                ctx.c.fillText(item.icon + ' ' + item.name, 32, y);
-
-                ctx.c.fillStyle = maxed ? '#448844' : (canAfford ? '#44ff88' : '#ff4444');
-                ctx.c.font = '10px "Courier New",monospace';
-                ctx.c.fillText(item.desc, 32, y + 14);
-
-                ctx.c.textAlign = 'right';
-                if (maxed) {
-                    ctx.c.fillStyle = '#448844';
-                    ctx.c.fillText('OWNED', ctx.W - 32, y + 4);
-                } else {
-                    ctx.c.fillStyle = canAfford ? '#ffcc00' : '#ff4444';
-                    ctx.c.font = 'bold 11px "Courier New",monospace';
-                    ctx.c.fillText(item.cost + ' CR', ctx.W - 32, y + 4);
-                }
+            const c = ctx.c, W = ctx.W, H = ctx.H;
+            c.fillStyle = '#071222ed'; c.fillRect(18, 22, W - 36, H - 44);
+            function text(value, x, y, size, color, align) {
+                c.textAlign = align || 'left'; c.fillStyle = color; c.font = size + 'px "Share Tech Mono", monospace';
+                c.fillText(value, x, y, align === 'center' ? W - 60 : W - 160);
             }
-
-            const leaveY = startY + shopItems.length * itemH;
-            const selLeave = shopSel === shopItems.length;
-            ctx.c.textAlign = 'center';
-            ctx.c.fillStyle = selLeave ? '#ff4444' : '#888';
-            ctx.c.font = selLeave ? 'bold 14px "Courier New",monospace' : '12px "Courier New",monospace';
-            if (selLeave) { ctx.c.shadowBlur = 6; ctx.c.shadowColor = '#ff4444'; }
-            ctx.c.fillText('LEAVE SHOP', ctx.W / 2, leaveY + 10);
-            ctx.c.shadowBlur = 0;
-
-            ctx.c.fillStyle = '#666';
-            ctx.c.font = '10px "Courier New",monospace';
-            ctx.c.fillText('\u2191\u2193 select  ENTER buy  ESC leave', ctx.W / 2, ctx.H - 30);
+            text(ctx.t('galaxa.shop'), W / 2, 60, 24, '#e7d2a6', 'center');
+            text(ctx.t('galaxa.credits') + '  ' + ctx.G.credits, W / 2, 87, 14, '#8bbac4', 'center');
+            const names = { extra_life: 'lives', shield_hit: 'shield', weapon_up: null, score_mult: 'score',
+                start_rapid: 'rapid_fire', start_spread: 'spread_shot', start_shield: 'shield', start_pierce: 'pierce', start_homing: 'homing', start_freeze: 'freeze' };
+            const symbols = { extra_life: '+1', shield_hit: '+1', weapon_up: 'W +1', score_mult: '×1.5' };
+            for (let i = 0; i < shopItems.length; i++) {
+                const item = shopItems[i], y = 104 + i * 44, maxed = item.maxBuy && (shopBought[item.id] || 0) >= item.maxBuy;
+                c.fillStyle = i === shopSel ? '#233a53' : '#0e1d30'; c.fillRect(32, y, W - 64, 40);
+                if (i === shopSel) { c.fillStyle = '#e7c286'; c.fillRect(32, y, 3, 40); }
+                ctx.drawAnimation(c, 'pickup.' + (item.puType || (item.id === 'shield_hit' ? 'shield' : 'speed')), 54, y + 20, ctx.G.animTime, 26);
+                const name = names[item.id] ? ctx.t('galaxa.' + names[item.id]) : '';
+                text((symbols[item.id] || '') + ' ' + name, 78, y + 25, 13, '#cedfec');
+                text(maxed ? ctx.t('galaxa.owned') : String(item.cost), W - 48, y + 25, 13, ctx.G.credits >= item.cost ? '#e7c286' : '#bd8080', 'right');
+            }
+            const y = 104 + shopItems.length * 44;
+            c.fillStyle = shopSel === shopItems.length ? '#37516a' : '#152b42'; c.fillRect(90, y + 6, W - 180, 43);
+            text(ctx.t('galaxa.leave_shop'), W / 2, y + 34, 16, '#e7c286', 'center');
+            text(ctx.t('galaxa.shop_hint'), W / 2, H - 44, 11, '#90aac3', 'center');
         }
 
+        ctx.shopClick = index => { shopSel = Math.max(0, Math.min(shopItems.length, index)); if (shopSel === shopItems.length) closeShop(); else buyItem(shopItems[shopSel]); };
         ctx.openShop = openShop;
         ctx.closeShop = closeShop;
         ctx.updateShop = updateShop;

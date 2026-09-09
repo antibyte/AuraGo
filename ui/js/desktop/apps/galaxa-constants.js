@@ -14,6 +14,24 @@
     //     cinematic super-zoom.
     GC.W = 540;
     GC.H = 720;
+    GC.SECTORS = [
+        { id: 'nebula', enemies: ['bee', 'butterfly', 'stalker'] },
+        { id: 'asteroid', enemies: ['bomber', 'kamikaze', 'hunter', 'bee'] },
+        { id: 'crystal', enemies: ['shield_bee', 'splitter', 'sniper', 'butterfly'] },
+        { id: 'storm', enemies: ['spinner', 'carrier', 'lasher', 'hunter'] },
+        { id: 'blackhole', enemies: ['weaver', 'stalker', 'splitter', 'bomber'] },
+        { id: 'void', enemies: ['teleporter', 'carrier', 'sniper', 'kamikaze'] }
+    ];
+    GC.getStagePlan = function (stage, mode) {
+        const n = Math.max(0, Math.floor(stage || 1) - 1);
+        if (mode === 'boss_rush') return { sector: n % 6, step: 5, loop: Math.floor(n / 6) + 1, kind: 'boss' };
+        return { sector: Math.floor(n % 30 / 5), step: n % 5 + 1, loop: Math.floor(n / 30) + 1,
+            kind: ['intro', 'escort', 'bonus', 'elite', 'boss'][n % 5] };
+    };
+    GC.makeRunRandom = function (seed) {
+        let s = (Math.floor(seed) >>> 0) % 2147483646 + 1;
+        return function () { s = s * 16807 % 2147483647; return (s - 1) / 2147483646; };
+    };
     GC.PLAYER_SPEED = 220;
     GC.PLAYER_Y_MIN = 400;
     // FIX: tightened from H-30 to H-60 so the 24x24 player sprite stays fully
@@ -104,10 +122,10 @@
             }
             return bullets;
         },
-        random_spread: function(e, count, speed, angle, ebSpd) {
+        random_spread: function(e, count, speed, angle, ebSpd, random = Math.random) {
             const bullets = [];
             for (let i = 0; i < count; i++) {
-                const a = -Math.PI / 2 + (Math.random() - 0.5) * angle;
+                const a = Math.PI / 2 + (random() - 0.5) * angle;
                 bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 6, vx: Math.cos(a) * ebSpd * speed, vy: Math.sin(a) * ebSpd * speed });
             }
             return bullets;
@@ -200,14 +218,14 @@
 
     // NEW: Biome progression — one biome per 5 stages, each with own identity.
     GC.BIOMES = [
-        { id: 'nebula', name: 'NEBULA', stages: [1, 2, 3, 4], bgTheme: 'nebula', musicTheme: 'gameplay', hazardTheme: 'nebula', palette: ['#1a0033', '#4488ff', '#ffcc00'], enemyBonus: [], desc: 'Drifting gas clouds' },
-        { id: 'asteroid', name: 'ASTEROID FIELD', stages: [5, 6, 7, 8, 9], bgTheme: 'asteroid', musicTheme: 'gameplay', hazardTheme: 'asteroid', palette: ['#3a2a1a', '#ff8844', '#aa6644'], enemyBonus: ['weaver', 'kamikaze'], desc: 'Dodging tumbling rocks' },
-        { id: 'crystal', name: 'CRYSTAL CAVES', stages: [10, 11, 12, 13, 14], bgTheme: 'crystal', musicTheme: 'gameplay', hazardTheme: 'crystal', palette: ['#0a2a3a', '#88ccff', '#aaffee'], enemyBonus: ['splitter', 'shield_bee'], desc: 'Glittering crystal formations' },
-        { id: 'storm', name: 'ION STORM', stages: [15, 16, 17, 18, 19], bgTheme: 'storm', musicTheme: 'deep_boss', hazardTheme: 'storm', palette: ['#1a1a2a', '#ffff44', '#88ccff'], enemyBonus: ['carrier', 'teleporter'], desc: 'Electromagnetic chaos' },
-        { id: 'blackhole', name: 'BLACK HOLE', stages: [20, 21, 22, 23, 24], bgTheme: 'blackhole', musicTheme: 'deep_boss', hazardTheme: 'blackhole', palette: ['#0a0011', '#8844ff', '#cc66ff'], enemyBonus: ['weaver', 'splitter', 'kamikaze'], desc: 'Gravitational maelstrom' },
-        { id: 'void', name: 'THE VOID', stages: [25, 26, 27, 28, 29], bgTheme: 'nebula', musicTheme: 'deep_boss', hazardTheme: 'nebula', palette: ['#000000', '#ffffff', '#ff44ff'], enemyBonus: ['teleporter', 'carrier', 'kamikaze', 'splitter'], desc: 'Beyond the known' }
+        { id: 'nebula', name: 'NEBULA', stages: [1, 2, 3, 4, 5], bgTheme: 'nebula', musicTheme: 'gameplay', hazardTheme: 'nebula', palette: ['#1a0033', '#4488ff', '#ffcc00'], enemyBonus: [], desc: 'Drifting gas clouds' },
+        { id: 'asteroid', name: 'ASTEROID FIELD', stages: [6, 7, 8, 9, 10], bgTheme: 'asteroid', musicTheme: 'gameplay', hazardTheme: 'asteroid', palette: ['#3a2a1a', '#ff8844', '#aa6644'], enemyBonus: ['weaver', 'kamikaze'], desc: 'Dodging tumbling rocks' },
+        { id: 'crystal', name: 'CRYSTAL CAVES', stages: [11, 12, 13, 14, 15], bgTheme: 'crystal', musicTheme: 'gameplay', hazardTheme: 'crystal', palette: ['#0a2a3a', '#88ccff', '#aaffee'], enemyBonus: ['splitter', 'shield_bee'], desc: 'Glittering crystal formations' },
+        { id: 'storm', name: 'ION STORM', stages: [16, 17, 18, 19, 20], bgTheme: 'storm', musicTheme: 'deep_boss', hazardTheme: 'storm', palette: ['#1a1a2a', '#ffff44', '#88ccff'], enemyBonus: ['carrier', 'teleporter'], desc: 'Electromagnetic chaos' },
+        { id: 'blackhole', name: 'BLACK HOLE', stages: [21, 22, 23, 24, 25], bgTheme: 'blackhole', musicTheme: 'deep_boss', hazardTheme: 'blackhole', palette: ['#0a0011', '#8844ff', '#cc66ff'], enemyBonus: ['weaver', 'splitter', 'kamikaze'], desc: 'Gravitational maelstrom' },
+        { id: 'void', name: 'THE VOID', stages: [26, 27, 28, 29, 30], bgTheme: 'nebula', musicTheme: 'deep_boss', hazardTheme: 'nebula', palette: ['#000000', '#ffffff', '#ff44ff'], enemyBonus: ['teleporter', 'carrier', 'kamikaze', 'splitter'], desc: 'Beyond the known' }
     ];
-    GC.getBiomeForStage = function (stage) { for (let i = GC.BIOMES.length - 1; i >= 0; i--) { if (stage >= GC.BIOMES[i].stages[0]) return GC.BIOMES[i]; } return GC.BIOMES[0]; };
+    GC.getBiomeForStage = function (stage) { return GC.BIOMES[GC.getStagePlan(stage).sector]; };
 
     // NEW: Super / Overdrive definitions — unique per ship. Meter fills from kills+combo+parry.
     GC.SUPER_DEFS = {
@@ -219,16 +237,6 @@
     GC.SUPER_METER_GAIN = { kill: 2, combo: 1, parry: 8, headshot: 4 };
     GC.SUPER_COST = 100; // full meter to activate
 
-    GC.ENEMY_ANIM_SPEED = {
-        bee: 150, butterfly: 120, hunter: 90, boss: 220, miniboss: 220, kamikaze: 70,
-        stalker: 130, sniper: 160, spinner: 100, bomber: 180, lasher: 140,
-        weaver: 110, splitter: 130, shield_bee: 150, carrier: 200, teleporter: 100
-    };
-    GC.ENEMY_FRAME_COUNT = {
-        bee: 4, butterfly: 4, hunter: 4, boss: 3, miniboss: 3, kamikaze: 4,
-        stalker: 4, sniper: 4, spinner: 4, bomber: 4, lasher: 4,
-        weaver: 4, splitter: 4, shield_bee: 4, carrier: 4, teleporter: 4
-    };
     GC.ENEMY_SPAWN_DURATION = 400;
 
     // Per-type movement visuals: pulse scale, dive trails, blink invisibility

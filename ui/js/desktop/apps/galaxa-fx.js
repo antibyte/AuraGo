@@ -25,6 +25,7 @@
         function caps() { return GC.FX_CAPS[ctx.settings.particles] || GC.FX_CAPS.high; }
         function easeOutCubic(t) { const f = t - 1; return f * f * f + 1; }
         function reducedMotion() {
+            if (ctx.settings.reducedMotion) return true;
             try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
         }
 
@@ -118,10 +119,7 @@
             fxComboPulse(level);
             ctx.G.fxMegaComboBurst = 3;
             for (let i = 0; i < 2; i++) spawnFireTrail();
-            if (level >= 4 && !reducedMotion()) {
-                if (ctx.fxBulletTime) ctx.fxBulletTime();
-                else ctx.G.hitstopT = Math.max(ctx.G.hitstopT || 0, 40);
-            }
+
         }
 
         function fxStageClearSetPiece() {
@@ -164,7 +162,7 @@
         // --- Multi-kill cluster sting: hitstop + gold edge pulse + popup ------
         function fxMultiKill(x, y) {
             const G = ctx.G;
-            G.hitstopT = Math.max(G.hitstopT || 0, GC.FX_MULTIKILL_HITSTOP);
+
             G.fxEdgePulse = { t: 0, dur: 500, col: '#ffcc44' };
             if (!reducedMotion()) G.flashT = Math.max(G.flashT || 0, 90);
             G.scorePopups.push({ x, y: y - 24, text: 'MULTI KILL!', t: 0, dur: 1000, col: '#ffcc44', big: true });
@@ -632,319 +630,6 @@
             c.globalAlpha = 1;
         }
 
-        // --- Draw: shockwave rings + glints above explosions ------------------
-        function fxDrawMid(c) {
-            const G = ctx.G;
-            // --- Standard FX rings ---
-            if (G.fxRings && G.fxRings.length) {
-                c.save();
-                c.globalCompositeOperation = 'lighter';
-                for (let i = 0; i < G.fxRings.length; i++) {
-                    const r = G.fxRings[i];
-                    if (r.t < r.delay) continue;
-                    const pr = Math.min(1, (r.t - r.delay) / r.dur);
-                    const rad = easeOutCubic(pr) * r.maxR;
-                    if (rad < 1) continue;
-                    const alpha = (1 - pr) * 0.8;
-                    const lw = Math.max(1, r.w * (1 - pr));
-                    c.lineWidth = lw;
-                    c.globalAlpha = alpha * 0.55;
-                    c.strokeStyle = '#ff3344';
-                    c.beginPath(); c.arc(r.x - 2, r.y, rad + 2, 0, Math.PI * 2); c.stroke();
-                    c.strokeStyle = '#33ddff';
-                    c.beginPath(); c.arc(r.x + 2, r.y, rad - 2 > 1 ? rad - 2 : 1, 0, Math.PI * 2); c.stroke();
-                    c.globalAlpha = alpha;
-                    c.strokeStyle = '#ffffff';
-                    c.lineWidth = Math.max(1, lw * 0.6);
-                    c.beginPath(); c.arc(r.x, r.y, rad, 0, Math.PI * 2); c.stroke();
-                }
-                c.restore();
-                c.globalAlpha = 1;
-            }
-            // --- Boss death rumble rings ---
-            if (G.fxRumbleRings && G.fxRumbleRings.length) {
-                c.save();
-                c.globalCompositeOperation = 'lighter';
-                for (let i = 0; i < G.fxRumbleRings.length; i++) {
-                    const r = G.fxRumbleRings[i];
-                    if (r.t < r.delay) continue;
-                    const pr = Math.min(1, (r.t - r.delay) / r.dur);
-                    const rad = easeOutCubic(pr) * r.maxR;
-                    if (rad < 1) continue;
-                    const alpha = (1 - pr) * 0.9;
-                    c.lineWidth = Math.max(1, r.w * (1 - pr));
-                    c.globalAlpha = alpha;
-                    c.strokeStyle = i % 2 === 0 ? '#ff2222' : '#ff8800';
-                    c.beginPath(); c.arc(r.x, r.y, rad, 0, Math.PI * 2); c.stroke();
-                }
-                c.restore();
-                c.globalAlpha = 1;
-            }
-            // --- Player death flash rings ---
-            if (G.fxDeathFlash) {
-                const df = G.fxDeathFlash;
-                const pct = df.t / df.dur;
-                c.save();
-                c.globalCompositeOperation = 'lighter';
-                for (let i = 0; i < df.rings.length; i++) {
-                    const r = df.rings[i];
-                    const localT = df.t - r.delay;
-                    if (localT < 0 || localT > r.dur) continue;
-                    const rp = Math.min(1, localT / r.dur);
-                    const rad = easeOutCubic(rp) * r.maxR;
-                    const alpha = (1 - rp) * 0.6;
-                    c.lineWidth = Math.max(1, 3 * (1 - rp));
-                    c.globalAlpha = alpha;
-                    c.strokeStyle = i % 2 === 0 ? '#ff4444' : '#ffaa44';
-                    c.beginPath(); c.arc(df.x, df.y, rad, 0, Math.PI * 2); c.stroke();
-                }
-                c.restore();
-                c.globalAlpha = 1;
-            }
-            // --- Glints ---
-            if (G.fxGlints && G.fxGlints.length) {
-                c.save();
-                c.globalCompositeOperation = 'lighter';
-                for (let i = 0; i < G.fxGlints.length; i++) {
-                    const g = G.fxGlints[i];
-                    const fade = Math.max(0, 1 - g.t / g.life);
-                    const twinkle = 0.55 + 0.45 * Math.sin(g.t * 0.03 + g.ph);
-                    c.globalAlpha = fade * twinkle;
-                    c.fillStyle = g.col;
-                    const r = g.r;
-                    c.fillRect(g.x - r, g.y - 0.5, r * 2, 1);
-                    c.fillRect(g.x - 0.5, g.y - r, 1, r * 2);
-                    c.globalAlpha = fade * twinkle * 0.5;
-                    const r2 = r * 0.55;
-                    c.fillRect(g.x - r2, g.y - r2, 1, 1);
-                    c.fillRect(g.x + r2, g.y - r2, 1, 1);
-                    c.fillRect(g.x - r2, g.y + r2, 1, 1);
-                    c.fillRect(g.x + r2, g.y + r2, 1, 1);
-                }
-                c.restore();
-                c.globalAlpha = 1;
-            }
-            // --- Respawn teleport ring + light pillar (galaxa-fx) -------------
-            if (G.fxRespawnFx) {
-                const rf = G.fxRespawnFx;
-                const pr = Math.min(1, rf.t / rf.dur);
-                c.save();
-                c.globalCompositeOperation = 'lighter';
-                const rad = easeOutCubic(pr) * 56;
-                c.globalAlpha = (1 - pr) * 0.9;
-                c.lineWidth = Math.max(1, 3.5 * (1 - pr));
-                c.strokeStyle = '#66ddff';
-                c.beginPath(); c.arc(rf.x, rf.y, rad, 0, Math.PI * 2); c.stroke();
-                c.globalAlpha = (1 - pr) * 0.7;
-                c.strokeStyle = '#ffffff';
-                c.lineWidth = Math.max(1, 2 * (1 - pr));
-                c.beginPath(); c.arc(rf.x, rf.y, rad * 0.8, 0, Math.PI * 2); c.stroke();
-                const ph = Math.min(ctx.H - rf.y, 120) * Math.min(1, pr * 3) * (1 - pr * 0.5);
-                const grad = c.createLinearGradient(0, rf.y - 10, 0, rf.y - 10 + ph);
-                grad.addColorStop(0, 'rgba(255,255,255,0)');
-                grad.addColorStop(0.3, 'rgba(190,240,255,' + ((1 - pr) * 0.85) + ')');
-                grad.addColorStop(1, 'rgba(102,221,255,0)');
-                c.globalAlpha = 1;
-                c.fillStyle = grad;
-                c.fillRect(rf.x - 7, rf.y - 10, 14, ph + 10);
-                c.restore();
-                c.globalAlpha = 1;
-            }
-        }
-
-        // --- Draw: afterimage ghosts under the live ship ----------------------
-        function fxDrawGhosts(c) {
-            const G = ctx.G;
-            if (!G.fxGhosts || !G.fxGhosts.length || !G.p.alive) return;
-            const ghostCols = { 1: '', 2: '', 3: '' };
-            for (let i = 0; i < G.fxGhosts.length; i++) {
-                const g = G.fxGhosts[i];
-                const alpha = (1 - g.t / g.life) * (g.col === '#00ffcc' ? 0.55 : 0.35);
-                ghostCols[1] = g.col; ghostCols[2] = g.col; ghostCols[3] = g.col;
-                c.save();
-                c.globalAlpha = alpha;
-                c.translate(g.x, g.y);
-                c.rotate(g.tilt);
-                c.transform(1, g.pitch, 0, 1 - Math.abs(g.pitch) * 0.35, 0, 0);
-                ctx.drawSp(c, g.frame, ghostCols, -16, -16, false, true);
-                c.restore();
-            }
-            c.globalAlpha = 1;
-        }
-
-        // --- Draw: combo screen-edge pulse over the game layer ----------------
-        function fxDrawOverlay(c) {
-            const G = ctx.G;
-            if (G.fxEdgePulse) {
-                const pr = Math.min(1, G.fxEdgePulse.t / G.fxEdgePulse.dur);
-                const alpha = Math.pow(1 - pr, 1.5) * 0.55;
-                if (alpha > 0.01) {
-                    const inset = easeOutCubic(pr) * 14 + 2;
-                    const strip = 18 * (1 - pr) + 4;
-                    c.save();
-                    c.globalCompositeOperation = 'lighter';
-                    c.globalAlpha = alpha;
-                    c.fillStyle = G.fxEdgePulse.col;
-                    c.fillRect(0, 0, ctx.W, strip);
-                    c.fillRect(0, ctx.H - strip, ctx.W, strip);
-                    c.fillRect(0, 0, strip, ctx.H);
-                    c.fillRect(ctx.W - strip, 0, strip, ctx.H);
-                    c.globalAlpha = alpha * 0.9;
-                    c.strokeStyle = '#ffffff';
-                    c.lineWidth = 2;
-                    c.strokeRect(inset, inset, ctx.W - inset * 2, ctx.H - inset * 2);
-                    c.restore();
-                }
-            }
-            if (G.fxBulletTimeT > 0) {
-                const pr = G.fxBulletTimeT / 650;
-                c.save();
-                c.fillStyle = 'rgba(8,12,32,' + (0.35 * pr) + ')';
-                c.fillRect(0, 0, ctx.W, ctx.H);
-                c.restore();
-            }
-            // --- Super-ready gold edge tint (galaxa-fx) ------------------------
-            if (G.fxSuperReadyT > 0) {
-                const pr = 1 - G.fxSuperReadyT / GC.FX_SUPER_READY_DUR;
-                const alpha = Math.sin(Math.min(1, pr) * Math.PI) * 0.14;
-                if (alpha > 0.01) {
-                    const strip = 16 * Math.sin(Math.min(1, pr) * Math.PI) + 3;
-                    c.save();
-                    c.globalCompositeOperation = 'lighter';
-                    c.globalAlpha = alpha;
-                    c.fillStyle = '#ffcc44';
-                    c.fillRect(0, 0, ctx.W, strip);
-                    c.fillRect(0, ctx.H - strip, ctx.W, strip);
-                    c.fillRect(0, 0, strip, ctx.H);
-                    c.fillRect(ctx.W - strip, 0, strip, ctx.H);
-                    c.restore();
-                }
-            }
-            // --- Last-life red edge vignette pulse (galaxa-fx) -----------------
-            if (G.fxLastLifePulse) {
-                const pr = Math.min(1, G.fxLastLifePulse.t / G.fxLastLifePulse.dur);
-                const alpha = Math.sin(pr * Math.PI) * 0.16;
-                if (alpha > 0.01) {
-                    const strip = 20 * Math.sin(pr * Math.PI) + 4;
-                    c.save();
-                    c.globalAlpha = alpha;
-                    c.fillStyle = '#ff2222';
-                    c.fillRect(0, 0, ctx.W, strip);
-                    c.fillRect(0, ctx.H - strip, ctx.W, strip);
-                    c.fillRect(0, 0, strip, ctx.H);
-                    c.fillRect(ctx.W - strip, 0, strip, ctx.H);
-                    c.restore();
-                }
-            }
-            c.globalAlpha = 1;
-        }
-
-        // --- Draw: boss entrance shockwave (drawn over game) ------------------
-        function fxDrawBossEnter(c) {
-            const G = ctx.G;
-            if (!G.fxBossEnter) return;
-            const pr = Math.min(1, G.fxBossEnter.t / G.fxBossEnter.dur);
-            const alpha = (1 - pr) * 0.5;
-            if (alpha <= 0.01) return;
-            const rad = easeOutCubic(pr) * 80;
-            c.save();
-            c.globalCompositeOperation = 'lighter';
-            c.globalAlpha = alpha;
-            c.strokeStyle = '#ff4444';
-            c.lineWidth = Math.max(1, 4 * (1 - pr));
-            c.shadowBlur = 20;
-            c.shadowColor = '#ff4444';
-            c.beginPath(); c.arc(G.fxBossEnter.x, G.fxBossEnter.y, rad, 0, Math.PI * 2); c.stroke();
-            c.shadowBlur = 0;
-            c.restore();
-            c.globalAlpha = 1;
-        }
-
-        // --- Draw: confetti particles -----------------------------------------
-        function fxDrawConfetti(c) {
-            const G = ctx.G;
-            if (!G.fxConfetti || !G.fxConfetti.length) return;
-            c.save();
-            for (let i = 0; i < G.fxConfetti.length; i++) {
-                const f = G.fxConfetti[i];
-                const alpha = Math.max(0, 1 - f.t / f.life);
-                c.globalAlpha = alpha * 0.8;
-                c.save();
-                c.translate(f.x, f.y);
-                c.rotate(f.rot);
-                c.fillStyle = f.col;
-                c.fillRect(-f.w / 2, -f.h / 2, f.w, f.h);
-                c.restore();
-            }
-            c.restore();
-            c.globalAlpha = 1;
-        }
-
-        // --- Draw: magnet pull-lines ------------------------------------------
-        function fxDrawPullLines(c) {
-            const G = ctx.G;
-            if (!G.fxPullLines || !G.fxPullLines.length) return;
-            c.save();
-            c.globalCompositeOperation = 'lighter';
-            for (let i = 0; i < G.fxPullLines.length; i++) {
-                const pl = G.fxPullLines[i];
-                const alpha = Math.max(0, 1 - pl.t / pl.life) * 0.35;
-                if (alpha <= 0.01) continue;
-                c.globalAlpha = alpha;
-                c.strokeStyle = GC.FX_MAGNET_PULL_COL;
-                c.lineWidth = 1;
-                for (let j = 0; j < pl.lines; j++) {
-                    const phase = pl.t * 0.003 + j * 1.047;
-                    const midX = (pl.x + pl.targetX) / 2 + Math.sin(phase) * 20;
-                    const midY = (pl.y + pl.targetY) / 2 + Math.cos(phase * 0.7) * 15;
-                    c.beginPath();
-                    c.moveTo(pl.x, pl.y);
-                    c.quadraticCurveTo(midX, midY, pl.targetX, pl.targetY);
-                    c.stroke();
-                }
-            }
-            c.restore();
-            c.globalAlpha = 1;
-        }
-
-        // --- Draw: boss death rumble vignette over everything ------------------
-        function fxDrawRumbleOverlay(c) {
-            const G = ctx.G;
-            if (!G.fxRumbleVignette) return;
-            const pr = Math.min(1, G.fxRumbleVignette.t / G.fxRumbleVignette.dur);
-            const alpha = Math.pow(1 - pr, 2) * 0.3;
-            if (alpha <= 0.01) return;
-            c.save();
-            const vg = c.createRadialGradient(ctx.W / 2, ctx.H / 2, ctx.H * 0.15, ctx.W / 2, ctx.H / 2, ctx.H * 0.8);
-            vg.addColorStop(0, 'rgba(255,0,0,0)');
-            vg.addColorStop(1, 'rgba(255,0,0,' + alpha + ')');
-            c.fillStyle = vg;
-            c.fillRect(0, 0, ctx.W, ctx.H);
-            c.restore();
-            c.globalAlpha = 1;
-        }
-
-        // --- Draw: fire trail particles (drawn as a distinct pass) ------------
-        function fxDrawFireTrail(c) {
-            const G = ctx.G;
-            if (!G.part) return;
-            c.save();
-            c.globalCompositeOperation = 'lighter';
-            for (let i = 0; i < G.part.length; i++) {
-                const p = G.part[i];
-                if (!p.fireTrail) continue;
-                const alpha = Math.max(0, 1 - p.t / p.life) * 0.5;
-                c.globalAlpha = alpha;
-                c.fillStyle = p.col;
-                const sz = p.size || 2;
-                c.beginPath();
-                c.arc(p.x, p.y, sz, 0, Math.PI * 2);
-                c.fill();
-            }
-            c.restore();
-            c.globalAlpha = 1;
-        }
-
         ctx.fxSpawnPhaseDashGhosts = fxSpawnPhaseDashGhosts;
         ctx.fxBossShockwave = fxBossShockwave;
         ctx.fxBossKillSetPiece = fxBossKillSetPiece;
@@ -958,9 +643,6 @@
         ctx.fxStageClearSetPiece = fxStageClearSetPiece;
         ctx.updateFX = updateFX;
         ctx.fxDrawBack = fxDrawBack;
-        ctx.fxDrawMid = fxDrawMid;
-        ctx.fxDrawGhosts = fxDrawGhosts;
-        ctx.fxDrawOverlay = fxDrawOverlay;
         ctx.fxBossDeathRumble = fxBossDeathRumble;
         ctx.fxGrazeSpark = fxGrazeSpark;
         ctx.fxParryRing = fxParryRing;
@@ -968,11 +650,6 @@
         ctx.fxMagnetPull = fxMagnetPull;
         ctx.fxPlayerDeathFlash = fxPlayerDeathFlash;
         ctx.fxBossEntrance = fxBossEntrance;
-        ctx.fxDrawBossEnter = fxDrawBossEnter;
-        ctx.fxDrawConfetti = fxDrawConfetti;
-        ctx.fxDrawPullLines = fxDrawPullLines;
-        ctx.fxDrawRumbleOverlay = fxDrawRumbleOverlay;
-        ctx.fxDrawFireTrail = fxDrawFireTrail;
         ctx.fxScreenShatter = fxScreenShatter;
         ctx.fxBulletTime = fxBulletTime;
         ctx.fxBiomeWeatherTick = fxBiomeWeatherTick;

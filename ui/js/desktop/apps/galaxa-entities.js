@@ -9,7 +9,7 @@
         GC.createEntitiesCombat(ctx);
         GC.createEntitiesBehaviors(ctx);
         const WEAPON_EVOS = {
-            vulcan: { name: 'VULCAN', desc: 'Ultra-fast stream', col: '#ff8844', fireRate: 0.6, spread: 0, dmgMult: 0.7 },
+            vulcan: { name: 'VULCAN', desc: 'Ultra-fast stream', col: '#ff8844', fireRate: 0.6, spread: 0, dmgMult: 1 },
             cannon: { name: 'CANNON', desc: 'Slow massive shots', col: '#ff4444', fireRate: 2.5, spread: 0, dmgMult: 4 },
             beam: { name: 'BEAM', desc: 'Continuous laser', col: '#88ccff', fireRate: 0, spread: 0, dmgMult: 0, isBeam: true }
         };
@@ -32,5 +32,6 @@
         }
         ctx.updateEvoChoice = updateEvoChoice;
         ctx.evoSel = function () { return evoSel; };
+        ctx.selectEvolution = index => { evoSel = Math.max(0, Math.min(2, index)); ctx.G.inp.f = true; ctx.G.inp.fp = false; updateEvoChoice(); ctx.G.inp.f = false; };
     };
 })();

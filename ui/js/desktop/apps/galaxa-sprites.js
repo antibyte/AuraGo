@@ -1,919 +1,148 @@
 (function () {
     'use strict';
     const GC = window.GalaxaCore = window.GalaxaCore || {};
-    var _preloadedSheet = null;
-    try {
-        var _sheetImg = new Image();
-        _sheetImg.src = 'data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADutP8PHmiMdWiVbs8AAAAASUVORK5CYII=';
-        if (_sheetImg.complete && _sheetImg.naturalWidth > 0) _preloadedSheet = _sheetImg;
-        else _sheetImg.onload = function () { _preloadedSheet = _sheetImg; };
-    } catch (_) {}
+    const ROOT = '/img/galaxa/';
+    GC.ART_VERSION = 'arcade-2026-09-v1';
+    let pendingAssets;
+    function validateManifest(data) {
+        if (!data || data.version !== 1 || !data.sheets || !data.animations) throw Error('Invalid Galaxa atlas manifest');
+        for (const sheet of Object.values(data.sheets)) {
+            if (!/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isInteger(sheet.width) || !Number.isInteger(sheet.height) || sheet.width <= 0 || sheet.height <= 0) throw Error('Invalid atlas sheet');
+        }
+        for (const scene of Object.values(data.scenes || {})) {
+            const s = data.sheets[scene.sheet], f = scene.frame;
+            if (!s || !Array.isArray(f) || f.length !== 4 || !f.every(Number.isFinite) || f[0] < 0 || f[1] < 0 || f[2] <= 0 || f[3] <= 0 || f[0] + f[2] > s.width || f[1] + f[3] > s.height) throw Error('Invalid background frame');
+        }
+        for (const [key, a] of Object.entries(data.animations)) {
+            const sheet = data.sheets[a.sheet];
+            if (!sheet || !/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isFinite(a.ms) || a.ms <= 0 ||
+                !Number.isFinite(a.size) || a.size <= 0 || !Array.isArray(a.pivot) || a.pivot.length !== 2 ||
+                !a.pivot.every(n => Number.isFinite(n) && n >= 0 && n <= 1) || !Array.isArray(a.frames) || !a.frames.length) throw Error('Invalid animation: ' + key);
+            if (a.sourceAnchors && (!Number.isFinite(a.sourceSize) || a.sourceSize <= 0 || !Array.isArray(a.sourceAnchors) || a.sourceAnchors.length !== a.frames.length || a.sourceAnchors.some((p, i) => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite) || p[0] < 0 || p[1] < 0 || p[0] > a.frames[i][2] || p[1] > a.frames[i][3]))) throw Error('Invalid source anchors: ' + key);
+            for (const f of a.frames) {
+                if (!Array.isArray(f) || f.length !== 4 || !f.every(Number.isFinite) ||
+                    f[0] < 0 || f[1] < 0 || f[2] <= 0 || f[3] <= 0 ||
+                    f[0] + f[2] > sheet.width || f[1] + f[3] > sheet.height) throw Error('Invalid frame: ' + key);
+            }
+        }
+        function require(key, count) { if (!data.animations[key] || data.animations[key].frames.length < count) throw Error('Incomplete animation: ' + key); }
+        for (const ship of Object.keys(GC.SHIP_TYPES)) {
+            for (const state of ['idle', 'left', 'right', 'fire', 'boost', 'super']) require('player.' + ship + '.' + state, state === 'idle' || state === 'super' ? 8 : 4);
+            require('icon.' + ship, 1);
+        }
+        for (const type of new Set(GC.SECTORS.flatMap(s => s.enemies).concat(['boss', 'miniboss']))) {
+            require(type + '.idle', 8); require(type + '.attack', 6); require(type + '.damage', 2);
+        }
+        for (const sector of GC.SECTORS) {
+            if (!data.scenes || !data.scenes[sector.id]) throw Error('Missing sector scene: ' + sector.id);
+            for (let phase = 1; phase <= 3; phase++) require('sector.' + sector.id + '.phase' + phase, 8);
+            require('sector.' + sector.id + '.death', 16);
+        }
+        for (const size of ['small', 'medium', 'large']) require('fx.explosion.' + size, 16);
+        for (const name of ['shield', 'parry', 'plasma']) require('fx.' + name, 8);
+        for (const type of ['normal', 'laser', 'rocket', 'plasma', 'ion', 'crystal', 'gravity', 'mine', 'bolt']) require('projectile.' + type, 2);
+        for (const type of [...GC.PU_TYPES, ...Object.values(GC.PU_UPGRADE)]) require('pickup.' + type, 2);
+        return data;
+    }
+    function loadAssets() {
+        if (pendingAssets) return pendingAssets;
+        pendingAssets = (async () => {
+            const response = await fetch(ROOT + 'atlas.json?v=' + GC.ART_VERSION);
+            if (!response.ok) throw Error('Galaxa atlas HTTP ' + response.status);
+            const manifest = validateManifest(await response.json()), images = {};
+            await Promise.all(Object.entries(manifest.sheets).map(([id, sheet]) => new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    if (img.naturalWidth !== sheet.width || img.naturalHeight !== sheet.height) return reject(Error('Atlas dimensions: ' + id));
+                    images[id] = img; resolve();
+                };
+                img.onerror = () => reject(Error('Atlas load: ' + id));
+                img.src = ROOT + sheet.file + '?v=' + GC.ART_VERSION;
+            })));
+            return { manifest, images };
+        })().catch(err => { pendingAssets = null; throw err; });
+        return pendingAssets;
+    }
+    GC.validateAtlasManifest = validateManifest;
+    GC.loadAtlasAssets = loadAssets;
     GC.createSprites = function (ctx) {
-        const radialGradientCache = new Map();
-        let spriteAtlasCache = new WeakMap();
-        const flashPixelColors = {};
-
-        function cachedRadialGradient(ctx, key, x, y, innerR, outerR, stops) {
-            const cacheKey = [
-                key,
-                Math.round(x),
-                Math.round(y),
-                Math.round(innerR),
-                Math.round(outerR),
-                stops.map(stop => stop.join('@')).join('|')
-            ].join(':');
-            if (radialGradientCache.has(cacheKey)) return radialGradientCache.get(cacheKey);
-            const gradient = ctx.createRadialGradient(x, y, innerR, x, y, outerR);
-            stops.forEach(([offset, color]) => gradient.addColorStop(offset, color));
-            radialGradientCache.set(cacheKey, gradient);
-            return gradient;
+        const radialGradientCache = new Map(), spriteAtlasCache = new Map();
+        let assets;
+        const palette = { 1: '#f1f8ff', 2: '#74d6ff', 3: '#3684da', 4: '#243d72' };
+        const SP = { player: 'player.classic.idle', playerIcon: 'icon.classic', pC: palette,
+            playerFrames: ['player.classic.idle'], PLAYER_FRAME: { idleA: 0 }, pwShield: 'fx.shield', pwC: palette };
+        function animation(key, time, loopOverride) {
+            if (!assets) return null;
+            const a = assets.manifest.animations[key];
+            if (!a) throw Error('Missing Galaxa animation: ' + key);
+            const t = Math.max(0, time || 0), loop = loopOverride === undefined ? a.loop : loopOverride;
+            const index = loop ? Math.floor(t / a.ms) % a.frames.length : Math.min(a.frames.length - 1, Math.floor(t / a.ms));
+            return { key, a, index, frame: a.frames[index] };
         }
-
-        function buildSprites() {
-            const p = (s) => { const rows = s.trim().split('\n'); return rows.map(r => r.split('').map(ch => parseInt(ch, 16) || 0)); };
-            const withPixels = (base, pixels) => {
-                const out = base.map(row => row.slice());
-                for (let i = 0; i < pixels.length; i++) {
-                    const px = pixels[i];
-                    out[px[1]][px[0]] = px[2];
-                }
-                return out;
-            };
-            const PREMIUM_PIXEL_ART_VERSION = 'galaxa-premium-v5';
-            const PLAYER_FRAME = Object.freeze({ idleA: 0, idleB: 1, bankLeft: 2, bankRight: 3, boost: 4, fire: 5, super: 6 });
-            const ENEMY_FRAME_COUNTS = Object.freeze({ bee: 4, butterfly: 4, stalker: 4, sniper: 4, hunter: 4, spinner: 4, bomber: 4, lasher: 4, weaver: 4, splitter: 4, shield_bee: 4, kamikaze: 4, carrier: 4, teleporter: 4, boss: 3, miniboss: 3 });
-            const playerBase = p([
-                '00000000ccc00ccc00000000',
-                '0000000c11100111c0000000',
-                '000000c1221001221c000000',
-                '00000c123210012321c00000',
-                '0000c12342100124321c0000',
-                '000c1234541001454321c000',
-                '00c12e444210012444e21c00',
-                '0c12e44aa410014aa44e21c0',
-                'c12e4444441001444444e21c',
-                'c12e4444441001444444e21c',
-                '0c15e44445100154444e51c0',
-                '00c15e444510015444e51c00',
-                '000c1555551001555551c000',
-                '0000c15885100158851c0000',
-                '00000c158510015851c00000',
-                '000000c1551001551c000000',
-                '0000000c11100111c0000000',
-                '00000000ccc00ccc00000000',
-                '000000000000000000000000',
-                '000000000000000000000000',
-                '000000000000000000000000',
-                '000000000000000000000000',
-                '000000000000000000000000',
-                '000000000000000000000000',
-            ].join('\n'));
-            const playerIdleA = withPixels(playerBase, [[11,3,1],[12,3,1],[10,4,2],[13,4,2],[11,5,7],[12,5,7],[9,10,'e'],[14,10,'e'],[7,14,5],[16,14,5]]);
-            const playerFrames = [
-                playerIdleA,
-                withPixels(playerIdleA, [[10,2,'c'],[13,2,'c'],[11,6,'b'],[12,6,'b'],[6,19,6],[17,19,6],[10,21,7],[13,21,7]]),
-                withPixels(playerIdleA, [[0,10,'a'],[1,10,'a'],[2,11,'a'],[3,12,'a'],[4,13,'c'],[5,15,5],[20,11,0],[21,10,0],[22,9,0]]),
-                withPixels(playerIdleA, [[21,10,'a'],[20,10,'a'],[19,11,'a'],[18,12,'a'],[17,13,'c'],[16,15,5],[1,11,0],[2,10,0],[3,9,0]]),
-                withPixels(playerIdleA, [[9,18,6],[10,18,6],[13,18,6],[14,18,6],[9,19,9],[10,19,9],[13,19,9],[14,19,9],[10,20,'b'],[13,20,'b'],[10,22,5],[13,22,5],[11,23,5],[12,23,5]]),
-                withPixels(playerIdleA, [[11,0,'c'],[12,0,'c'],[11,1,1],[12,1,1],[10,2,3],[13,2,3],[11,8,'b'],[12,8,'b']]),
-                withPixels(playerIdleA, [[10,9,'c'],[13,9,'c'],[9,10,'d'],[14,10,'d'],[11,11,1],[12,11,1],[7,12,'c'],[16,12,'c'],[8,15,9],[15,15,9]])
-            ];
-            return {
-                player: playerFrames[PLAYER_FRAME.idleA],
-                playerIcon: playerFrames[PLAYER_FRAME.idleA],
-                playerFrames,
-                PLAYER_FRAME,
-                PREMIUM_PIXEL_ART_VERSION,
-                ENEMY_FRAME_COUNTS,
-                pC: { 1: '#f8fbff', 2: '#bdeeff', 3: '#62b8ff', 4: '#2d73ff', 5: '#11306e', 6: '#061635', 7: '#ffb24a', 8: '#ff6b28', 9: '#40ffd0', a: '#ff4d6d', b: '#fff06a', c: '#7df9ff', d: '#9a5cff', e: '#243b86', f: '#050914' },
-                bee: [
-                    p([
-                        '00000004444000000000', '00000045554000000000', '00000455554400000000', '00004565565400000000',
-                        '000456f66f6540000000', '00456666666540000000', '04566666666654000000', '05666666666665400000',
-                        '04566666666654000000', '00456666666540000000', '00045666665400000000', '00004565565400000000',
-                        '00000455554400000000', '00000045554000000000', '00000004444000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000004444000000000', '00000045554000000000', '00000455554400000000', '00004565565400000000',
-                        '000456f66f6540000000', '00456666666540000000', '04566666666654000000', '45666666666665400004',
-                        '44566666666654000004', '40456666666540000004', '00045666665400000000', '00004565565400000000',
-                        '00000455554400000000', '00000045554000000000', '00000004444000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000004444000000000', '00000045554000000000', '00000455554400000000', '00004565565400000000',
-                        '000456f66f6540000000', '00456666666540000000', '04566666666654000000', '45666666666665400004',
-                        '44566666666654000004', '40456666666540000004', '00045666665400000000', '00004565565400000000',
-                        '00000455554400000000', '00000045554000000000', '00000004444000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000004444000000000', '00000045554000000000', '00000455554400000000', '00004565565400000000',
-                        '000456f66f6540000000', '00456666666540000000', '04566666666654000000', '05666666666665400000',
-                        '04566666666654000000', '00456666666540000000', '00045666665400000000', '00004565565400000000',
-                        '00000455554400000000', '00000045554000000000', '00000004444000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                bC: { 4: '#ffcc00', 5: '#ff9900', 6: '#ff4444', f: '#1a1028' },
-                bf: [
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00770677776600007700', '00776787787600007700',
-                        '00777877787600007700', '00678777778760000000', '06787766667876000000', '06787666667876000000',
-                        '00678777778760000000', '00067877787600000000', '00776787787600007700', '00770677776600007700',
-                        '00770067766000007700', '00000000660000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00660677776600006600', '00666787787600006600',
-                        '00667877787600006600', '00678777778760000000', '06787766667876000000', '06787666667876000000',
-                        '00678777778760000000', '00067877787600000000', '00666787787600006600', '00660677776600006600',
-                        '00660067766000006600', '00000000660000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00770677776600007700', '00776787787600007700',
-                        '00777877787600007700', '00678777778760000000', '06787766667876000000', '06787666667876000000',
-                        '00678777778760000000', '00067877787600000000', '00776787787600007700', '00770677776600007700',
-                        '00770067766000007700', '00000000660000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00660677776600006600', '00666787787600006600',
-                        '00667877787600006600', '00678777778760000000', '06787766667876000000', '06787666667876000000',
-                        '00678777778760000000', '00067877787600000000', '00666787787600006600', '00660677776600006600',
-                        '00660067766000006600', '00000000660000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                bfC: { 6: '#ff3366', 7: '#44bbff', 8: '#ff5588' },
-                stalker: [
-                    p([
-                        '00000000880000000000', '00000089998000000000', '00000899999800000000', '000089aaaaa980000000',
-                        '00089aaaaaaa98000000', '0089aaaaaaaa98000000', '00899999999999990000', '00089aaaaaaa98000000',
-                        '000089aaaaa980000000', '00000899999800000000', '00000089998000000000', '00000000880000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000880000000000', '00000089998000000000', '00000899999800000000', '000089aaaaa980000000',
-                        '00089aaaaaaa98000000', '0089aaaaaaaa98000000', '0089aaaaaaaaaaaa0000', '00089aaaaaaa98000000',
-                        '000089aaaaa980000000', '00000899999800000000', '00000089998000000000', '00000000880000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000880000000000', '00000089998000000000', '00000899999800000000', '000089aaaaa980000000',
-                        '00089aaaaaaa98000000', '0089aaaaaaaa98000000', '0089aaaaaaaaaaaa0000', '00089aaaaaaa98000000',
-                        '000089aaaaa980000000', '00000899999800000000', '00000089998000000000', '00000000880000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000880000000000', '00000089998000000000', '00000899999800000000', '000089aaaaa980000000',
-                        '00089aaaaaaa98000000', '0089aaaaaaaa98000000', '00899999999999990000', '00089aaaaaaa98000000',
-                        '000089aaaaa980000000', '00000899999800000000', '00000089998000000000', '00000000880000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                stalkerC: { 8: '#6622aa', 9: '#8844cc', a: '#aa66ee' },
-                sniper: [
-                    p([
-                        '00000000064000000000', '00000000465400000000', '00000004465544000000', '00000044565554400000',
-                        '00000445555554400000', '00004455555554400000', '00044555555554400000', '00445555555554400000',
-                        '00044555555554400000', '00004455555554400000', '00000445555554400000', '00000044555554400000',
-                        '00000004455544000000', '00000000445400000000', '00000000044000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000064000000000', '00000000465400000000', '00000004465544000000', '00000044565554400000',
-                        '00000445565554400000', '00004455555554400000', '00044555555554400000', '00445555555554400000',
-                        '00044555555554400000', '00004455555554400000', '00000445555554400000', '00000044555554400000',
-                        '00000004455544000000', '00000000445400000000', '00000000044000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000064000000000', '00000000465400000000', '00000004465544000000', '00000044565554400000',
-                        '00000445565554400000', '00004455565554400000', '00044555555554400000', '00445555555554400000',
-                        '00044555555554400000', '00004455555554400000', '00000445555554400000', '00000044555554400000',
-                        '00000004455544000000', '00000000445400000000', '00000000044000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000064000000000', '00000000465400000000', '00000004465544000000', '00000044565554400000',
-                        '00000445565554400000', '00004455565554400000', '00044555565554400000', '00445555555554400000',
-                        '00044555555554400000', '00004455555554400000', '00000445555554400000', '00000044555554400000',
-                        '00000004455544000000', '00000000445400000000', '00000000044000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                sniperC: { 4: '#ffcc00', 5: '#ffaa00', 6: '#ffff44' },
-                hunter: [
-                    p([
-                        '00000000000000000000', '00000008800000000000', '00000089980000000000', '00000899998000000000',
-                        '000089aa9a9800000000', '00089aaaaa9800000000', '0089aaaaaa9800000000', '089aaaaaaa9800000000',
-                        '0089aaaaaa9800000000', '00089aaaaa9800000000', '000089aa9a9800000000', '00000899998000000000',
-                        '00000089980000000000', '00000008800000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000000000000000', '00000008800000000000', '00000089980000000000', '00000899998000000000',
-                        '000089aa9a9800000000', '00089aaaaa9800000000', '0089aaaaaa9800000000', '089aaaaaaa9800000000',
-                        '0089aaaaaa9800000000', '00089aaaaa9800000000', '00b089aa9a9800000b00', '0b0008999980000000b0',
-                        '00000089980000000000', '00000008800000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000000000000000', '00000008800000000000', '00000089980000000000', '00000899998000000000',
-                        '000089aa9a9800000000', '00089aaaaa9800000000', '0089aaaaaa9800000000', '089aaaaaaa9800000000',
-                        '0089aaaaaa9800000000', '00089aaaaa9800000000', '00b089aa9a9800000b00', '0b0008999980000000b0',
-                        '00000089980000000000', '00000008800000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000000000000000', '00000008800000000000', '00000089980000000000', '00000899998000000000',
-                        '000089aa9a9800000000', '00089aaaaa9800000000', '0089aaaaaa9800000000', '089aaaaaaa9800000000',
-                        '0089aaaaaa9800000000', '00089aaaaa9800000000', '000089aa9a9800000000', '00000899998000000000',
-                        '00000089980000000000', '00000008800000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                hunterC: { 8: '#cc4400', 9: '#ff6600', a: '#ffaa00', b: '#ff2200' },
-                spinner: [
-                    p([
-                        '00000000000000000000', '00000000660000000000', '00000067766000000000', '00000677777600000000',
-                        '00006777777660000000', '00067777777766000000', '00677777777776600000', '00067777777766000000',
-                        '00006777777660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000000000000000', '00000000660000000000', '00000067766000000000', '00000677777600000000',
-                        '00006777777660000000', '00067777777766000000', '00677777777776600000', '00067777777766000000',
-                        '00006777777660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000000000000000', '00000000660000000000', '00000067766000000000', '00000677777600000000',
-                        '00006777777660000000', '00067777777766000000', '00677777777776600000', '00067777777766000000',
-                        '00006777777760000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000000000000000', '00000000660000000000', '00000067766000000000', '00000677777600000000',
-                        '00006777777760000000', '00067777777766000000', '00677777777776600000', '00067777777766000000',
-                        '00006777777660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                spinnerC: { 6: '#00cccc', 7: '#44ffff', 8: '#0088aa' },
-                bomber: [
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '00899999999999800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000008880000000000',
-                        '00000000999000000000', '00000000088000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999aaaa99800000', '00899999aaaa99800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000008880000000000',
-                        '00000000aaaa00000000', '00000000088000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999aaaa99800000', '00899999aaaa99800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000008880000000000',
-                        '00000000aaaa00000000', '00000000088000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '00899999999999800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000008880000000000',
-                        '00000000999000000000', '00000000088000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                bomberC: { 8: '#aa44cc', 9: '#cc66ff', a: '#ff44aa' },
-                lasher: [
-                    p([
-                        '00000000444000000000', '00000045554000000000', '00000455555400000000', '00004566665400000000',
-                        '00045666665400000000', '00456666665400000000', '00456666665400000000', '00045666665400000000',
-                        '00004566665400000000', '00000455555400000000', '00000045554000000000', '00000004444000000000',
-                        '00000060060060600000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000444000000000', '00000045554000000000', '00000455555400000000', '00004566665400000000',
-                        '00045666665400000000', '00456666665400000000', '00456666665400000000', '00045666665400000000',
-                        '00004566665400000000', '00000455555400000000', '00000045554000000000', '00000004444000000000',
-                        '00000050050050500000', '00000060060060600000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000444000000000', '00000045554000000000', '00000455555400000000', '00004566665400000000',
-                        '00045666665400000000', '00456666665400000000', '00456666665400000000', '00045666665400000000',
-                        '00004566665400000000', '00000455555400000000', '00000045554000000000', '00000004444000000000',
-                        '00000050050050500000', '00000050050050500000', '00000060060060600000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000444000000000', '00000045554000000000', '00000455555400000000', '00004566665400000000',
-                        '00045666665400000000', '00456666665400000000', '00456666665400000000', '00045666665400000000',
-                        '00004566665400000000', '00000455555400000000', '00000045554000000000', '00000004444000000000',
-                        '00000050050050500000', '00000060060060600000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                lasherC: { 4: '#44ff88', 5: '#00cc66', 6: '#aaffcc' },
-                // NEW: Enemy type sprites (reuse existing shapes with new colors)
-                weaver: [
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '00aa9999999999800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000000888000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '00899999999999800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000000888000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '0089999999999980aa00', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000000888000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '00899999999999800000', '00089999999998000000',
-                        '00008999999980000000', '00000899999800000000', '00000089998000000000', '00000000888000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                weaverC: { 8: '#ff8844', 9: '#ffaa66', a: '#ffcc88' },
-                splitter: [
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00000677777600000000', '00006777777660000000',
-                        '00067777767766000000', '00677777767776600000', '00677777767776600000', '00067777767766000000',
-                        '00006777767660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00000677777600000000', '00006777777660000000',
-                        '00067777777766000000', '00677777777776600000', '00677777777776600000', '00067777777766000000',
-                        '00006777777660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00000677777600000000', '00006777777660000000',
-                        '00067777777766000000', '00677777777776600000', '00677777777776600000', '00067777777766000000',
-                        '00006777777660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00000677777600000000', '00006777777660000000',
-                        '00067777777766000000', '00677777777776600000', '00677777777776600000', '00067777777766000000',
-                        '00006777777660000000', '00000677777600000000', '00000067766000000000', '00000000660000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                splitterC: { 6: '#88ff44', 7: '#aaff66' },
-                shield_bee: [
-                    p([
-                        '00000000004400000000', '00002222244442220000', '00022222444442222000', '00000004444444000000',
-                        '00000044444444400000', '00000444444444400000', '00004444554444000000', '00044445664444400000',
-                        '00004444554444000000', '00000444444444400000', '00000044444444400000', '00000004444444000000',
-                        '00022222444442222000', '00002222244442220000', '00000000004400000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000004400000000', '00003333344443330000', '00033333444443333000', '00000004444444000000',
-                        '00000044444444400000', '00000444444444400000', '00004444554444000000', '00044445664444400000',
-                        '00004444554444000000', '00000444444444400000', '00000044444444400000', '00000004444444000000',
-                        '00033333444443333000', '00003333344443330000', '00000000004400000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000004400000000', '00003333344443330000', '00033333444443333000', '00000004444444000000',
-                        '00000044444444400000', '00000444444444400000', '00004444554444000000', '00044445664444400000',
-                        '00004444554444000000', '00000444444444400000', '00000044444444400000', '00000004444444000000',
-                        '00033333444443333000', '00003333344443330000', '00000000004400000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000004400000000', '00002222244442220000', '00022222444442222000', '00000004444444000000',
-                        '00000044444444400000', '00000444444444400000', '00004444554444000000', '00044445664444400000',
-                        '00004444554444000000', '00000444444444400000', '00000044444444400000', '00000004444444000000',
-                        '00022222444442222000', '00002222244442220000', '00000000004400000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                shield_beeC: { 2: '#4488ff', 3: '#66aaff', 4: '#ffcc00', 5: '#ffaa00', 6: '#ff4444' },
-                kamikaze: [
-                    p([
-                        '00000000066000000000', '00000000666000000000', '00000006666000000000', '00000066666000000000',
-                        '00000666666000000000', '00006666666000000000', '00066666666000000000', '00666666666000000000',
-                        '00066666666000000000', '00006666666000000000', '00000666666000000000', '00000066666000000000',
-                        '00000006666000000000', '00000000666000000000', '00000000066000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000066000000000', '00000000666000000000', '00000006666000000000', '00000066666000000000',
-                        '00000666666000000000', '00006666666000000000', '00066666666000000000', '00666666666000000000',
-                        '00066666666000000000', '00006666666000000000', '00000666666000000000', '00000066666000000000',
-                        '00000006666000000000', '00000000454000000000', '00000000066000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000066000000000', '00000000666000000000', '00000006666000000000', '00000066666000000000',
-                        '00000666666000000000', '00006666666000000000', '00066666666000000000', '00666666666000000000',
-                        '00066666666000000000', '00006666666000000000', '00000666666000000000', '00000066666000000000',
-                        '00000006666000000000', '00000000454000000000', '00000000454000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000066000000000', '00000000666000000000', '00000006666000000000', '00000066666000000000',
-                        '00000666666000000000', '00006666666000000000', '00066666666000000000', '00666666666000000000',
-                        '00066666666000000000', '00006666666000000000', '00000666666000000000', '00000066666000000000',
-                        '00000006666000000000', '00000000454000000000', '00000000454000000000', '00000000454000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                kamikazeC: { 4: '#ff2222', 5: '#ff4444', 6: '#ff6666' },
-                carrier: [
-                    p([
-                        '00000008888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '08999999999999880000', '08999999999999880000',
-                        '00899999999999800000', '00089999999998000000', '00008999999980000000', '00000899999800000000',
-                        '00000089998000000000', '00000008888000000000', '00000000333300000000', '00000000333300000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000008888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '08999999999999880000', '08999999999999880000',
-                        '00899999999999800000', '00089999999998000000', '00008999999980000000', '00000899999800000000',
-                        '00000089998000000000', '00000008888000000000', '00000000bbbb00000000', '00000000bbbb00000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000008888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '08999999999999880000', '08999999999999880000',
-                        '00899999999999800000', '00089999999998000000', '00008999999980000000', '00000899999800000000',
-                        '00000089998000000000', '00000008888000000000', '00000000bbbb00000000', '00000000bbbb00000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000008888000000000', '00000089998000000000', '00000899999800000000', '00008999999980000000',
-                        '00089999999998000000', '00899999999999800000', '08999999999999880000', '08999999999999880000',
-                        '00899999999999800000', '00089999999998000000', '00008999999980000000', '00000899999800000000',
-                        '00000089998000000000', '00000008888000000000', '00000000333300000000', '00000000333300000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                carrierC: { 8: '#cc88ff', 9: '#ddaaff', a: '#eeccff', b: '#bb99dd', 3: '#8866cc' },
-                teleporter: [
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00700677777600000700', '00006787787600000000',
-                        '00067877787600000000', '00678777778760000000', '06787666667876000000', '00678777778760000000',
-                        '00067877787600000000', '00006787787600000000', '00000677777600000000', '00700067766000000700',
-                        '00000000660000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00000677777600000000', '00006787787600000000',
-                        '00067877787600000000', '00678777777760000000', '06787666667876000000', '00678777778760000000',
-                        '00067877787600000000', '00006787787600000000', '00000677777600000000', '00000067766000000000',
-                        '00000000660000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00700677777600000700', '00006787787600000000',
-                        '00067877787600000000', '00678777778760000000', '06787666667876000000', '00678777778760000000',
-                        '00067877787600000000', '00006787787600000000', '00000677777600000000', '00700067766000000700',
-                        '00000000660000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n')),
-                    p([
-                        '00000000660000000000', '00000067766000000000', '00000677777600000000', '00006787787600000000',
-                        '00067877787600000000', '00678777777760000000', '06787666667876000000', '00678777778760000000',
-                        '00067877787600000000', '00006787787600000000', '00000677777600000000', '00000067766000000000',
-                        '00000000660000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
-                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
-                    ].join('\n'))
-                ],
-                teleporterC: { 6: '#44ffff', 7: '#66ffff', 8: '#aaffff' },
-                bossRedC: { 8: '#cc2222', 9: '#ff4444', a: '#ff6666', b: '#ffaa44', c: '#ffcc00', 1: '#ffe8e8' },
-                bossBlueC: { 8: '#2244cc', 9: '#4488ff', a: '#66aaff', b: '#88ccff', c: '#aaeeff', 1: '#e8f0ff' },
-                boss: p([
-                    '000000008888880000000000',
-                    '000000089999980000000000',
-                    '000000899999998000000000',
-                    '000008999999999800000000',
-                    '000089999999999980000000',
-                    '000899999999999998000000',
-                    '008999999999999999800000',
-                    '00899bbbbbbbbbb998000000',
-                    '0899bbbbcccccbbbb9980000',
-                    '0899bbbcccccccbbb9980000',
-                    '08999bbccccccccbb9998000',
-                    '008999bbbbbbbbbb99980000',
-                    '000899999999999998000000',
-                    '000089aa999999aa98000000',
-                    '0000089a999999a980000000',
-                    '000000899999998000000000',
-                    '000000089999980000000000',
-                    '000000008888880000000000',
-                    '000000000bb00bb000000000',
-                    '000000000bb00bb000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                ].join('\n')),
-                bossHit: p([
-                    '000000008888880000000000',
-                    '000000089999980000000000',
-                    '000000899999998000000000',
-                    '000008999999999800000000',
-                    '000089999999999980000000',
-                    '000899999999999998000000',
-                    '008999999999999999800000',
-                    '00899baaaaaaaaa999000000',
-                    '0899bbaaaaaaaaaaa9980000',
-                    '0899bbaaaaaaaaaaa9980000',
-                    '08999baaaaaaaaaaa9998000',
-                    '008999aaaaaaaaaa99980000',
-                    '000899999999999998000000',
-                    '000089aa999999aa98000000',
-                    '0000089a999999a980000000',
-                    '000000899999998000000000',
-                    '000000089999980000000000',
-                    '000000008888880000000000',
-                    '000000000bb00bb000000000',
-                    '000000000bb00bb000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                ].join('\n')),
-                bossCrit: p([
-                    '000000008888880000000000',
-                    '000000089999980000000000',
-                    '000000899999998000000000',
-                    '000008999999999800000000',
-                    '000089999999999980000000',
-                    '000899999999999998000000',
-                    '008999999999999999800000',
-                    '00899baaaacccca999000000',
-                    '0899bbaaaaccccaaa9980000',
-                    '0899bbaaaaccccaaa9980000',
-                    '08999baaaaccccaaa9998000',
-                    '008999aaaaaaaaaa99980000',
-                    '000899999999999998000000',
-                    '000089aa999999aa98000000',
-                    '0000089a999999a980000000',
-                    '000000899999998000000000',
-                    '000000089999980000000000',
-                    '000000008888880000000000',
-                    '000000000bb00bb000000000',
-                    '000000000bb00bb000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                    '000000000000000000000000',
-                ].join('\n')),
-                bossC: { 8: '#44cc44', 9: '#88ff88', a: '#ff4444', b: '#88ccff', c: '#ff8800', 1: '#e8ffe8' },
-                pwShield: p([
-                    '00000001111000000000', '00000111111100000000', '00001110001110000000', '00011100000111000000',
-                    '00110000000001100000', '00110000000001100000', '01100000000000110000', '01100000000000110000',
-                    '01100000000000110000', '01100000000000110000', '01100000000000110000', '01100000000000110000',
-                    '00110000000001100000', '00110000000001100000', '00001100000111000000', '00001110001110000000',
-                    '00000111001110000000', '00000011111100000000', '00000001111000000000', '00000000110000000000'
-                ].join('\n')),
-                pwC: { 1: '#4488ff' }
-            };
-        }
-
-
-        function validateSpritePalette(name, sp, cols) {
-            if (!sp || !cols) throw new Error('Galaxa sprite missing data: ' + name);
-            for (let y = 0; y < sp.length; y++) {
-                for (let x = 0; x < sp[y].length; x++) {
-                    const px = sp[y][x];
-                    if (px && !cols[px.toString(16)]) throw new Error('Galaxa sprite palette missing ' + name + ':' + px.toString(16));
-                }
+        function drawAnimation(cv, key, x, y, time, size, tint, loop) {
+            const entry = animation(key, time, loop);
+            if (!entry) return;
+            const { a, frame, index } = entry, width = size || a.size;
+            const cacheKey = key + ':' + index + ':' + width + ':' + (tint || '');
+            let sprite = spriteAtlasCache.get(cacheKey);
+            if (!sprite) {
+                const ratio = a.sourceAnchors ? width / a.sourceSize : 1, anchor = a.sourceAnchors && a.sourceAnchors[index];
+                const extent = anchor ? Math.ceil(Math.max(width / 2, anchor[0] * ratio, anchor[1] * ratio, (frame[2] - anchor[0]) * ratio, (frame[3] - anchor[1]) * ratio)) * 2 : width;
+                sprite = document.createElement('canvas'); sprite.width = sprite.height = extent;
+                const c = sprite.getContext('2d'); c.imageSmoothingEnabled = false;
+                if (anchor) {
+                    c.drawImage(assets.images[a.sheet], ...frame, extent / 2 - anchor[0] * ratio, extent / 2 - anchor[1] * ratio, frame[2] * ratio, frame[3] * ratio);
+                } else c.drawImage(assets.images[a.sheet], ...frame, 0, 0, width, width);
+                if (tint) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = tint; c.fillRect(0, 0, extent, extent); }
+                // ponytail: bounded FIFO cache; revisit only if measured atlas churn matters.
+                if (spriteAtlasCache.size >= 768) spriteAtlasCache.delete(spriteAtlasCache.keys().next().value);
+                spriteAtlasCache.set(cacheKey, sprite);
             }
+            const padding = (sprite.width - width) / 2;
+            cv.drawImage(sprite, Math.round(x - width * a.pivot[0] - padding), Math.round(y - width * a.pivot[1] - padding));
         }
-        function validateSpriteSet(name, frames, cols) {
-            if (Array.isArray(frames)) {
-                for (let i = 0; i < frames.length; i++) validateSpritePalette(name + '[' + i + ']', frames[i], cols);
-                return;
-            }
-            validateSpritePalette(name, frames, cols);
-        }
-        function validateSpriteFrameCount(name, frames, expected) {
-            if (!Array.isArray(frames) || frames.length !== expected) throw new Error('Galaxa sprite frame count mismatch: ' + name);
-        }
-
-        function getSpriteData(sp, cols, flash) {
-            const colorKey = flash ? flashPixelColors : cols;
-            if (!sp || !colorKey || typeof colorKey !== 'object') return null;
-            let byColor = spriteAtlasCache.get(sp);
-            if (!byColor) { byColor = new WeakMap(); spriteAtlasCache.set(sp, byColor); }
-            if (byColor.has(colorKey)) return byColor.get(colorKey);
-            const h = sp.length, w = sp[0] ? sp[0].length : 0;
-            const pixels = [];
-            for (let r = 0; r < h; r++) for (let cl = 0; cl < sp[r].length; cl++) {
-                const v = sp[r][cl]; if (!v) continue;
-                pixels.push({ x: cl, y: r, color: flash ? '#fff' : (cols[v] || '#fff') });
-            }
-            let atlas = null;
-            try {
-                atlas = new OffscreenCanvas(w, h);
-                const sctx = atlas.getContext('2d');
-                for (const px of pixels) { sctx.fillStyle = px.color; sctx.fillRect(px.x, px.y, 1, 1); }
-            } catch (_) {}
-            const result = { pixels, atlas };
-            byColor.set(colorKey, result);
-            return result;
-        }
-
-        var _flashCanvas = null, _flashCtx = null;
         function drawSp(cv, sp, cols, x, y, flash, noCache) {
-            if (typeof sp === 'string' && ctx.spriteSheet) {
-                const fr = SHEET_FRAMES[sp];
-                if (fr) {
-                    const dx = Math.floor(x), dy = Math.floor(y);
-                    if (flash || noCache) {
-                        const tint = flash ? '#fff' : (cols && cols[1] ? cols[1] : '#fff');
-                        if (!_flashCanvas) { _flashCanvas = new OffscreenCanvas(32, 32); _flashCtx = _flashCanvas.getContext('2d'); }
-                        _flashCanvas.width = fr.w; _flashCanvas.height = fr.h;
-                        _flashCtx.clearRect(0, 0, fr.w, fr.h);
-                        _flashCtx.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, 0, 0, fr.w, fr.h);
-                        _flashCtx.globalCompositeOperation = 'source-atop';
-                        _flashCtx.fillStyle = tint;
-                        _flashCtx.fillRect(0, 0, fr.w, fr.h);
-                        _flashCtx.globalCompositeOperation = 'source-over';
-                        cv.drawImage(_flashCanvas, 0, 0, fr.w, fr.h, dx, dy, fr.w, fr.h);
-                    } else {
-                        cv.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, dx, dy, fr.w, fr.h);
-                    }
-                    return;
-                }
-            }
-            if (noCache) {
-                const px = [];
-                for (let r = 0; r < sp.length; r++) for (let cl = 0; cl < sp[r].length; cl++) {
-                    const v = sp[r][cl]; if (!v) continue;
-                    px.push({ x: cl, y: r, color: flash ? '#fff' : (cols[v] || '#fff') });
-                }
-                cv.save(); cv.translate(Math.floor(x), Math.floor(y));
-                for (let i = 0, n = px.length; i < n; i++) { cv.fillStyle = px[i].color; cv.fillRect(px[i].x, px[i].y, 1, 1); }
-                cv.restore();
-                return;
-            }
-            const data = getSpriteData(sp, cols, flash);
-            if (!data) return;
-            if (data.atlas) { cv.drawImage(data.atlas, Math.floor(x), Math.floor(y)); }
-            else {
-                cv.save(); cv.translate(Math.floor(x), Math.floor(y));
-                for (let i = 0, n = data.pixels.length; i < n; i++) { cv.fillStyle = data.pixels[i].color; cv.fillRect(data.pixels[i].x, data.pixels[i].y, 1, 1); }
-                cv.restore();
-            }
-        }
-
-        let _rcTick = -1, _rcCache = null;
-        function rainbowPC() {
-            if (ctx.tick === _rcTick) return _rcCache;
-            const hue = (ctx.tick * 5) % 360;
-            _rcCache = { 1: 'hsl(' + hue + ',100%,70%)', 2: 'hsl(' + ((hue + 120) % 360) + ',100%,70%)', 3: 'hsl(' + ((hue + 240) % 360) + ',100%,70%)' };
-            _rcTick = ctx.tick;
-            return _rcCache;
-        }
-
-        const SHEET_STRIDE = 34;
-        const SHEET_FRAMES = {
-            player_idleA:    { x: 0,   y: 0, w: 32, h: 32 },
-            player_idleB:    { x: 34,  y: 0, w: 32, h: 32 },
-            player_bankLeft: { x: 68,  y: 0, w: 32, h: 32 },
-            player_bankRight:{ x: 102, y: 0, w: 32, h: 32 },
-            player_boost:    { x: 136, y: 0, w: 32, h: 32 },
-            player_fire:     { x: 170, y: 0, w: 32, h: 32 },
-            player_super:    { x: 204, y: 0, w: 32, h: 32 },
-            boss_green:      { x: 238, y: 0, w: 32, h: 32 },
-            boss_green_hit:  { x: 272, y: 0, w: 32, h: 32 },
-            boss_green_crit: { x: 306, y: 0, w: 32, h: 32 },
-            boss_red:        { x: 340, y: 0, w: 32, h: 32 },
-            boss_red_hit:    { x: 374, y: 0, w: 32, h: 32 },
-            boss_red_crit:   { x: 408, y: 0, w: 32, h: 32 },
-            boss_blue:       { x: 442, y: 0, w: 32, h: 32 },
-            boss_blue_hit:   { x: 476, y: 0, w: 32, h: 32 },
-            boss_blue_crit:  { x: 510, y: 0, w: 32, h: 32 },
-        };
-        const ENEMY_SHEET_TYPES = ['bee', 'butterfly', 'stalker', 'sniper', 'hunter', 'spinner', 'bomber', 'lasher', 'weaver', 'splitter', 'shield_bee', 'kamikaze', 'carrier', 'teleporter'];
-        (function buildEnemySheetFrames() {
-            const ENEMY_PAD = 4;
-            for (let ri = 0; ri < 2; ri++) {
-                const baseY = (ri + 1) * SHEET_STRIDE;
-                const startType = ri * 10;
-                for (let ti = 0; ti < 10; ti++) {
-                    const typeIdx = startType + ti;
-                    if (typeIdx >= ENEMY_SHEET_TYPES.length) break;
-                    const type = ENEMY_SHEET_TYPES[typeIdx];
-                    for (let fi = 0; fi < 4; fi++) {
-                        SHEET_FRAMES[type + '_' + fi] = { x: ti * SHEET_STRIDE + ENEMY_PAD, y: baseY + ENEMY_PAD, w: 24, h: 24 };
-                    }
-                }
-            }
-            SHEET_FRAMES.shield_pw = { x: 0, y: 2 * SHEET_STRIDE + 4, w: 24, h: 24 };
-        })();
-
-        const PLAYER_SHEET_KEYS = ['player_idleA', 'player_idleB', 'player_bankLeft', 'player_bankRight', 'player_boost', 'player_fire', 'player_super'];
-        function bossSheetKey(healthState, variant) {
-            const v = variant === 1 ? 'red' : variant === 2 ? 'blue' : 'green';
-            const h = healthState === 2 ? '_crit' : healthState === 1 ? '_hit' : '';
-            return 'boss_' + v + h;
-        }
-
-        const _rawSP = buildSprites();
-        const expandP = (grid, newW, newH) => {
-            const h = grid.length, refW = grid[0] ? grid[0].length : 0;
-            const ox = Math.floor((newW - refW) / 2), oy = Math.floor((newH - h) / 2);
-            const out = [];
-            for (let y = 0; y < newH; y++) out.push(new Array(newW).fill(0));
-            for (let gy = 0; gy < h; gy++) {
-                const srcRow = grid[gy], dy = gy + oy;
-                if (dy < 0 || dy >= newH) continue;
-                const dstRow = out[dy];
-                for (let gx = 0; gx < srcRow.length; gx++) {
-                    const dx = gx + ox;
-                    if (dx >= 0 && dx < newW) dstRow[dx] = srcRow[gx];
-                }
-            }
-            return out;
-        };
-        const withPx = (base, pixels) => {
-            const out = base.map(row => row.slice());
-            for (let i = 0; i < pixels.length; i++) { const px = pixels[i]; out[px[1]][px[0]] = px[2]; }
-            return out;
-        };
-        const expandEnemy = (frames, detail) => frames.map(fr => withPx(expandP(fr, 24, 24), detail));
-        const beeD = [[10,0,4],[13,0,4],[10,1,5],[13,1,5],[2,8,4],[21,8,4],[2,9,4],[21,9,4],[2,10,4],[21,10,4],[11,17,6],[12,17,6]];
-        const bfD = [[1,3,7],[22,3,7],[0,4,7],[23,4,7],[0,10,7],[23,10,7],[1,11,7],[22,11,7]];
-        const stalkerD = [[11,0,8],[12,0,8],[11,1,9],[12,1,9],[3,7,'a'],[20,7,'a']];
-        const sniperD = [[11,0,6],[12,0,6],[11,1,5],[12,1,5]];
-        const hunterD = [[11,0,8],[12,0,8],[2,9,'b'],[21,9,'b']];
-        const spinnerD = [[11,0,7],[12,0,7],[1,7,7],[22,7,7]];
-        const bomberD = [[11,0,8],[12,0,8],[11,17,9],[12,17,9],[11,18,'a'],[12,18,'a']];
-        const lasherD = [[9,17,5],[12,17,5],[15,17,5],[17,17,5],[9,18,6],[12,18,6],[15,18,6],[17,18,6]];
-        const weaverD = [[3,7,'a'],[20,7,'a'],[3,8,'a'],[20,8,'a']];
-        const splitterD = [[11,0,6],[12,0,6],[11,17,7],[12,17,7]];
-        const shield_beeD = [[4,0,2],[19,0,2],[4,1,3],[19,1,3],[4,17,2],[19,17,2],[4,18,3],[19,18,3]];
-        const kamikazeD = [[11,0,6],[12,0,6],[11,1,5],[12,1,5],[10,17,4],[13,17,4],[11,18,5],[12,18,5]];
-        const carrierD = [[11,0,8],[12,0,8],[9,17,3],[14,17,3],[9,18,3],[14,18,3]];
-        const teleporterD = [[3,1,7],[20,1,7],[3,22,7],[20,22,7]];
-        const bossD = [[3,8,'a'],[28,8,'a'],[3,9,'a'],[28,9,'a'],[5,16,9],[26,16,9],[15,24,8],[16,24,8],[15,25,8],[16,25,8]];
-        const bossHitD = [[3,8,'a'],[28,8,'a']];
-        const bossCritD = [[3,8,'a'],[28,8,'a'],[15,24,'c'],[16,24,'c']];
-        const shieldD = [[3,1,1],[20,1,1],[3,22,1],[20,22,1],[11,0,1],[12,0,1],[11,23,1],[12,23,1]];
-        const playerBaseD = [[2,6,'a'],[3,7,'a'],[29,6,'a'],[28,7,'a'],[1,10,'c'],[30,10,'c'],[0,11,'c'],[31,11,'c'],[14,28,8],[17,28,8],[15,29,8],[16,29,8],[15,30,6],[16,30,6]];
-        const expandedPF = _rawSP.playerFrames.map(fr => withPx(expandP(fr, 32, 32), playerBaseD));
-        const SP = {
-            PREMIUM_PIXEL_ART_VERSION: 'galaxa-premium-v5',
-            PLAYER_FRAME: _rawSP.PLAYER_FRAME, ENEMY_FRAME_COUNTS: _rawSP.ENEMY_FRAME_COUNTS, pC: _rawSP.pC,
-            playerFrames: expandedPF, player: expandedPF[_rawSP.PLAYER_FRAME.idleA], playerIcon: expandedPF[_rawSP.PLAYER_FRAME.idleA],
-            bee: expandEnemy(_rawSP.bee, beeD), bC: _rawSP.bC,
-            bf: expandEnemy(_rawSP.bf, bfD), bfC: _rawSP.bfC,
-            stalker: expandEnemy(_rawSP.stalker, stalkerD), stalkerC: _rawSP.stalkerC,
-            sniper: expandEnemy(_rawSP.sniper, sniperD), sniperC: _rawSP.sniperC,
-            hunter: expandEnemy(_rawSP.hunter, hunterD), hunterC: _rawSP.hunterC,
-            spinner: expandEnemy(_rawSP.spinner, spinnerD), spinnerC: _rawSP.spinnerC,
-            bomber: expandEnemy(_rawSP.bomber, bomberD), bomberC: _rawSP.bomberC,
-            lasher: expandEnemy(_rawSP.lasher, lasherD), lasherC: _rawSP.lasherC,
-            weaver: expandEnemy(_rawSP.weaver, weaverD), weaverC: _rawSP.weaverC,
-            splitter: expandEnemy(_rawSP.splitter, splitterD), splitterC: _rawSP.splitterC,
-            shield_bee: expandEnemy(_rawSP.shield_bee, shield_beeD), shield_beeC: _rawSP.shield_beeC,
-            kamikaze: expandEnemy(_rawSP.kamikaze, kamikazeD), kamikazeC: _rawSP.kamikazeC,
-            carrier: expandEnemy(_rawSP.carrier, carrierD), carrierC: _rawSP.carrierC,
-            teleporter: expandEnemy(_rawSP.teleporter, teleporterD), teleporterC: _rawSP.teleporterC,
-            boss: withPx(expandP(_rawSP.boss, 32, 32), bossD), bossHit: withPx(expandP(_rawSP.bossHit, 32, 32), bossHitD),
-            bossCrit: withPx(expandP(_rawSP.bossCrit, 32, 32), bossCritD), bossC: _rawSP.bossC, bossRedC: _rawSP.bossRedC, bossBlueC: _rawSP.bossBlueC,
-            pwShield: withPx(expandP(_rawSP.pwShield, 24, 24), shieldD), pwC: _rawSP.pwC,
-        };
-
-        const ENEMY_SPRITE_KEYS = {
-            bee: ['bee', 'bC'], butterfly: ['bf', 'bfC'], stalker: ['stalker', 'stalkerC'],
-            sniper: ['sniper', 'sniperC'], hunter: ['hunter', 'hunterC'], spinner: ['spinner', 'spinnerC'],
-            bomber: ['bomber', 'bomberC'], lasher: ['lasher', 'lasherC'], weaver: ['weaver', 'weaverC'],
-            splitter: ['splitter', 'splitterC'], shield_bee: ['shield_bee', 'shield_beeC'],
-            kamikaze: ['kamikaze', 'kamikazeC'], carrier: ['carrier', 'carrierC'], teleporter: ['teleporter', 'teleporterC']
-        };
-
-        validateSpriteFrameCount('playerFrames', SP.playerFrames, 7);
-        validateSpriteSet('pwShield', SP.pwShield, SP.pwC);
-        validateSpriteSet('boss', SP.boss, SP.bossC);
-        validateSpriteSet('bossHit', SP.bossHit, SP.bossC);
-        validateSpriteSet('bossCrit', SP.bossCrit, SP.bossC);
-        for (const type of Object.keys(ENEMY_SPRITE_KEYS)) {
-            const keys = ENEMY_SPRITE_KEYS[type];
-            const expected = (SP.ENEMY_FRAME_COUNTS && SP.ENEMY_FRAME_COUNTS[type]) || 4;
-            validateSpriteFrameCount(type, SP[keys[0]], expected);
-            validateSpriteSet(type, SP[keys[0]], SP[keys[1]]);
-        }
-        const enemySpriteScratch = { sp: null, cols: null, frameKey: null };
-        function enemySpriteFor(e) {
-            const bossVariant = ((ctx.G && ctx.G.stage ? ctx.G.stage : 1) - 1) % 3;
-            const bossCols = bossVariant === 1 ? SP.bossRedC : bossVariant === 2 ? SP.bossBlueC : SP.bossC;
-            const useSheet = !!ctx.spriteSheet;
-            if (!e) {
-                enemySpriteScratch.cols = bossCols;
-                if (useSheet) { enemySpriteScratch.sp = bossSheetKey(0, bossVariant); enemySpriteScratch.frameKey = enemySpriteScratch.sp; }
-                else { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.frameKey = null; }
-                return enemySpriteScratch;
-            }
-            if (e.type === 'boss' || e.type === 'miniboss') {
-                const hpState = e.hp <= 1 ? 2 : e.hp <= Math.ceil(e.maxHp / 2) ? 1 : 0;
-                enemySpriteScratch.cols = bossCols;
-                if (useSheet) { enemySpriteScratch.sp = bossSheetKey(hpState, bossVariant); enemySpriteScratch.frameKey = enemySpriteScratch.sp; }
-                else { enemySpriteScratch.sp = hpState === 2 ? SP.bossCrit : hpState === 1 ? SP.bossHit : SP.boss; enemySpriteScratch.frameKey = null; }
-                return enemySpriteScratch;
-            }
-            const keys = ENEMY_SPRITE_KEYS[e.type];
-            if (!keys) {
-                enemySpriteScratch.cols = bossCols;
-                if (useSheet) { enemySpriteScratch.sp = bossSheetKey(0, bossVariant); enemySpriteScratch.frameKey = enemySpriteScratch.sp; }
-                else { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.frameKey = null; }
-                return enemySpriteScratch;
-            }
-            const frameIndex = Math.max(0, Math.floor(e.fr || e.animFrame || 0)) % 4;
-            enemySpriteScratch.cols = SP[keys[1]];
-            if (useSheet) {
-                const sheetKey = e.type + '_' + frameIndex;
-                enemySpriteScratch.sp = sheetKey;
-                enemySpriteScratch.frameKey = sheetKey;
-            } else {
-                const frames = SP[keys[0]];
-                enemySpriteScratch.sp = Array.isArray(frames) ? frames[frameIndex] : frames;
-                enemySpriteScratch.frameKey = null;
-            }
-            return enemySpriteScratch;
+            if (!assets) return;
+            const ref = typeof sp === 'string' ? { key: sp, time: ctx.G.animTime || 0 } : sp;
+            if (!ref || !ref.key) return;
+            const a = assets.manifest.animations[ref.key];
+            if (!a) throw Error('Missing sprite: ' + ref.key);
+            const origin = a.origin || a.size;
+            drawAnimation(cv, ref.key, x + origin / 2, y + origin / 2, ref.time, ref.size,
+                flash ? '#edfaff' : noCache ? ((cols && cols[1]) || '#6dccff') : null);
         }
         function getPlayerSpriteFrame() {
-            const g = ctx.G || {};
-            const useSheet = !!ctx.spriteSheet;
-            if (!g.p || !g.p.alive) return useSheet ? 'player_idleA' : SP.playerIcon;
-            const tilt = g.shipTilt || 0;
-            if (tilt < -0.08) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.bankLeft] : SP.playerFrames[SP.PLAYER_FRAME.bankLeft];
-            if (tilt > 0.08) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.bankRight] : SP.playerFrames[SP.PLAYER_FRAME.bankRight];
-            if (g.superActive > 0) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.super] : SP.playerFrames[SP.PLAYER_FRAME.super];
-            if (g.muzzleT > 0) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.fire] : SP.playerFrames[SP.PLAYER_FRAME.fire];
-            if (g.activePU && (g.activePU.type === 'speed' || g.activePU.type === 'hyper_speed')) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.boost] : SP.playerFrames[SP.PLAYER_FRAME.boost];
-            const fi = Math.floor((ctx.tick || 0) / 14) % 2 === 0 ? SP.PLAYER_FRAME.idleA : SP.PLAYER_FRAME.idleB;
-            return useSheet ? PLAYER_SHEET_KEYS[fi] : SP.playerFrames[fi];
+            const g = ctx.G, ship = ctx.settings.ship || 'classic';
+            let state = 'idle';
+            if (['charge', 'burst', 'aftermath'].includes(g.superPhase)) state = 'super';
+            else if (g.shipTilt < -0.04) state = 'left';
+            else if (g.shipTilt > 0.04) state = 'right';
+            else if (g.muzzleT > 0) state = 'fire';
+            else if (g.activePU && /speed/.test(g.activePU.type)) state = 'boost';
+            return { key: 'player.' + ship + '.' + state, time: state === 'fire' ? Math.max(0, 160 - g.muzzleT) : g.animTime || 0 };
         }
-        ctx.enemySpriteFor = enemySpriteFor;
-        ctx.getPlayerSpriteFrame = getPlayerSpriteFrame;
-
-        ctx.SP = SP;
-        ctx.SHEET_FRAMES = SHEET_FRAMES;
-        ctx.SHEET_STRIDE = SHEET_STRIDE;
-        ctx.buildSprites = buildSprites;
-        ctx.getSpriteData = getSpriteData;
-        ctx.drawSp = drawSp;
-        ctx.rainbowPC = rainbowPC;
-        ctx.cachedRadialGradient = cachedRadialGradient;
-        ctx.radialGradientCache = radialGradientCache;
-        ctx.spriteAtlasCache = spriteAtlasCache;
-        ctx.clearSpriteAtlasCache = function () {
-            spriteAtlasCache = new WeakMap();
-            ctx.spriteAtlasCache = spriteAtlasCache;
+        function enemySpriteFor(e) {
+            const type = e ? (e.sectorBoss ? 'sector.' + e.sectorBoss : e.type) : 'boss';
+            const attack = e && ((e.attackAnim || 0) > 0 || e.telegraph);
+            const state = e && e.sectorBoss ? 'phase' + (e.bossPhase || 1) : e && e.hitF > 0 ? 'damage' : attack ? 'attack' : 'idle';
+            const time = e && e.sectorBoss ? e.attackAnim > 0 ? 800 - e.attackAnim : e.bossState === 'windup' ? Math.min(90, Math.max(0, 600 - e.attackClock)) : 0 : attack ? Math.max(0, 600 - (e.attackAnim || 600)) : (e && e.animTime) || 0;
+            return { sp: { key: type + '.' + state, time }, cols: palette };
+        }
+        function cachedRadialGradient(c, key, x, y, inner, outer, stops) {
+            const id = [key, Math.round(x), Math.round(y), Math.round(inner), Math.round(outer), JSON.stringify(stops)].join(':');
+            if (radialGradientCache.has(id)) return radialGradientCache.get(id);
+            const gradient = c.createRadialGradient(x, y, inner, x, y, Math.max(inner + 0.01, outer));
+            stops.forEach(([at, col]) => gradient.addColorStop(at, col));
+            if (radialGradientCache.size >= 128) radialGradientCache.delete(radialGradientCache.keys().next().value);
+            radialGradientCache.set(id, gradient); return gradient;
+        }
+        ctx.loadSprites = async function () {
+            assets = await loadAssets();
+            if (ctx.state.disposed) return;
+            SP.playerIcon = 'icon.' + ctx.settings.ship; ctx.spriteAssets = assets;
         };
-        ctx.flashPixelColors = flashPixelColors;
-
-        if (_preloadedSheet) {
-            ctx.spriteSheet = _preloadedSheet;
-        } else if (_sheetImg && !_sheetLoadAttempted) {
-            _sheetLoadAttempted = true;
-            _sheetImg.onload = function () { ctx.spriteSheet = _sheetImg; };
-        }
+        Object.assign(ctx, { SP, drawSp, drawAnimation, enemySpriteFor, getPlayerSpriteFrame,
+            radialGradientCache, spriteAtlasCache, cachedRadialGradient,
+            clearSpriteAtlasCache: () => spriteAtlasCache.clear(), rainbowPC: () => palette, spriteAnimation: animation });
     };
 })();

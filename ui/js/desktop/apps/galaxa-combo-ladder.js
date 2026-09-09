@@ -31,7 +31,7 @@
 
         function trackBoni(G) {
             // Called at stage end
-            const stageTime = (G.stageStartTime ? performance.now() - G.stageStartTime : 30000) / 1000;
+            const stageTime = (G.stageStartTime ? G.simTime - G.stageStartTime : 30000) / 1000;
             G.stageBoni = {
                 noDamageRun: G.stageDamageTaken === 0,
                 speedDemon: stageTime < 30,

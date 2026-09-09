@@ -40,12 +40,13 @@
         function modulate(type, value) {
             modulation[type] = value;
             if (!ctx.MusicEngine) return;
+            if (!ctx.settings.adaptiveMusic) { ctx.MusicEngine.setTempo(1); ctx.MusicEngine.transpose(0); return; }
             if (type === 'combo') {
                 if (value >= 20) ctx.MusicEngine.setTempo && ctx.MusicEngine.setTempo(1.5);
                 else if (value >= 10) ctx.MusicEngine.setTempo && ctx.MusicEngine.setTempo(1.25);
                 else ctx.MusicEngine.setTempo && ctx.MusicEngine.setTempo(1.0);
             } else if (type === 'bossPhase') {
-                if (value >= 2 && ctx.MusicEngine.transpose) ctx.MusicEngine.transpose(2);
+                if (ctx.MusicEngine.transpose) ctx.MusicEngine.transpose(value >= 2 ? 2 : 0);
             } else if (type === 'health') {
                 if (value <= 1 && ctx.MusicEngine.setIntensity) ctx.MusicEngine.setIntensity(8);
             }
