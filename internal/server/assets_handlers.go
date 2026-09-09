@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
@@ -47,7 +48,13 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RLock()
 	lang := normalizeLang(s.Cfg.Server.UILanguage)
 	s.CfgMu.RUnlock()
-	_ = recoveryTemplate.Execute(w, map[string]any{"Lang": lang, "Pin": webassets.Default.Pin})
+	buildCommand := "go run ./cmd/assetpack -out deploy -stage assets/web\n"
+	if runtime.GOOS == "windows" {
+		buildCommand += "$assetFlags = Get-Content -Raw deploy/web-assets.ldflags\ngo build -trimpath -ldflags \"-s -w $assetFlags\" -o aurago.exe ./cmd/aurago"
+	} else {
+		buildCommand += "go build -trimpath -ldflags=\"-s -w $(cat deploy/web-assets.ldflags)\" -o aurago ./cmd/aurago"
+	}
+	_ = recoveryTemplate.Execute(w, map[string]any{"Lang": lang, "Pin": webassets.Default.Pin, "BuildCommand": buildCommand})
 }
 
 func (s *Server) registerRecoveryUI(mux *http.ServeMux) {

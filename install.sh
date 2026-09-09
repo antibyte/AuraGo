@@ -1442,7 +1442,7 @@ fi
 echo ""
 if $BUILD_FROM_SOURCE; then
     echo -e "  ${CYAN}Update later:${NC}  cd $INSTALL_DIR && bash update.sh"
-    echo    "               (or rebuild: go build -o bin/aurago_linux ./cmd/aurago)"
+    echo    "               (manual builds: see documentation/web-assets.md; resource flags are required)"
 else
     echo -e "  ${CYAN}Update later:${NC}  cd $INSTALL_DIR && bash update.sh"
     echo    "               (downloads latest release and merges your config automatically)"

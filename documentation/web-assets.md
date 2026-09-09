@@ -29,6 +29,12 @@ and `go build -trimpath -ldflags "-s -w $assetFlags" -o aurago.exe ./cmd/aurago`
 `start.sh` and `start.bat` perform the packaging step. A plain, unpinned `go build`
 intentionally provides recovery only. Never distribute that as a complete release.
 
+If recovery shows no resource identifier and disables download, the executable
+was built without these flags. Running `assetpack` alone cannot repair that
+executable, even when the matching files already exist on disk. Rebuild with the
+generated flags, run `--check-assets`, then restart the service. Recovery shows
+the complete build commands for the server's operating system in this case.
+
 `assets/web-assets.json` is the production inclusion manifest. The packer excludes
 tests, maps, authoring sources, DOX and runtime state, keeps runtime license
 notices, normalizes text line endings and archive ordering/timestamps, and emits:

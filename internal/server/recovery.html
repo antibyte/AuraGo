@@ -12,6 +12,7 @@
 (() => {
 'use strict';
 const pin = {{.Pin}};
+const buildCommand = {{.BuildCommand}};
 const translations = {
 en:['Web interface resources','Install the resource set matching this binary to open Chat, Config and Desktop.','Download resources','Offline: import the matching release archive, then restart AuraGo.','Restart AuraGo','Sign in','Password','Authenticator code','Please wait…','Resources installed. Restart AuraGo to activate them.','The operation failed. Check the credentials or server log.','Reload'],
 de:['Ressourcen der Weboberfläche','Installiere das zu diesem Binary passende Paket für Chat, Konfiguration und Desktop.','Ressourcen herunterladen','Offline: Passendes Release-Archiv importieren, danach AuraGo neu starten.','AuraGo neu starten','Anmelden','Passwort','Authenticator-Code','Bitte warten…','Ressourcen installiert. Zum Aktivieren AuraGo neu starten.','Vorgang fehlgeschlagen. Zugangsdaten oder Serverprotokoll prüfen.','Neu laden'],
@@ -35,9 +36,32 @@ const el = id => document.getElementById(id);
 const login = location.pathname === '/auth/login';
 for (const [id, index] of Object.entries({title:login?5:0,description:1,download:2,offline:3,restart:4,loginButton:5,passwordLabel:6,codeLabel:7,reload:11})) el(id).textContent = t[index];
 el('login').hidden = !login; el('repair').hidden = login; el('description').hidden = login;
-el('version').textContent = pin.asset_set_id || '—';
+el('version').textContent = pin.asset_set_id || '';
 el('download').disabled = !pin.download_url;
-el('command').textContent = pin.asset_set_id ? './aurago --install-assets aurago-web-assets-'+pin.asset_set_id+'.tar.gz' : 'go run ./cmd/assetpack\n# documentation/web-assets.md';
+el('command').textContent = pin.asset_set_id ? './aurago --install-assets aurago-web-assets-'+pin.asset_set_id+'.tar.gz' : buildCommand;
+if (!pin.asset_set_id) {
+ const unpinned = {
+  en:'This binary was built without resource information. Run these commands in the source directory, then restart the rebuilt binary.',
+  de:'Dieses Binary wurde ohne Ressourcenkennung gebaut. Führe diese Befehle im Quellordner aus und starte danach das neu gebaute Binary.',
+  cs:'Tento program byl sestaven bez údajů o souborech rozhraní. Spusťte tyto příkazy ve složce zdrojového kódu a poté restartujte nově sestavený program.',
+  da:'Programmet blev bygget uden ressourceoplysninger. Kør disse kommandoer i kildekodemappen, og genstart derefter det nybyggede program.',
+  el:'Το πρόγραμμα δημιουργήθηκε χωρίς πληροφορίες πόρων. Εκτελέστε αυτές τις εντολές στον φάκελο πηγαίου κώδικα και επανεκκινήστε το νέο πρόγραμμα.',
+  es:'Este programa se compiló sin información de recursos. Ejecuta estos comandos en la carpeta del código fuente y reinicia el programa recompilado.',
+  fr:'Ce programme a été compilé sans informations sur les ressources. Exécutez ces commandes dans le dossier du code source, puis redémarrez le programme recompilé.',
+  hi:'यह प्रोग्राम संसाधन जानकारी के बिना बनाया गया था। स्रोत कोड फ़ोल्डर में ये कमांड चलाएँ, फिर नए बनाए गए प्रोग्राम को पुनः शुरू करें।',
+  it:'Questo programma è stato compilato senza informazioni sulle risorse. Esegui questi comandi nella cartella del codice sorgente, poi riavvia il programma ricompilato.',
+  ja:'このプログラムはリソース情報なしでビルドされています。ソースコードのフォルダーで次のコマンドを実行し、再ビルドしたプログラムを起動し直してください。',
+  nl:'Dit programma is zonder resourcegegevens gebouwd. Voer deze opdrachten uit in de broncodemap en herstart daarna het opnieuw gebouwde programma.',
+  no:'Programmet ble bygget uten ressursinformasjon. Kjør disse kommandoene i kildekodemappen, og start deretter det nybygde programmet på nytt.',
+  pl:'Ten program zbudowano bez informacji o zasobach. Uruchom te polecenia w folderze kodu źródłowego, a następnie ponownie uruchom nowo zbudowany program.',
+  pt:'Este programa foi compilado sem informações sobre os recursos. Execute estes comandos na pasta do código-fonte e reinicie o programa recompilado.',
+  sv:'Programmet byggdes utan resursinformation. Kör dessa kommandon i källkodsmappen och starta sedan om det nybyggda programmet.',
+  zh:'此程序构建时未包含资源信息。请在源代码目录中执行以下命令，然后重新启动新构建的程序。'
+ };
+ el('description').textContent = unpinned[document.documentElement.lang] || unpinned.en;
+ el('offline').hidden = true;
+ el('download').hidden = true;
+}
 el('reload').addEventListener('click',()=>location.reload());
 async function post(url, body) {
  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});

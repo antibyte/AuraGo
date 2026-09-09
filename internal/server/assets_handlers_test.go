@@ -4,12 +4,31 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"testing/fstest"
 
 	"aurago/internal/config"
+	"aurago/internal/webassets"
 )
+
+func TestExternalAssetsUnpinnedRecoveryRequiresRebuild(t *testing.T) {
+	previous := webassets.Default
+	webassets.Default = &webassets.Store{}
+	t.Cleanup(func() { webassets.Default = previous })
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	r := httptest.NewRecorder()
+	s.recoveryPage(r, httptest.NewRequest("GET", "/", nil))
+	for _, required := range []string{"go run ./cmd/assetpack -out deploy -stage assets/web", "go build -trimpath -ldflags", "./cmd/aurago", "built without resource information"} {
+		if !strings.Contains(r.Body.String(), required) {
+			t.Fatalf("unpinned recovery omitted %q", required)
+		}
+	}
+	if runtime.GOOS == "windows" && !strings.Contains(r.Body.String(), "Get-Content -Raw deploy/web-assets.ldflags") {
+		t.Fatal("Windows recovery must show PowerShell build commands")
+	}
+}
 
 func TestExternalAssetsRecoveryAuthAndCSRF(t *testing.T) {
 	cfg := &config.Config{}

@@ -116,14 +116,15 @@ AuraGo/
 ### Development Build
 ```bash
 # Build main binary (requires Go 1.26.6+)
-go build -o aurago ./cmd/aurago
+go run ./cmd/assetpack -out deploy -stage assets/web
+go build -ldflags="$(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 
 # Build and start locally
 ./start.sh
 
 # Build all binaries
 mkdir -p bin
-go build -o bin/aurago ./cmd/aurago
+go build -ldflags="$(cat deploy/web-assets.ldflags)" -o bin/aurago ./cmd/aurago
 go build -o bin/aurago-remote ./cmd/remote
 go build -o bin/config-merger ./cmd/config-merger
 ```
@@ -137,8 +138,14 @@ go build -o bin/config-merger ./cmd/config-merger
 make_release.bat
 
 # Individual platform build
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o aurago ./cmd/aurago
+go run ./cmd/assetpack -out deploy -stage assets/web
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 ```
+
+Plain `go build` without the generated resource flags produces recovery only.
+Packaging resources alone does not repair an unpinned binary: rebuild it with
+the flags, verify with `--check-assets`, then restart. On Windows use `start.bat`
+or the PowerShell commands in `documentation/web-assets.md`.
 
 ### Docker Build
 ```bash
