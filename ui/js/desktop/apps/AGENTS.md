@@ -1564,7 +1564,8 @@ registration lives in `internal/desktop/types.go`.
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
   Retro appearance follows cool-retro-term's luminous phosphor, scanlines,
-  curved glass and recessed bezel using original rendering code. Share Tech
+  subtly curved glass and recessed bezel using original rendering code. Keep
+  profile curvature gentle so text rows remain nearly straight. Share Tech
   Mono is embedded as `Aura Terminal`; pixel profiles retain Press Start 2P.
   Additive bloom and decaying persistence share a half-resolution blurred
   source buffer; never feed warped output back into the source. The native
