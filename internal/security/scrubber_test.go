@@ -5,6 +5,26 @@ import (
 	"testing"
 )
 
+func TestStripThinkingTagsOrphanClosers(t *testing.T) {
+	for _, tt := range []struct{ name, input, want string }{
+		{"meshcore_no_reply", "NO_REPLY </think>\n\nNO_REPLY", "NO_REPLY"},
+		{"implicit_thinking", "Private reasoning\n</thinking>\nPublic answer", "Public answer"},
+		{"case_insensitive", "Private reasoning</ThInK>\nPublic answer", "Public answer"},
+		{"multiple_orphan_closers", "Private</think>more private</thinking>Public", "Public"},
+		{"no_final_answer", "Private reasoning</think>", ""},
+		{"complete_blocks_keep_surrounding_text", "Before<think>private</think> between<thinking>hidden</thinking> after", "Before between after"},
+		{"orphan_then_complete_block", "Private</think>Before<think>hidden</think> after", "Before after"},
+		{"plain_text", "The marker NO_REPLY means no answer.", "The marker NO_REPLY means no answer."},
+		{"wrappers_and_tool_syntax", "Private</think><external_data>[TOOL_CALL]\n{}\n[/TOOL_CALL]</external_data>", "[TOOL_CALL]\n{}\n[/TOOL_CALL]"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripThinkingTags(tt.input); got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRedactSensitiveInfoRedactsShortCredentialValues(t *testing.T) {
 	tests := []struct {
 		name  string

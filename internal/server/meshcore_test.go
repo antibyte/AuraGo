@@ -145,6 +145,15 @@ func TestMeshCoreQuestionPromptAcceptsOpenRadioChecks(t *testing.T) {
 	}
 }
 
+func TestMeshCoreReplyStripsOrphanThinkingBeforeNoReply(t *testing.T) {
+	s, client := meshCoreTestServer(t)
+	client.response.Choices[0].Message.Content = "NO_REPLY </think>\n\nNO_REPLY"
+	answer, err := s.runMeshCoreMessage(context.Background(), meshcore.Message{Kind: "channel", Text: "Thanks for the information."}, "questions")
+	if err != nil || answer != "NO_REPLY" {
+		t.Fatalf("reply = %q, error = %v; want exact NO_REPLY", answer, err)
+	}
+}
+
 func TestMeshCoreReplyRejectsTextToolCalls(t *testing.T) {
 	for _, searchEnabled := range []bool{false, true} {
 		s, client := meshCoreTestServer(t)

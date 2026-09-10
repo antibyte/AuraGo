@@ -31,6 +31,8 @@ var (
 
 	// Matches <thinking>…</thinking> and <think>…</think> blocks (reasoning traces from some LLMs).
 	thinkingTagRe = regexp.MustCompile(`(?is)<(thinking|think)>[\s\S]*?</(thinking|think)>`)
+	// Some providers omit the opening tag because it is already in the chat template.
+	orphanThinkingCloseRe = regexp.MustCompile(`(?is)^.*</(?:thinking|think)>`)
 
 	// Matches <external_data>…</external_data> blocks.
 	// These are security wrappers injected by the supervisor around untrusted content.
@@ -259,10 +261,12 @@ func redactKeyValueMatch(match string) string {
 // StripThinkingTags removes <thinking>…</thinking> (and <think>…</think>) blocks from text.
 // These reasoning traces are emitted by some LLMs and must be removed before sending
 // responses through channels that cannot render collapsible UI (Telegram, Discord, etc.).
+// An unmatched closing tag ends implicit reasoning; discard everything through it.
 // It also strips any <external_data>…</external_data> wrappers the LLM may erroneously
 // include in its own output — their content is kept, only the wrapper tags are removed.
 func StripThinkingTags(text string) string {
 	stripped := thinkingTagRe.ReplaceAllString(text, "")
+	stripped = orphanThinkingCloseRe.ReplaceAllString(stripped, "")
 	// Unwrap <external_data> blocks: keep inner content, remove the wrapper tags.
 	stripped = externalDataTagRe.ReplaceAllString(stripped, "$1")
 	// Protect [/TOOL_CALL] closing tags from the hallucinated RAG cleanup regex.

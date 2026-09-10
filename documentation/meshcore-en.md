@@ -96,6 +96,9 @@ interface or provide a plain-text answer. Repeated invalid output is blocked;
 tool-free security checks and final summaries reject it immediately. The two-call
 search limit and destination permissions remain enforced.
 
+Reasoning text is removed even when its opening tag is missing. An exact
+`NO_REPLY` after cleanup sends nothing and creates no outgoing Messenger entry.
+
 Other messages and blocked input remain in the protected inbox and do not
 create system notifications in the general chat. At the next direct user
 contact, the agent receives counts, validated source prefixes or channel

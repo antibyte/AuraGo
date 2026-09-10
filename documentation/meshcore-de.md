@@ -107,6 +107,9 @@ Erneut ungültige Ausgabe wird blockiert; werkzeuglose Sicherheitsprüfungen und
 abschließende Zusammenfassungen lehnen sie sofort ab. Die Grenze von zwei
 Suchaufrufen und sämtliche Zielfreigaben bleiben bestehen.
 
+Thinking-Text wird auch bei fehlendem öffnendem Tag entfernt. Bleibt danach exakt
+`NO_REPLY`, wird nichts gesendet und kein ausgehender Messenger-Eintrag angelegt.
+
 Andere oder verdächtige Eingänge bleiben im geschützten Eingang und erzeugen
 keine Systemmeldungen im allgemeinen Chat. Beim nächsten direkten Nutzerkontakt
 bekommt der Agent Anzahl, validierte Herkunftspräfixe beziehungsweise
