@@ -197,6 +197,11 @@ worker. Keep packaging, recovery and offline instructions in
 - Realtime Speech consumes the answer from `final_response`; `done` is a
   contentless terminator. SIP Phone surfaces
   `outbound_policy_migration_required` as a localized setup blocker.
+- Live Speech remembers the selected/started profile ID in browser storage
+  `aurago.realtimeSpeech.profileId.v1`, shared by Chat and Desktop. Restore only
+  selectable profiles; otherwise use the available configured default or first
+  available profile. Blocked storage keeps the selection in memory. Never start
+  a session automatically when restoring a selection.
 - Live Speech's shared panel owns one `AuraRealtimeSpeechAvatar` per mount.
   Webchat passes `visible: false` until its overlay opens and calls
   `AuraRealtimeSpeechUI.setVisible`; unmount disposes the avatar. Desktop

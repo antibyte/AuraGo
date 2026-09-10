@@ -3,6 +3,14 @@
 
     const runtime = window.AuraRealtimeSpeech;
     const mounts = new Map();
+    const PROFILE_STORAGE_KEY = 'aurago.realtimeSpeech.profileId.v1';
+    let preferredProfile = '';
+    try { preferredProfile = localStorage.getItem(PROFILE_STORAGE_KEY) || ''; } catch (_) { }
+
+    function rememberProfile(id) {
+        preferredProfile = id;
+        try { localStorage.setItem(PROFILE_STORAGE_KEY, id); } catch (_) { }
+    }
 
     function text(key, fallback) {
         const value = typeof window.t === 'function' ? window.t(key) : '';
@@ -46,8 +54,8 @@
         const currentState = runtime.state || 'idle';
         const active = !!runtime.sessionId;
         const profiles = enabledProfiles();
-        const selected = (runtime.profile && runtime.profile.id) ||
-            (runtime.config && runtime.config.default_profile) ||
+        const selected = [runtime.profile && runtime.profile.id, preferredProfile,
+            runtime.config && runtime.config.default_profile].find(id => profiles.some(profile => profile.id === id)) ||
             (profiles[0] && profiles[0].id) || '';
         const errorMessage = currentState === 'error' ? String(runtime.lastErrorMessage || '') : '';
         const panel = root.querySelector('[data-realtime-panel]');
@@ -68,16 +76,12 @@
         if (profile) {
             const signature = profiles.map(item => [item.id, item.name, item.provider].join('\u0000')).join('\u0001');
             if (profile.dataset.signature !== signature) {
-                const previous = profile.value;
                 profile.innerHTML = profiles.map(item =>
                     `<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)} · ${escapeHTML(item.provider)}</option>`
                 ).join('');
                 profile.dataset.signature = signature;
-                const available = profiles.some(item => item.id === previous);
-                profile.value = available ? previous : selected;
-            } else if (active && selected) {
-                profile.value = selected;
             }
+            profile.value = selected;
             profile.disabled = active;
         }
 
@@ -160,15 +164,22 @@
         const profile = root.querySelector('[data-realtime-profile]');
         const mute = root.querySelector('[data-realtime-mute]');
         const cancel = root.querySelector('[data-realtime-cancel]');
+        profile.addEventListener('change', () => {
+            rememberProfile(profile.value);
+            refreshAll();
+        });
         start.addEventListener('click', async () => {
             start.disabled = true;
             try {
                 if (runtime.sessionId) await runtime.stop();
-                else await runtime.start({
-                    profileId: profile.value,
-                    surface: options.surface || 'webchat',
-                    chatSessionId: typeof options.chatSessionId === 'function' ? options.chatSessionId() : options.chatSessionId
-                });
+                else {
+                    rememberProfile(profile.value);
+                    await runtime.start({
+                        profileId: profile.value,
+                        surface: options.surface || 'webchat',
+                        chatSessionId: typeof options.chatSessionId === 'function' ? options.chatSessionId() : options.chatSessionId
+                    });
+                }
             } catch (error) {
                 runtime.lastErrorMessage = String(runtime.lastErrorMessage || error && error.message || '');
             } finally {
