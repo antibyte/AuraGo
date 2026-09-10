@@ -602,10 +602,11 @@ function buildQuickConfigPatch() {
     // Merge trust level permissions
     deepMergePatch(patch, buildTrustLevelPatch(trustLevel));
 
-    // TTS — uses its own config structure (NOT the provider system)
+    // Keep local CPU speech as the installation default; retain profile credentials
+    // so the user can select that provider later in Speech Output settings.
+    patch.tts = { provider: 'sanotts', language: 'auto' };
     if (p.tts && p.tts.provider) {
         const ttsProvider = p.tts.provider;
-        patch.tts = { provider: ttsProvider };
         patch.tts[ttsProvider] = { api_key: apiKey };
         if (p.tts.model_id) patch.tts[ttsProvider].model_id = p.tts.model_id;
         if (p.tts.voice_id) patch.tts[ttsProvider].voice_id = p.tts.voice_id;

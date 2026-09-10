@@ -30,6 +30,12 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- Speech Output offers local CPU `sanotts` and automatic user language, with English
+  fallback for unavailable local voices. Quick Setup keeps this installation default
+  even when a provider profile supplies cloud TTS credentials. Existing saved provider
+  choices and the disabled option remain editable. Keep all `lang/config/tts/` locales
+  aligned; verify with `TestTTSConfigSanoDefaultsBrowser`.
+
 - The Chat integrations drawer omits `boring_computers` from its webhost list.
   The shared webhosts API remains available to other consumers.
 

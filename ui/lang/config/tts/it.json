@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "Automatico (lingua dell’utente)",
+  "config.tts.sanotts_help": "sanoTTS funziona localmente sulla CPU (Python 3.10+). Le dipendenze e la voce vengono scaricate al primo utilizzo. Le lingue non disponibili usano l’inglese.",
   "config.tts.provider_label": "Provider TTS",
   "config.tts.provider_help": "Seleziona il fornitore di sintesi vocale da usare.",
   "config.tts.provider_none": "Nessuno",

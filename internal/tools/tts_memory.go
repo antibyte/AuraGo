@@ -28,6 +28,8 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 		err  error
 	)
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "sanotts":
+		data, err = ttsSano(cfg, text)
 	case "elevenlabs":
 		data, err = ttsElevenLabs(cfg, text)
 	case "minimax":

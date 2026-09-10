@@ -18,12 +18,13 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/sanotts"
 	"aurago/internal/speechlab"
 )
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider            string // "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
+	Provider            string // "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
 	Language            string // BCP-47 language code (e.g. "de", "en")
 	Context             context.Context
 	DataDir             string // base data directory for storing audio files
@@ -107,6 +108,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	var err error
 
 	switch strings.ToLower(cfg.Provider) {
+	case "sanotts":
+		audioData, err = ttsSano(cfg, text)
 	case "elevenlabs":
 		audioData, err = ttsElevenLabs(cfg, text)
 	case "minimax":
@@ -139,6 +142,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 func ttsCacheKey(cfg TTSConfig, text string) string {
 	provider := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	switch provider {
+	case "sanotts":
+		return strings.Join([]string{provider, sanotts.Revision, sanotts.Voice(cfg.Language), text}, "\x00")
 	case "elevenlabs":
 		return strings.Join([]string{
 			provider,
@@ -205,7 +210,7 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 
 func ttsAudioExtension(cfg TTSConfig) string {
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
-	case "piper":
+	case "piper", "sanotts":
 		return ".wav"
 	case "supertonic":
 		return "." + supertonicResponseFormat(cfg.Supertonic.ResponseFormat)

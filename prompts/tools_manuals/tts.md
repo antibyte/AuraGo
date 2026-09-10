@@ -19,7 +19,9 @@ Generate speech audio from text. Max 500 characters per call.
 | `language` | ❌ | BCP-47 code (e.g. "de", "en"). Default: from config |
 
 ## Notes
-- Provider is configured in `config.yaml` → `tts.provider` ("google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic")
+- Provider is configured in `config.yaml` → `tts.provider` ("sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic")
+- New installations use local CPU sanoTTS and `language: auto`. It follows the user language; explicit speech language settings take priority. Available languages: ar, cs, de, en, es, fr, id, it, pt, ro, ru, tr, vi. Other languages use an English voice; provide English speech text for those languages. Text is synthesized as supplied, never automatically translated by TTS.
+- sanoTTS installs its Python runtime dependencies and downloads the selected tiny voice on first use, then runs locally without a key, Docker, or GPU. Output is `.wav`.
 - If `tts.piper.enabled` is true and no provider is set, Piper is used automatically
 - Piper TTS runs as a Docker container (auto-managed) and produces `.wav` files
 - Supertonic TTS runs through a managed Docker sidecar when `tts.provider: supertonic` and `tts.supertonic.auto_start: true`; it supports `.wav`, `.flac`, and `.ogg`

@@ -1664,8 +1664,8 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider            string `yaml:"provider"`              // "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", or "s2s"
-		Language            string `yaml:"language"`              // BCP-47 language code for Google TTS (e.g. "de", "en")
+		Provider            string `yaml:"provider"`              // "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", or "s2s"
+		Language            string `yaml:"language"`              // BCP-47 language; "auto" follows the user language for sanoTTS
 		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
 		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)
 		ElevenLabs          struct {

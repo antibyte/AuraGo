@@ -1,15 +1,17 @@
 package cyd
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
+
+	"aurago/internal/sanotts"
 )
 
 const (
@@ -117,28 +119,9 @@ func asciiEnglish(s string) string {
 }
 
 func synthesizeU8(bin, voice, text string) ([]byte, error) {
-	dir, err := os.MkdirTemp("", "cyd-tts-*")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(dir)
-	out := filepath.Join(dir, "out.wav")
-	cmd := exec.Command(bin, "say", text, "--voice", voice, "--nano-g2p", "lexicon", "-o", out)
-	cmd.Env = os.Environ()
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	done := make(chan error, 1)
-	go func() { done <- cmd.Run() }()
-	select {
-	case err := <-done:
-		if err != nil {
-			return nil, fmt.Errorf("sanotts: %w (%s)", err, strings.TrimSpace(stderr.String()))
-		}
-	case <-time.After(25 * time.Second):
-		_ = cmd.Process.Kill()
-		return nil, fmt.Errorf("sanotts timed out")
-	}
-	wav, err := os.ReadFile(out)
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	wav, err := sanotts.Synthesize(ctx, bin, voice, text, "")
 	if err != nil {
 		return nil, err
 	}

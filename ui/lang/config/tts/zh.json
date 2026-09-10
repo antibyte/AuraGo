@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "自动（用户语言）",
+  "config.tts.sanotts_help": "sanoTTS 在本地 CPU 上运行（Python 3.10+）。依赖项和语音会在首次使用时下载。不支持的语言使用英语。",
   "config.tts.provider_label": "TTS 提供商",
   "config.tts.provider_help": "选择要使用的文本转语音提供商。",
   "config.tts.provider_none": "无",

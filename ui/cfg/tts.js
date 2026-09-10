@@ -20,6 +20,7 @@ function renderTTSSection(section) {
     html += '<div class="field-help">' + t('config.tts.provider_help') + '</div>';
     html += '<select class="field-select" data-path="tts.provider" onchange="ttsProviderChanged(this.value)">';
     html += '<option value=""' + (currentProvider === '' ? ' selected' : '') + '>— ' + t('config.tts.provider_none') + ' —</option>';
+    html += '<option value="sanotts"' + (currentProvider === 'sanotts' ? ' selected' : '') + '>sanoTTS (CPU)</option>';
     html += '<option value="google"' + (currentProvider === 'google' ? ' selected' : '') + '>' + t('config.tts.provider_google') + '</option>';
     html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>' + t('config.tts.provider_elevenlabs') + '</option>';
     html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>' + t('config.tts.provider_minimax') + '</option>';
@@ -27,12 +28,13 @@ function renderTTSSection(section) {
     html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>' + t('config.tts.provider_piper') + '</option>';
     html += '<option value="supertonic"' + (currentProvider === 'supertonic' ? ' selected' : '') + '>' + t('config.tts.provider_supertonic') + '</option>';
     html += '</select>';
+    html += '<div class="field-help">' + t('config.tts.sanotts_help') + '</div>';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.language_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.language_help') + '</div>';
-    html += ttsLanguageSelect('tts.language', data.language || 'de');
+    html += ttsLanguageSelect('tts.language', data.language || 'auto');
     html += '</div>';
 
     const showEL = currentProvider === 'elevenlabs';
@@ -274,13 +276,13 @@ function renderTTSSection(section) {
 }
 
 function ttsLanguageSelect(path, selected) {
-    const languages = ['de', 'en', 'fr', 'es', 'it', 'pt', 'nl', 'ja', 'zh'];
+    const languages = ['auto', 'de', 'en', 'fr', 'es', 'it', 'pt', 'ar', 'cs', 'id', 'ro', 'ru', 'tr', 'vi', 'nl', 'ja', 'zh', 'hi', 'ne'];
     const customOption = typeof CFG_OPTION_OTHER_CUSTOM === 'string' ? CFG_OPTION_OTHER_CUSTOM : 'Other / Custom';
     const current = String(selected || '').trim();
     const isCustom = current && !languages.includes(current);
     let html = '<select class="field-select" data-path="' + escapeAttr(path) + '" onchange="cfgToggleCustomInput(this)">';
     languages.forEach(code => {
-        html += '<option value="' + code + '"' + (current === code ? ' selected' : '') + '>' + code + '</option>';
+        html += '<option value="' + code + '"' + (current === code ? ' selected' : '') + '>' + (code === 'auto' ? t('config.tts.language_auto') : code) + '</option>';
     });
     html += '<option value="' + escapeAttr(customOption) + '"' + (isCustom ? ' selected' : '') + '>' + cfgFieldOptionLabel(customOption) + '</option>';
     html += '</select>';

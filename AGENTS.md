@@ -585,7 +585,22 @@ Tools are defined in `internal/tools/`:
 - Route only AuraGo's stream to the matched Bluetooth sink, keep the system default output unchanged, and allow at most one AuraGo-owned Bluetooth playback at a time.
 - Standard Docker installations must report Bluetooth unavailable unless a future explicit and security-reviewed host D-Bus/audio passthrough contract is added.
 
+### Default Speech Output Contract
+
+- Fresh installations use `tts.provider: sanotts` and `tts.language: auto`.
+  Keep explicit existing provider/disabled settings intact. Setup profile credentials
+  may be prepared, but must not replace the local default. Config remains the owner
+  of later provider changes. Automatic speech language follows the user, with English
+  for unsupported local voice packages; TTS does not translate input text.
+- `internal/sanotts` owns the pinned CPU runtime wheel and shared CYD/WAV runner.
+  `internal/tools/sanotts.go` provisions its separate `data/sanotts/venv` on first use,
+  serializes CPU synthesis, and retains downloaded voice packs. Do not add GPU,
+  Docker, torch, or onnxruntime requirements. Python 3.10+ with venv/pip is required.
+  Current Python packs cover 13 languages including German `de-tiny`; hi/ne/zh remain
+  browser-only upstream. See `documentation/sanotts.md` for provenance and checks.
+
 ### Native SIP Telephony Contract
+
 - AuraGo owns one in-process Diago SIP endpoint, one Vault-backed account, and at most one active call. Keep Diago pinned to v0.31.0, sipgo pinned to v1.4.3, G.711-only media, and CGO-free builds; do not add Asterisk, FreeSWITCH, PJSIP, ffmpeg, or a SIP sidecar.
 - Registration and explicit connection tests remain available in read-only mode. Answering, dialing, DTMF, and agent hangup require both `readonly: false` and their granular permissions. Empty caller or destination allowlists deny all.
 - Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
@@ -1077,6 +1092,7 @@ Current child AGENTS.md files:
 - `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
 - `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
+- `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.

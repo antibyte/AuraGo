@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "Automatisch (taal van gebruiker)",
+  "config.tts.sanotts_help": "sanoTTS draait lokaal op de CPU (Python 3.10+). Afhankelijkheden en de stem worden bij het eerste gebruik gedownload. Niet-beschikbare talen gebruiken Engels.",
   "config.tts.provider_label": "TTS-provider",
   "config.tts.provider_help": "Selecteer de te gebruiken tekst-naar-spraakaanbieder.",
   "config.tts.provider_none": "Geen",

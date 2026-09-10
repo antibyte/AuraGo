@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "自動（ユーザーの言語）",
+  "config.tts.sanotts_help": "sanoTTS は CPU 上でローカル実行されます（Python 3.10+）。依存パッケージと音声は初回使用時にダウンロードされます。未対応の言語には英語を使用します。",
   "config.tts.provider_label": "TTSプロバイダー",
   "config.tts.provider_help": "使用するテキスト読み上げプロバイダーを選択します。",
   "config.tts.provider_none": "なし",

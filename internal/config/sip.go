@@ -486,7 +486,7 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 			return fmt.Errorf("sip.voice.classic.asr_mode must be whisper, multimodal, local, or speech_lab")
 		}
 		switch cfg.Voice.Classic.TTSProvider {
-		case "", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", "speech_lab":
+		case "", "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", "speech_lab":
 		default:
 			return fmt.Errorf("sip.voice.classic.tts_provider is unsupported")
 		}

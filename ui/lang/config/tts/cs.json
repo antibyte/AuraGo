@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "Automaticky (jazyk uživatele)",
+  "config.tts.sanotts_help": "sanoTTS běží místně na CPU (Python 3.10+). Závislosti a hlas se stáhnou při prvním použití. Nepodporované jazyky používají angličtinu.",
   "config.tts.provider_label": "Poskytovatel TTS",
   "config.tts.provider_help": "Vyberte poskytovatele převodu textu na řeč, kterého chcete použít.",
   "config.tts.provider_none": "Žádný",

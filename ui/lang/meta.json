@@ -57,6 +57,7 @@
   },
   "help.tts.provider": {
     "options": [
+      "sanotts",
       "google",
       "elevenlabs",
       "minimax",
@@ -66,6 +67,7 @@
   },
   "help.tts.language": {
     "options": [
+      "auto",
       "de",
       "en",
       "fr",

@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "Αυτόματα (γλώσσα χρήστη)",
+  "config.tts.sanotts_help": "Το sanoTTS εκτελείται τοπικά στη CPU (Python 3.10+). Οι εξαρτήσεις και η φωνή λαμβάνονται στην πρώτη χρήση. Οι μη διαθέσιμες γλώσσες χρησιμοποιούν αγγλικά.",
   "config.tts.provider_label": "Πάροχος TTS",
   "config.tts.provider_help": "Επιλέξτε τον πάροχο μετατροπής κειμένου σε ομιλία που θα χρησιμοποιήσετε.",
   "config.tts.provider_none": "Κανένας",

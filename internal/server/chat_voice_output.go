@@ -396,6 +396,9 @@ func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string, clients 
 	if ttsCfg.Language == "" {
 		ttsCfg.Language = cfg.SpeechLab.Language
 	}
+	if strings.EqualFold(provider, "sanotts") || strings.EqualFold(ttsCfg.Language, "auto") {
+		ttsCfg.Language = cfg.SanoTTSLanguage(language)
+	}
 	ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
 	ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
 	ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
@@ -440,7 +443,7 @@ func chatVoiceOutputTTSConfigured(cfg *config.Config) bool {
 	}
 
 	switch provider {
-	case "google":
+	case "google", "sanotts":
 		return true
 	case "elevenlabs":
 		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""

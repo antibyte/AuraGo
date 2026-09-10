@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "Automatic (user language)",
+  "config.tts.sanotts_help": "sanoTTS runs locally on CPU (Python 3.10+). Dependencies and the voice download on first use. Unsupported languages use English.",
   "config.tts.provider_label": "TTS Provider",
   "config.tts.provider_help": "Select the text-to-speech provider to use.",
   "config.tts.provider_none": "None",

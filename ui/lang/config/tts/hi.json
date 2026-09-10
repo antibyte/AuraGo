@@ -1,4 +1,6 @@
 {
+  "config.tts.language_auto": "स्वचालित (उपयोगकर्ता की भाषा)",
+  "config.tts.sanotts_help": "sanoTTS स्थानीय CPU पर चलता है (Python 3.10+)। निर्भरताएँ और आवाज़ पहली बार उपयोग पर डाउनलोड होती हैं। अनुपलब्ध भाषाओं के लिए अंग्रेज़ी का उपयोग होता है।",
   "config.tts.provider_label": "TTS प्रदाता",
   "config.tts.provider_help": "उपयोग करने के लिए टेक्स्ट-टू-स्पीच प्रदाता चुनें।",
   "config.tts.provider_none": "कोई नहीं",

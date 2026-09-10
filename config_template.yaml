@@ -874,7 +874,7 @@ tts:
         api_key: ""                    # stored in Vault by the Web UI
         model_id: voxtral-mini-tts-2603
         voice_id: ""                   # preset or custom voice ID from Mistral Studio
-    language: en
+    language: auto                    # sanoTTS follows the user language; unsupported voices use English
     piper:
         container_port: 10200
         data_path: data/piper
@@ -882,7 +882,7 @@ tts:
         image: rhasspy/wyoming-piper:latest
         speaker_id: 0
         voice: de_DE-thorsten-high
-    provider: ""                       # Speech Lab chat output is selected only by speech_lab.chat_output_enabled
+    provider: sanotts                  # local CPU default; selectable in Speech Output config
     supertonic:
         auto_start: false
         container_name: aurago-supertonic-tts
