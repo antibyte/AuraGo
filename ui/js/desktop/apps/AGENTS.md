@@ -952,6 +952,16 @@ registration lives in `internal/desktop/types.go`.
   enabled integration flags do not prove connectivity. Older REST responses or
   failures must not replace newer SSE samples. No raw tool arguments, prompts
   or issue details enter the bounded 60-event feed.
+- `sysworld-life.js` owns exactly five decorative white ThreeDee robots, rounded
+  street routes, shared assets/soft hover lights and state-driven district rings.
+  Only fresh actual error/running states or bounded recent events animate district
+  signals; stale/unknown stays neutral. The operations signal uses private material
+  clones so its red pulse cannot recolor other buildings. Rebind after LOD swaps.
+  Reduced motion/Desktop animation settings freeze residents and pulses.
+- `sysworld-audio.js` owns quiet native Web Audio synthesis. Sound is opt-in,
+  persisted, gesture-unlocked, volume-bounded and fades/suspends when the app is
+  hidden, unfocused or in map mode. No downloads or extra render/scheduling loop.
+  Close releases all oscillators, nodes, fade timers and AudioContexts.
 - Rendering owns one RAF per visible window. Minimize, Spaces, document hiding
   and map mode stop it. Close aborts loaders and frees GPU resources, listeners
   and observers. Context loss falls back to the usable map. Keep all models,
@@ -1010,7 +1020,7 @@ registration lives in `internal/desktop/types.go`.
 - Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
   `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
   and `command-palette.js`; do not fold domain modules into core.js.
-- Keep System World's data, HUD, scene and lifecycle in their four owned files.
+- Keep System World's data, HUD, scene, life, audio and lifecycle in their owned files.
   Do not merge renderer dependencies or data polling into the Desktop shell.
 - Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
   `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
@@ -1430,7 +1440,10 @@ registration lives in `internal/desktop/types.go`.
   `ui/js/vendor/system-world/`; never classic-script load this source.
 - `sysworld-hud.js` - Theme-native, localized HTML metrics, district navigation,
   entity search, inspector, map, street controls and projected district labels.
-  These four files need no additional child DOX.
+- `sysworld-life.js` - Shared robot assets, street routes, hover lights and district
+  status effects; imports only into the city bundle.
+- `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio and lifecycle.
+  These modules need no additional child DOX.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
   syntax highlighting (using javascript()), error line highlighting, fallback
   textarea, and `revealLine(line)` for jumping to an issue. Exposes

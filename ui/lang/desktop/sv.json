@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Karta",
   "sysworld.city.street": "Gata",
   "sysworld.city.tour": "Rundtur",
-  "sysworld.city.auto": "Automatisk"
+  "sysworld.city.auto": "Automatisk",
+  "sysworld.city.sound_on": "Aktivera stadens ljudmiljö",
+  "sysworld.city.sound_off": "Stäng av stadens ljudmiljö",
+  "sysworld.city.robot_error": "Stadsroboten kunde inte läsas in. Öppna Systemvärlden igen."
 }

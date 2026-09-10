@@ -2,6 +2,6 @@
   "three": "0.185.1",
   "license": "MIT",
   "entry": "ui/js/desktop/apps/sysworld-scene.js",
-  "bytes": 662942,
-  "sha256": "bdc69a58456109f88f6c23aa4406b08641328578a3c2b0ddfc1dfc0e19251985"
+  "bytes": 687247,
+  "sha256": "9a748821ff4219874c4c48c6937a109b4680df604d350f42e4ffbed482377cde"
 }

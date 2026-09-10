@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Kaart",
   "sysworld.city.street": "Straat",
   "sysworld.city.tour": "Rondleiding",
-  "sysworld.city.auto": "Automatisch"
+  "sysworld.city.auto": "Automatisch",
+  "sysworld.city.sound_on": "Stadsgeluiden inschakelen",
+  "sysworld.city.sound_off": "Stadsgeluiden dempen",
+  "sysworld.city.robot_error": "De stadsrobot kon niet worden geladen. Open Systeemwereld opnieuw."
 }

@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Karte",
   "sysworld.city.street": "Straße",
   "sysworld.city.tour": "Rundgang",
-  "sysworld.city.auto": "Automatisch"
+  "sysworld.city.auto": "Automatisch",
+  "sysworld.city.sound_on": "Soundkulisse einschalten",
+  "sysworld.city.sound_off": "Soundkulisse ausschalten",
+  "sysworld.city.robot_error": "Der Stadtroboter konnte nicht geladen werden. Öffne Systemwelt erneut."
 }

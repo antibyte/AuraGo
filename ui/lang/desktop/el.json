@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Χάρτης",
   "sysworld.city.street": "Δρόμος",
   "sysworld.city.tour": "Περιήγηση",
-  "sysworld.city.auto": "Αυτόματη"
+  "sysworld.city.auto": "Αυτόματη",
+  "sysworld.city.sound_on": "Ενεργοποίηση ήχων πόλης",
+  "sysworld.city.sound_off": "Σίγαση ήχων πόλης",
+  "sysworld.city.robot_error": "Δεν φορτώθηκε το ρομπότ της πόλης. Ανοίξτε ξανά τον Κόσμο συστήματος."
 }

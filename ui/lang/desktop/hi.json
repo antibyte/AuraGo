@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "नक्शा",
   "sysworld.city.street": "सड़क",
   "sysworld.city.tour": "भ्रमण",
-  "sysworld.city.auto": "स्वचालित"
+  "sysworld.city.auto": "स्वचालित",
+  "sysworld.city.sound_on": "शहर की परिवेश ध्वनि चालू करें",
+  "sysworld.city.sound_off": "शहर की परिवेश ध्वनि बंद करें",
+  "sysworld.city.robot_error": "शहर का रोबोट लोड नहीं हो सका। सिस्टम वर्ल्ड दोबारा खोलें।"
 }

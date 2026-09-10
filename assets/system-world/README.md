@@ -2,7 +2,8 @@
 
 Original Blender assets for AuraGo's cinematic data metropolis. The kit uses dark
 metal, tinted glass, bronze details and restrained warm interior lighting.
-All geometry and materials were authored for AuraGo and are MIT licensed.
+The original city-kit geometry and materials were authored for AuraGo under MIT.
+The reused ThreeDee robot retains its existing artwork provenance (see below).
 
 ## Runtime payload
 
@@ -25,8 +26,7 @@ street segment, crossing, service drone, data tram, street lamp, planter and ser
 
 ## Integration contract
 
-The assets are ready for the planned city renderer; the current orbital System
-World app is not switched to these models by this asset-only change.
+The assets are integrated through the isolated city renderer in System World.
 
 - GLB coordinates use **metres, Y up**. Origins are centred horizontally at ground
   level. A bridge origin is its deck base; the host chooses the elevation.
@@ -51,6 +51,20 @@ World app is not switched to these models by this asset-only change.
   triangles for walking collision.
 - The matching isolated Three.js 0.185.1 renderer can load the files directly.
   Do not replace the desktop's shared legacy Three.js global just to load this kit.
+
+## White ThreeDee robot
+
+`build_robot.py` creates `ui/3d/system-world/white-robot.glb` from the existing
+`ui/3d/robot.glb`. This is a derivative of that artwork, not a new MIT-authored
+city-kit design; `white-robot.json` retains source/output hashes and provenance.
+The original and ThreeDee theme remain untouched. Blender decimates 1,446,104
+triangles to 24,000 and retains its three embedded PBR maps at 512 px, including
+explicit tangents. No runtime Draco decoder is needed. The robot is capped at
+2 MiB; it and the original city kit together remain below 8 MiB. Five residents
+share the loaded geometry, materials and textures, with separate street poses.
+
+Rebuild with:
+`& 'D:\Blender 5.2\blender.exe' --background --factory-startup --python assets/system-world/build_robot.py`
 
 ## Rebuild
 

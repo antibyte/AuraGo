@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Mappa",
   "sysworld.city.street": "Strada",
   "sysworld.city.tour": "Visita",
-  "sysworld.city.auto": "Automatica"
+  "sysworld.city.auto": "Automatica",
+  "sysworld.city.sound_on": "Attiva atmosfera sonora",
+  "sysworld.city.sound_off": "Disattiva atmosfera sonora",
+  "sysworld.city.robot_error": "Impossibile caricare il robot. Riapri Mondo di sistema."
 }

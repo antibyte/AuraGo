@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Kart",
   "sysworld.city.street": "Gate",
   "sysworld.city.tour": "Omvisning",
-  "sysworld.city.auto": "Automatisk"
+  "sysworld.city.auto": "Automatisk",
+  "sysworld.city.sound_on": "Slå på byens lydkulisse",
+  "sysworld.city.sound_off": "Slå av byens lydkulisse",
+  "sysworld.city.robot_error": "Byroboten kunne ikke lastes inn. Åpne Systemverden på nytt."
 }

@@ -1,0 +1,12 @@
+{
+  "source": "ui/3d/robot.glb",
+  "source_sha256": "573c205a7645a71337e1bae749d188d8a32cea7bfa2bcf181c7f039b3024b6cc",
+  "provenance": "Optimized derivative of the existing AuraGo ThreeDee robot; original artwork retained.",
+  "generator": "Blender 5.2.1 / assets/system-world/build_robot.py",
+  "file": "white-robot.glb",
+  "sha256": "f03ed6218100346f70d7bdd01167dc041f14f12d80ef7d180e8ee372acfafa9c",
+  "bytes": 1678400,
+  "triangles": 24000,
+  "source_triangles": 1446104,
+  "texture_max_size": 512
+}

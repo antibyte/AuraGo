@@ -78,5 +78,39 @@ def check():
                       'textures': 0, 'checks': 'passed'}, indent=2))
 
 
+def check_robot():
+    directory = DIRECTORY.parent
+    manifest = json.loads((directory / 'white-robot.json').read_text(encoding='utf-8'))
+    data = (directory / manifest['file']).read_bytes()
+    assert manifest['source'] == 'ui/3d/robot.glb'
+    assert hashlib.sha256((ROOT / manifest['source']).read_bytes()).hexdigest() == manifest['source_sha256']
+    assert hashlib.sha256(data).hexdigest() == manifest['sha256']
+    assert len(data) == manifest['bytes'] < 2 * 1024 * 1024
+    magic, version, size, length, kind = struct.unpack_from('<IIIII', data)
+    assert magic == 0x46546C67 and version == 2 and size == len(data) and kind == 0x4E4F534A
+    doc = json.loads(data[20:20+length])
+    assert not doc.get('extensionsRequired') and not doc.get('skins') and not doc.get('animations')
+    assert len(doc['buffers']) == 1 and not doc['buffers'][0].get('uri')
+    count = 0
+    for mesh in doc['meshes']:
+        for primitive in mesh['primitives']:
+            assert primitive.get('mode', 4) == 4
+            assert 'TANGENT' in primitive['attributes']
+            count += doc['accessors'][primitive['indices']]['count'] // 3
+    assert count == manifest['triangles'] <= 25000
+    assert len(doc['images']) == 3
+    for image in doc['images']:
+        assert image['mimeType'] == 'image/png' and not image.get('uri')
+        view = doc['bufferViews'][image['bufferView']]
+        image_start = 28 + length + view.get('byteOffset', 0)
+        width, height = struct.unpack_from('>II', data, image_start + 16)
+        assert 0 < width <= 512 and 0 < height <= 512
+    total = sum(p.stat().st_size for p in directory.rglob('*') if p.is_file() and p.suffix in {'.glb', '.json', '.txt'})
+    assert total < 8 * 1024 * 1024
+    print(json.dumps({'robot_triangles': count, 'robot_bytes': len(data),
+                      'combined_runtime_bytes': total, 'robot_checks': 'passed'}))
+
+
 if __name__ == '__main__':
     check()
+    check_robot()

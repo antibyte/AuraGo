@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Mapa",
   "sysworld.city.street": "Rua",
   "sysworld.city.tour": "Visita",
-  "sysworld.city.auto": "Automática"
+  "sysworld.city.auto": "Automática",
+  "sysworld.city.sound_on": "Ativar ambiente sonoro",
+  "sysworld.city.sound_off": "Silenciar ambiente sonoro",
+  "sysworld.city.robot_error": "Não foi possível carregar o robô. Abra novamente o Mundo do sistema."
 }

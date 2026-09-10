@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "マップ",
   "sysworld.city.street": "ストリート",
   "sysworld.city.tour": "ツアー",
-  "sysworld.city.auto": "自動"
+  "sysworld.city.auto": "自動",
+  "sysworld.city.sound_on": "街の環境音を有効にする",
+  "sysworld.city.sound_off": "街の環境音をミュート",
+  "sysworld.city.robot_error": "街のロボットを読み込めませんでした。システムワールドを開き直してください。"
 }

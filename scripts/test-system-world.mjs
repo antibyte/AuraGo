@@ -69,7 +69,7 @@ assert.equal(Object.keys(snapshot.sources).length,0,'Last close releases retaine
 // All city labels exist and retain placeholders in each supported language.
 const base=JSON.parse(await fs.readFile('ui/lang/desktop/en.json','utf8'));
 const keys=Object.keys(base).filter(k=>k.startsWith('sysworld.city.'));
-assert.equal(keys.length,48);
+assert.equal(keys.length,51);
 for(const lang of ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh']) {
     const data=JSON.parse(await fs.readFile('ui/lang/desktop/'+lang+'.json','utf8'));
     for(const key of keys) { assert.ok(data[key],lang+':'+key);

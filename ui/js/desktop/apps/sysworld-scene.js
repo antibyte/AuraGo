@@ -6,6 +6,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createCityLife } from './sysworld-life.js';
+export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
 export const districts = [
@@ -31,7 +33,7 @@ export async function createCity(host, options) {
   let tier = quality === 'auto' ? 'high' : quality, generation = 0, flight = null;
   let frames = 0, measured = 0, sampleFrames = 0, lastQualityChange = 0, loadBytes = 0;
   let tourTime = 0, tourIndex = 0, selected = null, reduced = options.reducedMotion;
-  let width = 1, height = 1, objects = [], failed = false, observer = null;
+  let width = 1, height = 1, objects = [], failed = false, observer = null, life = null;
   const abort = new AbortController(), requests = new Set(), cache = new Map(), materials = new Map();
   const geoSet = new Set(), matSet = new Set(), keys = new Set(), cleanup = [];
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -195,6 +197,7 @@ export async function createCity(host, options) {
         const mesh = loaded.get(d.asset).clone(true); mesh.position.set(d.x, 0, d.z);
         mesh.userData.district = d.id; landmarks.add(mesh); objects.push(mesh);
       }
+      life?.attachLandmarks(landmarks);
       renderer.shadowMap.needsUpdate = true; options.onReady?.();
     } catch (e) { if (!disposed && token === generation) options.onError?.(e); }
   }
@@ -309,6 +312,7 @@ export async function createCity(host, options) {
       controls.update();
     }
     reactorLight.intensity = reduced ? 0 : (options.busy?.() ? 180 + Math.sin(elapsed*2)*35 : 0);
+    life?.update(dt, !reduced);
     renderer.info.reset(); composer.render(); frames++;
     if (quality === 'auto' && dt > 0 && dt < .2 && elapsed - lastQualityChange > 12) {
       measured += dt; sampleFrames++;
@@ -320,7 +324,8 @@ export async function createCity(host, options) {
       }
     }
   }
-  function setData(entities) {
+  function setData(entities, events) {
+    life?.setData(entities, events);
     districts.forEach((d, i) => {
       const e = entities.find(e => e.id === d.id);
       beacons.setColorAt(i, new THREE.Color(!e || e.stale ? 0x7b8b9b : e.state === 'error' ? 0xff7868 : e.state === 'running' ? 0x75f4d1 : 0x7cbfe3));
@@ -330,11 +335,12 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
   }
+  life = createCityLife(scene, districts, {robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError});
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
@@ -343,6 +349,6 @@ export async function createCity(host, options) {
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },
     lockPointer() { if(mode === 'street') return canvas.requestPointerLock(); },
     project(id) { const d = districts.find(d => d.id === id); if(!d) return null; v.set(d.x,d.height+4,d.z).project(camera); return { x:(v.x+1)*width/2,y:(1-v.y)*height/2,visible:v.z<1 && v.z>-1 }; },
-    stats() { return { frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { life:life?.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

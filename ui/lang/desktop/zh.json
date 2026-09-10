@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "地图",
   "sysworld.city.street": "街道",
   "sysworld.city.tour": "游览",
-  "sysworld.city.auto": "自动"
+  "sysworld.city.auto": "自动",
+  "sysworld.city.sound_on": "开启城市环境音",
+  "sysworld.city.sound_off": "关闭城市环境音",
+  "sysworld.city.robot_error": "无法加载城市机器人。请重新打开系统世界。"
 }

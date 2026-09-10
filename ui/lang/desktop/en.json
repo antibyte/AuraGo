@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Map",
   "sysworld.city.street": "Street",
   "sysworld.city.tour": "Tour",
-  "sysworld.city.auto": "Automatic"
+  "sysworld.city.auto": "Automatic",
+  "sysworld.city.sound_on": "Enable city ambience",
+  "sysworld.city.sound_off": "Mute city ambience",
+  "sysworld.city.robot_error": "The city robot could not be loaded. Reopen System World to retry."
 }

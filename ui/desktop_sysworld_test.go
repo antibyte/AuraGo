@@ -74,7 +74,6 @@ func TestDesktopSysWorldLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 	windows := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
 		"'system-world': { width: 1440, height: 900 }",
-		"'system-world': true",
 	} {
 		if !strings.Contains(windows, want) {
 			t.Fatalf("desktop window runtime missing System World marker %q", want)

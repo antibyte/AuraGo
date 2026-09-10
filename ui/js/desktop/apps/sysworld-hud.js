@@ -69,7 +69,12 @@
         quality.value=inst.quality; quality.addEventListener('change',()=>inst.setQuality(quality.value));
         const status = el('span','sw-live');
         const refresh=btn('refresh',L('desktop.context_refresh'),'refresh');refresh.addEventListener('click',()=>NS.data.refresh());
-        controls.append(modes,status,quality,refresh);shell.append(controls);
+        const sound=btn('sound',L('sysworld.city.sound_on'),'speaker');sound.disabled=true;sound.setAttribute('aria-pressed','false');
+        sound.addEventListener('click',()=>inst.toggleSound());
+        const volume=el('input','sw-volume');volume.type='range';volume.min=0;volume.max=35;volume.value=18;volume.hidden=true;
+        volume.setAttribute('aria-label',L('desktop.radio_volume'));volume.title=L('desktop.radio_volume');
+        volume.addEventListener('input',()=>inst.setVolume(Number(volume.value)/100));
+        controls.append(modes,status,sound,volume,quality,refresh);shell.append(controls);
         const help=el('div','sw-street-help sw-glass');help.hidden=true;help.append(el('span','',L('sysworld.city.street_help')));
         const lock=btn('pointer-lock',L('sysworld.city.mouse_look'),'eye');lock.addEventListener('click',()=>inst.city?.lockPointer()?.catch(()=>{}));help.append(lock);
         const movement=el('div','sw-movement');
@@ -179,7 +184,10 @@
                 statEls.ram.classList.toggle('sw-stale',!data.sources.system?.at||!!data.sources.system?.failed);
                 statEls.missions.textContent=format(data.sources.overview?.data?.missions?.total,'number');
                 statEls.agent.textContent=typeof agent?.busy==='boolean'?L(agent.busy?'sysworld.agent.busy':'sysworld.agent.idle'):'—';
-                NS.districts.forEach(([id])=>{counts[id].textContent=rows.filter(e=>e.district===id&&e.id!==id).length||'·';});
+                NS.districts.forEach(([id])=>{
+                    counts[id].textContent=rows.filter(e=>e.district===id&&e.id!==id).length||'·';
+                    const e=rows.find(e=>e.id===id);pins[id].dataset.state=!e||e.stale?'unknown':e.state;
+                });
                 const stale=rows.filter(e=>e.id===e.district&&e.stale).length;status.textContent=L(stale?'sysworld.city.partial':'sysworld.city.live');
                 status.classList.toggle('sw-stale',stale>0);renderPanel();renderResults();
             },
@@ -194,6 +202,8 @@
                 Object.entries(modeButtons).forEach(([id,b])=>{b.classList.toggle('active',value===id);b.setAttribute('aria-pressed',String(value===id));});
             },
             quality(value,actual){quality.value=value;quality.title=L('sysworld.btn.quality')+': '+L('sysworld.quality.'+actual);},
+            sound(enabled){sound.disabled=false;sound.setAttribute('aria-pressed',String(enabled));sound.classList.toggle('active',enabled);
+                sound.title=L(enabled?'sysworld.city.sound_off':'sysworld.city.sound_on');sound.setAttribute('aria-label',sound.title);volume.hidden=!enabled;},
             ready(){message.hidden=true;},
             error(key){message.textContent=L(key);message.hidden=false;},
             project(city){for(const[id,p]of Object.entries(pins)){const point=city.project(id);p.hidden=!point?.visible;if(point)p.style.transform='translate('+point.x+'px,'+point.y+'px) translate(-50%,-100%)';}},

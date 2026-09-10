@@ -14,8 +14,19 @@ import (
 // Reuse the real Desktop shell/asset router, with bounded read-only data fixtures.
 func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	t.Helper()
+	viewport := func(w, h int, dpr float64, touch bool) {
+		page.MustSetViewport(w, h, dpr, touch)
+		if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: touch}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))}`)
+	}
 	page.MustEval(`()=>{
         localStorage.setItem('aurago.desktop.sysworld.quality','high');
+        localStorage.setItem('aurago.desktop.sysworld.sound','false');
+        window.cityAudioContexts=[];window.cityOriginalAudio=window.AudioContext;
+        window.AudioContext=class extends cityOriginalAudio{constructor(...args){super(...args);cityAudioContexts.push(this);}};
+        window.cityIssueSeverity='warning';
         window.cityErrors=[];addEventListener('error',e=>cityErrors.push(e.message));
         addEventListener('unhandledrejection',e=>cityErrors.push(String(e.reason)));
         window.cityNativeFetch=window.fetch;window.cityFailures=false;window.cityCalls={};
@@ -36,7 +47,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
                 '/api/budget':{spent:2.34},
                 '/api/knowledge-graph/nodes?limit=300':{nodes:[{id:'n1',label:'AuraGo',type:'project',access_count:48},{id:'n2',label:'Andi',type:'person',access_count:129}]},
                 '/api/knowledge-graph/edges?limit=500':{edges:[{source:'n1',target:'n2',relation:'maintained by'}]},
-                '/api/operational-issues?status=open&limit=100':{items:[{id:'op1',title:'MQTT reconnect',severity:'warning',occurrence_count:2}],total:1},
+                '/api/operational-issues?status=open&limit=100':{items:cityIssueSeverity?[{id:'op1',title:'MQTT reconnect',severity:cityIssueSeverity,occurrences:2}]:[],total:cityIssueSeverity?1:0},
             };
             if(cityFailures&&path==='/api/dashboard/overview')return Promise.resolve(new Response('{}',{status:503}));
             if(path in fixtures)return Promise.resolve(new Response(JSON.stringify(fixtures[path]),{headers:{'Content-Type':'application/json'}}));
@@ -52,6 +63,9 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         if(/sysworld\.city\./.test(app.innerText))throw Error('Untranslated city control');
         if(app.querySelector('.sw-message:not([hidden])'))throw Error('City asset load failed');
     }`)
+	page.Timeout(45 * time.Second).MustWait(`()=>!!(SysWorldApp.inspect(cityId)?.life?.robots===5||SysWorldApp.inspect(cityId)?.life?.robotError)`)
+	page.MustEval(`()=>{const state=SysWorldApp.inspect(cityId);if(state.life.robots!==5)throw Error('Five original robot models missing');if(state.sound.state!=='uninitialized')throw Error('Sound started without opt-in');
+        const requests=Object.entries(cityCalls).filter(([url])=>url.includes('white-robot.glb'));if(requests.length!==1||requests[0][1]!==1)throw Error('Robot asset must load once');}`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
 	if os.Getenv("AURAGO_SYSTEM_WORLD_FIRST") == "1" {
 		return
@@ -60,7 +74,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 		w, h int
 		dpr  float64
 	}{{1920, 1080, 1}, {1366, 768, 1}, {430, 932, 2}} {
-		page.MustSetViewport(size.w, size.h, size.dpr, size.w < 600)
+		viewport(size.w, size.h, size.dpr, size.w < 600)
 		for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
 			for _, density := range []string{"comfortable", "compact"} {
 				page.MustEval(`([theme,density])=>{aurora.state.bootstrap.settings['appearance.density']=density;fixtureTheme(theme)}`, []string{theme, density})
@@ -76,7 +90,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 			}
 		}
 	}
-	page.MustSetViewport(1366, 768, 1, false)
+	viewport(1366, 768, 1, false)
 	page.MustEval(`()=>{fixtureTheme('standard');document.querySelector('[data-sw-district="infra"]').click()}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).selected==='infra'`)
 	page.MustScreenshot(filepath.Join(dir, "city-infrastructure.png"))
@@ -120,6 +134,40 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{document.body.dataset.animations='true';aurora.state.bootstrap.settings['appearance.animations']=true;}`)
 	page.MustEval(`()=>document.querySelector('[data-sw-mode="tour"]').click()`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='tour'`)
+	page.MustEval(`()=>{window.cityRobotBefore=JSON.stringify(SysWorldApp.inspect(cityId).life.positions);}`)
+	time.Sleep(650 * time.Millisecond)
+	page.MustEval(`()=>{if(JSON.stringify(SysWorldApp.inspect(cityId).life.positions)===cityRobotBefore)throw Error('Robots do not move');cityIssueSeverity='error';SysWorld.data.refresh();}`)
+	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').state==='error'`)
+	page.MustEval(`()=>{document.querySelector('[data-sw-district="operations"]').click();window.cityPulse=SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').intensity;}`)
+	time.Sleep(450 * time.Millisecond)
+	page.MustEval(`()=>{if(Math.abs(SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').intensity-cityPulse)<.005)throw Error('Operation error does not pulse');}`)
+	page.MustScreenshot(filepath.Join(dir, "city-robots-alert.png"))
+	page.MustElement(`[data-sw-action="sound"]`).MustClick()
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'&&SysWorldApp.inspect(cityId).sound.rms>.0001`)
+	page.MustEval(`()=>document.querySelector('.sysworld').closest('.vd-window').classList.remove('active')`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
+	page.MustEval(`()=>aurora.focusWindow(cityId)`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'`)
+	viewport(430, 932, 2, true)
+	page.MustEval(`()=>{const r=document.querySelector('.sysworld').getBoundingClientRect();for(const selector of ['.sw-volume','.sw-quality','[data-sw-action="sound"]']){const b=document.querySelector(selector).getBoundingClientRect();if(b.left<r.left||b.right>r.right||b.bottom>r.bottom||!document.querySelector(selector).contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)))throw Error('Sound control obscured: '+selector+' '+JSON.stringify({bounds:b,app:r,viewport:[innerWidth,innerHeight],touch:matchMedia('(pointer:coarse)').matches}));}}`)
+	page.MustScreenshot(filepath.Join(dir, "city-touch-sound.png"))
+	viewport(1366, 768, 1, false)
+	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.rms>.05)throw Error('Ambience too loud');document.querySelector('[data-sw-mode="map"]').click();}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
+	page.MustEval(`()=>document.querySelector('[data-sw-mode="orbit"]').click()`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'`)
+	page.MustEval(`()=>aurora.minimizeWindow(cityId)`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'&&!SysWorldApp.inspect(cityId).raf`)
+	page.MustEval(`()=>aurora.focusWindow(cityId)`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'`)
+	page.MustElement(`[data-sw-action="sound"]`).MustClick()
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
+	page.MustEval(`()=>{document.body.dataset.animations='false';}`)
+	time.Sleep(100 * time.Millisecond)
+	page.MustEval(`()=>{window.cityReducedPositions=JSON.stringify(SysWorldApp.inspect(cityId).life.positions);window.cityReducedPulse=SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').intensity;}`)
+	time.Sleep(250 * time.Millisecond)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(JSON.stringify(s.life.positions)!==cityReducedPositions||s.life.signals.find(s=>s.id==='operations').intensity!==cityReducedPulse)throw Error('Reduced motion must freeze residents and pulse');document.body.dataset.animations='true';cityIssueSeverity='';SysWorld.data.refresh();}`)
+	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').state==='idle'`)
 	page.MustEval(`()=>document.querySelector('[data-sw-district="memory"]').click()`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='orbit'`)
 	page.MustEval(`()=>{window.citySelected=SysWorldApp.inspect(cityId).selected;cityEmit('system_metrics',{cpu:{usage_percent:63},memory:{used_percent:24}});if(SysWorldApp.inspect(cityId).selected!==citySelected)throw Error('Live update moved focus');}`)
@@ -141,7 +189,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	os.WriteFile(filepath.Join(dir, "city-diagnostics.json"), []byte(page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId),null,2)`).Str()), 0644)
 	page.MustEval(`async()=>{await aurora.closeWindow(cityId);}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)===null`)
-	page.MustEval(`()=>{for(const s of cityHandlers.values())if(s.size)throw Error('Leaked SSE handlers');}`)
+	page.MustEval(`()=>{for(const s of cityHandlers.values())if(s.size)throw Error('Leaked SSE handlers');for(const c of cityAudioContexts)if(c.state!=='closed')throw Error('Leaked audio context');}`)
 	if errors := page.MustEval(`()=>JSON.stringify(cityErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}

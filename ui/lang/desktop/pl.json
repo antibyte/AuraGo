@@ -3535,5 +3535,8 @@
   "sysworld.city.map": "Mapa",
   "sysworld.city.street": "Ulica",
   "sysworld.city.tour": "Wycieczka",
-  "sysworld.city.auto": "Automatyczna"
+  "sysworld.city.auto": "Automatyczna",
+  "sysworld.city.sound_on": "Włącz odgłosy miasta",
+  "sysworld.city.sound_off": "Wycisz odgłosy miasta",
+  "sysworld.city.robot_error": "Nie udało się wczytać robota. Otwórz ponownie Świat systemu."
 }
