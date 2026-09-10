@@ -862,6 +862,11 @@ registration lives in `internal/desktop/types.go`.
   Acknowledgements cover only the captured revision. Suspend the queue during
   Save As; native writes require ETag preconditions. Keep the async close guard
   installed until cleanup and never replace failed loads with blank content.
+- Writer pointer selection must preserve the viewport, including clicks near its
+  edges after toolbar focus. The core 2.16.0 vendor build carries a guarded,
+  reproducible patch for pointer-only caret reveal; keyboard/programmatic reveal
+  and drag edge autoscroll remain enabled. Keep the vendor modification notice
+  and browser regressions when rebuilding or upgrading the core.
 - Writer font-size controls display points and convert to integer half-points at
   the command boundary, including command availability checks. Reject invalid
   inputs before editing. Map app actions to existing shared icon keys; action IDs

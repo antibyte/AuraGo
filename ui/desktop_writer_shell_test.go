@@ -24,6 +24,9 @@ func verifyWriterShell(t *testing.T, page *rod.Page, dir string) {
         const heading=editor.surface.session.paragraphIds()[0];editor.exec({type:'setSelection',range:{anchor:{paragraphId:heading,offset:0},head:{paragraphId:heading,offset:0}}});
         editor.scrollToPage(1);await app.act('format');await app.session.save();
     }`)
+	page.MustEval(`()=>{const win=writerWindow;aurora.toggleMaximizeWindow(win.id);Object.assign(win.element.style,{top:'100px',left:'100px',width:'1000px',height:'600px'});actualWriter.editor.setZoom(.8);}`)
+	verifyWriterPointerFocus(t, page, page.MustEval(`()=>writerWindow.id`).Str(), "Ein Dokument")
+	page.MustEval(`()=>aurora.toggleMaximizeWindow(writerWindow.id)`)
 	for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {390, 844}} {
 		page.MustSetViewport(size[0], size[1], 1, size[0] < 821)
 		if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: size[0] < 821}).Call(page); err != nil {

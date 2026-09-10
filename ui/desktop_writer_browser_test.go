@@ -86,6 +86,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustWaitLoad()
 	page.Timeout(90 * time.Second).MustWait(`()=>WriterApp.instances.get('test')?.editor && !document.querySelector('[data-loading]').offsetHeight`)
+	verifyWriterPointerFocus(t, page, "test", "")
 	result := page.MustEval(`async()=>{
         const app=WriterApp.instances.get('test'),editor=app.editor;
         const run=c=>{const r=editor.exec(c);if(!r.ok)throw Error(JSON.stringify({c,r}));return r;};
@@ -121,6 +122,26 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
         return {pages:editor.getTotalPages(),text:editor.surface.session.bodyText(),pageClasses:[...document.querySelectorAll('[data-editor] [class]')].slice(0,12).map(x=>x.className),setup:editor.snapshot().pageSetup,selection:editor.surface.state().selection};
     }`).JSON("", "")
 	t.Log(result)
+	verifyWriterPointerFocus(t, page, "test", "Every")
+	// Keyboard caret reveal must still reach the end after pointer focus.
+	for _, kind := range []proto.InputDispatchKeyEventType{"keyDown", "keyUp"} {
+		if err := (proto.InputDispatchKeyEvent{Type: kind, Key: "End", Code: "End", Modifiers: 2, WindowsVirtualKeyCode: 35}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page.MustWait(`()=>document.querySelector('[data-scroll]').scrollTop>0 && WriterApp.instances.get('test').editor.surface.state().selection.head.paragraphId===WriterApp.instances.get('test').editor.surface.session.paragraphIds().at(-1)`)
+	drag := page.MustEval(`async()=>{
+        const scroll=document.querySelector('[data-scroll]');scroll.scrollTop=0;await new Promise(r=>setTimeout(r,100));
+        const line=[...document.querySelectorAll('[data-editor] .layout-line')].find(x=>x.textContent.includes('Every')),rect=line.getBoundingClientRect();
+        return {x:rect.left+5,y:rect.top+rect.height/2,bottom:scroll.getBoundingClientRect().bottom-2};
+    }`)
+	page.Mouse.MustMoveTo(drag.Get("x").Num(), drag.Get("y").Num()).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(drag.Get("x").Num()+100, drag.Get("y").Num())
+	page.MustWait(`()=>WriterApp.instances.get('test').editor.query({type:'selectedText'}).length>0`)
+	page.Mouse.MustMoveTo(drag.Get("x").Num()+100, drag.Get("bottom").Num())
+	page.MustWait(`()=>document.querySelector('[data-scroll]').scrollTop>20`)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	page.MustEval(`()=>{const editor=WriterApp.instances.get('test').editor;editor.selectMatch(editor.findMatches('Every good idea')[0]);editor.scrollToPage(1);}`)
 	os.MkdirAll("../reports/autor", 0755)
 	for _, variant := range []string{"default-dark", "fruity-dark", "fruity-light"} {
 		bits := strings.Split(variant, "-")
@@ -384,4 +405,34 @@ func TestDesktopWriterEngineBrowser(t *testing.T) {
         if(openMs>15000 || editMs>2000)throw Error('Long document unresponsive: '+JSON.stringify({openMs,editMs}));
         output.remove();long.destroy();return {pages:100,current,materialized,openMs:Math.round(openMs),editMs:Math.round(editMs)};
     }`).JSON("", ""))
+}
+
+func verifyWriterPointerFocus(t *testing.T, page *rod.Page, instanceID, needle string) {
+	t.Helper()
+	for _, nearEdge := range []bool{false, true} {
+		page.MustElement("[data-slot='font.size']").MustClick()
+		point := page.MustEval(`async(id,needle,nearEdge)=>{
+            const editor=WriterApp.instances.get(id).editor,scroll=document.querySelector('[data-scroll]');
+            scroll.scrollTop=0;await new Promise(r=>setTimeout(r,100));
+            const line=[...document.querySelectorAll('[data-editor] .layout-line')].find(x=>x.textContent.includes(needle));
+            const rect=line.getBoundingClientRect(),style=scroll.style.cssText;
+            // Put the clicked line just inside a small viewport: caret reveal used
+            // to move even an empty document by 38px on pointer release.
+            if(nearEdge){scroll.style.flex='none';scroll.style.height=(rect.bottom-scroll.getBoundingClientRect().top+6)+'px';}
+            window.focusProbe={editor,line,scroll,style,top:line.getBoundingClientRect().top};
+            return {x:rect.left+(nearEdge?80:45),y:rect.top+rect.height/2};
+        }`, instanceID, needle, nearEdge)
+		page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num()).MustClick(proto.InputMouseButtonLeft)
+		result := page.MustEval(`async()=>{
+            await new Promise(r=>setTimeout(r,100));
+            const {editor,line,scroll,style,top}=focusProbe,selection=editor.surface.state().selection;
+            const result={shift:line.getBoundingClientRect().top-top,scroll:scroll.scrollTop,focused:!!document.activeElement.closest('[data-editor]'),
+                collapsed:selection.anchor.paragraphId===selection.head.paragraphId && selection.anchor.offset===selection.head.offset};
+            scroll.style.cssText=style;scroll.scrollTop=0;delete window.focusProbe;
+            return result;
+        }`)
+		if shift := result.Get("shift").Num(); shift < -1 || shift > 1 || result.Get("scroll").Num() != 0 || !result.Get("focused").Bool() || !result.Get("collapsed").Bool() {
+			t.Fatalf("Pointer focus moved text or lost the caret (near edge %v): %s", nearEdge, result.JSON("", ""))
+		}
+	}
 }

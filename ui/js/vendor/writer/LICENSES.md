@@ -2,6 +2,8 @@
 
 AuraGo host code remains MIT. No Pro or AGPL packages are included.
 
+AuraGo modifies core 2.16.0 caret scrolling during pointer selection. The reproducible patch is in `scripts/build-writer-vendor.js`; keyboard reveal and pointer edge autoscroll remain enabled.
+
 
 ## @docx-editor.dev/core 2.16.0 — Apache-2.0
 
