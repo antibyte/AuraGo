@@ -203,6 +203,8 @@ worker. Keep packaging, recovery and offline instructions in
   visibility also follows intersection/tab state. Animation never starts audio.
   Catalog membership selects local Rive assets; initial personality resolution
   must also work before Desktop Agent Chat opens. Preserve custom PNG fallback.
+  While resolving a persona, leave the portrait empty; show only the selected
+  persona. Use the Custom image only for custom personas or an actual load failure.
   Both Rive asset CDN and WASM fallback CDN are disabled. Reduced motion uses
   the selected PNG; stale loads and detached mounts cannot revive a player.
   Output analysers alone drive the mouth, including queued audio tails; paused

@@ -22,7 +22,7 @@ function harness({ reduced = false, key, autoLoad = true, failCatalog = false, f
     document.hidden = false;
     document.head = { appendChild(script) { requests.push(script.src); queueMicrotask(() => failScript ? script.onerror() : script.onload()); } };
     document.createElement = () => ({ remove() {} });
-    const image = { getAttribute(name) { return this[name]; } }, canvas = {};
+    const image = { getAttribute(name) { return this[name]; }, removeAttribute(name) { delete this[name]; } }, canvas = {};
     const host = { dataset: {}, isConnected: true, innerHTML: '', querySelector: name => name === 'img' ? image : canvas };
     class Observer {
         constructor(fn) { this.fn = fn; this.disconnected = false; observers.push(this); }
@@ -74,6 +74,7 @@ function harness({ reduced = false, key, autoLoad = true, failCatalog = false, f
 // Real-time output, not provider intent or microphone energy, owns speech poses.
 const h = harness();
 const view = h.mount(false);
+assert.equal(h.image.src, undefined, 'opening must not flash an unrelated Custom persona');
 await flush();
 assert.equal(h.requests.length, 0, 'a mounted closed overlay must not load anything');
 view.setVisible(true);
@@ -141,7 +142,9 @@ assert.equal(h.host.dataset.animated, 'false'); assert.equal(h.frames.size, 0);
 h.motion.matches = false; emit(h.motion, 'change');
 assert.equal(h.frames.size, 1);
 for (const key of ['mcp', 'terminator']) {
-    const previous = h.players.at(-1); h.persona(key); await flush();
+    const previous = h.players.at(-1); h.persona(key);
+    assert.equal(h.image.src, undefined, 'switching must hide the old portrait without showing Custom');
+    await flush();
     assert.equal(previous.cleaned, true);
     h.runtime.state = 'speaking'; h.runtime.adapter = { getOutputLevel: () => 0.3 };
     h.step(50); h.step(50);
@@ -208,6 +211,7 @@ for (const options of [{ failCatalog: true }, { failScript: true }, { autoLoad: 
     const failed = harness(options), controller = failed.mount(true); await flush();
     for (const callback of [...failed.timers.values()]) callback();
     assert.equal(failed.host.dataset.animated, 'false'); assert.equal(failed.frames.size, 0);
+    assert.ok(failed.image.src, 'a genuine load failure must retain a static fallback');
     controller.dispose();
 }
 

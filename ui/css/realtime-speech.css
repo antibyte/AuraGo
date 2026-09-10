@@ -56,6 +56,7 @@
 }
 
 .realtime-speech-avatar canvas { opacity: 0; }
+.realtime-speech-avatar img:not([src]) { visibility: hidden; }
 .realtime-speech-avatar[data-animated="true"] canvas { opacity: 1; }
 .realtime-speech-avatar[data-animated="true"] img { visibility: hidden; }
 .realtime-speech-conversation-text { min-width: 0; }

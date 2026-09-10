@@ -56,7 +56,6 @@
         host.innerHTML = '<img alt="" decoding="async"><canvas aria-hidden="true"></canvas>';
         const poster = host.querySelector('img'), canvas = host.querySelector('canvas');
         const fallback = versioned('/img/personas/custom.png');
-        poster.src = fallback;
         poster.onerror = () => { if (poster.getAttribute('src') !== fallback) poster.src = fallback; };
         host.dataset.animated = 'false';
 
@@ -186,7 +185,10 @@
                     onLoadError: fail
                 });
             } catch (_) {
-                if (!disposed && token === generation) destroyPlayer();
+                if (!disposed && token === generation) {
+                    destroyPlayer();
+                    if (!poster.getAttribute('src')) poster.src = fallback;
+                }
             } finally {
                 if (token === generation && !player) loading = false;
             }
@@ -214,7 +216,7 @@
             loading = false;
             attempted = false;
             destroyPlayer();
-            poster.src = fallback;
+            poster.removeAttribute('src');
             syncVisibility();
         }
         function onState() {
