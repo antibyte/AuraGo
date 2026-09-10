@@ -1090,6 +1090,7 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 ## Child DOX Index
 
 Current child AGENTS.md files:
+- `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
 - `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
 - `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.

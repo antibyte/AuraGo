@@ -1,0 +1,1157 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "license": "MIT",
+  "generator": "Blender 5.2.1 LTS / build_city.py",
+  "units": "metres",
+  "up_axis": "Y",
+  "textures": 0,
+  "budget_bytes": 8388608,
+  "assets": [
+    {
+      "id": "agent-spire",
+      "name": "Agent reactor spire",
+      "category": "agent",
+      "lods": [
+        {
+          "file": "agent-spire.lod0.glb",
+          "bytes": 511720,
+          "sha256": "c1c5a7fcbf03e41bcf67054bf869396839d2a5fc57520a51654da458ab49ff87",
+          "triangles": 14232,
+          "bounds": {
+            "min": [
+              -11.5,
+              0.0,
+              -11.5
+            ],
+            "max": [
+              11.5,
+              86.9000015258789,
+              11.5
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "agent-spire.lod1.glb",
+          "bytes": 293320,
+          "sha256": "d4a38d262d75ab8a0d8f0d5037532bbacc052397a50da76fd1a128bd30e77794",
+          "triangles": 7824,
+          "bounds": {
+            "min": [
+              -11.5,
+              0.0,
+              -11.5
+            ],
+            "max": [
+              11.5,
+              86.9000015258789,
+              11.5
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "agent-spire.lod2.glb",
+          "bytes": 108068,
+          "sha256": "21221c69f52f432d274859e815b8d7878777e5c43c6300bfa78aae87eba91621",
+          "triangles": 3040,
+          "bounds": {
+            "min": [
+              -11.5,
+              0.0,
+              -11.5
+            ],
+            "max": [
+              11.5,
+              86.9000015258789,
+              11.5
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "memory-archive",
+      "name": "Terraced memory archive",
+      "category": "memory",
+      "lods": [
+        {
+          "file": "memory-archive.lod0.glb",
+          "bytes": 234736,
+          "sha256": "e234bfe92ad2db4afbf2eb02fb55263658b450067433a460821fd5bf9d4db136",
+          "triangles": 4936,
+          "bounds": {
+            "min": [
+              -13.0,
+              0.0,
+              -11.0
+            ],
+            "max": [
+              13.0,
+              20.777942657470703,
+              11.0
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "memory-archive.lod1.glb",
+          "bytes": 168716,
+          "sha256": "f1f57f737557fa01cab053ed1b40c60298c335bfe9fbe2a4f897ca6a632ca943",
+          "triangles": 3384,
+          "bounds": {
+            "min": [
+              -13.0,
+              0.0,
+              -11.0
+            ],
+            "max": [
+              13.0,
+              20.785594940185547,
+              11.0
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "memory-archive.lod2.glb",
+          "bytes": 36660,
+          "sha256": "e9c599a32387ba81e1bf08a65c1879c1a1fa28a93d9fd98861a63ae2722aa180",
+          "triangles": 744,
+          "bounds": {
+            "min": [
+              -13.0,
+              0.0,
+              -11.0
+            ],
+            "max": [
+              13.0,
+              20.790000915527344,
+              11.0
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "integration-gate",
+      "name": "Integration gateway",
+      "category": "integration",
+      "lods": [
+        {
+          "file": "integration-gate.lod0.glb",
+          "bytes": 218896,
+          "sha256": "dc522c72ad0578443ec69df981ed21e71bce8a184753406de43d689ef28a2b7d",
+          "triangles": 4972,
+          "bounds": {
+            "min": [
+              -13.0,
+              0.0,
+              -8.0
+            ],
+            "max": [
+              13.0,
+              29.934999465942383,
+              8.0
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "integration-gate.lod1.glb",
+          "bytes": 150860,
+          "sha256": "04a273c8342d0e74793b519b2c2f0d5cbd12649d6082642a0e3ba54e8a2d705f",
+          "triangles": 3204,
+          "bounds": {
+            "min": [
+              -13.0,
+              0.0,
+              -8.0
+            ],
+            "max": [
+              13.0,
+              29.900001525878906,
+              8.0
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "integration-gate.lod2.glb",
+          "bytes": 38808,
+          "sha256": "5c0962c662f2c485dd419dc7320f1e67a2e3406a661f28014fd64b1534f661dd",
+          "triangles": 828,
+          "bounds": {
+            "min": [
+              -13.0,
+              0.0,
+              -8.0
+            ],
+            "max": [
+              13.0,
+              29.900001525878906,
+              8.0
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "mission-terminal",
+      "name": "Mission logistics terminal",
+      "category": "missions",
+      "lods": [
+        {
+          "file": "mission-terminal.lod0.glb",
+          "bytes": 139740,
+          "sha256": "1cf3712c6be39aa7d2feca3db0a760e98128f8ac967950f8f1fcfe5e6c0861a0",
+          "triangles": 2812,
+          "bounds": {
+            "min": [
+              -15.0,
+              0.0,
+              -10.5
+            ],
+            "max": [
+              15.0,
+              19.0,
+              10.5
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "mission-terminal.lod1.glb",
+          "bytes": 76760,
+          "sha256": "824fbadcbbcdd52cca6453d909a833e145dc80118af7d1bb009a2b213f1d94e7",
+          "triangles": 1524,
+          "bounds": {
+            "min": [
+              -15.0,
+              0.0,
+              -10.5
+            ],
+            "max": [
+              15.0,
+              19.0,
+              10.5
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "mission-terminal.lod2.glb",
+          "bytes": 44692,
+          "sha256": "638bd64b11ae3cbf6cc642eff7be5061bf64b37e1efc447d6babaf44a3ab2d41",
+          "triangles": 812,
+          "bounds": {
+            "min": [
+              -15.0,
+              0.0,
+              -10.5
+            ],
+            "max": [
+              15.0,
+              19.0,
+              10.5
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "compute-foundry",
+      "name": "Compute and cooling foundry",
+      "category": "infrastructure",
+      "lods": [
+        {
+          "file": "compute-foundry.lod0.glb",
+          "bytes": 342024,
+          "sha256": "cf00336bab20c4a8f772b979b73ee2cd6497c2631561cf2ad39773b944ebd492",
+          "triangles": 13416,
+          "bounds": {
+            "min": [
+              -12.5,
+              0.0,
+              -11.5
+            ],
+            "max": [
+              12.5,
+              14.035000801086426,
+              11.5
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "compute-foundry.lod1.glb",
+          "bytes": 187904,
+          "sha256": "85af1c509694da652491b157fa2dd5af2f155ad48f3ed0f723af2cb532f0e517",
+          "triangles": 6912,
+          "bounds": {
+            "min": [
+              -12.5,
+              0.0,
+              -11.5
+            ],
+            "max": [
+              12.5,
+              14.0,
+              11.5
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "compute-foundry.lod2.glb",
+          "bytes": 50688,
+          "sha256": "e695bb8e86276850b6d61924f1a964bd5abc9cf3d8f6ecc59d8edeeeeb81b569",
+          "triangles": 1712,
+          "bounds": {
+            "min": [
+              -12.5,
+              0.0,
+              -11.5
+            ],
+            "max": [
+              12.5,
+              14.0,
+              11.5
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "knowledge-atrium",
+      "name": "Knowledge tree atrium",
+      "category": "knowledge",
+      "lods": [
+        {
+          "file": "knowledge-atrium.lod0.glb",
+          "bytes": 258148,
+          "sha256": "21a882640065dedb540f78d4bd4e777eea1f7ef21ed1eca2bf2b2214a2190747",
+          "triangles": 9428,
+          "bounds": {
+            "min": [
+              -12.0,
+              0.0,
+              -12.0
+            ],
+            "max": [
+              12.0,
+              20.061294555664062,
+              12.0
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "knowledge-atrium.lod1.glb",
+          "bytes": 130140,
+          "sha256": "48034343ab2779bbd298c027d11bca9873d7a05636c75dda5b1eec16f06a7245",
+          "triangles": 4828,
+          "bounds": {
+            "min": [
+              -12.0,
+              0.0,
+              -12.0
+            ],
+            "max": [
+              12.0,
+              20.081867218017578,
+              12.0
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "knowledge-atrium.lod2.glb",
+          "bytes": 68836,
+          "sha256": "94002d9a78c8998fa3cb0744bef2e9f7be5b14ad0f353ef094a4859a1444d075",
+          "triangles": 2260,
+          "bounds": {
+            "min": [
+              -12.0,
+              0.0,
+              -12.0
+            ],
+            "max": [
+              12.0,
+              20.081867218017578,
+              12.0
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "data-tower-a",
+      "name": "Data tower A",
+      "category": "building",
+      "lods": [
+        {
+          "file": "data-tower-a.lod0.glb",
+          "bytes": 146376,
+          "sha256": "97c7e0a22fa27178c55be6c93261d631ba739e1615c5a0c42e63164ab3bb8d72",
+          "triangles": 2536,
+          "bounds": {
+            "min": [
+              -7.5,
+              0.0,
+              -6.5
+            ],
+            "max": [
+              7.5,
+              35.43499755859375,
+              6.75
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "data-tower-a.lod1.glb",
+          "bytes": 104620,
+          "sha256": "220d198be6369a4e9d62607224fb60f342b51a7f26d30be98fa4b0681f3c49e5",
+          "triangles": 1824,
+          "bounds": {
+            "min": [
+              -7.5,
+              0.0,
+              -6.5
+            ],
+            "max": [
+              7.5,
+              35.400001525878906,
+              6.75
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "data-tower-a.lod2.glb",
+          "bytes": 25624,
+          "sha256": "187de176a65d71e1fe89d02d59128d949ab146b7b016c86f85a837b08391673c",
+          "triangles": 372,
+          "bounds": {
+            "min": [
+              -7.5,
+              0.0,
+              -6.5
+            ],
+            "max": [
+              7.5,
+              35.400001525878906,
+              6.5
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "data-tower-b",
+      "name": "Data tower B",
+      "category": "building",
+      "lods": [
+        {
+          "file": "data-tower-b.lod0.glb",
+          "bytes": 176904,
+          "sha256": "f28d0a66ce3c3306393f0ea45aa5cebb005859b1efa575ae10d41f78fd0c431f",
+          "triangles": 3080,
+          "bounds": {
+            "min": [
+              -6.5,
+              0.0,
+              -8.0
+            ],
+            "max": [
+              6.5,
+              52.400001525878906,
+              8.25
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "data-tower-b.lod1.glb",
+          "bytes": 128836,
+          "sha256": "7e710fc9865c75777be936e42caaa220a39545adc9fe0722ce510aca43462ab0",
+          "triangles": 2272,
+          "bounds": {
+            "min": [
+              -6.5,
+              0.0,
+              -8.0
+            ],
+            "max": [
+              6.5,
+              52.400001525878906,
+              8.25
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "data-tower-b.lod2.glb",
+          "bytes": 31400,
+          "sha256": "70dcf3c47fcce5b11684d4353d8a1ef1df461b3ef48e9b98e323e231f7a396d9",
+          "triangles": 472,
+          "bounds": {
+            "min": [
+              -6.5,
+              0.0,
+              -8.0
+            ],
+            "max": [
+              6.5,
+              52.400001525878906,
+              8.0
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "operations-beacon",
+      "name": "Operations beacon",
+      "category": "operations",
+      "lods": [
+        {
+          "file": "operations-beacon.lod0.glb",
+          "bytes": 69680,
+          "sha256": "a017d22924af9c5161ee4300166c27cf77e9c9977428b23f39e7ea7a79174294",
+          "triangles": 2332,
+          "bounds": {
+            "min": [
+              -4.5,
+              0.0,
+              -4.5
+            ],
+            "max": [
+              4.5,
+              12.90000057220459,
+              4.5
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "operations-beacon.lod1.glb",
+          "bytes": 34404,
+          "sha256": "aeff03fa3798c157e022642a67a50ef07186c18828fb1de711bafbe5132c6435",
+          "triangles": 1124,
+          "bounds": {
+            "min": [
+              -4.5,
+              0.0,
+              -4.5
+            ],
+            "max": [
+              4.5,
+              12.90000057220459,
+              4.5
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "operations-beacon.lod2.glb",
+          "bytes": 24808,
+          "sha256": "f775d6b1858afd60c910dba142fe329d70f7de7d28c46b50bb24692bab628926",
+          "triangles": 644,
+          "bounds": {
+            "min": [
+              -4.5,
+              0.0,
+              -4.5
+            ],
+            "max": [
+              4.5,
+              12.90000057220459,
+              4.5
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "signal",
+        "structure"
+      ]
+    },
+    {
+      "id": "skybridge",
+      "name": "Modular covered skybridge",
+      "category": "connector",
+      "lods": [
+        {
+          "file": "skybridge.lod0.glb",
+          "bytes": 73452,
+          "sha256": "b3d59f9aded890836884aa17f67db5fe260abaf0152af7a47e1040d093233302",
+          "triangles": 1192,
+          "bounds": {
+            "min": [
+              -8.079999923706055,
+              0.0,
+              -2.200000047683716
+            ],
+            "max": [
+              8.079999923706055,
+              4.789999961853027,
+              2.200000047683716
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "skybridge.lod1.glb",
+          "bytes": 23240,
+          "sha256": "667ab2604fe34646f24116d935a8f18823f339f30cb1464d715cb1b3cfaaafcc",
+          "triangles": 360,
+          "bounds": {
+            "min": [
+              -8.079999923706055,
+              0.0,
+              -2.200000047683716
+            ],
+            "max": [
+              8.079999923706055,
+              4.789999961853027,
+              2.200000047683716
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "skybridge.lod2.glb",
+          "bytes": 23240,
+          "sha256": "3f770e76976a40d52f4ae47f258779364f15156e993900dd5e70d792a189249d",
+          "triangles": 360,
+          "bounds": {
+            "min": [
+              -8.079999923706055,
+              0.0,
+              -2.200000047683716
+            ],
+            "max": [
+              8.079999923706055,
+              4.789999961853027,
+              2.200000047683716
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "street-tile",
+      "name": "16 metre street and sidewalk",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-tile.lod0.glb",
+          "bytes": 25612,
+          "sha256": "71a70009f184eea35789c58af792ddc73ef4cda66c20f77df935c2a45f9f3384",
+          "triangles": 388,
+          "bounds": {
+            "min": [
+              -8.013500213623047,
+              0.0,
+              -6.0
+            ],
+            "max": [
+              8.013500213623047,
+              0.5699999928474426,
+              6.0
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "street-tile.lod1.glb",
+          "bytes": 21492,
+          "sha256": "ff1867209c742b4bc0feeed2048f9a481d690f07316b992de1aa6470b8b6c31a",
+          "triangles": 324,
+          "bounds": {
+            "min": [
+              -8.013500213623047,
+              0.0,
+              -6.0
+            ],
+            "max": [
+              8.013500213623047,
+              0.5699999928474426,
+              6.0
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "street-tile.lod2.glb",
+          "bytes": 9012,
+          "sha256": "2e740c2e753376f5147f4f94699c5ea5f939a98550defe7a3f3b08ef5db123c5",
+          "triangles": 108,
+          "bounds": {
+            "min": [
+              -8.0,
+              0.0,
+              -6.0
+            ],
+            "max": [
+              8.0,
+              0.5699999928474426,
+              6.0
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "street-crossing",
+      "name": "Matching four-way street crossing",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-crossing.lod0.glb",
+          "bytes": 32604,
+          "sha256": "1e1404090989433af4ea86412ae80638f86eb6dd45a7d756ef3336bc4497a3cd",
+          "triangles": 524,
+          "bounds": {
+            "min": [
+              -6.0,
+              0.0,
+              -6.0
+            ],
+            "max": [
+              6.0,
+              0.5699999928474426,
+              6.0
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "street-crossing.lod1.glb",
+          "bytes": 24500,
+          "sha256": "ba2fee5741384ee70182a83907c64a837c87870d84656ee4526e71535972efe5",
+          "triangles": 396,
+          "bounds": {
+            "min": [
+              -6.0,
+              0.0,
+              -6.0
+            ],
+            "max": [
+              6.0,
+              0.5699999928474426,
+              6.0
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "street-crossing.lod2.glb",
+          "bytes": 8152,
+          "sha256": "846f1fee626e84a7cbf6fd9ce2d86ac51e9a644596ba314a72944aa9907f76bd",
+          "triangles": 108,
+          "bounds": {
+            "min": [
+              -6.0,
+              0.0,
+              -6.0
+            ],
+            "max": [
+              6.0,
+              0.5699999928474426,
+              6.0
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "service-drone",
+      "name": "Service quadrotor",
+      "category": "vehicle",
+      "lods": [
+        {
+          "file": "service-drone.lod0.glb",
+          "bytes": 94236,
+          "sha256": "1a15b7796babc9f0dbda9df6f437734a1cb45fadcc2f4caa14098dc96d5a15d6",
+          "triangles": 3108,
+          "bounds": {
+            "min": [
+              -1.6200000047683716,
+              0.12007324397563934,
+              -1.3199999332427979
+            ],
+            "max": [
+              1.6200000047683716,
+              1.024999976158142,
+              1.3199999332427979
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "service-drone.lod1.glb",
+          "bytes": 39336,
+          "sha256": "cb8a2d366d8d9ed5fa7270c96a3dc58ceff7a8d4f5af2dab47d48f625d25695f",
+          "triangles": 1348,
+          "bounds": {
+            "min": [
+              -1.6200000047683716,
+              0.11621282994747162,
+              -1.3199999332427979
+            ],
+            "max": [
+              1.6200000047683716,
+              1.024999976158142,
+              1.3199999332427979
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "service-drone.lod2.glb",
+          "bytes": 28300,
+          "sha256": "dbe2874e2b6fe9cea7061f1ca3e88fe4a1403f2ff1f92e83794f6f0656cc8c7c",
+          "triangles": 740,
+          "bounds": {
+            "min": [
+              -1.6200000047683716,
+              0.11621282994747162,
+              -1.3199999332427979
+            ],
+            "max": [
+              1.6200000047683716,
+              1.024999976158142,
+              1.3199999332427979
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "rotor_lb",
+        "rotor_lf",
+        "rotor_rb",
+        "rotor_rf",
+        "structure"
+      ]
+    },
+    {
+      "id": "data-tram",
+      "name": "Data transit tram",
+      "category": "vehicle",
+      "lods": [
+        {
+          "file": "data-tram.lod0.glb",
+          "bytes": 26664,
+          "sha256": "ac41e42c3c0b2be2d812493790c9149a68cf18c70915b4ac0c991d47429a7710",
+          "triangles": 396,
+          "bounds": {
+            "min": [
+              -3.7950000762939453,
+              0.125,
+              -1.4549999237060547
+            ],
+            "max": [
+              3.7950000762939453,
+              3.615000009536743,
+              1.4549999237060547
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "data-tram.lod1.glb",
+          "bytes": 17188,
+          "sha256": "672c5bbc15b839271d338913d63b676f22b4f78f1e8e80c8f8cd47abaa71a8a6",
+          "triangles": 228,
+          "bounds": {
+            "min": [
+              -3.7950000762939453,
+              0.125,
+              -1.4549999237060547
+            ],
+            "max": [
+              3.7950000762939453,
+              3.580000162124634,
+              1.4549999237060547
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "data-tram.lod2.glb",
+          "bytes": 17188,
+          "sha256": "7493c39a79cc9349fc40e7be5bb7bf7e39a167a05d3a6b9323359bc9b1454eee",
+          "triangles": 228,
+          "bounds": {
+            "min": [
+              -3.7950000762939453,
+              0.125,
+              -1.4549999237060547
+            ],
+            "max": [
+              3.7950000762939453,
+              3.580000162124634,
+              1.4549999237060547
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "street-lamp",
+      "name": "Cantilever street lamp",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "street-lamp.lod0.glb",
+          "bytes": 11828,
+          "sha256": "40c6dd1f4c80116a71aa082764d2f6d9004d4e1db5f0e1e599bea8da1956d076",
+          "triangles": 172,
+          "bounds": {
+            "min": [
+              -0.47999998927116394,
+              0.0,
+              -0.47999998927116394
+            ],
+            "max": [
+              2.25,
+              6.659999847412109,
+              0.47999998927116394
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "street-lamp.lod1.glb",
+          "bytes": 7980,
+          "sha256": "acd31979fdd3cfe68405d05777a2b6f84b8c276b13b13d6dd85811f190a7895a",
+          "triangles": 108,
+          "bounds": {
+            "min": [
+              -0.47999998927116394,
+              0.0,
+              -0.47999998927116394
+            ],
+            "max": [
+              2.25,
+              6.659999847412109,
+              0.47999998927116394
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "street-lamp.lod2.glb",
+          "bytes": 7980,
+          "sha256": "9fee0cd8c112fb45a6ddb69e210da9e3b0c2cf9eb5d52415116b5cdb7f9ba6b3",
+          "triangles": 108,
+          "bounds": {
+            "min": [
+              -0.47999998927116394,
+              0.0,
+              -0.47999998927116394
+            ],
+            "max": [
+              2.25,
+              6.659999847412109,
+              0.47999998927116394
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "planter",
+      "name": "Sculpted city planter",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "planter.lod0.glb",
+          "bytes": 19384,
+          "sha256": "cfe42dd883997559b9adb10cc814dac8a6ede01bca66dfa7e338ae31d1908455",
+          "triangles": 440,
+          "bounds": {
+            "min": [
+              -1.75,
+              0.0,
+              -0.800000011920929
+            ],
+            "max": [
+              1.75,
+              4.175000190734863,
+              0.800000011920929
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "planter.lod1.glb",
+          "bytes": 15096,
+          "sha256": "700e48163c03a81b9a7a02621c08592a9dc014859d25f1563fb2eaa3a1c613d5",
+          "triangles": 336,
+          "bounds": {
+            "min": [
+              -1.75,
+              0.0,
+              -0.800000011920929
+            ],
+            "max": [
+              1.75,
+              4.175000190734863,
+              0.800000011920929
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "planter.lod2.glb",
+          "bytes": 12936,
+          "sha256": "435e9659f81faf92732967447c51f37eb620ee819b05cebd58cdd8cff268aeba",
+          "triangles": 264,
+          "bounds": {
+            "min": [
+              -1.75,
+              0.0,
+              -0.800000011920929
+            ],
+            "max": [
+              1.75,
+              4.175000190734863,
+              0.800000011920929
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    },
+    {
+      "id": "server-rack",
+      "name": "Exposed service rack",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "server-rack.lod0.glb",
+          "bytes": 32836,
+          "sha256": "debae3e9b3d834018efa70d29360c01727642505dc3d196f2ccf7b44d72a740b",
+          "triangles": 504,
+          "bounds": {
+            "min": [
+              -0.699999988079071,
+              0.0,
+              -0.574999988079071
+            ],
+            "max": [
+              0.699999988079071,
+              3.200000047683716,
+              0.6549999713897705
+            ]
+          },
+          "level": 0
+        },
+        {
+          "file": "server-rack.lod1.glb",
+          "bytes": 14636,
+          "sha256": "09b03831eec525f415719bfc31bd8deea738a26dec739fe57cb23d1193a9f2f1",
+          "triangles": 216,
+          "bounds": {
+            "min": [
+              -0.699999988079071,
+              0.0,
+              -0.574999988079071
+            ],
+            "max": [
+              0.699999988079071,
+              3.200000047683716,
+              0.6549999713897705
+            ]
+          },
+          "level": 1
+        },
+        {
+          "file": "server-rack.lod2.glb",
+          "bytes": 9732,
+          "sha256": "2b528eae75b000f9ebab88002a5bdf2d1a5e7e14bf8e7ced98b763cf9782361a",
+          "triangles": 120,
+          "bounds": {
+            "min": [
+              -0.699999988079071,
+              0.0,
+              -0.574999988079071
+            ],
+            "max": [
+              0.699999988079071,
+              3.200000047683716,
+              0.6549999713897705
+            ]
+          },
+          "level": 2
+        }
+      ],
+      "components": [
+        "structure"
+      ]
+    }
+  ],
+  "total_model_bytes": 4399992
+}

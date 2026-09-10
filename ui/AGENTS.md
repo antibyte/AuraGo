@@ -393,6 +393,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Child DOX Index
 
+- `3d/system-world/AGENTS.md` — Compact versioned Blender GLBs and asset integrity/LOD contracts.
+
 - `img/personas/animated/AGENTS.md` - Reviewed Rive persona payloads, catalog
   mapping and the paired local runtime under `js/vendor/rive/`; authoring lives
   in the separate sibling `personas` project.
