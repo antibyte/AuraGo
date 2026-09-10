@@ -826,6 +826,10 @@ func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff T
 		out = append(out, "homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git", "homepage_registry")
 		return out
 	}
+	if messageSource == "agodesk_chat" {
+		out = append(out, "send_audio", "send_image", "send_video", "send_document")
+		return out
+	}
 	if messageSource != "virtual_desktop_chat" {
 		return out
 	}
@@ -1411,8 +1415,15 @@ func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, 
 }
 
 func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dataDir string) {
-	raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
-	raw = strings.TrimPrefix(raw, "Tool Output: ")
+	raw := extractToolOutputJSONRaw(resultContent)
+	if flat := flattenToolMediaJSON(raw); flat != "" {
+		raw = flat
+	}
+	if !isKnownMediaEmitAction(action) {
+		if inferred := inferMediaActionFromJSONRaw(raw); inferred != "" {
+			action = inferred
+		}
+	}
 
 	switch action {
 	case "send_image":
@@ -1600,6 +1611,150 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 			broker.Send("document", string(evtPayload))
 		}
 	}
+}
+
+func isKnownMediaEmitAction(action string) bool {
+	switch strings.TrimSpace(action) {
+	case "send_image", "send_audio", "send_video", "send_stl", "send_youtube_video",
+		"generate_video", "generate_music", "tts", "send_document":
+		return true
+	default:
+		return false
+	}
+}
+
+func flattenToolMediaJSON(raw string) string {
+	var obj map[string]interface{}
+	if json.Unmarshal([]byte(raw), &obj) != nil {
+		return ""
+	}
+	item, ok := obj["item"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	flat := make(map[string]interface{}, len(item)+2)
+	for key, value := range item {
+		flat[key] = value
+	}
+	if _, exists := flat["status"]; !exists {
+		if status, ok := obj["status"]; ok {
+			flat["status"] = status
+		}
+	}
+	if toolJSONString(flat, "title") == "" {
+		if title := toolJSONString(item, "description"); title != "" {
+			flat["title"] = title
+		}
+	}
+	encoded, err := json.Marshal(flat)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
+}
+
+func extractToolOutputJSONRaw(resultContent string) string {
+	raw := strings.TrimSpace(resultContent)
+	raw = strings.TrimPrefix(raw, "[Tool Output]\n")
+	raw = strings.TrimPrefix(raw, "Tool Output: ")
+	raw = strings.TrimSpace(raw)
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start >= 0 && end > start {
+		return raw[start : end+1]
+	}
+	return raw
+}
+
+func inferMediaActionFromJSONRaw(raw string) string {
+	var obj map[string]interface{}
+	if json.Unmarshal([]byte(raw), &obj) != nil {
+		return ""
+	}
+	status := strings.ToLower(strings.TrimSpace(fmt.Sprint(obj["status"])))
+	if status != "success" && status != "ok" {
+		return ""
+	}
+	fields := obj
+	if item, ok := obj["item"].(map[string]interface{}); ok {
+		fields = item
+	}
+	webPath := toolJSONString(fields, "web_path", "path")
+	mime := strings.ToLower(toolJSONString(fields, "mime_type", "content_type"))
+	mediaType := strings.ToLower(toolJSONString(fields, "media_type"))
+	filename := strings.ToLower(toolJSONString(fields, "filename", "file", "file_name"))
+	if toolJSONString(fields, "video_id") != "" || strings.Contains(strings.ToLower(toolJSONString(fields, "provider")), "youtube") {
+		return "send_youtube_video"
+	}
+	if strings.HasPrefix(webPath, "/tts/") || strings.HasPrefix(webPath, "/api/agodesk/tts/") {
+		return "tts"
+	}
+	if looksLikeAudioMedia(webPath, mime, mediaType, filename) {
+		if status == "ok" {
+			return "generate_music"
+		}
+		return "send_audio"
+	}
+	if looksLikeVideoMedia(webPath, mime, filename) {
+		if status == "ok" {
+			return "generate_video"
+		}
+		return "send_video"
+	}
+	if strings.Contains(webPath, "/files/generated_images/") || strings.Contains(webPath, "/files/images/") || strings.HasPrefix(mime, "image/") {
+		return "send_image"
+	}
+	if strings.HasSuffix(filename, ".stl") || strings.EqualFold(toolJSONString(fields, "format"), "stl") {
+		return "send_stl"
+	}
+	if strings.Contains(webPath, "/files/documents/") {
+		return "send_document"
+	}
+	return ""
+}
+
+func toolJSONString(obj map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		value, ok := obj[key]
+		if !ok {
+			continue
+		}
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text != "" && text != "<nil>" {
+			return text
+		}
+	}
+	return ""
+}
+
+func looksLikeAudioMedia(webPath, mime, mediaType, filename string) bool {
+	if strings.Contains(webPath, "/files/audio/") || strings.Contains(webPath, "/api/agodesk/media/audio/") {
+		return true
+	}
+	if strings.HasPrefix(mime, "audio/") || mediaType == "music" || mediaType == "audio" {
+		return true
+	}
+	for _, ext := range []string{".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac", ".opus"} {
+		if strings.HasSuffix(filename, ext) || strings.Contains(strings.ToLower(webPath), ext) {
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeVideoMedia(webPath, mime, filename string) bool {
+	if strings.Contains(webPath, "/files/generated_videos/") || strings.Contains(webPath, "/api/agodesk/media/generated_videos/") {
+		return true
+	}
+	if strings.HasPrefix(mime, "video/") {
+		return true
+	}
+	for _, ext := range []string{".mp4", ".webm", ".mov", ".ogv"} {
+		if strings.HasSuffix(filename, ext) || strings.Contains(strings.ToLower(webPath), ext) {
+			return true
+		}
+	}
+	return false
 }
 
 func compactMemoryForPrompt(text string, maxLen int) string {

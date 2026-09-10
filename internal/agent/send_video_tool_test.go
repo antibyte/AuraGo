@@ -122,6 +122,38 @@ func TestEmitMediaSSEEventsSendsGeneratedVideoEvent(t *testing.T) {
 	}
 }
 
+func TestEmitMediaSSEEventsInfersSendAudioFromInvokeTool(t *testing.T) {
+	broker := &captureBroker{}
+	emitMediaSSEEvents(broker, "invoke_tool", `Tool Output: {"status":"success","web_path":"/files/audio/music_aeb14569.mp3","title":"Synthwave Techno Hip-Hop","mime_type":"audio/mpeg","filename":"music_aeb14569.mp3"}`, t.TempDir())
+
+	if len(broker.events) != 1 || broker.events[0].event != "audio" {
+		t.Fatalf("events = %+v, want one audio event", broker.events)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal([]byte(broker.events[0].message), &payload); err != nil {
+		t.Fatalf("unmarshal event payload: %v", err)
+	}
+	if payload["path"] != "/files/audio/music_aeb14569.mp3" || payload["title"] != "Synthwave Techno Hip-Hop" {
+		t.Fatalf("unexpected invoke_tool audio payload: %+v", payload)
+	}
+}
+
+func TestEmitMediaSSEEventsInfersAudioFromMediaRegistryItem(t *testing.T) {
+	broker := &captureBroker{}
+	emitMediaSSEEvents(broker, "media_registry", `{"status":"success","item":{"media_type":"music","web_path":"/files/audio/music_aeb14569.mp3","filename":"music_aeb14569.mp3","description":"Synthwave Techno Hip-Hop"}}`, t.TempDir())
+
+	if len(broker.events) != 1 || broker.events[0].event != "audio" {
+		t.Fatalf("events = %+v, want one audio event", broker.events)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal([]byte(broker.events[0].message), &payload); err != nil {
+		t.Fatalf("unmarshal event payload: %v", err)
+	}
+	if payload["path"] != "/files/audio/music_aeb14569.mp3" {
+		t.Fatalf("unexpected registry audio payload: %+v", payload)
+	}
+}
+
 func TestEmitMediaSSEEventsSendsGeneratedMusicAsAudioEvent(t *testing.T) {
 	broker := &captureBroker{}
 	emitMediaSSEEvents(broker, "generate_music", `Tool Output: {"status":"ok","web_path":"/files/audio/music_123.mp3","filename":"music_123.mp3","title":"Synth test","format":"mp3","provider":"minimax","model":"music-01","duration_ms":12000}`, t.TempDir())

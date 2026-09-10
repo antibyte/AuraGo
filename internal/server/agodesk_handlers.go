@@ -1740,11 +1740,19 @@ type agodeskChatBroker struct {
 	latestPlan     interface{}
 	latestPlanSeen bool
 	emittedAudio   map[string]struct{}
+	emittedMedia   map[string]struct{}
 }
 
 func (b *agodeskChatBroker) Send(event, message string) {
 	if event == "plan_update" {
 		b.capturePlanUpdate(message)
+	}
+	if event == "tool_output" {
+		_ = b.emitMediaFromToolOutput(message)
+		if b.FeedbackBroker != nil {
+			b.FeedbackBroker.Send(event, message)
+		}
+		return
 	}
 	if event == "audio" {
 		if agodeskAudioMessageIsTTS(message) {
@@ -2091,8 +2099,106 @@ func (b *agodeskChatBroker) emitMedia(event, message string) bool {
 	if !ok {
 		return false
 	}
-	_ = writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatMedia, payload)
+	if !b.markMediaEmitted(payload) {
+		return true
+	}
+	if err := writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeChatMedia, payload); err != nil {
+		if b.logger != nil {
+			b.logger.Warn("Failed to emit agodesk chat.media", "session_id", b.sessionID, "request_id", b.requestID, "error", err)
+		}
+		return false
+	}
+	if b.logger != nil {
+		b.logger.Info("emitted agodesk chat.media", "kind", payload.Kind, "path", payload.Path, "request_id", b.requestID)
+	}
 	return true
+}
+
+func (b *agodeskChatBroker) emitMediaFromToolOutput(message string) bool {
+	event, payload, ok := agodeskMediaEventFromToolOutput(message)
+	if !ok {
+		return false
+	}
+	return b.emitMedia(event, payload)
+}
+
+func agodeskExtractToolJSON(message string) string {
+	raw := strings.TrimSpace(message)
+	raw = strings.TrimPrefix(raw, "[Tool Output]\n")
+	raw = strings.TrimPrefix(raw, "Tool Output: ")
+	raw = strings.TrimSpace(raw)
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start >= 0 && end > start {
+		return raw[start : end+1]
+	}
+	return raw
+}
+
+func agodeskMediaEventFromToolOutput(message string) (string, string, bool) {
+	raw := agodeskExtractToolJSON(message)
+	var obj map[string]interface{}
+	if json.Unmarshal([]byte(raw), &obj) != nil {
+		return "", "", false
+	}
+	status := strings.ToLower(strings.TrimSpace(fmt.Sprint(obj["status"])))
+	if status != "success" && status != "ok" {
+		return "", "", false
+	}
+	fields := obj
+	if item, ok := obj["item"].(map[string]interface{}); ok {
+		fields = item
+	}
+	pathValue := agodeskStringField(fields, "web_path", "path")
+	if strings.HasPrefix(pathValue, "/tts/") || strings.HasPrefix(pathValue, "/api/agodesk/tts/") {
+		return "", "", false
+	}
+	mime := agodeskStringField(fields, "mime_type", "content_type")
+	filename := agodeskStringField(fields, "filename", "file_name", "file")
+	mediaType := strings.ToLower(agodeskStringField(fields, "media_type"))
+	event := agodeskMediaEventForToolFields(pathValue, mime, mediaType, filename, fields)
+	if event == "" {
+		return "", "", false
+	}
+	body := map[string]interface{}{}
+	for key, value := range fields {
+		body[key] = value
+	}
+	if pathValue != "" {
+		body["path"] = pathValue
+		body["web_path"] = pathValue
+	}
+	if title := agodeskStringField(fields, "title", "description"); title != "" {
+		body["title"] = title
+	}
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return "", "", false
+	}
+	return event, string(encoded), true
+}
+
+func agodeskMediaEventForToolFields(pathValue, mime, mediaType, filename string, fields map[string]interface{}) string {
+	if agodeskStringField(fields, "video_id") != "" || strings.Contains(strings.ToLower(agodeskStringField(fields, "provider")), "youtube") {
+		return "youtube_video"
+	}
+	lowerPath := strings.ToLower(pathValue)
+	lowerFile := strings.ToLower(filename)
+	if strings.Contains(lowerPath, "/files/audio/") || strings.Contains(lowerPath, "/api/agodesk/media/audio/") ||
+		strings.HasPrefix(strings.ToLower(mime), "audio/") || mediaType == "music" || mediaType == "audio" ||
+		strings.HasSuffix(lowerFile, ".mp3") || strings.HasSuffix(lowerFile, ".m4a") || strings.HasSuffix(lowerFile, ".wav") {
+		return "audio"
+	}
+	if strings.Contains(lowerPath, "/generated_videos/") || strings.HasPrefix(strings.ToLower(mime), "video/") {
+		return "video"
+	}
+	if strings.Contains(lowerPath, "/generated_images/") || strings.Contains(lowerPath, "/files/images/") || strings.HasPrefix(strings.ToLower(mime), "image/") {
+		return "image"
+	}
+	if strings.Contains(lowerPath, "/files/documents/") {
+		return "document"
+	}
+	return ""
 }
 
 func agodeskAudioMessageIsTTS(message string) bool {
@@ -2252,6 +2358,29 @@ func agodeskInt64Field(raw map[string]interface{}, names ...string) int64 {
 		}
 	}
 	return 0
+}
+
+func (b *agodeskChatBroker) markMediaEmitted(payload agodesk.ChatMediaPayload) bool {
+	key := strings.Join([]string{
+		strings.TrimSpace(payload.ConversationID),
+		strings.TrimSpace(payload.Kind),
+		strings.TrimSpace(payload.Path),
+		strings.TrimSpace(payload.URL),
+		strings.TrimSpace(payload.EmbedURL),
+	}, "\x00")
+	if strings.TrimSpace(payload.Path+payload.URL+payload.EmbedURL) == "" {
+		return true
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.emittedMedia == nil {
+		b.emittedMedia = make(map[string]struct{})
+	}
+	if _, exists := b.emittedMedia[key]; exists {
+		return false
+	}
+	b.emittedMedia[key] = struct{}{}
+	return true
 }
 
 func (b *agodeskChatBroker) markAudioEmitted(key string) bool {

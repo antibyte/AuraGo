@@ -1363,6 +1363,19 @@ func TestExpandAdaptiveAlwaysIncludeSkipsMCPAndComposioEvenWhenEnabled(t *testin
 	}
 }
 
+func TestChannelAdaptiveAlwaysIncludeKeepsSendAudioForAgodeskChat(t *testing.T) {
+	got := channelAdaptiveAlwaysInclude(
+		RunConfig{MessageSource: "agodesk_chat"},
+		[]string{"filesystem"},
+		ToolFeatureFlags{},
+	)
+	for _, want := range []string{"send_audio", "send_image", "send_video", "send_document"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected agodesk chat always-include to contain %q, got %v", want, got)
+		}
+	}
+}
+
 func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testing.T) {
 	got := channelAdaptiveAlwaysInclude(
 		RunConfig{MessageSource: "virtual_desktop_chat"},

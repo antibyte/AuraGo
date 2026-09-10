@@ -1186,6 +1186,54 @@ func TestAgodeskChatBrokerKeepsTTSAudioSeparateFromMedia(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatBrokerEmitsChatMediaFromToolOutput(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.media_events"}),
+	}
+	forwarded := &agodeskForwardCaptureBroker{}
+	envs := readAgodeskBrokerEventEnvelopes(t, state, forwarded,
+		agodeskBrokerTestEvent{
+			event:   "tool_output",
+			message: `Tool Output: {"status":"success","web_path":"/files/audio/music_aeb14569.mp3","title":"Synthwave Techno Hip-Hop","mime_type":"audio/mpeg","filename":"music_aeb14569.mp3"}`,
+		},
+		agodeskBrokerTestEvent{
+			event:   "audio",
+			message: `{"path":"/files/audio/music_aeb14569.mp3","title":"Synthwave Techno Hip-Hop","mime_type":"audio/mpeg","filename":"music_aeb14569.mp3"}`,
+		},
+	)
+	if len(envs) != 1 {
+		t.Fatalf("envelope count = %d, want 1 (deduped tool_output + audio): %+v", len(envs), envs)
+	}
+	if envs[0].Type != agodesk.TypeChatMedia {
+		t.Fatalf("envelope type = %q, want chat.media", envs[0].Type)
+	}
+	var payload agodesk.ChatMediaPayload
+	decodeAgodeskTestPayload(t, envs[0], &payload)
+	if payload.Kind != "audio" || !strings.Contains(payload.Path, "/api/agodesk/media/audio/music_aeb14569.mp3") {
+		t.Fatalf("audio media payload = %+v", payload)
+	}
+	if got := forwarded.Events(); len(got) != 1 || got[0] != "tool_output" {
+		t.Fatalf("forwarded events = %v, want [tool_output]", got)
+	}
+}
+
+func TestAgodeskChatBrokerIgnoresTTSToolOutputForMedia(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.media_events", "chat.audio_events"}),
+	}
+	envs := readAgodeskBrokerEventEnvelopes(t, state, nil, agodeskBrokerTestEvent{
+		event:   "tool_output",
+		message: `Tool Output: {"status":"success","file":"voice.mp3","web_path":"/tts/voice.mp3"}`,
+	})
+	if len(envs) != 0 {
+		t.Fatalf("TTS tool_output should not emit chat.media, got %+v", envs)
+	}
+}
+
 func TestAgodeskChatBrokerForwardsNonTTSAudioWithoutMediaCapability(t *testing.T) {
 	state := &agodeskConnectionState{
 		sessionID:    "agodesk:dev-1",
