@@ -954,6 +954,8 @@ registration lives in `internal/desktop/types.go`.
   or issue details enter the bounded 60-event feed.
 - `sysworld-life.js` owns exactly five decorative white ThreeDee robots, rounded
   street routes, shared assets/soft hover lights and state-driven district rings.
+  Normalize the GLB face axis (+X) to route-forward (+Z) before cloning;
+  keep faces aligned with travel on straights and rounded turns.
   Only fresh actual error/running states or bounded recent events animate district
   signals; stale/unknown stays neutral. The operations signal uses private material
   clones so its red pulse cannot recolor other buildings. Rebind after LOD swaps.

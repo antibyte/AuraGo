@@ -79,8 +79,8 @@ export function createCityLife(scene, districts, options) {
       const extent=Math.max(size.x,size.y,size.z);if(!Number.isFinite(extent)||extent<=0)throw Error('Invalid robot bounds');
       model.scale.setScalar(6/extent);model.updateMatrixWorld(true);box.setFromObject(model);
       const center=box.getCenter(new THREE.Vector3());model.position.set(-center.x,-box.min.y,-center.z);
-      // Same heading correction as the white ThreeDee robot.
-      model.rotation.y=Math.PI;
+      // The exported face points along +X; route headings use local +Z.
+      model.rotation.y=-Math.PI/2;
       model.traverse(n=>{if(n.isMesh){n.castShadow=false;n.receiveShadow=true;}});
       residents.forEach(r=>{r.body.add(model.clone(true));r.root.visible=true;r.glow.visible=true;});
       robotsLoaded=true;update(0,false);

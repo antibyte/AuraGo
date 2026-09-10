@@ -76,3 +76,36 @@ for(const lang of ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','
         assert.deepEqual((data[key].match(/{{\w+}}/g)||[]).sort(),(base[key].match(/{{\w+}}/g)||[]).sort(),key+' placeholders'); }
 }
 console.log('System World: truthful states, shared polling, stale retention, SSE ordering, cleanup and 16 locales passed.');
+
+// Exercise the real exported geometry and resident transforms without decoding textures in Node.
+const THREE = await import('three');
+const { createCityLife } = await import('../ui/js/desktop/apps/sysworld-life.js');
+const robotBytes = await fs.readFile('ui/3d/system-world/white-robot.glb');
+const jsonLength = robotBytes.readUInt32LE(12);
+const robotDoc = JSON.parse(robotBytes.subarray(20,20+jsonLength));
+for (const key of ['images','textures','materials','samplers']) delete robotDoc[key];
+for (const mesh of robotDoc.meshes) for (const primitive of mesh.primitives) delete primitive.material;
+const jsonBytes = Buffer.from(JSON.stringify(robotDoc));
+const padded = Buffer.concat([jsonBytes,Buffer.alloc((4-jsonBytes.length%4)%4,32)]);
+const header = Buffer.from(robotBytes.subarray(0,20));
+const geometryGLB = Buffer.concat([header,padded,robotBytes.subarray(20+jsonLength)]);
+geometryGLB.writeUInt32LE(geometryGLB.length,8);geometryGLB.writeUInt32LE(padded.length,12);
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async () => new Response(geometryGLB);
+const scene = new THREE.Scene(), life = createCityLife(scene,[],{robotURL:'robot-test.glb'});
+try {
+    for(let i=0;i<100&&life.stats().robots!==5&&!life.stats().robotError;i++) await new Promise(r=>setTimeout(r,10));
+    assert.equal(life.stats().robots,5,'All five real robot meshes must load');
+    const residents=scene.getObjectByName('city-life').children.filter(n=>n.name.startsWith('city-white-robot-'));
+    for(let frame=0;frame<3600;frame++) {
+        const before=residents.map(r=>r.position.clone());
+        life.update(1/30,true);scene.updateMatrixWorld(true);
+        residents.forEach((resident,i)=>{
+            const travel=resident.position.clone().sub(before[i]).setY(0).normalize();
+            // Four cardinal Blender renders establish +X as the exported mesh's face.
+            const face=new THREE.Vector3(1,0,0).transformDirection(resident.children[0].children[0].matrixWorld).setY(0).normalize();
+            assert.ok(face.dot(travel)>.9,`${resident.name} must face its travel direction (frame ${frame})`);
+        });
+    }
+    console.log('System World: all five robot faces follow straight streets and rounded turns.');
+} finally {life.dispose();globalThis.fetch=nativeFetch;}
