@@ -397,6 +397,18 @@ func bundledDefaultPets() []bundledPet {
 				Category:        "mascot",
 			},
 		},
+		{Manifest: PetJSON{ID: "aurago-neutral", DisplayName: "Silver", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-servant", DisplayName: "Butler", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-professional", DisplayName: "Manager", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-mistress", DisplayName: "Kommandantin", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-thinker", DisplayName: "Professor", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-evil", DisplayName: "Vampir", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-secretary", DisplayName: "Assistentin", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-psycho", DisplayName: "Green", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-punk", DisplayName: "Punk", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-friend", DisplayName: "Hoodie", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-mcp", DisplayName: "MCP", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-terminator", DisplayName: "Terminator", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
 	}
 }
 

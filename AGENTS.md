@@ -1074,6 +1074,7 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 ## Child DOX Index
 
 Current child AGENTS.md files:
+- `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
 - `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.

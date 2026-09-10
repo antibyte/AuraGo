@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby"}
+var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator"}
 
 func TestInstallAndListPets(t *testing.T) {
 	svc := testService(t)
