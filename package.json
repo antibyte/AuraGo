@@ -14,7 +14,9 @@
     "build:ui": "node scripts/build-ui-bundles.js",
     "check:ui": "node scripts/build-ui-bundles.js --check",
     "test:realtime-speech": "node scripts/test-realtime-speech.mjs",
-    "test:ui-regressions": "node scripts/test-ui-regressions.mjs"
+    "test:ui-regressions": "node scripts/test-ui-regressions.mjs",
+    "build:system-world": "node scripts/build-system-world.js",
+    "test:system-world": "node scripts/test-system-world.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -55,7 +57,8 @@
     "onnxruntime-web": "1.27.0",
     "quill": "2.0.2",
     "rollup": "^4.62.2",
-    "stockfish": "18.0.8"
+    "stockfish": "18.0.8",
+    "three": "0.185.1"
   },
   "overrides": {
     "nanoid": "5.1.16"

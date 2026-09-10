@@ -94,6 +94,10 @@ func TestDesktopAuroraBrowser(t *testing.T) {
 	if phase == "" {
 		phase = "after"
 	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_MATRIX") == "1" {
+		verifySystemWorldCity(t, page, dir)
+		return
+	}
 	if os.Getenv("AURAGO_NOTES_MATRIX") == "1" {
 		verifyNotesShell(t, page, dir)
 		return

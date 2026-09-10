@@ -335,14 +335,7 @@
         'system-world': {
             styles: appStyles('/css/desktop-app-sysworld.css'),
             scripts: [
-                '/js/vendor/three.min.js',
-                '/js/vendor/OrbitControls.min.js',
-                '/js/desktop/apps/sysworld-effects.js',
-                '/js/desktop/apps/sysworld-scene.js',
-                '/js/desktop/apps/sysworld-core.js',
-                '/js/desktop/apps/sysworld-orbit.js',
-                '/js/desktop/apps/sysworld-graph.js',
-                '/js/desktop/apps/sysworld-fleet.js',
+                '/js/desktop/apps/sysworld-data.js',
                 '/js/desktop/apps/sysworld-hud.js',
                 '/js/desktop/apps/sysworld.js'
             ]

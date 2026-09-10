@@ -15,15 +15,13 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-deluxe.js")):               true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "core", "desktop-foundation.js")):          true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "core", "menus-and-routing.js")):           true,
-		filepath.ToSlash(filepath.Join("js", "desktop", "core", "window-shell-runtime.js")):      true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "core", "window-shell-runtime.js")):        true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "agent-chat.js")):                  true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js")): true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-sprites.js")):              true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sheets.js")):                      true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "code-studio", "core.js")):         true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "openscad.js")):                    true,
-		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sysworld.js")):                    true,
-		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sysworld-fleet.js")):              true,
 	}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {

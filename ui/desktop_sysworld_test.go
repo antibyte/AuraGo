@@ -41,14 +41,7 @@ func TestDesktopSysWorldLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 	for _, want := range []string{
 		"'system-world'",
 		"'/css/desktop-app-sysworld.css'",
-		"'/js/vendor/three.min.js'",
-		"'/js/vendor/OrbitControls.min.js'",
-		"'/js/desktop/apps/sysworld-effects.js'",
-		"'/js/desktop/apps/sysworld-scene.js'",
-		"'/js/desktop/apps/sysworld-core.js'",
-		"'/js/desktop/apps/sysworld-orbit.js'",
-		"'/js/desktop/apps/sysworld-graph.js'",
-		"'/js/desktop/apps/sysworld-fleet.js'",
+		"'/js/desktop/apps/sysworld-data.js'",
 		"'/js/desktop/apps/sysworld-hud.js'",
 		"'/js/desktop/apps/sysworld.js'",
 		"'system-world': ['sysworld']",
@@ -91,100 +84,28 @@ func TestDesktopSysWorldLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 
 func TestDesktopSysWorldAppMarkers(t *testing.T) {
 	t.Parallel()
-
-	app := readDesktopAssetText(t, "js/desktop/apps/sysworld.js")
-	for _, want := range []string{
-		"window.SysWorldApp = { render, dispose }",
-		"const instances = new Map()",
-		"function render(container, windowId, context = {})",
-		"function dispose(windowId)",
-		"instances.delete(windowId)",
-		"aurago.desktop.sysworld.quality",
-		"cancelAnimationFrame",
-		"/api/dashboard/overview",
-		"/api/dashboard/system",
-		"/api/dashboard/memory",
-		"/api/dashboard/activity",
-		"/api/missions/v2",
-		"/api/dashboard/tool-stats",
-		"/api/containers",
-		"/api/daemons",
-		"/api/knowledge-graph/nodes",
-		"/api/knowledge-graph/edges",
-		"/api/personality/state",
-		"/api/budget",
-		"function normalizeSystemMetrics",
-		"function applySystemMetrics",
-		"usage_percent",
-		"used_percent",
-		"reg('system_metrics'",
-		"sse.off(type, inst.sseHandlers[type])",
-		"sysworld.no_webgl",
-		"tickAmbientFx",
-		"inst.effectsEnabled === false",
-		"zoneAnchor",
-		"cycleFocus",
-		"function relTime",
-		"updateSelLabel",
-		"autoRotate",
-		"showSelLabel",
-		"inst.focused",
-		"inst.follow",
-		"clearFollow",
-		"updateFollowTarget",
-		"applyQuality",
-		"ultra",
+	for file, markers := range map[string][]string{
+		"js/desktop/apps/sysworld.js":       {"const instances = new Map()", "function dispose(windowId)", "instances.delete(windowId)", "cancelAnimationFrame", "IntersectionObserver", "MutationObserver", "setWindowMenus", "load.abort()", "city.esm.js", "versioned("},
+		"js/desktop/apps/sysworld-scene.js": {"from 'three'", "GLTFLoader", "OrbitControls", "createCity", "InstancedMesh", "assetURL", "AbortController", "geoSet.forEach", "matSet.forEach", "forceContextLoss", "webglcontextlost", "requestPointerLock", "setMode", "lastQualityChange", "Math.hypot(forward, right)"},
+		"js/desktop/apps/sysworld-data.js":  {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/dashboard/overview", "/api/knowledge-graph/nodes?limit=300"},
+		"js/desktop/apps/sysworld-hud.js":   {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source"},
+		"css/desktop-app-sysworld.css":      {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible"},
 	} {
-		if !strings.Contains(app, want) {
-			t.Fatalf("System World entry missing implementation marker %q", want)
-		}
-	}
-
-	modules := map[string][]string{
-		"js/desktop/apps/sysworld-effects.js": {"window.SysWorld", "NS.createFx", "NS.PALETTE", "glowTexture", "comet", "beam", "sparkle", "tween", "textSprite", "hoverRing", "selectBeacon", "clearBeacon", "updateArcs", "arcs"},
-		"js/desktop/apps/sysworld-scene.js":   {"window.SysWorld", "NS.createStage", "NS.LAYOUT", "THREE.OrbitControls", "flyTo", "introFlight", "sysworld-dust", "sysworld-aurora", "setQuality", "sysworld-energy-wave"},
-		"js/desktop/apps/sysworld-core.js":    {"window.SysWorld", "NS.createCore", "setMood", "setMemory", "memoryFlash", "punch", "sysworld-core-halo", "setQuality"},
-		"js/desktop/apps/sysworld-orbit.js":   {"window.SysWorld", "NS.createOrbit", "setIntegrations", "pickables", "satellitePosition", "textSprite", "categoryGeo"},
-		"js/desktop/apps/sysworld-graph.js":   {"window.SysWorld", "NS.createGraph", "build", "expand", "setVisible", "pickables", "highlightNeighbors"},
-		"js/desktop/apps/sysworld-fleet.js":   {"window.SysWorld", "NS.createFleet", "setMissions", "setCoAgents", "setTools", "setInfra", "flashTool", "textSprite", "tickGeo", "finGeo", "gearGeo", "plateEdgeGeo", "containerName", "setQuality"},
-		"js/desktop/apps/sysworld-hud.js":     {"window.SysWorld", "NS.createHud", "showPanel", "showTooltip", "setStats", "setLegend", "showSelLabel", "positionSelLabel", "hideSelLabel", "data-sw-zone", "onZoneHover"},
-	}
-	for file, markers := range modules {
-		body := readDesktopAssetText(t, file)
+		source := readDesktopAssetText(t, file)
 		for _, want := range markers {
-			if !strings.Contains(body, want) {
-				t.Fatalf("%s missing marker %q", file, want)
+			if !strings.Contains(source, want) {
+				t.Errorf("%s missing %q", file, want)
 			}
 		}
 	}
-
-	css := readDesktopAssetText(t, "css/desktop-app-sysworld.css")
-	for _, want := range []string{
-		".sysworld",
-		".sysworld-canvas",
-		".sysworld-hud",
-		".sw-stats",
-		".sw-actions",
-		".sw-legend",
-		".sw-events",
-		".sw-tooltip",
-		".sw-info",
-		".sw-loading",
-		".sw-fallback",
-		".sw-sel-label",
-		".sw-section",
-		".sw-bar-fill",
-		".sw-pill",
-		"sysworld-panel-sheen",
-		"repeating-linear-gradient",
-		"prefers-reduced-motion",
-		"--sw-panel: var(--vd-theme-panel-bg)",
-		"background: #020208",
-		"--sw-accent: #59d4ff",
-	} {
-		if !strings.Contains(css, want) {
-			t.Fatalf("System World CSS missing marker %q", want)
-		}
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	section := strings.Split(strings.Split(loader, "'system-world': {")[1], "\n        }")[0]
+	if strings.Contains(section, "three.min.js") || strings.Contains(section, "OrbitControls.min.js") {
+		t.Fatal("City must not load legacy global Three.js")
+	}
+	scene := readDesktopAssetText(t, "js/desktop/apps/sysworld-scene.js")
+	if strings.Contains(scene, "window.THREE") || strings.Contains(scene, "autoRotate") {
+		t.Fatal("City must isolate Three.js and never take over an idle camera")
 	}
 }
 

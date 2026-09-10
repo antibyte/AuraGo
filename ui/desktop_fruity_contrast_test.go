@@ -244,23 +244,17 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	}
 
 	sysworld := readDesktopAssetText(t, "css/desktop-app-sysworld.css")
-	fruitySysworld := cssRuleBodyInFruityThemeTest(t, sysworld, `.desktop-body[data-theme="fruity"] .sysworld`)
-	if strings.Contains(fruitySysworld, "rgba(18, 28, 52") {
-		t.Fatalf("fruity light Sysworld HUD must not force dark glass over --vd-text: %q", fruitySysworld)
-	}
+	// The city shares the same theme-token mapping for Standard and both Fruity variants.
+	city := cssRuleBodyInFruityThemeTest(t, sysworld, ".sysworld")
 	for _, want := range []string{
-		"--sw-text: var(--vd-text",
-		"--sw-panel:",
+		"--sw-text: var(--vd-text,",
+		"--sw-panel: var(--vd-theme-panel-bg,",
+		"--sw-muted: var(--vd-theme-muted,",
+		"background: #08121e",
 	} {
-		if !strings.Contains(fruitySysworld, want) {
-			t.Fatalf("fruity Sysworld missing token remap %q in %q", want, fruitySysworld)
+		if !strings.Contains(city, want) {
+			t.Fatalf("Sysworld city/theme surface missing %q", want)
 		}
-	}
-	if !strings.Contains(sysworld, "background: #020208") {
-		t.Fatalf("Sysworld canvas must stay a dark work surface")
-	}
-	if !strings.Contains(sysworld, "--sw-panel: var(--vd-theme-panel-bg)") {
-		t.Fatalf("Sysworld HUD must read theme panel tokens in source CSS")
 	}
 
 	calculator := readDesktopAssetText(t, "css/desktop-app-calculator.css")

@@ -1,7 +1,7 @@
 # System World runtime models
 
 ## Purpose
-Versioned compact GLB assets for the planned System World data metropolis.
+Versioned compact GLB assets for the integrated System World data metropolis.
 
 ## Ownership
 Only `v1/*.glb`, `v1/manifest.json` and `v1/LICENSE.txt` ship.

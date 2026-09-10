@@ -10,8 +10,8 @@ import (
 func TestDesktopSysworldSuccessRateI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/sysworld.js")
-	if !strings.Contains(source, "k: L('sysworld.panel.success_rate')") {
+	source := readDesktopAssetText(t, "js/desktop/apps/sysworld-data.js")
+	if !strings.Contains(source, "row('sysworld.panel.success_rate'") {
 		t.Fatal("sysworld mission panel must use sysworld.panel.success_rate")
 	}
 	if strings.Contains(source, "k: 'OK'") {

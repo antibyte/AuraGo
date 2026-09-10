@@ -24,6 +24,7 @@ ui/js/desktop/bundles/*.js text eol=lf
 
 # Preserve generated template literals and upstream license text byte-for-byte.
 ui/js/vendor/sheets/* text eol=lf -whitespace
+ui/js/vendor/system-world/* text eol=lf -whitespace
 
 # Binaries — never convert
 *.exe   binary

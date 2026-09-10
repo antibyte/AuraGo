@@ -38,11 +38,6 @@ func TestDesktopSysworldHudUptimeI18n(t *testing.T) {
 		}
 	}
 
-	sysworld := readDesktopAssetText(t, "js/desktop/apps/sysworld.js")
-	if !strings.Contains(sysworld, "desktop.rel_time_") {
-		t.Fatal("sysworld relTime must keep desktop.rel_time_*")
-	}
-
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		path := filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json"))
 		var values map[string]string

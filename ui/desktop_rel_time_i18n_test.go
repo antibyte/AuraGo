@@ -10,30 +10,6 @@ import (
 func TestDesktopRelTimeI18n(t *testing.T) {
 	t.Parallel()
 
-	sysworld := readDesktopAssetText(t, "js/desktop/apps/sysworld.js")
-	for _, want := range []string{
-		"function formatRelCount(inst, count, key)",
-		"'desktop.rel_time_seconds'",
-		"'desktop.rel_time_minutes'",
-		"'desktop.rel_time_hours'",
-		"'desktop.rel_time_days'",
-		"inst.ctx.t(key, { count: n })",
-	} {
-		if !strings.Contains(sysworld, want) {
-			t.Fatalf("sysworld relTime i18n missing marker %q", want)
-		}
-	}
-	for _, forbidden := range []string{
-		"+ 's'",
-		"+ 'm'",
-		"+ 'h'",
-		"+ 'd'",
-	} {
-		if strings.Contains(sysworld, forbidden) {
-			t.Fatalf("sysworld still hardcodes %q", forbidden)
-		}
-	}
-
 	mission := readDesktopAssetText(t, "js/desktop/apps/mission-control.js")
 	if !strings.Contains(mission, "t('desktop.rel_time_seconds', { count: cfg.min_interval_seconds })") {
 		t.Fatal("mission control min-interval must use desktop.rel_time_seconds")

@@ -10,8 +10,8 @@ import (
 func TestDesktopSysworldPanelIdI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/sysworld.js")
-	if strings.Count(source, "k: L('sysworld.panel.id')") < 3 {
+	source := readDesktopAssetText(t, "js/desktop/apps/sysworld-data.js")
+	if strings.Count(source, "row('sysworld.panel.id'") < 3 {
 		t.Fatal("sysworld panel must localize all three ID rows")
 	}
 	if strings.Contains(source, "k: 'ID'") {

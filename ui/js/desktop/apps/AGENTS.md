@@ -207,21 +207,13 @@ buttons and menu popovers remain excluded from those gestures.
   Pass `t` into `updateMediaSession`. Radio `t` stays key-only;
   interpolate via `.replace`. Do not hardcode `K`/`M`, `Radio`, or
   `AuraGo Radio` there.
-- Sysworld `relTime` and Mission Control trigger min-interval use
-  `desktop.rel_time_seconds`, `desktop.rel_time_minutes`,
-  `desktop.rel_time_hours`, and `desktop.rel_time_days` with `{{count}}`.
-  Sysworld `t`/`L` stays key-only; interpolate via `inst.ctx.t`.
-  Do not hardcode `s`/`m`/`h`/`d` there. Leave SIP/Noisemaker
-  `formatDuration` unchanged. Sysworld HUD uptime uses
-  `desktop.system_info_uptime_days_hours`,
-  `desktop.system_info_uptime_hours_minutes`, and
-  `desktop.system_info_uptime_minutes` (same compact form as
-  Sysmon). Interpolate via `inst.ctx.t`.   Sysworld HUD budget uses
-  `desktop.looper_cost` with `{{amount}}`. Do not hardcode `$` there.
-  Sysworld mission success-rate rows use `sysworld.panel.success_rate`.
-  Do not hardcode `OK` there. Sysworld panel identity rows use
-  `sysworld.panel.id`. Do not hardcode `ID` there. Sysworld `L`
-  stays key-only.
+- Mission Control trigger min-interval uses `desktop.rel_time_seconds` with
+  `{{count}}`. Keep SIP/Noisemaker duration formatting unchanged.
+  System World shows localized timestamps; compact uptime reuses
+  `desktop.system_info_uptime_days_hours`, `desktop.system_info_uptime_hours_minutes`
+  and `desktop.system_info_uptime_minutes`. Budget uses `desktop.looper_cost`;
+  success rate and identity rows use `sysworld.panel.success_rate` and
+  `sysworld.panel.id`. Interpolation goes through `inst.ctx.t`.
 - People birthday countdowns in the sidebar, cards, list, and detail
   use `desktop.people_today`, `desktop.people_tomorrow`, and
   `desktop.people_days_until_birthday`. Do not hardcode `d` or `days`
@@ -596,15 +588,13 @@ buttons and menu popovers remain excluded from those gestures.
   `git.js` (Git panel, diff view, commit), `panels.js` (split editor,
   panel management), `shortcuts.js` (keyboard shortcuts, window.CodeStudioApp),
   and `command-palette.js` (separate IIFE).
-- `sysworld*.js` implements System World, an immersive Three.js (r128) 3D
-  universe that visualizes the live AuraGo system: agent core with memory
-  nebula, integration satellites, knowledge-graph constellation, mission ring,
-  cron dial, co-agent drones, tool belt, and infrastructure field. Visual
-  polish includes multi-layer starfields, floating dust, aurora ribbons, floor
-  energy rings, core gyro/halo animation, ambient comets/beams/sparkles (gated
-  by Effects toggle), and HUD glass/scanline chrome. Opens maximized via
-  `open_maximized` metadata; live data from dashboard/KG/mission REST APIs and
-  the shared `AuraSSE` event stream.
+- `sysworld*.js` implements System World's Blender-authored data metropolis:
+  seven fixed districts, live read-only inspector, entity search, map, explicit
+  tour and street-level WASD/touch exploration. The isolated Three.js 0.185.1
+  ESM renderer does not replace the legacy global used by other apps. Opens
+  maximized; existing dashboard/KG/mission APIs and shared SSE supply live data.
+  Persistent 24-hour history remains a subsequent stage in
+  `documentation/system-world-plan.md`.
 - `looper.js` implements Looper, an iterative agent workflow (prepare → plan →
   action → test → exit → optional finish) with presets, context modes,
   pause/resume, incremental status SSE, cost/token meta, and advanced options
@@ -898,16 +888,13 @@ registration lives in `internal/desktop/types.go`.
   `ui/lang/desktop/*.json` files.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
-- System World modules attach to the shared `window.SysWorld` (NS) namespace and
-  expose `NS.create<Name>(inst)` factories invoked by the entry; per-window state
-  lives in the `instances` Map in `sysworld.js`, which exposes
-  `window.SysWorldApp = { render, dispose }`.
-- System World load order in `module-loader.js` must be: three.min.js,
-  OrbitControls.min.js, sysworld-effects.js (`NS.PALETTE`, `createFx`),
-  sysworld-scene.js (`NS.LAYOUT`, `createStage`), sysworld-core.js,
-  sysworld-orbit.js, sysworld-graph.js, sysworld-fleet.js, sysworld-hud.js,
-  then sysworld.js (entry). Modules read `NS.PALETTE`/`NS.LAYOUT` and call
-  sibling factories only lazily inside functions, never at IIFE top level.
+- System World loads `sysworld-data.js`, `sysworld-hud.js`, then `sysworld.js`.
+  The first two expose `window.SysWorld.data/createHud`; the entry owns per-window
+  instances and exports `SysWorldApp.render/dispose/inspect`. It imports
+  versioned `/js/vendor/system-world/city.esm.js` only when opened.
+- `sysworld-scene.js` is build input, not a classic lazy script. Rebuild with
+  `node scripts/build-system-world.js` after changes; `--check` verifies exact
+  output. Three.js and matching addons stay pinned to MIT 0.185.1.
 - System World visible UI strings use `sysworld.*` keys in all
   `ui/lang/desktop/*.json` files (section registered as `'system-world':
   ['sysworld']` in `APP_I18N_SECTIONS`); the dock/start name uses
@@ -958,38 +945,32 @@ registration lives in `internal/desktop/types.go`.
   history, leaving the filters tab resets the preview.
 - Pixel visible UI strings use `pixel.*` keys in all 16
   `ui/lang/desktop/*.json` files.
-- System World performance contracts: glow textures are cached in Maps, comet/
-  burst/ring effects come from capped recycled pools, no `new THREE.*`
-  allocations inside per-frame update paths, and every module's `dispose()`
-  frees geometries/materials/textures plus listeners, timers, and SSE handlers.
-- System World quality tiers: `low/medium/high/ultra` cycle from the HUD
-  quality button (`aurago.desktop.sysworld.quality`). Particle buffers are
-  always allocated at ultra capacity; the entry's `applyQuality` applies
-  per-tier live levers (star/dust/corona `setDrawRange`, dust/nebula/aurora/
-  trail visibility, fx pool caps, renderer pixel ratio, ambient FX rate)
-  through each module's `setQuality(tier)` — never rebuild the world on a
-  tier switch. Ultra exclusives: electric arcs (pooled in sysworld-effects),
-  twinkle starfield, animated aurora flow shaders, and the
-  `sysworld-energy-wave` floor shader.
-- System World shared fx contracts: `fx.textSprite(text, hex, {opacity, scale})`
-  returns a cached-canvas label sprite (never dispose its `.map` texture);
-  `fx.selectBeacon/clearBeacon` owns the selection halo (rings, glow, light
-  pillar, orbiter sparks); `fx.hoverRing(mesh|null, radius, hex)` is the single
-  pooled hover ring. Object labels use textSprite with distance-based opacity
-  fading in the owning module's update loop.
-- System World selection UX: the entry pins `inst.focused = {mesh, ud, radius}`
-  and the HUD `sw-sel-label` chip follows it via per-frame camera projection
-  (`positionSelLabel`); `graph.highlightNeighbors(id|null)` boosts KG
-  neighborhoods on hover; legend zone items emit `onZoneHover`/`onZoneFocus`
-  (pulse + camera flight via `zoneAnchor`); arrow keys cycle pickables,
-  O/G/E mirror the HUD buttons, idle >45s enables OrbitControls autoRotate.
-- System World camera follow: focusing an object also sets
-  `inst.follow = {mesh, pending}`; `updateFollowTarget` runs per frame and,
-  once the focus flight re-enables the controls, glues `controls.target` to
-  the object's live position and translates the camera by the same (clamped)
-  delta so orbit/zoom keep working around the moving target. Pan is disabled
-  only while a moving object is chased. `clearFollow` runs from `clearFocus`,
-  zone-focus flights and the O key and always restores `enablePan`.
+- System World keeps one browser data subscription/polling set across windows.
+  Reuse `system_metrics` SSE, with REST bootstrap/fallback; never poll the OS per
+  window. Closing the last subscriber aborts requests and removes timers/SSE.
+  Preserve labelled stale values, measured zeroes and configured/unknown states;
+  enabled integration flags do not prove connectivity. Older REST responses or
+  failures must not replace newer SSE samples. No raw tool arguments, prompts
+  or issue details enter the bounded 60-event feed.
+- Rendering owns one RAF per visible window. Minimize, Spaces, document hiding
+  and map mode stop it. Close aborts loaders and frees GPU resources, listeners
+  and observers. Context loss falls back to the usable map. Keep all models,
+  local materials and licenses build-versioned; no remote textures or services.
+- Quality `auto/low/medium/high/ultra` persists under
+  `aurago.desktop.sysworld.quality`. LODs are separately fetched and cached;
+  instanced scenery uses shared geometry/materials, distant towers always LOD2.
+  Quality changes rebuild instances after assets finish without moving focus.
+  Auto uses frame-time hysteresis; shadow maps update only after geometry/tier
+  changes. No per-frame geometry or material creation.
+- District placement and entity IDs stay fixed through data refresh. User
+  navigation cancels the explicit tour; inactivity never takes the camera.
+  Reduced motion and Desktop animation settings suppress camera flights/tours
+  and the decorative pulse. Street mode owns WASD only while its canvas is
+  focused; pointer lock is explicit and Escape/blur/close release control.
+- Verify `node scripts/test-system-world.mjs`, `node scripts/build-system-world.js
+  --check`, focused Sysworld Go tests, and the real-shell browser matrix:
+  `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SYSTEM_WORLD_MATRIX=1 go test ./ui
+  -run '^TestDesktopAuroraBrowser$'`. Screenshot/performance reports stay ignored.
 
 ## Work Guidance
 
@@ -1029,10 +1010,8 @@ registration lives in `internal/desktop/types.go`.
 - Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
   `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
   and `command-palette.js`; do not fold domain modules into core.js.
-- Keep System World split across `sysworld.js`, `sysworld-effects.js`,
-  `sysworld-scene.js`, `sysworld-core.js`, `sysworld-orbit.js`,
-  `sysworld-graph.js`, `sysworld-fleet.js`, and `sysworld-hud.js`; do not fold
-  the effects, scene, district, or HUD logic into the entry file.
+- Keep System World's data, HUD, scene and lifecycle in their four owned files.
+  Do not merge renderer dependencies or data polling into the Desktop shell.
 - Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
   `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
   logic into the main app file.
@@ -1438,49 +1417,16 @@ registration lives in `internal/desktop/types.go`.
   file needed.
 - `code-studio/command-palette.js` - Command palette overlay with fuzzy search,
   keyboard navigation. Separate IIFE. No child DOX file needed.
-- `sysworld.js` - System World entry: per-window `instances` Map,
-  `render(container, windowId, context)` / `dispose(windowId)`, data polling
-  (dashboard overview/memory/activity, missions, tool-stats, containers,
-  daemons, KG nodes/edges, personality, budget), `AuraSSE` subscriptions,
-  RAF loop, pointer interaction (hover tooltip + hover ring, click fly-to +
-  info panel, dblclick empty resets view), selection label projection
-  (`inst.focused` + `updateSelLabel`), zone anchors (`zoneAnchor`), arrow-key
-  cycling (`cycleFocus`), idle autoRotate, WebGL fallback. Relative
-  timestamps use `desktop.rel_time_*`. Mission success-rate rows
-  use `sysworld.panel.success_rate`. Panel identity rows use
-  `sysworld.panel.id`. Exposes
-  `window.SysWorldApp`. No child DOX file needed.
-- `sysworld-effects.js` - `NS.PALETTE`, cached glow textures, `textSprite`
-  label factory (cached canvas textures), pooled comets/bursts/pulse rings,
-  drone trails, selection beacon (rings + light pillar + orbiter sparks),
-  pooled hover ring, mini tween runner (`createFx`). No child DOX file needed.
-- `sysworld-scene.js` - `NS.LAYOUT`, renderer/scene/camera/OrbitControls,
-  starfield layers, grid floor, `flyTo`/`resetView`/`introFlight`, raycast
-  helper, per-frame resize check (`createStage`). No child DOX file needed.
-- `sysworld-core.js` - Agent core: fresnel ShaderMaterial sun, icosahedron
-  lattice, gyro rings, corona, memory nebula (vectordb/core facts/journal),
-  mood/metrics/busy reactivity (`createCore`). No child DOX file needed.
-- `sysworld-orbit.js` - Integration satellites on 3 inclined rings with
-  category clustering, per-category geometry identities, inner core +
-  wireframe shells, distance-faded textSprite labels, spawn-in stagger,
-  enable beams, diff-driven updates (`createOrbit`). No child DOX file needed.
-- `sysworld-graph.js` - Knowledge-graph constellation: one-shot 3D force
-  layout, core+shell node meshes, protected-node gold rings, synapse comet
-  pulses, `highlightNeighbors` hover boost, expand-on-click, visibility
-  toggle (`createGraph`). No child DOX file needed.
-- `sysworld-fleet.js` - Mission ring, cron dial, co-agent drones with trails,
-  tool belt with `flashTool`, container/daemon infrastructure field
-  (`createFleet`). No child DOX file needed.
-- `sysworld-hud.js` - HTML overlay: stats card, action buttons, interactive
-  legend (zone hover/click), live event feed, tooltip, selection label chip
-  (`sw-sel-label`), slide-in info panel with badges/tone pills/sections/
-  bars/relations (`createHud`). Compact uptime uses
-  `desktop.system_info_uptime_days_hours`,
-  `desktop.system_info_uptime_hours_minutes`, and
-  `desktop.system_info_uptime_minutes` via `inst.ctx.t`. Do not reuse
-  `desktop.rel_time_*` here. Budget uses `desktop.looper_cost` via
-  `inst.ctx.t`. No child DOX
-  file needed.
+- `sysworld.js` - Per-window lifecycle, lazy ESM loading, visibility, menus,
+  selection and bounded neighbourhood requests. Exposes `window.SysWorldApp`.
+- `sysworld-data.js` - Shared read-only REST/SSE data lifecycle and stable entity
+  records with source timestamp/status; no persistent history store.
+- `sysworld-scene.js` - Isolated Three.js city renderer, GLB LOD cache,
+  instancing, PBR/PMREM, shadows, bloom, camera modes and disposal. Build to
+  `ui/js/vendor/system-world/`; never classic-script load this source.
+- `sysworld-hud.js` - Theme-native, localized HTML metrics, district navigation,
+  entity search, inspector, map, street controls and projected district labels.
+  These four files need no additional child DOX.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
   syntax highlighting (using javascript()), error line highlighting, fallback
   textarea, and `revealLine(line)` for jumping to an issue. Exposes

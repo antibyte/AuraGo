@@ -30,6 +30,13 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- System World uses the Blender GLB kit in `3d/system-world/v1/` and its own
+  MIT Three.js 0.185.1 ESM bundle; shared legacy Three.js remains unchanged.
+  Run `node scripts/build-system-world.js --check` before packaging. The app
+  owns live read-only city exploration; persistent history is a later stage.
+  Rendering/lifecycle and real-shell test contracts live in
+  `js/desktop/apps/AGENTS.md`.
+
 - HA Switchboard is a lazy built-in desktop app with a theme-independent walnut
   cabinet and silver lever assets under `img/ha-switchboard/`. Retain real shell
   controls, semantic switches and the source asset provenance. All 16 desktop

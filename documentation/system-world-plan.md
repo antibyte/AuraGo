@@ -16,7 +16,24 @@ The user selected:
 Asset authoring is complete in `assets/system-world/`, with 17 designs and
 three separately loadable GLBs per design under `ui/3d/system-world/v1/`.
 See the asset README for the verified export and integration contracts.
-The application overhaul below remains planned.
+The first integration stage is implemented: isolated renderer, seven fixed
+districts, cached/instanced GLBs, PBR lighting, shadows, bloom, orbit/focus,
+street/touch controls, explicit tour, accessible map and theme-native inspector.
+Existing REST/SSE sources share one browser read model across open windows;
+source status and timestamps remain visible. Search, bounded live events,
+entity details and selected KG neighbourhoods are available in all 16 locales.
+
+Still planned: the server-side read model and persistent 24-hour history,
+timeline/replay, metric charts, deeper relationship-driven traffic, ambient
+occlusion and the large-installation stress acceptance. The current event feed
+is session-local metadata; it is not a substitute for recorded history.
+The sections below retain the complete target and its remaining acceptance.
+
+Current checks: `node scripts/test-system-world.mjs`,
+`node scripts/build-system-world.js --check`, focused UI tests and the
+`AURAGO_SYSTEM_WORLD_MATRIX=1` real-shell Chrome check (also enable
+`AURAGO_RUN_BROWSER_SMOKE=1`). Browser artifacts are written only to ignored
+`reports/system-world-integration/`.
 
 ## City and presentation
 
