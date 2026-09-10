@@ -333,6 +333,9 @@
         }
         if (event.type === 'desktop_changed') {
             const change = event.payload || {};
+            if (change.settings && typeof change.settings['ha_switchboard.board'] === 'string') {
+                document.dispatchEvent(new CustomEvent('aurago:ha-board-change', { detail: { raw: change.settings['ha_switchboard.board'] } }));
+            }
             if (change.operation === 'delete_path') removeRecentFilesAtPath(change.path);
             else if (change.operation === 'move_path') removeRecentFilesAtPath(change.old_path);
             await loadBootstrap();

@@ -253,6 +253,7 @@ func desktopWallpaperValueSet() map[string]struct{} {
 // DesktopSettingDefinitions returns all settings that may be persisted by the desktop UI.
 func DesktopSettingDefinitions() []SettingDefinition {
 	return []SettingDefinition{
+		{Key: HASwitchboardSetting, Default: EmptyHASwitchboard},
 		{Key: "appearance.wallpaper", Default: "groupshoot", Values: desktopWallpaperValues()},
 		{Key: "appearance.wallpaper_by_space", Default: "{}"},
 		{Key: "appearance.theme", Default: "standard", Values: []string{"standard", "fruity"}},
@@ -392,6 +393,7 @@ var desktopPreferredIconNames = []string{
 	"nasscad",
 	"quakejs",
 	"radio",
+	"ha-switchboard",
 	"redo",
 	"refresh",
 	"romm",
@@ -727,6 +729,7 @@ func workspaceDirectories() []string {
 // BuiltinApps returns the first-party applications always available in the shell.
 func BuiltinApps() []AppManifest {
 	apps := []AppManifest{
+		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
 		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "writer", Entry: "builtin://writer", Runtime: BuiltinRuntime, Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},

@@ -96,6 +96,7 @@
         Shared: 'share'
     };
     const appIconKeys = {
+        'ha-switchboard': 'ha-switchboard',
         analytics: 'analytics',
         backup: 'backup',
         backups: 'backup',
@@ -560,6 +561,7 @@
 
     function appGlobalName(appId) {
         return {
+            'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',

@@ -12,6 +12,7 @@
     "Papirus-Light"
   ],
   "icons": {
+    "ha-switchboard": "img/papirus/icons/ha-switchboard.svg",
     "leafy": "img/papirus/icons/leafy.svg",
     "analytics": "img/papirus/icons/analytics.svg",
     "agent-chat": "img/papirus/icons/agent-chat.svg",

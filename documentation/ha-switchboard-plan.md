@@ -1,6 +1,7 @@
 # HA Switchboard desktop app
 
-Status: planned, not implemented. Source review: 2026-09-10, `db388b8df`.
+Status: implemented and locally verified, 2026-09-10. Initial source review:
+`db388b8df`; design plan: `fd85501b4`. No live HA device was actuated for tests.
 
 ## Goal and scope
 
@@ -36,13 +37,13 @@ matching the existing desktop settings scope.
 | Footer | Broad recessed dark-glass status display and engraved metal plates in the same wooden base. Show connection state, confirmed switch totals, last refresh and a discreet **Manage switches** action. Additional rotary controls from the photo are outside v1 unless they receive a requested real function. |
 | Typography | Existing local serif font selected against the reference; engraved highlights and readable cream labels. Labels remain DOM text, never baked into images. Long names wrap to two lines with a full accessible name. |
 
-**Asset approach:** use the existing Radio/TeeVee material technique, with assets
-specifically matched to this reference. Package a walnut texture, frame/panel
-details, a transparent silver lever sprite with consistent off/intermediate/on
-poses, and the dial face under `ui/img/ha-switchboard/`. CSS supplies layout,
-inset shading, lighting and a short 150–220 ms lever transition. No new runtime
-rendering library is needed. Verify asset provenance and preserve production
-sources according to the existing asset workflow.
+**Implemented assets:** the original generated walnut texture and three-pose
+silver lever atlas live under `ui/img/ha-switchboard/`, with prompts, hashes and
+provenance in its README. The atlas is RGB; window-local SVG clip paths isolate
+the hardware without baking the cabinet or text into an image. CSS supplies
+frame/panel details, the live analog dial, inset shading and the short lever
+transition. Plaques reuse Radio's existing metal texture. There is no new runtime
+rendering library or external asset dependency.
 
 Use semantic buttons with `role="switch"`, `aria-checked`, keyboard activation,
 visible focus and at least 44 px touch targets. Pending controls cannot issue a
@@ -62,7 +63,7 @@ window styling to `.vd-window[data-app-id="ha-switchboard"]`.
 1. Open **HA Switchboard** from the desktop/start menu. If HA is disabled or
    incomplete, show the wooden empty board with **Set up Home Assistant**, linked
    to the existing integration configuration. Do not ask for another URL/token.
-2. **Manage switches** opens an in-app drawer styled with the same wood and metal.
+2. **Manage switches** opens a native modal dialog styled with the same wood and metal.
    Load the switch catalog once; search locally by friendly name or entity ID.
    Show names, IDs, availability and selection checkboxes. Search does not switch
    devices. Missing integration, failed connection, no switches and no search
@@ -99,12 +100,12 @@ window styling to `.vd-window[data-app-id="ha-switchboard"]`.
 
 No existing desktop HA entity-list or switch-action endpoint was found.
 
-## Minimal API and persistence plan
+## API and persistence
 
 Add a focused `internal/server/desktop_homeassistant_handlers.go` and register
 its routes in `internal/server/server_routes.go`:
 
-| Proposed route | Contract |
+| Route | Contract |
 | --- | --- |
 | `GET /api/desktop/home-assistant/entities` | Config readiness plus a compact catalog of `switch.*`: ID, friendly name and state. No tokens, arbitrary attributes or raw HA error bodies. |
 | `GET /api/desktop/home-assistant/states` | Current states for saved board selections, connection status, read timestamp and permitted actions. One existing `HAGetStates` call per refresh, filter before returning. Missing selected entities remain visible as missing. |
@@ -172,6 +173,37 @@ must check the selected entity. See the official
 
 Dashboard consideration: this is a desktop control surface. The dashboard already
 reports HA integration enablement; no duplicate dashboard board is needed.
+
+## Implemented sources and verification
+
+- `internal/desktop/ha_switchboard.go` validates the one existing SQLite setting:
+  version, bounded input, unique supported IDs, labels and a maximum of 60 bays.
+  The built-in manifest, real icon allowlist and default setting are registered in
+  `types.go`. Persistence tests close and reopen the real desktop database.
+- `internal/server/desktop_homeassistant_handlers.go` implements the three narrow
+  routes. It passes the complete current HA policy into context-aware wrappers
+  around the existing transport. Tests cover auth scopes, CSRF, both read-only
+  gates, service policy, unavailable devices, malformed input, sanitized failures
+  and cancellation against a local mock HA server.
+- `ui/js/desktop/apps/ha-switchboard.js` and `ui/css/ha-switchboard.css` implement
+  the cabinet, selection dialog and live controls. Existing settings events plus
+  a pre-save read detect concurrent edits; the shared settings API has no atomic
+  compare-and-swap, so simultaneous writes after both preflights remain last-writer
+  wins. Add conditional settings writes if multi-user editing requires that guarantee.
+- `ui/desktop_ha_switchboard_browser_test.go` exercises the real lazy app loader,
+  shell and artwork with simulated HA. It checks 0/1/6/12 bays, Standard and
+  Fruity light/dark, narrow/touch layout, drag/resize/maximize/restore, search, selection/order/labels,
+  failed saves, reload persistence, explicit writes, late poll rejection, keyboard
+  operation, escaping, external changes, read-only, disconnect/recovery, draft
+  conflicts, inactive Spaces, reduced motion and disposal.
+- All 16 desktop locale files carry the 41 switchboard messages. Bundle freshness,
+  app asset/lifecycle registration and the first-party JS line budget are checked
+  alongside the focused browser test. Runtime packaging uses the unchanged
+  version-bound resource contract in `documentation/web-assets.md`.
+
+Visual test captures are local artifacts under `reports/ha-switchboard/` when
+`AURAGO_BROWSER_ARTIFACT_DIR` is set. Local test acceptance does not establish
+production deployment or real-device acceptance; those were not performed.
 
 Defer HA area-registry lookup, WebSocket infrastructure, switch groups, scenes,
 weather, house modes, master volume and automation editing until requested.

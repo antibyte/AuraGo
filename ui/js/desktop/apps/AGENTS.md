@@ -1201,6 +1201,23 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `ha-switchboard.js` exposes `window.HASwitchboardApp.render/dispose`. The
+  scoped `css/ha-switchboard.css` retains the real shell controls and uses the
+  original local walnut/three-pose silver atlas (SVG clips remove its background).
+  Use the existing admin-only `/api/desktop/home-assistant/{entities,states,switch}`
+  routes and shared validated `ha_switchboard.board` setting, never browser HA
+  credentials or a second connection setup. The native dialog searches locally,
+  preserves failed-save drafts and detects changed selections before saving.
+  Poll every five seconds only while visible, cancel obsolete reads, pause in
+  inactive Spaces, and release requests/timers/listeners on dispose. Explicit
+  on/off writes remain pending until a subsequent state read confirms the target;
+  never retry a write automatically. Keep missing entities visible, escape HA
+  names, respect desktop/HA read-only and service capabilities, preserve keyboard
+  switches and reduced motion. Verify `TestHASwitchboardBrowser` with
+  `AURAGO_RUN_BROWSER_SMOKE=1`, `TestHASwitchboardLocales`, focused backend
+  `TestHASwitchboard|TestHAContext`, bundle `--check` and pinned asset validation.
+  Implementation and acceptance details: `documentation/ha-switchboard-plan.md`.
+
 - `meshcore.js`: native Messenger (`window.MeshCoreApp.render/dispose/openConversation`), using `/api/meshcore/messenger/` and the existing Companion manager. Owns direct/channel conversations, protected-text reveal, contact/channel dialogs, native BarcodeDetector import and the existing QRCode renderer. No direct hardware connection or agent-tool sending. Theme styles live in `css/desktop-app-meshcore.css`; the 300px list switches to single-pane navigation below 700px. The "Mesh" visual system owns a scoped `--mc-*` token layer in that stylesheet (teal signature accent with per-theme variants, gradient outgoing bubbles, hash-hue avatars, frosted sticky day pills, skeleton loading). Inline stroke SVG icons are built into the JS via `icon()`/`iconEl()` — no external assets. Messages group by direction/origin within a 300 s gap via `mc-group-start/mid/end` classes; day changes always break groups. Message actions (reveal/copy/retry) reveal on hover/focus-within via `opacity` only — never `pointer-events`, `visibility`, or `display` — because the browser test clicks them by coordinates; they stay visible on touch and narrow layouts. The conversation list supports ArrowUp/ArrowDown roving focus; Esc closes the detail panel or leaves the chat pane unless a dialog is open. Drafts and pending send IDs are local per device/conversation; invitation keys never enter browser storage. Persistent request IDs reconcile HTTP retries, explicit resend warns about duplicates. Abort all requests and remove document listeners/timers on dispose. Session/notification context contains only a validated conversation ID. All 16 desktop locales must include `desktop.meshcore_*`.
 
 - `file-manager/` (under `ui/js/desktop/file-manager/`, bundled to

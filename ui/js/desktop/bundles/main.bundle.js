@@ -328,6 +328,7 @@
         Shared: 'share'
     };
     const appIconKeys = {
+        'ha-switchboard': 'ha-switchboard',
         analytics: 'analytics',
         backup: 'backup',
         backups: 'backup',
@@ -792,6 +793,7 @@
 
     function appGlobalName(appId) {
         return {
+            'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',
@@ -5454,6 +5456,7 @@
 
     function appWindowSize(appId) {
         const presets = {
+            'ha-switchboard': { width: 1300, height: 820 },
             files: { width: 920, height: 600 },
             writer: { width: 960, height: 700 },
             sheets: { width: 1040, height: 690 },
@@ -5497,9 +5500,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
@@ -12228,6 +12232,9 @@ function modalDialog(options) {
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
+        if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
+            return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
+        }
 if (appId === 'system-info') {
             if (!window.SystemInfoApp) {
                 window.AuraDesktopModules.loadAppScript('system-info').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -15618,6 +15625,9 @@ if (appId === 'pixel') {
         }
         if (event.type === 'desktop_changed') {
             const change = event.payload || {};
+            if (change.settings && typeof change.settings['ha_switchboard.board'] === 'string') {
+                document.dispatchEvent(new CustomEvent('aurago:ha-board-change', { detail: { raw: change.settings['ha_switchboard.board'] } }));
+            }
             if (change.operation === 'delete_path') removeRecentFilesAtPath(change.path);
             else if (change.operation === 'move_path') removeRecentFilesAtPath(change.old_path);
             await loadBootstrap();

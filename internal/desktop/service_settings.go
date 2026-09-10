@@ -120,6 +120,9 @@ func validateDesktopSetting(key, value string) error {
 
 func validateFreeformDesktopSetting(key, value string) error {
 	switch key {
+	case HASwitchboardSetting:
+		_, err := ParseHASwitchboard(value)
+		return err
 	case "agent.provider":
 		if len(value) > 128 {
 			return fmt.Errorf("invalid desktop setting value for %s", key)

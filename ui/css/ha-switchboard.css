@@ -1,0 +1,165 @@
+/* The cabinet owns its material palette in every desktop theme. */
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] {
+    --ha-wood: url('/img/ha-switchboard/walnut.png');
+    --ha-brass: #c7a575;
+    container: switchboard / inline-size;
+    display: flex; flex-direction: column; padding: 8px 12px 12px;
+    border: 5px ridge #855b3c; border-radius: 23px;
+    background: #402113 var(--ha-wood) center / 650px;
+    box-shadow: inset 0 2px 3px #f0bd7c88, inset 0 -5px 8px #080401, 0 22px 48px #000b;
+    color: #ecd9b9; backdrop-filter: none; overflow: hidden;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] > .vd-window-titlebar,
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"].active > .vd-window-titlebar {
+    display: flex; position: relative; flex: 0 0 82px; min-height: 82px; padding: 0 12px;
+    background: transparent; border: 0; border-bottom: 4px ridge #805031; border-radius: 0;
+    color: #ddbc8a; box-shadow: none; backdrop-filter: none;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title-group {
+    justify-content: center; align-items: center; width: 100%; padding: 0 140px; pointer-events: none;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title {
+    overflow: visible; color: #d5b386; text-transform: uppercase; text-align: center;
+    font: 28px Georgia, 'Times New Roman', serif; letter-spacing: 5px;
+    text-shadow: 0 -1px 0 #080301, 0 1px 0 #f4d5a766, 1px 2px 2px #000;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title::after {
+    content: '— HOME ASSISTANT —'; display: block; margin-top: 7px; font-size: 11px; letter-spacing: 3px;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-header-icon-wrap,
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-subtitle,
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-ai-button { display: none; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-actions {
+    position: absolute; top: 8px !important; right: 4px !important; left: auto !important; transform: none !important; display: flex; flex-direction: row; gap: 8px; margin: 0;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button {
+    position: relative; width: 28px; min-width: 28px; height: 30px; padding: 0; border-radius: 4px;
+    border: 1px solid #b18a5a; background: linear-gradient(#604329,#24160d); color: #e2c594;
+    box-shadow: inset 0 1px #f3cf9370, 0 2px 3px #080401; margin: 0;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button::before { display: none; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button::after {
+    position: absolute; inset: 0; display: grid; place-items: center; opacity: 1; width: auto; height: auto;
+    transform: none; background: none; border: 0; border-radius: 0; color: #ecd1a5; font: 23px Georgia, serif;
+}
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button[data-action="minimize"]::after { content: '−'; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button[data-action="maximize"]::after { content: '□'; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button[data-action="close"]::after { content: '×'; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button[data-action="minimize"] { order: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button[data-action="maximize"] { order: 1; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button[data-action="close"] { order: 2; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] > .vd-window-content {
+    flex: 1 1 0; min-height: 0; padding: 0; overflow: hidden; border: 0; background: transparent;
+}
+/* Keep the shell's resize hit areas inside the cabinet clipping edge. */
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-n { top: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-s { bottom: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-e { right: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-w { left: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-se { bottom: 5px; right: 5px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-sw { bottom: 5px; left: 5px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-ne { top: 5px; right: 5px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-nw { top: 5px; left: 5px; }
+.ha-board, .ha-board * { box-sizing: border-box; }
+.ha-board { height: 100%; display: flex; flex-direction: column; gap: 8px; color: #ecd9b9; font-family: Georgia, 'Times New Roman', serif; }
+.ha-board button, .ha-board input { font: inherit; }
+.ha-board button { cursor: pointer; }
+.ha-board button:disabled { cursor: default; }
+.ha-board button:focus-visible, .ha-board a:focus-visible, .ha-board input:focus-visible { outline: 3px solid #ffe0a4; outline-offset: 3px; }
+.ha-board [hidden] { display: none !important; }
+.ha-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ha-deck { display: grid; grid-template-columns: minmax(0,1fr) 185px; gap: 7px; flex: 1 1 0; min-height: 0; overflow: auto; padding: 3px; scrollbar-width: thin; scrollbar-color: #96734b #23150d; }
+.ha-bays { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); grid-auto-rows: minmax(435px,1fr); gap: 6px; min-width: 0; }
+.ha-panel { position: relative; border: 3px ridge #765030; border-radius: 12px; background: linear-gradient(90deg,#07030155,transparent 12%,#f8c1810a 50%,#08040277), var(--ha-wood) center / 530px; box-shadow: inset 0 0 0 2px #130a04, inset 0 0 11px #0009, 0 1px 1px #e3a86655; }
+.ha-panel::before, .ha-panel::after { content: ''; position: absolute; width: 10px; height: 10px; top: 7px; background: linear-gradient(130deg,transparent 42%,#160e04 44% 55%,transparent 57%), radial-gradient(circle at 36% 26%,#efd6a7,#997449 45%,#302010 68%,#d6af77 72%,#1d1208 83%); border-radius: 50%; box-shadow: 0 1px 2px #000; pointer-events: none; }
+.ha-panel::before { left: 7px; }.ha-panel::after { right: 7px; }
+.ha-bay { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 17px 8px 20px; }
+.ha-bay:nth-child(2n) { background-position: center, 210px 110px; }.ha-bay:nth-child(3n) { background-position: center, 350px 270px; }
+.ha-plaque { position: relative; color: #24170c; background: linear-gradient(125deg,#f3d5a04d,#59401d33), #b8996e url('/img/radio/metal.png') center / 600px; border: 2px ridge #d7bd90; box-shadow: 0 3px 3px #080401, inset 0 0 8px #402b0f99; text-shadow: 0 1px #ebd1a388; text-align: center; }
+.ha-name { width: 100%; min-height: 47px; display: flex; justify-content: center; align-items: center; padding: 4px 8px; font-size: 13px; line-height: 1.2; font-weight: bold; text-transform: uppercase; border-radius: 3px; }
+.ha-name-label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.ha-name::before, .ha-name::after { content: '•'; position: absolute; top: 50%; transform: translateY(-50%); font-size: 15px; color: #25180b; text-shadow: 0 1px #fff1c0; }.ha-name::before { left: 3px; }.ha-name::after { right: 3px; }
+.ha-bay-symbol { width: 28px; height: 34px; margin-top: 17px; color: #c4a271; filter: drop-shadow(1px 2px 1px #000); }
+.ha-bay-symbol svg, .ha-empty-emblem svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; }
+.ha-switch { position: relative; width: 100%; max-width: 150px; height: 292px; flex: 1 0 255px; min-height: 255px; max-height: 340px; margin: 0; padding: 0; border: 0; background: transparent; border-radius: 14px; -webkit-tap-highlight-color: transparent; }
+.ha-hardware { display: block; position: absolute; width: 100%; height: 100%; inset: 0; filter: saturate(.22) drop-shadow(3px 6px 3px #000b); pointer-events: none; }
+.ha-pose { opacity: 0; transition: opacity 160ms ease; }
+.ha-pose-off { opacity: 1; }
+.ha-bay[data-state="on"] .ha-pose-off { opacity: 0; }.ha-bay[data-state="on"] .ha-pose-on { opacity: 1; }
+.ha-bay.ha-pending .ha-pose { opacity: 0; }.ha-bay.ha-pending .ha-pose-mid { opacity: 1; }
+.ha-switch:hover:not(:disabled) .ha-hardware { filter: saturate(.22) brightness(1.09) drop-shadow(3px 6px 3px #000b); }
+.ha-stale .ha-hardware, .ha-bay[data-state="unavailable"] .ha-hardware, .ha-bay[data-state="missing"] .ha-hardware { opacity: .62; }
+.ha-switch-fallback { position: absolute; width: 60%; height: 58%; top: 24%; left: 20%; border: 2px ridge #c5c5bd; border-radius: 5px; background: linear-gradient(100deg,#585853,#dddcd4,#62635d); box-shadow: 4px 6px 8px #000a; }
+.ha-switch-fallback i { position: absolute; width: 19%; height: 72%; top: 32%; left: 46%; border: 1px solid #d9d5cb; border-radius: 50% 50% 5px 5px; background: linear-gradient(90deg,#151816,#e8e8df 45%,#555a53 70%,#111); transform-origin: 50% 25%; transform: rotate(-12deg); box-shadow: 4px 3px 6px #000; }
+.ha-bay[data-state="on"] .ha-switch-fallback i { top: -30%; transform: rotate(12deg); }
+.ha-hardware { visibility: hidden; }.ha-art-ready .ha-hardware { visibility: visible; }.ha-art-ready .ha-switch-fallback { display: none; }
+.ha-switch-status { display: flex; align-items: center; width: 100%; gap: 9px; min-height: 42px; border-top: 1px solid #160b05; box-shadow: inset 0 1px #c6965433; padding: 9px 3px; font-size: 14px; line-height: 1.25; }
+.ha-switch-status span { overflow-wrap: anywhere; }
+.ha-lamp { display: inline-block; flex: 0 0 16px; width: 16px; height: 16px; border-radius: 50%; border: 2px ridge #b79258; background: radial-gradient(circle at 30% 25%,#d9b67b 1%,#62401e 25%,#201305 65%,#0b0602); box-shadow: 0 1px 2px #000, inset 0 0 2px #fce1a6; }
+.ha-lamp[data-light="on"] { background: radial-gradient(circle at 32% 28%,#ecffd9 2%,#7beb99 13%,#25894c 42%,#135031 76%); box-shadow: 0 0 7px #6fd68188,inset 0 0 3px #b0ffc6; }
+.ha-lamp[data-light="pending"] { background: radial-gradient(circle at 32% 28%,#fff7c5,#ffc251 30%,#af5911 76%); box-shadow: 0 0 7px #ffac4a66; }
+.ha-lamp[data-light="warning"] { background: radial-gradient(circle at 32% 28%,#ffc6b2,#e26348 25%,#711b14 70%); }
+.ha-channel { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #d5ad79; margin-top: 6px; text-shadow: 0 1px 1px #000; }
+.ha-instruments { display: flex; flex-direction: column; align-items: center; min-height: 435px; padding: 19px 12px; gap: 20px; }
+.ha-instrument-plaque { width: 100%; padding: 9px 4px; font-size: 15px; line-height: 1.4; letter-spacing: 2px; }
+.ha-dial { width: 158px; height: 158px; flex: 0 0 158px; border: 7px ridge #8e714c; border-radius: 50%; padding: 4px; background: #22160d; box-shadow: 0 5px 8px #000c, 0 0 0 2px #170e06, inset 0 2px 3px #000; }
+.ha-dial-face { position: relative; width: 100%; height: 100%; border-radius: 50%; color: #2e2417; background: radial-gradient(ellipse at 35% 24%,#ffffff5c,transparent 40%), radial-gradient(circle,#e4cca0 45%,#d0ad79 75%,#725637); box-shadow: inset 0 0 13px #5c3b1f; }
+.ha-dial-face::before { content: ''; position: absolute; inset: 8px; border: 1px solid #4c372077; border-radius: 50%; background: repeating-conic-gradient(from -123deg,#473019 0deg 1deg,transparent 1deg 6deg); mask: radial-gradient(circle,transparent 61%,#000 63%); }
+.ha-dial-mark { position: absolute; font-size: 11px; }.ha-mark-0 { top: 77%; left: 17%; }.ha-mark-25 { top: 34%; left: 12%; }.ha-mark-50 { top: 12%; left: 44%; }.ha-mark-75 { top: 34%; right: 12%; }.ha-mark-100 { top: 77%; right: 9%; }
+.ha-dial-unit { position: absolute; top: 31%; left: 47%; font-size: 10px; }
+.ha-dial-label { position: absolute; top: 75%; left: 24%; width: 52%; text-align: center; font-size: 8px; text-transform: uppercase; letter-spacing: .5px; overflow-wrap: anywhere; }
+.ha-needle { position: absolute; bottom: 43%; left: calc(50% - 2px); width: 4px; height: 44%; background: linear-gradient(90deg,#eadab4,#241b13 42%); transform-origin: 50% 100%; clip-path: polygon(50% 0,100% 95%,50% 100%,0 95%); transition: transform 350ms ease; filter: drop-shadow(2px 2px 1px #0007); }
+.ha-dial-hub { position: absolute; left: calc(50% - 6px); top: calc(57% - 6px); width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 25%,#c4b088,#685134 40%,#20150c 65%); box-shadow: 1px 1px 2px #0008; }
+.ha-dial.ha-stale { opacity: .6; }
+.ha-meter-readout { width: 100%; padding: 12px 5px; border: 2px ridge #3c3020; border-radius: 6px; background: linear-gradient(130deg,#ffffff0a,transparent 60%),#100f0c; text-align: center; box-shadow: inset 0 3px 9px #000; }
+.ha-meter-readout strong { display: block; font-size: 29px; font-weight: normal; color: #e3c59b; }.ha-meter-readout span { font-size: 10px; color: #ccb995; }
+.ha-indicators { width: 100%; font-size: 12px; line-height: 1.3; }.ha-indicators p { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.ha-signature { padding: 12px 5px; width: 100%; margin-top: auto; font-size: 25px; font-style: italic; }.ha-signature small { font-size: 9px; font-style: normal; letter-spacing: 2px; }
+.ha-console { display: grid; grid-template-columns: 190px minmax(0,1fr) 215px; flex: 0 0 142px; gap: 7px; padding: 0 3px 3px; }
+.ha-maker { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; text-shadow: 1px 2px #170b03; color: #c69e65; }.ha-maker span { font-size: 24px; letter-spacing: 4px; }.ha-maker small { font-size: 10px; letter-spacing: 1px; }.ha-maker i { font-size: 14px; }
+.ha-status-glass { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 20px 26px; min-width: 0; border: 5px ridge #715334; border-radius: 15px; background: linear-gradient(135deg,#ffffff0b,transparent 48%),#0d100d; box-shadow: inset 0 0 20px #000,0 2px 2px #0007; text-shadow: 0 1px #000; }
+.ha-status-glass strong { font-size: 19px; font-weight: normal; color: #e8d8b6; }.ha-status-glass span { font-size: 14px; color: #b8bd9e; }.ha-status-glass small { font-size: 11px; color: #afaa8f; }
+.ha-actions { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 17px 13px; }
+.ha-metal-button { min-height: 44px; padding: 9px 16px; border: 3px ridge #dfc799; border-radius: 4px; background: linear-gradient(#e5c69855,#69502d33),#b79b73 url('/img/radio/metal.png') center / 400px; color: #21180d; text-shadow: 0 1px #e8d5ac; box-shadow: 0 3px 3px #000b; font-weight: bold !important; }
+.ha-metal-button:hover:not(:disabled) { filter: brightness(1.12); }.ha-metal-button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 1px #000; }.ha-metal-button:disabled { opacity: .5; }
+.ha-refresh { min-height: 32px; border: 0; padding: 4px 12px; background: transparent; color: #e1c79f; text-decoration: underline; text-underline-offset: 3px; font-size: 13px !important; }
+.ha-actions a { color: #f1d39f; font-size: 12px; }
+.ha-empty { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 35px; text-align: center; }
+.ha-empty-emblem { width: 60px; height: 76px; color: #c6a06b; filter: drop-shadow(1px 3px 1px #000); }.ha-empty h2 { font-size: 24px; font-weight: normal; margin: 0; }.ha-empty p { margin: 0; max-width: 380px; color: #d5c3a9; line-height: 1.6; }
+.ha-drawer { --ha-wood: url('/img/ha-switchboard/walnut.png'); width: min(900px,calc(100vw - 28px)); max-height: calc(100dvh - 28px); padding: 20px; border: 5px ridge #96734e; border-radius: 15px; color: #f0dfc2; background: linear-gradient(#160a0466,#160a0466),var(--ha-wood) center / 650px; box-shadow: inset 0 0 12px #000,0 25px 100px #000b; }
+.ha-drawer::backdrop { background: #100b07aa; backdrop-filter: blur(3px); }
+.ha-drawer form { display: flex; flex-direction: column; min-height: 0; margin: 0; }
+.ha-drawer header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.ha-drawer h2 { margin: 0; font-size: 24px; font-weight: normal; }.ha-drawer h3 { font-size: 15px; margin: 0 0 12px; font-weight: normal; }
+.ha-drawer button { min-width: 36px; min-height: 36px; padding: 7px 12px; border: 1px solid #ae8c59; border-radius: 4px; color: #f0debb; background: #2e1d12; }.ha-drawer button:disabled { opacity: .45; }
+.ha-drawer .ha-metal-button { color: #27190d; background: linear-gradient(#ddbf88,#b39465); }
+.ha-drawer-hint { line-height: 1.5; color: #d6c3a4; font-size: 14px; margin: 12px 0 18px; }
+.ha-drawer-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; min-height: 0; }.ha-drawer-columns section { min-width: 0; }
+.ha-search-label { display: block; font-size: 14px; }.ha-drawer input[type="search"], .ha-drawer input[type="text"] { width: 100%; padding: 9px 11px; min-height: 42px; border: 2px inset #a58357; border-radius: 3px; background: #17130e; color: #f5e9d2; font-size: 14px; }.ha-search-label input { margin: 7px 0 10px; }.ha-drawer input::placeholder { color: #b5a387; }
+.ha-results,.ha-selected { max-height: min(410px,46vh); overflow: auto; scrollbar-width: thin; scrollbar-color: #a08356 #25180e; }
+.ha-result { display: flex; gap: 9px; align-items: center; padding: 10px 5px; border-bottom: 1px solid #80624055; cursor: pointer; }.ha-result input { accent-color: #b9d69f; width: 18px; height: 18px; flex: 0 0 18px; }.ha-result span { flex: 1; min-width: 0; }.ha-result strong { display: block; font-size: 14px; overflow-wrap: anywhere; }.ha-result small { display: block; font-size: 10px; margin-top: 4px; color: #bfae92; overflow-wrap: anywhere; }.ha-result em { color: #c6b494; font-style: normal; font-size: 11px; max-width: 70px; }
+.ha-selected-row { display: flex; align-items: center; gap: 8px; padding: 10px 2px; border-bottom: 1px solid #80624055; }.ha-order { color: #b3a184; width: 18px; }.ha-selected-row label { flex: 1; min-width: 0; }.ha-selected-row label span { display: block; font-size: 12px; overflow-wrap: anywhere; margin-bottom: 5px; }.ha-order-actions { display: grid; grid-template-columns: 32px 32px; gap: 3px; }.ha-order-actions button { padding: 3px; min-width: 32px; min-height: 32px; }.ha-order-actions button:last-child { grid-column: 1/-1; }
+.ha-drawer-message { min-height: 36px; color: #f2c88f; font-size: 14px; line-height: 1.5; }.ha-drawer-empty { font-size: 14px; color: #ccb995; }.ha-drawer footer { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }.ha-saving .ha-drawer-columns { pointer-events: none; opacity: .6; }
+@container switchboard (max-width: 1100px) {
+    .ha-bays { grid-template-columns: repeat(4,minmax(0,1fr)); }
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title { font-size: 23px; letter-spacing: 3px; }
+}
+@container switchboard (max-width: 800px) {
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title-group { padding: 24px 4px 0; }
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title { font-size: 20px; letter-spacing: 2px; }
+    .ha-deck { grid-template-columns: minmax(0,1fr); }.ha-bays { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    .ha-instruments { min-height: 190px; display: grid; grid-template-columns: 160px 1fr; gap: 15px; }.ha-instrument-plaque,.ha-signature { display: none; }.ha-dial { grid-row: 1/3; }.ha-indicators { grid-column: 2; }
+    .ha-console { grid-template-columns: minmax(0,1fr) 180px; flex-basis: 140px; }.ha-maker { display: none; }.ha-status-glass { padding: 12px 16px; }
+}
+@container switchboard (max-width: 540px) {
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] > .vd-window-titlebar,
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"].active > .vd-window-titlebar { flex-basis: 106px; min-height: 106px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title-group { padding-top: 38px; }
+    .ha-bays { grid-template-columns: repeat(2,minmax(0,1fr)); }.ha-name { font-size: 13px; }
+    .ha-console { grid-template-columns: minmax(0,1fr); flex-basis: auto; gap: 4px; }.ha-actions { flex-direction: row; flex-wrap: wrap; padding: 9px; }.ha-actions::before,.ha-actions::after { display: none; }.ha-status-glass { padding: 9px 15px; gap: 4px; }.ha-status-glass strong { font-size: 15px; }.ha-status-glass span { font-size: 12px; }.ha-status-glass small { display: none; }
+}
+@container switchboard (max-width: 390px) { .ha-bays { grid-template-columns: minmax(0,1fr); }.ha-bay { padding-left: 30px; padding-right: 30px; }.ha-instruments { grid-template-columns: 140px minmax(0,1fr); padding: 14px 8px; }.ha-dial { width: 136px; height: 136px; }.ha-empty { padding: 22px; }.ha-empty h2 { font-size: 20px; } }
+@media (max-width: 720px) {
+    .ha-drawer { padding: 13px; }.ha-drawer-columns { grid-template-columns: minmax(0,1fr); gap: 18px; }.ha-results,.ha-selected { max-height: 23vh; }.ha-drawer-hint { font-size: 12px; }.ha-drawer h2 { font-size: 20px; }
+}
+@media (pointer: coarse) { .ha-drawer button { min-height: 44px; min-width: 44px; }.ha-order-actions { grid-template-columns: 44px 44px; }.ha-refresh { min-height: 44px; }.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-button { width: 44px; min-width: 44px; height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .ha-pose,.ha-needle { transition: none; } }

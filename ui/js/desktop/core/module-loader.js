@@ -18,6 +18,10 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        'ha-switchboard': {
+            styles: appStyles('/css/ha-switchboard.css'),
+            scripts: ['/js/desktop/apps/ha-switchboard.js']
+        },
         'files': {
             styles: appStyles('/css/desktop-app-file-manager.css'),
             scripts: ['/js/desktop/bundles/file-manager.bundle.js']

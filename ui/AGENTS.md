@@ -30,6 +30,14 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- HA Switchboard is a lazy built-in desktop app with a theme-independent walnut
+  cabinet and silver lever assets under `img/ha-switchboard/`. Retain real shell
+  controls, semantic switches and the source asset provenance. All 16 desktop
+  locales own `desktop.ha_*`; the Papirus/WhiteSur manifests register its icon.
+  `TestHASwitchboardBrowser` covers the real shell with simulated HA responses;
+  do not actuate arbitrary home devices for acceptance. App contracts live in
+  `js/desktop/apps/AGENTS.md`.
+
 - Speech Output offers local CPU `sanotts` and automatic user language, with English
   fallback for unavailable local voices. Quick Setup keeps this installation default
   even when a provider profile supplies cloud TTS credentials. Existing saved provider

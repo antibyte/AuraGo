@@ -2,6 +2,7 @@ package tools
 
 import (
 	"aurago/internal/security"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,6 +37,10 @@ func haServiceEndpoint(domain, service string) string {
 
 // haRequest performs a generic HTTP request against the HA REST API.
 func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int, error) {
+	return haRequestContext(context.Background(), cfg, method, endpoint, body)
+}
+
+func haRequestContext(ctx context.Context, cfg HAConfig, method, endpoint string, body string) ([]byte, int, error) {
 	if cfg.AccessToken != "" {
 		security.RegisterSensitive(cfg.AccessToken)
 	}
@@ -46,7 +51,7 @@ func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int,
 		reqBody = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -68,7 +73,12 @@ func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int,
 
 // HAGetStates retrieves entity states, optionally filtered by domain prefix.
 func HAGetStates(cfg HAConfig, domain string) string {
-	data, code, err := haRequest(cfg, "GET", "/api/states", "")
+	return HAGetStatesContext(context.Background(), cfg, domain)
+}
+
+// HAGetStatesContext retrieves states with the caller's cancellation deadline.
+func HAGetStatesContext(ctx context.Context, cfg HAConfig, domain string) string {
+	data, code, err := haRequestContext(ctx, cfg, "GET", "/api/states", "")
 	if err != nil {
 		return errJSON("Failed to fetch states: %v", err)
 	}
@@ -80,6 +90,9 @@ func HAGetStates(cfg HAConfig, domain string) string {
 	var states []map[string]interface{}
 	if err := json.Unmarshal(data, &states); err != nil {
 		return errJSON("Failed to parse states: %v", err)
+	}
+	if states == nil {
+		return errJSON("Home Assistant returned an invalid state list")
 	}
 
 	if domain != "" {
@@ -161,6 +174,11 @@ func HAGetState(cfg HAConfig, entityID string) string {
 
 // HACallService calls a Home Assistant service (e.g. light/turn_on).
 func HACallService(cfg HAConfig, domain, service, entityID string, serviceData map[string]interface{}) string {
+	return HACallServiceContext(context.Background(), cfg, domain, service, entityID, serviceData)
+}
+
+// HACallServiceContext calls a service with cancellation and the existing policy gates.
+func HACallServiceContext(ctx context.Context, cfg HAConfig, domain, service, entityID string, serviceData map[string]interface{}) string {
 	if domain == "" || service == "" {
 		return errJSON("'domain' and 'service' are required (e.g. domain='light', service='turn_on')")
 	}
@@ -186,7 +204,7 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 	body, _ := json.Marshal(payload)
 	endpoint := haServiceEndpoint(domain, service)
 
-	data, code, err := haRequest(cfg, "POST", endpoint, string(body))
+	data, code, err := haRequestContext(ctx, cfg, "POST", endpoint, string(body))
 	if err != nil {
 		return errJSON("Service call failed: %v", err)
 	}
@@ -215,6 +233,11 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 		"count":             len(affected),
 	})
 	return string(out)
+}
+
+// HAServiceAllowed exposes the same service policy used by HACallService to UI handlers.
+func HAServiceAllowed(cfg HAConfig, domain, service string) bool {
+	return !cfg.ReadOnly && homeAssistantServiceGate(domain, service, cfg.AllowedServices, cfg.BlockedServices) == ""
 }
 
 func homeAssistantServiceGate(domain, service string, allowedServices, blockedServices []string) string {

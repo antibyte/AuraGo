@@ -10,6 +10,7 @@
                    "WhiteSur"
                ],
     "icons":  {
+    "ha-switchboard": "img/whitesur/icons/ha-switchboard.svg",
                   "leafy": "img/whitesur/icons/leafy.svg",
                   "analytics":  "img/whitesur/icons/analytics.svg",
                   "agent-chat":  "img/whitesur/icons/agent-chat.svg",
