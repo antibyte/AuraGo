@@ -9,29 +9,11 @@ import (
 
 func TestSheetsKeyboardNavigationIsBounded(t *testing.T) {
 	t.Parallel()
-
-	sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "sheets.js"))
-	if err != nil {
-		t.Fatalf("read sheets.js: %v", err)
-	}
-	source := string(sourceBytes)
-	rowClamp := jsFunctionBody(t, source, "clampCellRow")
-	for _, marker := range []string{"displayRowCount() - 1", "Math.min(", "Math.max("} {
-		if !strings.Contains(rowClamp, marker) {
-			t.Fatalf("clampCellRow missing bounded navigation marker %q", marker)
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
+	for _, marker := range []string{"UniverSheetsCorePreset", "disableAutoFocus:true", "keydown", "event.preventDefault()"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Missing editor contract %q", marker)
 		}
-	}
-
-	colClamp := jsFunctionBody(t, source, "clampCellCol")
-	for _, marker := range []string{"displayColCount() - 1", "Math.min(", "Math.max("} {
-		if !strings.Contains(colClamp, marker) {
-			t.Fatalf("clampCellCol missing bounded navigation marker %q", marker)
-		}
-	}
-
-	const callsite = "cellInput(clampCellRow(move[0]), clampCellCol(move[1]))"
-	if !strings.Contains(source, callsite) {
-		t.Fatalf("sheets keyboard navigation missing marker %q", callsite)
 	}
 }
 
@@ -59,7 +41,7 @@ func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 		"if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');",
 		"context: windowContext",
 		"updateWindowContext: updateWindowContext",
-		"ctx.updateWindowContext(windowId, { path: currentPath })",
+		"ctx.updateWindowContext?.(windowId,{path})",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("office same-file dedupe missing marker %q", marker)
@@ -78,12 +60,7 @@ func TestOfficeAppsSendOptimisticVersion(t *testing.T) {
 		source := string(sourceBytes)
 		markers := []string{"If-Match", "If-None-Match", "response.headers.get('ETag')", "error?.status === 412"}
 		if app == "sheets.js" {
-			markers = []string{
-				"let officeVersion = null;",
-				"officeVersion = body.office_version || null;",
-				"office_version: officeVersion",
-				"officeVersion = body.office_version || officeVersion;",
-			}
+			markers = []string{"If-Match", "If-None-Match", "response.headers.get('ETag')", "error?.status===412"}
 		}
 		for _, marker := range markers {
 			if !strings.Contains(source, marker) {
@@ -117,13 +94,7 @@ func TestOfficeAppsExposeNewAndSaveAsMenus(t *testing.T) {
 			name: "sheets",
 			file: "sheets.js",
 			markers: []string{
-				"function newWorkbook()",
-				"function saveAs()",
-				"id: 'new-workbook'",
-				"labelKey: 'desktop.sheets_new'",
-				"id: 'save-as'",
-				"labelKey: 'desktop.sheets_save_as'",
-				"ctx.promptDialog",
+				"action==='new'", "function saveAs()", "item('new','new'", "item('save_as','saveAs'", "ctx.saveFileDialog", "await guard()",
 			},
 		},
 	}
@@ -176,18 +147,9 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 			},
 		},
 		{
-			name: "sheets",
-			path: "js/desktop/apps/sheets.js",
-			markers: []string{
-				"id: 'agent'",
-				"labelKey: 'desktop.menu_agent'",
-				"id: 'agent-task'",
-				"labelKey: 'desktop.agent_task_for_agent'",
-				"id: 'agent-send-chat'",
-				"labelKey: 'desktop.agent_send_to_chat'",
-				"ctx.openAgentChatForFile",
-				"await save()",
-			},
+			name:    "sheets",
+			path:    "js/desktop/apps/sheets.js",
+			markers: []string{"id:'agent'", "labelKey:'desktop.menu_agent'", "item('assist','assist')"},
 		},
 	}
 
@@ -276,20 +238,10 @@ func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
 
 func TestSheetsFormulaStateUsesSingleSetter(t *testing.T) {
 	t.Parallel()
-
-	sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "sheets.js"))
-	if err != nil {
-		t.Fatalf("read sheets.js: %v", err)
-	}
-	source := string(sourceBytes)
-	for _, marker := range []string{
-		"function setCellFromInput(input, raw)",
-		"raw.startsWith('=') ? { formula: raw.slice(1) } : { value: raw }",
-		"setCellFromInput(input, formulaInput.value);",
-		"setCellFromInput(input, raw);",
-	} {
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
+	for _, marker := range []string{"SheetsData.parseInput(nativeEdit.text,locale)", "SheetsData.parseInput(find('[data-formula]').value,locale)", "BeforeSheetEditEnd", "commitFormula"} {
 		if !strings.Contains(source, marker) {
-			t.Fatalf("sheets formula state missing marker %q", marker)
+			t.Fatalf("Missing editor contract %q", marker)
 		}
 	}
 }

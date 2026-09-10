@@ -170,7 +170,7 @@ func executeOfficeDocumentOperation(ctx context.Context, svc *desktop.Service, a
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
-		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, nil)
+		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, officeExportPreservationGuard(outputPath, exported))
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
@@ -297,7 +297,7 @@ func executeOfficeWorkbookOperation(ctx context.Context, svc *desktop.Service, a
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
-		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, nil)
+		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, officeExportPreservationGuard(outputPath, exported))
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
@@ -388,7 +388,12 @@ func officeWriteWorkbook(ctx context.Context, svc *desktop.Service, rawPath stri
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	entry, err := svc.WriteFileBytesConditional(ctx, rawPath, data, desktop.SourceAgent, nil)
+	entry, err := svc.WriteFileBytesConditional(ctx, rawPath, data, desktop.SourceAgent, func(current desktop.FileWriteState) error {
+		if current.Exists {
+			return office.CheckLegacyWorkbookRewrite(rawPath, current.Data)
+		}
+		return nil
+	})
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
@@ -531,6 +536,14 @@ func officeToolExportWorkbook(sourceName string, data []byte, outputPath, format
 	}
 	if outputExt == "" {
 		outputExt = ".xlsx"
+	}
+	if (outputExt == ".xlsx" || outputExt == ".xlsm") && strings.EqualFold(path.Ext(sourceName), outputExt) {
+		return data, nil
+	}
+	if outputExt != ".csv" {
+		if err := office.CheckLegacyWorkbookRewrite(sourceName, data); err != nil {
+			return nil, err
+		}
 	}
 	workbook, err := office.DecodeWorkbook(sourceName, data)
 	if err != nil {

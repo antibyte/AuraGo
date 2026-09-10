@@ -453,6 +453,21 @@ Tools are defined in `internal/tools/`:
 - The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
 - Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
 
+### Desktop Workbook Contract
+- Tabellen uses exactly Univer OSS 0.25.1, Chart.js 4.5.1 and Excelize 2.11.0.
+  Vendor assets/fonts stay local and permissive; never add Pro components.
+- `/api/desktop/office/workbook?representation=editor-v2` exposes typed native
+  snapshots. PATCH requires ETag or create-only preconditions, applies the
+  editor's structural journal atomically to the original package, and retains
+  opaque parts. Preserve images, macros (never execute them), chart XML and
+  unsupported extensions; reject edits that cannot retain their references.
+- Legacy Office/agent writes cannot silently flatten complex XLSX. Same-format
+  exports pass through complete packages; explicit simplified copies are separate.
+- Workbook assist is tool-free, uses only bounded explicit selection/context,
+  and returns revision-bound proposals. The client applies only after approval.
+- Both Office apps share revision-aware serial saves, asynchronous close guards
+  and explicit IndexedDB recovery. Conflict copies carry original source bytes.
+
 ### Desktop Office Document Contract
 - Autor uses the exact Apache-2.0 DOCX core 2.16.0, local fonts/WASM, and an MIT
   review extension; no paid Pro dependency. The UI remains Vanilla JavaScript.

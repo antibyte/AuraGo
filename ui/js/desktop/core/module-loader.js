@@ -30,13 +30,8 @@
             scripts: ['/js/vendor/purify.min.js', '/js/vendor/marked.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/writer-panels.js', '/js/desktop/apps/writer.js']
         },
         'sheets': {
-            styles: appStyles('/css/desktop-app-office.css'),
-            scripts: [
-                '/js/desktop/apps/sheets-formulas.js',
-                '/js/desktop/apps/sheets-format.js',
-                '/js/desktop/apps/sheets-search.js',
-                '/js/desktop/apps/sheets.js'
-            ]
+            styles: appStyles('/js/vendor/sheets/engine.css', '/css/desktop-app-sheets.css'),
+            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets.js']
         },
         'settings': {
             styles: appStyles('/css/desktop-app-settings.css'),

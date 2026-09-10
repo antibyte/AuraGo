@@ -219,7 +219,12 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 		}
 	}
 
-	sheetsMarkup := jsFunctionBodyInWindowMenuTest(t, sheetsText, "function render(host, windowId, context)")
+	toolbarStart := strings.Index(sheetsText, "<div class=\"sheets-toolbar")
+	toolbarEnd := strings.Index(sheetsText, "<div class=\"sheets-formula-line")
+	if toolbarStart < 0 || toolbarEnd < toolbarStart {
+		t.Fatal("Sheets toolbar missing")
+	}
+	sheetsMarkup := sheetsText[toolbarStart:toolbarEnd]
 	for _, movedAction := range []string{
 		`data-action="save"`,
 		`data-action="download"`,
@@ -231,7 +236,7 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 			t.Fatalf("sheets primary toolbar still contains menu-migrated action %s", movedAction)
 		}
 	}
-	if !strings.Contains(sheetsMarkup, `data-action="apply-formula"`) {
+	if !strings.Contains(sheetsText, "button('commitFormula','apply'") {
 		t.Fatalf("sheets lost direct formula apply action")
 	}
 

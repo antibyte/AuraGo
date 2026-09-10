@@ -75,140 +75,20 @@ func TestDesktopOfficeAppScriptsAvoidAlert(t *testing.T) {
 
 func TestDesktopSheetsSupportsSelectionFormulaBarAndContextMenu(t *testing.T) {
 	t.Parallel()
-
-	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
-	requiredJS := []string{
-		"data-formula-bar",
-		"data-range-name",
-		"showSheetContextMenu",
-		"'copy-range'",
-		"'paste-range'",
-		"'clear-range'",
-		"'insert-row-above'",
-		"'insert-col-left'",
-		"applyFormulaBar",
-		"office-cell-selected",
-	}
-	for _, marker := range requiredJS {
-		if !strings.Contains(sheetsJS, marker) {
-			t.Fatalf("sheets app missing spreadsheet UX marker %q", marker)
-		}
-	}
-
-	desktopCSS := readAllDesktopCSS(t)
-	requiredCSS := []string{
-		".office-formula-bar",
-		".office-cell-selected",
-		".office-sheet-context-menu",
-	}
-	for _, marker := range requiredCSS {
-		if !strings.Contains(desktopCSS, marker) {
-			t.Fatalf("desktop.css missing spreadsheet UX style %q", marker)
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
+	for _, marker := range []string{"data-formula", "data-address", "commitFormula", "SelectionChanged", "pinSelection", "UniverSheetsCorePreset"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Missing editor contract %q", marker)
 		}
 	}
 }
 
 func TestDesktopSheetsEnhancedFeatures(t *testing.T) {
 	t.Parallel()
-
-	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
-	requiredJS := []string{
-		"window.SheetsFormulas",
-		"window.SheetsFormat",
-		"window.SheetsSearch",
-		"undoStack",
-		"redoStack",
-		"isDirty",
-		"autosaveTimer",
-		"pushSnapshot",
-		"office-status-bar",
-		"office-format-bar",
-		"openSearch",
-		"addNewSheet",
-		"renameSheetPrompt",
-		"duplicateSheet",
-		"deleteSheet",
-	}
-	for _, marker := range requiredJS {
-		if !strings.Contains(sheetsJS, marker) {
-			t.Fatalf("sheets enhanced feature missing marker %q", marker)
-		}
-	}
-
-	formulasJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-formulas.js"))
-	for _, marker := range []string{
-		"window.SheetsFormulas",
-		"evaluateFormulaForSheet",
-		"parseCellRef",
-		"cellName",
-		"columnName",
-	} {
-		if !strings.Contains(formulasJS, marker) {
-			t.Fatalf("sheets-formulas.js missing marker %q", marker)
-		}
-	}
-
-	formatJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-format.js"))
-	for _, marker := range []string{
-		"window.SheetsFormat",
-		"renderToolbar",
-		"applyFormat",
-		"renderFormatStyles",
-		"formatDisplayValue",
-		"applyBorderStyles",
-	} {
-		if !strings.Contains(formatJS, marker) {
-			t.Fatalf("sheets-format.js missing marker %q", marker)
-		}
-	}
-
-	// Verify sheets.js actually invokes the format renderer (prevents silent regression)
-	for _, marker := range []string{
-		"applyCellFormats",
-		"formatModule.renderFormatStyles",
-		"data-raw-value",
-		"data-num-format",
-	} {
-		if !strings.Contains(sheetsJS, marker) {
-			t.Fatalf("sheets.js missing format wiring marker %q", marker)
-		}
-	}
-
-	searchJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-search.js"))
-	for _, marker := range []string{
-		"window.SheetsSearch",
-		"openSearch",
-		"closeSearch",
-		"replaceAll",
-	} {
-		if !strings.Contains(searchJS, marker) {
-			t.Fatalf("sheets-search.js missing marker %q", marker)
-		}
-	}
-
-	moduleLoader := readDesktopAssetText(t, filepath.Join("js", "desktop", "core", "module-loader.js"))
-	for _, marker := range []string{
-		"/js/desktop/apps/sheets-formulas.js",
-		"/js/desktop/apps/sheets-format.js",
-		"/js/desktop/apps/sheets-search.js",
-	} {
-		if !strings.Contains(moduleLoader, marker) {
-			t.Fatalf("module-loader.js missing sheets sub-module %q", marker)
-		}
-	}
-
-	desktopCSS := readAllDesktopCSS(t)
-	requiredCSS := []string{
-		".office-format-toolbar",
-		".office-search-overlay",
-		".office-status-bar",
-		".office-color-picker",
-		".office-cell-search-match",
-		".office-sheet-add-btn",
-	}
-	for _, marker := range requiredCSS {
-		if !strings.Contains(desktopCSS, marker) {
-			t.Fatalf("desktop.css missing enhanced sheets style %q", marker)
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js") + "\n" + readDesktopAssetText(t, "js/desktop/apps/sheets-panels.js")
+	for _, marker := range []string{"OfficeSession.create", "UniverSheetsDataValidationPreset", "UniverSheetsConditionalFormattingPreset", "UniverSheetsNotePreset", "range.setValues(matrix)", "setColumnFilterCriteria", "moveSheet", "prepareOutput", "generateHTML()", "source_revision", "selection_size"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Missing editor contract %q", marker)
 		}
 	}
 }
@@ -230,10 +110,7 @@ func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 	for _, app := range []string{"sheets.js"} {
 		source := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", app))
 		for _, marker := range []string{
-			"const readonly = !!ctx.readonly;",
-			"applyReadonlyState",
-			"if (readonly) return;",
-			"disabled = readonly",
+			"book.setEditable(!ctx.readonly)", "if(!book||loading||ctx.readonly)return", "control.disabled=true",
 		} {
 			if !strings.Contains(source, marker) {
 				t.Fatalf("%s missing readonly marker %q", app, marker)
@@ -335,26 +212,10 @@ func TestVirtualDesktopConfigExposesRemoteSessionLimits(t *testing.T) {
 
 func TestDesktopSheetsDisplaysFormulaResultsWithoutLosingSourceFormula(t *testing.T) {
 	t.Parallel()
-
-	formulasJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets-formulas.js"))
-	for _, marker := range []string{
-		"function evaluateFormulaForSheet",
-	} {
-		if !strings.Contains(formulasJS, marker) {
-			t.Fatalf("sheets-formulas.js missing formula marker %q", marker)
-		}
-	}
-
-	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
-	for _, marker := range []string{
-		"data-formula=",
-		"data-display-value=",
-		"cellFromInputElement(input)",
-		"showFormulaForEditing(input)",
-		"showFormulaResult(input)",
-	} {
-		if !strings.Contains(sheetsJS, marker) {
-			t.Fatalf("sheets formula display missing marker %q", marker)
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
+	for _, marker := range []string{"range.getFormula()", "range.getRawValue()", "cell.f=active.getRange(+row,+col).getFormula()", "delete cell.si"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Missing editor contract %q", marker)
 		}
 	}
 }

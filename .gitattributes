@@ -22,6 +22,9 @@ ui/js/chat/bundles/*.js text eol=lf
 ui/js/chat/main.js text eol=lf
 ui/js/desktop/bundles/*.js text eol=lf
 
+# Preserve generated template literals and upstream license text byte-for-byte.
+ui/js/vendor/sheets/* text eol=lf -whitespace
+
 # Binaries — never convert
 *.exe   binary
 bin/aurago_linux        binary

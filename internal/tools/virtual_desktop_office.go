@@ -1,10 +1,12 @@
 package tools
 
 import (
+	"bytes"
 	"fmt"
 	"path"
 	"strings"
 
+	"aurago/internal/desktop"
 	"aurago/internal/office"
 )
 
@@ -71,6 +73,14 @@ func virtualDesktopExportOffice(sourceName string, data []byte, outputPath, form
 			outputExt = ".docx"
 		}
 	}
+	if (outputExt == ".xlsx" || outputExt == ".xlsm") && strings.EqualFold(path.Ext(sourceName), outputExt) {
+		return data, nil
+	}
+	if outputExt == ".xlsx" || outputExt == ".xlsm" {
+		if err := office.CheckLegacyWorkbookRewrite(sourceName, data); err != nil {
+			return nil, err
+		}
+	}
 	if outputExt == ".docx" && strings.EqualFold(path.Ext(sourceName), ".docx") {
 		return data, nil
 	}
@@ -97,5 +107,17 @@ func virtualDesktopExportOffice(sourceName string, data []byte, outputPath, form
 		return office.EncodeWorkbook(workbook)
 	default:
 		return nil, fmt.Errorf("unsupported export format %q", strings.TrimPrefix(outputExt, "."))
+	}
+}
+
+func officeExportPreservationGuard(path string, output []byte) func(desktop.FileWriteState) error {
+	return func(current desktop.FileWriteState) error {
+		if !current.Exists || bytes.Equal(current.Data, output) {
+			return nil
+		}
+		if err := office.CheckLegacyDocumentRewrite(path, current.Data); err != nil {
+			return err
+		}
+		return office.CheckLegacyWorkbookRewrite(path, current.Data)
 	}
 }

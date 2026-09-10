@@ -1,5 +1,5 @@
 window.fixtureErrors = [];
-addEventListener('error', e => fixtureErrors.push(e.message));
+addEventListener('error', e => fixtureErrors.push(e.error?.stack||e.message));
 addEventListener('unhandledrejection', e => fixtureErrors.push(String(e.reason)));
 const nativeFetch = window.fetch.bind(window);
 const reply = data => new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});

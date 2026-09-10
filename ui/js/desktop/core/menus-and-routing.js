@@ -726,7 +726,7 @@
     }
 
     function officeAppContext(context) {
-        return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, confirmDialog,
+        return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, promptDialog, confirmDialog,
             registerWindowCleanup,
             setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
         });

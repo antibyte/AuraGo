@@ -8,6 +8,8 @@
     "build:realtime-speech-vendor": "node scripts/build-realtime-speech-vendor.js",
     "build:writer-vendor": "node scripts/build-writer-vendor.js",
     "test:writer": "node scripts/test-writer-session.mjs",
+    "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
+    "test:sheets": "node scripts/test-sheets-data.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
     "check:ui": "node scripts/build-ui-bundles.js --check",
     "test:realtime-speech": "node scripts/test-realtime-speech.mjs",
@@ -33,12 +35,26 @@
     "@docx-editor.dev/core": "2.16.0",
     "@docx-editor.dev/fonts": "2.16.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
+    "@univerjs/preset-sheets-conditional-formatting": "0.25.1",
+    "@univerjs/preset-sheets-core": "0.25.1",
+    "@univerjs/preset-sheets-data-validation": "0.25.1",
+    "@univerjs/preset-sheets-filter": "0.25.1",
+    "@univerjs/preset-sheets-find-replace": "0.25.1",
+    "@univerjs/preset-sheets-hyper-link": "0.25.1",
+    "@univerjs/preset-sheets-note": "0.25.1",
+    "@univerjs/preset-sheets-sort": "0.25.1",
+    "@univerjs/preset-sheets-table": "0.25.1",
+    "@univerjs/presets": "0.25.1",
     "chess.js": "1.4.0",
     "cm-chessboard": "8.12.12",
+    "esbuild": "0.25.12",
     "headroom-ai": "^0.22.4",
     "onnxruntime-web": "1.27.0",
     "quill": "2.0.2",
     "rollup": "^4.62.2",
     "stockfish": "18.0.8"
+  },
+  "overrides": {
+    "nanoid": "5.1.16"
   }
 }

@@ -27,10 +27,10 @@ func TestDesktopSheetsAppMarkers(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
 	for _, marker := range []string{
-		"SheetsApp.render",
-		"SheetsApp.dispose",
+		"window.SheetsApp={render,dispose,instances}",
+		"queue?.dispose()",
 		"dispose(windowId);",
-		"closeSheetContextMenu",
+		"engine?.dispose()",
 		"/api/desktop/office/workbook",
 	} {
 		if !strings.Contains(source, marker) {

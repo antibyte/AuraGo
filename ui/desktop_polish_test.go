@@ -23,7 +23,7 @@ func TestVirtualDesktopPolishRegressions(t *testing.T) {
 		"case 'Delete':",
 		"case 'F2':",
 		"case 'dismiss':notice('')",
-		"function setCellFromInput",
+		"function commitFormula",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("virtual desktop polish regression marker missing %q", marker)

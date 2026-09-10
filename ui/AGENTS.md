@@ -30,6 +30,14 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- Tabellen uses the local Univer OSS 0.25.1 resource set under `js/vendor/sheets/`.
+  Keep its own Autor-style chrome and permanently light grid. Localized input,
+  native formulas/clipboard/undo, ETag saves, recovery and Chart.js overlays are
+  covered by `TestDesktopSheetsAppBrowser`; the Aurora fixture's
+  `AURAGO_SHEETS_MATRIX=1` mode checks all three themes, both densities and
+  desktop/touch sizes. Source and lifecycle contracts live in
+  `js/desktop/apps/AGENTS.md`.
+
 - Desktop sticky notes use the existing widget API/storage (`type: sticky-note`),
   plain `config.text`, and stable ID-derived paper wear. The background menu adds
   notes; hover/focus/touch exposes edit, duplicate and delete. Preserve server

@@ -312,7 +312,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
-		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, nil)
+		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, officeExportPreservationGuard(outputPath, exported))
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}

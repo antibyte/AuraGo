@@ -583,11 +583,10 @@ buttons and menu popovers remain excluded from those gestures.
 - `cheater*.js` implements the Cheater app, a cheat-sheet manager with a
   textarea-based Markdown editor, live preview, Markdown toolbar, command
   palette (spotlight), and attachments side panel.
-- `sheets*.js` implements the Sheets app, a spreadsheet editor with formula
-  engine, cell formatting, undo/redo, auto-save, search/replace, and multi-sheet
-  support. Split across `sheets.js` (core), `sheets-formulas.js` (formula
-  engine), `sheets-format.js` (format toolbar), and `sheets-search.js`
-  (find/replace overlay).
+- `sheets.js` owns Tabellen's Autor-style chrome, document lifecycle and native
+  Univer OSS 0.25.1 instance. `sheets-data.js` owns localized inputs, CSV and
+  templates; `sheets-panels.js` owns formatting, data, search, AI and print;
+  `sheets-charts.js` renders five editable Chart.js chart types on the sheet.
 - `code-studio/*.js` implements Code Studio, a full IDE with file explorer,
   CodeMirror editor, terminal, search, agent chat with SSE streaming, Git
   integration, split editor, and keyboard shortcuts. Split across `core.js`
@@ -839,23 +838,29 @@ registration lives in `internal/desktop/types.go`.
   `/api/cheatsheets/{id}/attachments`; client validation stays aligned with
   backend limits: `.txt`/`.md`, 1 MiB upload size, and 25,000 text characters
   per sheet.
-- Sheets exposes `window.SheetsApp = { render, dispose }`; every desktop window
-  instance owns its own undo/redo stacks, auto-save timer, dirty state, and
-  context menu state.
-- Sheets formula engine lives in `sheets-formulas.js` and exposes
-  `window.SheetsFormulas = { evaluate, tokenize, parseCellRef, cellName,
-  columnName, numericCellValue, rangeValues }`.
-- Sheets format toolbar lives in `sheets-format.js` and exposes
-  `window.SheetsFormat = { renderToolbar, applyFormat, getFormatForCell,
-  renderFormatStyles, updateToolbarState }`.
-- Sheets search/replace lives in `sheets-search.js` and exposes
-  `window.SheetsSearch = { openSearch, closeSearch, findNext, findPrev,
-  replace, replaceAll }`.
-- Sheets sub-module load order in `module-loader.js` must be: formulas, format,
-  search, then sheets.js (core). This is because sheets.js references
-  `window.SheetsFormulas` at render time.
-- Sheets visible UI strings use `desktop.sheets_*` keys in all
-  `ui/lang/desktop/*.json` files.
+- Sheets exposes `window.SheetsApp = { render, dispose, instances }`. Each
+  window owns its engine/worker, requests, panels, chart canvases, operation
+  journal and save queue. Load OfficeSession, data, panels and charts before
+  sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 0.25.1.
+- Use the engine's formula, selection, clipboard, structural-reference and undo
+  APIs. Do not restore the removed HTML grid or browser formula evaluator.
+  Expand shared formulas before persistence, preserve forced strings, and parse
+  native edits through the same locale-aware path as the formula bar.
+- Current engine selection takes priority over a pinned toolbar fallback.
+  Await clipboard commands; format disjoint selections as one native command.
+  Formula recalculation events must not dirty the workbook.
+- PATCH editor-v2 uses ETag preconditions and an original XLSX source. Keep the
+  structure journal until its own save succeeds; stale responses cannot clear
+  newer edits. Save As and recovery copies preserve the original source bytes.
+  Shared OfficeSession autosaves at 800 ms / five seconds and owns IndexedDB
+  drafts separately for Writer and Sheets. Dispose all document resources.
+- Use native chart/print mutations on the same undo stack. Charts remain real
+  OOXML charts; unsupported chart types and workbook references are preserved
+  and guarded. AI only proposes bounded changes to the explicit selection;
+  apply once through native undo, and reject stale revisions.
+- The sheet stays light in every desktop theme. Use shared desktop menu/icons,
+  16 desktop locales, local fonts and a <900px overlay inspector. Print/export
+  captures current edits and waits for calculation, without moving selection.
 - Writer exposes `window.WriterApp = { render, dispose, instances }`. Each window
   owns its editor, abort controllers, panels, draft and serial save queue.
   Autosave waits 800 ms, with a five-second ceiling during continuous typing.
@@ -1019,9 +1024,8 @@ registration lives in `internal/desktop/types.go`.
   `cheater-spotlight.js`, `cheater-templates.js`, and `cheater-attachments.js`;
   do not fold the toolbar, spotlight, or attachment logic into the main app
   file.
-- Keep Sheets split across `sheets.js`, `sheets-formulas.js`,
-  `sheets-format.js`, and `sheets-search.js`; do not fold the formula engine,
-  format toolbar, or search/replace logic into the main app file.
+- Keep Sheets lifecycle, data conversion, panels and charts in their four
+  existing modules; reuse the shared OfficeSession queue and native engine.
 - Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
   `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
   and `command-palette.js`; do not fold domain modules into core.js.
@@ -1125,12 +1129,22 @@ registration lives in `internal/desktop/types.go`.
 - Keep Writer's document lifecycle, save queue and panels in their existing three
   modules; load session and panels before writer.js. Rebuild and check local vendor
   assets with `node scripts/build-writer-vendor.js [--check]`.
-- New formula functions must be added to `sheets-formulas.js` and kept in sync
-  with the Go evaluator in `internal/office/` (see `EvaluateFormulaForSheet`).
+- Build/check Sheets with `node scripts/build-sheets-vendor.js [--check]`.
+  Both the main engine and worker register AVG as the AVERAGE compatibility
+  alias. English formula syntax is independent from localized input/display.
+  The worker's cycle guard uses the public dependency graph and runtime result
+  API to mark cycles and their dependents as #REF!, instead of Univer's default
+  one-iteration numbers. Keep graph emission enabled and test self/cross-cell
+  cycles, unaffected formulas and recovery after breaking the cycle.
 - Rebuild chess vendor assets with `npm run build:chess-vendor` after changing
   vendored chess package versions or copied Stockfish assets.
 
 ## Verification
+
+- `node scripts/test-sheets-data.mjs`, `node scripts/test-writer-session.mjs`
+- `node scripts/build-sheets-vendor.js --check`
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopSheets(Engine|App)Browser' -count=1`
+- `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SHEETS_MATRIX=1 go test ./ui -run '^TestDesktopAuroraBrowser$' -count=1` (18 theme/density/size screenshots)
 
 - `go test ./ui/ -run TestDesktopFeeling`
 - `go test ./ui/ -run TestDesktopWidgetConfigPersistence`
@@ -1371,19 +1385,14 @@ registration lives in `internal/desktop/types.go`.
   `desktop.store_terminal_load_failed` so the asset URL does not
   leak. Loaded lazily. Exposes
   `window.StoreTerminalPreviewApp`. No child DOX file needed.
-- `sheets.js` - Spreadsheet app. Missing print-frame errors notify
-  `desktop.print_failed`. Exposes `window.SheetsApp`. No child
-  DOX file needed.
-- `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
-  cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
-  functions, etc.). Exposes `window.SheetsFormulas`. No child DOX file needed.
-- `sheets-format.js` - Format toolbar: bold/italic/underline toggles, color
-  pickers, alignment buttons, number format dropdown, border dropdown. Exposes
-  `window.SheetsFormat`. No child DOX file needed.
-- `sheets-search.js` - Search/replace overlay: find next/prev, match case,
-  replace current, replace all, match highlighting. Match counts use
-  `desktop.sheets_match_count`. Exposes `window.SheetsSearch`. No child
-  DOX file needed.
+- `sheets.js` - Native workbook host and lifecycle. Exposes
+  `window.SheetsApp`. No child DOX file needed.
+- `sheets-data.js` - Typed localized inputs, CSV preview/import, templates and
+  native locale supplementation. Exposes `window.SheetsData`.
+- `sheets-panels.js` - Format/data/chart/AI/search/navigation/print panels.
+  Exposes `window.SheetsPanels`.
+- `sheets-charts.js` - Chart.js overlay, sheet anchoring and undoable chart
+  operations. Exposes `window.SheetsCharts`.
 - `code-studio/core.js` - Code Studio core: state management, API client, path
   utilities, lifecycle (render/dispose), shell markup, toolbar, tabs, breadcrumbs,
   status bar, file operations, window menus. Zen-mode exit title reuses

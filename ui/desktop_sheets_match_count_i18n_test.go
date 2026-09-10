@@ -10,11 +10,8 @@ import (
 func TestDesktopSheetsMatchCountI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/sheets-search.js")
-	for _, want := range []string{
-		"t('desktop.sheets_match_count', { current: 1, total: state.matches.length })",
-		"t('desktop.sheets_match_count', { current: state.current + 1, total: state.matches.length })",
-	} {
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets-panels.js")
+	for _, want := range []string{"tr('match_count',{current:matchIndex+1,total:matches.length})"} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("sheets match-count i18n missing marker %q", want)
 		}

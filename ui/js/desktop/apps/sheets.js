@@ -1,1335 +1,281 @@
 (function () {
     'use strict';
-
-    const DEFAULT_PATH = 'Documents/untitled.xlsx';
-    const MIN_ROWS = 24;
-    const MIN_COLS = 10;
-    const MAX_UNDO = 50;
-    const AUTOSAVE_DELAY = 2000;
-    const instances = new Map();
-
+    const instances=new Map();
+    let enginePromise;
+    const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const basename=path=>String(path).split('/').pop();
+    const newPath=()=> 'Documents/untitled-'+crypto.randomUUID().slice(0,8)+'.xlsx';
+    const endpoint=path=>'/api/desktop/office/workbook?representation=editor-v2&path='+encodeURIComponent(path);
+    async function responseOK(response) {
+        if(response.ok)return response;
+        const body=await response.json().catch(()=>({})),error=new Error(body.error||body.message||('HTTP '+response.status));
+        error.status=response.status;throw error;
+    }
     function render(host, windowId, context) {
-        if (!host) return;
         dispose(windowId);
-        instances.set(windowId, { container: host, closeContextMenu: () => closeSheetContextMenu(), autosaveTimer: null, closeSearch: null, formatClickHandler: null });
-        const ctx = context || {};
-        const esc = ctx.esc || (value => String(value == null ? '' : value));
-        const rawT = ctx.t || ((key, vars) => interpolate(key, vars));
-        const t = (key, fallback, vars) => {
-            if (fallback && typeof fallback === 'object' && !Array.isArray(fallback)) { vars = fallback; fallback = ''; }
-            const translated = rawT(key, vars || {});
-            return translated && translated !== key ? translated : (fallback || key);
+        const ctx=context||{},esc=ctx.esc||escapeHTML;
+        const tr=(key,params)=>{
+            for(const prefix of ['sheets_','writer_','']){const id='desktop.'+prefix+key,value=ctx.t?.(id,params);if(value&&value!==id)return value;}
+            return key;
         };
-        const api = ctx.api || fetchJSON;
-        const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
-        const notify = ctx.notify || (() => {});
-        const refreshDesktop = ctx.loadBootstrap || (() => Promise.resolve());
-        const readonly = !!ctx.readonly;
-        let currentPath = ctx.path || DEFAULT_PATH;
-        let officeVersion = null;
-        let activeSheet = 0;
-        let workbook = emptyWorkbook(currentPath);
-        let selection = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
-        let dragSelecting = false;
-        let localClipboard = '';
-        let contextMenu = null;
-        let contextMenuOutsideHandler = null;
-        let undoStack = [];
-        let redoStack = [];
-        let isDirty = false;
-        let isUndoRedoAction = false;
-        let formatToolbar = null;
-
-        host.innerHTML = `<div class="office-app office-sheets" data-office-sheets="${esc(windowId)}">
-            <div class="vd-toolbar office-toolbar">
-                <span class="vd-chat-meta" data-status>${esc(t('desktop.sheets_loading'))}</span>
-            </div>
-            <div class="office-formula-bar" data-formula-bar>
-                <output class="office-range-name" data-range-name>A1</output>
-                <span class="office-formula-fx" aria-hidden="true">fx</span>
-                <input class="office-formula-input" data-formula-input value="" spellcheck="false" autocomplete="off" placeholder="=SUM(A1:A3)">
-                <button class="vd-tool-button office-formula-apply" type="button" data-action="apply-formula">${iconMarkup('check-square', 'OK', 'vd-tool-icon', 15)}<span>${esc(t('desktop.ok'))}</span></button>
-            </div>
-            <div class="office-format-bar" data-format-bar></div>
-            <div class="office-sheet-grid-wrap" data-grid></div>
-            <div class="office-sheet-tabs" data-tabs></div>
-            <div class="office-status-bar" data-status-bar>
-                <span class="office-status-left" data-status-left></span>
-                <input class="office-status-path" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
-                <span class="office-status-right" data-status-right></span>
-            </div>
-        </div>`;
-
-        const pathInput = host.querySelector('[data-path]');
-        const status = host.querySelector('[data-status]');
-        const tabsHost = host.querySelector('[data-tabs]');
-        const gridHost = host.querySelector('[data-grid]');
-        const rangeName = host.querySelector('[data-range-name]');
-        const formulaInput = host.querySelector('[data-formula-input]');
-        const formatBarHost = host.querySelector('[data-format-bar]');
-        const statusLeft = host.querySelector('[data-status-left]');
-        const statusRight = host.querySelector('[data-status-right]');
-        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
-
-        const formulas = window.SheetsFormulas;
-        const formatModule = window.SheetsFormat;
-        const searchModule = window.SheetsSearch;
-
-        if (formatModule && formatBarHost) {
-            formatToolbar = formatModule.renderToolbar(formatBarHost, t, handleFormatChange);
-            if (formatToolbar) {
-                wireFormatToolbar(formatToolbar);
-            }
+        const icons={new:'file-plus',open:'folder-open',save:'save',saveAs:'copy',navigation:'list',search:'search',format:'sliders',data:'grid',chart:'analytics',assist:'star',undo:'undo',redo:'redo',print:'printer',addSheet:'plus',sheetMenu:'more-horizontal',borders:'grid',fill:'palette',color:'palette',merge:'columns',zoomIn:'zoom-in',zoomOut:'zoom-out',zoomReset:'search',more:'menu',closeLeft:'x',closeRight:'x',cancelFormula:'x',commitFormula:'check',expandFormula:'chevron-down'};
+        const button=(action,label,symbol)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label||action))+'" aria-label="'+esc(tr(label||action))+'">'+(ctx.iconMarkup?.(icons[action]||action,symbol,'sheets-icon',18,'action')||esc(symbol))+'</button>';
+        host.innerHTML='<div class="sheets-app"><header class="sheets-documentbar"><div class="sheets-document"><button class="sheets-document-name" data-action="document"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">'+esc(tr('loading'))+'</span></div><nav class="sheets-views">'+button('navigation','navigation','☷')+button('search','find','⌕')+'<span class="sheets-divider"></span>'+button('format','format','A')+button('data','data','▦')+button('chart','chart','▥')+button('assist','assist','✦')+'</nav></header>'+
+            '<div class="sheets-document-menu" data-document-menu hidden><strong data-location></strong><button data-action="rename">'+esc(tr('rename'))+'</button><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="save">'+esc(tr('save'))+'</button></div>'+
+            '<div class="sheets-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="sheets-toolgroup">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><div class="sheets-toolgroup sheets-fonts"><select data-format="font" aria-label="'+esc(tr('font'))+'">'+['Arial','Calibri','Carlito','Geist','Georgia','Times New Roman','Courier New'].map(name=>'<option>'+name+'</option>').join('')+'</select><input data-format="size" type="number" min="1" max="200" step=".5" value="11" aria-label="'+esc(tr('size'))+'"></div><div class="sheets-toolgroup">'+button('bold','bold','B')+button('italic','italic','I')+button('underline','underline','U')+'</div><div class="sheets-toolgroup"><select data-format="number" aria-label="'+esc(tr('number_format'))+'">'+[['General','general'],['0.00','format_number'],['0.00%','format_percent'],['#,##0.00 "€"','format_currency'],['yyyy-mm-dd','format_date'],['@','format_text']].map(([v,k])=>'<option value="'+esc(v)+'">'+esc(tr(k))+'</option>').join('')+'</select></div><div class="sheets-toolgroup">'+button('left','align_left','≡')+button('center','align_center','≡')+button('right','align_right','≡')+'</div><div class="sheets-toolgroup">'+button('borders','format_borders','▦')+button('fill','fill_color','▰')+button('merge','merge_cells','↔')+'</div>'+button('more','more','•••')+'</div>'+
+            '<div class="sheets-formula-line"><input data-address aria-label="'+esc(tr('address'))+'" value="A1" spellcheck="false"><button data-action="function" class="sheets-fx" title="'+esc(tr('function_assistant'))+'">ƒx</button><div class="sheets-formula-wrap"><textarea data-formula rows="1" spellcheck="false" aria-label="'+esc(tr('formula'))+'"></textarea><div data-formula-hints class="sheets-formula-hints" hidden></div></div><span data-formula-actions hidden>'+button('cancelFormula','cancel','×')+button('commitFormula','apply','✓')+'</span>'+button('expandFormula','expand_formula','⌄')+'</div>'+
+            '<div class="sheets-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry">'+esc(tr('retry'))+'</button><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="dismiss" aria-label="'+esc(tr('close'))+'">×</button></div>'+
+            '<div class="sheets-workspace"><aside class="sheets-left" data-left hidden></aside><main class="sheets-canvas"><div class="sheets-engine" data-engine></div><div class="sheets-charts" data-charts></div><div class="sheets-loading" data-loading>'+esc(tr('loading'))+'</div></main><aside class="sheets-right" data-right hidden></aside></div>'+
+            '<div class="sheets-tabsbar"><div data-tabs class="sheets-tabs" role="tablist" aria-label="'+esc(tr('navigation'))+'"></div>'+button('addSheet','add_sheet','+')+button('sheetMenu','sheet_options','•••')+'</div><footer class="sheets-statusbar"><span data-selection></span><span class="sheets-status-spacer"></span><span data-stats></span>'+button('zoomOut','zoom_out','−')+'<button data-action="zoomReset" data-zoom>100%</button>'+button('zoomIn','zoom_in','+')+'</footer></div>';
+        const root=host.firstElementChild,find=selector=>root.querySelector(selector),mount=find('[data-engine]');
+        const lifecycle=new AbortController();
+        let documentLife=new AbortController(),engine,api,book,lib,queue,bridge,panels,chartView;
+        let path=ctx.path||newPath(),etag=null,loading=true,disposed=false,generation=0,leftPanel='',rightPanel='',refreshTimer;
+        let aux={charts:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null;
+        const disposables=[],locale=document.documentElement.lang||'en';
+        const state={ctx,esc,tr,root,find,locale,act,notice,fail,refresh,run,selected,selection,commitFormula,snapshot,prepareOutput,
+            get api(){return api;},get book(){return book;},get charts(){return chartView;},get lib(){return lib;},get readonly(){return !!ctx.readonly;},
+            get revision(){return queue?.revision||0;},get signal(){return documentLife.signal;},get aux(){return aux;},
+            setAux(value){if(!ctx.readonly)bridge.commit(value,book.getId());},
+            format(type,value){return api.executeCommand('sheet.command.set-style',{unitId:book.getId(),subUnitId:sheet().getSheetId(),style:{type,value}});},
+            get clipboard(){return bridge.clipboard();},
+            get path(){return path;},get etag(){return etag;},
+            prompt:(key,value)=>ctx.promptDialog(tr(key),value??''),
+            confirmKey:key=>ctx.confirmDialog(tr(key)),
+            download,save,load
+        };
+        const instance={act,dispose:cleanup,get api(){return api;},get book(){return book;},get session(){return queue;},get path(){return path;},get state(){return state;}};
+        instances.set(windowId,instance);
+        ctx.wireContextMenuBoundary?.(host);ctx.setWindowBeforeClose?.(windowId,guard);ctx.registerWindowCleanup?.(windowId,cleanup);
+        function notice(text,error=false){if(disposed)return;find('[data-notice-text]').textContent=text||'';find('[data-notice]').hidden=!text;find('[data-notice]').dataset.error=String(error);}
+        function fail(error){if(error?.name!=='AbortError'&&!disposed)notice(error?.status===412?tr('conflict'):(error?.message||String(error)),true);}
+        function sheet(){return book?.getActiveSheet();}
+        function selection(){return sheet()?.getActiveRange()?.getRange()||(pin&&pin.sheet===sheet()?.getSheetId()?pin.range:null)||{startRow:0,endRow:0,startColumn:0,endColumn:0};}
+        function selected(){return sheet()?.getRange(selection());}
+        function pinSelection(){if(book)pin={sheet:sheet().getSheetId(),range:sheet().getActiveRange()?.getRange()||selection()};}
+        function run(fn){if(!book||loading||ctx.readonly)return;try{const result=fn();if(result?.catch)result.catch(fail);refreshSoon();return result;}catch(error){fail(error);}}
+        function draftKey(){return location.origin+':'+path;}
+        async function backup(value,revision){
+            const entry={id:crypto.randomUUID(),snapshot:value,revision,etag,path,sourceData,updated:Date.now()};
+            try{await OfficeSession.draft('put',draftKey(),entry,'sheets');lastDraft=entry;return true;}catch(_){notice(tr('draft_unavailable'),true);return false;}
         }
-
-        function setStatus(message) {
-            if (status) status.textContent = message || '';
+        function scheduleBackup(){
+            clearTimeout(backupTimer);
+            const store=()=>{clearTimeout(backupTimer);clearTimeout(backupDeadline);backupTimer=backupDeadline=null;if(book&&queue?.dirty)backup(snapshot(),queue.revision);};
+            backupTimer=setTimeout(store,600);if(!backupDeadline)backupDeadline=setTimeout(store,4000);
         }
+        function snapshot(){
+            commitFormula();
+            const workbook=structuredClone(book.save());
+            for(const id of workbook.sheetOrder){const active=book.getSheetBySheetId(id);for(const [row,columns]of Object.entries(workbook.sheets[id].cellData||{}))for(const [col,cell]of Object.entries(columns))if(cell?.si){cell.f=active.getRange(+row,+col).getFormula();delete cell.si;}}
 
-        function setDirty(dirty) {
-            isDirty = dirty;
-            const displayName = (pathInput.value.trim() || DEFAULT_PATH).split('/').pop();
-            if (typeof ctx.updateWindowContext === 'function') {
-                ctx.updateWindowContext(windowId, { title: (isDirty ? '• ' : '') + displayName });
-            }
-            if (isDirty) scheduleAutosave();
+            workbook.custom={...(workbook.custom||{}),auragoPrint:aux.print};
+            return {schema_version:2,workbook,charts:structuredClone(aux.charts),operations:structuredClone(operations)};
         }
-
-        function scheduleAutosave() {
-            if (readonly || !isDirty) return;
-            const inst = instances.get(windowId);
-            if (inst && inst.autosaveTimer) clearTimeout(inst.autosaveTimer);
-            if (inst) {
-                inst.autosaveTimer = setTimeout(() => {
-                    inst.autosaveTimer = null;
-                    if (isDirty) save().catch(() => {});
-                }, AUTOSAVE_DELAY);
-            }
+        async function write(value,target=path,expected=etag){
+            if(recoveryConflict&&(target===path||!sourceData)){const e=new Error(tr('draft_conflict'));e.status=412;throw e;}
+            const source=target!==path&&sourceData?{source_data:sourceData}:target!==path&&etag?{source_path:path,source_etag:etag}:{};
+            const response=await responseOK(await fetch(endpoint(target),{method:'PATCH',credentials:'same-origin',signal:documentLife.signal,
+                headers:{'Content-Type':'application/json',...(expected?{'If-Match':expected}:{'If-None-Match':'*'})},body:JSON.stringify({...value,...source})}));
+            const result=await response.json(),version=response.headers.get('ETag');
+            if(target===path){etag=version;sourceData=result.source_data||sourceData;operations.splice(0,value.operations.length);}
+            return {etag:version,sourceData:result.source_data};
         }
-
-        function pushSnapshot() {
-            if (isUndoRedoAction) return;
-            undoStack.push(JSON.parse(JSON.stringify(workbook.sheets)));
-            if (undoStack.length > MAX_UNDO) undoStack.shift();
-            redoStack = [];
-        }
-
-        function undo() {
-            if (!undoStack.length || readonly) return;
-            isUndoRedoAction = true;
-            captureGrid();
-            redoStack.push(JSON.parse(JSON.stringify(workbook.sheets)));
-            workbook.sheets = undoStack.pop();
-            activeSheet = Math.min(activeSheet, workbook.sheets.length - 1);
-            renderWorkbook();
-            isUndoRedoAction = false;
-            setStatus(t('desktop.sheets_undo'));
-        }
-
-        function redo() {
-            if (!redoStack.length || readonly) return;
-            isUndoRedoAction = true;
-            captureGrid();
-            undoStack.push(JSON.parse(JSON.stringify(workbook.sheets)));
-            workbook.sheets = redoStack.pop();
-            activeSheet = Math.min(activeSheet, workbook.sheets.length - 1);
-            renderWorkbook();
-            isUndoRedoAction = false;
-            setStatus(t('desktop.sheets_redo'));
-        }
-
-        function setPath(path) {
-            currentPath = path || DEFAULT_PATH;
-            pathInput.value = currentPath;
-            updateExportLinks();
-            if (typeof ctx.updateWindowContext === 'function') ctx.updateWindowContext(windowId, { path: currentPath });
-        }
-
-        function updateExportLinks() { setWindowMenus(); }
-
-        function renderWorkbook() {
-            closeSheetContextMenu();
-            workbook = normalizeWorkbook(workbook, pathInput.value.trim() || DEFAULT_PATH);
-            activeSheet = Math.min(activeSheet, workbook.sheets.length - 1);
-            const sheet = workbook.sheets[activeSheet];
-            tabsHost.innerHTML = workbook.sheets.map((s, index) => `<button type="button" class="${index === activeSheet ? 'active' : ''}" data-sheet-index="${index}" title="${esc(s.name || '')}">${esc(s.name || (t('desktop.sheets_sheet') + ' ' + (index + 1)))}</button>`).join('') +
-                `<button type="button" class="office-sheet-add-btn" data-action="add-sheet" title="${esc(t('desktop.sheets_add_sheet'))}">+</button>`;
-            tabsHost.querySelectorAll('[data-sheet-index]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    captureGrid();
-                    activeSheet = Number(btn.dataset.sheetIndex) || 0;
-                    selection = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
-                    renderWorkbook();
-                });
-                btn.addEventListener('dblclick', () => {
-                    if (readonly) return;
-                    const idx = Number(btn.dataset.sheetIndex);
-                    renameSheetPrompt(idx);
-                });
-                btn.addEventListener('contextmenu', e => {
-                    e.preventDefault();
-                    const idx = Number(btn.dataset.sheetIndex);
-                    showSheetTabContextMenu(e.clientX, e.clientY, idx);
-                });
+        function makeQueue(){
+            queue=OfficeSession.create({readonly:ctx.readonly,serialize:()=>snapshot(),backup,write,
+                clearBackup:async()=>{const key=draftKey(),draft=await OfficeSession.draft('get',key,undefined,'sheets').catch(()=>null);if(draft?.id===lastDraft?.id)await OfficeSession.draft('delete',key,undefined,'sheets').catch(()=>{});},
+                onState:value=>{find('[data-save-state]').textContent=tr(value.error?'save_failed':value.saving?'saving':value.dirty?'unsaved':'saved');find('[data-save-state]').dataset.state=value.error?'error':value.dirty?'dirty':'saved';if(value.error)fail(value.error);}
             });
-            const addBtn = tabsHost.querySelector('[data-action="add-sheet"]');
-            if (addBtn) addBtn.addEventListener('click', () => { if (!readonly) addNewSheet(); });
-
-            const rows = padRows(sheet.rows || [], MIN_ROWS, MIN_COLS);
-            clampSelection(rows.length, rows[0].length);
-            const colHeaders = Array.from({ length: rows[0].length }, (_, i) => formulas ? formulas.columnName(i + 1) : columnNameFallback(i + 1));
-            gridHost.innerHTML = `<table class="office-grid">
-                <thead><tr><th></th>${colHeaders.map((col, c) => `<th data-col-header="${c}">${esc(col)}</th>`).join('')}</tr></thead>
-                <tbody>${rows.map((row, r) => `<tr><th data-row-header="${r}">${r + 1}</th>${row.map((cell, c) => `<td data-cell-row="${r}" data-cell-col="${c}" class="${esc(cellClass(r, c))}"><input data-row="${r}" data-col="${c}" ${cellInputAttributes(cell, sheet)} spellcheck="false" ${readonly ? 'readonly' : ''}></td>`).join('')}</tr>`).join('')}</tbody>
-            </table>`;
-            wireGrid();
-            applyCellFormats(sheet);
-            applyReadonlyState();
-            renderSelection();
-            updateStatusBar();
         }
-
-        function applyCellFormats(sheet) {
-            if (!formatModule || !sheet || !sheet.rows) return;
-            let applied = 0;
-            gridHost.querySelectorAll('td[data-cell-row][data-cell-col]').forEach(td => {
-                const row = Number(td.dataset.cellRow);
-                const col = Number(td.dataset.cellCol);
-                const cell = sheet.rows[row] && sheet.rows[row][col];
-                const input = td.querySelector('input');
-                if (cell && cell.format) {
-                    applied++;
-                    console.log('[FMT] applyCellFormats row=' + row + ' col=' + col + ' format=' + JSON.stringify(cell.format));
-                    console.log('[FMT] td before: fontWeight=' + td.style.fontWeight + ' input before: fontWeight=' + (input ? input.style.fontWeight : 'no-input'));
+        async function load(target,template){
+            const token=++generation;
+            releaseDocument();documentLife=new AbortController();path=target;etag=null;sourceData=null;recoveryConflict=false;nativeEdit=null;loading=true;loadingFailed=false;operations=[];lastDraft=null;pin=null;formulaTarget=null;formulaChanged=false;
+            aux={charts:[],print:{}};mount.replaceChildren();find('[data-charts]').replaceChildren();
+            find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-loading]').textContent=tr('loading');notice('');
+            ctx.updateWindowContext?.(windowId,{path});
+            try{
+                enginePromise ||= import('/js/vendor/sheets/engine.js').catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
+                let doc;
+                if(template)doc=window.SheetsData.template(template,tr);
+                else if(/\.csv$/i.test(target)){doc=await window.SheetsData.importCSV(state,target);if(!doc)throw new DOMException('Cancelled','AbortError');path=target.replace(/\.csv$/i,'')+'-import-'+crypto.randomUUID().slice(0,6)+'.xlsx';}
+                else {const response=await responseOK(await fetch(endpoint(target),{signal:documentLife.signal,cache:'no-store'}));etag=response.headers.get('ETag');doc=await response.json();sourceData=doc.source_data||null;}
+                if(disposed||token!==generation)return;
+                if(doc?.schema_version!==2||!doc.workbook?.sheetOrder?.length)throw Error(tr('import_failed'));
+                const recovery=await OfficeSession.draft('get',draftKey(),undefined,'sheets').catch(()=>null);
+                let restored=false;
+                if(recovery&&!ctx.readonly&&await ctx.confirmDialog(tr('restore_draft'))){
+                    restored=true;
+                    doc.workbook=recovery.snapshot.workbook;doc.charts=recovery.snapshot.charts;operations=recovery.snapshot.operations||[];lastDraft=recovery;
+                    if(recovery.etag!==etag&&recovery.etag){recoveryConflict=true;sourceData=recovery.sourceData||null;notice(tr('draft_conflict'),true);}
+                    else sourceData=recovery.sourceData||sourceData;
                 }
-                formatModule.renderFormatStyles(td, input, cell && cell.format);
-                if (cell && cell.format) {
-                    console.log('[FMT] td after: fontWeight=' + td.style.fontWeight + ' input after: fontWeight=' + (input ? input.style.fontWeight : 'no-input'));
-                }
-            });
-            console.log('[FMT] applyCellFormats total=' + gridHost.querySelectorAll('td[data-cell-row][data-cell-col]').length + ' formatted=' + applied);
-        }
-
-        function wireGrid() {
-            gridHost.querySelectorAll('input[data-row][data-col]').forEach(input => {
-                input.addEventListener('pointerdown', event => {
-                    if (event.button !== 0) return;
-                    const row = Number(input.dataset.row);
-                    const col = Number(input.dataset.col);
-                    selectCell(row, col, event.shiftKey);
-                    dragSelecting = true;
-                    document.addEventListener('pointerup', () => { dragSelecting = false; }, { once: true });
-                });
-                input.addEventListener('pointerenter', () => {
-                    if (!dragSelecting) return;
-                    extendSelection(Number(input.dataset.row), Number(input.dataset.col));
-                });
-                input.addEventListener('focus', () => {
-                    showFormulaForEditing(input);
-                    const row = Number(input.dataset.row);
-                    const col = Number(input.dataset.col);
-                    if (!cellInSelection(row, col)) selectCell(row, col, false, false);
-                    else updateFormulaBar();
-                    updateFormatToolbarState(row, col);
-                });
-                input.addEventListener('blur', () => showFormulaResult(input));
-                input.addEventListener('input', () => {
-                    if (readonly) return;
-                    pushSnapshot();
-                    const raw = input.value;
-                    setCellFromInput(input, raw);
-                    recalcFormulas();
-                    if (isFocusCell(Number(input.dataset.row), Number(input.dataset.col))) updateFormulaBar();
-                    setDirty(true);
-                });
-                input.addEventListener('keydown', event => handleCellKeydown(event, input));
-                input.addEventListener('contextmenu', event => {
-                    event.preventDefault();
-                    const row = Number(input.dataset.row);
-                    const col = Number(input.dataset.col);
-                    if (!cellInSelection(row, col)) selectCell(row, col, false);
-                    showSheetContextMenu(event.clientX, event.clientY);
-                });
-            });
-            gridHost.querySelectorAll('[data-row-header]').forEach(header => {
-                header.addEventListener('click', () => selectRow(Number(header.dataset.rowHeader)));
-            });
-            gridHost.querySelectorAll('[data-col-header]').forEach(header => {
-                header.addEventListener('click', () => selectColumn(Number(header.dataset.colHeader)));
-            });
-        }
-
-        function handleCellKeydown(event, input) {
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
-                event.preventDefault(); copyRange(); return;
-            }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
-                event.preventDefault(); pasteRange(); return;
-            }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-                event.preventDefault(); undo(); return;
-            }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
-                event.preventDefault(); redo(); return;
-            }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
-                event.preventDefault(); openSearch(); return;
-            }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'h') {
-                event.preventDefault(); openSearch(); return;
-            }
-            if (event.key === 'Delete') {
-                event.preventDefault(); clearRange(); return;
-            }
-            if (event.key === 'Home' && (event.ctrlKey || event.metaKey)) {
-                event.preventDefault();
-                const target = cellInput(0, 0);
-                if (target) { target.focus(); selectCell(0, 0, event.shiftKey); }
-                return;
-            }
-            if (event.key === 'End' && (event.ctrlKey || event.metaKey)) {
-                event.preventDefault();
-                const sheet = workbook.sheets[activeSheet];
-                const maxR = sheet && sheet.rows ? Math.max(0, sheet.rows.length - 1) : 0;
-                let maxC = 0;
-                if (sheet && sheet.rows) sheet.rows.forEach(row => { if (Array.isArray(row)) maxC = Math.max(maxC, row.length - 1); });
-                const target = cellInput(Math.min(maxR, displayRowCount() - 1), Math.min(maxC, displayColCount() - 1));
-                if (target) { target.focus(); selectCell(Math.min(maxR, displayRowCount() - 1), Math.min(maxC, displayColCount() - 1), event.shiftKey); }
-                return;
-            }
-            if (event.key === 'PageDown') {
-                event.preventDefault();
-                const pageSize = Math.max(1, Math.floor(gridHost.clientHeight / 32) - 1);
-                const newRow = clampCellRow(selection.focus.row + pageSize);
-                const target = cellInput(newRow, selection.focus.col);
-                if (target) { target.focus(); selectCell(newRow, selection.focus.col, event.shiftKey); }
-                return;
-            }
-            if (event.key === 'PageUp') {
-                event.preventDefault();
-                const pageSize = Math.max(1, Math.floor(gridHost.clientHeight / 32) - 1);
-                const newRow = clampCellRow(selection.focus.row - pageSize);
-                const target = cellInput(newRow, selection.focus.col);
-                if (target) { target.focus(); selectCell(newRow, selection.focus.col, event.shiftKey); }
-                return;
-            }
-            if (event.key === ' ' && event.ctrlKey) {
-                event.preventDefault(); selectColumn(selection.focus.col); return;
-            }
-            if (event.key === ' ' && event.shiftKey) {
-                event.preventDefault(); selectRow(selection.focus.row); return;
-            }
-            const row = Number(input.dataset.row);
-            const col = Number(input.dataset.col);
-            const move = {
-                ArrowUp: [row - 1, col], ArrowDown: [row + 1, col],
-                ArrowLeft: [row, col - 1], ArrowRight: [row, col + 1],
-                Enter: [row + 1, col], Tab: [row, col + (event.shiftKey ? -1 : 1)]
-            }[event.key];
-            if (!move) return;
-            event.preventDefault();
-            const target = cellInput(clampCellRow(move[0]), clampCellCol(move[1]));
-            if (target) {
-                target.focus();
-                selectCell(Number(target.dataset.row), Number(target.dataset.col), event.shiftKey && event.key.startsWith('Arrow'));
-            }
-        }
-
-        function captureGrid() {
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet) return;
-            sheet.rows = trimRows(captureDisplayRows());
-        }
-
-        function captureDisplayRows() {
-            const rows = [];
-            gridHost.querySelectorAll('tbody tr').forEach((tr, r) => {
-                const row = [];
-                tr.querySelectorAll('td').forEach((td, c) => {
-                    const input = td.querySelector('input');
-                    const cell = cellFromInputElement(input);
-                    const sheet = workbook.sheets[activeSheet];
-                    const oldCell = sheet && sheet.rows && sheet.rows[r] && sheet.rows[r][c];
-                    if (oldCell && oldCell.format) cell.format = oldCell.format;
-                    row[c] = cell;
-                });
-                rows[r] = row;
-            });
-            return rows;
-        }
-
-        function cellFromRaw(raw) {
-            raw = String(raw == null ? '' : raw);
-            return raw.startsWith('=') ? { formula: raw.slice(1) } : { value: raw };
-        }
-
-        function cellFromInputElement(input) {
-            if (!input) return { value: '' };
-            const formula = input.dataset.formula || '';
-            const displayValue = input.dataset.displayValue || '';
-            if (formula && (input.value === displayValue || input.value === '=' + formula)) return { formula };
-            return cellFromRaw(input.value);
-        }
-
-        function setCellFromInput(input, raw) {
-            if (!input) return null;
-            if (readonly) return cellFromInputElement(input);
-            raw = String(raw == null ? '' : raw);
-            input.value = raw;
-            const cell = cellFromRaw(raw);
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet) return cell;
-            const row = Math.max(0, Number(input.dataset.row) || 0);
-            const col = Math.max(0, Number(input.dataset.col) || 0);
-            sheet.rows = Array.isArray(sheet.rows) ? sheet.rows : [];
-            ensureRows(sheet.rows, row + 1, col + 1);
-            const oldCell = sheet.rows[row][col];
-            if (oldCell && oldCell.format) cell.format = oldCell.format;
-            sheet.rows[row][col] = cell;
-            sheet.rows = trimRows(sheet.rows);
-            syncFormulaDataset(input, cell, sheet);
-            return cell;
-        }
-
-        function setSheetRows(rows) {
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet) return;
-            sheet.rows = trimRows(rows);
-            renderWorkbook();
-        }
-
-        function selectCell(row, col, extend, rerender) {
-            row = Math.max(0, row); col = Math.max(0, col);
-            if (extend) { selection.focus = { row, col }; }
-            else { selection = { anchor: { row, col }, focus: { row, col } }; }
-            if (rerender === false) { renderSelection(); return; }
-            renderSelection();
-        }
-
-        function extendSelection(row, col) { selection.focus = { row, col }; renderSelection(); }
-
-        function selectRow(row) {
-            const cols = Math.max(MIN_COLS, gridHost.querySelectorAll('thead th[data-col-header]').length);
-            selection = { anchor: { row, col: 0 }, focus: { row, col: cols - 1 } };
-            renderSelection();
-        }
-
-        function selectColumn(col) {
-            const rows = Math.max(MIN_ROWS, gridHost.querySelectorAll('tbody tr').length);
-            selection = { anchor: { row: 0, col }, focus: { row: rows - 1, col } };
-            renderSelection();
-        }
-
-        function renderSelection() {
-            const range = selectionRange();
-            gridHost.querySelectorAll('td[data-cell-row][data-cell-col]').forEach(td => {
-                const row = Number(td.dataset.cellRow);
-                const col = Number(td.dataset.cellCol);
-                td.classList.toggle('office-cell-selected', cellInRange(row, col, range));
-                td.classList.toggle('office-cell-active', isFocusCell(row, col));
-            });
-            updateFormulaBar();
-            updateStatusBar();
-            updateFormatToolbarState(selection.focus.row, selection.focus.col);
-        }
-
-        function updateFormulaBar() {
-            if (rangeName) { rangeName.value = rangeLabel(); rangeName.textContent = rangeLabel(); }
-            const input = cellInput(selection.focus.row, selection.focus.col);
-            if (formulaInput && input && document.activeElement !== formulaInput) {
-                formulaInput.value = input.value;
-            }
-        }
-
-        function updateStatusBar() {
-            if (!statusLeft || !statusRight) return;
-            const range = selectionRange();
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet) { statusLeft.textContent = ''; statusRight.textContent = ''; return; }
-            const isSingle = range.startRow === range.endRow && range.startCol === range.endCol;
-            if (isSingle) {
-                statusLeft.textContent = '';
-                statusRight.textContent = isDirty ? t('desktop.sheets_dirty_indicator') : '';
-                return;
-            }
-            let sum = 0, count = 0, numCount = 0;
-            for (let r = range.startRow; r <= range.endRow; r++) {
-                for (let c = range.startCol; c <= range.endCol; c++) {
-                    const cell = sheet.rows && sheet.rows[r] && sheet.rows[r][c];
-                    if (!cell) continue;
-                    count++;
-                    const val = cell.formula ? (formulas ? formulas.evaluate(sheet, cell.formula) : '#ERR') : cell.value;
-                    const num = Number(val);
-                    if (Number.isFinite(num)) { sum += num; numCount++; }
-                }
-            }
-            const parts = [];
-            if (numCount > 0) {
-                parts.push(t('desktop.sheets_status_sum') + ': ' + Math.round(sum * 1000000) / 1000000);
-            }
-            parts.push(t('desktop.sheets_status_count') + ': ' + count);
-            if (numCount > 1) {
-                parts.push(t('desktop.sheets_status_avg') + ': ' + Math.round(sum / numCount * 1000000) / 1000000);
-            }
-            statusLeft.textContent = parts.join('   ');
-            statusRight.textContent = isDirty ? t('desktop.sheets_dirty_indicator') : '';
-        }
-
-        function updateFormatToolbarState(row, col) {
-            if (!formatToolbar || !formatModule) return;
-            const sheet = workbook.sheets[activeSheet];
-            const cell = sheet && sheet.rows && sheet.rows[row] && sheet.rows[row][col];
-            formatModule.updateToolbarState(formatToolbar, cell && cell.format);
-        }
-
-        function handleFormatChange(formatType, value) {
-            if (readonly) return;
-            pushSnapshot();
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet) return;
-            const range = selectionRange();
-            for (let r = range.startRow; r <= range.endRow; r++) {
-                for (let c = range.startCol; c <= range.endCol; c++) {
-                    ensureRows(sheet.rows, r + 1, c + 1);
-                    if (!sheet.rows[r][c]) sheet.rows[r][c] = { value: '' };
-                    if (formatModule) formatModule.applyFormat(sheet.rows[r][c], formatType, value);
-                }
-            }
-            const cell = sheet.rows[range.startRow] && sheet.rows[range.startRow][range.startCol];
-            console.log('[FMT] handleFormatChange type=' + formatType + ' value=' + value + ' cell.format=' + JSON.stringify(cell && cell.format));
-            renderWorkbook();
-            setDirty(true);
-        }
-
-        function wireFormatToolbar(toolbar) {
-            function closeColorPicker(picker) {
-                if (!picker) return;
-                picker.hidden = true;
-                picker.classList.remove('is-fixed');
-                picker.style.top = '';
-                picker.style.left = '';
-            }
-            function positionColorPicker(btn, picker) {
-                const rect = btn.getBoundingClientRect();
-                picker.classList.add('is-fixed');
-                picker.style.top = rect.bottom + 'px';
-                picker.style.left = rect.left + 'px';
-            }
-            toolbar.querySelectorAll('.office-fmt-btn[data-fmt]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const fmt = btn.dataset.fmt;
-                    if (fmt === 'font-color' || fmt === 'fill-color') return;
-                    handleFormatChange(fmt);
-                });
-            });
-            toolbar.querySelectorAll('.office-color-picker').forEach(picker => {
-                picker.addEventListener('click', e => {
-                    const swatch = e.target.closest('.office-color-swatch');
-                    if (!swatch) return;
-                    const dropdown = picker.closest('.office-fmt-dropdown');
-                    const type = dropdown && dropdown.dataset.dropdown;
-                    if (type) handleFormatChange(type === 'font-color' ? 'font-color' : 'fill-color', swatch.dataset.color);
-                    closeColorPicker(picker);
-                });
-                const applyBtn = picker.querySelector('.office-color-apply');
-                if (applyBtn) {
-                    applyBtn.addEventListener('click', () => {
-                        const input = picker.querySelector('.office-color-input');
-                        const dropdown = picker.closest('.office-fmt-dropdown');
-                        const type = dropdown && dropdown.dataset.dropdown;
-                        if (type && input) handleFormatChange(type === 'font-color' ? 'font-color' : 'fill-color', input.value);
-                        closeColorPicker(picker);
-                    });
-                }
-            });
-            toolbar.querySelectorAll('.office-fmt-dropdown').forEach(dropdown => {
-                const btn = dropdown.querySelector('.office-fmt-btn');
-                const picker = dropdown.querySelector('.office-color-picker');
-                if (btn && picker) {
-                    btn.addEventListener('click', () => {
-                        toolbar.querySelectorAll('.office-color-picker').forEach(p => { if (p !== picker) closeColorPicker(p); });
-                        const wasHidden = picker.hidden;
-                        picker.hidden = !wasHidden;
-                        if (wasHidden) positionColorPicker(btn, picker);
-                        else closeColorPicker(picker);
-                    });
-                }
-            });
-            toolbar.querySelectorAll('.office-fmt-select').forEach(select => {
-                select.addEventListener('change', () => {
-                    handleFormatChange(select.dataset.fmt, select.value);
-                });
-            });
-            const closePickersHandler = e => {
-                if (!e.target.closest('.office-fmt-dropdown')) {
-                    toolbar.querySelectorAll('.office-color-picker').forEach(p => closeColorPicker(p));
-                }
-            };
-            document.addEventListener('click', closePickersHandler);
-            const inst = instances.get(windowId);
-            if (inst) inst.formatClickHandler = closePickersHandler;
-        }
-
-        function applyFormulaBar() {
-            if (readonly) return;
-            const input = cellInput(selection.focus.row, selection.focus.col);
-            if (!input || !formulaInput) return;
-            pushSnapshot();
-            setCellFromInput(input, formulaInput.value);
-            recalcFormulas();
-            input.focus();
-            updateFormulaBar();
-            setDirty(true);
-        }
-
-        function openSearch() {
-            if (searchModule) {
-                const inst = instances.get(windowId);
-                const searchState = searchModule.openSearch(host, gridHost, workbook, () => activeSheet, t, esc, (r, c) => selectCell(r, c, false), {
-                    pushSnapshot: pushSnapshot,
-                    setDirty: setDirty
-                });
-                if (inst) {
-                    inst.searchState = searchState;
-                    inst.closeSearch = () => {
-                        if (searchState && searchState.overlay) {
-                            searchState.overlay.remove();
-                            searchState.overlay = null;
-                        }
-                    };
-                }
-            }
-        }
-
-        function showSheetContextMenu(x, y) {
-            closeSheetContextMenu();
-            const items = [
-                { action: 'copy-range', icon: 'copy', label: t('desktop.fm.copy') },
-                { action: 'paste-range', icon: 'clipboard', label: t('desktop.fm.paste') },
-                { action: 'clear-range', icon: 'x', label: t('desktop.sheets_clear_range') },
-                { separator: true },
-                { action: 'insert-row-above', icon: 'list', label: t('desktop.sheets_insert_row_above') },
-                { action: 'insert-row-below', icon: 'list', label: t('desktop.sheets_insert_row_below') },
-                { action: 'insert-col-left', icon: 'grid', label: t('desktop.sheets_insert_col_left') },
-                { action: 'insert-col-right', icon: 'grid', label: t('desktop.sheets_insert_col_right') },
-                { separator: true },
-                { action: 'delete-selected-rows', icon: 'trash', label: t('desktop.sheets_delete_rows') },
-                { action: 'delete-selected-cols', icon: 'trash', label: t('desktop.sheets_delete_columns') }
-            ];
-            const menu = document.createElement('div');
-            menu.className = 'office-sheet-context-menu';
-            menu.setAttribute('role', 'menu');
-            menu.style.visibility = 'hidden';
-            menu.innerHTML = items.map(item => item.separator
-                ? '<div class="office-sheet-context-separator" role="separator"></div>'
-                : `<button type="button" role="menuitem" data-action="${esc(item.action)}">${iconMarkup(item.icon, '', 'office-sheet-context-icon', 14)}<span>${esc(item.label)}</span></button>`).join('');
-            document.body.appendChild(menu);
-            const rect = menu.getBoundingClientRect();
-            menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
-            menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
-            menu.style.visibility = 'visible';
-            menu.addEventListener('click', event => {
-                const button = event.target.closest('button[data-action]');
-                if (!button) return;
-                handleSheetContextAction(button.dataset.action);
-                closeSheetContextMenu();
-            });
-            contextMenuOutsideHandler = event => {
-                if (contextMenu && !contextMenu.contains(event.target)) closeSheetContextMenu();
-            };
-            setTimeout(() => document.addEventListener('mousedown', contextMenuOutsideHandler), 0);
-            contextMenu = menu;
-        }
-
-        function showSheetTabContextMenu(x, y, sheetIndex) {
-            closeSheetContextMenu();
-            const items = [
-                { action: 'rename-sheet', icon: 'edit', label: t('desktop.sheets_rename_sheet') },
-                { action: 'duplicate-sheet', icon: 'copy', label: t('desktop.sheets_duplicate_sheet') },
-                { separator: true },
-                { action: 'delete-sheet', icon: 'trash', label: t('desktop.sheets_delete_sheet') }
-            ];
-            const menu = document.createElement('div');
-            menu.className = 'office-sheet-context-menu';
-            menu.setAttribute('role', 'menu');
-            menu.style.visibility = 'hidden';
-            menu.innerHTML = items.map(item => item.separator
-                ? '<div class="office-sheet-context-separator" role="separator"></div>'
-                : `<button type="button" role="menuitem" data-action="${esc(item.action)}" data-sheet-index="${sheetIndex}">${iconMarkup(item.icon, '', 'office-sheet-context-icon', 14)}<span>${esc(item.label)}</span></button>`).join('');
-            document.body.appendChild(menu);
-            const rect = menu.getBoundingClientRect();
-            menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
-            menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
-            menu.style.visibility = 'visible';
-            menu.addEventListener('click', event => {
-                const button = event.target.closest('button[data-action]');
-                if (!button) return;
-                const idx = Number(button.dataset.sheetIndex);
-                switch (button.dataset.action) {
-                case 'rename-sheet': renameSheetPrompt(idx); break;
-                case 'duplicate-sheet': duplicateSheet(idx); break;
-                case 'delete-sheet': deleteSheet(idx); break;
-                }
-                closeSheetContextMenu();
-            });
-            contextMenuOutsideHandler = event => {
-                if (contextMenu && !contextMenu.contains(event.target)) closeSheetContextMenu();
-            };
-            setTimeout(() => document.addEventListener('mousedown', contextMenuOutsideHandler), 0);
-            contextMenu = menu;
-        }
-
-        function closeSheetContextMenu() {
-            if (contextMenuOutsideHandler) { document.removeEventListener('mousedown', contextMenuOutsideHandler); contextMenuOutsideHandler = null; }
-            if (contextMenu) { contextMenu.remove(); contextMenu = null; }
-        }
-
-        function handleSheetContextAction(action) {
-            switch (action) {
-            case 'copy-range': copyRange(); break;
-            case 'paste-range': pasteRange(); break;
-            case 'clear-range': clearRange(); break;
-            case 'insert-row-above': insertRow(selectionRange().startRow); break;
-            case 'insert-row-below': insertRow(selectionRange().endRow + 1); break;
-            case 'insert-col-left': insertColumn(selectionRange().startCol); break;
-            case 'insert-col-right': insertColumn(selectionRange().endCol + 1); break;
-            case 'delete-selected-rows': deleteSelectedRows(); break;
-            case 'delete-selected-cols': deleteSelectedColumns(); break;
-            }
-        }
-
-        function addNewSheet() {
-            pushSnapshot();
-            const name = t('desktop.sheets_sheet') + ' ' + (workbook.sheets.length + 1);
-            workbook.sheets.push({ name, rows: [] });
-            activeSheet = workbook.sheets.length - 1;
-            selection = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
-            renderWorkbook();
-            setDirty(true);
-        }
-
-        function renameSheetPrompt(index) {
-            if (readonly || index < 0 || index >= workbook.sheets.length) return;
-            const prompt = ctx.promptDialog || (async () => null);
-            prompt(t('desktop.sheets_rename_sheet_title'), workbook.sheets[index].name).then(name => {
-                if (name == null || !String(name).trim()) return;
-                pushSnapshot();
-                workbook.sheets[index].name = String(name).trim();
-                renderWorkbook();
-                setDirty(true);
-            });
-        }
-
-        function duplicateSheet(index) {
-            if (readonly || index < 0 || index >= workbook.sheets.length) return;
-            pushSnapshot();
-            const src = workbook.sheets[index];
-            const srcName = src.name || (t('desktop.sheets_sheet') + ' ' + (index + 1));
-            const copy = { name: srcName + ' (' + t('desktop.fm.copy') + ')', rows: JSON.parse(JSON.stringify(src.rows || [])) };
-            workbook.sheets.splice(index + 1, 0, copy);
-            activeSheet = index + 1;
-            renderWorkbook();
-            setDirty(true);
-        }
-
-        function deleteSheet(index) {
-            if (readonly || index < 0 || index >= workbook.sheets.length || workbook.sheets.length <= 1) return;
-            pushSnapshot();
-            workbook.sheets.splice(index, 1);
-            if (activeSheet >= workbook.sheets.length) activeSheet = workbook.sheets.length - 1;
-            renderWorkbook();
-            setDirty(true);
-        }
-
-        function copyRange() {
-            const range = selectionRange();
-            const sheet = workbook.sheets[activeSheet];
-            const rows = [];
-            for (let r = range.startRow; r <= range.endRow; r++) {
-                const values = [];
-                for (let c = range.startCol; c <= range.endCol; c++) {
-                    const cell = sheet && sheet.rows && sheet.rows[r] && sheet.rows[r][c];
-                    if (cell && cell.formula) {
-                        values.push('=' + cell.formula);
-                    } else {
-                        values.push(cell ? (cell.value || '') : '');
+                if(disposed||token!==generation)return;
+                aux={charts:doc.charts||[],print:doc.workbook.custom?.auragoPrint||{}};
+                structuralLocked=!!doc.structural_locked;
+                const localeName=({de:'de-DE',es:'es-ES',fr:'fr-FR',it:'it-IT',ja:'ja-JP',pl:'pl-PL',pt:'pt-BR',zh:'zh-CN'})[locale.split('-')[0]]||'en-US',localeID=localeName.replace('-','');
+                const created=lib.createUniver({locale:localeID,locales:{[localeID]:localeName==='en-US'&&!locale.startsWith('en')?SheetsData.nativeLocale(lib.locales[localeName],tr,locale):lib.locales[localeName]},logLevel:4,presets:[
+                    lib.UniverSheetsCorePreset({container:mount,header:false,toolbar:false,formulaBar:false,footer:false,contextMenu:!ctx.showContextMenu,disableAutoFocus:true,workerURL:'/js/vendor/sheets/worker.js',customFontFamily:['Geist','Carlito'],formula:{initialFormulaComputing:0,function:[lib.averageAlias]}}),
+                    lib.UniverSheetsFilterPreset(),lib.UniverSheetsSortPreset(),lib.UniverSheetsDataValidationPreset(),lib.UniverSheetsConditionalFormattingPreset(),lib.UniverSheetsFindReplacePreset(),lib.UniverSheetsNotePreset(),lib.UniverSheetsHyperLinkPreset(),lib.UniverSheetsTablePreset()
+                ]});
+                engine=created.univer;api=created.univerAPI;api.toggleDarkMode(false);api.getFormula().setFormulaReturnDependencyTree(true);
+                await Promise.all(['11px Arial','bold 11px Arial','italic 11px Arial','11px Calibri','11px Carlito','11px "Times New Roman"','11px "Courier New"'].map(font=>document.fonts.load(font)));
+                if(disposed||token!==generation)return;
+                bridge=lib.installSheetActions(engine,{book:()=>book,get:()=>aux,set:value=>{aux=value;chartView?.refresh();},parse:(cell,context)=>{
+                    if(!nativeEdit||nativeEdit.row!==context.row||nativeEdit.column!==context.col)return cell;
+                    const value=SheetsData.parseInput(nativeEdit.text,locale);if(value.t===1)value.t=4;nativeEdit=null;
+                    return {...cell,...value,...(value.s?{s:{...book.getSheetBySheetId(context.subUnitId).getRange(context.row,context.col).getCellStyleData(),...value.s}}:{}),...(!value.f?{f:null,si:null}:{}),p:null};
+                }});
+                doc.workbook.id='sheets-'+windowId;doc.workbook.locale=localeID;
+                book=api.createWorkbook(doc.workbook);book.setEditable(!ctx.readonly);book.setNumfmtLocal(locale.split('-')[0]==='zh'?'zh_CN':locale.replace('-','_'));
+                panels=window.SheetsPanels.create(state);chartView=window.SheetsCharts.create(state);
+                loading=false;makeQueue();
+                disposables.push(api.addEvent(api.Event.BeforeSheetEditEnd,event=>{nativeEdit=event.isConfirm?{row:event.row,column:event.column,text:event.value.toPlainText().replace(/\r?\n$/,'')}:null;}));
+                const structureTypes={'sheet.mutation.insert-row':'insertRows','sheet.mutation.remove-rows':'deleteRows','sheet.mutation.insert-col':'insertColumns','sheet.mutation.remove-col':'deleteColumns'};
+                disposables.push(api.addEvent(api.Event.BeforeCommandExecute,event=>{
+                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
+                }));
+                disposables.push(api.addEvent(api.Event.CommandExecuted,event=>{
+                    if(loading||disposed)return;
+                    if(event.type===2&&!event.options?.applyFormulaCalculationResult&&!event.options?.onlyLocal&&!/^(formula|doc)\.|sheet\.mutation\.(set-formula|set-array-formula)/.test(event.id)){
+                        const kind=structureTypes[event.id],p=event.params;
+                        if(kind&&p?.range){const rows=/Rows$/.test(kind);operations.push({type:kind,sheet:p.subUnitId,index:rows?p.range.startRow:p.range.startColumn,count:rows?p.range.endRow-p.range.startRow+1:p.range.endColumn-p.range.startColumn+1});}
+                        queue.changed();scheduleBackup();
                     }
-                }
-                rows.push(values.join('\t'));
-            }
-            localClipboard = rows.join('\n');
-            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(localClipboard).catch(() => {});
-            setStatus(rangeLabel());
+                    refreshSoon();
+                }));
+                disposables.push(api.addEvent(api.Event.SelectionChanged,()=>{pin=null;if(!formulaChanged)formulaTarget=null;refreshSoon();}));
+                disposables.push(api.addEvent(api.Event.Scroll,()=>chartView?.position()));
+                disposables.push(api.addEvent(api.Event.LifeCycleChanged,()=>refreshSoon()));
+                disposables.push(api.getFormula().calculationEnd(()=>{refreshSoon();chartView.refresh();}));
+                if(template||restored||/\.csv$/i.test(target)){queue.changed();scheduleBackup();}
+                find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=true;
+                ctx.updateWindowContext?.(windowId,{path});refresh();renderMenus();
+                if(doc.limitations?.length)notice(doc.limitations.map(key=>tr(key)).join(' · '));
+            }catch(error){if(token!==generation||disposed)return;loading=true;loadingFailed=true;find('[data-loading]').textContent=tr('load_failed');fail(error);}
         }
-
-        async function pasteRange() {
-            if (readonly) return;
-            let text = localClipboard;
-            if (navigator.clipboard && navigator.clipboard.readText) {
-                try { text = await navigator.clipboard.readText() || text; } catch (_) {}
-            }
-            if (!text) return;
-            pushSnapshot();
-            const rows = captureDisplayRows();
-            const range = selectionRange();
-            const parsed = text.split(/\r?\n/).filter((line, index, all) => line !== '' || index < all.length - 1).map(line => line.split('\t'));
-            if (!parsed.length) return;
-            const requiredRows = range.startRow + parsed.length;
-            const requiredCols = range.startCol + Math.max(1, ...parsed.map(row => row.length));
-            ensureRows(rows, requiredRows, Math.max(requiredCols, maxCols(rows), MIN_COLS));
-            parsed.forEach((rowValues, r) => {
-                rowValues.forEach((value, c) => {
-                    rows[range.startRow + r][range.startCol + c] = cellFromRaw(value);
+        function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,40);}
+        function refresh(){
+            if(!book||disposed||loading)return;
+            const active=sheet(),r=selection(),range=active.getRange(r);
+            if(document.activeElement!==find('[data-address]'))find('[data-address]').value=range.getA1Notation();
+            if(!formulaChanged&&document.activeElement!==find('[data-formula]'))find('[data-formula]').value=range.getFormula()||String(range.getRawValue()??'');
+            const style=range.getCellStyleData();
+            for(const [key,val]of Object.entries({bold:style?.bl===1,italic:style?.it===1,underline:style?.ul?.s===1,left:style?.ht===1,center:style?.ht===2,right:style?.ht===3}))find('[data-action="'+key+'"]').setAttribute('aria-pressed',String(val));
+            for(const [key,value]of Object.entries({font:style?.ff||'Arial',size:style?.fs||11,number:style?.n?.pattern||'General'})){const input=find('[data-format="'+key+'"]');if(document.activeElement!==input)input.value=value;}
+            const rows=r.endRow-r.startRow+1,cols=r.endColumn-r.startColumn+1;
+            find('[data-selection]').textContent=tr('selection_size',{rows,columns:cols});
+            const values=rows*cols<=200000?range.getRawValues().flat():Object.entries(active.getSheet().getSnapshot().cellData||{}).filter(([row])=>+row>=r.startRow&&+row<=r.endRow).flatMap(([,cells])=>Object.entries(cells).filter(([col])=>+col>=r.startColumn&&+col<=r.endColumn).map(([,cell])=>cell?.v)),numbers=values.filter(v=>typeof v==='number'&&Number.isFinite(v)),nf=new Intl.NumberFormat(locale,{maximumFractionDigits:6});
+            find('[data-stats]').textContent=(numbers.length?tr('status_sum')+' '+nf.format(numbers.reduce((a,b)=>a+b,0))+'   '+tr('status_avg')+' '+nf.format(numbers.reduce((a,b)=>a+b,0)/numbers.length)+'   ':'')+tr('status_count')+' '+nf.format(values.filter(v=>v!==null&&v!==undefined&&v!=='').length);
+            find('[data-zoom]').textContent=Math.round(active.getZoom()*100)+'%';
+            const tabs=book.getSheets().map(s=>({id:s.getSheetId(),name:s.getSheetName()})),signature=JSON.stringify([tabs,active.getSheetId()]);
+            if(find('[data-tabs]').dataset.signature!==signature){find('[data-tabs]').dataset.signature=signature;find('[data-tabs]').innerHTML=tabs.map(s=>'<button type="button" role="tab" data-sheet="'+esc(s.id)+'" aria-selected="'+(s.id===active.getSheetId())+'">'+esc(s.name)+'</button>').join('');}
+            panels?.refresh();chartView?.refresh();
+        }
+        function commitFormula(){
+            if(!formulaChanged||!book||ctx.readonly)return;
+            const target=formulaTarget||{sheet:sheet().getSheetId(),range:selection()},active=book.getSheetBySheetId(target.sheet);
+            if(!active)return;
+            active.getRange(target.range.startRow,target.range.startColumn).setValue(window.SheetsData.parseInput(find('[data-formula]').value,locale));
+            formulaChanged=false;formulaTarget=null;find('[data-formula-actions]').hidden=true;find('[data-formula-hints]').hidden=true;
+        }
+        function cancelFormula(){formulaChanged=false;formulaTarget=null;find('[data-formula-actions]').hidden=true;find('[data-formula-hints]').hidden=true;find('[data-formula]').blur();refresh();}
+        async function save(){if(book)await book.endEditingAsync(true);commitFormula();if(queue)await queue.save();}
+        async function saveAs(){
+            if(!book||ctx.readonly)return;
+            await book.endEditingAsync(true);commitFormula();queue.suspend();
+            try{
+                if(queue.pending)await queue.pending.catch(()=>{});
+                const picked=await ctx.saveFileDialog({title:tr('save_as'),initialPath:path.slice(0,path.lastIndexOf('/')),defaultName:basename(path),filters:[{label:'Excel',extensions:['.xlsx','.xlsm']}]});if(!picked)return;
+                const target=typeof picked==='string'?picked:picked.path;if(!target)return;
+                const value=snapshot(),revision=queue.revision,saved=await write(value,target,target===path?etag:null);
+                if(queue.revision!==revision){notice(tr('copy_saved_new_changes'));return;}
+                path=target;etag=saved.etag;sourceData=saved.sourceData||sourceData;recoveryConflict=false;operations=[];queue.dispose();makeQueue();find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;ctx.updateWindowContext?.(windowId,{path});notice('');
+            }finally{queue.resume();}
+        }
+        async function guard(){
+            if(!queue||ctx.readonly)return true;await book.endEditingAsync(true);commitFormula();if(!queue.dirty&&!queue.pending)return true;
+            try{await save();return true;}catch(error){fail(error);return !!await ctx.confirmDialog(tr('discard_changes'));}
+        }
+        async function prepareOutput(){
+            await book.endEditingAsync(true);commitFormula();const revision=queue.revision;
+            await new Promise((resolve,reject)=>{let done=false;const finish=error=>{if(done)return;done=true;clearTimeout(timer);event.dispose();error?reject(error):resolve();};const event=api.getFormula().calculationEnd(()=>finish());const timer=setTimeout(()=>finish(new Error(tr('calculation_timeout'))),10000);api.getFormula().executeCalculation();});
+            if(queue.revision!==revision)throw Error(tr('snapshot_changed'));
+            return snapshot();
+        }
+        async function download(format){
+            if(!book)return;await book.endEditingAsync(true);commitFormula();
+            if(format==='csv'&&!await ctx.confirmDialog(tr('csv_loss_warning')))return;
+            const value=await prepareOutput(),response=await responseOK(await fetch('/api/desktop/office/export?kind=workbook&format='+format+'&sheet='+encodeURIComponent(sheet().getSheetName()),{method:'POST',headers:{'Content-Type':'application/json'},signal:documentLife.signal,body:JSON.stringify({...value,...(sourceData?{source_data:sourceData}:etag?{source_path:path,source_etag:etag}:{})})}));
+            const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=basename(path).replace(/\.[^.]+$/,'.'+format);link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        }
+        async function act(action){
+            try{
+                if(action==='dismiss'){notice('');return;}
+                if(action==='document'){find('[data-document-menu]').hidden=!find('[data-document-menu]').hidden;return;}
+                if(action==='retry'){if(loadingFailed)await load(path);else await save();return;}
+                if(action==='save'){await save();return;}if(action==='saveAs'||action==='rename'){await saveAs();return;}
+                if(action==='new'){if(await guard())await load(newPath(),'blank');return;}
+                if(action==='open'){if(!await guard())return;const result=await ctx.openFileDialog({title:tr('open'),filters:[{label:'Excel / CSV',extensions:['.xlsx','.xlsm','.csv']}]});if(result)await load(typeof result==='string'?result:result.path);return;}
+                if(!book||loading)return;
+                if(action==='chartSelected'){rightPanel='chart';panels.showRight('chart');return;}
+                if(['navigation','search','format','data','chart','assist','function','more','borders','fill','sheetMenu'].includes(action)){
+                    pinSelection();const left=['navigation','search'].includes(action),key=({more:'format',borders:'format',fill:'format',function:'function',sheetMenu:'sheets'})[action]||action;
+                    if(left){leftPanel=leftPanel===key?'':key;panels.showLeft(leftPanel);}else{rightPanel=rightPanel===key?'':key;panels.showRight(rightPanel);}return;
+                }
+                if(action==='closeLeft'){leftPanel='';panels.showLeft('');return;}if(action==='closeRight'){rightPanel='';panels.showRight('');return;}
+                if(action==='commitFormula'){commitFormula();refresh();return;}if(action==='cancelFormula'){cancelFormula();return;}
+                if(action==='expandFormula'){find('[data-formula]').rows=find('[data-formula]').rows===1?4:1;return;}
+                if(action==='xlsx'||action==='csv'){await download(action==='xlsx'&&/\.xlsm$/i.test(path)?'xlsm':action);return;}
+                if(action==='print'){panels.showRight('print');rightPanel='print';return;}
+                if(action.startsWith('zoom')){const zoom=action==='zoomReset'?1:Math.max(.25,Math.min(3,sheet().getZoom()+(action==='zoomIn'?.1:-.1)));sheet().zoom(zoom);refresh();return;}
+                if(action==='copy')return await panels.action('copy');
+                return await run(()=>{
+                    const r=selected(),style=r.getCellStyleData();
+                    if(action==='undo')return api.undo();if(action==='redo')return api.redo();
+                    if(action==='bold')return state.format('bl',style?.bl===1?0:1);if(action==='italic')return state.format('it',style?.it===1?0:1);if(action==='underline')return state.format('ul',{s:style?.ul?.s===1?0:1});
+                    if(['left','center','right'].includes(action))return state.format('ht',{left:1,center:2,right:3}[action]);
+                    if(action==='merge')return r.merge({isForceMerge:true});
+                    if(action==='addSheet'){const added=book.insertSheet();book.setActiveSheet(added);return;}
+                    return panels.action(action);
                 });
-            });
-            selection = {
-                anchor: { row: range.startRow, col: range.startCol },
-                focus: { row: range.startRow + parsed.length - 1, col: range.startCol + Math.max(0, parsed[0].length - 1) }
-            };
-            setSheetRows(rows);
-            setDirty(true);
+            }catch(error){fail(error);}
         }
-
-        function clearRange() {
-            if (readonly) return;
-            pushSnapshot();
-            selectedInputs().forEach(input => setCellFromInput(input, ''));
-            updateFormulaBar();
-            setDirty(true);
-        }
-
-        function insertRow(index) {
-            if (readonly) return;
-            pushSnapshot();
-            const rows = captureDisplayRows();
-            const width = Math.max(MIN_COLS, maxCols(rows));
-            rows.splice(index, 0, Array.from({ length: width }, () => ({ value: '' })));
-            selection = { anchor: { row: index, col: 0 }, focus: { row: index, col: width - 1 } };
-            setSheetRows(rows);
-            setDirty(true);
-        }
-
-        function insertColumn(index) {
-            if (readonly) return;
-            pushSnapshot();
-            const rows = captureDisplayRows();
-            ensureRows(rows, Math.max(MIN_ROWS, rows.length), Math.max(MIN_COLS, maxCols(rows)));
-            rows.forEach(row => row.splice(index, 0, { value: '' }));
-            selection = { anchor: { row: 0, col: index }, focus: { row: rows.length - 1, col: index } };
-            setSheetRows(rows);
-            setDirty(true);
-        }
-
-        function deleteSelectedRows() {
-            if (readonly) return;
-            pushSnapshot();
-            const rows = captureDisplayRows();
-            const range = selectionRange();
-            rows.splice(range.startRow, range.endRow - range.startRow + 1);
-            if (!rows.length) rows.push(Array.from({ length: MIN_COLS }, () => ({ value: '' })));
-            selection = { anchor: { row: Math.min(range.startRow, rows.length - 1), col: 0 }, focus: { row: Math.min(range.startRow, rows.length - 1), col: Math.max(MIN_COLS, maxCols(rows)) - 1 } };
-            setSheetRows(rows);
-            setDirty(true);
-        }
-
-        function deleteSelectedColumns() {
-            if (readonly) return;
-            pushSnapshot();
-            const rows = captureDisplayRows();
-            const range = selectionRange();
-            rows.forEach(row => row.splice(range.startCol, range.endCol - range.startCol + 1));
-            if (!maxCols(rows)) rows.forEach(row => row.push({ value: '' }));
-            selection = { anchor: { row: 0, col: Math.min(range.startCol, Math.max(MIN_COLS, maxCols(rows)) - 1) }, focus: { row: Math.max(MIN_ROWS, rows.length) - 1, col: Math.min(range.startCol, Math.max(MIN_COLS, maxCols(rows)) - 1) } };
-            setSheetRows(rows);
-            setDirty(true);
-        }
-
-        function selectedInputs() {
-            const range = selectionRange();
-            const inputs = [];
-            for (let r = range.startRow; r <= range.endRow; r++) {
-                for (let c = range.startCol; c <= range.endCol; c++) {
-                    const input = cellInput(r, c);
-                    if (input) inputs.push(input);
-                }
-            }
-            return inputs;
-        }
-
-        function selectionRange() {
-            return {
-                startRow: Math.min(selection.anchor.row, selection.focus.row),
-                endRow: Math.max(selection.anchor.row, selection.focus.row),
-                startCol: Math.min(selection.anchor.col, selection.focus.col),
-                endCol: Math.max(selection.anchor.col, selection.focus.col)
-            };
-        }
-
-        function rangeLabel() {
-            const range = selectionRange();
-            const cn = formulas ? formulas.cellName : cellNameFallback;
-            const start = cn(range.startRow, range.startCol);
-            const end = cn(range.endRow, range.endCol);
-            return start === end ? start : start + ':' + end;
-        }
-
-        function cellClass(row, col) {
-            const classes = [];
-            if (cellInSelection(row, col)) classes.push('office-cell-selected');
-            if (isFocusCell(row, col)) classes.push('office-cell-active');
-            return classes.join(' ');
-        }
-
-        function cellInSelection(row, col) { return cellInRange(row, col, selectionRange()); }
-        function cellInRange(row, col, range) { return row >= range.startRow && row <= range.endRow && col >= range.startCol && col <= range.endCol; }
-        function isFocusCell(row, col) { return selection.focus.row === row && selection.focus.col === col; }
-        function cellInput(row, col) { return gridHost.querySelector(`input[data-row="${row}"][data-col="${col}"]`); }
-        function displayRowCount() { return Math.max(MIN_ROWS, gridHost.querySelectorAll('tbody tr').length); }
-        function displayColCount() { return Math.max(MIN_COLS, gridHost.querySelectorAll('thead th[data-col-header]').length); }
-        function clampCellRow(row) { return Math.min(displayRowCount() - 1, Math.max(0, Number(row) || 0)); }
-        function clampCellCol(col) { return Math.min(displayColCount() - 1, Math.max(0, Number(col) || 0)); }
-        function clampSelection(rowCount, colCount) {
-            const clampCell = cell => ({ row: Math.max(0, Math.min(rowCount - 1, cell.row || 0)), col: Math.max(0, Math.min(colCount - 1, cell.col || 0)) });
-            selection = { anchor: clampCell(selection.anchor), focus: clampCell(selection.focus) };
-        }
-
-        let isSaving = false;
-
-        async function save() {
-            if (readonly || isSaving) return;
-            isSaving = true;
-            try {
-                captureGrid();
-                setStatus(t('desktop.saving'));
-                const path = pathInput.value.trim() || DEFAULT_PATH;
-                workbook.path = path;
-                const body = await api('/api/desktop/office/workbook', {
-                    method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path, workbook, office_version: officeVersion })
-            });
-            officeVersion = body.office_version || officeVersion;
-            setPath(path);
-            setDirty(false);
-            setStatus(t('desktop.sheets_saved'));
-            notify({ type: 'success', message: t('desktop.sheets_saved') });
-            await refreshDesktop();
-            } finally {
-                isSaving = false;
-            }
-        }
-
-        function newWorkbook() {
-            officeVersion = null;
-            activeSheet = 0;
-            selection = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
-            workbook = emptyWorkbook(nextUntitledPath('.xlsx'));
-            undoStack = [];
-            redoStack = [];
-            setPath(workbook.path);
-            setStatus('');
-            setDirty(false);
-            renderWorkbook();
-        }
-
-        async function openWorkbookFromDialog() {
-            if (typeof ctx.openFileDialog !== 'function') return;
-            const result = await ctx.openFileDialog({
-                title: t('desktop.file_dialog_open'),
-                initialPath: pathDir(currentPath),
-                filters: [{ label: t('desktop.app_sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
-            });
-            if (!result || result.canceled || !result.path) return;
-            undoStack = [];
-            redoStack = [];
-            setPath(result.path);
-            await load();
-        }
-
-        async function saveAs() {
-            if (readonly) return;
-            if (typeof ctx.saveFileDialog === 'function') {
-                const result = await ctx.saveFileDialog({
-                    title: t('desktop.sheets_save_as'),
-                    initialPath: pathDir(pathInput.value.trim() || currentPath || DEFAULT_PATH),
-                    defaultName: currentFileEntry().name,
-                    defaultExtension: '.xlsx',
-                    filters: [{ label: t('desktop.app_sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
-                });
-                if (!result || result.canceled || !result.path) return;
-                const previousPath = currentPath;
-                const previousVersion = officeVersion;
-                setPath(result.path);
-                officeVersion = null;
-                try { await save(); } catch (err) { officeVersion = previousVersion; setPath(previousPath); throw err; }
-                return;
-            }
-            const prompt = ctx.promptDialog || (async () => null);
-            const nextPath = await prompt(t('desktop.sheets_save_as'), pathInput.value.trim() || DEFAULT_PATH);
-            if (nextPath == null) return;
-            const trimmed = String(nextPath).trim();
-            if (!trimmed) return;
-            const previousPath = currentPath;
-            const previousVersion = officeVersion;
-            setPath(trimmed);
-            officeVersion = null;
-            try { await save(); } catch (err) { officeVersion = previousVersion; setPath(previousPath); throw err; }
-        }
-
-        function exportURL(format) {
-            const path = pathInput.value.trim() || DEFAULT_PATH;
-            return '/api/desktop/office/export?path=' + encodeURIComponent(path) + '&format=' + encodeURIComponent(format);
-        }
-
-        async function openExport(format) {
-            if (!pathInput.value.trim() && !readonly) await save();
-            if (typeof ctx.exportDesktopFile === 'function') {
-                const entry = currentFileEntry();
-                const base = entry.name.replace(/\.[^.]+$/, '') || 'workbook';
-                await ctx.exportDesktopFile({ path: entry.path, name: base + '.' + format, url: exportURL(format) });
-                return;
-            }
-            window.open(exportURL(format), '_blank', 'noopener');
-        }
-
-        function currentFileEntry() {
-            const path = pathInput.value.trim() || currentPath || DEFAULT_PATH;
-            return { path, name: path.split('/').filter(Boolean).pop() || path };
-        }
-
-        async function runAgentTask() {
-            const prompt = ctx.promptDialog || (async () => null);
-            const task = await prompt(t('desktop.agent_task_title'), '');
-            if (!task) return;
-            await save();
-            if (typeof ctx.openAgentChatForFile === 'function') ctx.openAgentChatForFile(currentFileEntry(), { task, autosend: true, sourceApp: 'sheets' });
-        }
-
-        async function sendToAgentChat() {
-            await save();
-            if (typeof ctx.openAgentChatForFile === 'function') ctx.openAgentChatForFile(currentFileEntry(), { sourceApp: 'sheets' });
-        }
-
-        function printWorkbook() {
-            const table = gridHost && gridHost.querySelector('table');
-            if (!table) return;
-            const title = String(currentPath || '').split('/').pop() || t('desktop.app_sheets');
-            const frame = document.createElement('iframe');
-            frame.className = 'vd-print-frame';
-            frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
-            document.body.appendChild(frame);
-            const printDoc = frame.contentDocument;
-            const printWindow = frame.contentWindow;
-            if (!printDoc || !printWindow) {
-                frame.remove();
-                setStatus(t('desktop.print_failed'));
-                notify({ type: 'error', message: t('desktop.print_failed') });
-                return;
-            }
-            printDoc.open();
-            printDoc.write(`<!doctype html><html><head><title>${esc(title)}</title><style>body{font-family:Segoe UI,sans-serif;padding:16px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 8px;font-size:12px}</style></head><body></body></html>`);
-            printDoc.close();
-            printDoc.body.appendChild(table.cloneNode(true));
-            const cleanup = () => frame.remove();
-            printWindow.addEventListener('afterprint', cleanup, { once: true });
-            window.setTimeout(cleanup, 60000);
-            printWindow.focus();
-            printWindow.print();
-        }
-
-        function setWindowMenus() {
-            if (typeof ctx.setWindowMenus !== 'function') return;
-            ctx.setWindowMenus(windowId, [
-                {
-                    id: 'file', labelKey: 'desktop.menu_file',
-                    items: [
-                        { id: 'new-workbook', labelKey: 'desktop.sheets_new', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: newWorkbook },
-                        { id: 'open-workbook', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: () => openWorkbookFromDialog().catch(err => setStatus(err.message || String(err))) },
-                        { id: 'save', labelKey: 'desktop.sheets_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => setStatus(err.message || String(err))) },
-                        { id: 'save-as', labelKey: 'desktop.sheets_save_as', icon: 'save', disabled: readonly, action: () => saveAs().catch(err => setStatus(err.message || String(err))) },
-                        { type: 'separator' },
-                        { id: 'download-xlsx', labelKey: 'desktop.sheets_download_xlsx', icon: 'download', action: () => openExport('xlsx').catch(err => setStatus(err.message || String(err))) },
-                        { id: 'export-csv', labelKey: 'desktop.sheets_export_csv', icon: 'spreadsheet', action: () => openExport('csv').catch(err => setStatus(err.message || String(err))) },
-                        { type: 'separator' },
-                        { id: 'print', labelKey: 'viewer.print', icon: 'printer', shortcut: 'Ctrl+P', action: () => printWorkbook() }
-                    ]
-                },
-                {
-                    id: 'edit', labelKey: 'desktop.menu_edit',
-                    items: [
-                        { id: 'undo', labelKey: 'desktop.sheets_undo', icon: 'undo', shortcut: 'Ctrl+Z', disabled: readonly || !undoStack.length, action: undo },
-                        { id: 'redo', labelKey: 'desktop.sheets_redo', icon: 'redo', shortcut: 'Ctrl+Y', disabled: readonly || !redoStack.length, action: redo },
-                        { type: 'separator' },
-                        { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', action: copyRange },
-                        { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly, action: () => pasteRange() },
-                        { id: 'clear', labelKey: 'desktop.sheets_clear_range', icon: 'x', shortcut: 'Del', disabled: readonly, action: clearRange },
-                        { type: 'separator' },
-                        { id: 'search', labelKey: 'desktop.sheets_search', icon: 'search', shortcut: 'Ctrl+F', action: openSearch },
-                        { type: 'separator' },
-                        { id: 'delete-rows', labelKey: 'desktop.sheets_delete_rows', icon: 'trash', disabled: readonly, action: deleteSelectedRows },
-                        { id: 'delete-cols', labelKey: 'desktop.sheets_delete_columns', icon: 'trash', disabled: readonly, action: deleteSelectedColumns }
-                    ]
-                },
-                {
-                    id: 'insert', labelKey: 'desktop.menu_insert',
-                    items: [
-                        { id: 'add-row', labelKey: 'desktop.sheets_add_row', icon: 'list', disabled: readonly, action: () => insertRow(captureDisplayRows().length) },
-                        { id: 'add-col', labelKey: 'desktop.sheets_add_column', icon: 'grid', disabled: readonly, action: () => insertColumn(Math.max(MIN_COLS, maxCols(captureDisplayRows()))) },
-                        { type: 'separator' },
-                        { id: 'add-sheet', labelKey: 'desktop.sheets_add_sheet', icon: 'plus', disabled: readonly, action: addNewSheet },
-                        { type: 'separator' },
-                        { id: 'insert-row-above', labelKey: 'desktop.sheets_insert_row_above', icon: 'list', disabled: readonly, action: () => insertRow(selectionRange().startRow) },
-                        { id: 'insert-row-below', labelKey: 'desktop.sheets_insert_row_below', icon: 'list', disabled: readonly, action: () => insertRow(selectionRange().endRow + 1) },
-                        { id: 'insert-col-left', labelKey: 'desktop.sheets_insert_col_left', icon: 'grid', disabled: readonly, action: () => insertColumn(selectionRange().startCol) },
-                        { id: 'insert-col-right', labelKey: 'desktop.sheets_insert_col_right', icon: 'grid', disabled: readonly, action: () => insertColumn(selectionRange().endCol + 1) }
-                    ]
-                },
-                {
-                    id: 'agent', labelKey: 'desktop.menu_agent',
-                    items: [
-                        { id: 'agent-task', labelKey: 'desktop.agent_task_for_agent', icon: 'agent', action: () => runAgentTask().catch(err => { setStatus(err.message || String(err)); notify({ type: 'error', message: err.message || String(err) }); }) },
-                        { id: 'agent-send-chat', labelKey: 'desktop.agent_send_to_chat', icon: 'chat', action: () => sendToAgentChat().catch(err => { setStatus(err.message || String(err)); notify({ type: 'error', message: err.message || String(err) }); }) }
-                    ]
-                }
+        function renderMenus(){
+            const item=(label,action,icon,shortcut)=>({id:action,label:tr(label),icon:icons[icon||action]||icon||action,shortcut,action:()=>act(action)});
+            ctx.setWindowMenus?.(windowId,[
+                {id:'file',labelKey:'desktop.menu_file',items:[item('new','new','new','Ctrl+N'),item('open','open','open','Ctrl+O'),item('save','save','save','Ctrl+S'),item('save_as','saveAs','saveAs'),{type:'separator'},item('download_xlsx','xlsx','file'),item('export_csv','csv','file-text'),item('print','print','print','Ctrl+P')]},
+                {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo','undo','undo','Ctrl+Z'),item('redo','redo','redo','Ctrl+Y'),{type:'separator'},item('find','search','search','Ctrl+F'),item('copy','copy','copy'),item('cut','cut','scissors'),item('paste','paste','clipboard'),item('paste_special','pasteSpecial','clipboard')]},
+                {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist')]},
+                {id:'view',label:tr('view'),items:[item('navigation','navigation'),item('format','format'),item('data','data'),item('chart','chart'),item('assist','assist')]}
             ]);
         }
-
-        async function load() {
-            const adapter = window.AuraUniverSheetsAdapter;
-            if (adapter && typeof adapter.render === 'function') { adapter.render(host, windowId, ctx); return; }
-            updateExportLinks();
-            try {
-                const body = await api('/api/desktop/office/workbook?path=' + encodeURIComponent(currentPath));
-                workbook = normalizeWorkbook(body.workbook || {}, currentPath);
-                officeVersion = body.office_version || null;
-                setPath((body.entry && body.entry.path) || workbook.path || currentPath);
-                setStatus('');
-            } catch (err) {
-                officeVersion = null;
-                workbook = emptyWorkbook(currentPath);
-                setStatus('');
-                if (ctx.path) notify({ type: 'info', message: err.message || String(err) });
-            }
-            undoStack = [];
-            redoStack = [];
-            setDirty(false);
-            renderWorkbook();
+        root.addEventListener('pointerdown',event=>{if(!event.target.closest('.sheets-engine,.sheets-charts'))pinSelection();const btn=event.target.closest('.sheets-toolbar button,.sheets-views button');if(btn)event.preventDefault();},{signal:lifecycle.signal});
+        root.addEventListener('click',event=>{const tab=event.target.closest('[data-sheet]');if(tab&&book){commitFormula();pin=null;book.setActiveSheet(tab.dataset.sheet);refresh();return;}const target=event.target.closest('[data-action]');if(target)act(target.dataset.action);},{signal:lifecycle.signal});
+        mount.addEventListener('contextmenu',event=>{
+            if(!book||!ctx.showContextMenu)return;
+            event.preventDefault();event.stopPropagation();pinSelection();
+            const item=(key,icon)=>({label:tr(key),icon,disabled:!!ctx.readonly&&key!=='copy',action:()=>act(key)});
+            ctx.showContextMenu(event.clientX,event.clientY,[item('copy','copy'),item('cut','scissors'),item('paste','clipboard'),{label:tr('paste_special'),icon:'clipboard',items:['pasteValues','pasteFormulas','pasteFormat','pasteTranspose'].map(key=>item(key,'clipboard'))},{separator:true},item('insertRow','plus'),item('insertColumn','plus'),item('deleteRow','trash'),item('deleteColumn','trash'),{separator:true},item('format','sliders'),item('data','grid'),item('chart','analytics')]);
+        },{signal:lifecycle.signal});
+        root.addEventListener('change',event=>{const key=event.target.dataset.format;if(key)run(()=>{const value=event.target.value,r=selected();if(key==='font')return state.format('ff',value);if(key==='size'){const size=Number(value);if(size>=1&&size<=200)return state.format('fs',size);}if(key==='number')return state.format('n',{pattern:value});});},{signal:lifecycle.signal});
+        find('[data-address]').addEventListener('keydown',event=>{if(event.key==='Enter'&&book){event.preventDefault();try{const r=sheet().getRange(event.target.value.trim().toUpperCase());pin=null;r.activate();sheet().scrollToCell(r.getRange().startRow,r.getRange().startColumn);event.target.blur();refresh();}catch(_){notice(tr('invalid_range'),true);}}},{signal:lifecycle.signal});
+        find('[data-formula]').addEventListener('input',()=>{if(!book||ctx.readonly)return;if(!formulaTarget)formulaTarget={sheet:sheet().getSheetId(),range:selection()};formulaChanged=true;find('[data-formula-actions]').hidden=false;panels.formulaHints(find('[data-formula]').value);},{signal:lifecycle.signal});
+        find('[data-formula]').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();commitFormula();event.target.blur();refresh();}if(event.key==='Escape'){event.preventDefault();cancelFormula();}},{signal:lifecycle.signal});
+        root.addEventListener('keydown',event=>{
+            if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
+            const action={s:event.shiftKey?'saveAs':'save',o:'open',n:'new',p:'print',f:'search'}[event.key.toLowerCase()];if(action){event.preventDefault();event.stopPropagation();act(action);}
+        },{signal:lifecycle.signal});
+        if(ctx.readonly){find('[data-formula]').readOnly=true;root.querySelectorAll('.sheets-toolbar button,.sheets-toolbar input,.sheets-toolbar select,[data-action="addSheet"]').forEach(control=>control.disabled=true);}
+        const resize=new ResizeObserver(()=>{root.dataset.narrow=String(root.clientWidth<900);chartView?.position();});resize.observe(root);
+        window.addEventListener('beforeunload',event=>{if(queue?.dirty){event.preventDefault();event.returnValue='';}},{signal:lifecycle.signal});
+        function releaseDocument(){
+            documentLife.abort();queue?.dispose();queue=null;panels?.dispose();chartView?.dispose();panels=chartView=null;
+            for(const item of disposables.splice(0))item?.dispose();engine?.dispose();engine=api=book=null;
+            clearTimeout(refreshTimer);clearTimeout(backupTimer);clearTimeout(backupDeadline);backupTimer=backupDeadline=null;
         }
-
-        host.querySelector('[data-action="apply-formula"]').addEventListener('click', applyFormulaBar);
-        formulaInput.addEventListener('keydown', event => {
-            if (event.key === 'Enter') { event.preventDefault(); applyFormulaBar(); }
-        });
-        pathInput.addEventListener('change', () => { setPath(pathInput.value.trim() || DEFAULT_PATH); load(); });
-
-        setWindowMenus();
-        load();
-        const inst = instances.get(windowId);
-        if (inst) { inst.undo = undo; inst.redo = redo; }
-
-        function recalcFormulas() {
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet || !sheet.rows) return;
-            const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
-            const fmtMod = window.SheetsFormat;
-            sheet.rows.forEach((row, r) => {
-                if (!Array.isArray(row)) return;
-                row.forEach((cell, c) => {
-                    if (!cell || !cell.formula) return;
-                    const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
-                    if (!input) return;
-                    const rawResult = evaluate(sheet, cell.formula);
-                    input.dataset.displayValue = rawResult;
-                    input.dataset.rawValue = rawResult;
-                    const numFmt = cell.format && cell.format.numFormat;
-                    const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
-                    if (document.activeElement !== input) {
-                        input.value = displayValue;
-                    }
-                });
-            });
-        }
-
-        function applyReadonlyState() {
-            host.querySelectorAll('[data-action="apply-formula"]').forEach(button => { button.disabled = readonly; });
-            if (formulaInput) formulaInput.disabled = readonly;
-            setWindowMenus();
-        }
+        function cleanup(){if(disposed)return;disposed=true;generation++;releaseDocument();lifecycle.abort();resize.disconnect();instances.delete(windowId);}
+        renderMenus();load(path,ctx.path?null:'blank');
     }
-
-    function dispose(windowId) {
-        const instance = instances.get(windowId);
-        if (!instance) return;
-        if (typeof instance.closeContextMenu === 'function') instance.closeContextMenu();
-        if (instance.autosaveTimer) clearTimeout(instance.autosaveTimer);
-        if (typeof instance.closeSearch === 'function') instance.closeSearch();
-        if (instance.formatClickHandler) document.removeEventListener('click', instance.formatClickHandler);
-        instances.delete(windowId);
-    }
-
-    async function fetchJSON(url, options) {
-        const resp = await fetch(url, options);
-        const body = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(body.error || body.message || ('HTTP ' + resp.status));
-        return body;
-    }
-
-    function emptyWorkbook(path) { return { path, sheets: [{ name: '', rows: [] }] }; }
-
-    function nextUntitledPath(ext) {
-        const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
-        return 'Documents/untitled-' + stamp + ext;
-    }
-
-    function pathDir(path) {
-        const parts = String(path || '').split('/').filter(Boolean);
-        parts.pop();
-        return parts.join('/') || 'Documents';
-    }
-
-    function normalizeWorkbook(raw, path) {
-        const sheets = Array.isArray(raw.sheets) && raw.sheets.length ? raw.sheets : [{ name: '', rows: [] }];
-        return {
-            path: raw.path || path || DEFAULT_PATH,
-            sheets: sheets.map((sheet, index) => ({
-                name: sheet.name || '',
-                rows: Array.isArray(sheet.rows) ? sheet.rows : []
-            }))
-        };
-    }
-
-    function padRows(rows, minRows, minCols) {
-        const width = Math.max(minCols, maxCols(rows));
-        const padded = rows.map(row => {
-            const next = Array.isArray(row) ? row.slice() : [];
-            while (next.length < width) next.push({ value: '' });
-            return next;
-        });
-        while (padded.length < minRows) padded.push(Array.from({ length: width }, () => ({ value: '' })));
-        return padded;
-    }
-
-    function cellIsEmpty(cell) {
-        if (!cell) return true;
-        const v = cell.value != null ? String(cell.value) : '';
-        const f = cell.formula || '';
-        return v.trim() === '' && f.trim() === '';
-    }
-
-    function trimRows(rows) {
-        let lastRow = -1;
-        rows.forEach((row, r) => {
-            if (row.some(cell => !cellIsEmpty(cell))) lastRow = r;
-        });
-        if (lastRow < 0) return [];
-        return rows.slice(0, lastRow + 1).map(row => {
-            let lastCol = -1;
-            row.forEach((cell, c) => {
-                if (!cellIsEmpty(cell)) lastCol = c;
-            });
-            return row.slice(0, lastCol + 1);
-        });
-    }
-
-    function ensureRows(rows, rowCount, colCount) {
-        while (rows.length < rowCount) rows.push([]);
-        rows.forEach(row => { while (row.length < colCount) row.push({ value: '' }); });
-    }
-
-    function maxCols(rows) { return Math.max(0, ...((rows || []).map(row => Array.isArray(row) ? row.length : 0))); }
-
-    function displayCell(cell, applyNumFormat) {
-        if (!cell) return '';
-        if (cell.formula) return '=' + String(cell.formula);
-        const raw = cell.value || '';
-        if (applyNumFormat && cell.format && cell.format.numFormat) {
-            const fmtMod = window.SheetsFormat;
-            return fmtMod ? fmtMod.formatDisplayValue(raw, cell.format.numFormat) : raw;
-        }
-        return raw;
-    }
-
-    function cellInputAttributes(cell, sheet) {
-        const fmtMod = window.SheetsFormat;
-        const numFmt = cell && cell.format && cell.format.numFormat;
-        if (!cell || !cell.formula) {
-            const raw = cell ? (cell.value || '') : '';
-            const display = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(raw, numFmt) : raw;
-            const escDisplay = display.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-            const escRaw = raw.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-            let attrs = `value="${escDisplay}" data-raw-value="${escRaw}"`;
-            if (numFmt) attrs += ` data-num-format="${numFmt.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
-            return attrs;
-        }
-        const formula = String(cell.formula).replace(/^=/, '');
-        const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
-        const rawResult = evaluate(sheet, formula);
-        const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
-        let attrs = `value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-formula="${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-display-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-raw-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" title="=${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
-        if (numFmt) attrs += ` data-num-format="${numFmt.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
-        return attrs;
-    }
-
-        function syncFormulaDataset(input, cell, sheet) {
-            if (!input) return;
-            if (cell && cell.formula) {
-                const formula = String(cell.formula).replace(/^=/, '');
-                const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
-                const displayValue = evaluate(sheet, formula);
-                input.dataset.formula = formula;
-                input.dataset.displayValue = displayValue;
-                input.title = '=' + formula;
-                return;
-            }
-            delete input.dataset.formula;
-            delete input.dataset.displayValue;
-            input.removeAttribute('title');
-        }
-
-    function showFormulaForEditing(input) {
-        if (!input) return;
-        if (input.dataset.formula) {
-            input.value = '=' + input.dataset.formula;
-        } else if (input.dataset.rawValue && input.dataset.numFormat) {
-            input.value = input.dataset.rawValue;
-        }
-    }
-
-    function showFormulaResult(input) {
-        if (!input) return;
-        if (input.dataset.formula) {
-            const fmtMod = window.SheetsFormat;
-            const raw = input.dataset.displayValue || input.dataset.rawValue || '';
-            const numFmt = input.dataset.numFormat;
-            input.value = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(raw, numFmt) : raw;
-        } else if (input.dataset.rawValue && input.dataset.numFormat) {
-            const fmtMod = window.SheetsFormat;
-            input.value = fmtMod ? fmtMod.formatDisplayValue(input.dataset.rawValue, input.dataset.numFormat) : input.dataset.rawValue;
-        }
-    }
-
-    function cellNameFallback(row, col) {
-        return columnNameFallback(col + 1) + String(row + 1);
-    }
-
-    function columnNameFallback(index) {
-        let name = '';
-        let n = index;
-        while (n > 0) {
-            const mod = (n - 1) % 26;
-            name = String.fromCharCode(65 + mod) + name;
-            n = Math.floor((n - mod) / 26);
-        }
-        return name;
-    }
-
-    function interpolate(text, vars) {
-        let result = String(text || '');
-        Object.entries(vars || {}).forEach(([key, value]) => { result = result.replaceAll('{{' + key + '}}', String(value)); });
-        return result;
-    }
-
-    window.SheetsApp = window.SheetsApp || {};
-    window.SheetsApp.render = render;
-    window.SheetsApp.dispose = dispose;
+    function dispose(id){instances.get(id)?.dispose();}
+    window.SheetsApp={render,dispose,instances};
 })();

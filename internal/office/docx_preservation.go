@@ -18,6 +18,10 @@ var ErrDOCXRequiresNativeEditor = errors.New("DOCX contains formatting or review
 
 // ReadDOCXParts bounds package expansion before XML parsing or preservation checks.
 func ReadDOCXParts(data []byte) (map[string][]byte, error) {
+	return readOfficeParts(data, "word/document.xml")
+}
+
+func readOfficeParts(data []byte, mainPart string) (map[string][]byte, error) {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return nil, fmt.Errorf("read DOCX package: %w", err)
@@ -55,7 +59,7 @@ func ReadDOCXParts(data []byte) (map[string][]byte, error) {
 		}
 		parts[file.Name] = content
 	}
-	if len(parts["[Content_Types].xml"]) == 0 || len(parts["word/document.xml"]) == 0 {
+	if len(parts["[Content_Types].xml"]) == 0 || len(parts[mainPart]) == 0 {
 		return nil, fmt.Errorf("DOCX document parts are missing")
 	}
 	return parts, nil

@@ -46,18 +46,19 @@
             dispose() { disposed = true; clear(); },
         };
     }
-    let database;
-    function openDrafts() {
-        if (!database) database = new Promise((resolve, reject) => {
-            const request = indexedDB.open('aurago.writer.drafts.v1', 1);
+    const databases = new Map();
+    function openDrafts(namespace = 'writer') {
+        if (!['writer','sheets'].includes(namespace)) throw new Error('Invalid office draft namespace');
+        if (!databases.has(namespace)) databases.set(namespace, new Promise((resolve, reject) => {
+            const request = indexedDB.open('aurago.' + namespace + '.drafts.v1', 1);
             request.onupgradeneeded = () => request.result.createObjectStore('documents', { keyPath: 'key' });
             request.onsuccess = () => resolve(request.result);
-            request.onerror = () => { database = null; reject(request.error); };
-        });
-        return database;
+            request.onerror = () => { databases.delete(namespace); reject(request.error); };
+        }));
+        return databases.get(namespace);
     }
-    async function draft(operation, key, value) {
-        const db = await openDrafts();
+    async function draft(operation, key, value, namespace = 'writer') {
+        const db = await openDrafts(namespace);
         return new Promise((resolve, reject) => {
             const tx = db.transaction('documents', operation === 'get' ? 'readonly' : 'readwrite');
             const store = tx.objectStore('documents');
@@ -67,5 +68,6 @@
             tx.onabort = () => reject(tx.error || new Error('Draft transaction aborted'));
         });
     }
-    window.WriterSession = { create, draft };
+    window.OfficeSession = { create, draft };
+    window.WriterSession = window.OfficeSession;
 })();

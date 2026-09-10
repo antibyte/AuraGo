@@ -102,6 +102,10 @@ func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
 			return
 		}
+		if r.URL.Query().Get("representation") == "editor-v2" {
+			handleDesktopNativeWorkbook(s, w, r)
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -177,6 +181,10 @@ func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodPost {
+			if r.URL.Query().Get("kind") == "workbook" {
+				handleDesktopSheetsSnapshotExport(s, w, r)
+				return
+			}
 			handleDesktopWriterSnapshotExport(w, r)
 			return
 		}
@@ -220,7 +228,16 @@ func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-		case "xlsx":
+		case "xlsx", "xlsm":
+			if strings.EqualFold(filepath.Ext(entry.Name), "."+format) {
+				output = data
+				mimeType = office.XLSXMIME
+				break
+			}
+			if err := office.CheckLegacyWorkbookRewrite(entry.Name, data); err != nil {
+				jsonError(w, err.Error(), 400)
+				return
+			}
 			workbook, err := office.DecodeWorkbook(entry.Name, data)
 			if err != nil {
 				jsonError(w, err.Error(), http.StatusBadRequest)
@@ -314,7 +331,10 @@ func writeOfficeFileBytesChecked(ctx context.Context, svc *desktop.Service, path
 			return err
 		}
 		if current.Exists {
-			return office.CheckLegacyDocumentRewrite(path, current.Data)
+			if err := office.CheckLegacyDocumentRewrite(path, current.Data); err != nil {
+				return err
+			}
+			return office.CheckLegacyWorkbookRewrite(path, current.Data)
 		}
 		return nil
 	})

@@ -29,15 +29,9 @@ func TestDesktopPrintFrameI18n(t *testing.T) {
 		t.Fatal("writer still hardcodes print frame unavailable")
 	}
 
-	sheets := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
-	if !strings.Contains(sheets, "setStatus(t('desktop.print_failed'))") {
-		t.Fatal("sheets print must setStatus desktop.print_failed")
-	}
-	if !strings.Contains(sheets, "notify({ type: 'error', message: t('desktop.print_failed') })") {
-		t.Fatal("sheets print must notify desktop.print_failed")
-	}
-	if strings.Contains(sheets, "print frame unavailable") {
-		t.Fatal("sheets still hardcodes print frame unavailable")
+	sheets := readDesktopAssetText(t, "js/desktop/apps/sheets-panels.js")
+	if !strings.Contains(sheets, "throw Error(tr('print_failed'))") || !strings.Contains(sheets, ".catch(state.fail)") {
+		t.Fatal("Sheets must show localized print failures")
 	}
 
 	english := "Could not open the print preview."
