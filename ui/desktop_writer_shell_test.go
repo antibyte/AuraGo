@@ -36,6 +36,9 @@ func verifyWriterShell(t *testing.T, page *rod.Page, dir string) {
                     actualWriter.editor.setZoomMode({type:'fit',fit:'pageWidth',minZoom:.25,maxZoom:1});
                     actualWriter.editor.scrollToPage(1);
                     await new Promise(r=>setTimeout(r,150));
+                    const menuBar=[...document.querySelectorAll('.vd-window-menubar')].find(x=>x.dataset.ownerWindow===writerWindow.id);
+                    const menuIcons=[...menuBar.querySelectorAll('.vd-window-menu-icon:not(.empty)')];
+                    if(!menuIcons.length || menuIcons.some(x=>x.querySelector('.vd-symbol-fallback') || !x.querySelector('.vd-mini-icon,.vd-mini-symbol,.vd-theme-icon')))throw Error('Writer menu contains missing icons or text placeholders: '+JSON.stringify(menuIcons.filter(x=>x.querySelector('.vd-symbol-fallback') || !x.querySelector('.vd-mini-icon,.vd-mini-symbol,.vd-theme-icon')).map(x=>x.outerHTML)));
                     if(document.querySelector('.writer-app').scrollWidth>document.querySelector('.writer-app').clientWidth+2)throw Error('Writer chrome overflows');
                     if(document.querySelector('[data-notice]')?.dataset.error==='true' && !document.querySelector('[data-notice]').hidden)throw Error(document.querySelector('[data-notice-text]').textContent);
                 }`, []string{theme, density})
@@ -51,6 +54,9 @@ func verifyWriterShell(t *testing.T, page *rod.Page, dir string) {
 	for _, theme := range []string{"standard", "fruity-dark", "fruity-light"} {
 		page.MustEval(`async theme=>{fixtureTheme(theme);if(!document.querySelector('[data-review]'))await actualWriter.act('review');actualWriter.editor.scrollToPage(1);await new Promise(r=>setTimeout(r,100));}`, theme)
 		page.MustScreenshot(filepath.Join(dir, "writer-"+theme+"-review.png"))
+		page.MustEval(`()=>document.querySelector('.vd-window-menubar[data-owner-window="'+writerWindow.id+'"] [data-window-menu="file"]').click()`)
+		page.MustScreenshot(filepath.Join(dir, "writer-"+theme+"-file-menu.png"))
+		page.MustEval(`()=>document.querySelector('.vd-window-menubar[data-owner-window="'+writerWindow.id+'"] [data-window-menu="file"]').click()`)
 	}
 	page.MustEval(`async()=>{
         const win=writerWindow,id=win.id;

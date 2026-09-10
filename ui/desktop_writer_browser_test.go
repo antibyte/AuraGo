@@ -90,6 +90,24 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
         const app=WriterApp.instances.get('test'),editor=app.editor;
         const run=c=>{const r=editor.exec(c);if(!r.ok)throw Error(JSON.stringify({c,r}));return r;};
         run({type:'paste',text:'',html:'<h1>A thoughtful place to write.</h1><p>Every good idea deserves room to grow. Autor brings your words, feedback and ideas together in a calm workspace.</p><h2>Clarity, one page at a time</h2><p>Work with genuine document pages, thoughtful typography and focused tools.</p>'});
+        editor.selectMatch(editor.findMatches('Every good idea')[0]);
+        const size=document.querySelector('[data-slot="font.size"]');
+        for(const points of [12,11.5,1,200]) {
+            const before=editor.snapshot().formatting.fontSizePt;
+            size.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));size.focus();size.value=String(points);
+            size.dispatchEvent(new Event('change',{bubbles:true}));size.blur();
+            await new Promise(r=>setTimeout(r,100));
+            if(editor.snapshot().formatting.fontSizePt!==points)throw Error('Font size in points was not applied: '+points);
+            if(size.disabled || Number(size.value)!==points)throw Error('Font size control lost its value or became disabled');
+            if(!document.querySelector('[data-notice]').hidden)throw Error(document.querySelector('[data-notice-text]').textContent);
+            run({type:'undo'});if(editor.snapshot().formatting.fontSizePt!==before)throw Error('Font size undo failed');
+        }
+        for(const invalid of ['',0,200.5,11.25]) {
+            const before=editor.snapshot().formatting.fontSizePt,revision=app.session.revision;
+            size.focus();size.value=String(invalid);size.dispatchEvent(new Event('change',{bubbles:true}));size.blur();
+            if(editor.snapshot().formatting.fontSizePt!==before || app.session.revision!==revision)throw Error('Invalid font size changed the document');
+            if(!document.querySelector('[data-notice]').hidden)throw Error('Invalid font size reached the editor');
+        }
         const ids=editor.surface.session.paragraphIds();const last=ids[ids.length-1];
         run({type:'setSelection',range:{anchor:{paragraphId:last,offset:editor.query({type:'paragraphs'}).at(-1).text.length},head:{paragraphId:last,offset:editor.query({type:'paragraphs'}).at(-1).text.length}}});
         run({type:'insertBreak',kind:'page'});

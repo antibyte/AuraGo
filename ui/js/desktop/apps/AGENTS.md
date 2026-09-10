@@ -862,6 +862,10 @@ registration lives in `internal/desktop/types.go`.
   Acknowledgements cover only the captured revision. Suspend the queue during
   Save As; native writes require ETag preconditions. Keep the async close guard
   installed until cleanup and never replace failed loads with blank content.
+- Writer font-size controls display points and convert to integer half-points at
+  the command boundary, including command availability checks. Reject invalid
+  inputs before editing. Map app actions to existing shared icon keys; action IDs
+  are not automatically icon names.
 - Writer visible UI strings use `desktop.writer_*` keys in all
   `ui/lang/desktop/*.json` files. New keys require translations across all 16
   supported languages.

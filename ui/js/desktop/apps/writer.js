@@ -18,7 +18,9 @@
         dispose(windowId);
         const ctx = context || {}, esc = ctx.esc || escapeHTML;
         const tr = (key, params) => ctx.t?.('desktop.writer_' + key, params) || key;
-        const icon = (key, fallback) => ctx.iconMarkup?.(key, fallback, 'writer-icon', 18, 'action') || esc(fallback);
+        const actionIcons = {new:'file-plus',open:'folder-open',saveAs:'copy',docx:'file-text',html:'file-code',md:'notes',txt:'file-text',print:'printer',
+            outline:'list',format:'sliders',review:'chat',assist:'star',insert:'plus',focus:'maximize',fit:'monitor'};
+        const icon = (key, fallback) => ctx.iconMarkup?.(actionIcons[key] || key, fallback, 'writer-icon', 18, 'action') || esc(fallback);
         const button = (action, label, symbol) => '<button type="button" data-action="' + action + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(action, symbol) + '</button>';
         const slotButton = (slot, label, symbol) => '<button type="button" data-slot="' + slot + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(label, symbol) + '</button>';
         host.innerHTML = '<div class="writer-app" data-writer="' + esc(windowId) + '">' +
@@ -28,7 +30,7 @@
             '<div class="writer-document-menu" data-document-menu hidden><strong data-location></strong><button data-action="rename">' + esc(tr('rename')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="save">' + esc(tr('save')) + '</button></div>' +
             '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format')) + '">' +
             '<div class="writer-toolgroup">' + slotButton('history.undo','undo','↶') + slotButton('history.redo','redo','↷') + '</div>' +
-            '<div class="writer-toolgroup writer-fonts"><select data-slot="styles.style" aria-label="' + esc(tr('style')) + '"></select><select data-slot="font.family" aria-label="' + esc(tr('font')) + '"></select><input type="number" data-slot="font.size" min="1" max="200" step=".5" value="11" aria-label="' + esc(tr('size')) + '"></div>' +
+            '<div class="writer-toolgroup writer-fonts"><select data-slot="styles.style" aria-label="' + esc(tr('style')) + '"></select><select data-slot="font.family" aria-label="' + esc(tr('font')) + '"></select><input type="number" data-slot="font.size" required min="1" max="200" step=".5" value="11" aria-label="' + esc(tr('size')) + '"></div>' +
             '<div class="writer-toolgroup">' + slotButton('text.bold','bold','B') + slotButton('text.italic','italic','I') + slotButton('text.underline','underline','U') + '</div>' +
             '<div class="writer-toolgroup">' + slotButton('alignment.left','align_left','≡') + slotButton('alignment.center','align_center','≡') + slotButton('alignment.right','align_right','≡') + '</div>' +
             '<div class="writer-toolgroup">' + slotButton('list.bullet','bullets','•') + slotButton('list.numbered','numbering','1.') + slotButton('list.outdent','outdent','⇤') + slotButton('list.indent','indent','⇥') + '</div>' +
@@ -237,6 +239,10 @@
             find('[data-slot="styles.style"]').innerHTML=editor.getDocumentStyles().filter(x=>x.type==='paragraph').map(x=>option(x.styleId,x.name)).join('');
             find('[data-slot="font.family"]').innerHTML=editor.getAvailableFonts().map(x=>option(x,x)).join('');
         }
+        function valueCommand(control) {
+            // The toolbar displays points; the DOCX command consumes integer half-points.
+            return lib.commandForSlotValue(control.dataset.slot,control.dataset.slot==='font.size'?control.valueAsNumber*2:control.value);
+        }
         function refreshSoon(){clearTimeout(updateTimer);updateTimer=setTimeout(refresh,75);}
         function refresh() {
             if(!editor || disposed || loading)return;
@@ -250,7 +256,7 @@
                     el.setAttribute('aria-pressed',String(!!command && editor.isActive(command)));
                 } else if(document.activeElement!==el) {
                     el.value=slot==='styles.style'?fmt.styleId || 'Normal':slot==='font.family'?fmt.fontFamily || 'Calibri':fmt.fontSizePt || 11;
-                    const allowed=can(lib.commandForSlotValue(slot,el.type==='number'?Number(el.value):el.value));
+                    const allowed=can(valueCommand(el));
                     el.disabled=!allowed.ok;el.title=allowed.ok?'':tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:'');
                 }
             }
@@ -381,7 +387,7 @@
             download(await response.arrayBuffer(),response.headers.get('Content-Type'),basename(path).replace(/\.docx$/i,'.'+format));
         }
         function setMenus() {
-            const item=(id,label,shortcut,disabled)=>({id,label:tr(label),icon:id,shortcut,disabled,action:()=>act(id)});
+            const item=(id,label,shortcut,disabled)=>({id,label:tr(label),icon:actionIcons[id] || id,shortcut,disabled,action:()=>act(id)});
             ctx.setWindowMenus?.(windowId,[
                 {id:'file',labelKey:'desktop.menu_file',items:[
                     item('new','new','Ctrl+N',ctx.readonly),item('open','open','Ctrl+O'),
@@ -389,8 +395,8 @@
                     {type:'separator'},item('docx','download_docx',null,!editor),item('html','export_html',null,!editor),item('md','export_md',null,!editor),item('txt','export_txt',null,!editor),
                     {type:'separator'},item('print','print','Ctrl+P',!editor)]},
                 {id:'edit',labelKey:'desktop.menu_edit',items:[
-                    {id:'undo',label:tr('undo'),shortcut:'Ctrl+Z',action:()=>run({type:'undo'})},
-                    {id:'redo',label:tr('redo'),shortcut:'Ctrl+Y',action:()=>run({type:'redo'})},
+                    {id:'undo',label:tr('undo'),icon:'undo',shortcut:'Ctrl+Z',action:()=>run({type:'undo'})},
+                    {id:'redo',label:tr('redo'),icon:'redo',shortcut:'Ctrl+Y',action:()=>run({type:'redo'})},
                     item('search','find','Ctrl+F'),item('review','review'),item('format','format'),item('insert','insert')]},
                 {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist')]},
                 {id:'view',label:tr('view'),items:[item('outline','outline'),item('focus','focus_mode'),item('fit','fit')]}
@@ -401,7 +407,11 @@
             const control=event.target.closest('[data-action],[data-slot]');if(!control || control.disabled)return;
             if(control.dataset.action)void act(control.dataset.action);else if(control.matches('button'))run(lib?.commandForSlot(control.dataset.slot));
         },{signal:lifecycle.signal});
-        root.addEventListener('change',event=>{const el=event.target;if(el.dataset.slot)run(lib.commandForSlotValue(el.dataset.slot,el.type==='number'?Number(el.value):el.value));},{signal:lifecycle.signal});
+        root.addEventListener('change',event=>{
+            const el=event.target;if(!el.dataset.slot)return;
+            if(!el.checkValidity()){el.reportValidity();return;}
+            run(valueCommand(el));
+        },{signal:lifecycle.signal});
         find('[data-image]').addEventListener('change',event=>{const file=event.target.files[0];if(file)insertImage(file).catch(fail);event.target.value='';},{signal:lifecycle.signal});
         for(const type of ['paste','drop'])mount.addEventListener(type,event=>{
             const files=[...(event.clipboardData?.files || event.dataTransfer?.files || [])].filter(x=>x.type.startsWith('image/'));
