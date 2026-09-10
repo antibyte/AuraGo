@@ -19,14 +19,8 @@ func TestDesktopNotifyRequestI18n(t *testing.T) {
 	}
 
 	notes := readDesktopAssetText(t, "js/desktop/apps/notes.js")
-	if !strings.Contains(notes, "state.t('desktop.request_failed')") {
-		t.Fatal("notes notifyError must localize desktop.request_failed")
-	}
-	if !strings.Contains(notes, "existsErr.notesCode = 'rename_exists'") {
-		t.Fatal("notes rename conflict must set notesCode")
-	}
-	if !strings.Contains(notes, "err.notesCode === 'rename_exists'") {
-		t.Fatal("notes notifyError must keep the rename conflict message")
+	if !strings.Contains(notes, "'request_failed'") || !strings.Contains(notes, "error.status===412?'conflict'") {
+		t.Fatal("notes errors and version conflicts must be localized")
 	}
 	if strings.Contains(notes, "message: (err && err.message) || String(err)") {
 		t.Fatal("notes notifyError still dumps err.message")

@@ -548,6 +548,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/integrations/space-agent", handleSpaceAgentLegacyRedirect(s))
 	mux.HandleFunc("/integrations/space-agent/", handleSpaceAgentLegacyRedirect(s))
 	mux.HandleFunc("/api/desktop/bootstrap", handleDesktopBootstrap(s))
+	mux.HandleFunc("/api/desktop/notes", handleDesktopNotes(s))
 	mux.HandleFunc("/api/desktop/files", handleDesktopFiles(s))
 	mux.HandleFunc("/api/desktop/search", handleDesktopSearch(s))
 	mux.HandleFunc("/api/desktop/file", handleDesktopFile(s))

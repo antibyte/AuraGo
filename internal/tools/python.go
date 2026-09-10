@@ -313,7 +313,10 @@ func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	err := cmd.Run()
+	runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: pipInstallTimeout, ScrubOutput: true})
+	out, errOut, err := runner.Run(ctx)
+	stdout.Write([]byte(out))
+	stderr.Write([]byte(errOut))
 	if ctx.Err() == context.DeadlineExceeded {
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: pip install '%s' exceeded %s limit", pkgName, pipInstallTimeout)
 	}

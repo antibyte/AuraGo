@@ -311,6 +311,9 @@ func fileDeleteLines(resolved string, startLine, endLine int, encode func(FileEd
 
 // writeFileAtomic writes data to a file atomically using a temporary file and rename.
 func writeFileAtomic(path string, data []byte) error {
+	if err := requireUnprotectedNotesPath(path, true); err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create parent dir: %w", err)

@@ -1615,11 +1615,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.NotesApp.render === 'function') {
-                return window.NotesApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
-                    esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(),
-                    promptDialog,
-                    recordRecentFile, openFileDialog: options => openDesktopFileDialog(options || {})
-                }));
+                return window.NotesApp.render(contentEl(id), id, { ...officeAppContext(context), recordRecentFile });
             }
         }
         if (appId === 'openscad') {

@@ -8,12 +8,24 @@ const sampleFiles = [
     {name:'Projects',path:'Projects',type:'directory',modified:'2026-09-09T09:30:00Z'},
     {name:'Welcome.md',path:'Welcome.md',type:'file',size:428,modified:'2026-09-09T10:30:00Z'}
 ];
+const fixtureNotes=new Map([['Documents/Notes/aurora.md',{path:'Documents/Notes/aurora.md',title:'Kleine Ideen, große Möglichkeiten',version:'"1"',tags:['design','aurora'],modified:'2026-09-10T10:00:00Z',snippet:'Ein ruhiger Ort für Gedanken, Projekte und neue Perspektiven.',content:'# Kleine Ideen, große Möglichkeiten\n\nEin ruhiger Ort für Gedanken, Projekte und alles, was noch wachsen darf.\n\n## Der nächste Schritt\n\n- [x] Die Idee festhalten\n- [ ] Gemeinsam etwas Besonderes entwickeln\n- [ ] Die kleinen Details nicht vergessen\n\n## Werkstattnotizen\n\nGute Werkzeuge lassen uns **konzentriert arbeiten**. Der Inhalt steht im Mittelpunkt.\n\n> Eine gute Idee beginnt oft mit einer kleinen Notiz.\n\n| Projekt | Status |\n| --- | --- |\n| Aurora Workstation | In Arbeit |\n| Leafy | Wächst weiter |\n'}],['Documents/Notes/ideen.md',{path:'Documents/Notes/ideen.md',title:'Eine neue Perspektive',version:'"1"',tags:['ideen'],modified:'2026-09-09T15:00:00Z',snippet:'Manchmal beginnt etwas Großes mit einem kleinen Gedanken.',content:'# Eine neue Perspektive\n\nManchmal beginnt etwas Großes mit einem kleinen Gedanken.'}]]);
 window.fixtureRequests=[];
 window.fetch=async(url,options={})=>{
     const path=String(url);
     if(path.startsWith('/history')) return reply([]);
     if(!path.startsWith('/api/')) return nativeFetch(url,options);
     fixtureRequests.push(path);
+    if(path.startsWith('/api/desktop/notes')) {
+        let name=new URL(path,location.origin).searchParams.get('path');
+        if(options.method==='PUT'||options.method==='POST'){
+            const body=JSON.parse(options.body||'{}');name=body.path||name||'Documents/Notes/new.md';
+            const previous=fixtureNotes.get(name);
+            if(previous && options.headers?.['If-Match']!==previous.version)return new Response('{"error":"Conflict"}',{status:412});
+            fixtureNotes.set(name,{path:name,title:name.split('/').pop().replace('.md',''),version:'"'+Date.now()+'"',modified:new Date().toISOString(),content:body.content});
+        }
+        if(name)return fixtureNotes.has(name)?reply(fixtureNotes.get(name)):new Response('{}',{status:404});
+        const notes=[...fixtureNotes.values()].filter(n=>n.path.endsWith('.md'));return reply({notes,total:notes.length,folders:[]});
+    }
     if(path.startsWith('/api/i18n')) return reply({data:window.I18N});
     if(path==='/api/desktop/bootstrap') return reply(aurora.state.bootstrap);
     if(path.startsWith('/api/desktop/settings')) return reply({settings:aurora.state.bootstrap.settings});
@@ -71,7 +83,7 @@ window.fixtureOpen=async id=>{
     window.fixtureAppId=id;
     fixtureRequests.length=0;
     if(id==='music-player'){await aurora.launchStandaloneWebamp({});return;}
-    aurora.openApp(id, id==='viewer'?{path:'Welcome.md'}:id==='notes'?{path:'Welcome.md'}:id==='editor'?{path:'Welcome.md',content:'# Aurora Workstation\n\nWelcome home.'}:{});
+    aurora.openApp(id, id==='viewer'?{path:'Welcome.md'}:id==='notes'?{path:'Documents/Notes/aurora.md'}:id==='editor'?{path:'Welcome.md',content:'# Aurora Workstation\n\nWelcome home.'}:{});
     await new Promise(r=>setTimeout(r,300));
     await document.fonts.ready;
     await Promise.all([...document.querySelectorAll('.vd-window-content img')].filter(im=>!im.loading || im.loading!=='lazy').map(im=>im.decode().catch(()=>{})));

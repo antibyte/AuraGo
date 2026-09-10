@@ -12,7 +12,7 @@ export {
   highlightActiveLine,
 } from '@codemirror/view';
 export { EditorState, Prec, Compartment } from '@codemirror/state';
-export { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+export { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
 export { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 export {
   javascript,

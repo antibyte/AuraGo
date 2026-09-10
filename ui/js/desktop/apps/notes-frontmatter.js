@@ -46,7 +46,14 @@
             if (!match) continue;
             const key = match[1].toLowerCase();
             const value = match[2].trim();
-            if (key === 'tags') result.tags = parseTags(value);
+            if (key === 'tags') {
+                result.tags = parseTags(value);
+                if (!value) for (let j=i+1;j<end;j++) {
+                    const item=/^\s+-\s+(.+)$/.exec(lines[j]);
+                    if (!item) break;
+                    result.tags.push(...parseTags(item[1]));
+                }
+            }
             else if (key === 'title' && !result.title) result.title = value.replace(/^["']|["']$/g, '');
         }
         return result;
@@ -55,6 +62,7 @@
     function parseTags(value) {
         let v = String(value || '').trim();
         if (!v) return [];
+        try { const parsed=JSON.parse(v.startsWith('[')?v:'['+v+']'); if(Array.isArray(parsed))return parsed.filter(tag=>typeof tag==='string').map(tag=>tag.toLowerCase()); } catch (_) {}
         if (v.startsWith('[') && v.endsWith(']')) v = v.slice(1, -1);
         return v.split(',')
             .map(tag => tag.trim().replace(/^["']|["']$/g, '').toLowerCase())
@@ -62,7 +70,7 @@
     }
 
     function serializeTags(tags) {
-        return (tags || []).join(', ');
+        return (tags || []).map(tag=>/^[\p{L}\p{N}_-]+$/u.test(tag)?tag:JSON.stringify(tag)).join(', ');
     }
 
     // Rewrites only the tags line. Preserves every other frontmatter line
@@ -88,13 +96,17 @@
                 break;
             }
         }
+        let tagsLines = 1;
+        if(tagsLineIdx!==-1 && /^tags\s*:\s*$/i.test(lines[tagsLineIdx])) {
+            while(tagsLineIdx+tagsLines<parsed.blockEnd && /^\s+-\s+/.test(lines[tagsLineIdx+tagsLines]))tagsLines++;
+        }
         if (!nextTags.length) {
             if (tagsLineIdx === -1) return joinLines(lines, eol);
-            lines.splice(tagsLineIdx, 1);
-            if (parsed.blockEnd - 1 <= 1) {
+            lines.splice(tagsLineIdx, tagsLines);
+            if (parsed.blockEnd - tagsLines <= 1) {
                 // frontmatter became empty: drop the whole block
                 // (the closing fence shifted one line up after the splice)
-                const rest = lines.slice(parsed.blockEnd);
+                const rest = lines.slice(parsed.blockEnd-tagsLines+1);
                 return joinLines(rest, eol);
             }
             return joinLines(lines, eol);
@@ -103,7 +115,7 @@
             ? '[' + serializeTags(nextTags) + ']'
             : serializeTags(nextTags);
         if (tagsLineIdx === -1) lines.splice(1, 0, 'tags: ' + value);
-        else lines[tagsLineIdx] = 'tags: ' + value;
+        else lines.splice(tagsLineIdx,tagsLines,'tags: ' + value);
         return joinLines(lines, eol);
     }
 

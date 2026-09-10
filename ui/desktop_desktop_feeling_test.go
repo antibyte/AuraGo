@@ -233,7 +233,7 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 	for _, want := range []string{
 		".vd-notes-app",
 		".vd-notes-toolbar",
-		"background: var(--vd-theme-chrome-bg);",
+		"background:var(--vd-theme-chrome-bg,",
 	} {
 		if !strings.Contains(notesCSS, want) {
 			t.Fatalf("desktop app notes css missing %q", want)

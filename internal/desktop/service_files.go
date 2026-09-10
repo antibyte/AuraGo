@@ -454,6 +454,9 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
 
+	if err := s.guardNoteWrite(path, source, content); err != nil {
+		return FileEntry{}, err
+	}
 	if precondition != nil {
 		state, err := s.fileWriteStateLocked(path, maxBytes)
 		if err != nil {
@@ -557,6 +560,9 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if err != nil {
 		return err
 	}
+	if err := s.guardNoteMutation(path, source); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(path, 0o700); err != nil {
 		return fmt.Errorf("create desktop directory: %w", err)
 	}
@@ -568,6 +574,11 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 
 // MovePath renames or moves a workspace file or directory.
 func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string) error {
+	return s.MovePathConditional(ctx, oldPath, newPath, source, nil)
+}
+
+// MovePathConditional checks a source version under the same lock as the move.
+func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, source string, precondition FileWritePrecondition) error {
 	if err := s.ensureReady(ctx); err != nil {
 		return err
 	}
@@ -592,6 +603,11 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 		}
 		if strings.TrimSpace(toRel) == "" {
 			return fmt.Errorf("desktop media destination must be inside the mount")
+		}
+		for _, path := range []string{from, to} {
+			if err := s.guardNoteMutation(path, source); err != nil {
+				return err
+			}
 		}
 		if strings.EqualFold(from, to) {
 			return nil
@@ -619,6 +635,23 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	to, err := s.resolveWorkspaceRenameDestinationNoSymlinkParent(newPath)
 	if err != nil {
 		return err
+	}
+	for _, path := range []string{from, to} {
+		if err := s.guardNoteMutation(path, source); err != nil {
+			return err
+		}
+	}
+	if precondition != nil {
+		state, err := s.fileWriteStateLocked(from, MaxNoteBytes)
+		if err != nil {
+			return err
+		}
+		if err := precondition(state); err != nil {
+			return err
+		}
+		if _, err := os.Lstat(to); !os.IsNotExist(err) {
+			return ErrNoteConflict
+		}
 	}
 	if strings.EqualFold(from, to) {
 		return nil
@@ -674,6 +707,9 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 		if strings.TrimSpace(toRel) == "" {
 			return fmt.Errorf("desktop media destination must be inside the mount")
 		}
+		if err := s.guardNoteMutation(to, source); err != nil {
+			return err
+		}
 		if strings.EqualFold(from, to) {
 			return fmt.Errorf("source and destination are the same")
 		}
@@ -698,6 +734,9 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	}
 	to, err := s.resolveWorkspacePathNoSymlinks(dstPath, true)
 	if err != nil {
+		return err
+	}
+	if err := s.guardNoteMutation(to, source); err != nil {
 		return err
 	}
 	if strings.EqualFold(from, to) {
@@ -814,6 +853,9 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 		if strings.TrimSpace(rel) == "" {
 			return fmt.Errorf("cannot delete desktop media mount root")
 		}
+		if err := s.guardNoteMutation(path, source); err != nil {
+			return err
+		}
 		if err := os.RemoveAll(path); err != nil {
 			return fmt.Errorf("delete desktop media path: %w", err)
 		}
@@ -827,6 +869,9 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	}
 	if path == s.Config().WorkspaceDir {
 		return fmt.Errorf("cannot delete desktop workspace root")
+	}
+	if err := s.guardNoteMutation(path, source); err != nil {
+		return err
 	}
 	if err := os.RemoveAll(path); err != nil {
 		return fmt.Errorf("delete desktop path: %w", err)

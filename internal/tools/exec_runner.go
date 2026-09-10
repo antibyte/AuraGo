@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/sandbox"
 	"context"
 	"fmt"
 	"os/exec"
@@ -52,6 +53,12 @@ func NewForegroundRunner(cmd *exec.Cmd, opts ForegroundOptions) *ForegroundRunne
 // Run executes the command and waits for completion, timeout, or context cancellation.
 // Returns stdout, stderr, and any error (including timeout or context error).
 func (r *ForegroundRunner) Run(ctx context.Context) (string, string, error) {
+	perms, _ := currentRuntimePermissions()
+	protected, err := sandbox.ProtectFilesCommand(r.cmd, perms.ProtectedNotesRoots)
+	if err != nil {
+		return "", "", err
+	}
+	r.cmd = protected
 	r.stdout.Reset()
 	r.stderr.Reset()
 	r.cmd.Stdout = r.stdout
@@ -144,5 +151,14 @@ func NewBackgroundRunner(cmd *exec.Cmd, opts BackgroundOptions) *BackgroundRunne
 // Run starts the command in the background and registers it.
 // Returns the PID of the started process.
 func (r *BackgroundRunner) Run() (int, error) {
+	perms, _ := currentRuntimePermissions()
+	protected, err := sandbox.ProtectFilesCommand(r.cmd, perms.ProtectedNotesRoots)
+	if err != nil {
+		if r.opts.Cleanup != nil {
+			r.opts.Cleanup()
+		}
+		return 0, err
+	}
+	r.cmd = protected
 	return registerManagedBackgroundProcess(r.cmd, r.opts.Registry, r.opts.Cleanup)
 }

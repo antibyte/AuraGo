@@ -372,6 +372,12 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 		opts.injectEnv(cmd)
 	}
 
+	perms, _ := currentRuntimePermissions()
+	protected, protectionErr := sandbox.ProtectFilesCommand(cmd, perms.ProtectedNotesRoots, ctx)
+	if protectionErr != nil {
+		return "", protectionErr
+	}
+	cmd = protected
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return "", fmt.Errorf("failed to create stdin pipe: %w", err)

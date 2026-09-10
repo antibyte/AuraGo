@@ -1,12 +1,14 @@
 package tools
 
 import (
+	"aurago/internal/sandbox"
 	"fmt"
 	"sync/atomic"
 )
 
 // RuntimePermissions are the direct execution gates enforced inside high-risk tools.
 type RuntimePermissions struct {
+	ProtectedNotesRoots        []string
 	AllowShell                 bool
 	AllowPython                bool
 	AllowFilesystemWrite       bool
@@ -42,6 +44,14 @@ func currentRuntimePermissions() (RuntimePermissions, bool) {
 		return *perms, true
 	}
 	return RuntimePermissions{}, false
+}
+
+func requireUnprotectedNotesPath(path string, parents bool) error {
+	perms, _ := currentRuntimePermissions()
+	if sandbox.ProtectedFilePath(path, perms.ProtectedNotesRoots, parents) {
+		return fmt.Errorf("Desktop Notes are protected; use desktop_notes to list, read, search or create. Existing notes cannot be changed or deleted")
+	}
+	return nil
 }
 
 func requireRuntimePermission(name string, allowed bool) error {

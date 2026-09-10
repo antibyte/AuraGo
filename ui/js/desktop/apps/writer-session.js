@@ -48,7 +48,7 @@
     }
     const databases = new Map();
     function openDrafts(namespace = 'writer') {
-        if (!['writer','sheets'].includes(namespace)) throw new Error('Invalid office draft namespace');
+        if (!['writer','sheets','notes'].includes(namespace)) throw new Error('Invalid office draft namespace');
         if (!databases.has(namespace)) databases.set(namespace, new Promise((resolve, reject) => {
             const request = indexedDB.open('aurago.' + namespace + '.drafts.v1', 1);
             request.onupgradeneeded = () => request.result.createObjectStore('documents', { keyPath: 'key' });
@@ -62,7 +62,8 @@
         return new Promise((resolve, reject) => {
             const tx = db.transaction('documents', operation === 'get' ? 'readonly' : 'readwrite');
             const store = tx.objectStore('documents');
-            const request = operation === 'put' ? store.put({ ...value, key }) : store[operation](key);
+            const request = operation === 'put' ? store.put({ ...value, key }) : operation === 'deleteIf' ? store.get(key) : store[operation](key);
+            if(operation==='deleteIf') request.onsuccess=()=>{if(request.result?.id===value.id)store.delete(key);};
             tx.oncomplete = () => resolve(request.result);
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error || new Error('Draft transaction aborted'));

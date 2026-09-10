@@ -1,5 +1,5 @@
     // Action roles are semantic: a 16px taskbar logo is still an app icon.
-    const MINI_SYMBOLS = new Set(["chevron-left","chevron-right","chevron-up","chevron-down","arrow-up","arrow-down","plus","minus","x","check","square","check-square","maximize","restore","refresh","undo","redo","menu","list","sort","play","pause","stop","external","eye","eye-off","zoom-in","zoom-out","grid","columns","layout","keyboard","contrast","mesh"]);
+    const MINI_SYMBOLS = new Set(["chevron-left","chevron-right","chevron-up","chevron-down","arrow-up","arrow-down","plus","minus","x","check","square","check-square","maximize","restore","refresh","undo","redo","menu","list","sort","play","pause","stop","external","eye","eye-off","zoom-in","zoom-out","grid","columns","layout","keyboard","contrast","mesh","format-bold","format-italic","format-strike","format-numbered","format-quote"]);
     const MINI_ALIASES = {
         'arrow-left': 'chevron-left', back: 'chevron-left', 'arrow-right': 'chevron-right',
         'folder-open': 'folder', documents: 'file', 'file-text': 'file', paste: 'clipboard',

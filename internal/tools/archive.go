@@ -68,6 +68,9 @@ func ExecuteArchive(workspaceDir, operation, archivePath, targetDir, sourceFiles
 	case "create":
 		return encode(archiveCreate(archivePath, targetDir, sourceFiles, format))
 	case "extract":
+		if err := requireUnprotectedNotesPath(targetDir, true); err != nil {
+			return encode(archiveResult{Status: "error", Message: err.Error()})
+		}
 		return encode(archiveExtract(archivePath, targetDir))
 	case "list":
 		return encode(archiveList(archivePath))

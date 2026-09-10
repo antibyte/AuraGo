@@ -2,7 +2,9 @@ package agent
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/tools"
+	"path/filepath"
 )
 
 func configureToolRuntimePermissions(cfg *config.Config) {
@@ -10,7 +12,12 @@ func configureToolRuntimePermissions(cfg *config.Config) {
 		return
 	}
 	packageManagerEnabled := cfg.Agent.AllowPackageManager && cfg.PackageManager.Enabled && (!cfg.Runtime.IsDocker || cfg.Agent.SudoEnabled)
+	var protectedNotes []string
+	if cfg.VirtualDesktop.WorkspaceDir != "" {
+		protectedNotes = []string{filepath.Join(cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(desktop.NotesDirectory)), filepath.Join(cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(desktop.NotesTrashDirectory))}
+	}
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
+		ProtectedNotesRoots:        protectedNotes,
 		AllowShell:                 cfg.Agent.AllowShell,
 		AllowPython:                cfg.Agent.AllowPython,
 		AllowFilesystemWrite:       cfg.Agent.AllowFilesystemWrite,

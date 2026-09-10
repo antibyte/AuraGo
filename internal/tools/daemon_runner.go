@@ -214,6 +214,14 @@ func (r *DaemonRunner) startLocked() error {
 		InjectToolBridgeEnv(cmd, r.bridgeURL, r.bridgeToken, r.bridgeTools)
 	}
 
+	perms, _ := currentRuntimePermissions()
+	protected, protectionErr := sandbox.ProtectFilesCommand(cmd, perms.ProtectedNotesRoots, ctx)
+	if protectionErr != nil {
+		r.status = DaemonStopped
+		r.cancel()
+		return protectionErr
+	}
+	cmd = protected
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
 		r.status = DaemonStopped

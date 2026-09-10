@@ -300,6 +300,9 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 			)
 		}
 		// Absolute path is within projectRoot — let it through as-is.
+		if err := requireUnprotectedNotesPath(cleanAbs, false); err != nil {
+			return "", err
+		}
 		return cleanAbs, nil
 	}
 
@@ -334,6 +337,9 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 		return "", fmt.Errorf("path '%s' escapes the project root", userPath)
 	}
 
+	if err := requireUnprotectedNotesPath(absPath, false); err != nil {
+		return "", err
+	}
 	return absPath, nil
 }
 
@@ -512,6 +518,23 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 	if filesystemOperationWrites(operation) {
 		if err := requireFilesystemWritePermission(); err != nil {
 			return FSResult{Status: "error", Message: err.Error()}
+		}
+		if !strings.HasSuffix(operation, "_batch") {
+			targets := []string{path}
+			if operation == "copy" {
+				targets = []string{destination}
+			} else if operation == "move" {
+				targets = append(targets, destination)
+			}
+			for _, target := range targets {
+				resolved, err := secureResolve(workspaceDir, target)
+				if err != nil {
+					return FSResult{Status: "error", Message: err.Error()}
+				}
+				if err := requireUnprotectedNotesPath(resolved, true); err != nil {
+					return FSResult{Status: "error", Message: err.Error()}
+				}
+			}
 		}
 	}
 

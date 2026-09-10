@@ -998,6 +998,14 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				SessionID:   req.SessionID,
 			})
 
+		case "desktop_notes":
+			exec := tools.ExecuteDesktopNotes(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(map[string]interface{}{"type": "virtual_desktop_event", "payload": exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
+
 		case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets":
 			args := tc.Params
 			if tc.Action == "virtual_desktop_app_install" {

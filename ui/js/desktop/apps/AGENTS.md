@@ -1607,51 +1607,23 @@ registration lives in `internal/desktop/types.go`.
   Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*` and
   `desktop.terminal_audio*` in all 16 desktop locales. No child DOX file
   needed.
-- `notes.js` - Notes app entry and orchestrator: per-window `instances` Map,
-  `window.NotesApp = { render, dispose, instances }`, markdown note list and
-  editor under `Documents/Notes/`. `notifyError` uses
-  `desktop.request_failed`; rename conflicts keep
-  `desktop.notes_rename_exists` via `notesCode`. Split across `notes-frontmatter.js`
-  (`window.NotesFrontmatter { parse, updateTags, strip, deriveTitle }`: YAML
-  frontmatter parsing that only ever rewrites the tags line and preserves all
-  other keys and line endings verbatim), `notes-list.js`
-  (`window.NotesList { mount, sortNotes }`: sidebar with instant
-  title/filename/tag filtering, sort select, tag chips with counts,
-  pinned-first cards, onboarding and no-results states),
-  `notes-toolbar.js` (`window.NotesToolbar { mount, bindShortcuts }`:
-  caret-safe markdown toolbar via `textarea.setRangeText`, tags popover,
-  Ctrl+B/I/K on the textarea), and `notes-editor.js`
-  (`window.NotesEditor { create }`: stable textarea, edit/split/preview
-  modes persisted in `localStorage` under `notes.viewMode`, sanitized marked
-  preview with hljs and lazy-loaded Mermaid (`securityLevel: 'strict'`,
-  injected on first fence, never in `DESKTOP_APP_ASSETS.scripts`), status
-  bar). File I/O uses `/api/desktop/file` (GET read, PUT write, PATCH move,
-  DELETE delete), `GET /api/desktop/files?path=Documents/Notes&recursive=true`
-  for the note list, and `POST /api/desktop/directory` before the first save
-  of a new note. Notes autosave debounces at 800 ms; flushes run on note
-  switch, view-mode change, Ctrl+S, and fire-and-forget in `dispose` (which
-  stays synchronous and idempotent). Per-note UI state (pinned paths, sort
-  mode, last open note) persists in the `Documents/Notes/notes.meta.json`
-  sidecar `{version, pinned, sort, last_note}` (read tolerant of
-  missing/corrupt files, writes debounced, path filtered from the note
-  list); tags live in the note frontmatter, max 8 per note. Content search
-  lazily builds an in-memory index (cap 500 files / 256 KiB per note,
-  60 s TTL, invalidated by own writes and SSE). Desktop changes arrive via
-  `window.AuraSSE.on('virtual_desktop_event', ...)` where the handler
-  receives `{type: 'desktop_changed', payload: {operation, path}}`
-  (double-nested); own writes are suppressed through a recent-writes window,
-  clean buffers reload silently, dirty buffers show a reload banner.
-  Shortcuts: Ctrl/Cmd+S save, Alt+N new, `/` focus search, Esc clear —
-  bound at document level per instance and removed on dispose. Rename uses
-  the shell `promptDialog` (passed by `menus-and-routing.js`) with an inline
-  modal fallback; delete uses inline confirm/cancel with 5 s revert; never
-  native `prompt`/`confirm`/`alert`. Readonly mode disables editing, tags,
-  pins, new/rename/duplicate/delete, and sidecar writes. Recent files call
-  `recordRecentFile(path, 'notes')`. Styles live in
-  `ui/css/desktop-app-notes.css` (the `.vd-notes-app` and
-  `.vd-notes-toolbar` class names are referenced by the theme bridges in
-  `desktop-app-common.css` and must not be renamed); notes rules were moved
-  out of `desktop-chrome.css`. Module-loader load order is frontmatter →
-  list → toolbar → editor → entry. Visible strings use `desktop.notes_*`
-  and `desktop.app_notes` in all 16 `ui/lang/desktop/*.json` files
-  (identical key sets). No child DOX file needed.
+- Notes uses the compact Autor-style shell with library, outline/info/search/AI panels,
+  global Fruity menus and a responsive flowing note surface. Markdown stays authoritative
+  under Documents/Notes. notes.js owns each window, versioned /api/desktop/notes I/O,
+  explicit IndexedDB recovery and the shared OfficeSession close/save lifecycle.
+- notes-editor.js uses local Milkdown/Crepe/Kit 7.22.1 (MIT), public ProseMirror APIs
+  and the existing CodeMirror bundle. Rich editing is default; unsupported syntax and
+  notes above 200k characters remain in source mode. notes-frontmatter.js preserves
+  unknown fields and line endings while updating tags. No obsolete NotesList or
+  NotesToolbar runtime remains. Load order: frontmatter, writer-session, editor, entry.
+- The notes.meta.json sidecar keeps version/pinned/sort/last_note. Full-text search is
+  server-side, shared with desktop_notes; no browser 500-file index. Relative attachments
+  and link destinations survive moves; user trash preserves original folder paths.
+- Agent access is list/search/read/create only, enforced in the backend and native
+  mutation paths, including agent-created notes. Local execution requires checked
+  isolation while Notes exist; see documentation/desktop-notes.md for platform limits.
+- Keep .vd-notes-app and .vd-notes-toolbar for the common theme bridge. Use the shared
+  icon renderer and notes/writer/common translations in all 16 Desktop locales.
+  Validate TestDesktopNotesAppBrowser, the AURAGO_NOTES_MATRIX shell fixture, vendor
+  --check and OfficeSession tests. The API, permission and packaging contracts are in
+  documentation/desktop-notes.md. No child DOX file needed.

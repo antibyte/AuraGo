@@ -228,6 +228,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"homepage_deploy", "Deploy homepage projects to configured hosting targets"},
 		{"homepage_git", "Manage homepage git and revision history"},
 		{"homepage_registry", "Track homepage projects, deployments, edits, and problems"},
+		{"desktop_notes", "Read, search and create user Desktop Notes; never change or delete existing notes"},
 		{"virtual_desktop_files", "Manage files in the browser desktop workspace"},
 		{"virtual_desktop_app_install", "Atomically install generated browser desktop apps"},
 		{"virtual_desktop_apps", "Open, inspect, and diagnose browser desktop apps"},

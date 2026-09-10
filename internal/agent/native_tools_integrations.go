@@ -321,6 +321,17 @@ func appendRemoteControlFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool 
 
 func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool {
 	toolSchemas = append(toolSchemas,
+		tool("desktop_notes", "Access the user's Desktop Notes Markdown library. List, search full contents/titles/tags, read paginated text, or create a complete new note. Never modify, overwrite, rename, move or delete any existing note, including notes you created. This is separate from manage_notes internal memory.", schema(map[string]interface{}{
+			"operation": operationProperty("Note operation.", []string{"list", "search", "read", "create"}),
+			"path":      prop("string", "Exact note path returned by search or list."),
+			"query":     prop("string", "Full-text search words; all words must match."),
+			"tag":       prop("string", "Optional tag filter."),
+			"folder":    prop("string", "Optional folder below Documents/Notes."),
+			"title":     prop("string", "Title of a new note, at most 160 characters."),
+			"content":   prop("string", "Complete Markdown content for a new note; include its heading."),
+			"offset":    prop("integer", "Result offset for list/search; character offset for read. Continue with next_offset."),
+			"limit":     prop("integer", "Maximum list/search results, from 1 to 200."),
+		}, "operation")),
 		tool("virtual_desktop_files", "Read, write, patch, search, and delete files in the virtual desktop workspace. Route Office files to office_document or office_workbook.", schema(map[string]interface{}{
 			"operation":      operationProperty("Workspace file operation.", []string{"status", "bootstrap", "list_files", "read_file", "search_file", "read_file_excerpt", "write_file", "patch_file", "delete", "delete_file", "delete_path", "export_file"}),
 			"path":           prop("string", "Workspace-relative path."),
