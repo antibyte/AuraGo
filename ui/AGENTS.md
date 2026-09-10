@@ -46,7 +46,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 - Leafy is an opt-in installation-wide plant. Its foreground runtime in
   `js/desktop/leafy/` belongs to the widget cleanup scope; never simulate biology
-  from frames or client time. Preserve click-through foliage, the shell escape
+  from frames or client time. Mount foliage inside `vd-workspace`, above icons
+  and widgets but below the window layer. Preserve click-through foliage, the shell escape
   control, reduced motion, context-loss fallback, and the 16-locale care UI.
   Server state and revisioned actions live in `internal/desktop/plant_*.go`.
   Healthy uncapped stems add a node each server hour. Scheduled snapshots must

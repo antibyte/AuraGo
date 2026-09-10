@@ -200,6 +200,20 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 			}
 			for _, density := range []string{"comfortable", "compact"} {
 				page.MustEval(`async ([theme,density])=>{aurora.state.bootstrap.settings['appearance.density']=density;fixtureTheme(theme);await fixtureOpen('files');await fixtureOpen('settings');fixtureArrange();await new Promise(r=>setTimeout(r,250));}`, []string{theme, density})
+				page.MustEval(`()=>{
+                    const canvas=document.querySelector('.vd-leafy-canvas');
+                    const icons=document.getElementById('vd-icons'),widgets=document.getElementById('vd-widgets');
+                    const win=document.querySelector('.vd-window.active'),r=win.getBoundingClientRect();
+                    const x=Math.min(innerWidth-10,r.x+r.width/2),y=Math.min(innerHeight-100,r.y+r.height/2);
+                    if(getComputedStyle(canvas).pointerEvents!=='none')throw Error('Foliage must remain click-through');
+                    const layers=[canvas,icons,widgets],saved=layers.map(el=>el.style.pointerEvents);
+                    try {
+                        layers.forEach(el=>el.style.pointerEvents='auto');
+                        const stack=document.elementsFromPoint(x,y),foliage=stack.indexOf(canvas);
+                        if(foliage<0||stack.indexOf(win)<0||stack.indexOf(win)>foliage)throw Error('Leafy covers an open window');
+                        if([icons,widgets].some(el=>getComputedStyle(el).display!=='none'&&stack.indexOf(el)<=foliage))throw Error('Leafy must grow above desktop icons and widgets');
+                    } finally {layers.forEach((el,i)=>el.style.pointerEvents=saved[i]);}
+                }`)
 				suffix := ""
 				if density == "compact" {
 					suffix = "-compact"

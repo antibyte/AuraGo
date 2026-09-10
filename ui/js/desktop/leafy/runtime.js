@@ -8,7 +8,7 @@
         const lifecycle = new AbortController(), signal = lifecycle.signal, motion = matchMedia('(prefers-reduced-motion: reduce)');
         const root = document.createElement('section'); root.className='vd-leafy'; root.setAttribute('aria-label','Leafy');
         root.innerHTML='<canvas class="vd-leafy-canvas" aria-hidden="true"></canvas><button class="vd-leafy-pot" type="button"></button><button class="vd-leafy-move" type="button"></button>';
-        document.body.appendChild(root);
+        document.getElementById('vd-workspace').appendChild(root);
         let canvas=root.querySelector('canvas');
         const pot=root.querySelector('.vd-leafy-pot'),move=root.querySelector('.vd-leafy-move');
         pot.setAttribute('aria-label',tr('care')); move.textContent='⠿'; move.title=tr('move'); move.setAttribute('aria-label',tr('move'));

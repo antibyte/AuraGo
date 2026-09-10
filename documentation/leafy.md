@@ -1,8 +1,8 @@
 # Leafy desktop plant
 
 Enable **Leafy** in the desktop Widget Manager, open its pot or the leaf button in
-the taskbar, then choose **Plant**. It starts as a seedling and grows across open
-windows. Uncovered areas stay clickable. The shell and care palette stay above
+the taskbar, then choose **Plant**. It starts as a seedling and grows across desktop
+icons and widgets. Open windows cover the plant. The shell and care palette stay above
 the foliage. A healthy, uncut stem adds one visible segment and a leaf every
 complete hour. Side branches appear every twelve growth hours; cut stems rest
 for six hours before producing a new shoot.
@@ -29,7 +29,7 @@ one plant; pot placement is saved separately in each browser.
 - Existing local Three.js r128, loaded only with the widget. Botanical leaf textures on eight curved
   mesh variations, tapered stems, ceramic pot, moss, tendrils and seasonal flowers.
   Fruity light uses ivory ceramic; dark themes use graphite.
-- One transparent foreground canvas below shell/menu/modal layers. Ordinary
+- One transparent canvas inside the workspace, above icons/widgets and below windows. Ordinary
   foliage is click-through; scissors explicitly capture canvas input.
 - A maximum of 64 branches, 36 nodes per branch, 960 sampled leaves and 80
   flowers. Stable sampling distributes leaves across the complete plant.
