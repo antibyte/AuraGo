@@ -1,6 +1,7 @@
+import { createTowerVoice } from './sysworld-voice.js';
 // Quiet synthesized city air and a slowly moving harmonic bed; no audio downloads.
 export function createCityAmbience(onState=()=>{}) {
-  let context=null, master=null, analyser=null, disposed=false, active=false, enabled=false, fadeTimer=0;
+  let context=null, master=null, analyser=null, disposed=false, active=false, enabled=false, fadeTimer=0, voice=null;
   const nodes=[], sources=[], samples=new Float32Array(256);
   let volume=.18;
   try {enabled=localStorage.getItem('aurago.desktop.sysworld.sound')==='true';}catch(_){}
@@ -10,6 +11,7 @@ export function createCityAmbience(onState=()=>{}) {
     const node=n=>(nodes.push(n),n), source=n=>(sources.push(n),node(n));
     master=node(context.createGain());master.gain.value=0;
     analyser=node(context.createAnalyser());analyser.fftSize=512;master.connect(analyser);analyser.connect(context.destination);
+    voice=createTowerVoice(context,master);
     for(const [frequency,gain] of [[55,.1],[82.4069,.032],[110,.017],[164.8138,.009]]) {
       const oscillator=source(context.createOscillator()), level=node(context.createGain());
       oscillator.frequency.value=frequency;level.gain.value=gain;
@@ -31,6 +33,7 @@ export function createCityAmbience(onState=()=>{}) {
     if(disposed)return;
     if(gesture&&enabled){try{ensure();}catch(_){enabled=false;onState(false);return;}}
     if(!context)return;
+    voice?.setActive(enabled&&active&&volume>0);
     if(enabled&&active) {
       // First unlock always comes from a user gesture; later resumes follow focus.
       void context.resume().catch(()=>{});
@@ -48,8 +51,9 @@ export function createCityAmbience(onState=()=>{}) {
     unlock() {sync(true);},
     setActive(value) {if(active===value)return;active=value;sync();},
     setVolume(value) {if(Number.isFinite(value)){volume=Math.max(0,Math.min(.35,value));sync();}},
+    setListener(x,y,z,fx,fz) {voice?.setListener(x,y,z,fx,fz);},
     stats() {let rms=0;if(analyser&&context.state==='running'){analyser.getFloatTimeDomainData(samples);for(const x of samples)rms+=x*x;}
-      return {enabled,active,state:context?.state||'uninitialized',volume,rms:Math.sqrt(rms/samples.length)};},
-    dispose() {if(disposed)return;disposed=true;clearTimeout(fadeTimer);sources.forEach(n=>{try{n.stop();}catch(_){}});nodes.forEach(n=>n.disconnect());if(context)void context.close().catch(()=>{});},
+      return {voice:voice?.stats(),enabled,active,state:context?.state||'uninitialized',volume,rms:Math.sqrt(rms/samples.length)};},
+    dispose() {if(disposed)return;disposed=true;voice?.dispose();clearTimeout(fadeTimer);sources.forEach(n=>{try{n.stop();}catch(_){}});nodes.forEach(n=>n.disconnect());if(context)void context.close().catch(()=>{});},
   };
 }

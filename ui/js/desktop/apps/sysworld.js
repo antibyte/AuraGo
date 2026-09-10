@@ -103,6 +103,7 @@
                 const city=await module.createCity(canvasHost,{
                     label:ctx.t('desktop.app_system_world'),quality:inst.quality,reducedMotion:motionOff(),signal:inst.load.signal,
                     assetURL:file=>versioned('/3d/system-world/v1/'+file),resourceURL:versioned,
+                    onListener:(x,y,z,fx,fz)=>inst.sound?.setListener(x,y,z,fx,fz),
                     onRobotError:()=>{if(!inst.disposed){inst.robotError=true;inst.hud.error('sysworld.city.robot_error');}},
                     onTourFocus:id=>{if(!inst.disposed){inst.selected=id;inst.hud.select(id);}},
                     onSelect:id=>inst.select(id),busy:()=>!!inst.snapshot?.sources.overview?.data?.agent?.busy,

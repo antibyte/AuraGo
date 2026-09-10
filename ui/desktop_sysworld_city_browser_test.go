@@ -36,6 +36,16 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         window.cityEmit=(type,data)=>{for(const fn of cityHandlers.get(type)||[])fn(data)};
         window.fetch=(url,opts={})=>{
             const path=String(url);cityCalls[path]=(cityCalls[path]||0)+1;
+            if(path==='/api/desktop/system-world/voice'){
+                if(opts.method!=='POST')throw Error('Voice must use protected POST');
+                const rate=16000,length=rate*2,bytes=new ArrayBuffer(44+length*2),view=new DataView(bytes);
+                const ascii=(at,text)=>{for(let i=0;i<text.length;i++)view.setUint8(at+i,text.charCodeAt(i));};
+                ascii(0,'RIFF');view.setUint32(4,36+length*2,true);ascii(8,'WAVEfmt ');view.setUint32(16,16,true);
+                view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,rate,true);view.setUint32(28,rate*2,true);
+                view.setUint16(32,2,true);view.setUint16(34,16,true);ascii(36,'data');view.setUint32(40,length*2,true);
+                for(let i=0;i<length;i++)view.setInt16(44+i*2,Math.sin(i/rate*220*Math.PI*2)*16000*Math.min(1,i/500,(length-i)/500),true);
+                return Promise.resolve(new Response(bytes,{headers:{'Content-Type':'audio/wav'}}));
+            }
             const fixtures={
                 '/api/dashboard/overview':{agent:{model:'AuraGo Spark',provider:'Local',personality:'Thinker',context_window:32768,busy:false},missions:{total:12,running:2,queued:3},integrations:{home_assistant:true,docker:true,telegram:false,mqtt:true,meshcore:true,proxmox:true}},
                 '/api/dashboard/memory':{vectordb_entries:4216,core_memory_facts:68,journal_entries:129,notes_count:48,chat_messages:1864},
@@ -158,8 +168,17 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustScreenshot(filepath.Join(dir, "city-robots-alert.png"))
 	page.MustElement(`[data-sw-action="sound"]`).MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'&&SysWorldApp.inspect(cityId).sound.rms>.0001`)
+	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
+	time.Sleep(1200 * time.Millisecond)
+	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
+	page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.voice.state==='speaking'`)
+	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;
+        if(v.gain<cityDistantVoice*4||v.gain>.6)throw Error('Tower distance gain incorrect');
+        if(!cityCalls['/api/desktop/system-world/voice'])throw Error('No TTS request');
+        if(SysWorldApp.inspect(cityId).sound.rms>.05)throw Error('Mixed voice too loud');}`)
 	page.MustEval(`()=>document.querySelector('.sysworld').closest('.vd-window').classList.remove('active')`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
+	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;if(v.state!=='idle'||v.pending||v.scheduled)throw Error('Inactive tower retains voice work')}`)
 	page.MustEval(`()=>aurora.focusWindow(cityId)`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'`)
 	viewport(430, 932, 2, true)
@@ -168,6 +187,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	viewport(1366, 768, 1, false)
 	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.rms>.05)throw Error('Ambience too loud');document.querySelector('[data-sw-mode="map"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
+	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;if(v.state!=='idle'||v.pending||v.scheduled)throw Error('Inactive tower retains voice work')}`)
 	page.MustEval(`()=>document.querySelector('[data-sw-mode="orbit"]').click()`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'`)
 	page.MustEval(`()=>aurora.minimizeWindow(cityId)`)
@@ -176,6 +196,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'`)
 	page.MustElement(`[data-sw-action="sound"]`).MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
+	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;if(v.state!=='idle'||v.pending||v.scheduled)throw Error('Inactive tower retains voice work')}`)
 	page.MustEval(`()=>{document.body.dataset.animations='false';}`)
 	time.Sleep(100 * time.Millisecond)
 	page.MustEval(`()=>{window.cityReducedPositions=JSON.stringify(SysWorldApp.inspect(cityId).life.positions);window.cityReducedPulse=SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').intensity;}`)

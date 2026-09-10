@@ -971,8 +971,17 @@ registration lives in `internal/desktop/types.go`.
   and the shared legacy Three.js remain unchanged.
 - `sysworld-audio.js` owns quiet native Web Audio synthesis. Sound is opt-in,
   persisted, gesture-unlocked, volume-bounded and fades/suspends when the app is
-  hidden, unfocused or in map mode. No downloads or extra render/scheduling loop.
-  Close releases all oscillators, nodes, fade timers and AudioContexts.
+  hidden, unfocused or in map mode. Close releases oscillators, nodes and AudioContexts.
+  `sysworld-voice.js` adds transient tower speech to that same opt-in mixer: one
+  cancellable POST `/api/desktop/system-world/voice`, 20–40 seconds of quiet after
+  each short phrase, with 60-second failure backoff. Camera pose updates through
+  the existing scene RAF; no extra render loop. Distance to the tower attenuates
+  the complete dry/85-ms echo/0.85-second stereo-room mix, with peak limiting before
+  gain and stereo placement. Master volume remains bounded to 35%; no media cache,
+  raw text diagnostics, automatic retries without backoff or browser-TTS fallback.
+  Hide, focus loss, map, mute/zero-volume and close abort requests, stop playback,
+  release phrase nodes/tails and prevent late fetch/decode responses from replaying.
+  Verify with `node scripts/test-system-world-voice.mjs` and the real-shell city test.
 - Rendering owns one RAF per visible window. Minimize, Spaces, document hiding
   and map mode stop it. Close aborts loaders and frees GPU resources, listeners
   and observers. Context loss falls back to the usable map. Keep all models,
@@ -1453,7 +1462,8 @@ registration lives in `internal/desktop/types.go`.
   entity search, inspector, map, street controls and projected district labels.
 - `sysworld-life.js` - Shared robot assets, street routes, hover lights and district
   status effects; imports only into the city bundle.
-- `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio and lifecycle.
+- `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio and shared master mixer.
+- `sysworld-voice.js` - Transient TTS phrase playback, spatial echo/reverb and cancellation.
   These modules need no additional child DOX.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
   syntax highlighting (using javascript()), error line highlighting, fallback

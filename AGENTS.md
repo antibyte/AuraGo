@@ -453,6 +453,19 @@ Tools are defined in `internal/tools/`:
 - The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
 - Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
 
+### System World Tower Voice
+- POST `/api/desktop/system-world/voice` returns one short transient audio clip.
+  Reuse the effective chat TTS configuration and in-memory synthesis, including
+  the active Speech Lab backend/voice snapshot. Require the desktop admin scope
+  for bearer clients; desktop readers must not gain global chat/memory access.
+- Randomly sample existing core/long-term memories, active notes and visible
+  user/assistant chat. Never expose tool/internal turns, file-index collections,
+  archived notes/memories, thinking blocks or registered secrets. Sampling must
+  not change source content or access metadata. No LLM, SSE publication, media
+  cache or text logging; one synthesis at a time with bounded request cadence.
+- Audio mixing, spatial attenuation and lifecycle contracts live in
+  `ui/js/desktop/apps/AGENTS.md`. Verify with `TestSystemWorldVoice*`.
+
 ### Desktop Workbook Contract
 - Tabellen uses exactly Univer OSS 0.25.1, Chart.js 4.5.1 and Excelize 2.11.0.
   Vendor assets/fonts stay local and permissive; never add Pro components.

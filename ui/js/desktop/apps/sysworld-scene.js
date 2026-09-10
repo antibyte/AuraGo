@@ -311,6 +311,8 @@ export async function createCity(host, options) {
       }
       controls.update();
     }
+    camera.getWorldDirection(v);
+    options.onListener?.(camera.position.x,camera.position.y,camera.position.z,v.x,v.z);
     reactorLight.intensity = reduced ? 0 : (options.busy?.() ? 180 + Math.sin(elapsed*2)*35 : 0);
     life?.update(dt, !reduced);
     renderer.info.reset(); composer.render(); frames++;
