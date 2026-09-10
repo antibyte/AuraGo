@@ -16,7 +16,8 @@ These PNGs preserve the generator's original bytes. The atlas contains three
 512-pixel-wide cells: on, intermediate, off. It did not provide true alpha;
 `ha-switchboard.js` clips the hardware with window-local SVG paths. Do not replace
 these files with a baked checkerboard image. CSS supplies the cabinet frame,
-recesses, screws, lamps and analog dial. Text remains semantic DOM content.
+recesses, screws and lamps; SVG supplies the analog scale and needle. Labels
+remain DOM text.
 The plaque material reuses the existing `../radio/metal.png` asset.
 
 `icon.svg` is original hand-authored SVG, mirrored in the Papirus and WhiteSur

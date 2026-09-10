@@ -41,9 +41,10 @@ matching the existing desktop settings scope.
 silver lever atlas live under `ui/img/ha-switchboard/`, with prompts, hashes and
 provenance in its README. The atlas is RGB; window-local SVG clip paths isolate
 the hardware without baking the cabinet or text into an image. CSS supplies
-frame/panel details, the live analog dial, inset shading and the short lever
-transition. Plaques reuse Radio's existing metal texture. There is no new runtime
-rendering library or external asset dependency.
+frame/panel details, inset shading and the short lever transition; the analog dial
+uses an SVG scale and needle with a shared pivot and 240-degree sweep. Its text
+stays clear of the ticks and never wraps. Plaques reuse Radio's existing metal
+texture. There is no new runtime rendering library or external asset dependency.
 
 Use semantic buttons with `role="switch"`, `aria-checked`, keyboard activation,
 visible focus and at least 44 px touch targets. Pending controls cannot issue a
@@ -52,9 +53,13 @@ load must leave a readable, functional control.
 
 The reference acceptance window is approximately 1300 × 820 px, with six bays
 and the instrument column. Clamp initial bounds to the available desktop.
+At short desktop window heights, reduce chrome/lever sizes and omit the decorative
+instrument plaques; keep switch states, the dial, counts and controls in view.
+The browser regression checks two and six switches at 1300 x 540/620/700 without
+vertical scrolling in all three themes. Additional rows may still scroll.
 At narrower widths, reduce the number of columns while retaining lever size and
 material depth; move instruments below the board. At 360 px, use one column.
-More switches add rows in a vertically scrolling board, never shrink every lever.
+More switches add rows in a vertically scrolling board.
 Keep the cabinet skin identical in Standard and Fruity light/dark. Scope all
 window styling to `.vd-window[data-app-id="ha-switchboard"]`.
 

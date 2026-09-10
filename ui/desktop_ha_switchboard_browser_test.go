@@ -112,6 +112,19 @@ func TestHASwitchboardBrowser(t *testing.T) {
 		if artifacts != "" {
 			page.MustScreenshot(filepath.Join(artifacts, "switchboard-"+theme+".png"))
 		}
+		check("dial labels fit without overlap", `()=>{const label=document.querySelector('.ha-dial-label').getBBox(),marks=[...document.querySelectorAll('.ha-dial-mark')].map(e=>e.getBBox());return label.x>=20 && label.x+label.width<=180 && marks.every(m=>m.y+m.height<label.y);}`)
+		for _, count := range []int{2, 6} {
+			page.MustEval(`count=>{fixtureSettings[key]=JSON.stringify({version:1,switches:fixtureEntities.slice(0,count).map(e=>({entity_id:e.entity_id}))});document.dispatchEvent(new CustomEvent('aurago:ha-board-change',{detail:{raw:fixtureSettings[key]}}));}`, count)
+			waitForJSBool(t, page, fmt.Sprintf(`()=>document.querySelectorAll('.ha-bay').length===%d`, count))
+			for _, height := range []int{540, 620, 700} {
+				page.MustEval(`height=>document.querySelector('.vd-window').style.height=height+'px'`, height)
+				check(fmt.Sprintf("%s %d switches fit at %dpx", theme, count, height), `()=>{const deck=document.querySelector('.ha-deck'),r=deck.getBoundingClientRect();return deck.scrollHeight<=deck.clientHeight+1 && [...document.querySelectorAll('.ha-switch-status,.ha-channel,.ha-dial,.ha-meter-readout,.ha-indicators')].every(e=>{const b=e.getBoundingClientRect();return b.top>=r.top && b.bottom<=r.bottom+1;});}`)
+				if artifacts != "" && theme == "standard" && height == 620 {
+					page.MustScreenshot(filepath.Join(artifacts, fmt.Sprintf("switchboard-short-%d.png", count)))
+				}
+			}
+		}
+		page.MustEval(`()=>document.querySelector('.vd-window').style.height='820px'`)
 	}
 	page.MustEval(`()=>{const w=document.querySelector('.vd-window');w.style.width='360px';}`)
 	check("narrow board", `()=>getComputedStyle(document.querySelector('.ha-bays')).gridTemplateColumns.split(' ').length===1 && document.querySelector('.ha-board').scrollWidth<=document.querySelector('.ha-board').clientWidth+1`)
@@ -203,6 +216,7 @@ func TestHASwitchboardBrowser(t *testing.T) {
 	page.MustEval(`()=>{fixtureEntities[0].state='off';fixtureEntities[1].state='unavailable';fixtureEntities[2].friendly_name='<img src=x onerror=alert(1)>';readonly=true;document.querySelector('[data-ha=refresh]').click();}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-entity="switch.test_1"]').dataset.state==='unavailable'`)
 	check("external states readonly and escaped text", `()=>document.querySelectorAll('.ha-switch:not(:disabled)').length===0 && document.querySelector('[data-entity="switch.test_2"] .ha-name').textContent.startsWith('<img') && !document.querySelector('.ha-name img')`)
+	check("unavailable entity can be identified", `()=>document.querySelector('[data-entity="switch.test_1"] .ha-switch').title==='switch.test_1: Nicht verfügbar' && document.querySelector('[data-entity="switch.test_1"] .ha-name').title.includes('switch.test_1')`)
 	page.MustEval(`()=>{readonly=false;failed=true;document.querySelector('[data-ha=refresh]').click();}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-ha=status]').textContent==='Verbindung nicht verfügbar'`)
 	check("offline controls locked", `()=>document.querySelectorAll('.ha-switch:not(:disabled)').length===0`)

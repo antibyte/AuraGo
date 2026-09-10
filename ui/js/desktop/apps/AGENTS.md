@@ -1183,6 +1183,10 @@ registration lives in `internal/desktop/types.go`.
 - `ha-switchboard.js` exposes `window.HASwitchboardApp.render/dispose`. The
   scoped `css/ha-switchboard.css` retains the real shell controls and uses the
   original local walnut/three-pose silver atlas (SVG clips remove its background).
+  The SVG dial shares a 240-degree scale/needle pivot and keeps labels below the
+  sweep. Size-container queries shrink cabinet chrome and levers for short windows;
+  a single row must fit at 1300 x 540/620/700 in every theme. Keep entity IDs in
+  plaque/switch tooltips so similarly named HA entities can be distinguished.
   Use the existing admin-only `/api/desktop/home-assistant/{entities,states,switch}`
   routes and shared validated `ha_switchboard.board` setting, never browser HA
   credentials or a second connection setup. The native dialog searches locally,

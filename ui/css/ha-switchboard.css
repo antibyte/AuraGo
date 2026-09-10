@@ -2,7 +2,7 @@
 .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] {
     --ha-wood: url('/img/ha-switchboard/walnut.png');
     --ha-brass: #c7a575;
-    container: switchboard / inline-size;
+    container: switchboard / size;
     display: flex; flex-direction: column; padding: 8px 12px 12px;
     border: 5px ridge #855b3c; border-radius: 23px;
     background: #402113 var(--ha-wood) center / 650px;
@@ -69,7 +69,7 @@
 .ha-board [hidden] { display: none !important; }
 .ha-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
 .ha-deck { display: grid; grid-template-columns: minmax(0,1fr) 185px; gap: 7px; flex: 1 1 0; min-height: 0; overflow: auto; padding: 3px; scrollbar-width: thin; scrollbar-color: #96734b #23150d; }
-.ha-bays { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); grid-auto-rows: minmax(435px,1fr); gap: 6px; min-width: 0; }
+.ha-bays { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); grid-auto-rows: minmax(280px,1fr); gap: 6px; min-width: 0; }
 .ha-panel { position: relative; border: 3px ridge #765030; border-radius: 12px; background: linear-gradient(90deg,#07030155,transparent 12%,#f8c1810a 50%,#08040277), var(--ha-wood) center / 530px; box-shadow: inset 0 0 0 2px #130a04, inset 0 0 11px #0009, 0 1px 1px #e3a86655; }
 .ha-panel::before, .ha-panel::after { content: ''; position: absolute; width: 10px; height: 10px; top: 7px; background: linear-gradient(130deg,transparent 42%,#160e04 44% 55%,transparent 57%), radial-gradient(circle at 36% 26%,#efd6a7,#997449 45%,#302010 68%,#d6af77 72%,#1d1208 83%); border-radius: 50%; box-shadow: 0 1px 2px #000; pointer-events: none; }
 .ha-panel::before { left: 7px; }.ha-panel::after { right: 7px; }
@@ -81,7 +81,7 @@
 .ha-name::before, .ha-name::after { content: '•'; position: absolute; top: 50%; transform: translateY(-50%); font-size: 15px; color: #25180b; text-shadow: 0 1px #fff1c0; }.ha-name::before { left: 3px; }.ha-name::after { right: 3px; }
 .ha-bay-symbol { width: 28px; height: 34px; margin-top: 17px; color: #c4a271; filter: drop-shadow(1px 2px 1px #000); }
 .ha-bay-symbol svg, .ha-empty-emblem svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; }
-.ha-switch { position: relative; width: 100%; max-width: 150px; height: 292px; flex: 1 0 255px; min-height: 255px; max-height: 340px; margin: 0; padding: 0; border: 0; background: transparent; border-radius: 14px; -webkit-tap-highlight-color: transparent; }
+.ha-switch { position: relative; width: 100%; max-width: 150px; flex: 1 1 0; min-height: 100px; max-height: 340px; margin: 0; padding: 0; border: 0; background: transparent; border-radius: 14px; -webkit-tap-highlight-color: transparent; }
 .ha-hardware { display: block; position: absolute; width: 100%; height: 100%; inset: 0; filter: saturate(.22) drop-shadow(3px 6px 3px #000b); pointer-events: none; }
 .ha-pose { opacity: 0; transition: opacity 160ms ease; }
 .ha-pose-off { opacity: 1; }
@@ -100,16 +100,16 @@
 .ha-lamp[data-light="pending"] { background: radial-gradient(circle at 32% 28%,#fff7c5,#ffc251 30%,#af5911 76%); box-shadow: 0 0 7px #ffac4a66; }
 .ha-lamp[data-light="warning"] { background: radial-gradient(circle at 32% 28%,#ffc6b2,#e26348 25%,#711b14 70%); }
 .ha-channel { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #d5ad79; margin-top: 6px; text-shadow: 0 1px 1px #000; }
-.ha-instruments { display: flex; flex-direction: column; align-items: center; min-height: 435px; padding: 19px 12px; gap: 20px; }
+.ha-instruments { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 19px 12px; gap: 20px; }
 .ha-instrument-plaque { width: 100%; padding: 9px 4px; font-size: 15px; line-height: 1.4; letter-spacing: 2px; }
-.ha-dial { width: 158px; height: 158px; flex: 0 0 158px; border: 7px ridge #8e714c; border-radius: 50%; padding: 4px; background: #22160d; box-shadow: 0 5px 8px #000c, 0 0 0 2px #170e06, inset 0 2px 3px #000; }
+.ha-dial { width: 100%; max-width: 158px; aspect-ratio: 1; flex: 0 0 auto; border: 7px ridge #8e714c; border-radius: 50%; padding: 4px; background: #22160d; box-shadow: 0 5px 8px #000c, 0 0 0 2px #170e06, inset 0 2px 3px #000; }
 .ha-dial-face { position: relative; width: 100%; height: 100%; border-radius: 50%; color: #2e2417; background: radial-gradient(ellipse at 35% 24%,#ffffff5c,transparent 40%), radial-gradient(circle,#e4cca0 45%,#d0ad79 75%,#725637); box-shadow: inset 0 0 13px #5c3b1f; }
-.ha-dial-face::before { content: ''; position: absolute; inset: 8px; border: 1px solid #4c372077; border-radius: 50%; background: repeating-conic-gradient(from -123deg,#473019 0deg 1deg,transparent 1deg 6deg); mask: radial-gradient(circle,transparent 61%,#000 63%); }
-.ha-dial-mark { position: absolute; font-size: 11px; }.ha-mark-0 { top: 77%; left: 17%; }.ha-mark-25 { top: 34%; left: 12%; }.ha-mark-50 { top: 12%; left: 44%; }.ha-mark-75 { top: 34%; right: 12%; }.ha-mark-100 { top: 77%; right: 9%; }
-.ha-dial-unit { position: absolute; top: 31%; left: 47%; font-size: 10px; }
-.ha-dial-label { position: absolute; top: 75%; left: 24%; width: 52%; text-align: center; font-size: 8px; text-transform: uppercase; letter-spacing: .5px; overflow-wrap: anywhere; }
-.ha-needle { position: absolute; bottom: 43%; left: calc(50% - 2px); width: 4px; height: 44%; background: linear-gradient(90deg,#eadab4,#241b13 42%); transform-origin: 50% 100%; clip-path: polygon(50% 0,100% 95%,50% 100%,0 95%); transition: transform 350ms ease; filter: drop-shadow(2px 2px 1px #0007); }
-.ha-dial-hub { position: absolute; left: calc(50% - 6px); top: calc(57% - 6px); width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 25%,#c4b088,#685134 40%,#20150c 65%); box-shadow: 1px 1px 2px #0008; }
+.ha-dial-drawing { display: block; width: 100%; height: 100%; overflow: visible; }
+.ha-dial-drawing text { fill: #2e2417; font-family: Georgia, 'Times New Roman', serif; text-anchor: middle; dominant-baseline: middle; }
+.ha-dial-tick { stroke: #473019; stroke-width: 1; }.ha-major-tick { stroke-width: 1.7; }
+.ha-dial-mark { font-size: 15px; }.ha-dial-unit { font-size: 13px; }.ha-dial-label { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; }
+.ha-needle { transform-origin: 100px 104px; transition: transform 350ms ease; filter: drop-shadow(2px 2px 1px #0007); }
+.ha-dial-hub { stroke: #392816; stroke-width: 1; filter: drop-shadow(1px 2px 1px #0008); }
 .ha-dial.ha-stale { opacity: .6; }
 .ha-meter-readout { width: 100%; padding: 12px 5px; border: 2px ridge #3c3020; border-radius: 6px; background: linear-gradient(130deg,#ffffff0a,transparent 60%),#100f0c; text-align: center; box-shadow: inset 0 3px 9px #000; }
 .ha-meter-readout strong { display: block; font-size: 29px; font-weight: normal; color: #e3c59b; }.ha-meter-readout span { font-size: 10px; color: #ccb995; }
@@ -142,6 +142,19 @@
 @container switchboard (max-width: 1100px) {
     .ha-bays { grid-template-columns: repeat(4,minmax(0,1fr)); }
     .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title { font-size: 23px; letter-spacing: 3px; }
+}
+@container switchboard (min-width: 801px) and (max-height: 750px) {
+    .ha-signature { display: none; }
+    .ha-instruments { gap: 12px; padding: 12px; }
+}
+@container switchboard (min-width: 801px) and (max-height: 690px) {
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] > .vd-window-titlebar,
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"].active > .vd-window-titlebar { flex-basis: 58px; min-height: 58px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title { font-size: 22px; }
+    .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title::after { margin-top: 4px; font-size: 9px; }
+    .ha-console { flex-basis: 96px; }.ha-status-glass { padding: 9px 16px; gap: 5px; }.ha-status-glass strong { font-size: 16px; }.ha-maker span { font-size: 19px; }
+    .ha-actions { padding: 9px; gap: 3px; }.ha-bay { padding-top: 10px; padding-bottom: 10px; }.ha-bay-symbol { height: 20px; margin-top: 8px; }
+    .ha-instrument-plaque { display: none; }.ha-instruments { gap: 10px; padding: 10px 12px; }.ha-meter-readout { padding: 7px 5px; }.ha-meter-readout strong { font-size: 24px; }.ha-indicators p:last-child { margin-bottom: 0; }
 }
 @container switchboard (max-width: 800px) {
     .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-window-title-group { padding: 24px 4px 0; }

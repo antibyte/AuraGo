@@ -34,13 +34,20 @@
         // Define clips once. Instances of the switch reference the window-local definitions.
         const switchArt = hardware.replace(/<defs>[\s\S]*?<\/defs>/, '');
         const bolt = '<svg viewBox="0 0 32 40" aria-hidden="true"><path d="M18 2 5 23h10l-1 15 13-23H17Z"/></svg>';
+        // The scale and needle share one pivot and sweep, independent of CSS/font sizing.
+        const polar = (angle, radius) => [100 + Math.sin(angle * Math.PI / 180) * radius, 104 - Math.cos(angle * Math.PI / 180) * radius];
+        const scale = Array.from({ length: 41 }, (_, i) => {
+            const angle = -120 + i * 6, major = i % 10 === 0;
+            const [x1, y1] = polar(angle, major ? 70 : 76), [x2, y2] = polar(angle, 82), [x, y] = polar(angle, 57);
+            return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="ha-dial-tick ${major ? 'ha-major-tick' : ''}"/>` + (major ? `<text class="ha-dial-mark" x="${x}" y="${y}">${i * 2.5}</text>` : '');
+        }).join('');
         host.innerHTML = `<section class="ha-board" aria-label="HA Switchboard">
             <div class="ha-definitions" aria-hidden="true">${hardware}</div>
             <div class="ha-deck"><div class="ha-bays"></div>
                 <aside class="ha-instruments ha-panel">
                     <div class="ha-plaque ha-instrument-plaque">HOME<br>ASSISTANT</div>
                     <div class="ha-dial" role="img" aria-label="${esc(t('on_count'))}">
-                        <div class="ha-dial-face"><span class="ha-dial-mark ha-mark-0">0</span><span class="ha-dial-mark ha-mark-25">25</span><span class="ha-dial-mark ha-mark-50">50</span><span class="ha-dial-mark ha-mark-75">75</span><span class="ha-dial-mark ha-mark-100">100</span><span class="ha-dial-unit">%</span><i class="ha-needle"></i><i class="ha-dial-hub"></i><span class="ha-dial-label">${esc(t('on_count'))}</span></div>
+                        <div class="ha-dial-face"><svg class="ha-dial-drawing" viewBox="0 0 200 200" aria-hidden="true"><defs><linearGradient id="${uid}-needle"><stop stop-color="#e9d8b1"/><stop offset=".4" stop-color="#302519"/><stop offset="1" stop-color="#776044"/></linearGradient></defs>${scale}<text class="ha-dial-unit" x="100" y="77">%</text><path class="ha-needle" fill="url(#${uid}-needle)" d="M100 26L103 108L100 125L97 108Z"/><circle class="ha-dial-hub" cx="100" cy="104" r="7" fill="url(#${uid}-needle)"/><text class="ha-dial-label" x="100" y="166">${esc(t('on_count'))}</text></svg></div>
                     </div>
                     <div class="ha-meter-readout"><strong data-ha="total">— / —</strong><span>${esc(t('on_count'))}</span></div>
                     <div class="ha-indicators"><p><i class="ha-lamp" data-ha="connection-lamp"></i><span data-ha="connection">${esc(t('loading'))}</span></p><p><i class="ha-lamp" data-ha="warning-lamp"></i><span data-ha="unknown"></span></p></div>
@@ -114,12 +121,13 @@
                 if (!connected || !['on', 'off'].includes(state)) unknown++;
                 const label = board.switches.find(e => e.entity_id === id)?.label || entity?.friendly_name || id;
                 bay.querySelector('.ha-name-label').textContent = label;
-                bay.querySelector('.ha-name').title = label;
+                bay.querySelector('.ha-name').title = label + '\n' + id;
                 bay.dataset.state = state;
                 bay.classList.toggle('ha-pending', !!job);
                 bay.classList.toggle('ha-stale', !connected);
                 const button = bay.querySelector('.ha-switch');
                 button.setAttribute('aria-label', label);
+                button.title = id + ': ' + t(state);
                 button.setAttribute('aria-checked', String(state === 'on'));
                 button.setAttribute('aria-busy', String(!!job));
                 button.disabled = !connected || !data.ready || !!job || !['on', 'off'].includes(state) || !(state === 'on' ? data.can_off : data.can_on);
