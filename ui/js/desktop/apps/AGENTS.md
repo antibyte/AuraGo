@@ -960,6 +960,15 @@ registration lives in `internal/desktop/types.go`.
   signals; stale/unknown stays neutral. The operations signal uses private material
   clones so its red pulse cannot recolor other buildings. Rebind after LOD swaps.
   Reduced motion/Desktop animation settings freeze residents and pulses.
+- City radio waves consume typed `agent_action` starts and executed results, plus
+  co-agent progress. Exact tool names map to districts; unknown tools, previews,
+  blocked proposals and metric snapshots must not invent building-to-building traffic.
+  Keep only route/state/tool-name metadata, never arguments, result/error text or
+  session content. Deduplicate action states in a bounded map and clear it on close.
+  `sysworld-life.js` shares twelve wave packets and six route curves on its existing
+  RAF. Coalesce bursts, expire by wall time, discard hidden/map/reduced-motion starts,
+  and never replay retained events when a window opens or resumes. Robot geometry
+  and the shared legacy Three.js remain unchanged.
 - `sysworld-audio.js` owns quiet native Web Audio synthesis. Sound is opt-in,
   persisted, gesture-unlocked, volume-bounded and fades/suspends when the app is
   hidden, unfocused or in map mode. No downloads or extra render/scheduling loop.

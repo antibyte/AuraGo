@@ -24,7 +24,7 @@ function streetPath(corners) {
   return { points:path.getSpacedPoints(512), length:path.getLength() };
 }
 export function createCityLife(scene, districts, options) {
-  let disposed=false, time=0, robotsLoaded=false, robotError=false, latestEvent=0;
+  let disposed=false, time=0, robotsLoaded=false, robotError=false, latestEvent=0, canAnimate=false;
   const group=new THREE.Group();group.name='city-life';scene.add(group);
   const geometry=new Set(), materials=new Set(), textures=new Set(), signalMaterials=[];
   const abort=new AbortController(), residents=[], signals=[];
@@ -35,6 +35,62 @@ export function createCityLife(scene, districts, options) {
     const ring=new THREE.Mesh(ringGeometry,material);ring.rotation.x=Math.PI/2;
     ring.position.set(d.x,.6,d.z);ring.scale.setScalar(d.radius*1.12);group.add(ring);
     signals.push({id:d.id,ring,material,state:'unknown',eventUntil:0,color:new THREE.Color(0x71818d)});
+  }
+  // One bounded packet pool, driven by confirmed action metadata on the existing RAF.
+  const links=new Map(), packets=[], lastPacket=new Map(), createdAt=Date.now(), duration=3000;
+  const core=districts.find(d=>d.id==='agent'), normal=new THREE.Vector3(0,0,1), tangent=new THREE.Vector3();
+  const colors={memory:0xc1a3ff,graph:0xffd394,infra:0x79bdff,integrations:0x75ebd6,missions:0x9caeff,operations:0xffb883};
+  if(core) for(const d of districts) if(d!==core) {
+    const start=new THREE.Vector3(core.x,core.height+3,core.z), end=new THREE.Vector3(d.x,d.height+4,d.z);
+    const middle=start.clone().lerp(end,.5);middle.y=Math.max(start.y,end.y)+12;
+    const curve=new THREE.QuadraticBezierCurve3(start,middle,end);
+    const material=ownMaterial(new THREE.LineBasicMaterial({color:colors[d.id],transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+    const line=new THREE.Line(ownGeometry(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48))),material);
+    line.visible=false;group.add(line);links.set(d.id,{curve,line});
+  }
+  const waveGeometry=ownGeometry(new THREE.TorusGeometry(1,.06,5,40,Math.PI*.95));
+  for(let i=0;i<12;i++) {
+    const waves=[];
+    for(let j=0;j<4;j++) {
+      const material=ownMaterial(new THREE.MeshBasicMaterial({color:0x9dddff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+      const mesh=new THREE.Mesh(j===3?ringGeometry:waveGeometry,material);mesh.visible=false;group.add(mesh);waves.push(mesh);
+    }
+    packets.push({at:-Infinity,waves,link:null});
+  }
+  function transmit(e, now) {
+    if(!canAnimate || options.active?.()===false || e.at<createdAt || now-e.at>duration || e.at>now ||
+        !['started','succeeded','failed','sanitized','progress'].includes(e.state)) return;
+    const incoming=e.to==='agent', district=incoming?e.from:e.to;
+    if((!incoming&&e.from!=='agent') || !links.has(district))return;
+    const key=district+':'+incoming;
+    if(e.at-(lastPacket.get(key)??-Infinity)<450)return;
+    lastPacket.set(key,e.at);
+    const packet=packets.reduce((a,b)=>a.at<b.at?a:b);
+    Object.assign(packet,{at:e.at,link:links.get(district),incoming,from:e.from,to:e.to,state:e.state});
+    packet.waves.forEach(m=>m.material.color.setHex(e.state==='failed'?0xff6659:colors[district]));
+  }
+  function updatePackets(animated) {
+    const now=Date.now();links.forEach(l=>{l.line.visible=false;});
+    for(const p of packets) {
+      if(!animated || options.active?.()===false)p.at=-Infinity;
+      const age=(now-p.at)/duration, live=age>=0&&age<1;
+      p.waves.forEach(m=>{m.visible=false;});if(!live||!p.link)continue;
+      p.link.line.visible=true;p.link.line.material.opacity=.12*Math.sin(age*Math.PI);
+      for(let j=0;j<3;j++) {
+        const travel=(age-j*.075)/.75;if(travel<0||travel>1)continue;
+        const t=p.incoming?1-travel:travel, mesh=p.waves[j];
+        p.link.curve.getPoint(t,mesh.position);p.link.curve.getTangent(t,tangent);
+        if(p.incoming)tangent.negate();mesh.quaternion.setFromUnitVectors(normal,tangent);
+        mesh.rotateZ(Math.PI*.525);mesh.scale.setScalar(1.2+Math.sin(travel*Math.PI)*3.5);
+        mesh.material.opacity=Math.sin(travel*Math.PI)*.8;mesh.visible=true;
+      }
+      const arrival=(age-.74)/.26;
+      if(arrival>0) {
+        const receiver=p.waves[3];p.link.curve.getPoint(p.incoming?0:1,receiver.position);
+        receiver.rotation.set(-Math.PI/2,0,0);receiver.scale.setScalar(1+arrival*8);
+        receiver.material.opacity=(1-arrival)*.6;receiver.visible=true;
+      }
+    }
   }
   // Soft ground light replaces five moving shadow maps/point lights.
   const glowGeometry=ownGeometry(new THREE.PlaneGeometry(7,7));
@@ -103,13 +159,15 @@ export function createCityLife(scene, districts, options) {
       s.color.setHex(s.state==='error'?0xff493e:s.state==='running'?0x70ebd3:s.state==='unknown'?0x71818d:0x71b8ce);
       s.material.color.copy(s.color);
     }
-    for(const e of events)if(e.id>latestEvent) {
-      if(Date.now()-e.at<6000){const s=signals.find(s=>s.id===e.district);if(s)s.eventUntil=e.at+5000;}
+    const now=Date.now();
+    for(const e of [...events].reverse())if(e.id>latestEvent) {
+      transmit(e,now);
+      if(now-e.at<6000){const s=signals.find(s=>s.id===e.district);if(s)s.eventUntil=e.at+5000;}
     }
     latestEvent=Math.max(latestEvent,...events.map(e=>e.id));
   }
   function update(dt, animated) {
-    if(disposed)return;if(animated)time+=Math.min(.1,Math.max(0,dt));
+    if(disposed)return;canAnimate=animated;updatePackets(animated);if(animated)time+=Math.min(.1,Math.max(0,dt));
     for(const [i,r]of residents.entries()) {
       const samples=r.path.points, cursor=((time*r.speed/r.path.length+r.phase)%1)*512;
       const index=Math.floor(cursor), blend=cursor-index, a=samples[index], b=samples[index+1];
@@ -143,6 +201,7 @@ export function createCityLife(scene, districts, options) {
   return {update,setData,attachLandmarks,dispose,
     stats:()=>({robots:robotsLoaded?residents.length:0,robotError,time,
       positions:residents.map(r=>r.root.position.toArray()),
+      transmissions:packets.filter(p=>p.waves.some(m=>m.visible)).map(p=>({from:p.from,to:p.to,state:p.state,age:Date.now()-p.at})),
       signals:signals.map(s=>({id:s.id,state:s.state,intensity:s.material.opacity})),
     })};
 }

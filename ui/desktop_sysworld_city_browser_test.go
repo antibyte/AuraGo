@@ -132,6 +132,20 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 		t.Fatal(err)
 	}
 	page.MustEval(`()=>{document.body.dataset.animations='true';aurora.state.bootstrap.settings['appearance.animations']=true;}`)
+	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();document.querySelector('[data-sw-action="close"]').click();}`)
+	time.Sleep(1200 * time.Millisecond)
+	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).life.transmissions.length)throw Error('Idle city invents radio traffic');
+        window.cityRadioTools=['recall_memory','home_assistant','docker','explore_kg','co_agents'];
+        cityRadioTools.forEach((tool,i)=>cityEmit('agent_action',{id:'radio-'+i,tool_name:tool,state:'started',updated_at:new Date().toISOString()}));}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.transmissions.length===5`)
+	time.Sleep(600 * time.Millisecond)
+	page.MustScreenshot(filepath.Join(dir, "city-radio-outgoing.png"))
+	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).life.transmissions.some(p=>p.from!=='agent'))throw Error('Wrong outbound source');
+        cityRadioTools.forEach((tool,i)=>cityEmit('agent_action',{id:'radio-'+i,tool_name:tool,state:i===2?'failed':'succeeded',state_history:['started'],updated_at:new Date().toISOString()}));}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.transmissions.some(p=>p.to==='agent'&&p.state==='failed')`)
+	time.Sleep(600 * time.Millisecond)
+	page.MustScreenshot(filepath.Join(dir, "city-radio-return.png"))
+	page.Timeout(6 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.transmissions.length===0`)
 	page.MustEval(`()=>document.querySelector('[data-sw-mode="tour"]').click()`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='tour'`)
 	page.MustEval(`()=>{window.cityRobotBefore=JSON.stringify(SysWorldApp.inspect(cityId).life.positions);}`)

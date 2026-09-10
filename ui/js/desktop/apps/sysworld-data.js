@@ -15,7 +15,7 @@
         budget: ['/api/budget', 30000],
         operations: ['/api/operational-issues?status=open&limit=100', 30000],
     };
-    const subscribers = new Set(), sources = {}, inFlight = new Map(), events = [];
+    const subscribers = new Set(), sources = {}, inFlight = new Map(), events = [], actionStates = new Map();
     let timer = 0, generation = 0, handlers = [], sequence = 0;
     const number = (...values) => values.find(v => typeof v === 'number' && Number.isFinite(v));
     const list = (value, key) => Array.isArray(value) ? value : Array.isArray(value?.[key]) ? value[key] : Array.isArray(value?.items) ? value.items : [];
@@ -54,10 +54,34 @@
             if (current === generation) notify();
         }
     }
-    function addEvent(kind, label, district) {
+    function addEvent(kind, label, district, link = {}) {
         // Only event metadata: never copy tool arguments, chat text or warning payloads.
-        events.unshift({ id: ++sequence, kind, label: String(label || '').slice(0, 120), district, at: Date.now() });
+        events.unshift({ id: ++sequence, kind, label: String(label || '').slice(0, 120), district, at: Date.now(), ...link });
         events.length = Math.min(events.length, 60); notify();
+    }
+    // Exact dispatcher names only: unknown tools never invent a destination.
+    const toolDistricts = new Map(Object.entries({
+        memory: 'remember query_memory recall_memory context_memory manage_memory core_memory archive_memory optimize_memory memory_reflect manage_notes notes desktop_notes manage_journal journal cheatsheet',
+        graph: 'manage_knowledge knowledge_graph explore_kg',
+        infra: 'docker docker_management proxmox proxmox_ve truenas get_system_metrics system_metrics process_analyzer execute_shell execute_python execute_sandbox execute_sudo service_manager manage_daemon manage_processes process_management list_processes stop_process read_process_logs execute_remote_shell remote_execution virtual_computers query_inventory network_ping dns_lookup port_scanner wake_on_lan wake_device wol install_package package_manager',
+        integrations: 'home_assistant homeassistant ha meshcore meshcentral mcp_call call_webhook manage_outgoing_webhooks send_telegram send_discord fetch_discord send_agodesk_chat fetch_email check_email send_email list_email_accounts agentmail agentmail_inboxes agentmail_messages agentmail_threads agentmail_drafts telnyx_sms telnyx_call telnyx_manage google_workspace gworkspace onedrive onedrive_op koofr koofr_api koofr_op webdav webdav_storage s3_storage s3 paperless paperless_ngx sql_query manage_sql_connections ldap fritzbox fritzbox_system fritzbox_network fritzbox_telephony fritzbox_smarthome fritzbox_storage fritzbox_tv api_request',
+        missions: 'co_agent co_agents manage_missions manage_plan manage_schedule cron_scheduler schedule_cron list_cron_jobs remove_cron_job',
+        operations: 'manage_updates',
+    }).flatMap(([district,names]) => names.split(' ').map(name => [name,district])));
+    function actionEvent(p) {
+        const district = toolDistricts.get(p?.tool_name), state = p?.state;
+        if (!district || typeof p.id !== 'string' || !/^[\w:-]{1,160}$/.test(p.id)) return;
+        if (!['proposed','accepted','started','succeeded','failed','sanitized','blocked','cancelled','needs_human_approval'].includes(state)) return;
+        const stamp = Date.parse(p.updated_at), previous = actionStates.get(p.id);
+        if (!Number.isFinite(stamp) || (previous && (stamp < previous.stamp || previous.state === state || previous.terminal))) return;
+        const terminal = ['succeeded','failed','sanitized','blocked','cancelled'].includes(state);
+        actionStates.set(p.id,{stamp,state,terminal});
+        if (actionStates.size > 256) actionStates.delete(actionStates.keys().next().value);
+        if (state !== 'started' && !(['succeeded','failed','sanitized'].includes(state) &&
+            (previous?.state === 'started' || (Array.isArray(p.state_history) && p.state_history.slice(0,16).includes('started'))))) return;
+        // Never retain arguments, subjects, result/error text, IDs or session content.
+        addEvent('tool', p.tool_name, district, {from:state === 'started' ? 'agent' : district,
+            to:state === 'started' ? district : 'agent', state});
     }
     function start() {
         const reg = (type, fn) => {
@@ -75,7 +99,12 @@
             void refresh('overview');
         });
         reg('mission_update', () => { addEvent('mission', '', 'missions'); void refresh('missions'); });
-        reg('coagent_progress', () => { void refresh('activity'); });
+        reg('coagent_progress', p => {
+            if (typeof p?.co_agent_id === 'string' && /^[\w:-]{1,160}$/.test(p.co_agent_id) && ['running','completed','failed'].includes(p.state))
+                addEvent('mission', '', 'missions', {from:'missions',to:'agent',state:p.state === 'failed' ? 'failed' : 'progress'});
+            void refresh('activity');
+        });
+        reg('agent_action', actionEvent);
         reg('memory_update', () => { addEvent('memory', '', 'memory'); void refresh('memory'); });
         reg('budget_update', () => { void refresh('budget'); });
         reg('system_warning', () => { addEvent('warning', '', 'operations'); void refresh('operations'); });
@@ -98,7 +127,7 @@
             generation++; clearInterval(timer); timer = 0;
             inFlight.forEach(c => c.abort()); inFlight.clear();
             handlers.forEach(([type, fn]) => window.AuraSSE?.off(type, fn)); handlers = [];
-            Object.keys(sources).forEach(k => delete sources[k]); events.length = 0;
+            Object.keys(sources).forEach(k => delete sources[k]); events.length = 0; actionStates.clear();
         };
     }
     function entities(snapshot, L) {

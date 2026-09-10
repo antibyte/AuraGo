@@ -53,6 +53,31 @@ assert.ok(!JSON.stringify(snapshot.events).includes('NEVER COPY ME'));
 assert.equal(snapshot.events[0].district,'agent','Unknown destinations do not choose a random integration');
 for(let i=0;i<100;i++)handlers.get('tool_call_preview')({tool_name:'t'+i});
 assert.equal(snapshot.events.length,60,'Live feed is bounded');
+// Confirmed lifecycle metadata selects the district; previews/snapshots do not claim traffic.
+const action = {id:'act-radio',tool_name:'docker',updated_at:new Date().toISOString(),state:'started',
+    arguments:'NEVER COPY ME',subject:'NEVER COPY ME',result:'NEVER COPY ME',error:'NEVER COPY ME'};
+handlers.get('agent_action')(action);
+assert.equal(snapshot.events[0].from,'agent');assert.equal(snapshot.events[0].to,'infra');
+const outgoing = {...snapshot.events[0]};
+const eventID=snapshot.events[0].id;
+handlers.get('agent_action')(action);assert.equal(snapshot.events[0].id,eventID,'Duplicate starts do not resend');
+handlers.get('agent_action')({...action,state:'succeeded',state_history:['proposed','accepted','started','succeeded']});
+assert.equal(snapshot.events[0].from,'infra');assert.equal(snapshot.events[0].to,'agent');
+const incoming = {...snapshot.events[0]}, completionID=snapshot.events[0].id;
+handlers.get('agent_action')(action);assert.equal(snapshot.events[0].id,completionID,'Late starts cannot undo completion');
+for(const patch of [{id:'act-blocked',state:'blocked'},{id:'act-proposed',state:'proposed'},
+    {id:'act-unknown',tool_name:'unknown_integration'}, {id:'act-bad',updated_at:'bad'},
+    {id:'act-not-run',state:'failed',state_history:['proposed','blocked']}]) {
+    handlers.get('agent_action')({...action,...patch});assert.equal(snapshot.events[0].id,completionID);
+}
+for(const [name,district] of [['recall_memory','memory'],['explore_kg','graph'],['home_assistant','integrations'],['co_agents','missions'],['manage_updates','operations']]) {
+    handlers.get('agent_action')({...action,id:'act-'+name,tool_name:name});
+    assert.equal(snapshot.events[0].to,district);
+}
+handlers.get('coagent_progress')({co_agent_id:'co-radio',state:'running',task:'NEVER COPY ME',last_event:'NEVER COPY ME',partial_result:'NEVER COPY ME'});
+assert.equal(snapshot.events[0].from,'missions');assert.equal(snapshot.events[0].to,'agent');
+assert.ok(!JSON.stringify(snapshot.events).includes('NEVER COPY ME'));
+handlers.get('memory_update')({});assert.equal(snapshot.events[0].from,undefined,'A metric update is not a message from the agent');
 // A late REST bootstrap cannot replace a newer SSE sample.
 delayed={};api.refresh();await flush();
 handlers.get('system_metrics')({cpu:{usage_percent:81},memory:{used_percent:42}});
@@ -92,7 +117,9 @@ const geometryGLB = Buffer.concat([header,padded,robotBytes.subarray(20+jsonLeng
 geometryGLB.writeUInt32LE(geometryGLB.length,8);geometryGLB.writeUInt32LE(padded.length,12);
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = async () => new Response(geometryGLB);
-const scene = new THREE.Scene(), life = createCityLife(scene,[],{robotURL:'robot-test.glb'});
+const { districts } = await import('../ui/js/desktop/apps/sysworld-scene.js');
+const nativeNow=Date.now;let clock=nativeNow(), lifeActive=true;Date.now=()=>clock;
+const scene = new THREE.Scene(), life = createCityLife(scene,districts,{robotURL:'robot-test.glb',active:()=>lifeActive});
 try {
     for(let i=0;i<100&&life.stats().robots!==5&&!life.stats().robotError;i++) await new Promise(r=>setTimeout(r,10));
     assert.equal(life.stats().robots,5,'All five real robot meshes must load');
@@ -107,5 +134,30 @@ try {
             assert.ok(face.dot(travel)>.9,`${resident.name} must face its travel direction (frame ${frame})`);
         });
     }
+    let eventSequence=1000;
+    const emit=(event)=>life.setData([],[{...event,id:++eventSequence,at:clock}]);
+    assert.equal(life.stats().transmissions.length,0,'Idle city has no invented radio traffic');
+    emit(outgoing);clock+=600;life.update(1/30,true);
+    assert.equal(life.stats().transmissions[0].to,'infra');
+    const age=life.stats().transmissions[0].age;
+    life.setData([],[{...outgoing,id:eventSequence,at:clock}]);life.update(1/30,true);
+    assert.equal(life.stats().transmissions[0].age,age,'REST/SSE snapshot refresh cannot replay a packet');
+    emit({...incoming,state:'failed'});clock+=150;life.update(1/30,true);
+    assert.ok(life.stats().transmissions.some(p=>p.from==='infra'&&p.to==='agent'&&p.state==='failed'));
+    clock+=4000;life.update(1/30,true);assert.equal(life.stats().transmissions.length,0);
+    for(const event of [{...outgoing,at:clock-5000},{...outgoing,at:clock+1000},{...outgoing,to:'unknown'},
+        {...outgoing,from:'memory',to:'graph'}]) life.setData([],[{at:clock,...event,id:++eventSequence}]);
+    life.update(1/30,true);assert.equal(life.stats().transmissions.length,0,'No stale, future or unknown traffic');
+    for(let burst=0;burst<2;burst++) {
+        clock+=500;
+        for(const d of districts.filter(d=>d.id!=='agent')) for(const reverse of [false,true])
+            emit({from:reverse?d.id:'agent',to:reverse?'agent':d.id,state:reverse?'succeeded':'started',district:d.id});
+    }
+    clock+=100;life.update(1/30,true);assert.equal(life.stats().transmissions.length,12,'Packet pool remains bounded under bursts');
+    life.update(1/30,false);assert.equal(life.stats().transmissions.length,0,'Reduced motion suppresses radio motion');
+    emit(outgoing);life.update(1/30,true);assert.equal(life.stats().transmissions.length,0,'Enabling motion does not replay suppressed events');
+    lifeActive=false;clock+=500;emit(outgoing);lifeActive=true;life.update(1/30,true);
+    assert.equal(life.stats().transmissions.length,0,'Hidden/map activity is not queued for replay');
+    console.log('System World: verified routes, request/reply, expiry, deduplication, burst limits and reduced motion passed.');
     console.log('System World: all five robot faces follow straight streets and rounded turns.');
-} finally {life.dispose();globalThis.fetch=nativeFetch;}
+} finally {life.dispose();globalThis.fetch=nativeFetch;Date.now=nativeNow;}

@@ -340,7 +340,7 @@ export async function createCity(host, options) {
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
   }
-  life = createCityLife(scene, districts, {robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError});
+  life = createCityLife(scene, districts, {robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'});
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
