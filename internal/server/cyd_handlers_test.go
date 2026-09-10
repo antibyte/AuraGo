@@ -201,7 +201,7 @@ func TestCYDFirmwareStatusAndProvision(t *testing.T) {
 }
 
 func TestAuthBypassesCYDDeviceRoutes(t *testing.T) {
-	for _, path := range []string{"/api/cyd/snapshot", "/api/cyd/ws", "/api/cyd/ack", "/api/cyd/heartbeat"} {
+	for _, path := range []string{"/api/cyd/snapshot", "/api/cyd/ws", "/api/cyd/ack", "/api/cyd/heartbeat", "/api/cyd/speak/ntf_x"} {
 		if !isAuthBypassed(path) {
 			t.Fatalf("%s should bypass session auth", path)
 		}

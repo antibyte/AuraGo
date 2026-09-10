@@ -58,6 +58,7 @@ type Notify struct {
 	Body     string `json:"body"`
 	Priority string `json:"priority"`
 	TTLS     int    `json:"ttl_s"`
+	Speak    bool   `json:"speak,omitempty"`
 }
 
 type FeedItem struct {

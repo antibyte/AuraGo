@@ -391,6 +391,49 @@ func handleCYDStatus(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleCYDSpeak(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		enabled := s.Cfg != nil && s.Cfg.Cyd.Enabled
+		s.CfgMu.RUnlock()
+		if !enabled {
+			jsonError(w, "cyd is disabled", http.StatusNotFound)
+			return
+		}
+		if _, _, ok := s.authorizeCYD(w, r, true); !ok {
+			return
+		}
+		id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/cyd/speak/"), "/")
+		if id == "" || strings.Contains(id, "/") {
+			jsonError(w, "not found", http.StatusNotFound)
+			return
+		}
+		hub := s.ensureCydHub()
+		deadline := time.Now().Add(8 * time.Second)
+		var pcm []byte
+		for {
+			pcm = hub.Speech(id)
+			if len(pcm) > 0 || !time.Now().Before(deadline) {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		if len(pcm) == 0 {
+			jsonError(w, "speech not ready", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("X-Sample-Rate", strconv.Itoa(cyd.SpeakRate))
+		w.Header().Set("Content-Length", strconv.Itoa(len(pcm)))
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(pcm)
+	}
+}
+
 func handleCYDTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -566,6 +609,7 @@ func registerCYDRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/cyd/snapshot", handleCYDSnapshot(s))
 	mux.HandleFunc("/api/cyd/heartbeat", handleCYDHeartbeat(s))
 	mux.HandleFunc("/api/cyd/ack", handleCYDAck(s))
+	mux.HandleFunc("/api/cyd/speak/", handleCYDSpeak(s))
 	mux.HandleFunc("/api/cyd/ws", handleCYDWebSocket(s))
 	mux.HandleFunc("/api/cyd/status", handleCYDStatus(s))
 	mux.HandleFunc("/api/cyd/test", handleCYDTest(s))

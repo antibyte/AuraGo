@@ -44,6 +44,7 @@ type Hub struct {
 	page         string
 	brightness   int
 	led          string
+	speak        *Speaker
 }
 
 func NewHub() *Hub {
@@ -51,6 +52,7 @@ func NewHub() *Hub {
 		devices: make(map[string]*Device),
 		clients: make(map[wsSender]string),
 		page:    "status",
+		speak:   NewSpeaker(),
 	}
 }
 
@@ -106,17 +108,40 @@ func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
 		return *h.overlay
 	}
 	copyN := n
+	if h.speak != nil && h.speak.Available() && !inGoTest() {
+		copyN.Speak = true
+		n.Speak = true
+		h.speak.Queue(n.ID, n.Title, n.Body)
+	}
 	h.overlay = &copyN
 	h.overlayUntil = time.Now().Add(time.Duration(n.TTLS) * time.Second)
-	h.broadcastLocked(map[string]any{
+	msg := map[string]any{
 		"type":     "notify",
 		"id":       n.ID,
 		"title":    n.Title,
 		"body":     n.Body,
 		"priority": n.Priority,
 		"ttl_s":    n.TTLS,
-	})
+	}
+	if n.Speak {
+		msg["speak"] = true
+	}
+	h.broadcastLocked(msg)
 	return n
+}
+
+// Speech returns 8 kHz unsigned PCM for a notification, or nil.
+func (h *Hub) Speech(id string) []byte {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	sp := h.speak
+	h.mu.Unlock()
+	if sp == nil {
+		return nil
+	}
+	return sp.Get(id)
 }
 
 func (h *Hub) Ack(id string) {

@@ -1257,6 +1257,8 @@ cyd:
     overlay_ttl_seconds: 30      # default notification overlay lifetime
     allow_agent_control: true    # allow cyd_display page/brightness/led mutations
     mqtt_mirror: false           # also publish snapshots to MQTT topic aurago/cyd/snapshot
+    # Spoken English alerts use sanoTTS (pip install sanotts, voice heart-nano)
+    # when the sanotts CLI is on PATH. The glass fetches 8 kHz PCM from /api/cyd/speak/{id}.
 adguard:
     enabled: false
     readonly: false
