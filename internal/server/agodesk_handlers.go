@@ -69,6 +69,7 @@ type agodeskChatResult struct {
 var agodeskAgentChatRunner = runAgodeskAgentChat
 
 var agodeskDoneTagPattern = regexp.MustCompile(`(?i)<\s*/?\s*done\s*/?\s*>`)
+var agodeskServedMediaPathPattern = regexp.MustCompile(`(?i)/files/(audio|generated_images|generated_videos|images|documents|downloads)/[^\s)\]"'<>]+`)
 
 var errAgodeskAgentTimeout = errors.New("agent request timed out")
 
@@ -1747,6 +1748,10 @@ func (b *agodeskChatBroker) Send(event, message string) {
 	if event == "plan_update" {
 		b.capturePlanUpdate(message)
 	}
+	if event == "final_response" {
+		b.emitMediaFromAssistantText(message)
+		return
+	}
 	if event == "tool_output" {
 		_ = b.emitMediaFromToolOutput(message)
 		if b.FeedbackBroker != nil {
@@ -2122,6 +2127,14 @@ func (b *agodeskChatBroker) emitMediaFromToolOutput(message string) bool {
 	return b.emitMedia(event, payload)
 }
 
+func (b *agodeskChatBroker) emitMediaFromAssistantText(text string) bool {
+	event, payload, ok := agodeskMediaEventFromServedPaths(text)
+	if !ok {
+		return false
+	}
+	return b.emitMedia(event, payload)
+}
+
 func agodeskExtractToolJSON(message string) string {
 	raw := strings.TrimSpace(message)
 	raw = strings.TrimPrefix(raw, "[Tool Output]\n")
@@ -2139,11 +2152,11 @@ func agodeskMediaEventFromToolOutput(message string) (string, string, bool) {
 	raw := agodeskExtractToolJSON(message)
 	var obj map[string]interface{}
 	if json.Unmarshal([]byte(raw), &obj) != nil {
-		return "", "", false
+		return agodeskMediaEventFromServedPaths(message)
 	}
 	status := strings.ToLower(strings.TrimSpace(fmt.Sprint(obj["status"])))
 	if status != "success" && status != "ok" {
-		return "", "", false
+		return agodeskMediaEventFromServedPaths(message)
 	}
 	fields := obj
 	if item, ok := obj["item"].(map[string]interface{}); ok {
@@ -2158,7 +2171,7 @@ func agodeskMediaEventFromToolOutput(message string) (string, string, bool) {
 	mediaType := strings.ToLower(agodeskStringField(fields, "media_type"))
 	event := agodeskMediaEventForToolFields(pathValue, mime, mediaType, filename, fields)
 	if event == "" {
-		return "", "", false
+		return agodeskMediaEventFromServedPaths(message)
 	}
 	body := map[string]interface{}{}
 	for key, value := range fields {
@@ -2176,6 +2189,47 @@ func agodeskMediaEventFromToolOutput(message string) (string, string, bool) {
 		return "", "", false
 	}
 	return event, string(encoded), true
+}
+
+func agodeskMediaEventFromServedPaths(text string) (string, string, bool) {
+	for _, pathValue := range agodeskServedMediaPaths(text) {
+		fields := map[string]interface{}{
+			"path":     pathValue,
+			"web_path": pathValue,
+			"status":   "success",
+		}
+		event := agodeskMediaEventForToolFields(pathValue, "", "", "", fields)
+		if event == "" {
+			continue
+		}
+		encoded, err := json.Marshal(fields)
+		if err != nil {
+			continue
+		}
+		return event, string(encoded), true
+	}
+	return "", "", false
+}
+
+func agodeskServedMediaPaths(text string) []string {
+	matches := agodeskServedMediaPathPattern.FindAllString(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(matches))
+	out := make([]string, 0, len(matches))
+	for _, match := range matches {
+		pathValue := strings.TrimRight(match, ".,;:)")
+		if pathValue == "" {
+			continue
+		}
+		if _, exists := seen[pathValue]; exists {
+			continue
+		}
+		seen[pathValue] = struct{}{}
+		out = append(out, pathValue)
+	}
+	return out
 }
 
 func agodeskMediaEventForToolFields(pathValue, mime, mediaType, filename string, fields map[string]interface{}) string {
@@ -2360,13 +2414,24 @@ func agodeskInt64Field(raw map[string]interface{}, names ...string) int64 {
 	return 0
 }
 
+func agodeskMediaDedupePath(pathValue string) string {
+	pathValue = strings.TrimSpace(pathValue)
+	if pathValue == "" {
+		return ""
+	}
+	if idx := strings.Index(pathValue, "?"); idx >= 0 {
+		return pathValue[:idx]
+	}
+	return pathValue
+}
+
 func (b *agodeskChatBroker) markMediaEmitted(payload agodesk.ChatMediaPayload) bool {
 	key := strings.Join([]string{
 		strings.TrimSpace(payload.ConversationID),
 		strings.TrimSpace(payload.Kind),
-		strings.TrimSpace(payload.Path),
-		strings.TrimSpace(payload.URL),
-		strings.TrimSpace(payload.EmbedURL),
+		agodeskMediaDedupePath(payload.Path),
+		agodeskMediaDedupePath(payload.URL),
+		agodeskMediaDedupePath(payload.EmbedURL),
 	}, "\x00")
 	if strings.TrimSpace(payload.Path+payload.URL+payload.EmbedURL) == "" {
 		return true
@@ -2518,6 +2583,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	if answer == "" && len(resp.Choices) > 0 {
 		answer = strings.TrimSpace(resp.Choices[0].Message.Content)
 	}
+	broker.Send("final_response", sanitizeAgodeskChatResponseText(answer))
 	touchDesktopChatSessionMetadata(s, conversationID)
 	metadata := make(map[string]interface{})
 	if agodeskStateHasCapability(state, "chat.agent_metadata") {

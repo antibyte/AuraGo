@@ -1219,6 +1219,46 @@ func TestAgodeskChatBrokerEmitsChatMediaFromToolOutput(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatBrokerEmitsChatMediaFromProseToolOutput(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.media_events"}),
+	}
+	envs := readAgodeskBrokerEventEnvelopes(t, state, nil, agodeskBrokerTestEvent{
+		event:   "tool_output",
+		message: "Audio erfolgreich versendet. Web: /files/audio/music_aeb14569.mp3",
+	})
+	if len(envs) != 1 {
+		t.Fatalf("envelope count = %d, want 1: %+v", len(envs), envs)
+	}
+	var payload agodesk.ChatMediaPayload
+	decodeAgodeskTestPayload(t, envs[0], &payload)
+	if payload.Kind != "audio" || !strings.Contains(payload.Path, "/api/agodesk/media/audio/music_aeb14569.mp3") {
+		t.Fatalf("prose tool_output media payload = %+v", payload)
+	}
+}
+
+func TestAgodeskChatBrokerEmitsChatMediaFromAssistantText(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.media_events"}),
+	}
+	envs := readAgodeskBrokerEventEnvelopes(t, state, nil, agodeskBrokerTestEvent{
+		event:   "final_response",
+		message: "Die Datei liegt unter /files/audio/music_aeb14569.mp3",
+	})
+	if len(envs) != 1 {
+		t.Fatalf("envelope count = %d, want 1: %+v", len(envs), envs)
+	}
+	var payload agodesk.ChatMediaPayload
+	decodeAgodeskTestPayload(t, envs[0], &payload)
+	if payload.Kind != "audio" || !strings.Contains(payload.Path, "/api/agodesk/media/audio/music_aeb14569.mp3") {
+		t.Fatalf("assistant text media payload = %+v", payload)
+	}
+}
+
 func TestAgodeskChatBrokerIgnoresTTSToolOutputForMedia(t *testing.T) {
 	state := &agodeskConnectionState{
 		sessionID:    "agodesk:dev-1",
