@@ -4341,7 +4341,7 @@ window.IntegrationsDrawer = (function () {
             const res = await fetch('/api/integrations/webhosts', { credentials: 'same-origin', cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            webhosts = Array.isArray(data.webhosts) ? data.webhosts : [];
+            webhosts = Array.isArray(data.webhosts) ? data.webhosts.filter(item => item.id !== 'boring_computers') : [];
             webhostsLoadedAt = Date.now();
             lastFetchFailed = false;
             if (isOpen) renderList();

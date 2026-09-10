@@ -2331,7 +2331,7 @@ virtual_computers:
     max_active_workspaces: 2
 ```
 
-Der Chat-Integrationsdrawer öffnet `/boring-computers/`, sobald die Integration läuft. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig.
+Die Verwaltungsoberfläche ist direkt unter `/boring-computers/` erreichbar; sie wird im Chat-Integrationsdrawer nicht aufgeführt. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig.
 
 **Speicher (Volumes):** Standard ist **Managed Garage** – AuraGo betreibt dafür einen gepinnten Garage-Container (`aurago-boring-garage`, ausschließlich `127.0.0.1:3900`) mit Daten unter `data/sidecars/garage`. Die Garage-Schlüssel (`virtual_computers_garage_*`) liegen getrennt von externen S3-Schlüsseln im Vault und werden nie an Python/Skills exportiert. `external_s3` bleibt für bestehende Setups verfügbar. Beim Wechsel des Speichermodus mit vorhandenen Volumes verlangt die API eine einmalige Bestätigung; Quell-Objekte werden dabei nie automatisch gelöscht. Der Agent sieht und verwaltet den Garage-Container nicht (gleiches Fail-Closed-Muster wie bei der Local-LLM-Verwaltung).
 

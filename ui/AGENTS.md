@@ -30,6 +30,9 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- The Chat integrations drawer omits `boring_computers` from its webhost list.
+  The shared webhosts API remains available to other consumers.
+
 - Tabellen uses the local Univer OSS 0.25.1 resource set under `js/vendor/sheets/`.
   Keep its own Autor-style chrome and permanently light grid. Localized input,
   native formulas/clipboard/undo, ETag saves, recovery and Chart.js overlays are

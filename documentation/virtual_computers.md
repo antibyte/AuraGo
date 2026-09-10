@@ -62,15 +62,15 @@ Credential metadata becomes visible to the agent only when the credential has `a
 
 The administrative API is rooted at `/api/virtual-computers/workspaces`, with job, browser-session, credential-grant, checkpoint, control, and event-WebSocket subresources. Human takeover pauses structured browser input for two minutes or until control is explicitly returned to the agent. Startup reconciliation keeps a job only when the same guest instance confirms it; missing machines, changed instance nonces, and unconfirmed jobs become explicit lost/interrupted records.
 
-## Chat drawer and access
+## Browser access
 
-When Virtual Computers is enabled, the right-hand integrations drawer in Chat contains **Boring Computers**. It opens:
+When Virtual Computers is enabled, its management application is available directly at:
 
 ```text
 /boring-computers/
 ```
 
-The link is shown only while the integration is enabled. Its status changes from `starting` to `running` after a bounded, passive management health probe succeeds; opening the drawer or status page never initiates an SSH connection. AuraGo requires the normal authenticated session or a method-appropriate Desktop bearer token before proxying the management application. Read-scoped tokens can browse, while mutating requests require write scope. `virtual_computers.readonly=true` blocks mutations at the AuraGo proxy boundary as well as in native tools.
+The Chat integrations drawer omits Boring Computers. Its webhost API status changes from `starting` to `running` after a bounded, passive management health probe succeeds; opening the drawer or status page never initiates an SSH connection. AuraGo requires the normal authenticated session or a method-appropriate Desktop bearer token before proxying the management application. Read-scoped tokens can browse, while mutating requests require write scope. `virtual_computers.readonly=true` blocks mutations at the AuraGo proxy boundary as well as in native tools.
 
 Both HTTP and WebSocket traffic stay on the AuraGo origin. The browser never receives `BORING_TOKEN`, the private boringd URL, or an authorization header for boringd. The management application injects the token only in its server-side proxy.
 
