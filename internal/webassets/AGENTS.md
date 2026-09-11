@@ -15,7 +15,8 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - Set `Default` once before services start. Installation never hot-swaps captured
   templates or the active filesystem; restart activates the matching set.
 - Keep tests runnable with `go test ./internal/webassets ./cmd/assetpack`.
-  `scripts/check-web-assets.mjs` enforces embed and stripped-binary budgets.
+  `scripts/check-web-assets.mjs` enforces a 10 MB first-party embed budget and
+  the separate recovery-page and stripped-binary budgets.
 - `ui.Content` and per-package test fixtures are test inputs, never production
   fallback sources. Maintain missing-set behavior for Desktop and Game Maker.
 

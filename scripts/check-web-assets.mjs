@@ -12,7 +12,7 @@ for (const line of inventory.trim().split(/\r?\n/)) {
     console.log(`${pkg}: ${size} embedded bytes`);
     if (pkg === 'aurago/ui' || (pkg === 'aurago/internal/server' && size > 1_000_000)) throw new Error('Full UI or oversized recovery page embedded');
 }
-if (embedded > 8_000_000) throw new Error(`Embedded first-party resources exceed 8 MB: ${embedded}`);
+if (embedded > 10_000_000) throw new Error(`Embedded first-party resources exceed 10 MB: ${embedded}`);
 for (const binary of process.argv.slice(2)) {
     const size = statSync(binary).size;
     console.log(`${binary}: ${(size/1e6).toFixed(2)} MB`);

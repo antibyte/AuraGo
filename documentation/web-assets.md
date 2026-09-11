@@ -112,7 +112,7 @@ old-updater migration is no longer required. Retained sets are not automatically
 deleted; remove obsolete versions deliberately after rollback is no longer needed.
 
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces an initial
-120 MB executable ceiling, an 8 MB first-party embed budget and a 1 MB bootstrap
+120 MB executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
 limit. The packaging CI checks Windows and Linux. Production assets are never
 committed as generated archives; source files and the inclusion manifest are.
 
