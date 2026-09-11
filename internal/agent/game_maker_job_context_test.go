@@ -66,9 +66,12 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 			want string
 		}{
 			{ctx, write, "job_id is required"},
-			{ctx, native(map[string]any{"job_id": run.Job.ID, "path": "src/probe.ts", "content": "changed"}), "operation must be read or write"},
-			{bound, native(map[string]any{"path": "src/probe.ts"}), "operation must be read or write"},
-			{bound, native(map[string]any{"path": "src/probe.ts", "content": 42}), "operation must be read or write"},
+			{ctx, native(map[string]any{"job_id": run.Job.ID, "path": "src/probe.ts", "content": "changed"}), "operation must be read, write or replace"},
+			{bound, native(map[string]any{"path": "src/probe.ts"}), "operation must be read, write or replace"},
+			{bound, native(map[string]any{"path": "src/probe.ts", "content": 42}), "operation must be read, write or replace"},
+			{bound, native(map[string]any{"operation": "write", "path": "src/probe.ts"}), "explicit string content"},
+			{bound, native(map[string]any{"operation": "replace", "path": "src/probe.ts", "old_text": "probe"}), "explicit new_text"},
+			{bound, native(map[string]any{"operation": "read", "path": "src/probe.ts", "start_line": 1.5}), "nonnegative integer"},
 			{bound, native(map[string]any{"path": "../escape.ts", "content": "changed"}), `"status":"error"`},
 			{bound, native(map[string]any{"path": "vendor/aurago-game-1.js", "content": "changed"}), `"status":"error"`},
 		} {

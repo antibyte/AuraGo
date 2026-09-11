@@ -194,11 +194,12 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	gamePrompt := fmt.Sprintf(`You are Game Maker Studio, isolated job %q, dimension %s, stage %s.
 Use only the allowed Game Maker tools. Do not request user confirmation.
 The server binds every tool call to this job. job_id may be omitted here;
-an explicit different job_id is rejected. File writes need path and content;
-prefer operation="write". Wait for a successful write before validating.
-In planning: inspect, get_plan, search_assets/describe_asset, then set_plan. End
+an explicit different job_id is rejected. Read the relevant source range, then
+prefer operation="replace" with its sha256. Use write for new files only.
+Check build.ok after each edit before runtime validation.
+In planning: use the supplied example, search_assets as needed, then set_design. End
 the planning turn immediately after acceptance. The server installs the selected
-template only for a new 2D project. Never replace an existing game with a template.
+template only for a new project. Never replace an existing game with a template.
 In building: follow the accepted plan, implement and validate the core loop first,
 then the remaining planned features. In repair: fix only the reported failures;
 the server owns the three-repair budget. Finish a repair turn after one validation.
@@ -222,7 +223,8 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	if len(run.ModelAssetIDs) > 0 {
 		contextData["user_selected_model_ids"] = run.ModelAssetIDs
 	}
-	if run.Stage != "repair" {
+	if run.Stage == "planning" {
+		contextData["design_example"] = gamemaker.ExampleGameDesign(run.Project)
 		if packs, err := r.service.ListAssetPacks(); err == nil {
 			contextData["catalog"] = packs
 		}
@@ -230,14 +232,17 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	if run.Project.Dimension == "2d" {
 		gamePrompt += "\n\nSprite contract: use search_assets then describe_asset and follow its aurago-game-1.js helper example. preloadPack loads exact 64x64 frames; createAsset selects an exact asset ID and createAssembly keeps all parts together. Import sheet.json in TypeScript for offline metadata. Never load a built-in sheet as one image or use atlas JSON. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist. Full validation must observe spawning, actions and restart."
 	}
-	if run.Project.Dimension == "3d" {
+	if run.Project.Dimension == "3d" && run.Stage != "planning" {
 		gamePrompt += "\n\n" + gamemaker.ModelRuntimeGuide
-		gamePrompt += "\n\n3D asset contract: search_assets view=3d, then describe_asset for each exact model. Respect user_selected_model_ids. Use schema_version=2, units=metres, scale=1 by default and collider=catalog. Record exact pack/version/model IDs and required clips. The server imports the planned selection after acceptance; additional import_pack calls require an explicit asset_ids array. Use the returned metadata paths and three_example with vendor/aurago-three-assets-1.js. Models face +Z with +Y up; use bounds, connections, sockets, moving_parts and available animations from metadata. Never invent paths, joints or clips. Share static geometry; clone animated skeletons with createInstance. Feed updateInstance from the existing game clock; pause stops that clock, teardown disposes every instance and releases every asset. Verify movement, interaction, animation, load failure and restart in the rendered game. There is no Blender or CDN at runtime."
 	}
 	sessionID := "game-maker-" + run.Job.ID
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "game_maker")
 	runCfg.TrustedPromptAddenda = append(runCfg.TrustedPromptAddenda, prompts.PromptAddendum{ID: prompts.PromptAddendumSpecialist, Text: gamePrompt})
-	runCfg.AllowedTools = append([]string(nil), gameMakerAllowedTools...)
+	runCfg.NativeToolSchemas = agent.GameMakerPhaseToolSchemas(run.Stage, run.Project.Dimension)
+	runCfg.AllowedTools = nil
+	for _, definition := range runCfg.NativeToolSchemas {
+		runCfg.AllowedTools = append(runCfg.AllowedTools, definition.Function.Name)
+	}
 	runCfg.UserIntent = run.Job.Prompt
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true

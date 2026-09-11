@@ -19,6 +19,7 @@ const gamePlanPath = ".aurago/game-plan.json"
 // GamePlan is a bounded design artifact, never executable or trusted instructions.
 type GamePlan struct {
 	SchemaVersion int               `json:"schema_version"`
+	Gameplay      *GameSettings     `json:"gameplay,omitempty"`
 	Units         string            `json:"units,omitempty"`
 	Template      string            `json:"template"`
 	Objective     string            `json:"objective"`
@@ -71,7 +72,7 @@ type GameTestStep struct {
 }
 
 func templateNames() []string {
-	return []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three"}
+	return []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space"}
 }
 
 // PlanningComplete ends the internal agent round; the orchestrator alone decides
@@ -119,7 +120,15 @@ func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) erro
 // SetPlanJSON accepts an object or its single JSON-string transport wrapper and
 // validates model input before unknown fields can be discarded.
 // Syntax and schema failures consume the same bounded corrections as rule errors.
-func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) (err error) {
+func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) error {
+	return s.setPlanJSON(ctx, jobID, data, false)
+}
+
+func (s *Service) SetDesignJSON(ctx context.Context, jobID string, data []byte) error {
+	return s.setPlanJSON(ctx, jobID, data, true)
+}
+
+func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, compact bool) (err error) {
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
 	if !s.policy.Enabled {
@@ -168,6 +177,12 @@ func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) (e
 	}
 	if !bytes.HasPrefix(data, []byte("{")) {
 		return fmt.Errorf("plan: submit one JSON object, optionally JSON-encoded once as a string; no Markdown or extra encoding")
+	}
+	if compact {
+		data, err = s.expandDesign(ctx, jobID, project, data)
+		if err != nil {
+			return err
+		}
 	}
 	var plan GamePlan
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -258,10 +273,18 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		return bad("units", "schema 2 requires a 3D project and units=metres")
 	}
 	if !slices.Contains(templateNames(), p.Template) {
-		return bad("template", "choose shooter, platformer, topdown, blocks, board, minimal or three")
+		return bad("template", "choose shooter, platformer, topdown, blocks, board, minimal, three, fps, exploration, transport, flight or space")
 	}
-	if (project.Dimension == "3d") != (p.Template == "three") {
+	if (project.Dimension == "3d") != is3DTemplate(p.Template) {
 		return bad("template", "must match the project dimension")
+	}
+	if p.Gameplay != nil {
+		if !guided3D(p.Template) {
+			return bad("gameplay", "settings apply to guided 3D bases only; change other games in their source")
+		}
+		if err := p.Gameplay.validate(); err != nil {
+			return err
+		}
 	}
 	for key, value := range map[string]string{"objective": p.Objective, "core_loop": p.CoreLoop, "camera": p.Camera, "fallback": p.Fallback} {
 		if strings.TrimSpace(value) == "" || len(value) > 2000 {
@@ -359,6 +382,21 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 			if err != nil {
 				return bad(field, fmt.Sprintf("asset_id=%q assembly_id=%q: %v", a.AssetID, a.AssemblyID, err))
 			}
+			if p.Template == "fps" && detail.Model != nil {
+				if a.Role == "arms" && detail.Model.Rig != "fps-arms-v1" {
+					return bad(field, "FPS arms require rig fps-arms-v1")
+				}
+				if a.Role == "weapon" && (len(detail.Model.FPSBinding) == 0 || string(detail.Model.FPSBinding) == "null") {
+					return bad(field, "FPS weapon requires catalog fps_binding")
+				}
+				if a.Role == "weapon" {
+					for _, clip := range []string{"idle", "fire", "reload", "reload_empty"} {
+						if !slices.ContainsFunc(detail.Model.Animations, func(a ModelAnimation) bool { return a.ID == clip }) {
+							return bad(field, "guided FPS requires weapon clip "+clip+"; choose a firearm or use free-code three for other combat")
+						}
+					}
+				}
+			}
 			if a.Version != detail.Version {
 				return bad(field+".version", "use version "+detail.Version)
 			}
@@ -389,7 +427,22 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	if len(assetErrors) > 0 {
 		return errors.Join(assetErrors...)
 	}
-	if len(p.Scenarios) > 8 {
+	if guided3D(p.Template) {
+		if !modelPlan {
+			return bad("schema_version", "guided 3D bases require schema 2")
+		}
+		for _, required := range defaultModelRoles(p.Template) {
+			if !roles[required.Role] {
+				return bad("assets", "missing required role "+required.Role+"; use set_design for automatic defaults")
+			}
+		}
+		for _, a := range p.Assets {
+			if a.PackID != ModelPackID {
+				return bad("assets", "guided 3D requires local catalog models for every role")
+			}
+		}
+	}
+	if len(p.Scenarios) > min(8, 16-len(requiredScenarios(p.Template))) {
 		return bad("scenarios", "provide at most 8 additional observable checks; template minimums run automatically")
 	}
 	seen := map[string]bool{}
@@ -460,9 +513,9 @@ func (s *Service) HoldAgentSummary(jobID, text string) {
 
 func JobNextAction(job Job) string {
 	if job.Phase == "planning" {
-		return "Read the current project and get_plan, search/describe relevant assets, then set_plan with a complete design. Code writes, imports and media generation are locked."
+		return "Use the supplied context; search assets as needed, then set_design with base, objective, features and asset roles. Technical defaults are resolved by the server. Existing full set_plan remains supported. Mutations are locked until acceptance."
 	}
-	return "Read the accepted plan and installed template. Implement its core loop, call game_maker_validate with scope full, then finish remaining features and validate again. Never claim an unobserved check."
+	return "Read src/main.ts once. Keep the installed lifecycle and asset bindings; implement requested rules using small replace edits and the returned sha256. Compile errors are returned by writes. Validate full for 2D and guided 3D, startup only for free-code three. Never claim an unobserved check."
 }
 
 // ExampleGamePlan is a schema example, not a replacement for the user's design.

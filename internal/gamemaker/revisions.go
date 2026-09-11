@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -60,7 +61,17 @@ func (s *Service) publishValidated(ctx context.Context, stage string, project Pr
 	if len(result.check.Diagnostics) > 0 {
 		return Revision{}, fmt.Errorf("preview failed before publication: %s", diagnosticsText(result.check.Diagnostics))
 	}
-	if project.Dimension == "2d" && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
+	var plan GamePlan
+	if project.Dimension == "3d" {
+		data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(gamePlanPath)))
+		if err != nil {
+			return Revision{}, fmt.Errorf("read publication plan: %w", err)
+		}
+		if err = json.Unmarshal(data, &plan); err != nil {
+			return Revision{}, fmt.Errorf("decode publication plan: %w", err)
+		}
+	}
+	if (project.Dimension == "2d" || guided3D(plan.Template)) && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
 		return Revision{}, fmt.Errorf("publication requires full gameplay observations")
 	}
 	if err := writeValidationReport(stage, result, s.opts.MaxFilesPerProject, s.opts.MaxFileBytes, s.opts.MaxProjectBytes); err != nil {

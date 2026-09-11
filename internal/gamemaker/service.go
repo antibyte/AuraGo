@@ -38,6 +38,8 @@ type Service struct {
 
 	mu                 sync.RWMutex
 	buildMu            sync.Mutex
+	fileMu             sync.Mutex
+	designDrafts       map[string]map[string]json.RawMessage
 	runner             Runner
 	policyMu           sync.RWMutex
 	policy             Policy
@@ -488,6 +490,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		delete(s.acceptedPlans, job.ID)
 		delete(s.planAttempts, job.ID)
 		delete(s.planErrors, job.ID)
+		delete(s.designDrafts, job.ID)
 		delete(s.jobSummaries, job.ID)
 		delete(s.validationFailures, job.ID)
 		delete(s.lastFailedBuild, job.ID)
@@ -558,10 +561,35 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		planErr := s.planErrors[job.ID]
 		s.mu.RUnlock()
 		if accepted {
-			plan, _ = s.GetPlan(ctx, job.ID)
-			break
+			var err error
+			plan, err = s.GetPlan(ctx, job.ID)
+			if err != nil || plan == nil {
+				s.terminateJob(job, ctx, fmt.Errorf("accepted plan is unavailable: %v", err))
+				return
+			}
+			missing := []string{}
+			for _, id := range modelAssetIDs {
+				found := false
+				for _, a := range plan.Assets {
+					if a.PackID == ModelPackID && a.AssetID == id {
+						found = true
+					}
+				}
+				if !found {
+					missing = append(missing, id)
+				}
+			}
+			if len(missing) == 0 {
+				break
+			}
+			plan = nil
+			planErr = fmt.Errorf("plan.assets: include user-selected model IDs: %s", strings.Join(missing, ", "))
+			s.mu.Lock()
+			delete(s.acceptedPlans, job.ID)
+			s.planErrors[job.ID] = planErr
+			s.mu.Unlock()
 		}
-		planDiagnostics = []Diagnostic{{Level: "plan", Message: "A validated set_plan submission is required. Read the plan example from game_maker_project inspect, then submit the complete plan."}}
+		planDiagnostics = []Diagnostic{{Level: "plan", Message: "A validated set_design submission is required. Use inspect.design_example and submit your design choices."}}
 		if planErr != nil {
 			planDiagnostics[0].Message = planErr.Error()
 		}
@@ -606,7 +634,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 		assetPacks = append(assetPacks, p)
 	}
-	if job.BaseRevision == 0 && project.Dimension == "2d" {
+	if job.BaseRevision == 0 && (project.Dimension == "2d" || guided3D(plan.Template)) {
 		if err := installGameTemplate(stage, *plan); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
@@ -625,7 +653,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 	scope := "full"
-	if project.Dimension == "3d" {
+	if project.Dimension == "3d" && !guided3D(plan.Template) {
 		scope = "startup"
 	}
 	result := s.ValidateJobScope(ctx, job.ID, scope)
@@ -836,6 +864,11 @@ func (s *Service) ReadJobFile(ctx context.Context, jobID, rawPath string) (strin
 }
 
 func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content string) error {
+	_, err := s.WriteJobFileChecked(ctx, jobID, rawPath, content, "")
+	return err
+}
+
+func (s *Service) writeJobFile(ctx context.Context, jobID, rawPath, content string) error {
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
 		return err
 	}
@@ -849,6 +882,15 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content stri
 	}
 	if int64(len(content)) > s.opts.MaxFileBytes {
 		return fmt.Errorf("game maker file exceeds configured limit")
+	}
+	oldBytes, extraFiles := int64(0), 1
+	if info, err := os.Stat(path); err == nil {
+		oldBytes, extraFiles = info.Size(), 0
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect game source: %w", err)
+	}
+	if err := validateTreeLimits(stage, s.opts.MaxFilesPerProject-extraFiles, s.opts.MaxProjectBytes-int64(len(content))+oldBytes); err != nil {
+		return fmt.Errorf("source exceeds project limits: %w", err)
 	}
 	if err := s.validateScriptAssetImports(ctx, jobID, rel, content); err != nil {
 		return err
@@ -878,7 +920,6 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content stri
 	}
 	job, _ := s.GetJob(ctx, jobID)
 	_, _ = s.emit(ctx, job.ProjectID, jobID, "file_changed", map[string]any{"path": rel})
-	_ = s.BuildJob(ctx, jobID)
 	return nil
 }
 

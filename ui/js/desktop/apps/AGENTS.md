@@ -700,9 +700,9 @@ registration lives in `internal/desktop/types.go`.
 - Modular pack previews default to a complete assembly. Parts use metadata
   coordinates and shared animation time; selecting an individual sprite exits
   assembly mode. Reuse the window's existing preview timer and cleanup path.
-- Game Maker previews must use `sandbox="allow-scripts"` without
+- Game Maker previews must use `sandbox="allow-scripts allow-pointer-lock"` without
   `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
-  Preview HTTP responses also send CSP `sandbox allow-scripts` so "open in
+  Preview HTTP responses also send CSP `sandbox allow-scripts allow-pointer-lock` so "open in
   new tab" cannot become a first-party AuraGo origin.
   Accept diagnostics only from the instance iframe when `event.source`, the
   random channel ID, the fixed source marker, and the bounded event type all

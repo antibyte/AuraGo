@@ -15,7 +15,7 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_validate
 Use deterministic, scene-first checks. This package contains original AuraGo
 guidance and copies no TinySwords code, text, scripts, or assets.
 
-1. Call `game_maker_validate` with `scope: full` for 2D and inspect every check.
+1. Call `game_maker_validate` with `scope: full` for 2D and guided 3D and inspect every check.
    Implement the accepted game first. Unchanged 2D/3D starters are rejected;
    automatic asset imports and diagnostic injection do not count as code changes.
 2. Confirm the manifest, entry point, local runtime, and diagnostic interface.
@@ -59,7 +59,7 @@ replace the last working preview with broken output.
 ```json
 {"job_id":"CURRENT_JOB_ID","scope":"full"}
 ```
-Omitted scope remains startup-only for compatibility. Full 2D validation runs
+Omitted scope remains startup-only for compatibility. Full 2D/guided 3D validation runs
 at most 60 seconds: startup, fixed template tests and the accepted plan scenarios.
 The driver accepts only bounded key/pointer/wait/observe commands, no JavaScript.
 It takes numeric snapshots before/after real input; the server compares them.
@@ -89,8 +89,9 @@ Do not invent a natural game-over simulation for that check. For a short hit
 check compare its steps to a passing required_rules check before editing; retain
 working movement, sprites and collision wiring. A launch is an action, not a hit.
 Missing observations are unavailable,
-never success. `gameplay_status` is independent of `runtime_status`. 3D currently
-requires startup only and reports gameplay unverified. Optional `visual_status`
+never success. `gameplay_status` is independent of `runtime_status`. Free-code `three`
+requires startup only and reports gameplay unverified; guided bases require full
+checks and preserve their live test binding, asynchronous load and cleanup paths. Optional `visual_status`
 is advisory; skipped image review is normal for text-only/unknown models.
 An image review cannot override a failed technical check. Repair the named
 cause; preserve every passing behavior in the accepted plan. During repair,

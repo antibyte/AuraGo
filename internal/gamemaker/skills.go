@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 const (
@@ -115,34 +114,19 @@ func CuratedSkillNames() []string {
 // PhaseGuidance uses only the embedded, reviewed source, never a project file or
 // a locally replaced skill. Startup still verifies the curated skill registry.
 func PhaseGuidance(stage, dimension string) string {
-	names := []string{"aurago-game-maker-director"}
 	if stage == "planning" {
-		names = append(names, "aurago-game-assets")
+		return `Choose a supported game base and describe the player objective and 1–12 features with set_design. Supply exact asset role/pack/asset IDs from search_assets where customization is needed. Guided 3D bases provide catalog-checked default models when assets is empty. Resolve user-selected models into the appropriate roles. The server fills version, geometry, controls and validation defaults. On failure resubmit only the incorrect design fields (arrays replace whole); at most two corrections. For edits read the existing plan and affected source, keep the existing base and working behavior. Never write/import in planning. Accepted designs end this phase.`
+	}
+	common := `Implement the accepted design in the installed source. Start with src/main.ts; retain common.ts lifecycle and the generated role bindings. Read only relevant line ranges; use replace with the returned sha256 for local changes. Writes return written and build.ok separately: fix compiler errors at their source location before validation. Keep existing art and behavior in repair jobs. Validate once after a complete change; missing browser observations cannot pass. Keep one game clock, clear input on blur, reset all gameplay state on restart and release resources on pagehide. Offline local runtime only; no remote imports, eval or network services.`
+	if dimension == "2d" {
+		common += ` Phaser 4: subclass GameScene using setup(), step(deltaSeconds), action(), tick(), paintHUD(); never override update/create. Assign this.player. body(x,y,w,h,color,fixed,role) binds planned artwork automatically; roles include player, enemy, projectile, item, obstacle and goal. Pass actual physics GameObjects to collider/overlap, not wrapper records. Use fixed=false for moving bodies. Neither Arcade body type has setPosition; use object.setPosition and body.reset(x,y), or updateFromGameObject for static proxies. Use persistent groups for spawned objects and register overlap once. Never load a library sheet as a single image. Use scope=full.`
 	} else {
-		engine := "aurago-phaser4-gameplay"
-		if dimension == "3d" {
-			engine = "aurago-threejs-gameplay"
-		}
-		names = append(names, engine, "aurago-game-qa")
-		if stage != "repair" {
-			names = append(names, "aurago-game-assets")
-		}
+		common += ` Guided 3D bases install startGame(config) in main.ts and a reusable common.ts. Edit the small config (goal/speed/duration, objects and roles) or the specific game rules in common.ts; do not rewrite the renderer. All selected model manifests and roles are wired automatically. FPS arms/weapon share one camera group and metadata bindings. Use scope=full for guided bases; free-code template three supports startup checks only. Unsupported requested mechanics require real source implementation, not a prose claim.`
 	}
-	var out []string
-	for _, name := range names {
-		data, err := bundledSkills.ReadFile("skills/" + name + "/SKILL.md")
-		if err != nil {
-			continue
-		}
-		body := string(data)
-		if strings.HasPrefix(body, "---") {
-			if end := strings.Index(body[3:], "\n---"); end >= 0 {
-				body = body[end+7:]
-			}
-		}
-		out = append(out, body)
+	if stage == "repair" {
+		common += ` Repair only the supplied diagnostics, then validate and end the turn.`
 	}
-	return strings.Join(out, "\n\n")
+	return common
 }
 
 func equalSHA256(left, right []byte) bool {

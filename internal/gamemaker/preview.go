@@ -99,7 +99,7 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	if isPreviewHTML(rawPath, path, contentType) {
 		data = injectPreviewBoot(data)
 		// The driver is served only in the authenticated preview, never exported.
-		if project.Dimension == "2d" {
+		if project.Dimension == "2d" || project.Dimension == "3d" {
 			driver, err := runtimeFS.ReadFile("runtime/preview-tests.js")
 			if err != nil {
 				return nil, "", err

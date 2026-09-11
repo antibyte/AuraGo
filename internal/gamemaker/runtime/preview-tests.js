@@ -2,7 +2,7 @@
 (function () {
   let running = false;
   const channel = new URLSearchParams(location.hash.slice(1)).get('gm-channel');
-  const keys = { LEFT:37,RIGHT:39,UP:38,DOWN:40,W:87,A:65,S:83,D:68,SPACE:32,R:82,ESC:27,ENTER:13 };
+  const keys = { LEFT:37,RIGHT:39,UP:38,DOWN:40,W:87,A:65,S:83,D:68,SPACE:32,R:82,ESC:27,ENTER:13,F:70,Q:81,E:69 };
   const names = { LEFT:'ArrowLeft',RIGHT:'ArrowRight',UP:'ArrowUp',DOWN:'ArrowDown',SPACE:' ',ESC:'Escape',ENTER:'Enter' };
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   function keyEvent(name, down) {
@@ -13,12 +13,14 @@
   async function press(name, ms) {keyEvent(name,true);try{await wait(ms);}finally{keyEvent(name,false);}}
   function binding() {
     const b = window.__AURAGO_GAME_TEST__;
+    if (b?.kind === 'three' && b.alive?.() && b.canvas instanceof HTMLCanvasElement && typeof b.snapshot === 'function') return b;
     if (!b?.scene?.sys?.isActive() || !b.player?.active) throw Error('Missing live bindGameTest scene/player: assign this.player to the controlled object in GameScene.setup(). Preserve common.ts create/update; custom scenes must call bindGameTest(this,state,player) in create() on every restart.');
     return b;
   }
   async function reset() {await press('R',80);await wait(420);}
   function snapshot(inspectAssets) {
-    const {scene,state,player}=binding();
+    const b=binding();if(b.kind==='three')return b.snapshot();
+    const {scene,state,player}=b;
     const result={player_x:player.x,player_y:player.y,
       // Phaser 4.2.1 has no public timer enumeration; this adapter is pinned and
       // exercised by the real-runtime browser fixture when Phaser is upgraded.
@@ -36,17 +38,19 @@
       case 'wait': await wait(ms);break;
       case 'observe': await wait(34);break;
       case 'pointer': {
-        const {scene}=binding(),canvas=scene.game.canvas,rect=canvas.getBoundingClientRect();
+        const b=binding(),scene=b.scene,canvas=b.kind==='three'?b.canvas:scene.game.canvas,rect=canvas.getBoundingClientRect();
         if(!Number.isFinite(command.x)||!Number.isFinite(command.y)||command.x<0||command.y<0||command.x>1920||command.y>1080)throw Error('Invalid pointer');
-        const options={bubbles:true,clientX:rect.left+command.x/scene.scale.width*rect.width,clientY:rect.top+command.y/scene.scale.height*rect.height,button:0,buttons:1};
-        canvas.dispatchEvent(new MouseEvent('mousedown',options));await wait(ms);canvas.dispatchEvent(new MouseEvent('mouseup',{...options,buttons:0}));break;
+        const options={bubbles:true,clientX:rect.left+command.x/(scene?.scale.width||960)*rect.width,clientY:rect.top+command.y/(scene?.scale.height||540)*rect.height,button:0,buttons:1};
+        const EventType=b.kind==='three'?PointerEvent:MouseEvent,prefix=b.kind==='three'?'pointer':'mouse';
+        canvas.dispatchEvent(new EventType(prefix+'down',options));await wait(ms);canvas.dispatchEvent(new EventType(prefix+'up',{...options,buttons:0}));break;
       }
       default: throw Error('Unsupported test command');
     }
   }
   async function capture() {
     try {
-      const {scene}=binding();
+      const b=binding();if(b.kind==='three'){const image=b.canvas.toDataURL('image/png');return image.length<=700000?image:'';}
+      const {scene}=b;
       return await new Promise(resolve=>{
         const timer=setTimeout(()=>resolve(''),500);
         scene.game.renderer.snapshot(image=>{clearTimeout(timer);resolve(image.src.length<=700000?image.src:'');},'image/png');
@@ -61,9 +65,12 @@
     const observations=[],images=[];let expired=false,initial;
     const deadline=setTimeout(()=>{expired=true;for(const key of Object.keys(keys))keyEvent(key,false);},55000);
     try {
-      const {inspectAssets}=await import('./vendor/aurago-game-1.js');
-      // Startup must remain alive before test input starts.
+      // A visible canvas precedes asynchronous GLB loading. Wait for the real
+      // game binding within the same bounded test deadline.
       await wait(3100);
+      while (!window.__AURAGO_GAME_TEST__ && !expired) await wait(100);
+      if (expired) throw Error('Game initialization exceeded the test deadline');
+      const inspectAssets = binding().kind==='three' ? null : (await import('./vendor/aurago-game-1.js')).inspectAssets;
       const first=await capture();if(first)images.push(first);
       for(const scenario of data.scenarios){
         if(expired)throw Error('Gameplay driver exceeded 55 seconds');

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,12 +49,21 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 			}
 			return gameMakerToolJSON(map[string]any{"status": "ok", "plan": plan}), true
 		}
-		if operation == "set_plan" {
-			data, err := json.Marshal(tc.Params["plan"])
+		if operation == "set_plan" || operation == "set_design" {
+			field := "plan"
+			if operation == "set_design" {
+				field = "design"
+			}
+			data, err := json.Marshal(tc.Params[field])
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			if err = service.SetPlanJSON(ctx, jobID, data); err != nil {
+			if operation == "set_design" {
+				err = service.SetDesignJSON(ctx, jobID, data)
+			} else {
+				err = service.SetPlanJSON(ctx, jobID, data)
+			}
+			if err != nil {
 				return gameMakerToolError(err), true
 			}
 			return gameMakerToolJSON(map[string]any{"status": "ok", "next_action": "Plan accepted. End this planning turn; the server will import assets and start implementation."}), true
@@ -69,7 +79,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		if operation != "inspect" {
 			return gameMakerToolError(fmt.Errorf("unknown project operation")), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "plan_example": gamemaker.ExampleGamePlan(project), "next_action": gamemaker.JobNextAction(job)}), true
+		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "plan_example": gamemaker.ExampleGamePlan(project), "design_example": gamemaker.ExampleGameDesign(project), "next_action": gamemaker.JobNextAction(job)}), true
 
 	case "game_maker_file":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
@@ -82,23 +92,46 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		}
 		path := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path"))
 		if operation == "read" {
-			content, err := service.ReadJobFile(ctx, jobID, path)
+			start, end := 0, 0
+			for name, target := range map[string]*int{"start_line": &start, "end_line": &end} {
+				if value, exists := tc.Params[name]; exists && value != nil {
+					n, ok := value.(float64)
+					if !ok || math.IsNaN(n) || n < 0 || n > 10000000 || n != math.Trunc(n) {
+						return gameMakerToolError(fmt.Errorf("%s must be a nonnegative integer", name)), true
+					}
+					*target = int(n)
+				}
+			}
+			result, err := service.ReadJobFileRange(ctx, jobID, path, start, end)
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "path": path, "content": content}), true
+			return gameMakerToolJSON(map[string]any{"status": "ok", "path": path, "content": result.Content, "sha256": result.SHA256, "start_line": result.StartLine, "end_line": result.EndLine, "total_lines": result.TotalLines}), true
 		}
-		if operation != "write" {
-			return `Tool Output: {"status":"error","message":"operation must be read or write"}`, true
+		if operation != "write" && operation != "replace" {
+			return `Tool Output: {"status":"error","message":"operation must be read, write or replace"}`, true
 		}
 		content := tc.Content
 		if value, ok := tc.Params["content"].(string); ok {
 			content = value
 		}
-		if err := service.WriteJobFile(ctx, jobID, path, content); err != nil {
+		var result gamemaker.SourceWrite
+		var err error
+		if operation == "replace" {
+			if _, ok := tc.Params["new_text"].(string); !ok {
+				return gameMakerToolError(fmt.Errorf("replace requires explicit new_text; use an empty string only for deletion")), true
+			}
+			result, err = service.ReplaceJobFile(ctx, jobID, path, toolArgString(tc.Params, "old_text"), toolArgString(tc.Params, "new_text"), toolArgString(tc.Params, "expected_sha256"))
+		} else {
+			if _, ok := tc.Params["content"].(string); !ok && tc.Content == "" {
+				return gameMakerToolError(fmt.Errorf("write requires explicit string content")), true
+			}
+			result, err = service.WriteJobFileChecked(ctx, jobID, path, content, toolArgString(tc.Params, "expected_sha256"))
+		}
+		if err != nil {
 			return gameMakerToolError(err), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "operation": "write", "path": path}), true
+		return gameMakerToolJSON(map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}), true
 
 	case "game_maker_validate":
 		result := service.ValidateJobScope(ctx, jobID, toolArgString(tc.Params, "scope"))

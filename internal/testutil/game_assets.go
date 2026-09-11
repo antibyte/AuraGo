@@ -32,7 +32,7 @@ func RunWithGameMakerAssets(run func() int) int {
 				return nil
 			}
 			ext := filepath.Ext(p)
-			if ext != ".js" && ext != ".json" && ext != ".png" && d.Name() != "THIRD_PARTY_NOTICES.md" {
+			if ext != ".js" && ext != ".json" && ext != ".png" && ext != ".glb" && d.Name() != "THIRD_PARTY_NOTICES.md" && d.Name() != "LICENSE.txt" {
 				return nil
 			}
 			rel, err := filepath.Rel(filepath.Join("..", "gamemaker"), p)

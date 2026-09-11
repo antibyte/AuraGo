@@ -67,8 +67,8 @@ func validPreviewImage(image string) bool {
 	return err == nil && config.Width > 0 && config.Height > 0 && config.Width <= 1920 && config.Height <= 1080
 }
 
-var gameMetrics = []string{"player_x", "player_y", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms"}
-var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "ESC", "ENTER"}
+var gameMetrics = []string{"player_x", "player_y", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health"}
+var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "ESC", "ENTER", "F", "Q", "E"}
 
 func validateScenario(s GameScenario) error {
 	if len(s.ID) < 1 || len(s.ID) > 64 || strings.HasPrefix(s.ID, "required_") {
@@ -77,8 +77,8 @@ func validateScenario(s GameScenario) error {
 	if !slices.Contains(gameMetrics, s.Metric) {
 		return fmt.Errorf("metric must be one of %s", strings.Join(gameMetrics, ", "))
 	}
-	if !slices.Contains([]string{"increased", "decreased", "changed", "equals"}, s.Compare) || !finite(s.Value) {
-		return fmt.Errorf("compare must be increased, decreased, changed or equals with a finite value")
+	if !slices.Contains([]string{"increased", "decreased", "changed", "equals", "at_least"}, s.Compare) || !finite(s.Value) {
+		return fmt.Errorf("compare must be increased, decreased, changed, equals or at_least with a finite value")
 	}
 	if len(s.Steps) < 1 || len(s.Steps) > 8 {
 		return fmt.Errorf("provide 1–8 steps")
@@ -110,6 +110,27 @@ func requiredScenarios(template string) []GameScenario {
 	key := func(name string, ms int) GameTestStep { return GameTestStep{Action: "key", Key: name, MS: ms} }
 	check := func(id, metric, compare string, steps ...GameTestStep) GameScenario {
 		return GameScenario{ID: "required_" + id, Metric: metric, Compare: compare, Steps: steps}
+	}
+	if guided3D(template) {
+		rules := check("rules", "hits", "increased", key("W", 1600))
+		primary := check("primary", "actions", "increased", key("SPACE", 300))
+		if template == "fps" || template == "space" {
+			rules.Steps = []GameTestStep{key("SPACE", 500)}
+		}
+		checks := []GameScenario{
+			check("input", "player_x", "changed", key("D", 350)), primary, rules,
+			check("timed", "ticks", "increased", GameTestStep{Action: "wait", MS: 2100}),
+			check("assets", "invalid_assets", "equals", key("A", 150)),
+			check("end", "ended", "equals", key("ESC", 150)),
+			check("restart", "ended", "equals", key("ESC", 150), key("R", 150), GameTestStep{Action: "wait", MS: 400}, key("R", 150), GameTestStep{Action: "wait", MS: 400}),
+		}
+		models := check("models", "assets_used", "at_least", GameTestStep{Action: "observe"})
+		models.Value = 1
+		checks = append(checks, models)
+		if template == "fps" {
+			checks = append(checks, check("aim", "aim", "changed", key("RIGHT", 350)), check("reload", "reloads", "increased", key("SPACE", 300), key("F", 50), GameTestStep{Action: "wait", MS: 3000}))
+		}
+		return checks
 	}
 	input := check("input", "player_x", "changed", key("RIGHT", 350))
 	primary := check("primary", "actions", "increased", key("SPACE", 300))
@@ -167,6 +188,8 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					passed = after != before
 				case "equals":
 					passed = after == scenario.Value
+				case "at_least":
+					passed = after >= scenario.Value
 				}
 				check.Status = "failed"
 				if passed {
@@ -247,7 +270,11 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (re
 	if err != nil {
 		return previewUnavailable(err.Error())
 	}
-	if project.Dimension == "3d" && scope != "startup" {
+	plan, planErr := s.GetPlan(ctx, jobID)
+	if planErr != nil {
+		return previewUnavailable(planErr.Error())
+	}
+	if project.Dimension == "3d" && (plan == nil || !guided3D(plan.Template)) && scope != "startup" {
 		return BuildResult{GameplayStatus: "unavailable", Diagnostics: []Diagnostic{{Level: "error", Message: "3D gameplay tests are not available; use startup scope"}}}
 	}
 	missing, err := s.unchangedGameStarter(ctx, jobID, project.Dimension)

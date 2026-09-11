@@ -5,6 +5,9 @@ class Board extends GameScene {
     this.selected=0;this.marks=Array(9).fill(0);this.cells=[];
     for(let i=0;i<9;i++){
       const cell=this.add.rectangle(360+(i%3)*100,180+Math.floor(i/3)*100,90,90,0x334155).setInteractive();
+      this.paintAsset(cell,90,90,'cell');
+      // Keep a transparent hit target when library art replaces the cell.
+      if(this.assetRoles('cell').length)cell.setVisible(true).setFillStyle(0,0);
       cell.on('pointerdown',()=>{this.selected=i;this.action();});this.cells.push(cell);
     }
     this.player=this.add.rectangle(360,180,96,96).setStrokeStyle(3,0xfacc15);
@@ -12,7 +15,10 @@ class Board extends GameScene {
   action() {
     if(this.marks[this.selected])return;
     const turn=this.state.turns%2+1;this.marks[this.selected]=turn;
-    this.cells[this.selected].setFillStyle(turn===1?0x5eead4:0xfb7185);
+    const cell=this.cells[this.selected];
+    cell.setFillStyle(turn===1?0x5eead4:0xfb7185);
+    const mark=this.add.rectangle(cell.x,cell.y,60,60,turn===1?0x5eead4:0xfb7185);
+    this.paintAsset(mark,60,60,this.assetRoles('marker_'+turn).length?'marker_'+turn:'marker');
     this.state.actions++;this.state.hits++;this.state.turns++;this.state.score++;
     const won=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>this.marks[i]===turn));
     if(won||this.state.turns===9)this.end();

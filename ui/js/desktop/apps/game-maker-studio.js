@@ -661,7 +661,7 @@
             const frame = document.createElement('iframe');
             frame.className = 'gm-preview-frame';
             frame.title = state.context.t('game_maker.live_preview');
-            frame.setAttribute('sandbox', 'allow-scripts');
+            frame.setAttribute('sandbox', 'allow-scripts allow-pointer-lock');
             frame.setAttribute('allowfullscreen', '');
             frame.setAttribute('referrerpolicy', 'no-referrer');
             const shell = state.container.querySelector('[data-gm-preview]');

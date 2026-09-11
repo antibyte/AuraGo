@@ -136,6 +136,12 @@ markers; the game owns ammo, projectiles, damage and audio.
 - Never delete or mutate the global AuraGo media registry asset. Project
   deletion removes only the project copy and ledger provenance.
 
+For guided templates, supply semantic roles in `set_design`: player, enemy,
+projectile, item, goal, obstacle; board uses cell and marker roles. Numbered
+variants (enemy_1, enemy_2) are reused through the shared sprite helper. Guided
+3D defaults cover the five common genres; override roles with exact model IDs.
+All chosen manifests and loader paths are generated; do not read minified vendors.
+
 ## Exact discovery sequence
 
 ```json

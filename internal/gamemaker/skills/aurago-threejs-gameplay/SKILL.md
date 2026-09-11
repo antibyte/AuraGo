@@ -12,8 +12,11 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 
 # Three.js Gameplay
 
-Import Three.js from `../vendor/three-0.185.1.module.min.js`. Build a real game,
-not a passive scene.
+Prefer a guided base (`fps`, `exploration`, `transport`, `flight`, `space`) via
+`set_design`. Edit its short main.ts config and game-specific hooks, retaining
+common.ts model loading, animation and lifecycle. All selected roles are bound.
+The following engine reference applies when extending that base or using free
+code (`three`). Import the pinned local Three.js runtime; build a playable game.
 
 - Establish renderer, scene, camera, resize handling, lighting, and a bounded
   animation loop before adding content.
@@ -41,8 +44,9 @@ without sprite display_height or pixel origins. At most 64 concrete model roles.
 Use one game clock for `updateInstance`, independent instances for animated rigs
 and `createInstances` for repeated static props. Release instances, asset handles,
 lights/shadows, controls and the renderer on teardown; abort pending model loads.
-Call `game_maker_validate` scope `startup`.
-This observes visible-canvas startup and runtime errors, not 3D gameplay, resize
-or collision correctness. Explicitly leave gameplay unverified. Phaser templates,
+Call `game_maker_validate` scope `full` for guided bases. Required live-input
+checks include movement, primary action, objective progress, assets, end and two
+restarts; FPS also checks aim and reload. Free-code `three` uses scope `startup`
+only and must leave gameplay unverified. Additional requirements need observation. Phaser templates,
 sprite helpers and their 2D gameplay tests do not apply to Three.js. A sprite PNG
 is a texture, not a 3D character model. Optional image review is advisory only.

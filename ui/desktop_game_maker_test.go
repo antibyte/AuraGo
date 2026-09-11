@@ -45,7 +45,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 	modals := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-modals.js")
 	preview := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-preview.js")
 	for _, marker := range []string{
-		`frame.setAttribute('sandbox', 'allow-scripts')`,
+		`frame.setAttribute('sandbox', 'allow-scripts allow-pointer-lock')`,
 		`event.source !== state.frame.contentWindow`,
 		`data.channel !== state.channelID`,
 		`state.eventSource.close()`,

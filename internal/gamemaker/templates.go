@@ -29,6 +29,18 @@ func (s *Service) unchangedGameStarter(ctx context.Context, jobID, dimension str
 		return true, nil
 	}
 	if dimension != "2d" {
+		plan, err := s.GetPlan(ctx, jobID)
+		if err != nil {
+			return false, err
+		}
+		if plan != nil && guided3D(plan.Template) {
+			files, err := threeTemplateSources(*plan)
+			if err != nil {
+				return false, err
+			}
+			common, err := s.ReadJobFile(ctx, jobID, "src/common.ts")
+			return err == nil && normalize(main) == normalize(string(files["main.ts"])) && normalize(common) == normalize(string(files["common.ts"])), err
+		}
 		return false, nil
 	}
 	plan, err := s.GetPlan(ctx, jobID)
@@ -58,6 +70,9 @@ func installGameTemplate(stage string, plan GamePlan) error {
 
 // Use the same plan-bound sources for installation and unchanged-template checks.
 func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
+	if guided3D(plan.Template) {
+		return threeTemplateSources(plan)
+	}
 	if !slices.Contains(templateNames()[:6], plan.Template) {
 		return nil, fmt.Errorf("unknown 2D template %q", plan.Template)
 	}
@@ -81,7 +96,7 @@ func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
 			id = a.AssemblyID
 		}
 		assetID, _ := json.Marshal(id)
-		entries = append(entries, fmt.Sprintf("[%s]: {meta:%s, id:%s, assembly:%t}", role, name, assetID, a.AssemblyID != ""))
+		entries = append(entries, fmt.Sprintf("[%s]: {meta:%s, id:%s, assembly:%t, direction:%s}", role, name, assetID, a.AssemblyID != "", mustJSONString(a.Direction)))
 	}
 	files := map[string][]byte{}
 	for source, target := range map[string]string{plan.Template + ".ts": "main.ts", "common.ts": "common.ts"} {
@@ -98,3 +113,5 @@ func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
 	}
 	return files, nil
 }
+
+func mustJSONString(value string) string { data, _ := json.Marshal(value); return string(data) }

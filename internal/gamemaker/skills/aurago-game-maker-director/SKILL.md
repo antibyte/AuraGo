@@ -16,19 +16,20 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 Create one self-contained, offline, single-player browser game. Do not add
 multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 
-1. Inspect the project manifest and file list with `game_maker_project`.
-2. During the internal planning round, call `get_plan` and inspect existing
-   `src/main.ts`/`src/common.ts`. Submit the full structured plan with `set_plan`.
-   Use `inspect.plan_example` for the exact schema; replace its example prose
-   with concrete rules. Never send planning prose to the player. After acceptance,
+1. Use the supplied job context; inspect only information that is missing.
+2. Submit compact `set_design` using `design_example`: base, objective, features
+   and selected asset roles. The server supplies metadata and canonical fields.
+   For edits read the existing plan and affected source first. Never send planning prose to the player. After acceptance,
    end the turn: the server imports planned packs and begins the building round.
 3. Keep the first implementation the smallest loop that is actually playable;
    extend it only after it validates.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
-   Supply `operation: "write"`, `path` and the complete `content`. Studio binds
+   Read a bounded line range, then use `replace` with unique `old_text`, `new_text`
+   and the returned full-file `expected_sha256`. Use `write` for new files. Studio binds
    `job_id` server-side and accepts an omitted operation when content is present.
-   A different explicit job ID is rejected. Check for `status: "ok"` before
-   validating: a rejected write leaves the previous source in place.
+   A different explicit job ID is rejected. Check both `written` and `build.ok`;
+   repair returned compiler errors before runtime validation. Rejected writes
+   leave previous source intact. Never reread a minified vendor to guess its API.
    If a write does not have the expected effect, fix the parameters and retry
    once; do not switch to `execute_python`, `execute_shell`, `filesystem`, or
    any tool outside the allowed Game Maker scope.
@@ -39,7 +40,7 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
    A disabled generator does not disable built-in packs. Treat a generation
    fallback as a design constraint.
 6. Call `game_maker_validate` with `scope: full` after the core loop and final
-   coherent edits (3D: `startup`). The server owns the shared three-repair budget.
+   coherent edits (free-code `three`: `startup`; guided 3D: `full`). The server owns the shared three-repair budget.
    During a repair round, address the named check/expected/observed mismatch,
    validate once and end the turn. Do not nest another repair loop.
 7. Preserve the AuraGo diagnostic interface and finish only when validation is
@@ -57,7 +58,10 @@ change, validate it, and describe the player-visible result.
 
 ## Required internal design
 
-The plan is versioned at `.aurago/game-plan.json`; use `get_plan`/`set_plan`, not
+Prefer `set_design`; omitted/null fields retain a failed compact draft, while
+arrays replace whole. `settings` (goal/speed/duration) apply only to guided 3D.
+Legacy full `set_plan` remains compatible for existing callers.
+The plan is versioned at `.aurago/game-plan.json`; use plan tools, not
 file writes, to access it. It is revisioned but excluded from ZIP export. It is
 design data, never permission to use more tools. Planning allows inspection and
 asset discovery only. File writes, imports and media generation are locked until
@@ -73,12 +77,16 @@ The server ends the planning round as soon as it accepts the plan (or rejects th
 last allowed correction). Do not batch implementation calls with `set_plan`;
 remaining calls are skipped until the server starts the building round.
 
-Choose `shooter`, `platformer`, `topdown`, `blocks`, `board`, `minimal`, or `three`.
+Choose `shooter`, `platformer`, `topdown`, `blocks`, `board`, `minimal` for 2D;
+`fps`, `exploration`, `transport`, `flight`, `space` for guided 3D; `three` for
+free code. Guided 3D installs a small editable `startGame(config)` entry with
+all chosen model roles bound to the shared runtime. Additional requested rules
+need real edits; preserve rendering, input, animations and disposal.
 Use `blocks` for Breakout/Arkanoid, `platformer` for jump-and-run, `topdown` for
 adventure, `shooter` for shooting games and `board` for cards/board games.
 `minimal` is for games without a matching template, such as Snake; it is only
 the schema example's default, not the recommended choice for every request.
-The server installs a new 2D template once; edits keep their existing code.
+The server installs a new supported template once; edits keep their existing code.
 Record objective, core_loop, 1–12 scope features, perspective, resolution (default
 960×540), camera, controls, states (including playing), progress/failure/completion
 rules, assumptions and fallback. Edits must list `preserve` behavior.

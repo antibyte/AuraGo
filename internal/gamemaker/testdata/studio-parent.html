@@ -1,0 +1,14 @@
+<!doctype html><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style><script>
+let frame,grant,last='',polling=false;window.events=[];
+addEventListener('message',async e=>{
+ const d=e.data;if(e.source!==frame?.contentWindow||d?.source!=='aurago-game'||d.channel!==grant?.validation_id)return;
+ events.push(d);
+ if(d.type==='ready'&&(!d.boot||!d.canvas||!d.visible))return;
+ await fetch('/report',{method:'POST',body:JSON.stringify({token:grant.token,type:d.type,message:d.message,canvas_visible:d.boot&&d.canvas&&d.visible,observations:d.observations,images:d.images})});
+ if(d.type==='ready')frame.contentWindow.postMessage({source:'aurago-studio',channel:grant.validation_id,type:'run-tests',scenarios:grant.scenarios},'*');
+});
+setInterval(async()=>{if(polling||window.done)return;polling=true;try{
+ const state=await fetch('/state').then(r=>r.json());if(['ready','failed','cancelled'].includes(state.job.status)){window.result=state.job;window.done=true;return}
+ if(state.grant.validation_id&&state.grant.validation_id!==last){grant=state.grant;last=grant.validation_id;frame=document.createElement('iframe');frame.setAttribute('sandbox','allow-scripts allow-pointer-lock');frame.src=grant.url+'#gm-channel='+grant.validation_id;document.body.replaceChildren(frame)}
+}finally{polling=false}},100);
+</script>
