@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -407,6 +408,15 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		return Job{}, err
 	}
 	modelAssetIDs := append([]string(nil), req.ModelAssetIDs...)
+	if _, _, err := resolvePresentation(req.Presentation); err != nil {
+		return Job{}, err
+	}
+	if req.Presentation != nil {
+		selection := *req.Presentation
+		selection.Effects = slices.Clone(selection.Effects)
+		selection.Sounds = slices.Clone(selection.Sounds)
+		req.Presentation = &selection
+	}
 	if len(modelAssetIDs) > 0 {
 		if project.Dimension != "3d" {
 			return Job{}, fmt.Errorf("3D models require a 3D project")
@@ -479,11 +489,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
 	_, _ = s.emit(ctx, project.ID, job.ID, "job_status", map[string]any{"status": "queued", "job": job})
-	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs, modelAssetIDs)
+	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs, modelAssetIDs, req.Presentation)
 	return job, nil
 }
 
-func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs, modelAssetIDs []string) {
+func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs, modelAssetIDs []string, selection *Presentation) {
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -551,7 +561,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	var plan *GamePlan
 	planDiagnostics := diagnostics
 	for attempt := 0; attempt < 3; attempt++ {
-		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, Presentation: selection}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
@@ -568,6 +578,22 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 				return
 			}
 			missing := []string{}
+			if selection != nil {
+				wantedFX, wantedAudio, _ := resolvePresentation(selection)
+				actualFX, actualAudio, _ := resolvePresentation(plan.Presentation)
+				for _, pair := range [][2][]PresentationAsset{{wantedFX, actualFX}, {wantedAudio, actualAudio}} {
+					for _, a := range pair[0] {
+						if !slices.ContainsFunc(pair[1], func(b PresentationAsset) bool { return a.ID == b.ID }) {
+							missing = append(missing, a.ID)
+						}
+					}
+				}
+				for _, binding := range selection.Sounds {
+					if plan.Presentation == nil || !slices.Contains(plan.Presentation.Sounds, binding) {
+						missing = append(missing, binding.Event+":"+binding.Sound)
+					}
+				}
+			}
 			for _, id := range modelAssetIDs {
 				found := false
 				for _, a := range plan.Assets {
@@ -583,7 +609,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 				break
 			}
 			plan = nil
-			planErr = fmt.Errorf("plan.assets: include user-selected model IDs: %s", strings.Join(missing, ", "))
+			planErr = fmt.Errorf("plan: include user-selected asset and presentation IDs: %s", strings.Join(missing, ", "))
 			s.mu.Lock()
 			delete(s.acceptedPlans, job.ID)
 			s.planErrors[job.ID] = planErr
@@ -634,6 +660,23 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 		assetPacks = append(assetPacks, p)
 	}
+	presentationPacks, presentationErr := s.importPlannedPresentation(ctx, job.ID, plan.Presentation)
+	if presentationErr != nil {
+		s.terminateJob(job, ctx, presentationErr)
+		return
+	}
+	assetPacks = append(assetPacks, presentationPacks...)
+	// Keep the small data file current without rewriting an existing game's source.
+	presentationData, presentationErr := presentationConfig(plan.Presentation)
+	if presentationErr != nil {
+		s.terminateJob(job, ctx, presentationErr)
+		return
+	}
+	if err := os.WriteFile(filepath.Join(stage, "src", "presentation.json"), []byte(presentationData), 0o640); err != nil {
+		s.terminateJob(job, ctx, err)
+		return
+	}
+
 	if job.BaseRevision == 0 && (project.Dimension == "2d" || guided3D(plan.Template)) {
 		if err := installGameTemplate(stage, *plan); err != nil {
 			s.terminateJob(job, ctx, err)

@@ -45,6 +45,7 @@ type AssetPack struct {
 }
 
 type ImportedAssetPack struct {
+	Example       string            `json:"example,omitempty"`
 	Kind          string            `json:"kind,omitempty"`
 	ID            string            `json:"id"`
 	Version       string            `json:"version"`
@@ -78,7 +79,7 @@ func (s *Service) validateScriptAssetImports(ctx context.Context, jobID, rel, co
 	var examples []string
 	for _, pack := range packs {
 		present[pack.Metadata] = pack.Image
-		if pack.Kind == "model3d" {
+		if pack.Kind == "model3d" || presentationPack(pack.ID) {
 			for _, meta := range pack.Manifests {
 				present[meta] = meta
 			}
@@ -144,6 +145,40 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 	modelPacks := map[string]int{}
 	for _, file := range files {
 		parts := strings.Split(file, "/")
+		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && presentationPack(parts[2]) && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
+			stage, e := s.JobDirectory(jobID)
+			if e != nil {
+				return nil, e
+			}
+			path, _, e := secureJoin(stage, file, false)
+			if e != nil {
+				return nil, e
+			}
+			data, e := os.ReadFile(path)
+			if e != nil {
+				return nil, e
+			}
+			var m PresentationManifest
+			if json.Unmarshal(data, &m) != nil || m.ID != parts[2] || len(m.Assets) != 1 {
+				continue
+			}
+			a := m.Assets[0]
+			base := strings.Join(parts[:4], "/") + "/"
+			complete := true
+			for _, f := range a.Files {
+				complete = complete && present[base+f.File]
+			}
+			if complete {
+				if index, exists := modelPacks[base]; exists {
+					out[index].AssetIDs = append(out[index].AssetIDs, a.ID)
+					out[index].Manifests[a.ID] = file
+				} else {
+					modelPacks[base] = len(out)
+					out = append(out, ImportedAssetPack{ID: m.ID, Kind: m.Kind, Version: m.Version, Metadata: file, AssetIDs: []string{a.ID}, Manifests: map[string]string{a.ID: file}, Example: presentationExample(m.ID, a.ID)})
+				}
+			}
+			continue
+		}
 		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && parts[2] == ModelPackID && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
 			stage, err := s.JobDirectory(jobID)
 			if err != nil {
@@ -216,8 +251,14 @@ func (s *Service) AssetPackFile(id, filename string) ([]byte, error) {
 }
 
 func bundledAssetPackFile(id, filename string) ([]byte, error) {
+	if presentationPack(id) {
+		return bundledPresentationFile(id, filename)
+	}
 	if id == "runtime" {
 		data, found, err := bundledRuntimeFile("3d", "vendor/"+filename)
+		if !found {
+			data, found, err = bundledRuntimeFile("2d", "vendor/"+filename)
+		}
 		if !found {
 			return nil, ErrNotFound
 		}
@@ -238,7 +279,7 @@ func bundledAssetPackFile(id, filename string) ([]byte, error) {
 
 func (s *Service) DescribeAssetPack(id string) (AssetPack, error) {
 	filename := "sheet.json"
-	if id == ModelPackID {
+	if id == ModelPackID || presentationPack(id) {
 		filename = "manifest.json"
 	}
 	data, err := s.AssetPackFile(id, filename)
@@ -291,7 +332,9 @@ func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string, assetID
 	}
 	var result ImportedAssetPack
 	var err error
-	if id == ModelPackID {
+	if presentationPack(id) {
+		result, err = s.importPresentation(ctx, jobID, id, assetIDs)
+	} else if id == ModelPackID {
 		result, err = s.importModels(ctx, jobID, assetIDs)
 	} else if len(assetIDs) > 0 {
 		err = fmt.Errorf("asset_ids is only supported for model3d packs")

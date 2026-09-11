@@ -1,0 +1,37 @@
+{
+  "impact": {
+    "page": "https://kenney.nl/assets/impact-sounds",
+    "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8"
+  },
+  "rpg": {
+    "page": "https://kenney.nl/assets/rpg-audio",
+    "url": "https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b"
+  },
+  "rain": {
+    "page": "https://opengameart.org/content/amb-rain-loop-2",
+    "url": "https://opengameart.org/sites/default/files/amb_rain2.ogg",
+    "author": "Kresiek The Furry",
+    "license": "CC0-1.0",
+    "sha256": "36b009dfec2e8cdda1a38ee65a14664a54293edac42827d0480f759e5d718d81"
+  },
+  "crickets": {
+    "page": "https://opengameart.org/content/crickets-ambient-noise-loopable",
+    "url": "https://opengameart.org/sites/default/files/crickets_1.mp3",
+    "author": "Ted Kerr / Wolfgang_",
+    "license": "CC0-1.0",
+    "sha256": "5b5bd1f744087888c5623543c3ff80be9c2ce106093993e7c8a8492b0280b2c0"
+  },
+  "forest": {
+    "page": "https://opengameart.org/content/ambient-bird-sounds",
+    "url": "https://opengameart.org/sites/default/files/birds-isaiah658_0.ogg",
+    "author": "isaiah658",
+    "license": "CC0-1.0",
+    "sha256": "359e4e3f9da9d75aac64cede511c7e3ef8b461f9d9f8c230f8f80e44c4b3e35f"
+  }
+}

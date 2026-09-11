@@ -8,7 +8,7 @@ class Blocks extends GameScene {
     const roles=this.assetRoles('block');
     for(let row=0;row<3;row++)for(let col=0;col<8;col++){const b=this.body(130+col*100,110+row*34,90,24,0xa78bfa,true,roles[(row*8+col)%roles.length]||'');this.blocks.add(b);}
     this.physics.add.collider(this.ball,this.player,()=>this.ball.body.setVelocityY(-340));
-    this.physics.add.collider(this.ball,this.blocks,(_:any,block:any)=>{block.destroy();this.state.score++;this.state.hits++;if(!this.blocks.countActive())this.end();});
+    this.physics.add.collider(this.ball,this.blocks,(_:any,block:any)=>{this.feedback('hit',block,'stone');block.destroy();this.state.score++;this.state.hits++;if(!this.blocks.countActive())this.end(true);});
   }
   action() { if(this.ball.body.velocity.length()===0){this.ball.body.setVelocity(70,-340);this.state.actions++;} }
   step() {

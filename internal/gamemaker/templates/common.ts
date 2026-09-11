@@ -1,4 +1,6 @@
 import { createInputs, bindGameTest, preloadPack, registerAnimations, createAsset, createAssembly, fitVisual, playAction, setFacing } from '../vendor/aurago-game-1.js';
+import {createPresentation, createPhaserAdapter} from '../vendor/aurago-effects-2d-1.js';
+import presentationPlan from './presentation.json';
 declare const Phaser: any;
 // PLAN_ASSET_IMPORTS
 const plannedAssets: any = {};
@@ -6,7 +8,7 @@ const plannedAssets: any = {};
 // Keep this lifecycle when adapting a template. State belongs to each scene run.
 export class GameScene extends Phaser.Scene {
   player: any; inputKeys: any; hud: any;
-  state: any; elapsed = 0;
+  state: any; elapsed = 0; presentation: any; footstepAt = 0; wasGrounded = false;
   visuals: any[] = [];
   constructor() { super('main'); }
   preload() {
@@ -25,6 +27,15 @@ export class GameScene extends Phaser.Scene {
     this.state = { score: 0, actions: 0, hits: 0, spawns: 0, turns: 0, ended: 0, ticks: 0 };
     this.inputKeys = createInputs(this);
     this.hud = this.add.text(18, 16, '', { fontFamily: 'monospace', fontSize: '20px', color: '#ffffff' }).setDepth(1000).setScrollFactor(0);
+    this.footstepAt = 0; this.wasGrounded = false;
+    this.presentation = presentationPlan ? createPresentation({config:presentationPlan,root:document.getElementById('game-root'),adapter:createPhaserAdapter({scene:this,view:this.physics.world.gravity.y?'side':'top'}),report:(message:any)=>console.warn(message)}) : null;
+    const active=(value:boolean)=>this.presentation?.setActive(value);
+    const paused=()=>this.presentation?.setPaused(true), resumed=()=>this.presentation?.setPaused(false);
+    this.game.events.on('hidden',paused); this.game.events.on('visible',resumed);
+    this.events.on('pause',paused); this.events.on('resume',resumed);
+    const activation=(event:MessageEvent)=>{if(event.source===parent&&event.data?.type==='aurago:game:active')active(event.data.active===true)};
+    window.addEventListener('message',activation);
+    this.events.once('shutdown',()=>{this.presentation?.dispose();this.presentation=null;this.game.events.off('hidden',paused);this.game.events.off('visible',resumed);window.removeEventListener('message',activation)});
     this.setup();
     bindGameTest(this, this.state, this.player);
     this.time.addEvent({ delay: 1000, loop: true, callback: () => { if (!this.state.ended) { this.state.ticks++; this.tick(); } } });
@@ -37,6 +48,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.existing(object, fixed);
     if (!fixed) object.body.setCollideWorldBounds(true);
     this.paintAsset(object,w,h,role);
+    if(fixed&&['ground','platform','building','obstacle'].includes(role))this.presentation?.registerSurface(object,{kind:role==='ground'?'ground':'roof'});
     return object;
   }
   paintAsset(object:any,w:number,h:number,role:string) {
@@ -57,11 +69,12 @@ export class GameScene extends Phaser.Scene {
   tick() {}
   action() { this.state.actions++; }
   step(_delta: number) { const v = this.inputKeys.vector(); this.player.body.setVelocity(v.x * 240, v.y * 240); }
-  end() { this.state.ended = 1; this.physics.pause(); this.paintHUD(); }
+  feedback(name:string,object:any=this.player,material='flesh') { if(object)this.presentation?.event(name,[object.x,object.y,0],[0,-1,0],material); }
+  end(won=false) { if(this.state.ended)return;this.feedback(won?'win':'lose'); this.state.ended = 1; this.physics.pause(); this.paintHUD(); }
   paintHUD() { this.hud.setText(`Score ${this.state.score} · Time ${this.state.ticks}s · Arrows/WASD · Space: action · R: restart\n${this.state.ended ? 'GAME OVER — R to restart' : 'Esc: end game'}`); }
   update(_time: number, delta: number) {
     if (this.inputKeys.pressed('R')) { this.scene.restart(); return; }
-    if (this.state.ended) return;
+    if (this.state.ended) {this.presentation?.update(Math.min(delta,50)/1000);return;}
     if (this.inputKeys.pressed('ESC')) { this.end(); return; }
     this.elapsed += delta;
     if (this.inputKeys.pressed('SPACE')) this.action();
@@ -80,6 +93,15 @@ export class GameScene extends Phaser.Scene {
       art.setPosition(object.x+offset.x, object.y+offset.y).setDepth(object.depth);
       return true;
     });
+    if(this.presentation){
+      const grounded=!this.physics.world.gravity.y||this.player?.body?.blocked.down||this.player?.body?.touching.down;
+      const velocity=this.player?.body?.velocity;
+      if(grounded&&velocity&&Math.abs(velocity.x)+(!this.physics.world.gravity.y?Math.abs(velocity.y):0)>10&&this.elapsed-this.footstepAt>380){this.footstepAt=this.elapsed;this.feedback('step')}
+      if(this.physics.world.gravity.y&&grounded&&!this.wasGrounded&&this.elapsed>200)this.feedback('land');
+      this.wasGrounded=!!grounded;
+      if(this.player)this.presentation.audio.listener([this.player.x,this.player.y,0]);
+      this.presentation.update(Math.min(delta,50)/1000);
+    }
     this.paintHUD();
   }
 }

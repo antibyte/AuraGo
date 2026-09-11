@@ -25,6 +25,8 @@ func TestGameMakerAssetPackRoutes(t *testing.T) {
 		mime   string
 	}{
 		{"", 200, "application/json"}, {"/space-shooter/sheet.json", 200, "application/json"}, {"/space-shooter/sheet.png", 200, "image/png"},
+		{"/aurago-effects/manifest.json", 200, "application/json"}, {"/aurago-sounds/sounds/rifle.wav", 200, "audio/wav"},
+		{"/aurago-sounds/sources.json", 404, ""}, {"/aurago-sounds/sounds/unknown.wav", 404, ""}, {"/runtime/aurago-effects-3d-1.js", 200, "text/javascript"},
 		{"/unknown/sheet.png", 404, ""}, {"/space-shooter/../sheet.png", 404, ""}, {"/production/manifest.json", 404, ""}, {"/space-shooter/source.png", 404, ""},
 	} {
 		path := "/api/game-maker/asset-packs" + tc.path

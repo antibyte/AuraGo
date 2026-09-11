@@ -90,12 +90,12 @@ The server installs a new supported template once; edits keep their existing cod
 Record objective, core_loop, 1–12 scope features, perspective, resolution (default
 960×540), camera, controls, states (including playing), progress/failure/completion
 rules, assumptions and fallback. Edits must list `preserve` behavior.
-For 3D use schema_version 2, units `metres` and at most 64 roles. Each model role
+For 3D use schema_version 3, units `metres` and at most 64 roles. Each model role
 has exact pack/version/asset_id, positive metric scale, declared animation IDs and
 collider `catalog|box|sphere|capsule|mesh|none`. Omit sprite-only display_height
 and origin. Include the user's selected models when relevant; search and describe
 missing roles. Imports occur only after acceptance and contain selected models.
-For 2D, retain schema_version 1. For each sprite role specify the exact pack version, asset OR assembly ID,
+New full plans use schema_version 3 in both dimensions; existing versions 1/2 remain readable. For each sprite role specify the exact pack version, asset OR assembly ID,
 related animation IDs, direction, display_height, normalized origin and collider
 (none/rectangle/circle/feet). Use a procedural role with fallback when appropriate.
 Never claim an attack animation exists because a character can attack logically.
@@ -151,3 +151,5 @@ player_x/player_y, actions, score, hits, spawns, turns, ticks, ended, object_cou
 timer_count, listener_count, invalid_assets, assets_used, elapsed_ms.
 Define observable results, not a `passed` flag. Keep the standard Arrow/Space/R
 inputs usable for template tests, even when adding alternative player controls.
+
+Presentation choices belong in the optional set_design.presentation block. Use catalog IDs for environments, effects and event-bound sounds; the server writes src/presentation.json and imports dependencies. Never build a second weather or audio loop. Adding presentation to an older free-code game also requires the documented controller hooks.

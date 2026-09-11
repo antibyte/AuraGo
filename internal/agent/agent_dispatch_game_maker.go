@@ -156,7 +156,7 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 		if n, ok := tc.Params["limit"].(float64); ok {
 			limit = int(n)
 		}
-		matches, err := service.SearchAssets(toolArgString(tc.Params, "query"), packID, toolArgString(tc.Params, "view"), limit)
+		matches, err := service.SearchAssets(toolArgString(tc.Params, "query"), packID, toolArgString(tc.Params, "view"), limit, toolArgString(tc.Params, "asset_kind"))
 		if err != nil {
 			return gameMakerToolError(err)
 		}

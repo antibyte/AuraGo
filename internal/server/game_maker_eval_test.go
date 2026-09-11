@@ -187,6 +187,13 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 			{"forest-fps", "3d", "Make a first-person forest patrol game using the local low-poly models: modern arms, rifle, pine trees and five soldiers as targets. WASD movement, mouse or arrow aiming, Space to shoot, F reload, health, a 90-second limit, restart and a visible Forest Patrol title. Award ten points per target and complete after five targets. Use the supported FPS base and implement all requested scoring rules."},
 			{"breakout", "2d", "Create Breakout using built-in sprite art for the paddle, ball and bricks. Three lives, ten points per brick, left/right movement, Space to launch and R restart. Show a clear victory when all bricks are cleared. Use the blocks base and retain its working lifecycle."},
 		} {
+			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" {
+				if task.dimension == "3d" {
+					task.prompt += " Add the built-in forest-rain atmosphere, blood-spray and blood-pool on actual target hits, muzzle-flash on shots, grass footsteps, rifle shots and flesh impact sounds. Use presentation in set_design and the existing guided lifecycle."
+				} else {
+					task.prompt += " Add the built-in coast atmosphere, pickup-glow on scoring, stone-debris on brick hits, impact-stone hit sound and victory/defeat cues. Use presentation in set_design and the existing guided lifecycle."
+				}
+			}
 			if only := os.Getenv("GAMEMAKER_EVAL_PROVIDER"); only != "" && only != provider.ID {
 				continue
 			}
@@ -214,7 +221,14 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 				}
 			}
 			events, _ := service.EventsAfter(context.Background(), p.ID, 0, 500)
-			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "events": events, "context_cap": cfg.Agent.ContextWindow, "tool_limit": cfg.CircuitBreaker.MaxToolCalls, "llm_timeout_seconds": cfg.CircuitBreaker.LLMTimeoutSeconds, "job_timeout_seconds": jobTimeout.Seconds()}
+			plan, planErr := service.GetPlan(context.Background(), job.ID)
+			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && job.Status != "ready" {
+				t.Errorf("presentation game did not become ready: %s: %s", job.Status, job.Error)
+			}
+			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && (planErr != nil || plan.Presentation == nil || plan.Presentation.Environment == "" || len(plan.Presentation.Sounds) < 2 || len(plan.Presentation.Effects) < 2) {
+				t.Errorf("%s/%s: missing requested presentation in accepted plan", provider.ID, task.name)
+			}
+			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "plan": plan, "events": events, "context_cap": cfg.Agent.ContextWindow, "tool_limit": cfg.CircuitBreaker.MaxToolCalls, "llm_timeout_seconds": cfg.CircuitBreaker.LLMTimeoutSeconds, "job_timeout_seconds": jobTimeout.Seconds()}
 			encoded, _ := json.MarshalIndent(result, "", "  ")
 			if err = os.WriteFile(filepath.Join(reports, provider.ID+"-"+task.name+".json"), encoded, 0600); err != nil {
 				t.Fatal(err)

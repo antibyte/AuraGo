@@ -259,5 +259,27 @@
     ],
     "version": "1.0.0",
     "kind": "model3d"
+  },
+  {
+    "id": "aurago-effects",
+    "kind": "effect",
+    "version": "1.0.0",
+    "name": "Aurago Effects",
+    "description": "Curated offline effect presets",
+    "tags": [
+      "effect",
+      "presentation"
+    ]
+  },
+  {
+    "id": "aurago-sounds",
+    "kind": "audio",
+    "version": "1.0.0",
+    "name": "Aurago Sounds",
+    "description": "Curated offline audio presets",
+    "tags": [
+      "audio",
+      "presentation"
+    ]
   }
 ]

@@ -19,9 +19,9 @@ class Board extends GameScene {
     cell.setFillStyle(turn===1?0x5eead4:0xfb7185);
     const mark=this.add.rectangle(cell.x,cell.y,60,60,turn===1?0x5eead4:0xfb7185);
     this.paintAsset(mark,60,60,this.assetRoles('marker_'+turn).length?'marker_'+turn:'marker');
-    this.state.actions++;this.state.hits++;this.state.turns++;this.state.score++;
+    this.feedback('ui',cell);this.state.actions++;this.state.hits++;this.state.turns++;this.state.score++;
     const won=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>this.marks[i]===turn));
-    if(won||this.state.turns===9)this.end();
+    if(won||this.state.turns===9)this.end(won);
   }
   step() {
     if(this.inputKeys.pressed('RIGHT'))this.selected=(this.selected+1)%9;

@@ -61,6 +61,9 @@ func TestGuidedBrowser(t *testing.T) {
 				switch run.Stage {
 				case "planning":
 					d := ExampleGameDesign(p)
+					if os.Getenv("GAMEMAKER_PRESENTATION") == "1" {
+						d.Presentation = &Presentation{Environment: "forest-rain", Effects: []string{"metal-sparks", "blood-spray", "muzzle-flash", "pickup-glow"}, Sounds: []SoundBinding{{"step", "step-grass"}, {"shot", "rifle"}, {"hit", "impact-metal"}, {"pickup", "pickup"}, {"win", "victory"}, {"lose", "defeat"}}, Quality: "auto"}
+					}
 					d.Base = mode
 					if d.Settings != nil {
 						d.Settings.Duration = 15

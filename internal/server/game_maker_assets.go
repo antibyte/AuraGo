@@ -42,6 +42,9 @@ func handleGameMakerAssetPacks(s *Server) http.HandlerFunc {
 			return
 		}
 		contentType := "application/json"
+		if strings.HasSuffix(filename, ".wav") {
+			contentType = "audio/wav"
+		}
 		if strings.HasSuffix(filename, ".js") {
 			contentType = "text/javascript; charset=utf-8"
 		}

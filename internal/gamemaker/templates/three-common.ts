@@ -1,5 +1,7 @@
 // Original MIT game bases, adapted from AuraGo's playable low-poly references.
 import * as A from '../vendor/aurago-three-assets-1.js';
+import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js';
+import presentationPlan from './presentation.json';
 // PLAN_MODEL_IMPORTS
 const roles: any = {};
 const T = A.THREE;
@@ -17,12 +19,14 @@ export function startGame(config: any) {
   scene.fog = new T.Fog(scene.background,45,150);
   const sun = new T.DirectionalLight(0xffe9c2,2.8); sun.position.set(-20,35,-10);sun.castShadow=true;
   sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-35,right:35,top:35,bottom:-35});sun.shadow.normalBias=.05;
-  scene.add(sun,new T.HemisphereLight(0xcfe8ff,0x51633a,2.2),camera);
+  const ambient=new T.HemisphereLight(0xcfe8ff,0x51633a,2.2);scene.add(sun,ambient,camera);
+  const presentation=presentationPlan?createPresentation({config:presentationPlan,root,adapter:createThreeAdapter({scene,camera,renderer,sun,ambient}),report:(message:any)=>console.warn(message)}):null;
+  let footstepAt=0,finishReported=false;
   const owned:any[] = [], live:any[] = [], objects:any[] = [], loaded = new Map();
   const position = new T.Vector3(), vector = new T.Vector3(), ray = new T.Raycaster();
   const player = new T.Group();scene.add(player);
-  const floor = new T.Mesh(new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0x526b4d,roughness:1}));
-  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.visible=config.mode!=='space';scene.add(floor);owned.push(floor);
+  const floor = new T.Mesh(presentationPlan?.environment==='coast'?new T.CircleGeometry(12,48):new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0x526b4d,roughness:1}));
+  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.visible=config.mode!=='space';scene.add(floor);owned.push(floor);if(floor.visible)presentation?.registerSurface(floor,{kind:'ground'});
   const hud = document.createElement('div'), crosshair = document.createElement('div'), controls=document.createElement('div');
   hud.style.cssText='position:absolute;left:18px;top:18px;padding:14px 18px;border-radius:12px;background:#101e2bdd;color:#eef8ff;font:14px/1.6 system-ui;pointer-events:none;white-space:pre-line;max-width:70%';
   crosshair.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;pointer-events:none;font:24px monospace';crosshair.textContent=config.mode==='fps'?'+':'';
@@ -37,8 +41,9 @@ export function startGame(config: any) {
     if(unit.asset.model.animations.some((c:any)=>c.id===name))A.playAction(unit,name,{fade:.12,restart});
   };
   const weaponAction=(name:string)=>{const prefix=weapon?.asset.model.fps_binding?.arm_action_prefix||'';clip(arms,prefix+name,true);clip(weapon,name,true)};
-  const resize=()=>{renderer.setSize(root.clientWidth||innerWidth,root.clientHeight||innerHeight);camera.aspect=renderer.domElement.width/renderer.domElement.height;camera.updateProjectionMatrix()};
+  const resize=()=>{renderer.setSize(root.clientWidth||innerWidth,root.clientHeight||innerHeight);camera.aspect=renderer.domElement.width/renderer.domElement.height;camera.updateProjectionMatrix();presentation?.resize()};
   function reset(){
+    presentation?.reset();presentation?.setPaused(false);footstepAt=0;finishReported=false;
     time=score=hits=actions=reloads=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=-1;keys.clear();
     player.position.set(0,config.mode==='flight'?5:config.mode==='space'?4:0,0);player.rotation.set(0,0,0);
     for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true}
@@ -50,16 +55,18 @@ export function startGame(config: any) {
     shotAt=time;actions++;if(config.mode==='fps'){ammo--;weaponAction('fire')}
     if(config.mode==='fps'){camera.updateMatrixWorld();ray.setFromCamera({x:0,y:0},camera)}
     else {vector.set(0,0,1);ray.set(player.position,vector)}
-    let closest:any=null,distance=80;
+    presentation?.event('shot',camera.position.clone().addScaledVector(ray.ray.direction,.8).toArray());
+    let closest:any=null,distance=80,hitPoint=new T.Vector3(),hitNormal=new T.Vector3();
     for(const o of objects){
       if(o.role!=='enemy'||!o.unit.root.visible)continue;
-      o.box.setFromObject(o.unit.root);const point=ray.ray.intersectBox(o.box,position);
-      if(point){const d=point.distanceTo(ray.ray.origin);if(d<distance){distance=d;closest=o}}
+      o.unit.root.updateMatrixWorld(true);const contact=ray.intersectObject(o.unit.root,true)[0];
+      if(contact&&contact.distance<distance){distance=contact.distance;closest=o;hitPoint.copy(contact.point);hitNormal.copy(contact.face?.normal||ray.ray.direction.clone().negate()).transformDirection(contact.object.matrixWorld)}
     }
-    if(closest){closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
+    if(closest){presentation?.event('hit',hitPoint.toArray(),hitNormal.toArray(),config.mode==='space'?'metal':'flesh');closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
   }
   function reload(){
     if(config.mode!=='fps'||ended||reloadAt>time||ammo===8)return;
+    presentation?.event('reload',camera.position.toArray());
     const name=ammo?'reload':'reload_empty';weaponAction(name);
     reloadAt=time+(weapon?.asset.model.animations.find((c:any)=>c.id===name)?.duration||1.5);
   }
@@ -70,6 +77,7 @@ export function startGame(config: any) {
     if(down&&!event.repeat){if(name==='r')reset();if(name==='f')reload();if(name==='escape'){ended=true;document.exitPointerLock?.()}if(name===' ')primary();if(name==='p')paused=!paused}
   }
   on(window,'keydown',(e:KeyboardEvent)=>key(e,true));on(window,'keyup',(e:KeyboardEvent)=>key(e,false));
+  on(window,'message',(e:MessageEvent)=>{if(e.source===parent&&e.data?.type==='aurago:game:active')presentation?.setActive(e.data.active===true)});
   on(window,'blur',()=>{keys.clear();dragging=false;document.exitPointerLock?.()});on(window,'resize',resize);
   on(renderer.domElement,'pointerdown',(e:PointerEvent)=>{dragging=true;if(e.isTrusted)renderer.domElement.setPointerCapture?.(e.pointerId);if(config.mode==='fps'){primary();if(e.isTrusted&&e.pointerType==='mouse')renderer.domElement.requestPointerLock?.()?.catch?.(()=>{})}});
   on(renderer.domElement,'pointerup',()=>dragging=false);
@@ -93,6 +101,7 @@ export function startGame(config: any) {
     for(const spec of config.objects){
       if(!Array.isArray(spec.at)||spec.at.length!==3||!spec.at.every(Number.isFinite))throw Error('Each object requires at:[x,y,z]');
       const unit=await instantiate(spec.role,spec.at);clip(unit,'idle');
+      if(['building','terrain','obstacle'].includes(spec.role))presentation?.registerSurface(unit.root,{kind:spec.role==='terrain'?'ground':'roof'});
       objects.push({role:spec.role,unit,start:unit.root.position.clone(),box:new T.Box3()});
     }
     if(config.mode==='fps'){
@@ -134,11 +143,17 @@ export function startGame(config: any) {
         if(config.mode==='exploration'){mesh.position.x=o.start.x+Math.sin(time*.7)*3;clip(o.unit,'walk')}
         if(d<2 || config.mode==='fps'&&d<18&&time>5)health-=dt*(config.mode==='fps'?3:18);
       }
-      if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){mesh.visible=false;score++;hits++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
+      if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){presentation?.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
       if(o.role==='goal'&&d<(config.mode==='flight'?3:2.5)){
-        if(config.mode==='flight'){mesh.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
+        if(config.mode==='flight'){presentation?.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
         else if(carrying){score++;hits++;ended=won=true}
       }
+    }
+    const moving=player.position.distanceToSquared(before)>.0001;
+    if(moving&&['fps','exploration'].includes(config.mode)&&time-footstepAt>.38){footstepAt=time;presentation?.event('step',player.position.toArray())}
+    if(['flight','transport','space'].includes(config.mode)){
+      if(moving)presentation?.event('engine',player.position.toArray());else presentation?.audio.stop('engine');
+      if(presentationPlan?.effects.some((e:any)=>e.id==='engine-trail'))presentation?.set('engine-trail',{position:player.position.toArray(),intensity:moving?1:0});
     }
     if(health<=0||time>=config.duration){ended=true;won=false}
     for(const unit of live)A.updateInstance(unit,dt,camera);
@@ -147,14 +162,17 @@ export function startGame(config: any) {
   function draw(now:number){
     frame=0;if(disposed||document.hidden)return;
     const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
-    if(ready&&!ended&&!paused)update(dt);renderer.render(scene,camera);
+    if(ready&&!ended&&!paused)update(dt);
+    presentation?.setPaused(paused);
+    if(ended&&!finishReported){finishReported=true;presentation?.audio.stop('engine');presentation?.event(won?'win':'lose',player.position.toArray())}
+    if(presentation){presentation.audio.listener(camera.position.toArray(),camera.getWorldDirection(vector).toArray());presentation.update(dt);presentation.render()}else renderer.render(scene,camera);
     hud.textContent=config.objective+'\n'+(ended?(won?'COMPLETE':'GAME OVER'):paused?'PAUSED':`Score ${score} · Health ${Math.ceil(health)} · ${Math.ceil(config.duration-time)}s`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'')+'\nWASD · '+(config.mode==='fps'?'Drag / arrows: aim · Space: fire · F: reload':config.mode==='space'?'Space: fire · Q/E: altitude':config.mode==='flight'?'Space: boost · Q/E: altitude':'Space: boost')+' · R: restart';
     frame=requestAnimationFrame(draw);
   }
   on(document,'visibilitychange',()=>{keys.clear();last=0;if(document.hidden){cancelAnimationFrame(frame);frame=0}else if(ready&&!frame&&!disposed)frame=requestAnimationFrame(draw)});
   function dispose(){
     if(disposed)return;disposed=true;ready=false;controller.abort();cancelAnimationFrame(frame);keys.clear();document.exitPointerLock?.();
-    live.forEach(A.disposeInstance);loaded.forEach(A.releaseAsset);owned.forEach(o=>{o.geometry.dispose();o.material.dispose()});sun.shadow.dispose();renderer.dispose();renderer.forceContextLoss();root.replaceChildren();
+    presentation?.dispose();live.forEach(A.disposeInstance);loaded.forEach(A.releaseAsset);owned.forEach(o=>{o.geometry.dispose();o.material.dispose()});sun.shadow.dispose();renderer.dispose();renderer.forceContextLoss();root.replaceChildren();
     delete (window as any).__AURAGO_GAME_TEST__;
   }
   on(window,'pagehide',dispose);

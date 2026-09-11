@@ -12,12 +12,13 @@ import (
 
 // A small public design describes choices; the server owns technical plan fields.
 type GameDesign struct {
-	Base      string        `json:"base"`
-	Objective string        `json:"objective"`
-	Features  []string      `json:"features"`
-	Assets    []DesignAsset `json:"assets"`
-	Settings  *GameSettings `json:"settings,omitempty"`
-	Preserve  []string      `json:"preserve,omitempty"`
+	Presentation *Presentation `json:"presentation,omitempty"`
+	Base         string        `json:"base"`
+	Objective    string        `json:"objective"`
+	Features     []string      `json:"features"`
+	Assets       []DesignAsset `json:"assets"`
+	Settings     *GameSettings `json:"settings,omitempty"`
+	Preserve     []string      `json:"preserve,omitempty"`
 }
 type DesignAsset struct {
 	Role       string `json:"role"`
@@ -124,6 +125,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	if guided3D(d.Base) && p.Gameplay == nil {
 		p.Gameplay = &GameSettings{Goal: 5, Speed: 5, Duration: 120}
 	}
+	p.Presentation = d.Presentation
 	p.Preserve = d.Preserve
 	if project.CurrentRevision > 0 {
 		old, err := s.GetPlan(ctx, jobID)
@@ -134,6 +136,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 			p.Preserve = []string{"Keep existing working controls, visuals and gameplay outside the requested edit"}
 		}
 		if old != nil {
+			if d.Presentation == nil {
+				p.Presentation = old.Presentation
+			}
 			if len(d.Assets) == 0 {
 				p.Assets = old.Assets
 			}
@@ -191,6 +196,10 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 			}
 			p.Assets = append(p.Assets, spec)
 		}
+	}
+	if p.Presentation != nil {
+		p.SchemaVersion = 3
+		p.Presentation.Version = PresentationVersion
 	}
 	return p, nil
 }

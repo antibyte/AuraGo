@@ -105,12 +105,18 @@ func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
 			return nil, fmt.Errorf("read game template: %w", err)
 		}
 		if source == "common.ts" {
+
 			data = []byte(strings.Replace(string(data), "width: 960, height: 540", fmt.Sprintf("width: %d, height: %d", plan.Width, plan.Height), 1))
 			data = []byte(strings.Replace(string(data), "// PLAN_ASSET_IMPORTS", strings.Join(imports, "\n"), 1))
 			data = []byte(strings.Replace(string(data), "const plannedAssets: any = {};", "const plannedAssets: any = {"+strings.Join(entries, ",\n")+"};", 1))
 		}
 		files[target] = data
 	}
+	presentation, err := presentationConfig(plan.Presentation)
+	if err != nil {
+		return nil, err
+	}
+	files["presentation.json"] = []byte(presentation)
 	return files, nil
 }
 

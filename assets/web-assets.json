@@ -5,6 +5,6 @@
     {"source": "internal/desktop/bundled_apps/nasscad", "target": "desktop/bundled_apps/nasscad", "extensions": [".html", ".js", ".css", ".wasm", ".json", ".txt"]},
     {"source": "internal/desktop/pets_assets", "target": "desktop/pets_assets", "extensions": [".webp", ".json", ".txt"]},
     {"source": "internal/gamemaker/runtime", "target": "gamemaker/runtime", "extensions": [".js", ".txt", ".md"]},
-    {"source": "internal/gamemaker/asset_packs", "target": "gamemaker/asset_packs", "extensions": [".png", ".json", ".glb", ".webp", ".txt"], "exclude": ["production"]}
+    {"source": "internal/gamemaker/asset_packs", "target": "gamemaker/asset_packs", "extensions": [".png", ".json", ".glb", ".webp", ".wav", ".txt"], "exclude": ["production"]}
   ]
 }

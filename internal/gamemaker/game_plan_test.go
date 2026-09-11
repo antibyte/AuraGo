@@ -594,7 +594,7 @@ func TestSpriteUsageReferencesAndTransforms(t *testing.T) {
 	s := newTestService(t)
 	packs, _ := s.ListAssetPacks()
 	for _, pack := range packs {
-		if pack.Kind == "model3d" {
+		if pack.Kind == "model3d" || presentationPack(pack.ID) {
 			continue
 		}
 		_, assets, assemblies, animations, err := readPackUsage(pack.ID)

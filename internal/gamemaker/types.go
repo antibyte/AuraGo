@@ -103,14 +103,15 @@ type Job struct {
 }
 
 type StartJobRequest struct {
-	AssetPackIDs       []string     `json:"asset_pack_ids,omitempty"`
-	ModelAssetIDs      []string     `json:"model_asset_ids,omitempty"`
-	PreviewDiagnostics []Diagnostic `json:"preview_diagnostics,omitempty"`
-	Prompt             string       `json:"prompt"`
-	ProviderID         string       `json:"provider_id"`
-	Model              string       `json:"model"`
-	ImageGeneration    *bool        `json:"image_generation,omitempty"`
-	MusicGeneration    *bool        `json:"music_generation,omitempty"`
+	Presentation       *Presentation `json:"presentation,omitempty"`
+	AssetPackIDs       []string      `json:"asset_pack_ids,omitempty"`
+	ModelAssetIDs      []string      `json:"model_asset_ids,omitempty"`
+	PreviewDiagnostics []Diagnostic  `json:"preview_diagnostics,omitempty"`
+	Prompt             string        `json:"prompt"`
+	ProviderID         string        `json:"provider_id"`
+	Model              string        `json:"model"`
+	ImageGeneration    *bool         `json:"image_generation,omitempty"`
+	MusicGeneration    *bool         `json:"music_generation,omitempty"`
 }
 
 type Event struct {
@@ -163,6 +164,7 @@ type BuildResult struct {
 }
 
 type JobRun struct {
+	Presentation  *Presentation
 	Result        *BuildResult
 	Stage         string
 	Plan          *GamePlan

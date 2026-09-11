@@ -13,7 +13,7 @@ func TestGuidedDesignResolvesCatalogAndCorrections(t *testing.T) {
 	project := createTestProject(t, s, "3d")
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
 		if run.Stage == "building" {
-			if run.Plan.Template != "fps" || run.Plan.SchemaVersion != 2 || len(run.Plan.Assets) != 4 {
+			if run.Plan.Template != "fps" || run.Plan.SchemaVersion != 3 || len(run.Plan.Assets) != 4 {
 				t.Errorf("bad canonical plan: %+v", run.Plan)
 			}
 			for _, a := range run.Plan.Assets {

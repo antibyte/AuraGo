@@ -38,7 +38,7 @@ code (`three`). Import the pinned local Three.js runtime; build a playable game.
   name, frame rate, resource errors, and runtime errors.
 
 Use the shared mandatory planning round with template `three` and perspective
-`3d`, schema_version 2 and units `metres`; preserve working code on edits.
+`3d`, schema_version 3 and units `metres`; preserve working code on edits.
 Model roles use metric `scale` and `collider: catalog|box|sphere|capsule|mesh|none`,
 without sprite display_height or pixel origins. At most 64 concrete model roles.
 Use one game clock for `updateInstance`, independent instances for animated rigs
@@ -50,3 +50,5 @@ restarts; FPS also checks aim and reload. Free-code `three` uses scope `startup`
 only and must leave gameplay unverified. Additional requirements need observation. Phaser templates,
 sprite helpers and their 2D gameplay tests do not apply to Three.js. A sprite PNG
 is a texture, not a 3D character model. Optional image review is advisory only.
+
+For presentation, use the local aurago-effects-3d-1.js controller documented in the job context. The five guided bases already update/render/dispose it. Register real ground/roof meshes, send actual hit points and world normals, and use the same camera as the audio listener. Point emitters require an explicit position. Keep HUD in DOM outside the scene renderer. No duplicate animation loop or AudioContext.

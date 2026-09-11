@@ -57,3 +57,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+## AuraGo presentation 1.0.0
+
+Original controller, procedural effects and audio mixer: MIT, AuraGo.
+The 3D helper bundles MIT Three.js 0.185.1 Sky, Water and postprocessing add-ons.
+The reproducible build exposes Water's private render-target disposal through
+`dispose()`; rendering code and the upstream MIT notices are retained.
+Recordings in aurago-sounds are CC0-1.0; each asset manifest records its original
+author, source URL, input/output SHA-256 and mastering. Full CC0 text travels
+with sound imports. Own synthesized sounds are MIT.

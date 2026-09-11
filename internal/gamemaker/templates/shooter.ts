@@ -6,7 +6,7 @@ class Shooter extends GameScene {
     this.shots = this.physics.add.group(); this.enemies = this.physics.add.group(); this.lastShot = -1000;
     this.spawn();
     this.physics.add.overlap(this.shots, this.enemies, (shot: any, enemy: any) => {
-      shot.destroy(); enemy.destroy(); this.state.hits++; this.state.score += 10;
+      this.feedback('hit',enemy,'metal');shot.destroy(); enemy.destroy(); this.state.hits++; this.state.score += 10;
     });
     this.physics.add.overlap(this.player, this.enemies, () => this.end());
   }
@@ -19,7 +19,7 @@ class Shooter extends GameScene {
     if (this.elapsed - this.lastShot < 180) return;
     this.lastShot = this.elapsed;
     const shot = this.body(this.player.x, this.player.y - 24, 6, 18, 0xfacc15, false, "projectile");
-    this.shots.add(shot); shot.body.setCollideWorldBounds(false).setVelocityY(-500); this.state.actions++;
+    this.shots.add(shot); shot.body.setCollideWorldBounds(false).setVelocityY(-500); this.state.actions++;this.feedback('shot',shot);
   }
   step(delta: number) {
     super.step(delta); if (this.inputKeys.keys.SPACE.isDown) this.action();

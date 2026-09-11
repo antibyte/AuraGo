@@ -22,6 +22,10 @@ func threeTemplateSources(plan GamePlan) (map[string][]byte, error) {
 		return nil, err
 	}
 	common := strings.Replace(string(data), "// PLAN_MODEL_IMPORTS", strings.Join(imports, "\n"), 1)
+	presentation, err := presentationConfig(plan.Presentation)
+	if err != nil {
+		return nil, err
+	}
 	common = strings.Replace(common, "const roles: any = {};", "const roles: any = {"+strings.Join(roles, ",\n")+"};", 1)
 	settings := GameSettings{Goal: 5, Speed: 5, Duration: 120}
 	if plan.Gameplay != nil {
@@ -96,5 +100,5 @@ func threeTemplateSources(plan GamePlan) (map[string][]byte, error) {
 	encoded, _ := json.MarshalIndent(config, "", "  ")
 	body := strings.Replace(string(encoded), `"objects": []`, `"objects": [`+"\n"+strings.Join(lines, ",\n")+"\n  ]", 1)
 	main := "import { startGame } from './common';\n// Edit rules and level objects here. Keep the shared lifecycle in common.ts.\nstartGame(" + body + ");\n"
-	return map[string][]byte{"main.ts": []byte(main), "common.ts": []byte(common)}, nil
+	return map[string][]byte{"main.ts": []byte(main), "common.ts": []byte(common), "presentation.json": []byte(presentation)}, nil
 }

@@ -80,6 +80,7 @@ type AssetSearchResult struct {
 	score          int
 }
 type AssetDetail struct {
+	Presentation *PresentationAsset `json:"presentation,omitempty"`
 	// Usage must precede bulky model data so bounded tool summaries retain it.
 	Example        string          `json:"example"`
 	Model          *ModelAsset     `json:"model,omitempty"`
@@ -117,7 +118,7 @@ func readPackUsage(id string) (AssetPack, []PackAsset, []PackAssembly, []PackAni
 	return p, assets, assemblies, animations, err
 }
 
-func (s *Service) SearchAssets(query, packID, view string, limit int) ([]AssetSearchResult, error) {
+func (s *Service) SearchAssets(query, packID, view string, limit int, kinds ...string) ([]AssetSearchResult, error) {
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
 	if !s.policy.Enabled {
@@ -135,6 +136,23 @@ func (s *Service) SearchAssets(query, packID, view string, limit int) ([]AssetSe
 	if limit > 12 {
 		limit = 12
 	}
+	kind := ""
+	if len(kinds) > 0 {
+		kind = kinds[0]
+	}
+	if presentationPack(packID) && kind == "" {
+		if packID == EffectsPackID {
+			kind = "effect"
+		} else {
+			kind = "audio"
+		}
+	}
+	if kind == "effect" || kind == "audio" {
+		return searchPresentation(query, packID, kind, view, limit)
+	}
+	if kind != "" && kind != "sprite2d" && kind != "model3d" {
+		return nil, fmt.Errorf("unknown asset_kind")
+	}
 	data, err := assetPackFS.ReadFile("asset_packs/catalog.json")
 	if err != nil {
 		return nil, err
@@ -149,6 +167,9 @@ func (s *Service) SearchAssets(query, packID, view string, limit int) ([]AssetSe
 	terms := strings.Fields(strings.ToLower(query))
 	out := []AssetSearchResult{}
 	for _, summary := range packs {
+		if presentationPack(summary.ID) || kind != "" && summary.Kind != kind {
+			continue
+		}
 		if packID != "" && summary.ID != packID {
 			continue
 		}
@@ -228,6 +249,17 @@ func (s *Service) DescribeAsset(packID, assetID, assemblyID string) (AssetDetail
 }
 
 func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail, error) {
+	if presentationPack(packID) {
+		if assemblyID != "" {
+			return AssetDetail{}, fmt.Errorf("presentation assets have no assemblies")
+		}
+		m, e := readPresentationPack(packID)
+		if e != nil {
+			return AssetDetail{}, e
+		}
+		a, e := presentationAsset(m, assetID)
+		return AssetDetail{PackID: packID, Version: m.Version, Presentation: &a, Example: presentationExample(packID, assetID)}, e
+	}
 	if (assetID == "") == (assemblyID == "") {
 		return AssetDetail{}, fmt.Errorf("provide exactly one asset_id or assembly_id")
 	}

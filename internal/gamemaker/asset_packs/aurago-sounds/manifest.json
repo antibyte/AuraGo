@@ -1,0 +1,1376 @@
+{
+  "id": "aurago-sounds",
+  "version": "1.0.0",
+  "kind": "audio",
+  "schema_version": 1,
+  "name": "AuraGo Sounds",
+  "description": "Offline curated game audio library",
+  "tags": [
+    "audio",
+    "presentation"
+  ],
+  "assets": [
+    {
+      "id": "forest-day",
+      "name": "Forest Day",
+      "category": "ambience",
+      "description": "Seamless ambience: forest day",
+      "tags": [
+        "forest",
+        "day",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/forest-day.wav",
+          "bytes": 2208044,
+          "sha256": "b287c1c7bd57a72eab177f3abe6c8438f260ff07c3736f9d51433c46f3694187"
+        }
+      ],
+      "provenance": {
+        "page": "https://opengameart.org/content/ambient-bird-sounds",
+        "url": "https://opengameart.org/sites/default/files/birds-isaiah658_0.ogg",
+        "author": "isaiah658",
+        "license": "CC0-1.0",
+        "sha256": "359e4e3f9da9d75aac64cede511c7e3ef8b461f9d9f8c230f8f80e44c4b3e35f",
+        "source_id": "forest",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "forest-night",
+      "name": "Forest Night",
+      "category": "ambience",
+      "description": "Seamless ambience: forest night",
+      "tags": [
+        "forest",
+        "night",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 10.968833333333333,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/forest-night.wav",
+          "bytes": 2106060,
+          "sha256": "ec8e4ea29b92ff640d4512d5ae082ab50d9cce518890251e5d6de495d66f445c"
+        }
+      ],
+      "provenance": {
+        "page": "https://opengameart.org/content/crickets-ambient-noise-loopable",
+        "url": "https://opengameart.org/sites/default/files/crickets_1.mp3",
+        "author": "Ted Kerr / Wolfgang_",
+        "license": "CC0-1.0",
+        "sha256": "5b5bd1f744087888c5623543c3ff80be9c2ce106093993e7c8a8492b0280b2c0",
+        "source_id": "crickets",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "rain-light",
+      "name": "Rain Light",
+      "category": "ambience",
+      "description": "Seamless ambience: rain light",
+      "tags": [
+        "rain",
+        "light",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/rain-light.wav",
+          "bytes": 2208044,
+          "sha256": "86448cef7db9c8e53ae39031f64cf58b1ddd2047646efbdd4986d866b5253a48"
+        }
+      ],
+      "provenance": {
+        "page": "https://opengameart.org/content/amb-rain-loop-2",
+        "url": "https://opengameart.org/sites/default/files/amb_rain2.ogg",
+        "author": "Kresiek The Furry",
+        "license": "CC0-1.0",
+        "sha256": "36b009dfec2e8cdda1a38ee65a14664a54293edac42827d0480f759e5d718d81",
+        "source_id": "rain",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "rain-heavy",
+      "name": "Rain Heavy",
+      "category": "ambience",
+      "description": "Seamless ambience: rain heavy",
+      "tags": [
+        "rain",
+        "heavy",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/rain-heavy.wav",
+          "bytes": 2208044,
+          "sha256": "ffd8c2706770f450f9b326e9ae6f71d9bd21b62b27bd4234c9b57a4aeff8a010"
+        }
+      ],
+      "provenance": {
+        "page": "https://opengameart.org/content/amb-rain-loop-2",
+        "url": "https://opengameart.org/sites/default/files/amb_rain2.ogg",
+        "author": "Kresiek The Furry",
+        "license": "CC0-1.0",
+        "sha256": "36b009dfec2e8cdda1a38ee65a14664a54293edac42827d0480f759e5d718d81",
+        "source_id": "rain",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "wind-gentle",
+      "name": "Wind Gentle",
+      "category": "ambience",
+      "description": "Seamless ambience: wind gentle",
+      "tags": [
+        "wind",
+        "gentle",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/wind-gentle.wav",
+          "bytes": 2208044,
+          "sha256": "7f6de26a23b076c78a1ca2d42932db5da9702db60ab3bd1172c01d2c85e9e140"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "wind-strong",
+      "name": "Wind Strong",
+      "category": "ambience",
+      "description": "Seamless ambience: wind strong",
+      "tags": [
+        "wind",
+        "strong",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/wind-strong.wav",
+          "bytes": 2208044,
+          "sha256": "21bf0de0a5e24eeca4949917e4ecaea57b6ec9c72e59e81bd16c753b7779db1d"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "stream",
+      "name": "Stream",
+      "category": "ambience",
+      "description": "Seamless ambience: stream",
+      "tags": [
+        "stream",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/stream.wav",
+          "bytes": 2208044,
+          "sha256": "5a1ecd8c8a49d161e84cf1c9599b664c873b96bf78e8f68ee23e412a8b0bb733"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "ocean",
+      "name": "Ocean",
+      "category": "ambience",
+      "description": "Seamless ambience: ocean",
+      "tags": [
+        "ocean",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/ocean.wav",
+          "bytes": 2208044,
+          "sha256": "6e20cbe865993c7a2b6d59318ebbd15d9b4f76df68973c52df35f1d7481702d8"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "industrial",
+      "name": "Industrial",
+      "category": "ambience",
+      "description": "Seamless ambience: industrial",
+      "tags": [
+        "industrial",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/industrial.wav",
+          "bytes": 2208044,
+          "sha256": "d5240cee98eb99537907af8853432dd8875765d44d6959d749047e004d799e77"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "space-hum",
+      "name": "Space Hum",
+      "category": "ambience",
+      "description": "Seamless ambience: space hum",
+      "tags": [
+        "space",
+        "hum",
+        "ambience",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/space-hum.wav",
+          "bytes": 2208044,
+          "sha256": "0e14ec316ac4b61780a9c85acd8eac0a8c4a213f24c63361b47fc5b54928c3d0"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "step-grass",
+      "name": "Step Grass",
+      "category": "movement",
+      "description": "Spatial sound cue: step grass",
+      "tags": [
+        "step",
+        "grass",
+        "movement",
+        "footstep",
+        "footsteps",
+        "walking",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.7746875,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/step-grass.wav",
+          "bytes": 74414,
+          "sha256": "ea65f2bdb0ec568d651d56280271efcbcc8c8cc239792d4cd075240cdde7612b"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/footstep_grass_000.ogg",
+        "member_sha256": "9d49497777405d78d7cf7f2888e28277f3a23192300cfd1d79d54876b20f479f",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "step-gravel",
+      "name": "Step Gravel",
+      "category": "movement",
+      "description": "Spatial sound cue: step gravel",
+      "tags": [
+        "step",
+        "gravel",
+        "movement",
+        "footstep",
+        "footsteps",
+        "walking",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.2690208333333333,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/step-gravel.wav",
+          "bytes": 25870,
+          "sha256": "d2b0666f8393e3853b0c301d0219b41f2c32ef4bc6db5f051f58eb8744919938"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/rpg-audio",
+        "url": "https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b",
+        "source_id": "rpg",
+        "member": "Audio/footstep03.ogg",
+        "member_sha256": "a86756b9af9f370455ab47844239bb07fd1bee7a113068c91f0fcd9b72703fae",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "step-stone",
+      "name": "Step Stone",
+      "category": "movement",
+      "description": "Spatial sound cue: step stone",
+      "tags": [
+        "step",
+        "stone",
+        "movement",
+        "footstep",
+        "footsteps",
+        "walking",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.10302083333333334,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/step-stone.wav",
+          "bytes": 9934,
+          "sha256": "9152b249f12e4b52a54750aecb2ede67d9f6a9f61a2be063ba3675bf683a8294"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/footstep_concrete_000.ogg",
+        "member_sha256": "d7267e183067757c92c169de2a379abea592cfca6b39bb2e8feea15221ad79fe",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "step-wood",
+      "name": "Step Wood",
+      "category": "movement",
+      "description": "Spatial sound cue: step wood",
+      "tags": [
+        "step",
+        "wood",
+        "movement",
+        "footstep",
+        "footsteps",
+        "walking",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.27139583333333334,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/step-wood.wav",
+          "bytes": 26098,
+          "sha256": "4a6013c4b84d6d74efd543d8f57ad054f3023c277e7235ecd9f030223cb62324"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/footstep_wood_000.ogg",
+        "member_sha256": "5f1c252942a220d658121bd9417448cd19649ded9fff2ff15f6e50899373ce8e",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "step-metal",
+      "name": "Step Metal",
+      "category": "movement",
+      "description": "Spatial sound cue: step metal",
+      "tags": [
+        "step",
+        "metal",
+        "movement",
+        "footstep",
+        "footsteps",
+        "walking",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/step-metal.wav",
+          "bytes": 115244,
+          "sha256": "7cb5a3df8398e669826857418f95f6d15af559c1044d224243abaf2d381fa49e"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "step-water",
+      "name": "Step Water",
+      "category": "movement",
+      "description": "Spatial sound cue: step water",
+      "tags": [
+        "step",
+        "water",
+        "movement",
+        "footstep",
+        "footsteps",
+        "walking",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/step-water.wav",
+          "bytes": 115244,
+          "sha256": "e94f8eabe16cde3d9b2e38905b59187ed2903c5fa61f2dab1e2c28af7a0b3134"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "jump",
+      "name": "Jump",
+      "category": "movement",
+      "description": "Spatial sound cue: jump",
+      "tags": [
+        "jump",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/jump.wav",
+          "bytes": 115244,
+          "sha256": "782cf1050ae6ea5d42ab1167e7cba28e478ed949e993b90ceab0d6021801e8e0"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "land",
+      "name": "Land",
+      "category": "movement",
+      "description": "Spatial sound cue: land",
+      "tags": [
+        "land",
+        "movement"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/land.wav",
+          "bytes": 115244,
+          "sha256": "a181abbf2e69aa109a5bacf37fedcc41522364fbf2a30c4657ec6593628fdf5d"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "pistol",
+      "name": "Pistol",
+      "category": "combat",
+      "description": "Spatial sound cue: pistol",
+      "tags": [
+        "pistol",
+        "combat",
+        "gun",
+        "shoot",
+        "shot",
+        "weapon"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/pistol.wav",
+          "bytes": 115244,
+          "sha256": "dcd8e3e3ef461de55d8386c03256191f6bfb5fe3f1a86440da72c35f0b0bdcf6"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "rifle",
+      "name": "Rifle",
+      "category": "combat",
+      "description": "Spatial sound cue: rifle",
+      "tags": [
+        "rifle",
+        "combat",
+        "gun",
+        "shoot",
+        "shot",
+        "weapon"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/rifle.wav",
+          "bytes": 115244,
+          "sha256": "7cfcf4255e79dcb70e30e7219b5bf7b10e0df5005e3d585f1e0c71a56dfdebf9"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "shotgun",
+      "name": "Shotgun",
+      "category": "combat",
+      "description": "Spatial sound cue: shotgun",
+      "tags": [
+        "shotgun",
+        "combat",
+        "gun",
+        "shoot",
+        "shot",
+        "weapon"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/shotgun.wav",
+          "bytes": 115244,
+          "sha256": "b02a688f3fe9f64fa76a5a9bf301870118bf74bf16f2b649fb7e5c7445720a80"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "laser",
+      "name": "Laser",
+      "category": "combat",
+      "description": "Spatial sound cue: laser",
+      "tags": [
+        "laser",
+        "combat",
+        "gun",
+        "shoot",
+        "shot",
+        "weapon"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/laser.wav",
+          "bytes": 115244,
+          "sha256": "8fc34d7db3e2830e08a3575fa0648a54fc41ab18fdc12a572d0a30954cea77a9"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "reload",
+      "name": "Reload",
+      "category": "combat",
+      "description": "Spatial sound cue: reload",
+      "tags": [
+        "reload",
+        "combat"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 2.0,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/reload.wav",
+          "bytes": 192044,
+          "sha256": "2561b20282cafebc33cf38c5c4054a13d383b8a3a85b598d924ecc6e9d087929"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "impact-metal",
+      "name": "Impact Metal",
+      "category": "combat",
+      "description": "Spatial sound cue: impact metal",
+      "tags": [
+        "impact",
+        "metal",
+        "combat"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.6092916666666667,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/impact-metal.wav",
+          "bytes": 58536,
+          "sha256": "94ab4704ace3f9c56b745723ca1c0cfa7c8a70a553702a867f29bf84da5d6d48"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/impactPlate_medium_000.ogg",
+        "member_sha256": "b670d30452983369771081319c268475edaaafe782bf4e8d70bd7eef09d8823c",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "impact-stone",
+      "name": "Impact Stone",
+      "category": "combat",
+      "description": "Spatial sound cue: impact stone",
+      "tags": [
+        "impact",
+        "stone",
+        "combat"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.9374583333333333,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/impact-stone.wav",
+          "bytes": 90040,
+          "sha256": "816ec08a5eda922dfec9b5e8264eacbaf5476a2fe5012d85786c03b0eedc5a8b"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/impactMining_000.ogg",
+        "member_sha256": "36b4ea107222d073c67ca64dde26944975609202d5090b2f2021213c1a7e35cd",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "impact-flesh",
+      "name": "Impact Flesh",
+      "category": "combat",
+      "description": "Spatial sound cue: impact flesh",
+      "tags": [
+        "impact",
+        "flesh",
+        "combat"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.6490416666666666,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/impact-flesh.wav",
+          "bytes": 62352,
+          "sha256": "4068495a5a49e79b164a7f495f68411516fec2986a061cfae27951f50f4e6bbb"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/impactPunch_heavy_000.ogg",
+        "member_sha256": "b33a8f14068aec24ec69ba85e5e87fdc41228975f6a1a3e44a6e7d6fc3d9f8d8",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "explosion-small",
+      "name": "Explosion Small",
+      "category": "combat",
+      "description": "Spatial sound cue: explosion small",
+      "tags": [
+        "explosion",
+        "small",
+        "combat"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/explosion-small.wav",
+          "bytes": 115244,
+          "sha256": "da28ac2ec580a9ade27492b1112867af8e8632c909648ecdb711b18efc88c51f"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "explosion-large",
+      "name": "Explosion Large",
+      "category": "combat",
+      "description": "Spatial sound cue: explosion large",
+      "tags": [
+        "explosion",
+        "large",
+        "combat"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 4.5,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/explosion-large.wav",
+          "bytes": 432044,
+          "sha256": "fbcde881ae62a52105bca576c8795e332339cc258e27470ab83c11addd2c84ae"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "water-splash",
+      "name": "Water Splash",
+      "category": "world",
+      "description": "Spatial sound cue: water splash",
+      "tags": [
+        "water",
+        "splash",
+        "world"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/water-splash.wav",
+          "bytes": 115244,
+          "sha256": "1505a9ee7522239abd7e1ab3cbc5de3dd560f01b570615d4974b353ebdec1cf3"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "fire",
+      "name": "Fire",
+      "category": "world",
+      "description": "Seamless ambience: fire",
+      "tags": [
+        "fire",
+        "world",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/fire.wav",
+          "bytes": 2208044,
+          "sha256": "01d3914edaabbe41422105f72306dabbc2bbc392657de2b29dd7f44f6cc48cd5"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "thunder",
+      "name": "Thunder",
+      "category": "world",
+      "description": "Spatial sound cue: thunder",
+      "tags": [
+        "thunder",
+        "world"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 4.5,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/thunder.wav",
+          "bytes": 432044,
+          "sha256": "628dabaaea0270594f2944ac746b197aef746fcc881de640fa0f4e332fb99cc8"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "door-wood",
+      "name": "Door Wood",
+      "category": "world",
+      "description": "Spatial sound cue: door wood",
+      "tags": [
+        "door",
+        "wood",
+        "world"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.32979166666666665,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/door-wood.wav",
+          "bytes": 31704,
+          "sha256": "e3412163fecc573e1edd7c98a855506959d1c93044800956aa18755152b7a0fd"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/impactWood_medium_000.ogg",
+        "member_sha256": "1723a9fd25103ed41af06054814e84e65f4a772bac86ab2dc927da93d9592ff5",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "door-metal",
+      "name": "Door Metal",
+      "category": "world",
+      "description": "Spatial sound cue: door metal",
+      "tags": [
+        "door",
+        "metal",
+        "world"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.16477083333333334,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/door-metal.wav",
+          "bytes": 15862,
+          "sha256": "32482418249bd29b41c1c18477cc7aa803a9b6f9e95cfbacf78003861d15b2d9"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/impactMetal_heavy_000.ogg",
+        "member_sha256": "e07045693e4a2b3d165c424e3dab4c781d9ff8880a386880ac89a51315d7f831",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "crate-break",
+      "name": "Crate Break",
+      "category": "world",
+      "description": "Spatial sound cue: crate break",
+      "tags": [
+        "crate",
+        "break",
+        "world"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 0.31014583333333334,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/crate-break.wav",
+          "bytes": 29818,
+          "sha256": "8f48037c5d2e407da7727ebaa29c4dac8522226608675c5a53b87c4e3faab111"
+        }
+      ],
+      "provenance": {
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+        "author": "Kenney",
+        "license": "CC0-1.0",
+        "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+        "source_id": "impact",
+        "member": "Audio/impactWood_heavy_000.ogg",
+        "member_sha256": "15ff82332f342c30e469215539e1cc57e11b221aa2cf7e11e811d313a9927f3d",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "engine",
+      "name": "Engine",
+      "category": "world",
+      "description": "Seamless ambience: engine",
+      "tags": [
+        "engine",
+        "world",
+        "ambient",
+        "environment",
+        "loop"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": true,
+      "duration": 11.5,
+      "gain": 0.6,
+      "files": [
+        {
+          "file": "sounds/engine.wav",
+          "bytes": 2208044,
+          "sha256": "735937dfbdfd42ead2ca5746adef961c773077a369d6f967c066126acf079bab"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "electric-spark",
+      "name": "Electric Spark",
+      "category": "world",
+      "description": "Spatial sound cue: electric spark",
+      "tags": [
+        "electric",
+        "spark",
+        "world"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/electric-spark.wav",
+          "bytes": 115244,
+          "sha256": "3b644b8edd3fa891c9f8393c8c1472e9fd593ede1a3747ab6c23b92fe9ab4a6f"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "ui-click",
+      "name": "Ui Click",
+      "category": "feedback",
+      "description": "Spatial sound cue: ui click",
+      "tags": [
+        "ui",
+        "click",
+        "feedback"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/ui-click.wav",
+          "bytes": 115244,
+          "sha256": "c36b405e3b197cba27208348d72db28f502293841017c839d0a59eb303aff436"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "pickup",
+      "name": "Pickup",
+      "category": "feedback",
+      "description": "Spatial sound cue: pickup",
+      "tags": [
+        "pickup",
+        "feedback"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 1.2,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/pickup.wav",
+          "bytes": 115244,
+          "sha256": "2e540a4efb99ce324648a7eed96efb2555fc656861c03ec9e3ac4e8f786c9084"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "victory",
+      "name": "Victory",
+      "category": "feedback",
+      "description": "Spatial sound cue: victory",
+      "tags": [
+        "victory",
+        "feedback"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 2.0,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/victory.wav",
+          "bytes": 192044,
+          "sha256": "39d24a19131057824877ac66b80081fc3a6fba8f209898551b04264f68764ec1"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    },
+    {
+      "id": "defeat",
+      "name": "Defeat",
+      "category": "feedback",
+      "description": "Spatial sound cue: defeat",
+      "tags": [
+        "defeat",
+        "feedback"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "loop": false,
+      "duration": 2.0,
+      "gain": 0.8,
+      "files": [
+        {
+          "file": "sounds/defeat.wav",
+          "bytes": 192044,
+          "sha256": "07c119c1b36fe8c9413a985091ed27140f0d2148a6a349e47d06d42464fe76c0"
+        }
+      ],
+      "provenance": {
+        "license": "MIT",
+        "author": "AuraGo",
+        "method": "Deterministic layered noise, modal resonances and transients",
+        "processing": "Decode to 48 kHz, remove DC, equalize RMS with -3 dB peak ceiling, loop crossfade or click-free transient fades, PCM16 export"
+      }
+    }
+  ]
+}

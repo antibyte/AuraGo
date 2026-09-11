@@ -24,6 +24,9 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 	}}
 	if dimension == "2d" {
 		return append(assets, runtimeAsset{
+			embeddedPath: "runtime/aurago-effects-2d-1.js",
+			projectPath:  "vendor/aurago-effects-2d-1.js",
+		}, runtimeAsset{
 			embeddedPath: "runtime/phaser-4.2.1.min.js",
 			projectPath:  "vendor/phaser-4.2.1.min.js",
 		}, runtimeAsset{
@@ -32,6 +35,7 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 		})
 	}
 	return append(assets,
+		runtimeAsset{embeddedPath: "runtime/aurago-effects-3d-1.js", projectPath: "vendor/aurago-effects-3d-1.js"},
 		runtimeAsset{
 			embeddedPath: "runtime/aurago-three-assets-1.js",
 			projectPath:  "vendor/aurago-three-assets-1.js",

@@ -67,3 +67,9 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
 # Child DOX Index
 
 No child contracts. `production/README.md` owns the detailed production brief.
+
+Effects/audio production: `assets/game-maker-presentation/AGENTS.md`.
+`aurago-effects` and `aurago-sounds` use version 1.0.0, explicit selected IDs,
+and the shared atomic publication transaction. Environments include effect/WAV
+dependencies. Modified copies are never replaced. GamePlan schema 3 adds
+optional presentation; schemas 1/2 remain compatible.

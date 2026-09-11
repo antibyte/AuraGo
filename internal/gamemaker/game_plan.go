@@ -18,6 +18,7 @@ const gamePlanPath = ".aurago/game-plan.json"
 
 // GamePlan is a bounded design artifact, never executable or trusted instructions.
 type GamePlan struct {
+	Presentation  *Presentation     `json:"presentation,omitempty"`
 	SchemaVersion int               `json:"schema_version"`
 	Gameplay      *GameSettings     `json:"gameplay,omitempty"`
 	Units         string            `json:"units,omitempty"`
@@ -265,10 +266,21 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 
 func (s *Service) checkPlan(project Project, p GamePlan) error {
 	bad := func(field, message string) error { return fmt.Errorf("plan.%s: %s", field, message) }
-	if p.SchemaVersion != 1 && p.SchemaVersion != 2 {
-		return bad("schema_version", "must be 1 or 2")
+	if p.SchemaVersion < 1 || p.SchemaVersion > 3 {
+		return bad("schema_version", "must be 1, 2 or 3")
 	}
-	modelPlan := p.SchemaVersion == 2 && project.Dimension == "3d"
+	modelPlan := p.SchemaVersion >= 2 && project.Dimension == "3d"
+	if p.Presentation != nil {
+		if p.SchemaVersion != 3 {
+			return bad("presentation", "requires schema 3")
+		}
+		if _, _, e := resolvePresentation(p.Presentation); e != nil {
+			return e
+		}
+	}
+	if modelPlan && p.Units != "metres" {
+		return bad("units", "3D schema 2/3 requires metres")
+	}
 	if p.SchemaVersion == 2 && (!modelPlan || p.Units != "metres") {
 		return bad("units", "schema 2 requires a 3D project and units=metres")
 	}
@@ -401,7 +413,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 				return bad(field+".version", "use version "+detail.Version)
 			}
 			if (detail.Model != nil) != modelPlan {
-				return bad(field, "3D models require schema_version=2; sprite assets use schema_version=1")
+				return bad(field, "3D models require schema_version=2 or 3")
 			}
 			if detail.Asset != nil && detail.Asset.AssemblyPart {
 				return bad(field, "select the complete assembly, not an isolated fragment")
@@ -429,7 +441,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	}
 	if guided3D(p.Template) {
 		if !modelPlan {
-			return bad("schema_version", "guided 3D bases require schema 2")
+			return bad("schema_version", "guided 3D bases require schema 2 or 3")
 		}
 		for _, required := range defaultModelRoles(p.Template) {
 			if !roles[required.Role] {
@@ -520,9 +532,8 @@ func JobNextAction(job Job) string {
 
 // ExampleGamePlan is a schema example, not a replacement for the user's design.
 func ExampleGamePlan(project Project) GamePlan {
-	p := GamePlan{SchemaVersion: 1, Template: "minimal", Objective: "Replace with the requested objective", CoreLoop: "Replace with the input, consequence, feedback and progression loop", Scope: []string{"Replace with concrete requested features"}, Perspective: "top", Width: 960, Height: 540, Camera: "Fixed logical viewport with FIT scaling", Controls: map[string]string{"move": "Arrow keys", "primary": "Space", "restart": "R"}, States: []string{"playing", "ended"}, Rules: map[string]string{"progress": "Describe score or progression", "failure": "Describe defeat or explain why absent", "completion": "Describe victory or continued play"}, Assets: []PlanAsset{}, Scenarios: []GameScenario{}, Assumptions: []string{"Single-player offline game"}, Fallback: "Use named procedural shapes when matching art is unavailable"}
+	p := GamePlan{SchemaVersion: 3, Template: "minimal", Objective: "Replace with the requested objective", CoreLoop: "Replace with the input, consequence, feedback and progression loop", Scope: []string{"Replace with concrete requested features"}, Perspective: "top", Width: 960, Height: 540, Camera: "Fixed logical viewport with FIT scaling", Controls: map[string]string{"move": "Arrow keys", "primary": "Space", "restart": "R"}, States: []string{"playing", "ended"}, Rules: map[string]string{"progress": "Describe score or progression", "failure": "Describe defeat or explain why absent", "completion": "Describe victory or continued play"}, Assets: []PlanAsset{}, Scenarios: []GameScenario{}, Assumptions: []string{"Single-player offline game"}, Fallback: "Use named procedural shapes when matching art is unavailable"}
 	if project.Dimension == "3d" {
-		p.SchemaVersion = 2
 		p.Units = "metres"
 		p.Template = "three"
 		p.Perspective = "3d"

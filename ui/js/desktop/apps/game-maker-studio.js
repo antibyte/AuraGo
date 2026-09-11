@@ -31,6 +31,7 @@
             diagnostics: [],
             selectedAssetPackIDs: [],
             selectedModelAssetIDs: [],
+            selectedPresentation: null,
             activeJob: null,
             jobStartedAt: 0,
             elapsedTimer: null,
@@ -665,8 +666,13 @@
             frame.setAttribute('allowfullscreen', '');
             frame.setAttribute('referrerpolicy', 'no-referrer');
             const shell = state.container.querySelector('[data-gm-preview]');
+            state.previewVisibility?.disconnect();
             shell.replaceChildren(frame);
             state.frame = frame;
+            let visible=true;
+            const signalActive=()=>frame.contentWindow?.postMessage({type:'aurago:game:active',active:visible&&!document.hidden},'*');
+            state.previewVisibility=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;signalActive()});state.previewVisibility.observe(frame);
+            frame.addEventListener('load',signalActive);
             state.previewStale = false;
             // Attach load listeners before assigning src so cached responses
             // cannot settle the iframe before the loading overlay is armed.
@@ -797,6 +803,7 @@
                         prompt: request.description,
                         asset_pack_ids: state.selectedAssetPackIDs || [],
                         model_asset_ids: request.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
+                        presentation: state.selectedPresentation,
                         provider_id: request.provider_id,
                         model: request.model,
                         image_generation: request.use_image_generation,
@@ -853,6 +860,7 @@
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: state.selectedAssetPackIDs || [],
                 model_asset_ids: state.project.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
+                presentation: state.selectedPresentation,
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });
@@ -1079,6 +1087,7 @@
         if (!state) return;
         state.disposed = true;
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        state.previewVisibility?.disconnect();
         closeEvents(state);
         stopElapsed(state);
         if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);

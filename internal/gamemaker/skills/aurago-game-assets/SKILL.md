@@ -160,3 +160,16 @@ with the returned assembly ID; move/scale/rotate only its container. Use a
 separate collision proxy; no physics bodies on children. Visual transforms never
 automatically transform a rectangular Arcade collider. Existing v1 project files
 remain unchanged; import v2 alongside them when new helpers need transform data.
+
+## Effects and sound
+
+Use `search_assets` with `asset_kind: "effect"` or `"audio"`, then
+`describe_asset` with the returned pack/ID. `aurago-effects@1.0.0` and
+`aurago-sounds@1.0.0` are local. Put semantic choices in `design.presentation`:
+`{"environment":"forest-rain","effects":["muzzle-flash","blood-spray"],"sounds":[{"event":"shot","sound":"rifle"},{"event":"step","sound":"step-grass"}],"quality":"auto"}`.
+The server generates schema 3, imports selected dependencies and writes
+`src/presentation.json`. Do not put effects/audio in visual actor roles.
+Direct imports require exact `asset_ids`; atmosphere imports include sounds.
+Never read minified vendors or invent shader parameters. Use returned defaults.
+Guided templates handle effects, real hits, pause and restart. Custom games use
+the public controller example in the compact job context.

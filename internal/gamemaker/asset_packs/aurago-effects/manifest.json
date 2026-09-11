@@ -1,0 +1,1113 @@
+{
+  "id": "aurago-effects",
+  "version": "1.0.0",
+  "kind": "effect",
+  "schema_version": 1,
+  "name": "AuraGo Effects",
+  "description": "Offline curated game effect library",
+  "tags": [
+    "effect",
+    "presentation"
+  ],
+  "assets": [
+    {
+      "id": "rain-light",
+      "name": "Rain Light",
+      "category": "weather",
+      "description": "rain light for side/top 2D and metric 3D scenes",
+      "tags": [
+        "rain",
+        "light",
+        "weather"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff"
+      },
+      "files": []
+    },
+    {
+      "id": "rain-heavy",
+      "name": "Rain Heavy",
+      "category": "weather",
+      "description": "rain heavy for side/top 2D and metric 3D scenes",
+      "tags": [
+        "rain",
+        "heavy",
+        "weather"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff"
+      },
+      "files": []
+    },
+    {
+      "id": "snow",
+      "name": "Snow",
+      "category": "weather",
+      "description": "snow for side/top 2D and metric 3D scenes",
+      "tags": [
+        "snow",
+        "weather"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff"
+      },
+      "files": []
+    },
+    {
+      "id": "wind-dust",
+      "name": "Wind Dust",
+      "category": "weather",
+      "description": "wind dust for side/top 2D and metric 3D scenes",
+      "tags": [
+        "wind",
+        "dust",
+        "weather"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff"
+      },
+      "files": []
+    },
+    {
+      "id": "wind-leaves",
+      "name": "Wind Leaves",
+      "category": "weather",
+      "description": "wind leaves for side/top 2D and metric 3D scenes",
+      "tags": [
+        "wind",
+        "leaves",
+        "weather"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff"
+      },
+      "files": []
+    },
+    {
+      "id": "thunderstorm",
+      "name": "Thunderstorm",
+      "category": "weather",
+      "description": "thunderstorm for side/top 2D and metric 3D scenes",
+      "tags": [
+        "thunderstorm",
+        "weather"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff"
+      },
+      "files": []
+    },
+    {
+      "id": "sky-clear",
+      "name": "Sky Clear",
+      "category": "sky",
+      "description": "sky clear for side/top 2D and metric 3D scenes",
+      "tags": [
+        "sky",
+        "clear",
+        "sky"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "sky-cloudy",
+      "name": "Sky Cloudy",
+      "category": "sky",
+      "description": "sky cloudy for side/top 2D and metric 3D scenes",
+      "tags": [
+        "sky",
+        "cloudy",
+        "sky"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "sky-sunset",
+      "name": "Sky Sunset",
+      "category": "sky",
+      "description": "sky sunset for side/top 2D and metric 3D scenes",
+      "tags": [
+        "sky",
+        "sunset",
+        "sky"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "sky-storm",
+      "name": "Sky Storm",
+      "category": "sky",
+      "description": "sky storm for side/top 2D and metric 3D scenes",
+      "tags": [
+        "sky",
+        "storm",
+        "sky"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "sky-night",
+      "name": "Sky Night",
+      "category": "sky",
+      "description": "sky night for side/top 2D and metric 3D scenes",
+      "tags": [
+        "sky",
+        "night",
+        "sky"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "sky-space",
+      "name": "Sky Space",
+      "category": "sky",
+      "description": "sky space for side/top 2D and metric 3D scenes",
+      "tags": [
+        "sky",
+        "space",
+        "sky"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "day-night",
+      "name": "Day Night",
+      "category": "lighting",
+      "description": "day night for side/top 2D and metric 3D scenes",
+      "tags": [
+        "day",
+        "night",
+        "lighting"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "cycle": 480,
+        "hour": 10,
+        "fixed": false
+      },
+      "files": []
+    },
+    {
+      "id": "fog-distance",
+      "name": "Fog Distance",
+      "category": "fog",
+      "description": "fog distance for side/top 2D and metric 3D scenes",
+      "tags": [
+        "fog",
+        "distance",
+        "fog"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "density": 0.018
+      },
+      "files": []
+    },
+    {
+      "id": "fog-ground",
+      "name": "Fog Ground",
+      "category": "fog",
+      "description": "fog ground for side/top 2D and metric 3D scenes",
+      "tags": [
+        "fog",
+        "ground",
+        "fog"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#afc6d0"
+      },
+      "files": []
+    },
+    {
+      "id": "fog-zone",
+      "name": "Fog Zone",
+      "category": "fog",
+      "description": "fog zone for side/top 2D and metric 3D scenes",
+      "tags": [
+        "fog",
+        "zone",
+        "fog"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#afc6d0",
+        "radius": 12
+      },
+      "files": []
+    },
+    {
+      "id": "blood-spray",
+      "name": "Blood Spray",
+      "category": "impact",
+      "description": "blood spray for side/top 2D and metric 3D scenes",
+      "tags": [
+        "blood",
+        "spray",
+        "impact"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#9f162a",
+        "lifetime": 30
+      },
+      "files": []
+    },
+    {
+      "id": "blood-pool",
+      "name": "Blood Pool",
+      "category": "impact",
+      "description": "blood pool for side/top 2D and metric 3D scenes",
+      "tags": [
+        "blood",
+        "pool",
+        "impact"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#9f162a",
+        "lifetime": 30
+      },
+      "files": []
+    },
+    {
+      "id": "blood-decal",
+      "name": "Blood Decal",
+      "category": "impact",
+      "description": "blood decal for side/top 2D and metric 3D scenes",
+      "tags": [
+        "blood",
+        "decal",
+        "impact"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#9f162a",
+        "lifetime": 30
+      },
+      "files": []
+    },
+    {
+      "id": "metal-sparks",
+      "name": "Metal Sparks",
+      "category": "impact",
+      "description": "metal sparks for side/top 2D and metric 3D scenes",
+      "tags": [
+        "metal",
+        "sparks",
+        "impact"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "stone-debris",
+      "name": "Stone Debris",
+      "category": "impact",
+      "description": "stone debris for side/top 2D and metric 3D scenes",
+      "tags": [
+        "stone",
+        "debris",
+        "impact"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "hit-flash",
+      "name": "Hit Flash",
+      "category": "impact",
+      "description": "hit flash for side/top 2D and metric 3D scenes",
+      "tags": [
+        "hit",
+        "flash",
+        "impact"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "fire",
+      "name": "Fire",
+      "category": "particles",
+      "description": "fire for side/top 2D and metric 3D scenes",
+      "tags": [
+        "fire",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "smoke",
+      "name": "Smoke",
+      "category": "particles",
+      "description": "smoke for side/top 2D and metric 3D scenes",
+      "tags": [
+        "smoke",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "embers",
+      "name": "Embers",
+      "category": "particles",
+      "description": "embers for side/top 2D and metric 3D scenes",
+      "tags": [
+        "embers",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "explosion",
+      "name": "Explosion",
+      "category": "particles",
+      "description": "explosion for side/top 2D and metric 3D scenes",
+      "tags": [
+        "explosion",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "muzzle-flash",
+      "name": "Muzzle Flash",
+      "category": "particles",
+      "description": "muzzle flash for side/top 2D and metric 3D scenes",
+      "tags": [
+        "muzzle",
+        "flash",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "engine-trail",
+      "name": "Engine Trail",
+      "category": "particles",
+      "description": "engine trail for side/top 2D and metric 3D scenes",
+      "tags": [
+        "engine",
+        "trail",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "magic",
+      "name": "Magic",
+      "category": "particles",
+      "description": "magic for side/top 2D and metric 3D scenes",
+      "tags": [
+        "magic",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "teleport",
+      "name": "Teleport",
+      "category": "particles",
+      "description": "teleport for side/top 2D and metric 3D scenes",
+      "tags": [
+        "teleport",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "pickup-glow",
+      "name": "Pickup Glow",
+      "category": "particles",
+      "description": "pickup glow for side/top 2D and metric 3D scenes",
+      "tags": [
+        "pickup",
+        "glow",
+        "particles"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "water-lake",
+      "name": "Water Lake",
+      "category": "water",
+      "description": "water lake for side/top 2D and metric 3D scenes",
+      "tags": [
+        "water",
+        "lake",
+        "water"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "width": 80,
+        "depth": 80,
+        "y": -0.35,
+        "speed": 0.6
+      },
+      "files": []
+    },
+    {
+      "id": "water-river",
+      "name": "Water River",
+      "category": "water",
+      "description": "water river for side/top 2D and metric 3D scenes",
+      "tags": [
+        "water",
+        "river",
+        "water"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "width": 80,
+        "depth": 80,
+        "y": -0.35,
+        "speed": 0.6
+      },
+      "files": []
+    },
+    {
+      "id": "water-ocean",
+      "name": "Water Ocean",
+      "category": "water",
+      "description": "water ocean for side/top 2D and metric 3D scenes",
+      "tags": [
+        "water",
+        "ocean",
+        "water"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "width": 80,
+        "depth": 80,
+        "y": -0.35,
+        "speed": 0.6
+      },
+      "files": []
+    },
+    {
+      "id": "water-splash",
+      "name": "Water Splash",
+      "category": "water",
+      "description": "water splash for side/top 2D and metric 3D scenes",
+      "tags": [
+        "water",
+        "splash",
+        "water"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1,
+        "scale": 1,
+        "color": "#ffffff",
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "water-ripple",
+      "name": "Water Ripple",
+      "category": "water",
+      "description": "water ripple for side/top 2D and metric 3D scenes",
+      "tags": [
+        "water",
+        "ripple",
+        "water"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "scale": 1,
+        "lifetime": 1.4
+      },
+      "files": []
+    },
+    {
+      "id": "underwater",
+      "name": "Underwater",
+      "category": "water",
+      "description": "underwater for side/top 2D and metric 3D scenes",
+      "tags": [
+        "underwater",
+        "water"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1
+      },
+      "files": []
+    },
+    {
+      "id": "bloom",
+      "name": "Bloom",
+      "category": "shader",
+      "description": "bloom for side/top 2D and metric 3D scenes",
+      "tags": [
+        "bloom",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1
+      },
+      "files": []
+    },
+    {
+      "id": "color-grade",
+      "name": "Color Grade",
+      "category": "shader",
+      "description": "color grade for side/top 2D and metric 3D scenes",
+      "tags": [
+        "color",
+        "grade",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1
+      },
+      "files": []
+    },
+    {
+      "id": "vignette",
+      "name": "Vignette",
+      "category": "shader",
+      "description": "vignette for side/top 2D and metric 3D scenes",
+      "tags": [
+        "vignette",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1
+      },
+      "files": []
+    },
+    {
+      "id": "film-grain",
+      "name": "Film Grain",
+      "category": "shader",
+      "description": "film grain for side/top 2D and metric 3D scenes",
+      "tags": [
+        "film",
+        "grain",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1
+      },
+      "files": []
+    },
+    {
+      "id": "heat-haze",
+      "name": "Heat Haze",
+      "category": "shader",
+      "description": "heat haze for side/top 2D and metric 3D scenes",
+      "tags": [
+        "heat",
+        "haze",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "intensity": 1
+      },
+      "files": []
+    },
+    {
+      "id": "hologram",
+      "name": "Hologram",
+      "category": "shader",
+      "description": "hologram for side/top 2D and metric 3D scenes",
+      "tags": [
+        "hologram",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "dissolve",
+      "name": "Dissolve",
+      "category": "shader",
+      "description": "dissolve for side/top 2D and metric 3D scenes",
+      "tags": [
+        "dissolve",
+        "shader"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "defaults": {
+        "lifetime": 2
+      },
+      "files": []
+    },
+    {
+      "id": "forest-day",
+      "name": "Forest Day",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-clear, fog-distance, day-night, color-grade",
+      "tags": [
+        "forest-day",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-clear",
+        "fog-distance",
+        "day-night",
+        "color-grade"
+      ],
+      "sounds": [
+        "forest-day",
+        "forest-night",
+        "wind-gentle"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "forest-night",
+      "name": "Forest Night",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-night, fog-ground, vignette",
+      "tags": [
+        "forest-night",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-night",
+        "fog-ground",
+        "vignette"
+      ],
+      "sounds": [
+        "forest-night",
+        "wind-gentle"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "forest-rain",
+      "name": "Forest Rain",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-cloudy, rain-heavy, fog-distance, fog-ground",
+      "tags": [
+        "forest-rain",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-cloudy",
+        "rain-heavy",
+        "fog-distance",
+        "fog-ground"
+      ],
+      "sounds": [
+        "rain-heavy",
+        "wind-gentle"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "desert",
+      "name": "Desert",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-clear, wind-dust, heat-haze, color-grade",
+      "tags": [
+        "desert",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-clear",
+        "wind-dust",
+        "heat-haze",
+        "color-grade"
+      ],
+      "sounds": [
+        "wind-strong"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "storm",
+      "name": "Storm",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-storm, thunderstorm, rain-heavy, fog-distance",
+      "tags": [
+        "storm",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-storm",
+        "thunderstorm",
+        "rain-heavy",
+        "fog-distance"
+      ],
+      "sounds": [
+        "rain-heavy",
+        "wind-strong",
+        "thunder"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "coast",
+      "name": "Coast",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-clear, water-ocean, color-grade",
+      "tags": [
+        "coast",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-clear",
+        "water-ocean",
+        "color-grade"
+      ],
+      "sounds": [
+        "ocean",
+        "wind-gentle"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "industrial",
+      "name": "Industrial",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-sunset, fog-zone, bloom",
+      "tags": [
+        "industrial",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-sunset",
+        "fog-zone",
+        "bloom"
+      ],
+      "sounds": [
+        "industrial"
+      ],
+      "defaults": {},
+      "files": []
+    },
+    {
+      "id": "space",
+      "name": "Space",
+      "category": "environment",
+      "description": "Coordinated atmosphere: sky-space, bloom, vignette",
+      "tags": [
+        "space",
+        "atmosphere",
+        "environment"
+      ],
+      "dimensions": [
+        "2d",
+        "3d"
+      ],
+      "effects": [
+        "sky-space",
+        "bloom",
+        "vignette"
+      ],
+      "sounds": [
+        "space-hum"
+      ],
+      "defaults": {},
+      "files": []
+    }
+  ]
+}

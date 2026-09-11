@@ -35,8 +35,9 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 			schema(map[string]interface{}{
 				"operation":        map[string]interface{}{"type": "string", "enum": []string{"generate", "list_packs", "describe_pack", "import_pack", "search_assets", "describe_asset"}},
 				"query":            prop("string", "English asset search terms; returns six compact matches by default"),
+				"asset_kind":       map[string]interface{}{"type": "string", "enum": []string{"sprite2d", "model3d", "effect", "audio"}},
 				"view":             map[string]interface{}{"type": "string", "enum": []string{"side", "top", "board", "3d"}},
-				"asset_ids":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "minItems": 1, "maxItems": 64, "description": "Required exact model IDs for model3d import_pack; omitted for sprite packs"},
+				"asset_ids":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "minItems": 1, "maxItems": 64, "description": "Required exact IDs for model3d, effect or audio import_pack; omitted for sprite packs"},
 				"limit":            map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12},
 				"asset_id":         prop("string", "Exact asset ID for describe_asset; omit when assembly_id is used"),
 				"assembly_id":      prop("string", "Exact complete assembly ID for describe_asset"),
@@ -76,6 +77,15 @@ func gameDesignSchema() map[string]interface{} {
 		}, "role")},
 		"settings": schema(map[string]interface{}{"goal": prop("integer", "1–24 objectives, default 5"), "speed": prop("number", "Guided 3D only: 1–40 meters/second, default 5"), "duration": prop("integer", "15–600 seconds, default 120")}, "goal", "speed", "duration"),
 		"preserve": stringsArray("Existing behaviors kept in edit jobs"),
+		"presentation": schema(map[string]interface{}{
+			"environment": prop("string", "Exact aurago-effects atmosphere ID; search asset_kind effect first"),
+			"effects":     stringsArray("Exact additional aurago-effects IDs"),
+			"sounds": map[string]interface{}{"type": "array", "maxItems": 40, "items": schema(map[string]interface{}{
+				"event": map[string]interface{}{"type": "string", "enum": []string{"step", "jump", "land", "shot", "reload", "hit", "pickup", "win", "lose", "splash", "interact", "engine", "ui", "ambient"}},
+				"sound": prop("string", "Exact aurago-sounds ID"),
+			}, "event", "sound")},
+			"quality": map[string]interface{}{"type": "string", "enum": []string{"auto", "low", "medium", "high"}},
+		}),
 	}, "base", "objective", "features")
 }
 

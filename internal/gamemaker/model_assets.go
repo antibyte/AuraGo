@@ -273,6 +273,12 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 	}
 	result.Metadata = result.Manifests[result.AssetIDs[0]]
 	result.ThreeExample = modelExample(manifest.Version, result.AssetIDs[0])
+	return s.publishAssetSelection(ctx, jobID, stage, rel, wanted, result)
+}
+
+// Publish any curated selection using the same limit, integrity and rollback boundary.
+// The caller holds buildMu.
+func (s *Service) publishAssetSelection(ctx context.Context, jobID, stage, rel string, wanted map[string][]byte, result ImportedAssetPack) (ImportedAssetPack, error) {
 	added := map[string][]byte{}
 	var extraBytes int64
 	for name, data := range wanted {
@@ -363,7 +369,7 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 			return result, fmt.Errorf("publish 3D asset: %w", err)
 		}
 		published = append(published, path)
-		_, err = tx.ExecContext(ctx, `INSERT INTO gm_assets(project_id,job_id,path,kind,generator,provenance,content_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, job.ProjectID, jobID, rel+"/"+name, "model_pack", "builtin", ModelPackID+"@"+manifest.Version, sha256Bytes(added[name]), time.Now().UTC())
+		_, err = tx.ExecContext(ctx, `INSERT INTO gm_assets(project_id,job_id,path,kind,generator,provenance,content_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, job.ProjectID, jobID, rel+"/"+name, result.Kind+"_pack", "builtin", result.ID+"@"+result.Version, sha256Bytes(added[name]), time.Now().UTC())
 		if err != nil {
 			return result, fmt.Errorf("record 3D asset: %w", err)
 		}
@@ -372,6 +378,6 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 		return result, fmt.Errorf("commit 3D asset import: %w", err)
 	}
 	committed = true
-	_, _ = s.emit(ctx, job.ProjectID, jobID, "asset_changed", map[string]any{"path": rel, "kind": "model_pack", "generator": "builtin"})
+	_, _ = s.emit(ctx, job.ProjectID, jobID, "asset_changed", map[string]any{"path": rel, "kind": result.Kind + "_pack", "generator": "builtin"})
 	return result, nil
 }
