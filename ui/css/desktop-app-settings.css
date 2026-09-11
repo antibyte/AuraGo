@@ -303,6 +303,80 @@
     background: var(--vd-accent);
 }
 
+.vd-setting-row-stack {
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.vd-setting-range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+    justify-self: end;
+}
+
+.vd-setting-range {
+    flex: 1 1 auto;
+    min-width: 0;
+    accent-color: var(--vd-accent);
+}
+
+.vd-setting-range-value {
+    min-width: 3.2rem;
+    text-align: right;
+    font-size: 0.82rem;
+    color: var(--vd-muted, var(--vd-text));
+}
+
+.vd-sound-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    width: 100%;
+}
+
+.vd-sound-theme-card {
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 10px;
+    background: var(--vd-theme-control-bg);
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.vd-sound-theme-card:hover,
+.vd-sound-theme-card:focus-visible {
+    border-color: var(--vd-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-accent) 35%, transparent);
+    outline: none;
+}
+
+.vd-sound-theme-card.active {
+    border-color: var(--vd-accent);
+    background: color-mix(in srgb, var(--vd-theme-accent-soft, var(--vd-accent)) 18%, var(--vd-theme-control-bg));
+}
+
+.vd-sound-theme-title {
+    font-weight: 600;
+    font-size: 0.92rem;
+    margin-bottom: 4px;
+}
+
+.vd-sound-theme-desc {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--vd-muted, var(--vd-text));
+    margin-bottom: 10px;
+    min-height: 2.4em;
+}
+
+.vd-sound-theme-preview {
+    width: 100%;
+    justify-content: center;
+}
+
 /* === Hamburger Button (hidden on desktop) === */
 .vd-settings-hamburger {
     display: none;

@@ -110,6 +110,7 @@
         if (!spacesEnabled()) return;
         const next = normalizeSpaceId(id);
         if (next === normalizeSpaceId(state.activeSpaceId)) return;
+        desktopSound('space.switch');
         state.activeSpaceId = next;
         hideTaskbarThumbnail();
         applyActiveSpaceWallpaper();

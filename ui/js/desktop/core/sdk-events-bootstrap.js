@@ -366,7 +366,11 @@
     }
 
     function showDesktopNotification(payload) {
-        pushNotificationRecord(payload || {});
+        payload = payload || {};
+        if (payload.appId === 'meshcore') desktopSound('notify.message');
+        else if (payload.type === 'error') desktopSound('notify.error');
+        else desktopSound('notify.info');
+        pushNotificationRecord(payload);
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -510,10 +514,12 @@
         };
 
         if (drawer.classList.contains('open')) {
+            desktopSound('menu.close');
             closeDrawer();
             return;
         }
 
+        desktopSound('menu.open');
         drawer.classList.add('open');
         backdrop.hidden = false;
         if (drawerBtn) drawerBtn.setAttribute('aria-expanded', 'true');

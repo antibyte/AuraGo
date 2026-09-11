@@ -2,7 +2,10 @@
 
     function closeSpotlight() {
         const backdrop = document.getElementById('vd-spotlight-backdrop');
-        if (backdrop) backdrop.remove();
+        if (backdrop) {
+            desktopSound('menu.close');
+            backdrop.remove();
+        }
         spotlightOpen = false;
     }
 
@@ -111,6 +114,7 @@
         if (spotlightOpen) return;
         closeStartMenu();
         spotlightOpen = true;
+        desktopSound('menu.open');
         const backdrop = document.createElement('div');
         backdrop.id = 'vd-spotlight-backdrop';
         backdrop.className = 'vd-spotlight-backdrop';

@@ -1207,6 +1207,15 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["appearance.icon_theme"] != "papirus" {
 		t.Fatalf("default icon theme = %q", bootstrap.Settings["appearance.icon_theme"])
 	}
+	if bootstrap.Settings["sound.enabled"] != "false" {
+		t.Fatalf("default sound.enabled = %q", bootstrap.Settings["sound.enabled"])
+	}
+	if bootstrap.Settings["sound.theme"] != "crystal" {
+		t.Fatalf("default sound.theme = %q", bootstrap.Settings["sound.theme"])
+	}
+	if bootstrap.Settings["sound.volume"] != "0.6" {
+		t.Fatalf("default sound.volume = %q", bootstrap.Settings["sound.volume"])
+	}
 	if err := svc.SetSetting(ctx, "appearance.wallpaper", "forest", SourceUser); err != nil {
 		t.Fatalf("SetSetting valid: %v", err)
 	}
@@ -1252,6 +1261,24 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	}
 	if err := svc.SetSetting(ctx, "unknown.setting", "true", SourceUser); err == nil {
 		t.Fatal("expected unknown setting key to be rejected")
+	}
+	if err := svc.SetSetting(ctx, "sound.enabled", "true", SourceUser); err != nil {
+		t.Fatalf("SetSetting sound.enabled valid: %v", err)
+	}
+	if err := svc.SetSetting(ctx, "sound.theme", "water", SourceUser); err != nil {
+		t.Fatalf("SetSetting sound.theme valid: %v", err)
+	}
+	if err := svc.SetSetting(ctx, "sound.volume", "0.35", SourceUser); err != nil {
+		t.Fatalf("SetSetting sound.volume valid: %v", err)
+	}
+	if err := svc.SetSetting(ctx, "sound.theme", "jazz", SourceUser); err == nil {
+		t.Fatal("expected invalid sound theme to be rejected")
+	}
+	if err := svc.SetSetting(ctx, "sound.volume", "1.5", SourceUser); err == nil {
+		t.Fatal("expected sound volume above 1 to be rejected")
+	}
+	if err := svc.SetSetting(ctx, "sound.volume", "-0.1", SourceUser); err == nil {
+		t.Fatal("expected negative sound volume to be rejected")
 	}
 }
 

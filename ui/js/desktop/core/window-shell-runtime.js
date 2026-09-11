@@ -1355,6 +1355,7 @@
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
+        if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
         else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);

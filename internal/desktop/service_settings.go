@@ -142,8 +142,12 @@ func validateFreeformDesktopSetting(key, value string) error {
 			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}
 		return nil
-	case "pet.scale", "pet.position_x", "pet.position_y":
-		if _, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err != nil {
+	case "pet.scale", "pet.position_x", "pet.position_y", "sound.volume":
+		v, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err != nil {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		if key == "sound.volume" && (v < 0 || v > 1) {
 			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}
 		return nil

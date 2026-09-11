@@ -14,7 +14,9 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   Keep all labels in the sixteen desktop locales and preserve both import flows.
 
 Shell chrome helpers live in the main desktop bundle (not lazy apps):
-`core/session-runtime.js` (session restore, dock pins, recent files, default
+`core/sound-runtime.js` (opt-in synthesized UI sounds; lazy
+`bundles/desktop-sounds.bundle.js` with `sound/synth-core.js` and five theme
+modules), `core/session-runtime.js` (session restore, dock pins, recent files, default
 apps), `core/spaces-runtime.js` (three virtual desktops / Spaces v1: window
 `spaceId`, hide-without-dispose, session snapshot v2, taskbar pager, Ctrl+Alt
 arrows; disabled on compact viewport), `core/shell-chrome-runtime.js`
@@ -39,6 +41,26 @@ captures current windows immediately; `pagehide` flushes pending geometry with
 a keepalive request. Startup restores before opening an `?app=` deep link,
 preserving separate instances and the normal bounds of maximized windows.
 Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
+
+### Desktop UI sound contract
+
+- Opt-in via `sound.enabled` (default off). Persisted keys:
+  `sound.theme`, `sound.volume`, `sound.windows`, `sound.notifications`,
+  `sound.navigation`, `sound.files` (`internal/desktop/types.go`).
+- Shell API: `desktopSound(eventId)` only. No playback when disabled, tab hidden,
+  session restore, category off, or before the first user gesture unlocks Web
+  Audio. Preview in Settings may render/play without changing the saved theme.
+- Event vocabulary (19 ids, all five themes): `window.*`, `notify.*`, `menu.*`,
+  `space.switch`, `dialog.*`, `file.*`. Hooks live in window shell/interactions,
+  notifications, menus, spaces, dialogs and file drops — no business-logic changes.
+- Offline render once per theme into cached `AudioBuffer`s; master gain uses
+  perceptual `volume²`, category gains, compressor and voice rate limits.
+- Settings app section `sound` exposes master toggle, theme cards with preview,
+  volume range and category toggles. Keep `desktop.settings_sound_*` in all 16
+  desktop locales.
+- Verify with `TestDesktopSoundRuntimeMarkers`, `TestDesktopSoundHookMarkers`,
+  `TestDesktopSoundThemeEvents`, `TestDesktopSoundTranslations`, service settings
+  tests, and opt-in `TestDesktopSoundBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
 
 Resize handles in `core/window-interactions-runtime.js` honor the shell's
 per-window minimum width/height, including the fixed opposite edge on west/north drags.

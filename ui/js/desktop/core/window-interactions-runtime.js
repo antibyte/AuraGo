@@ -3,6 +3,7 @@
         if (!item) return;
         if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
+        desktopSound('window.minimize');
         item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
         const delta = windowMinimizeTargetDelta(item.element, id);
@@ -285,6 +286,7 @@ function wireWindow(win, id) {
             win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
             win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
         });
+        desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
     }
 
@@ -401,6 +403,7 @@ function wireWindow(win, id) {
         const item = state.windows.get(id);
         if (!item) return;
         const win = item.element;
+        desktopSound(item.maximized ? 'window.restore' : 'window.maximize');
         animateWindowBounds(win, () => {
             if (item.maximized) {
                 const b = item.restoreBounds || { left: 80, top: 48, width: 820, height: 560 };
@@ -557,7 +560,10 @@ function wireWindow(win, id) {
         assignWindowZ(win);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
-        if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
+        if (wasHidden) {
+            animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
+            desktopSound('window.restore');
+        }
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
         scheduleSessionPersist();
@@ -575,12 +581,13 @@ function wireWindow(win, id) {
         if (win.closing || win.checkingClose) return;
         if (typeof win.beforeClose === 'function') {
             win.checkingClose = true;
-            try { if (!await win.beforeClose()) return; }
-            catch (error) { console.warn('Window close was cancelled', error); return; }
+            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return; } }
+            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return; }
             finally { win.checkingClose = false; }
             if (!state.windows.has(id)) return;
         }
         win.closing = true;
+        desktopSound('window.close');
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();

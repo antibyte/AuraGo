@@ -437,6 +437,7 @@
         menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
         menu.style.top = Math.max(8, Math.min(y, usableBottom - rect.height)) + 'px';
         animateThen(menu, 'vd-context-menu-opening', isFruityTheme() ? 150 : 100);
+        desktopSound('menu.open');
         menu.querySelectorAll('[data-context-action]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const item = actions.get(btn.dataset.contextAction);
@@ -751,6 +752,7 @@ function modalDialog(options) {
             </div>
         </form>`;
         document.body.appendChild(overlay);
+        desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
         const primaryBtn = overlay.querySelector('[type="submit"]');
@@ -772,6 +774,8 @@ function modalDialog(options) {
                 document.removeEventListener('focusin', trapFocus);
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+                if (value === true) desktopSound('dialog.confirm');
+                else if (value === false) desktopSound('dialog.cancel');
                 resolve(value);
             };
             overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(options.input ? null : false));
@@ -846,6 +850,7 @@ function modalDialog(options) {
         }
         try {
             await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
+            desktopSound('file.delete');
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
@@ -865,6 +870,7 @@ function modalDialog(options) {
                 body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })
             });
             removeIconPosition('desktop-entry-' + cleanPath);
+            desktopSound('file.trash');
             await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -894,6 +900,7 @@ function modalDialog(options) {
             for (const entry of entries) {
                 if (entry && entry.path) await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
             }
+            desktopSound('file.delete');
             await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -1520,7 +1527,7 @@ function modalDialog(options) {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }

@@ -146,6 +146,7 @@
             saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
             offset += 18;
         }
+        desktopSound('file.drop');
         await refreshAfterDesktopFileDrop();
     }
 
@@ -174,6 +175,7 @@
             saveIconPosition('desktop-entry-' + uploadedPath, iconPos.x, iconPos.y);
             offset += 18;
         }
+        desktopSound('file.drop');
         await refreshAfterDesktopFileDrop();
     }
 
@@ -214,6 +216,7 @@
             }
         }
         if (clipboard.mode === 'cut') window.AuraDesktopFileClipboard = null;
+        desktopSound('file.drop');
         await refreshAfterDesktopFileDrop();
     }
 

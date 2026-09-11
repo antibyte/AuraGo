@@ -8,6 +8,7 @@ const checkOnly = process.argv.includes('--check');
 const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/sound-runtime.js',
   'ui/js/desktop/core/mini-icons-runtime.js',
   'ui/js/desktop/core/global-menu-runtime.js',
   'ui/js/desktop/core/pet-runtime.js',
@@ -101,6 +102,17 @@ const jsBundles = [
       'ui/js/desktop/file-manager/preview-panel.js',
       'ui/js/desktop/file-manager/advanced-actions.js',
       'ui/js/desktop/file-manager/lifecycle-export.js'
+    ]
+  },
+  {
+    out: 'ui/js/desktop/bundles/desktop-sounds.bundle.js',
+    parts: [
+      'ui/js/desktop/sound/synth-core.js',
+      'ui/js/desktop/sound/theme-crystal.js',
+      'ui/js/desktop/sound/theme-wood.js',
+      'ui/js/desktop/sound/theme-analog.js',
+      'ui/js/desktop/sound/theme-workshop.js',
+      'ui/js/desktop/sound/theme-water.js'
     ]
   },
   {

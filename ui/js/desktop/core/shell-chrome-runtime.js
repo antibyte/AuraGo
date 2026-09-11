@@ -83,10 +83,12 @@
         const panel = document.getElementById('vd-notification-center');
         if (!panel) return;
         if (!panel.hidden) {
+            desktopSound('menu.close');
             closeNotificationCenter();
             return;
         }
         panel.hidden = false;
+        desktopSound('menu.open');
         markAllNotificationsRead();
         if (anchor && anchor.getBoundingClientRect) {
             const rect = anchor.getBoundingClientRect();

@@ -9,7 +9,8 @@
     const bundlePaths = {
         main: '/js/desktop/bundles/main.bundle.js',
         'file-manager': '/js/desktop/bundles/file-manager.bundle.js',
-        'code-studio': '/js/desktop/bundles/code-studio.bundle.js'
+        'code-studio': '/js/desktop/bundles/code-studio.bundle.js',
+        'desktop-sounds': '/js/desktop/bundles/desktop-sounds.bundle.js'
     };
     const commonAppStyles = ['/css/desktop-app-common.css'];
 

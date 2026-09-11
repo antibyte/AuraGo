@@ -262,6 +262,10 @@ The widget drawer pins widgets such as system monitor, clock, weather, and chat.
 
 The Software Store uses AuraGo-managed Docker containers. Apps can expose credentials through the Vault, show operation progress, and provide open links for their configured ports. Arcane uses a Docker socket proxy companion for Docker management access. Termix includes a `guacd` companion container for RDP/VNC support and also supports SSH and Telnet management from its own Web UI.
 
+### Sounds
+
+UI sounds for the Virtual Desktop are **opt-in** and **off by default**. Open **Settings → Sound** to enable them, pick one of five synthesized themes (Crystal, Wood, Analog, Workshop, Water), adjust master volume, and toggle categories for windows, notifications, navigation, and files/dialogs. Use **Preview** on a theme card to listen without changing your saved selection. Sounds require a normal user gesture in the browser tab before the first playback; they stay silent during session restore and while the tab is hidden.
+
 ### Themes
 
 - **Chat:** 13 themes, including Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee, and the LCARS-inspired **Galaxy**.

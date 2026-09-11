@@ -284,6 +284,13 @@
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
+        'sound.enabled': 'false',
+        'sound.theme': 'crystal',
+        'sound.volume': '0.6',
+        'sound.windows': 'true',
+        'sound.notifications': 'true',
+        'sound.navigation': 'true',
+        'sound.files': 'true',
         'windows.default_size': 'balanced',
         'windows.restore_session': 'true',
         'appearance.dock_pins': '["files","writer","code-studio","settings","calendar"]',
@@ -1254,6 +1261,7 @@
         const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'true'; startButton.setAttribute('aria-expanded', 'true'); }
         if (!isCompactViewport()) $('vd-start-search').focus();
         if (isCompactViewport()) { const bd = ensureStartMenuBackdrop(); requestAnimationFrame(() => bd.classList.add('active')); }
+        desktopSound('menu.open');
     }
 
     function closeStartMenu() {
@@ -1263,6 +1271,7 @@
         window.clearTimeout(menu._justOpenedTimer);
         menu.classList.remove('vd-start-menu-just-opened');
         const bd = document.querySelector('.vd-start-menu-backdrop'); if (bd) bd.classList.remove('active');
+        desktopSound('menu.close');
         runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; });
     }
 

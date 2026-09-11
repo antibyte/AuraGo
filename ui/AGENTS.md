@@ -45,6 +45,13 @@ worker. Keep packaging, recovery and offline instructions in
   Rendering/lifecycle and real-shell test contracts live in
   `js/desktop/apps/AGENTS.md`.
 
+- Desktop UI sounds are opt-in shell feedback: `core/sound-runtime.js` in
+  `main.bundle.js`, synthesis in lazy `bundles/desktop-sounds.bundle.js`
+  (`scripts/build-ui-bundles.js`, `module-loader.js` bundle path
+  `desktop-sounds`). Default off; Settings configures theme, volume and category
+  toggles. Verify markers with `TestDesktopSound*` and browser smoke with
+  `AURAGO_RUN_BROWSER_SMOKE=1`.
+
 - HA Switchboard is a lazy built-in desktop app with a theme-independent walnut
   cabinet and silver lever assets under `img/ha-switchboard/`. Retain real shell
   controls, semantic switches and the source asset provenance. All 16 desktop

@@ -51,6 +51,17 @@
                 ]
             },
             {
+                id: 'sound', icon: 'sound-symbolic', fallback: 'S', title: 'desktop.settings_category_sound', desc: 'desktop.settings_category_sound_desc', items: [
+                    settingToggle('sound.enabled', 'desktop.settings_sound_enabled', 'desktop.settings_sound_enabled_desc'),
+                    settingSoundThemes(),
+                    settingRange('sound.volume', 'desktop.settings_sound_volume', 'desktop.settings_sound_volume_desc', 0, 1, 0.05),
+                    settingToggle('sound.windows', 'desktop.settings_sound_windows', 'desktop.settings_sound_windows_desc'),
+                    settingToggle('sound.notifications', 'desktop.settings_sound_notifications', 'desktop.settings_sound_notifications_desc'),
+                    settingToggle('sound.navigation', 'desktop.settings_sound_navigation', 'desktop.settings_sound_navigation_desc'),
+                    settingToggle('sound.files', 'desktop.settings_sound_files', 'desktop.settings_sound_files_desc')
+                ]
+            },
+            {
                 id: 'files', icon: 'folder-symbolic', fallback: 'F', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
                     settingToggle('files.confirm_delete', 'desktop.settings_confirm_delete', 'desktop.settings_confirm_delete_desc'),
                     settingSelect('files.default_folder', 'desktop.settings_default_folder', 'desktop.settings_default_folder_desc', [
@@ -98,6 +109,23 @@
 
     function settingInfo(label, value) {
         return { type: 'info', label, value };
+    }
+
+    function settingRange(key, label, desc, min, max, step) {
+        return { type: 'range', key, label, desc, min, max, step };
+    }
+
+    function settingSoundThemes() {
+        return {
+            type: 'sound_theme',
+            themes: [
+                { id: 'crystal', label: 'desktop.settings_sound_theme_crystal', desc: 'desktop.settings_sound_theme_crystal_desc' },
+                { id: 'wood', label: 'desktop.settings_sound_theme_wood', desc: 'desktop.settings_sound_theme_wood_desc' },
+                { id: 'analog', label: 'desktop.settings_sound_theme_analog', desc: 'desktop.settings_sound_theme_analog_desc' },
+                { id: 'workshop', label: 'desktop.settings_sound_theme_workshop', desc: 'desktop.settings_sound_theme_workshop_desc' },
+                { id: 'water', label: 'desktop.settings_sound_theme_water', desc: 'desktop.settings_sound_theme_water_desc' }
+            ]
+        };
     }
 
     function render(hostEl, renderCtx) {
@@ -187,6 +215,32 @@
                 }
                 await saveDesktopSetting(key, value);
             });
+            if (control.type === 'range') {
+                control.addEventListener('input', event => {
+                    const value = parseFloat(event.currentTarget.value);
+                    const pct = host.querySelector(`[data-volume-label="${event.currentTarget.dataset.settingKey}"]`);
+                    if (pct) pct.textContent = Math.round(value * 100) + '%';
+                    if (typeof ctx.setDesktopSoundVolume === 'function') ctx.setDesktopSoundVolume(value);
+                });
+            }
+        });
+        host.querySelectorAll('[data-sound-theme]').forEach(card => {
+            card.addEventListener('click', async event => {
+                if (event.target.closest('[data-sound-preview]')) return;
+                const theme = card.dataset.soundTheme;
+                if (!theme) return;
+                await saveDesktopSetting('sound.theme', theme);
+            });
+        });
+        host.querySelectorAll('[data-sound-preview]').forEach(btn => {
+            btn.addEventListener('click', async event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const theme = btn.dataset.soundPreview;
+                if (typeof ctx.previewDesktopSound === 'function') {
+                    try { await ctx.previewDesktopSound(theme); } catch (err) { console.warn('Sound preview failed', err); }
+                }
+            });
         });
     }
 
@@ -254,6 +308,34 @@
                 <div class="vd-setting-value">${esc(item.value)}</div>
             </article>`;
         }
+        if (item.type === 'sound_theme') {
+            const active = settingValue('sound.theme') || 'crystal';
+            return `<article class="vd-setting-row vd-setting-row-stack">
+                <div>
+                    <div class="vd-setting-label">${esc(t('desktop.settings_sound_theme'))}</div>
+                    <div class="vd-setting-help">${esc(t('desktop.settings_sound_theme_desc'))}</div>
+                </div>
+                <div class="vd-sound-theme-grid">${(item.themes || []).map(theme => `<div class="vd-sound-theme-card${active === theme.id ? ' active' : ''}" data-sound-theme="${esc(theme.id)}" tabindex="0" role="button" aria-pressed="${active === theme.id ? 'true' : 'false'}">
+                    <div class="vd-sound-theme-title">${esc(t(theme.label))}</div>
+                    <div class="vd-sound-theme-desc">${esc(t(theme.desc))}</div>
+                    <button type="button" class="vd-button vd-sound-theme-preview" data-sound-preview="${esc(theme.id)}">${esc(t('desktop.settings_sound_preview'))}</button>
+                </div>`).join('')}</div>
+            </article>`;
+        }
+        if (item.type === 'range') {
+            const currentValue = parseFloat(settingValue(item.key) || '0.6');
+            const safe = isFinite(currentValue) ? Math.min(item.max, Math.max(item.min, currentValue)) : 0.6;
+            return `<article class="vd-setting-row">
+                <div>
+                    <div class="vd-setting-label">${esc(t(item.label))}</div>
+                    <div class="vd-setting-help">${esc(t(item.desc))}</div>
+                </div>
+                <div class="vd-setting-range-wrap">
+                    <input type="range" class="vd-setting-range" data-setting-key="${esc(item.key)}" min="${item.min}" max="${item.max}" step="${item.step}" value="${safe}">
+                    <span class="vd-setting-range-value" data-volume-label="${esc(item.key)}">${Math.round(safe * 100)}%</span>
+                </div>
+            </article>`;
+        }
         const currentValue = item.key === 'appearance.wallpaper' && typeof ctx.wallpaperForActiveSpace === 'function'
             ? ctx.wallpaperForActiveSpace()
             : settingValue(item.key);
@@ -307,6 +389,9 @@
                 await ctx.persistSessionSnapshot();
             }
             ctx.applyDesktopSettings();
+            if (typeof ctx.applySoundSettingsChange === 'function') {
+                updates.forEach(u => ctx.applySoundSettingsChange(u.key, u.value));
+            }
             ctx.renderStartButtonIcon();
             ctx.renderIcons();
             ctx.renderWidgets();
