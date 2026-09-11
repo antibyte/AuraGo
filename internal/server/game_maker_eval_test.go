@@ -80,7 +80,8 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	gamemaker.SetDefaultService(service)
 	defer gamemaker.SetDefaultService(previous)
 	cfg := &config.Config{}
-	cfg.Agent.ContextWindow = 65536
+	// Preserve the configured global cap; provider/model limits resolve normally.
+	cfg.Agent.ContextWindow = original.Agent.ContextWindow
 	cfg.CircuitBreaker.LLMTimeoutSeconds = 100
 	cfg.CircuitBreaker.MaxToolCalls = 24
 	cfg.GameMaker.Enabled = true
@@ -203,7 +204,7 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 				}
 			}
 			events, _ := service.EventsAfter(context.Background(), p.ID, 0, 500)
-			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "events": events, "context_cap": 65536, "tool_limit": 24}
+			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "events": events, "context_cap": cfg.Agent.ContextWindow, "tool_limit": 24}
 			encoded, _ := json.MarshalIndent(result, "", "  ")
 			if err = os.WriteFile(filepath.Join(reports, provider.ID+"-"+task.name+".json"), encoded, 0600); err != nil {
 				t.Fatal(err)
