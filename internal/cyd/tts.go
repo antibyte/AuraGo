@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -23,15 +24,16 @@ const (
 // Speaker renders English notification text with sanoTTS (heart-nano) and
 // stores 8 kHz unsigned PCM for the glass to fetch.
 type Speaker struct {
-	mu    sync.Mutex
-	clips map[string][]byte
-	order []string
-	bin   string
-	voice string
+	mu       sync.Mutex
+	clips    map[string][]byte
+	order    []string
+	bin      string
+	voice    string
+	cacheDir string
 }
 
-// NewSpeaker looks up the sanotts CLI. If it is missing, Available is false
-// and the glass keeps using beep cues only.
+// NewSpeaker looks up sanotts on PATH. The systemd service has no PATH entry
+// for the managed venv; use NewSpeakerWithData for that.
 func NewSpeaker() *Speaker {
 	s := &Speaker{
 		clips: make(map[string][]byte),
@@ -40,6 +42,25 @@ func NewSpeaker() *Speaker {
 	if p, err := exec.LookPath("sanotts"); err == nil {
 		s.bin = p
 	}
+	return s
+}
+
+// NewSpeakerWithData prefers AuraGo's data/sanotts venv over PATH.
+func NewSpeakerWithData(dataDir string) *Speaker {
+	s := NewSpeaker()
+	dataDir = strings.TrimSpace(dataDir)
+	if dataDir == "" {
+		return s
+	}
+	managed := sanotts.CLI(dataDir)
+	if managed == "" {
+		return s
+	}
+	if _, err := os.Stat(managed); err != nil {
+		return s
+	}
+	s.bin = managed
+	s.cacheDir = filepath.Join(dataDir, "sanotts", "voices")
 	return s
 }
 
@@ -65,7 +86,7 @@ func (s *Speaker) Get(id string) []byte {
 }
 
 func (s *Speaker) render(id, text string) {
-	pcm, err := synthesizeU8(s.bin, s.voice, text)
+	pcm, err := synthesizeU8(s.bin, s.voice, text, s.cacheDir)
 	if err != nil {
 		return
 	}
@@ -156,10 +177,10 @@ func asciiEnglish(s string) string {
 	return out
 }
 
-func synthesizeU8(bin, voice, text string) ([]byte, error) {
+func synthesizeU8(bin, voice, text, cacheDir string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
-	wav, err := sanotts.Synthesize(ctx, bin, voice, text, "")
+	wav, err := sanotts.Synthesize(ctx, bin, voice, text, cacheDir)
 	if err != nil {
 		return nil, err
 	}

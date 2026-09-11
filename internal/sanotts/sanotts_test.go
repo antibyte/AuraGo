@@ -7,8 +7,24 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
+
+func TestCLIUsesManagedVenv(t *testing.T) {
+	got := CLI("/data")
+	if runtime.GOOS == "windows" {
+		if !strings.Contains(got, filepath.Join("sanotts", "venv", "Scripts", "sanotts.exe")) {
+			t.Fatalf("cli=%q", got)
+		}
+		return
+	}
+	if !strings.Contains(filepath.ToSlash(got), "sanotts/venv/bin/sanotts") {
+		t.Fatalf("cli=%q", got)
+	}
+}
 
 func TestVoicesMatchBundledRuntime(t *testing.T) {
 	if got := fmt.Sprintf("%x", sha256.Sum256(Wheel)); got != "0582dabc20d1b6376bd1e266b889bbca6d839733d3d4bcf2be493748cf139a23" {

@@ -2,8 +2,31 @@ package cyd
 
 import (
 	"encoding/binary"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"aurago/internal/sanotts"
 )
+
+func TestSpeakerUsesManagedRuntime(t *testing.T) {
+	dir := t.TempDir()
+	bin := sanotts.CLI(dir)
+	if err := os.MkdirAll(filepath.Dir(bin), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s := NewSpeakerWithData(dir)
+	if !s.Available() || s.bin != bin {
+		t.Fatalf("managed bin=%q available=%v want %q", s.bin, s.Available(), bin)
+	}
+	wantCache := filepath.Join(dir, "sanotts", "voices")
+	if s.cacheDir != wantCache {
+		t.Fatalf("cacheDir=%q want %q", s.cacheDir, wantCache)
+	}
+}
 
 func TestSpeakLineEnglish(t *testing.T) {
 	got := SpeakLine("Backup failed", "disk /data 98%")

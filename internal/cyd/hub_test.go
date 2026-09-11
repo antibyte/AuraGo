@@ -1,8 +1,12 @@
 package cyd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"aurago/internal/sanotts"
 )
 
 type fakeWS struct {
@@ -63,6 +67,22 @@ func TestBroadcastNotify(t *testing.T) {
 	h.Notify("hi", "there", "normal", 10)
 	if len(ws.msgs) != 1 {
 		t.Fatalf("got %d ws messages", len(ws.msgs))
+	}
+}
+
+func TestSetSpeakDataDirUsesManagedRuntime(t *testing.T) {
+	dir := t.TempDir()
+	bin := sanotts.CLI(dir)
+	if err := os.MkdirAll(filepath.Dir(bin), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h := NewHub()
+	h.SetSpeakDataDir(dir)
+	if h.speak == nil || !h.speak.Available() || h.speak.bin != bin {
+		t.Fatalf("speak bin=%v", h.speak)
 	}
 }
 

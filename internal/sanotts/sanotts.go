@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -23,6 +24,24 @@ var Wheel []byte
 
 //go:embed runtime/LICENSE.MIT
 var License []byte
+
+// CLI is the managed venv binary AuraGo installs under data/sanotts.
+func CLI(dataDir string) string {
+	dataDir = strings.TrimSpace(dataDir)
+	if dataDir == "" {
+		return ""
+	}
+	var bin string
+	if runtime.GOOS == "windows" {
+		bin = filepath.Join(dataDir, "sanotts", "venv", "Scripts", "sanotts.exe")
+	} else {
+		bin = filepath.Join(dataDir, "sanotts", "venv", "bin", "sanotts")
+	}
+	if abs, err := filepath.Abs(bin); err == nil {
+		return abs
+	}
+	return bin
+}
 
 // Voice selects the smallest published Python voice. The three browser-only
 // languages (hi/ne/zh) intentionally use English until Python packs exist.

@@ -62,6 +62,13 @@ func (s *Server) ensureCydHub() *cyd.Hub {
 	if s.CydHub == nil {
 		s.CydHub = cyd.NewHub()
 		cyd.SetGlobal(s.CydHub)
+		s.CfgMu.RLock()
+		dataDir := ""
+		if s.Cfg != nil {
+			dataDir = s.Cfg.Directories.DataDir
+		}
+		s.CfgMu.RUnlock()
+		s.CydHub.SetSpeakDataDir(dataDir)
 	}
 	return s.CydHub
 }

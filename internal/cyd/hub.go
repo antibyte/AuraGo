@@ -56,6 +56,19 @@ func NewHub() *Hub {
 	}
 }
 
+// SetSpeakDataDir points the hub at AuraGo's managed sanoTTS venv.
+func (h *Hub) SetSpeakDataDir(dataDir string) {
+	if h == nil {
+		return
+	}
+	next := NewSpeakerWithData(dataDir)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if next.Available() {
+		h.speak = next
+	}
+}
+
 func (h *Hub) SetInputs(in Inputs) {
 	if h == nil {
 		return
