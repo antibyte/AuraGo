@@ -7,7 +7,7 @@
         'gallery-action-delete': 'trash', 'gallery-action-download': 'download',
         'gallery-action-edit': 'edit', 'gallery-action-preview': 'eye', 'check_square': 'check-square',
         'agent-chat': 'chat', agent: 'chat', 'message-square': 'chat', attach: 'attachment',
-        audio: 'music', 'audio-player': 'music', 'music-player': 'music', volume: 'speaker',
+        audio: 'music', 'audio-player': 'music', 'music-player': 'music', volume: 'speaker', sound: 'speaker',
         'volume-2': 'speaker', lock: 'shield', 'unlock': 'key', tools: 'sliders',
         widgets: 'layout', launchpad: 'apps', desktop: 'monitor',
         browser: 'globe', 'theme-threedee': 'cube', 'code-studio': 'code', cheater: 'notes',

@@ -55,10 +55,16 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 		"window.DesktopSounds = {",
 		"loader('desktop-sounds')",
 		"applySoundSettingsChange",
+		"sound: 'speaker'",
 	} {
 		if !strings.Contains(main, marker) {
 			t.Fatalf("main bundle missing sound marker %q", marker)
 		}
+	}
+
+	mini := readDesktopAssetText(t, "js/desktop/core/mini-icons-runtime.js")
+	if !strings.Contains(mini, "sound: 'speaker'") {
+		t.Fatal("mini-icons-runtime must map sound-symbolic to the speaker artwork")
 	}
 
 	runtime := readDesktopAssetText(t, "js/desktop/core/sound-runtime.js")
@@ -181,6 +187,8 @@ func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 		"settingToggle('sound.navigation'",
 		"settingToggle('sound.files'",
 		"data-sound-preview",
+		"nextPane.scrollTop = paneScroll",
+		"key === 'sound.volume'",
 	} {
 		if !strings.Contains(settings, marker) {
 			t.Fatalf("settings.js missing marker %q", marker)
@@ -192,6 +200,8 @@ func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 		".vd-sound-theme-grid",
 		".vd-sound-theme-card",
 		".vd-setting-range-wrap",
+		".vd-settings-pane-icon .vd-theme-icon",
+		"mask: var(--vd-theme-icon-url)",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop-app-settings.css missing marker %q", marker)

@@ -57,10 +57,15 @@ Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
   perceptual `volume²`, category gains, compressor and voice rate limits.
 - Settings app section `sound` exposes master toggle, theme cards with preview,
   volume range and category toggles. Keep `desktop.settings_sound_*` in all 16
-  desktop locales.
+  desktop locales. Saving `sound.volume` must not rebuild the Settings pane
+  (that resets scroll). Other setting saves restore `.vd-settings-pane` scroll.
+  `sound-symbolic` maps to the speaker mini icon; theme-SVG fallbacks use a
+  currentColor mask so they are not black on dark chrome.
 - Verify with `TestDesktopSoundRuntimeMarkers`, `TestDesktopSoundHookMarkers`,
-  `TestDesktopSoundThemeEvents`, `TestDesktopSoundTranslations`, service settings
-  tests, and opt-in `TestDesktopSoundBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
+  `TestDesktopSoundThemeEvents`, `TestDesktopSoundTranslations`,
+  `TestDesktopSoundSettingsUIMarkers`, `TestDesktopSettingsSymbolicIconAssetsStayCompact`,
+  service settings tests, and opt-in `TestDesktopSoundBrowser`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`).
 
 Resize handles in `core/window-interactions-runtime.js` honor the shell's
 per-window minimum width/height, including the fixed opposite edge on west/north drags.
@@ -1732,9 +1737,10 @@ registration lives in `internal/desktop/types.go`.
 - The notes.meta.json sidecar keeps version/pinned/sort/last_note. Full-text search is
   server-side, shared with desktop_notes; no browser 500-file index. Relative attachments
   and link destinations survive moves; user trash preserves original folder paths.
-- Agent access is list/search/read/create only, enforced in the backend and native
-  mutation paths, including agent-created notes. Local execution requires checked
-  isolation while Notes exist; see documentation/desktop-notes.md for platform limits.
+- Agent Notes access is list/search/read/create only in native APIs, including
+  agent-created notes. Permitted local execution follows the sandbox setting;
+  disabled isolation or explicit unsafe fallback can bypass native file guards.
+  Active isolation still checks Notes write-path overlap. See documentation/desktop-notes.md.
 - Keep .vd-notes-app and .vd-notes-toolbar for the common theme bridge. Use the shared
   icon renderer and notes/writer/common translations in all 16 Desktop locales.
   Validate TestDesktopNotesAppBrowser, the AURAGO_NOTES_MATRIX shell fixture, vendor

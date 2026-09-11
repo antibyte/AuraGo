@@ -31,7 +31,7 @@ func TestDesktopSettingsSymbolicIconAssetsStayCompact(t *testing.T) {
 		for _, key := range []string{"apps-symbolic", "desktop-symbolic", "folder-symbolic", "info-symbolic", "monitor-symbolic", "settings-symbolic", "sound-symbolic"} {
 			path := "img/" + theme + "/icons/" + key + ".svg"
 			svg := rawDesktopAssetText(t, path)
-			for _, marker := range []string{`width="24"`, `height="24"`, "currentColor"} {
+			for _, marker := range []string{`width="24"`, `height="24"`, "currentColor", "ColorScheme-Text"} {
 				if !strings.Contains(svg, marker) {
 					t.Fatalf("%s must be a compact symbolic icon, missing %q", path, marker)
 				}

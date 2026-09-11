@@ -159,6 +159,15 @@
     height: 28px;
 }
 
+/* Theme SVGs use currentColor; as background-image that paints black. Mask so nav/pane inherit text or accent. */
+.vd-settings-nav-icon.vd-theme-icon,
+.vd-settings-pane-icon .vd-theme-icon {
+    background-image: none;
+    background-color: currentColor;
+    -webkit-mask: var(--vd-theme-icon-url) center / contain no-repeat;
+    mask: var(--vd-theme-icon-url) center / contain no-repeat;
+}
+
 .vd-settings-pane-title {
     font-size: 20px;
     font-weight: 600;

@@ -50,8 +50,9 @@ worker. Keep packaging, recovery and offline instructions in
   `main.bundle.js`, synthesis in lazy `bundles/desktop-sounds.bundle.js`
   (`scripts/build-ui-bundles.js`, `module-loader.js` bundle path
   `desktop-sounds`). Default off; Settings configures theme, volume and category
-  toggles. Verify markers with `TestDesktopSound*` and browser smoke with
-  `AURAGO_RUN_BROWSER_SMOKE=1`.
+  toggles. Volume saves must keep the Settings pane scroll; `sound-symbolic`
+  uses the speaker mini icon or a currentColor mask. Verify markers with
+  `TestDesktopSound*` and browser smoke with `AURAGO_RUN_BROWSER_SMOKE=1`.
 
 - HA Switchboard is a lazy built-in desktop app with a theme-independent walnut
   cabinet and silver lever assets under `img/ha-switchboard/`. Retain real shell

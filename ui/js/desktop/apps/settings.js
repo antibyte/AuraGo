@@ -144,7 +144,13 @@
     }
 
     function renderSettingsShell() {
-        const sidebarWasOpen = host.querySelector('.vd-settings-sidebar') && host.querySelector('.vd-settings-sidebar').classList.contains('open');
+        const pane = host.querySelector('.vd-settings-pane');
+        const paneScroll = pane ? pane.scrollTop : 0;
+        const sidebarEl = host.querySelector('.vd-settings-sidebar');
+        const sidebarScroll = sidebarEl ? sidebarEl.scrollTop : 0;
+        const searchEl = host.querySelector('.vd-settings-search-input');
+        const searchValue = searchEl ? searchEl.value : '';
+        const sidebarWasOpen = sidebarEl && sidebarEl.classList.contains('open');
         const sections = settingsSections();
         const active = sections.find(section => section.id === host.dataset.activeSettings) || sections[0];
         const { esc, t, iconMarkup } = ctx;
@@ -185,11 +191,22 @@
         wireSettings();
         wireSearch(sections);
         wireSidebarToggle();
+        const nextPane = host.querySelector('.vd-settings-pane');
+        if (nextPane) nextPane.scrollTop = paneScroll;
+        const nextSidebar = host.querySelector('.vd-settings-sidebar');
+        if (nextSidebar) nextSidebar.scrollTop = sidebarScroll;
         if (sidebarWasOpen) {
             const sidebar = host.querySelector('.vd-settings-sidebar');
             const backdrop = host.querySelector('.vd-settings-backdrop');
             if (sidebar) sidebar.classList.add('open');
             if (backdrop) backdrop.classList.add('visible');
+        }
+        if (searchValue) {
+            const nextSearch = host.querySelector('.vd-settings-search-input');
+            if (nextSearch) {
+                nextSearch.value = searchValue;
+                nextSearch.dispatchEvent(new Event('input'));
+            }
         }
     }
 
@@ -391,6 +408,9 @@
             ctx.applyDesktopSettings();
             if (typeof ctx.applySoundSettingsChange === 'function') {
                 updates.forEach(u => ctx.applySoundSettingsChange(u.key, u.value));
+            }
+            if (key === 'sound.volume') {
+                return;
             }
             ctx.renderStartButtonIcon();
             ctx.renderIcons();
