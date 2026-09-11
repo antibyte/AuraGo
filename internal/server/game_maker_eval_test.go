@@ -70,7 +70,11 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	master = ""
 	root := t.TempDir()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true, JobTimeout: 5 * time.Minute, Logger: logger})
+	jobTimeout := time.Duration(original.GameMaker.JobTimeoutSeconds) * time.Second
+	if jobTimeout <= 0 {
+		jobTimeout = 30 * time.Minute // Same default as the Game Maker service.
+	}
+	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true, JobTimeout: jobTimeout, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +86,14 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	cfg := &config.Config{}
 	// Preserve the configured global cap; provider/model limits resolve normally.
 	cfg.Agent.ContextWindow = original.Agent.ContextWindow
-	cfg.CircuitBreaker.LLMTimeoutSeconds = 100
-	cfg.CircuitBreaker.MaxToolCalls = 24
+	cfg.CircuitBreaker = original.CircuitBreaker
+	// Match config.Load defaults when these fields are omitted from YAML.
+	if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {
+		cfg.CircuitBreaker.LLMTimeoutSeconds = 600
+	}
+	if cfg.CircuitBreaker.MaxToolCalls <= 0 {
+		cfg.CircuitBreaker.MaxToolCalls = 10
+	}
 	cfg.GameMaker.Enabled = true
 	cfg.GameMaker.AllowCreate = true
 	cfg.GameMaker.AllowEdit = true
@@ -196,7 +206,7 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 			jobID = job.ID
 			mu.Unlock()
 			started := time.Now()
-			for time.Since(started) < 6*time.Minute {
+			for time.Since(started) < jobTimeout+time.Minute {
 				time.Sleep(250 * time.Millisecond)
 				job, _ = service.GetJob(context.Background(), job.ID)
 				if job.Status == "ready" || job.Status == "failed" || job.Status == "cancelled" {
@@ -204,7 +214,7 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 				}
 			}
 			events, _ := service.EventsAfter(context.Background(), p.ID, 0, 500)
-			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "events": events, "context_cap": cfg.Agent.ContextWindow, "tool_limit": 24}
+			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "events": events, "context_cap": cfg.Agent.ContextWindow, "tool_limit": cfg.CircuitBreaker.MaxToolCalls, "llm_timeout_seconds": cfg.CircuitBreaker.LLMTimeoutSeconds, "job_timeout_seconds": jobTimeout.Seconds()}
 			encoded, _ := json.MarshalIndent(result, "", "  ")
 			if err = os.WriteFile(filepath.Join(reports, provider.ID+"-"+task.name+".json"), encoded, 0600); err != nil {
 				t.Fatal(err)
