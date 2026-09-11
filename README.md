@@ -9,7 +9,7 @@
 Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a browser game and remember what you were doing yesterday. It has a web desktop, a personality, helper agents and a growing pile of integrations. Written in Go, with the core, web UI and databases bundled together. Bring a local or hosted model. Pick the toys you want to connect.
 
 <p align="center">
-  <a href="#the-toy-box">Features</a> · <a href="#under-the-hood">How it connects</a> · <a href="#quick-start">Install</a> · <a href="documentation/manual/en/README.md">English manual</a> · <a href="documentation/manual/de/README.md">Deutsches Handbuch</a>
+  <a href="#the-toy-box">Features</a> · <a href="#under-the-hood">How it connects</a> · <a href="#what-do-i-need-to-run-it">Requirements</a> · <a href="#quick-start">Install</a> · <a href="documentation/manual/en/README.md">English manual</a> · <a href="documentation/manual/de/README.md">Deutsches Handbuch</a>
 </p>
 
 [![Illustrated AuraGo feature map: the original gopher connects home-lab tools, memory, creative studios, voice and radio, automation and virtual workspaces](assets/readme/gopher-feature-map.webp)](assets/readme/gopher-feature-map.webp)
@@ -79,6 +79,20 @@ Messages and mission triggers reach the **agent loop**. It builds context, calls
 **History** keeps recent turns; **Core Memory** keeps important facts; **RAG** finds related documents and memories; the **knowledge graph** connects entities and relationships. Relevant pieces go into the next request. Recall tools can fetch more. The illustrations simplify the system; they are not UI screenshots.
 
 [Memory deep dive](documentation/manual/en/09-memory.md) · [Architecture](documentation/architecture.md) · [Co-agents](documentation/manual/en/15-coagents.md) · [Eggs and Nests](documentation/manual/en/12-invasion.md)
+
+## What do I need to run it?
+
+**A Linux box and a little room for a gopher.** A Debian-based distribution is ideal. A small **Ryzen 5 or Ryzen 7 mini PC**, or a **Proxmox LXC container**, makes a great home for AuraGo.
+
+[![The AuraGo gopher setting up a Linux mini PC beside a Proxmox LXC host, with RAM, an SSD and an optional GPU on the workbench](assets/readme/gopher-hardware.webp)](assets/readme/gopher-hardware.webp)
+
+| Minimum | Recommended |
+| --- | --- |
+| Dual-core CPU | Quad-core CPU |
+| 2 GB RAM | 8 GB RAM |
+| 1 GB free storage | 20+ GB SSD |
+
+**Integrated and dedicated GPUs are supported for local LLMs and text-to-speech (TTS)** with compatible hardware and backends. The specs above cover AuraGo itself; local models and optional services need extra RAM, storage and, where applicable, GPU memory.
 
 ## Quick start
 

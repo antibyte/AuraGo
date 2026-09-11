@@ -7,6 +7,7 @@ Playful, geeky illustrations generated with the built-in ImageGen tool. The orig
 - [Language flags](language-flags.webp): the 16 flag choices and order from `injectLanguageSwitcher()` in `ui/js/shared/shared-core.js`. All 16 locales have matching English translation-key coverage across `ui/lang/` catalogs. Empty vertical margins were cropped with explicit user approval; flag artwork is unchanged.
 - [Feature map](gopher-feature-map.webp): six capability groups connected to the gopher; cables show grouping, not exact runtime data flow.
 - [Memory map](gopher-memory-map.webp): four parallel context sources; retrieved context and the current request feed the model. One corrected edit removed invented business examples and tool names.
+- [Hardware requirements](gopher-hardware.webp): the gopher with a Linux mini PC and a Proxmox LXC host, plus optional upgrade parts. Hardware specifications remain in the README's Markdown table.
 - [System wiring](system-wiring.svg): editable, hand-authored SVG. Labels and arrows follow the agent/runtime contracts, memory, co-agent and Virtual Computers guides. Personality does not grant permissions; the vault supplies service credentials, not model context. Integration and channel scopes remain distinct.
 
 WebP exports use quality 94 with no visual changes; only the language strip has its empty margins cropped. Inspect labels and connections at full size, then check the README at 900px and 360px in light and dark modes. Essential explanations remain in Markdown. The prior abstract workstation/creation illustrations have been replaced.
@@ -146,4 +147,19 @@ Edit this AuraGo memory infographic. Preserve the excellent hand-inked geeky lib
 5. Preserve the outgoing arrow from bottom tray to MODEL REQUEST as a separate path. Keep all four memory shelves feeding the tray in parallel. The blue RECENT HISTORY arrow tip must be visible entering the tray rather than disappearing behind the mascot.
 6. Preserve title "How the gopher remembers", subtitle "Different shelves. One useful context.", four shelf titles and descriptions, bottom tray label "CONTEXT ASSEMBLY" and "Recent turns + relevant memories", and sticky note "Recall tools can fetch more." with exact spelling.
 No new prose, no duplicate assembly node, no watermark. This diagram is about retrieving relevant information from four parallel memory sources to build ONE model request, guided by the current user request.
+```
+
+## Hardware requirements — generation prompt
+
+Built-in ImageGen, with `gopher-masthead.webp` for mascot identity and `gopher-feature-map.webp` for the illustration style. The complete generated composition is exported as WebP at quality 94.
+
+```text
+Use case: stylized-concept.
+Asset type: ONE companion illustration for the AuraGo README's hardware requirements section.
+Input images: image 1 (gopher-masthead.webp) defines the EXACT mascot identity and hand-inked rendering; image 2 (gopher-feature-map.webp) is the palette, tactile illustration style and home-lab object reference only. Create a NEW scene, do not replicate either composition.
+Primary request: the same friendly turquoise AuraGo gopher setting up a tiny Linux home lab on a wooden workbench, showing a compact mini PC and a Proxmox LXC container as two hosting options.
+Style/medium: beautiful hand-inked retro adventure-game instruction booklet art, bold dark ink contours, matte textured cel shading, subtle aged-paper grain. Midnight navy #071522 background, turquoise #43acb8 mascot, warm ivory #f1dfb4 highlights, restrained mint #9ebe96 and amber #c89251 details. Charming and geeky, consistent with both references.
+Mascot identity: tall rounded turquoise body, huge round ivory-white eyes with thick dark rims, small circular ears, tan double-lobed muzzle, oval black nose, exactly TWO separate buck teeth, tiny tan hands and feet. No clothing or redesign.
+Composition: wide landscape about 2000 x 1100. A single coherent scene with generous margins: gopher slightly left of center proudly resting one paw on a palm-sized dark metal mini PC with front USB ports and a softly lit power button. Small cream equipment label on this PC reads exactly "MINI PC". To the right, a compact open-front home-lab server contains three tidy container compartments. One highlighted compartment holds a small terminal and has one large readable cream label exactly "PROXMOX LXC". Other compartments have blank tabs. The container is visibly INSIDE its host. In the foreground, one modest GPU card, a RAM stick and an SSD lie neatly on the bench as optional upgrade parts; do not imply the GPU is installed in or fits inside the mini PC. A small Linux penguin sticker on the mini PC hints at Linux. One short coiled turquoise patch cable, warm desk lamp light, understated workshop details.
+Keep main hardware silhouettes readable when reduced to README width. No dense infographic panels, no specification text or numbers, no extra labels, no title, no branding slogans, no watermark, no photorealism, no glossy 3D, no glowing neural brains. Essential hardware requirements will be written in Markdown outside the image.
 ```
