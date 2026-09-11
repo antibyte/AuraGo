@@ -789,10 +789,17 @@ background:var(--pw-accent-strong); filter:none; transform:none;
 transform:none; filter:none;
 }
 
-.pw-page[data-workspace-page="config"] .btn-save:disabled {
+.pw-page[data-workspace-page="config"] .btn-save:disabled,
+.pw-page[data-workspace-page="config"] #music-local-actions button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
     pointer-events: none;
+}
+
+.pw-page[data-workspace-page="config"] #music-local-progress {
+    width: 100%;
+    max-width: 28rem;
+    accent-color: var(--pw-accent);
 }
 
 .pw-page[data-workspace-page="config"] .changes-pill.visible {

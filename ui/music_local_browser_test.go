@@ -5,6 +5,8 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -25,10 +27,16 @@ func TestLocalMusicConfigBrowser(t *testing.T) {
   configData.music_generation={enabled:true,provider:'aurago-acestep-local',local:{backend:'auto',device:'auto',vram_reserve_gb:0,timeout_seconds:1800}};
   AuraConfigState.init(configData);
   const original=window.fetch;window.musicActions=[];
+  window.musicRuntime={state:'ready',ready:true,release_ready:true,devices:[],profile:{device:{name:'<img src=x onerror=window.musicInjection=true>',free_gb:12},model:'turbo',lm_model:'',max_duration:120}};
   window.fetch=async(url,options={})=>{
    if(!String(url).startsWith('/api/music-generation/'))return original(url,options);
    musicActions.push({url,method:options.method||'GET',body:options.body});
-   return new Response(JSON.stringify({state:'ready',ready:true,release_ready:true,devices:[],profile:{device:{name:'<img src=x onerror=window.musicInjection=true>',free_gb:12},model:'turbo',lm_model:'',max_duration:120}}),{headers:{'Content-Type':'application/json'}});
+   const response=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
+   if(options.method==='POST'&&window.musicActionError)return response({message:musicActionError},403);
+   if(options.method==='POST'&&window.holdMusicAction)return new Promise(resolve=>window.finishMusicAction=value=>{window.musicRuntime=value;resolve(response(value,202));});
+   if(options.method!=='POST'&&window.failMusicStatus)throw new Error('offline');
+   if(options.method!=='POST'&&window.holdMusicStatus){window.holdMusicStatus=false;return new Promise(resolve=>window.finishMusicStatus=value=>resolve(response(value)));}
+   return response(musicRuntime);
   };
  }`)
 	page.MustEval(`async () => {await selectSection('music_generation');resetDirtySnapshot();}`)
@@ -47,6 +55,61 @@ func TestLocalMusicConfigBrowser(t *testing.T) {
 	page.MustEval(`async () => {await musicLocalRefresh();}`)
 	if page.MustEval(`() => document.querySelector('[data-path="music_generation.local.vram_reserve_gb"]').value!=='0'`).Bool() {
 		t.Fatal("poll overwrote settings")
+	}
+	// Hold both an older status response and the command response to verify
+	// immediate feedback and prevent late polling from undoing that feedback.
+	page.MustEval(`() => {window.holdMusicAction=true;window.holdMusicStatus=true;window.oldMusicPoll=musicLocalRefresh();window.postsBefore=musicActions.filter(r=>r.method==='POST').length;}`)
+	page.MustElement(`[data-music-local-action="start"]`).MustClick()
+	if !page.MustEval(`() => document.querySelector('#music-local-feedback').textContent.includes('gestartet') && [...document.querySelectorAll('[data-music-local-action]')].every(b=>b.disabled)`).Bool() {
+		t.Fatal("slow action has no immediate feedback or duplicate protection")
+	}
+	page.MustEval(`async () => {await musicLocalAction('start');await musicLocalAction('stop');finishMusicStatus({state:'stopped',ready:false});await oldMusicPoll;}`)
+	if !page.MustEval(`() => musicActions.filter(r=>r.method==='POST').length===postsBefore+1 && document.querySelector('#music-local-feedback').textContent.includes('gestartet')`).Bool() {
+		t.Fatal("duplicate submission or stale status overwrote action")
+	}
+	page.MustEval(`() => finishMusicAction({state:'probing',pending:true,ready:false,release_ready:true,devices:[]})`)
+	waitForJSBool(t, page, `() => document.querySelector('#music-local-status').textContent.includes('Hardwareprüfung') && !document.querySelector('[data-music-local-action="stop"]').disabled`)
+	if !page.MustEval(`() => document.querySelector('[data-music-local-action="start"]').disabled && !document.querySelector('#music-local-progress').hidden && !document.querySelector('#music-local-progress').hasAttribute('value')`).Bool() {
+		t.Fatal("background work missing progress or duplicate protection")
+	}
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		page.MustElement("#music-local-actions").MustScrollIntoView()
+		if err := os.WriteFile(filepath.Join(dir, "music-action-progress.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page.MustEval(`async () => {window.musicRuntime={state:'ready',pending:false,ready:true,release_ready:true,devices:[]};await musicLocalRefresh();}`)
+	if !page.MustEval(`() => document.querySelector('#music-local-feedback').classList.contains('is-success') && !document.querySelector('[data-music-local-action="start"]').disabled`).Bool() {
+		t.Fatal("start completion missing")
+	}
+	page.MustElement(`[data-music-local-action="stop"]`).MustClick()
+	if !page.MustEval(`() => document.querySelector('#music-local-feedback').textContent.includes('gestoppt') && document.querySelector('[data-music-local-action="stop"]').disabled`).Bool() {
+		t.Fatal("stop feedback missing")
+	}
+	page.MustEval(`() => finishMusicAction({state:'ready',pending:true,ready:true,release_ready:true,devices:[]})`)
+	waitForJSBool(t, page, `() => document.querySelector('#music-local-status').textContent.includes('Aktion wird ausgeführt')`)
+	page.MustEval(`async () => {window.musicRuntime={state:'stopped',pending:false,ready:false,release_ready:true,devices:[]};await musicLocalRefresh();}`)
+	if !page.MustEval(`() => document.querySelector('#music-local-feedback').textContent.includes('Modelle bleiben erhalten') && document.querySelector('#music-local-feedback').classList.contains('is-success')`).Bool() {
+		t.Fatal("stop completion missing")
+	}
+	page.MustEval(`async () => {window.musicActionError='<img src=x onerror=window.musicInjection=true>';await musicLocalAction('recheck');await musicLocalRefresh();}`)
+	if !page.MustEval(`() => document.querySelector('#music-local-feedback').textContent.includes('Aktion fehlgeschlagen') && !document.querySelector('#music-local-feedback img') && !window.musicInjection`).Bool() {
+		t.Fatal("poll erased action failure or injected markup")
+	}
+	page.MustEval(`() => {window.musicActionError='';}`)
+	page.MustElement(`[data-music-local-action="recheck"]`).MustClick()
+	page.MustEval(`() => finishMusicAction({state:'error',error_code:'acestep_release_not_published',pending:true,ready:false,release_ready:false,devices:[]})`)
+	waitForJSBool(t, page, `() => document.querySelector('#music-local-status').textContent.includes('AuraGo aktualisieren')`)
+	page.MustEval(`async () => {window.musicRuntime.pending=false;await musicLocalRefresh();}`)
+	if !page.MustEval(`() => document.querySelector('#music-local-feedback').classList.contains('is-danger') && document.querySelector('#music-local-feedback').textContent.includes('AuraGo aktualisieren') && !document.querySelector('[data-music-local-action="recheck"]').disabled`).Bool() {
+		t.Fatal("background failure was not reported")
+	}
+	page.MustEval(`async () => {window.failMusicStatus=true;await musicLocalRefresh();}`)
+	if !page.MustEval(`() => document.querySelector('#music-local-status').textContent.includes('Status nicht erreichbar')`).Bool() {
+		t.Fatal("lost status connection has no feedback")
 	}
 }
 
@@ -105,6 +168,13 @@ func TestLocalMusicLocaleCoverage(t *testing.T) {
 			for _, state := range strings.Fields("disabled probing downloading starting loading testing ready busy stopped error") {
 				if values[prefix+state] == "" {
 					t.Errorf("missing %s in %s", state, file)
+				}
+			}
+			if !strings.Contains(file, "/desktop/") {
+				for _, key := range strings.Fields("action_start action_stop action_recheck action_start_done action_stop_done action_recheck_done action_pending action_failed status_unavailable") {
+					if values["config.music_gen."+key] == "" {
+						t.Errorf("missing %s in %s", key, file)
+					}
 				}
 			}
 		}

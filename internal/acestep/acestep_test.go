@@ -364,3 +364,53 @@ func TestReadinessRejectsCrashLoop(t *testing.T) {
 		t.Fatalf("crash loop was not rejected: %v", err)
 	}
 }
+
+func TestActionFeedbackFinishesForReadyStartAndFailedStop(t *testing.T) {
+	m := testManager(t)
+	var stopDuringCheck atomic.Bool
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if stopDuringCheck.Swap(false) {
+			if err := m.Action("stop"); err != nil {
+				t.Error(err)
+			}
+		}
+		json.NewEncoder(w).Encode(runtimeStatus{Ready: true, Profile: *m.Status().Profile})
+	}))
+	defer api.Close()
+	m.baseURL = api.URL
+	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			http.Error(w, "stop failed", 500)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"Id": "worker", "Config": map[string]any{"Labels": dockerutil.ManagedLabels(Owner, "music", "runtime", "test")}, "State": map[string]any{"Running": true}})
+	}))
+	defer docker.Close()
+	m.want.DockerHost = strings.Replace(docker.URL, "http://", "tcp://", 1)
+	m.docker = dockerutil.NewClient(m.want.DockerHost, time.Second)
+	m.applied = fingerprint(m.want)
+	for _, action := range []string{"start", "stop"} {
+		if err := m.Action(action); err != nil {
+			t.Fatal(err)
+		}
+		if !m.Status().Pending {
+			t.Fatal("action was not acknowledged as pending")
+		}
+		m.reconcile()
+		status := m.Status()
+		if status.Pending {
+			t.Fatalf("%s remained pending: %+v", action, status)
+		}
+		if action == "start" && !status.Ready || action == "stop" && status.ErrorCode != "runtime_stop_failed" {
+			t.Fatalf("wrong outcome: %+v", status)
+		}
+	}
+	stopDuringCheck.Store(true)
+	if err := m.Action("start"); err != nil {
+		t.Fatal(err)
+	}
+	m.reconcile()
+	if !m.Status().Pending {
+		t.Fatal("queued stop lost its pending feedback")
+	}
+}

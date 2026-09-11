@@ -217,6 +217,11 @@ func (m *Manager) reconcile() {
 	m.probeOnly = false
 	m.mu.Unlock()
 	revision := fingerprint(w)
+	defer func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		m.status.Pending = fingerprint(m.want) != revision || m.manualStop != stopped || m.probeOnly
+	}()
 	if err := w.Local.Validate(); err != nil {
 		m.setState("error", "invalid_local_music_config")
 		return
