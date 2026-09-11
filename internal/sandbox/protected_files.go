@@ -9,9 +9,13 @@ import (
 	"strings"
 )
 
-// ProtectFilesCommand refuses unrestricted process execution while protected user
-// files exist. Native file APIs retain their own narrower source-aware policy.
+// ProtectFilesCommand protects Notes within the selected isolation policy.
+// Explicitly disabled isolation or opted-in unsafe fallback permits local execution;
+// native file APIs retain their independent Notes mutation guards.
 func ProtectFilesCommand(cmd *exec.Cmd, roots []string, contexts ...context.Context) (*exec.Cmd, error) {
+	if _, unrestricted := Get().(*FallbackSandbox); unrestricted {
+		return cmd, nil
+	}
 	active := []string{}
 	for _, root := range roots {
 		if _, err := os.Lstat(root); err == nil {

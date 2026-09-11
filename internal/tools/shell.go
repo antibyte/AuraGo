@@ -27,7 +27,8 @@ var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 //
 // Hardening strategies applied:
 //   - Landlock requires shell_sandbox.enabled and a functional Linux backend.
-//   - Desktop Notes protection separately refuses unsafe local processes.
+//   - Desktop Notes write-path checks apply within active isolation; disabled
+//     isolation or explicit unsafe fallback permits otherwise authorized processes.
 //   - Workspace directory is restricted and enforced via getAbsWorkspace.
 //   - All processes are killed on timeout via KillProcessTree.
 //   - Bounded stdout/stderr buffers prevent memory exhaustion.

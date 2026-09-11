@@ -317,6 +317,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			ID: "shell_no_sandbox", Severity: sev,
 			Title: "Shell execution without effective sandbox",
 			Description: "Shell execution is enabled, but the Landlock shell sandbox is not effectively available. " +
+				"Unisolated commands run with the AuraGo process user's permissions and can bypass Desktop Notes protection in native file tools. " +
 				"Enable shell_sandbox on a supported Linux host, or disable shell execution for this environment.",
 			AutoFixable: false,
 		})

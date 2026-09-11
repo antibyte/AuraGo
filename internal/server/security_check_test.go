@@ -63,6 +63,9 @@ func TestCheckSecurityWarnsWhenShellEnabledWithoutSandbox(t *testing.T) {
 	if hint.Severity != SevWarning {
 		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
 	}
+	if !strings.Contains(hint.Description, "can bypass Desktop Notes protection") {
+		t.Fatalf("missing explanation of unisolated execution: %s", hint.Description)
+	}
 }
 
 func TestCheckSecurityWarnsWhenNetworkShareWritesAreEnabled(t *testing.T) {

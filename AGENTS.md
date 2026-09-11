@@ -812,6 +812,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Implement necessary safety measures when passing external content to the agent
 
 #### Tool Safety Requirements
+- Local process execution follows the selected shell sandbox policy across all chat channels. Disabled isolation or explicit unsafe fallback must not be overridden by the existence of Desktop Notes. Keep tool permission gates and native Notes/file mutation protection; unisolated code can bypass the latter, which the shell security hint and tool manual must state. Active Landlock still rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
 - All tools and integrations should have a toggle to activate them (unless essential for system function)
 - Tools with potential to cause harm must NOT be enabled by default
 - Users must be able to disable potentially harmful tools via the UI

@@ -1,15 +1,14 @@
 package sandbox
 
 import (
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
 )
 
-func TestProtectedNotesRefuseUnsafeProcesses(t *testing.T) {
+func TestProtectedNotesRespectExecutionPolicy(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "notes")
 	cmd := exec.Command("never-run-this-command")
 	if got, err := ProtectFilesCommand(cmd, []string{root}); err != nil || got != cmd {
@@ -18,12 +17,27 @@ func TestProtectedNotesRefuseUnsafeProcesses(t *testing.T) {
 	if err := os.Mkdir(root, 0700); err != nil {
 		t.Fatal(err)
 	}
-	restore := SetForTest(&FallbackSandbox{})
-	defer restore()
-	if _, err := ProtectFilesCommand(cmd, []string{root}); err == nil {
-		t.Fatal("unrestricted process could modify protected notes")
-	} else if runtime.GOOS == "linux" && (!strings.Contains(err.Error(), "Landlock shell isolation is NOT active") || !strings.Contains(err.Error(), "separate Desktop Notes protection")) {
-		t.Fatalf("notes refusal misrepresents the inactive sandbox: %v", err)
+	for _, test := range []struct {
+		name        string
+		cfg         ShellSandboxConfig
+		wantBlocked bool
+	}{
+		{"disabled", ShellSandboxConfig{}, false},
+		{"explicit unsafe fallback", ShellSandboxConfig{Enabled: true, AllowUnsafeFallback: true}, false},
+		{"enabled but unavailable", ShellSandboxConfig{Enabled: true}, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// Docker makes the unavailable-backend case deterministic on every OS.
+			sb := selectSandboxForCaps(test.cfg, Capabilities{InDocker: true}, t.TempDir(), slog.Default())
+			t.Cleanup(SetForTest(sb))
+			got, err := ProtectFilesCommand(cmd, []string{root})
+			if (err != nil) != test.wantBlocked || !test.wantBlocked && got != cmd {
+				t.Fatalf("command = %v, error = %v, want blocked = %v", got, err, test.wantBlocked)
+			}
+			if !ProtectedFilePath(filepath.Join(root, "note.md"), []string{root}, false) {
+				t.Fatal("execution policy disabled native Notes protection")
+			}
+		})
 	}
 	for _, test := range []struct {
 		a, b string
