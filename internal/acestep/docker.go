@@ -21,8 +21,9 @@ import (
 var imagePattern = regexp.MustCompile(`^ghcr\.io/antibyte/aurago-acestep-(cuda|rocm|xpu|cpu)@sha256:[0-9a-f]{64}$`)
 
 type containerInfo struct {
-	ID     string `json:"Id"`
-	Config struct {
+	ID           string `json:"Id"`
+	RestartCount int    `json:"RestartCount"`
+	Config       struct {
 		Image  string            `json:"Image"`
 		Labels map[string]string `json:"Labels"`
 	} `json:"Config"`
@@ -369,7 +370,7 @@ func (m *Manager) waitReady(ctx context.Context, expectedImage string) error {
 		if err != nil {
 			return err
 		}
-		if !exists || !info.State.Running {
+		if !exists || !info.State.Running || info.RestartCount >= 3 {
 			return fmt.Errorf("acestep_start_failed")
 		}
 		select {

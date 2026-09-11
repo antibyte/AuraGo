@@ -134,52 +134,65 @@ func TestNativeGenerationContract(t *testing.T) {
 }
 
 func TestCancellationStopsOnlyOwnedWorkerAndBusyDoesNotSubmit(t *testing.T) {
-	m := testManager(t)
-	submitted := make(chan struct{})
-	var stops atomic.Int32
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/release_task" {
-			t.Error("unexpected request")
-		}
-		close(submitted)
-		io.WriteString(w, `{"code":200,"data":{"task_id":"one"}}`)
-	}))
-	defer upstream.Close()
-	m.baseURL = upstream.URL
-	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			_ = json.NewEncoder(w).Encode(map[string]any{"Id": "owned123", "Config": map[string]any{"Labels": dockerutil.ManagedLabels(Owner, "music", "runtime", "")}, "State": map[string]any{"Running": true}})
-		case "POST":
-			if !strings.Contains(r.URL.Path, "owned123/stop") {
-				t.Errorf("wrong target %s", r.URL.Path)
+	for _, mode := range []string{"cancel", "deadline"} {
+		t.Run(mode, func(t *testing.T) {
+			m := testManager(t)
+			submitted := make(chan struct{})
+			var stops atomic.Int32
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/release_task" {
+					t.Error("unexpected request")
+				}
+				close(submitted)
+				io.WriteString(w, `{"code":200,"data":{"task_id":"one"}}`)
+			}))
+			defer upstream.Close()
+			m.baseURL = upstream.URL
+			docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case "GET":
+					_ = json.NewEncoder(w).Encode(map[string]any{"Id": "owned123", "Config": map[string]any{"Labels": dockerutil.ManagedLabels(Owner, "music", "runtime", "")}, "State": map[string]any{"Running": true}})
+				case "POST":
+					if !strings.Contains(r.URL.Path, "owned123/stop") {
+						t.Errorf("wrong target %s", r.URL.Path)
+					}
+					stops.Add(1)
+					w.WriteHeader(204)
+				default:
+					t.Errorf("unexpected Docker mutation %s", r.Method)
+				}
+			}))
+			defer docker.Close()
+			m.docker = dockerutil.NewClient(strings.Replace(docker.URL, "http://", "tcp://", 1), time.Second)
+			ctx, cancel := context.WithCancel(context.Background())
+			wantError := context.Canceled
+			if mode == "deadline" {
+				cancel()
+				ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+				wantError = context.DeadlineExceeded
 			}
-			stops.Add(1)
-			w.WriteHeader(204)
-		default:
-			t.Errorf("unexpected Docker mutation %s", r.Method)
-		}
-	}))
-	defer docker.Close()
-	m.docker = dockerutil.NewClient(strings.Replace(docker.URL, "http://", "tcp://", 1), time.Second)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { _, err := m.Generate(ctx, Params{Prompt: "Piano", Instrumental: true}); done <- err }()
-	<-submitted
-	if _, err := m.Generate(context.Background(), Params{Prompt: "Other", Instrumental: true}); err == nil || err.Error() != "acestep_busy" {
-		t.Fatalf("concurrent result %v", err)
-	}
-	cancel()
-	select {
-	case err := <-done:
-		if !errors.Is(err, context.Canceled) {
-			t.Fatal(err)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("cancel did not complete")
-	}
-	if stops.Load() != 1 {
-		t.Fatalf("worker stop count %d status %+v", stops.Load(), m.Status())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { _, err := m.Generate(ctx, Params{Prompt: "Piano", Instrumental: true}); done <- err }()
+			<-submitted
+			if _, err := m.Generate(context.Background(), Params{Prompt: "Other", Instrumental: true}); err == nil || err.Error() != "acestep_busy" {
+				t.Fatalf("concurrent result %v", err)
+			}
+			if mode == "cancel" {
+				cancel()
+			}
+			select {
+			case err := <-done:
+				if !errors.Is(err, wantError) {
+					t.Fatal(err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatal("cancel did not complete")
+			}
+			if stops.Load() != 1 {
+				t.Fatalf("worker stop count %d status %+v", stops.Load(), m.Status())
+			}
+		})
 	}
 }
 
@@ -330,5 +343,24 @@ func TestHardwareProbeDoesNotStartStoppedRuntime(t *testing.T) {
 	m.reconcile()
 	if !m.manualStop || m.Status().State != "stopped" || writes.Load() != 0 || m.forceQualification {
 		t.Fatalf("hardware probe started qualification: %+v", m.Status())
+	}
+}
+
+func TestReadinessRejectsCrashLoop(t *testing.T) {
+	m := testManager(t)
+	api := httptest.NewServer(http.NotFoundHandler())
+	defer api.Close()
+	m.baseURL = api.URL
+	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"Id": "worker", "RestartCount": 3,
+			"Config": map[string]any{"Labels": dockerutil.ManagedLabels(Owner, "music", "runtime", "test")},
+			"State":  map[string]any{"Running": true}})
+	}))
+	defer docker.Close()
+	m.docker = dockerutil.NewClient(strings.Replace(docker.URL, "http://", "tcp://", 1), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := m.waitReady(ctx, "unused"); err == nil || err.Error() != "acestep_start_failed" {
+		t.Fatalf("crash loop was not rejected: %v", err)
 	}
 }
