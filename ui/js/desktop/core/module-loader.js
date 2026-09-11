@@ -50,7 +50,7 @@
             styles: appStyles('/css/desktop-app-planning.css')
         },
         'calendar': {
-            styles: appStyles('/css/desktop-app-planning.css')
+            styles: appStyles('/css/desktop-app-calendar.css')
         },
         'music-player': {
             styles: appStyles('/css/desktop-app-planning.css')

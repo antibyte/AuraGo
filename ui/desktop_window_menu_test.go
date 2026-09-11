@@ -248,7 +248,7 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 	}{
 		{
 			name:     "calendar",
-			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderCalendar(id)"),
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "function calendarShellHTML(session)"),
 			removed:  []string{`data-cal-new`},
 			retained: []string{`data-cal-today`, `data-cal-nav`, `data-cal-view`},
 		},
@@ -498,6 +498,7 @@ func readAllDesktopAppCSS(t *testing.T) string {
 		"css/desktop-app-settings.css",
 		"css/desktop-app-calculator.css",
 		"css/desktop-app-planning.css",
+		"css/desktop-app-calendar.css",
 		"css/desktop-app-chat.css",
 		"css/desktop-app-quick-connect.css",
 		"css/desktop-app-gallery.css",

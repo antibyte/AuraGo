@@ -104,6 +104,7 @@ func TestDesktopCSSDoesNotAppendAlphaToCSSVariables(t *testing.T) {
 		"css/desktop-app-settings.css",
 		"css/desktop-app-calculator.css",
 		"css/desktop-app-planning.css",
+		"css/desktop-app-calendar.css",
 		"css/desktop-app-chat.css",
 		"css/desktop-app-quick-connect.css",
 		"css/desktop-app-gallery.css",

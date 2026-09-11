@@ -1,0 +1,2191 @@
+/* desktop-app-calendar.css - Calendar app (shell, month/week/day/agenda views, editor, peek, snackbar) */
+
+.vd-calendar-shell {
+    --cal-accent-rgb: var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166);
+    --cal-accent: var(--vd-accent, rgb(var(--cal-accent-rgb)));
+    --cal-on-accent: #fff;
+    --cal-text: var(--vd-text);
+    --cal-muted: var(--vd-theme-muted, var(--vd-muted));
+    --cal-border: var(--vd-theme-border, var(--vd-border));
+    --cal-border-strong: var(--vd-theme-border-strong, var(--cal-border));
+    --cal-panel: var(--vd-theme-panel-bg, rgba(255, 255, 255, 0.04));
+    --cal-panel-strong: var(--vd-theme-panel-bg-strong, rgba(30, 34, 44, 0.96));
+    --cal-control: var(--vd-theme-control-bg, rgba(255, 255, 255, 0.06));
+    --cal-control-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, 0.1));
+    --cal-accent-soft: var(--vd-theme-accent-soft, rgba(var(--cal-accent-rgb), 0.14));
+    --cal-ink-soft: rgba(0, 0, 0, 0.16);
+    --cal-status-upcoming: var(--cal-accent);
+    --cal-status-completed: #3cc27f;
+    --cal-status-overdue: var(--vd-coral, #ff6b6b);
+    --cal-status-cancelled: var(--cal-muted);
+    --cal-now: #ff5a5f;
+    --cal-danger: #ef4444;
+    --cal-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --cal-fast: 160ms;
+    position: relative;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: var(--vd-theme-app-bg);
+    color: var(--cal-text);
+    font-size: 13px;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .vd-calendar-shell,
+.desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .vd-calendar-editor {
+    --cal-ink-soft: rgba(0, 0, 0, 0.07);
+    --cal-status-completed: #2aa866;
+    color-scheme: light;
+}
+
+.desktop-body[data-theme="standard"] .vd-calendar-shell,
+.desktop-body[data-theme="standard"] .vd-calendar-editor,
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-calendar-shell,
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-calendar-editor {
+    color-scheme: dark;
+}
+
+/* ---------- Command bar ---------- */
+
+.vd-calendar-command {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cal-border);
+}
+
+.vd-calendar-command-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vd-calendar-command-end {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+}
+
+.vd-calendar-icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--cal-muted);
+    cursor: pointer;
+    transition: background var(--cal-fast) ease, color var(--cal-fast) ease, transform var(--cal-fast) ease;
+}
+
+.vd-calendar-icon-button:hover {
+    background: var(--cal-control-hover);
+    color: var(--cal-text);
+}
+
+.vd-calendar-icon-button:active {
+    transform: scale(0.94);
+}
+
+.vd-calendar-icon-button:disabled,
+.vd-calendar-today-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+    transform: none;
+}
+
+.vd-calendar-icon-button.is-danger:hover {
+    background: rgba(239, 68, 68, 0.14);
+    color: var(--cal-danger);
+}
+
+.vd-calendar-shell :is(button, input, select, textarea, [tabindex]):focus-visible,
+.vd-calendar-editor :is(button, [tabindex]):focus-visible {
+    outline: 2px solid rgba(var(--cal-accent-rgb), 0.75);
+    outline-offset: 2px;
+}
+
+.vd-calendar-nav {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--cal-border);
+    border-radius: 9px;
+    background: var(--cal-control);
+}
+
+.vd-calendar-nav .vd-calendar-icon-button {
+    width: 30px;
+    height: 30px;
+    border-radius: 0;
+}
+
+.vd-calendar-nav .vd-calendar-icon-button + .vd-calendar-icon-button {
+    border-left: 1px solid var(--cal-border);
+}
+
+.vd-calendar-today-button {
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.vd-calendar-range {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vd-calendar-range-title {
+    margin: 0 4px 0 6px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+    text-transform: capitalize;
+}
+
+.vd-calendar-jump-input {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.vd-calendar-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: clamp(150px, 22vw, 240px);
+    height: 32px;
+    min-width: 0;
+    padding: 0 8px 0 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--cal-border);
+    border-radius: 9px;
+    background: var(--cal-control);
+    color: var(--cal-muted);
+    transition: border-color var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
+}
+
+.vd-calendar-search:focus-within {
+    border-color: rgba(var(--cal-accent-rgb), 0.65);
+    box-shadow: 0 0 0 3px rgba(var(--cal-accent-rgb), 0.16);
+}
+
+.vd-calendar-search input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 12.5px;
+    outline: none;
+}
+
+.vd-calendar-search input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.vd-calendar-search-clear {
+    padding: 0 3px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cal-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.vd-calendar-search-clear:hover {
+    color: var(--cal-text);
+}
+
+.vd-calendar-view-switch {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--cal-border);
+    border-radius: 10px;
+    background: var(--cal-control);
+}
+
+.vd-calendar-view-button {
+    height: 26px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--cal-muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease, color var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
+}
+
+.vd-calendar-view-button:hover {
+    color: var(--cal-text);
+}
+
+.vd-calendar-view-button.is-active {
+    background: var(--cal-panel-strong);
+    color: var(--cal-text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.vd-calendar-create {
+    min-height: 32px;
+    padding: 0 12px 0 10px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.vd-calendar-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    overflow: hidden;
+}
+
+.vd-calendar-progress i {
+    display: block;
+    width: 35%;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--cal-accent);
+    animation: vd-calendar-progress 1.1s infinite var(--cal-ease);
+}
+
+/* ---------- Stage & sidebar ---------- */
+
+.vd-calendar-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    min-height: 0;
+}
+
+.vd-calendar-shell.is-sidebar-collapsed .vd-calendar-stage {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.vd-calendar-shell.is-sidebar-collapsed .vd-calendar-sidebar {
+    display: none;
+}
+
+.vd-calendar-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    padding: 14px 12px 12px;
+    border-right: 1px solid var(--cal-border);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.vd-calendar-body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-calendar-body.is-entering {
+    animation: vd-calendar-enter 220ms var(--cal-ease);
+}
+
+/* Mini month */
+
+.vd-calendar-mini-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.vd-calendar-mini-head .vd-calendar-icon-button {
+    width: 26px;
+    height: 26px;
+}
+
+.vd-calendar-mini-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: capitalize;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.vd-calendar-mini-title:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-mini-weekdays,
+.vd-calendar-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.vd-calendar-mini-weekdays span {
+    padding: 2px 0 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-mini-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease, color var(--cal-fast) ease;
+}
+
+.vd-calendar-mini-day:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-mini-day.is-other {
+    color: var(--cal-muted);
+    opacity: 0.5;
+}
+
+.vd-calendar-mini-day.in-range {
+    border-radius: 0;
+    background: var(--cal-accent-soft);
+}
+
+.vd-calendar-mini-day.is-today {
+    color: var(--cal-accent);
+    font-weight: 800;
+}
+
+.vd-calendar-mini-day.is-selected {
+    background: var(--cal-accent);
+    color: var(--cal-on-accent);
+    opacity: 1;
+}
+
+.vd-calendar-mini-day.has-events::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.75;
+    transform: translateX(-50%);
+}
+
+/* Sidebar agenda */
+
+.vd-calendar-next-up {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px;
+    border: 1px solid rgba(var(--cal-accent-rgb), 0.35);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(var(--cal-accent-rgb), 0.24), rgba(var(--cal-accent-rgb), 0.06));
+    color: var(--cal-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
+}
+
+.vd-calendar-next-up:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.vd-calendar-next-up-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cal-accent);
+}
+
+.vd-calendar-next-up strong {
+    font-size: 14px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.vd-calendar-next-up-when {
+    font-size: 12px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-side-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+    padding: 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-side-section.is-overdue h4 {
+    color: var(--cal-status-overdue);
+}
+
+.vd-calendar-side-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--cal-control);
+    color: var(--cal-text);
+    font-size: 10.5px;
+    letter-spacing: 0;
+}
+
+.vd-calendar-side-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease;
+}
+
+.vd-calendar-side-item:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-side-item-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.vd-calendar-side-item-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-calendar-side-item.is-completed .vd-calendar-side-item-title,
+.vd-calendar-side-item.is-cancelled .vd-calendar-side-item-title {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.vd-calendar-side-item-meta {
+    font-size: 11.5px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-side-empty {
+    margin: 0;
+    padding: 4px 8px 6px;
+    font-size: 12px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-side-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--cal-border);
+}
+
+.vd-calendar-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px;
+    font-size: 12px;
+    color: var(--cal-muted);
+    cursor: pointer;
+}
+
+.vd-calendar-check input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--cal-accent);
+}
+
+/* Status dots & pills */
+
+.vd-calendar-event-dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cal-status-upcoming);
+}
+
+.is-completed > .vd-calendar-event-dot,
+.vd-calendar-event-dot.is-completed {
+    background: var(--cal-status-completed);
+}
+
+.is-overdue > .vd-calendar-event-dot,
+.vd-calendar-event-dot.is-overdue {
+    background: var(--cal-status-overdue);
+}
+
+.is-cancelled > .vd-calendar-event-dot,
+.vd-calendar-event-dot.is-cancelled {
+    background: var(--cal-status-cancelled);
+}
+
+.vd-calendar-status-pill {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--cal-status-upcoming) 18%, transparent);
+    color: var(--cal-status-upcoming);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.vd-calendar-status-pill.is-completed {
+    background: color-mix(in srgb, var(--cal-status-completed) 18%, transparent);
+    color: var(--cal-status-completed);
+}
+
+.vd-calendar-status-pill.is-overdue {
+    background: color-mix(in srgb, var(--cal-status-overdue) 18%, transparent);
+    color: var(--cal-status-overdue);
+}
+
+.vd-calendar-status-pill.is-cancelled {
+    background: var(--cal-control);
+    color: var(--cal-muted);
+}
+
+/* ---------- Month view ---------- */
+
+.vd-calendar-weekdays {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid var(--cal-border);
+    background: var(--vd-theme-app-bg);
+}
+
+.vd-calendar-weekdays span {
+    padding: 7px 8px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-weekdays span.is-weekend {
+    opacity: 0.7;
+}
+
+.vd-calendar-month {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(var(--vd-calendar-rows, 6), minmax(0, 1fr));
+    min-height: calc(var(--vd-calendar-rows, 6) * 76px);
+}
+
+.vd-calendar-cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: 4px;
+    box-sizing: border-box;
+    border-right: 1px solid var(--cal-border);
+    border-bottom: 1px solid var(--cal-border);
+    outline: none;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
+}
+
+.vd-calendar-cell:nth-child(7n) {
+    border-right: 0;
+}
+
+.vd-calendar-cell.is-weekend {
+    background: color-mix(in srgb, var(--cal-panel) 55%, transparent);
+}
+
+.vd-calendar-cell:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-cell.is-other .vd-calendar-daynum,
+.vd-calendar-cell.is-other .vd-calendar-event,
+.vd-calendar-cell.is-other .vd-calendar-more {
+    opacity: 0.55;
+}
+
+.vd-calendar-cell.is-selected {
+    box-shadow: inset 0 0 0 2px rgba(var(--cal-accent-rgb), 0.5);
+}
+
+.vd-calendar-shell .vd-calendar-cell:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--cal-accent);
+}
+
+.vd-calendar-cell.is-drop-target {
+    background: var(--cal-accent-soft);
+    box-shadow: inset 0 0 0 2px rgba(var(--cal-accent-rgb), 0.75);
+}
+
+.vd-calendar-cell.is-pulse {
+    animation: vd-calendar-pulse 900ms ease-out;
+}
+
+.vd-calendar-cell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    min-height: 26px;
+}
+
+.vd-calendar-daynum {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    min-width: 24px;
+    padding: 0 5px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease;
+}
+
+.vd-calendar-daynum small {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-daynum:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-cell.is-today .vd-calendar-daynum {
+    padding: 0 1px;
+}
+
+.vd-calendar-cell.is-today .vd-calendar-daynum b {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--cal-accent);
+    color: var(--cal-on-accent);
+    font-weight: 800;
+}
+
+.vd-calendar-cell-add {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cal-muted);
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity var(--cal-fast) ease, background var(--cal-fast) ease, color var(--cal-fast) ease;
+}
+
+.vd-calendar-cell:hover .vd-calendar-cell-add,
+.vd-calendar-cell:focus-within .vd-calendar-cell-add {
+    opacity: 1;
+}
+
+.vd-calendar-cell-add:hover {
+    background: var(--cal-accent-soft);
+    color: var(--cal-accent);
+}
+
+.vd-calendar-cell-events {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ---------- Event chips ---------- */
+
+.vd-calendar-event {
+    --cal-status: var(--cal-status-upcoming);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    padding: 3px 7px 3px 6px;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--cal-status) 16%, transparent);
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease, transform var(--cal-fast) ease, box-shadow var(--cal-fast) ease, opacity var(--cal-fast) ease;
+}
+
+.vd-calendar-event:hover {
+    background: color-mix(in srgb, var(--cal-status) 30%, transparent);
+}
+
+.vd-calendar-event:active {
+    transform: scale(0.99);
+}
+
+.vd-calendar-event.is-completed { --cal-status: var(--cal-status-completed); }
+.vd-calendar-event.is-overdue { --cal-status: var(--cal-status-overdue); }
+.vd-calendar-event.is-cancelled { --cal-status: var(--cal-status-cancelled); }
+
+.vd-calendar-event.is-completed .vd-calendar-event-title,
+.vd-calendar-event.is-cancelled .vd-calendar-event-title {
+    text-decoration: line-through;
+    opacity: 0.75;
+}
+
+.vd-calendar-event .vd-calendar-event-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--cal-status);
+}
+
+.vd-calendar-event-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-event-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-calendar-event[draggable="true"] {
+    cursor: grab;
+}
+
+.vd-calendar-event.is-dragging {
+    opacity: 0.35;
+}
+
+.vd-calendar-shell.is-dragging .vd-calendar-event {
+    pointer-events: none;
+}
+
+.vd-calendar-event.is-peeking {
+    box-shadow: 0 0 0 2px rgba(var(--cal-accent-rgb), 0.65);
+}
+
+.vd-calendar-badges {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 3px;
+}
+
+.vd-calendar-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 4px;
+    background: var(--cal-ink-soft);
+    color: var(--cal-muted);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.vd-calendar-badge-agent {
+    color: var(--cal-accent);
+}
+
+.vd-calendar-more {
+    align-self: flex-start;
+    padding: 2px 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cal-muted);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.vd-calendar-more:hover {
+    background: var(--cal-control-hover);
+    color: var(--cal-text);
+}
+
+/* ---------- Time grid (week/day) ---------- */
+
+.vd-calendar-time-grid {
+    --cal-gutter: 58px;
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+}
+
+.vd-calendar-time-head {
+    display: grid;
+    grid-template-columns: var(--cal-gutter) minmax(0, 1fr);
+    border-bottom: 1px solid var(--cal-border);
+    background: var(--vd-theme-app-bg);
+}
+
+.vd-calendar-time-gutter-head {
+    display: grid;
+    place-items: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-time-head-days {
+    display: grid;
+    grid-template-columns: repeat(var(--vd-calendar-days, 7), minmax(0, 1fr));
+}
+
+.vd-calendar-day-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px 6px;
+    border: 0;
+    border-left: 1px solid var(--cal-border);
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease;
+}
+
+.vd-calendar-day-head:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-day-head-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-day-head-num {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-calendar-day-head.is-today .vd-calendar-day-head-name {
+    color: var(--cal-accent);
+}
+
+.vd-calendar-day-head.is-today .vd-calendar-day-head-num {
+    background: var(--cal-accent);
+    color: var(--cal-on-accent);
+}
+
+.vd-calendar-day-head-count {
+    font-size: 10.5px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-time-scroll {
+    min-height: 0;
+    overflow: auto;
+}
+
+.vd-calendar-time-body {
+    display: grid;
+    grid-template-columns: var(--cal-gutter) minmax(0, 1fr);
+}
+
+.vd-calendar-time-gutter {
+    position: relative;
+}
+
+.vd-calendar-hour-label {
+    position: relative;
+    box-sizing: border-box;
+}
+
+.vd-calendar-hour-label span {
+    position: absolute;
+    top: -7px;
+    right: 8px;
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-hour-label:first-child span {
+    display: none;
+}
+
+.vd-calendar-time-columns {
+    display: grid;
+    grid-template-columns: repeat(var(--vd-calendar-days, 7), minmax(0, 1fr));
+}
+
+.vd-calendar-day-column {
+    position: relative;
+    border-left: 1px solid var(--cal-border);
+    transition: background var(--cal-fast) ease;
+}
+
+.vd-calendar-day-column.is-weekend {
+    background: color-mix(in srgb, var(--cal-panel) 45%, transparent);
+}
+
+.vd-calendar-day-column.is-today {
+    background: rgba(var(--cal-accent-rgb), 0.05);
+}
+
+.vd-calendar-day-column.is-drop-target {
+    background: var(--cal-accent-soft);
+}
+
+.vd-calendar-hour-slot {
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--cal-border);
+    background-image: linear-gradient(to bottom, transparent calc(50% - 0.5px), color-mix(in srgb, var(--cal-border) 55%, transparent) calc(50% - 0.5px), color-mix(in srgb, var(--cal-border) 55%, transparent) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+    cursor: pointer;
+    transition: background-color var(--cal-fast) ease;
+}
+
+.vd-calendar-hour-slot:hover {
+    background-color: var(--cal-control-hover);
+}
+
+.vd-calendar-column-events {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.vd-calendar-column-events .vd-calendar-event {
+    pointer-events: auto;
+}
+
+.vd-calendar-event-timed {
+    position: absolute;
+    align-items: flex-start;
+    padding: 4px 6px 4px 7px;
+    border-left: 3px solid var(--cal-status);
+    background: color-mix(in srgb, var(--cal-status) 24%, var(--vd-theme-app-bg));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+    overflow: hidden;
+    z-index: 2;
+}
+
+.vd-calendar-event-timed:hover {
+    background: color-mix(in srgb, var(--cal-status) 36%, var(--vd-theme-app-bg));
+    z-index: 3;
+}
+
+.vd-calendar-event-timed .vd-calendar-event-dot {
+    display: none;
+}
+
+.vd-calendar-drop-ghost {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    z-index: 4;
+    box-sizing: border-box;
+    border: 1.5px dashed var(--cal-accent);
+    border-radius: 6px;
+    background: rgba(var(--cal-accent-rgb), 0.12);
+    pointer-events: none;
+}
+
+.vd-calendar-drop-ghost span {
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--cal-accent);
+}
+
+.vd-calendar-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    height: 0;
+    border-top: 2px solid var(--cal-now);
+    pointer-events: none;
+}
+
+.vd-calendar-now-line::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--cal-now);
+}
+
+.vd-calendar-now-line span {
+    position: absolute;
+    top: -9px;
+    right: 4px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--cal-now);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+}
+
+/* ---------- Agenda view ---------- */
+
+.vd-calendar-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 12px 18px 28px;
+    box-sizing: border-box;
+}
+
+.vd-calendar-agenda-summary {
+    padding: 2px 6px 10px;
+    font-size: 12px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-agenda-day {
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--cal-border);
+}
+
+.vd-calendar-agenda-day:first-of-type {
+    border-top: 0;
+}
+
+.vd-calendar-agenda-head {
+    position: sticky;
+    top: 8px;
+    align-self: start;
+}
+
+.vd-calendar-agenda-date {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
+    padding: 4px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease;
+}
+
+.vd-calendar-agenda-date:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-agenda-daynum {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--cal-control);
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-calendar-agenda-day.is-today .vd-calendar-agenda-daynum {
+    background: var(--cal-accent);
+    color: var(--cal-on-accent);
+}
+
+.vd-calendar-agenda-daymeta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-agenda-daymeta b {
+    font-size: 13px;
+    color: var(--cal-text);
+    text-transform: capitalize;
+}
+
+.vd-calendar-agenda-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.vd-calendar-agenda-row {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px;
+    border-radius: 10px;
+    transition: background var(--cal-fast) ease;
+}
+
+.vd-calendar-agenda-row:hover {
+    background: var(--cal-control-hover);
+}
+
+.vd-calendar-agenda-time {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-calendar-agenda-time b {
+    font-size: 13px;
+}
+
+.vd-calendar-agenda-time span {
+    font-size: 11px;
+    color: var(--cal-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-calendar-event-agenda {
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 13px;
+}
+
+.vd-calendar-event-agenda .vd-calendar-event-time {
+    display: none;
+}
+
+.vd-calendar-agenda-actions {
+    display: inline-flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity var(--cal-fast) ease;
+}
+
+.vd-calendar-agenda-row:hover .vd-calendar-agenda-actions,
+.vd-calendar-agenda-row:focus-within .vd-calendar-agenda-actions {
+    opacity: 1;
+}
+
+/* ---------- Empty, error & skeleton states ---------- */
+
+.vd-calendar-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    max-width: 380px;
+    margin: auto;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-empty strong {
+    font-size: 15px;
+    color: var(--cal-text);
+}
+
+.vd-calendar-empty p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.vd-calendar-empty .vd-button {
+    margin-top: 8px;
+}
+
+.vd-calendar-empty-art {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin-bottom: 6px;
+    border-radius: 22px;
+    background: var(--cal-accent-soft);
+}
+
+.vd-calendar-skeleton {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 6px;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.vd-calendar-skeleton i {
+    display: block;
+    min-height: 40px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--cal-control) 25%, var(--cal-control-hover) 50%, var(--cal-control) 75%);
+    background-size: 200% 100%;
+    animation: vd-calendar-shimmer 1.4s infinite linear;
+}
+
+.vd-calendar-skeleton-month {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+}
+
+.vd-calendar-skeleton-grid {
+    grid-template-columns: repeat(var(--vd-calendar-days, 7), minmax(0, 1fr));
+}
+
+.vd-calendar-skeleton-agenda {
+    align-content: start;
+}
+
+.vd-calendar-skeleton-row {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr) 64px;
+    gap: 10px;
+    height: 44px;
+}
+
+/* ---------- Snackbar ---------- */
+
+.vd-calendar-snackbar {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(92%, 520px);
+    padding: 9px 8px 9px 14px;
+    box-sizing: border-box;
+    border: 1px solid var(--cal-border-strong);
+    border-radius: 12px;
+    background: var(--cal-panel-strong);
+    color: var(--cal-text);
+    font-size: 12.5px;
+    box-shadow: var(--vd-theme-shadow-panel, 0 12px 32px rgba(0, 0, 0, 0.35));
+    backdrop-filter: var(--vd-theme-blur, blur(14px));
+    -webkit-backdrop-filter: var(--vd-theme-blur, blur(14px));
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 220ms var(--cal-ease);
+}
+
+.vd-calendar-snackbar.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+}
+
+.vd-calendar-snackbar.is-error {
+    border-color: rgba(255, 90, 95, 0.55);
+}
+
+.vd-calendar-snackbar-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.vd-calendar-snackbar-action {
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cal-accent);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.vd-calendar-snackbar-action:hover {
+    background: var(--cal-accent-soft);
+}
+
+.vd-calendar-snackbar-close {
+    padding: 2px 6px;
+    border: 0;
+    background: transparent;
+    color: var(--cal-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* ---------- Peek popover ---------- */
+
+.vd-calendar-peek {
+    position: absolute;
+    z-index: 7;
+    display: grid;
+    grid-template-columns: 4px minmax(0, 1fr);
+    width: min(340px, calc(100% - 16px));
+    border: 1px solid var(--cal-border-strong);
+    border-radius: 14px;
+    background: var(--cal-panel-strong);
+    color: var(--cal-text);
+    box-shadow: var(--vd-theme-shadow-modal, 0 18px 48px rgba(0, 0, 0, 0.45));
+    backdrop-filter: var(--vd-theme-blur, blur(14px));
+    -webkit-backdrop-filter: var(--vd-theme-blur, blur(14px));
+    overflow: hidden;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-calendar-peek {
+    animation: vd-calendar-pop 160ms var(--cal-ease);
+}
+
+.vd-calendar-peek-accent {
+    background: var(--cal-status-upcoming);
+}
+
+.vd-calendar-peek-accent.is-completed { background: var(--cal-status-completed); }
+.vd-calendar-peek-accent.is-overdue { background: var(--cal-status-overdue); }
+.vd-calendar-peek-accent.is-cancelled { background: var(--cal-status-cancelled); }
+
+.vd-calendar-peek-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    padding: 14px 14px 12px;
+}
+
+.vd-calendar-peek-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.vd-calendar-peek-head h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.vd-calendar-peek-when,
+.vd-calendar-peek-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-peek-when span {
+    color: var(--cal-text);
+    font-weight: 600;
+}
+
+.vd-calendar-peek-when small {
+    margin-left: auto;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.vd-calendar-peek-meta span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.vd-calendar-peek-meta.is-agent {
+    color: var(--cal-accent);
+}
+
+.vd-calendar-peek-description {
+    max-height: 120px;
+    margin: 2px 0 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--cal-control);
+    font-size: 12.5px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow: auto;
+}
+
+.vd-calendar-peek-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.vd-calendar-peek-actions .vd-button {
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.vd-calendar-peek-actions .vd-calendar-icon-button:last-child {
+    margin-left: auto;
+}
+
+/* ---------- Editor ---------- */
+
+.vd-calendar-editor-backdrop.is-closing {
+    animation: vd-calendar-fade-out 140ms ease forwards;
+}
+
+.vd-calendar-editor {
+    --cal-accent-rgb: var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166);
+    --cal-accent: var(--vd-accent, rgb(var(--cal-accent-rgb)));
+    --cal-on-accent: #fff;
+    --cal-text: var(--vd-text);
+    --cal-muted: var(--vd-theme-muted, var(--vd-muted));
+    --cal-border: var(--vd-theme-border, var(--vd-border));
+    --cal-border-strong: var(--vd-theme-border-strong, var(--cal-border));
+    --cal-panel: var(--vd-theme-panel-bg, rgba(255, 255, 255, 0.04));
+    --cal-panel-strong: var(--vd-theme-panel-bg-strong, rgba(30, 34, 44, 0.96));
+    --cal-control: var(--vd-theme-control-bg, rgba(255, 255, 255, 0.06));
+    --cal-control-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, 0.1));
+    --cal-accent-soft: var(--vd-theme-accent-soft, rgba(var(--cal-accent-rgb), 0.14));
+    --cal-ink-soft: rgba(0, 0, 0, 0.16);
+    --cal-status-upcoming: var(--cal-accent);
+    --cal-status-completed: #3cc27f;
+    --cal-status-overdue: var(--vd-coral, #ff6b6b);
+    --cal-status-cancelled: var(--cal-muted);
+    --cal-danger: #ef4444;
+    --cal-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --cal-fast: 160ms;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    padding: 18px 20px 16px;
+    box-sizing: border-box;
+    overflow: auto;
+    font-size: 13px;
+}
+
+.vd-calendar-editor.is-busy {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.vd-calendar-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.vd-calendar-editor-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-editor-title {
+    width: 100%;
+    padding: 4px 0 8px;
+    box-sizing: border-box;
+    border: 0;
+    border-bottom: 2px solid var(--cal-border);
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 22px;
+    font-weight: 700;
+    outline: none;
+    transition: border-color var(--cal-fast) ease;
+}
+
+.vd-calendar-editor-title::placeholder {
+    color: var(--cal-muted);
+    font-weight: 600;
+}
+
+.vd-calendar-editor-title:focus {
+    border-bottom-color: var(--cal-accent);
+}
+
+.vd-calendar-editor .is-invalid {
+    border-color: var(--cal-danger) !important;
+    animation: vd-calendar-shake 300ms ease;
+}
+
+.vd-calendar-form-error {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    font-size: 12.5px;
+}
+
+.vd-calendar-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+}
+
+.vd-calendar-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.vd-calendar-field > span,
+.vd-calendar-field-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-editor input:not([type="checkbox"]):not(.vd-calendar-editor-title),
+.vd-calendar-editor select,
+.vd-calendar-editor textarea {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--cal-border);
+    border-radius: 9px;
+    background: var(--cal-control);
+    color: var(--cal-text);
+    font: inherit;
+    font-size: 13px;
+    transition: border-color var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
+}
+
+.vd-calendar-editor input:not([type="checkbox"]):not(.vd-calendar-editor-title):focus,
+.vd-calendar-editor select:focus,
+.vd-calendar-editor textarea:focus {
+    outline: none;
+    border-color: rgba(var(--cal-accent-rgb), 0.7);
+    box-shadow: 0 0 0 3px rgba(var(--cal-accent-rgb), 0.16);
+}
+
+.vd-calendar-editor textarea {
+    min-height: 64px;
+    line-height: 1.45;
+    resize: vertical;
+}
+
+.vd-calendar-editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--cal-border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--cal-panel) 60%, transparent);
+}
+
+.vd-calendar-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.vd-calendar-switch input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.vd-calendar-switch-track {
+    position: relative;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 20px;
+    box-sizing: border-box;
+    border: 1px solid var(--cal-border);
+    border-radius: 10px;
+    background: var(--cal-control);
+    transition: background var(--cal-fast) ease, border-color var(--cal-fast) ease;
+}
+
+.vd-calendar-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 180ms var(--cal-ease);
+}
+
+.vd-calendar-switch input:checked + .vd-calendar-switch-track {
+    border-color: var(--cal-accent);
+    background: var(--cal-accent);
+}
+
+.vd-calendar-switch input:checked + .vd-calendar-switch-track .vd-calendar-switch-thumb {
+    transform: translateX(16px);
+}
+
+.vd-calendar-switch input:focus-visible + .vd-calendar-switch-track {
+    box-shadow: 0 0 0 3px rgba(var(--cal-accent-rgb), 0.3);
+}
+
+.vd-calendar-switch-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.vd-calendar-switch-text b {
+    font-size: 13px;
+}
+
+.vd-calendar-switch-text small {
+    font-size: 11.5px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-field-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-participants {
+    position: relative;
+}
+
+.vd-calendar-chip-input {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--cal-border);
+    border-radius: 9px;
+    background: var(--cal-control);
+    cursor: text;
+    transition: border-color var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
+}
+
+.vd-calendar-chip-input:focus-within {
+    border-color: rgba(var(--cal-accent-rgb), 0.7);
+    box-shadow: 0 0 0 3px rgba(var(--cal-accent-rgb), 0.16);
+}
+
+.vd-calendar-editor .vd-calendar-chip-input input {
+    flex: 1 1 120px;
+    min-width: 80px;
+    min-height: 26px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.vd-calendar-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 4px 2px 2px;
+    border-radius: 999px;
+    background: var(--cal-accent-soft);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.vd-calendar-chip-avatar {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--cal-accent);
+    color: var(--cal-on-accent);
+    font-size: 10.5px;
+    font-weight: 800;
+}
+
+.vd-calendar-chip-remove {
+    padding: 0 4px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cal-muted);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.vd-calendar-chip-remove:hover {
+    background: var(--cal-ink-soft);
+    color: var(--cal-text);
+}
+
+.vd-calendar-chip-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    max-height: 220px;
+    margin-top: 4px;
+    padding: 4px;
+    border: 1px solid var(--cal-border-strong);
+    border-radius: 10px;
+    background: var(--cal-panel-strong);
+    box-shadow: var(--vd-theme-shadow-panel, 0 12px 32px rgba(0, 0, 0, 0.35));
+    overflow: auto;
+}
+
+.vd-calendar-chip-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--cal-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-calendar-chip-option:hover,
+.vd-calendar-chip-option.is-active {
+    background: var(--cal-accent-soft);
+}
+
+.vd-calendar-chip-option-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.vd-calendar-chip-option-body b {
+    font-size: 12.5px;
+}
+
+.vd-calendar-chip-option-body small {
+    font-size: 11px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-chip-menu-empty {
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--cal-muted);
+}
+
+.vd-calendar-segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--cal-border);
+    border-radius: 10px;
+    background: var(--cal-control);
+}
+
+.vd-calendar-segment {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--cal-muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--cal-fast) ease, color var(--cal-fast) ease;
+}
+
+.vd-calendar-segment.is-active {
+    background: var(--cal-panel-strong);
+    color: var(--cal-text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.vd-calendar-recurring .vd-calendar-editor-grid {
+    align-items: end;
+}
+
+.vd-calendar-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-top: 4px;
+}
+
+.vd-calendar-editor-spacer {
+    flex: 1 1 auto;
+}
+
+.vd-calendar-editor-actions kbd {
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--cal-ink-soft);
+    color: var(--cal-muted);
+    font: inherit;
+    font-size: 10.5px;
+}
+
+.vd-calendar-button-danger {
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #f87171;
+}
+
+.vd-calendar-button-danger:hover {
+    background: rgba(239, 68, 68, 0.14);
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes vd-calendar-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-calendar-pop {
+    from { opacity: 0; transform: translateY(4px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-calendar-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+@keyframes vd-calendar-progress {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+}
+
+@keyframes vd-calendar-shake {
+    0%, 100% { transform: none; }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+@keyframes vd-calendar-fade-out {
+    to { opacity: 0; }
+}
+
+@keyframes vd-calendar-pulse {
+    from { box-shadow: inset 0 0 0 3px rgba(var(--cal-accent-rgb), 0.9); }
+    to { box-shadow: inset 0 0 0 3px rgba(var(--cal-accent-rgb), 0); }
+}
+
+.desktop-body[data-animations="false"] .vd-calendar-shell *,
+.desktop-body[data-animations="false"] .vd-calendar-peek,
+.desktop-body[data-animations="false"] .vd-calendar-editor * {
+    animation: none !important;
+    transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-calendar-shell *,
+    .vd-calendar-peek,
+    .vd-calendar-editor * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ---------- Touch & responsive ---------- */
+
+@media (hover: none) {
+    .vd-calendar-cell-add,
+    .vd-calendar-agenda-actions {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 760px) {
+    .vd-calendar-command {
+        gap: 8px;
+        padding: 8px 10px;
+    }
+
+    .vd-calendar-range-title {
+        font-size: 15px;
+    }
+
+    .vd-calendar-search {
+        order: 3;
+        width: 100%;
+    }
+
+    .vd-calendar-command-end {
+        flex-wrap: wrap;
+    }
+
+    .vd-calendar-create span {
+        display: none;
+    }
+
+    .vd-calendar-create {
+        padding: 0 9px;
+    }
+
+    .vd-calendar-view-button,
+    .vd-calendar-today-button {
+        padding: 0 9px;
+    }
+
+    .vd-calendar-stage {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .vd-calendar-sidebar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 5;
+        width: min(280px, 85%);
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .vd-calendar-cell {
+        padding: 2px;
+    }
+
+    .vd-calendar-month {
+        min-height: calc(var(--vd-calendar-rows, 6) * 64px);
+    }
+
+    .vd-calendar-event-chip .vd-calendar-event-time,
+    .vd-calendar-event-chip .vd-calendar-badges {
+        display: none;
+    }
+
+    .vd-calendar-time-grid {
+        --cal-gutter: 46px;
+    }
+
+    .vd-calendar-day-head-num {
+        width: 26px;
+        height: 26px;
+        font-size: 14px;
+    }
+
+    .vd-calendar-agenda {
+        padding: 10px 10px 24px;
+    }
+
+    .vd-calendar-agenda-day {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .vd-calendar-agenda-head {
+        position: static;
+    }
+
+    .vd-calendar-agenda-row {
+        grid-template-columns: 56px minmax(0, 1fr) auto;
+        gap: 6px;
+    }
+
+    .vd-calendar-agenda-actions {
+        opacity: 1;
+    }
+
+    .vd-calendar-editor {
+        padding: 16px 14px 14px;
+    }
+
+    .vd-calendar-editor-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .vd-calendar-editor-actions kbd {
+        display: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .vd-calendar-cell-events {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 2px 1px;
+    }
+
+    .vd-calendar-event-chip {
+        width: 7px;
+        height: 7px;
+        padding: 0;
+        border-radius: 50%;
+        background: var(--cal-status);
+    }
+
+    .vd-calendar-event-chip > * {
+        display: none;
+    }
+
+    .vd-calendar-more {
+        padding: 0 3px;
+        font-size: 10px;
+    }
+
+    .vd-calendar-day-head-count {
+        display: none;
+    }
+}

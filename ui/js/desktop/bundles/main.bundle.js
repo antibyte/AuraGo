@@ -10632,389 +10632,1704 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
-/* ui/js/desktop/apps/calendar.js */
+/* ui/js/desktop/apps/calendar-views.js */
+    // Calendar view helpers: date math, formatting and pure HTML renderers for
+    // the month grid, time grid (week/day), agenda list, mini month and skeletons.
+    // Continuation of the shared Desktop IIFE; calendar.js owns state and wiring.
+
+    const CAL_HOUR_HEIGHT = 56;
+    const CAL_EVENT_MINUTES = 45;
+    const CAL_STATUSES = ['upcoming', 'completed', 'cancelled', 'overdue'];
+
+    function calendarLocale() {
+        return String(window.SYSTEM_LANG || document.documentElement.lang || navigator.language || 'en');
+    }
+
+    function calFormat(date, options) {
+        try { return date.toLocaleDateString(calendarLocale(), options); } catch (_) { return date.toLocaleDateString(undefined, options); }
+    }
+
+    function calFormatTime(date) {
+        try { return date.toLocaleTimeString(calendarLocale(), { hour: '2-digit', minute: '2-digit' }); } catch (_) { return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
+    }
+
     function isoDate(date) {
-        const d = new Date(date);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const d = date instanceof Date ? date : new Date(date);
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function calParseISODate(value) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+        if (!match) return new Date(NaN);
+        return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+
+    function calStartOfDay(date) { const d = new Date(date); d.setHours(0, 0, 0, 0); return d; }
+    function calAddDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
+    function calAddMonths(date, months) { const d = new Date(date); const day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + months); d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return d; }
+    function calSameDay(a, b) { return isoDate(a) === isoDate(b); }
+
+    function calFirstWeekday() {
+        try {
+            const locale = new Intl.Locale(calendarLocale());
+            const info = typeof locale.getWeekInfo === 'function' ? locale.getWeekInfo() : locale.weekInfo;
+            if (info && info.firstDay >= 1 && info.firstDay <= 7) return info.firstDay % 7; // 0 = Sunday
+        } catch (_) { /* fall back to Monday */ }
+        return 1;
+    }
+
+    function calStartOfWeek(date) {
+        const first = calFirstWeekday();
+        const d = calStartOfDay(date);
+        const diff = (d.getDay() - first + 7) % 7;
+        return calAddDays(d, -diff);
+    }
+
+    function calendarWeekDays(date) {
+        const start = calStartOfWeek(date);
+        return Array.from({ length: 7 }, (_, i) => calAddDays(start, i));
+    }
+
+    function calIsoWeek(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const day = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function calIsWeekend(date) { const day = date.getDay(); return day === 0 || day === 6; }
+
+    function calendarDate(value) {
+        const d = new Date(value);
+        return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function calMinutesOfDay(date) { return date.getHours() * 60 + date.getMinutes(); }
+
+    function calRelativeDayLabel(date) {
+        const today = calStartOfDay(new Date());
+        const diff = Math.round((calStartOfDay(date) - today) / 86400000);
+        if (diff === 0) return t('desktop.cal_today');
+        if (diff === 1) return t('desktop.cal_tomorrow');
+        if (diff === -1) return t('desktop.cal_yesterday');
+        return '';
+    }
+
+    function calRelativeTime(date) {
+        const diffMs = date.getTime() - Date.now();
+        const abs = Math.abs(diffMs);
+        let value, unit;
+        if (abs < 60 * 60000) { value = Math.round(diffMs / 60000); unit = 'minute'; }
+        else if (abs < 24 * 3600000) { value = Math.round(diffMs / 3600000); unit = 'hour'; }
+        else if (abs < 30 * 86400000) { value = Math.round(diffMs / 86400000); unit = 'day'; }
+        else if (abs < 365 * 86400000) { value = Math.round(diffMs / (30 * 86400000)); unit = 'month'; }
+        else { value = Math.round(diffMs / (365 * 86400000)); unit = 'year'; }
+        try {
+            return new Intl.RelativeTimeFormat(calendarLocale(), { numeric: 'auto' }).format(value, unit);
+        } catch (_) {
+            return value === 0 ? t('desktop.cal_now') : `${value} ${unit}`;
+        }
+    }
+
+    function normalizeCalendarAppointments(list) {
+        return (Array.isArray(list) ? list : []).map(item => ({
+            id: item.id,
+            title: item.title || '',
+            description: item.description || '',
+            date_time: item.date_time || '',
+            notification_at: item.notification_at || '',
+            wake_agent: !!item.wake_agent,
+            agent_instruction: item.agent_instruction || '',
+            status: CAL_STATUSES.includes(item.status) ? item.status : 'upcoming',
+            notified: !!item.notified,
+            contact_ids: Array.isArray(item.contact_ids) ? item.contact_ids : [],
+            participants: Array.isArray(item.participants) ? item.participants : [],
+            created_at: item.created_at || '',
+            updated_at: item.updated_at || ''
+        })).filter(item => item.id && calendarDate(item.date_time))
+            .sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
+    }
+
+    function calendarStatusLabel(status) {
+        const key = `desktop.cal_status_${status}`;
+        const label = t(key);
+        return label && label !== key ? label : status;
+    }
+
+    function calendarTimeLabel(value) {
+        const date = calendarDate(value);
+        return date ? calFormatTime(date) : '';
+    }
+
+    function calendarDateTimeLabel(value) {
+        const date = calendarDate(value);
+        if (!date) return '';
+        return `${calFormat(date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${calFormatTime(date)}`;
+    }
+
+    function calendarRangeLabel(view, cursor) {
+        if (view === 'day') return calFormat(cursor, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        if (view === 'week') {
+            const days = calendarWeekDays(cursor);
+            const first = days[0], last = days[6];
+            if (first.getMonth() === last.getMonth()) return `${first.getDate()} – ${last.getDate()}. ${calFormat(last, { month: 'long', year: 'numeric' })}`;
+            return `${calFormat(first, { day: 'numeric', month: 'short' })} – ${calFormat(last, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        }
+        if (view === 'agenda') return t('desktop.cal_agenda');
+        return calFormat(cursor, { month: 'long', year: 'numeric' });
+    }
+
+    function calendarVisibleAppointments(session) {
+        const query = String(session.query || '').trim().toLowerCase();
+        return session.appointments.filter(item => {
+            if (item.status === 'completed' && !session.filters.completed) return false;
+            if (item.status === 'cancelled' && !session.filters.cancelled) return false;
+            if (!query) return true;
+            const haystack = [item.title, item.description, item.agent_instruction, ...(item.participants || []).map(p => p.name || '')].join(' ').toLowerCase();
+            return haystack.includes(query);
+        });
+    }
+
+    function calendarDayItems(items, date) {
+        const key = isoDate(date);
+        return items.filter(item => isoDate(new Date(item.date_time)) === key);
+    }
+
+    function calendarBadgesHTML(item, options) {
+        const compact = options && options.compact;
+        const parts = [];
+        if (item.wake_agent) parts.push(`<span class="vd-calendar-badge vd-calendar-badge-agent" title="${esc(t('desktop.cal_wake_agent'))}">${iconMarkup('chat', 'A', 'vd-calendar-mini-icon', 11)}${compact ? '' : `<span>${esc(t('desktop.cal_agent_short'))}</span>`}</span>`);
+        if (item.notification_at) parts.push(`<span class="vd-calendar-badge" title="${esc(t('desktop.cal_reminder'))}: ${esc(calendarDateTimeLabel(item.notification_at))}">${iconMarkup('bell', 'R', 'vd-calendar-mini-icon', 11)}</span>`);
+        if (item.participants && item.participants.length) parts.push(`<span class="vd-calendar-badge" title="${esc(item.participants.map(p => p.name).filter(Boolean).join(', '))}">${iconMarkup('users', 'P', 'vd-calendar-mini-icon', 11)}${compact ? '' : `<span>${item.participants.length}</span>`}</span>`);
+        return parts.length ? `<span class="vd-calendar-badges">${parts.join('')}</span>` : '';
+    }
+
+    function calendarEventTooltip(item) {
+        const lines = [item.title, calendarDateTimeLabel(item.date_time), calendarStatusLabel(item.status)];
+        if (item.description) lines.push(item.description.slice(0, 140));
+        return lines.filter(Boolean).join('\n');
+    }
+
+    function calendarEventButtonHTML(item, options) {
+        options = options || {};
+        const date = calendarDate(item.date_time);
+        const draggable = options.draggable !== false && item.status !== 'completed' && item.status !== 'cancelled';
+        const style = options.style ? ` style="${esc(options.style)}"` : '';
+        const classes = ['vd-calendar-event', `is-${item.status}`, options.variant ? `vd-calendar-event-${options.variant}` : ''].filter(Boolean).join(' ');
+        return `<button type="button" class="${classes}" data-appt-id="${esc(item.id)}" draggable="${draggable ? 'true' : 'false'}" title="${esc(calendarEventTooltip(item))}"${style}>
+            <span class="vd-calendar-event-dot" aria-hidden="true"></span>
+            <span class="vd-calendar-event-time">${esc(date ? calFormatTime(date) : '')}</span>
+            <span class="vd-calendar-event-title">${esc(item.title || t('desktop.cal_new_appointment'))}</span>
+            ${calendarBadgesHTML(item, { compact: options.variant !== 'agenda' })}
+        </button>`;
+    }
+
+    function calendarWeekdaysHTML(days) {
+        return `<div class="vd-calendar-weekdays" aria-hidden="true">${days.map(day => `<span class="${calIsWeekend(day) ? 'is-weekend' : ''}">${esc(calFormat(day, { weekday: 'short' }))}</span>`).join('')}</div>`;
+    }
+
+    function calendarMonthCells(cursor) {
+        const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+        const start = calStartOfWeek(first);
+        const lastOfMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+        const spanDays = Math.round((calStartOfDay(lastOfMonth) - start) / 86400000) + 1;
+        const rows = Math.max(5, Math.ceil(spanDays / 7));
+        return { start, rows, cells: Array.from({ length: rows * 7 }, (_, i) => calAddDays(start, i)) };
+    }
+
+    function calendarMonthHTML(session, items) {
+        const cursor = session.cursor;
+        const { rows, cells } = calendarMonthCells(cursor);
+        const today = new Date();
+        const maxVisible = Math.max(1, Number(session.monthDensity) || 3);
+        const weekdays = calendarWeekdaysHTML(calendarWeekDays(today));
+        const body = cells.map((day, index) => {
+            const dayItems = calendarDayItems(items, day);
+            const key = isoDate(day);
+            const classes = ['vd-calendar-cell'];
+            if (day.getMonth() !== cursor.getMonth()) classes.push('is-other');
+            if (calSameDay(day, today)) classes.push('is-today');
+            if (calIsWeekend(day)) classes.push('is-weekend');
+            if (key === session.selected) classes.push('is-selected');
+            if (dayItems.length) classes.push('has-events');
+            const visible = dayItems.slice(0, maxVisible);
+            const hidden = dayItems.length - visible.length;
+            const showMonth = day.getDate() === 1 || index === 0;
+            const label = `${calFormat(day, { weekday: 'long', day: 'numeric', month: 'long' })}${dayItems.length ? ` · ${t('desktop.cal_event_count', { count: dayItems.length })}` : ''}`;
+            return `<div class="${classes.join(' ')}" role="gridcell" tabindex="${key === session.selected ? '0' : '-1'}" data-cal-date="${key}" data-cal-drop-date="${key}" aria-label="${esc(label)}" aria-selected="${key === session.selected ? 'true' : 'false'}">
+                <div class="vd-calendar-cell-head">
+                    <button type="button" class="vd-calendar-daynum" data-cal-open-day="${key}" tabindex="-1" title="${esc(t('desktop.cal_open_day'))}">${showMonth ? `<small>${esc(calFormat(day, { month: 'short' }))}</small>` : ''}<b>${day.getDate()}</b></button>
+                    <button type="button" class="vd-calendar-cell-add" data-cal-add="${key}" tabindex="-1" aria-label="${esc(t('desktop.cal_new_appointment'))}">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 12)}</button>
+                </div>
+                <div class="vd-calendar-cell-events">
+                    ${visible.map(item => calendarEventButtonHTML(item, { variant: 'chip' })).join('')}
+                    ${hidden > 0 ? `<button type="button" class="vd-calendar-more" data-cal-more="${key}">${esc(t('desktop.cal_more_events', { count: hidden }))}</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+        return `${weekdays}<div class="vd-calendar-month" role="grid" style="--vd-calendar-rows:${rows}">${body}</div>`;
+    }
+
+    function calendarLayoutColumns(dayItems) {
+        // Assign overlapping timed events to side-by-side columns.
+        const placed = [];
+        dayItems.forEach(item => {
+            const start = calMinutesOfDay(new Date(item.date_time));
+            const end = start + CAL_EVENT_MINUTES;
+            const overlapping = placed.filter(p => p.start < end && start < p.end);
+            const used = new Set(overlapping.map(p => p.column));
+            let column = 0;
+            while (used.has(column)) column += 1;
+            placed.push({ item, start, end, column });
+        });
+        // Determine the width for every cluster of overlapping events.
+        placed.forEach(entry => {
+            const cluster = placed.filter(p => p.start < entry.end && entry.start < p.end);
+            entry.columns = Math.max(1, ...cluster.map(p => p.column + 1));
+        });
+        return placed;
+    }
+
+    function calendarTimedEventsHTML(dayItems) {
+        return calendarLayoutColumns(dayItems).map(({ item, start, column, columns }) => {
+            const top = (start / 60) * CAL_HOUR_HEIGHT;
+            const height = Math.max(24, (CAL_EVENT_MINUTES / 60) * CAL_HOUR_HEIGHT - 2);
+            const width = 100 / columns;
+            const style = `top:${top.toFixed(1)}px;height:${height.toFixed(1)}px;left:calc(${(width * column).toFixed(2)}% + 2px);width:calc(${width.toFixed(2)}% - 4px)`;
+            return calendarEventButtonHTML(item, { variant: 'timed', style });
+        }).join('');
+    }
+
+    function calendarNowLineHTML(date) {
+        const now = new Date();
+        if (!calSameDay(now, date)) return '';
+        const top = (calMinutesOfDay(now) / 60) * CAL_HOUR_HEIGHT;
+        return `<div class="vd-calendar-now-line" data-cal-now style="top:${top.toFixed(1)}px"><span>${esc(calFormatTime(now))}</span></div>`;
+    }
+
+    function calendarTimeGridHTML(session, items, days) {
+        const today = new Date();
+        const heads = days.map(day => {
+            const key = isoDate(day);
+            const count = calendarDayItems(items, day).length;
+            return `<button type="button" class="vd-calendar-day-head ${calSameDay(day, today) ? 'is-today' : ''} ${calIsWeekend(day) ? 'is-weekend' : ''}" data-cal-open-day="${key}" title="${esc(t('desktop.cal_open_day'))}">
+                <span class="vd-calendar-day-head-name">${esc(calFormat(day, { weekday: 'short' }))}</span>
+                <span class="vd-calendar-day-head-num">${day.getDate()}</span>
+                ${count ? `<span class="vd-calendar-day-head-count">${count}</span>` : ''}
+            </button>`;
+        }).join('');
+        const gutter = Array.from({ length: 24 }, (_, hour) => `<div class="vd-calendar-hour-label" style="height:${CAL_HOUR_HEIGHT}px"><span>${esc(calFormatTime(new Date(2000, 0, 1, hour, 0)))}</span></div>`).join('');
+        const columns = days.map(day => {
+            const key = isoDate(day);
+            const dayItems = calendarDayItems(items, day);
+            const slots = Array.from({ length: 24 }, (_, hour) => `<div class="vd-calendar-hour-slot" data-cal-hour="${hour}" style="height:${CAL_HOUR_HEIGHT}px"></div>`).join('');
+            return `<div class="vd-calendar-day-column ${calSameDay(day, today) ? 'is-today' : ''} ${calIsWeekend(day) ? 'is-weekend' : ''}" data-cal-column="${key}" data-cal-drop-date="${key}" style="height:${CAL_HOUR_HEIGHT * 24}px">
+                ${slots}
+                <div class="vd-calendar-column-events">${calendarTimedEventsHTML(dayItems)}</div>
+                ${calendarNowLineHTML(day)}
+            </div>`;
+        }).join('');
+        return `<div class="vd-calendar-time-grid" style="--vd-calendar-days:${days.length};--vd-calendar-hour:${CAL_HOUR_HEIGHT}px">
+            <div class="vd-calendar-time-head">
+                <div class="vd-calendar-time-gutter-head"><span>${esc(t('desktop.cal_week_short', { week: calIsoWeek(days[0]) }))}</span></div>
+                <div class="vd-calendar-time-head-days">${heads}</div>
+            </div>
+            <div class="vd-calendar-time-scroll" data-cal-time-scroll>
+                <div class="vd-calendar-time-body">
+                    <div class="vd-calendar-time-gutter">${gutter}</div>
+                    <div class="vd-calendar-time-columns">${columns}</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function calendarEmptyStateHTML(title, hint, actionKey) {
+        return `<div class="vd-calendar-empty">
+            <div class="vd-calendar-empty-art" aria-hidden="true">${iconMarkup('calendar', 'C', 'vd-calendar-empty-icon', 40)}</div>
+            <strong>${esc(title)}</strong>
+            ${hint ? `<p>${esc(hint)}</p>` : ''}
+            ${actionKey ? `<button type="button" class="vd-button vd-button-primary" data-cal-create>${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t(actionKey))}</span></button>` : ''}
+        </div>`;
+    }
+
+    function calendarAgendaGroups(items, options) {
+        options = options || {};
+        const groups = new Map();
+        items.forEach(item => {
+            const date = calendarDate(item.date_time);
+            if (!date) return;
+            if (options.from && date < options.from) return;
+            if (options.to && date >= options.to) return;
+            const key = isoDate(date);
+            if (!groups.has(key)) groups.set(key, { date: calStartOfDay(date), items: [] });
+            groups.get(key).items.push(item);
+        });
+        return Array.from(groups.values()).sort((a, b) => a.date - b.date);
+    }
+
+    function calendarAgendaRowHTML(item) {
+        const date = calendarDate(item.date_time);
+        const canComplete = item.status === 'upcoming' || item.status === 'overdue';
+        return `<div class="vd-calendar-agenda-row is-${item.status}" data-appt-row="${esc(item.id)}">
+            <div class="vd-calendar-agenda-time"><b>${esc(date ? calFormatTime(date) : '')}</b><span>${esc(calRelativeTime(date))}</span></div>
+            ${calendarEventButtonHTML(item, { variant: 'agenda', draggable: false })}
+            <div class="vd-calendar-agenda-actions">
+                ${canComplete ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="completed" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_mark_complete'))}" aria-label="${esc(t('desktop.cal_mark_complete'))}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}</button>` : ''}
+                <button type="button" class="vd-calendar-icon-button" data-cal-edit="${esc(item.id)}" title="${esc(t('desktop.cal_edit_appointment'))}" aria-label="${esc(t('desktop.cal_edit_appointment'))}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}</button>
+            </div>
+        </div>`;
+    }
+
+    function calendarAgendaHTML(session, items) {
+        const query = String(session.query || '').trim();
+        const from = query ? null : calStartOfDay(new Date());
+        const groups = calendarAgendaGroups(items, { from });
+        if (!groups.length) {
+            if (query) return calendarEmptyStateHTML(t('desktop.cal_no_results'), t('desktop.cal_no_results_hint'));
+            return calendarEmptyStateHTML(t('desktop.cal_empty_agenda'), t('desktop.cal_empty_hint'), 'desktop.cal_new_appointment');
+        }
+        const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+        const heading = query
+            ? `<div class="vd-calendar-agenda-summary">${esc(t('desktop.cal_search_results', { query, count: total }))}</div>`
+            : `<div class="vd-calendar-agenda-summary">${esc(t('desktop.cal_agenda_summary', { count: total }))}</div>`;
+        return `<div class="vd-calendar-agenda">${heading}${groups.map(group => {
+            const relative = calRelativeDayLabel(group.date);
+            const today = calSameDay(group.date, new Date());
+            return `<section class="vd-calendar-agenda-day ${today ? 'is-today' : ''}">
+                <header class="vd-calendar-agenda-head">
+                    <button type="button" class="vd-calendar-agenda-date" data-cal-open-day="${isoDate(group.date)}">
+                        <span class="vd-calendar-agenda-daynum">${group.date.getDate()}</span>
+                        <span class="vd-calendar-agenda-daymeta"><b>${esc(relative || calFormat(group.date, { weekday: 'long' }))}</b><span>${esc(calFormat(group.date, { day: 'numeric', month: 'long', year: 'numeric' }))}</span></span>
+                    </button>
+                </header>
+                <div class="vd-calendar-agenda-rows">${group.items.map(calendarAgendaRowHTML).join('')}</div>
+            </section>`;
+        }).join('')}</div>`;
+    }
+
+    function calendarMiniMonthHTML(session) {
+        const cursor = session.miniCursor || session.cursor;
+        const { cells } = calendarMonthCells(cursor);
+        const today = new Date();
+        const busy = new Set(session.appointments.filter(item => item.status !== 'cancelled').map(item => isoDate(new Date(item.date_time))));
+        const weekDays = calendarWeekDays(today);
+        let rangeStart = null, rangeEnd = null;
+        if (session.view === 'week') { rangeStart = isoDate(calStartOfWeek(session.cursor)); rangeEnd = isoDate(calAddDays(calStartOfWeek(session.cursor), 6)); }
+        return `<div class="vd-calendar-mini">
+            <div class="vd-calendar-mini-head">
+                <button type="button" class="vd-calendar-icon-button" data-cal-mini-nav="-1" aria-label="${esc(t('desktop.cal_previous'))}">${iconMarkup('chevron-left', '<', 'vd-calendar-action-icon', 14)}</button>
+                <button type="button" class="vd-calendar-mini-title" data-cal-mini-jump="${isoDate(new Date(cursor.getFullYear(), cursor.getMonth(), 1))}">${esc(calFormat(cursor, { month: 'long', year: 'numeric' }))}</button>
+                <button type="button" class="vd-calendar-icon-button" data-cal-mini-nav="1" aria-label="${esc(t('desktop.cal_next'))}">${iconMarkup('chevron-right', '>', 'vd-calendar-action-icon', 14)}</button>
+            </div>
+            <div class="vd-calendar-mini-weekdays" aria-hidden="true">${weekDays.map(day => `<span>${esc(calFormat(day, { weekday: 'narrow' }))}</span>`).join('')}</div>
+            <div class="vd-calendar-mini-grid">${cells.map(day => {
+                const key = isoDate(day);
+                const classes = ['vd-calendar-mini-day'];
+                if (day.getMonth() !== cursor.getMonth()) classes.push('is-other');
+                if (calSameDay(day, today)) classes.push('is-today');
+                if (key === session.selected) classes.push('is-selected');
+                if (busy.has(key)) classes.push('has-events');
+                if (rangeStart && key >= rangeStart && key <= rangeEnd) classes.push('in-range');
+                return `<button type="button" class="${classes.join(' ')}" data-cal-mini-date="${key}" aria-label="${esc(calFormat(day, { weekday: 'long', day: 'numeric', month: 'long' }))}"><span>${day.getDate()}</span></button>`;
+            }).join('')}</div>
+        </div>`;
+    }
+
+    function calendarSidebarItemHTML(item) {
+        const date = calendarDate(item.date_time);
+        return `<button type="button" class="vd-calendar-side-item is-${item.status}" data-appt-id="${esc(item.id)}" title="${esc(calendarEventTooltip(item))}">
+            <span class="vd-calendar-event-dot" aria-hidden="true"></span>
+            <span class="vd-calendar-side-item-body">
+                <span class="vd-calendar-side-item-title">${esc(item.title)}</span>
+                <span class="vd-calendar-side-item-meta">${esc(date ? `${calFormat(date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${calFormatTime(date)}` : '')}</span>
+            </span>
+            ${calendarBadgesHTML(item, { compact: true })}
+        </button>`;
+    }
+
+    function calendarSidebarAgendaHTML(session) {
+        const now = new Date();
+        const active = session.appointments.filter(item => item.status === 'upcoming' || item.status === 'overdue');
+        const todayItems = calendarDayItems(active, now);
+        const overdue = active.filter(item => item.status === 'overdue');
+        const nextUp = active.filter(item => item.status === 'upcoming' && new Date(item.date_time) >= now)[0] || null;
+        const weekEnd = calAddDays(calStartOfDay(now), 8);
+        const upcoming = active.filter(item => item.status === 'upcoming' && !calSameDay(new Date(item.date_time), now) && new Date(item.date_time) >= now && new Date(item.date_time) < weekEnd).slice(0, 6);
+        const section = (titleKey, list, emptyKey, extraClass) => `<section class="vd-calendar-side-section ${extraClass || ''}">
+            <h4>${esc(t(titleKey))}${list.length ? `<span class="vd-calendar-side-count">${list.length}</span>` : ''}</h4>
+            ${list.length ? list.map(calendarSidebarItemHTML).join('') : `<p class="vd-calendar-side-empty">${esc(t(emptyKey))}</p>`}
+        </section>`;
+        const hero = nextUp ? `<button type="button" class="vd-calendar-next-up" data-appt-id="${esc(nextUp.id)}">
+            <span class="vd-calendar-next-up-label">${esc(t('desktop.cal_next_up'))}</span>
+            <strong>${esc(nextUp.title)}</strong>
+            <span class="vd-calendar-next-up-when">${esc(calRelativeTime(new Date(nextUp.date_time)))} · ${esc(calendarDateTimeLabel(nextUp.date_time))}</span>
+        </button>` : '';
+        return `${hero}
+            ${overdue.length ? section('desktop.cal_overdue', overdue.slice(0, 5), 'desktop.cal_no_events', 'is-overdue') : ''}
+            ${section('desktop.cal_today_panel', todayItems, 'desktop.clock_no_events')}
+            ${section('desktop.cal_upcoming', upcoming, 'desktop.cal_empty_agenda')}`;
+    }
+
+    function calendarSkeletonHTML(view) {
+        if (view === 'agenda') {
+            return `<div class="vd-calendar-skeleton vd-calendar-skeleton-agenda" aria-hidden="true">${Array.from({ length: 4 }, () => '<div class="vd-calendar-skeleton-row"><i></i><i></i><i></i></div>').join('')}</div>`;
+        }
+        if (view === 'month') {
+            return `<div class="vd-calendar-skeleton vd-calendar-skeleton-month" aria-hidden="true">${Array.from({ length: 35 }, () => '<i></i>').join('')}</div>`;
+        }
+        return `<div class="vd-calendar-skeleton vd-calendar-skeleton-grid" aria-hidden="true" style="--vd-calendar-days:${view === 'day' ? 1 : 7}">${Array.from({ length: view === 'day' ? 1 : 7 }, () => '<i></i>').join('')}</div>`;
+    }
+
+;
+/* ui/js/desktop/apps/calendar-editor.js */
+    // Calendar appointment editor, quick-peek popover and recurring creation.
+    // Continuation of the shared Desktop IIFE; calendar.js owns the session state.
+
+    const CAL_REMINDER_PRESETS = ['none', '0', '15', '60', '1440', 'custom'];
+    const CAL_REPEAT_LIMIT = 30;
+
+    function calendarReminderPreset(appointment) {
+        if (!appointment || !appointment.notification_at) return 'none';
+        const start = calendarDate(appointment.date_time);
+        const reminder = calendarDate(appointment.notification_at);
+        if (!start || !reminder) return 'custom';
+        const minutes = Math.round((start - reminder) / 60000);
+        return ['0', '15', '60', '1440'].includes(String(minutes)) ? String(minutes) : 'custom';
+    }
+
+    function calendarReminderLabel(preset) {
+        const keys = { none: 'desktop.cal_reminder_none', '0': 'desktop.cal_reminder_at_time', '15': 'desktop.cal_reminder_15m', '60': 'desktop.cal_reminder_1h', '1440': 'desktop.cal_reminder_1d', custom: 'desktop.cal_reminder_custom' };
+        return t(keys[preset] || keys.none);
+    }
+
+    function calendarReminderFromPreset(preset, start, customValue) {
+        if (preset === 'none' || !start) return '';
+        if (preset === 'custom') {
+            const custom = customValue ? fromLocalDateTime(customValue) : '';
+            return custom || '';
+        }
+        return new Date(start.getTime() - Number(preset) * 60000).toISOString();
+    }
+
+    function calendarInputParts(date) {
+        const pad = n => String(n).padStart(2, '0');
+        return { date: isoDate(date), time: `${pad(date.getHours())}:${pad(date.getMinutes())}` };
+    }
+
+    function calendarDateFromParts(dateValue, timeValue) {
+        const day = calParseISODate(dateValue);
+        if (Number.isNaN(day.getTime())) return null;
+        const match = /^(\d{1,2}):(\d{2})/.exec(String(timeValue || ''));
+        if (!match) return null;
+        day.setHours(Number(match[1]), Number(match[2]), 0, 0);
+        return day;
+    }
+
+    function calendarDefaultStart(dateHint) {
+        if (dateHint instanceof Date) return new Date(dateHint);
+        if (typeof dateHint === 'string' && dateHint.length > 10) {
+            const parsed = new Date(dateHint);
+            if (!Number.isNaN(parsed.getTime())) return parsed;
+        }
+        let base = typeof dateHint === 'string' && dateHint ? calParseISODate(dateHint) : new Date();
+        if (Number.isNaN(base.getTime())) base = new Date();
+        if (calSameDay(base, new Date())) {
+            // Today: propose the next half hour instead of a slot in the past.
+            const now = new Date();
+            now.setMinutes(now.getMinutes() >= 30 ? 60 : 30, 0, 0);
+            return now;
+        }
+        base.setHours(9, 0, 0, 0);
+        return base;
+    }
+
+    function calendarShiftDate(date, repeat, step) {
+        if (repeat === 'daily') return calAddDays(date, step);
+        if (repeat === 'weekly') return calAddDays(date, step * 7);
+        if (repeat === 'monthly') return calAddMonths(date, step);
+        return new Date(date);
+    }
+
+    async function createRecurringAppointments(payload, repeat, count) {
+        const total = Math.max(1, Math.min(CAL_REPEAT_LIMIT, Number(count) || 1));
+        const start = calendarDate(payload.date_time);
+        if (!start || repeat === 'none' || total <= 1) {
+            await plannerJSON('/api/appointments', 'POST', payload);
+            return 1;
+        }
+        const reminderOffset = payload.notification_at ? start - new Date(payload.notification_at) : null;
+        let created = 0;
+        for (let index = 0; index < total; index += 1) {
+            const when = calendarShiftDate(start, repeat, index);
+            const body = Object.assign({}, payload, { date_time: when.toISOString() });
+            if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
+            await plannerJSON('/api/appointments', 'POST', body);
+            created += 1;
+        }
+        return created;
+    }
+
+    function loadCalendarContacts(session) {
+        if (!session.contactsPromise) {
+            session.contactsPromise = api('/api/contacts').then(data => {
+                const list = Array.isArray(data) ? data : (data && (data.contacts || data.items)) || [];
+                return list.filter(c => c && c.id && c.name).map(c => ({ id: String(c.id), name: String(c.name), email: c.email || '', relationship: c.relationship || '' }));
+            }).catch(() => []);
+        }
+        return session.contactsPromise;
+    }
+
+    function calendarParticipantChipsHTML(selected) {
+        return selected.map(person => `<span class="vd-calendar-chip" data-participant-id="${esc(person.id)}"><span class="vd-calendar-chip-avatar" aria-hidden="true">${esc(String(person.name || '?').trim().charAt(0).toUpperCase())}</span><span>${esc(person.name)}</span><button type="button" class="vd-calendar-chip-remove" data-participant-remove="${esc(person.id)}" aria-label="${esc(t('desktop.remove'))}">×</button></span>`).join('');
+    }
+
+    function calendarStatusOptionsHTML(current) {
+        const active = current === 'overdue' ? 'upcoming' : current;
+        return ['upcoming', 'completed', 'cancelled'].map(status => `<button type="button" class="vd-calendar-segment ${active === status ? 'is-active' : ''}" role="radio" aria-checked="${active === status ? 'true' : 'false'}" data-cal-status-option="${status}"><span class="vd-calendar-event-dot is-${status}" aria-hidden="true"></span>${esc(calendarStatusLabel(status))}</button>`).join('');
+    }
+
+    function calendarEditorHTML(appointment, start) {
+        const isNew = !appointment;
+        const parts = calendarInputParts(start);
+        const preset = calendarReminderPreset(appointment);
+        const status = appointment ? appointment.status : 'upcoming';
+        return `<form class="vd-modal vd-calendar-modal vd-calendar-editor" novalidate autocomplete="off">
+            <header class="vd-calendar-editor-head">
+                <span class="vd-calendar-editor-kicker">${esc(t(isNew ? 'desktop.cal_new_appointment' : 'desktop.cal_edit_appointment'))}</span>
+                <button type="button" class="vd-calendar-icon-button" data-cancel aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', 'x', 'vd-calendar-action-icon', 14)}</button>
+            </header>
+            <input name="title" class="vd-calendar-editor-title" maxlength="200" placeholder="${esc(t('desktop.cal_title_placeholder'))}" value="${esc(appointment ? appointment.title : '')}" required>
+            <div class="vd-calendar-form-error" data-form-error role="alert" hidden></div>
+            <div class="vd-calendar-editor-grid">
+                <label class="vd-calendar-field"><span>${esc(t('desktop.cal_date'))}</span><input type="date" name="date" value="${parts.date}" required></label>
+                <label class="vd-calendar-field"><span>${esc(t('desktop.cal_time'))}</span><input type="time" name="time" value="${parts.time}" step="300" required></label>
+                <label class="vd-calendar-field"><span>${esc(t('desktop.cal_reminder'))}</span>
+                    <select name="reminder">${CAL_REMINDER_PRESETS.map(value => `<option value="${value}" ${value === preset ? 'selected' : ''}>${esc(calendarReminderLabel(value))}</option>`).join('')}</select>
+                </label>
+                <label class="vd-calendar-field" data-reminder-custom ${preset === 'custom' ? '' : 'hidden'}><span>${esc(t('desktop.cal_reminder_time'))}</span><input type="datetime-local" name="notification_at" value="${appointment && appointment.notification_at ? esc(dateTimeLocalValue(appointment.notification_at)) : ''}"></label>
+            </div>
+            <div class="vd-calendar-field vd-calendar-participants">
+                <span>${esc(t('desktop.cal_participants'))}</span>
+                <div class="vd-calendar-chip-input" data-participants>
+                    ${calendarParticipantChipsHTML(appointment ? appointment.participants || [] : [])}
+                    <input type="text" data-participant-search inputmode="search" enterkeyhint="done" placeholder="${esc(t('desktop.cal_participants_placeholder'))}" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="vd-calendar-chip-menu" data-participant-menu hidden></div>
+            </div>
+            <label class="vd-calendar-field"><span>${esc(t('desktop.cal_description'))}</span><textarea name="description" rows="3" placeholder="${esc(t('desktop.cal_description_placeholder'))}">${esc(appointment ? appointment.description : '')}</textarea></label>
+            <section class="vd-calendar-editor-section">
+                <label class="vd-calendar-switch">
+                    <input type="checkbox" name="wake_agent" ${appointment && appointment.wake_agent ? 'checked' : ''}>
+                    <span class="vd-calendar-switch-track" aria-hidden="true"><span class="vd-calendar-switch-thumb"></span></span>
+                    <span class="vd-calendar-switch-text"><b>${esc(t('desktop.cal_wake_agent'))}</b><small>${esc(t('desktop.cal_wake_agent_hint'))}</small></span>
+                </label>
+                <textarea name="agent_instruction" data-agent-instruction rows="2" placeholder="${esc(t('desktop.cal_agent_instruction_placeholder'))}" ${appointment && appointment.wake_agent ? '' : 'hidden'}>${esc(appointment ? appointment.agent_instruction : '')}</textarea>
+            </section>
+            ${isNew ? `<section class="vd-calendar-editor-section vd-calendar-recurring">
+                <div class="vd-calendar-editor-grid">
+                    <label class="vd-calendar-field"><span>${esc(t('desktop.cal_recurring'))}</span>
+                        <select name="repeat">${['none', 'daily', 'weekly', 'monthly'].map(value => `<option value="${value}">${esc(t(`desktop.cal_repeat_${value}`))}</option>`).join('')}</select>
+                    </label>
+                    <label class="vd-calendar-field" data-repeat-count hidden><span>${esc(t('desktop.cal_repeat_count'))}</span><input type="number" name="repeat_count" min="2" max="${CAL_REPEAT_LIMIT}" value="4"></label>
+                </div>
+                <p class="vd-calendar-field-hint" data-repeat-preview hidden></p>
+            </section>` : `<section class="vd-calendar-editor-section vd-calendar-editor-status">
+                <span class="vd-calendar-field-label">${esc(t('desktop.cal_status'))}</span>
+                <div class="vd-calendar-segmented" role="radiogroup" data-status-group data-status="${esc(status)}">${calendarStatusOptionsHTML(status)}</div>
+            </section>`}
+            <footer class="vd-calendar-editor-actions">
+                ${isNew ? '' : `<button type="button" class="vd-button vd-calendar-button-danger" data-delete>${iconMarkup('trash', 'D', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.delete'))}</span></button>`}
+                <span class="vd-calendar-editor-spacer"></span>
+                <button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button>
+                <button type="submit" class="vd-button vd-button-primary" data-submit><span>${esc(t(isNew ? 'desktop.cal_create' : 'desktop.save'))}</span><kbd>Ctrl+↵</kbd></button>
+            </footer>
+        </form>`;
+    }
+
+    function calendarEditorUpdateRepeatPreview(form) {
+        const repeat = form.elements.repeat, count = form.elements.repeat_count, preview = form.querySelector('[data-repeat-preview]');
+        if (!repeat || !preview) return;
+        const wrapper = form.querySelector('[data-repeat-count]');
+        const active = repeat.value !== 'none';
+        if (wrapper) wrapper.hidden = !active;
+        preview.hidden = !active;
+        if (!active) return;
+        const start = calendarDateFromParts(form.elements.date.value, form.elements.time.value);
+        const total = Math.max(2, Math.min(CAL_REPEAT_LIMIT, Number(count.value) || 2));
+        if (!start) { preview.textContent = ''; return; }
+        const last = calendarShiftDate(start, repeat.value, total - 1);
+        preview.textContent = t('desktop.cal_repeat_preview', { count: total, until: calFormat(last, { day: 'numeric', month: 'long', year: 'numeric' }) });
+    }
+
+    function wireCalendarParticipants(session, form, selected) {
+        const container = form.querySelector('[data-participants]');
+        const search = form.querySelector('[data-participant-search]');
+        const menu = form.querySelector('[data-participant-menu]');
+        if (!container || !search || !menu) return;
+        let contacts = null;
+        let highlighted = 0;
+
+        const renderChips = () => {
+            container.querySelectorAll('.vd-calendar-chip').forEach(chip => chip.remove());
+            container.insertAdjacentHTML('afterbegin', calendarParticipantChipsHTML(selected));
+        };
+        const matches = () => {
+            if (!contacts) return [];
+            const query = search.value.trim().toLowerCase();
+            const chosen = new Set(selected.map(p => String(p.id)));
+            return contacts.filter(c => !chosen.has(c.id) && (!query || c.name.toLowerCase().includes(query) || c.email.toLowerCase().includes(query))).slice(0, 8);
+        };
+        const renderMenu = () => {
+            if (document.activeElement !== search) { menu.hidden = true; return; }
+            if (contacts === null) { menu.hidden = false; menu.innerHTML = `<div class="vd-calendar-chip-menu-empty">${esc(t('desktop.loading'))}</div>`; return; }
+            const list = matches();
+            highlighted = Math.min(highlighted, Math.max(0, list.length - 1));
+            menu.hidden = false;
+            if (!list.length) { menu.innerHTML = `<div class="vd-calendar-chip-menu-empty">${esc(t(contacts.length ? 'desktop.cal_no_contacts' : 'desktop.cal_no_contacts_yet'))}</div>`; return; }
+            menu.innerHTML = list.map((c, index) => `<button type="button" class="vd-calendar-chip-option ${index === highlighted ? 'is-active' : ''}" data-participant-pick="${esc(c.id)}"><span class="vd-calendar-chip-avatar" aria-hidden="true">${esc(c.name.charAt(0).toUpperCase())}</span><span class="vd-calendar-chip-option-body"><b>${esc(c.name)}</b>${c.email || c.relationship ? `<small>${esc(c.email || c.relationship)}</small>` : ''}</span></button>`).join('');
+        };
+        const pick = id => {
+            const contact = (contacts || []).find(c => c.id === String(id));
+            if (!contact || selected.some(p => String(p.id) === contact.id)) return;
+            selected.push({ id: contact.id, name: contact.name });
+            search.value = '';
+            highlighted = 0;
+            renderChips();
+            renderMenu();
+        };
+
+        search.addEventListener('focus', () => {
+            renderMenu();
+            loadCalendarContacts(session).then(list => { contacts = list; renderMenu(); });
+        });
+        search.addEventListener('input', () => { highlighted = 0; renderMenu(); });
+        search.addEventListener('blur', () => { setTimeout(() => { if (!menu.contains(document.activeElement)) menu.hidden = true; }, 120); });
+        search.addEventListener('keydown', event => {
+            const list = matches();
+            if (event.key === 'ArrowDown' && list.length) { event.preventDefault(); highlighted = (highlighted + 1) % list.length; renderMenu(); }
+            else if (event.key === 'ArrowUp' && list.length) { event.preventDefault(); highlighted = (highlighted - 1 + list.length) % list.length; renderMenu(); }
+            else if (event.key === 'Enter') { event.preventDefault(); if (list[highlighted]) pick(list[highlighted].id); }
+            else if (event.key === 'Backspace' && !search.value && selected.length) { selected.pop(); renderChips(); renderMenu(); }
+            else if (event.key === 'Escape' && !menu.hidden) { event.preventDefault(); event.stopPropagation(); menu.hidden = true; }
+        });
+        menu.addEventListener('mousedown', event => event.preventDefault());
+        menu.addEventListener('click', event => {
+            const option = event.target.closest('[data-participant-pick]');
+            if (option) { pick(option.dataset.participantPick); search.focus(); }
+        });
+        container.addEventListener('click', event => {
+            const remove = event.target.closest('[data-participant-remove]');
+            if (remove) {
+                const id = remove.dataset.participantRemove;
+                const index = selected.findIndex(p => String(p.id) === id);
+                if (index >= 0) selected.splice(index, 1);
+                renderChips();
+                search.focus();
+                return;
+            }
+            if (event.target === container) search.focus();
+        });
+    }
+
+    function calendarEditorPayload(form, selected) {
+        const title = form.elements.title.value.trim();
+        if (!title) return { error: t('desktop.cal_title_required'), field: form.elements.title };
+        const start = calendarDateFromParts(form.elements.date.value, form.elements.time.value);
+        if (!start) return { error: t('desktop.cal_date_required'), field: form.elements.date };
+        const wakeAgent = !!form.elements.wake_agent.checked;
+        const payload = {
+            title,
+            description: form.elements.description.value.trim(),
+            date_time: start.toISOString(),
+            notification_at: calendarReminderFromPreset(form.elements.reminder.value, start, form.elements.notification_at.value),
+            wake_agent: wakeAgent,
+            agent_instruction: wakeAgent ? form.elements.agent_instruction.value.trim() : '',
+            contact_ids: selected.map(p => String(p.id))
+        };
+        const group = form.querySelector('[data-status-group]');
+        if (group) {
+            const status = group.dataset.status || 'upcoming';
+            // Overdue is server-derived; rescheduling into the future reopens the appointment.
+            payload.status = status === 'overdue' && start > new Date() ? 'upcoming' : status;
+        }
+        return { payload, start };
+    }
+
+    function closeCalendarEditor(session) {
+        const backdrop = session.editor;
+        if (!backdrop) return;
+        session.editor = null;
+        const restore = backdrop.__calendarRestoreFocus;
+        backdrop.classList.add('is-closing');
+        const finish = () => backdrop.remove();
+        if (document.body.dataset.animations === 'false') finish(); else setTimeout(finish, 140);
+        if (restore && typeof restore.focus === 'function' && document.contains(restore)) restore.focus({ preventScroll: true });
+    }
+
+    function openAppointmentEditor(session, options) {
+        options = options || {};
+        const appointment = options.appointment || null;
+        closeCalendarEditor(session);
+        closeCalendarPeek(session);
+        const start = appointment ? (calendarDate(appointment.date_time) || new Date()) : calendarDefaultStart(options.dateHint);
+        const backdrop = document.createElement('div');
+        backdrop.className = 'vd-modal-backdrop vd-calendar-editor-backdrop';
+        backdrop.setAttribute('role', 'dialog');
+        backdrop.setAttribute('aria-modal', 'true');
+        backdrop.innerHTML = calendarEditorHTML(appointment, start);
+        backdrop.__calendarRestoreFocus = document.activeElement;
+        document.body.appendChild(backdrop);
+        session.editor = backdrop;
+
+        const form = backdrop.querySelector('form');
+        const selected = (appointment && appointment.participants ? appointment.participants : []).filter(p => p && p.id).map(p => ({ id: String(p.id), name: p.name || '' }));
+        const errorBox = form.querySelector('[data-form-error]');
+        const showError = (message, field) => {
+            errorBox.textContent = message;
+            errorBox.hidden = !message;
+            if (field) { field.classList.add('is-invalid'); field.focus(); field.addEventListener('input', () => field.classList.remove('is-invalid'), { once: true }); }
+        };
+        const setBusy = busy => {
+            form.classList.toggle('is-busy', busy);
+            form.querySelectorAll('button, input, select, textarea').forEach(el => { el.disabled = busy; });
+        };
+
+        wireCalendarParticipants(session, form, selected);
+        calendarEditorUpdateRepeatPreview(form);
+
+        form.addEventListener('change', event => {
+            if (event.target.name === 'reminder') form.querySelector('[data-reminder-custom]').hidden = event.target.value !== 'custom';
+            if (event.target.name === 'wake_agent') {
+                const box = form.querySelector('[data-agent-instruction]');
+                box.hidden = !event.target.checked;
+                // The agent is woken by the reminder, so make sure one exists.
+                if (event.target.checked && form.elements.reminder.value === 'none') form.elements.reminder.value = '0';
+                if (event.target.checked) box.focus();
+            }
+            if (['repeat', 'repeat_count', 'date', 'time'].includes(event.target.name)) calendarEditorUpdateRepeatPreview(form);
+        });
+        form.addEventListener('input', event => {
+            if (event.target.name === 'repeat_count') calendarEditorUpdateRepeatPreview(form);
+        });
+        form.addEventListener('click', async event => {
+            const option = event.target.closest('[data-cal-status-option]');
+            if (option) {
+                const group = form.querySelector('[data-status-group]');
+                group.dataset.status = option.dataset.calStatusOption;
+                group.innerHTML = calendarStatusOptionsHTML(group.dataset.status);
+                return;
+            }
+            if (event.target.closest('[data-cancel]')) { closeCalendarEditor(session); return; }
+            if (event.target.closest('[data-delete]') && appointment) {
+                if (!(await confirmDialog(t('desktop.delete'), t('desktop.cal_delete_confirm')))) return;
+                setBusy(true);
+                try {
+                    await deleteCalendarAppointment(session, appointment);
+                    closeCalendarEditor(session);
+                } catch (err) {
+                    setBusy(false);
+                    showError(err && err.message ? err.message : t('desktop.request_failed'));
+                }
+            }
+        });
+        form.addEventListener('keydown', event => {
+            if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeCalendarEditor(session); }
+            else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); form.requestSubmit(); }
+            else if (event.key === 'Enter' && event.target === form.elements.title) { event.preventDefault(); form.elements.date.focus(); }
+        });
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            const result = calendarEditorPayload(form, selected);
+            if (result.error) { showError(result.error, result.field); return; }
+            setBusy(true);
+            try {
+                if (appointment) {
+                    await plannerJSON(`/api/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
+                    closeCalendarEditor(session);
+                    await session.reload({ silent: true });
+                    session.snack({ message: t('desktop.cal_saved') });
+                } else {
+                    const repeat = form.elements.repeat ? form.elements.repeat.value : 'none';
+                    const count = form.elements.repeat_count ? form.elements.repeat_count.value : 1;
+                    const created = await createRecurringAppointments(result.payload, repeat, count);
+                    closeCalendarEditor(session);
+                    session.focusDate(result.start);
+                    await session.reload({ silent: true });
+                    session.snack({ message: created > 1 ? t('desktop.cal_created_many', { count: created }) : t('desktop.cal_created') });
+                }
+                desktopSound('notify.info');
+            } catch (err) {
+                setBusy(false);
+                showError(err && err.message ? err.message : t('desktop.request_failed'));
+            }
+        });
+        backdrop.addEventListener('mousedown', event => { if (event.target === backdrop) backdrop.dataset.dismiss = 'true'; });
+        backdrop.addEventListener('mouseup', event => {
+            if (event.target === backdrop && backdrop.dataset.dismiss === 'true') closeCalendarEditor(session);
+            delete backdrop.dataset.dismiss;
+        });
+        requestAnimationFrame(() => {
+            const title = form.elements.title;
+            title.focus({ preventScroll: true });
+            if (appointment) title.setSelectionRange(title.value.length, title.value.length);
+        });
+    }
+
+    function closeCalendarPeek(session) {
+        if (!session.peek) return;
+        const peek = session.peek;
+        session.peek = null;
+        if (session.peekDismiss) { document.removeEventListener('pointerdown', session.peekDismiss, true); document.removeEventListener('keydown', session.peekKeydown, true); }
+        session.peekDismiss = null;
+        session.peekKeydown = null;
+        const anchor = peek.__calendarAnchor;
+        const hadFocus = peek.contains(document.activeElement);
+        peek.remove();
+        session.host.querySelectorAll('.vd-calendar-event.is-peeking').forEach(el => el.classList.remove('is-peeking'));
+        if (hadFocus && anchor && document.contains(anchor)) anchor.focus({ preventScroll: true });
+    }
+
+    function calendarPeekHTML(item) {
+        const date = calendarDate(item.date_time);
+        const canComplete = item.status === 'upcoming' || item.status === 'overdue';
+        const canCancel = item.status === 'upcoming' || item.status === 'overdue';
+        const canReopen = item.status === 'completed' || item.status === 'cancelled';
+        const participants = (item.participants || []).map(p => p.name).filter(Boolean);
+        return `<div class="vd-calendar-peek-accent is-${item.status}" aria-hidden="true"></div>
+            <div class="vd-calendar-peek-body">
+                <header class="vd-calendar-peek-head">
+                    <h3>${esc(item.title)}</h3>
+                    <span class="vd-calendar-status-pill is-${item.status}">${esc(calendarStatusLabel(item.status))}</span>
+                </header>
+                <p class="vd-calendar-peek-when">${iconMarkup('clock', 'T', 'vd-calendar-mini-icon', 13)}<span>${esc(date ? `${calFormat(date, { weekday: 'long', day: 'numeric', month: 'long' })} · ${calFormatTime(date)}` : '')}</span><small>${esc(date ? calRelativeTime(date) : '')}</small></p>
+                ${item.notification_at ? `<p class="vd-calendar-peek-meta">${iconMarkup('bell', 'R', 'vd-calendar-mini-icon', 13)}<span>${esc(t('desktop.cal_reminder'))}: ${esc(calendarDateTimeLabel(item.notification_at))}</span></p>` : ''}
+                ${participants.length ? `<p class="vd-calendar-peek-meta">${iconMarkup('users', 'P', 'vd-calendar-mini-icon', 13)}<span>${esc(participants.join(', '))}</span></p>` : ''}
+                ${item.wake_agent ? `<p class="vd-calendar-peek-meta is-agent">${iconMarkup('chat', 'A', 'vd-calendar-mini-icon', 13)}<span>${esc(item.agent_instruction || t('desktop.cal_wake_agent'))}</span></p>` : ''}
+                ${item.description ? `<p class="vd-calendar-peek-description">${esc(item.description)}</p>` : ''}
+                <footer class="vd-calendar-peek-actions">
+                    ${canComplete ? `<button type="button" class="vd-button vd-button-primary" data-cal-status-action="completed" data-appt-id="${esc(item.id)}">${iconMarkup('check', 'OK', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_mark_complete'))}</span></button>` : ''}
+                    ${canReopen ? `<button type="button" class="vd-button" data-cal-status-action="upcoming" data-appt-id="${esc(item.id)}">${iconMarkup('undo', 'U', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_reopen'))}</span></button>` : ''}
+                    <button type="button" class="vd-button" data-cal-edit="${esc(item.id)}">${iconMarkup('edit', 'E', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.launchpad_edit'))}</span></button>
+                    ${canCancel ? `<button type="button" class="vd-calendar-icon-button" data-cal-status-action="cancelled" data-appt-id="${esc(item.id)}" title="${esc(t('desktop.cal_cancel_appointment'))}" aria-label="${esc(t('desktop.cal_cancel_appointment'))}">${iconMarkup('x', 'x', 'vd-calendar-action-icon', 14)}</button>` : ''}
+                    <button type="button" class="vd-calendar-icon-button is-danger" data-cal-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}" aria-label="${esc(t('desktop.delete'))}">${iconMarkup('trash', 'D', 'vd-calendar-action-icon', 14)}</button>
+                </footer>
+            </div>`;
+    }
+
+    function openAppointmentPeek(session, item, anchor) {
+        closeCalendarPeek(session);
+        const shell = session.host.querySelector('.vd-calendar-shell');
+        if (!shell || !item) return;
+        const peek = document.createElement('div');
+        peek.className = 'vd-calendar-peek';
+        peek.setAttribute('role', 'dialog');
+        peek.innerHTML = calendarPeekHTML(item);
+        shell.appendChild(peek);
+        session.peek = peek;
+        peek.__calendarAnchor = anchor || null;
+        if (anchor) anchor.classList.add('is-peeking');
+        // Position next to the anchor inside the shell, flipping when there is no room.
+        const shellRect = shell.getBoundingClientRect();
+        const anchorRect = anchor ? anchor.getBoundingClientRect() : shellRect;
+        const width = peek.offsetWidth, height = peek.offsetHeight;
+        let left = anchorRect.right - shellRect.left + 10;
+        if (left + width > shellRect.width - 8) left = anchorRect.left - shellRect.left - width - 10;
+        if (left < 8) left = Math.max(8, Math.min(shellRect.width - width - 8, anchorRect.left - shellRect.left));
+        let top = anchorRect.top - shellRect.top - 8;
+        if (top + height > shellRect.height - 8) top = Math.max(8, shellRect.height - height - 8);
+        peek.style.left = `${Math.round(left)}px`;
+        peek.style.top = `${Math.round(top)}px`;
+        session.peekDismiss = event => { if (!peek.contains(event.target)) closeCalendarPeek(session); };
+        session.peekKeydown = event => { if (event.key === 'Escape') { event.stopPropagation(); closeCalendarPeek(session); } };
+        document.addEventListener('pointerdown', session.peekDismiss, true);
+        document.addEventListener('keydown', session.peekKeydown, true);
+        const first = peek.querySelector('button');
+        if (first) first.focus({ preventScroll: true });
+    }
+
+;
+/* ui/js/desktop/apps/calendar.js */
+    // Calendar app shell: per-window session state, incremental painting,
+    // navigation, keyboard shortcuts, drag & drop with undo and mutations.
+    // View renderers live in calendar-views.js, the editor in calendar-editor.js.
+
+    const calendarSessions = new Map();
+    const CAL_VIEWS = ['day', 'week', 'month', 'agenda'];
+    const CAL_PREFS_KEY = 'aurago.desktop.calendar.prefs';
+    const CAL_REFRESH_AFTER_MS = 60000;
+
+    function calendarPrefs() {
+        try { return JSON.parse(localStorage.getItem(CAL_PREFS_KEY) || '{}') || {}; } catch (_) { return {}; }
+    }
+
+    function saveCalendarPrefs(patch) {
+        try { localStorage.setItem(CAL_PREFS_KEY, JSON.stringify(Object.assign(calendarPrefs(), patch))); } catch (_) { /* storage unavailable */ }
+    }
+
+    function calendarShellHTML(session) {
+        const viewButtons = CAL_VIEWS.map(view => `<button type="button" class="vd-calendar-view-button" role="tab" data-cal-view="${view}" aria-selected="false" title="${esc(t(`desktop.cal_${view}`))} (${view.charAt(0).toUpperCase()})">${esc(t(`desktop.cal_${view}`))}</button>`).join('');
+        return `<div class="vd-calendar-shell" data-cal-view="${esc(session.view)}">
+            <header class="vd-calendar-command">
+                <div class="vd-calendar-command-group">
+                    <button type="button" class="vd-calendar-icon-button" data-cal-sidebar-toggle aria-pressed="${session.sidebarOpen ? 'true' : 'false'}" title="${esc(t('desktop.cal_toggle_sidebar'))}" aria-label="${esc(t('desktop.cal_toggle_sidebar'))}">${iconMarkup('columns', '|', 'vd-calendar-action-icon', 15)}</button>
+                    <button type="button" class="vd-button vd-calendar-today-button" data-cal-today title="${esc(t('desktop.cal_today'))} (T)">${esc(t('desktop.cal_today'))}</button>
+                    <div class="vd-calendar-nav" role="group">
+                        <button type="button" class="vd-calendar-icon-button" data-cal-nav="-1" title="${esc(t('desktop.cal_previous'))}" aria-label="${esc(t('desktop.cal_previous'))}">${iconMarkup('chevron-left', '<', 'vd-calendar-action-icon', 14)}</button>
+                        <button type="button" class="vd-calendar-icon-button" data-cal-nav="1" title="${esc(t('desktop.cal_next'))}" aria-label="${esc(t('desktop.cal_next'))}">${iconMarkup('chevron-right', '>', 'vd-calendar-action-icon', 14)}</button>
+                    </div>
+                    <div class="vd-calendar-range">
+                        <h2 class="vd-calendar-range-title" data-cal-title aria-live="polite"></h2>
+                        <button type="button" class="vd-calendar-icon-button vd-calendar-jump" data-cal-jump title="${esc(t('desktop.cal_go_to_date'))}" aria-label="${esc(t('desktop.cal_go_to_date'))}">${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 14)}</button>
+                        <input type="date" class="vd-calendar-jump-input" data-cal-jump-input tabindex="-1" aria-hidden="true">
+                    </div>
+                </div>
+                <div class="vd-calendar-command-group vd-calendar-command-end">
+                    <label class="vd-calendar-search">
+                        ${iconMarkup('search', 'S', 'vd-calendar-action-icon', 14)}
+                        <input type="search" data-cal-search inputmode="search" enterkeyhint="search" placeholder="${esc(t('desktop.cal_search_placeholder'))}" aria-label="${esc(t('desktop.search'))}" autocomplete="off" spellcheck="false">
+                        <button type="button" class="vd-calendar-search-clear" data-cal-search-clear aria-label="${esc(t('desktop.clear'))}" hidden>×</button>
+                    </label>
+                    <div class="vd-calendar-view-switch" role="tablist" aria-label="${esc(t('desktop.menu_view'))}">${viewButtons}</div>
+                    <button type="button" class="vd-button vd-button-primary vd-calendar-create" data-cal-create title="${esc(t('desktop.cal_new_appointment'))} (N)">${iconMarkup('plus', '+', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.cal_new'))}</span></button>
+                </div>
+                <div class="vd-calendar-progress" data-cal-progress hidden><i></i></div>
+            </header>
+            <div class="vd-calendar-stage">
+                <aside class="vd-calendar-sidebar" data-cal-sidebar>
+                    <div class="vd-calendar-side-mini" data-cal-mini></div>
+                    <div class="vd-calendar-side-agenda" data-cal-side-agenda></div>
+                    <div class="vd-calendar-side-filters">
+                        <label class="vd-calendar-check"><input type="checkbox" data-cal-filter="completed"><span class="vd-calendar-event-dot is-completed" aria-hidden="true"></span><span>${esc(t('desktop.cal_show_completed'))}</span></label>
+                        <label class="vd-calendar-check"><input type="checkbox" data-cal-filter="cancelled"><span class="vd-calendar-event-dot is-cancelled" aria-hidden="true"></span><span>${esc(t('desktop.cal_show_cancelled'))}</span></label>
+                    </div>
+                </aside>
+                <div class="vd-calendar-body" data-cal-body></div>
+            </div>
+            <div class="vd-calendar-snackbar" data-cal-snackbar hidden></div>
+        </div>`;
     }
 
     async function renderCalendar(id) {
         const host = contentEl(id);
         if (!host) return;
-        host.dataset.calView = host.dataset.calView || 'month';
-        host.dataset.calDate = host.dataset.calDate || isoDate(new Date());
-        const activeDate = new Date(host.dataset.calDate + 'T12:00:00');
-        const view = host.dataset.calView;
-        host.innerHTML = `<div class="vd-calendar-shell">
-            <header class="vd-calendar-command">
-                <div class="vd-calendar-titlebar">
-                    <div class="vd-calendar-nav">
-                        <button class="vd-calendar-icon-button" type="button" data-cal-nav="prev" title="${esc(t('desktop.cal_previous'))}">${iconMarkup('chevron-left', 'L', 'vd-calendar-action-icon', 15)}</button>
-                        <button class="vd-calendar-icon-button" type="button" data-cal-nav="next" title="${esc(t('desktop.cal_next'))}">${iconMarkup('chevron-right', 'R', 'vd-calendar-action-icon', 15)}</button>
-                    </div>
-                    <div class="vd-calendar-heading">
-                        <strong>${esc(calendarRangeLabel(activeDate, view))}</strong>
-                        <span>${esc(t('desktop.cal_drag_hint'))}</span>
-                    </div>
-                </div>
-                <div class="vd-calendar-actions">
-                    <button class="vd-button vd-button-primary" type="button" data-cal-create>${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_new'))}</span></button>
-                    <button class="vd-button" type="button" data-cal-today>${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_today'))}</span></button>
-                    <div class="vd-calendar-view-switch" role="group" aria-label="${esc(t('desktop.menu_view'))}">
-                        ${['month','week','day'].map(item => `<button type="button" data-cal-view="${item}" class="${view === item ? 'active' : ''}">${esc(t('desktop.cal_' + item))}</button>`).join('')}
-                    </div>
-                </div>
-            </header>
-            <div class="vd-calendar-stage">
-                <div class="vd-calendar-body" data-cal-body>${esc(t('desktop.loading'))}</div>
-                <aside class="vd-calendar-sidebar" data-cal-sidebar>${esc(t('desktop.loading'))}</aside>
-            </div>
-        </div>`;
-        const showCalendarContextMenu = (event, appointments, render) => {
-            const apptEl = event.target.closest('[data-appt-id]');
-            const cellEl = event.target.closest('[data-cal-date]');
-            if (!apptEl && !cellEl) return false;
-            const appt = apptEl ? appointments.find(item => item.id === apptEl.dataset.apptId) : null;
-            const date = cellEl ? cellEl.dataset.calDate : isoDate(activeDate);
-            const items = [
-                appt
-                    ? { labelKey: 'desktop.launchpad_edit', icon: 'edit', action: () => openAppointmentModal(host, appt, '', render) }
-                    : { labelKey: 'desktop.cal_new_appointment', icon: 'calendar', action: () => openAppointmentModal(host, null, date, render) }
-            ];
-            if (appt && (appt.status === 'upcoming' || appt.status === 'overdue')) {
-                items.push(
-                    { labelKey: 'desktop.cal_mark_complete', icon: 'check-square', action: async () => { await updateAppointmentStatus(appt, 'completed', render); } },
-                    { labelKey: 'desktop.cal_cancel_appointment', icon: 'x', action: async () => { await updateAppointmentStatus(appt, 'cancelled', render); } }
-                );
-            }
-            items.push({ separator: true }, { labelKey: 'desktop.context_refresh', icon: 'refresh', action: render });
-            showContextMenu(event.clientX, event.clientY, items);
-            return true;
+        const existing = calendarSessions.get(id);
+        if (existing) existing.dispose();
+        const prefs = calendarPrefs();
+        const session = {
+            id, host,
+            view: CAL_VIEWS.includes(prefs.view) ? prefs.view : 'month',
+            cursor: new Date(),
+            selected: isoDate(new Date()),
+            miniCursor: null,
+            appointments: [],
+            loaded: false, loading: false, error: null, lastLoadedAt: 0,
+            query: '', viewBeforeSearch: null,
+            filters: { completed: prefs.showCompleted !== false, cancelled: !!prefs.showCancelled },
+            sidebarOpen: prefs.sidebar !== false && !isCompactViewport(),
+            monthDensity: 3,
+            timeScrollTop: null,
+            timers: [], listeners: [], observer: null,
+            editor: null, peek: null, contactsPromise: null,
+            dragId: null, snackTimer: null, snackAction: null
         };
-        wireContextMenuBoundary(host);
-        const render = async () => {
-            const appointments = normalizeCalendarAppointments(await api('/api/appointments?status=all'));
-            const body = host.querySelector('.vd-calendar-body');
-            const sidebar = host.querySelector('[data-cal-sidebar]');
-            body.innerHTML = host.dataset.calView === 'month' ? calendarMonthHTML(activeDate, appointments) : calendarAgendaHTML(activeDate, appointments, host.dataset.calView);
-            sidebar.innerHTML = calendarSidebarHTML(activeDate, appointments);
-            wireCalendarBody(host, appointments, render);
-            body.oncontextmenu = event => {
-                if (showCalendarContextMenu(event, appointments, render)) event.preventDefault();
-            };
-            sidebar.oncontextmenu = event => {
-                if (showCalendarContextMenu(event, appointments, render)) event.preventDefault();
-            };
-        };
-        host.querySelectorAll('[data-cal-view]').forEach(btn => btn.addEventListener('click', () => { host.dataset.calView = btn.dataset.calView; renderCalendar(id); }));
-        host.querySelector('[data-cal-today]').addEventListener('click', () => { host.dataset.calDate = isoDate(new Date()); renderCalendar(id); });
-        host.querySelector('[data-cal-create]').addEventListener('click', () => openAppointmentModal(host, null, isoDate(activeDate), render));
-        host.querySelectorAll('[data-cal-nav]').forEach(btn => btn.addEventListener('click', () => {
-            const delta = btn.dataset.calNav === 'next' ? 1 : -1;
-            if (host.dataset.calView === 'month') activeDate.setMonth(activeDate.getMonth() + delta);
-            else activeDate.setDate(activeDate.getDate() + delta * (host.dataset.calView === 'week' ? 7 : 1));
-            host.dataset.calDate = isoDate(activeDate);
-            renderCalendar(id);
-        }));
-        setCalendarMenus(id, host, activeDate, render);
-        try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`; }
+        session.reload = options => loadCalendarAppointments(session, options);
+        session.snack = options => showCalendarSnack(session, options);
+        session.focusDate = (date, options) => calendarFocusDate(session, date, options);
+        session.paint = () => paintCalendar(session);
+        session.dispose = () => disposeCalendarSession(session);
+        calendarSessions.set(id, session);
+
+        host.innerHTML = calendarShellHTML(session);
+        wireCalendarShell(session);
+        // Bound once per host: the handler resolves the live session so re-renders keep working.
+        wireContextMenuBoundary(host, { onContextMenu: event => showCalendarContextMenu(calendarSessions.get(id), event) });
+        setCalendarMenus(id, session);
         registerWindowCleanup(id, () => {
-            document.querySelectorAll('.vd-modal-backdrop').forEach(el => el.remove());
+            session.dispose();
+            calendarSessions.delete(id);
+            document.querySelectorAll('.vd-modal-backdrop.vd-calendar-editor-backdrop').forEach(el => el.remove());
         });
+        paintCalendar(session);
+        await loadCalendarAppointments(session, { initial: true });
     }
 
-    function setCalendarMenus(id, host, activeDate, render) {
+    function disposeCalendarSession(session) {
+        session.timers.forEach(timer => clearInterval(timer));
+        session.timers = [];
+        session.listeners.forEach(([target, type, handler, options]) => target.removeEventListener(type, handler, options));
+        session.listeners = [];
+        if (session.observer) { session.observer.disconnect(); session.observer = null; }
+        clearTimeout(session.snackTimer);
+        closeCalendarPeek(session);
+        closeCalendarEditor(session);
+    }
+
+    function calendarListen(session, target, type, handler, options) {
+        target.addEventListener(type, handler, options);
+        session.listeners.push([target, type, handler, options]);
+    }
+
+    function setCalendarMenus(id, session) {
         setWindowMenus(id, [
             {
-                id: 'file',
-                labelKey: 'desktop.menu_file',
-                items: [
-                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'calendar', shortcut: 'Ctrl+N', action: () => openAppointmentModal(host, null, isoDate(activeDate), render) }
+                id: 'file', labelKey: 'desktop.menu_file', items: [
+                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'plus', shortcut: 'Ctrl+N', action: () => openAppointmentEditor(session, { dateHint: session.selected }) },
+                    { type: 'separator' },
+                    { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: () => loadCalendarAppointments(session, { silent: true }) }
                 ]
             },
             {
-                id: 'view',
-                labelKey: 'desktop.menu_view',
-                items: [
-                    { id: 'today', labelKey: 'desktop.cal_today', icon: 'calendar', action: () => { host.dataset.calDate = isoDate(new Date()); renderCalendar(id); } },
-                    { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: render }
+                id: 'view', labelKey: 'desktop.menu_view', items: [
+                    { id: 'today', labelKey: 'desktop.cal_today', icon: 'calendar', action: () => calendarGoToday(session) },
+                    { type: 'separator' },
+                    ...CAL_VIEWS.map(view => ({ id: `view-${view}`, labelKey: `desktop.cal_${view}`, checked: session.view === view, action: () => setCalendarView(session, view) })),
+                    { type: 'separator' },
+                    { id: 'sidebar', labelKey: 'desktop.cal_toggle_sidebar', icon: 'columns', checked: session.sidebarOpen, action: () => toggleCalendarSidebar(session) }
                 ]
             }
         ]);
     }
 
-    function normalizeCalendarAppointments(appointments) {
-        return (appointments || []).map(item => Object.assign({
-            title: '',
-            description: '',
-            status: 'upcoming',
-            participants: [],
-            contact_ids: []
-        }, item || {})).sort((left, right) => calendarDate(left).getTime() - calendarDate(right).getTime());
-    }
-
-    function calendarDate(appointment) {
-        const d = new Date((appointment && appointment.date_time) || Date.now());
-        return Number.isNaN(d.getTime()) ? new Date() : d;
-    }
-
-    function calendarRangeLabel(activeDate, view) {
-        if (view === 'day') return activeDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-        if (view === 'week') {
-            const days = calendarWeekDays(activeDate);
-            const first = days[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            const last = days[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-            return `${first} - ${last}`;
+    async function loadCalendarAppointments(session, options) {
+        options = options || {};
+        if (session.loading) return;
+        session.loading = true;
+        const progress = session.host.querySelector('[data-cal-progress]');
+        if (progress && session.loaded) progress.hidden = false;
+        if (!session.loaded) paintCalendar(session);
+        try {
+            const data = await api('/api/appointments?status=all');
+            session.appointments = normalizeCalendarAppointments(data);
+            session.loaded = true;
+            session.error = null;
+            session.lastLoadedAt = Date.now();
+        } catch (err) {
+            session.error = err;
+            if (session.loaded && !options.initial) session.snack({ type: 'error', message: t('desktop.load_failed') });
+        } finally {
+            session.loading = false;
+            if (progress) progress.hidden = true;
         }
-        return activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        paintCalendar(session);
     }
 
-    function calendarWeekDays(activeDate) {
-        return Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(activeDate);
-            d.setDate(activeDate.getDate() - ((activeDate.getDay() + 6) % 7) + i);
-            return d;
+    function calendarMonthDensity(session) {
+        const body = session.host.querySelector('[data-cal-body]');
+        if (!body) return 3;
+        const rows = calendarMonthCells(session.cursor).rows;
+        const cellHeight = Math.max(76, (body.clientHeight - 30) / rows);
+        return Math.max(1, Math.min(8, Math.floor((cellHeight - 30) / 23)));
+    }
+
+    function paintCalendar(session) {
+        const host = session.host;
+        const shell = host.querySelector('.vd-calendar-shell');
+        if (!shell) return;
+        const searching = !!session.query.trim();
+        shell.dataset.calView = session.view;
+        shell.classList.toggle('is-sidebar-collapsed', !session.sidebarOpen);
+        shell.classList.toggle('is-searching', searching);
+        shell.classList.toggle('is-loading', session.loading && !session.loaded);
+
+        const title = host.querySelector('[data-cal-title]');
+        if (title) title.textContent = searching ? t('desktop.cal_search_results_title') : calendarRangeLabel(session.view, session.cursor);
+        host.querySelectorAll('[data-cal-nav], [data-cal-today]').forEach(button => { button.disabled = searching; });
+        host.querySelectorAll('[data-cal-view]').forEach(button => {
+            const active = button.dataset.calView === session.view;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+            button.tabIndex = active ? 0 : -1;
         });
-    }
+        const toggle = host.querySelector('[data-cal-sidebar-toggle]');
+        if (toggle) toggle.setAttribute('aria-pressed', session.sidebarOpen ? 'true' : 'false');
+        const clear = host.querySelector('[data-cal-search-clear]');
+        if (clear) clear.hidden = !searching;
 
-    function calendarDayItems(appointments, date) {
-        const key = isoDate(date);
-        return appointments.filter(a => String(a.date_time || '').startsWith(key));
-    }
-
-    function calendarStatusLabel(status) {
-        const key = 'desktop.cal_status_' + (status || 'upcoming');
-        const label = t(key);
-        return label === key ? String(status || '') : label;
-    }
-
-    function calendarTimeLabel(value) {
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '';
-        return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function calendarDateTimeLabel(value) {
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '';
-        return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    }
-
-    function calendarEventButtonHTML(appointment, mode) {
-        const status = esc(appointment.status || 'upcoming');
-        const participants = (appointment.participants || []).length;
-        const time = calendarTimeLabel(appointment.date_time);
-        return `<button type="button" draggable="true" class="vd-calendar-event ${status} ${mode || ''}" data-appt-id="${esc(appointment.id)}" title="${esc(appointment.title)}">
-            <span class="vd-calendar-event-time">${esc(time)}</span>
-            <span class="vd-calendar-event-title">${esc(appointment.title)}</span>
-            <span class="vd-calendar-event-badges">${appointment.wake_agent ? iconMarkup('agent', 'A', 'vd-calendar-mini-icon', 12) : ''}${participants ? `<em>${esc(String(participants))}</em>` : ''}</span>
-        </button>`;
-    }
-
-    function calendarMonthHTML(activeDate, appointments) {
-        const first = new Date(activeDate.getFullYear(), activeDate.getMonth(), 1);
-        const start = new Date(first);
-        start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
-        const today = isoDate(new Date());
-        const cells = Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
-        const weekdays = calendarWeekDays(new Date()).map(d => `<span>${esc(d.toLocaleDateString(undefined, { weekday: 'short' }))}</span>`).join('');
-        return `<div class="vd-calendar-month-wrap">
-            <div class="vd-calendar-weekdays">${weekdays}</div>
-            <div class="vd-calendar-month">${cells.map(d => {
-                const key = isoDate(d);
-                const dayItems = calendarDayItems(appointments, d);
-                const hidden = Math.max(0, dayItems.length - 3);
-                return `<div role="button" tabindex="0" class="vd-calendar-cell ${d.getMonth() !== activeDate.getMonth() ? 'muted' : ''} ${key === today ? 'today' : ''}" data-cal-date="${key}" data-cal-drop-date="${key}">
-                    <div class="vd-calendar-cell-head"><span>${d.getDate()}</span>${dayItems.length ? `<em>${dayItems.length}</em>` : ''}</div>
-                    <div class="vd-calendar-cell-events">${dayItems.slice(0, 3).map(a => calendarEventButtonHTML(a, 'compact')).join('')}${hidden ? `<button type="button" class="vd-calendar-more" data-cal-date="${key}">${esc(t('desktop.cal_more_events')).replace('{{count}}', String(hidden))}</button>` : ''}</div>
-                </div>`;
-            }).join('')}</div>
-        </div>`;
-    }
-
-    function calendarAgendaHTML(activeDate, appointments, view) {
-        const days = view === 'week' ? calendarWeekDays(activeDate) : [activeDate];
-        const hours = Array.from({ length: 17 }, (_, i) => i + 6);
-        return `<div class="vd-calendar-time-grid ${esc(view)}" style="--vd-calendar-days:${days.length}">
-            <div class="vd-calendar-time-corner">${esc(t('desktop.cal_schedule'))}</div>
-            ${days.map(day => `<div class="vd-calendar-day-head ${isoDate(day) === isoDate(new Date()) ? 'today' : ''}"><strong>${esc(day.toLocaleDateString(undefined, { weekday: 'short' }))}</strong><span>${esc(day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span></div>`).join('')}
-            ${hours.map(hour => `<div class="vd-calendar-time-label">${String(hour).padStart(2, '0')}:00</div>${days.map(day => {
-                const key = `${isoDate(day)}T${String(hour).padStart(2, '0')}:00`;
-                const dayItems = calendarDayItems(appointments, day).filter(a => calendarDate(a).getHours() === hour);
-                return `<div class="vd-calendar-hour" data-cal-date="${key}" data-cal-drop-date="${key}">
-                    ${dayItems.map(a => calendarEventButtonHTML(a, 'wide')).join('') || `<span class="vd-calendar-empty-slot">${esc(t('desktop.cal_no_events'))}</span>`}
-                </div>`;
-            }).join('')}`).join('')}
-        </div>`;
-    }
-
-    function calendarSidebarHTML(activeDate, appointments) {
-        const now = new Date();
-        const todayItems = calendarDayItems(appointments, new Date());
-        const upcoming = appointments.filter(a => calendarDate(a) >= now && a.status !== 'cancelled' && a.status !== 'completed').slice(0, 8);
-        const overdue = appointments.filter(a => (a.status === 'overdue') || (a.status === 'upcoming' && calendarDate(a) < now));
-        return `<section class="vd-calendar-side-section">
-            <div class="vd-calendar-side-title"><span>${esc(t('desktop.cal_today_panel'))}</span><strong>${todayItems.length}</strong></div>
-            <div class="vd-calendar-side-list">${todayItems.length ? todayItems.map(a => calendarSidebarItemHTML(a)).join('') : `<p>${esc(t('desktop.cal_no_events'))}</p>`}</div>
-        </section>
-        <section class="vd-calendar-side-section">
-            <div class="vd-calendar-side-title"><span>${esc(t('desktop.cal_upcoming'))}</span><strong>${upcoming.length}</strong></div>
-            <div class="vd-calendar-side-list">${upcoming.length ? upcoming.map(a => calendarSidebarItemHTML(a)).join('') : `<p>${esc(t('desktop.cal_no_events'))}</p>`}</div>
-        </section>
-        <section class="vd-calendar-side-section compact">
-            <div class="vd-calendar-side-title overdue"><span>${esc(t('desktop.cal_overdue'))}</span><strong>${overdue.length}</strong></div>
-        </section>`;
-    }
-
-    function calendarSidebarItemHTML(appointment) {
-        const participants = (appointment.participants || []).map(p => p.name).filter(Boolean).slice(0, 2).join(', ');
-        return `<button type="button" class="vd-calendar-side-item ${esc(appointment.status || 'upcoming')}" data-appt-id="${esc(appointment.id)}">
-            <strong>${esc(calendarDateTimeLabel(appointment.date_time))}</strong>
-            <span>${esc(appointment.title)}</span>
-            ${participants ? `<small>${esc(participants)}</small>` : ''}
-            ${appointment.wake_agent ? `<em>${esc(t('desktop.cal_agent_instruction'))}</em>` : ''}
-        </button>`;
-    }
-
-    function wireCalendarBody(host, appointments, reload) {
-        const root = host.querySelector('.vd-calendar-stage');
-        if (!root) return;
-        root.querySelectorAll('[data-cal-date]').forEach(cell => {
-            cell.addEventListener('click', event => {
-                if (event.target.closest('[data-appt-id]')) return;
-                openAppointmentModal(host, null, cell.dataset.calDate, reload);
-            });
-            cell.addEventListener('keydown', event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openAppointmentModal(host, null, cell.dataset.calDate, reload);
+        const body = host.querySelector('[data-cal-body]');
+        if (body) {
+            const scroll = body.querySelector('[data-cal-time-scroll]');
+            if (scroll) session.timeScrollTop = scroll.scrollTop;
+            if (!session.loaded && session.loading) {
+                body.innerHTML = calendarSkeletonHTML(session.view);
+            } else if (!session.loaded && session.error) {
+                body.innerHTML = `<div class="vd-calendar-empty is-error"><strong>${esc(t('desktop.load_failed'))}</strong><p>${esc(session.error.message || '')}</p><button type="button" class="vd-button" data-cal-retry>${iconMarkup('refresh', 'R', 'vd-calendar-action-icon', 14)}<span>${esc(t('desktop.retry'))}</span></button></div>`;
+            } else {
+                const items = calendarVisibleAppointments(session);
+                if (session.view === 'month') {
+                    session.monthDensity = calendarMonthDensity(session);
+                    body.innerHTML = calendarMonthHTML(session, items);
+                } else if (session.view === 'week') {
+                    body.innerHTML = calendarTimeGridHTML(session, items, calendarWeekDays(session.cursor));
+                } else if (session.view === 'day') {
+                    body.innerHTML = calendarTimeGridHTML(session, items, [calStartOfDay(session.cursor)]);
+                } else {
+                    body.innerHTML = calendarAgendaHTML(session, items);
                 }
-            });
-        });
-        root.querySelectorAll('[data-appt-id]').forEach(btn => {
-            const appointment = appointments.find(a => a.id === btn.dataset.apptId);
-            btn.addEventListener('click', event => {
-                event.stopPropagation();
-                if (appointment) openAppointmentModal(host, appointment, '', reload);
-            });
-            btn.addEventListener('dragstart', event => {
-                event.dataTransfer.setData('text/plain', btn.dataset.apptId || '');
-                event.dataTransfer.effectAllowed = 'move';
-                btn.classList.add('dragging');
-            });
-            btn.addEventListener('dragend', () => btn.classList.remove('dragging'));
-        });
-        root.querySelectorAll('[data-cal-drop-date]').forEach(zone => {
-            zone.addEventListener('dragover', event => {
-                event.preventDefault();
-                zone.classList.add('drop-target');
-            });
-            zone.addEventListener('dragleave', () => zone.classList.remove('drop-target'));
-            zone.addEventListener('drop', async event => {
-                event.preventDefault();
-                zone.classList.remove('drop-target');
-                const id = event.dataTransfer.getData('text/plain');
-                const appointment = appointments.find(a => a.id === id);
-                if (appointment) await updateAppointmentDateTime(appointment, zone.dataset.calDropDate, reload);
-            });
-        });
-    }
-
-    async function updateAppointmentDateTime(appointment, dateHint, reload) {
-        const previous = calendarDate(appointment);
-        let next;
-        if (String(dateHint || '').includes('T')) {
-            next = new Date(dateHint);
-            next.setMinutes(previous.getMinutes(), 0, 0);
-        } else {
-            next = new Date(`${dateHint}T${String(previous.getHours()).padStart(2, '0')}:${String(previous.getMinutes()).padStart(2, '0')}:00`);
+                calendarRestoreTimeScroll(session);
+            }
         }
-        if (Number.isNaN(next.getTime())) return;
-        await plannerJSON('/api/appointments/' + encodeURIComponent(appointment.id), 'PUT', { date_time: next.toISOString() });
-        await reload();
+
+        const mini = host.querySelector('[data-cal-mini]');
+        if (mini) mini.innerHTML = calendarMiniMonthHTML(session);
+        const side = host.querySelector('[data-cal-side-agenda]');
+        if (side) side.innerHTML = session.loaded ? calendarSidebarAgendaHTML(session) : '';
+        host.querySelectorAll('[data-cal-filter]').forEach(input => { input.checked = !!session.filters[input.dataset.calFilter]; });
     }
 
-    async function updateAppointmentStatus(appointment, status, reload) {
-        await plannerJSON('/api/appointments/' + encodeURIComponent(appointment.id), 'PUT', { status });
-        await reload();
+    function calendarRestoreTimeScroll(session) {
+        const scroll = session.host.querySelector('[data-cal-time-scroll]');
+        if (!scroll) return;
+        if (session.timeScrollTop !== null && session.timeScrollTop >= 0) {
+            scroll.scrollTop = session.timeScrollTop;
+            return;
+        }
+        const now = new Date();
+        const days = session.view === 'day' ? [session.cursor] : calendarWeekDays(session.cursor);
+        const includesToday = days.some(day => calSameDay(day, now));
+        const anchorHour = includesToday ? Math.max(0, now.getHours() - 2) : 7;
+        scroll.scrollTop = anchorHour * CAL_HOUR_HEIGHT;
     }
 
-    function calendarOptionalDateTime(value) {
-        if (!value) return '';
-        const date = new Date(value);
-        return isNaN(date.getTime()) ? '' : date.toISOString();
+    function calendarScrollToNow(session) {
+        const scroll = session.host.querySelector('[data-cal-time-scroll]');
+        if (!scroll) return;
+        const target = Math.max(0, (calMinutesOfDay(new Date()) / 60) * CAL_HOUR_HEIGHT - scroll.clientHeight / 2);
+        scroll.scrollTo({ top: target, behavior: document.body.dataset.animations === 'false' ? 'auto' : 'smooth' });
     }
 
-    function shiftCalendarDate(value, repeat, amount) {
-        const date = new Date(value);
-        if (repeat === 'daily') date.setDate(date.getDate() + amount);
-        if (repeat === 'weekly') date.setDate(date.getDate() + amount * 7);
-        if (repeat === 'monthly') date.setMonth(date.getMonth() + amount);
-        return date.toISOString();
+    function calendarUpdateNowLine(session) {
+        const now = new Date();
+        if (isoDate(now) !== session.todayKey) {
+            session.todayKey = isoDate(now);
+            paintCalendar(session);
+            return;
+        }
+        session.host.querySelectorAll('[data-cal-now]').forEach(line => {
+            line.style.top = `${((calMinutesOfDay(now) / 60) * CAL_HOUR_HEIGHT).toFixed(1)}px`;
+            const label = line.querySelector('span');
+            if (label) label.textContent = calFormatTime(now);
+        });
     }
 
-    async function createRecurringAppointments(payload, repeat, count) {
-        const total = Math.max(1, Math.min(Number(count) || 1, 30));
-        for (let i = 0; i < total; i++) {
-            const item = Object.assign({}, payload, {
-                date_time: shiftCalendarDate(payload.date_time, repeat, i)
-            });
-            if (payload.notification_at) item.notification_at = shiftCalendarDate(payload.notification_at, repeat, i);
-            await plannerJSON('/api/appointments', 'POST', item);
+    function setCalendarView(session, view, options) {
+        if (!CAL_VIEWS.includes(view)) return;
+        options = options || {};
+        if (session.view !== view) session.timeScrollTop = null;
+        session.view = view;
+        if (!options.transient) saveCalendarPrefs({ view });
+        setCalendarMenus(session.id, session);
+        paintCalendar(session);
+        calendarFlashBody(session);
+    }
+
+    function calendarFlashBody(session) {
+        const body = session.host.querySelector('[data-cal-body]');
+        if (!body || document.body.dataset.animations === 'false') return;
+        body.classList.remove('is-entering');
+        void body.offsetWidth;
+        body.classList.add('is-entering');
+    }
+
+    function calendarFocusDate(session, date, options) {
+        options = options || {};
+        const target = date instanceof Date ? date : calParseISODate(date);
+        if (Number.isNaN(target.getTime())) return;
+        session.cursor = new Date(target);
+        session.selected = isoDate(target);
+        session.miniCursor = null;
+        if (options.view) session.view = options.view;
+        if (options.view) { session.timeScrollTop = null; saveCalendarPrefs({ view: options.view }); setCalendarMenus(session.id, session); }
+        paintCalendar(session);
+        if (options.focusCell) {
+            const cell = session.host.querySelector(`.vd-calendar-cell[data-cal-date="${session.selected}"]`);
+            if (cell) cell.focus({ preventScroll: true });
         }
     }
 
-    function openAppointmentModal(host, appointment, dateHint, reload) {
-        const overlay = document.createElement('div');
-        overlay.className = 'vd-modal-backdrop';
-        const initial = appointment || { title: '', description: '', status: 'upcoming', date_time: dateHint ? fromLocalDateTime(dateHint.includes('T') ? dateHint : dateHint + 'T09:00') : new Date().toISOString(), wake_agent: false };
-        const participants = (initial.participants || []).map(p => p.name).filter(Boolean).join(', ');
-        overlay.innerHTML = `<form class="vd-modal vd-calendar-modal"><div class="vd-modal-title">${esc(t(appointment ? 'desktop.cal_edit_appointment' : 'desktop.cal_new_appointment'))}</div>
-            <div class="vd-calendar-modal-grid">
-                <label><span>${esc(t('desktop.cal_title'))}</span><input name="title" class="vd-modal-input" value="${esc(initial.title)}"></label>
-                <label><span>${esc(t('desktop.cal_date_time'))}</span><input name="date_time" class="vd-modal-input" type="datetime-local" value="${esc(dateTimeLocalValue(initial.date_time))}"></label>
-                <label><span>${esc(t('desktop.cal_reminder'))}</span><input name="notification_at" class="vd-modal-input" type="datetime-local" value="${esc(initial.notification_at ? dateTimeLocalValue(initial.notification_at) : '')}"></label>
-                <label><span>${esc(t('desktop.cal_status'))}</span><select name="status" class="vd-modal-input">${['upcoming','overdue','completed','cancelled'].map(status => `<option value="${status}" ${initial.status === status ? 'selected' : ''}>${esc(calendarStatusLabel(status))}</option>`).join('')}</select></label>
-            </div>
-            <label class="vd-calendar-modal-block"><span>${esc(t('desktop.cal_description'))}</span><textarea name="description" class="vd-modal-input">${esc(initial.description || '')}</textarea></label>
-            <label class="vd-check vd-calendar-wake"><input name="wake_agent" type="checkbox" ${initial.wake_agent ? 'checked' : ''}>${esc(t('desktop.cal_notification'))}</label>
-            <label class="vd-calendar-modal-block"><span>${esc(t('desktop.cal_agent_instruction'))}</span><textarea name="agent_instruction" class="vd-modal-input">${esc(initial.agent_instruction || '')}</textarea></label>
-            ${participants ? `<div class="vd-calendar-participants"><strong>${esc(t('desktop.cal_participants'))}</strong><span>${esc(participants)}</span></div>` : ''}
-            ${appointment ? '' : `<div class="vd-calendar-recurring">
-                <label><span>${esc(t('desktop.cal_recurring'))}</span><select name="repeat" class="vd-modal-input">
-                    <option value="none">${esc(t('desktop.cal_repeat_none'))}</option>
-                    <option value="daily">${esc(t('desktop.cal_repeat_daily'))}</option>
-                    <option value="weekly">${esc(t('desktop.cal_repeat_weekly'))}</option>
-                    <option value="monthly">${esc(t('desktop.cal_repeat_monthly'))}</option>
-                </select></label>
-                <label><span>${esc(t('desktop.cal_repeat_count'))}</span><input name="repeat_count" class="vd-modal-input" type="number" min="1" max="30" value="1"></label>
-            </div>`}
-            ${appointment && (initial.status === 'upcoming' || initial.status === 'overdue') ? `<div class="vd-calendar-status-actions">
-                <button type="button" class="vd-button" data-cal-status-action="completed">${iconMarkup('check-square', 'C', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.cal_mark_complete'))}</span></button>
-                <button type="button" class="vd-button" data-cal-status-action="cancelled">${iconMarkup('x', 'X', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.cal_cancel_appointment'))}</span></button>
-            </div>` : ''}
-            <div class="vd-modal-actions">${appointment ? `<button type="button" class="vd-button" data-delete>${iconMarkup('trash', 'X', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.delete'))}</span></button>` : ''}<button type="button" class="vd-button" data-cancel>${iconMarkup('x', 'X', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.cancel'))}</span></button><button class="vd-button vd-button-primary">${iconMarkup('save', 'S', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.save'))}</span></button></div></form>`;
-        document.body.appendChild(overlay);
-        const close = () => overlay.remove();
-        overlay.querySelector('[data-cancel]').addEventListener('click', close);
-        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
-        const del = overlay.querySelector('[data-delete]');
-        if (del) del.addEventListener('click', async () => { if (await confirmDialog(t('desktop.cal_delete_confirm'), appointment.title)) { await api('/api/appointments/' + encodeURIComponent(appointment.id), { method: 'DELETE' }); close(); await reload(); } });
-        overlay.querySelectorAll('[data-cal-status-action]').forEach(btn => btn.addEventListener('click', async () => {
-            await updateAppointmentStatus(appointment, btn.dataset.calStatusAction, reload);
-            close();
-        }));
-        overlay.querySelector('form').addEventListener('submit', async event => {
+    function shiftCalendarPeriod(session, direction) {
+        const cursor = new Date(session.cursor);
+        if (session.view === 'month') session.cursor = calAddMonths(cursor, direction);
+        else if (session.view === 'week') session.cursor = calAddDays(cursor, 7 * direction);
+        else if (session.view === 'day') session.cursor = calAddDays(cursor, direction);
+        else return;
+        session.selected = isoDate(session.cursor);
+        session.miniCursor = null;
+        paintCalendar(session);
+        calendarFlashBody(session);
+    }
+
+    function calendarGoToday(session) {
+        const today = new Date();
+        session.cursor = today;
+        session.selected = isoDate(today);
+        session.miniCursor = null;
+        session.timeScrollTop = null;
+        paintCalendar(session);
+        calendarFlashBody(session);
+        if (session.view === 'week' || session.view === 'day') calendarScrollToNow(session);
+        const cell = session.host.querySelector('.vd-calendar-cell.is-today');
+        if (cell) { cell.classList.add('is-pulse'); setTimeout(() => cell.classList.remove('is-pulse'), 900); }
+    }
+
+    function toggleCalendarSidebar(session) {
+        session.sidebarOpen = !session.sidebarOpen;
+        saveCalendarPrefs({ sidebar: session.sidebarOpen });
+        setCalendarMenus(session.id, session);
+        paintCalendar(session);
+    }
+
+    function calendarSetQuery(session, value) {
+        const next = String(value || '');
+        const wasSearching = !!session.query.trim();
+        const isSearching = !!next.trim();
+        session.query = next;
+        if (isSearching && !wasSearching) {
+            session.viewBeforeSearch = session.view;
+            if (session.view !== 'agenda') setCalendarView(session, 'agenda', { transient: true });
+        } else if (!isSearching && wasSearching) {
+            const restore = session.viewBeforeSearch;
+            session.viewBeforeSearch = null;
+            if (restore && restore !== session.view) setCalendarView(session, restore, { transient: true });
+        }
+        paintCalendar(session);
+    }
+
+    function calendarFindAppointment(session, id) {
+        return session.appointments.find(item => String(item.id) === String(id)) || null;
+    }
+
+    // Moves the selection highlight without repainting the grid (keyboard roving and cell clicks).
+    function calendarMarkSelected(session) {
+        session.host.querySelectorAll('.vd-calendar-cell.is-selected').forEach(el => { el.classList.remove('is-selected'); el.tabIndex = -1; el.setAttribute('aria-selected', 'false'); });
+        const el = session.host.querySelector(`.vd-calendar-cell[data-cal-date="${session.selected}"]`);
+        if (el) { el.classList.add('is-selected'); el.tabIndex = 0; el.setAttribute('aria-selected', 'true'); }
+        const mini = session.host.querySelector('[data-cal-mini]');
+        if (mini) mini.innerHTML = calendarMiniMonthHTML(session);
+    }
+
+    function calendarSlotDate(column, slot, clientY) {
+        const day = calParseISODate(column.dataset.calColumn || column.dataset.calDropDate);
+        const rect = slot.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(0.999, (clientY - rect.top) / Math.max(1, rect.height)));
+        const minutes = Math.floor(ratio * 4) * 15;
+        day.setHours(Number(slot.dataset.calHour) || 0, minutes, 0, 0);
+        return day;
+    }
+
+    function calendarDropDate(target, clientY, appointment) {
+        const source = calendarDate(appointment.date_time) || new Date();
+        const column = target.closest('[data-cal-column]');
+        if (column) {
+            const rect = column.getBoundingClientRect();
+            const minutes = Math.max(0, Math.min(24 * 60 - 15, Math.round(((clientY - rect.top) / CAL_HOUR_HEIGHT) * 60 / 15) * 15));
+            const day = calParseISODate(column.dataset.calColumn);
+            day.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+            return day;
+        }
+        const cell = target.closest('[data-cal-drop-date]');
+        if (!cell) return null;
+        const day = calParseISODate(cell.dataset.calDropDate);
+        day.setHours(source.getHours(), source.getMinutes(), 0, 0);
+        return day;
+    }
+
+    function calendarClearDropState(session) {
+        session.host.querySelectorAll('.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+        session.host.querySelectorAll('.vd-calendar-drop-ghost').forEach(el => el.remove());
+    }
+
+    function calendarShowDropGhost(session, column, clientY) {
+        const rect = column.getBoundingClientRect();
+        const minutes = Math.max(0, Math.min(24 * 60 - 15, Math.round(((clientY - rect.top) / CAL_HOUR_HEIGHT) * 60 / 15) * 15));
+        let ghost = column.querySelector('.vd-calendar-drop-ghost');
+        if (!ghost) {
+            session.host.querySelectorAll('.vd-calendar-drop-ghost').forEach(el => el.remove());
+            ghost = document.createElement('div');
+            ghost.className = 'vd-calendar-drop-ghost';
+            ghost.innerHTML = '<span></span>';
+            column.appendChild(ghost);
+        }
+        ghost.style.top = `${((minutes / 60) * CAL_HOUR_HEIGHT).toFixed(1)}px`;
+        ghost.style.height = `${((CAL_EVENT_MINUTES / 60) * CAL_HOUR_HEIGHT).toFixed(1)}px`;
+        ghost.querySelector('span').textContent = calFormatTime(new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60));
+    }
+
+    async function updateAppointmentDateTime(session, appointment, target) {
+        if (!appointment || !(target instanceof Date) || Number.isNaN(target.getTime())) return false;
+        const previousDate = calendarDate(appointment.date_time);
+        if (previousDate && previousDate.getTime() === target.getTime()) return false;
+        const previous = { date_time: appointment.date_time, notification_at: appointment.notification_at, status: appointment.status };
+        const patch = { date_time: target.toISOString() };
+        if (appointment.notification_at && previousDate) {
+            const reminder = calendarDate(appointment.notification_at);
+            if (reminder) patch.notification_at = new Date(reminder.getTime() + (target - previousDate)).toISOString();
+        }
+        if (appointment.status === 'overdue' && target > new Date()) patch.status = 'upcoming';
+        Object.assign(appointment, patch);
+        session.appointments.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
+        paintCalendar(session);
+        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        try {
+            await plannerJSON(url, 'PUT', patch);
+        } catch (err) {
+            Object.assign(appointment, previous);
+            paintCalendar(session);
+            session.snack({ type: 'error', message: err && err.message ? err.message : t('desktop.request_failed') });
+            return false;
+        }
+        session.snack({
+            message: t('desktop.cal_rescheduled', { date: calendarDateTimeLabel(patch.date_time) }),
+            actionLabel: t('desktop.cal_undo'),
+            onAction: async () => {
+                await plannerJSON(url, 'PUT', previous);
+                await loadCalendarAppointments(session, { silent: true });
+                session.snack({ message: t('desktop.cal_restored') });
+            }
+        });
+        return true;
+    }
+
+    async function updateAppointmentStatus(session, appointment, status) {
+        if (!appointment || appointment.status === status) return;
+        const previous = appointment.status;
+        appointment.status = status;
+        paintCalendar(session);
+        closeCalendarPeek(session);
+        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        try {
+            await plannerJSON(url, 'PUT', { status });
+        } catch (err) {
+            appointment.status = previous;
+            paintCalendar(session);
+            session.snack({ type: 'error', message: err && err.message ? err.message : t('desktop.request_failed') });
+            return;
+        }
+        const messages = { completed: 'desktop.cal_completed_toast', cancelled: 'desktop.cal_cancelled_toast', upcoming: 'desktop.cal_reopened_toast' };
+        session.snack({
+            message: t(messages[status] || 'desktop.cal_saved'),
+            actionLabel: t('desktop.cal_undo'),
+            onAction: async () => {
+                await plannerJSON(url, 'PUT', { status: previous });
+                await loadCalendarAppointments(session, { silent: true });
+                session.snack({ message: t('desktop.cal_restored') });
+            }
+        });
+        loadCalendarAppointments(session, { silent: true });
+    }
+
+    async function deleteCalendarAppointment(session, appointment) {
+        if (!appointment) return;
+        await api(`/api/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
+        session.appointments = session.appointments.filter(item => item.id !== appointment.id);
+        closeCalendarPeek(session);
+        paintCalendar(session);
+        const restore = {
+            title: appointment.title, description: appointment.description, date_time: appointment.date_time,
+            notification_at: appointment.notification_at, wake_agent: appointment.wake_agent,
+            agent_instruction: appointment.agent_instruction, status: appointment.status,
+            contact_ids: (appointment.participants || []).map(p => p.id).filter(Boolean)
+        };
+        session.snack({
+            message: t('desktop.cal_deleted'),
+            actionLabel: t('desktop.cal_undo'),
+            onAction: async () => {
+                await plannerJSON('/api/appointments', 'POST', restore);
+                await loadCalendarAppointments(session, { silent: true });
+                session.snack({ message: t('desktop.cal_restored') });
+            }
+        });
+    }
+
+    function hideCalendarSnack(session) {
+        const bar = session.host.querySelector('[data-cal-snackbar]');
+        clearTimeout(session.snackTimer);
+        session.snackAction = null;
+        if (!bar) return;
+        bar.classList.remove('is-visible');
+        setTimeout(() => { if (!bar.classList.contains('is-visible')) bar.hidden = true; }, 200);
+    }
+
+    function showCalendarSnack(session, options) {
+        const bar = session.host.querySelector('[data-cal-snackbar]');
+        if (!bar) return;
+        clearTimeout(session.snackTimer);
+        options = options || {};
+        session.snackAction = typeof options.onAction === 'function' ? options.onAction : null;
+        bar.hidden = false;
+        bar.className = `vd-calendar-snackbar is-${options.type || 'info'}`;
+        bar.innerHTML = `<span class="vd-calendar-snackbar-text">${esc(options.message || '')}</span>
+            ${session.snackAction ? `<button type="button" class="vd-calendar-snackbar-action" data-cal-snack-action>${esc(options.actionLabel || t('desktop.cal_undo'))}</button>` : ''}
+            <button type="button" class="vd-calendar-snackbar-close" data-cal-snack-close aria-label="${esc(t('desktop.close'))}">×</button>`;
+        requestAnimationFrame(() => bar.classList.add('is-visible'));
+        session.snackTimer = setTimeout(() => hideCalendarSnack(session), options.duration || (session.snackAction ? 8000 : 3500));
+    }
+
+    async function runCalendarSnackAction(session, button) {
+        const action = session.snackAction;
+        if (!action) return;
+        button.disabled = true;
+        hideCalendarSnack(session);
+        try { await action(); } catch (err) { session.snack({ type: 'error', message: err && err.message ? err.message : t('desktop.request_failed') }); }
+    }
+
+    function showCalendarContextMenu(session, event) {
+        if (!session) return false;
+        const eventEl = event.target.closest('[data-appt-id]');
+        if (eventEl) {
+            const item = calendarFindAppointment(session, eventEl.dataset.apptId);
+            if (!item) return false;
+            const open = item.status === 'upcoming' || item.status === 'overdue';
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.cal_edit_appointment', icon: 'edit', action: () => openAppointmentEditor(session, { appointment: item }) },
+                { labelKey: 'desktop.cal_mark_complete', icon: 'check', hidden: !open, action: () => updateAppointmentStatus(session, item, 'completed') },
+                { labelKey: 'desktop.cal_cancel_appointment', icon: 'x', hidden: !open, action: () => updateAppointmentStatus(session, item, 'cancelled') },
+                { labelKey: 'desktop.cal_reopen', icon: 'undo', hidden: open, action: () => updateAppointmentStatus(session, item, 'upcoming') },
+                { separator: true },
+                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.delete'), t('desktop.cal_delete_confirm'))) deleteCalendarAppointment(session, item).catch(err => session.snack({ type: 'error', message: err.message || t('desktop.request_failed') })); } }
+            ]);
+            return true;
+        }
+        const cell = event.target.closest('[data-cal-drop-date]');
+        if (cell) {
+            const date = cell.dataset.calDropDate;
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.cal_new_appointment', icon: 'plus', action: () => openAppointmentEditor(session, { dateHint: date }) },
+                { labelKey: 'desktop.cal_open_day', icon: 'calendar', action: () => calendarFocusDate(session, date, { view: 'day' }) }
+            ]);
+            return true;
+        }
+        return false;
+    }
+
+    function calendarHandleKeydown(session, event) {
+        if (session.editor || session.peek) return;
+        const target = event.target;
+        const editable = target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]');
+        if (editable) {
+            if (event.key === 'Escape' && target.matches('[data-cal-search]')) { event.preventDefault(); target.value = ''; calendarSetQuery(session, ''); target.blur(); }
+            return;
+        }
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        const key = event.key;
+        // Roving tabs: arrow keys move between the view buttons (WAI-ARIA tabs pattern).
+        const viewTab = target && target.closest ? target.closest('[data-cal-view]') : null;
+        if (viewTab && (key === 'ArrowLeft' || key === 'ArrowRight')) {
             event.preventDefault();
-            const form = event.currentTarget;
-            const payload = { title: form.title.value.trim(), date_time: fromLocalDateTime(form.date_time.value), notification_at: calendarOptionalDateTime(form.notification_at.value), description: form.description.value, status: form.status.value, wake_agent: form.wake_agent.checked, agent_instruction: form.agent_instruction.value.trim() };
-            if (!payload.title) return;
-            if (appointment) await plannerJSON('/api/appointments/' + encodeURIComponent(appointment.id), 'PUT', payload);
-            else if (form.repeat.value !== 'none' && Number(form.repeat_count.value) > 1) await createRecurringAppointments(payload, form.repeat.value, form.repeat_count.value);
-            else await plannerJSON('/api/appointments', 'POST', payload);
-            close();
-            await reload();
+            const index = CAL_VIEWS.indexOf(session.view);
+            const next = CAL_VIEWS[(index + (key === 'ArrowRight' ? 1 : CAL_VIEWS.length - 1)) % CAL_VIEWS.length];
+            setCalendarView(session, next);
+            const button = session.host.querySelector(`[data-cal-view="${next}"]`);
+            if (button) button.focus();
+            return;
+        }
+        const cell = target && target.closest ? target.closest('.vd-calendar-cell[data-cal-date]') : null;
+        const moveSelection = days => {
+            const next = calAddDays(calParseISODate(session.selected), days);
+            const monthChanged = next.getMonth() !== session.cursor.getMonth() || next.getFullYear() !== session.cursor.getFullYear();
+            session.selected = isoDate(next);
+            if (monthChanged) { session.cursor = new Date(next); paintCalendar(session); }
+            else calendarMarkSelected(session);
+            const el = session.host.querySelector(`.vd-calendar-cell[data-cal-date="${session.selected}"]`);
+            if (el) el.focus({ preventScroll: true });
+        };
+        if (cell && session.view === 'month') {
+            if (key === 'ArrowLeft') { event.preventDefault(); moveSelection(-1); return; }
+            if (key === 'ArrowRight') { event.preventDefault(); moveSelection(1); return; }
+            if (key === 'ArrowUp') { event.preventDefault(); moveSelection(-7); return; }
+            if (key === 'ArrowDown') { event.preventDefault(); moveSelection(7); return; }
+            if (key === 'Enter' || key === ' ') { event.preventDefault(); openAppointmentEditor(session, { dateHint: cell.dataset.calDate }); return; }
+        }
+        const lower = key.length === 1 ? key.toLowerCase() : key;
+        if (lower === 't' || key === 'Home') { event.preventDefault(); calendarGoToday(session); }
+        else if (lower === 'n') { event.preventDefault(); openAppointmentEditor(session, { dateHint: session.selected }); }
+        else if (lower === 'd') { event.preventDefault(); setCalendarView(session, 'day'); }
+        else if (lower === 'w') { event.preventDefault(); setCalendarView(session, 'week'); }
+        else if (lower === 'm') { event.preventDefault(); setCalendarView(session, 'month'); }
+        else if (lower === 'a') { event.preventDefault(); setCalendarView(session, 'agenda'); }
+        else if (lower === '/') { event.preventDefault(); const search = session.host.querySelector('[data-cal-search]'); if (search) search.focus(); }
+        else if (key === 'ArrowLeft' || key === 'PageUp') { event.preventDefault(); shiftCalendarPeriod(session, -1); }
+        else if (key === 'ArrowRight' || key === 'PageDown') { event.preventDefault(); shiftCalendarPeriod(session, 1); }
+        else if (key === 'Escape' && session.query) { event.preventDefault(); const search = session.host.querySelector('[data-cal-search]'); if (search) search.value = ''; calendarSetQuery(session, ''); }
+    }
+
+    function wireCalendarShell(session) {
+        const host = session.host;
+        const shell = host.querySelector('.vd-calendar-shell');
+        if (!shell) return;
+        session.todayKey = isoDate(new Date());
+
+        shell.addEventListener('click', async event => {
+            const target = event.target;
+            const closest = selector => target.closest(selector);
+            const nav = closest('[data-cal-nav]');
+            if (nav) { shiftCalendarPeriod(session, Number(nav.dataset.calNav) || 1); return; }
+            if (closest('[data-cal-today]')) { calendarGoToday(session); return; }
+            const viewButton = closest('[data-cal-view]');
+            if (viewButton) { setCalendarView(session, viewButton.dataset.calView); return; }
+            if (closest('[data-cal-sidebar-toggle]')) { toggleCalendarSidebar(session); return; }
+            if (closest('[data-cal-jump]')) {
+                const input = host.querySelector('[data-cal-jump-input]');
+                if (!input) return;
+                input.value = session.selected;
+                try { if (typeof input.showPicker === 'function') input.showPicker(); else input.click(); } catch (_) { input.click(); }
+                return;
+            }
+            if (closest('[data-cal-search-clear]')) { const search = host.querySelector('[data-cal-search]'); if (search) { search.value = ''; search.focus(); } calendarSetQuery(session, ''); return; }
+            if (closest('[data-cal-retry]')) { loadCalendarAppointments(session, { initial: true }); return; }
+            const miniNav = closest('[data-cal-mini-nav]');
+            if (miniNav) {
+                session.miniCursor = calAddMonths(session.miniCursor || session.cursor, Number(miniNav.dataset.calMiniNav) || 1);
+                const mini = host.querySelector('[data-cal-mini]');
+                if (mini) mini.innerHTML = calendarMiniMonthHTML(session);
+                return;
+            }
+            const miniJump = closest('[data-cal-mini-jump]');
+            if (miniJump) { calendarFocusDate(session, miniJump.dataset.calMiniJump, { view: session.view === 'agenda' ? 'month' : undefined }); return; }
+            const miniDate = closest('[data-cal-mini-date]');
+            if (miniDate) { calendarFocusDate(session, miniDate.dataset.calMiniDate, { view: session.view === 'agenda' ? 'day' : undefined }); return; }
+            const openDay = closest('[data-cal-open-day]');
+            if (openDay) { calendarFocusDate(session, openDay.dataset.calOpenDay, { view: 'day' }); return; }
+            const more = closest('[data-cal-more]');
+            if (more) { calendarFocusDate(session, more.dataset.calMore, { view: 'day' }); return; }
+            const snackAction = closest('[data-cal-snack-action]');
+            if (snackAction) { runCalendarSnackAction(session, snackAction); return; }
+            if (closest('[data-cal-snack-close]')) { hideCalendarSnack(session); return; }
+            const filter = closest('[data-cal-filter]');
+            if (filter) {
+                session.filters[filter.dataset.calFilter] = filter.checked;
+                saveCalendarPrefs({ showCompleted: session.filters.completed, showCancelled: session.filters.cancelled });
+                paintCalendar(session);
+                return;
+            }
+            const add = closest('[data-cal-add]');
+            if (add) { event.stopPropagation(); session.selected = add.dataset.calAdd; calendarMarkSelected(session); openAppointmentEditor(session, { dateHint: add.dataset.calAdd }); return; }
+            const statusAction = closest('[data-cal-status-action]');
+            if (statusAction) {
+                const item = calendarFindAppointment(session, statusAction.dataset.apptId);
+                if (item) updateAppointmentStatus(session, item, statusAction.dataset.calStatusAction);
+                return;
+            }
+            const edit = closest('[data-cal-edit]');
+            if (edit) { const item = calendarFindAppointment(session, edit.dataset.calEdit); if (item) openAppointmentEditor(session, { appointment: item }); return; }
+            const remove = closest('[data-cal-delete]');
+            if (remove) {
+                const item = calendarFindAppointment(session, remove.dataset.calDelete);
+                if (item && await confirmDialog(t('desktop.delete'), t('desktop.cal_delete_confirm'))) {
+                    deleteCalendarAppointment(session, item).catch(err => session.snack({ type: 'error', message: err && err.message ? err.message : t('desktop.request_failed') }));
+                }
+                return;
+            }
+            const eventButton = closest('[data-appt-id]');
+            if (eventButton && !closest('.vd-calendar-peek')) {
+                const item = calendarFindAppointment(session, eventButton.dataset.apptId);
+                if (item) openAppointmentPeek(session, item, eventButton);
+                return;
+            }
+            if (closest('[data-cal-create]')) { openAppointmentEditor(session, { dateHint: session.selected }); return; }
+            const slot = closest('.vd-calendar-hour-slot');
+            if (slot) {
+                const column = slot.closest('[data-cal-column]');
+                if (column) { session.selected = column.dataset.calColumn; openAppointmentEditor(session, { dateHint: calendarSlotDate(column, slot, event.clientY) }); }
+                return;
+            }
+            const cell = closest('.vd-calendar-cell[data-cal-date]');
+            if (cell) {
+                session.selected = cell.dataset.calDate;
+                calendarMarkSelected(session);
+                openAppointmentEditor(session, { dateHint: cell.dataset.calDate });
+            }
         });
+
+        shell.addEventListener('keydown', event => calendarHandleKeydown(session, event));
+
+        const jumpInput = host.querySelector('[data-cal-jump-input]');
+        if (jumpInput) jumpInput.addEventListener('change', () => { if (jumpInput.value) calendarFocusDate(session, jumpInput.value, { view: session.view === 'agenda' ? 'month' : undefined }); });
+
+        const search = host.querySelector('[data-cal-search]');
+        if (search) {
+            let debounce = null;
+            search.addEventListener('input', () => {
+                clearTimeout(debounce);
+                debounce = setTimeout(() => calendarSetQuery(session, search.value), 140);
+            });
+        }
+
+        shell.addEventListener('scroll', event => {
+            if (event.target && event.target.matches && event.target.matches('[data-cal-time-scroll]')) session.timeScrollTop = event.target.scrollTop;
+        }, true);
+
+        shell.addEventListener('dragstart', event => {
+            const el = event.target.closest && event.target.closest('.vd-calendar-event[draggable="true"]');
+            if (!el) return;
+            session.dragId = el.dataset.apptId;
+            el.classList.add('is-dragging');
+            shell.classList.add('is-dragging');
+            closeCalendarPeek(session);
+            if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', session.dragId); }
+        });
+        shell.addEventListener('dragend', () => {
+            session.dragId = null;
+            shell.classList.remove('is-dragging');
+            shell.querySelectorAll('.vd-calendar-event.is-dragging').forEach(el => el.classList.remove('is-dragging'));
+            calendarClearDropState(session);
+        });
+        shell.addEventListener('dragover', event => {
+            if (!session.dragId) return;
+            const column = event.target.closest('[data-cal-column]');
+            const cell = column || event.target.closest('[data-cal-drop-date]');
+            if (!cell) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+            if (!cell.classList.contains('is-drop-target')) {
+                shell.querySelectorAll('.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+                cell.classList.add('is-drop-target');
+            }
+            if (column) calendarShowDropGhost(session, column, event.clientY);
+        });
+        shell.addEventListener('dragleave', event => {
+            const cell = event.target.closest && event.target.closest('[data-cal-drop-date]');
+            if (cell && !cell.contains(event.relatedTarget)) { cell.classList.remove('is-drop-target'); cell.querySelectorAll('.vd-calendar-drop-ghost').forEach(el => el.remove()); }
+        });
+        shell.addEventListener('drop', event => {
+            const id = session.dragId || (event.dataTransfer && event.dataTransfer.getData('text/plain'));
+            const item = calendarFindAppointment(session, id);
+            const dropTarget = event.target.closest('[data-cal-drop-date]');
+            if (!item || !dropTarget) return;
+            event.preventDefault();
+            const target = calendarDropDate(dropTarget, event.clientY, item);
+            calendarClearDropState(session);
+            shell.classList.remove('is-dragging');
+            session.dragId = null;
+            if (target) updateAppointmentDateTime(session, item, target);
+        });
+
+        // Keep the current-time indicator and "today" markers fresh.
+        session.timers.push(setInterval(() => calendarUpdateNowLine(session), 60000));
+
+        // Refresh quietly when the desktop becomes visible again after a while.
+        calendarListen(session, document, 'visibilitychange', () => {
+            if (!document.hidden && session.loaded && Date.now() - session.lastLoadedAt > CAL_REFRESH_AFTER_MS) loadCalendarAppointments(session, { silent: true });
+        });
+
+        // Re-flow the month density when the window is resized.
+        if (typeof ResizeObserver === 'function') {
+            let resizeTimer = null;
+            let lastWidth = shell.clientWidth;
+            session.observer = new ResizeObserver(() => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    const width = shell.clientWidth;
+                    const shrunk = width < lastWidth;
+                    lastWidth = width;
+                    if (!session.loaded) return;
+                    if (shrunk && session.sidebarOpen && width < 640) { session.sidebarOpen = false; paintCalendar(session); return; }
+                    if (session.view === 'month' && calendarMonthDensity(session) !== session.monthDensity) paintCalendar(session);
+                }, 120);
+            });
+            session.observer.observe(shell);
+        }
     }
 
 ;
