@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "Noe gikk galt.",
+  "desktop.looper_error_detail": "Feil: {{message}}",
   "desktop.looper_evaluate": "Vurdering",
   "desktop.looper_evaluate_help": "Hvordan loopen skal bedømme resultatet. Poengsummen legges til automatisk.",
   "desktop.looper_evaluate_placeholder": "Når er resultatet godt nok?",

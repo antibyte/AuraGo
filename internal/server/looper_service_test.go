@@ -1,9 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"aurago/internal/agent"
 	"aurago/internal/desktop"
 
 	"github.com/sashabaranov/go-openai"
@@ -97,6 +99,39 @@ func TestBuildLooperEvaluatePromptNamesTargetScore(t *testing.T) {
 	}, "wrote draft")
 	if !strings.Contains(got, "98") || !strings.Contains(got, "does not stop the loop") {
 		t.Fatalf("evaluate prompt must bind completion to the target score: %q", got)
+	}
+	if strings.Contains(strings.ToLower(got), "read files") || strings.Contains(strings.ToLower(got), "run tests") {
+		t.Fatalf("evaluate prompt must stay tool-free: %q", got)
+	}
+	if !strings.Contains(got, "Do not call tools") {
+		t.Fatalf("evaluate prompt must forbid tool calls: %q", got)
+	}
+}
+
+func TestLooperEvaluationOrFallbackKeepsTheLoopAlive(t *testing.T) {
+	t.Parallel()
+	failed := looperEvaluationOrFallback("", fmt.Errorf("required minimal loop tool schemas were dropped"))
+	if failed.Score != 0 || !strings.Contains(failed.Feedback, "tool schemas were dropped") {
+		t.Fatalf("exec failure fallback = %+v", failed)
+	}
+	if failed.Summary == "" {
+		t.Fatal("exec failure fallback needs a summary")
+	}
+	invalid := looperEvaluationOrFallback("not json", nil)
+	if invalid.Score != 0 || invalid.Feedback != "not json" {
+		t.Fatalf("parse failure fallback = %+v", invalid)
+	}
+	ok := looperEvaluationOrFallback(`{"score":77,"done":false,"feedback":"tighten","summary":"draft"}`, nil)
+	if ok.Score != 77 || ok.Feedback != "tighten" {
+		t.Fatalf("valid evaluation fallback = %+v", ok)
+	}
+}
+
+func TestLooperEvaluationJSONIsNotAToolCall(t *testing.T) {
+	t.Parallel()
+	raw := `{"score":88,"done":true,"feedback":"tighten the ending","summary":"draft saved"}`
+	if agent.ParseToolCall(raw).IsTool {
+		t.Fatal("evaluation JSON must not be classified as a textual tool call")
 	}
 }
 

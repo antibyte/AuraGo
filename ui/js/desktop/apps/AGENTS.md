@@ -1290,7 +1290,9 @@ registration lives in `internal/desktop/types.go`.
   UI. Layout is three columns from 820 px (list | editor | run/history) with
   one footer action bar; below that, compact tabs Setup / Run / History.
   The loop completes when the score reaches the target; evaluator `done`
-  is logged only. Monitor renders the sparkline, timeline and last 20 saved
+  is logged only. Review is tool-free JSON against the work report; a failed
+  or invalid review logs score 0 and the loop continues. Monitor shows
+  `error`, a pending current step, the sparkline, timeline and last 20 saved
   runs. Status SSE
   is `/api/desktop/looper/status`; start/resume stay admin POST. Shell must
   pass `promptDialog` and `confirmDialog`. Readonly disables start/save/delete

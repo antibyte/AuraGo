@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "Algo salió mal.",
+  "desktop.looper_error_detail": "Error: {{message}}",
   "desktop.looper_evaluate": "Revisión",
   "desktop.looper_evaluate_help": "Cómo debe valorar el bucle el resultado. La puntuación se añade sola.",
   "desktop.looper_evaluate_placeholder": "¿Cuándo es suficientemente bueno?",

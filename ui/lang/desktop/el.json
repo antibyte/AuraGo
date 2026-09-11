@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "Κάτι πήγε στραβά.",
+  "desktop.looper_error_detail": "Σφάλμα: {{message}}",
   "desktop.looper_evaluate": "Αξιολόγηση",
   "desktop.looper_evaluate_help": "Πώς θα κρίνει ο βρόχος το αποτέλεσμα. Η βαθμολογία προστίθεται αυτόματα.",
   "desktop.looper_evaluate_placeholder": "Πότε είναι αρκετά καλό;",

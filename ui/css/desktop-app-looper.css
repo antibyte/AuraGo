@@ -381,12 +381,26 @@
     margin: 8px 0;
 }
 
+.vd-looper-error {
+    margin: 8px 0;
+    padding: 8px 10px;
+    border-left: 3px solid #ef4444;
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .vd-looper-feedback {
     margin: 8px 0;
     padding: 8px 10px;
     border-left: 3px solid var(--vd-looper-work);
     background: var(--vd-theme-control-bg);
     color: var(--vd-text);
+}
+
+.vd-looper-log--pending {
+    border-style: dashed;
 }
 
 .vd-looper-round {

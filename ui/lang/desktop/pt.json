@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "Algo correu mal.",
+  "desktop.looper_error_detail": "Erro: {{message}}",
   "desktop.looper_evaluate": "Avaliação",
   "desktop.looper_evaluate_help": "Como o loop deve julgar o resultado. A pontuação é adicionada automaticamente.",
   "desktop.looper_evaluate_placeholder": "Quando o resultado é suficientemente bom?",

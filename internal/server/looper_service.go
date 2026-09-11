@@ -225,35 +225,35 @@ func (r *LooperRunner) executeStarted(
 
 		evalPrompt := buildLooperEvaluatePrompt(cfg, lastWorkResult)
 		r.holder.SetStep("evaluate")
-		evalRes, _, err := stepExec("evaluate", evalPrompt, sysPrompt, tools, optsWithTools, nil)
+		evalRes, _, err := stepExec("evaluate", evalPrompt, sysPrompt, noTools, optsNoTools, nil)
+		ev := looperEvaluation{}
+		evalOK := false
 		if err != nil {
-			return r.setErrorAndReturn(err)
-		}
-		ev, ok := parseEvaluation(evalRes.Response)
-		if !ok {
-			clarityPrompt := "Your previous answer was not valid JSON. Reply with ONLY this object and no extra text: {\"score\":0-100,\"done\":true/false,\"feedback\":\"...\",\"summary\":\"...\"}"
-			clarityRes, _, cerr := stepExec("evaluate_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: evalPrompt},
-				{Role: openai.ChatMessageRoleAssistant, Content: evalRes.Response},
-			})
-			if cerr == nil {
-				r.holder.AppendLog(desktop.LooperLogEntry{
-					Round:    i,
-					Step:     "evaluate",
-					Prompt:   clarityPrompt,
-					Response: clarityRes.Response,
-					Duration: clarityRes.Duration.Milliseconds(),
+			r.logger.Warn("[Looper] evaluate failed; continuing with score 0", "round", i, "error", err)
+			ev = looperEvaluationOrFallback("", err)
+		} else {
+			ev, evalOK = parseEvaluation(evalRes.Response)
+			if !evalOK {
+				clarityPrompt := "Your previous answer was not valid JSON. Reply with ONLY this object and no extra text: {\"score\":0-100,\"done\":true/false,\"feedback\":\"...\",\"summary\":\"...\"}"
+				clarityRes, _, cerr := stepExec("evaluate_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, []openai.ChatCompletionMessage{
+					{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+					{Role: openai.ChatMessageRoleUser, Content: evalPrompt},
+					{Role: openai.ChatMessageRoleAssistant, Content: evalRes.Response},
 				})
-				ev, ok = parseEvaluation(clarityRes.Response)
-				evalRes = clarityRes
+				if cerr == nil {
+					r.holder.AppendLog(desktop.LooperLogEntry{
+						Round:    i,
+						Step:     "evaluate",
+						Prompt:   clarityPrompt,
+						Response: clarityRes.Response,
+						Duration: clarityRes.Duration.Milliseconds(),
+					})
+					ev, evalOK = parseEvaluation(clarityRes.Response)
+					evalRes = clarityRes
+				}
 			}
-		}
-		if !ok {
-			ev = looperEvaluation{
-				Score:    0,
-				Feedback: truncateResponse(evalRes.Response, 800),
-				Summary:  "Evaluation was not valid JSON; continuing.",
+			if !evalOK {
+				ev = looperEvaluationOrFallback(evalRes.Response, nil)
 			}
 		}
 		scoreHistory = append(scoreHistory, ev.Score)
@@ -262,11 +262,15 @@ func (r *LooperRunner) executeStarted(
 		}
 		lastFeedback = ev.Feedback
 		r.holder.RecordEvaluation(ev.Score, ev.Feedback, ev.Summary)
+		evalResponse := strings.TrimSpace(evalRes.Response)
+		if evalResponse == "" && err != nil {
+			evalResponse = err.Error()
+		}
 		r.holder.AppendLog(desktop.LooperLogEntry{
 			Round:    i,
 			Step:     "evaluate",
 			Prompt:   evalPrompt,
-			Response: evalRes.Response,
+			Response: evalResponse,
 			Duration: evalRes.Duration.Milliseconds(),
 			Score:    ev.Score,
 			Done:     ev.Done,
@@ -420,13 +424,31 @@ func buildLooperEvaluatePrompt(cfg desktop.LooperRunConfig, workResult string) s
 	if target <= 0 {
 		target = desktop.LooperDefaultTargetScore
 	}
-	return "You are an independent reviewer. Inspect the actual artifact yourself (read files, run tests). Do not trust the work report.\n\n" +
+	return "You are an independent reviewer. Score the artifact from the goal, the criteria, and the work report below (it includes tool output from this round). Do not call tools and do not open desktop apps.\n\n" +
 		"Goal:\n" + strings.TrimSpace(cfg.Goal) + "\n\n" +
 		"Evaluation criteria:\n" + strings.TrimSpace(cfg.Evaluate) + "\n\n" +
 		"Work report from this round:\n" + truncateResponse(workResult, 4000) + "\n\n" +
 		fmt.Sprintf("The loop continues until the score is at least %d, the round limit, or a stall. A first complete draft is not automatically done. Set done true only when the score meets that target; done true below the target does not stop the loop.\n\n", target) +
 		"Reply with valid JSON only:\n" +
 		`{"score":0-100,"done":true/false,"feedback":"concrete next improvements","summary":"one-sentence outcome"}`
+}
+
+func looperEvaluationOrFallback(raw string, execErr error) looperEvaluation {
+	if execErr != nil {
+		return looperEvaluation{
+			Score:    0,
+			Feedback: truncateResponse(execErr.Error(), 800),
+			Summary:  "Evaluation failed; continuing.",
+		}
+	}
+	if ev, ok := parseEvaluation(raw); ok {
+		return ev
+	}
+	return looperEvaluation{
+		Score:    0,
+		Feedback: truncateResponse(raw, 800),
+		Summary:  "Evaluation was not valid JSON; continuing.",
+	}
 }
 
 func buildLooperFinishHistory(sysPrompt, goal, lastWork, lastFeedback, lastSummary string) []openai.ChatCompletionMessage {

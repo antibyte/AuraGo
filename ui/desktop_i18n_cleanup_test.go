@@ -30,6 +30,7 @@ func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
 		"desktop.launchpad_icon_url_placeholder",
 		"desktop.looper_title",
 		"desktop.looper_round_of",
+		"desktop.looper_error_detail",
 		"desktop.search",
 		"desktop.back",
 		"desktop.forward",
@@ -57,6 +58,9 @@ func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
 		roundOf := values["desktop.looper_round_of"]
 		if !strings.Contains(roundOf, "{{n}}") || !strings.Contains(roundOf, "{{max}}") {
 			t.Fatalf("%s uses inconsistent looper round placeholders: %q", path, roundOf)
+		}
+		if !strings.Contains(values["desktop.looper_error_detail"], "{{message}}") {
+			t.Fatalf("%s looper error detail must keep {{message}}: %q", path, values["desktop.looper_error_detail"])
 		}
 	}
 }

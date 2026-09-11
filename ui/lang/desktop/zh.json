@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} 毫秒",
   "desktop.looper_duration_s": "{{count}} 秒",
   "desktop.looper_error": "出了点问题。",
+  "desktop.looper_error_detail": "错误：{{message}}",
   "desktop.looper_evaluate": "评审",
   "desktop.looper_evaluate_help": "循环应如何判断结果。分数会自动加入。",
   "desktop.looper_evaluate_placeholder": "怎样才算足够好？",

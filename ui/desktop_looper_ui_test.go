@@ -70,6 +70,8 @@ func TestDesktopLooperUIContract(t *testing.T) {
 		"desktop.looper_example_",
 		"desktop.looper_status_",
 		"desktop.looper_step_",
+		"vd-looper-error",
+		"vd-looper-log--pending",
 	} {
 		if !strings.Contains(looper+"\n"+monitor, fragment) {
 			t.Fatalf("looper UI missing dynamic i18n family %q", fragment)
@@ -86,6 +88,9 @@ func TestDesktopLooperUIContract(t *testing.T) {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing non-empty %s", path, key)
 			}
+		}
+		if !strings.Contains(values["desktop.looper_error_detail"], "{{message}}") {
+			t.Fatalf("%s looper error detail must keep {{message}}: %q", path, values["desktop.looper_error_detail"])
 		}
 	}
 }
@@ -118,6 +123,7 @@ func desktopLooperRequiredKeys() []string {
 		"desktop.looper_duration_ms",
 		"desktop.looper_duration_s",
 		"desktop.looper_error",
+		"desktop.looper_error_detail",
 		"desktop.looper_evaluate",
 		"desktop.looper_evaluate_help",
 		"desktop.looper_evaluate_placeholder",

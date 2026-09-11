@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "कुछ गलत हो गया।",
+  "desktop.looper_error_detail": "त्रुटि: {{message}}",
   "desktop.looper_evaluate": "समीक्षा",
   "desktop.looper_evaluate_help": "लूप परिणाम को कैसे जाँचे। स्कोर अपने आप जुड़ता है।",
   "desktop.looper_evaluate_placeholder": "परिणाम कब पर्याप्त है?",

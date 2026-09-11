@@ -52,13 +52,28 @@
         return groups;
     }
 
+    function pendingStepHTML(esc, t, currentStep, lastLogStep, running) {
+        if (!running || !currentStep || currentStep === lastLogStep) {
+            return '';
+        }
+        if (currentStep === 'idle' || currentStep === 'paused' || currentStep === 'stopped') {
+            return '';
+        }
+        return '<div class="vd-looper-log vd-looper-log--pending vd-looper-log--active">' +
+            '<div class="vd-looper-log-header">' +
+            '<span class="vd-looper-log-step">' + esc(t('desktop.looper_step_' + currentStep)) + '</span>' +
+            '<span class="vd-looper-log-spinner" aria-hidden="true"></span>' +
+            '</div></div>';
+    }
+
     function renderTimeline(esc, t, formatDuration, logs, currentStep, running, expandState) {
         if (!logs || !logs.length) {
             return '<div class="vd-looper-log-empty">' + esc(t('desktop.looper_no_logs')) + '</div>';
         }
         const groups = groupLogs(logs);
         const lastRound = groups.length ? groups[groups.length - 1].round : 0;
-        return groups.slice().reverse().map(group => {
+        const lastLogStep = logs.length ? (logs[logs.length - 1].step || '') : '';
+        return groups.slice().reverse().map((group, gi) => {
             const isActive = running && group.round === lastRound && group.round > 0;
             const title = group.round > 0
                 ? t('desktop.looper_round', { n: group.round })
@@ -67,9 +82,8 @@
                 const key = logKey(log, index);
                 let expanded = expandState.has(key) ? expandState.get(key) : index === logs.length - 1;
                 const stepLabel = t('desktop.looper_step_' + (log.step || 'work'));
-                const score = Number(log.score || 0);
-                const scoreHtml = log.step === 'evaluate' && score
-                    ? '<span class="vd-looper-log-score">' + esc(String(score)) + '</span>'
+                const scoreHtml = log.step === 'evaluate'
+                    ? '<span class="vd-looper-log-score">' + esc(String(Number(log.score) || 0)) + '</span>'
                     : '';
                 const active = running && log.step === currentStep && index === logs.length - 1;
                 const body = (log.feedback || log.response || log.prompt)
@@ -88,9 +102,10 @@
                     body +
                     '</div>';
             }).join('');
+            const pending = gi === 0 ? pendingStepHTML(esc, t, currentStep, lastLogStep, running) : '';
             return '<section class="vd-looper-round' + (isActive ? ' vd-looper-round--active' : '') + '">' +
                 '<h3 class="vd-looper-round-title">' + esc(title) + '</h3>' +
-                items +
+                items + pending +
                 '</section>';
         }).join('');
     }
@@ -129,6 +144,7 @@
             (empty
                 ? '<div class="vd-looper-log-empty">' + esc(t('desktop.looper_no_run')) + '</div>'
                 : sparklineSVG(scores) +
+                    (data.error ? '<p class="vd-looper-error" role="alert">' + esc(t('desktop.looper_error_detail', { message: data.error })) + '</p>' : '') +
                     (data.last_feedback ? '<blockquote class="vd-looper-feedback">' + esc(data.last_feedback) + '</blockquote>' : '') +
                     '<div class="vd-looper-run-meta">' + esc(meta.join(' · ')) + '</div>' +
                     '<div class="vd-looper-timeline">' + renderTimeline(esc, t, formatDuration, data.logs, data.current_step, !!data.running, expandState) + '</div>') +
@@ -180,9 +196,10 @@
             paused: false,
             round: run.rounds,
             max_rounds: run.max_rounds,
-            score_history: (run.logs || []).filter(l => l.step === 'evaluate').map(l => l.score).filter(Boolean),
+            score_history: (run.logs || []).filter(l => l.step === 'evaluate').map(l => l.score).filter(n => Number.isFinite(Number(n))),
             best_score: run.best_score,
             last_feedback: (run.logs || []).reduce((acc, log) => log.feedback || acc, ''),
+            error: run.error,
             logs: run.logs || [],
             input_tokens: run.input_tokens,
             output_tokens: run.output_tokens,

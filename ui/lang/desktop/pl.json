@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "Coś poszło nie tak.",
+  "desktop.looper_error_detail": "Błąd: {{message}}",
   "desktop.looper_evaluate": "Ocena",
   "desktop.looper_evaluate_help": "Jak pętla ma oceniać wynik. Wynik punktowy dodawany jest automatycznie.",
   "desktop.looper_evaluate_placeholder": "Kiedy wynik jest wystarczająco dobry?",

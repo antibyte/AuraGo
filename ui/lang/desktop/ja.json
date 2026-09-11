@@ -894,6 +894,7 @@
   "desktop.looper_duration_ms": "{{count}} ms",
   "desktop.looper_duration_s": "{{count}} s",
   "desktop.looper_error": "問題が発生しました。",
+  "desktop.looper_error_detail": "エラー: {{message}}",
   "desktop.looper_evaluate": "評価",
   "desktop.looper_evaluate_help": "ループが成果物をどう判断するか。スコアは自動で付きます。",
   "desktop.looper_evaluate_placeholder": "いつ十分と言えますか？",

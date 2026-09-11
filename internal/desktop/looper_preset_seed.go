@@ -12,7 +12,7 @@ func DefaultLooperPresets() []LooperPreset {
 			StallRounds: 3,
 			Goal:        "Write an original fantasy short story of about 800 words with a clear beginning, middle, and ending and an emotionally moving plot. Save the complete story as the Markdown file Documents/Looper/short-story.md.",
 			Work:        "Improve Documents/Looper/short-story.md. If the file does not exist yet, write the first complete draft now. Then revise the weakest parts: show emotion through action and dialogue instead of explaining it, strengthen the ending, and keep the length near 800 words. Overwrite the same file.",
-			Evaluate:    "Read Documents/Looper/short-story.md yourself. Score 0-100 on (1) emotional arc, (2) show-don't-tell, (3) a satisfying ending, and (4) language quality. Mark done only if the file exists, is roughly 700-900 words, and all four criteria are strong.",
+			Evaluate:    "Score Documents/Looper/short-story.md from the work report. Use 0-100 on (1) emotional arc, (2) show-don't-tell, (3) a satisfying ending, and (4) language quality. Mark done only if the file exists, is roughly 700-900 words, and all four criteria are strong.",
 			Finish:      "Open Documents/Looper/short-story.md in the Writer app with virtual_desktop open_in_app so the user can read the finished story.",
 		},
 		{
@@ -24,7 +24,7 @@ func DefaultLooperPresets() []LooperPreset {
 			StallRounds: 3,
 			Goal:        "Create a small standalone Python tool that prints column statistics for a CSV file. Save the program as Documents/Looper/csv_summary.py and tests as Documents/Looper/test_csv_summary.py. The program must accept a file path, handle missing files and malformed rows, and print count, min, max, and average for each numeric column.",
 			Work:        "Implement or fix Documents/Looper/csv_summary.py and Documents/Looper/test_csv_summary.py. Run the tests with execute_python and repair every failure. Keep the tool readable, with clear error messages and no extra dependencies.",
-			Evaluate:    "Read both files and run Documents/Looper/test_csv_summary.py yourself. Score 0-100 on (1) tests passing, (2) error handling, and (3) readability. Mark done only if the tests run and pass and the tool meets the goal.",
+			Evaluate:    "Score the Python tool from the work report, including any test output. Use 0-100 on (1) tests passing, (2) error handling, and (3) readability. Mark done only if the tests ran and passed and the tool meets the goal.",
 			Finish:      "Open Documents/Looper/csv_summary.py in Code Studio with virtual_desktop open_in_app (app_id \"code-studio\") so the user can inspect the tool.",
 		},
 		{
@@ -36,7 +36,7 @@ func DefaultLooperPresets() []LooperPreset {
 			StallRounds: 3,
 			Goal:        "Write a structured research briefing about local-first AI agents for home labs (or another topic named in a user-edited copy of this goal). Save it as Documents/Looper/briefing.md. Include an executive summary, key findings, risks, and a short source list with URLs.",
 			Work:        "Research with web_scraper or api_request, then write or improve Documents/Looper/briefing.md. Prefer primary or official sources. Add citations next to claims and remove anything you cannot support.",
-			Evaluate:    "Read Documents/Looper/briefing.md and spot-check at least one cited URL. Score 0-100 on (1) topic coverage, (2) source quality, (3) structure, and (4) absence of unsupported claims. Mark done only if the file exists, has a source list, and the briefing is usable.",
+			Evaluate:    "Score Documents/Looper/briefing.md from the work report and cited sources mentioned there. Use 0-100 on (1) topic coverage, (2) source quality, (3) structure, and (4) absence of unsupported claims. Mark done only if the file exists, has a source list, and the briefing is usable.",
 			Finish:      "Open Documents/Looper/briefing.md in the Writer app with virtual_desktop open_in_app so the user can read the briefing.",
 		},
 		{
@@ -48,7 +48,7 @@ func DefaultLooperPresets() []LooperPreset {
 			StallRounds: 3,
 			Goal:        "Write or replace README.md at the current workspace root so a new contributor can install, run, and configure the project. Cover purpose, installation, usage, configuration, and license. Match the actual files in the workspace.",
 			Work:        "Inspect the workspace, then write or revise README.md at the workspace root. Describe only what the code and configs actually do. Fill missing sections and remove stale instructions.",
-			Evaluate:    "Read README.md and compare it with the project files. Score 0-100 on (1) installation, (2) usage, (3) configuration, (4) license, and (5) agreement with the code. Mark done only if those sections exist and do not contradict the workspace.",
+			Evaluate:    "Score README.md from the work report and the project facts it cites. Use 0-100 on (1) installation, (2) usage, (3) configuration, (4) license, and (5) agreement with the code. Mark done only if those sections exist and do not contradict the workspace.",
 			Finish:      "Open README.md in the Viewer app with virtual_desktop open_in_app (app_id \"viewer\") so the user can review it.",
 		},
 		{
@@ -60,7 +60,7 @@ func DefaultLooperPresets() []LooperPreset {
 			StallRounds: 3,
 			Goal:        "Create 30 study flashcards about basic HTTP status codes (or another topic named in a user-edited copy of this goal). Save them as Documents/Looper/flashcards.md using a consistent Question / Answer format, with a mix of easy, medium, and hard cards and no duplicates.",
 			Work:        "Write or improve Documents/Looper/flashcards.md. Keep exactly 30 unique cards, fix incorrect answers, and balance difficulty. Overwrite the same file.",
-			Evaluate:    "Read Documents/Looper/flashcards.md. Score 0-100 on (1) factual correctness, (2) topic coverage, (3) difficulty mix, and (4) no duplicates. Mark done only if there are 30 unique, accurate cards in a consistent format.",
+			Evaluate:    "Score Documents/Looper/flashcards.md from the work report. Use 0-100 on (1) factual correctness, (2) topic coverage, (3) difficulty mix, and (4) no duplicates. Mark done only if there are 30 unique, accurate cards in a consistent format.",
 			Finish:      "Open Documents/Looper/flashcards.md in the Viewer app with virtual_desktop open_in_app (app_id \"viewer\") so the user can study the cards.",
 		},
 	}
