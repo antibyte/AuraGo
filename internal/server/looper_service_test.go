@@ -53,6 +53,9 @@ func TestBuildLooperWorkPromptRoundOneVsLater(t *testing.T) {
 	if !strings.Contains(first, "If the target artifact does not exist yet") {
 		t.Fatalf("round-1 prompt missing create-first guidance: %q", first)
 	}
+	if !strings.Contains(first, "Do not open the artifact in a desktop app") {
+		t.Fatalf("work prompt must keep finish/open out of the work step: %q", first)
+	}
 	if strings.Contains(first, "Previous evaluation") {
 		t.Fatalf("round-1 prompt unexpectedly includes previous evaluation: %q", first)
 	}
@@ -66,6 +69,34 @@ func TestBuildLooperWorkPromptRoundOneVsLater(t *testing.T) {
 	}
 	if !strings.Contains(later, "Score history: 40, 55") || !strings.Contains(later, "Previous work summary") {
 		t.Fatalf("later prompt missing history: %q", later)
+	}
+}
+
+func TestLooperReachedTargetIgnoresOptimisticDone(t *testing.T) {
+	t.Parallel()
+	if looperReachedTarget(looperEvaluation{Score: 88, Done: true}, 98) {
+		t.Fatal("done below the target score must not complete the loop")
+	}
+	if looperReachedTarget(looperEvaluation{Score: 97, Done: false}, 98) {
+		t.Fatal("score below target must continue")
+	}
+	if !looperReachedTarget(looperEvaluation{Score: 98, Done: false}, 98) {
+		t.Fatal("score at target must complete even when done is false")
+	}
+	if !looperReachedTarget(looperEvaluation{Score: 100, Done: true}, 85) {
+		t.Fatal("score above target must complete")
+	}
+}
+
+func TestBuildLooperEvaluatePromptNamesTargetScore(t *testing.T) {
+	t.Parallel()
+	got := buildLooperEvaluatePrompt(desktop.LooperRunConfig{
+		Goal:        "Write the story",
+		Evaluate:    "Judge the ending",
+		TargetScore: 98,
+	}, "wrote draft")
+	if !strings.Contains(got, "98") || !strings.Contains(got, "does not stop the loop") {
+		t.Fatalf("evaluate prompt must bind completion to the target score: %q", got)
 	}
 }
 

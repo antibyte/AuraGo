@@ -273,7 +273,7 @@ func (r *LooperRunner) executeStarted(
 			Feedback: ev.Feedback,
 		})
 
-		if ev.Done || ev.Score >= cfg.TargetScore {
+		if looperReachedTarget(ev, cfg.TargetScore) {
 			terminal = "completed"
 			r.holder.SetStatus(terminal)
 			break
@@ -373,6 +373,7 @@ func looperSystemPrompt(cfg *config.Config) string {
 	rules := "Looper rules:\n" +
 		"- Persist the target artifact in the workspace. Do not only describe it.\n" +
 		"- Follow the current step instruction exactly.\n" +
+		"- During work and evaluate, do not open files in desktop apps. That happens only in the finish step.\n" +
 		"- Be concise and direct."
 	if cfg != nil {
 		if lang := strings.TrimSpace(cfg.Agent.SystemLanguage); lang != "" {
@@ -406,14 +407,24 @@ func buildLooperWorkPrompt(cfg desktop.LooperRunConfig, round int, lastFeedback,
 		fmt.Fprintf(&b, "\nPrevious work summary:\n%s\n", truncateResponse(lastWorkSummary, 2500))
 	}
 	fmt.Fprintf(&b, "\nWork instructions:\n%s\n", strings.TrimSpace(cfg.Work))
+	b.WriteString("\nDo not open the artifact in a desktop app in this step.\n")
 	return b.String()
 }
 
+func looperReachedTarget(ev looperEvaluation, targetScore int) bool {
+	return ev.Score >= targetScore
+}
+
 func buildLooperEvaluatePrompt(cfg desktop.LooperRunConfig, workResult string) string {
+	target := cfg.TargetScore
+	if target <= 0 {
+		target = desktop.LooperDefaultTargetScore
+	}
 	return "You are an independent reviewer. Inspect the actual artifact yourself (read files, run tests). Do not trust the work report.\n\n" +
 		"Goal:\n" + strings.TrimSpace(cfg.Goal) + "\n\n" +
 		"Evaluation criteria:\n" + strings.TrimSpace(cfg.Evaluate) + "\n\n" +
 		"Work report from this round:\n" + truncateResponse(workResult, 4000) + "\n\n" +
+		fmt.Sprintf("The loop continues until the score is at least %d, the round limit, or a stall. A first complete draft is not automatically done. Set done true only when the score meets that target; done true below the target does not stop the loop.\n\n", target) +
 		"Reply with valid JSON only:\n" +
 		`{"score":0-100,"done":true/false,"feedback":"concrete next improvements","summary":"one-sentence outcome"}`
 }
