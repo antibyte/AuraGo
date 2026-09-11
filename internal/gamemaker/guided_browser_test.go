@@ -76,6 +76,9 @@ func TestGuidedBrowser(t *testing.T) {
 						d.Assets = []DesignAsset{{Role: "player", PackID: "robots-drones-animated-top-down", AssetID: "service_robot_move_down"}}
 					}
 					if mode == "blocks" {
+						if d.Presentation != nil {
+							d.Presentation.Environment = "coast"
+						}
 						d.Assets = []DesignAsset{{Role: "player", PackID: "blocks-and-balls", AssetID: "paddle_01"}, {Role: "ball", PackID: "blocks-and-balls", AssetID: "ball_01"}, {Role: "block", PackID: "blocks-and-balls", AssetID: "colored_block_01"}}
 					}
 					data, _ := json.Marshal(d)

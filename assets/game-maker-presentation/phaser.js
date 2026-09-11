@@ -7,14 +7,15 @@ export function createPhaserAdapter({scene,view='top',report=console.warn}) {
     const sky=scene.add.image(0,0,back.key).setOrigin(0).setScrollFactor(0).setDepth(-10000);
     const layer=scene.add.image(0,0,front.key).setOrigin(0).setScrollFactor(0).setDepth(900);
     const b=back.context,c=front.context,settings=new Map(),particles=[],decals=[],surfaces=new Map(),objects=[];
-    let post,hudCamera;const cameraFlags=new Map(),webgl=scene.game.renderer.type!==1;
+    // Phaser may destroy cameras before scene shutdown listeners dispose this adapter.
+    let post,postCamera,hudCamera;const cameraFlags=new Map(),webgl=scene.game.renderer.type!==1;
     let level=2,reduced=false,seed=1337,blood=true,time=0,carry=0,disposed=false,stormAt=6;
     const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
     const limits=[250,750,1500];
     const intensity=id=>Math.min(2,Math.max(0,settings.get(id)?.intensity??(settings.has(id)?1:0)));
     function set(id,p){
         if(['bloom','color-grade','vignette','film-grain','heat-haze','underwater','day-night'].includes(id)&&!post){
-            if(webgl){post=addFilter(scene,scene.cameras.main);hudCamera=scene.cameras.add(0,0,w,h).setBackgroundColor('rgba(0,0,0,0)')}
+            if(webgl){postCamera=scene.cameras.main;post=addFilter(scene,postCamera);hudCamera=scene.cameras.add(0,0,w,h).setBackgroundColor('rgba(0,0,0,0)')}
             else report('presentation: Canvas fallback uses color overlays; distortion and object shaders require WebGL');
         }
         if(id.startsWith('sky-'))for(const k of settings.keys())if(k.startsWith('sky-'))settings.delete(k);settings.set(id,p)}
@@ -105,6 +106,6 @@ export function createPhaserAdapter({scene,view='top',report=console.warn}) {
         applyObject(object,id,p={}){if(!['hologram','dissolve','hit-flash'].includes(id))throw Error('presentation: unsupported object effect');if(reduced&&id==='hit-flash')return()=>{};objects.find(e=>e.object===object)?.release();while(objects.length>=128)objects[0].release();const e={object,id,age:0,life:p.lifetime||2,alpha:object.alpha,tint:object.tintTopLeft};if(webgl){object.enableFilters();e.filter=addFilter(scene,object.filterCamera)}objects.push(e);let done=false;e.release=()=>{if(done)return;done=true;if(e.filter)object.filterCamera?.filters?.internal?.remove(e.filter);if(object.scene){object.setAlpha(e.alpha);object.setTint?.(e.tint)}objects.splice(objects.indexOf(e),1)};return e.release},
         reset(){for(const e of objects){e.age=0;e.object.setAlpha(e.alpha);e.object.setTint?.(e.tint)}particles.length=decals.length=0;carry=0;stormAt=6;seed=1337;c.clearRect(0,0,w,h);front.refresh()},
         stats(){return {particles:particles.length,decals:decals.length,surfaces:surfaces.size,objects:objects.length,canvas_fallback:scene.game.renderer.type===1?1:0}},
-        dispose(){if(disposed)return;disposed=true;for(const e of [...objects])e.release();particles.length=decals.length=0;surfaces.clear();if(post)scene.cameras.main.filters.internal.remove(post);if(hudCamera)scene.cameras.remove(hudCamera);for(const [object,flags]of cameraFlags)if(object.active)object.cameraFilter=flags;cameraFlags.clear();sky.destroy();layer.destroy();scene.textures.remove(back.key);scene.textures.remove(front.key)},
+        dispose(){if(disposed)return;disposed=true;for(const e of [...objects])e.release();particles.length=decals.length=0;surfaces.clear();if(post)postCamera?.filters?.internal?.remove(post);if(hudCamera)scene.cameras.remove(hudCamera);for(const [object,flags]of cameraFlags)if(object.active)object.cameraFilter=flags;cameraFlags.clear();sky.destroy();layer.destroy();scene.textures.remove(back.key);scene.textures.remove(front.key)},
     };
 }
