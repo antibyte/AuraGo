@@ -82,6 +82,44 @@ func (s *Speaker) render(id, text string) {
 	}
 }
 
+// MeshSpeakParts is the glass overlay (and TTS line) for an incoming MeshCore
+// message. Title keeps a Mesh prefix so firmware plays the mesh chime.
+// Protected bodies stay "locked"; radio node keys are not spoken.
+func MeshSpeakParts(name, kind, preview string, protected bool) (title, body string) {
+	from := strings.TrimSpace(name)
+	if from == "" || looksLikeNodeKey(from) {
+		from = strings.TrimSpace(kind)
+		if from == "" || looksLikeNodeKey(from) || from == "direct" || from == "channel" || from == "unknown" {
+			from = "MeshCore"
+		}
+	}
+	title = from
+	if !strings.HasPrefix(strings.ToLower(title), "mesh") {
+		title = "Mesh " + from
+	}
+	if protected {
+		return title, "locked"
+	}
+	body = strings.TrimSpace(preview)
+	if body == "" {
+		body = "incoming"
+	}
+	return title, body
+}
+
+func looksLikeNodeKey(s string) bool {
+	if len(s) < 16 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return false
+		}
+	}
+	return true
+}
+
 // SpeakLine is the English sentence the model hears.
 func SpeakLine(title, body string) string {
 	t := asciiEnglish(strings.TrimSpace(title))

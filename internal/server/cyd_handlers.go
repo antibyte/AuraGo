@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/cyd"
+	"aurago/internal/meshcore"
 	"aurago/internal/prompts"
 	"aurago/internal/tools"
 	"aurago/internal/warnings"
@@ -314,13 +315,42 @@ func (s *Server) pushCydWarning(w warnings.Warning) {
 	s.CydHub.SetPage("alerts")
 }
 
-func (s *Server) pushCydMeshIncoming() {
+func (s *Server) pushCydMeshIncoming(conversationID string) {
 	if s == nil || s.CydHub == nil || !s.CydHub.HasRecentDevice(2*time.Minute) {
 		return
 	}
 	s.refreshCydSnapshot()
 	s.CydHub.SetPage("mesh")
-	s.CydHub.Notify("MeshCore", "incoming", "high", 20)
+	title, body := "MeshCore", "incoming"
+	if s.MeshCore != nil {
+		if convos, err := s.MeshCore.Conversations(); err == nil {
+			title, body = meshIncomingSpeech(convos, conversationID)
+		}
+	}
+	s.CydHub.Notify(title, body, "high", 20)
+}
+
+func meshIncomingSpeech(convos []meshcore.Conversation, conversationID string) (title, body string) {
+	var chosen *meshcore.Conversation
+	for i := range convos {
+		c := &convos[i]
+		if conversationID != "" && c.ID == conversationID {
+			chosen = c
+			break
+		}
+	}
+	if chosen == nil {
+		for i := range convos {
+			if convos[i].Unread > 0 {
+				chosen = &convos[i]
+				break
+			}
+		}
+	}
+	if chosen == nil {
+		return cyd.MeshSpeakParts("", "", "", false)
+	}
+	return cyd.MeshSpeakParts(chosen.Name, chosen.Kind, chosen.Preview, chosen.Protected)
 }
 
 func firstLANIPv4() string {

@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/cyd"
+	"aurago/internal/meshcore"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/warnings"
@@ -197,6 +198,21 @@ func TestCYDFirmwareStatusAndProvision(t *testing.T) {
 	handleCYDFirmwareFile(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cyd/firmware/cyd/../secret.bin", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("traversal status = %d", rec.Code)
+	}
+}
+
+func TestMeshIncomingSpeechUsesPreview(t *testing.T) {
+	convos := []meshcore.Conversation{
+		{ID: "old", Name: "Bob", Unread: 1, Preview: "later", Protected: false},
+		{ID: "new", Name: "Alice", Kind: "direct", Unread: 1, Preview: "hello radio", Protected: false},
+	}
+	title, body := meshIncomingSpeech(convos, "new")
+	if title != "Mesh Alice" || body != "hello radio" {
+		t.Fatalf("got %q %q", title, body)
+	}
+	title, body = meshIncomingSpeech([]meshcore.Conversation{{ID: "p", Name: "Carol", Unread: 1, Preview: "", Protected: true}}, "p")
+	if title != "Mesh Carol" || body != "locked" {
+		t.Fatalf("protected got %q %q", title, body)
 	}
 }
 

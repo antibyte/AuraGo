@@ -66,6 +66,16 @@ func TestBroadcastNotify(t *testing.T) {
 	}
 }
 
+func TestNotifyIDFitsGlass(t *testing.T) {
+	n := NewHub().Notify("title", "body", "normal", 10)
+	if n.ID == "" {
+		t.Fatal("expected notify id")
+	}
+	if len(n.ID) > GlassIDMax {
+		t.Fatalf("notify id %q len %d exceeds glass PROTO_ID_MAX %d", n.ID, len(n.ID), GlassIDMax)
+	}
+}
+
 func TestSetPageNames(t *testing.T) {
 	if NormalizePage("LOAD") != "load" {
 		t.Fatalf("load: %s", NormalizePage("LOAD"))

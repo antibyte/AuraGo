@@ -6,10 +6,11 @@ import (
 )
 
 const (
-	TitleMax = 32
-	BodyMax  = 96
-	TaskMax  = 40
-	ModelMax = 23
+	TitleMax   = 32
+	BodyMax    = 96
+	TaskMax    = 40
+	ModelMax   = 23
+	GlassIDMax = 39 // firmware PROTO_ID_MAX on 0.3.13; keep notify ids inside it
 )
 
 // Snapshot is the compact dashboard payload for Cheap Yellow Displays.

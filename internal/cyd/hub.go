@@ -88,9 +88,15 @@ func (h *Hub) Snapshot() Snapshot {
 	return BuildSnapshot(h.inputs, h.overlay)
 }
 
+// NewNotifyID fits the glass notify-id buffer (hyphenated UUIDs are 40 chars
+// with the ntf_ prefix and were truncated, so speak fetches 404'd).
+func NewNotifyID() string {
+	return "ntf_" + strings.ReplaceAll(uid.New(), "-", "")
+}
+
 func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
 	n := Notify{
-		ID:       "ntf_" + uid.New(),
+		ID:       NewNotifyID(),
 		Title:    Truncate(title, TitleMax),
 		Body:     Truncate(body, BodyMax),
 		Priority: priority,

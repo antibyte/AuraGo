@@ -12,6 +12,25 @@ func TestSpeakLineEnglish(t *testing.T) {
 	}
 }
 
+func TestMeshSpeakParts(t *testing.T) {
+	title, body := MeshSpeakParts("Alice", "direct", "hello there", false)
+	if title != "Mesh Alice" || body != "hello there" {
+		t.Fatalf("open = %q %q", title, body)
+	}
+	title, body = MeshSpeakParts("Alice", "direct", "secret", true)
+	if title != "Mesh Alice" || body != "locked" {
+		t.Fatalf("protected = %q %q", title, body)
+	}
+	title, body = MeshSpeakParts("MeshCore", "", "", false)
+	if title != "MeshCore" || body != "incoming" {
+		t.Fatalf("empty = %q %q", title, body)
+	}
+	title, body = MeshSpeakParts("0123456789abcdef0123456789abcdef", "direct", "ping", false)
+	if title != "MeshCore" || body != "ping" {
+		t.Fatalf("key name = %q %q", title, body)
+	}
+}
+
 func TestPCM8kFromWAVDownsamples(t *testing.T) {
 	const from = 24000
 	const n = 240 // 10 ms
