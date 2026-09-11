@@ -22,18 +22,18 @@ float a1=exp(-b1*b1),a2=exp(-b2*b2);
 float ripple=0.5+0.5*sin(bend*7.0+time*0.16+sin(bend*3.0)*1.3);
 col+=vec3(0.08,0.32,0.34)*a1*ripple*0.5+vec3(0.26,0.12,0.4)*a2*(1.0-ripple)*0.42;
 col=mix(haze,col,smoothstep(0.0,0.14,h));
-col=mix(col,haze*0.6,smoothstep(0.0,0.08,-d.y));gl_FragColor=vec4(col,1.0);}`;
+col=mix(col,haze*0.6,smoothstep(0.0,0.08,-d.y));
+vec3 s=normalize(sunDir);float mu=max(0.0,dot(d,s));
+float disc=smoothstep(0.99955,0.99982,mu);
+float halo=pow(mu,220.0)*0.55+pow(mu,48.0)*0.12;
+col+=vec3(0.92,0.95,1.06)*disc*2.4+vec3(0.45,0.62,1.0)*halo;
+gl_FragColor=vec4(col,1.0);}`;
 const STARS = {
   vertex: `attribute float phase,speed,size;uniform float time,pointScale;varying float vAlpha;
 void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;
 float tw=0.65+0.35*sin(time*speed+phase);gl_PointSize=size*tw*pointScale;vAlpha=tw*smoothstep(0.02,0.16,position.y/1450.0);}`,
   fragment: `varying float vAlpha;void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;float a=pow(1.0-d,1.6)*vAlpha;gl_FragColor=vec4(vec3(0.82,0.9,1.0)*a,1.0);}`,
 };
-const MOON = `uniform float time;varying vec2 vUv;${NOISE}
-void main(){vec2 p=(vUv-0.5)*2.0;float r=length(p);float disc=1.0-smoothstep(0.47,0.5,r);
-float surface=0.78+0.22*vnoise(p*9.0+3.0)*vnoise(p*21.0);float shade=smoothstep(-0.6,0.9,-p.x*0.7+p.y*0.4+0.5);
-vec3 body=vec3(0.9,0.94,1.05)*surface*(0.55+0.45*shade)*disc;float halo=exp(-r*3.2)*0.32+exp(-r*1.2)*0.08;
-gl_FragColor=vec4(body*1.6+vec3(0.55,0.7,1.0)*halo,1.0);}`;
 const SEA = {
   vertex: `varying vec3 vWorld;
 #include <fog_pars_vertex>
@@ -102,8 +102,6 @@ export function createAtmosphere(scene, options = {}) {
   const starMaterial = shader(STARS.vertex, STARS.fragment, { time, pointScale }, { ...additive, fog: false });
   const stars = new THREE.Points(starGeometry, starMaterial); stars.frustumCulled = false; stars.renderOrder = -9; group.add(stars);
   geometries.push(starGeometry); materials.push(starMaterial);
-  const moon = own(new THREE.PlaneGeometry(150, 150), shader(WORLD_VERTEX, MOON, { time }, { ...additive, fog: false }));
-  moon.position.copy(sunDir).multiplyScalar(1380); moon.lookAt(0, 0, 0); moon.renderOrder = -8; group.add(moon);
   // Animated water replaces the flat standard sea; fog still fades it to the horizon.
   const sea = own(new THREE.PlaneGeometry(1800, 1800), shader(SEA.vertex, SEA.fragment, {
     time, deep: { value: new THREE.Color(0x061420) }, shallow: { value: new THREE.Color(0x0e3350) }, sky: { value: horizon.clone().multiplyScalar(.7) },
@@ -171,7 +169,6 @@ export function createAtmosphere(scene, options = {}) {
       blades.rotation.y += step * beacon.userData.rate;
       beamMaterial.uniforms.strength.value = busy ? .85 : .45;
       crown.scale.setScalar(1 + Math.sin(time.value * (busy ? 6 : 2.2)) * .18);
-      moon.quaternion.copy(camera.quaternion);
     },
     stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, post: post.enabled }),
     dispose() {

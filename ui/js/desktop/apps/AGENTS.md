@@ -621,7 +621,8 @@ buttons and menu popovers remain excluded from those gestures.
 - `sysworld*.js` implements System World's Blender-authored data metropolis:
   seven fixed districts, live read-only inspector, entity search, map, explicit
   tour and street-level WASD/touch exploration. The isolated Three.js 0.185.1
-  ESM renderer does not replace the legacy global used by other apps. Opens
+  ESM renderer does not replace the legacy global used by other apps. The
+  moon is a sky-dome disc, never a billboard quad. Opens
   maximized; existing dashboard/KG/mission APIs and shared SSE supply live data.
   Persistent 24-hour history remains a subsequent stage in
   `documentation/system-world-plan.md`.

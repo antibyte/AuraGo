@@ -88,7 +88,7 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"js/desktop/apps/sysworld-scene.js":      {"from 'three'", "GLTFLoader", "OrbitControls", "createCity", "InstancedMesh", "assetURL", "AbortController", "geoSet.forEach", "matSet.forEach", "forceContextLoss", "webglcontextlost", "requestPointerLock", "setMode", "lastQualityChange", "Math.hypot(forward, right)", "createMemoryHologram", "createAtmosphere", "createDrones", "obstaclesFrom", "hologram.dispose()", "atmosphere.dispose()", "drones.dispose()"},
 		"js/desktop/apps/sysworld-navigation.js": {"export function createNavigator", "export function obstaclesFrom", "export function streetRoute", "a.state = 'turn'", "firstConflict", "laneClear"},
 		"js/desktop/apps/sysworld-hologram.js":   {"export function createMemoryHologram", "export function sanitizeArtifacts", "fillText", "AdditiveBlending", "setReducedMotion(value)"},
-		"js/desktop/apps/sysworld-atmosphere.js": {"export function createAtmosphere", "ShaderPass", "AdditiveBlending", "setTier(", "dispose()"},
+		"js/desktop/apps/sysworld-atmosphere.js": {"export function createAtmosphere", "ShaderPass", "AdditiveBlending", "smoothstep(0.99955,0.99982,mu)", "setTier(", "dispose()"},
 		"js/desktop/apps/sysworld-drones.js":     {"export function createDrones", "CatmullRomCurve3", "/^rotor_/", "dispose()"},
 		"js/desktop/apps/sysworld-data.js":       {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/dashboard/overview", "/api/knowledge-graph/nodes?limit=300"},
 		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source"},
@@ -109,6 +109,10 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 	scene := readDesktopAssetText(t, "js/desktop/apps/sysworld-scene.js")
 	if strings.Contains(scene, "window.THREE") || strings.Contains(scene, "autoRotate") {
 		t.Fatal("City must isolate Three.js and never take over an idle camera")
+	}
+	atmosphere := readDesktopAssetText(t, "js/desktop/apps/sysworld-atmosphere.js")
+	if strings.Contains(atmosphere, "PlaneGeometry(150") {
+		t.Fatal("moon must be a sky-dome disc, not a billboard quad")
 	}
 }
 

@@ -36,7 +36,8 @@ worker. Keep packaging, recovery and offline instructions in
   owns live read-only city exploration, five optimized ThreeDee robots that
   steer around furniture and each other, state-driven effects, a night
   atmosphere (aurora sky, stars, moon, sea, mist, drones, lamp cones,
-  vignette/grain) and a memory-archive hologram fed by sanitized excerpts from
+  vignette/grain). The moon is drawn in the sky dome, not as a billboard, so it
+  cannot show a square frame. Memory-archive hologram is fed by sanitized excerpts from
   `/api/desktop/system-world/memory-artifacts`, rendered as canvas text only.
   Optional Web Audio ambience pauses with the inactive scene. The same sound
   control includes quiet spatial tower TTS with echo/reverb;
