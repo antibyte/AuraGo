@@ -90,10 +90,22 @@ func handleSystemWorldVoice(s *Server) http.HandlerFunc {
 }
 
 func systemWorldVoiceText(ctx context.Context, s *Server) string {
+	excerpts := systemWorldSampleExcerpts(ctx, s, 1, 180)
+	if len(excerpts) == 0 {
+		return ""
+	}
+	return excerpts[0]
+}
+
+// systemWorldSampleExcerpts returns up to limit distinct short excerpts from the same
+// read-only memory sources as the tower voice. The result is ambience, never a search.
+func systemWorldSampleExcerpts(ctx context.Context, s *Server, limit, maxRunes int) []string {
+	var out []string
+	seen := map[string]bool{}
 	// Shuffle independent sources, not relevance: unrelated fragments are the desired ambience.
 	for _, source := range rand.Perm(5) {
-		if ctx.Err() != nil {
-			return ""
+		if ctx.Err() != nil || len(out) >= limit {
+			break
 		}
 		var texts []string
 		if source == 3 {
@@ -137,15 +149,23 @@ func systemWorldVoiceText(ctx context.Context, s *Server) string {
 			}
 		}
 		for _, i := range rand.Perm(len(texts)) {
-			if text := systemWorldVoiceExcerpt(texts[i]); text != "" {
-				return text
+			if len(out) >= limit {
+				break
+			}
+			if text := systemWorldExcerpt(texts[i], maxRunes); text != "" && !seen[text] {
+				seen[text] = true
+				out = append(out, text)
 			}
 		}
 	}
-	return ""
+	return out
 }
 
 func systemWorldVoiceExcerpt(content string) string {
+	return systemWorldExcerpt(content, 180)
+}
+
+func systemWorldExcerpt(content string, maxRunes int) string {
 	if len(content) > 128<<10 || !utf8.ValidString(content) {
 		return ""
 	}
@@ -157,7 +177,7 @@ func systemWorldVoiceExcerpt(content string) string {
 		if utf8.RuneCountInString(phrase) < 12 || strings.Contains(strings.ToLower(phrase), "[redacted") {
 			continue
 		}
-		return chatVoiceLimitRunes(phrase, 180)
+		return chatVoiceLimitRunes(phrase, maxRunes)
 	}
 	return ""
 }

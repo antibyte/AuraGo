@@ -3,10 +3,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { createCityLife } from './sysworld-life.js';
+import { obstaclesFrom } from './sysworld-navigation.js';
+import { createMemoryHologram } from './sysworld-hologram.js';
+import { createAtmosphere } from './sysworld-atmosphere.js';
+import { createDrones } from './sysworld-drones.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -26,7 +31,69 @@ const tiers = {
   ultra: { lod: 0, dpr: 2, shadow: 4096, bloom: true },
 };
 const home = new THREE.Vector3(122, 106, 183);
+
+// Renders the scene into a multisampled HDR target and resolves it into the composer's plain
+// buffers, so bloom blends onto a resolved texture instead of a multisampled one. The copy also
+// zeroes NaN/Inf pixels: multisampled edge extrapolation can push shader inputs out of range,
+// and a single NaN would spread through the bloom mip chain and black out the whole frame.
+class SceneCapturePass extends Pass {
+  constructor(scene, camera, samples) {
+    super(); this.scene = scene; this.camera = camera; this.needsSwap = false;
+    this.target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples });
+    this.quad = new FullScreenQuad(new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.clone(CopyShader.uniforms), vertexShader: CopyShader.vertexShader, depthTest: false, depthWrite: false,
+      fragmentShader: 'uniform sampler2D tDiffuse;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);if(any(isnan(c))||any(isinf(c)))c=vec4(0.0,0.0,0.0,1.0);gl_FragColor=c;}',
+    }));
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    const autoClear = renderer.autoClear; renderer.autoClear = false;
+    renderer.setRenderTarget(this.target); renderer.clear(); renderer.render(this.scene, this.camera);
+    this.quad.material.uniforms.tDiffuse.value = this.target.texture;
+    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer); this.quad.render(renderer);
+    renderer.autoClear = autoClear;
+  }
+  setSize(width, height) { this.target.setSize(width, height); }
+  dispose() { this.target.dispose(); this.quad.material.dispose(); this.quad.dispose(); }
+}
 const homeTarget = new THREE.Vector3(0, 22, -12);
+// Architectural scale reference: skyline uses the same compact building kit. The placement
+// list is static so the robot navigator and tests derive the same street obstacles.
+export const placements = [];
+{
+  const place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) => placements.push({ asset, x, z, y, angle, scale });
+  const xs = [-67, -18, 18, 67], zs = [-77, -32, 13, 59];
+  for (const z of zs) {
+    for (const x of xs) place('street-crossing', x, z);
+    const edges = [-85, ...xs, 85];
+    for (let i = 0; i < edges.length - 1; i++) {
+      const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
+      place('street-tile', (a + b) / 2, z, 0, 0, [(b - a) / 16, 1, 1]);
+    }
+  }
+  for (const x of xs) {
+    const edges = [-94, ...zs, 80];
+    for (let i = 0; i < edges.length - 1; i++) {
+      const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
+      place('street-tile', x, (a + b) / 2, 0, Math.PI / 2, [(b - a) / 16, 1, 1]);
+    }
+  }
+  for (const z of zs) for (const x of [-55, -31, 31, 55]) {
+    place('street-lamp', x, z - 4.5, .45); place('planter', x + 4, z - 4.5, .45);
+  }
+  for (const [x, z, s] of [[29,-55,1],[49,-55,1.25],[-3,-57,1.2],[4,-73,.75]]) {
+    place('data-tower-a', x, z, 0, 0, [1,s,1]);
+  }
+  place('skybridge', 39, -55, 15);
+  place('server-rack', -55, -34, .5); place('server-rack', -49, -34, .5);
+  place('data-tram', 33, 59, .5); place('data-tram', -44, -77, .5);
+  // Distant buildings are scenery, never presented as additional real entities.
+  for (let i = 0; i < 48; i++) {
+    const x = (i % 12 - 5.5) * 22, z = -143 - Math.floor(i / 12) * 29;
+    const s = .7 + ((i * 17) % 13) / 12;
+    place(i % 2 ? 'data-tower-a' : 'data-tower-b', x, z, -3, 0, [.8, s, .8]);
+  }
+}
+export const obstacles = obstaclesFrom(placements);
 
 export async function createCity(host, options) {
   let disposed = false, visible = true, mode = 'orbit', quality = options.quality || 'auto';
@@ -64,9 +131,9 @@ export async function createCity(host, options) {
   const rim = new THREE.DirectionalLight(0xffb572, 2.4); rim.position.set(90, 80, -120); scene.add(rim);
   const reactorLight = new THREE.PointLight(0x62dfff, 0, 75, 2);
   reactorLight.position.set(0, 34, -12); scene.add(reactorLight);
-  const renderTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: Math.min(4, renderer.capabilities.maxSamples) });
+  const renderTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   const composer = new EffectComposer(renderer, renderTarget);
-  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new SceneCapturePass(scene, camera, Math.min(4, renderer.capabilities.maxSamples)));
   // HDR threshold selects luminous windows/signals; dark work surfaces never bloom.
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .24, .5, 1.25);
   composer.addPass(bloom); composer.addPass(new OutputPass());
@@ -78,43 +145,12 @@ export async function createCity(host, options) {
   const ground = ownMesh(new THREE.BoxGeometry(170, 3, 174),
     new THREE.MeshStandardMaterial({ color: 0x16242b, metalness: .55, roughness: .38 }));
   ground.position.set(0, -1.5, -7); ground.receiveShadow = true; world.add(ground);
-  const sea = ownMesh(new THREE.PlaneGeometry(1800, 1800),
-    new THREE.MeshStandardMaterial({ color: 0x07111c, metalness: .75, roughness: .3 }));
-  sea.rotation.x = -Math.PI / 2; sea.position.y = -3.2; sea.receiveShadow = true; scene.add(sea);
-  // Architectural scale reference: skyline uses the same compact building kit.
-  const placements = [], place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) =>
-    placements.push({ asset, x, z, y, angle, scale });
-  const xs = [-67, -18, 18, 67], zs = [-77, -32, 13, 59];
-  for (const z of zs) {
-    for (const x of xs) place('street-crossing', x, z);
-    const edges = [-85, ...xs, 85];
-    for (let i = 0; i < edges.length - 1; i++) {
-      const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
-      place('street-tile', (a + b) / 2, z, 0, 0, [(b - a) / 16, 1, 1]);
-    }
-  }
-  for (const x of xs) {
-    const edges = [-94, ...zs, 80];
-    for (let i = 0; i < edges.length - 1; i++) {
-      const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
-      place('street-tile', x, (a + b) / 2, 0, Math.PI / 2, [(b - a) / 16, 1, 1]);
-    }
-  }
-  for (const z of zs) for (const x of [-55, -31, 31, 55]) {
-    place('street-lamp', x, z - 4.5, .45); place('planter', x + 4, z - 4.5, .45);
-  }
-  for (const [x, z, s] of [[29,-55,1],[49,-55,1.25],[-3,-57,1.2],[4,-73,.75]]) {
-    place('data-tower-a', x, z, 0, 0, [1,s,1]);
-  }
-  place('skybridge', 39, -55, 15);
-  place('server-rack', -55, -34, .5); place('server-rack', -49, -34, .5);
-  place('data-tram', 33, 59, .5); place('data-tram', -44, -77, .5);
-  // Distant buildings are scenery, never presented as additional real entities.
-  for (let i = 0; i < 48; i++) {
-    const x = (i % 12 - 5.5) * 22, z = -143 - Math.floor(i / 12) * 29;
-    const s = .7 + ((i * 17) % 13) / 12;
-    place(i % 2 ? 'data-tower-a' : 'data-tower-b', x, z, -3, 0, [.8, s, .8]);
-  }
+  // Sky, stars, moon, animated sea, mist, dust, spire beacon, lamp cones and the final grade.
+  const atmosphere = createAtmosphere(scene, { sunDirection: sun.position, lamps: placements.filter(p => p.asset === 'street-lamp') });
+  composer.addPass(atmosphere.post);
+  const memoryDistrict = districts.find(d => d.id === 'memory');
+  const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
+  const drones = createDrones(scene);
   const selection = ownMesh(new THREE.RingGeometry(1, 1.035, 64),
     new THREE.MeshBasicMaterial({ color: 0x8ee8ee, transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }));
   selection.rotation.x = -Math.PI / 2; selection.visible = false; world.add(selection);
@@ -169,7 +205,7 @@ export async function createCity(host, options) {
   }
   async function rebuild() {
     const token = ++generation, config = tiers[tier], lod = config.lod;
-    const ids = [...new Set([...placements.map(p => p.asset), ...districts.map(d => d.asset)])];
+    const ids = [...new Set([...placements.map(p => p.asset), ...districts.map(d => d.asset), 'service-drone'])];
     try {
       const loaded = new Map(await Promise.all(ids.map(async id => [id, await model(id, lod)])));
       // Skyline deliberately uses low LOD even on Ultra.
@@ -197,7 +233,7 @@ export async function createCity(host, options) {
         const mesh = loaded.get(d.asset).clone(true); mesh.position.set(d.x, 0, d.z);
         mesh.userData.district = d.id; landmarks.add(mesh); objects.push(mesh);
       }
-      life?.attachLandmarks(landmarks);
+      life?.attachLandmarks(landmarks); drones.setTemplate(loaded.get('service-drone'));
       renderer.shadowMap.needsUpdate = true; options.onReady?.();
     } catch (e) { if (!disposed && token === generation) options.onError?.(e); }
   }
@@ -207,6 +243,7 @@ export async function createCity(host, options) {
     const dpr = Math.min(devicePixelRatio || 1, tiers[tier].dpr, Math.sqrt(3840 * 2160 / (width * height)));
     renderer.setPixelRatio(dpr); renderer.setSize(width, height, false); composer.setPixelRatio(dpr); composer.setSize(width, height);
     camera.aspect = width / height; camera.updateProjectionMatrix();
+    hologram.setPointScale(height * dpr); atmosphere.setPointScale(height * dpr);
   }
   function setQuality(value) {
     quality = value in tiers || value === 'auto' ? value : 'auto';
@@ -220,7 +257,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom;
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; atmosphere.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -313,8 +350,11 @@ export async function createCity(host, options) {
     }
     camera.getWorldDirection(v);
     options.onListener?.(camera.position.x,camera.position.y,camera.position.z,v.x,v.z);
-    reactorLight.intensity = reduced ? 0 : (options.busy?.() ? 180 + Math.sin(elapsed*2)*35 : 0);
+    const busy = !!options.busy?.();
+    reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
     life?.update(dt, !reduced);
+    atmosphere.setBusy(busy); atmosphere.update(dt, elapsed, camera, !reduced);
+    hologram.update(dt, camera, !reduced); drones.update(dt, elapsed, !reduced);
     renderer.info.reset(); composer.render(); frames++;
     if (quality === 'auto' && dt > 0 && dt < .2 && elapsed - lastQualityChange > 12) {
       measured += dt; sampleFrames++;
@@ -337,20 +377,22 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose(); hologram.dispose(); drones.dispose(); atmosphere.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
   }
-  life = createCityLife(scene, districts, {robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'});
+  life = createCityLife(scene, districts, {robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map', obstacles});
+  hologram.setReducedMotion(!!reduced);
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
     setVisible(value) { visible = value; if(!value) { keys.clear(); down = null; if(document.pointerLockElement===canvas) document.exitPointerLock(); } },
-    setReducedMotion(value) { reduced = value; if(value && mode === 'tour') setMode('orbit'); },
+    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value); if(value && mode === 'tour') setMode('orbit'); },
+    setHologram(texts, source) { hologram.setTexts(texts, source); },
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },
     lockPointer() { if(mode === 'street') return canvas.requestPointerLock(); },
     project(id) { const d = districts.find(d => d.id === id); if(!d) return null; v.set(d.x,d.height+4,d.z).project(camera); return { x:(v.x+1)*width/2,y:(1-v.y)*height/2,visible:v.z<1 && v.z>-1 }; },
-    stats() { return { life:life?.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

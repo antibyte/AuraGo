@@ -1,31 +1,22 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createNavigator } from './sysworld-navigation.js';
 
 // Five decorative city residents. Their routes are streets, not claimed data flows.
-const routes = [
-  [[-67,59],[-18,59],[-18,13],[-67,13]],
+// Block loops run as right-turn circuits, so the right-hand lane hugs each block's own kerb and
+// residents turning at a shared crossing never sweep through its centre.
+export const routes = [
+  [[-67,13],[-18,13],[-18,59],[-67,59]],
   [[-18,13],[18,13],[18,59],[-18,59]],
-  [[18,59],[67,59],[67,13],[18,13]],
-  [[67,13],[67,-32],[18,-32],[18,13]],
-  [[-67,-32],[-18,-32],[-18,-77],[-67,-77]],
+  [[18,13],[67,13],[67,59],[18,59]],
+  [[18,13],[18,-32],[67,-32],[67,13]],
+  [[-67,-77],[-18,-77],[-18,-32],[-67,-32]],
 ];
-function streetPath(corners) {
-  const path = new THREE.CurvePath(), points = corners.map(([x,z]) => new THREE.Vector3(x,0,z));
-  const arrivals = [], departures = [];
-  for (let i=0;i<points.length;i++) {
-    const p=points[i], before=points[(i+3)%4], after=points[(i+1)%4];
-    arrivals.push(p.clone().addScaledVector(before.clone().sub(p).normalize(),3));
-    departures.push(p.clone().addScaledVector(after.clone().sub(p).normalize(),3));
-  }
-  for(let i=0;i<4;i++) {
-    path.add(new THREE.QuadraticBezierCurve3(arrivals[i],points[i],departures[i]));
-    path.add(new THREE.LineCurve3(departures[i],arrivals[(i+1)%4]));
-  }
-  return { points:path.getSpacedPoints(512), length:path.getLength() };
-}
 export function createCityLife(scene, districts, options) {
   let disposed=false, time=0, robotsLoaded=false, robotError=false, latestEvent=0, canAnimate=false;
   const group=new THREE.Group();group.name='city-life';scene.add(group);
+  // Residents steer around street furniture and each other instead of following fixed clocks.
+  const navigator=createNavigator({routes,obstacles:options.obstacles||[]});
   const geometry=new Set(), materials=new Set(), textures=new Set(), signalMaterials=[];
   const abort=new AbortController(), residents=[], signals=[];
   const ownGeometry=g=>(geometry.add(g),g), ownMaterial=m=>(materials.add(m),m);
@@ -108,7 +99,7 @@ export function createCityLife(scene, districts, options) {
     const glow=new THREE.Mesh(glowGeometry,glowMaterial);glow.rotation.x=-Math.PI/2;glow.position.y=.58;group.add(glow);
     const jet=new THREE.Mesh(jetGeometry,jetMaterial);jet.rotation.z=Math.PI;jet.position.y=-.45;root.add(jet);
     root.visible=false;glow.visible=false;
-    residents.push({root,body,glow,jet,path:streetPath(corners),phase:i*.173,speed:5.1+i*.43});
+    residents.push({root,body,glow,jet,agent:navigator.agents[i]});
   });
   function releaseModel(model) {
     model.traverse(n=>{
@@ -167,19 +158,19 @@ export function createCityLife(scene, districts, options) {
     latestEvent=Math.max(latestEvent,...events.map(e=>e.id));
   }
   function update(dt, animated) {
-    if(disposed)return;canAnimate=animated;updatePackets(animated);if(animated)time+=Math.min(.1,Math.max(0,dt));
+    if(disposed)return;canAnimate=animated;updatePackets(animated);
+    const step=Math.min(.1,Math.max(0,dt));
+    if(animated&&step>0){time+=step;navigator.step(step);}
     for(const [i,r]of residents.entries()) {
-      const samples=r.path.points, cursor=((time*r.speed/r.path.length+r.phase)%1)*512;
-      const index=Math.floor(cursor), blend=cursor-index, a=samples[index], b=samples[index+1];
-      r.root.position.lerpVectors(a,b,blend);
-      r.root.position.y=1.6+Math.sin(time*1.6+i*1.9)*.18;
-      const heading=Math.atan2(b.x-a.x,b.z-a.z);
-      const turn=Math.atan2(Math.sin(heading-r.root.rotation.y),Math.cos(heading-r.root.rotation.y));
-      r.root.rotation.y+=dt===0?turn:animated?turn*Math.min(1,dt*9):0;
-      r.body.rotation.z=Math.sin(time*.85+i)*.035;
-      r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018;
-      r.glow.position.x=r.root.position.x;r.glow.position.z=r.root.position.z;
-      r.jet.scale.y=1+Math.sin(time*4+i)*.12;
+      const a=r.agent, moving=Math.hypot(a.vx,a.vz);
+      r.root.position.set(a.x,1.6+Math.sin(time*1.6+i*1.9)*.18,a.z);
+      r.root.rotation.y=a.heading;
+      // Lean into lateral moves and turns; a stopped or turning robot stays level.
+      const lateral=(a.vx*a.rx+a.vz*a.rz)/Math.max(1,moving);
+      r.body.rotation.z=Math.sin(time*.85+i)*.035-lateral*.08;
+      r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018-Math.min(.09,moving*.015);
+      r.glow.position.x=a.x;r.glow.position.z=a.z;
+      r.jet.scale.y=1+Math.sin(time*4+i)*.12+moving*.04;
     }
     for(const s of signals) {
       const pulse=animated ? .5+.5*Math.sin(time*(s.state==='error'?3.2:1.8)) : .5;
@@ -199,7 +190,7 @@ export function createCityLife(scene, districts, options) {
   options.signal?.addEventListener('abort',dispose,{once:true});
   if(options.signal?.aborted)dispose();else void loadRobot();
   return {update,setData,attachLandmarks,dispose,
-    stats:()=>({robots:robotsLoaded?residents.length:0,robotError,time,
+    stats:()=>({robots:robotsLoaded?residents.length:0,robotError,time,navigation:navigator.stats(),
       positions:residents.map(r=>r.root.position.toArray()),
       transmissions:packets.filter(p=>p.waves.some(m=>m.visible)).map(p=>({from:p.from,to:p.to,state:p.state,age:Date.now()-p.at})),
       signals:signals.map(s=>({id:s.id,state:s.state,intensity:s.material.opacity})),

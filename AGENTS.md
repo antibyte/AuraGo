@@ -463,8 +463,15 @@ Tools are defined in `internal/tools/`:
   archived notes/memories, thinking blocks or registered secrets. Sampling must
   not change source content or access metadata. No LLM, SSE publication, media
   cache or text logging; one synthesis at a time with bounded request cadence.
-- Audio mixing, spatial attenuation and lifecycle contracts live in
-  `ui/js/desktop/apps/AGENTS.md`. Verify with `TestSystemWorldVoice*`.
+- GET `/api/desktop/system-world/memory-artifacts` feeds the memory-archive
+  hologram with at most eight excerpts of at most 96 runes from the same
+  sampler and scrubbing. Same admin desktop scope, Virtual Desktop must be
+  enabled, one request at a time with a 4 s cooldown (429 otherwise), `no-store`,
+  no LLM, SSE, caching or text logging. The client renders excerpts as canvas
+  text only and never exposes them in diagnostics.
+- Audio mixing, spatial attenuation, hologram, atmosphere and lifecycle
+  contracts live in `ui/js/desktop/apps/AGENTS.md`. Verify with
+  `TestSystemWorldVoice*` and `TestSystemWorldMemoryArtifacts*`.
 
 ### Desktop Workbook Contract
 - Tabellen uses exactly Univer OSS 0.25.1, Chart.js 4.5.1 and Excelize 2.11.0.

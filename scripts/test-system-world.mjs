@@ -117,23 +117,67 @@ const geometryGLB = Buffer.concat([header,padded,robotBytes.subarray(20+jsonLeng
 geometryGLB.writeUInt32LE(geometryGLB.length,8);geometryGLB.writeUInt32LE(padded.length,12);
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = async () => new Response(geometryGLB);
-const { districts } = await import('../ui/js/desktop/apps/sysworld-scene.js');
+const { districts, obstacles } = await import('../ui/js/desktop/apps/sysworld-scene.js');
+const { createNavigator } = await import('../ui/js/desktop/apps/sysworld-navigation.js');
+// Pure steering: residents never enter street furniture and turn around when a street is blocked.
+{
+    const square=[[0,0],[60,0],[60,60],[0,60]];
+    const blocked=createNavigator({routes:[square],obstacles:[{x:30,z:2.2,r:7}]});
+    const sidestep=createNavigator({routes:[square,square],obstacles:[{x:30,z:2.2,r:1.2}]});
+    for(let frame=0;frame<3000;frame++) {
+        blocked.step(1/30);sidestep.step(1/30);
+        for(const nav of [blocked,sidestep]) for(const a of nav.agents) assert.ok(!nav.hitsObstacle(a.x,a.z),`robot entered an obstacle (frame ${frame})`);
+        const [a,b]=sidestep.agents;
+        assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>1.6,`robots overlap (frame ${frame})`);
+    }
+    assert.ok(blocked.stats().turns>0,'A fully blocked street forces a U-turn');
+    assert.equal(sidestep.stats().turns,0,'A single lamp is passed by changing lanes');
+    assert.ok(sidestep.agents.every(a=>a.speed>1),'Residents keep moving after the sidestep');
+    // One simulated hour on the real street network: no overlaps, no furniture hits, no deadlocks.
+    const { routes } = await import('../ui/js/desktop/apps/sysworld-life.js');
+    const city=createNavigator({routes,obstacles});
+    let closest=Infinity, stopped=0, worstFace=1;
+    for(let frame=0;frame<108000;frame++) {
+        const before=city.agents.map(a=>[a.x,a.z]);
+        city.step(1/30);
+        city.agents.forEach((a,i)=>{
+            assert.ok(!city.hitsObstacle(a.x,a.z),`city robot ${i} entered street furniture (frame ${frame})`);
+            if(a.speed<.3)stopped++;
+            const vx=a.x-before[i][0],vz=a.z-before[i][1],travel=Math.hypot(vx,vz);
+            if(travel>.02)worstFace=Math.min(worstFace,(Math.sin(a.heading)*vx+Math.cos(a.heading)*vz)/travel);
+        });
+        for(let i=0;i<city.agents.length;i++)for(let j=i+1;j<city.agents.length;j++)
+            closest=Math.min(closest,Math.hypot(city.agents[i].x-city.agents[j].x,city.agents[i].z-city.agents[j].z));
+    }
+    assert.ok(closest>2.6,`city robots keep their distance over an hour (closest ${closest.toFixed(2)} m)`);
+    assert.ok(stopped<108000*city.agents.length*.02,'city robots almost never have to stop');
+    assert.ok(worstFace>.9,`moving robots always face their travel direction (worst ${worstFace.toFixed(2)})`);
+}
 const nativeNow=Date.now;let clock=nativeNow(), lifeActive=true;Date.now=()=>clock;
-const scene = new THREE.Scene(), life = createCityLife(scene,districts,{robotURL:'robot-test.glb',active:()=>lifeActive});
+const scene = new THREE.Scene(), life = createCityLife(scene,districts,{robotURL:'robot-test.glb',active:()=>lifeActive,obstacles});
 try {
     for(let i=0;i<100&&life.stats().robots!==5&&!life.stats().robotError;i++) await new Promise(r=>setTimeout(r,10));
     assert.equal(life.stats().robots,5,'All five real robot meshes must load');
     const residents=scene.getObjectByName('city-life').children.filter(n=>n.name.startsWith('city-white-robot-'));
+    let minSpacing=Infinity, moving=0;
     for(let frame=0;frame<3600;frame++) {
         const before=residents.map(r=>r.position.clone());
         life.update(1/30,true);scene.updateMatrixWorld(true);
         residents.forEach((resident,i)=>{
-            const travel=resident.position.clone().sub(before[i]).setY(0).normalize();
+            const travel=resident.position.clone().sub(before[i]).setY(0);
+            if(travel.length()<.02)return; // Stopped or turning residents may rotate in place.
+            moving++;travel.normalize();
             // Four cardinal Blender renders establish +X as the exported mesh's face.
             const face=new THREE.Vector3(1,0,0).transformDirection(resident.children[0].children[0].matrixWorld).setY(0).normalize();
             assert.ok(face.dot(travel)>.9,`${resident.name} must face its travel direction (frame ${frame})`);
+            for(const o of obstacles) assert.ok(Math.hypot(resident.position.x-o.x,resident.position.z-o.z)>o.r+.9,`${resident.name} passes through ${o.asset} (frame ${frame})`);
         });
+        for(let i=0;i<residents.length;i++)for(let j=i+1;j<residents.length;j++)
+            minSpacing=Math.min(minSpacing,Math.hypot(residents[i].position.x-residents[j].position.x,residents[i].position.z-residents[j].position.z));
     }
+    assert.ok(moving>3600*residents.length*.6,'Residents spend most of the time driving');
+    assert.ok(minSpacing>2,`Residents never pass through each other (closest ${minSpacing.toFixed(2)} m)`);
+    assert.ok(life.stats().navigation,'Navigation diagnostics are exposed');
     let eventSequence=1000;
     const emit=(event)=>life.setData([],[{...event,id:++eventSequence,at:clock}]);
     assert.equal(life.stats().transmissions.length,0,'Idle city has no invented radio traffic');
@@ -159,5 +203,5 @@ try {
     lifeActive=false;clock+=500;emit(outgoing);lifeActive=true;life.update(1/30,true);
     assert.equal(life.stats().transmissions.length,0,'Hidden/map activity is not queued for replay');
     console.log('System World: verified routes, request/reply, expiry, deduplication, burst limits and reduced motion passed.');
-    console.log('System World: all five robot faces follow straight streets and rounded turns.');
+    console.log('System World: all five robots face their travel direction, keep clear of street furniture and never overlap.');
 } finally {life.dispose();globalThis.fetch=nativeFetch;Date.now=nativeNow;}

@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +12,39 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/proto"
 )
+
+// assertRenderedCity fails when the central canvas area of a screenshot is a flat colour. A
+// broken post-processing chain (for example NaN spreading through bloom) leaves the WebGL
+// canvas uniformly dark while every JavaScript-level check still passes.
+func assertRenderedCity(t *testing.T, path string) {
+	t.Helper()
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	img, err := png.Decode(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bounds := img.Bounds()
+	var sum, squares float64
+	var count int
+	for y := bounds.Min.Y + bounds.Dy()*3/10; y < bounds.Min.Y+bounds.Dy()*7/10; y += 3 {
+		for x := bounds.Min.X + bounds.Dx()*3/10; x < bounds.Min.X+bounds.Dx()*7/10; x += 3 {
+			r, g, b, _ := img.At(x, y).RGBA()
+			luma := (0.2126*float64(r) + 0.7152*float64(g) + 0.0722*float64(b)) / 257
+			sum += luma
+			squares += luma * luma
+			count++
+		}
+	}
+	mean := sum / float64(count)
+	deviation := math.Sqrt(math.Max(0, squares/float64(count)-mean*mean))
+	if deviation < 12 {
+		t.Fatalf("%s: city canvas looks blank (luma mean %.1f, deviation %.1f)", filepath.Base(path), mean, deviation)
+	}
+}
 
 // Reuse the real Desktop shell/asset router, with bounded read-only data fixtures.
 func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
@@ -29,6 +64,8 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         window.cityIssueSeverity='warning';
         window.cityErrors=[];addEventListener('error',e=>cityErrors.push(e.message));
         addEventListener('unhandledrejection',e=>cityErrors.push(String(e.reason)));
+        const cityConsoleError=console.error.bind(console);
+        console.error=(...args)=>{const text=args.map(String).join(' ');if(/THREE|shader|WebGL/i.test(text))cityErrors.push(text.slice(0,900));cityConsoleError(...args);};
         window.cityNativeFetch=window.fetch;window.cityFailures=false;window.cityCalls={};
         window.cityHandlers=new Map();
         window.AuraSSE={on:(type,fn)=>{if(!cityHandlers.has(type))cityHandlers.set(type,new Set());cityHandlers.get(type).add(fn)},
@@ -45,6 +82,12 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
                 view.setUint16(32,2,true);view.setUint16(34,16,true);ascii(36,'data');view.setUint32(40,length*2,true);
                 for(let i=0;i<length;i++)view.setInt16(44+i*2,Math.sin(i/rate*220*Math.PI*2)*16000*Math.min(1,i/500,(length-i)/500),true);
                 return Promise.resolve(new Response(bytes,{headers:{'Content-Type':'audio/wav'}}));
+            }
+            if(path==='/api/desktop/system-world/memory-artifacts'){
+                if(opts.method&&opts.method!=='GET')throw Error('Artifacts must use GET');
+                if(opts.cache!=='no-store')throw Error('Artifacts must not be cached');
+                if(window.cityArtifactsDown)return Promise.resolve(new Response('{}',{status:503}));
+                return Promise.resolve(new Response(JSON.stringify({artifacts:['Andi bevorzugt kurze Antworten auf Deutsch.','Der Homelab-Cluster nutzt Proxmox mit drei Knoten und ZFS-Spiegel.','Nightly maintenance läuft um 03:00 Uhr.','MQTT-Broker: mosquitto auf Port 1883.','<script>alert(1)</script> Gedächtnis darf nie als Markup gelten.']}),{headers:{'Content-Type':'application/json'}}));
             }
             const fixtures={
                 '/api/dashboard/overview':{agent:{model:'AuraGo Spark',provider:'Local',personality:'Thinker',context_window:32768,busy:false},missions:{total:12,running:2,queued:3},integrations:{home_assistant:true,docker:true,telegram:false,mqtt:true,meshcore:true,proxmox:true}},
@@ -76,7 +119,17 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(45 * time.Second).MustWait(`()=>!!(SysWorldApp.inspect(cityId)?.life?.robots===5||SysWorldApp.inspect(cityId)?.life?.robotError)`)
 	page.MustEval(`()=>{const state=SysWorldApp.inspect(cityId);if(state.life.robots!==5)throw Error('Five original robot models missing');if(state.sound.state!=='uninitialized')throw Error('Sound started without opt-in');
         const requests=Object.entries(cityCalls).filter(([url])=>url.includes('white-robot.glb'));if(requests.length!==1||requests[0][1]!==1)throw Error('Robot asset must load once');}`)
+	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.artifacts?.source==='live'&&SysWorldApp.inspect(cityId)?.hologram?.artifacts===5`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),dump=JSON.stringify(s);
+        if(/Proxmox|alert\(1\)|Gedächtnis/.test(dump))throw Error('Diagnostics leak memory text');
+        if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
+        if(s.hologram.source!=='live'||s.atmosphere.stars<1000||s.atmosphere.post!==true||s.drones.drones!==3)throw Error('Hologram, atmosphere or drones inactive: '+dump);
+        if(s.life.navigation.states.some(state=>state!=='cruise'&&state!=='turn'))throw Error('Unknown robot state');}`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
+	assertRenderedCity(t, filepath.Join(dir, "city-overview-first.png"))
+	if errors := page.MustEval(`()=>JSON.stringify(cityErrors)`).Str(); errors != "[]" {
+		t.Fatal(errors)
+	}
 	if os.Getenv("AURAGO_SYSTEM_WORLD_FIRST") == "1" {
 		return
 	}
@@ -115,6 +168,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{document.querySelector('[data-sw-action="close"]').click();document.querySelector('[data-sw-mode="street"]').click()}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='street'`)
 	page.MustScreenshot(filepath.Join(dir, "city-street.png"))
+	assertRenderedCity(t, filepath.Join(dir, "city-street.png"))
 	before := page.MustEval(`()=>SysWorldApp.inspect(cityId).position`).JSON("", "")
 	page.MustEval(`()=>{const c=document.querySelector('.sysworld-gl');c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyW',key:'w',bubbles:true}));}`)
 	time.Sleep(400 * time.Millisecond)
@@ -205,10 +259,15 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').state==='idle'`)
 	page.MustEval(`()=>document.querySelector('[data-sw-district="memory"]').click()`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='orbit'`)
+	time.Sleep(1500 * time.Millisecond)
+	page.MustScreenshot(filepath.Join(dir, "city-memory-hologram.png"))
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.hologram.switches<1||s.hologram.shown<0)throw Error('Hologram never cycles memory artifacts');}`)
 	page.MustEval(`()=>{window.citySelected=SysWorldApp.inspect(cityId).selected;cityEmit('system_metrics',{cpu:{usage_percent:63},memory:{used_percent:24}});if(SysWorldApp.inspect(cityId).selected!==citySelected)throw Error('Live update moved focus');}`)
 	page.MustEval(`()=>{const select=document.querySelector('.sw-quality');select.value='low';select.dispatchEvent(new Event('change'));}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).tier==='low'&&SysWorldApp.inspect(cityId).cachedModels>20`)
 	page.MustScreenshot(filepath.Join(dir, "city-low.png"))
+	assertRenderedCity(t, filepath.Join(dir, "city-low.png"))
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.atmosphere.tier!=='low'||s.atmosphere.post!==false)throw Error('Low tier must disable the atmosphere post pass');}`)
 	page.MustEval(`()=>{const select=document.querySelector('.sw-quality');select.value='high';select.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).tier==='high'`)
 	metrics := page.MustEval(`async()=>{const frames=[];let last=performance.now();for(let i=0;i<120;i++){await new Promise(requestAnimationFrame);const now=performance.now();if(i>10)frames.push(now-last);last=now;}frames.sort((a,b)=>a-b);return JSON.stringify({meanMS:frames.reduce((a,b)=>a+b,0)/frames.length,p95MS:frames[Math.floor(frames.length*.95)],...SysWorldApp.inspect(cityId)},null,2)}`).Str()

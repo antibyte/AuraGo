@@ -84,11 +84,15 @@ func TestDesktopSysWorldLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 func TestDesktopSysWorldAppMarkers(t *testing.T) {
 	t.Parallel()
 	for file, markers := range map[string][]string{
-		"js/desktop/apps/sysworld.js":       {"const instances = new Map()", "function dispose(windowId)", "instances.delete(windowId)", "cancelAnimationFrame", "IntersectionObserver", "MutationObserver", "setWindowMenus", "load.abort()", "city.esm.js", "versioned("},
-		"js/desktop/apps/sysworld-scene.js": {"from 'three'", "GLTFLoader", "OrbitControls", "createCity", "InstancedMesh", "assetURL", "AbortController", "geoSet.forEach", "matSet.forEach", "forceContextLoss", "webglcontextlost", "requestPointerLock", "setMode", "lastQualityChange", "Math.hypot(forward, right)"},
-		"js/desktop/apps/sysworld-data.js":  {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/dashboard/overview", "/api/knowledge-graph/nodes?limit=300"},
-		"js/desktop/apps/sysworld-hud.js":   {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source"},
-		"css/desktop-app-sysworld.css":      {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible"},
+		"js/desktop/apps/sysworld.js":            {"const instances = new Map()", "function dispose(windowId)", "instances.delete(windowId)", "cancelAnimationFrame", "IntersectionObserver", "MutationObserver", "setWindowMenus", "load.abort()", "city.esm.js", "versioned(", "/api/desktop/system-world/memory-artifacts", "cache:'no-store'", "artifacts.request?.abort()", "setHologram("},
+		"js/desktop/apps/sysworld-scene.js":      {"from 'three'", "GLTFLoader", "OrbitControls", "createCity", "InstancedMesh", "assetURL", "AbortController", "geoSet.forEach", "matSet.forEach", "forceContextLoss", "webglcontextlost", "requestPointerLock", "setMode", "lastQualityChange", "Math.hypot(forward, right)", "createMemoryHologram", "createAtmosphere", "createDrones", "obstaclesFrom", "hologram.dispose()", "atmosphere.dispose()", "drones.dispose()"},
+		"js/desktop/apps/sysworld-navigation.js": {"export function createNavigator", "export function obstaclesFrom", "export function streetRoute", "a.state = 'turn'", "firstConflict", "laneClear"},
+		"js/desktop/apps/sysworld-hologram.js":   {"export function createMemoryHologram", "export function sanitizeArtifacts", "fillText", "AdditiveBlending", "setReducedMotion(value)"},
+		"js/desktop/apps/sysworld-atmosphere.js": {"export function createAtmosphere", "ShaderPass", "AdditiveBlending", "setTier(", "dispose()"},
+		"js/desktop/apps/sysworld-drones.js":     {"export function createDrones", "CatmullRomCurve3", "/^rotor_/", "dispose()"},
+		"js/desktop/apps/sysworld-data.js":       {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/dashboard/overview", "/api/knowledge-graph/nodes?limit=300"},
+		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source"},
+		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible"},
 	} {
 		source := readDesktopAssetText(t, file)
 		for _, want := range markers {

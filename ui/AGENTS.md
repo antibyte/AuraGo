@@ -33,9 +33,13 @@ worker. Keep packaging, recovery and offline instructions in
 - System World uses the Blender GLB kit in `3d/system-world/v1/` and its own
   MIT Three.js 0.185.1 ESM bundle; shared legacy Three.js remains unchanged.
   Run `node scripts/build-system-world.js --check` before packaging. The app
-  owns live read-only city exploration, five optimized ThreeDee robots and
-  state-driven effects. Optional Web Audio ambience pauses with the inactive
-  scene. The same sound control includes quiet spatial tower TTS with echo/reverb;
+  owns live read-only city exploration, five optimized ThreeDee robots that
+  steer around furniture and each other, state-driven effects, a night
+  atmosphere (aurora sky, stars, moon, sea, mist, drones, lamp cones,
+  vignette/grain) and a memory-archive hologram fed by sanitized excerpts from
+  `/api/desktop/system-world/memory-artifacts`, rendered as canvas text only.
+  Optional Web Audio ambience pauses with the inactive scene. The same sound
+  control includes quiet spatial tower TTS with echo/reverb;
   generation and playback stop on mute, hidden or inactive windows. Its responsive layout must fit the touch viewport; do not put it in
   the mobile wide-window allowlist. Persistent history is a later stage.
   Rendering/lifecycle and real-shell test contracts live in

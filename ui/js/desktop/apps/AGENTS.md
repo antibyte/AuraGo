@@ -960,6 +960,13 @@ registration lives in `internal/desktop/types.go`.
   enabled integration flags do not prove connectivity. Older REST responses or
   failures must not replace newer SSE samples. No raw tool arguments, prompts
   or issue details enter the bounded 60-event feed.
+- The hologram artifact feed in `sysworld.js` polls GET
+  `/api/desktop/system-world/memory-artifacts` (same-origin, `no-store`, 10 s
+  abort) every 24 s only while the city is visible and not in map mode; failures
+  back off 90 s and HTTP 429 keeps the normal interval. Until the first live
+  response, and after failures, the archive's own localized counters feed the
+  hologram (`source: 'local'`). Close clears the timer and aborts the request.
+  `inspect()` exposes `artifacts.{source,count,failures,polling}`, never text.
 - `sysworld-life.js` owns exactly five decorative white ThreeDee robots, rounded
   street routes, shared assets/soft hover lights and state-driven district rings.
   Normalize the GLB face axis (+X) to route-forward (+Z) before cloning;
@@ -968,6 +975,40 @@ registration lives in `internal/desktop/types.go`.
   signals; stale/unknown stays neutral. The operations signal uses private material
   clones so its red pulse cannot recolor other buildings. Rebind after LOD swaps.
   Reduced motion/Desktop animation settings freeze residents and pulses.
+- `sysworld-navigation.js` steers those robots. Routes are right-turn block
+  circuits sampled by arc length with 7.5 m corner handles; robots drive the
+  right-hand lane (`2.2`) and may use `0/-2.2/±3.9`. Obstacles are circles
+  derived from kit bounds (`obstaclesFrom(placements)`: tram, server rack,
+  lamp pole, planter) expanded by the 1.3 m robot radius. Every frame checks
+  lane probes up to 18 m ahead and trajectory conflicts up to 12 m; robots
+  sidestep only away from where oncoming traffic is heading, yield to the
+  robot closer to a shared crossing, brake behind slower leaders, and after
+  2.5 s blocked they reverse direction (`state: 'turn'`, 4 s cooldown). Lane
+  changes are velocity-limited to the current speed so heading always follows
+  travel; stopped robots square to the street. A rate-limited hard separation
+  is the last resort and never lets robots overlap or slide sideways at rest.
+  Spawns scan for a clear lane spot. `stats()` exposes states/turns/lanes only.
+- `sysworld-hologram.js` projects the memory archive hologram (roof 21 m):
+  additive cone, base glow, rings, wireframe core, GPU motes, one billboard main
+  panel and two orbiting fragment panels. Text is drawn with canvas `fillText`
+  only and never interpreted as markup; `sanitizeArtifacts` trims to 24 entries
+  and 140 characters. Panels cycle randomly every 4.5–7.5 s (12–15 s under
+  reduced motion) with glitch/fade transitions. `stats()` reports counts,
+  source and switch counters, never text.
+- `sysworld-atmosphere.js` owns the sky dome with aurora bands, 1400 twinkling
+  stars, moon, animated sea with fog, sea mist, 500 dust motes, the rotating
+  spire beacon (faster while the agent is busy), instanced lamp cones and the
+  vignette/grain `ShaderPass`. One shared `time` uniform advances only while
+  animated, so hidden windows and reduced motion freeze the layer. Low tier hides
+  mist/dust/lamp cones; the post pass runs on high/ultra only. Clamp every
+  `pow()` base: multisampled edge extrapolation yields NaN otherwise, and bloom
+  smears one NaN over the whole frame.
+- `sysworld-drones.js` flies three service-drone patrols on closed Catmull-Rom
+  loops with spinning rotors, navigation lights and banking; the template is the
+  cached kit GLB and instances share geometry.
+- `sysworld-scene.js` renders through `SceneCapturePass` (multisampled HDR scene
+  target resolved and NaN-guarded into plain composer buffers) → bloom → output
+  → atmosphere post. Never let bloom blend into a multisampled buffer.
 - City radio waves consume typed `agent_action` starts and executed results, plus
   co-agent progress. Exact tool names map to districts; unknown tools, previews,
   blocked proposals and metric snapshots must not invent building-to-building traffic.
@@ -1005,10 +1046,15 @@ registration lives in `internal/desktop/types.go`.
   Reduced motion and Desktop animation settings suppress camera flights/tours
   and the decorative pulse. Street mode owns WASD only while its canvas is
   focused; pointer lock is explicit and Escape/blur/close release control.
-- Verify `node scripts/test-system-world.mjs`, `node scripts/build-system-world.js
-  --check`, focused Sysworld Go tests, and the real-shell browser matrix:
+- Verify `node scripts/test-system-world.mjs` (includes the navigation
+  blockade/sidestep units and a 60-minute five-robot simulation), `node
+  scripts/build-system-world.js --check`, focused Sysworld Go tests, `go test
+  ./internal/server -run SystemWorld`, and the real-shell browser matrix:
   `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SYSTEM_WORLD_MATRIX=1 go test ./ui
-  -run '^TestDesktopAuroraBrowser$'`. Screenshot/performance reports stay ignored.
+  -run '^TestDesktopAuroraBrowser$'`. The browser run mocks the artifact feed,
+  asserts live hologram/atmosphere/drone stats without text leaks, captures
+  Three.js console errors, and fails when the canvas renders flat (blank
+  post-processing). Screenshot/performance reports stay ignored.
 
 ## Work Guidance
 
@@ -1048,8 +1094,9 @@ registration lives in `internal/desktop/types.go`.
 - Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
   `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
   and `command-palette.js`; do not fold domain modules into core.js.
-- Keep System World's data, HUD, scene, life, audio and lifecycle in their owned files.
-  Do not merge renderer dependencies or data polling into the Desktop shell.
+- Keep System World's data, HUD, scene, life, navigation, hologram, atmosphere,
+  drones, audio and lifecycle in their owned files. Do not merge renderer
+  dependencies or data polling into the Desktop shell.
 - Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
   `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
   logic into the main app file.
@@ -1460,16 +1507,26 @@ registration lives in `internal/desktop/types.go`.
 - `code-studio/command-palette.js` - Command palette overlay with fuzzy search,
   keyboard navigation. Separate IIFE. No child DOX file needed.
 - `sysworld.js` - Per-window lifecycle, lazy ESM loading, visibility, menus,
-  selection and bounded neighbourhood requests. Exposes `window.SysWorldApp`.
+  selection, bounded neighbourhood requests and the visibility-gated memory
+  artifact feed for the hologram. Exposes `window.SysWorldApp`.
 - `sysworld-data.js` - Shared read-only REST/SSE data lifecycle and stable entity
   records with source timestamp/status; no persistent history store.
 - `sysworld-scene.js` - Isolated Three.js city renderer, GLB LOD cache,
-  instancing, PBR/PMREM, shadows, bloom, camera modes and disposal. Build to
+  instancing, PBR/PMREM, shadows, `SceneCapturePass` + bloom + output +
+  atmosphere post chain, camera modes and disposal. Build to
   `ui/js/vendor/system-world/`; never classic-script load this source.
 - `sysworld-hud.js` - Theme-native, localized HTML metrics, district navigation,
   entity search, inspector, map, street controls and projected district labels.
 - `sysworld-life.js` - Shared robot assets, street routes, hover lights and district
   status effects; imports only into the city bundle.
+- `sysworld-navigation.js` - Pure robot steering: arc-length routes, lanes,
+  obstacle circles, conflict prediction, yielding, U-turns and separation.
+  Node-testable without Three.js.
+- `sysworld-hologram.js` - Memory archive hologram: cone, rings, motes and
+  canvas-text panels cycling sanitized artifacts.
+- `sysworld-atmosphere.js` - Sky, aurora, stars, moon, sea, mist, dust, spire
+  beacon, lamp cones and the vignette/grain post pass.
+- `sysworld-drones.js` - Three patrolling service drones on closed spline loops.
 - `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio and shared master mixer.
 - `sysworld-voice.js` - Transient TTS phrase playback, spatial echo/reverb and cancellation.
   These modules need no additional child DOX.

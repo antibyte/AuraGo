@@ -91,6 +91,29 @@ Preserve one render loop per visible window, pooled effects, context-loss
 handling and complete disposal. Hidden/minimized windows stop rendering.
 Without WebGL2, keep the map, metrics, history and inspector usable.
 
+Night atmosphere: a procedural sky dome with slow aurora bands and haze horizon,
+a star field, moon, glossy sea plane, ground mist, floating dust, a spire beacon
+beam, lamp cones and a vignette/grain post pass. Three service drones patrol
+closed spline loops. Low tier drops mist, dust and lamp cones and skips
+post-processing; reduced motion slows the sky and disables decorative sweeps.
+Shader math must clamp every `pow` base and avoid NaN so bloom cannot black out
+the frame; the scene capture pass zeroes NaN/Inf pixels before bloom.
+
+Memory hologram: above the memory archive a projected cone with rings, motes and
+text panels cycles short memory excerpts. Excerpts come from
+`GET /api/desktop/system-world/memory-artifacts` (admin desktop scope, same
+sampler and scrubbing as tower voice, at most eight excerpts of 96 runes, one
+request at a time with a 4 s cooldown). The client polls only while the window is
+visible and not in map mode, backs off on failures, and falls back to localized
+memory counters when the feed is unavailable. Text renders through canvas
+`fillText` only and never appears in diagnostics or logs.
+
+Robot traffic: residents follow rounded right-turn loops with right-hand lanes,
+predict conflicts, yield, sidestep away from oncoming traffic, keep clear of street
+furniture derived from kit bounds and reverse after being blocked for 2.5 s.
+Robots never pass through each other or through objects; the node test simulates
+one hour of traffic and the browser matrix checks the live states.
+
 ## Read model and 24-hour history
 
 Reuse the existing server-wide ten-second system-metrics collector, SSE and
