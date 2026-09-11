@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan używa osobnych modeli, aby obsługiwać więcej GPU. Wymaga Dockera na Linuksie ze sprawnym sterownikiem Vulkan.",
   "config.music_gen.action_start": "Uruchamianie usługi…",
   "config.music_gen.action_stop": "Zatrzymywanie usługi…",
   "config.music_gen.action_recheck": "Sprawdzanie sprzętu i próbki dźwięku…",

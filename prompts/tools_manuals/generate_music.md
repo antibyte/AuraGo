@@ -49,6 +49,7 @@ The tool saves the generated audio as MP3 in `data/audio/` and registers it in t
 
 ## Notes
 - Local ACE-Step must be ready in Music Generation settings. One job runs at a time; `acestep_busy` means another job owns the worker. Do not change containers or retry in a tight loop.
+- The administrator can select CUDA, ROCm, Intel XPU, Vulkan or explicit CPU. Vulkan uses the managed acestep.cpp/GGUF runtime on Linux; use the same tool parameters and the active runtime's duration/lyrics limits.
 - Local lyrics generation requires a loaded local language model. Otherwise provide lyrics or choose instrumental. Never silently use a cloud LLM to work around `lyrics_required`.
 - Local music costs zero and retains the daily quantity limit. Cancellation/timeout recycles only its dedicated container; model downloads remain cached.
 - A daily generation limit can be configured (0 = unlimited)

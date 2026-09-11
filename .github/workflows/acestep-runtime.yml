@@ -1,8 +1,14 @@
 name: ACE-Step runtime images
 on:
   workflow_dispatch:
+    inputs:
+      backend:
+        description: Runtimes to publish
+        type: choice
+        default: all
+        options: [all, vulkan]
   push:
-    branches: [codex/acestep-runtime-release]
+    branches: [codex/acestep-runtime-release, codex/acestep-vulkan-runtime]
     paths: ['internal/acestep/runtime/**', 'internal/acestep/release.json', '.github/workflows/acestep-runtime.yml']
 permissions:
   contents: read
@@ -16,15 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - backend: cuda
-            index: cu128
-          - backend: rocm
-            index: rocm7.1
-          - backend: xpu
-            index: xpu
-          - backend: cpu
-            index: cpu
+        backend: ${{ fromJSON((inputs.backend == 'vulkan' || github.ref_name == 'codex/acestep-vulkan-runtime') && '["vulkan"]' || '["cuda","rocm","xpu","cpu","vulkan"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -38,13 +36,13 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: internal/acestep/runtime/Dockerfile
+          file: ${{ matrix.backend == 'vulkan' && 'internal/acestep/runtime/Dockerfile.vulkan' || 'internal/acestep/runtime/Dockerfile' }}
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/antibyte/aurago-acestep-${{ matrix.backend }}:ca1e85f-${{ github.sha }}
+          tags: ghcr.io/antibyte/aurago-acestep-${{ matrix.backend }}:runtime-${{ github.sha }}
           build-args: |
             BACKEND=${{ matrix.backend }}
-            TORCH_INDEX=${{ matrix.index }}
+            TORCH_INDEX=${{ matrix.backend == 'cuda' && 'cu128' || matrix.backend == 'rocm' && 'rocm7.1' || matrix.backend }}
           provenance: true
           sbom: true
       - uses: sigstore/cosign-installer@v4.1.2
@@ -75,9 +73,9 @@ jobs:
           import json,pathlib
           target=pathlib.Path('internal/acestep/release.json')
           release=json.loads(target.read_text())
-          images={}
+          images=release['images'].copy()
           for file in pathlib.Path('digests').rglob('image.json'):images.update(json.loads(file.read_text()))
-          assert set(images)=={'cuda','rocm','xpu','cpu'}
+          assert set(images)=={'cuda','rocm','xpu','cpu','vulkan'}
           release['images']=images
           pathlib.Path('acestep-release.json').write_text(json.dumps(release,indent=2)+'\n')
           PY

@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan bruker egne modeller for bredere GPU-støtte. Krever en Linux-Docker-vert med en fungerende Vulkan-driver.",
   "config.music_gen.action_start": "Starter tjenesten…",
   "config.music_gen.action_stop": "Stopper tjenesten…",
   "config.music_gen.action_recheck": "Kontrollerer maskinvare og lydprøve…",

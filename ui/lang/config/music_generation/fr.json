@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan utilise des modèles distincts pour prendre en charge davantage de GPU. Nécessite Docker sous Linux avec un pilote Vulkan fonctionnel.",
   "config.music_gen.action_start": "Démarrage du service…",
   "config.music_gen.action_stop": "Arrêt du service…",
   "config.music_gen.action_recheck": "Vérification du matériel et de l’échantillon audio…",

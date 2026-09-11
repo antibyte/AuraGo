@@ -69,7 +69,7 @@ func New(cfg *config.Config, vault *security.Vault, logger *slog.Logger) *Manage
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{vault: vault, logger: logger, dataDir: cfg.Directories.DataDir, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1), done: make(chan struct{})}
 	m.client = &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: nil, ResponseHeaderTimeout: 20 * time.Second}, CheckRedirect: func(*http.Request, []*http.Request) error { return fmt.Errorf("acestep_redirect_rejected") }}
-	m.status = Status{State: "disabled", Devices: []Device{}, ReleaseReady: len(manifest().Images) == 4}
+	m.status = Status{State: "disabled", Devices: []Device{}, ReleaseReady: len(manifest().Images) >= 4}
 	m.Configure(cfg)
 	return m
 }

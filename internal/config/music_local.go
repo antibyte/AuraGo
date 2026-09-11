@@ -35,8 +35,8 @@ func (c LocalMusicConfig) Defaults() LocalMusicConfig {
 
 func (c LocalMusicConfig) Validate() error {
 	c = c.Defaults()
-	if !oneOf(c.Backend, "auto", "cuda", "rocm", "xpu", "cpu") {
-		return fmt.Errorf("music_generation.local.backend must be auto, cuda, rocm, xpu or cpu")
+	if !oneOf(c.Backend, "auto", "cuda", "rocm", "xpu", "vulkan", "cpu") {
+		return fmt.Errorf("music_generation.local.backend must be auto, cuda, rocm, xpu, vulkan or cpu")
 	}
 	if len(c.Device) > 128 || strings.ContainsAny(c.Device, "\r\n\x00/\\") {
 		return fmt.Errorf("invalid local music device")

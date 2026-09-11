@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan अधिक GPU का समर्थन करने के लिए अलग मॉडल इस्तेमाल करता है। इसके लिए काम करने वाले Vulkan ड्राइवर वाला Linux Docker होस्ट चाहिए।",
   "config.music_gen.action_start": "सेवा शुरू हो रही है…",
   "config.music_gen.action_stop": "सेवा बंद हो रही है…",
   "config.music_gen.action_recheck": "हार्डवेयर और ऑडियो नमूने की जाँच हो रही है…",

@@ -19,7 +19,7 @@ def fetch(url):
 
 def generate():
     current = json.loads(DEST.read_text()) if DEST.exists() else {}
-    result = {"upstream_commit": REVISION, "images": current.get("images", {}), "models": {}}
+    result = {**current, "upstream_commit": REVISION, "images": current.get("images", {}), "models": {}}
     repos = {
         "ACE-Step/Ace-Step1.5": ["vae", "Qwen3-Embedding-0.6B", "acestep-v15-turbo", "acestep-5Hz-lm-1.7B"],
         "ACE-Step/acestep-v15-xl-turbo": ["acestep-v15-xl-turbo"],
@@ -76,14 +76,40 @@ def check(value):
                 assert model["revision"] in file["url"]
             assert not file["path"].startswith("/") and ".." not in Path(file["path"]).parts
     for backend, image in value["images"].items():
-        assert backend in ("cuda", "rocm", "xpu", "cpu")
+        assert backend in ("cuda", "rocm", "xpu", "vulkan", "cpu")
         assert image.startswith("ghcr.io/antibyte/aurago-acestep-") and "@sha256:" in image
+    if 'vulkan' in value:
+        native = value['vulkan']
+        assert len(native['upstream_commit']) == 40 and len(native['ggml_commit']) == 40
+        assert len(native['revision']) == 40 and len(native['models']) == 7
+        for name, entry in native['models'].items():
+            assert name.endswith('.gguf') and Path(name).name == name
+            assert entry['size'] > 0 and len(entry['sha256']) == 64
+            assert entry['url'] == f"https://huggingface.co/{native['repo']}/resolve/{native['revision']}/{name}"
+
+
+def pin_vulkan(value):
+    repo = 'Serveurperso/ACE-Step-1.5-GGUF'
+    revision = json.loads(fetch(f'https://huggingface.co/api/models/{repo}'))['sha']
+    files = json.loads(fetch(f'https://huggingface.co/api/models/{repo}/tree/{revision}?recursive=true&expand=false'))
+    names = {'Qwen3-Embedding-0.6B-Q8_0.gguf', 'vae-BF16.gguf', 'acestep-v15-turbo-Q8_0.gguf',
+             'acestep-v15-turbo-Q4_K_M.gguf', 'acestep-v15-xl-turbo-Q8_0.gguf',
+             'acestep-5Hz-lm-0.6B-Q8_0.gguf', 'acestep-5Hz-lm-1.7B-Q8_0.gguf'}
+    entries = {f['path']: {'url': f"https://huggingface.co/{repo}/resolve/{revision}/{f['path']}",
+                           'size': f['size'], 'sha256': f['lfs']['oid']} for f in files if f['path'] in names}
+    assert set(entries) == names
+    value['vulkan'] = {'upstream_commit': 'daf7644dc7efffe0da14fb92ea698e0a8840b474',
+                       'ggml_commit': '7d0241063b6dad00972a69565445dffb91dc3bc9',
+                       'repo': repo, 'revision': revision, 'models': entries}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--vulkan", action="store_true", help="Refresh only native GGUF pins; requires --write")
     args = parser.parse_args()
-    value = generate() if args.write else json.loads(DEST.read_text())
+    if args.vulkan and not args.write: parser.error('--vulkan requires --write')
+    value = generate() if args.write and not args.vulkan else json.loads(DEST.read_text())
+    if args.vulkan: pin_vulkan(value)
     check(value)
     if args.write:
         DEST.parent.mkdir(parents=True, exist_ok=True)

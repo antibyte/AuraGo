@@ -18,7 +18,7 @@ import (
 	"aurago/internal/dockerutil"
 )
 
-var imagePattern = regexp.MustCompile(`^ghcr\.io/antibyte/aurago-acestep-(cuda|rocm|xpu|cpu)@sha256:[0-9a-f]{64}$`)
+var imagePattern = regexp.MustCompile(`^ghcr\.io/antibyte/aurago-acestep-(cuda|rocm|xpu|vulkan|cpu)@sha256:[0-9a-f]{64}$`)
 
 type containerInfo struct {
 	ID           string `json:"Id"`
@@ -166,6 +166,9 @@ func (m *Manager) probeContainer(ctx context.Context, backend string, groups []s
 	}
 	host := baseHostConfig()
 	host["NetworkMode"] = "none"
+	if backend == "vulkan" {
+		host["Tmpfs"].(map[string]string)["/app/.cache"] = "rw,nosuid,nodev,size=256m,uid=65532,gid=65532"
+	}
 	host["GroupAdd"] = dockerutil.ParseNumericGroupIDs(strings.Join(groups, ","))
 	if err := addGPU(host, backend, nil); err != nil {
 		return nil, err
@@ -230,7 +233,7 @@ func (m *Manager) probeContainer(ctx context.Context, backend string, groups []s
 	if err = json.Unmarshal(bytes.TrimSpace(output.Bytes()), &result); err != nil {
 		return nil, fmt.Errorf("acestep_invalid_probe")
 	}
-	if len(result.Devices) == 0 && len(groups) == 0 && len(result.Groups) > 0 && (backend == "rocm" || backend == "xpu") {
+	if len(result.Devices) == 0 && len(groups) == 0 && len(result.Groups) > 0 && (backend == "rocm" || backend == "xpu" || backend == "vulkan") {
 		return m.probeContainer(ctx, backend, result.Groups)
 	}
 	return result.Devices, nil
@@ -252,7 +255,7 @@ func (m *Manager) detect(ctx context.Context, w desired) (Device, error) {
 	}
 	backends := []string{w.Local.Backend}
 	if w.Local.Backend == "auto" {
-		backends = []string{"cuda", "rocm", "xpu"}
+		backends = []string{"cuda", "rocm", "xpu", "vulkan"}
 	}
 	var devices []Device
 	for _, backend := range backends {
@@ -323,6 +326,10 @@ func (m *Manager) createRuntime(ctx context.Context, w desired, device Device, c
 	if device.Backend == "cuda" {
 		env[1] = "AURAGO_DEVICE_INDEX=0"
 	}
+	if device.Backend == "vulkan" {
+		// Render-node confinement can renumber Vulkan devices inside the worker.
+		env = append(env, "AURAGO_DEVICE_PCI="+device.UUID)
+	}
 	reference := manifest().Images[device.Backend]
 	env = append(env, "AURAGO_IMAGE_PIN="+reference)
 	env = append(env, "AURAGO_DEVICE_ID="+device.ID)
@@ -382,7 +389,7 @@ func (m *Manager) waitReady(ctx context.Context, expectedImage string) error {
 }
 
 func (m *Manager) install(ctx context.Context, w desired) error {
-	if len(manifest().Images) != 4 {
+	if len(manifest().Images) < 4 {
 		return fmt.Errorf("acestep_release_not_published")
 	}
 	if err := m.runtimeKey(); err != nil {

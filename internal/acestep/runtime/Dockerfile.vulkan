@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90 AS build
+ARG UPSTREAM=daf7644dc7efffe0da14fb92ea698e0a8840b474
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build g++ libvulkan-dev glslc spirv-headers && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN git init . && git remote add origin https://github.com/ServeurpersoCom/acestep.cpp.git \
+    && git fetch --depth=1 origin ${UPSTREAM} && git checkout --detach FETCH_HEAD \
+    && test "$(git rev-parse HEAD)" = "${UPSTREAM}" && git submodule update --init --depth=1 \
+    && test "$(git -C ggml rev-parse HEAD)" = "7d0241063b6dad00972a69565445dffb91dc3bc9"
+COPY internal/acestep/runtime/vulkan_probe.cpp tools/aurago-vulkan-probe.cpp
+COPY internal/acestep/runtime/patch_vulkan.py /tmp/patch_vulkan.py
+RUN printf '\nadd_executable(aurago-vulkan-probe tools/aurago-vulkan-probe.cpp)\ntarget_link_libraries(aurago-vulkan-probe PRIVATE yyjson)\nlink_ggml_backends(aurago-vulkan-probe)\n' >> CMakeLists.txt \
+    && python3 /tmp/patch_vulkan.py /src \
+    && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_AVX512=OFF \
+    && cmake --build build --target ace-server aurago-vulkan-probe -j 4
+
+FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+LABEL org.opencontainers.image.source="https://github.com/antibyte/AuraGo"
+RUN apt-get update && apt-get install -y --no-install-recommends python3 ca-certificates ffmpeg libvulkan1 mesa-vulkan-drivers libgomp1 && rm -rf /var/lib/apt/lists/*
+ENV AURAGO_BACKEND=vulkan PYTHONPATH=/opt/aurago PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    LD_LIBRARY_PATH=/opt/acestep HOME=/app/.cache XDG_CACHE_HOME=/app/.cache XDG_RUNTIME_DIR=/tmp
+COPY --from=build /src/build/ace-server /src/build/aurago-vulkan-probe /src/build/*.so* /opt/acestep/
+COPY --from=build /src/LICENSE /opt/acestep/licenses/acestep-LICENSE
+COPY --from=build /src/ggml/LICENSE /opt/acestep/licenses/ggml-LICENSE
+COPY internal/acestep/runtime/ /opt/aurago/
+COPY internal/acestep/release.json /opt/aurago/release.json
+RUN mkdir -p /app/checkpoints /app/.cache/acestep/tmp/api_audio && chown -R 65532:65532 /app
+WORKDIR /app
+USER 65532:65532
+RUN python3 /opt/aurago/test_vulkan_runtime.py
+EXPOSE 8001
+ENTRYPOINT ["python3", "/opt/aurago/vulkan_runtime.py"]
+CMD ["serve"]

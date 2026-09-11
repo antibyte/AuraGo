@@ -24,10 +24,10 @@ func TestLocalMusicConfigBrowser(t *testing.T) {
 	}()
 	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`() => {
-  configData.music_generation={enabled:true,provider:'aurago-acestep-local',local:{backend:'auto',device:'auto',vram_reserve_gb:0,timeout_seconds:1800}};
+  configData.music_generation={enabled:true,provider:'aurago-acestep-local',local:{backend:'vulkan',device:'auto',vram_reserve_gb:0,timeout_seconds:1800}};
   AuraConfigState.init(configData);
   const original=window.fetch;window.musicActions=[];
-  window.musicRuntime={state:'ready',ready:true,release_ready:true,devices:[],profile:{device:{name:'<img src=x onerror=window.musicInjection=true>',free_gb:12},model:'turbo',lm_model:'',max_duration:120}};
+  window.musicRuntime={state:'ready',ready:true,release_ready:true,devices:[],profile:{device:{backend:'vulkan',name:'<img src=x onerror=window.musicInjection=true>',free_gb:12},model:'turbo',lm_model:'',max_duration:120}};
   window.fetch=async(url,options={})=>{
    if(!String(url).startsWith('/api/music-generation/'))return original(url,options);
    musicActions.push({url,method:options.method||'GET',body:options.body});
@@ -41,6 +41,9 @@ func TestLocalMusicConfigBrowser(t *testing.T) {
  }`)
 	page.MustEval(`async () => {await selectSection('music_generation');resetDirtySnapshot();}`)
 	waitForJSBool(t, page, `() => document.querySelector('#music-local-status')?.textContent.includes('turbo')`)
+	if !page.MustEval(`() => document.querySelector('[data-path="music_generation.local.backend"]').value==='vulkan' && document.querySelector('#music-local-status').textContent.includes('VULKAN') && [...document.querySelectorAll('[data-path="music_generation.local.backend"] option')].map(o=>o.value).join(',')==='auto,cuda,rocm,xpu,vulkan,cpu'`).Bool() {
+		t.Fatal("Vulkan selection, effective status or existing backends missing")
+	}
 	if !page.MustEval(`() => document.querySelector('[data-path="music_generation.local.vram_reserve_gb"]').value==='0' && !window.musicInjection && !document.querySelector('#music-local-status img')`).Bool() {
 		t.Fatal("unsafe status or lost reserve zero")
 	}

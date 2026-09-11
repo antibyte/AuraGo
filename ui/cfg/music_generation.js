@@ -74,10 +74,10 @@ function renderMusicGenerationSection(section) {
         html += `<div class="field-group"><div class="field-group-title">${t('config.music_gen.local_provider')}</div>
             <p class="field-help">${t('config.music_gen.local_help')}</p><div class="field-grid two-cols">`;
         html += `<label>${t('config.music_gen.backend')}<select class="field-select" data-path="music_generation.local.backend">`;
-        ['auto', 'cuda', 'rocm', 'xpu', 'cpu'].forEach(value => {
+        ['auto', 'cuda', 'rocm', 'xpu', 'vulkan', 'cpu'].forEach(value => {
             html += `<option value="${value}"${(options.backend || 'auto') === value ? ' selected' : ''}>${value === 'auto' ? t('config.music_gen.automatic') : value.toUpperCase()}</option>`;
         });
-        html += `</select></label><label>${t('config.music_gen.device')}<input class="field-input" list="music-local-devices" data-path="music_generation.local.device" value="${escapeAttr(options.device || 'auto')}"><datalist id="music-local-devices"><option value="auto"></option></datalist></label>
+        html += `</select><span class="field-help">${t('config.music_gen.vulkan_help')}</span></label><label>${t('config.music_gen.device')}<input class="field-input" list="music-local-devices" data-path="music_generation.local.device" value="${escapeAttr(options.device || 'auto')}"><datalist id="music-local-devices"><option value="auto"></option></datalist></label>
             <label>${t('config.music_gen.reserve')}<input type="number" class="field-input" data-path="music_generation.local.vram_reserve_gb" min="0" max="256" step="0.25" value="${escapeAttr(options.vram_reserve_gb ?? 1)}"></label>
             <label>${t('config.music_gen.timeout')}<input type="number" class="field-input" data-path="music_generation.local.timeout_seconds" min="30" max="1800" value="${escapeAttr(options.timeout_seconds || 1800)}"></label></div>
             <p id="music-local-status" role="status" aria-live="polite">${t('config.music_gen.testing')}</p><progress id="music-local-progress" aria-labelledby="music-local-status" hidden></progress>
@@ -147,7 +147,7 @@ function musicLocalRenderStatus(status) {
     const parts = [t('config.music_gen.state_' + status.state)];
     if (status.pending) parts.push(t('config.music_gen.action_pending'));
     if (status.total_bytes && !status.ready) parts.push(`${Math.min(100, Math.round((status.downloaded_bytes || 0) / status.total_bytes * 100))}%`);
-    if (profile) parts.push(profile.device.name, profile.model, profile.lm_model || t('config.music_gen.no_lm'), `${profile.device.free_gb.toFixed(1)} GiB`, `${profile.max_duration} s`, profile.quantization || 'FP', profile.offload ? 'CPU offload' : '');
+    if (profile) parts.push(profile.device.backend?.toUpperCase(), profile.device.name, profile.model, profile.lm_model || t('config.music_gen.no_lm'), `${profile.device.free_gb.toFixed(1)} GiB`, `${profile.max_duration} s`, profile.quantization || 'FP', profile.offload ? 'CPU offload' : '');
     if (status.error_code) parts.push(musicLocalError(status.error_code));
     if (!status.release_ready && status.error_code !== 'acestep_release_not_published') parts.push(t('config.music_gen.release_missing'));
     target.textContent = parts.filter(Boolean).join(' · ');

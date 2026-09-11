@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan gebruikt aparte modellen voor bredere GPU-ondersteuning. Vereist een Linux-Docker-host met een werkend Vulkan-stuurprogramma.",
   "config.music_gen.action_start": "Dienst wordt gestart…",
   "config.music_gen.action_stop": "Dienst wordt gestopt…",
   "config.music_gen.action_recheck": "Hardware en audiofragment worden gecontroleerd…",

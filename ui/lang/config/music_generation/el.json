@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Το Vulkan χρησιμοποιεί ξεχωριστά μοντέλα για ευρύτερη υποστήριξη GPU. Απαιτεί Docker σε Linux με λειτουργικό πρόγραμμα οδήγησης Vulkan.",
   "config.music_gen.action_start": "Εκκίνηση υπηρεσίας…",
   "config.music_gen.action_stop": "Διακοπή υπηρεσίας…",
   "config.music_gen.action_recheck": "Έλεγχος υλικού και δείγματος ήχου…",

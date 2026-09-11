@@ -10,7 +10,7 @@ and loaded-model readiness.
 
 ## Hardware
 
-Linux/amd64 Docker engines support CUDA, ROCm and Intel XPU when the actual
+Linux/amd64 Docker engines support CUDA, ROCm, Intel XPU and Vulkan when the actual
 container probe can execute on the device. Windows Docker Desktop/WSL2 supports
 NVIDIA CUDA. Apple GPU acceleration, AMD/Intel on Windows, audio editing and
 training are outside this integration. CPU requires explicit selection; there is
@@ -21,9 +21,24 @@ Automatic selection prefers the verified device with the largest free memory
 budget. The default VRAM reserve is 1 GiB and can be changed, including to zero.
 The balanced profile uses 2B Turbo, considering XL Turbo at 20 GiB usable VRAM.
 The pinned ACE-Step adaptive profile controls language-model size, offloading,
-quantization and duration limits. AMD and Intel use the PyTorch LM backend.
+quantization and duration limits for the PyTorch runtimes. ROCm and Intel XPU
+use the PyTorch LM backend.
 A failed memory qualification permits one smaller profile attempt. Other
 containers are never stopped to reclaim memory.
+
+**Vulkan** is an additional choice in the Runtime dropdown, also considered by
+Automatic. It uses `acestep.cpp`/GGML with its own verified GGUF downloads and
+the host's render device, without ROCm or the gfx architecture override. This
+can support older AMD integrated GPUs where the ROCm wheel has no working
+kernels; a working Vulkan compute driver and adequate memory are still required.
+Software Vulkan devices are rejected. Windows Docker GPU restrictions remain.
+
+Vulkan starts with Q8 2B Turbo (Q4 below 6 GiB usable memory), selecting XL Turbo
+at 20 GiB. The local LM is omitted below 8 GiB, uses 0.6B from 8 GiB and 1.7B
+from 12 GiB. The conservative retry uses Q4 2B without LM. Duration limits are
+120/240/600 seconds at usable budgets below 12/from 12/from 20 GiB; conservative
+mode is capped at 120. The actual native compute and installation audio tests
+must pass. Saved profiles show the effective backend and selected GGUF models.
 
 ## Generation
 
@@ -79,6 +94,15 @@ artifact, verify anonymous access to every digest, and copy its content into the
 embedded release manifest before packaging AuraGo. An absent digest blocks setup;
 there is no unpinned-image or local-build fallback. The Docker proxy retains
 `BUILD=0`.
+
+The same workflow also builds `runtime/Dockerfile.vulkan`; dispatch with
+`backend=vulkan` to publish only the additional image and preserve the other
+four digests. `python scripts/generate-acestep-manifest.py --write --vulkan`
+refreshes only GGUF metadata. The native source and GGML revision are pinned
+separately from the original Python upstream. Vulkan uses the same managed
+job/poll/audio contract through its adapter; native API access is never exposed
+to AuraGo browsers or agents. Model files remain in the shared model volume's
+`vulkan` subdirectory when switching backends.
 
 Run focused Go tests for ACE-Step, provider switching, Noisemaker and Docker
 protection. Set `AURAGO_RUN_BROWSER_SMOKE=1` for `go test ./ui -run TestLocalMusic`.

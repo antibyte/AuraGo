@@ -377,5 +377,48 @@
         }
       ]
     }
+  },
+  "vulkan": {
+    "upstream_commit": "daf7644dc7efffe0da14fb92ea698e0a8840b474",
+    "ggml_commit": "7d0241063b6dad00972a69565445dffb91dc3bc9",
+    "repo": "Serveurperso/ACE-Step-1.5-GGUF",
+    "revision": "9b3707625776cc4cf775e9b12ab82f9fe48335ff",
+    "models": {
+      "Qwen3-Embedding-0.6B-Q8_0.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/Qwen3-Embedding-0.6B-Q8_0.gguf",
+        "size": 784144960,
+        "sha256": "972f23255e46adfe744a0eb9a0039f3c63988f65753b0968d776e8b27168c321"
+      },
+      "acestep-5Hz-lm-0.6B-Q8_0.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/acestep-5Hz-lm-0.6B-Q8_0.gguf",
+        "size": 709846656,
+        "sha256": "bdaf9e292d4470f31c19cafeaca1b74936a114667e3a85e5d33b65247e9908ec"
+      },
+      "acestep-5Hz-lm-1.7B-Q8_0.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/acestep-5Hz-lm-1.7B-Q8_0.gguf",
+        "size": 1975837568,
+        "sha256": "726f99a82f050b32ebc5c5e36acaa9d7acd06bfe5e579a62b00e0d0d6d0b7ec6"
+      },
+      "acestep-v15-turbo-Q4_K_M.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/acestep-v15-turbo-Q4_K_M.gguf",
+        "size": 1445710272,
+        "sha256": "55b4d8514850f3d0f82536f37e99673aaf48df802b5ae5b153eea32a2e2daa5e"
+      },
+      "acestep-v15-turbo-Q8_0.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/acestep-v15-turbo-Q8_0.gguf",
+        "size": 2549528000,
+        "sha256": "288f708a61cfc241013a98a62f98ba331f83fe34d0d3559acdd9b0f6a2f7cd6b"
+      },
+      "acestep-v15-xl-turbo-Q8_0.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/acestep-v15-xl-turbo-Q8_0.gguf",
+        "size": 5305828736,
+        "sha256": "4f1044fb646374fb5730e10f64325766883eb2fc02a643c1b403f2d61f39dc19"
+      },
+      "vae-BF16.gguf": {
+        "url": "https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF/resolve/9b3707625776cc4cf775e9b12ab82f9fe48335ff/vae-BF16.gguf",
+        "size": 337420928,
+        "sha256": "0599862ac5d15cd308e1d2e368373aea6c02e25ebd1737ad4a4562a0901b0ef8"
+      }
+    }
   }
 }

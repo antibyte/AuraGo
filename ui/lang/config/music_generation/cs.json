@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan používá samostatné modely pro širší podporu GPU. Vyžaduje Docker na Linuxu s funkčním ovladačem Vulkan.",
   "config.music_gen.action_start": "Služba se spouští…",
   "config.music_gen.action_stop": "Služba se zastavuje…",
   "config.music_gen.action_recheck": "Probíhá kontrola hardwaru a zvukové ukázky…",

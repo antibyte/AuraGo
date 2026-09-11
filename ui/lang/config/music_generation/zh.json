@@ -1,4 +1,5 @@
 {
+  "config.music_gen.vulkan_help": "Vulkan 使用独立模型以支持更多 GPU。需要在 Linux Docker 主机上安装可正常工作的 Vulkan 驱动。",
   "config.music_gen.action_start": "正在启动服务…",
   "config.music_gen.action_stop": "正在停止服务…",
   "config.music_gen.action_recheck": "正在检查硬件和音频样本…",
