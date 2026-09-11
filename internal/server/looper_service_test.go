@@ -4,145 +4,106 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/desktop"
+
 	"github.com/sashabaranov/go-openai"
 )
 
-func TestAppendStepResult(t *testing.T) {
-	sysPrompt := "You are a helpful assistant."
+func TestParseEvaluation(t *testing.T) {
+	t.Parallel()
 
-	baseHistory := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-		{Role: openai.ChatMessageRoleUser, Content: "Original task"},
+	t.Run("plain json", func(t *testing.T) {
+		ev, ok := parseEvaluation(`{"score": 82, "done": false, "feedback": "tighten the ending", "summary": "solid draft"}`)
+		if !ok || ev.Score != 82 || ev.Done || ev.Feedback != "tighten the ending" || ev.Summary != "solid draft" {
+			t.Fatalf("parsed = %+v ok=%v", ev, ok)
+		}
+	})
+
+	t.Run("fenced json", func(t *testing.T) {
+		ev, ok := parseEvaluation("```json\n{\"score\": 90.4, \"done\": true, \"feedback\": \"ship it\", \"summary\": \"ready\"}\n```")
+		if !ok || ev.Score != 90 || !ev.Done {
+			t.Fatalf("fenced = %+v ok=%v", ev, ok)
+		}
+	})
+
+	t.Run("prose wrapper", func(t *testing.T) {
+		ev, ok := parseEvaluation("Here you go:\n{\"score\": 40, \"done\": false, \"feedback\": \"rewrite\"}\nThanks")
+		if !ok || ev.Score != 40 || ev.Feedback != "rewrite" {
+			t.Fatalf("wrapper = %+v ok=%v", ev, ok)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		if _, ok := parseEvaluation("score is fine I guess"); ok {
+			t.Fatal("expected invalid")
+		}
+		if _, ok := parseEvaluation(`{"done": true}`); ok {
+			t.Fatal("missing score must be invalid")
+		}
+	})
+}
+
+func TestBuildLooperWorkPromptRoundOneVsLater(t *testing.T) {
+	t.Parallel()
+	cfg := desktop.LooperRunConfig{Goal: "Write the story", Work: "Improve the file", MaxRounds: 8}
+	first := buildLooperWorkPrompt(cfg, 1, "", "", nil)
+	if !strings.Contains(first, "Round 1 of 8") || !strings.Contains(first, "Write the story") {
+		t.Fatalf("round-1 prompt missing framing: %q", first)
+	}
+	if !strings.Contains(first, "If the target artifact does not exist yet") {
+		t.Fatalf("round-1 prompt missing create-first guidance: %q", first)
+	}
+	if strings.Contains(first, "Previous evaluation") {
+		t.Fatalf("round-1 prompt unexpectedly includes previous evaluation: %q", first)
 	}
 
-	tests := []struct {
-		name         string
-		history      []openai.ChatCompletionMessage
-		stepName     string
-		result       string
-		ctxMode      string
-		wantLastRole string
-		wantContains string
-		wantLen      int
-	}{
-		{
-			name:         "every_step after plan",
-			history:      baseHistory,
-			stepName:     "plan",
-			result:       "The plan is to improve the story.",
-			ctxMode:      "every_step",
-			wantLastRole: "user",
-			wantContains: "improve the story",
-			wantLen:      2, // system + new user message (reset)
-		},
-		{
-			name:         "every_iteration after plan",
-			history:      baseHistory,
-			stepName:     "plan",
-			result:       "The plan is to improve the story.",
-			ctxMode:      "every_iteration",
-			wantLastRole: "user",
-			wantContains: "Plan result:",
-			wantLen:      3, // original 2 + new message
-		},
-		{
-			name:         "never after test keeps accumulating",
-			history:      baseHistory,
-			stepName:     "test",
-			result:       "The story is now much better.",
-			ctxMode:      "never",
-			wantLastRole: "user",
-			wantContains: "Test result:",
-			wantLen:      3,
-		},
-		{
-			name:         "every_step after action resets",
-			history:      baseHistory,
-			stepName:     "action",
-			result:       "I rewrote chapter 3.",
-			ctxMode:      "every_step",
-			wantLastRole: "user",
-			wantLen:      2,
-			wantContains: "rewrote chapter 3",
-		},
+	later := buildLooperWorkPrompt(cfg, 3, "add a twist", "rewrote scene 2", []int{40, 55})
+	if strings.Contains(later, "If the target artifact does not exist yet") {
+		t.Fatalf("later prompt still tells the model to create the first draft: %q", later)
 	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := appendStepResult(tc.history, tc.stepName, tc.result, tc.ctxMode, sysPrompt)
-
-			if len(got) != tc.wantLen {
-				t.Errorf("expected len %d, got %d", tc.wantLen, len(got))
-			}
-
-			last := got[len(got)-1]
-			if last.Role != tc.wantLastRole {
-				t.Errorf("expected last role %s, got %s", tc.wantLastRole, last.Role)
-			}
-			if tc.wantContains != "" && !contains(last.Content, tc.wantContains) {
-				t.Errorf("expected content to contain %q, got %q", tc.wantContains, last.Content)
-			}
-		})
+	if !strings.Contains(later, "Previous evaluation (score 55)") || !strings.Contains(later, "add a twist") {
+		t.Fatalf("later prompt missing feedback: %q", later)
+	}
+	if !strings.Contains(later, "Score history: 40, 55") || !strings.Contains(later, "Previous work summary") {
+		t.Fatalf("later prompt missing history: %q", later)
 	}
 }
 
-func TestBuildFinishHistoryIncludesActionAndDesktopHandoffRules(t *testing.T) {
-	iterSeed := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: "base system"},
-		{Role: openai.ChatMessageRoleUser, Content: "Create a story"},
-		{Role: openai.ChatMessageRoleAssistant, Content: "Prepared context"},
+func TestStallWithoutImprovementUsesDesktopHelper(t *testing.T) {
+	t.Parallel()
+	if !desktop.StallWithoutImprovement([]int{60, 60, 60, 60}, 3) {
+		t.Fatal("expected stall")
 	}
+}
 
-	got := buildFinishHistory(
-		iterSeed,
-		"last_action_test",
-		"Final story saved to Documents/final-story.docx",
-		"Rating: 10/10",
+func TestBuildLooperFinishHistoryIncludesGoalAndDesktopRules(t *testing.T) {
+	t.Parallel()
+	got := buildLooperFinishHistory(
 		"base system",
+		"Write a story in Documents/Looper/short-story.md",
+		"Saved Documents/Looper/short-story.md",
+		"Score 88: ending works",
+		"Ready to open",
 	)
-
-	if len(got) != len(iterSeed)+1 {
-		t.Fatalf("finish history len = %d, want %d", len(got), len(iterSeed)+1)
+	if len(got) < 2 {
+		t.Fatalf("finish history too short: %#v", got)
 	}
 	if !strings.Contains(got[0].Content, "open_in_app") || !strings.Contains(got[0].Content, "app_id \"writer\"") {
 		t.Fatalf("finish system prompt missing desktop open rules: %q", got[0].Content)
 	}
-	finalContext := got[len(got)-1].Content
-	for _, want := range []string{"Final action result:", "Documents/final-story.docx", "Final test result:", "Rating: 10/10"} {
-		if !strings.Contains(finalContext, want) {
-			t.Fatalf("finish context missing %q: %q", want, finalContext)
+	joined := ""
+	for _, msg := range got {
+		joined += msg.Content
+	}
+	for _, want := range []string{"Write a story", "Final work result:", "short-story.md", "Final evaluation:", "ending works"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("finish history missing %q: %q", want, joined)
 		}
-	}
-	if iterSeed[0].Content != "base system" {
-		t.Fatalf("buildFinishHistory mutated iterSeed system prompt: %q", iterSeed[0].Content)
-	}
-}
-
-func TestBuildFinishHistoryDefaultUsesLastTestOnly(t *testing.T) {
-	got := buildFinishHistory(
-		nil,
-		"",
-		"Action output should not be included by default",
-		"Final review score: 9",
-		"base system",
-	)
-
-	if len(got) != 2 {
-		t.Fatalf("finish history len = %d, want 2", len(got))
-	}
-	if got[0].Role != openai.ChatMessageRoleSystem {
-		t.Fatalf("first message role = %q, want system", got[0].Role)
-	}
-	finalContext := got[len(got)-1].Content
-	if !strings.Contains(finalContext, "Final test result of the loop:") {
-		t.Fatalf("missing default test context: %q", finalContext)
-	}
-	if strings.Contains(finalContext, "Action output should not be included") {
-		t.Fatalf("default finish context unexpectedly included action output: %q", finalContext)
 	}
 }
 
 func TestBuildActionFinishResultIncludesActionToolOutput(t *testing.T) {
+	t.Parallel()
 	history := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleUser, Content: "Plan prompt"},
 		{Role: openai.ChatMessageRoleTool, Name: "virtual_desktop", Content: `{"path":"Documents/old.docx"}`},
@@ -159,53 +120,10 @@ func TestBuildActionFinishResultIncludesActionToolOutput(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 || (len(s) > 0 && containsHelper(s, substr)))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-func TestNormalizeTestFingerprintCollapsesWhitespace(t *testing.T) {
-	t.Parallel()
-	a := normalizeTestFingerprint("  Score:  8/10  \n nice ")
-	b := normalizeTestFingerprint("score: 8/10 nice")
-	if a != b {
-		t.Fatalf("fingerprints differ: %q vs %q", a, b)
-	}
-}
-
-func TestAllFingerprintsEqual(t *testing.T) {
-	t.Parallel()
-	if !allFingerprintsEqual([]string{"a", "a"}) {
-		t.Fatal("expected equal")
-	}
-	if allFingerprintsEqual([]string{"a", "b"}) {
-		t.Fatal("expected not equal")
-	}
-	if allFingerprintsEqual([]string{""}) {
-		t.Fatal("empty fingerprint must not count as stuck")
-	}
-}
-
 func TestEstimateLooperCostUSDPositive(t *testing.T) {
 	t.Parallel()
 	cost := estimateLooperCostUSD(1_000_000, 1_000_000)
 	if cost <= 0 {
 		t.Fatalf("cost = %v, want > 0", cost)
-	}
-}
-
-func TestParseStructuredExitConfidenceFields(t *testing.T) {
-	t.Parallel()
-	decision, reason, conf, ok := parseStructuredExit(`{"decision": true, "reason": "good", "confidence": 0.9}`)
-	if !ok || !decision || reason != "good" || conf != 0.9 {
-		t.Fatalf("parsed = %v %q %v ok=%v", decision, reason, conf, ok)
 	}
 }

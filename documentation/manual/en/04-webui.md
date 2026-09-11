@@ -293,6 +293,14 @@ Each mission is shown as a card:
 └─────────────────┘
 ```
 
+## Looper
+
+Looper is a separate desktop app for a short, goal-driven agent loop. You describe the finished result, the work to do in every round, and how the loop should judge the artifact. An optional finish step can open the file on the desktop.
+
+Each round works on the artifact, then an independent review returns a score. The loop stops when the target score is reached, the round limit is hit, the score stops improving, or you pause or stop it. Pause waits for the current round. The last 20 runs stay in History.
+
+Five built-in examples live under `Documents/Looper/` in the desktop workspace: short story, Python tool, research briefing, project README, and flashcards. Save your own loops next to them.
+
 ## Invasion Control
 
 For deploying remote agents.

@@ -625,14 +625,8 @@ buttons and menu popovers remain excluded from those gestures.
   maximized; existing dashboard/KG/mission APIs and shared SSE supply live data.
   Persistent 24-hour history remains a subsequent stage in
   `documentation/system-world-plan.md`.
-- `looper.js` implements Looper, an iterative agent workflow (prepare → plan →
-  action → test → exit → optional finish) with presets, context modes,
-  pause/resume, incremental status SSE, cost/token meta, and advanced options
-  (`finish_context`, `prepare_truncation`, `summarize_iterations`, exit
-  confidence, stuck detection). Backend lives in `internal/desktop/looper*.go`
-  and `internal/server/looper_service.go` / `desktop_looper_handlers.go`.
-  Desktop shell must pass `promptDialog` and `confirmDialog` (no native
-  `prompt`/`confirm`). Readonly mode disables start/save/delete/edit.
+- `looper.js` plus `looper-monitor.js` implement Looper v2. See the Looper
+  contract in the Child DOX Index.
 - `game-maker-studio-api.js`, `game-maker-studio-preview.js`,
   `game-maker-studio-modals.js`, and `game-maker-studio.js` implement Game
   Maker Studio: a project library, 2D/3D creation dialog with idea chips,
@@ -1283,9 +1277,28 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopLoadFailedI18n`
 - `go test ./ui/ -run TestDesktopAppAssetsRegistry`
 - `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
+- `go test ./ui/ -run TestDesktopLooper`
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopLooperBrowser`
 - `go build ./cmd/aurago`
 
 ## Child DOX Index
+
+- `looper.js` / `looper-monitor.js` own Looper v2 (`window.LooperApp` +
+  `window.LooperMonitor`). A loop is goal + work + evaluate + optional finish.
+  Visible controls are rounds (1–50), target score (50–100), stall rounds
+  (0–10, 0 off), provider and model. No context mode, confidence or truncation
+  UI. Layout is three columns from 820 px (list | editor | run/history) with
+  one footer action bar; below that, compact tabs Setup / Run / History.
+  Monitor renders the sparkline, timeline and last 20 saved runs. Status SSE
+  is `/api/desktop/looper/status`; start/resume stay admin POST. Shell must
+  pass `promptDialog` and `confirmDialog`. Readonly disables start/save/delete
+  and form edits. Keep `desktop.looper_*` in all 16 desktop locales, including
+  cost/token/duration keys shared with System World. No emoji in the app
+  sources. Verify `TestDesktopLooper*`, `TestDesktopAuditedI18n*`, bundle
+  `--check`, and opt-in `TestDesktopLooperBrowser`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`). Backend: `internal/desktop/looper*.go`,
+  `internal/server/looper_service.go`, `desktop_looper_handlers.go`.
+  No child DOX file needed.
 
 - `ha-switchboard.js` exposes `window.HASwitchboardApp.render/dispose`. The
   scoped `css/ha-switchboard.css` retains the real shell controls and uses the

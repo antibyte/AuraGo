@@ -49,12 +49,11 @@ func (r *LooperRunner) Shutdown() {
 	r.holder.SetIdle()
 }
 
-func (r *LooperRunner) TryStart(maxIter int, cancel context.CancelFunc) error {
-	return r.holder.TryStart(maxIter, cancel)
+func (r *LooperRunner) TryStart(maxRounds int, cancel context.CancelFunc) error {
+	return r.holder.TryStart(maxRounds, cancel)
 }
 
-// Pause requests a graceful pause at the next iteration boundary.
-// Safe to call from the HTTP handler while the loop goroutine is running.
+// Pause requests a graceful pause at the next round boundary.
 func (r *LooperRunner) Pause() {
 	r.holder.RequestPause()
 }
@@ -64,10 +63,7 @@ func (r *LooperRunner) ResumeState() (desktop.LooperResumeState, bool) {
 	return r.holder.GetResumeState()
 }
 
-// Resume continues a paused loop from the saved snapshot (clean E8 completion).
-// When the snapshot contains PrepareResponse, Prepare is NOT re-executed —
-// iterSeed is rebuilt from the saved prepare result so workspace side-effects
-// are not duplicated.
+// Resume continues a paused loop from the saved snapshot.
 func (r *LooperRunner) Resume(
 	ctx context.Context,
 	cfg desktop.LooperRunConfig,
@@ -80,14 +76,19 @@ func (r *LooperRunner) Resume(
 	if !ok {
 		return fmt.Errorf("no paused run to resume")
 	}
-	// Snapshot is cleared inside executeStarted after TryStartResume so a failed
-	// start does not lose the pause point. We hand ownership of the copy.
 	return r.executeStarted(ctx, cfg, auraCfg, client, tools, dispatchCtx, &rs)
 }
 
 // TryStartResume exposes the holder's resume-friendly start for HTTP handlers.
-func (r *LooperRunner) TryStartResume(maxIter, resumeFrom int, cancel context.CancelFunc) error {
-	return r.holder.TryStartResume(maxIter, resumeFrom, cancel)
+func (r *LooperRunner) TryStartResume(maxRounds, resumeFrom int, cancel context.CancelFunc) error {
+	return r.holder.TryStartResume(maxRounds, resumeFrom, cancel)
+}
+
+type looperEvaluation struct {
+	Score    int
+	Done     bool
+	Feedback string
+	Summary  string
 }
 
 func (r *LooperRunner) executeStarted(
@@ -97,20 +98,27 @@ func (r *LooperRunner) executeStarted(
 	client llm.ChatClient,
 	tools []openai.Tool,
 	dispatchCtx *agent.DispatchContext,
-	resumeSeed *desktop.LooperResumeState, // non-nil when continuing a paused run (E8)
+	resumeSeed *desktop.LooperResumeState,
 ) error {
-	defer r.holder.SetIdle()
+	desktop.NormalizeLooperRunConfig(&cfg)
+	startedAt := time.Now().UTC()
+	if st := r.holder.State(); !st.StartedAt.IsZero() {
+		startedAt = st.StartedAt
+	}
+	defer func() {
+		r.persistFinishedRun(cfg, startedAt)
+		r.holder.SetIdle()
+	}()
 
 	model := cfg.Model
-	if model == "" {
+	if model == "" && auraCfg != nil {
 		model = auraCfg.LLM.Model
 	}
 
-	sysPrompt := agent.MinimalSystemPromptBuilder(nil)
-
-	// No-tools schema for exit step — it only needs to return true/false,
-	// so sending 50+ tool schemas wastes thousands of tokens per call.
+	sysPrompt := looperSystemPrompt(auraCfg)
 	noTools := []openai.Tool{}
+	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 10}
+	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
 
 	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 		const maxRetries = 3
@@ -127,7 +135,7 @@ func (r *LooperRunner) executeStarted(
 			}
 			stepCtx, stepCancel := context.WithTimeout(ctx, timeout)
 
-			r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration, "tools", len(stepTools), "attempt", attempt)
+			r.logger.Info("[Looper] step start", "step", stepName, "round", r.holder.State().Round, "tools", len(stepTools), "attempt", attempt)
 			res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, dispatchCtx, history, r.logger, opts)
 			stepCancel()
 
@@ -146,7 +154,6 @@ func (r *LooperRunner) executeStarted(
 				r.logger.Error("[Looper] step failed after retries", "step", stepName, "error", err)
 				return res, nil, err
 			}
-			// Token / cost accounting for the run UI and global budget category.
 			if res.PromptTokens > 0 || res.CompletionTokens > 0 {
 				cost := estimateLooperCostUSD(res.PromptTokens, res.CompletionTokens)
 				r.holder.AddUsage(res.PromptTokens, res.CompletionTokens, cost)
@@ -160,329 +167,321 @@ func (r *LooperRunner) executeStarted(
 		return agent.MinimalLoopResult{}, nil, fmt.Errorf("unreachable")
 	}
 
-	// optsWithTools is the default options for steps that need tools.
-	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 10}
-	// optsNoTools for the exit step — no tool schemas, no tool rounds.
-	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
-
-	truncLen := cfg.PrepareTruncation
-	if truncLen <= 0 {
-		truncLen = 2000 // conservative default
-	}
-
-	ctxMode := cfg.ContextMode
-	if ctxMode == "" {
-		ctxMode = "every_iteration"
-	}
-
-	var lastActionResult string
-	var lastTestResult string
-	var previousIterationSummary string // used primarily by "never" mode
-	var lastIterationSummary string     // result of the optional "summarize" step
-	var prepareResponse string
-
-	startIter := 1
+	var lastWorkResult string
+	var lastWorkSummary string
+	var lastFeedback string
+	scoreHistory := make([]int, 0, cfg.MaxRounds)
+	bestScore := 0
+	startRound := 1
 	if resumeSeed != nil {
-		startIter = resumeSeed.Iteration + 1
-		lastTestResult = resumeSeed.LastTestResult
-		previousIterationSummary = resumeSeed.PreviousIterationSummary
-		lastIterationSummary = resumeSeed.LastIterationSummary
-		prepareResponse = resumeSeed.PrepareResponse
-		r.logger.Info("[Looper] resuming from saved state", "from_iteration", resumeSeed.Iteration, "starting_at", startIter, "has_prepare_snapshot", prepareResponse != "")
-		// Clear pause snapshot only after we successfully begin resume execution.
+		startRound = resumeSeed.Round + 1
+		lastFeedback = resumeSeed.LastFeedback
+		lastWorkSummary = resumeSeed.LastWorkSummary
+		bestScore = resumeSeed.BestScore
+		if len(resumeSeed.ScoreHistory) > 0 {
+			scoreHistory = append(scoreHistory, resumeSeed.ScoreHistory...)
+		}
+		r.logger.Info("[Looper] resuming from saved state", "from_round", resumeSeed.Round, "starting_at", startRound)
 		r.holder.ClearResumeState()
 	}
 
-	// PREPARE — runs once on a fresh start. On resume we rebuild from snapshot
-	// when PrepareResponse is available so prepare side-effects are not replayed.
-	var iterSeed []openai.ChatCompletionMessage
-	if prepareResponse != "" {
-		iterSeed = []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
-			{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepareResponse, truncLen)},
-		}
-	} else {
-		r.holder.SetStep("prepare")
-		prepRes, _, err := stepExec("prepare", cfg.Prepare, sysPrompt, tools, optsWithTools, nil)
-		if err != nil {
-			return r.setErrorAndReturn(err)
-		}
-		r.holder.AppendLog(0, "prepare", cfg.Prepare, prepRes.Response, prepRes.Duration)
-		prepareResponse = prepRes.Response
-		iterSeed = []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
-			{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepRes.Response, truncLen)},
-		}
-	}
-
-	exitMinConf := cfg.ExitMinConfidence
-	if exitMinConf == 0 {
-		exitMinConf = desktop.DefaultExitMinConfidence
-	}
-	stuckRepeats := cfg.StuckTestRepeats
-	if stuckRepeats == 0 {
-		stuckRepeats = desktop.DefaultStuckTestRepeats
-	}
-	recentTestFingerprints := make([]string, 0, 4)
-
-	// ─────────────────────────────────────────────────────────────────────
-	// ITERATION LOOP + CONTEXT MODE SEMANTICS
-	//
-	// We support three different strategies for how much history is carried
-	// between iterations. The goal is to give the LLM the right amount of
-	// context for different kinds of tasks.
-	//
-	// 1. "every_iteration" (DEFAULT / recommended for creative work like Ralph Loop)
-	//    - Every iteration starts with the original Prepare result (iterSeed).
-	//    - The Test result of the *previous* iteration is injected as additional context.
-	//    - This gives good continuity while still keeping the original task visible.
-	//
-	// 2. "every_step"
-	//    - After every single step (Plan, Action, Test) the history is reset to
-	//      only System + the result of the just completed step.
-	//    - Very low token usage, strong isolation between steps.
-	//    - **Warning**: The original Prepare context disappears quickly.
-	//      Only use for very isolated, stateless micro-tasks.
-	//
-	// 3. "never"  (fresh start per iteration, but with progress memory)
-	//    - Every iteration starts from the original task (iterSeed).
-	//    - For iterations > 1 we append a compact summary of what was achieved
-	//      in the previous iteration.
-	//    - This is the intended "relatively fresh but still progressing" mode.
-	//    - IMPORTANT: The original Prepare must NEVER be lost in this mode.
-	//
-	// The implementation below (especially buildBaseHistoryForIteration + the
-	// special handling after it) enforces these semantics.
-	// ─────────────────────────────────────────────────────────────────────
-
-	// ITERATIONS
-	for i := startIter; i <= cfg.MaxIter; i++ {
+	terminal := ""
+	for i := startRound; i <= cfg.MaxRounds; i++ {
 		select {
 		case <-ctx.Done():
 			return r.setErrorAndReturn(fmt.Errorf("aborted by user"))
 		default:
 		}
 
-		r.holder.SetIteration(i)
+		r.holder.SetRound(i)
 
-		// Early pause check at iteration start (catches pause requests that arrived
-		// exactly after the previous checkpoint but before we began the new round).
 		if r.holder.IsPauseRequested() {
-			rs := desktop.LooperResumeState{
-				Iteration:                i - 1, // last completed iteration; resume starts at i
-				LastTestResult:           lastTestResult,
-				PreviousIterationSummary: previousIterationSummary,
-				LastIterationSummary:     lastIterationSummary,
-				PrepareResponse:          prepareResponse,
-			}
-			// When pausing before iteration 1 starts after resume, keep previous index.
-			if i <= 1 && resumeSeed != nil {
-				rs.Iteration = resumeSeed.Iteration
-			} else if i <= 1 {
-				rs.Iteration = 0
-			}
-			r.holder.SaveResumeState(rs)
-			r.logger.Info("[Looper] run paused before starting iteration", "iteration", i)
+			r.holder.SaveResumeState(desktop.LooperResumeState{
+				Round:           i - 1,
+				BestScore:       bestScore,
+				ScoreHistory:    append([]int(nil), scoreHistory...),
+				LastFeedback:    lastFeedback,
+				LastWorkSummary: lastWorkSummary,
+			})
+			r.logger.Info("[Looper] run paused before starting round", "round", i)
 			return nil
 		}
 
-		history := buildBaseHistoryForIteration(iterSeed, ctxMode, i, lastTestResult, previousIterationSummary)
+		workPrompt := buildLooperWorkPrompt(cfg, i, lastFeedback, lastWorkSummary, scoreHistory)
+		r.holder.SetStep("work")
+		workRes, workHistory, err := stepExec("work", workPrompt, sysPrompt, tools, optsWithTools, nil)
+		if err != nil {
+			return r.setErrorAndReturn(err)
+		}
+		lastWorkResult = buildActionFinishResult(workRes.Response, workHistory, workPrompt)
+		lastWorkSummary = truncateResponse(lastWorkResult, 2500)
+		r.holder.AppendLog(desktop.LooperLogEntry{
+			Round:    i,
+			Step:     "work",
+			Prompt:   workPrompt,
+			Response: workRes.Response,
+			Duration: workRes.Duration.Milliseconds(),
+		})
 
-		// Special handling for "never" mode:
-		// We always want the original task (iterSeed) to be present.
-		// On top of that we add a compact summary of the previous iteration's progress.
-		if ctxMode == "never" && i > 1 && previousIterationSummary != "" {
-			history = append(history, openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: "Summary of previous iteration:\n" + truncateResponse(previousIterationSummary, 2800),
+		evalPrompt := buildLooperEvaluatePrompt(cfg, lastWorkResult)
+		r.holder.SetStep("evaluate")
+		evalRes, _, err := stepExec("evaluate", evalPrompt, sysPrompt, tools, optsWithTools, nil)
+		if err != nil {
+			return r.setErrorAndReturn(err)
+		}
+		ev, ok := parseEvaluation(evalRes.Response)
+		if !ok {
+			clarityPrompt := "Your previous answer was not valid JSON. Reply with ONLY this object and no extra text: {\"score\":0-100,\"done\":true/false,\"feedback\":\"...\",\"summary\":\"...\"}"
+			clarityRes, _, cerr := stepExec("evaluate_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+				{Role: openai.ChatMessageRoleUser, Content: evalPrompt},
+				{Role: openai.ChatMessageRoleAssistant, Content: evalRes.Response},
 			})
-		}
-
-		// Inject the explicit iteration summary (from the "summarize" step) if available.
-		// This is especially powerful in "every_iteration" and "never" modes.
-		if i > 1 && lastIterationSummary != "" {
-			history = append(history, openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: "Reflection / Summary of the previous iteration:\n" + truncateResponse(lastIterationSummary, 2500),
-			})
-		}
-
-		// PLAN
-		r.holder.SetStep("plan")
-		planRes, history, err := stepExec("plan", cfg.Plan, "", tools, optsWithTools, history)
-		if err != nil {
-			return r.setErrorAndReturn(err)
-		}
-		r.holder.AppendLog(i, "plan", cfg.Plan, planRes.Response, planRes.Duration)
-
-		history = appendStepResult(history, "plan", planRes.Response, ctxMode, sysPrompt)
-
-		// ACTION
-		r.holder.SetStep("action")
-		actionRes, history, err := stepExec("action", cfg.Action, "", tools, optsWithTools, history)
-		if err != nil {
-			return r.setErrorAndReturn(err)
-		}
-		r.holder.AppendLog(i, "action", cfg.Action, actionRes.Response, actionRes.Duration)
-		lastActionResult = buildActionFinishResult(actionRes.Response, history, cfg.Action)
-
-		history = appendStepResult(history, "action", actionRes.Response, ctxMode, sysPrompt)
-
-		// TEST
-		r.holder.SetStep("test")
-		testRes, history, err := stepExec("test", cfg.Test, "", tools, optsWithTools, history)
-		if err != nil {
-			return r.setErrorAndReturn(err)
-		}
-		r.holder.AppendLog(i, "test", cfg.Test, testRes.Response, testRes.Duration)
-		r.holder.SetLastResult(testRes.Response)
-		lastTestResult = testRes.Response
-
-		// Stuck detection: near-identical test results across consecutive iterations.
-		if stuckRepeats > 0 {
-			fp := normalizeTestFingerprint(testRes.Response)
-			recentTestFingerprints = append(recentTestFingerprints, fp)
-			if len(recentTestFingerprints) > stuckRepeats {
-				recentTestFingerprints = recentTestFingerprints[len(recentTestFingerprints)-stuckRepeats:]
-			}
-			if len(recentTestFingerprints) >= stuckRepeats && allFingerprintsEqual(recentTestFingerprints) {
-				reason := fmt.Sprintf("stuck: test result unchanged for %d consecutive iterations", stuckRepeats)
-				r.holder.AppendLogWithReason(i, "stuck", "", reason, 0, reason)
-				r.holder.SetStuck(reason)
-				r.logger.Warn("[Looper] stuck detection fired", "iteration", i, "repeats", stuckRepeats)
-				// Fall through to Finish if configured, then end.
-				goto finishStep
+			if cerr == nil {
+				r.holder.AppendLog(desktop.LooperLogEntry{
+					Round:    i,
+					Step:     "evaluate",
+					Prompt:   clarityPrompt,
+					Response: clarityRes.Response,
+					Duration: clarityRes.Duration.Milliseconds(),
+				})
+				ev, ok = parseEvaluation(clarityRes.Response)
+				evalRes = clarityRes
 			}
 		}
-
-		// Optional explicit summarization step (greatly helps long creative loops)
-		if cfg.SummarizeIterations {
-			r.holder.SetStep("summarize")
-			summaryPrompt := "Provide a concise but insightful summary (max ~600 words) of the key decisions, changes, and outcome of this iteration. Focus on what improved, what the main insights were, and what still needs attention for the next round."
-			summaryRes, _, err := stepExec("summarize", summaryPrompt, sysPrompt, tools, optsWithTools, history)
-			if err == nil {
-				r.holder.AppendLog(i, "summarize", summaryPrompt, summaryRes.Response, summaryRes.Duration)
-				lastIterationSummary = summaryRes.Response // will be injected in next iteration
-			} else {
-				r.logger.Warn("[Looper] iteration summarization failed", "iteration", i, "err", err)
+		if !ok {
+			ev = looperEvaluation{
+				Score:    0,
+				Feedback: truncateResponse(evalRes.Response, 800),
+				Summary:  "Evaluation was not valid JSON; continuing.",
 			}
 		}
-
-		history = appendStepResult(history, "test", testRes.Response, ctxMode, sysPrompt)
-
-		// EXIT CONDITION — no tools needed, just a boolean evaluation.
-		// We now prefer structured output from the model:
-		//   {"decision": true/false, "reason": "...", "confidence": 0.0-1.0}
-		// Falls back to the previous boolean parser + clarification if no valid JSON is returned.
-		r.holder.SetStep("exit")
-		exitRes, _, err := stepExec("exit", cfg.ExitCond, "", noTools, optsNoTools, history)
-		if err != nil {
-			return r.setErrorAndReturn(err)
+		scoreHistory = append(scoreHistory, ev.Score)
+		if ev.Score > bestScore {
+			bestScore = ev.Score
 		}
+		lastFeedback = ev.Feedback
+		r.holder.RecordEvaluation(ev.Score, ev.Feedback, ev.Summary)
+		r.holder.AppendLog(desktop.LooperLogEntry{
+			Round:    i,
+			Step:     "evaluate",
+			Prompt:   evalPrompt,
+			Response: evalRes.Response,
+			Duration: evalRes.Duration.Milliseconds(),
+			Score:    ev.Score,
+			Done:     ev.Done,
+			Feedback: ev.Feedback,
+		})
 
-		decision, reason, confidence, usedStructured := parseStructuredExit(exitRes.Response)
-
-		if usedStructured {
-			// Low-confidence "true" is treated as continue to avoid premature exits.
-			if decision && exitMinConf > 0 && confidence > 0 && confidence < exitMinConf {
-				r.logger.Info("[Looper] exit structured below confidence threshold",
-					"iteration", i, "decision", decision, "confidence", confidence, "min", exitMinConf, "reason", reason)
-				reason = fmt.Sprintf("%s (confidence %.2f < %.2f — continuing)", reason, confidence, exitMinConf)
-				decision = false
-			}
-			r.holder.AppendLogWithReason(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration, reason)
-			r.logger.Info("[Looper] exit structured", "iteration", i, "decision", decision, "confidence", confidence, "reason", reason)
-		} else {
-			r.holder.AppendLog(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration)
-
-			shouldExit, decisive := agent.ParseExitBooleanWithConfidence(exitRes.Response)
-			if !decisive {
-				// One-shot clarification (very cheap, no tools)
-				clarityPrompt := "The previous answer was ambiguous. Reply with ONLY the single lowercase word \"true\" or \"false\". No explanation."
-				clarityRes, _, cerr := stepExec("exit_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, history)
-				if cerr == nil {
-					r.holder.AppendLog(i, "exit_clarify", clarityPrompt, clarityRes.Response, clarityRes.Duration)
-					shouldExit = agent.ParseExitBoolean(clarityRes.Response)
-				} else {
-					r.logger.Warn("[Looper] exit clarification call failed", "err", cerr)
-				}
-			}
-			decision = shouldExit
+		if ev.Done || ev.Score >= cfg.TargetScore {
+			terminal = "completed"
+			r.holder.SetStatus(terminal)
+			break
 		}
-
-		if decision {
+		if desktop.StallWithoutImprovement(scoreHistory, cfg.StallRounds) {
+			terminal = "stalled"
+			r.holder.SetStatus(terminal)
+			r.logger.Warn("[Looper] stalled", "round", i, "stall_rounds", cfg.StallRounds)
 			break
 		}
 
-		// Build a compact summary for the next iteration (mainly used by "never" mode).
-		previousIterationSummary = ""
-		if lastTestResult != "" {
-			previousIterationSummary = "Test result: " + truncateResponse(lastTestResult, 1500)
-		}
-
-		// E8 – Pause checkpoint (safe iteration boundary).
-		// We only pause between iterations, never in the middle of Plan/Action/Test/Exit.
-		// This guarantees that lastTestResult + summaries are consistent for resume.
 		if r.holder.IsPauseRequested() {
-			rs := desktop.LooperResumeState{
-				Iteration:                i,
-				LastTestResult:           lastTestResult,
-				PreviousIterationSummary: previousIterationSummary,
-				LastIterationSummary:     lastIterationSummary,
-				PrepareResponse:          prepareResponse,
-			}
-			r.holder.SaveResumeState(rs)
-			r.logger.Info("[Looper] run paused by user request", "iteration", i, "resume_from", i)
-			return nil // clean return – holder is now in paused + resumable state
+			r.holder.SaveResumeState(desktop.LooperResumeState{
+				Round:           i,
+				BestScore:       bestScore,
+				ScoreHistory:    append([]int(nil), scoreHistory...),
+				LastFeedback:    lastFeedback,
+				LastWorkSummary: lastWorkSummary,
+			})
+			r.logger.Info("[Looper] run paused by user request", "round", i)
+			return nil
 		}
 	}
 
-finishStep:
-	// FINISH
+	if terminal == "" {
+		terminal = "max_rounds"
+		r.holder.SetStatus(terminal)
+	}
+
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
-		finishHistory := buildFinishHistory(iterSeed, cfg.FinishContext, lastActionResult, lastTestResult, sysPrompt)
-
+		finishHistory := buildLooperFinishHistory(sysPrompt, cfg.Goal, lastWorkResult, lastFeedback, r.holder.State().LastSummary)
 		finishRes, _, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, finishHistory)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
-		r.holder.AppendLog(0, "finish", cfg.Finish, finishRes.Response, finishRes.Duration)
+		r.holder.AppendLog(desktop.LooperLogEntry{
+			Round:    0,
+			Step:     "finish",
+			Prompt:   cfg.Finish,
+			Response: finishRes.Response,
+			Duration: finishRes.Duration.Milliseconds(),
+		})
 		r.holder.SetLastResult(finishRes.Response)
 	}
 
 	return nil
 }
 
-func buildFinishHistory(iterSeed []openai.ChatCompletionMessage, finishCtxMode, lastActionResult, lastTestResult, sysPrompt string) []openai.ChatCompletionMessage {
-	finishHistory := make([]openai.ChatCompletionMessage, len(iterSeed))
-	copy(finishHistory, iterSeed)
-
-	basePrompt := sysPrompt
-	if basePrompt == "" && len(finishHistory) > 0 && finishHistory[0].Role == openai.ChatMessageRoleSystem {
-		basePrompt = finishHistory[0].Content
+func (r *LooperRunner) persistFinishedRun(cfg desktop.LooperRunConfig, startedAt time.Time) {
+	if r.store == nil {
+		return
 	}
-	finishSystem := buildLooperFinishSystemPrompt(basePrompt)
-	if finishSystem != "" {
-		if len(finishHistory) > 0 && finishHistory[0].Role == openai.ChatMessageRoleSystem {
-			finishHistory[0].Content = finishSystem
+	st := r.holder.State()
+	if st.Paused || st.Status == "paused" {
+		return
+	}
+	status := st.Status
+	if status == "" || status == "running" || status == "idle" {
+		if st.Stopped {
+			status = "stopped"
+		} else if st.Error != "" {
+			status = "failed"
 		} else {
-			finishHistory = append([]openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: finishSystem},
-			}, finishHistory...)
+			status = "completed"
 		}
 	}
+	finalScore := 0
+	if n := len(st.ScoreHistory); n > 0 {
+		finalScore = st.ScoreHistory[n-1]
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := r.store.SaveRun(ctx, desktop.LooperRunRecord{
+		PresetName:   cfg.PresetName,
+		GoalExcerpt:  cfg.Goal,
+		Status:       status,
+		Rounds:       st.Round,
+		MaxRounds:    st.MaxRounds,
+		BestScore:    st.BestScore,
+		FinalScore:   finalScore,
+		TargetScore:  cfg.TargetScore,
+		InputTokens:  st.InputTokens,
+		OutputTokens: st.OutputTokens,
+		CostUSD:      st.EstimatedCostUSD,
+		Error:        st.Error,
+		StartedAt:    startedAt,
+		FinishedAt:   time.Now().UTC(),
+		Logs:         st.Logs,
+	}); err != nil && r.logger != nil {
+		r.logger.Warn("[Looper] persist run failed", "error", err)
+	}
+}
 
-	if finalPart := buildFinishContextMessage(finishCtxMode, lastActionResult, lastTestResult); finalPart != "" {
-		finishHistory = append(finishHistory, openai.ChatCompletionMessage{
+func looperSystemPrompt(cfg *config.Config) string {
+	base := agent.MinimalSystemPromptBuilder(nil)
+	rules := "Looper rules:\n" +
+		"- Persist the target artifact in the workspace. Do not only describe it.\n" +
+		"- Follow the current step instruction exactly.\n" +
+		"- Be concise and direct."
+	if cfg != nil {
+		if lang := strings.TrimSpace(cfg.Agent.SystemLanguage); lang != "" {
+			rules += "\n- Write user-visible text in " + lang + " unless the goal names another language."
+		}
+	}
+	return base + "\n\n" + rules
+}
+
+func buildLooperWorkPrompt(cfg desktop.LooperRunConfig, round int, lastFeedback, lastWorkSummary string, scores []int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Round %d of %d.\n\nGoal:\n%s\n", round, cfg.MaxRounds, strings.TrimSpace(cfg.Goal))
+	if round == 1 {
+		b.WriteString("\nIf the target artifact does not exist yet, create the first complete version now.\n")
+	}
+	if lastFeedback != "" {
+		fmt.Fprintf(&b, "\nPrevious evaluation")
+		if n := len(scores); n > 0 {
+			fmt.Fprintf(&b, " (score %d)", scores[n-1])
+		}
+		fmt.Fprintf(&b, ":\n%s\n", strings.TrimSpace(lastFeedback))
+	}
+	if len(scores) > 0 {
+		parts := make([]string, len(scores))
+		for i, score := range scores {
+			parts[i] = fmt.Sprintf("%d", score)
+		}
+		fmt.Fprintf(&b, "\nScore history: %s\n", strings.Join(parts, ", "))
+	}
+	if lastWorkSummary != "" && round > 1 {
+		fmt.Fprintf(&b, "\nPrevious work summary:\n%s\n", truncateResponse(lastWorkSummary, 2500))
+	}
+	fmt.Fprintf(&b, "\nWork instructions:\n%s\n", strings.TrimSpace(cfg.Work))
+	return b.String()
+}
+
+func buildLooperEvaluatePrompt(cfg desktop.LooperRunConfig, workResult string) string {
+	return "You are an independent reviewer. Inspect the actual artifact yourself (read files, run tests). Do not trust the work report.\n\n" +
+		"Goal:\n" + strings.TrimSpace(cfg.Goal) + "\n\n" +
+		"Evaluation criteria:\n" + strings.TrimSpace(cfg.Evaluate) + "\n\n" +
+		"Work report from this round:\n" + truncateResponse(workResult, 4000) + "\n\n" +
+		"Reply with valid JSON only:\n" +
+		`{"score":0-100,"done":true/false,"feedback":"concrete next improvements","summary":"one-sentence outcome"}`
+}
+
+func buildLooperFinishHistory(sysPrompt, goal, lastWork, lastFeedback, lastSummary string) []openai.ChatCompletionMessage {
+	finishSystem := buildLooperFinishSystemPrompt(sysPrompt)
+	history := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: finishSystem},
+		{Role: openai.ChatMessageRoleUser, Content: "Goal:\n" + strings.TrimSpace(goal)},
+	}
+	var parts []string
+	if strings.TrimSpace(lastWork) != "" {
+		parts = append(parts, "Final work result:\n"+truncateResponse(lastWork, 4000))
+	}
+	if strings.TrimSpace(lastFeedback) != "" {
+		parts = append(parts, "Final evaluation:\n"+truncateResponse(lastFeedback, 2000))
+	}
+	if strings.TrimSpace(lastSummary) != "" {
+		parts = append(parts, "Final summary:\n"+truncateResponse(lastSummary, 1500))
+	}
+	if len(parts) > 0 {
+		history = append(history, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,
-			Content: finalPart,
+			Content: "Result of the last round:\n\n" + strings.Join(parts, "\n\n"),
 		})
 	}
+	return history
+}
 
-	return finishHistory
+func parseEvaluation(raw string) (looperEvaluation, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return looperEvaluation{}, false
+	}
+	start := strings.Index(s, "{")
+	end := strings.LastIndex(s, "}")
+	if start == -1 || end == -1 || end <= start {
+		return looperEvaluation{}, false
+	}
+	var data struct {
+		Score    *float64 `json:"score"`
+		Done     *bool    `json:"done"`
+		Feedback string   `json:"feedback"`
+		Summary  string   `json:"summary"`
+	}
+	if err := json.Unmarshal([]byte(s[start:end+1]), &data); err != nil {
+		return looperEvaluation{}, false
+	}
+	if data.Score == nil {
+		return looperEvaluation{}, false
+	}
+	score := int(*data.Score + 0.5)
+	if score < 0 {
+		score = 0
+	}
+	if score > 100 {
+		score = 100
+	}
+	done := false
+	if data.Done != nil {
+		done = *data.Done
+	}
+	return looperEvaluation{
+		Score:    score,
+		Done:     done,
+		Feedback: strings.TrimSpace(data.Feedback),
+		Summary:  strings.TrimSpace(data.Summary),
+	}, true
 }
 
 func buildActionFinishResult(actionResult string, actionHistory []openai.ChatCompletionMessage, actionPrompt string) string {
@@ -543,31 +542,6 @@ func buildLooperFinishSystemPrompt(basePrompt string) string {
 	return basePrompt + "\n\n" + finishRules
 }
 
-func buildFinishContextMessage(finishCtxMode, lastActionResult, lastTestResult string) string {
-	switch strings.TrimSpace(finishCtxMode) {
-	case "none":
-		return ""
-	case "last_action_test", "full":
-		parts := make([]string, 0, 2)
-		if strings.TrimSpace(lastActionResult) != "" {
-			parts = append(parts, "Final action result:\n"+truncateResponse(lastActionResult, 4000))
-		}
-		if strings.TrimSpace(lastTestResult) != "" {
-			parts = append(parts, "Final test result:\n"+truncateResponse(lastTestResult, 3000))
-		}
-		if len(parts) == 0 {
-			return ""
-		}
-		return "Result of the last iteration:\n\n" + strings.Join(parts, "\n\n")
-	default:
-		if strings.TrimSpace(lastTestResult) == "" {
-			return ""
-		}
-		return "Final test result of the loop:\n" + truncateResponse(lastTestResult, 3000)
-	}
-}
-
-// truncateResponse shortens a response to maxLen characters for compact context passing.
 func truncateResponse(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
@@ -580,183 +554,20 @@ func (r *LooperRunner) setErrorAndReturn(err error) error {
 		return nil
 	}
 	msg := err.Error()
-	// User stop / context cancel is a terminal stop, not an error condition.
-	if strings.Contains(msg, "aborted by user") || strings.Contains(msg, "context canceled") || strings.Contains(msg, "context deadline exceeded") {
-		// Deadline is still an error (timeout). Only treat explicit user abort as stop.
-		if strings.Contains(msg, "aborted by user") || (strings.Contains(msg, "context canceled") && !strings.Contains(msg, "deadline")) {
-			r.holder.SetStopped()
-			return err
-		}
+	if strings.Contains(msg, "aborted by user") || (strings.Contains(msg, "context canceled") && !strings.Contains(msg, "deadline")) {
+		r.holder.SetStopped()
+		return err
 	}
 	r.holder.SetError(msg)
 	return err
 }
 
-// estimateLooperCostUSD is a conservative fallback used when provider pricing is
-// unavailable. Rough mid-tier chat rates: $0.50 / 1M input, $1.50 / 1M output.
 func estimateLooperCostUSD(promptTokens, completionTokens int) float64 {
 	const inPerM = 0.50
 	const outPerM = 1.50
 	return (float64(promptTokens)/1_000_000.0)*inPerM + (float64(completionTokens)/1_000_000.0)*outPerM
 }
 
-func normalizeTestFingerprint(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	// Collapse whitespace so trivial formatting churn does not defeat stuck detection.
-	fields := strings.Fields(s)
-	s = strings.Join(fields, " ")
-	if len(s) > 800 {
-		s = s[:800]
-	}
-	return s
-}
-
-func allFingerprintsEqual(fps []string) bool {
-	if len(fps) < 2 {
-		return false
-	}
-	first := fps[0]
-	if first == "" {
-		return false
-	}
-	for _, fp := range fps[1:] {
-		if fp != first {
-			return false
-		}
-	}
-	return true
-}
-
-// parseStructuredExit tries to interpret the model's response as structured exit output.
-// Expected format (best effort):
-//
-//	{"decision": true/false, "reason": "short explanation", "confidence": 0.75}
-//
-// Returns (decision, reason, confidence, usedStructured).
-func parseStructuredExit(raw string) (bool, string, float64, bool) {
-	s := strings.TrimSpace(raw)
-	if s == "" {
-		return false, "", 0, false
-	}
-
-	// Try to find a JSON object
-	start := strings.Index(s, "{")
-	end := strings.LastIndex(s, "}")
-	if start == -1 || end == -1 || end <= start {
-		return false, "", 0, false
-	}
-
-	jsonPart := s[start : end+1]
-
-	var data struct {
-		Decision   *bool    `json:"decision"`
-		Reason     string   `json:"reason"`
-		Confidence *float64 `json:"confidence"`
-	}
-
-	if err := json.Unmarshal([]byte(jsonPart), &data); err != nil {
-		return false, "", 0, false
-	}
-
-	if data.Decision == nil {
-		return false, "", 0, false
-	}
-
-	conf := 0.0
-	if data.Confidence != nil {
-		conf = *data.Confidence
-	}
-
-	return *data.Decision, strings.TrimSpace(data.Reason), conf, true
-}
-
-// buildBaseHistoryForIteration returns a fresh history slice for the given iteration
-// according to the chosen context mode. It never mutates iterSeed.
-//
-// For "never" mode the caller is responsible for appending a previousIterationSummary
-// after calling this function (see the loop in executeStarted).
-func buildBaseHistoryForIteration(
-	iterSeed []openai.ChatCompletionMessage,
-	ctxMode string,
-	i int,
-	lastTestResult string,
-	previousIterationSummary string, // currently only used for documentation / future use in "never"
-) []openai.ChatCompletionMessage {
-
-	switch ctxMode {
-	case "never":
-		// "never" = fresh start from the original task every time.
-		// The progress summary is added by the caller after this call.
-		h := make([]openai.ChatCompletionMessage, len(iterSeed))
-		copy(h, iterSeed)
-		return h
-
-	case "every_step":
-		h := make([]openai.ChatCompletionMessage, len(iterSeed))
-		copy(h, iterSeed)
-		return h
-
-	default: // "every_iteration"
-		h := make([]openai.ChatCompletionMessage, len(iterSeed))
-		copy(h, iterSeed)
-		if i > 1 && lastTestResult != "" {
-			h = append(h, openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: "Previous iteration test result: " + truncateResponse(lastTestResult, 2000),
-			})
-		}
-		return h
-	}
-}
-
-// resetHistoryAfterStep is used by "every_step" mode to give the *next* step
-// a minimal, clean context containing only the system prompt and the just-completed step result.
-func resetHistoryAfterStep(sysPrompt, stepResult string) []openai.ChatCompletionMessage {
-	return []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-		{Role: openai.ChatMessageRoleUser, Content: truncateResponse(stepResult, 2000)},
-	}
-}
-
-// appendStepResult encapsulates the logic of how to extend the conversation
-// history after receiving the result of a step (Plan, Action, Test, Summarize...),
-// depending on the chosen context mode.
-//
-// This makes the main loop much easier to read and reason about.
-func appendStepResult(
-	history []openai.ChatCompletionMessage,
-	stepName string,
-	result string,
-	ctxMode string,
-	sysPrompt string,
-) []openai.ChatCompletionMessage {
-
-	if ctxMode == "every_step" {
-		return resetHistoryAfterStep(sysPrompt, result)
-	}
-
-	// For "every_iteration" and "never" we keep accumulating
-	label := ""
-	switch stepName {
-	case "plan":
-		label = "Plan result:"
-	case "action":
-		label = "Action result:"
-	case "test":
-		label = "Test result:"
-	case "summarize":
-		label = "Iteration reflection:"
-	default:
-		label = stepName + " result:"
-	}
-
-	return append(history, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
-		Content: label + "\n" + truncateResponse(result, 3000),
-	})
-}
-
-// Server-side singleton management for looper.
 var (
 	looperRunnerMu sync.Mutex
 	looperRunner   *LooperRunner
@@ -777,6 +588,7 @@ func getLooperRunner(s *Server) (*LooperRunner, error) {
 		return nil, fmt.Errorf("desktop database not ready")
 	}
 	store := desktop.NewLooperPresetStore(db)
+	store.SetDBPath(svc.DBPath())
 	if err := store.Init(context.Background()); err != nil {
 		return nil, err
 	}

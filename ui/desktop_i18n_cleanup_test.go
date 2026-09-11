@@ -29,7 +29,7 @@ func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
 		"desktop.launchpad_icon_search_placeholder",
 		"desktop.launchpad_icon_url_placeholder",
 		"desktop.looper_title",
-		"desktop.looper_iteration",
+		"desktop.looper_round_of",
 		"desktop.search",
 		"desktop.back",
 		"desktop.forward",
@@ -54,9 +54,9 @@ func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
 				t.Fatalf("%s missing non-empty translation for %s", path, key)
 			}
 		}
-		iteration := values["desktop.looper_iteration"]
-		if !strings.Contains(iteration, "{{n}}") || !strings.Contains(iteration, "{{max}}") {
-			t.Fatalf("%s uses inconsistent looper iteration placeholders: %q", path, iteration)
+		roundOf := values["desktop.looper_round_of"]
+		if !strings.Contains(roundOf, "{{n}}") || !strings.Contains(roundOf, "{{max}}") {
+			t.Fatalf("%s uses inconsistent looper round placeholders: %q", path, roundOf)
 		}
 	}
 }
@@ -80,13 +80,16 @@ func TestDesktopAuditedI18nUsageHasNoEnglishInlineFallbacks(t *testing.T) {
 	}
 
 	looper := readDesktopAssetText(t, "js/desktop/apps/looper.js")
+	if !strings.Contains(looper, "t('desktop.looper_title')") {
+		t.Fatal("Looper missing audited i18n usage marker t('desktop.looper_title')")
+	}
+	monitor := readDesktopAssetText(t, "js/desktop/apps/looper-monitor.js")
 	for _, marker := range []string{
-		"t('desktop.looper_title')",
-		".replace('{{n}}', data.iteration)",
-		".replace('{{max}}', data.max_iterations)",
+		"t('desktop.looper_round_of', { n: data.round, max: data.max_rounds })",
+		"t('desktop.looper_round_of', { n: run.rounds || 0, max: run.max_rounds || 0 })",
 	} {
-		if !strings.Contains(looper, marker) {
-			t.Fatalf("Looper missing audited i18n usage marker %q", marker)
+		if !strings.Contains(monitor, marker) {
+			t.Fatalf("Looper monitor missing audited i18n usage marker %q", marker)
 		}
 	}
 	if strings.Contains(looper, "title: 'Looper'") {

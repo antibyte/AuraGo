@@ -328,6 +328,13 @@ func (s *Service) DB() *sql.DB {
 	return s.db
 }
 
+// DBPath returns the resolved desktop registry database path.
+func (s *Service) DBPath() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.DBPath
+}
+
 // getDB returns the SQLite database handle. Callers must ensure the service
 // is initialized (via ensureReady) before calling this method. The DB handle
 // is effectively immutable after Init(), so this does not acquire the mutex.

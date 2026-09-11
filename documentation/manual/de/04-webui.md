@@ -298,6 +298,14 @@ Jede Mission wird als Karte dargestellt:
 - Historie der vergangenen Läufe einsehen
 - Vorbereitete Missionen (Prepared Missions) als Bibliothek
 
+## Looper
+
+Looper ist eine eigene Desktop-App für eine kurze, zielgetriebene Agentenschleife. Du beschreibst das fertige Ergebnis, den Arbeitsschritt jeder Runde und wie die Schleife das Artefakt bewerten soll. Ein optionaler Abschluss kann die Datei auf dem Desktop öffnen.
+
+Jede Runde arbeitet am Artefakt, danach kommt eine unabhängige Bewertung mit Punktzahl. Die Schleife endet beim Zielwert, bei der Rundengrenze, wenn sich die Punktzahl nicht mehr verbessert, oder wenn du pausierst oder stoppst. Pause wartet die laufende Runde ab. Die letzten 20 Läufe bleiben im Verlauf.
+
+Fünf mitgelieferte Beispiele liegen unter `Documents/Looper/` im Desktop-Workspace: Kurzgeschichte, Python-Werkzeug, Recherche-Briefing, Projekt-README und Lernkarten. Eigene Loops speicherst du daneben.
+
 ## Invasion Control
 
 Für das Deployment von Remote-Agenten auf Zielservern.

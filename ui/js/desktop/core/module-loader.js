@@ -135,7 +135,7 @@
         },
         'looper': {
             styles: appStyles('/css/desktop-app-looper.css'),
-            scripts: ['/js/desktop/apps/looper.js']
+            scripts: ['/js/desktop/apps/looper-monitor.js', '/js/desktop/apps/looper.js']
         },
         'viewer': {
             styles: appStyles('/css/desktop-app-viewer.css'),

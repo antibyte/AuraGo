@@ -5791,7 +5791,7 @@
             'system-info': { width: 800, height: 600 },
             'log-viewer': { width: 920, height: 640 },
             'agent-chat': { width: 800, height: 620 },
-            'looper': { width: 900, height: 750 },
+            'looper': { width: 1120, height: 720 },
             camera: { width: 720, height: 600 },
             'network-cameras': { width: 1120, height: 720 },
             meshcore: { width: 1080, height: 720 },

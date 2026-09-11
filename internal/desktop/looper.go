@@ -3,139 +3,133 @@ package desktop
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
 
-// LooperPreset describes a saved Looper configuration.
+const (
+	LooperSchemaV2Key          = "looper_schema_v2"
+	LooperDefaultMaxRounds     = 10
+	LooperMaxRoundsLimit       = 50
+	LooperDefaultTargetScore   = 85
+	LooperMinTargetScore       = 50
+	LooperMaxTargetScore       = 100
+	LooperDefaultStallRounds   = 3
+	LooperMaxStallRounds       = 10
+	LooperRunRetention         = 20
+	LooperMaxLogEntries        = 200
+	LooperMaxLogResponseRunes  = 8000
+	LooperGoalExcerptLimit     = 200
+)
+
+// LooperPreset describes a saved Looper configuration (model v2).
 type LooperPreset struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	IsBuiltin bool   `json:"is_builtin"`
-	Prepare   string `json:"prepare"`
-	Plan      string `json:"plan"`
-	Action    string `json:"action"`
-	Test      string `json:"test"`
-	ExitCond  string `json:"exit_cond"`
-	Finish    string `json:"finish"`
-
-	// FinishContext controls how much of the final iteration result
-	// is made available to the Finish prompt.
-	// Valid values: "none", "last_test", "last_action_test", "full"
-	// Default / empty = "last_test" (good balance for most creative loops)
-	FinishContext string `json:"finish_context"`
-
-	// PrepareTruncation controls how many characters of the Prepare step result
-	// are kept for the iteration seed (iterSeed). Higher values are useful for
-	// creative loops (style references, music descriptions, long briefs).
-	// 0 = use default (2000 characters).
-	PrepareTruncation int `json:"prepare_truncation"`
-
-	// SummarizeIterations, when true, adds an explicit "Summarize this iteration"
-	// step after Test. The resulting summary is fed into the next iteration.
-	// This greatly improves coherence for long creative loops (e.g. Ralph Loop).
-	SummarizeIterations bool `json:"summarize_iterations"`
-
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	IsBuiltin   bool      `json:"is_builtin"`
+	BuiltinKey  string    `json:"builtin_key,omitempty"`
+	Goal        string    `json:"goal"`
+	Work        string    `json:"work"`
+	Evaluate    string    `json:"evaluate"`
+	Finish      string    `json:"finish"`
+	MaxRounds   int       `json:"max_rounds"`
+	TargetScore int       `json:"target_score"`
+	StallRounds int       `json:"stall_rounds"`
 	ProviderID  string    `json:"provider_id"`
 	Model       string    `json:"model"`
-	MaxIter     int       `json:"max_iter"`
-	ContextMode string    `json:"context_mode"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // LooperLogEntry is one step inside a loop run.
 type LooperLogEntry struct {
-	Iteration int    `json:"iteration"`
-	Step      string `json:"step"`
-	Prompt    string `json:"prompt"`
-	Response  string `json:"response"`
-	Duration  int64  `json:"duration"`
-	Reason    string `json:"reason,omitempty"` // populated when exit condition returns structured output with "reason"
+	Round    int    `json:"round"`
+	Step     string `json:"step"`
+	Prompt   string `json:"prompt"`
+	Response string `json:"response"`
+	Duration int64  `json:"duration_ms"`
+	Score    int    `json:"score,omitempty"`
+	Done     bool   `json:"done,omitempty"`
+	Feedback string `json:"feedback,omitempty"`
 }
 
 // LooperRunState is the live status of a running or finished loop.
 type LooperRunState struct {
+	Status        string           `json:"status"`
 	Running       bool             `json:"running"`
 	CurrentStep   string           `json:"current_step"`
-	Iteration     int              `json:"iteration"`
-	MaxIterations int              `json:"max_iterations"`
-	LastResult    string           `json:"last_result"`
+	Round         int              `json:"round"`
+	MaxRounds     int              `json:"max_rounds"`
+	ScoreHistory  []int            `json:"score_history,omitempty"`
+	BestScore     int              `json:"best_score"`
+	LastFeedback  string           `json:"last_feedback,omitempty"`
+	LastSummary   string           `json:"last_summary,omitempty"`
+	LastResult    string           `json:"last_result,omitempty"`
 	Logs          []LooperLogEntry `json:"logs"`
 	Error         string           `json:"error,omitempty"`
-	// Stopped is true when the user cancelled the run. Distinct from Error.
-	Stopped bool `json:"stopped,omitempty"`
-	// StuckDetected is true when the runner aborted due to repeated identical test results.
-	StuckDetected bool `json:"stuck_detected,omitempty"`
-	// Token / cost accounting for the current (or last finished) run.
-	InputTokens      int64   `json:"input_tokens"`
-	OutputTokens     int64   `json:"output_tokens"`
-	EstimatedCostUSD float64 `json:"estimated_cost_usd"`
-	// Pause / Resume support (E8)
-	Paused         bool               `json:"paused"`
-	ResumeFrom     int                `json:"resume_from,omitempty"`
+	Stopped       bool             `json:"stopped,omitempty"`
+	InputTokens   int64            `json:"input_tokens"`
+	OutputTokens  int64            `json:"output_tokens"`
+	EstimatedCostUSD float64       `json:"estimated_cost_usd"`
+	Paused        bool             `json:"paused"`
+	ResumeFrom    int              `json:"resume_from,omitempty"`
 	ResumeSnapshot *LooperResumeState `json:"resume_snapshot,omitempty"`
+	StartedAt     time.Time        `json:"started_at,omitempty"`
 }
 
-// LooperResumeState captures the minimal state required to resume a loop
-// from a given iteration. It stores the key carry-over variables that the
-// iteration loop uses to maintain continuity (especially important for
-// "every_iteration" and "never" context modes and for the optional summarizer).
-// PrepareResponse lets resume rebuild iterSeed without re-executing Prepare.
+// LooperResumeState captures the minimal state required to resume a loop.
 type LooperResumeState struct {
-	Iteration                int    `json:"iteration"`
-	LastTestResult           string `json:"last_test_result,omitempty"`
-	PreviousIterationSummary string `json:"previous_iteration_summary,omitempty"`
-	LastIterationSummary     string `json:"last_iteration_summary,omitempty"`
-	PrepareResponse          string `json:"prepare_response,omitempty"`
+	Round           int    `json:"round"`
+	BestScore       int    `json:"best_score"`
+	ScoreHistory    []int  `json:"score_history,omitempty"`
+	LastFeedback    string `json:"last_feedback,omitempty"`
+	LastWorkSummary string `json:"last_work_summary,omitempty"`
 }
 
-// DefaultExitMinConfidence is applied when ExitMinConfidence is unset.
-const DefaultExitMinConfidence = 0.55
-
-// DefaultStuckTestRepeats is how many consecutive near-identical test results
-// trigger stuck detection (0 disables).
-const DefaultStuckTestRepeats = 3
+// LooperRunRecord is a persisted finished run (history).
+type LooperRunRecord struct {
+	ID           int64            `json:"id"`
+	PresetName   string           `json:"preset_name"`
+	GoalExcerpt  string           `json:"goal_excerpt"`
+	Status       string           `json:"status"`
+	Rounds       int              `json:"rounds"`
+	MaxRounds    int              `json:"max_rounds"`
+	BestScore    int              `json:"best_score"`
+	FinalScore   int              `json:"final_score"`
+	TargetScore  int              `json:"target_score"`
+	InputTokens  int64            `json:"input_tokens"`
+	OutputTokens int64            `json:"output_tokens"`
+	CostUSD      float64          `json:"cost_usd"`
+	Error        string           `json:"error,omitempty"`
+	StartedAt    time.Time        `json:"started_at"`
+	FinishedAt   time.Time        `json:"finished_at"`
+	Logs         []LooperLogEntry `json:"logs,omitempty"`
+}
 
 // LooperRunConfig holds everything needed to execute one loop.
 type LooperRunConfig struct {
-	Prepare  string
-	Plan     string
-	Action   string
-	Test     string
-	ExitCond string
-	Finish   string
-
-	// FinishContext is passed through from the preset.
-	// See LooperPreset.FinishContext for possible values.
-	FinishContext string
-
-	// PrepareTruncation comes from the preset (0 = default 2000 chars).
-	PrepareTruncation int
-
-	// SummarizeIterations comes from the preset.
-	SummarizeIterations bool
-
-	// ExitMinConfidence: structured exits with confidence below this threshold
-	// are treated as "continue" even when decision is true. 0 = use default.
-	// Negative value disables the threshold.
-	ExitMinConfidence float64
-
-	// StuckTestRepeats: abort after this many consecutive near-identical test
-	// results. 0 = use default. Negative value disables stuck detection.
-	StuckTestRepeats int
-
+	Goal        string
+	Work        string
+	Evaluate    string
+	Finish      string
+	MaxRounds   int
+	TargetScore int
+	StallRounds int
 	ProviderID  string
 	Model       string
-	MaxIter     int
-	ContextMode string
+	PresetName  string
 }
 
-// LooperPresetStore handles CRUD for looper presets.
+// LooperPresetStore handles CRUD for looper presets and run history.
 type LooperPresetStore struct {
-	db *sql.DB
+	db     *sql.DB
+	dbPath string
 }
 
 // NewLooperPresetStore creates a preset store.
@@ -143,18 +137,67 @@ func NewLooperPresetStore(db *sql.DB) *LooperPresetStore {
 	return &LooperPresetStore{db: db}
 }
 
-// NormalizeContextMode returns a valid context mode, defaulting to "every_iteration".
-func NormalizeContextMode(mode string) string {
-	switch mode {
-	case "never", "every_iteration", "every_step":
-		return mode
-	default:
-		return "every_iteration"
+// SetDBPath records the on-disk database path used for the v2 backup.
+func (ps *LooperPresetStore) SetDBPath(path string) {
+	if ps == nil {
+		return
+	}
+	ps.dbPath = strings.TrimSpace(path)
+}
+
+// NormalizeLooperRunConfig clamps run settings to supported ranges.
+func NormalizeLooperRunConfig(cfg *LooperRunConfig) {
+	if cfg == nil {
+		return
+	}
+	if cfg.MaxRounds <= 0 {
+		cfg.MaxRounds = LooperDefaultMaxRounds
+	}
+	if cfg.MaxRounds > LooperMaxRoundsLimit {
+		cfg.MaxRounds = LooperMaxRoundsLimit
+	}
+	if cfg.TargetScore <= 0 {
+		cfg.TargetScore = LooperDefaultTargetScore
+	}
+	if cfg.TargetScore < LooperMinTargetScore {
+		cfg.TargetScore = LooperMinTargetScore
+	}
+	if cfg.TargetScore > LooperMaxTargetScore {
+		cfg.TargetScore = LooperMaxTargetScore
+	}
+	if cfg.StallRounds < 0 {
+		cfg.StallRounds = LooperDefaultStallRounds
+	}
+	if cfg.StallRounds > LooperMaxStallRounds {
+		cfg.StallRounds = LooperMaxStallRounds
 	}
 }
 
-// Init ensures the looper presets table exists and seeds builtins.
+// NormalizeLooperPreset applies the same clamps used for a live run.
+func NormalizeLooperPreset(p *LooperPreset) {
+	if p == nil {
+		return
+	}
+	cfg := LooperRunConfig{
+		MaxRounds:   p.MaxRounds,
+		TargetScore: p.TargetScore,
+		StallRounds: p.StallRounds,
+	}
+	NormalizeLooperRunConfig(&cfg)
+	p.MaxRounds = cfg.MaxRounds
+	p.TargetScore = cfg.TargetScore
+	p.StallRounds = cfg.StallRounds
+}
+
+// Init ensures the looper tables exist, migrates to model v2, and seeds builtins.
 func (ps *LooperPresetStore) Init(ctx context.Context) error {
+	if _, err := ps.db.ExecContext(ctx,
+		`CREATE TABLE IF NOT EXISTS desktop_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		)`); err != nil {
+		return fmt.Errorf("migrate looper meta: %w", err)
+	}
 	if _, err := ps.db.ExecContext(ctx,
 		`CREATE TABLE IF NOT EXISTS desktop_looper_presets (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,11 +217,150 @@ func (ps *LooperPresetStore) Init(ctx context.Context) error {
 		)`); err != nil {
 		return fmt.Errorf("migrate looper table: %w", err)
 	}
-	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN context_mode TEXT DEFAULT ''`)
-	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN finish_context TEXT DEFAULT ''`)
-	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN prepare_truncation INTEGER DEFAULT 0`)
-	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN summarize_iterations INTEGER DEFAULT 0`)
+	for _, stmt := range []string{
+		`ALTER TABLE desktop_looper_presets ADD COLUMN context_mode TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN finish_context TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN prepare_truncation INTEGER DEFAULT 0`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN summarize_iterations INTEGER DEFAULT 0`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN goal TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN work TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN evaluate TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN target_score INTEGER DEFAULT 85`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN stall_rounds INTEGER DEFAULT 3`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN builtin_key TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN max_rounds INTEGER DEFAULT 0`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN created_at TEXT DEFAULT ''`,
+		`ALTER TABLE desktop_looper_presets ADD COLUMN updated_at TEXT DEFAULT ''`,
+	} {
+		_, _ = ps.db.ExecContext(ctx, stmt)
+	}
+	if err := ps.ensureRunsTable(ctx); err != nil {
+		return err
+	}
+	if err := ps.migrateToV2(ctx); err != nil {
+		return err
+	}
 	return ps.seedBuiltinPresets(ctx)
+}
+
+func (ps *LooperPresetStore) ensureRunsTable(ctx context.Context) error {
+	if _, err := ps.db.ExecContext(ctx,
+		`CREATE TABLE IF NOT EXISTS desktop_looper_runs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			preset_name TEXT DEFAULT '',
+			goal_excerpt TEXT DEFAULT '',
+			status TEXT NOT NULL,
+			rounds INTEGER DEFAULT 0,
+			max_rounds INTEGER DEFAULT 0,
+			best_score INTEGER DEFAULT 0,
+			final_score INTEGER DEFAULT 0,
+			target_score INTEGER DEFAULT 0,
+			input_tokens INTEGER DEFAULT 0,
+			output_tokens INTEGER DEFAULT 0,
+			cost_usd REAL DEFAULT 0,
+			error TEXT DEFAULT '',
+			started_at DATETIME,
+			finished_at DATETIME,
+			logs_json TEXT DEFAULT '[]'
+		)`); err != nil {
+		return fmt.Errorf("migrate looper runs table: %w", err)
+	}
+	return nil
+}
+
+func (ps *LooperPresetStore) migrateToV2(ctx context.Context) error {
+	var marker string
+	err := ps.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = ?`, LooperSchemaV2Key).Scan(&marker)
+	if err == nil && strings.TrimSpace(marker) == "true" {
+		return ps.removeObsoleteBuiltins(ctx)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read looper schema marker: %w", err)
+	}
+
+	if backupErr := ps.backupBeforeV2(ctx); backupErr != nil {
+		slog.Default().Warn("looper v2 backup failed; continuing additive migration", "error", backupErr)
+	}
+
+	if _, err := ps.db.ExecContext(ctx, `
+		UPDATE desktop_looper_presets
+		SET
+			goal = CASE WHEN TRIM(COALESCE(goal, '')) = '' THEN prepare ELSE goal END,
+			work = CASE WHEN TRIM(COALESCE(work, '')) = '' THEN TRIM(plan || char(10) || char(10) || action) ELSE work END,
+			evaluate = CASE WHEN TRIM(COALESCE(evaluate, '')) = '' THEN TRIM(test || char(10) || char(10) || 'Done when: ' || exit_cond) ELSE evaluate END,
+			max_rounds = CASE
+				WHEN COALESCE(max_rounds, 0) > 0 THEN max_rounds
+				WHEN COALESCE(max_iter, 0) > 0 THEN max_iter
+				ELSE 10
+			END,
+			target_score = CASE WHEN COALESCE(target_score, 0) < 50 THEN 85 ELSE target_score END,
+			stall_rounds = CASE WHEN stall_rounds IS NULL THEN 3 ELSE stall_rounds END
+		WHERE is_builtin = 0
+	`); err != nil {
+		return fmt.Errorf("migrate user looper presets to v2: %w", err)
+	}
+
+	if err := ps.removeObsoleteBuiltins(ctx); err != nil {
+		return err
+	}
+
+	if _, err := ps.db.ExecContext(ctx,
+		`INSERT INTO desktop_meta(key, value) VALUES(?, 'true')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, LooperSchemaV2Key); err != nil {
+		return fmt.Errorf("mark looper schema v2: %w", err)
+	}
+	return nil
+}
+
+func (ps *LooperPresetStore) backupBeforeV2(ctx context.Context) error {
+	if ps.dbPath == "" || ps.dbPath == ":memory:" {
+		return nil
+	}
+	dest := ps.dbPath + ".looper-v2.bak"
+	if _, err := os.Stat(dest); err == nil {
+		return nil
+	}
+	escaped := strings.ReplaceAll(filepath.ToSlash(dest), "'", "''")
+	if _, err := ps.db.ExecContext(ctx, `VACUUM INTO '`+escaped+`'`); err != nil {
+		return fmt.Errorf("vacuum into %s: %w", dest, err)
+	}
+	return nil
+}
+
+func builtinPresetNames() map[string]struct{} {
+	out := make(map[string]struct{})
+	for _, p := range DefaultLooperPresets() {
+		out[p.Name] = struct{}{}
+	}
+	return out
+}
+
+func (ps *LooperPresetStore) removeObsoleteBuiltins(ctx context.Context) error {
+	keep := builtinPresetNames()
+	rows, err := ps.db.QueryContext(ctx, `SELECT name FROM desktop_looper_presets WHERE is_builtin = 1`)
+	if err != nil {
+		return fmt.Errorf("list builtin looper presets: %w", err)
+	}
+	defer rows.Close()
+	var obsolete []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return fmt.Errorf("scan builtin looper name: %w", err)
+		}
+		if _, ok := keep[name]; !ok {
+			obsolete = append(obsolete, name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, name := range obsolete {
+		if _, err := ps.db.ExecContext(ctx, `DELETE FROM desktop_looper_presets WHERE name = ? AND is_builtin = 1`, name); err != nil {
+			return fmt.Errorf("delete obsolete builtin %s: %w", name, err)
+		}
+	}
+	return nil
 }
 
 func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
@@ -190,31 +372,36 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 	defer tx.Rollback()
 
 	for _, p := range DefaultLooperPresets() {
-		summarize := 0
-		if p.SummarizeIterations {
-			summarize = 1
-		}
+		NormalizeLooperPreset(&p)
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, summarize_iterations, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO desktop_looper_presets(
+				name, is_builtin, builtin_key, prepare, plan, action, test, exit_cond,
+				goal, work, evaluate, finish, target_score, stall_rounds,
+				provider_id, model, max_iter, max_rounds, created_at, updated_at)
+			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(name) DO UPDATE SET
 				is_builtin=excluded.is_builtin,
+				builtin_key=excluded.builtin_key,
 				prepare=excluded.prepare,
 				plan=excluded.plan,
 				action=excluded.action,
 				test=excluded.test,
 				exit_cond=excluded.exit_cond,
+				goal=excluded.goal,
+				work=excluded.work,
+				evaluate=excluded.evaluate,
 				finish=excluded.finish,
-				finish_context=excluded.finish_context,
-				prepare_truncation=excluded.prepare_truncation,
-				summarize_iterations=excluded.summarize_iterations,
+				target_score=excluded.target_score,
+				stall_rounds=excluded.stall_rounds,
 				provider_id=excluded.provider_id,
 				model=excluded.model,
 				max_iter=excluded.max_iter,
-				context_mode=excluded.context_mode,
+				max_rounds=excluded.max_rounds,
 				updated_at=excluded.updated_at
 			WHERE desktop_looper_presets.is_builtin = 1`,
-			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, summarize, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
+			p.Name, p.BuiltinKey, p.Goal, p.Work, p.Work, p.Evaluate, p.Evaluate,
+			p.Goal, p.Work, p.Evaluate, p.Finish, p.TargetScore, p.StallRounds,
+			p.ProviderID, p.Model, p.MaxRounds, p.MaxRounds, now, now)
 		if err != nil {
 			return fmt.Errorf("seed looper preset %s: %w", p.Name, err)
 		}
@@ -228,16 +415,36 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 	return tx.Commit()
 }
 
-const looperPresetSelectCols = `id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, summarize_iterations, provider_id, model, max_iter, context_mode, created_at, updated_at`
+const looperPresetSelectCols = `id, name, is_builtin, COALESCE(builtin_key, ''), COALESCE(goal, ''), COALESCE(work, ''), COALESCE(evaluate, ''), finish, COALESCE(max_rounds, 0), COALESCE(max_iter, 0), COALESCE(target_score, 0), COALESCE(stall_rounds, 0), provider_id, model, created_at, updated_at`
+
+func parseLooperTime(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05"} {
+		if t, err := time.Parse(layout, value); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
 
 func scanLooperPreset(scan func(dest ...any) error) (LooperPreset, error) {
 	var p LooperPreset
-	var isBuiltin, summarize int
-	if err := scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &summarize, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	var isBuiltin, maxRounds, maxIter int
+	var createdAt, updatedAt string
+	if err := scan(&p.ID, &p.Name, &isBuiltin, &p.BuiltinKey, &p.Goal, &p.Work, &p.Evaluate, &p.Finish, &maxRounds, &maxIter, &p.TargetScore, &p.StallRounds, &p.ProviderID, &p.Model, &createdAt, &updatedAt); err != nil {
 		return p, err
 	}
 	p.IsBuiltin = isBuiltin == 1
-	p.SummarizeIterations = summarize == 1
+	p.MaxRounds = maxRounds
+	if p.MaxRounds <= 0 {
+		p.MaxRounds = maxIter
+	}
+	p.CreatedAt = parseLooperTime(createdAt)
+	p.UpdatedAt = parseLooperTime(updatedAt)
+	NormalizeLooperPreset(&p)
 	return p, nil
 }
 
@@ -262,27 +469,6 @@ func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, e
 	return out, rows.Err()
 }
 
-// ListExamples returns only builtin presets.
-func (ps *LooperPresetStore) ListExamples(ctx context.Context) ([]LooperPreset, error) {
-	rows, err := ps.db.QueryContext(ctx,
-		`SELECT `+looperPresetSelectCols+`
-		FROM desktop_looper_presets WHERE is_builtin = 1 ORDER BY name ASC`)
-	if err != nil {
-		return nil, fmt.Errorf("list looper examples: %w", err)
-	}
-	defer rows.Close()
-
-	var out []LooperPreset
-	for rows.Next() {
-		p, err := scanLooperPreset(rows.Scan)
-		if err != nil {
-			return nil, fmt.Errorf("scan looper example: %w", err)
-		}
-		out = append(out, p)
-	}
-	return out, rows.Err()
-}
-
 // GetPreset loads a single preset by ID.
 func (ps *LooperPresetStore) GetPreset(ctx context.Context, id int64) (LooperPreset, error) {
 	row := ps.db.QueryRowContext(ctx,
@@ -290,6 +476,9 @@ func (ps *LooperPresetStore) GetPreset(ctx context.Context, id int64) (LooperPre
 		FROM desktop_looper_presets WHERE id = ?`, id)
 	p, err := scanLooperPreset(row.Scan)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return p, err
+		}
 		return p, fmt.Errorf("get looper preset: %w", err)
 	}
 	return p, nil
@@ -300,25 +489,32 @@ func (ps *LooperPresetStore) SavePreset(ctx context.Context, p LooperPreset) (in
 	if strings.TrimSpace(p.Name) == "" {
 		return 0, fmt.Errorf("preset name is required")
 	}
+	NormalizeLooperPreset(&p)
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	summarize := 0
-	if p.SummarizeIterations {
-		summarize = 1
-	}
 	if p.ID == 0 {
 		res, err := ps.db.ExecContext(ctx,
-			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, summarize_iterations, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, summarize, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
+			`INSERT INTO desktop_looper_presets(
+				name, is_builtin, builtin_key, prepare, plan, action, test, exit_cond,
+				goal, work, evaluate, finish, target_score, stall_rounds,
+				provider_id, model, max_iter, max_rounds, created_at, updated_at)
+			VALUES(?, 0, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.Name, p.Goal, p.Work, p.Work, p.Evaluate, p.Evaluate,
+			p.Goal, p.Work, p.Evaluate, p.Finish, p.TargetScore, p.StallRounds,
+			p.ProviderID, p.Model, p.MaxRounds, p.MaxRounds, now, now)
 		if err != nil {
 			return 0, fmt.Errorf("insert looper preset: %w", err)
 		}
 		return res.LastInsertId()
 	}
 	_, err := ps.db.ExecContext(ctx,
-		`UPDATE desktop_looper_presets SET name=?, prepare=?, plan=?, action=?, test=?, exit_cond=?, finish=?, finish_context=?, prepare_truncation=?, summarize_iterations=?, provider_id=?, model=?, max_iter=?, context_mode=?, updated_at=?
+		`UPDATE desktop_looper_presets SET
+			name=?, prepare=?, plan=?, action=?, test=?, exit_cond=?,
+			goal=?, work=?, evaluate=?, finish=?, target_score=?, stall_rounds=?,
+			provider_id=?, model=?, max_iter=?, max_rounds=?, updated_at=?
 		WHERE id=? AND is_builtin=0`,
-		p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, summarize, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, p.ID)
+		p.Name, p.Goal, p.Work, p.Work, p.Evaluate, p.Evaluate,
+		p.Goal, p.Work, p.Evaluate, p.Finish, p.TargetScore, p.StallRounds,
+		p.ProviderID, p.Model, p.MaxRounds, p.MaxRounds, now, p.ID)
 	if err != nil {
 		return 0, fmt.Errorf("update looper preset: %w", err)
 	}
@@ -338,6 +534,170 @@ func (ps *LooperPresetStore) DeletePreset(ctx context.Context, id int64) error {
 	return nil
 }
 
+func clampLooperLogs(logs []LooperLogEntry) []LooperLogEntry {
+	if len(logs) > LooperMaxLogEntries {
+		logs = logs[len(logs)-LooperMaxLogEntries:]
+	}
+	out := make([]LooperLogEntry, len(logs))
+	for i, entry := range logs {
+		entry.Response = truncateRunes(entry.Response, LooperMaxLogResponseRunes)
+		entry.Prompt = truncateRunes(entry.Prompt, LooperMaxLogResponseRunes)
+		entry.Feedback = truncateRunes(entry.Feedback, 2000)
+		out[i] = entry
+	}
+	return out
+}
+
+func truncateRunes(s string, max int) string {
+	if max <= 0 || s == "" {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + fmt.Sprintf("... (%d more chars)", len(runes)-max)
+}
+
+func excerptGoal(goal string) string {
+	goal = strings.TrimSpace(strings.Join(strings.Fields(goal), " "))
+	runes := []rune(goal)
+	if len(runes) <= LooperGoalExcerptLimit {
+		return goal
+	}
+	return string(runes[:LooperGoalExcerptLimit])
+}
+
+// SaveRun persists a finished run and evicts older rows beyond retention.
+func (ps *LooperPresetStore) SaveRun(ctx context.Context, rec LooperRunRecord) (int64, error) {
+	rec.Logs = clampLooperLogs(rec.Logs)
+	raw, err := json.Marshal(rec.Logs)
+	if err != nil {
+		return 0, fmt.Errorf("marshal looper run logs: %w", err)
+	}
+	if rec.FinishedAt.IsZero() {
+		rec.FinishedAt = time.Now().UTC()
+	}
+	if rec.StartedAt.IsZero() {
+		rec.StartedAt = rec.FinishedAt
+	}
+	res, err := ps.db.ExecContext(ctx,
+		`INSERT INTO desktop_looper_runs(
+			preset_name, goal_excerpt, status, rounds, max_rounds, best_score, final_score,
+			target_score, input_tokens, output_tokens, cost_usd, error, started_at, finished_at, logs_json)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		rec.PresetName, excerptGoal(rec.GoalExcerpt), rec.Status, rec.Rounds, rec.MaxRounds,
+		rec.BestScore, rec.FinalScore, rec.TargetScore, rec.InputTokens, rec.OutputTokens,
+		rec.CostUSD, rec.Error, rec.StartedAt.UTC().Format(time.RFC3339Nano),
+		rec.FinishedAt.UTC().Format(time.RFC3339Nano), string(raw))
+	if err != nil {
+		return 0, fmt.Errorf("insert looper run: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	if _, err := ps.db.ExecContext(ctx,
+		`DELETE FROM desktop_looper_runs WHERE id NOT IN (
+			SELECT id FROM desktop_looper_runs ORDER BY id DESC LIMIT ?
+		)`, LooperRunRetention); err != nil {
+		return id, fmt.Errorf("retain looper runs: %w", err)
+	}
+	return id, nil
+}
+
+func scanLooperRun(scan func(dest ...any) error, includeLogs bool) (LooperRunRecord, error) {
+	var rec LooperRunRecord
+	var started, finished, logsJSON string
+	dest := []any{
+		&rec.ID, &rec.PresetName, &rec.GoalExcerpt, &rec.Status, &rec.Rounds, &rec.MaxRounds,
+		&rec.BestScore, &rec.FinalScore, &rec.TargetScore, &rec.InputTokens, &rec.OutputTokens,
+		&rec.CostUSD, &rec.Error, &started, &finished,
+	}
+	if includeLogs {
+		dest = append(dest, &logsJSON)
+	}
+	if err := scan(dest...); err != nil {
+		return rec, err
+	}
+	if started != "" {
+		if t, err := time.Parse(time.RFC3339Nano, started); err == nil {
+			rec.StartedAt = t
+		} else if t, err := time.Parse(time.RFC3339, started); err == nil {
+			rec.StartedAt = t
+		}
+	}
+	if finished != "" {
+		if t, err := time.Parse(time.RFC3339Nano, finished); err == nil {
+			rec.FinishedAt = t
+		} else if t, err := time.Parse(time.RFC3339, finished); err == nil {
+			rec.FinishedAt = t
+		}
+	}
+	if includeLogs && strings.TrimSpace(logsJSON) != "" {
+		if err := json.Unmarshal([]byte(logsJSON), &rec.Logs); err != nil {
+			return rec, fmt.Errorf("decode looper run logs: %w", err)
+		}
+	}
+	return rec, nil
+}
+
+const looperRunListCols = `id, preset_name, goal_excerpt, status, rounds, max_rounds, best_score, final_score, target_score, input_tokens, output_tokens, cost_usd, error, started_at, finished_at`
+
+// ListRuns returns recent runs newest first, without log bodies.
+func (ps *LooperPresetStore) ListRuns(ctx context.Context) ([]LooperRunRecord, error) {
+	rows, err := ps.db.QueryContext(ctx,
+		`SELECT `+looperRunListCols+` FROM desktop_looper_runs ORDER BY id DESC LIMIT ?`, LooperRunRetention)
+	if err != nil {
+		return nil, fmt.Errorf("list looper runs: %w", err)
+	}
+	defer rows.Close()
+	var out []LooperRunRecord
+	for rows.Next() {
+		rec, err := scanLooperRun(rows.Scan, false)
+		if err != nil {
+			return nil, fmt.Errorf("scan looper run: %w", err)
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
+// GetRun loads one run including logs.
+func (ps *LooperPresetStore) GetRun(ctx context.Context, id int64) (LooperRunRecord, error) {
+	row := ps.db.QueryRowContext(ctx,
+		`SELECT `+looperRunListCols+`, logs_json FROM desktop_looper_runs WHERE id = ?`, id)
+	rec, err := scanLooperRun(row.Scan, true)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return rec, err
+		}
+		return rec, fmt.Errorf("get looper run: %w", err)
+	}
+	return rec, nil
+}
+
+// DeleteRun removes one history row.
+func (ps *LooperPresetStore) DeleteRun(ctx context.Context, id int64) error {
+	res, err := ps.db.ExecContext(ctx, `DELETE FROM desktop_looper_runs WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete looper run: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("run not found")
+	}
+	return nil
+}
+
+// ClearRuns removes the entire run history.
+func (ps *LooperPresetStore) ClearRuns(ctx context.Context) error {
+	if _, err := ps.db.ExecContext(ctx, `DELETE FROM desktop_looper_runs`); err != nil {
+		return fmt.Errorf("clear looper runs: %w", err)
+	}
+	return nil
+}
+
 // LooperRunStateHolder holds mutable run state safely.
 type LooperRunStateHolder struct {
 	mu          sync.Mutex
@@ -350,44 +710,52 @@ type LooperRunStateHolder struct {
 // NewLooperRunStateHolder creates a state holder.
 func NewLooperRunStateHolder() *LooperRunStateHolder {
 	return &LooperRunStateHolder{
-		state: LooperRunState{CurrentStep: "idle"},
+		state: LooperRunState{Status: "idle", CurrentStep: "idle"},
 	}
+}
+
+func copyLooperState(src LooperRunState) LooperRunState {
+	s := src
+	if src.Logs != nil {
+		s.Logs = make([]LooperLogEntry, len(src.Logs))
+		copy(s.Logs, src.Logs)
+	}
+	if src.ScoreHistory != nil {
+		s.ScoreHistory = make([]int, len(src.ScoreHistory))
+		copy(s.ScoreHistory, src.ScoreHistory)
+	}
+	if src.ResumeSnapshot != nil {
+		cp := *src.ResumeSnapshot
+		if src.ResumeSnapshot.ScoreHistory != nil {
+			cp.ScoreHistory = make([]int, len(src.ResumeSnapshot.ScoreHistory))
+			copy(cp.ScoreHistory, src.ResumeSnapshot.ScoreHistory)
+		}
+		s.ResumeSnapshot = &cp
+	}
+	return s
 }
 
 // State returns a deep copy of the current state.
 func (h *LooperRunStateHolder) State() LooperRunState {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	s := h.state
-	s.Logs = make([]LooperLogEntry, len(h.state.Logs))
-	copy(s.Logs, h.state.Logs)
-	return s
+	return copyLooperState(h.state)
 }
 
-// SetRunning initializes state for a new run.
-func (h *LooperRunStateHolder) SetRunning(maxIter int) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.paused = false
-	h.resumeState = nil
-	h.state = LooperRunState{
-		Running:        true,
-		CurrentStep:    "prepare",
-		MaxIterations:  maxIter,
-		Logs:           make([]LooperLogEntry, 0),
-		Error:          "",
-		Stopped:        false,
-		StuckDetected:  false,
-		Paused:         false,
-		ResumeFrom:     0,
-		ResumeSnapshot: nil,
+func emptyLooperState(maxRounds int) LooperRunState {
+	return LooperRunState{
+		Status:       "running",
+		Running:      true,
+		CurrentStep:  "work",
+		MaxRounds:    maxRounds,
+		Logs:         make([]LooperLogEntry, 0),
+		ScoreHistory: make([]int, 0),
+		StartedAt:    time.Now().UTC(),
 	}
 }
 
 // TryStart atomically reserves a new run and stores its cancel function.
-// When resuming a paused run, pass preserveResume=true so TryStart does not
-// clear the snapshot prematurely (caller still owns resume semantics).
-func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) error {
+func (h *LooperRunStateHolder) TryStart(maxRounds int, cancel context.CancelFunc) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.state.Running {
@@ -396,25 +764,12 @@ func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) 
 	h.paused = false
 	h.resumeState = nil
 	h.cancelFn = cancel
-	h.state = LooperRunState{
-		Running:        true,
-		CurrentStep:    "prepare",
-		MaxIterations:  maxIter,
-		Logs:           make([]LooperLogEntry, 0),
-		Error:          "",
-		Stopped:        false,
-		StuckDetected:  false,
-		Paused:         false,
-		ResumeFrom:     0,
-		ResumeSnapshot: nil,
-	}
+	h.state = emptyLooperState(maxRounds)
 	return nil
 }
 
-// TryStartResume re-enters running state while preserving logs and usage counters
-// from a paused run. The resume snapshot stays available until executeStarted
-// (or ClearResumeState) consumes it — Resume() reads it after this call.
-func (h *LooperRunStateHolder) TryStartResume(maxIter, resumeFrom int, cancel context.CancelFunc) error {
+// TryStartResume re-enters running state while preserving logs and usage counters.
+func (h *LooperRunStateHolder) TryStartResume(maxRounds, resumeFrom int, cancel context.CancelFunc) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.state.Running {
@@ -425,16 +780,14 @@ func (h *LooperRunStateHolder) TryStartResume(maxIter, resumeFrom int, cancel co
 	}
 	h.paused = false
 	h.cancelFn = cancel
-	// Keep logs/usage from the paused session so the UI stays continuous.
 	h.state.Running = true
-	h.state.CurrentStep = "plan"
-	h.state.MaxIterations = maxIter
-	h.state.Iteration = resumeFrom
+	h.state.Status = "running"
+	h.state.CurrentStep = "work"
+	h.state.MaxRounds = maxRounds
+	h.state.Round = resumeFrom
 	h.state.Error = ""
 	h.state.Stopped = false
-	h.state.StuckDetected = false
 	h.state.Paused = false
-	// Snapshot remains until ClearResumeState inside executeStarted.
 	if h.state.Logs == nil {
 		h.state.Logs = make([]LooperLogEntry, 0)
 	}
@@ -442,40 +795,39 @@ func (h *LooperRunStateHolder) TryStartResume(maxIter, resumeFrom int, cancel co
 }
 
 // SetIdle marks the run as finished (normal completion, stop, or error).
-// If a resume snapshot exists we deliberately keep the paused/resumable state
-// so that a later resume call can continue from where we left off.
 func (h *LooperRunStateHolder) SetIdle() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.resumeState != nil || h.state.Paused {
-		// We intentionally paused with a valid resume point.
-		// Keep the snapshot and only ensure the run flag is off.
 		h.state.Running = false
+		h.state.Status = "paused"
 		h.state.CurrentStep = "paused"
 		h.cancelFn = nil
-		h.paused = false // the request flag is no longer relevant
+		h.paused = false
 		return
 	}
-	// Normal terminal state (finished, error, or user stopped without resume intent)
 	h.paused = false
 	h.resumeState = nil
 	h.state.Running = false
-	if h.state.Stopped {
-		h.state.CurrentStep = "stopped"
-	} else if h.state.StuckDetected {
-		h.state.CurrentStep = "stuck"
-	} else if h.state.Error != "" {
-		// keep current step / idle with error visible
-		if h.state.CurrentStep == "" || h.state.CurrentStep == "paused" {
-			h.state.CurrentStep = "idle"
-		}
-	} else {
-		h.state.CurrentStep = "idle"
-	}
 	h.state.Paused = false
 	h.state.ResumeFrom = 0
 	h.state.ResumeSnapshot = nil
 	h.cancelFn = nil
+	switch {
+	case h.state.Stopped:
+		h.state.Status = "stopped"
+		h.state.CurrentStep = "stopped"
+	case h.state.Status == "completed" || h.state.Status == "max_rounds" || h.state.Status == "stalled" || h.state.Status == "failed":
+		// keep terminal status
+	case h.state.Error != "":
+		h.state.Status = "failed"
+		if h.state.CurrentStep == "" || h.state.CurrentStep == "paused" {
+			h.state.CurrentStep = "idle"
+		}
+	default:
+		h.state.Status = "idle"
+		h.state.CurrentStep = "idle"
+	}
 }
 
 // SetStep updates the current step.
@@ -485,11 +837,18 @@ func (h *LooperRunStateHolder) SetStep(step string) {
 	h.state.CurrentStep = step
 }
 
-// SetIteration updates the current iteration.
-func (h *LooperRunStateHolder) SetIteration(n int) {
+// SetRound updates the current round.
+func (h *LooperRunStateHolder) SetRound(n int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.state.Iteration = n
+	h.state.Round = n
+}
+
+// SetStatus records a terminal or live status without clearing the run flag.
+func (h *LooperRunStateHolder) SetStatus(status string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.Status = status
 }
 
 // SetLastResult updates the last result.
@@ -499,27 +858,26 @@ func (h *LooperRunStateHolder) SetLastResult(res string) {
 	h.state.LastResult = res
 }
 
-// AppendLog adds a log entry. Keeps at most 200 entries to prevent unbounded growth.
-func (h *LooperRunStateHolder) AppendLog(iteration int, step, prompt, response string, duration time.Duration) {
-	h.AppendLogWithReason(iteration, step, prompt, response, duration, "")
-}
-
-// AppendLogWithReason is like AppendLog but also records an optional human-readable reason
-// (typically coming from structured exit output).
-func (h *LooperRunStateHolder) AppendLogWithReason(iteration int, step, prompt, response string, duration time.Duration, reason string) {
+// RecordEvaluation stores the latest score, feedback, and summary.
+func (h *LooperRunStateHolder) RecordEvaluation(score int, feedback, summary string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.state.Logs = append(h.state.Logs, LooperLogEntry{
-		Iteration: iteration,
-		Step:      step,
-		Prompt:    prompt,
-		Response:  response,
-		Duration:  duration.Milliseconds(),
-		Reason:    reason,
-	})
-	const maxLogs = 200
-	if len(h.state.Logs) > maxLogs {
-		h.state.Logs = h.state.Logs[len(h.state.Logs)-maxLogs:]
+	h.state.ScoreHistory = append(h.state.ScoreHistory, score)
+	if score > h.state.BestScore {
+		h.state.BestScore = score
+	}
+	h.state.LastFeedback = feedback
+	h.state.LastSummary = summary
+	h.state.LastResult = summary
+}
+
+// AppendLog adds a log entry. Keeps at most 200 entries.
+func (h *LooperRunStateHolder) AppendLog(entry LooperLogEntry) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.Logs = append(h.state.Logs, entry)
+	if len(h.state.Logs) > LooperMaxLogEntries {
+		h.state.Logs = h.state.Logs[len(h.state.Logs)-LooperMaxLogEntries:]
 	}
 }
 
@@ -529,6 +887,7 @@ func (h *LooperRunStateHolder) SetError(err string) {
 	defer h.mu.Unlock()
 	h.state.Error = err
 	h.state.Stopped = false
+	h.state.Status = "failed"
 }
 
 // SetStopped marks a user-initiated stop (not an error).
@@ -537,17 +896,8 @@ func (h *LooperRunStateHolder) SetStopped() {
 	defer h.mu.Unlock()
 	h.state.Stopped = true
 	h.state.Error = ""
+	h.state.Status = "stopped"
 	h.state.CurrentStep = "stopped"
-}
-
-// SetStuck marks the run as stopped because stuck detection fired.
-func (h *LooperRunStateHolder) SetStuck(reason string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.state.StuckDetected = true
-	h.state.Error = reason
-	h.state.Stopped = false
-	h.state.CurrentStep = "stuck"
 }
 
 // AddUsage accumulates token usage and estimated USD cost for the run.
@@ -585,19 +935,8 @@ func (h *LooperRunStateHolder) CancelRun() {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pause / Resume support (E8 – clean foundation)
-//
-// RequestPause + checkpoint logic inside the runner allow expensive creative
-// loops (e.g. the 18-iteration Ralph Loop) to be paused at safe iteration
-// boundaries and later resumed without losing the accumulated context and
-// summaries.
-// ─────────────────────────────────────────────────────────────────────────────
-
 // RequestPause signals that the currently executing loop should pause
-// at the next safe checkpoint (after completing the current iteration's
-// Exit decision and before starting the next iteration).
-// The check is performed inside executeStarted.
+// at the next safe checkpoint.
 func (h *LooperRunStateHolder) RequestPause() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -614,18 +953,22 @@ func (h *LooperRunStateHolder) IsPauseRequested() bool {
 }
 
 // SaveResumeState stores the snapshot that enables resuming the loop later.
-// It transitions the holder into a "paused, resumable" state that the UI
-// can observe via State() (Paused=true + ResumeFrom + ResumeSnapshot).
 func (h *LooperRunStateHolder) SaveResumeState(rs LooperResumeState) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	cp := rs // copy
+	cp := rs
+	if rs.ScoreHistory != nil {
+		cp.ScoreHistory = make([]int, len(rs.ScoreHistory))
+		copy(cp.ScoreHistory, rs.ScoreHistory)
+	}
 	h.resumeState = &cp
 	h.state.Paused = true
 	h.state.Running = false
+	h.state.Status = "paused"
 	h.state.CurrentStep = "paused"
-	h.state.ResumeFrom = rs.Iteration
-	h.state.ResumeSnapshot = &cp
+	h.state.ResumeFrom = rs.Round
+	snap := cp
+	h.state.ResumeSnapshot = &snap
 	h.paused = false
 	h.cancelFn = nil
 }
@@ -638,11 +981,14 @@ func (h *LooperRunStateHolder) GetResumeState() (LooperResumeState, bool) {
 		return LooperResumeState{}, false
 	}
 	cp := *h.resumeState
+	if h.resumeState.ScoreHistory != nil {
+		cp.ScoreHistory = make([]int, len(h.resumeState.ScoreHistory))
+		copy(cp.ScoreHistory, h.resumeState.ScoreHistory)
+	}
 	return cp, true
 }
 
-// ClearResumeState discards any saved resume information (used after a
-// successful resume or when the user explicitly discards a paused run).
+// ClearResumeState discards any saved resume information.
 func (h *LooperRunStateHolder) ClearResumeState() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -651,4 +997,25 @@ func (h *LooperRunStateHolder) ClearResumeState() {
 	h.state.Paused = false
 	h.state.ResumeFrom = 0
 	h.state.ResumeSnapshot = nil
+}
+
+// StallWithoutImprovement reports whether the last stallN scores failed to
+// beat the best score from earlier rounds.
+func StallWithoutImprovement(history []int, stallN int) bool {
+	if stallN <= 0 || len(history) < stallN {
+		return false
+	}
+	bestBefore := 0
+	prefix := history[:len(history)-stallN]
+	for _, score := range prefix {
+		if score > bestBefore {
+			bestBefore = score
+		}
+	}
+	for _, score := range history[len(history)-stallN:] {
+		if score > bestBefore {
+			return false
+		}
+	}
+	return true
 }
