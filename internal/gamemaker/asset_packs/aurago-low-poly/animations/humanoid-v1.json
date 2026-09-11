@@ -1,0 +1,230 @@
+{
+  "file": {
+    "file": "animations/humanoid-v1.glb",
+    "bytes": 1195188,
+    "sha256": "0dee3a35a66d66bdfc3931681163dd7b672b30a89bbb566455c7fae12d0f81f9",
+    "triangles": 3376
+  },
+  "clips": [
+    {
+      "id": "idle",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "walk",
+      "duration": 1.0333,
+      "loop": true,
+      "speed": 0.825
+    },
+    {
+      "id": "run",
+      "duration": 0.7,
+      "loop": true,
+      "speed": 1.22
+    },
+    {
+      "id": "sprint",
+      "duration": 0.5333,
+      "loop": true,
+      "speed": 1.93
+    },
+    {
+      "id": "walk_back",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0.825
+    },
+    {
+      "id": "strafe_left",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "strafe_right",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "turn_left",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "turn_right",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "crouch_idle",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "crouch_walk",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0.62
+    },
+    {
+      "id": "jump_start",
+      "duration": 0.2667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "jump_loop",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "jump_land",
+      "duration": 0.2667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "climb",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "fall",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "sit_down",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "sit_idle",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "stand_up",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "pick_up",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "carry_idle",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "carry_walk",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "push",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "interact",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "wave",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "cheer",
+      "duration": 1.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "unarmed_idle",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "punch",
+      "duration": 0.5667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "rifle_idle",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "rifle_walk",
+      "duration": 1.5667,
+      "loop": true,
+      "speed": 0
+    },
+    {
+      "id": "rifle_fire",
+      "duration": 0.2667,
+      "loop": false,
+      "speed": 0,
+      "events": [
+        {
+          "time": 0.04,
+          "name": "shot"
+        }
+      ]
+    },
+    {
+      "id": "rifle_reload",
+      "duration": 1.7667,
+      "loop": false,
+      "speed": 0,
+      "events": [
+        {
+          "time": 0.468,
+          "name": "magazine_out"
+        },
+        {
+          "time": 1.296,
+          "name": "magazine_in"
+        }
+      ]
+    },
+    {
+      "id": "hit",
+      "duration": 0.4667,
+      "loop": false,
+      "speed": 0
+    },
+    {
+      "id": "death",
+      "duration": 1.2667,
+      "loop": false,
+      "speed": 0
+    }
+  ]
+}

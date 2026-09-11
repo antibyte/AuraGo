@@ -19,6 +19,7 @@ const gamePlanPath = ".aurago/game-plan.json"
 // GamePlan is a bounded design artifact, never executable or trusted instructions.
 type GamePlan struct {
 	SchemaVersion int               `json:"schema_version"`
+	Units         string            `json:"units,omitempty"`
 	Template      string            `json:"template"`
 	Objective     string            `json:"objective"`
 	CoreLoop      string            `json:"core_loop"`
@@ -46,6 +47,7 @@ type PlanAsset struct {
 	Animations    []string `json:"animations,omitempty"`
 	Direction     string   `json:"direction"`
 	DisplayHeight float64  `json:"display_height"`
+	Scale         float64  `json:"scale,omitempty"`
 	Origin        Point    `json:"origin"`
 	Collider      string   `json:"collider"`
 	Fallback      string   `json:"fallback,omitempty"`
@@ -227,8 +229,12 @@ func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) (e
 
 func (s *Service) checkPlan(project Project, p GamePlan) error {
 	bad := func(field, message string) error { return fmt.Errorf("plan.%s: %s", field, message) }
-	if p.SchemaVersion != 1 {
-		return bad("schema_version", "must be 1")
+	if p.SchemaVersion != 1 && p.SchemaVersion != 2 {
+		return bad("schema_version", "must be 1 or 2")
+	}
+	modelPlan := p.SchemaVersion == 2 && project.Dimension == "3d"
+	if p.SchemaVersion == 2 && (!modelPlan || p.Units != "metres") {
+		return bad("units", "schema 2 requires a 3D project and units=metres")
 	}
 	if !slices.Contains(templateNames(), p.Template) {
 		return bad("template", "choose shooter, platformer, topdown, blocks, board, minimal or three")
@@ -279,8 +285,12 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	if project.CurrentRevision > 0 && len(p.Preserve) == 0 {
 		return bad("preserve", "list working behavior retained by this edit")
 	}
-	if len(p.Assets) < 1 || len(p.Assets) > 24 || len(p.Assumptions) > 12 {
-		return bad("assets", "map 1–24 visual roles, including procedural graphics; limit assumptions to 12")
+	maxAssets := 24
+	if modelPlan {
+		maxAssets = 64
+	}
+	if len(p.Assets) < 1 || len(p.Assets) > maxAssets || len(p.Assumptions) > 12 {
+		return bad("assets", fmt.Sprintf("map 1–%d visual roles, including procedural graphics; limit assumptions to 12", maxAssets))
 	}
 	roles := map[string]bool{}
 	var assetErrors []error
@@ -291,14 +301,29 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 				return bad(field+".role", "use a unique role")
 			}
 			roles[a.Role] = true
-			if !finite(a.DisplayHeight) || a.DisplayHeight <= 0 || a.DisplayHeight > 2048 || !validOrigin(a.Origin) {
-				return bad(field, "valid display_height and normalized origin required")
-			}
-			if !slices.Contains([]string{"none", "rectangle", "circle", "feet"}, a.Collider) {
-				return bad(field+".collider", "choose none, rectangle, circle or feet")
-			}
-			if !slices.Contains([]string{"up", "right", "down", "left", "none"}, a.Direction) {
-				return bad(field+".direction", "use up, right, down, left or none")
+			if modelPlan {
+				if !finite(a.Scale) || a.Scale <= 0 || a.Scale > 1000 {
+					return bad(field+".scale", "use a finite metric scale above 0 and at most 1000; default 1")
+				}
+				if !slices.Contains([]string{"catalog", "box", "sphere", "capsule", "mesh", "none"}, a.Collider) {
+					return bad(field+".collider", "choose catalog, box, sphere, capsule, mesh or none")
+				}
+				if a.Direction != "" && a.Direction != "+Z" && a.Direction != "none" {
+					return bad(field+".direction", "3D models face +Z")
+				}
+				if a.Collider == "catalog" && a.PackID == "" {
+					return bad(field+".collider", "catalog requires a model asset")
+				}
+			} else {
+				if !finite(a.DisplayHeight) || a.DisplayHeight <= 0 || a.DisplayHeight > 2048 || !validOrigin(a.Origin) {
+					return bad(field, "valid display_height and normalized origin required")
+				}
+				if !slices.Contains([]string{"none", "rectangle", "circle", "feet"}, a.Collider) {
+					return bad(field+".collider", "choose none, rectangle, circle or feet")
+				}
+				if !slices.Contains([]string{"up", "right", "down", "left", "none"}, a.Direction) {
+					return bad(field+".direction", "use up, right, down, left or none")
+				}
 			}
 			if a.PackID == "" {
 				if strings.TrimSpace(a.Fallback) == "" {
@@ -316,6 +341,9 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 			if a.Version != detail.Version {
 				return bad(field+".version", "use version "+detail.Version)
 			}
+			if (detail.Model != nil) != modelPlan {
+				return bad(field, "3D models require schema_version=2; sprite assets use schema_version=1")
+			}
 			if detail.Asset != nil && detail.Asset.AssemblyPart {
 				return bad(field, "select the complete assembly, not an isolated fragment")
 			}
@@ -323,7 +351,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 			if project.Dimension == "2d" && (view == "side" && p.Perspective != "side" || view == "top" && p.Perspective == "side") {
 				return bad("perspective", fmt.Sprintf("%s uses %s-view art: set plan.perspective to %q or select compatible art; asset view is read-only catalog metadata", field, view, view))
 			}
-			if !detail.allowsDirection(a.Direction) {
+			if !modelPlan && !detail.allowsDirection(a.Direction) {
 				return bad(field+".direction", "direction is not supported by this asset; choose a directional asset or an allowed transform")
 			}
 			for _, id := range a.Animations {
@@ -420,10 +448,15 @@ func JobNextAction(job Job) string {
 func ExampleGamePlan(project Project) GamePlan {
 	p := GamePlan{SchemaVersion: 1, Template: "minimal", Objective: "Replace with the requested objective", CoreLoop: "Replace with the input, consequence, feedback and progression loop", Scope: []string{"Replace with concrete requested features"}, Perspective: "top", Width: 960, Height: 540, Camera: "Fixed logical viewport with FIT scaling", Controls: map[string]string{"move": "Arrow keys", "primary": "Space", "restart": "R"}, States: []string{"playing", "ended"}, Rules: map[string]string{"progress": "Describe score or progression", "failure": "Describe defeat or explain why absent", "completion": "Describe victory or continued play"}, Assets: []PlanAsset{}, Scenarios: []GameScenario{}, Assumptions: []string{"Single-player offline game"}, Fallback: "Use named procedural shapes when matching art is unavailable"}
 	if project.Dimension == "3d" {
+		p.SchemaVersion = 2
+		p.Units = "metres"
 		p.Template = "three"
 		p.Perspective = "3d"
 	}
 	p.Assets = []PlanAsset{{Role: "player", Direction: "none", DisplayHeight: 32, Origin: Point{.5, .5}, Collider: "rectangle", Fallback: "Replace with a specific procedural shape or choose exact library IDs"}}
+	if project.Dimension == "3d" {
+		p.Assets = []PlanAsset{{Role: "player", Scale: 1, Direction: "+Z", Collider: "box", Fallback: "Choose an exact model from search_assets view=3d or describe a metric procedural shape"}}
+	}
 	if project.CurrentRevision > 0 {
 		p.Preserve = []string{"Replace with working behavior retained by this edit"}
 	}

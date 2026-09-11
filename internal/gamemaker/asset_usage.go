@@ -19,6 +19,7 @@ type TransformRule struct {
 	FlipY          bool    `json:"flip_y"`
 }
 type PackAsset struct {
+	Model        *ModelAsset   `json:"model,omitempty"`
 	ID           string        `json:"id"`
 	Name         string        `json:"name"`
 	Description  string        `json:"description"`
@@ -62,6 +63,8 @@ type PackAssembly struct {
 	} `json:"parts"`
 }
 type AssetSearchResult struct {
+	Kind           string   `json:"kind,omitempty"`
+	Category       string   `json:"category,omitempty"`
 	Entity         string   `json:"entity"`
 	Actions        []string `json:"actions"`
 	MissingActions []string `json:"missing_actions"`
@@ -77,6 +80,7 @@ type AssetSearchResult struct {
 	score          int
 }
 type AssetDetail struct {
+	Model          *ModelAsset     `json:"model,omitempty"`
 	PackID         string          `json:"pack_id"`
 	Version        string          `json:"version"`
 	View           string          `json:"view"`
@@ -89,6 +93,9 @@ type AssetDetail struct {
 }
 
 func readPackUsage(id string) (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, error) {
+	if id == ModelPackID {
+		return readModelUsage()
+	}
 	data, err := bundledAssetPackFile(id, "sheet.json")
 	if err != nil {
 		return AssetPack{}, nil, nil, nil, err
@@ -118,8 +125,8 @@ func (s *Service) SearchAssets(query, packID, view string, limit int) ([]AssetSe
 	if len(query) > 200 {
 		return nil, fmt.Errorf("asset query exceeds 200 characters")
 	}
-	if view != "" && !slices.Contains([]string{"side", "top", "board"}, view) {
-		return nil, fmt.Errorf("view must be side, top or board")
+	if view != "" && !slices.Contains([]string{"side", "top", "board", "3d"}, view) {
+		return nil, fmt.Errorf("view must be side, top, board or 3d")
 	}
 	if limit <= 0 {
 		limit = 6
@@ -178,7 +185,12 @@ func (s *Service) SearchAssets(query, packID, view string, limit int) ([]AssetSe
 			out = append(out, r)
 		}
 		for _, a := range assets {
-			add(AssetSearchResult{Entity: a.Entity, AssetID: a.ID, Name: a.Name, Description: a.Description, View: a.View, Direction: a.Direction, Fragment: a.AssemblyPart}, a.Tags)
+			result := AssetSearchResult{Entity: a.Entity, AssetID: a.ID, Name: a.Name, Description: a.Description, View: a.View, Direction: a.Direction, Fragment: a.AssemblyPart}
+			if a.Model != nil {
+				result.Kind = "model3d"
+				result.Category = a.Model.Category
+			}
+			add(result, a.Tags)
 		}
 		for _, a := range assemblies {
 			add(AssetSearchResult{Entity: a.ID, AssemblyID: a.ID, Name: a.Name, Description: a.Description, View: a.View, Direction: a.Direction}, nil)
@@ -223,6 +235,28 @@ func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail
 		return AssetDetail{}, err
 	}
 	d := AssetDetail{PackID: p.ID, Version: p.Version, Animations: []PackAnimation{}, MissingActions: []string{}}
+	if p.Kind == "model3d" {
+		for _, a := range assets {
+			if a.ID != assetID {
+				continue
+			}
+			d.Model = a.Model
+			d.View = "3d"
+			d.Example = modelExample(p.Version, a.ID)
+			for _, clip := range animations {
+				if clip.AssetID == a.ID {
+					d.Animations = append(d.Animations, clip)
+				}
+			}
+			for _, action := range []string{"idle", "walk", "run", "attack", "hit", "death"} {
+				if !slices.ContainsFunc(d.Animations, func(c PackAnimation) bool { return c.Action == action }) {
+					d.MissingActions = append(d.MissingActions, action)
+				}
+			}
+			return d, nil
+		}
+		return d, fmt.Errorf("3D asset not found in pack %s", p.ID)
+	}
 	ids := map[string]bool{}
 	for _, a := range assets {
 		if a.ID == assetID {

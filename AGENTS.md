@@ -979,6 +979,19 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
 
 ## Game Maker sprite library contract
 
+- The same catalog includes `kind: model3d` pack `aurago-low-poly@1.0.0` with
+  220 original MIT Blender models. `assets/game-maker-low-poly/AGENTS.md` owns
+  editable sources, generators and acceptance fixtures. Runtime GLBs, previews,
+  metadata and licenses together must stay under 100 MiB uncompressed.
+- Model selection uses `model_asset_ids` (1–64) and plan schema 2 with metres,
+  metric scale and 3D colliders. Import only explicit IDs after plan acceptance,
+  including declared shared animation dependencies; never overwrite edited copies.
+  Sprite plan v1 and all eighteen sprite packs remain compatible.
+- Three.js stays at 0.185.1. Rebuild the local GLTFLoader/SkeletonUtils/OrbitControls
+  helper using `node scripts/build-game-maker-3d.js`. One game-owned clock advances
+  independent animated instances; static instances share geometry. Studio owns
+  one disposable viewer, never one render loop per catalog card.
+
 - `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed
   crops remain in `production/` but are excluded from the binary. Rebuild with
@@ -1105,6 +1118,7 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 
 Current child AGENTS.md files:
 - `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
+- `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.
 - `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
 - `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.

@@ -40,6 +40,15 @@ Fix the root cause of a diagnostic, never the symptom. Never weaken, remove, or
 stub `window.__AURAGO_GAME_DIAGNOSTICS__` or other checks just to make
 validation pass.
 
+For 3D, check the returned exact model IDs, scale, forward direction, local GLBs,
+rig compatibility and declared clips. Verify separate figures have separate
+skeletons and actions; static props may share geometry. Observe foot contact,
+hand grips, reload timing, vehicle pivots, collision openings, LOD transitions,
+pause and two restarts in the rendered game. Unknown clips and failed loads are
+errors, not procedural replacements. The asset helper owns no render loop.
+The release reference scenes cover transport, flight, space, exploration and FPS,
+including ZIP exports; a normal job must still report its own actual checks.
+
 Make at most three focused repair passes. Do not hide a failed validation or
 replace the last working preview with broken output.
 

@@ -1,0 +1,112 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>AuraGo Low Poly · GLB inspection</title>
+<style>html,body{margin:0;height:100%;background:#16242f;color:#e4d5b6;font:14px system-ui}canvas{display:block;width:100%;height:100%}aside{position:absolute;left:24px;top:20px;max-width:380px;background:#16242fed;border:1px solid #53636d;border-radius:10px;padding:16px}h1{font-size:18px;margin:0 0 8px}select,button{font:inherit;background:#344854;color:inherit;border:1px solid #71838c;border-radius:5px;padding:7px}p{line-height:1.5}</style>
+<body><aside><h1>AuraGo Low Poly / GLB inspection</h1><p id="status">Loading exported models…</p>
+<select id="model" aria-label="Model"></select><select id="clip" aria-label="Animation"></select><button id="pause">Pause</button></aside>
+<script type="module">
+import * as A from '/runtime/aurago-three-assets-1.js';
+const T=A.THREE,manifest=await fetch('/pack/manifest.json').then(r=>r.json());
+window.__errors=[];window.addEventListener('error',e=>__errors.push(e.message));window.addEventListener('unhandledrejection',e=>__errors.push(String(e.reason)));
+const original=console.error;console.error=(...args)=>{__errors.push(args.join(' '));original(...args)};
+const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(devicePixelRatio);renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;document.body.append(renderer.domElement);
+const scene=new T.Scene();scene.background=new T.Color('#16242f');
+const camera=new T.PerspectiveCamera(38,innerWidth/innerHeight,.01,2000);camera.position.set(5,3,7);
+scene.add(new T.HemisphereLight(0xd1e5ff,0x493a2a,2.8));
+const light=new T.DirectionalLight(0xffedd2,3);light.position.set(-4,8,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);
+Object.assign(light.shadow.camera,{left:-20,right:20,top:20,bottom:-20,far:60});scene.add(light);
+light.shadow.normalBias=.04;light.shadow.bias=-.00015;
+const ground=new T.Mesh(new T.PlaneGeometry(1000,1000),new T.MeshStandardMaterial({color:0x344750,roughness:.9}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const controls=new A.OrbitControls(camera,renderer.domElement);controls.target.set(0,1,0);controls.update();
+const live=[],loaded=[];let playing=true,last=0,current;
+const modelSelect=document.querySelector('#model'),clipSelect=document.querySelector('#clip'),status=document.querySelector('#status');
+modelSelect.innerHTML=manifest.assets.map(m=>'<option>'+m.id+'</option>').join('');
+function clear(){while(live.length)A.disposeInstance(live.pop());while(loaded.length)A.releaseAsset(loaded.pop())}
+async function add(id,at=[0,0,0],action=null){
+ const asset=await A.loadAsset(manifest,id,new URL('/pack/',location));loaded.push(asset);
+ const instance=A.createInstance(asset);instance.root.position.fromArray(at);scene.add(instance.root);live.push(instance);
+ if(action)A.playAction(instance,action,{fade:0});return instance;
+}
+async function show(id){
+ clear();current=await add(id);const b=new T.Box3().setFromObject(current.root);
+ const center=b.getCenter(new T.Vector3()),size=b.getSize(new T.Vector3()),extent=Math.max(size.x,size.y,size.z,.1);
+ camera.position.copy(center).add(new T.Vector3(1.4,.85,2.2).multiplyScalar(extent));camera.far=Math.max(100,extent*30);camera.updateProjectionMatrix();
+ controls.target.copy(center);controls.update();ground.position.y=b.min.y-.003;
+ clipSelect.innerHTML='<option value="">Rest pose</option>'+current.asset.model.animations.map(c=>'<option>'+c.id+'</option>').join('');
+ status.textContent=id+' · '+current.asset.model.lods[0].triangles+' triangles';
+}
+modelSelect.onchange=()=>show(modelSelect.value).catch(e=>__errors.push(e.message));
+clipSelect.onchange=()=>{if(clipSelect.value)A.playAction(current,clipSelect.value,{restart:true});else current.mixers.forEach(m=>m.stopAllAction())};
+document.querySelector('#pause').onclick=()=>{playing=!playing;document.querySelector('#pause').textContent=playing?'Pause':'Play'};
+function draw(now){const dt=last?(now-last)/1000:0;last=now;if(playing)live.forEach(i=>A.updateInstance(i,dt,camera));renderer.render(scene,camera);requestAnimationFrame(draw)}
+requestAnimationFrame(draw);
+window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
+function assert(value,message){if(!value)throw Error(message)}
+window.inspectModels={A,manifest,renderer,scene,camera,controls,live,loaded,show,add,clear,
+ async smoke(){
+  clear();playing=false;const checked=[];
+  for(const model of manifest.assets){
+   const asset=await A.loadAsset(manifest,model.id,new URL('/pack/',location));
+   const a=A.createInstance(asset),b=A.createInstance(asset);scene.add(a.root,b.root);
+   for(const socket of model.sockets){
+    assert(a.levels[0].getObjectByName(socket.node),model.id+' missing runtime socket '+socket.node);
+    a.forcedLOD=a.levels.length-1;
+    const object=new T.Group(),detach=A.attachToSocket(a,socket.id,object);
+    A.updateInstance(a,0);assert(a.level===0,model.id+' attached LOD');
+    detach();detach();A.updateInstance(a,0);assert(a.level===a.forcedLOD,model.id+' LOD not restored');
+   }
+   for(const part of model.moving_parts)A.setPart(a,part.node,0);
+   const skins=[[],[]];[a,b].forEach((i,n)=>i.root.traverse(o=>{if(o.isSkinnedMesh)skins[n].push(o)}));
+   if(skins[0].length){
+    assert(skins[0][0].skeleton!==skins[1][0].skeleton,model.id+' shared skeleton');
+    assert(skins[0][0].skeleton.bones[0]!==skins[1][0].skeleton.bones[0],model.id+' shared bone');
+    assert(skins[0][0].geometry===skins[1][0].geometry,model.id+' duplicated geometry');
+   }
+   const before=b.root.getObjectByName('head')?.quaternion.toArray();
+   for(const clip of model.animations){
+    A.playAction(a,clip.id,{fade:0,restart:true});
+    for(let t=0;t<clip.duration;t+=.1)A.updateInstance(a,.1);
+    a.root.updateMatrixWorld(true);
+    a.root.traverse(o=>assert(o.matrixWorld.elements.every(Number.isFinite),model.id+' invalid '+clip.id));
+   }
+   if(before)assert(before.every((v,i)=>v===b.root.getObjectByName('head').quaternion.toArray()[i]),model.id+' animation leaked to sibling');
+   for(let l=0;l<a.levels.length;l++){a.forcedLOD=l;A.updateInstance(a,0);renderer.render(scene,camera)}
+   A.disposeInstance(a);A.disposeInstance(b);A.releaseAsset(asset);
+   assert(A.assetCacheSize()===0,model.id+' resources retained');
+   checked.push(model.id);status.textContent='Checked '+checked.length+' / 220';
+  }
+  const gl=renderer.getContext(),debug=gl.getExtension('WEBGL_debug_renderer_info');
+  return {models:checked.length,errors:__errors,renderer:gl.getParameter(debug?debug.UNMASKED_RENDERER_WEBGL:gl.RENDERER)};
+ },
+ async hero(){
+  clear();ground.position.y=0;playing=true;
+  await add('architecture-house',[1,0,-7]);await add('road-sedan',[-4,0,1]);
+  await add('humans-explorer-a',[-1.1,0,3],'wave');await add('animals-dog',[.4,0,3],'idle');
+  await add('vegetation-oak',[7,0,-4]);await add('props-crate-wood',[4,0,2]);
+  await add('aircraft-prop-plane',[-9,3,-7]);await add('space-scout',[5,5,-8]);
+  camera.position.set(18,11,25);controls.target.set(0,2,-2);controls.update();
+  status.textContent='Original models · shared palette · metres · +Y up · +Z forward';
+ },
+ async pose(id,clip,fraction){
+  playing=false;await show(id);A.playAction(current,clip,{fade:0,restart:true});
+  const duration=current.current.duration*fraction;
+  for(let at=0;at<duration;at+=.02)A.updateInstance(current,Math.min(.02,duration-at));
+  current.root.updateMatrixWorld(true);renderer.render(scene,camera);
+  const feet=['foot_L','foot_R'].map(n=>current.root.getObjectByName(n)?.getWorldPosition(new T.Vector3()).toArray());
+  return {id,clip,fraction,feet};
+ },
+ async fpsPose(clip,fraction){
+  clear();playing=false;const arms=await add('fps-arms-modern'),weapon=await add('fps-rifle',[.12,.01,.145]);
+  for(const i of [arms,weapon]){
+   A.playAction(i,clip,{fade:0,restart:true});
+   for(let at=0;at<i.current.duration*fraction;at+=.02)A.updateInstance(i,Math.min(.02,i.current.duration*fraction-at));
+   i.root.updateMatrixWorld(true);
+  }
+  function point(i,id){const name=i.asset.model.sockets.find(s=>s.id===id).node,node=i.root.getObjectByName(name);if(!node){const names=[];i.root.traverse(n=>names.push(n.name));throw Error('Missing '+name+' in '+names.join(','))}return node.getWorldPosition(new T.Vector3())}
+  camera.position.set(.95,.5,1.15);controls.target.set(0,-.07,.18);controls.update();ground.position.y=-.55;renderer.render(scene,camera);
+  return {clip,fraction,rightGripError:point(arms,'grip_R').distanceTo(point(weapon,'grip')),leftSupportError:point(arms,'grip_L').distanceTo(point(weapon,'support')),magazineGripError:point(arms,'grip_L').distanceTo(point(weapon,'magazine'))};
+ },
+ setPlaying(value){playing=value}
+};
+await show('humans-civilian-a');window.__ready=true;
+</script></body></html>

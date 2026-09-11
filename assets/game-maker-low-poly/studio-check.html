@@ -1,0 +1,24 @@
+<!doctype html><html><meta charset="utf-8"><title>Game Maker Studio asset acceptance</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/ui/css/desktop-shell.bundle.css">
+<link rel="stylesheet" href="/ui/css/desktop-app-game-maker-studio.css">
+<style>html,body,#app{width:100%;height:100%;margin:0}#app{position:relative}</style>
+<body class="desktop-body" data-theme="standard"><main id="app"></main>
+<script src="/ui/js/desktop/apps/game-maker-studio-api.js"></script>
+<script src="/ui/js/desktop/apps/game-maker-studio-modals.js"></script>
+<script src="/ui/js/desktop/apps/game-maker-studio-assets.js"></script>
+<script src="/ui/js/desktop/apps/game-maker-studio-models.js"></script>
+<script src="/ui/js/desktop/apps/game-maker-studio.js"></script>
+<script type="module">
+window.__uiErrors=[];addEventListener('error',e=>__uiErrors.push(e.message));addEventListener('unhandledrejection',e=>__uiErrors.push(String(e.reason)));
+const lang=await fetch('/ui/lang/desktop/de.json').then(r=>r.json());
+const context={t:key=>lang[key]||key,esc:value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),
+ api:async(path,options)=>{
+  if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,skills_ready:true,skills:[],three_version:'0.185.1'};
+  if(path.endsWith('/projects'))return {projects:[]};
+  const response=await fetch(path,options);if(!response.ok)throw Error('HTTP '+response.status);return response.json();
+ },notify:n=>__uiErrors.push(n.message)};
+GameMakerStudioApp.render(document.querySelector('#app'),'fixture',context);
+window.__uiState=GameMakerStudioApp.instances.get('fixture');
+window.__uiReady=true;
+</script></body></html>

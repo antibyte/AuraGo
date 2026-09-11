@@ -27,14 +27,21 @@ not a passive scene.
   dispose geometries and materials when a scene or game is rebuilt.
 - Keep the camera oriented toward the gameplay goal and prevent the player from
   leaving the readable play space.
-- Use generated images only as textures, backgrounds, decals, or UI. Do not
-  claim that AuraGo generated a 3D model.
+- Use original built-in GLBs through the local `aurago-three-assets-1.js` helper.
+  Image generation still produces textures, backgrounds, decals or UI, not meshes.
+  Describe and selectively import models; never substitute catalog URLs in games.
 - Add HTML UI for instructions and status when it is clearer than 3D text.
 - Preserve `window.__AURAGO_GAME_DIAGNOSTICS__`; report canvas readiness, scene
   name, frame rate, resource errors, and runtime errors.
 
 Use the shared mandatory planning round with template `three` and perspective
-`3d`; preserve working code on edits. Call `game_maker_validate` scope `startup`.
+`3d`, schema_version 2 and units `metres`; preserve working code on edits.
+Model roles use metric `scale` and `collider: catalog|box|sphere|capsule|mesh|none`,
+without sprite display_height or pixel origins. At most 64 concrete model roles.
+Use one game clock for `updateInstance`, independent instances for animated rigs
+and `createInstances` for repeated static props. Release instances, asset handles,
+lights/shadows, controls and the renderer on teardown; abort pending model loads.
+Call `game_maker_validate` scope `startup`.
 This observes visible-canvas startup and runtime errors, not 3D gameplay, resize
 or collision correctness. Explicitly leave gameplay unverified. Phaser templates,
 sprite helpers and their 2D gameplay tests do not apply to Three.js. A sprite PNG

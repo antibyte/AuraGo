@@ -31,18 +31,31 @@ func handleGameMakerAssetPacks(s *Server) http.HandlerFunc {
 			return
 		}
 		parts := strings.Split(strings.TrimPrefix(rel, "/"), "/")
-		if len(parts) != 2 {
+		if len(parts) < 2 {
 			handleGameMakerError(w, gamemaker.ErrNotFound)
 			return
 		}
-		data, err := s.GameMaker.AssetPackFile(parts[0], parts[1])
+		filename := strings.Join(parts[1:], "/")
+		data, err := s.GameMaker.AssetPackFile(parts[0], filename)
 		if err != nil {
 			handleGameMakerError(w, err)
 			return
 		}
 		contentType := "application/json"
+		if strings.HasSuffix(filename, ".js") {
+			contentType = "text/javascript; charset=utf-8"
+		}
 		if parts[1] == "sheet.png" {
 			contentType = "image/png"
+		}
+		if strings.HasSuffix(filename, ".glb") {
+			contentType = "model/gltf-binary"
+		}
+		if strings.HasSuffix(filename, ".webp") {
+			contentType = "image/webp"
+		}
+		if strings.HasSuffix(filename, ".txt") {
+			contentType = "text/plain; charset=utf-8"
 		}
 		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")

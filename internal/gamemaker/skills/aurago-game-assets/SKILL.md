@@ -1,6 +1,6 @@
 ---
 name: aurago-game-assets
-description: Select offline sprite packs and integrate bounded game art, music, textures, and procedural audio.
+description: Select local sprite packs or original 3D models and integrate game art, animation, music, and procedural audio.
 license: MIT
 compatibility: AuraGo offline sprite library; optional image and music integrations
 metadata:
@@ -14,6 +14,56 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 # Game Assets
 
 Ask for only assets that materially improve the current game.
+
+## Original 3D models
+
+The same library contains `kind: model3d` pack `aurago-low-poly` version `1.0.0`:
+220 original MIT models, metres, +Y up, +Z forward. Use `view: 3d` when searching.
+The initial `user_selected_model_ids` are the user's intended selection. Describe
+each required model and record its exact ID/version, rig and actions in plan v2.
+Selection is not an import: after plan acceptance the server imports the selected
+dependency closure. Additional `import_pack` calls require `asset_ids: ["exact-id"]`
+(1–64 models). Never import all models, guess file paths, sockets, bones or clips.
+Use the returned `manifests` and `three_example`. Project copies are immutable on
+reimport and independent of future catalog versions. No Blender service is needed.
+
+Import `../vendor/aurago-three-assets-1.js`. Its `loadAsset(meta,id,baseURL,{signal})`
+loads verified local GLBs and the shared humanoid clip library. `createInstance`
+gives each figure an independent skeleton/mixer while sharing mesh data. Add
+`instance.root` to your scene. Start only declared actions with `playAction`;
+call `updateInstance(instance,dt,camera)` from the existing game loop. Clip `speed`
+is metres/second for matching world movement; clips are in place.
+`attachToSocket(instance,socketID,object)` returns an idempotent detach function.
+Align the held object's documented grip first; attaching does not invent alignment.
+`setPart(instance,node,radiansOrMetres)` drives declared wheels, rotors and slides.
+`createInstances(asset,matrices,lod)` is for repeated static models only.
+Dispose instances before `releaseAsset(asset)`; abort pending loads on teardown.
+Do not add an animation loop per model. Pause simulation with the existing game.
+
+Use `bounds`, `collider` and `connections` for collisions and modular placement.
+Architecture follows a 2 m grid / 3 m storey; roads are 8 m wide. Centered aircraft,
+planets and FPS view rigs differ from ground-based origins. No physics, ragdoll,
+speech-face animation or combat AI is included. Implement game rules separately.
+
+Compact starting selections (describe first; choose only what the game needs):
+
+| Game | Models | Essential integration |
+|---|---|---|
+| Transport | `road-pickup`, `props-crate-wood`, `architecture-warehouse` | wheel pivots, cargo socket, depot collision |
+| Flight | `aircraft-prop-plane`, `props-checkpoint`, `landscape-island` | +Z flight, propeller pivot, ordered gates |
+| Space | `space-scout`, `space-asteroid-split`, `space-planet-earth` | centered origins, muzzle socket, hit spheres |
+| Exploration | `humans-explorer-a`, `animals-wolf`, `vegetation-pine` | independent walk/idle clips, static instancing |
+| FPS | `fps-arms-modern`, `fps-rifle`, `humans-trooper-b` | synchronized clips, shot/magazine events, own hit rules |
+
+For the authored FPS view, place weapon and arms as siblings: weapon translation
+`[0.12,0.01,0.145]`, arms at zero. Start matching actions together and advance both
+with the same dt. Rifle support is the default; pistol/energy-pistol arms use the
+`pistol_` action prefix. Recoil is already baked in both rigs: do not apply it twice
+by parenting the animated weapon under the moving hand. Use a shared view parent
+to position the whole rig relative to your camera. Metadata events are timing
+markers; the game owns ammo, projectiles, damage and audio.
+
+## Existing 2D sprite packs
 
 - Prefer matching built-in sprite packs. Initial context contains a compact
   catalog and paths of user-selected packs already imported before your turn.

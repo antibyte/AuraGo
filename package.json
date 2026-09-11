@@ -12,6 +12,8 @@
     "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
     "test:sheets": "node scripts/test-sheets-data.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
+    "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
+    "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",
     "check:ui": "node scripts/build-ui-bundles.js --check",
     "test:realtime-speech": "node scripts/test-realtime-speech.mjs",
     "test:ui-regressions": "node scripts/test-ui-regressions.mjs",
@@ -62,5 +64,8 @@
   },
   "overrides": {
     "nanoid": "5.1.16"
+  },
+  "devDependencies": {
+    "gltf-validator": "2.0.0-dev.3.10"
   }
 }

@@ -32,7 +32,7 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
    If a write does not have the expected effect, fix the parameters and retry
    once; do not switch to `execute_python`, `execute_shell`, `filesystem`, or
    any tool outside the allowed Game Maker scope.
-5. Prefer offline sprite packs and respect the user's preimported selection.
+5. Prefer offline sprite packs or 3D models and respect the user's selection.
    Describe relevant packs, import additional matches as needed, and use exact
    JSON frame/animation definitions. Custom generation requires the media
    capability; stay within roughly four generated images and one music track.
@@ -80,7 +80,12 @@ The server installs a new 2D template once; edits keep their existing code.
 Record objective, core_loop, 1–12 scope features, perspective, resolution (default
 960×540), camera, controls, states (including playing), progress/failure/completion
 rules, assumptions and fallback. Edits must list `preserve` behavior.
-For each asset role specify the exact pack version, asset OR assembly ID,
+For 3D use schema_version 2, units `metres` and at most 64 roles. Each model role
+has exact pack/version/asset_id, positive metric scale, declared animation IDs and
+collider `catalog|box|sphere|capsule|mesh|none`. Omit sprite-only display_height
+and origin. Include the user's selected models when relevant; search and describe
+missing roles. Imports occur only after acceptance and contain selected models.
+For 2D, retain schema_version 1. For each sprite role specify the exact pack version, asset OR assembly ID,
 related animation IDs, direction, display_height, normalized origin and collider
 (none/rectangle/circle/feet). Use a procedural role with fallback when appropriate.
 Never claim an attack animation exists because a character can attack logically.

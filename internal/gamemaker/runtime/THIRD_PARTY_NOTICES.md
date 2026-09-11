@@ -31,6 +31,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Source: https://www.npmjs.com/package/three/v/0.185.1
 
+The local `aurago-three-assets-1.js` bundle includes matching Three.js
+GLTFLoader, SkeletonUtils and OrbitControls addons under this same MIT license.
+AuraGo's original helper code is MIT licensed. Selected AuraGo Low Poly models
+include their own `assets/builtin/aurago-low-poly/1.0.0/LICENSE.txt`.
+
 The MIT License
 
 Copyright © 2010-2026 three.js authors

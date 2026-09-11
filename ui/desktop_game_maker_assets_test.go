@@ -42,7 +42,7 @@ func TestGameMakerAssetPackUIAndTranslations(t *testing.T) {
 			t.Fatal(err)
 		}
 		for key := range source {
-			if strings.HasPrefix(key, "game_maker.assets") || strings.HasPrefix(key, "game_maker.pack_") {
+			if strings.HasPrefix(key, "game_maker.assets") || strings.HasPrefix(key, "game_maker.pack_") || strings.HasPrefix(key, "game_maker.model") {
 				if strings.TrimSpace(entries[key]) == "" {
 					t.Errorf("%s missing %s", file, key)
 				}

@@ -175,6 +175,9 @@ def main():
         print(f"Packed {result['id']}: 100 RGBA frames, {len(result['animations'])} animations")
     write_output(args.manifest, (json.dumps(definitions, ensure_ascii=False, indent=2) + "\n").encode("utf8"), args.check)
     catalog = [{k: d[k] for k in ("id", "name", "description", "tags", "version")} for d in sorted(definitions, key=lambda d: d["id"])]
+    for item in catalog:item["kind"]="sprite2d"
+    model = json.loads((PACKS / "aurago-low-poly/manifest.json").read_text(encoding="utf8"))
+    catalog.append({k:model[k] for k in ("id","name","description","tags","version","kind")})
     write_output(PACKS / "catalog.json", (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode("utf8"), args.check)
 
 

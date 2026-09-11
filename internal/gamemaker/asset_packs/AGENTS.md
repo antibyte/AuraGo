@@ -1,16 +1,29 @@
 # Purpose
 
-Offline, original pixel-art library consumed by Game Maker Studio and its agent.
+Offline, original sprite and 3D model library consumed by Game Maker Studio and its agent.
 
 # Ownership
 
 This folder owns eighteen runtime PNG/JSON pairs, `catalog.json`, and retained
 Imagegen source artwork plus production instructions under `production/`.
+`aurago-low-poly/` additionally owns 220 generated runtime model records, GLBs,
+shared animation clips, WEBP previews and MIT license. Its editable Blender
+sources and production scripts live in `assets/game-maker-low-poly/`.
 The Go service, authenticated HTTP routes and Studio UI remain with their
 parent owners. Only the runtime pairs/catalog enter the external resource set;
-production artwork is excluded from both the executable and that set.
+production artwork is excluded from both the executable and that set. The model
+runtime files enter the same resource set; no .blend or authoring scripts do.
 
 # Local Contracts
+
+- Catalog `kind` distinguishes `sprite2d` and `model3d`. The 3D catalog is
+  `aurago-low-poly@1.0.0` and its complete uncompressed runtime is at most 100 MiB.
+  GLBs use metres, +Y up/+Z forward, exact local dependency hashes and declared
+  clips/sockets. Shared humanoid animation data is stored once.
+- `import_pack` requires 1–64 explicit `asset_ids` for 3D. Publish the verified
+  dependency closure transactionally; reuse identical files, reject modified
+  copies, preserve existing project limits and permissions. Model metadata is
+  per asset in project copies. Routes serve only manifest-allowlisted files.
 
 - Eighteen sheets, each 640×640 RGBA with 100 cells of 64×64 pixels. Animation frames
   count as cells. Non-tile objects have real transparent margins; no painted
@@ -47,6 +60,9 @@ production artwork is excluded from both the executable and that set.
 - `python scripts/pack_game_sprites.py --check`
 - `go test ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
 - Studio Assets previews and an exported game using locally packaged Phaser 4.2.1.
+- `python assets/game-maker-low-poly/verify.py --boards`
+- `node scripts/validate-game-maker-glbs.mjs`
+- `GAMEMAKER_MODEL_BROWSER=1 go test ./internal/gamemaker -run 'TestModel(PackBrowser|ReferenceExports)' -timeout 8m`
 
 # Child DOX Index
 

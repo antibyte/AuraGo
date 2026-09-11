@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -18,6 +19,7 @@ import (
 func TestSpritePackContent(t *testing.T) {
 	s := newTestService(t)
 	packs, err := s.ListAssetPacks()
+	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool { return p.Kind == "model3d" })
 	if err != nil || len(packs) != 18 {
 		t.Fatalf("catalog: %d packs, %v", len(packs), err)
 	}
@@ -253,6 +255,7 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
 	packs, _ := s.ListAssetPacks()
+	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool { return p.Kind == "model3d" })
 	ids := []string{}
 	for _, p := range packs {
 		ids = append(ids, p.ID)

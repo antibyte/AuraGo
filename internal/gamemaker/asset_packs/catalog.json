@@ -8,7 +8,8 @@
       "animation",
       "environment"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "blocks-and-balls",
@@ -19,7 +20,8 @@
       "puzzle",
       "blocks"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "buildings-structures",
@@ -32,7 +34,8 @@
       "architecture",
       "side"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "buildings-structures-top-down",
@@ -45,7 +48,8 @@
       "architecture",
       "top"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "cards-and-board-games",
@@ -56,7 +60,8 @@
       "board",
       "puzzle"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "human-characters-animated",
@@ -68,7 +73,8 @@
       "side",
       "platformer"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "human-characters-top-down",
@@ -80,7 +86,8 @@
       "top",
       "adventure"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "jump-and-run",
@@ -91,7 +98,8 @@
       "terrain",
       "side"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "monsters-animals-animated",
@@ -103,7 +111,8 @@
       "side",
       "enemy"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "monsters-animals-top-down",
@@ -115,7 +124,8 @@
       "top",
       "enemy"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "nature-assets",
@@ -128,7 +138,8 @@
       "plants",
       "side"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "nature-assets-top-down",
@@ -141,7 +152,8 @@
       "plants",
       "top"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "robots-drones-animated",
@@ -154,7 +166,8 @@
       "animated",
       "side"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "robots-drones-animated-top-down",
@@ -167,7 +180,8 @@
       "animated",
       "top"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "space-shooter",
@@ -178,7 +192,8 @@
       "shooter",
       "top"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "top-down-adventure",
@@ -189,7 +204,8 @@
       "terrain",
       "top"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "vehicles-planes",
@@ -206,7 +222,8 @@
       "modular",
       "side"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
   },
   {
     "id": "vehicles-planes-top-down",
@@ -223,6 +240,24 @@
       "modular",
       "top"
     ],
-    "version": "2"
+    "version": "2",
+    "kind": "sprite2d"
+  },
+  {
+    "id": "aurago-low-poly",
+    "name": "AuraGo Low Poly",
+    "description": "220 original low-poly models: vehicles, worlds, modular interiors, animated people, animals and FPS equipment.",
+    "tags": [
+      "3d",
+      "low-poly",
+      "vehicles",
+      "space",
+      "buildings",
+      "nature",
+      "characters",
+      "fps"
+    ],
+    "version": "1.0.0",
+    "kind": "model3d"
   }
 ]

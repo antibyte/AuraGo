@@ -33,6 +33,10 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 	}
 	return append(assets,
 		runtimeAsset{
+			embeddedPath: "runtime/aurago-three-assets-1.js",
+			projectPath:  "vendor/aurago-three-assets-1.js",
+		},
+		runtimeAsset{
 			embeddedPath: "runtime/three-0.185.1.module.min.js",
 			projectPath:  "vendor/three-0.185.1.module.min.js",
 		},

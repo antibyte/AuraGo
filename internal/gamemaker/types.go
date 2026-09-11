@@ -104,6 +104,7 @@ type Job struct {
 
 type StartJobRequest struct {
 	AssetPackIDs       []string     `json:"asset_pack_ids,omitempty"`
+	ModelAssetIDs      []string     `json:"model_asset_ids,omitempty"`
 	PreviewDiagnostics []Diagnostic `json:"preview_diagnostics,omitempty"`
 	Prompt             string       `json:"prompt"`
 	ProviderID         string       `json:"provider_id"`
@@ -162,15 +163,16 @@ type BuildResult struct {
 }
 
 type JobRun struct {
-	Result      *BuildResult
-	Stage       string
-	Plan        *GamePlan
-	Checks      []CheckResult
-	Images      []string
-	AssetPacks  []ImportedAssetPack
-	Job         Job
-	Project     Project
-	Diagnostics []Diagnostic
+	Result        *BuildResult
+	Stage         string
+	Plan          *GamePlan
+	Checks        []CheckResult
+	Images        []string
+	AssetPacks    []ImportedAssetPack
+	ModelAssetIDs []string
+	Job           Job
+	Project       Project
+	Diagnostics   []Diagnostic
 }
 
 // Runner is implemented by the server layer to execute the AuraGo agent with

@@ -4,7 +4,8 @@
     const packName = (state, id) => state.context.t('game_maker.pack_' + id.replaceAll('-', '_'));
     function selectionText(state) {
         const ids = state.selectedAssetPackIDs || [];
-        return ids.length ? state.context.t('game_maker.assets_selected') + ': ' + ids.map(id => packName(state, id)).join(', ')
+        const models = state.selectedModelAssetIDs || [];
+        return ids.length || models.length ? state.context.t('game_maker.assets_selected') + ': ' + [...ids.map(id => packName(state, id)), ...models].join(', ')
             : state.context.t('game_maker.assets_automatic');
     }
     function updateSelection(state) {
@@ -15,6 +16,7 @@
     }
     function clearSelection(state) {
         state.selectedAssetPackIDs = [];
+        state.selectedModelAssetIDs = [];
         updateSelection(state);
     }
     function show(state, helpers) {
@@ -29,9 +31,10 @@
             ${selectionMarkup(state)}<footer><button type="button" data-clear-selection>${esc(t('game_maker.assets_auto_button'))}</button>
                 <button type="button" data-modal-close>${esc(t('game_maker.close'))}</button></footer></section>`, layer => {
             const abort = new AbortController();
-            let timer = null, detailID = 0, packs = [];
+            let timer = null, detailID = 0, packs = [], modelPack = null, viewerCleanup = null;
             const cleanup = () => {
                 abort.abort(); clearInterval(timer);
+                viewerCleanup?.(); viewerCleanup = null;
                 if (state.assetBrowserCleanup === cleanup) state.assetBrowserCleanup = null;
             };
             state.assetBrowserCleanup = cleanup;
@@ -41,15 +44,25 @@
             const selected = () => state.selectedAssetPackIDs || [];
             function renderCards() {
                 const query = search.value.trim().toLowerCase();
-                const visible = packs.filter(pack => (!category.value || category.value === pack.id) &&
+                const visible = packs.filter(pack => pack.kind !== 'model3d' && (!category.value || category.value === pack.id) &&
                     [packName(state, pack.id), pack.description, ...pack.tags].join(' ').toLowerCase().includes(query));
                 cards.innerHTML = visible.map(pack => `<article class="gm-asset-card" role="listitem">
                     <button type="button" data-pack="${esc(pack.id)}"><img src="${esc(state.api.assetPackImageURL(pack.id))}" alt="" loading="lazy">
-                        <strong>${esc(packName(state, pack.id))}</strong></button><label><input type="checkbox" aria-label="${esc(packName(state, pack.id) + ': ' + t('game_maker.assets_use_next'))}" data-select-pack="${esc(pack.id)}" ${selected().includes(pack.id) ? 'checked' : ''}>
-                        ${esc(t('game_maker.assets_use_next'))}</label></article>`).join('') || `<p>${esc(t('game_maker.assets_no_results'))}</p>`;
+                    <strong>${esc(packName(state, pack.id))}</strong></button><label><input type="checkbox" aria-label="${esc(packName(state, pack.id) + ': ' + t('game_maker.assets_use_next'))}" data-select-pack="${esc(pack.id)}" ${selected().includes(pack.id) ? 'checked' : ''}>
+                        ${esc(t('game_maker.assets_use_next'))}</label></article>`).join('');
+                const models = (modelPack?.assets || []).filter(model =>
+                    (!category.value || category.value === modelPack.id || category.value === '3d:' + model.category) &&
+                    [model.name, model.description, ...model.tags].join(' ').toLowerCase().includes(query));
+                cards.innerHTML += models.map(model => `<article class="gm-asset-card gm-model-card" role="listitem">
+                    <button type="button" data-model="${esc(model.id)}"><img src="${esc(state.api.assetPackFileURL(modelPack.id, model.preview))}" alt="" loading="lazy">
+                    <strong>${esc(model.name)}</strong></button><label><input type="checkbox" data-select-model="${esc(model.id)}"
+                    aria-label="${esc(model.name + ': ' + t('game_maker.assets_use_next'))}" ${(state.selectedModelAssetIDs || []).includes(model.id) ? 'checked' : ''}>
+                    ${esc(t('game_maker.assets_use_next'))}</label></article>`).join('');
+                if (!visible.length && !models.length) cards.innerHTML = `<p>${esc(t('game_maker.assets_no_results'))}</p>`;
             }
             async function showPack(id) {
                 clearInterval(timer);
+                viewerCleanup?.(); viewerCleanup = null;
                 const requestID = ++detailID;
                 detail.innerHTML = `<p role="status">${esc(t('game_maker.loading'))}</p>`;
                 try {
@@ -162,8 +175,28 @@
                     }
                 } catch (error) { if (current() && detailID === requestID) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
             }
-            cards.addEventListener('click', event => { const button = event.target.closest('[data-pack]'); if (button) showPack(button.dataset.pack); });
+            function showModel(id) {
+                const model = modelPack?.assets.find(a => a.id === id);
+                if (!model) return;
+                ++detailID; clearInterval(timer); viewerCleanup?.();
+                viewerCleanup = window.GameMakerStudioModels.mount(state, detail, modelPack, model);
+            }
+            cards.addEventListener('click', event => {
+                const model = event.target.closest('[data-model]');
+                if (model) { showModel(model.dataset.model); return; }
+                const button = event.target.closest('[data-pack]'); if (button) showPack(button.dataset.pack);
+            });
             cards.addEventListener('change', event => {
+                const modelID = event.target.dataset.selectModel;
+                if (modelID) {
+                    if (!modelPack?.assets.some(a => a.id === modelID)) return;
+                    const chosen = state.selectedModelAssetIDs || [];
+                    if (event.target.checked && chosen.length >= 64 && !chosen.includes(modelID)) {
+                        event.target.checked = false; helpers.modalError(layer, t('game_maker.model_limit')); return;
+                    }
+                    state.selectedModelAssetIDs = event.target.checked ? [...new Set([...chosen, modelID])] : chosen.filter(id => id !== modelID);
+                    updateSelection(state); return;
+                }
                 const id = event.target.dataset.selectPack;
                 if (!id || !packs.some(p => p.id === id)) return;
                 state.selectedAssetPackIDs = event.target.checked ? [...new Set([...selected(), id])] : selected().filter(value => value !== id);
@@ -171,11 +204,25 @@
             });
             layer.querySelector('[data-clear-selection]').addEventListener('click', () => { clearSelection(state); renderCards(); });
             search.addEventListener('input', renderCards); category.addEventListener('change', renderCards);
-            state.api.assetPacks({ signal: abort.signal }).then(body => {
+            state.api.assetPacks({ signal: abort.signal }).then(async body => {
                 if (!current()) return;
                 packs = body.packs;
-                category.innerHTML += packs.map(p => `<option value="${esc(p.id)}">${esc(packName(state, p.id))}</option>`).join('');
-                renderCards(); if (packs.length) showPack(packs[0].id);
+                const models = packs.find(p => p.kind === 'model3d');
+                category.innerHTML += packs.filter(p => p.kind !== 'model3d').map(p => `<option value="${esc(p.id)}">${esc(packName(state, p.id))}</option>`).join('');
+                renderCards();
+                if (models) {
+                    try { modelPack = await state.api.modelPack(models.id, { signal: abort.signal }); }
+                    catch (error) { if (current()) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
+                    if (!current()) return;
+                }
+                if (modelPack) {
+                    category.innerHTML += `<option value="${esc(models.id)}">${esc(t('game_maker.models'))}</option>` +
+                        modelPack.categories.map(c => `<option value="3d:${esc(c.id)}">3D · ${esc(t('game_maker.model_category_' + c.id))}</option>`).join('');
+                }
+                if (state.project?.dimension === '3d' && modelPack) category.value = models.id;
+                renderCards();
+                if (category.value === models?.id && modelPack?.assets.length) showModel(modelPack.assets[0].id);
+                else if (packs.length) showPack(packs.find(p => p.kind !== 'model3d').id);
             }).catch(error => { if (current()) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); });
         });
     }

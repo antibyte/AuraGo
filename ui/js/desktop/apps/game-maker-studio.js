@@ -30,6 +30,7 @@
             channelID: '',
             diagnostics: [],
             selectedAssetPackIDs: [],
+            selectedModelAssetIDs: [],
             activeJob: null,
             jobStartedAt: 0,
             elapsedTimer: null,
@@ -731,8 +732,8 @@
                     <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
                 <label>${esc(t('game_maker.project_name'))}<input name="name" maxlength="120" required autofocus></label>
                 <fieldset><legend>${esc(t('game_maker.dimension'))}</legend>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" checked><strong>2D</strong><span>Phaser ${esc(cap.phaser_version)}</span></label>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d"><strong>3D</strong><span>Three.js ${esc(cap.three_version)}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${state.selectedModelAssetIDs?.length ? '' : 'checked'}><strong>2D</strong><span>Phaser ${esc(cap.phaser_version)}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${state.selectedModelAssetIDs?.length ? 'checked' : ''}><strong>3D</strong><span>Three.js ${esc(cap.three_version)}</span></label>
                 </fieldset>
                 <label>${esc(t('game_maker.description'))}<textarea name="description" rows="5" maxlength="12000" required
                     placeholder="${esc(t('game_maker.description_placeholder'))}"></textarea></label>
@@ -774,6 +775,11 @@
                 if (creating) return;
                 creating = true;
                 const data = new FormData(form);
+                if (data.get('dimension') !== '3d' && state.selectedModelAssetIDs?.length) {
+                    creating = false;
+                    modalError(layer, t('game_maker.model_requires_3d'));
+                    return;
+                }
                 const request = {
                     name: String(data.get('name') || '').trim(),
                     dimension: String(data.get('dimension') || '2d'),
@@ -790,6 +796,7 @@
                     const job = await state.api.startJob(createdProject.id, {
                         prompt: request.description,
                         asset_pack_ids: state.selectedAssetPackIDs || [],
+                        model_asset_ids: request.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
                         provider_id: request.provider_id,
                         model: request.model,
                         image_generation: request.use_image_generation,
@@ -825,6 +832,10 @@
         const input = form.querySelector('textarea');
         const prompt = input.value.trim();
         if (!prompt || !state.project || state.jobActive) return;
+        if (state.project.dimension !== '3d' && state.selectedModelAssetIDs?.length) {
+            fail(state, new Error(state.context.t('game_maker.model_requires_3d')));
+            return;
+        }
         // Lock the form immediately so a double click / double Enter cannot
         // fire a second request while startJob is still in flight.
         state.jobActive = true;
@@ -841,6 +852,7 @@
                 prompt,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: state.selectedAssetPackIDs || [],
+                model_asset_ids: state.project.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });

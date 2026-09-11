@@ -5,6 +5,14 @@
 This subtree owns built-in virtual desktop app modules that are loaded lazily by
 `ui/js/desktop/core/module-loader.js`.
 
+- Game Maker's existing asset browser includes sprite packs and individual 3D
+  models. `game-maker-studio-models.js` owns one disposable viewer per modal,
+  sharing the pinned local 0.185.1 runtime helper. Cancel pending fetches and
+  release rigs, controls, shadow maps and renderer on replacement/close/dispose.
+  Render only on interaction or while an animation is playing and visible.
+  Selection uses up to 64 `model_asset_ids`, separate from sprite pack selection.
+  Keep all labels in the sixteen desktop locales and preserve both import flows.
+
 Shell chrome helpers live in the main desktop bundle (not lazy apps):
 `core/session-runtime.js` (session restore, dock pins, recent files, default
 apps), `core/spaces-runtime.js` (three virtual desktops / Spaces v1: window

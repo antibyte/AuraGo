@@ -404,6 +404,15 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	if err != nil {
 		return Job{}, err
 	}
+	modelAssetIDs := append([]string(nil), req.ModelAssetIDs...)
+	if len(modelAssetIDs) > 0 {
+		if project.Dimension != "3d" {
+			return Job{}, fmt.Errorf("3D models require a 3D project")
+		}
+		if _, _, err := validateModelSelection(modelAssetIDs); err != nil {
+			return Job{}, err
+		}
+	}
 	imageGeneration := project.UseImageGeneration
 	musicGeneration := project.UseMusicGeneration
 	if req.ImageGeneration != nil {
@@ -468,11 +477,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
 	_, _ = s.emit(ctx, project.ID, job.ID, "job_status", map[string]any{"status": "queued", "job": job})
-	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs)
+	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs, modelAssetIDs)
 	return job, nil
 }
 
-func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs []string) {
+func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs, modelAssetIDs []string) {
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -539,7 +548,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	var plan *GamePlan
 	planDiagnostics := diagnostics
 	for attempt := 0; attempt < 3; attempt++ {
-		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
@@ -569,10 +578,15 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 	imported := map[string]bool{}
+	selectedModels := []string{}
 	for _, p := range assetPacks {
 		imported[p.ID+"@"+p.Version] = true
 	}
 	for _, a := range plan.Assets {
+		if a.PackID == ModelPackID {
+			selectedModels = append(selectedModels, a.AssetID)
+			continue
+		}
 		if a.PackID == "" || imported[a.PackID+"@"+a.Version] {
 			continue
 		}
@@ -583,6 +597,14 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 		assetPacks = append(assetPacks, p)
 		imported[p.ID+"@"+p.Version] = true
+	}
+	if len(selectedModels) > 0 {
+		p, err := s.importModels(ctx, job.ID, selectedModels)
+		if err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		assetPacks = append(assetPacks, p)
 	}
 	if job.BaseRevision == 0 && project.Dimension == "2d" {
 		if err := installGameTemplate(stage, *plan); err != nil {

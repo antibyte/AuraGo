@@ -20,6 +20,7 @@ import (
 var assetPackFS = webassets.Namespace("gamemaker")
 
 type AssetPackSummary struct {
+	Kind        string   `json:"kind,omitempty"`
 	ID          string   `json:"id"`
 	Version     string   `json:"version"`
 	Name        string   `json:"name"`
@@ -40,14 +41,19 @@ type AssetPack struct {
 	Animations    json.RawMessage `json:"animations"`
 	Assemblies    json.RawMessage `json:"assemblies,omitempty"`
 	Provenance    json.RawMessage `json:"provenance"`
+	Categories    json.RawMessage `json:"categories,omitempty"`
 }
 
 type ImportedAssetPack struct {
-	ID            string `json:"id"`
-	Version       string `json:"version"`
-	Image         string `json:"image"`
-	Metadata      string `json:"metadata"`
-	PhaserExample string `json:"phaser_example"`
+	Kind          string            `json:"kind,omitempty"`
+	ID            string            `json:"id"`
+	Version       string            `json:"version"`
+	Image         string            `json:"image"`
+	Metadata      string            `json:"metadata"`
+	PhaserExample string            `json:"phaser_example"`
+	AssetIDs      []string          `json:"asset_ids,omitempty"`
+	Manifests     map[string]string `json:"manifests,omitempty"`
+	ThreeExample  string            `json:"three_example,omitempty"`
 }
 
 // Parse imports without loading dependencies or writing output. A hallucinated
@@ -72,6 +78,11 @@ func (s *Service) validateScriptAssetImports(ctx context.Context, jobID, rel, co
 	var examples []string
 	for _, pack := range packs {
 		present[pack.Metadata] = pack.Image
+		if pack.Kind == "model3d" {
+			for _, meta := range pack.Manifests {
+				present[meta] = meta
+			}
+		}
 		path, _ := filepath.Rel(filepath.Dir(rel), filepath.FromSlash(pack.Metadata))
 		if !strings.HasPrefix(path, ".") {
 			path = "./" + path
@@ -97,7 +108,7 @@ func (s *Service) validateScriptAssetImports(ctx context.Context, jobID, rel, co
 				_, _, metaErr := secureJoin(stage, path, false)
 				_, _, imageErr := secureJoin(stage, image, false)
 				if !(strings.HasPrefix(args.Path, "./") || strings.HasPrefix(args.Path, "../")) || !exists || metaErr != nil || imageErr != nil {
-					out.Errors = []api.Message{{Text: fmt.Sprintf("asset_import_invalid: %q does not reference an imported PNG/JSON pair from %s. File unchanged. %s Preserve the accepted plan and existing pack IDs; do not guess another pack or add ../ segments.", args.Path, rel, hint)}}
+					out.Errors = []api.Message{{Text: fmt.Sprintf("asset_import_invalid: %q does not reference complete imported asset metadata from %s. File unchanged. %s Preserve the accepted plan and existing pack IDs; do not guess another pack or add ../ segments.", args.Path, rel, hint)}}
 				}
 				return out, nil
 			})
@@ -132,6 +143,34 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 	var out []ImportedAssetPack
 	for _, file := range files {
 		parts := strings.Split(file, "/")
+		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && parts[2] == ModelPackID && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
+			stage, err := s.JobDirectory(jobID)
+			if err != nil {
+				return nil, err
+			}
+			path, _, err := secureJoin(stage, file, false)
+			if err != nil {
+				return nil, err
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			var manifest ModelManifest
+			if json.Unmarshal(data, &manifest) != nil || manifest.ID != ModelPackID || len(manifest.Assets) != 1 {
+				continue
+			}
+			asset := manifest.Assets[0]
+			complete := len(asset.LODs) > 0
+			base := strings.Join(parts[:4], "/") + "/"
+			for _, dependency := range modelFiles(asset) {
+				complete = complete && present[base+dependency.File]
+			}
+			if complete {
+				out = append(out, ImportedAssetPack{ID: ModelPackID, Version: parts[3], Kind: "model3d", Metadata: file, AssetIDs: []string{asset.ID}, Manifests: map[string]string{asset.ID: file}})
+			}
+			continue
+		}
 		if len(parts) != 5 || parts[0] != "assets" || parts[1] != "builtin" || !known[parts[2]] || parts[4] != "sheet.json" {
 			continue
 		}
@@ -170,6 +209,16 @@ func (s *Service) AssetPackFile(id, filename string) ([]byte, error) {
 }
 
 func bundledAssetPackFile(id, filename string) ([]byte, error) {
+	if id == "runtime" {
+		data, found, err := bundledRuntimeFile("3d", "vendor/"+filename)
+		if !found {
+			return nil, ErrNotFound
+		}
+		return data, err
+	}
+	if id == ModelPackID {
+		return bundledModelFile(filename)
+	}
 	if id == "" || strings.ContainsAny(id, "/\\.\x00") || (filename != "sheet.png" && filename != "sheet.json") {
 		return nil, ErrNotFound
 	}
@@ -181,7 +230,11 @@ func bundledAssetPackFile(id, filename string) ([]byte, error) {
 }
 
 func (s *Service) DescribeAssetPack(id string) (AssetPack, error) {
-	data, err := s.AssetPackFile(id, "sheet.json")
+	filename := "sheet.json"
+	if id == ModelPackID {
+		filename = "manifest.json"
+	}
+	data, err := s.AssetPackFile(id, filename)
 	if err != nil {
 		return AssetPack{}, err
 	}
@@ -216,7 +269,7 @@ func validateAssetPackIDs(ids []string) ([]string, error) {
 
 // ImportAssetPack publishes the PNG/JSON pair by renaming one temporary directory.
 // Existing project copies are immutable: matching copies are reused, not replaced.
-func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string) (ImportedAssetPack, error) {
+func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string, assetIDs ...string) (ImportedAssetPack, error) {
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
 		return ImportedAssetPack{}, err
 	}
@@ -229,7 +282,15 @@ func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string) (Import
 		}
 		return ImportedAssetPack{}, ErrReadOnly
 	}
-	result, err := s.importAssetPack(ctx, jobID, id)
+	var result ImportedAssetPack
+	var err error
+	if id == ModelPackID {
+		result, err = s.importModels(ctx, jobID, assetIDs)
+	} else if len(assetIDs) > 0 {
+		err = fmt.Errorf("asset_ids is only supported for model3d packs")
+	} else {
+		result, err = s.importAssetPack(ctx, jobID, id)
+	}
 	s.policyMu.RUnlock()
 	if err == nil {
 		_ = s.BuildJob(ctx, jobID)

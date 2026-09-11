@@ -147,7 +147,14 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 		}
 		return gameMakerToolJSON(map[string]any{"status": "ok", "pack": pack})
 	case "import_pack":
-		pack, err := service.ImportAssetPack(ctx, jobID, packID)
+		var ids []string
+		if raw, ok := tc.Params["asset_ids"]; ok {
+			encoded, err := json.Marshal(raw)
+			if err != nil || json.Unmarshal(encoded, &ids) != nil {
+				return gameMakerToolError(fmt.Errorf("asset_ids must be an array of exact model IDs"))
+			}
+		}
+		pack, err := service.ImportAssetPack(ctx, jobID, packID, ids...)
 		if err != nil {
 			return gameMakerToolError(err)
 		}
