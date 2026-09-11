@@ -92,9 +92,10 @@
         },
         {
           "path": "configuration_acestep_v15.py",
-          "url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-v15-turbo/configuration_acestep_v15.py",
-          "size": 13130,
-          "sha256": "b89870c5c7a7ce060eb0bcdbb5ffc86b0b1a324ca325a26be552ea1b42496dc5"
+          "url": "https://raw.githubusercontent.com/ace-step/ACE-Step-1.5/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/models/turbo/configuration_acestep_v15.py",
+          "runtime_path": "acestep/models/turbo/configuration_acestep_v15.py",
+          "size": 212,
+          "sha256": "5f15aa79fe793bba3c00b6992dd193a269954950603d5031ecd7703b0fa69da1"
         },
         {
           "path": "model.safetensors",
@@ -104,9 +105,10 @@
         },
         {
           "path": "modeling_acestep_v15_turbo.py",
-          "url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-v15-turbo/modeling_acestep_v15_turbo.py",
-          "size": 96036,
-          "sha256": "c1ab0dd547124fee7ada449b2b86eae8201dc7d15889932643bbb67e3c982444"
+          "url": "https://raw.githubusercontent.com/ace-step/ACE-Step-1.5/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/models/turbo/modeling_acestep_v15_turbo.py",
+          "runtime_path": "acestep/models/turbo/modeling_acestep_v15_turbo.py",
+          "size": 108712,
+          "sha256": "71b22e01b490bd9e149e4c0c5da2e1f512126f3ab3316e0ae97779af84d19512"
         },
         {
           "path": "silence_latent.pt",
@@ -188,9 +190,10 @@
         },
         {
           "path": "configuration_acestep_v15.py",
-          "url": "https://huggingface.co/ACE-Step/acestep-v15-xl-turbo/resolve/d4a0b288b83ebb7e25a8c0b32c573c22e134e8ee/configuration_acestep_v15.py",
-          "size": 13225,
-          "sha256": "0d66f38eba6a3d1665c9449a1a52724d68354477bc88dcf02389640e3602a0c7"
+          "url": "https://raw.githubusercontent.com/ace-step/ACE-Step-1.5/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/models/xl_turbo/configuration_acestep_v15.py",
+          "runtime_path": "acestep/models/xl_turbo/configuration_acestep_v15.py",
+          "size": 212,
+          "sha256": "5f15aa79fe793bba3c00b6992dd193a269954950603d5031ecd7703b0fa69da1"
         },
         {
           "path": "model-00001-of-00004.safetensors",
@@ -224,9 +227,10 @@
         },
         {
           "path": "modeling_acestep_v15_xl_turbo.py",
-          "url": "https://huggingface.co/ACE-Step/acestep-v15-xl-turbo/resolve/d4a0b288b83ebb7e25a8c0b32c573c22e134e8ee/modeling_acestep_v15_xl_turbo.py",
-          "size": 103821,
-          "sha256": "6576bd225807998ac169c5a05b86fb778091d5967666cbb417841836bd553ecc"
+          "url": "https://raw.githubusercontent.com/ace-step/ACE-Step-1.5/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/models/xl_turbo/modeling_acestep_v15_xl_turbo.py",
+          "runtime_path": "acestep/models/xl_turbo/modeling_acestep_v15_xl_turbo.py",
+          "size": 109260,
+          "sha256": "e470a453e8a1b783750a76daece42e1939935c3d4d41c462358ffde4b70c4501"
         },
         {
           "path": "silence_latent.pt",

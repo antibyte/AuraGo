@@ -1,6 +1,7 @@
 """Private ACE-Step bootstrap. Only pinned models and the managed API are used."""
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 import hashlib
 import hmac
 import json
@@ -19,6 +20,7 @@ RELEASE = json.loads(Path("/opt/aurago/release.json").read_text()) if Path("/opt
 STATE = {"ready": False, "state": "starting", "error_code": "", "downloaded_bytes": 0, "total_bytes": 0}
 GPU_CONFIG = None
 PROFILE = None
+PROFILE_CACHE = None
 LOCK = threading.Lock()
 
 def memory_gb():
@@ -132,6 +134,14 @@ def download_file(entry, target):
     target.parent.mkdir(parents=True, exist_ok=True)
     if file_valid(target, entry): return
     part = target.with_name(target.name + ".part")
+    if 'runtime_path' in entry:
+        source=ROOT/entry['runtime_path']
+        if not source.resolve().is_relative_to((ROOT/'acestep/models').resolve()) or not file_valid(source,entry):
+            raise RuntimeError('acestep_runtime_code_mismatch')
+        shutil.copyfile(source,part)
+        part.replace(target)
+        with LOCK: STATE['downloaded_bytes']+=entry['size']
+        return
     offset = part.stat().st_size if part.exists() else 0
     if offset > entry["size"]: part.unlink(); offset = 0
     if offset == entry["size"]:
@@ -188,7 +198,7 @@ def initialize(app):
         if str(handler.device).split(':')[0] != expected:
             raise RuntimeError("acestep_device_fallback_rejected")
         marker = CACHE / ("qualified-" + PROFILE["fingerprint"] + ".json")
-        if not marker.exists():
+        if not marker.exists() or os.getenv('AURAGO_REQUALIFY') == 'true':
             with LOCK: STATE["state"] = "testing"
             from acestep.inference import GenerationParams, GenerationConfig, generate_music
             result = generate_music(handler, app.state._model_init_kwargs['llm_handler'],
@@ -205,6 +215,11 @@ def initialize(app):
             temporary = marker.with_suffix('.part')
             temporary.write_text(json.dumps({"fingerprint": PROFILE["fingerprint"]}))
             temporary.replace(marker)
+        if PROFILE_CACHE:
+            record={'gpu':asdict(GPU_CONFIG),'profile':PROFILE}
+            temporary=PROFILE_CACHE.with_suffix('.part')
+            temporary.write_text(json.dumps(record))
+            temporary.replace(PROFILE_CACHE)
         with LOCK: STATE.update(ready=True, state="ready")
     except Exception as exc:
         message = str(exc)
@@ -213,7 +228,7 @@ def initialize(app):
         print(code, file=sys.stderr)
 
 def create_app():
-    global GPU_CONFIG, PROFILE
+    global GPU_CONFIG, PROFILE, PROFILE_CACHE
     import torch
     from fastapi import Depends, Request as FastRequest
     from acestep.api.http.auth import verify_api_key
@@ -225,6 +240,18 @@ def create_app():
     if not device: raise RuntimeError("acestep_gpu_not_available")
     if backend != "cpu": (torch.xpu if backend == "xpu" else torch.cuda).set_device(index)
     GPU_CONFIG, PROFILE = choose_profile(device, float(os.getenv("AURAGO_VRAM_RESERVE_GB", "1")), os.getenv("AURAGO_CONSERVATIVE") == "true")
+    identity={k:device.get(k) for k in ('id','backend','name','driver','total_gb')}
+    identity.update(image=os.getenv('AURAGO_IMAGE_PIN',''),reserve=os.getenv('AURAGO_VRAM_RESERVE_GB','1'),conservative=os.getenv('AURAGO_CONSERVATIVE','false'))
+    PROFILE_CACHE=CACHE/('profile-'+hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()+'.json')
+    if PROFILE_CACHE.is_file() and os.getenv('AURAGO_REQUALIFY') != 'true':
+        from acestep.gpu_config import GPUConfig
+        saved=json.loads(PROFILE_CACHE.read_text())
+        # Keep the last qualified settings across rollback/restart. The live
+        # allocation test still detects newly occupied memory or changed drivers.
+        GPU_CONFIG=GPUConfig(**saved['gpu'])
+        current=PROFILE
+        PROFILE=saved['profile']
+        PROFILE.update(device=device,ram_gb=current['ram_gb'],disk_gb=current['disk_gb'])
     STATE["profile"] = PROFILE
     STATE['image_pin'] = os.getenv('AURAGO_IMAGE_PIN','')
     os.environ.update({"ACESTEP_NO_INIT": "true", "ACESTEP_CONFIG_PATH": PROFILE["model"],

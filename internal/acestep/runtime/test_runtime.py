@@ -1,5 +1,6 @@
 """Offline contract checks; run with the pinned upstream installed."""
 import hashlib
+from dataclasses import asdict
 import json
 from pathlib import Path
 import tempfile
@@ -12,7 +13,8 @@ class RuntimeContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.object(runtime, 'MODELS', Path(directory)), patch.object(runtime, 'memory_gb', return_value=32):
             for backend in ['cuda', 'rocm', 'xpu', 'cpu']:
                 device = {'id': backend + ':0', 'index':0, 'name':'fixture', 'backend':backend, 'total_gb':24, 'free_gb':21, 'driver':'fixture', 'verified':True}
-                _, profile = runtime.choose_profile(device, 1)
+                gpu, profile = runtime.choose_profile(device, 1)
+                json.dumps(asdict(gpu))
                 self.assertEqual(profile['model'], 'acestep-v15-turbo' if backend == 'cpu' else 'acestep-v15-xl-turbo')
                 self.assertLessEqual(profile['max_duration'],600)
                 if backend != 'cuda':
@@ -55,6 +57,17 @@ class RuntimeContract(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'unpinned'):runtime.ensure_model('test','/elsewhere')
             runtime.RELEASE['models']['test']['files']=[{'path':'../../escape'}]
             with self.assertRaisesRegex(RuntimeError,'invalid_model_path'):runtime.ensure_model('test',directory)
+
+    def test_runtime_model_code_is_verified_offline(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(runtime,'ROOT',Path(directory)):
+            source=Path(directory)/'acestep/models/turbo/model.py';source.parent.mkdir(parents=True);source.write_bytes(b'pinned code')
+            entry={'runtime_path':'acestep/models/turbo/model.py','size':11,'sha256':hashlib.sha256(b'pinned code').hexdigest()}
+            target=Path(directory)/'checkpoint/model.py'
+            with patch.object(runtime,'urlopen',side_effect=AssertionError('network used')):
+                runtime.download_file(entry,target)
+            self.assertEqual(target.read_bytes(),b'pinned code')
+            target.unlink();source.write_bytes(b'changed')
+            with self.assertRaisesRegex(RuntimeError,'runtime_code_mismatch'):runtime.download_file(entry,target)
 
     def test_private_api_and_readiness(self):
         from fastapi.testclient import TestClient
