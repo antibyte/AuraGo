@@ -596,6 +596,7 @@
             'game-maker-studio': 'GameMakerStudioApp',
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
+            gallery: 'GalleryApp',
             'system-world': 'SysWorldApp',
             noisemaker: 'NoisemakerApp',
             'log-viewer': 'LogViewerApp'

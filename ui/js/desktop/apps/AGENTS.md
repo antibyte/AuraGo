@@ -455,6 +455,57 @@ buttons and menu popovers remain excluded from those gestures.
   `menus-and-routing.js`. Empty Trash in the File Manager empty-folder menu
   calls that callback; do not reimplement emptying in the File Manager.
 
+### Gallery contract
+
+- The Gallery is a lazy app. `module-loader.js` `DESKTOP_APP_ASSETS.gallery`
+  loads `/css/desktop-app-gallery.css` and, in this order,
+  `gallery-library.js` (`window.GalleryLibrary`: item model, prefs
+  `aurago.desktop.gallery.v1`, `TILE_SIZES`, `countLabel`), `gallery-view.js`
+  (`window.GalleryView`: shell/card/section/info HTML), `gallery-menus.js`
+  (`window.GalleryMenus`), `gallery-lightbox.js` (`window.GalleryLightbox`)
+  and `gallery.js` (`window.GalleryApp.render(host, windowId, ctx)` /
+  `dispose(windowId)`). Keep every module below the desktop JS line budget.
+- `planning-gallery-music.js` only delegates: `renderGallery` builds the ctx via
+  `galleryAppContext(context)` (`t`, `esc`, `api`, `iconMarkup`, `fmtBytes`,
+  `notify`, `mediaPreviewURL`, `mediaDownloadURL`, `mediaPreviewKind`,
+  `readonly`, `pageSize`, `animationsEnabled`, window-menu and context-menu
+  callbacks, `confirmDialog`, `promptDialog`, `settingBool`, `desktopSound`,
+  `openApp`, `downloadMediaPath`, `afterFileChange`). `openMediaLightbox` is
+  the shared image/video/audio viewer; `openMediaPreview` in
+  `editor-filemenu.js` routes media there and keeps `openLegacyMediaPreview`
+  for documents/iframes.
+- Every window-menu and context-menu item must carry a stable `id` (`open`,
+  `download`, `sort-<sort>`, `tab-photos`, ...). `normalizeWindowMenuItems`
+  derives action keys from `id`, so items without one collide. Context menus
+  do not render `checked`; `withCheckIcons` mirrors the checked state into the
+  `check`/`square` icon.
+- Interaction: plain click opens the lightbox, Ctrl/Cmd-click, Shift-click,
+  the tile checkbox or selection mode select; arrow keys/Home/End navigate,
+  Space toggles, Enter opens, Delete deletes, Ctrl/Cmd-A selects, Escape clears.
+  Lightbox: arrow keys/PageUp/PageDown/Home/End navigate, `+`/`-`/`0`/`1`
+  zoom, `I` info, `D` download, `F2` rename, Delete deletes, Space toggles the
+  slideshow, Escape closes; chrome auto-hides via `is-idle`, and backdrop
+  clicks within 450 ms of opening are ignored (tile double-click).
+- Readonly omits rename/delete controls and shows the readonly hint instead of
+  rendering disabled buttons. There is no upload because media mounts are
+  server-side read-only.
+- Width/height/duration are derived client-side from loaded `<img>`/`<video>`
+  elements; `FileEntry` carries none. Live refresh listens to `desktop_changed`
+  SSE payload paths, polls every 45 s and reloads on `visibilitychange`.
+- Count strings use the `_one` singular convention through
+  `GalleryLibrary.countLabel(t, key, count, vars)`:
+  `desktop.gallery_item_count(_one)`, `desktop.gallery_status_summary(_one)`
+  with `{{size}}`, `desktop.gallery_status_results(_one)` and
+  `desktop.gallery_delete_failed(_one)`. Keep all `desktop.gallery_*` keys in
+  every `ui/lang/desktop/*.json`.
+- `.vd-gallery [hidden]` / `.vd-lightbox [hidden]` force `display: none`
+  because author display rules otherwise beat the UA hidden default. Broken
+  tiles (`.is-broken`) hide media, play glyph and badge.
+- Verify with `go test ./ui -run 'Gallery|WindowMenu|ContextMenu'` and
+  `go test ./internal/desktop -run RecursiveCacheInvalidated` (recursive list
+  cache invalidation after desktop mutations). See
+  `documentation/desktop-gallery.md` for the user-facing description.
+
 ### App theme bridge contract
 
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
@@ -474,8 +525,10 @@ buttons and menu popovers remain excluded from those gestures.
   bubbles use theme panel material instead of fixed white glass.
 - Quick Connect xterm/VNC viewports and the built-in Terminal screen may stay
   on a dark terminal surface (`#0d1117` / `#0f172a`); toolbars follow theme.
-- Gallery preview letterboxes (`.vd-gallery-preview`) may stay dark for media
-  contrast; card chrome and media preview bars follow theme.
+- Gallery thumbnails (`.vd-gallery-thumb`), the info-panel preview
+  (`.vd-gallery-info-preview`) and the lightbox stage (`.vd-lightbox-stage`)
+  may stay dark for media contrast; card chrome, toolbar, info panel and the
+  lightbox bar follow theme.
 - Cheater code blocks keep a dark readable code surface (`--cheater-code-bg` /
   `--cheater-code-fg`); app chrome uses `--vd-theme-*` through `--cheater-*`.
 - People status badges keep semantic colors (`#e8a020` / `#6495ed` / `#32cd32`);

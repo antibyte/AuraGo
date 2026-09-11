@@ -1018,6 +1018,81 @@ func TestServiceListFilesRecursivePaginatesMediaMounts(t *testing.T) {
 	}
 }
 
+func TestServiceListFilesRecursiveCacheInvalidatedByMutations(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	cfg := svc.Config()
+	ctx := context.Background()
+	imageDir := filepath.Join(cfg.DataDir, "generated_images")
+	for _, name := range []string{"keep.png", "gone.png", "old.png"} {
+		if err := os.WriteFile(filepath.Join(imageDir, name), []byte("png"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	mediaDB := openTestSQLite(t, cfg.MediaRegistryPath)
+	initMediaRegistrySchema(t, mediaDB)
+	imageDB := openTestSQLite(t, cfg.ImageGalleryPath)
+	initImageGallerySchema(t, imageDB)
+
+	paths := func(label string) map[string]bool {
+		t.Helper()
+		entries, _, err := svc.ListFilesRecursive(ctx, "Photos", 0, 0)
+		if err != nil {
+			t.Fatalf("ListFilesRecursive %s: %v", label, err)
+		}
+		seen := map[string]bool{}
+		for _, entry := range entries {
+			seen[entry.Path] = true
+		}
+		return seen
+	}
+
+	// Populate the 30 s recursive listing cache.
+	before := paths("before")
+	for _, want := range []string{"Photos/keep.png", "Photos/gone.png", "Photos/old.png"} {
+		if !before[want] {
+			t.Fatalf("initial listing missing %s: %v", want, before)
+		}
+	}
+
+	if err := svc.DeletePath(ctx, "Photos/gone.png", SourceUser); err != nil {
+		t.Fatalf("DeletePath: %v", err)
+	}
+	afterDelete := paths("after delete")
+	if afterDelete["Photos/gone.png"] {
+		t.Fatalf("recursive listing still reports deleted file from stale cache: %v", afterDelete)
+	}
+
+	if err := svc.MovePath(ctx, "Photos/old.png", "Photos/new.png", SourceUser); err != nil {
+		t.Fatalf("MovePath: %v", err)
+	}
+	afterRename := paths("after rename")
+	if afterRename["Photos/old.png"] || !afterRename["Photos/new.png"] {
+		t.Fatalf("recursive listing did not reflect rename: %v", afterRename)
+	}
+
+	// Workspace (non-media) directories share the same cache map.
+	if err := svc.WriteFile(ctx, "Documents/cache-probe.txt", "probe", SourceUser); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if _, _, err := svc.ListFilesRecursive(ctx, "Documents", 0, 0); err != nil {
+		t.Fatalf("ListFilesRecursive Documents: %v", err)
+	}
+	if err := svc.DeletePath(ctx, "Documents/cache-probe.txt", SourceUser); err != nil {
+		t.Fatalf("DeletePath Documents: %v", err)
+	}
+	docs, _, err := svc.ListFilesRecursive(ctx, "Documents", 0, 0)
+	if err != nil {
+		t.Fatalf("ListFilesRecursive Documents after delete: %v", err)
+	}
+	for _, entry := range docs {
+		if entry.Path == "Documents/cache-probe.txt" {
+			t.Fatalf("workspace recursive listing still reports deleted file: %+v", docs)
+		}
+	}
+}
+
 func TestServiceMovePathWithinMediaMountRenamesOriginalAndUpdatesRegistries(t *testing.T) {
 	t.Parallel()
 

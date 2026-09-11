@@ -283,8 +283,8 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "gallery",
-			source:    mainText,
-			signature: "async function renderGallery(id)",
+			source:    readDesktopAssetText(t, "js/desktop/apps/gallery.js"),
+			signature: "function render(host, windowId, context)",
 			markers: []string{
 				"showGalleryContextMenu",
 				"wireContextMenuBoundary(host",

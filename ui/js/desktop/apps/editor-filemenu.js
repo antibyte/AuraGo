@@ -270,6 +270,15 @@
             window.open(previewURL, '_blank', 'noopener');
             return;
         }
+        if (kind === 'image' || kind === 'video' || kind === 'audio') {
+            // Images, videos and audio open in the shared Gallery lightbox (zoom, info, actions).
+            openMediaLightbox(file).then(opened => { if (!opened) openLegacyMediaPreview(file, kind, previewURL); }).catch(() => openLegacyMediaPreview(file, kind, previewURL));
+            return;
+        }
+        openLegacyMediaPreview(file, kind, previewURL);
+    }
+
+    function openLegacyMediaPreview(file, kind, previewURL) {
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop vd-media-preview-backdrop';
         const body = kind === 'video'

@@ -89,6 +89,18 @@ func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, e
 	return result, nil
 }
 
+// invalidateListCache drops every cached recursive listing. Mutations call it
+// (deferred, so it runs after the change is on disk and before the mutation
+// lock is released) so that the Gallery and other recursive readers never
+// observe files that were just renamed, moved, copied or deleted.
+func (s *Service) invalidateListCache() {
+	s.listCacheMu.Lock()
+	for key := range s.listCache {
+		delete(s.listCache, key)
+	}
+	s.listCacheMu.Unlock()
+}
+
 // ListFilesRecursive lists files below one desktop directory or media mount.
 func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset, limit int) ([]FileEntry, bool, error) {
 	if err := s.ensureReady(ctx); err != nil {
@@ -453,6 +465,7 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
+	defer s.invalidateListCache()
 
 	if err := s.guardNoteWrite(path, source, content); err != nil {
 		return FileEntry{}, err
@@ -551,6 +564,7 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	}
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
+	defer s.invalidateListCache()
 	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
 		return err
 	} else if ok {
@@ -587,6 +601,7 @@ func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, sou
 	}
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
+	defer s.invalidateListCache()
 	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(oldPath); fromOK || err != nil {
 		if err != nil {
 			return err
@@ -689,6 +704,7 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	}
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
+	defer s.invalidateListCache()
 	// Handle media mount paths
 	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(srcPath); fromOK || err != nil {
 		if err != nil {
@@ -846,6 +862,7 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	}
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
+	defer s.invalidateListCache()
 	if mount, path, rel, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
 		if err != nil {
 			return err
@@ -946,6 +963,7 @@ func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string
 	}
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
+	defer s.invalidateListCache()
 
 	resolvedLink, err := s.ResolvePath(linkPath)
 	if err != nil {

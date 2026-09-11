@@ -1542,7 +1542,7 @@ function modalDialog(options) {
             }
         }
         if (appId === 'todo') return renderTodo(id);
-        if (appId === 'gallery') return renderGallery(id);
+        if (appId === 'gallery') return renderGallery(id, context);
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {

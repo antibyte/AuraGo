@@ -828,6 +828,7 @@
             'game-maker-studio': 'GameMakerStudioApp',
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
+            gallery: 'GalleryApp',
             'system-world': 'SysWorldApp',
             noisemaker: 'NoisemakerApp',
             'log-viewer': 'LogViewerApp'
@@ -12562,7 +12563,7 @@ function modalDialog(options) {
             }
         }
         if (appId === 'todo') return renderTodo(id);
-        if (appId === 'gallery') return renderGallery(id);
+        if (appId === 'gallery') return renderGallery(id, context);
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
@@ -13159,6 +13160,15 @@ if (appId === 'pixel') {
             window.open(previewURL, '_blank', 'noopener');
             return;
         }
+        if (kind === 'image' || kind === 'video' || kind === 'audio') {
+            // Images, videos and audio open in the shared Gallery lightbox (zoom, info, actions).
+            openMediaLightbox(file).then(opened => { if (!opened) openLegacyMediaPreview(file, kind, previewURL); }).catch(() => openLegacyMediaPreview(file, kind, previewURL));
+            return;
+        }
+        openLegacyMediaPreview(file, kind, previewURL);
+    }
+
+    function openLegacyMediaPreview(file, kind, previewURL) {
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop vd-media-preview-backdrop';
         const body = kind === 'video'
@@ -13640,124 +13650,128 @@ if (appId === 'pixel') {
         ]);
     }
 
-    async function renderGallery(id) {
+    function galleryAppContext(context) {
+        return Object.assign({}, context || {}, {
+            t,
+            esc,
+            api,
+            iconMarkup,
+            fmtBytes,
+            notify: showDesktopNotification,
+            mediaPreviewURL,
+            mediaDownloadURL,
+            mediaPreviewKind,
+            readonly: desktopReadonly(),
+            pageSize: GALLERY_PAGE_SIZE,
+            animationsEnabled,
+            wireContextMenuBoundary,
+            setWindowMenus,
+            clearWindowMenus,
+            showContextMenu,
+            registerWindowCleanup,
+            confirmDialog,
+            promptDialog,
+            settingBool,
+            desktopSound,
+            openApp,
+            downloadMediaPath,
+            openMediaPreview,
+            afterFileChange: refreshDesktopAfterFileChange
+        });
+    }
+
+    async function renderGallery(id, context) {
         const host = contentEl(id);
         if (!host) return;
-        host.dataset.galleryTab = host.dataset.galleryTab || 'Photos';
-        host.dataset.galleryOffset = '0';
-        host.innerHTML = `<div class="vd-gallery">
-            <div class="vd-toolbar vd-gallery-toolbar">
-                <div class="vd-segmented">
-                    <button class="vd-tool-button" type="button" data-gallery-tab="Photos">${iconMarkup('image', 'P', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_photos'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-gallery-tab="Videos">${iconMarkup('video', 'V', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_videos'))}</span></button>
-                </div>
-                <span class="vd-path">${esc(t('desktop.gallery_title'))}</span>
-            </div>
-            <div class="vd-gallery-grid" data-gallery-grid>${esc(t('desktop.loading'))}</div>
-            <div class="vd-gallery-footer">
-                <button class="vd-button" type="button" data-gallery-more hidden>${esc(t('desktop.gallery_load_more'))}</button>
-            </div>
-        </div>`;
+        const app = window.GalleryApp;
+        if (!app || typeof app.render !== 'function') {
+            host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
+            return;
+        }
+        const ctx = galleryAppContext(context);
+        if (!ctx.tab && host.dataset.galleryTab) ctx.tab = host.dataset.galleryTab;
+        return app.render(host, id, ctx);
+    }
 
-        const grid = host.querySelector('[data-gallery-grid]');
-        const moreButton = host.querySelector('[data-gallery-more]');
-        let visibleItems = [];
-        const showGalleryContextMenu = (event, file, refreshGallery) => {
-            event.preventDefault();
-            showContextMenu(event.clientX, event.clientY, [
-                { labelKey: 'desktop.gallery_open', icon: 'folder-open', action: () => openMediaPreview(file) },
-                { labelKey: 'desktop.gallery_download', icon: 'download', action: () => downloadMediaPath(file.web_path, file.name) },
-                { labelKey: 'desktop.gallery_rename', icon: 'edit', action: async () => { await renamePath(file.path); await refreshGallery(false); } },
-                { separator: true },
-                { labelKey: 'desktop.gallery_delete', icon: 'trash', action: async () => { await deletePath(file.path); await refreshGallery(false); } }
-            ]);
+    async function renameMediaFile(file) {
+        if (!file || !file.path) return null;
+        const current = String(file.path).split('/').pop();
+        const name = await promptDialog(t('desktop.rename'), current);
+        if (!name || name === current) return null;
+        const newPath = workspaceJoinPath(pathDir(file.path), name);
+        try {
+            await api('/api/desktop/file', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_path: file.path, new_path: newPath })
+            });
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err && err.message ? err.message : t('desktop.load_failed') });
+            return null;
+        }
+        refreshDesktopAfterFileChange();
+        const updated = Object.assign({}, file, { path: newPath, name });
+        if (file.web_path) updated.web_path = String(file.web_path).replace(/[^/]+$/, encodeURIComponent(name));
+        return updated;
+    }
+
+    async function deleteMediaFile(file) {
+        if (!file || !file.path) return false;
+        if (settingBool('files.confirm_delete')) {
+            const confirmed = await confirmDialog(t('desktop.gallery_delete_one_title', { name: file.name || file.path }), t('desktop.gallery_delete_msg'));
+            if (!confirmed) return false;
+        }
+        try {
+            await api('/api/desktop/file?path=' + encodeURIComponent(file.path), { method: 'DELETE' });
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err && err.message ? err.message : t('desktop.load_failed') });
+            return false;
+        }
+        desktopSound('file.delete');
+        refreshDesktopAfterFileChange();
+        return true;
+    }
+
+    function openMediaLightbox(file) {
+        const modules = window.AuraDesktopModules;
+        const ready = window.GalleryLightbox && typeof window.GalleryLightbox.open === 'function';
+        const load = ready || !modules || typeof modules.loadAppAssets !== 'function'
+            ? Promise.resolve()
+            : modules.loadAppAssets('gallery');
+        return load.then(() => {
+            const lightbox = window.GalleryLightbox;
+            if (!lightbox || typeof lightbox.open !== 'function') return false;
+            const helpers = window.GalleryApp || {};
+            const readonly = desktopReadonly();
+            lightbox.open({
+                items: [file],
+                index: 0,
+                context: {
+                    t,
+                    esc,
+                    iconMarkup,
+                    fmtBytes,
+                    mediaPreviewURL,
+                    mediaDownloadURL,
+                    mediaPreviewKind,
+                    readonly,
+                    animationsEnabled: animationsEnabled(),
+                    formatDateTime: helpers.formatDateTime,
+                    formatDuration: helpers.formatDuration,
+                    kindLabel: kind => t(kind === 'video' ? 'desktop.gallery_kind_video' : kind === 'audio' ? 'desktop.gallery_kind_audio' : 'desktop.gallery_kind_image')
+                },
+                actions: {
+                    download: item => downloadMediaPath(mediaDownloadURL(item), item && item.name),
+                    rename: readonly ? null : renameMediaFile,
+                    remove: readonly ? null : deleteMediaFile,
+                    edit: item => { if (item && item.path) openApp('pixel', { path: item.path }); },
+                    reveal: item => { if (item && item.path) openApp('files', { path: pathDir(item.path) }); }
+                }
+            });
             return true;
-        };
-        wireContextMenuBoundary(host);
-
-        const renderItems = (items, kind) => {
-            grid.innerHTML = items.length ? items.map(file => {
-                const preview = kind === 'video'
-                    ? `<video src="${esc(file.web_path)}" preload="metadata" muted></video>`
-                    : `<img src="${esc(file.web_path)}" alt="${esc(file.name)}" loading="lazy" decoding="async">`;
-                return `<article class="vd-gallery-card" data-gallery-item data-path="${esc(file.path)}" data-web-path="${esc(file.web_path)}" data-media-kind="${esc(file.media_kind || kind)}" data-mime-type="${esc(file.mime_type || '')}" data-name="${esc(file.name)}">
-                    <button type="button" class="vd-gallery-preview" data-gallery-open>${preview}</button>
-                    <div class="vd-gallery-card-meta">
-                        <span data-gallery-name title="${esc(file.name)}">${esc(file.name)}</span>
-                        <div class="vd-gallery-actions">
-                            <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">${iconMarkup('gallery-action-preview', 'O', 'vd-gallery-action-icon', 16)}</button>
-                            <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">${iconMarkup('gallery-action-download', 'D', 'vd-gallery-action-icon', 16)}</a>
-                            <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">${iconMarkup('gallery-action-edit', 'E', 'vd-gallery-action-icon', 16)}</button>
-                            <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">${iconMarkup('gallery-action-delete', 'X', 'vd-gallery-action-icon', 16)}</button>
-                        </div>
-                    </div>
-                </article>`;
-            }).join('') : `<div class="vd-empty">${esc(t('desktop.gallery_empty'))}</div>`;
-            grid.querySelectorAll('[data-gallery-item]').forEach(card => {
-                const file = {
-                    name: card.dataset.name,
-                    path: card.dataset.path,
-                    web_path: card.dataset.webPath,
-                    media_kind: card.dataset.mediaKind,
-                    mime_type: card.dataset.mimeType
-                };
-                card.querySelectorAll('[data-gallery-open]').forEach(btn => btn.addEventListener('click', () => openMediaPreview(file)));
-                const rename = card.querySelector('[data-gallery-rename]');
-                if (rename) rename.addEventListener('click', async () => { await renamePath(file.path); await loadGallery(false); });
-                const del = card.querySelector('[data-gallery-delete]');
-                if (del) del.addEventListener('click', async () => { await deletePath(file.path); await loadGallery(false); });
-                card.addEventListener('contextmenu', event => showGalleryContextMenu(event, file, loadGallery));
-            });
-        };
-
-        const loadGallery = async (append) => {
-            const tab = host.dataset.galleryTab || 'Photos';
-            host.querySelectorAll('[data-gallery-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.galleryTab === tab));
-            const offset = append ? Number(host.dataset.galleryOffset || 0) : 0;
-            if (!append) grid.innerHTML = esc(t('desktop.loading'));
-            moreButton.hidden = true;
-            try {
-                const kind = tab === 'Videos' ? 'video' : 'image';
-                const params = new URLSearchParams({ path: tab, recursive: 'true', limit: String(GALLERY_PAGE_SIZE), offset: String(offset) });
-                const body = await api('/api/desktop/files?' + params.toString());
-                const items = (body.files || []).filter(file => file.type === 'file' && file.web_path && (!file.media_kind || file.media_kind === kind));
-                visibleItems = append ? visibleItems.concat(items) : items;
-                host.dataset.galleryOffset = String(offset + GALLERY_PAGE_SIZE);
-                renderItems(visibleItems, kind);
-                moreButton.hidden = !body.has_more;
-            } catch (err) {
-                grid.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
-            }
-        };
-
-        host.querySelectorAll('[data-gallery-tab]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                host.dataset.galleryTab = btn.dataset.galleryTab;
-                host.dataset.galleryOffset = '0';
-                visibleItems = [];
-                loadGallery(false);
-            });
         });
-        moreButton.addEventListener('click', () => loadGallery(true));
-        setGalleryMenus(id, host, () => {
-            host.dataset.galleryOffset = '0';
-            visibleItems = [];
-            loadGallery(false);
-        });
-        await loadGallery(false);
     }
 
-    function setGalleryMenus(id, host, refreshGallery) {
-        setWindowMenus(id, [
-            {
-                id: 'view',
-                labelKey: 'desktop.menu_view',
-                items: [
-                    { id: 'refresh', labelKey: 'desktop.gallery_refresh', icon: 'refresh', shortcut: 'F5', action: refreshGallery }
-                ]
-            }
-        ]);
-    }
 
     function webampHostNode() {
         const parent = $('vd-window-layer') || document.body;

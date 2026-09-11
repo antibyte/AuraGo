@@ -28,7 +28,7 @@ func TestDesktopWindowMenuAssets(t *testing.T) {
 		"postSDKMenuAction(",
 		"setEditorMenus(id,",
 		"setCalendarMenus(id,",
-		"setGalleryMenus(id,",
+		"setWindowMenus,",
 		"setQuickConnectMenus(id,",
 		"setMusicPlayerMenus(id,",
 		"setLaunchpadMenus(id,",
@@ -254,9 +254,9 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 		},
 		{
 			name:     "gallery",
-			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderGallery(id)"),
+			body:     jsFunctionBodyInWindowMenuTest(t, readDesktopAssetText(t, "js/desktop/apps/gallery-view.js"), "function shellHTML(v, state)"),
 			removed:  []string{`data-gallery-refresh`},
-			retained: []string{`data-gallery-tab`, `data-gallery-more`},
+			retained: []string{`data-gallery-tab`, `data-gallery-more`, `data-gallery-search`},
 		},
 		{
 			name:     "quick connect",

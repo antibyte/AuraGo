@@ -56,7 +56,14 @@
             styles: appStyles('/css/desktop-app-planning.css')
         },
         'gallery': {
-            styles: appStyles('/css/desktop-app-gallery.css')
+            styles: appStyles('/css/desktop-app-gallery.css'),
+            scripts: [
+                '/js/desktop/apps/gallery-library.js',
+                '/js/desktop/apps/gallery-view.js',
+                '/js/desktop/apps/gallery-menus.js',
+                '/js/desktop/apps/gallery-lightbox.js',
+                '/js/desktop/apps/gallery.js'
+            ]
         },
         'agent-chat': {
             styles: appStyles('/css/desktop-app-chat.css', '/css/chat-modules.css', '/css/stt-overlay.css', '/css/hljs-github-dark.min.css'),
