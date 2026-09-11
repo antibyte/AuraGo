@@ -250,15 +250,12 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (re
 	if project.Dimension == "3d" && scope != "startup" {
 		return BuildResult{GameplayStatus: "unavailable", Diagnostics: []Diagnostic{{Level: "error", Message: "3D gameplay tests are not available; use startup scope"}}}
 	}
-	if project.Dimension == "3d" {
-		source, err := s.ReadJobFile(ctx, jobID, "src/main.ts")
-		if err != nil {
-			return BuildResult{RuntimeStatus: "failed", Diagnostics: []Diagnostic{{Level: "error", File: "src/main.ts", Message: err.Error()}}}
-		}
-		normalize := func(text string) string { return strings.TrimSpace(strings.ReplaceAll(text, "\r\n", "\n")) }
-		if normalize(source) == normalize(threeScaffold) {
-			return BuildResult{RuntimeStatus: "failed", Diagnostics: []Diagnostic{{Level: "implementation", File: "src/main.ts", Message: "The unchanged Three.js starter demo is not the requested game. No implementation was written. Use the supplied model runtime API and imported_packs[].three_example, write the accepted plan into src/main.ts, then validate. Re-reading or re-importing unchanged files does not implement the game."}}}
-		}
+	missing, err := s.unchangedGameStarter(ctx, jobID, project.Dimension)
+	if err != nil {
+		return BuildResult{RuntimeStatus: "failed", Diagnostics: []Diagnostic{{Level: "error", File: "src/main.ts", Message: err.Error()}}}
+	}
+	if missing {
+		return BuildResult{RuntimeStatus: "failed", Diagnostics: []Diagnostic{{Level: "implementation", File: "src/main.ts", Message: "The unchanged starter template is not the requested game. No implementation was written. Implement the accepted plan in the project source and use the supplied asset examples, then validate. Imported assets and passing starter gameplay checks do not implement the game."}}}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()

@@ -994,8 +994,10 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
 - Every 3D build/repair prompt includes the compact public model API and actual
   per-import examples, including reconstructed imports from existing projects.
   Asset detail examples precede bulky metadata so bounded tool outputs retain
-  them. Validation rejects the unchanged Three.js scaffold; successful model
-  import or visible-canvas startup alone is not an implemented game.
+  them. Validation rejects unchanged 2D/3D scaffolds and plan-installed templates;
+  automatic imports and diagnostic injection are not implementations. Empty
+  provider completions fail the job unless a server-owned phase boundary ended
+  the round. Successful imports or starter gameplay checks alone are not a game.
 
 - `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed

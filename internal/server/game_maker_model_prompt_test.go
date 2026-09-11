@@ -48,7 +48,11 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		}
 		requests <- request
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Done.<done/>\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+		content := "Done.<done/>"
+		if request.Model == "empty-game-model" {
+			content = ""
+		}
+		fmt.Fprintf(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":%q},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n", content)
 	}))
 	defer provider.Close()
 	clientConfig := openai.DefaultConfig("local-test")
@@ -94,6 +98,18 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		}
 		if !strings.Contains(user.String(), `"three_example":"EXACT_PROJECT_LOCAL_MODEL_EXAMPLE"`) || !strings.Contains(user.String(), "assets/fps-rifle.json") {
 			t.Errorf("%s request lost local import paths/example", stage)
+		}
+	}
+	cfg.LLM.Model = "empty-game-model"
+	for _, stage := range []string{"building", "repair"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := runner.RunGameMakerJob(ctx, gamemaker.JobRun{
+			Stage: stage, Job: gamemaker.Job{ID: "job_empty_" + stage, Prompt: "a fps game in the woods"},
+			Project: gamemaker.Project{ID: "empty-project", Dimension: "2d"},
+		})
+		cancel()
+		if err == nil || !strings.Contains(err.Error(), "empty response") {
+			t.Errorf("%s treated empty provider output as success: %v", stage, err)
 		}
 	}
 }

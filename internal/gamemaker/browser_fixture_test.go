@@ -302,6 +302,7 @@ func prepareAssetBrowserFixture(t *testing.T, dir, name string) {
 	if err := json.Unmarshal(catalogData, &packs); err != nil {
 		t.Fatal(err)
 	}
+	packs = slices.DeleteFunc(packs, func(pack AssetPackSummary) bool { return pack.Kind == "model3d" })
 	var imports, metas []string
 	for i, p := range packs {
 		for _, file := range []string{"sheet.png", "sheet.json"} {

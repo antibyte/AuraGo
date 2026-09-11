@@ -272,11 +272,17 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	if err != nil {
 		return fmt.Errorf("Game Maker agent loop: %w", err)
 	}
+	// A server-owned phase boundary may finish without model prose. An empty
+	// provider completion otherwise means no successful agent completion.
+	completed := runCfg.RunComplete != nil && runCfg.RunComplete()
+	if !completed && (len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" || strings.TrimSpace(response.Choices[0].Message.Content) == "[Empty Response]") {
+		return fmt.Errorf("Game Maker model returned an empty response after retry; the job was not completed")
+	}
 	answer := strings.TrimSpace(broker.text())
 	if answer == "" && len(response.Choices) > 0 {
 		answer = strings.TrimSpace(response.Choices[0].Message.Content)
 	}
-	if answer != "" && run.Stage != "planning" {
+	if answer != "" && answer != "[Empty Response]" && run.Stage != "planning" {
 		r.service.HoldAgentSummary(run.Job.ID, answer)
 	}
 	return nil

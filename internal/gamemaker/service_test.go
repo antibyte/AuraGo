@@ -69,6 +69,25 @@ func (r testRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
 	if run.Stage == "visual" {
 		return nil
 	}
+	if run.Stage == "building" && run.Project.Dimension == "2d" {
+		// Positive service fixtures implement a scoring change. Tests for
+		// no-op agents use planningRunner and retain the untouched template.
+		source, err := r.service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+		if err != nil {
+			return err
+		}
+		updated := strings.Replace(source, "this.state.score++;", "this.state.score += 10;", 1)
+		if updated != source {
+			stage, err := r.service.JobDirectory(run.Job.ID)
+			if err != nil {
+				return err
+			}
+			// Initialize the fixture without emitting an extra write preview.
+			if err := os.WriteFile(filepath.Join(stage, "src", "main.ts"), []byte(updated), 0o640); err != nil {
+				return err
+			}
+		}
+	}
 	if r.mutate != nil {
 		return r.mutate(ctx, run)
 	}

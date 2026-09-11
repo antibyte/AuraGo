@@ -16,6 +16,8 @@ Use deterministic, scene-first checks. This package contains original AuraGo
 guidance and copies no TinySwords code, text, scripts, or assets.
 
 1. Call `game_maker_validate` with `scope: full` for 2D and inspect every check.
+   Implement the accepted game first. Unchanged 2D/3D starters are rejected;
+   automatic asset imports and diagnostic injection do not count as code changes.
 2. Confirm the manifest, entry point, local runtime, and diagnostic interface.
 3. Confirm a canvas becomes ready and the expected scene reports itself.
 4. Use returned expected/observed comparisons to check control effects; do not
