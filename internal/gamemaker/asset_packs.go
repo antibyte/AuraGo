@@ -141,6 +141,7 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 		present[file] = true
 	}
 	var out []ImportedAssetPack
+	modelPacks := map[string]int{}
 	for _, file := range files {
 		parts := strings.Split(file, "/")
 		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && parts[2] == ModelPackID && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
@@ -167,7 +168,13 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 				complete = complete && present[base+dependency.File]
 			}
 			if complete {
-				out = append(out, ImportedAssetPack{ID: ModelPackID, Version: parts[3], Kind: "model3d", Metadata: file, AssetIDs: []string{asset.ID}, Manifests: map[string]string{asset.ID: file}})
+				if index, exists := modelPacks[base]; exists {
+					out[index].AssetIDs = append(out[index].AssetIDs, asset.ID)
+					out[index].Manifests[asset.ID] = file
+				} else {
+					modelPacks[base] = len(out)
+					out = append(out, ImportedAssetPack{ID: ModelPackID, Version: parts[3], Kind: "model3d", Metadata: file, AssetIDs: []string{asset.ID}, Manifests: map[string]string{asset.ID: file}, ThreeExample: modelExample(parts[3], asset.ID)})
+				}
 			}
 			continue
 		}

@@ -80,6 +80,8 @@ type AssetSearchResult struct {
 	score          int
 }
 type AssetDetail struct {
+	// Usage must precede bulky model data so bounded tool summaries retain it.
+	Example        string          `json:"example"`
 	Model          *ModelAsset     `json:"model,omitempty"`
 	PackID         string          `json:"pack_id"`
 	Version        string          `json:"version"`
@@ -89,7 +91,6 @@ type AssetDetail struct {
 	Variants       []PackAsset     `json:"variants,omitempty"`
 	Animations     []PackAnimation `json:"animations"`
 	MissingActions []string        `json:"missing_actions"`
-	Example        string          `json:"example"`
 }
 
 func readPackUsage(id string) (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, error) {

@@ -991,6 +991,11 @@ This project is indexed by GitNexus as **AuraGo** (74286 symbols, 316826 relatio
   helper using `node scripts/build-game-maker-3d.js`. One game-owned clock advances
   independent animated instances; static instances share geometry. Studio owns
   one disposable viewer, never one render loop per catalog card.
+- Every 3D build/repair prompt includes the compact public model API and actual
+  per-import examples, including reconstructed imports from existing projects.
+  Asset detail examples precede bulky metadata so bounded tool outputs retain
+  them. Validation rejects the unchanged Three.js scaffold; successful model
+  import or visible-canvas startup alone is not an implemented game.
 
 - `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed

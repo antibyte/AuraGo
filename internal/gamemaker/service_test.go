@@ -236,7 +236,13 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 	for _, dimension := range []string{"2d", "3d"} {
 		t.Run(dimension, func(t *testing.T) {
 			service := newTestService(t)
-			service.SetRunner(testRunner{service: service})
+			service.SetRunner(testRunner{service: service, mutate: func(ctx context.Context, run JobRun) error {
+				if dimension == "3d" {
+					// The export fixture must implement a change, not publish the starter.
+					return service.WriteJobFile(ctx, run.Job.ID, "src/main.ts", strings.Replace(threeScaffold, "let score=0", "let score=10", 1))
+				}
+				return nil
+			}})
 			project := createTestProject(t, service, dimension)
 			job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
 			if err != nil {
@@ -415,7 +421,9 @@ func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testi
 
 func TestCancelLeavesPublishedRevisionUntouched(t *testing.T) {
 	service := newTestService(t)
-	service.SetRunner(testRunner{service: service})
+	service.SetRunner(testRunner{service: service, mutate: func(ctx context.Context, run JobRun) error {
+		return service.WriteJobFile(ctx, run.Job.ID, "src/main.ts", strings.Replace(threeScaffold, "let score=0", "let score=10", 1))
+	}})
 	project := createTestProject(t, service, "3d")
 	first, _ := service.StartJob(context.Background(), project.ID, StartJobRequest{})
 	if job := waitJob(t, service, first.ID); job.Status != "ready" {

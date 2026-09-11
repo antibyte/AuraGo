@@ -15,6 +15,26 @@ import (
 
 const ModelPackID = "aurago-low-poly"
 
+// Keep the public contract small enough for every build/repair prompt. Reading
+// the minified vendor bundle otherwise hides its exports behind output summaries.
+const ModelRuntimeGuide = `3D model runtime API (complete public gameplay contract; do not read minified vendor files):
+import * as A from '../vendor/aurago-three-assets-1.js'; A.THREE is the pinned Three.js module.
+Import each returned per-model JSON path relative to src/main.ts.
+await A.loadAsset(manifest, exactAssetID, 'assets/builtin/aurago-low-poly/VERSION/', {signal}) returns an asset handle.
+manifest is the whole imported JSON, not manifest.assets[0]. The base is relative to document.baseURI, must end in / and must not start with ../ or /.
+A.createInstance(asset, {shadows:true, onEvent:(eventName,instance)=>{}}) returns a record. Add record.root (a THREE.Group) to scene; do not add the record itself.
+A.playAction(record, exactClipID, {fade:0.15,restart:false}) returns void. Set restart:true for repeated shots; unknown clips throw.
+A.updateInstance(record, deltaSeconds, camera?) advances animation/events/LOD from the game's existing clock. Do not also advance its mixers.
+record.asset.model contains bounds, animations (id/duration/loop/speed/events), sockets, moving_parts, fps_binding and collider.
+A.attachToSocket(record, socketID, object3D) returns a detach callback. A.setPart(record, movingPartNode, value) uses radians for rotation or metres for slide/lift.
+For static models only: A.createInstances(asset, arrayOfTHREEMatrix4, lodIndex=0) returns a record with .root.
+record.forcedLOD=null selects automatic LOD; 0/1/2 forces an available level.
+On teardown call A.disposeInstance(record) for each record, then A.releaseAsset(asset) once per loadAsset handle; abort pending loads. Dispose the game's renderer/controls too.
+FPS: arms and weapon are siblings under one camera-attached THREE.Group, not weapon-under-hand. Arms stay at local zero; use weapon.asset.model.fps_binding.weapon_translation for weapon.root.position. Rotate the shared group by Math.PI around Y because models face +Z while the camera looks -Z. Use a near plane <=0.02 and place the group in front of the camera (e.g. z=-0.35).
+Play matching arm/weapon action IDs together and update both with the same delta. Apply the binding's arm_action_prefix (e.g. pistol_) only to arms. Read clip durations/events from metadata; do not invent timing or apply recoil twice.
+Preserve the starter's diagnostic function. Catch async load failures and report diagnostic('resource_error',{message:String(error)}); never silently replace a required model with a primitive.
+Use this contract and imported_packs[].three_example directly. Once source and needed metadata are known, write the implementation; do not re-import assets to retrieve examples or repeat unchanged reads.`
+
 type ModelFile struct {
 	File      string `json:"file"`
 	Bytes     int64  `json:"bytes"`

@@ -247,7 +247,7 @@ func TestModelSelectionImportPreservationAndExport(t *testing.T) {
 			return err
 		}
 		inventory, err := s.importedJobPacks(ctx, run.Job.ID)
-		if err != nil || len(inventory) != 3 {
+		if err != nil || len(inventory) != 1 || len(inventory[0].AssetIDs) != 3 || len(inventory[0].Manifests) != 3 {
 			return fmt.Errorf("import inventory: %d, %v", len(inventory), err)
 		}
 		return nil

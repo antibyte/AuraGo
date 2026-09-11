@@ -522,6 +522,9 @@ func TestSpriteUsageReferencesAndTransforms(t *testing.T) {
 	s := newTestService(t)
 	packs, _ := s.ListAssetPacks()
 	for _, pack := range packs {
+		if pack.Kind == "model3d" {
+			continue
+		}
 		_, assets, assemblies, animations, err := readPackUsage(pack.ID)
 		if err != nil {
 			t.Fatal(err)

@@ -26,6 +26,10 @@ dependency closure. Additional `import_pack` calls require `asset_ids: ["exact-i
 (1–64 models). Never import all models, guess file paths, sockets, bones or clips.
 Use the returned `manifests` and `three_example`. Project copies are immutable on
 reimport and independent of future catalog versions. No Blender service is needed.
+The build/repair prompt includes the complete public runtime API and import
+examples. Use those directly; do not read the minified vendor bundle or re-import
+unchanged models just to retrieve an example. Read needed source/metadata once,
+then write the game. An unchanged starter demo is rejected during validation.
 
 Import `../vendor/aurago-three-assets-1.js`. Its `loadAsset(meta,id,baseURL,{signal})`
 loads verified local GLBs and the shared humanoid clip library. `createInstance`
