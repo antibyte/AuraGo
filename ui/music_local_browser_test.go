@@ -114,6 +114,10 @@ func TestLocalMusicConfigBrowser(t *testing.T) {
 	if !page.MustEval(`() => document.querySelector('#music-local-status').textContent.includes('Status nicht erreichbar')`).Bool() {
 		t.Fatal("lost status connection has no feedback")
 	}
+	page.MustEval(`() => musicLocalRenderStatus({state:'loading',ready:false,release_ready:true,downloaded_bytes:86,total_bytes:100})`)
+	if !page.MustEval(`() => !document.querySelector('#music-local-status').textContent.includes('%') && !document.querySelector('#music-local-progress').hidden && !document.querySelector('#music-local-progress').hasAttribute('value')`).Bool() {
+		t.Fatal("model loading displays stale download progress")
+	}
 }
 
 func TestLocalMusicNoisemakerBrowser(t *testing.T) {

@@ -146,7 +146,7 @@ function musicLocalRenderStatus(status) {
     const profile = status.profile;
     const parts = [t('config.music_gen.state_' + status.state)];
     if (status.pending) parts.push(t('config.music_gen.action_pending'));
-    if (status.total_bytes && !status.ready) parts.push(`${Math.min(100, Math.round((status.downloaded_bytes || 0) / status.total_bytes * 100))}%`);
+    if (status.state === 'downloading' && status.total_bytes) parts.push(`${Math.min(100, Math.round((status.downloaded_bytes || 0) / status.total_bytes * 100))}%`);
     if (profile) parts.push(profile.device.backend?.toUpperCase(), profile.device.name, profile.model, profile.lm_model || t('config.music_gen.no_lm'), `${profile.device.free_gb.toFixed(1)} GiB`, `${profile.max_duration} s`, profile.quantization || 'FP', profile.offload ? 'CPU offload' : '');
     if (status.error_code) parts.push(musicLocalError(status.error_code));
     if (!status.release_ready && status.error_code !== 'acestep_release_not_published') parts.push(t('config.music_gen.release_missing'));
@@ -162,7 +162,7 @@ function musicLocalRenderStatus(status) {
     }
     const progress = document.getElementById('music-local-progress');
     progress.hidden = !status.pending && !['probing', 'starting', 'downloading', 'loading', 'testing'].includes(status.state);
-    if (status.total_bytes && !status.ready) {
+    if (status.state === 'downloading' && status.total_bytes) {
         progress.max = status.total_bytes; progress.value = status.downloaded_bytes || 0;
     } else { progress.removeAttribute('value'); }
     document.getElementById('music-local-devices').innerHTML = '<option value="auto"></option>' + (status.devices || []).map(device => `<option value="${escapeAttr(device.id)}">${escapeAttr(device.name)}</option>`).join('');

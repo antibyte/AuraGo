@@ -4,7 +4,8 @@
     "cpu": "ghcr.io/antibyte/aurago-acestep-cpu@sha256:34ea0e2d2817c87415eb706ba375f0a3d2384d5825b4ab422a4e3a3386a7df5e",
     "cuda": "ghcr.io/antibyte/aurago-acestep-cuda@sha256:554cc4cfa29adb8b16dad8672401b180b17a02c51e7e019cbc986e36ab858843",
     "rocm": "ghcr.io/antibyte/aurago-acestep-rocm@sha256:63471b6bd62c499cfe29309054286866888e0195fce891e861285941741ae08e",
-    "xpu": "ghcr.io/antibyte/aurago-acestep-xpu@sha256:74df0e470a213031b7b2f043d6bd422611c7f8c46cfb4844acea64e5470690a9"
+    "xpu": "ghcr.io/antibyte/aurago-acestep-xpu@sha256:74df0e470a213031b7b2f043d6bd422611c7f8c46cfb4844acea64e5470690a9",
+    "vulkan": "ghcr.io/antibyte/aurago-acestep-vulkan@sha256:57e20b854e7c416f62bef76126957153ad1f2176f43caab8681bfde49dc87150"
   },
   "models": {
     "vae": {

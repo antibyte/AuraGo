@@ -20,8 +20,8 @@ model/cache volumes, Vault authentication and serial generation.
   The standard-library adapter exposes only the existing authenticated private
   API; native port 8002 stays container-loopback. Select the real PCI/render node,
   verify GGML Vulkan matrix multiplication, and force that backend for inference.
-  The build patch loads the selected models before native health; qualification
-  constrains LM audio-code generation to the requested duration at 5Hz and
+  The build patch loads the selected models before native health and constrains
+  LM audio-code generation to the requested duration at 5Hz. Qualification
   requires an actual ten-second MP3. Restart loads models but reuses the
   image/model/hardware-bound qualification. Never accept software Vulkan as a GPU.
 
