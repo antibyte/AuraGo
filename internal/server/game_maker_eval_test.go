@@ -179,6 +179,9 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	defer httpServer.Close()
 	t.Log("Evaluation parent ready at http://127.0.0.1:8896/ (SSH tunnel, no service replacement)")
 	reports := filepath.Join(filepath.Dir(configPath), "reports", "game-maker-evaluation")
+	if dir := os.Getenv("GAMEMAKER_EVAL_REPORT_DIR"); dir != "" {
+		reports = dir
+	}
 	if err = os.MkdirAll(reports, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -227,6 +230,17 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 			}
 			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && (planErr != nil || plan.Presentation == nil || plan.Presentation.Environment == "" || len(plan.Presentation.Sounds) < 2 || len(plan.Presentation.Effects) < 2) {
 				t.Errorf("%s/%s: missing requested presentation in accepted plan", provider.ID, task.name)
+			}
+			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && job.Status == "ready" {
+				file, err := os.Create(filepath.Join(reports, provider.ID+"-"+task.name+".zip"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, exportErr := service.WriteExport(context.Background(), p.ID, file)
+				closeErr := file.Close()
+				if exportErr != nil || closeErr != nil {
+					t.Fatalf("retain playable evaluation: export=%v close=%v", exportErr, closeErr)
+				}
 			}
 			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "plan": plan, "events": events, "context_cap": cfg.Agent.ContextWindow, "tool_limit": cfg.CircuitBreaker.MaxToolCalls, "llm_timeout_seconds": cfg.CircuitBreaker.LLMTimeoutSeconds, "job_timeout_seconds": jobTimeout.Seconds()}
 			encoded, _ := json.MarshalIndent(result, "", "  ")
