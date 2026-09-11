@@ -846,6 +846,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 #### UX Design Principles
 - **User-friendly by default**: Avoid technical jargon, provide clear instructions and feedback
+- **Mandatory final step for every UI task**: Review the affected UI from the user's perspective before declaring the work complete. Verify that the flow, labels, controls and outcomes are logical and understandable, and that status changes and actions provide timely, visible feedback wherever useful (including pending/progress, success, failure and disabled states). Fix gaps found in this review before finishing.
 - Do not break the style of the UI - changes should fit seamlessly into the existing interface
 - Aim for **masterpiece UX design** that feels native to the existing interface
 - If you see bad UX in the existing UI, feel free to improve it while keeping overall style consistent
