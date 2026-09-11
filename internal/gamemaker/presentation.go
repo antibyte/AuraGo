@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -14,6 +16,7 @@ const SoundsPackID = "aurago-sounds"
 const PresentationVersion = "1.0.0"
 
 const PresentationGuide = `Presentation: search_assets(asset_kind="effect" or "audio") and describe_asset return exact local presets. In set_design add optional presentation:{environment:"forest-rain",effects:["blood-spray","blood-pool"],sounds:[{event:"step",sound:"step-grass"},{event:"shot",sound:"rifle"},{event:"hit",sound:"impact-flesh"}],quality:"auto"}. The server resolves versions/dependencies and imports after acceptance. Guided templates already own weather, a single mixer and loop update/disposal. Do not read vendor code or implement another animation/audio loop.
+Keep src/presentation.json connected to createPresentation and keep feedback/update/dispose hooks in common.ts. Never set the config/controller to null or remove requested effects/sounds to fix an unrelated gameplay error; repair only the reported fault. A playable game with imported but disconnected presentation assets fails the accepted plan.
 Complete combinations: forest FPS uses forest-rain, blood-spray/blood-pool/muzzle-flash, step-grass/rifle/impact-flesh; rainy 2D adventure uses forest-rain, water-ripple/pickup-glow, step-water/pickup; coastal flight uses coast, engine-trail/water-splash, engine/pickup; space uses space, explosion/metal-sparks, laser/impact-metal/explosion-small. Bind sounds to known events (step,jump,land,shot,reload,hit,pickup,win,lose,splash,interact,engine,ui,ambient).
 Custom integration: import config from './presentation.json'; import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js'; const presentation=createPresentation({config,root,adapter:createThreeAdapter({scene,camera,renderer,sun,ambient})}); registerSurface(ground,{kind:'ground'}), registerSurface(roof,{kind:'roof'}); call presentation.update(dt) and presentation.render() in the existing loop instead of renderer.render; event('hit',hit.point.toArray(),worldNormal.toArray(),'metal' or 'stone' or 'flesh') only on actual contact. For Phaser import createPhaserAdapter from aurago-effects-2d-1.js and pass {scene:this,view:'top' or 'side'}; call update(dt) in inherited GameScene lifecycle; no explicit render. In guided 2D use this.feedback(event,object,material). Controller: set(id,parameters), emit(id,{position:[x,y,z],normal:[0,1,0]}), applyObject(object,'hologram'|'dissolve'|'hit-flash'), setEnvironment(importedAtmosphereID), setPaused(bool), setActive(bool), reset(), dispose(). Never invent parameters; use describe_asset defaults. Audio unlocks on real interaction; presentation.audio.play(id,{position:[x,y,z]}), setRoom('outside'|'small-room'|'hall'), setVolume(0..1), setMuted(bool). Imported generated music can connect to audio.context via audio.connectMusic(node). Preview and ZIP use identical local files. Preserve working old games without presentation; when adding it to an old game integrate these lifecycle hooks explicitly.`
 
@@ -241,6 +244,69 @@ func presentationConfig(p *Presentation) (string, error) {
 	config := map[string]any{"environment": p.Environment, "effects": effects, "sounds": sounds, "bindings": p.Sounds, "quality": p.Quality, "version": PresentationVersion, "base": "assets/builtin/" + SoundsPackID + "/" + PresentationVersion + "/"}
 	b, err := json.Marshal(config)
 	return string(b), err
+}
+
+// Check the compiled dependency graph, not comments mentioning unused assets.
+// Runtime/visual checks still own effect timing and actual event delivery.
+func checkPresentationBuild(dir, dimension, metafile string) error {
+	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(gamePlanPath)))
+	if os.IsNotExist(err) {
+		return nil // Legacy projects and exported games need no presentation plan.
+	}
+	var plan GamePlan
+	if err != nil {
+		return fmt.Errorf("read presentation plan: %w", err)
+	}
+	if err := json.Unmarshal(data, &plan); err != nil {
+		return fmt.Errorf("decode presentation plan: %w", err)
+	}
+	if plan.Presentation == nil {
+		return nil
+	}
+	effects, sounds, err := resolvePresentation(plan.Presentation)
+	if err != nil {
+		return err
+	}
+	if len(effects)+len(sounds) == 0 {
+		return nil
+	}
+	var config struct {
+		Environment     string
+		Effects, Sounds []PresentationAsset
+		Bindings        []SoundBinding
+	}
+	data, err = os.ReadFile(filepath.Join(dir, "src", "presentation.json"))
+	if err != nil || json.Unmarshal(data, &config) != nil || config.Environment != plan.Presentation.Environment {
+		return fmt.Errorf("Restore src/presentation.json with the accepted presentation plan; do not disable the requested atmosphere, effects or sounds")
+	}
+	for _, group := range []struct{ want, got []PresentationAsset }{{effects, config.Effects}, {sounds, config.Sounds}} {
+		for _, asset := range group.want {
+			if !slices.ContainsFunc(group.got, func(a PresentationAsset) bool { return a.ID == asset.ID }) {
+				return fmt.Errorf("Restore planned presentation asset %q in src/presentation.json; do not remove requested effects or sounds to fix gameplay", asset.ID)
+			}
+		}
+	}
+	for _, binding := range plan.Presentation.Sounds {
+		if !slices.Contains(config.Bindings, binding) {
+			return fmt.Errorf("Restore planned sound binding %s -> %s", binding.Event, binding.Sound)
+		}
+	}
+	var meta struct {
+		Inputs  map[string]json.RawMessage
+		Outputs map[string]struct{ Imports []struct{ Path string } }
+	}
+	if err := json.Unmarshal([]byte(metafile), &meta); err != nil {
+		return fmt.Errorf("decode presentation build graph: %w", err)
+	}
+	helper := "../vendor/aurago-effects-" + dimension + "-1.js"
+	for _, output := range meta.Outputs {
+		for _, dependency := range output.Imports {
+			if dependency.Path == helper && meta.Inputs["src/presentation.json"] != nil {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("Planned presentation is disconnected: import src/presentation.json and %s, retain createPresentation, feedback and update/dispose hooks in common.ts; imported files alone do not enable effects or sounds", helper)
 }
 
 // Import both packs in one existing file/ledger transaction, including atmosphere dependencies.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -136,6 +137,64 @@ func TestPresentationPlanVersions(t *testing.T) {
 		if err := s.checkPlan(project, plan); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestPresentationBuildRetainsPlannedDependencies(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		t.Run(dimension, func(t *testing.T) {
+			dir := t.TempDir()
+			write := func(path, content string) {
+				t.Helper()
+				target := filepath.Join(dir, filepath.FromSlash(path))
+				if err := os.MkdirAll(filepath.Dir(target), 0750); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(target, []byte(content), 0640); err != nil {
+					t.Fatal(err)
+				}
+			}
+			write("game.json", `{"name":"presentation","dimension":"`+dimension+`"}`)
+			write("index.html", scaffoldHTML(dimension, "presentation"))
+			plan := GamePlan{SchemaVersion: 3, Presentation: &Presentation{Environment: "coast", Effects: []string{"stone-debris"}, Sounds: []SoundBinding{{"hit", "impact-stone"}}}}
+			data, err := json.Marshal(plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			write(gamePlanPath, string(data))
+			config, err := presentationConfig(plan.Presentation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			main := `import config from './presentation.json'; import {createPresentation} from '../vendor/aurago-effects-` + dimension + `-1.js'; console.log(createPresentation, config);`
+			for _, test := range []struct {
+				name, config, source string
+				want                 bool
+			}{
+				{"connected", config, main, true},
+				{"disabled", "null", main, false},
+				{"effect-removed", strings.Replace(config, `"id":"stone-debris"`, `"id":"removed"`, 1), main, false},
+				{"sound-removed", strings.Replace(config, `"id":"impact-stone"`, `"id":"removed"`, 1), main, false},
+				{"binding-removed", strings.Replace(config, `"event":"hit"`, `"event":"shot"`, 1), main, false},
+				{"runtime-disconnected", config, `import config from './presentation.json'; console.log(config); // createPresentation in ../vendor/aurago-effects-` + dimension + `-1.js`, false},
+				{"config-disconnected", config, `import {createPresentation} from '../vendor/aurago-effects-` + dimension + `-1.js'; console.log(createPresentation);`, false},
+			} {
+				t.Run(test.name, func(t *testing.T) {
+					write("src/presentation.json", test.config)
+					write("src/main.ts", test.source)
+					result := buildDirectory(context.Background(), dir, 100, 64<<20)
+					if result.OK != test.want {
+						t.Fatalf("OK=%t, want %t: %+v", result.OK, test.want, result.Diagnostics)
+					}
+				})
+			}
+			write(gamePlanPath, `{"schema_version":2}`)
+			write("src/presentation.json", "null")
+			write("src/main.ts", `console.log('legacy game');`)
+			if result := buildDirectory(context.Background(), dir, 100, 64<<20); !result.OK {
+				t.Fatal("legacy game rejected", result.Diagnostics)
+			}
+		})
 	}
 }
 

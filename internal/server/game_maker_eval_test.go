@@ -225,10 +225,19 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 			}
 			events, _ := service.EventsAfter(context.Background(), p.ID, 0, 500)
 			plan, planErr := service.GetPlan(context.Background(), job.ID)
+			if job.Status == "ready" {
+				// Publication removes staging; the revision owns the accepted plan.
+				var data []byte
+				data, planErr = os.ReadFile(filepath.Join(root, "games", filepath.FromSlash(p.ProjectKey), ".aurago", "game-plan.json"))
+				if planErr == nil {
+					plan = &gamemaker.GamePlan{}
+					planErr = json.Unmarshal(data, plan)
+				}
+			}
 			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && job.Status != "ready" {
 				t.Errorf("presentation game did not become ready: %s: %s", job.Status, job.Error)
 			}
-			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && (planErr != nil || plan.Presentation == nil || plan.Presentation.Environment == "" || len(plan.Presentation.Sounds) < 2 || len(plan.Presentation.Effects) < 2) {
+			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && (planErr != nil || plan == nil || plan.Presentation == nil || plan.Presentation.Environment == "" || len(plan.Presentation.Sounds) < 2 || len(plan.Presentation.Effects) < 2) {
 				t.Errorf("%s/%s: missing requested presentation in accepted plan", provider.ID, task.name)
 			}
 			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && job.Status == "ready" {

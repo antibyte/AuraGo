@@ -108,6 +108,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		Target:        api.ES2020,
 		External:      []string{"../vendor/*"},
 		Write:         true,
+		Metafile:      true,
 		LogLevel:      api.LogLevelSilent,
 		LegalComments: api.LegalCommentsLinked,
 		Banner:        map[string]string{"js": banner},
@@ -124,6 +125,9 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 			diagnostics = append(diagnostics, diagnostic)
 		}
 		return BuildResult{Diagnostics: diagnostics}
+	}
+	if err := checkPresentationBuild(projectDir, manifest.Dimension, build.Metafile); err != nil {
+		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: "src/presentation.json", Message: err.Error()}}}
 	}
 	source, err = os.ReadFile(filepath.Join(projectDir, "src", "main.ts"))
 	if err != nil {
