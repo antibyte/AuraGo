@@ -1,0 +1,87 @@
+name: ACE-Step runtime images
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/acestep-runtime-release]
+    paths: ['internal/acestep/runtime/**', 'internal/acestep/release.json', '.github/workflows/acestep-runtime.yml']
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - backend: cuda
+            index: cu128
+          - backend: rocm
+            index: rocm7.1
+          - backend: xpu
+            index: xpu
+          - backend: cpu
+            index: cpu
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish pinned runtime
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: internal/acestep/runtime/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/antibyte/aurago-acestep-${{ matrix.backend }}:ca1e85f-${{ github.sha }}
+          build-args: |
+            BACKEND=${{ matrix.backend }}
+            TORCH_INDEX=${{ matrix.index }}
+          provenance: true
+          sbom: true
+      - uses: sigstore/cosign-installer@v4.1.2
+      - name: Sign and record digest
+        env:
+          IMAGE: ghcr.io/antibyte/aurago-acestep-${{ matrix.backend }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          BACKEND: ${{ matrix.backend }}
+        run: |
+          cosign sign --yes "$IMAGE@$DIGEST"
+          python -c 'import json,os; json.dump({os.environ["BACKEND"]:os.environ["IMAGE"]+"@"+os.environ["DIGEST"]},open("image.json","w"))'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: acestep-${{ matrix.backend }}-digest
+          path: image.json
+  manifest:
+    needs: publish
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: acestep-*-digest
+          path: digests
+      - name: Assemble release manifest
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          target=pathlib.Path('internal/acestep/release.json')
+          release=json.loads(target.read_text())
+          images={}
+          for file in pathlib.Path('digests').rglob('image.json'):images.update(json.loads(file.read_text()))
+          assert set(images)=={'cuda','rocm','xpu','cpu'}
+          release['images']=images
+          pathlib.Path('acestep-release.json').write_text(json.dumps(release,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: acestep-release-manifest
+          path: acestep-release.json
