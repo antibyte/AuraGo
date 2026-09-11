@@ -65,8 +65,10 @@ acceptance. The initial submission has at most two corrections; fix every report
 `plan.<field>` error before resubmitting. Unknown JSON fields also reject the plan
 and consume a correction. No stronger model or hidden reasoning is required.
 When the tool schema requests a string for `plan`, JSON-encode the complete plan
-object once as that parameter. AuraGo decodes it before validation. Keep all fields
-when correcting a plan; do not work around rejection by writing the plan file.
+object once as that parameter. AuraGo decodes it before validation. Syntax errors
+report a byte position inside that plan value: fix missing separators, unmatched
+brackets or unescaped quotes there, then resubmit the complete plan. Keep all
+fields when correcting a plan; do not work around rejection by writing the plan file.
 The server ends the planning round as soon as it accepts the plan (or rejects the
 last allowed correction). Do not batch implementation calls with `set_plan`;
 remaining calls are skipped until the server starts the building round.

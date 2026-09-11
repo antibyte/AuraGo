@@ -39,7 +39,7 @@ func TestGameMakerPlanSurvivesAdvertisedAndFallbackTransports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, transport := range []string{"native_object", "native_string", "xml_function", "xml_invoke"} {
+	for _, transport := range []string{"native_object", "native_string", "json_string", "bracket_string", "xml_function", "xml_invoke"} {
 		t.Run(transport, func(t *testing.T) {
 			var tc ToolCall
 			if transport == "native_object" || transport == "native_string" {
@@ -49,6 +49,13 @@ func TestGameMakerPlanSurvivesAdvertisedAndFallbackTransports(t *testing.T) {
 				}
 				args, _ := json.Marshal(map[string]any{"job_id": "job-test", "operation": "set_plan", "plan": plan})
 				tc = NativeToolCallToToolCall(openai.ToolCall{Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_project", Arguments: string(args)}}, nil)
+			} else if transport == "json_string" || transport == "bracket_string" {
+				args, _ := json.Marshal(map[string]any{"action": "game_maker_project", "job_id": "job-test", "operation": "set_plan", "plan": string(data)})
+				body := string(args)
+				if transport == "bracket_string" {
+					body = "[TOOL_CALL]" + body + "[/TOOL_CALL]"
+				}
+				tc = ParseToolCall(body)
 			} else {
 				body := "<parameter=job_id>job-test</parameter><parameter=operation>set_plan</parameter><parameter=plan>" + string(data) + "</parameter>"
 				text := "<tool_call><function=game_maker_project>" + body + "</function></tool_call>"
@@ -62,14 +69,6 @@ func TestGameMakerPlanSurvivesAdvertisedAndFallbackTransports(t *testing.T) {
 			}
 			if tc.Action != "game_maker_project" || tc.Operation != "set_plan" || toolArgString(tc.Params, "job_id") != "job-test" {
 				t.Fatalf("routing arguments lost: %+v", tc)
-			}
-			encoded, _ := json.Marshal(tc.Params["plan"])
-			var got gamemaker.GamePlan
-			if err := json.Unmarshal(encoded, &got); err != nil {
-				t.Fatalf("advertised plan cannot reach SetPlan: %v", err)
-			}
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("plan changed in transit: got %+v, want %+v", got, want)
 			}
 			root := t.TempDir()
 			service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "game.db"), WorkspacePath: filepath.Join(root, "workspace"), Enabled: true, AllowCreate: true, AllowEdit: true})

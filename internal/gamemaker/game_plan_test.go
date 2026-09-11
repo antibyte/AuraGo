@@ -306,6 +306,78 @@ func TestPlanSchemaErrorsExhaustCorrections(t *testing.T) {
 	}
 }
 
+func TestPlanJSONStringValidationAndCorrection(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		for _, test := range []struct {
+			name    string
+			body    func(string) string
+			wantErr string
+		}{
+			{"valid", func(s string) string { return s }, ""},
+			{"missing_comma", func(string) string { return `{"schema_version":1 "template":"three"}` }, "invalid JSON at byte 21"},
+			{"truncated", func(string) string { return `{"schema_version":1` }, "incomplete JSON object"},
+			{"unknown_field", func(s string) string { return `{"unknown":true,` + s[1:] }, `unknown field "unknown"`},
+			{"wrong_type", func(s string) string { return strings.Replace(s, `"width":960`, `"width":"wide"`, 1) }, "cannot unmarshal string"},
+			{"multiple_objects", func(s string) string { return s + `{}` }, "exactly one JSON object"},
+			{"double_encoding", func(s string) string { b, _ := json.Marshal(s); return string(b) }, "JSON-encoded once"},
+			{"null", func(string) string { return "null" }, "one JSON object"},
+			{"array", func(s string) string { return "[" + s + "]" }, "one JSON object"},
+			{"oversized", func(string) string { return strings.Repeat(" ", 32769) }, "exceeds allowed size"},
+		} {
+			t.Run(dimension+"/"+test.name, func(t *testing.T) {
+				s := newTestService(t)
+				project := createTestProject(t, s, dimension)
+				plan := ExampleGamePlan(project)
+				plan.Width = 960
+				plan.Objective = "Find the \"Grüner Wald\" exit"
+				data, _ := json.Marshal(plan)
+				valid, _ := json.Marshal(string(data))
+				input, _ := json.Marshal(test.body(string(data)))
+				rounds := 0
+				s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+					if run.Stage == "building" {
+						got, _ := json.Marshal(run.Plan)
+						if !bytes.Equal(got, data) || len(run.Diagnostics) != 0 {
+							t.Errorf("plan changed or stale diagnostics survived: %+v", run.Plan)
+						}
+						return errors.New("test reached building")
+					}
+					rounds++
+					if rounds == 1 {
+						err := s.SetPlanJSON(ctx, run.Job.ID, input)
+						if test.wantErr == "" {
+							return err
+						}
+						if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+							t.Errorf("want %q, got %v", test.wantErr, err)
+						}
+						if stored, err := s.GetPlan(ctx, run.Job.ID); err != nil || stored != nil || s.PlanningComplete(run.Job.ID) {
+							t.Error("invalid plan persisted or exhausted corrections early")
+						}
+						return nil
+					}
+					if len(run.Diagnostics) != 1 || !strings.Contains(run.Diagnostics[0].Message, test.wantErr) {
+						t.Errorf("specific correction lost: %+v", run.Diagnostics)
+					}
+					return s.SetPlanJSON(ctx, run.Job.ID, valid)
+				}))
+				job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				finished := waitJob(t, s, job.ID)
+				wantRounds := 1
+				if test.wantErr != "" {
+					wantRounds = 2
+				}
+				if finished.Error != "test reached building" || rounds != wantRounds {
+					t.Fatalf("correction did not advance: rounds=%d, %+v", rounds, finished)
+				}
+			})
+		}
+	}
+}
+
 func TestAssetSearchPrefersContentsOverPackName(t *testing.T) {
 	s := newTestService(t)
 	for _, packID := range []string{"", "blocks-and-balls"} {

@@ -116,7 +116,8 @@ func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) erro
 	return s.SetPlanJSON(ctx, jobID, data)
 }
 
-// SetPlanJSON validates model input before unknown fields can be discarded.
+// SetPlanJSON accepts an object or its single JSON-string transport wrapper and
+// validates model input before unknown fields can be discarded.
 // Syntax and schema failures consume the same bounded corrections as rule errors.
 func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) (err error) {
 	s.policyMu.RLock()
@@ -155,10 +156,30 @@ func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) (e
 	if len(data) > 32768 || int64(len(data)) > s.opts.MaxFileBytes {
 		return fmt.Errorf("game plan exceeds allowed size")
 	}
+	// Some tool transports leave the advertised JSON string intact, including
+	// malformed inner JSON. Decode it here so every caller gets the real error.
+	data = bytes.TrimSpace(data)
+	if bytes.HasPrefix(data, []byte(`"`)) {
+		var encoded string
+		if err := json.Unmarshal(data, &encoded); err != nil {
+			return fmt.Errorf("plan: invalid JSON string: %w", err)
+		}
+		data = bytes.TrimSpace([]byte(encoded))
+	}
+	if !bytes.HasPrefix(data, []byte("{")) {
+		return fmt.Errorf("plan: submit one JSON object, optionally JSON-encoded once as a string; no Markdown or extra encoding")
+	}
 	var plan GamePlan
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&plan); err != nil {
+		var syntaxErr *json.SyntaxError
+		if errors.As(err, &syntaxErr) {
+			return fmt.Errorf("plan: invalid JSON at byte %d: %w. Fix the syntax in the plan value and resubmit the complete plan", syntaxErr.Offset, err)
+		}
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return fmt.Errorf("plan: incomplete JSON object. Close all strings, arrays and objects and resubmit the complete plan")
+		}
 		hint := "Use the exact fields in inspect.plan_example."
 		switch err.Error() {
 		case `json: unknown field "pack_ids"`, `json: unknown field "asset_ids"`:
