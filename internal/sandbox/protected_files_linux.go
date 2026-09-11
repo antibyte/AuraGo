@@ -11,7 +11,7 @@ import (
 func protectPlatformCommand(cmd *exec.Cmd, roots []string) (*exec.Cmd, error) {
 	sb, ok := Get().(*LandlockSandbox)
 	if !ok || !sb.Available() {
-		return nil, fmt.Errorf("existing Desktop Notes require Linux Landlock isolation for local execution; enable the shell sandbox or use an isolated virtual workspace")
+		return nil, fmt.Errorf("Landlock shell isolation is NOT active. The separate Desktop Notes protection blocks unsandboxed local execution while protected Notes exist. This is not a denial from an active Landlock sandbox; use desktop_notes for notes, or an isolated virtual workspace for code execution")
 	}
 	prepared := cmd
 	isHelper := len(cmd.Args) > 1 && (cmd.Args[1] == "--sandbox-exec" || cmd.Args[1] == "--sandbox-exec-bin")

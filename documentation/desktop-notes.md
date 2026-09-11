@@ -33,6 +33,8 @@ The right AI panel calls the existing tool-free Office assist route using explic
 
 When Notes exist, local shell/Python/skill processes require an actual Linux Landlock policy whose writable paths do not overlap Notes or an ancestor. Otherwise execution fails with a clear isolation error. **Windows and other platforms currently refuse these local processes when Notes exist.** A separately isolated virtual workspace remains usable. Disabling the Desktop feature does not unprotect an already configured Notes directory.
 
+The Notes guard remains effective when `shell_sandbox.enabled` is false. Its refusal explicitly reports that Landlock isolation is not active; it must not be interpreted as evidence of an enabled Landlock sandbox. Kernel Landlock support and active shell isolation are separate facts.
+
 This is not a host administrator security boundary: pre-existing unrestricted processes, privileged external integrations and direct OS access retain their own permissions. Restart to apply the new process policy. Do not mount protected Notes writable into independently managed execution containers or grant an agent host-admin access if this restriction must be enforced against those channels as well.
 
 ## Verification

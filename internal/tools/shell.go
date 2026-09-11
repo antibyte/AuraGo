@@ -21,12 +21,13 @@ var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 // Security notes for shell execution:
 //
 // Shell command execution is an intentional, core agent capability.
-// The primary security layer is the sandbox (Landlock on Linux) which restricts
-// filesystem and process operations. Without a sandbox, shell access is effectively
-// root-equivalent on the host — this is by design for a home-lab autonomous agent.
+// When explicitly enabled, the shell sandbox uses Landlock on Linux to restrict
+// filesystem access and applies process resource limits. Without isolation,
+// commands inherit the AuraGo process user's permissions, subject to other guards.
 //
 // Hardening strategies applied:
-//   - Sandbox is used automatically when available (Linux with Landlock).
+//   - Landlock requires shell_sandbox.enabled and a functional Linux backend.
+//   - Desktop Notes protection separately refuses unsafe local processes.
 //   - Workspace directory is restricted and enforced via getAbsWorkspace.
 //   - All processes are killed on timeout via KillProcessTree.
 //   - Bounded stdout/stderr buffers prevent memory exhaustion.

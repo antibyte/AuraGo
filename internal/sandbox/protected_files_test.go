@@ -4,6 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +22,8 @@ func TestProtectedNotesRefuseUnsafeProcesses(t *testing.T) {
 	defer restore()
 	if _, err := ProtectFilesCommand(cmd, []string{root}); err == nil {
 		t.Fatal("unrestricted process could modify protected notes")
+	} else if runtime.GOOS == "linux" && (!strings.Contains(err.Error(), "Landlock shell isolation is NOT active") || !strings.Contains(err.Error(), "separate Desktop Notes protection")) {
+		t.Fatalf("notes refusal misrepresents the inactive sandbox: %v", err)
 	}
 	for _, test := range []struct {
 		a, b string
