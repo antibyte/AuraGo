@@ -10,7 +10,6 @@
     function render(host, windowId, ctx) {
         dispose(windowId);
         const esc = ctx.esc;
-        const t = key => ctx.t('desktop.ha_' + key);
         const win = host.closest('.vd-window');
         let board = { version: 1, switches: [] }, data = {}, loaded = false, connected = false;
         let disposed = false, generation = 0, poll = null, visible = false, checkedAt = '';
@@ -46,17 +45,17 @@
             <div class="ha-deck"><div class="ha-bays"></div>
                 <aside class="ha-instruments ha-panel">
                     <div class="ha-plaque ha-instrument-plaque">HOME<br>ASSISTANT</div>
-                    <div class="ha-dial" role="img" aria-label="${esc(t('on_count'))}">
-                        <div class="ha-dial-face"><svg class="ha-dial-drawing" viewBox="0 0 200 200" aria-hidden="true"><defs><linearGradient id="${uid}-needle"><stop stop-color="#e9d8b1"/><stop offset=".4" stop-color="#302519"/><stop offset="1" stop-color="#776044"/></linearGradient></defs>${scale}<text class="ha-dial-unit" x="100" y="77">%</text><path class="ha-needle" fill="url(#${uid}-needle)" d="M100 26L103 108L100 125L97 108Z"/><circle class="ha-dial-hub" cx="100" cy="104" r="7" fill="url(#${uid}-needle)"/><text class="ha-dial-label" x="100" y="166">${esc(t('on_count'))}</text></svg></div>
+                    <div class="ha-dial" role="img" aria-label="${esc(ctx.t('desktop.ha_on_count'))}">
+                        <div class="ha-dial-face"><svg class="ha-dial-drawing" viewBox="0 0 200 200" aria-hidden="true"><defs><linearGradient id="${uid}-needle"><stop stop-color="#e9d8b1"/><stop offset=".4" stop-color="#302519"/><stop offset="1" stop-color="#776044"/></linearGradient></defs>${scale}<text class="ha-dial-unit" x="100" y="77">%</text><path class="ha-needle" fill="url(#${uid}-needle)" d="M100 26L103 108L100 125L97 108Z"/><circle class="ha-dial-hub" cx="100" cy="104" r="7" fill="url(#${uid}-needle)"/><text class="ha-dial-label" x="100" y="166">${esc(ctx.t('desktop.ha_on_count'))}</text></svg></div>
                     </div>
-                    <div class="ha-meter-readout"><strong data-ha="total">— / —</strong><span>${esc(t('on_count'))}</span></div>
-                    <div class="ha-indicators"><p><i class="ha-lamp" data-ha="connection-lamp"></i><span data-ha="connection">${esc(t('loading'))}</span></p><p><i class="ha-lamp" data-ha="warning-lamp"></i><span data-ha="unknown"></span></p></div>
+                    <div class="ha-meter-readout"><strong data-ha="total">— / —</strong><span>${esc(ctx.t('desktop.ha_on_count'))}</span></div>
+                    <div class="ha-indicators"><p><i class="ha-lamp" data-ha="connection-lamp"></i><span data-ha="connection">${esc(ctx.t('desktop.ha_loading'))}</span></p><p><i class="ha-lamp" data-ha="warning-lamp"></i><span data-ha="unknown"></span></p></div>
                     <div class="ha-plaque ha-signature">HA<br><small>SWITCHBOARD</small></div>
                 </aside>
             </div>
             <footer class="ha-console"><div class="ha-maker ha-panel"><span>AURAGO</span><small>HOME ASSISTANT</small><i aria-hidden="true">◆</i></div>
-                <div class="ha-status-glass" role="status" aria-live="polite"><strong data-ha="status">${esc(t('loading'))}</strong><span data-ha="summary"></span><small data-ha="updated"></small></div>
-                <div class="ha-actions ha-panel"><button type="button" class="ha-metal-button" data-ha="manage">${esc(t('manage'))}</button><button type="button" class="ha-refresh" data-ha="refresh">${esc(t('refresh'))}</button><a href="/config#home_assistant" data-ha="setup" hidden>${esc(t('setup'))}</a></div>
+                <div class="ha-status-glass" role="status" aria-live="polite"><strong data-ha="status">${esc(ctx.t('desktop.ha_loading'))}</strong><span data-ha="summary"></span><small data-ha="updated"></small></div>
+                <div class="ha-actions ha-panel"><button type="button" class="ha-metal-button" data-ha="manage">${esc(ctx.t('desktop.ha_manage'))}</button><button type="button" class="ha-refresh" data-ha="refresh">${esc(ctx.t('desktop.ha_refresh'))}</button><a href="/config#home_assistant" data-ha="setup" hidden>${esc(ctx.t('desktop.ha_setup'))}</a></div>
             </footer>
         </section>`;
         const root = host.querySelector('.ha-board');
@@ -98,7 +97,7 @@
 
         function renderBays() {
             if (!board.switches.length) {
-                bays.innerHTML = `<div class="ha-empty ha-panel"><div class="ha-empty-emblem" aria-hidden="true">${bolt}</div><h2>${esc(t('empty'))}</h2><p>${esc(t(loaded && !data.ready ? 'setup_hint' : 'empty_hint'))}</p><button type="button" class="ha-metal-button" data-ha-empty>${esc(t(loaded && !data.ready ? 'setup' : 'manage'))}</button></div>`;
+                bays.innerHTML = `<div class="ha-empty ha-panel"><div class="ha-empty-emblem" aria-hidden="true">${bolt}</div><h2>${esc(ctx.t('desktop.ha_empty'))}</h2><p>${esc((loaded && !data.ready ? ctx.t('desktop.ha_setup_hint') : ctx.t('desktop.ha_empty_hint')))}</p><button type="button" class="ha-metal-button" data-ha-empty>${esc((loaded && !data.ready ? ctx.t('desktop.ha_setup') : ctx.t('desktop.ha_manage')))}</button></div>`;
                 return;
             }
             bays.innerHTML = board.switches.map((entry, index) => `<article class="ha-bay ha-panel" data-entity="${esc(entry.entity_id)}" data-state="unknown">
@@ -107,7 +106,7 @@
                 <button type="button" class="ha-switch" role="switch" aria-checked="false" aria-label="${esc(entry.label || states.get(entry.entity_id)?.friendly_name || entry.entity_id)}" aria-describedby="${uid}-state-${index}" disabled>
                     <span class="ha-switch-fallback" aria-hidden="true"><i></i></span>${switchArt}
                 </button><div class="ha-switch-status"><i class="ha-lamp"></i><span id="${uid}-state-${index}"></span></div>
-                <span class="ha-channel">${esc(t('channel'))} ${String(index + 1).padStart(2, '0')}</span>
+                <span class="ha-channel">${esc(ctx.t('desktop.ha_channel'))} ${String(index + 1).padStart(2, '0')}</span>
             </article>`).join('');
         }
 
@@ -127,23 +126,23 @@
                 bay.classList.toggle('ha-stale', !connected);
                 const button = bay.querySelector('.ha-switch');
                 button.setAttribute('aria-label', label);
-                button.title = id + ': ' + t(state);
+                button.title = id + ': ' + ctx.t('desktop.ha_' + state);
                 button.setAttribute('aria-checked', String(state === 'on'));
                 button.setAttribute('aria-busy', String(!!job));
                 button.disabled = !connected || !data.ready || !!job || !['on', 'off'].includes(state) || !(state === 'on' ? data.can_off : data.can_on);
                 const status = !connected ? (loaded ? 'offline' : 'loading') : job ? 'pending' : errors.get(id)?.key || state;
-                bay.querySelector('.ha-switch-status span').textContent = t(status);
+                bay.querySelector('.ha-switch-status span').textContent = ctx.t('desktop.ha_' + status);
                 bay.querySelector('.ha-lamp').dataset.light = !connected ? 'warning' : job ? 'pending' : errors.has(id) || !['on', 'off'].includes(state) ? 'warning' : state;
             });
             q('total').textContent = (connected ? on : '—') + ' / ' + board.switches.length;
             const status = !loaded ? 'loading' : !data.ready ? 'setup_hint' : !connected ? 'offline' : data.readonly ? 'readonly' : 'connected';
-            q('connection').textContent = t(status);
+            q('connection').textContent = ctx.t('desktop.ha_' + status);
             q('connection-lamp').dataset.light = connected ? 'on' : 'warning';
             q('warning-lamp').dataset.light = unknown ? 'warning' : 'off';
-            q('unknown').textContent = t('unavailable_count').replace('{count}', String(unknown));
-            q('status').textContent = t(status);
-            q('summary').textContent = t('summary').replace('{on}', connected ? String(on) : '—').replace('{total}', String(board.switches.length));
-            q('updated').textContent = checkedAt ? t('updated') + ' ' + new Date(checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+            q('unknown').textContent = ctx.t('desktop.ha_unavailable_count').replace('{count}', String(unknown));
+            q('status').textContent = ctx.t('desktop.ha_' + status);
+            q('summary').textContent = ctx.t('desktop.ha_summary').replace('{on}', connected ? String(on) : '—').replace('{total}', String(board.switches.length));
+            q('updated').textContent = checkedAt ? ctx.t('desktop.ha_updated') + ' ' + new Date(checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
             root.querySelector('.ha-needle').style.transform = 'rotate(' + (-120 + (board.switches.length ? on / board.switches.length * 240 : 0)) + 'deg)';
             root.querySelector('.ha-dial').classList.toggle('ha-stale', !connected || unknown > 0);
             root.querySelector('.ha-dial').setAttribute('aria-label', q('summary').textContent + '. ' + q('unknown').textContent);
@@ -212,7 +211,7 @@
 
         function drawerMessage(key) {
             if (!drawer) return;
-            drawer.querySelector('[data-ha-dialog-message]').textContent = key ? t(key) : '';
+            drawer.querySelector('[data-ha-dialog-message]').textContent = key ? ctx.t('desktop.ha_' + key) : '';
             drawer.querySelector('[data-ha-apply]').disabled = saving || conflict || !catalogReady;
             drawer.querySelector('[data-ha-reload]').hidden = !conflict;
         }
@@ -222,21 +221,21 @@
             const selected = new Set(draft.switches.map(e => e.entity_id));
             const search = drawer.querySelector('[data-ha-search]').value.toLocaleLowerCase();
             const list = catalog.filter(e => (e.friendly_name + ' ' + e.entity_id).toLocaleLowerCase().includes(search));
-            drawer.querySelector('[data-ha-results]').innerHTML = list.map(entity => `<label class="ha-result"><input type="checkbox" data-ha-select="${esc(entity.entity_id)}" ${selected.has(entity.entity_id) ? 'checked' : ''}><span><strong>${esc(entity.friendly_name)}</strong><small>${esc(entity.entity_id)}</small></span><em>${esc(t(entity.state))}</em></label>`).join('') || `<p class="ha-drawer-empty">${esc(t(catalog.length ? 'no_matches' : 'no_switches'))}</p>`;
+            drawer.querySelector('[data-ha-results]').innerHTML = list.map(entity => `<label class="ha-result"><input type="checkbox" data-ha-select="${esc(entity.entity_id)}" ${selected.has(entity.entity_id) ? 'checked' : ''}><span><strong>${esc(entity.friendly_name)}</strong><small>${esc(entity.entity_id)}</small></span><em>${esc(ctx.t('desktop.ha_' + entity.state))}</em></label>`).join('') || `<p class="ha-drawer-empty">${esc((catalog.length ? ctx.t('desktop.ha_no_matches') : ctx.t('desktop.ha_no_switches')))}</p>`;
             drawer.querySelector('[data-ha-selected]').innerHTML = draft.switches.map((entry, i) => {
                 const entity = catalog.find(e => e.entity_id === entry.entity_id);
                 const label = entity?.friendly_name || entry.entity_id;
-                return `<div class="ha-selected-row" data-ha-selected-id="${esc(entry.entity_id)}"><span class="ha-order">${i + 1}</span><label><span>${esc(label)}</span><input type="text" maxlength="80" data-ha-label="${esc(entry.entity_id)}" value="${esc(entry.label)}" placeholder="${esc(t('label'))}" aria-label="${esc(t('label') + ': ' + label)}"></label><div class="ha-order-actions"><button type="button" data-ha-up="${i}" aria-label="${esc(t('up'))}" ${i === 0 ? 'disabled' : ''}>↑</button><button type="button" data-ha-down="${i}" aria-label="${esc(t('down'))}" ${i === draft.switches.length - 1 ? 'disabled' : ''}>↓</button><button type="button" data-ha-remove="${i}" aria-label="${esc(t('remove'))}">×</button></div></div>`;
-            }).join('') || `<p class="ha-drawer-empty">${esc(t('empty'))}</p>`;
-            drawer.querySelector('[data-ha-selected-count]').textContent = t('selected') + ' · ' + draft.switches.length + ' / 60';
+                return `<div class="ha-selected-row" data-ha-selected-id="${esc(entry.entity_id)}"><span class="ha-order">${i + 1}</span><label><span>${esc(label)}</span><input type="text" maxlength="80" data-ha-label="${esc(entry.entity_id)}" value="${esc(entry.label)}" placeholder="${esc(ctx.t('desktop.ha_label'))}" aria-label="${esc(ctx.t('desktop.ha_label') + ': ' + label)}"></label><div class="ha-order-actions"><button type="button" data-ha-up="${i}" aria-label="${esc(ctx.t('desktop.ha_up'))}" ${i === 0 ? 'disabled' : ''}>↑</button><button type="button" data-ha-down="${i}" aria-label="${esc(ctx.t('desktop.ha_down'))}" ${i === draft.switches.length - 1 ? 'disabled' : ''}>↓</button><button type="button" data-ha-remove="${i}" aria-label="${esc(ctx.t('desktop.ha_remove'))}">×</button></div></div>`;
+            }).join('') || `<p class="ha-drawer-empty">${esc(ctx.t('desktop.ha_empty'))}</p>`;
+            drawer.querySelector('[data-ha-selected-count]').textContent = ctx.t('desktop.ha_selected') + ' · ' + draft.switches.length + ' / 60';
         }
 
         async function openDrawer() {
             if (drawer || disposed || !data.ready || data.board_readonly) return;
             draft = copyBoard(board); draftBase = boardJSON(board); conflict = false; catalogReady = false;
             drawer = document.createElement('dialog'); drawer.className = 'ha-drawer';
-            drawer.setAttribute('aria-label', t('manage'));
-            drawer.innerHTML = `<form method="dialog"><header><h2>${esc(t('manage'))}</h2><button type="button" data-ha-cancel aria-label="${esc(t('cancel'))}">×</button></header><p class="ha-drawer-hint">${esc(t('selection_hint'))}</p><div class="ha-drawer-columns"><section><label class="ha-search-label">${esc(t('search'))}<input type="search" data-ha-search placeholder="${esc(t('search_hint'))}"></label><div class="ha-results" data-ha-results></div></section><section><h3 data-ha-selected-count>${esc(t('selected'))}</h3><div class="ha-selected" data-ha-selected></div></section></div><p class="ha-drawer-message" data-ha-dialog-message role="status"></p><footer><button type="button" data-ha-reload hidden>${esc(t('reload'))}</button><button type="button" data-ha-retry>${esc(t('refresh'))}</button><button type="button" data-ha-cancel>${esc(t('cancel'))}</button><button type="button" class="ha-metal-button" data-ha-apply>${esc(t('apply'))}</button></footer></form>`;
+            drawer.setAttribute('aria-label', ctx.t('desktop.ha_manage'));
+            drawer.innerHTML = `<form method="dialog"><header><h2>${esc(ctx.t('desktop.ha_manage'))}</h2><button type="button" data-ha-cancel aria-label="${esc(ctx.t('desktop.ha_cancel'))}">×</button></header><p class="ha-drawer-hint">${esc(ctx.t('desktop.ha_selection_hint'))}</p><div class="ha-drawer-columns"><section><label class="ha-search-label">${esc(ctx.t('desktop.ha_search'))}<input type="search" data-ha-search placeholder="${esc(ctx.t('desktop.ha_search_hint'))}"></label><div class="ha-results" data-ha-results></div></section><section><h3 data-ha-selected-count>${esc(ctx.t('desktop.ha_selected'))}</h3><div class="ha-selected" data-ha-selected></div></section></div><p class="ha-drawer-message" data-ha-dialog-message role="status"></p><footer><button type="button" data-ha-reload hidden>${esc(ctx.t('desktop.ha_reload'))}</button><button type="button" data-ha-retry>${esc(ctx.t('desktop.ha_refresh'))}</button><button type="button" data-ha-cancel>${esc(ctx.t('desktop.ha_cancel'))}</button><button type="button" class="ha-metal-button" data-ha-apply>${esc(ctx.t('desktop.ha_apply'))}</button></footer></form>`;
             root.append(drawer);
             drawer.addEventListener('cancel', event => { event.preventDefault(); if (!saving) closeDrawer(); });
             drawer.addEventListener('submit', event => event.preventDefault());
