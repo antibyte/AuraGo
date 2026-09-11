@@ -244,16 +244,25 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return gameMakerToolJSON(map[string]any{"status": "ok", "path": stored, "provider": result.Provider, "model": result.Model})
 
 	case "music":
-		if !project.UseMusicGeneration || !dc.Cfg.MusicGeneration.Enabled || dc.Cfg.MusicGeneration.APIKey == "" {
+		if !project.UseMusicGeneration || !dc.Cfg.MusicConfigured() {
 			return proceduralGameMakerFallback(ctx, service, jobID, kind, path, prompt, "music generation is not configured for this project")
 		}
-		if dc.BudgetTracker != nil && dc.BudgetTracker.IsBlocked("music_generation") {
+		if !dc.Cfg.UsesLocalMusic() && dc.BudgetTracker != nil && dc.BudgetTracker.IsBlocked("music_generation") {
 			return proceduralGameMakerFallback(ctx, service, jobID, kind, path, prompt, "music generation budget is exhausted")
+		}
+		var control tools.MusicGenParams
+		encoded, _ := json.Marshal(tc.Params)
+		if err := json.Unmarshal(encoded, &control); err != nil {
+			return gameMakerToolError(fmt.Errorf("invalid_music_parameters"))
 		}
 		result := tools.GenerateMusicResult(ctx, dc.Cfg, dc.MediaRegistryDB, dc.Logger, tools.MusicGenParams{
 			Prompt: prompt, Instrumental: true, Title: toolArgString(tc.Params, "title"),
+			DurationSeconds: control.DurationSeconds, BPM: control.BPM, Seed: control.Seed,
 		})
 		if result.Status != "ok" {
+			if dc.Cfg.UsesLocalMusic() {
+				return gameMakerToolError(fmt.Errorf("local music: %s", result.Error))
+			}
 			return proceduralGameMakerFallback(ctx, service, jobID, kind, path, prompt, firstNonEmptyToolString(result.Error, result.Message))
 		}
 		data, err := os.ReadFile(result.FilePath)

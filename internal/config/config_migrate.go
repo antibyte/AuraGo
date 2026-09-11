@@ -631,6 +631,14 @@ func (c *Config) ResolveProviders() {
 	}
 
 	// ── Music Generation ── (no fallback — must be explicitly configured)
+	c.MusicGeneration.ProviderType = ""
+	c.MusicGeneration.BaseURL = ""
+	c.MusicGeneration.APIKey = ""
+	c.MusicGeneration.ResolvedModel = ""
+	if c.UsesLocalMusic() {
+		c.MusicGeneration.ProviderType = "acestep"
+		c.MusicGeneration.ResolvedModel = "auto"
+	}
 	if c.MusicGeneration.Provider != "" {
 		if p := c.FindProvider(c.MusicGeneration.Provider); p != nil {
 			c.MusicGeneration.ProviderType = p.Type

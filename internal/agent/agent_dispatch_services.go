@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"aurago/internal/acestep"
 	"aurago/internal/dockerutil"
 	"aurago/internal/meshcentral"
 	"aurago/internal/security"
@@ -600,6 +601,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
+			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, acestep.Owner) {
+				return dockerAgentError("docker_managed_music_resource", "Managed ACE-Step resources are private. Use generate_music or the administrator Music Generation settings.")
+			}
 			if dockerOperationTargetsContainer(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.HomepageOwner) {
 				return dockerAgentError("docker_managed_homepage_resource", "AuraGo-managed homepage containers cannot be accessed through the generic docker tool. Use homepage_project, homepage_file, or homepage_deploy.")
 			}
@@ -636,7 +640,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -691,7 +695,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, dockerutil.LocalLLMOwner)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
@@ -1701,7 +1705,7 @@ func dockerComposeReferencesProtectedHomepage(cfg tools.DockerConfig, file strin
 }
 
 func dockerProtectedLocalLLMVolumeName(name string) bool {
-	return dockerutil.IsLocalLLMVolumeName(name)
+	return acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name)
 }
 
 func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file string) bool {
@@ -1733,6 +1737,10 @@ func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file
 }
 
 func dockerComposePayloadReferencesProtectedLocalLLM(payload string) bool {
+	// ACE-Step owns its entire container/volume namespace, including probes.
+	if strings.Contains(strings.ToLower(payload), "acestep") {
+		return true
+	}
 	compact := strings.NewReplacer(" ", "", "\t", "", "\r", "", "\n", "").Replace(strings.ToLower(payload))
 	for _, token := range []string{
 		dockerutil.LocalLLMModelVolumeName,

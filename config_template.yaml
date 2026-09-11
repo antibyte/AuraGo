@@ -1582,9 +1582,14 @@ image_generation:
     max_monthly: 0
 music_generation:
     enabled: false
-    provider: ""                   # references a ProviderEntry ID (type: minimax or google)
+    provider: ""                   # ProviderEntry ID (minimax/google), or aurago-acestep-local
     model: ""                      # model override (empty = use provider default, e.g. music-2.5+, lyria-3-clip-preview)
     max_daily: 0                   # 0 = unlimited
+    local:
+        backend: auto             # auto, cuda, rocm, xpu; CPU requires explicit cpu selection
+        device: auto              # auto or device ID returned by hardware probe
+        vram_reserve_gb: 1         # headroom for other applications; zero is valid
+        timeout_seconds: 1800     # 30..1800; cancellation stops the dedicated worker
 video_generation:
     enabled: false
     provider: ""                   # references a ProviderEntry ID (type: minimax, google, or agnes)

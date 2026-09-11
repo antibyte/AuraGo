@@ -1729,7 +1729,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.MusicGenerationEnabled {
 		tools = append(tools, tool("generate_music",
-			"Generate music from text prompts using AI. Supports MiniMax and Google Lyria providers. "+
+			"Generate music from text prompts using MiniMax, Google Lyria or managed local ACE-Step. "+
 				"Can create vocal songs with lyrics or instrumental tracks. "+
 				"The generated audio file is automatically registered in the media registry.",
 			schema(map[string]interface{}{
@@ -1737,9 +1737,13 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"type":        "string",
 					"description": "Description of the music style, mood, genre, instruments, tempo, etc. Be specific for best results.",
 				},
-				"lyrics":       prop("string", "Song lyrics with structure tags ([Verse], [Chorus], [Bridge], etc.). If empty and not instrumental, lyrics are auto-generated from the prompt."),
-				"instrumental": map[string]interface{}{"type": "boolean", "description": "If true, generate instrumental music without vocals (default: false)"},
-				"title":        prop("string", "Title for the generated track (optional, defaults to a truncated prompt)"),
+				"lyrics":           prop("string", "Song lyrics with structure tags ([Verse], [Chorus], [Bridge], etc.). If empty and not instrumental, lyrics are auto-generated from the prompt."),
+				"instrumental":     map[string]interface{}{"type": "boolean", "description": "If true, generate instrumental music without vocals (default: false)"},
+				"title":            prop("string", "Title for the generated track (optional, defaults to a truncated prompt)"),
+				"duration_seconds": prop("number", "ACE-Step only: duration in seconds, 10 to the hardware limit (maximum 600, default 120)."),
+				"bpm":              prop("integer", "ACE-Step only: tempo from 30 to 300; omit for automatic."),
+				"vocal_language":   prop("string", "ACE-Step only: language code such as de, en, fr or ja."),
+				"seed":             prop("integer", "ACE-Step only: seed from 0 to 2147483647; omit for random. Without the local LM, provide lyrics or choose instrumental."),
 			}, "prompt"),
 		))
 	}

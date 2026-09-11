@@ -460,6 +460,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, localLLMErr.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateLocalMusicConfig(&validateCfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if workspaceErr := config.ValidateVirtualComputersAgentControl(validateCfg.VirtualComputers.AgentControl); workspaceErr != nil {
 			s.Logger.Error("[Config] Invalid Virtual Computers agent-control settings — save rejected", "error", workspaceErr)
 			jsonError(w, workspaceErr.Error(), http.StatusBadRequest)
@@ -496,7 +500,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		runtimeSnapshot := s.Cfg.Runtime
 		go2RTCWasEnabled := s.Cfg.Go2RTC.Enabled
+		localMusicWasEnabled := s.Cfg.UsesLocalMusic() && s.Cfg.MusicGeneration.Enabled
 		s.CfgMu.RUnlock()
+		if (localMusicWasEnabled || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
+			jsonError(w, "Disable local music and wait until stopped before disabling Docker mutations", http.StatusBadRequest)
+			return
+		}
 		if go2RTCWasEnabled && !validateCfg.Go2RTC.Enabled && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 			jsonError(w, "Disable go2rtc while Docker mutations are still enabled, then enable Docker read-only mode or disable Docker in a separate save", http.StatusBadRequest)
 			return

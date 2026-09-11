@@ -33,19 +33,22 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 		tool("game_maker_asset",
 			"Search matching sprite2d or model3d assets, then describe_asset for exact IDs, actions, orientation and helper usage. import_pack returns project-local copies. For model3d supply 1–64 exact asset_ids; only those models and dependencies are imported. Use three_example and local GLBs for 3D, phaser_example for sprites. Never guess paths, bones or clips. Import and generation require an accepted plan.",
 			schema(map[string]interface{}{
-				"operation":   map[string]interface{}{"type": "string", "enum": []string{"generate", "list_packs", "describe_pack", "import_pack", "search_assets", "describe_asset"}},
-				"query":       prop("string", "English asset search terms; returns six compact matches by default"),
-				"view":        map[string]interface{}{"type": "string", "enum": []string{"side", "top", "board", "3d"}},
-				"asset_ids":   map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "minItems": 1, "maxItems": 64, "description": "Required exact model IDs for model3d import_pack; omitted for sprite packs"},
-				"limit":       map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12},
-				"asset_id":    prop("string", "Exact asset ID for describe_asset; omit when assembly_id is used"),
-				"assembly_id": prop("string", "Exact complete assembly ID for describe_asset"),
-				"pack_id":     prop("string", "Pack ID from list_packs; required for describe_pack and import_pack"),
-				"job_id":      prop("string", "Active Game Maker job ID"),
-				"kind":        map[string]interface{}{"type": "string", "enum": []string{"image", "music"}},
-				"prompt":      prop("string", "Concise asset prompt"),
-				"path":        prop("string", "Destination under assets/"),
-				"title":       prop("string", "Optional music title"),
+				"operation":        map[string]interface{}{"type": "string", "enum": []string{"generate", "list_packs", "describe_pack", "import_pack", "search_assets", "describe_asset"}},
+				"query":            prop("string", "English asset search terms; returns six compact matches by default"),
+				"view":             map[string]interface{}{"type": "string", "enum": []string{"side", "top", "board", "3d"}},
+				"asset_ids":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "minItems": 1, "maxItems": 64, "description": "Required exact model IDs for model3d import_pack; omitted for sprite packs"},
+				"limit":            map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12},
+				"asset_id":         prop("string", "Exact asset ID for describe_asset; omit when assembly_id is used"),
+				"assembly_id":      prop("string", "Exact complete assembly ID for describe_asset"),
+				"pack_id":          prop("string", "Pack ID from list_packs; required for describe_pack and import_pack"),
+				"job_id":           prop("string", "Active Game Maker job ID"),
+				"kind":             map[string]interface{}{"type": "string", "enum": []string{"image", "music"}},
+				"prompt":           prop("string", "Concise asset prompt"),
+				"path":             prop("string", "Destination under assets/"),
+				"title":            prop("string", "Optional music title"),
+				"duration_seconds": prop("number", "Local music duration, default 120; within the active profile limit, at most 600 seconds"),
+				"bpm":              prop("integer", "Local music BPM, 30–300; omit for automatic"),
+				"seed":             prop("integer", "Local music seed, 0–2147483647; omit for random"),
 			}, "job_id"),
 		),
 		tool("game_maker_validate",
@@ -95,7 +98,7 @@ func GameMakerPhaseToolSchemas(stage, dimension string) []openai.Tool {
 				}
 			case "game_maker_asset":
 				props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"search_assets", "describe_asset", "list_packs"}}
-				for _, k := range []string{"asset_ids", "kind", "prompt", "path", "title"} {
+				for _, k := range []string{"asset_ids", "kind", "prompt", "path", "title", "duration_seconds", "bpm", "seed"} {
 					delete(props, k)
 				}
 			case "game_maker_project":

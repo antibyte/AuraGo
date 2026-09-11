@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"aurago/internal/acestep"
 	"aurago/internal/agent"
 	"aurago/internal/agentmail"
 	"aurago/internal/bluetooth"
@@ -159,6 +160,7 @@ type Server struct {
 	BackgroundTasks         *tools.BackgroundTaskManager
 	Go2RTC                  *tools.Go2RTCManager
 	LocalLLM                *localllm.Manager
+	LocalMusic              *acestep.Manager
 	localLLMLifecycleCtx    context.Context
 	Go2RTCDiscovery         *onvif.Service
 	MeshCore                *meshcore.Manager
@@ -272,6 +274,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.LocalMusic != nil {
+		s.LocalMusic.Configure(cfg)
+	}
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
 		// publication non-blocking while still reconciling stale warnings.
@@ -396,7 +401,16 @@ func Start(opts StartOptions) error {
 	if s.Go2RTC != nil {
 		s.Go2RTC.StartBackground(serverCtx)
 	}
+	if s.LocalMusic != nil {
+		s.LocalMusic.Start()
+	}
 	defer func() {
+		if s.LocalMusic != nil {
+			s.LocalMusic.Close()
+		}
+		if acestep.Default() == s.LocalMusic {
+			acestep.SetDefault(nil)
+		}
 		if s.LocalLLM != nil {
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			if err := s.LocalLLM.Shutdown(shutdownCtx); err != nil && !errors.Is(err, context.Canceled) {
@@ -1383,6 +1397,8 @@ func newServerFromOptions(opts StartOptions) *Server {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
 	}
 	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
+	s.LocalMusic = acestep.New(cfg, opts.Vault, logger)
+	acestep.SetDefault(s.LocalMusic)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
 	return s

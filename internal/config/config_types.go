@@ -2326,10 +2326,11 @@ type Config struct {
 		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
 	} `yaml:"image_generation"`
 	MusicGeneration struct {
-		Enabled  bool   `yaml:"enabled"`
-		Provider string `yaml:"provider"`  // references ProviderEntry ID
-		Model    string `yaml:"model"`     // model override (empty = use provider default)
-		MaxDaily int    `yaml:"max_daily"` // 0 = unlimited
+		Local    LocalMusicConfig `yaml:"local"`
+		Enabled  bool             `yaml:"enabled"`
+		Provider string           `yaml:"provider"`  // references ProviderEntry ID
+		Model    string           `yaml:"model"`     // model override (empty = use provider default)
+		MaxDaily int              `yaml:"max_daily"` // 0 = unlimited
 		// resolved fields (populated by ResolveProviders)
 		ProviderType  string `yaml:"-" json:"-"` // minimax, google, google_lyria, etc.
 		BaseURL       string `yaml:"-" json:"-"` // resolved from provider entry

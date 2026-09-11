@@ -642,3 +642,6 @@
     .nm-loading::before { animation: none; }
     .nm-card:hover { transform: none; }
 }
+.nm-local-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.nm-local-controls label { min-width: 0; }
+.nm-local-controls input { box-sizing: border-box; width: 100%; }

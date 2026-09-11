@@ -43,13 +43,17 @@ type noisemakerEnhanceRequest struct {
 }
 
 type noisemakerGenerateRequest struct {
-	Prompt       string `json:"prompt"`
-	Style        string `json:"style"`
-	Lyrics       string `json:"lyrics"`
-	Instrumental bool   `json:"instrumental"`
-	Title        string `json:"title"`
-	Cover        bool   `json:"cover"`
-	Lang         string `json:"lang"`
+	Prompt          string  `json:"prompt"`
+	Style           string  `json:"style"`
+	Lyrics          string  `json:"lyrics"`
+	Instrumental    bool    `json:"instrumental"`
+	Title           string  `json:"title"`
+	Cover           bool    `json:"cover"`
+	Lang            string  `json:"lang"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	BPM             int     `json:"bpm"`
+	VocalLanguage   string  `json:"vocal_language"`
+	Seed            *int64  `json:"seed"`
 }
 
 // handleNoisemakerState returns GET /api/desktop/noisemaker/state — capabilities
@@ -68,22 +72,30 @@ func handleNoisemakerState(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		mg := s.Cfg.MusicGeneration
 		ig := s.Cfg.ImageGeneration
+		configured := s.Cfg.MusicConfigured()
+		local := s.Cfg.UsesLocalMusic()
 		s.CfgMu.RUnlock()
+		var localStatus any
+		if local && s.LocalMusic != nil {
+			localStatus = s.LocalMusic.Status()
+		}
 
 		providerType := strings.ToLower(strings.TrimSpace(mg.ProviderType))
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":           "ok",
-			"enabled":          mg.Enabled && strings.TrimSpace(mg.APIKey) != "",
-			"configured":       mg.Enabled,
-			"provider_type":    providerType,
-			"model":            mg.ResolvedModel,
-			"supports_lyrics":  providerType == "minimax",
-			"daily_used":       tools.MusicCounterGet(),
-			"daily_max":        mg.MaxDaily,
-			"llm_available":    s.LLMClient != nil,
-			"covers_enabled":   ig.Enabled && strings.TrimSpace(ig.APIKey) != "",
-			"cover_provider":   strings.ToLower(strings.TrimSpace(ig.ProviderType)),
-			"registry_enabled": s.MediaRegistryDB != nil,
+			"status":            "ok",
+			"enabled":           configured,
+			"local":             localStatus,
+			"supports_controls": local,
+			"configured":        mg.Enabled,
+			"provider_type":     providerType,
+			"model":             mg.ResolvedModel,
+			"supports_lyrics":   providerType == "minimax" || local,
+			"daily_used":        tools.MusicCounterGet(),
+			"daily_max":         mg.MaxDaily,
+			"llm_available":     s.LLMClient != nil && !local,
+			"covers_enabled":    ig.Enabled && strings.TrimSpace(ig.APIKey) != "",
+			"cover_provider":    strings.ToLower(strings.TrimSpace(ig.ProviderType)),
+			"registry_enabled":  s.MediaRegistryDB != nil,
 		})
 	}
 }
@@ -101,6 +113,13 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 		}
 		if s == nil || s.LLMClient == nil {
 			jsonError(w, "LLM is not available", http.StatusServiceUnavailable)
+			return
+		}
+		s.CfgMu.RLock()
+		local := s.Cfg.UsesLocalMusic()
+		s.CfgMu.RUnlock()
+		if local {
+			jsonError(w, "Local music does not use cloud enhancement. Supply lyrics or use the local music language model.", http.StatusBadRequest)
 			return
 		}
 		var body noisemakerEnhanceRequest
@@ -262,12 +281,12 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 		cfg := s.Cfg
 		s.CfgMu.RUnlock()
 
-		if !cfg.MusicGeneration.Enabled || strings.TrimSpace(cfg.MusicGeneration.APIKey) == "" {
+		if !cfg.MusicConfigured() {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Music generation is not enabled. Enable it in Settings > Music Generation."})
 			return
 		}
-		if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("music_generation") {
+		if !cfg.UsesLocalMusic() && s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("music_generation") {
 			w.WriteHeader(http.StatusTooManyRequests)
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Music generation blocked: daily budget exceeded."})
 			return
@@ -323,14 +342,25 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			s.Logger.Info("Noisemaker generation requested", "prompt_len", len(composed), "instrumental", body.Instrumental, "cover", body.Cover, "auto_lyrics", autoLyrics)
 		}
 		result := tools.GenerateMusicResult(r.Context(), cfg, s.MediaRegistryDB, s.Logger, tools.MusicGenParams{
-			Prompt:       composed,
-			Lyrics:       lyrics,
-			Instrumental: body.Instrumental,
-			Title:        body.Title,
+			Prompt:          composed,
+			Lyrics:          lyrics,
+			Instrumental:    body.Instrumental,
+			Title:           body.Title,
+			DurationSeconds: body.DurationSeconds,
+			BPM:             body.BPM,
+			VocalLanguage:   body.VocalLanguage,
+			Seed:            body.Seed,
 		})
 		if result.Status != "ok" {
-			w.WriteHeader(http.StatusBadGateway)
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": result.Error})
+			status := http.StatusBadGateway
+			if result.Error == "acestep_busy" {
+				status = http.StatusConflict
+			}
+			if result.Error == "lyrics_required" || strings.HasPrefix(result.Error, "invalid_") {
+				status = http.StatusBadRequest
+			}
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": result.Error, "message": result.Error})
 			return
 		}
 		if s.BudgetTracker != nil && result.CostEstimate > 0 {

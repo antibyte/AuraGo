@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/acestep"
 	"aurago/internal/dockerutil"
 )
 
@@ -510,6 +511,9 @@ func dockerInspectEnvKeySensitive(key string) bool {
 
 // DockerContainerManagedBy checks a container's ownership label without exposing its config.
 func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
+	if owner == acestep.Owner && acestep.IsResourceName(containerID) {
+		return true
+	}
 	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
 		dockerutil.IsLocalLLMContainerName(containerID) {
 		return true
@@ -538,6 +542,9 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 			} `json:"Config"`
 		}
 		if json.Unmarshal(data, &info) == nil {
+			if owner == acestep.Owner && acestep.IsResourceName(info.Name) {
+				return true
+			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
 				dockerutil.IsLocalLLMContainerName(info.Name) {
 				return true
@@ -626,6 +633,9 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 			return true
 		}
 		for _, name := range names {
+			if owner == acestep.Owner && acestep.IsResourceName(name) {
+				return true
+			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) {
 				if volume && dockerutil.IsLocalLLMVolumeName(name) {
 					return true

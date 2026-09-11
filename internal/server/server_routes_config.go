@@ -193,7 +193,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/onedrive/test", handleOneDriveTest(s))
 
 	// Music Generation endpoints
-	mux.HandleFunc("/api/music-generation/test", handleMusicGenerationTest(s))
+	mux.Handle("/api/music-generation/test", requireAdmin(s, handleMusicGenerationTest(s)))
+	registerLocalMusicRoutes(mux, s)
 
 	// Video Generation endpoints
 	mux.HandleFunc("/api/video-generation/test", handleVideoGenerationTest(s))

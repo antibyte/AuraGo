@@ -65,7 +65,7 @@ func handleGameMakerCapabilities(s *Server) http.HandlerFunc {
 			AllowDelete:          cfg.GameMaker.AllowDelete && !cfg.GameMaker.ReadOnly,
 			AllowMediaGeneration: cfg.GameMaker.AllowMediaGeneration,
 			ImageGeneration:      cfg.GameMaker.AllowMediaGeneration && cfg.ImageGeneration.Enabled && cfg.ImageGeneration.APIKey != "",
-			MusicGeneration:      cfg.GameMaker.AllowMediaGeneration && cfg.MusicGeneration.Enabled && cfg.MusicGeneration.APIKey != "",
+			MusicGeneration:      cfg.GameMaker.AllowMediaGeneration && cfg.MusicConfigured(),
 			CodeStudio:           cfg.VirtualDesktop.CodeStudio.Enabled,
 			PhaserVersion:        gamemaker.PhaserVersion,
 			ThreeVersion:         gamemaker.ThreeVersion,

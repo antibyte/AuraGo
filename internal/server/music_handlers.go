@@ -30,7 +30,7 @@ func handleMusicGenerationTest(s *Server) http.HandlerFunc {
 
 		apiKey := cfg.MusicGeneration.APIKey
 		providerType := cfg.MusicGeneration.ProviderType
-		if apiKey == "" {
+		if !cfg.MusicConfigured() {
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "No music generation provider configured"})
 			return
 		}
@@ -45,6 +45,18 @@ func handleMusicGenerationTest(s *Server) http.HandlerFunc {
 
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
+		if cfg.UsesLocalMusic() {
+			if s.LocalMusic == nil {
+				jsonError(w, "acestep_not_ready", http.StatusServiceUnavailable)
+				return
+			}
+			if err := s.LocalMusic.TestConnection(ctx); err != nil {
+				jsonError(w, "acestep_not_ready", http.StatusServiceUnavailable)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			return
+		}
 
 		ok, msg := tools.TestMusicConnection(ctx, providerType, apiKey)
 		if ok {

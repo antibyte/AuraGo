@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/acestep"
 	"aurago/internal/config"
 	"aurago/internal/security"
 
@@ -26,12 +27,7 @@ import (
 var musicGenHTTPClient = security.NewSSRFProtectedHTTPClient(5 * time.Minute)
 
 // MusicGenParams holds the parameters for the generate_music tool call.
-type MusicGenParams struct {
-	Prompt       string `json:"prompt"`
-	Lyrics       string `json:"lyrics"`
-	Instrumental bool   `json:"instrumental"`
-	Title        string `json:"title"`
-}
+type MusicGenParams = acestep.Params
 
 // MusicGenResult holds the result of a music generation.
 type MusicGenResult struct {
@@ -165,12 +161,26 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 
 	logger.Info("Music generation requested", "provider_type", providerType, "prompt_len", len(params.Prompt), "instrumental", params.Instrumental)
 
-	if apiKey == "" {
+	if !cfg.MusicConfigured() {
 		return MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."}
+	}
+	if cfg.UsesLocalMusic() {
+		manager := acestep.Default()
+		if manager == nil {
+			return MusicGenResult{Status: "error", Error: "acestep_not_ready"}
+		}
+		status := manager.Status()
+		if !status.Ready || status.Profile == nil {
+			return MusicGenResult{Status: "error", Error: "acestep_not_ready"}
+		}
+		if _, err := params.Validate(status.Profile.MaxDuration, status.Profile.LMModel != ""); err != nil {
+			return MusicGenResult{Status: "error", Error: err.Error()}
+		}
 	}
 
 	// Atomically reserve a daily quota slot. If the API call fails we release
 	// the slot back so that failures do not consume the limit.
+	reserved := false
 	if cfg.MusicGeneration.MaxDaily > 0 {
 		count, allowed := musicCounterReserve(cfg.MusicGeneration.MaxDaily)
 		if !allowed {
@@ -179,29 +189,41 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 				Error:  fmt.Sprintf("Daily music generation limit reached (%d/%d). Try again tomorrow or increase the limit in settings.", count, cfg.MusicGeneration.MaxDaily),
 			}
 		}
+		reserved = true
 	}
+	succeeded := false
+	defer func() {
+		if reserved && !succeeded {
+			musicCounterRelease()
+		}
+	}()
 
 	// Ensure audio output directory exists
 	audioDir := filepath.Join(cfg.Directories.DataDir, "audio")
 	if err := os.MkdirAll(audioDir, 0755); err != nil {
-		musicCounterRelease() // release quota slot on failure
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to create audio directory: %v", err)}
 	}
 
 	var result MusicGenResult
 	switch strings.ToLower(providerType) {
+	case "acestep":
+		audio, err := acestep.Default().Generate(ctx, params)
+		if err != nil {
+			result = MusicGenResult{Status: "error", Error: err.Error()}
+		} else {
+			result = MusicGenResult{Status: "ok", Title: params.Title, Filename: audio.Filename, FilePath: audio.Path, WebPath: "/files/audio/" + audio.Filename, DurationMs: audio.DurationMs, Provider: "acestep", Model: audio.Model, Format: "mp3", FileSize: audio.Size}
+		}
 	case "minimax":
 		result = generateMusicMiniMax(ctx, apiKey, model, params, audioDir, logger)
 	case "google", "google_lyria":
 		result = generateMusicGoogleLyria(ctx, apiKey, model, params, audioDir, logger)
 	default:
-		musicCounterRelease() // release quota slot on failure
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider type: %q. Supported: minimax, google", providerType)}
 	}
 
-	// If the API call failed, release the reserved quota slot.
-	if result.Status != "ok" {
-		musicCounterRelease()
+	succeeded = result.Status == "ok"
+	if succeeded && result.Title == "" {
+		result.Title = truncateString(params.Prompt, 100)
 	}
 
 	// Register in media registry
@@ -242,6 +264,8 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 	// Rough cost estimate per generation (provider-specific)
 	if result.Status == "ok" {
 		switch strings.ToLower(providerType) {
+		case "acestep":
+			result.CostEstimate = 0
 		case "minimax":
 			result.CostEstimate = 0.05
 		case "google", "google_lyria":

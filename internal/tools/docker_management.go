@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/acestep"
 	"aurago/internal/dockerutil"
 )
 
@@ -46,7 +47,7 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 	if image == "" {
 		return errJSON("image is required")
 	}
-	if dockerutil.IsLocalLLMContainerName(name) {
+	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMContainerName(name) {
 		return errJSON("reserved AuraGo local LLM container name")
 	}
 
@@ -599,7 +600,7 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 	if name == "" {
 		return errJSON("volume name required")
 	}
-	if dockerutil.IsLocalLLMVolumeName(name) {
+	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name) {
 		return errJSON("reserved AuraGo local LLM volume name")
 	}
 	if driver == "" {
@@ -621,7 +622,7 @@ func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
 	if name == "" {
 		return errJSON("volume name required")
 	}
-	if dockerutil.IsLocalLLMVolumeName(name) {
+	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name) {
 		return errJSON("reserved AuraGo local LLM volume name")
 	}
 	forceParam := ""
@@ -842,7 +843,7 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 		return nil
 	}
 	if !spec.isHostPath {
-		if dockerutil.IsLocalLLMVolumeName(spec.hostPath) {
+		if acestep.IsResourceName(spec.hostPath) || dockerutil.IsLocalLLMVolumeName(spec.hostPath) {
 			return fmt.Errorf("mounting reserved AuraGo local LLM volume %q is not allowed", spec.hostPath)
 		}
 		return nil // named Docker volume

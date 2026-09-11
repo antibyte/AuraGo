@@ -1110,6 +1110,10 @@ func Load(path string) (*Config, error) {
 	if err := ValidateLocalLLMConfig(&cfg); err != nil {
 		return nil, err
 	}
+	cfg.MusicGeneration.Local = cfg.MusicGeneration.Local.Defaults()
+	if err := ValidateLocalMusicConfig(&cfg); err != nil {
+		return nil, err
+	}
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
 	cfg.OmniRoute.URL = NormalizeLegacySidecarURL(cfg.OmniRoute.URL, runningInDocker, "omniroute", 20128)

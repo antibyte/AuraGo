@@ -1377,15 +1377,27 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			title := stringValueFromMap(tc.Params, "title")
 			logger.Info("LLM requested music generation", "prompt_len", len(prompt), "provider", cfg.MusicGeneration.Provider)
 
-			if budgetTracker != nil && budgetTracker.IsBlocked("music_generation") {
+			if !cfg.UsesLocalMusic() && budgetTracker != nil && budgetTracker.IsBlocked("music_generation") {
 				return `Tool Output: {"status": "error", "message": "Music generation blocked: daily budget exceeded."}`
 			}
 
+			var control tools.MusicGenParams
+			payload, marshalErr := json.Marshal(tc.Params)
+			if marshalErr != nil {
+				return `Tool Output: {"status":"error","message":"Invalid music parameters"}`
+			}
+			if err := json.Unmarshal(payload, &control); err != nil {
+				return `Tool Output: {"status":"error","message":"Invalid music parameters"}`
+			}
 			musicResult := tools.GenerateMusicResult(ctx, cfg, mediaRegistryDB, logger, tools.MusicGenParams{
-				Prompt:       prompt,
-				Lyrics:       lyrics,
-				Instrumental: instrumental,
-				Title:        title,
+				Prompt:          prompt,
+				Lyrics:          lyrics,
+				Instrumental:    instrumental,
+				Title:           title,
+				DurationSeconds: control.DurationSeconds,
+				BPM:             control.BPM,
+				VocalLanguage:   control.VocalLanguage,
+				Seed:            control.Seed,
 			})
 
 			// Record cost in budget tracker

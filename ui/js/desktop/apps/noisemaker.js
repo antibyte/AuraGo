@@ -57,7 +57,8 @@
             controllers: new Set(),
             caps: null,
             view: 'create',
-            form: { idea: '', style: prefs.style, lyrics: '', title: '', instrumental: prefs.instrumental, cover: prefs.cover },
+            form: { idea: '', style: prefs.style, lyrics: '', title: '', instrumental: prefs.instrumental, cover: prefs.cover, duration_seconds: '120', bpm: '', vocal_language: '', seed: '' },
+            statusTimer: null,
             generation: { active: false, startedAt: 0, timerId: null, result: null, error: '', lastParams: null, coverFailed: false },
             tracks: [],
             tracksTotal: 0,
@@ -165,6 +166,7 @@
             '</div>' +
             '<input id="nm-title-' + state.windowId + '" class="nm-input" data-nm-field="title" maxlength="200" placeholder="' + esc(text(ctx, 'title_placeholder', {}, 'Auto-generated if empty')) + '">' +
         '</div>' +
+        (caps.supports_controls ? localControlsMarkup(state) : '') +
         '<div class="nm-create-action">' +
             '<div data-nm-progress-slot></div>' +
             '<button type="button" class="nm-create-btn" data-nm-create-btn><span aria-hidden="true">♪</span>' + esc(text(ctx, 'create_button', {}, 'Create')) + '</button>' +
@@ -182,6 +184,19 @@
             '<p>' + esc(text(ctx, 'progress_hint', {}, 'This usually takes 1–2 minutes. You can keep browsing your library.')) + '</p></div>' +
             '<span class="nm-progress-time" data-nm-elapsed>' + esc(text(ctx, 'progress_elapsed', { seconds: 0 }, '0 s')) + '</span>' +
         '</div>';
+    }
+
+    function localControlsMarkup(state) {
+        const esc = state.ctx.esc;
+        const max = state.caps.local?.profile?.max_duration || 600;
+        return '<div class="nm-local-controls">' + [
+            ['duration_seconds', 'number', 'min="10" max="' + max + '" step="1" required'],
+            ['bpm', 'number', 'min="30" max="300" step="1"'],
+            ['vocal_language', 'text', 'maxlength="8" pattern="[a-z]{2,3}(-[A-Za-z]{2,4})?" placeholder="de, en, ja…"'],
+            ['seed', 'number', 'min="0" max="2147483647" step="1"']
+        ].map(([field, type, attrs]) => '<label class="nm-field">' + esc(text(state.ctx, field)) +
+            '<input class="nm-input" type="' + type + '" data-nm-field="' + field + '" value="' + esc(state.form[field]) + '" ' + attrs + '></label>').join('') +
+            '</div><p class="nm-hint">' + esc(text(state.ctx, 'local_help')) + '</p><p class="nm-hint" role="status" aria-live="polite" data-nm-local-status></p>';
     }
 
     function resultMarkup(state, result) {
@@ -300,9 +315,21 @@
         const max = Number(caps.daily_max) || 0;
         const used = Number(caps.daily_used) || 0;
         const quotaHit = max > 0 && used >= max;
-        btn.disabled = state.generation.active || !hasInput || quotaHit;
+        const local = caps.local;
+        const unavailable = caps.supports_controls && (!local?.ready || local.state === 'busy');
+        const needsLyrics = caps.supports_controls && local?.profile && !local.profile.lm_model && !state.form.instrumental && !state.form.lyrics.trim();
+        const invalid = [...state.root.querySelectorAll('.nm-local-controls input')].find(input => !input.checkValidity());
+        btn.disabled = state.generation.active || !hasInput || quotaHit || unavailable || needsLyrics || invalid;
+        const localStatus = qs(state, '[data-nm-local-status]');
+        if (localStatus) localStatus.textContent = text(state.ctx, 'local_' + (local?.state || 'starting')) + (local?.error_code ? ' · ' + local.error_code : '') + (local?.profile ? ' · ' + local.profile.model : '');
         if (reason) {
-            if (quotaHit) {
+            if (invalid) {
+                reason.textContent = invalid.validationMessage;
+            } else if (needsLyrics) {
+                reason.textContent = text(state.ctx, 'lyrics_required');
+            } else if (unavailable) {
+                reason.textContent = text(state.ctx, 'local_' + (local?.state || 'starting'));
+            } else if (quotaHit) {
                 reason.textContent = text(state.ctx, 'create_disabled_quota', { used, max }, 'Daily limit reached.');
             } else if (!hasInput) {
                 reason.textContent = text(state.ctx, 'create_disabled_idea', {}, 'Enter a song idea or a style first.');
@@ -341,6 +368,25 @@
             state.caps = { enabled: false, error: err.message || '' };
         }
         renderApp(state);
+        scheduleLocalStatus(state);
+    }
+
+    function scheduleLocalStatus(state) {
+        clearTimeout(state.statusTimer);
+        if (state.disposed || !state.caps?.supports_controls) return;
+        state.statusTimer = setTimeout(async () => {
+            try {
+                const caps = await request(state, '/api/desktop/noisemaker/state');
+                if (state.disposed) return;
+                const changed = caps.enabled !== state.caps.enabled || caps.supports_controls !== state.caps.supports_controls || caps.provider_type !== state.caps.provider_type;
+                state.caps = caps;
+                if (changed) renderApp(state);
+                const duration = qs(state, '[data-nm-field="duration_seconds"]');
+                if (duration) duration.max = String(caps.local?.profile?.max_duration || 600);
+                syncCreateButton(state);
+            } catch (_) {}
+            scheduleLocalStatus(state);
+        }, 3000);
     }
 
     async function fetchTrackPage(state, offset) {
@@ -465,6 +511,7 @@
 
     async function generate(state) {
         if (state.generation.active) return;
+        for (const input of state.root.querySelectorAll('.nm-local-controls input')) { if (!input.reportValidity()) return; }
         const params = {
             prompt: state.form.idea.trim(),
             style: state.form.style.trim(),
@@ -474,6 +521,12 @@
             cover: state.form.cover && state.caps && state.caps.covers_enabled === true,
             lang: uiLang()
         };
+        if (state.caps?.supports_controls) {
+            params.duration_seconds = Number(state.form.duration_seconds);
+            if (state.form.bpm !== '') params.bpm = Number(state.form.bpm);
+            params.vocal_language = state.form.vocal_language.trim();
+            if (state.form.seed !== '') params.seed = Number(state.form.seed);
+        }
         if (!params.prompt && !params.style) return;
         state.generation.active = true;
         state.generation.startedAt = Date.now();
@@ -707,6 +760,7 @@
         if (!state) return;
         instances.delete(windowId);
         state.disposed = true;
+        clearTimeout(state.statusTimer);
         stopElapsedTimer(state);
         state.controllers.forEach(controller => { try { controller.abort(); } catch (_) {} });
         state.controllers.clear();
