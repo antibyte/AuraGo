@@ -297,7 +297,7 @@ Each mission is shown as a card:
 
 Looper is a separate desktop app for a short, goal-driven agent loop. You describe the finished result, the work to do in every round, and how the loop should judge the artifact. An optional finish step can open the file on the desktop.
 
-Each round works on the artifact, then a tool-free review scores the work report. A broken review does not abort the loop; it records score 0 and continues. The loop stops when the target score is reached, the round limit is hit, the score stops improving, or you pause or stop it. Pause waits for the current round. Failed runs show the error in the Run pane. The last 20 runs stay in History.
+Each round works on the artifact, then a tool-free review scores the work report. A broken review does not abort the loop; it records score 0 and continues. If a work step writes tool-call text instead of a final answer but already produced tool output, the loop keeps that output and continues to review. A failed finish step does not mark a completed loop as failed. The loop stops when the target score is reached, the round limit is hit, the score stops improving, or you pause or stop it. Pause waits for the current round. Failed runs show the error in the Run pane. The last 20 runs stay in History.
 
 Five built-in examples live under `Documents/Looper/` in the desktop workspace: short story, Python tool, research briefing, project README, and flashcards. Save your own loops next to them.
 

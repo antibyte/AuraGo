@@ -198,6 +198,37 @@ func TestExecuteMinimalLoopFailsClosedWhenRequiredToolSchemaCannotFit(t *testing
 	}
 }
 
+func TestExecuteMinimalLoopKeepsRejectedAssistantInHistory(t *testing.T) {
+	text := `{"action":"brave_search","query":"LoRa"}`
+	cfg := &config.Config{}
+	cfg.Agent.ContextWindow = 6000
+	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
+	client.respond = func(openai.ChatCompletionRequest, int) (openai.ChatCompletionResponse, error) {
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
+			Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: text},
+			FinishReason: openai.FinishReasonStop,
+		}}}, nil
+	}
+	dc := &DispatchContext{Cfg: cfg, SessionID: "looper"}
+	result, history, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Public answers only", "question", nil, dc, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), &MinimalLoopOptions{MaxToolRounds: 0})
+	if err == nil || result.Response != "" {
+		t.Fatalf("expected rejected tool text with empty Response: result=%+v err=%v", result, err)
+	}
+	if LastAssistantPlainText(history) != text {
+		t.Fatalf("rejected assistant text missing from history: %#v", history)
+	}
+}
+
+func TestLastAssistantPlainTextStripsThinking(t *testing.T) {
+	got := LastAssistantPlainText([]openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "ignore"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "<think>hidden</think>visible answer"},
+	})
+	if got != "visible answer" {
+		t.Fatalf("LastAssistantPlainText = %q", got)
+	}
+}
+
 func TestExecuteMinimalLoopNeverReturnsToolText(t *testing.T) {
 	for _, text := range []string{
 		`<tool_call> <function=brave_search> <parameter=query>Freifunk Mesh Netz Baden-Württemberg 2025</parameter> </function> </tool_call>`,

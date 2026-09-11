@@ -141,6 +141,11 @@ func (r *LooperRunner) executeStarted(
 
 			if err != nil {
 				r.logger.Warn("[Looper] step error", "step", stepName, "attempt", attempt, "maxRetries", maxRetries, "error", err)
+				if looperShouldKeepMinimalLoopResult(stepName, err, res, h, prompt) {
+					r.recordLooperUsage(res, model, dispatchCtx)
+					r.logger.Warn("[Looper] recovered format error", "step", stepName, "tool_calls", res.ToolCalls)
+					return res, h, err
+				}
 				if attempt < maxRetries && ctx.Err() == nil {
 					backoff := time.Duration(attempt*attempt) * time.Second
 					r.logger.Info("[Looper] retrying", "step", stepName, "backoff", backoff)
@@ -152,15 +157,9 @@ func (r *LooperRunner) executeStarted(
 					}
 				}
 				r.logger.Error("[Looper] step failed after retries", "step", stepName, "error", err)
-				return res, nil, err
+				return res, h, err
 			}
-			if res.PromptTokens > 0 || res.CompletionTokens > 0 {
-				cost := estimateLooperCostUSD(res.PromptTokens, res.CompletionTokens)
-				r.holder.AddUsage(res.PromptTokens, res.CompletionTokens, cost)
-				if dispatchCtx != nil && dispatchCtx.BudgetTracker != nil {
-					dispatchCtx.BudgetTracker.RecordForCategory("looper", model, res.PromptTokens, res.CompletionTokens)
-				}
-			}
+			r.recordLooperUsage(res, model, dispatchCtx)
 			r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
 			return res, h, nil
 		}
@@ -210,27 +209,39 @@ func (r *LooperRunner) executeStarted(
 		workPrompt := buildLooperWorkPrompt(cfg, i, lastFeedback, lastWorkSummary, scoreHistory)
 		r.holder.SetStep("work")
 		workRes, workHistory, err := stepExec("work", workPrompt, sysPrompt, tools, optsWithTools, nil)
-		if err != nil {
-			return r.setErrorAndReturn(err)
-		}
 		lastWorkResult = buildActionFinishResult(workRes.Response, workHistory, workPrompt)
+		if err != nil {
+			if recovered, ok := looperRecoveredWorkReport(err, workHistory, workPrompt); ok {
+				lastWorkResult = recovered
+				r.logger.Warn("[Looper] work recovered from format error; continuing to evaluate", "round", i, "error", err)
+			} else {
+				return r.setErrorAndReturn(err)
+			}
+		}
 		lastWorkSummary = truncateResponse(lastWorkResult, 2500)
+		workResponse := strings.TrimSpace(workRes.Response)
+		if workResponse == "" {
+			workResponse = lastWorkResult
+		}
 		r.holder.AppendLog(desktop.LooperLogEntry{
 			Round:    i,
 			Step:     "work",
 			Prompt:   workPrompt,
-			Response: workRes.Response,
+			Response: workResponse,
 			Duration: workRes.Duration.Milliseconds(),
 		})
 
 		evalPrompt := buildLooperEvaluatePrompt(cfg, lastWorkResult)
 		r.holder.SetStep("evaluate")
-		evalRes, _, err := stepExec("evaluate", evalPrompt, sysPrompt, noTools, optsNoTools, nil)
+		evalRes, evalHistory, err := stepExec("evaluate", evalPrompt, sysPrompt, noTools, optsNoTools, nil)
 		ev := looperEvaluation{}
 		evalOK := false
+		if evalRes.Response == "" {
+			evalRes.Response = agent.LastAssistantPlainText(evalHistory)
+		}
 		if err != nil {
 			r.logger.Warn("[Looper] evaluate failed; continuing with score 0", "round", i, "error", err)
-			ev = looperEvaluationOrFallback("", err)
+			ev = looperEvaluationOrFallback(evalRes.Response, err)
 		} else {
 			ev, evalOK = parseEvaluation(evalRes.Response)
 			if !evalOK {
@@ -310,18 +321,29 @@ func (r *LooperRunner) executeStarted(
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
 		finishHistory := buildLooperFinishHistory(sysPrompt, cfg.Goal, lastWorkResult, lastFeedback, r.holder.State().LastSummary)
-		finishRes, _, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, finishHistory)
+		finishRes, finishOut, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, finishHistory)
+		finishText := strings.TrimSpace(finishRes.Response)
+		if finishText == "" {
+			finishText = strings.TrimSpace(buildActionFinishResult("", finishOut, cfg.Finish))
+		}
 		if err != nil {
-			return r.setErrorAndReturn(err)
+			r.logger.Warn("[Looper] finish failed; keeping completed loop status", "error", err)
+			if finishText == "" {
+				finishText = err.Error()
+			}
 		}
 		r.holder.AppendLog(desktop.LooperLogEntry{
 			Round:    0,
 			Step:     "finish",
 			Prompt:   cfg.Finish,
-			Response: finishRes.Response,
+			Response: finishText,
 			Duration: finishRes.Duration.Milliseconds(),
 		})
-		r.holder.SetLastResult(finishRes.Response)
+		if strings.TrimSpace(finishRes.Response) != "" || err == nil {
+			r.holder.SetLastResult(finishRes.Response)
+		} else if recovered := strings.TrimSpace(buildActionFinishResult("", finishOut, cfg.Finish)); recovered != "" {
+			r.holder.SetLastResult(recovered)
+		}
 	}
 
 	return nil
@@ -378,6 +400,7 @@ func looperSystemPrompt(cfg *config.Config) string {
 		"- Persist the target artifact in the workspace. Do not only describe it.\n" +
 		"- Follow the current step instruction exactly.\n" +
 		"- During work and evaluate, do not open files in desktop apps. That happens only in the finish step.\n" +
+		"- Never write XML or JSON tool calls as the final answer. Use only native function calling, then summarize in plain prose.\n" +
 		"- Be concise and direct."
 	if cfg != nil {
 		if lang := strings.TrimSpace(cfg.Agent.SystemLanguage); lang != "" {
@@ -434,6 +457,9 @@ func buildLooperEvaluatePrompt(cfg desktop.LooperRunConfig, workResult string) s
 }
 
 func looperEvaluationOrFallback(raw string, execErr error) looperEvaluation {
+	if ev, ok := parseEvaluation(raw); ok {
+		return ev
+	}
 	if execErr != nil {
 		return looperEvaluation{
 			Score:    0,
@@ -441,13 +467,62 @@ func looperEvaluationOrFallback(raw string, execErr error) looperEvaluation {
 			Summary:  "Evaluation failed; continuing.",
 		}
 	}
-	if ev, ok := parseEvaluation(raw); ok {
-		return ev
-	}
 	return looperEvaluation{
 		Score:    0,
 		Feedback: truncateResponse(raw, 800),
 		Summary:  "Evaluation was not valid JSON; continuing.",
+	}
+}
+
+func isRecoverableMinimalLoopFormatError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "unexpected tool-call text in llm response") ||
+		strings.Contains(msg, "unexpected tool calls in a tool-free summary") ||
+		strings.Contains(msg, "unexpected tool calls in a tool-free request")
+}
+
+func looperRecoveredWorkReport(err error, history []openai.ChatCompletionMessage, prompt string) (string, bool) {
+	if !isRecoverableMinimalLoopFormatError(err) {
+		return "", false
+	}
+	report := strings.TrimSpace(buildActionFinishResult("", history, prompt))
+	if report == "" {
+		return "", false
+	}
+	return report, true
+}
+
+func looperShouldKeepMinimalLoopResult(stepName string, err error, res agent.MinimalLoopResult, history []openai.ChatCompletionMessage, prompt string) bool {
+	if !isRecoverableMinimalLoopFormatError(err) {
+		return false
+	}
+	switch stepName {
+	case "work", "finish":
+		_, ok := looperRecoveredWorkReport(err, history, prompt)
+		return ok
+	case "evaluate", "evaluate_clarify":
+		raw := strings.TrimSpace(res.Response)
+		if raw == "" {
+			raw = agent.LastAssistantPlainText(history)
+		}
+		_, ok := parseEvaluation(raw)
+		return ok
+	default:
+		return false
+	}
+}
+
+func (r *LooperRunner) recordLooperUsage(res agent.MinimalLoopResult, model string, dispatchCtx *agent.DispatchContext) {
+	if r == nil || (res.PromptTokens == 0 && res.CompletionTokens == 0) {
+		return
+	}
+	cost := estimateLooperCostUSD(res.PromptTokens, res.CompletionTokens)
+	r.holder.AddUsage(res.PromptTokens, res.CompletionTokens, cost)
+	if dispatchCtx != nil && dispatchCtx.BudgetTracker != nil {
+		dispatchCtx.BudgetTracker.RecordForCategory("looper", model, res.PromptTokens, res.CompletionTokens)
 	}
 }
 

@@ -155,7 +155,8 @@ func ExecuteMinimalLoop(
 			text, textErr := minimalLoopFinalText(msg.Content)
 			if textErr != nil {
 				if len(req.Tools) == 0 || formatRetried || choice.FinishReason != openai.FinishReasonStop {
-					return result, req.Messages, textErr
+					result.Duration = time.Since(start)
+					return result, append(req.Messages, msg), textErr
 				}
 				formatRetried = true
 				req.Messages = append(req.Messages, msg)
@@ -209,10 +210,27 @@ func ExecuteMinimalLoop(
 	}
 	result.Response, err = minimalLoopFinalText(resp.Choices[0].Message.Content)
 	if err != nil {
-		return result, req.Messages, err
+		result.Duration = time.Since(start)
+		return result, append(req.Messages, resp.Choices[0].Message), err
 	}
 	result.Duration = time.Since(start)
 	return result, req.Messages, nil
+}
+
+// LastAssistantPlainText returns the newest non-empty assistant content with
+// thinking tags stripped. Callers that received an error from ExecuteMinimalLoop
+// may use it for structured recovery; it is not a successful MeshCore answer.
+func LastAssistantPlainText(history []openai.ChatCompletionMessage) string {
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role != openai.ChatMessageRoleAssistant {
+			continue
+		}
+		text := strings.TrimSpace(security.StripThinkingTags(history[i].Content))
+		if text != "" {
+			return text
+		}
+	}
+	return ""
 }
 
 func minimalLoopFinalText(content string) (string, error) {

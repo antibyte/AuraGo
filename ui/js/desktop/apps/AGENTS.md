@@ -1382,6 +1382,13 @@ registration lives in `internal/desktop/types.go`.
   inside the shared Desktop IIFE immediately before `sdk-events-bootstrap.js`.
   Empty-state load failures use `desktop.load_failed`. No child DOX file
   needed.
+- `looper.js` / `looper-monitor.js` - Desktop Looper: goal/work/evaluate/optional
+  finish. Evaluate is tool-free. A broken review records score 0 and continues.
+  Work recovers from `unexpected tool-call text` when the failed step already
+  produced tool output; MeshCore still fail-closes on that error. Finish format
+  errors keep the completed loop status. Verify
+  `go test ./internal/agent ./internal/server -run 'Looper|MinimalLoop|ParseEvaluation'`.
+  No child DOX file needed.
 - `agent-chat.js` - Desktop Agent Chat. Missing-host throws reuse
   `desktop.load_failed` via `desktopText(key)` with no second
   argument. Loaded lazily. Exposes `window.AgentChatApp`. No child

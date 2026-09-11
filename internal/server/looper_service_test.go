@@ -125,6 +125,57 @@ func TestLooperEvaluationOrFallbackKeepsTheLoopAlive(t *testing.T) {
 	if ok.Score != 77 || ok.Feedback != "tighten" {
 		t.Fatalf("valid evaluation fallback = %+v", ok)
 	}
+	recovered := looperEvaluationOrFallback(`{"score":83,"done":false,"feedback":"keep going","summary":"draft"}`, fmt.Errorf("unexpected tool-call text in llm response"))
+	if recovered.Score != 83 || recovered.Feedback != "keep going" {
+		t.Fatalf("parseable evaluate JSON must win over exec error: %+v", recovered)
+	}
+}
+
+func TestLooperRecoversWorkFromToolOutputsAfterFormatError(t *testing.T) {
+	t.Parallel()
+	err := fmt.Errorf("unexpected tool-call text in llm response")
+	history := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "Work prompt"},
+		{Role: openai.ChatMessageRoleAssistant, Content: `{"action":"filesystem","operation":"write"}`},
+		{Role: openai.ChatMessageRoleTool, Name: "filesystem", Content: `{"status":"ok","path":"Documents/Looper/story.md"}`},
+	}
+	got, ok := looperRecoveredWorkReport(err, history, "Work prompt")
+	if !ok || !strings.Contains(got, "Documents/Looper/story.md") {
+		t.Fatalf("recovered work = %q ok=%v", got, ok)
+	}
+	if strings.Contains(got, `"action":"filesystem"`) {
+		t.Fatalf("recovered work must not treat textual tool JSON as the artifact: %q", got)
+	}
+	if _, ok := looperRecoveredWorkReport(err, []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "Work prompt"},
+		{Role: openai.ChatMessageRoleAssistant, Content: `{"action":"filesystem","operation":"write"}`},
+	}, "Work prompt"); ok {
+		t.Fatal("format error without tool output must not look recovered")
+	}
+	if _, ok := looperRecoveredWorkReport(fmt.Errorf("llm call failed"), history, "Work prompt"); ok {
+		t.Fatal("non-format errors must not recover")
+	}
+}
+
+func TestLooperShouldKeepMinimalLoopResult(t *testing.T) {
+	t.Parallel()
+	err := fmt.Errorf("unexpected tool-call text in llm response")
+	workHistory := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "Work prompt"},
+		{Role: openai.ChatMessageRoleTool, Name: "filesystem", Content: `{"status":"ok"}`},
+	}
+	if !looperShouldKeepMinimalLoopResult("work", err, agent.MinimalLoopResult{}, workHistory, "Work prompt") {
+		t.Fatal("work with tool output should skip retries")
+	}
+	evalJSON := `{"score":91,"done":false,"feedback":"tighten","summary":"ok"}`
+	if !looperShouldKeepMinimalLoopResult("evaluate", err, agent.MinimalLoopResult{}, []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleAssistant, Content: evalJSON},
+	}, "Evaluate prompt") {
+		t.Fatal("parseable evaluate JSON should skip retries")
+	}
+	if looperShouldKeepMinimalLoopResult("evaluate", err, agent.MinimalLoopResult{}, nil, "Evaluate prompt") {
+		t.Fatal("empty evaluate failure should still retry")
+	}
 }
 
 func TestLooperEvaluationJSONIsNotAToolCall(t *testing.T) {
