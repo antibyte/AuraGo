@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import os
+import platform
 from pathlib import Path
 import shutil
 import subprocess
@@ -52,6 +53,15 @@ def device_groups():
         except OSError: pass
     return sorted(groups)
 
+def driver_identity(backend, torch):
+    paths={'cuda':['/proc/driver/nvidia/version'], 'rocm':['/sys/module/amdgpu/srcversion'],
+           'xpu':['/sys/module/xe/srcversion','/sys/module/i915/srcversion']}.get(backend,[])
+    identity=[platform.release(),str(torch.__version__)]
+    for path in paths:
+        try: identity.append(Path(path).read_text()[:512].strip())
+        except OSError: pass
+    return ' | '.join(identity)
+
 def probe():
     import torch
     backend = os.environ["AURAGO_BACKEND"]
@@ -79,7 +89,7 @@ def probe():
                     devices.append({"id": f"{backend}:{index}", "name": props.name,
                                     "backend": backend, "index": index, "total_gb": total / 2**30,
                                     "free_gb": free / 2**30, "verified": True,
-                                    "driver": str(torch.version.hip or torch.version.cuda or torch.__version__),
+                                    "driver": driver_identity(backend,torch), "uuid":str(getattr(props,'uuid','')),
                                     "render_nodes": render_nodes(backend), "groups": groups})
                 except (RuntimeError, AssertionError): continue
     return {"devices": devices, "groups": groups}
@@ -114,7 +124,7 @@ def choose_profile(device, reserve, conservative=False):
     # Memory availability changes while serving; hardware identity and applied
     # model settings, rather than fluctuating free bytes, identify a profile.
     identity = {k: v for k, v in profile.items() if k not in ("device", "ram_gb", "disk_gb")}
-    identity["device"] = {k: device[k] for k in ("id", "name", "backend", "driver", "total_gb") if k in device}
+    identity["device"] = {k: device[k] for k in ("id", "name", "backend", "driver", "uuid", "total_gb") if k in device}
     identity["release"] = RELEASE
     identity["image"] = os.getenv("AURAGO_IMAGE_PIN", "")
     profile["fingerprint"] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
@@ -238,9 +248,10 @@ def create_app():
     index = int(os.getenv("AURAGO_DEVICE_INDEX", "0"))
     device = next((d for d in found if d["index"] == index), None)
     if not device: raise RuntimeError("acestep_gpu_not_available")
+    device['id']=os.getenv('AURAGO_DEVICE_ID',device['id'])
     if backend != "cpu": (torch.xpu if backend == "xpu" else torch.cuda).set_device(index)
     GPU_CONFIG, PROFILE = choose_profile(device, float(os.getenv("AURAGO_VRAM_RESERVE_GB", "1")), os.getenv("AURAGO_CONSERVATIVE") == "true")
-    identity={k:device.get(k) for k in ('id','backend','name','driver','total_gb')}
+    identity={k:device.get(k) for k in ('id','backend','name','driver','uuid','total_gb')}
     identity.update(image=os.getenv('AURAGO_IMAGE_PIN',''),reserve=os.getenv('AURAGO_VRAM_RESERVE_GB','1'),conservative=os.getenv('AURAGO_CONSERVATIVE','false'))
     PROFILE_CACHE=CACHE/('profile-'+hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()+'.json')
     if PROFILE_CACHE.is_file() and os.getenv('AURAGO_REQUALIFY') != 'true':

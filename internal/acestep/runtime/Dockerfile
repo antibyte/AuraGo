@@ -13,7 +13,6 @@ ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1 \
     ACESTEP_QUEUE_WORKERS=1 ACESTEP_API_WORKERS=1 ACESTEP_QUEUE_MAXSIZE=1 \
     ACESTEP_SAVE_MEMORY=1 TOKENIZERS_PARALLELISM=false
 RUN apt-get -o Acquire::Retries=3 -o Acquire::ForceIPv4=true update && apt-get -o Acquire::Retries=3 -o Acquire::ForceIPv4=true install -y --no-install-recommends ca-certificates libssl3t64 libffi8 libexpat1 zlib1g libbz2-1.0 liblzma5 libsqlite3-0 git ffmpeg libsndfile1 libgomp1 libnuma1 libdrm2 libze1 build-essential \
-    && if [ "${BACKEND}" = "xpu" ]; then apt-get install -y --no-install-recommends libze-intel-gpu1; fi \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install uv==0.7.22
 WORKDIR /app
@@ -28,10 +27,11 @@ RUN uv export --frozen --no-dev --no-hashes --no-emit-project > /tmp/locked.txt 
     && if [ "${BACKEND}" = "cuda" ]; then pip install --no-deps ./acestep/third_parts/nano-vllm; fi
 COPY internal/acestep/runtime/ /opt/aurago/
 COPY internal/acestep/release.json /opt/aurago/release.json
-RUN python /opt/aurago/patch_upstream.py /app \
+RUN python /opt/aurago/install_intel_runtime.py \
+    && python /opt/aurago/patch_upstream.py /app \
     && mkdir -p /app/checkpoints /app/.cache/acestep/tmp/api_audio \
     && chown -R 65532:65532 /app/checkpoints /app/.cache \
-    && python -c "import torch, soundfile, acestep.api_server; print(torch.__version__)"
+    && python -X faulthandler -c "import torch, soundfile, acestep.api_server; print(torch.__version__)"
 RUN AURAGO_BACKEND=cpu python /opt/aurago/test_runtime.py
 USER 65532:65532
 EXPOSE 8001
