@@ -107,6 +107,14 @@ func TestPresentationBrowser(t *testing.T) {
 			for _, env := range []string{"forest-rain", "coast", "space"} {
 				page.MustEval(`id=>window.choose(id)`, env)
 				page.MustWait(`()=>window.environmentFrames>45`)
+				if dim == "2d" && env == "coast" {
+					page.MustEval(`()=>{window.waterProbe=window.fixtureObject.scene.add.rectangle(960,900,80,40,0xff00ff);window.environmentFrames=0}`)
+					page.MustWait(`()=>window.environmentFrames>3`)
+					if !page.MustEval(`()=>new Promise(resolve=>window.fixtureObject.scene.game.renderer.snapshotPixel(960,900,c=>resolve(c.r>180&&c.g<60&&c.b>180)))`).Bool() {
+						t.Fatal("coast water obscures default-depth game objects")
+					}
+					page.MustEval(`()=>window.waterProbe.destroy()`)
+				}
 				page.MustScreenshot(filepath.Join(report, dim+"-"+env+".png"))
 			}
 			for _, quality := range []string{"low", "medium", "high", "auto"} {

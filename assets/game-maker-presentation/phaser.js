@@ -57,6 +57,7 @@ export function createPhaserAdapter({scene,view='top',report=console.warn}) {
         }
     }
     function drawWater(){
+        const c=b; // Water surfaces sit behind actors; splashes remain in the foreground.
         const id=[...settings.keys()].find(k=>['water-lake','water-river','water-ocean'].includes(k));if(!id)return;const p=settings.get(id),at=p.position?screen(p.position):[w/2,(view==='side'?h*.72:h*.55)+h*(p.y||0)/100],width=w*(p.width??80)/100,depth=h*(p.depth??80)/100,base=at[1];
         c.save();c.beginPath();c.rect(at[0]-width/2,base-7,width,depth+7);c.clip();
         const g=c.createLinearGradient(0,base,0,h);g.addColorStop(0,'#2eafc5bb');g.addColorStop(1,'#123d68ef');c.fillStyle=g;c.beginPath();
