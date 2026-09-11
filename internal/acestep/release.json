@@ -1,6 +1,11 @@
 {
   "upstream_commit": "ca1e85fe9430179831e6bc6be790c332190a3866",
-  "images": {},
+  "images": {
+    "cpu": "ghcr.io/antibyte/aurago-acestep-cpu@sha256:32ef3a7e0fc4d602d97a06c0c017962b45c87b2929615fe65b9fe5bd42a35fa3",
+    "cuda": "ghcr.io/antibyte/aurago-acestep-cuda@sha256:96025b8e2c15e632f2ceb4db05a9cc7a094fed30908d6e533d7eda928eef4bd9",
+    "rocm": "ghcr.io/antibyte/aurago-acestep-rocm@sha256:8b8268c287ec0648bfbeb72b1b0ac091b314da0b7ea92c1f97717d022b336a2f",
+    "xpu": "ghcr.io/antibyte/aurago-acestep-xpu@sha256:dbc8aa310bd11046cc71d9941b97183e87f92ce94fcfc43acfd8f03fde2e9ca1"
+  },
   "models": {
     "vae": {
       "repo": "ACE-Step/Ace-Step1.5",

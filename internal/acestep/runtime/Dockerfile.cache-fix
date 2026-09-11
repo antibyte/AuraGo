@@ -1,0 +1,8 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER 0:0
+RUN rm -rf /app/.cache \
+    && mkdir -p /app/.cache/acestep/tmp/api_audio \
+    && chown -R 65532:65532 /app/.cache
+USER 65532:65532
+RUN python -c "from diskcache import Cache; c=Cache('/app/.cache/permission-test'); c['ok']=True; assert c['ok']; c.clear(); c.close()"

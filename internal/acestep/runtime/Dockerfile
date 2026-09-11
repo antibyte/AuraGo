@@ -32,8 +32,12 @@ RUN python /opt/aurago/install_intel_runtime.py \
     && mkdir -p /app/checkpoints /app/.cache/acestep/tmp/api_audio \
     && chown -R 65532:65532 /app/checkpoints /app/.cache \
     && python -X faulthandler -c "import torch, soundfile, acestep.api_server; print(torch.__version__)"
-RUN AURAGO_BACKEND=cpu python /opt/aurago/test_runtime.py
+RUN AURAGO_BACKEND=cpu python /opt/aurago/test_runtime.py \
+    && rm -rf /app/.cache \
+    && mkdir -p /app/.cache/acestep/tmp/api_audio \
+    && chown -R 65532:65532 /app/.cache
 USER 65532:65532
+RUN python -c "from diskcache import Cache; c=Cache('/app/.cache/permission-test'); c['ok']=True; assert c['ok']; c.clear(); c.close()"
 EXPOSE 8001
 ENTRYPOINT ["python", "/opt/aurago/aurago_runtime.py"]
 CMD ["serve"]
