@@ -582,6 +582,7 @@ func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 		{ID: "builtin-weather", Title: "Weather", Icon: "weather", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},
 		{ID: "builtin-sysmon", Title: "System Monitor", Icon: "analytics", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},
 		{ID: "builtin-meshcore", Title: "MeshCore", Icon: "radio", AppID: "meshcore", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: false, Builtin: true},
+		{ID: "builtin-fritzbox", Title: "Fritz!Box", Icon: "network", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 300, Visible: false, Builtin: true},
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

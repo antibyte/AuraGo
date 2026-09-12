@@ -472,6 +472,7 @@ func readAllDesktopCSS(t *testing.T) string {
 		"css/desktop-windows.css",
 		"css/desktop-icons.css",
 		"css/desktop-widgets.css",
+		"css/desktop-widget-fritzbox.css",
 		"css/desktop-modals.css",
 		"css/desktop-sdk.css",
 		"css/desktop-shell-overrides.css",

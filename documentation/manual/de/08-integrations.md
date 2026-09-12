@@ -655,6 +655,16 @@ fritzbox:
   username: "admin"
 ```
 
+### Widget im Virtuellen Desktop
+Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Wischen oder Pfeiltasten):
+
+- **Verbindung** – Online-Status, aktueller Download/Upload mit Live-Sparklines, Auslastungsanzeigen der Leitung, öffentliche IPv4/IPv6 (Kopier-Button), Zugangsart, FRITZ!OS und Laufzeit.
+- **Traffic** – geglättetes Flächendiagramm der letzten Minuten (startet mit dem Online-Monitor der Box und wächst lokal weiter, solange das Widget offen ist), Gesamtwerte und Spitzen. Der Verlauf bleibt nur in deiner Browser-Sitzung.
+- **Geräte** – Ring aktiv/bekannt, LAN-/WLAN-Verteilung, Funkmodule mit Kanal und Gast-Markierung sowie die aktiven Geräte.
+- **Telefonie** – heute verpasste Anrufe, neue Anrufbeantworter-Nachrichten und die letzten Anrufe.
+
+Das Widget zeigt nur Bereiche, deren Funktionsgruppen in der Fritz!Box-Konfiguration freigegeben sind (System, Netzwerk mit Hosts/WLAN, Telefonie mit Anruflisten/AB). Es gibt niemals MAC-Adressen, Anrufbeantworter-Dateien, Portfreigaben oder das Router-Passwort preis und schaltet nichts.
+
 ## AdGuard Home Integration
 
 DNS-Filterung und -Blockierung verwalten.

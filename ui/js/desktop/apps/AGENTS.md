@@ -164,6 +164,29 @@ buttons and menu popovers remain excluded from those gestures.
   Elegoo `TotalTicks - CurrentTicks` is seconds; absent timing is never estimated
   from progress. Text uses `desktop.widget_printer_*` in all 16 desktop locales.
 
+- `builtin-fritzbox` (`core/widget-fritzbox-runtime.js` plus the pure SVG/format
+  helpers in `core/widget-fritzbox-charts.js`) is hidden by default, uses the
+  shared 320px width at 300px height and reads only
+  `GET /api/desktop/fritzbox/overview?sections=...`. Pages (connection, traffic,
+  devices, telephony) are a swipeable pager with `role="tablist"` dots, arrows,
+  pointer swipe and Arrow/Home/End keys; the last page persists in
+  `localStorage` key `aurago.desktop.fritzbox.page`. Sections whose capability
+  is off are dropped; `fritzbox_disabled` shows `widget_fritzbox_disabled_hint`
+  and stops polling. Polling: connection every 5 s while visible (keeps the
+  traffic history continuous on every page), devices/telephony every 60 s plus
+  a targeted refresh when their page opens with data older than 20 s, system
+  every 5 min; `visibilitychange` pauses, `AbortController`
+  cancels in-flight requests, and `registerWidgetCleanup` releases timers,
+  observer and listeners. Traffic history is a client-only ring buffer
+  (`fritzMergeMonitorSamples`, max 180 samples) seeded from the router online
+  monitor; no backend sampler exists. All router text (host names, caller
+  names, numbers, IPs, SSIDs) renders via `textContent`; `innerHTML` receives
+  only the static shell, numeric SVG markup and trusted glyphs. Compact mode
+  (`is-compact`) engages below 280px via `ResizeObserver`. Strings use
+  `desktop.widget_fritzbox_*` plus reused `desktop.copy`, `desktop.copied`,
+  `desktop.retry`, `desktop.load_failed`, `desktop.system_info_updated` and
+  the sysmon byte/uptime formatters in all 16 desktop locales.
+
 - All widget cards, including sticky notes and generated iframe widgets, use
   `widgetWidth()` (320px, reduced only for a narrower workspace). Content resize
   changes height only. Stored legacy widths must not override the shared width.

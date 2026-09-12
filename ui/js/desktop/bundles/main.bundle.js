@@ -1806,6 +1806,7 @@
         if (id === 'builtin-sysmon') return t('desktop.widget_sysmon_title');
         if (id === 'builtin-meshcore') return t('desktop.widget_meshcore_title');
         if (id === 'builtin-printer') return t('desktop.widget_printer_title');
+        if (id === 'builtin-fritzbox') return t('desktop.widget_fritzbox_title');
         return widget.title || widget.id || '';
     }
 
@@ -4808,6 +4809,8 @@
             renderMeshCoreWidget(container);
         } else if (widget.id === 'builtin-printer') {
             renderPrinterWidget(container);
+        } else if (widget.id === 'builtin-fritzbox') {
+            renderFritzBoxWidget(container);
         } else {
             container.innerHTML = `<div class="vd-widget-body">${esc(widgetDisplayTitle(widget))}</div>`;
         }
@@ -5282,6 +5285,7 @@
         const right = Math.max(8, workspaceWidth - width - 8);
         const widgetID = String(widget && widget.id || '');
         if (widgetID === 'builtin-printer') return { x: 8, y: top, w: width, h: 320 };
+        if (widgetID === 'builtin-fritzbox') return { x: 8, y: top + 320 + gap, w: width, h: 300 };
         if (widgetID === 'builtin-quickchat') {
             return { x: Math.max(12, Math.round((workspaceWidth - width) / 2)), y: top, w: width, h: 56 };
         }
@@ -10345,6 +10349,944 @@ function updateTaskbarSystemButtonsForMobile() {
             document.removeEventListener('visibilitychange', onVisibility);
             if (dialog.open) dialog.close();
             stopCamera();
+        });
+    }
+
+;
+/* ui/js/desktop/core/widget-fritzbox-charts.js */
+    /* Fritz!Box widget chart helpers. Every function here is pure: it turns
+       numeric series into SVG markup or formatted strings and never touches
+       the DOM or data from the router other than numbers. Text that comes
+       from the Fritz!Box (host names, SSIDs, caller names) is rendered by the
+       runtime through textContent only. */
+    function fritzNumberFormat(maximumFractionDigits) {
+        return new Intl.NumberFormat(document.documentElement.lang || undefined, {
+            maximumFractionDigits,
+            minimumFractionDigits: 0
+        });
+    }
+
+    /* Bit rates use decimal SI prefixes like the FRITZ!OS web interface. */
+    function fritzSplitBits(bps) {
+        const value = Math.max(0, Number(bps) || 0);
+        const units = ['bit/s', 'kbit/s', 'Mbit/s', 'Gbit/s'];
+        let size = value;
+        let unit = 0;
+        while (size >= 1000 && unit < units.length - 1) {
+            size /= 1000;
+            unit += 1;
+        }
+        const digits = unit === 0 ? 0 : (size >= 100 ? 0 : (size >= 10 ? 1 : 2));
+        return { number: fritzNumberFormat(digits).format(size), unit: units[unit] };
+    }
+
+    function fritzFormatBits(bps) {
+        const parts = fritzSplitBits(bps);
+        return `${parts.number} ${parts.unit}`;
+    }
+
+    /* Short axis labels: "50 Mbit", "800 kbit", "2,5 Gbit" (per second is implied by the legend). */
+    function fritzFormatBitsShort(bps) {
+        const value = Math.max(0, Number(bps) || 0);
+        if (value === 0) return '0';
+        const units = ['bit', 'kbit', 'Mbit', 'Gbit'];
+        let size = value;
+        let unit = 0;
+        while (size >= 1000 && unit < units.length - 1) {
+            size /= 1000;
+            unit += 1;
+        }
+        return `${fritzNumberFormat(size >= 10 ? 0 : 1).format(size)} ${units[unit]}`;
+    }
+
+    /* Nice ceiling (1, 2, 5 x 10^n) so grid lines land on readable values. */
+    function fritzNiceMax(value) {
+        const v = Math.max(1, Number(value) || 0);
+        const magnitude = Math.pow(10, Math.floor(Math.log10(v)));
+        const normalized = v / magnitude;
+        let nice = 10;
+        if (normalized <= 1) nice = 1;
+        else if (normalized <= 2) nice = 2;
+        else if (normalized <= 2.5) nice = 2.5;
+        else if (normalized <= 5) nice = 5;
+        return nice * magnitude;
+    }
+
+    function fritzFormatPercent(ratio) {
+        const clamped = Math.max(0, Math.min(1, Number(ratio) || 0));
+        return new Intl.NumberFormat(document.documentElement.lang || undefined, {
+            style: 'percent',
+            maximumFractionDigits: clamped < 0.1 ? 1 : 0
+        }).format(clamped);
+    }
+
+    /* "H:MM" call durations from the box become minutes/hours. */
+    function fritzFormatCallDuration(raw) {
+        const match = /^(\d+):(\d{1,2})$/.exec(String(raw || '').trim());
+        if (!match) return String(raw || '').trim();
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        if (hours > 0) return `${hours} h ${minutes} min`;
+        return `${minutes} min`;
+    }
+
+    /* Relative time for call timestamps; falls back to the raw date text. */
+    function fritzRelativeTime(timestamp, fallback, now) {
+        const time = Date.parse(timestamp || '');
+        if (!Number.isFinite(time)) return String(fallback || '');
+        const diffMs = time - (now || Date.now());
+        const abs = Math.abs(diffMs);
+        const lang = document.documentElement.lang || undefined;
+        if (abs >= 6 * 24 * 3600 * 1000) {
+            return new Intl.DateTimeFormat(lang, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(time));
+        }
+        const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+        if (abs < 60 * 1000) return rtf.format(Math.round(diffMs / 1000), 'second');
+        if (abs < 3600 * 1000) return rtf.format(Math.round(diffMs / 60000), 'minute');
+        if (abs < 24 * 3600 * 1000) return rtf.format(Math.round(diffMs / 3600000), 'hour');
+        return rtf.format(Math.round(diffMs / 86400000), 'day');
+    }
+
+    function fritzSvgNumber(value) {
+        return Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
+    }
+
+    /* Monotone cubic interpolation (Fritsch-Carlson) keeps curves smooth without
+       overshooting below zero. Segments split at null gaps. */
+    function fritzSmoothPath(points) {
+        let d = '';
+        let segment = [];
+        const flush = () => {
+            if (segment.length === 1) {
+                d += `M${segment[0].x},${segment[0].y} L${segment[0].x},${segment[0].y}`;
+            } else if (segment.length > 1) {
+                const n = segment.length;
+                const slopes = new Array(n).fill(0);
+                const deltas = [];
+                for (let i = 0; i < n - 1; i++) {
+                    const dx = segment[i + 1].x - segment[i].x || 1e-6;
+                    deltas.push((segment[i + 1].y - segment[i].y) / dx);
+                }
+                slopes[0] = deltas[0];
+                slopes[n - 1] = deltas[n - 2];
+                for (let i = 1; i < n - 1; i++) {
+                    slopes[i] = deltas[i - 1] * deltas[i] <= 0 ? 0 : (deltas[i - 1] + deltas[i]) / 2;
+                }
+                d += `M${segment[0].x},${segment[0].y}`;
+                for (let i = 0; i < n - 1; i++) {
+                    const p0 = segment[i];
+                    const p1 = segment[i + 1];
+                    const dx = (p1.x - p0.x) / 3;
+                    d += ` C${fritzSvgNumber(p0.x + dx)},${fritzSvgNumber(p0.y + slopes[i] * dx)} ${fritzSvgNumber(p1.x - dx)},${fritzSvgNumber(p1.y - slopes[i + 1] * dx)} ${p1.x},${p1.y}`;
+                }
+            }
+            segment = [];
+        };
+        for (const point of points) {
+            if (point === null) {
+                flush();
+            } else {
+                segment.push(point);
+            }
+        }
+        flush();
+        return d;
+    }
+
+    /* Closes a smooth line path down to the baseline for area fills. */
+    function fritzAreaPath(points, baseline) {
+        let d = '';
+        let segment = [];
+        const flush = () => {
+            if (segment.length) {
+                const line = fritzSmoothPath(segment);
+                const first = segment[0];
+                const last = segment[segment.length - 1];
+                d += `${line} L${last.x},${baseline} L${first.x},${baseline} Z `;
+            }
+            segment = [];
+        };
+        for (const point of points) {
+            if (point === null) flush();
+            else segment.push(point);
+        }
+        flush();
+        return d.trim();
+    }
+
+    /* Projects {t, down, up} samples onto chart coordinates. Gaps larger than
+       gapMs become null breaks so pauses (hidden tab) are visible, not faked. */
+    function fritzProjectSeries(samples, key, range, width, height, max, gapMs) {
+        const span = Math.max(1, range.end - range.start);
+        const points = [];
+        let previous = null;
+        for (const sample of samples) {
+            const value = Number(sample[key]);
+            if (!Number.isFinite(value)) continue;
+            if (previous !== null && sample.t - previous > gapMs) points.push(null);
+            const x = fritzSvgNumber(((sample.t - range.start) / span) * width);
+            const y = fritzSvgNumber(height - Math.min(1, Math.max(0, value / max)) * height);
+            points.push({ x, y, value });
+            previous = sample.t;
+        }
+        return points;
+    }
+
+    /* Dual area chart (download + upload) with grid lines and value labels.
+       Returns markup plus the scale max so the runtime can label the legend. */
+    function fritzAreaChartSVG(options) {
+        const samples = Array.isArray(options.samples) ? options.samples : [];
+        const width = options.width || 300;
+        const height = options.height || 110;
+        const padTop = 6;
+        const padRight = options.compact ? 4 : 50;
+        const plotW = Math.max(10, width - padRight);
+        const plotH = Math.max(10, height - padTop - 4);
+        const gapMs = options.gapMs || 15000;
+        const idPrefix = String(options.idPrefix || 'fritz').replace(/[^a-z0-9_-]/gi, '');
+        const observed = samples.reduce((acc, sample) => Math.max(acc, Number(sample.down) || 0, Number(sample.up) || 0), 0);
+        const max = fritzNiceMax(Math.max(observed * 1.15, options.minMax || 1000));
+        const range = options.range || {
+            start: samples.length ? samples[0].t : 0,
+            end: samples.length ? samples[samples.length - 1].t : 1
+        };
+        const down = fritzProjectSeries(samples, 'down', range, plotW, plotH, max, gapMs);
+        const up = fritzProjectSeries(samples, 'up', range, plotW, plotH, max, gapMs);
+        const gridLevels = options.compact ? [0.5] : [0.25, 0.5, 0.75, 1];
+        let grid = '';
+        for (const level of gridLevels) {
+            const y = fritzSvgNumber(padTop + plotH - level * plotH);
+            grid += `<line class="vd-fritz-chart-grid" x1="0" y1="${y}" x2="${plotW}" y2="${y}"></line>`;
+            if (!options.compact) {
+                grid += `<text class="vd-fritz-chart-tick" x="${plotW + 4}" y="${y + 3}">${fritzFormatBitsShort(level * max)}</text>`;
+            }
+        }
+        const shift = points => points.map(point => point === null ? null : { x: point.x, y: fritzSvgNumber(point.y + padTop), value: point.value });
+        const downShifted = shift(down);
+        const upShifted = shift(up);
+        const baseline = fritzSvgNumber(padTop + plotH);
+        let peak = '';
+        let peakPoint = null;
+        for (const point of downShifted) {
+            if (point && (!peakPoint || point.value > peakPoint.value)) peakPoint = point;
+        }
+        if (peakPoint && peakPoint.value > 0 && !options.compact) {
+            peak = `<circle class="vd-fritz-chart-peak" cx="${peakPoint.x}" cy="${peakPoint.y}" r="2.6"></circle>`;
+        }
+        const svg = `<svg class="vd-fritz-chart-svg" viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none" role="img" aria-hidden="true">
+            <defs>
+                <linearGradient id="${idPrefix}-down" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" class="vd-fritz-grad-down-start"></stop>
+                    <stop offset="100%" class="vd-fritz-grad-down-end"></stop>
+                </linearGradient>
+                <linearGradient id="${idPrefix}-up" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" class="vd-fritz-grad-up-start"></stop>
+                    <stop offset="100%" class="vd-fritz-grad-up-end"></stop>
+                </linearGradient>
+            </defs>
+            ${grid}
+            <path class="vd-fritz-chart-area is-down" fill="url(#${idPrefix}-down)" d="${fritzAreaPath(downShifted, baseline)}"></path>
+            <path class="vd-fritz-chart-area is-up" fill="url(#${idPrefix}-up)" d="${fritzAreaPath(upShifted, baseline)}"></path>
+            <path class="vd-fritz-chart-line is-up" d="${fritzSmoothPath(upShifted)}"></path>
+            <path class="vd-fritz-chart-line is-down" d="${fritzSmoothPath(downShifted)}"></path>
+            ${peak}
+        </svg>`;
+        return { svg, max, plotWidth: plotW, plotHeight: plotH, padTop, range };
+    }
+
+    /* Tiny trend line for the connection page KPIs. */
+    function fritzSparkSVG(values, width, height, className) {
+        const list = (Array.isArray(values) ? values : []).map(v => Number(v)).filter(v => Number.isFinite(v));
+        if (list.length < 2) return `<svg class="vd-fritz-spark-svg ${className || ''}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"></svg>`;
+        const max = Math.max(1, ...list);
+        const step = width / (list.length - 1);
+        const points = list.map((value, index) => ({
+            x: fritzSvgNumber(index * step),
+            y: fritzSvgNumber(height - 1 - (value / max) * (height - 2))
+        }));
+        return `<svg class="vd-fritz-spark-svg ${className || ''}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+            <path class="vd-fritz-spark-area" d="${fritzAreaPath(points, height)}"></path>
+            <path class="vd-fritz-spark-line" d="${fritzSmoothPath(points)}"></path>
+        </svg>`;
+    }
+
+    /* Ring chart for "active of total" counts. Only numbers reach the markup. */
+    function fritzRingSVG(value, total, size) {
+        const radius = (size - 8) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const ratio = total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
+        const dash = fritzSvgNumber(circumference * ratio);
+        const center = size / 2;
+        return `<svg class="vd-fritz-ring-svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
+            <circle class="vd-fritz-ring-track" cx="${center}" cy="${center}" r="${fritzSvgNumber(radius)}"></circle>
+            <circle class="vd-fritz-ring-value" cx="${center}" cy="${center}" r="${fritzSvgNumber(radius)}" stroke-dasharray="${dash} ${fritzSvgNumber(circumference)}" transform="rotate(-90 ${center} ${center})"></circle>
+            <text class="vd-fritz-ring-number" x="${center}" y="${center + 1}" text-anchor="middle" dominant-baseline="middle">${Math.max(0, Math.round(Number(value) || 0))}</text>
+        </svg>`;
+    }
+
+    /* Semi-circular gauge for line utilization. */
+    function fritzGaugeSVG(ratio, size, className) {
+        const clamped = Math.max(0, Math.min(1, Number(ratio) || 0));
+        const stroke = 7;
+        const radius = (size - stroke) / 2;
+        const center = size / 2;
+        const arcLength = Math.PI * radius;
+        const start = `${fritzSvgNumber(center - radius)},${fritzSvgNumber(center)}`;
+        const end = `${fritzSvgNumber(center + radius)},${fritzSvgNumber(center)}`;
+        const path = `M${start} A${fritzSvgNumber(radius)},${fritzSvgNumber(radius)} 0 0 1 ${end}`;
+        return `<svg class="vd-fritz-gauge-svg ${className || ''}" viewBox="0 0 ${size} ${center + stroke}" width="${size}" height="${center + stroke}" aria-hidden="true">
+            <path class="vd-fritz-gauge-track" d="${path}"></path>
+            <path class="vd-fritz-gauge-value" d="${path}" stroke-dasharray="${fritzSvgNumber(arcLength * clamped)} ${fritzSvgNumber(arcLength)}"></path>
+        </svg>`;
+    }
+
+    /* Maps a pointer x position inside the chart to the nearest sample index. */
+    function fritzChartIndexAt(samples, range, plotWidth, x) {
+        if (!samples.length) return -1;
+        const span = Math.max(1, range.end - range.start);
+        const time = range.start + (Math.max(0, Math.min(plotWidth, x)) / plotWidth) * span;
+        let best = 0;
+        let bestDistance = Infinity;
+        for (let i = 0; i < samples.length; i++) {
+            const distance = Math.abs(samples[i].t - time);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /* Ring buffer helper: merges monitor samples (oldest first, fixed interval)
+       ending at `end` into the existing history without duplicating times. */
+    function fritzMergeMonitorSamples(history, downSeries, upSeries, intervalMs, end, capacity) {
+        const count = Math.min(downSeries.length, upSeries.length);
+        const tolerance = intervalMs / 2;
+        let last = history.length ? history[history.length - 1].t : -Infinity;
+        for (let i = 0; i < count; i++) {
+            const t = end - (count - 1 - i) * intervalMs;
+            if (t <= last + tolerance) continue;
+            history.push({ t, down: Math.max(0, Number(downSeries[i]) || 0), up: Math.max(0, Number(upSeries[i]) || 0) });
+            last = t;
+        }
+        while (history.length > capacity) history.shift();
+        return history;
+    }
+
+;
+/* ui/js/desktop/core/widget-fritzbox-runtime.js */
+    /* Fritz!Box widget: read-only router overview with four swipeable pages
+       (connection, traffic, devices, telephony). Data comes from the
+       admin-scoped GET /api/desktop/fritzbox/overview endpoint; the widget
+       polls the fast connection section every 5 s while visible and the slow
+       sections once a minute. Throughput history is a client-side ring buffer
+       seeded by the FRITZ!OS online monitor (20 x 5 s per response), so the
+       chart is filled immediately and grows to 15 minutes. Router-provided
+       text (host names, SSIDs, caller names) is rendered via textContent only. */
+    const FRITZ_WIDGET_POLL_MS = 5000;
+    const FRITZ_WIDGET_SLOW_MS = 60000;
+    const FRITZ_WIDGET_SYSTEM_MS = 300000;
+    const FRITZ_WIDGET_PAGE_REFRESH_MS = 20000;
+    const FRITZ_WIDGET_HISTORY_MAX = 180; // 15 minutes at 5 s
+    const FRITZ_WIDGET_HISTORY_MIN_SPAN_MS = 100000;
+    const FRITZ_WIDGET_HISTORY_SPAN_MS = 15 * 60 * 1000;
+    const FRITZ_WIDGET_PAGE_KEY = 'aurago.desktop.fritzbox.page';
+    const FRITZ_WIDGET_PAGES = ['connection', 'traffic', 'devices', 'telephony'];
+    const FRITZ_WIDGET_GLYPHS = {
+        down: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v9.2l3.6-3.6 1.4 1.4L8 15 3 9l1.4-1.4L8 11.2V2z"/></svg>',
+        up: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14V4.8L4.4 8.4 3 7l5-6 5 6-1.4 1.4L8 4.8V14z"/></svg>',
+        lan: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v6H9v2h3v2H4v-2h3V9H2V3zm2 2v2h8V5H4z"/></svg>',
+        wlan: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM4.5 8.9l1.4 1.4a3 3 0 0 1 4.2 0l1.4-1.4a5 5 0 0 0-7 0zM1.7 6.1l1.4 1.4a7 7 0 0 1 9.8 0l1.4-1.4a9 9 0 0 0-12.6 0z"/></svg>',
+        incoming: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 3l-6.6 6.6V6H4.6v6h6V10.2H7.4L14 3.6z"/></svg>',
+        outgoing: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13l6.6-6.6V10h1.8V4h-6v1.8h3.6L2.4 12.4z"/></svg>',
+        missed: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 3l3.8 3.8L11.8 3 13 4.2 9.2 8 13 11.8 11.8 13 8 9.2 4.2 13 3 11.8 6.8 8 3 4.2z"/></svg>',
+        phone: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.6 2h2.9l1.2 3.2-1.6 1.2a7.4 7.4 0 0 0 3.5 3.5l1.2-1.6L14 9.5v2.9A1.6 1.6 0 0 1 12.4 14 10.4 10.4 0 0 1 2 3.6 1.6 1.6 0 0 1 3.6 2z"/></svg>'
+    };
+
+    function fritzWidgetPagesFor(capabilities) {
+        const caps = capabilities || {};
+        return FRITZ_WIDGET_PAGES.filter(page => {
+            if (page === 'connection' || page === 'traffic') return !!caps.connection;
+            if (page === 'devices') return !!caps.devices;
+            return !!caps.telephony;
+        });
+    }
+
+    function fritzWidgetShell(label, uid) {
+        const glyph = key => `<span class="vd-fritz-glyph">${FRITZ_WIDGET_GLYPHS[key]}</span>`;
+        const fact = (key, valueKey, extra) => `<div class="vd-fritz-fact"><dt>${esc(label(key))}</dt><dd><span data-fritz="${valueKey}">–</span>${extra || ''}</dd></div>`;
+        const copyButton = key => `<button type="button" class="vd-fritz-copy" data-fritz="copy-${key}" aria-label="${esc(label('copy_ip'))}" title="${esc(label('copy_ip'))}" hidden>${esc(t('desktop.copy'))}</button>`;
+        return `<div class="vd-fritz" data-fritz="root" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${esc(label('title'))}" id="${uid}">
+            <div class="vd-fritz-head">
+                <span class="vd-fritz-dot is-unknown" data-fritz="dot" aria-hidden="true"></span>
+                <span class="vd-fritz-title" data-fritz="model">${esc(label('title'))}</span>
+                <span class="vd-fritz-page-title" data-fritz="page-title" aria-live="polite"></span>
+                <span class="vd-fritz-updated" data-fritz="updated"></span>
+            </div>
+            <div class="vd-fritz-viewport" data-fritz="viewport">
+                <div class="vd-fritz-track" data-fritz="track">
+                    <section class="vd-fritz-page" data-fritz-page="connection" aria-label="${esc(label('page_connection'))}">
+                        <div class="vd-fritz-status"><span class="vd-fritz-status-text" data-fritz="status-text">–</span><span class="vd-fritz-status-since" data-fritz="status-since"></span></div>
+                        <div class="vd-fritz-kpis">
+                            <div class="vd-fritz-kpi is-down">
+                                <span class="vd-fritz-kpi-label">${glyph('down')}${esc(label('download'))}</span>
+                                <span class="vd-fritz-kpi-value"><b data-fritz="down-number">–</b><small data-fritz="down-unit"></small></span>
+                                <div class="vd-fritz-kpi-spark" data-fritz="down-spark"></div>
+                            </div>
+                            <div class="vd-fritz-kpi is-up">
+                                <span class="vd-fritz-kpi-label">${glyph('up')}${esc(label('upload'))}</span>
+                                <span class="vd-fritz-kpi-value"><b data-fritz="up-number">–</b><small data-fritz="up-unit"></small></span>
+                                <div class="vd-fritz-kpi-spark" data-fritz="up-spark"></div>
+                            </div>
+                        </div>
+                        <div class="vd-fritz-gauges">
+                            <div class="vd-fritz-gauge is-down"><div class="vd-fritz-gauge-arc" data-fritz="down-gauge"></div><b data-fritz="down-pct">–</b><span data-fritz="down-max"></span></div>
+                            <div class="vd-fritz-gauge is-up"><div class="vd-fritz-gauge-arc" data-fritz="up-gauge"></div><b data-fritz="up-pct">–</b><span data-fritz="up-max"></span></div>
+                        </div>
+                        <dl class="vd-fritz-facts">
+                            ${fact('external_ip', 'ipv4', copyButton('ipv4'))}
+                            ${fact('external_ipv6', 'ipv6', copyButton('ipv6'))}
+                            ${fact('access_type', 'access')}
+                            ${fact('box_uptime', 'box-uptime')}
+                        </dl>
+                    </section>
+                    <section class="vd-fritz-page" data-fritz-page="traffic" aria-label="${esc(label('page_traffic'))}">
+                        <div class="vd-fritz-chart" data-fritz="chart-host">
+                            <div class="vd-fritz-chart-canvas" data-fritz="chart"></div>
+                            <div class="vd-fritz-chart-cursor" data-fritz="chart-cursor" hidden></div>
+                            <div class="vd-fritz-chart-tip" data-fritz="chart-tip" hidden><span data-fritz="tip-time"></span><span class="is-down" data-fritz="tip-down"></span><span class="is-up" data-fritz="tip-up"></span></div>
+                        </div>
+                        <div class="vd-fritz-legend">
+                            <span class="vd-fritz-legend-item is-down"><i></i>${esc(label('download'))} <b data-fritz="legend-down">–</b></span>
+                            <span class="vd-fritz-legend-item is-up"><i></i>${esc(label('upload'))} <b data-fritz="legend-up">–</b></span>
+                            <span class="vd-fritz-legend-span" data-fritz="legend-span"></span>
+                        </div>
+                        <dl class="vd-fritz-facts is-grid">
+                            ${fact('received', 'total-down')}
+                            ${fact('sent', 'total-up')}
+                            ${fact('peak_down', 'peak-down')}
+                            ${fact('peak_up', 'peak-up')}
+                        </dl>
+                    </section>
+                    <section class="vd-fritz-page" data-fritz-page="devices" aria-label="${esc(label('page_devices'))}">
+                        <div class="vd-fritz-devices-head">
+                            <div class="vd-fritz-ring" data-fritz="ring"></div>
+                            <div class="vd-fritz-devices-summary">
+                                <span class="vd-fritz-devices-count"><b data-fritz="dev-active">–</b> ${esc(label('devices_active'))}</span>
+                                <span class="vd-fritz-devices-total" data-fritz="dev-total"></span>
+                                <div class="vd-fritz-chips">
+                                    <span class="vd-fritz-chip is-lan">${glyph('lan')}${esc(label('lan'))} <b data-fritz="dev-lan">–</b></span>
+                                    <span class="vd-fritz-chip is-wlan">${glyph('wlan')}${esc(label('wlan'))} <b data-fritz="dev-wlan">–</b></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="vd-fritz-wlans" data-fritz="wlans"></div>
+                        <ul class="vd-fritz-list" data-fritz="hosts"></ul>
+                        <div class="vd-fritz-empty" data-fritz="hosts-empty" hidden>${esc(label('no_devices'))}</div>
+                    </section>
+                    <section class="vd-fritz-page" data-fritz-page="telephony" aria-label="${esc(label('page_telephony'))}">
+                        <div class="vd-fritz-badges">
+                            <div class="vd-fritz-badge is-missed">${glyph('missed')}<b data-fritz="missed">–</b><span>${esc(label('missed_today'))}</span></div>
+                            <div class="vd-fritz-badge is-tam" data-fritz="tam-badge">${glyph('phone')}<b data-fritz="tam">–</b><span>${esc(label('tam_new'))}</span></div>
+                        </div>
+                        <ul class="vd-fritz-list is-calls" data-fritz="calls"></ul>
+                        <div class="vd-fritz-empty" data-fritz="calls-empty" hidden>${esc(label('no_calls'))}</div>
+                    </section>
+                </div>
+                <button type="button" class="vd-fritz-arrow is-prev" data-fritz="prev" aria-label="${esc(label('prev_page'))}">&#8249;</button>
+                <button type="button" class="vd-fritz-arrow is-next" data-fritz="next" aria-label="${esc(label('next_page'))}">&#8250;</button>
+            </div>
+            <div class="vd-fritz-dots" data-fritz="dots" role="tablist"></div>
+            <div class="vd-fritz-banner" data-fritz="banner" hidden><span data-fritz="banner-text"></span><button type="button" data-fritz="retry">${esc(t('desktop.retry'))}</button></div>
+            <div class="vd-fritz-empty is-notice" data-fritz="notice" hidden></div>
+            <div class="vd-fritz-skeleton" data-fritz="skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        </div>`;
+    }
+
+    function renderFritzBoxWidget(container) {
+        const label = (key, vars) => t('desktop.widget_fritzbox_' + key, vars);
+        const uid = 'fritz-' + Math.random().toString(36).slice(2, 8);
+        container.innerHTML = fritzWidgetShell(label, uid);
+        const refs = Object.fromEntries([...container.querySelectorAll('[data-fritz]')].map(el => [el.dataset.fritz, el]));
+        const pageEls = Object.fromEntries([...container.querySelectorAll('[data-fritz-page]')].map(el => [el.dataset.fritzPage, el]));
+        const state = {
+            disposed: false, controller: null, timer: null, pages: [], page: 0, capabilities: null,
+            history: [], connection: null, devices: null, telephony: null, system: null,
+            fetchedAt: { connection: 0, devices: 0, telephony: 0, system: 0 }, hasData: false,
+            chart: null, compact: false, copyTimer: null, drag: null
+        };
+        const lang = () => document.documentElement.lang || undefined;
+        const clockFormat = new Intl.DateTimeFormat(lang(), { hour: '2-digit', minute: '2-digit' });
+        const tipFormat = new Intl.DateTimeFormat(lang(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        /* ---------- pager ---------- */
+        function pageTitle(page) { return label('page_' + page); }
+
+        function setPages(pages) {
+            if (pages.join(',') === state.pages.join(',') && state.hasData) return;
+            state.pages = pages;
+            for (const page of FRITZ_WIDGET_PAGES) {
+                pageEls[page].hidden = !pages.includes(page);
+            }
+            refs.dots.innerHTML = '';
+            pages.forEach((page, index) => {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'vd-fritz-dotbtn';
+                dot.setAttribute('role', 'tab');
+                dot.setAttribute('aria-label', label('page_of', { current: index + 1, total: pages.length }) + ' · ' + pageTitle(page));
+                dot.dataset.fritzDot = String(index);
+                dot.addEventListener('click', () => setPage(index, true));
+                refs.dots.appendChild(dot);
+            });
+            refs.dots.hidden = pages.length < 2;
+            refs.prev.hidden = refs.next.hidden = pages.length < 2;
+            refs.notice.hidden = pages.length > 0;
+            if (!pages.length) refs.notice.textContent = label('no_sections');
+            let stored = '';
+            try { stored = localStorage.getItem(FRITZ_WIDGET_PAGE_KEY) || ''; } catch (_) { stored = ''; }
+            setPage(Math.max(0, pages.indexOf(stored)), false);
+        }
+
+        function setPage(index, persist) {
+            if (!state.pages.length) return;
+            const next = Math.max(0, Math.min(state.pages.length - 1, index));
+            state.page = next;
+            refs.track.style.transform = `translateX(${-next * 100}%)`;
+            refs.track.classList.remove('is-dragging');
+            [...refs.dots.children].forEach((dot, i) => {
+                dot.classList.toggle('is-active', i === next);
+                dot.setAttribute('aria-selected', i === next ? 'true' : 'false');
+            });
+            state.pages.forEach((page, i) => {
+                pageEls[page].classList.toggle('is-active', i === next);
+                pageEls[page].setAttribute('aria-hidden', i === next ? 'false' : 'true');
+            });
+            refs.prev.disabled = next === 0;
+            refs.next.disabled = next === state.pages.length - 1;
+            refs['page-title'].textContent = pageTitle(state.pages[next]);
+            if (persist) {
+                try { localStorage.setItem(FRITZ_WIDGET_PAGE_KEY, state.pages[next]); } catch (_) { /* storage unavailable */ }
+                const current = state.pages[next];
+                if ((current === 'devices' || current === 'telephony') && Date.now() - state.fetchedAt[current] > FRITZ_WIDGET_PAGE_REFRESH_MS) refresh([current]);
+            }
+            if (state.pages[next] === 'traffic') renderChart();
+        }
+
+        /* ---------- formatting helpers ---------- */
+        function setBits(numberEl, unitEl, bps) {
+            const parts = fritzSplitBits(bps);
+            numberEl.textContent = parts.number;
+            unitEl.textContent = parts.unit;
+        }
+
+        function accessLabel(type) {
+            const known = ['dsl', 'cable', 'fiber', 'ethernet', 'mobile'];
+            return label('access_' + (known.includes(type) ? type : 'other'));
+        }
+
+        /* ---------- connection page ---------- */
+        function renderConnection() {
+            const c = state.connection;
+            if (!c) return;
+            refs.dot.className = 'vd-fritz-dot ' + (c.online ? 'is-online' : (c.status === 'Connecting' ? 'is-connecting' : 'is-offline'));
+            refs['status-text'].textContent = c.online ? label('online') : (c.status === 'Connecting' ? label('connecting') : label('offline'));
+            refs['status-text'].title = c.online ? '' : String(c.last_error || '');
+            refs['status-text'].classList.toggle('is-offline', !c.online && c.status !== 'Connecting');
+            refs['status-since'].textContent = c.online && c.uptime_seconds > 0 ? label('connected_for', { duration: sysmonFormatUptime(c.uptime_seconds) }) : '';
+            setBits(refs['down-number'], refs['down-unit'], c.down_bps);
+            setBits(refs['up-number'], refs['up-unit'], c.up_bps);
+            const recent = state.history.slice(-24);
+            refs['down-spark'].innerHTML = fritzSparkSVG(recent.map(s => s.down), 100, 18, 'is-down');
+            refs['up-spark'].innerHTML = fritzSparkSVG(recent.map(s => s.up), 100, 18, 'is-up');
+            for (const dir of ['down', 'up']) {
+                const max = Number(c['max_' + dir + '_bps']) || 0;
+                const ratio = max > 0 ? (Number(c[dir + '_bps']) || 0) / max : 0;
+                refs[dir + '-gauge'].innerHTML = fritzGaugeSVG(ratio, 72, 'is-' + dir);
+                refs[dir + '-pct'].textContent = max > 0 ? fritzFormatPercent(ratio) : '–';
+                refs[dir + '-max'].textContent = max > 0 ? label('of_max', { rate: fritzFormatBits(max) }) : label('utilization');
+            }
+            for (const key of ['ipv4', 'ipv6']) {
+                const value = String(c['external_' + key] || '').trim();
+                refs[key].textContent = value || '–';
+                refs[key].title = value;
+                refs['copy-' + key].hidden = !value || !(navigator.clipboard && navigator.clipboard.writeText);
+            }
+            refs.access.textContent = c.access_type ? accessLabel(c.access_type) : '–';
+            refs['box-uptime'].textContent = state.system && state.system.uptime_seconds > 0 ? sysmonFormatUptime(state.system.uptime_seconds) : '–';
+            refs['total-down'].textContent = c.total_received_bytes > 0 ? sysmonFormatBytes(c.total_received_bytes) : '–';
+            refs['total-up'].textContent = c.total_sent_bytes > 0 ? sysmonFormatBytes(c.total_sent_bytes) : '–';
+        }
+
+        /* ---------- traffic page ---------- */
+        function chartRange() {
+            const samples = state.history;
+            const end = samples.length ? samples[samples.length - 1].t : Date.now();
+            const first = samples.length ? samples[0].t : end;
+            const span = Math.max(FRITZ_WIDGET_HISTORY_MIN_SPAN_MS, Math.min(FRITZ_WIDGET_HISTORY_SPAN_MS, end - first));
+            return { start: end - span, end };
+        }
+
+        function renderChart() {
+            if (state.disposed || pageEls.traffic.hidden) return;
+            const samples = state.history;
+            const width = Math.max(120, refs.chart.clientWidth || 300);
+            const height = state.compact ? 72 : 104;
+            const range = chartRange();
+            const result = fritzAreaChartSVG({ samples, width, height, range, idPrefix: uid, compact: state.compact, gapMs: 15000 });
+            refs.chart.innerHTML = result.svg;
+            state.chart = { result, width };
+            const latest = samples.length ? samples[samples.length - 1] : null;
+            refs['legend-down'].textContent = latest ? fritzFormatBits(latest.down) : '–';
+            refs['legend-up'].textContent = latest ? fritzFormatBits(latest.up) : '–';
+            const spanMinutes = Math.max(1, Math.round((range.end - range.start) / 60000));
+            refs['legend-span'].textContent = label('window_label', { span: spanMinutes + ' min' });
+            let peakDown = 0;
+            let peakUp = 0;
+            for (const sample of samples) {
+                if (sample.t < range.start) continue;
+                peakDown = Math.max(peakDown, sample.down);
+                peakUp = Math.max(peakUp, sample.up);
+            }
+            refs['peak-down'].textContent = samples.length ? fritzFormatBits(peakDown) : '–';
+            refs['peak-up'].textContent = samples.length ? fritzFormatBits(peakUp) : '–';
+        }
+
+        function showChartTip(event) {
+            if (!state.chart || !state.history.length) return;
+            const rect = refs.chart.getBoundingClientRect();
+            const scale = rect.width ? state.chart.width / rect.width : 1;
+            const x = (event.clientX - rect.left) * scale;
+            const plotWidth = state.chart.result.plotWidth;
+            if (x > plotWidth) { hideChartTip(); return; }
+            const index = fritzChartIndexAt(state.history, state.chart.result.range, plotWidth, x);
+            const sample = state.history[index];
+            if (!sample) return;
+            const px = ((sample.t - state.chart.result.range.start) / Math.max(1, state.chart.result.range.end - state.chart.result.range.start)) * (plotWidth / scale);
+            refs['chart-cursor'].hidden = false;
+            refs['chart-cursor'].style.left = `${Math.max(0, px)}px`;
+            refs['chart-tip'].hidden = false;
+            refs['tip-time'].textContent = tipFormat.format(new Date(sample.t));
+            refs['tip-down'].textContent = fritzFormatBits(sample.down);
+            refs['tip-up'].textContent = fritzFormatBits(sample.up);
+            const tipWidth = refs['chart-tip'].offsetWidth || 120;
+            refs['chart-tip'].style.left = `${Math.max(0, Math.min(rect.width - tipWidth, px - tipWidth / 2))}px`;
+        }
+
+        function hideChartTip() {
+            refs['chart-cursor'].hidden = true;
+            refs['chart-tip'].hidden = true;
+        }
+
+        /* ---------- devices page ---------- */
+        function renderDevices() {
+            const d = state.devices;
+            if (!d) return;
+            refs.ring.innerHTML = fritzRingSVG(d.active, d.total, 64);
+            refs['dev-active'].textContent = String(d.active);
+            refs['dev-total'].textContent = label('devices_total', { total: d.total });
+            refs['dev-lan'].textContent = String(d.lan_active);
+            refs['dev-wlan'].textContent = String(d.wlan_active);
+            refs.wlans.innerHTML = '';
+            for (const wlan of d.wlans || []) {
+                const chip = document.createElement('span');
+                chip.className = 'vd-fritz-wlan' + (wlan.enabled ? ' is-on' : ' is-off') + (wlan.guest ? ' is-guest' : '');
+                const state_ = document.createElement('i');
+                state_.setAttribute('aria-hidden', 'true');
+                const name = document.createElement('b');
+                name.textContent = wlan.ssid || label('wlan');
+                const meta = document.createElement('small');
+                meta.textContent = wlan.guest ? label('guest') : (wlan.band ? `${wlan.band} GHz` : '') + (wlan.enabled ? '' : (wlan.band ? ' · ' : '') + label('wlan_off'));
+                chip.append(state_, name, meta);
+                chip.title = wlan.ssid || '';
+                refs.wlans.appendChild(chip);
+            }
+            const active = (d.hosts || []).filter(host => host.active);
+            refs.hosts.innerHTML = '';
+            for (const host of active) {
+                const item = document.createElement('li');
+                item.className = 'vd-fritz-host is-' + (host.interface || 'other');
+                const glyph = document.createElement('span');
+                glyph.className = 'vd-fritz-glyph';
+                glyph.innerHTML = FRITZ_WIDGET_GLYPHS[host.interface === 'wlan' ? 'wlan' : 'lan'];
+                const name = document.createElement('span');
+                name.className = 'vd-fritz-host-name';
+                name.textContent = host.name || host.ip || '';
+                name.title = name.textContent;
+                const ip = document.createElement('span');
+                ip.className = 'vd-fritz-host-ip';
+                ip.textContent = host.ip || '';
+                item.append(glyph, name, ip);
+                refs.hosts.appendChild(item);
+            }
+            const hidden = Math.max(0, d.active - active.length);
+            if (hidden > 0) {
+                const more = document.createElement('li');
+                more.className = 'vd-fritz-host is-more';
+                more.textContent = label('more_devices', { count: hidden });
+                refs.hosts.appendChild(more);
+            }
+            refs['hosts-empty'].hidden = active.length > 0;
+        }
+
+        /* ---------- telephony page ---------- */
+        function renderTelephony() {
+            const tel = state.telephony;
+            if (!tel) return;
+            refs.missed.textContent = String(tel.missed_today);
+            refs['tam-badge'].hidden = !tel.tam_available;
+            refs.tam.textContent = String(tel.tam_new);
+            refs['tam-badge'].classList.toggle('has-new', tel.tam_new > 0);
+            refs.calls.innerHTML = '';
+            const now = Date.now();
+            for (const call of tel.calls || []) {
+                const item = document.createElement('li');
+                item.className = 'vd-fritz-call is-' + (call.type || 'unknown');
+                const glyph = document.createElement('span');
+                glyph.className = 'vd-fritz-glyph';
+                glyph.innerHTML = FRITZ_WIDGET_GLYPHS[call.type === 'outgoing' || call.type === 'active' ? 'outgoing' : (call.type === 'missed' || call.type === 'rejected' ? 'missed' : 'incoming')];
+                glyph.title = label('call_' + (['incoming', 'outgoing', 'missed', 'active', 'rejected'].includes(call.type) ? call.type : 'unknown'));
+                const who = document.createElement('span');
+                who.className = 'vd-fritz-call-who';
+                who.textContent = call.name || call.number || label('unknown_caller');
+                who.title = [call.name, call.number].filter(Boolean).join(' · ');
+                const when = document.createElement('span');
+                when.className = 'vd-fritz-call-when';
+                when.textContent = fritzRelativeTime(call.timestamp, call.date, now);
+                const duration = document.createElement('span');
+                duration.className = 'vd-fritz-call-duration';
+                duration.textContent = call.type === 'missed' || call.type === 'rejected' ? '' : fritzFormatCallDuration(call.duration);
+                item.append(glyph, who, when, duration);
+                refs.calls.appendChild(item);
+            }
+            refs['calls-empty'].hidden = (tel.calls || []).length > 0;
+        }
+
+        /* ---------- data flow ---------- */
+        function mergeHistory(connection, ageMs) {
+            const end = Date.now() - Math.max(0, ageMs || 0);
+            const monitor = connection.monitor;
+            if (monitor && Array.isArray(monitor.down_bps) && monitor.down_bps.length) {
+                fritzMergeMonitorSamples(state.history, monitor.down_bps, monitor.up_bps || [], (monitor.interval_seconds || 5) * 1000, end, FRITZ_WIDGET_HISTORY_MAX);
+            } else {
+                fritzMergeMonitorSamples(state.history, [connection.down_bps || 0], [connection.up_bps || 0], FRITZ_WIDGET_POLL_MS, end, FRITZ_WIDGET_HISTORY_MAX);
+            }
+        }
+
+        function applyOverview(payload) {
+            const generated = Date.parse(payload.generated_at || '') || Date.now();
+            const fetched = payload.fetched_at || {};
+            const now = Date.now();
+            state.capabilities = payload.capabilities || {};
+            setPages(fritzWidgetPagesFor(state.capabilities));
+            if (payload.system) {
+                state.system = payload.system;
+                state.fetchedAt.system = now;
+                refs.model.textContent = payload.system.model || label('title');
+                refs.model.title = payload.system.firmware ? `${label('firmware')} ${payload.system.firmware}` : '';
+            }
+            if (payload.connection) {
+                state.connection = payload.connection;
+                state.fetchedAt.connection = now;
+                const age = fetched.connection ? Math.max(0, generated - Date.parse(fetched.connection)) : 0;
+                mergeHistory(payload.connection, age);
+                renderConnection();
+                if (state.pages[state.page] === 'traffic') renderChart();
+            }
+            if (payload.devices) {
+                state.devices = payload.devices;
+                state.fetchedAt.devices = now;
+                renderDevices();
+            }
+            if (payload.telephony) {
+                state.telephony = payload.telephony;
+                state.fetchedAt.telephony = now;
+                renderTelephony();
+            }
+            const errors = payload.errors || {};
+            const failing = Object.keys(errors);
+            refs.root.classList.toggle('is-stale', failing.length > 0);
+            if (failing.length) {
+                refs['banner-text'].textContent = errors.connection === 'auth_failed' ? label('error_auth') : label('error') + (state.hasData || Object.keys(payload.stale || {}).length ? ' · ' + label('stale') : '');
+                refs.banner.hidden = false;
+                if (errors.connection) refs.dot.className = 'vd-fritz-dot is-stale';
+            } else {
+                refs.banner.hidden = true;
+            }
+            state.hasData = true;
+            refs.root.classList.add('is-ready');
+            refs.skeleton.hidden = true;
+            refs.updated.textContent = t('desktop.system_info_updated', { time: clockFormat.format(new Date()) });
+        }
+
+        function dueSections(forced) {
+            const now = Date.now();
+            const caps = state.capabilities;
+            const sections = new Set(forced || []);
+            if (!caps || caps.connection) sections.add('connection');
+            if (!caps || (caps.system && now - state.fetchedAt.system > FRITZ_WIDGET_SYSTEM_MS)) sections.add('system');
+            for (const slow of ['devices', 'telephony']) {
+                if (!caps || (caps[slow] && now - state.fetchedAt[slow] > FRITZ_WIDGET_SLOW_MS)) sections.add(slow);
+            }
+            return [...sections];
+        }
+
+        async function refresh(forced) {
+            if (state.disposed || document.hidden || state.controller) return;
+            const sections = dueSections(forced);
+            if (!sections.length) return;
+            const request = new AbortController();
+            state.controller = request;
+            try {
+                const payload = await api('/api/desktop/fritzbox/overview?sections=' + encodeURIComponent(sections.join(',')), { signal: request.signal });
+                if (state.disposed || request.signal.aborted) return;
+                refs.root.classList.remove('is-disabled');
+                applyOverview(payload);
+            } catch (err) {
+                if (state.disposed || request.signal.aborted) return;
+                if (err && err.message === 'fritzbox_disabled') {
+                    refs.root.classList.add('is-disabled', 'is-ready');
+                    refs.skeleton.hidden = true;
+                    refs.banner.hidden = true;
+                    refs.notice.hidden = false;
+                    refs.notice.textContent = label('disabled_hint');
+                    refs.dots.hidden = refs.prev.hidden = refs.next.hidden = true;
+                    refs.dot.className = 'vd-fritz-dot is-unknown';
+                    refs['page-title'].textContent = '';
+                    refs.updated.textContent = '';
+                    state.hasData = false;
+                    state.pages = [];
+                    return;
+                }
+                refs.skeleton.hidden = true;
+                refs.root.classList.add('is-ready', 'is-stale');
+                refs['banner-text'].textContent = state.hasData ? label('error') + ' · ' + label('stale') : t('desktop.load_failed');
+                refs.banner.hidden = false;
+                refs.dot.className = 'vd-fritz-dot ' + (state.hasData ? 'is-stale' : 'is-unknown');
+            } finally {
+                if (state.controller === request) state.controller = null;
+            }
+        }
+
+        function schedule() {
+            clearTimeout(state.timer);
+            // A disabled integration is re-checked slowly so enabling it in
+            // Settings brings the widget back without re-adding it.
+            const delay = refs.root.classList.contains('is-disabled') ? FRITZ_WIDGET_SLOW_MS : FRITZ_WIDGET_POLL_MS;
+            state.timer = setTimeout(async () => {
+                await refresh();
+                if (!state.disposed && !document.hidden) schedule();
+            }, delay);
+        }
+
+        /* ---------- interactions ---------- */
+        refs.prev.addEventListener('click', () => setPage(state.page - 1, true));
+        refs.next.addEventListener('click', () => setPage(state.page + 1, true));
+        refs.retry.addEventListener('click', () => {
+            if (state.controller) state.controller.abort();
+            state.controller = null;
+            refs.root.classList.remove('is-disabled');
+            refs.notice.hidden = true;
+            refresh(['connection', 'devices', 'telephony', 'system']);
+        });
+        refs.root.addEventListener('keydown', event => {
+            if (event.target.closest('button, a, input')) return;
+            if (event.key === 'ArrowRight') { event.preventDefault(); setPage(state.page + 1, true); }
+            else if (event.key === 'ArrowLeft') { event.preventDefault(); setPage(state.page - 1, true); }
+            else if (event.key === 'Home') { event.preventDefault(); setPage(0, true); }
+            else if (event.key === 'End') { event.preventDefault(); setPage(state.pages.length - 1, true); }
+        });
+        for (const key of ['ipv4', 'ipv6']) {
+            refs['copy-' + key].addEventListener('click', async event => {
+                event.stopPropagation();
+                const value = refs[key].textContent;
+                if (!value || value === '–' || !navigator.clipboard) return;
+                try {
+                    await navigator.clipboard.writeText(value);
+                    const button = refs['copy-' + key];
+                    button.textContent = t('desktop.copied');
+                    button.classList.add('is-done');
+                    clearTimeout(state.copyTimer);
+                    state.copyTimer = setTimeout(() => {
+                        if (state.disposed) return;
+                        button.textContent = t('desktop.copy');
+                        button.classList.remove('is-done');
+                    }, 1500);
+                } catch (_) { /* clipboard denied */ }
+            });
+        }
+        refs.viewport.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || event.target.closest('button')) return;
+            state.drag = { id: event.pointerId, startX: event.clientX, startY: event.clientY, dx: 0, active: false };
+        });
+        refs.viewport.addEventListener('pointermove', event => {
+            const drag = state.drag;
+            if (!drag || drag.id !== event.pointerId) return;
+            const dx = event.clientX - drag.startX;
+            const dy = event.clientY - drag.startY;
+            if (!drag.active) {
+                if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+                drag.active = true;
+                refs.track.classList.add('is-dragging');
+                try { refs.viewport.setPointerCapture(event.pointerId); } catch (_) { /* unsupported */ }
+            }
+            drag.dx = dx;
+            const width = refs.viewport.clientWidth || 1;
+            const limited = Math.max(-width * 0.6, Math.min(width * 0.6, dx));
+            refs.track.style.transform = `translateX(calc(${-state.page * 100}% + ${limited}px))`;
+        });
+        const endDrag = event => {
+            const drag = state.drag;
+            if (!drag || drag.id !== event.pointerId) return;
+            state.drag = null;
+            if (!drag.active) return;
+            const width = refs.viewport.clientWidth || 1;
+            if (drag.dx < -Math.min(48, width * 0.2)) setPage(state.page + 1, true);
+            else if (drag.dx > Math.min(48, width * 0.2)) setPage(state.page - 1, true);
+            else setPage(state.page, false);
+        };
+        refs.viewport.addEventListener('pointerup', endDrag);
+        refs.viewport.addEventListener('pointercancel', endDrag);
+        refs['chart-host'].addEventListener('pointermove', showChartTip);
+        refs['chart-host'].addEventListener('pointerleave', hideChartTip);
+
+        const onVisibility = () => {
+            if (document.hidden) {
+                clearTimeout(state.timer);
+                if (state.controller) state.controller.abort();
+                state.controller = null;
+            } else {
+                refresh().then(() => { if (!state.disposed && !document.hidden) schedule(); });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+
+        let resizeFrame = 0;
+        const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+            const width = entries[0] && entries[0].contentRect ? entries[0].contentRect.width : refs.root.clientWidth;
+            const compact = width > 0 && width < 280;
+            if (compact !== state.compact) {
+                state.compact = compact;
+                refs.root.classList.toggle('is-compact', compact);
+            }
+            cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(() => { if (state.pages[state.page] === 'traffic') renderChart(); });
+        }) : null;
+        if (observer) observer.observe(refs.root);
+
+        setPages([]);
+        refs.notice.hidden = true;
+        refs.skeleton.hidden = false;
+        refresh().then(() => { if (!state.disposed && !document.hidden) schedule(); });
+
+        registerWidgetCleanup(() => {
+            state.disposed = true;
+            clearTimeout(state.timer);
+            clearTimeout(state.copyTimer);
+            cancelAnimationFrame(resizeFrame);
+            if (state.controller) state.controller.abort();
+            document.removeEventListener('visibilitychange', onVisibility);
+            if (observer) observer.disconnect();
         });
     }
 

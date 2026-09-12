@@ -36,9 +36,17 @@ const (
 	svcHosts = "urn:dslforum-org:service:Hosts:1"
 	ctlHosts = "/upnp/control/hosts"
 
-	// Network – WANIPConn (port forward)
+	// Network – WANIPConn (port forward, connection status on IP/cable/fiber uplinks)
 	svcWANIPConn = "urn:dslforum-org:service:WANIPConnection:1"
 	ctlWANIPConn = "/upnp/control/wanipconnection1"
+
+	// Network – WANPPPConn (connection status on PPPoE/DSL uplinks)
+	svcWANPPPConn = "urn:dslforum-org:service:WANPPPConnection:1"
+	ctlWANPPPConn = "/upnp/control/wanpppconn1"
+
+	// Network – WANCommonInterfaceConfig (link rates, byte counters, online monitor)
+	svcWANCommonIfConfig = "urn:dslforum-org:service:WANCommonInterfaceConfig:1"
+	ctlWANCommonIfConfig = "/upnp/control/wancommonifconfig1"
 
 	// Telephony
 	svcOnTel = "urn:dslforum-org:service:X_AVM-DE_OnTel:1"

@@ -24,6 +24,8 @@
             renderMeshCoreWidget(container);
         } else if (widget.id === 'builtin-printer') {
             renderPrinterWidget(container);
+        } else if (widget.id === 'builtin-fritzbox') {
+            renderFritzBoxWidget(container);
         } else {
             container.innerHTML = `<div class="vd-widget-body">${esc(widgetDisplayTitle(widget))}</div>`;
         }
@@ -498,6 +500,7 @@
         const right = Math.max(8, workspaceWidth - width - 8);
         const widgetID = String(widget && widget.id || '');
         if (widgetID === 'builtin-printer') return { x: 8, y: top, w: width, h: 320 };
+        if (widgetID === 'builtin-fritzbox') return { x: 8, y: top + 320 + gap, w: width, h: 300 };
         if (widgetID === 'builtin-quickchat') {
             return { x: Math.max(12, Math.round((workspaceWidth - width) / 2)), y: top, w: width, h: 56 };
         }

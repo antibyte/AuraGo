@@ -2560,6 +2560,13 @@ func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
 	if sysmon.W != weather.W {
 		t.Fatalf("sysmon width = %d, want weather-aligned width %d", sysmon.W, weather.W)
 	}
+	fritz, ok := widgetMap["builtin-fritzbox"]
+	if !ok {
+		t.Fatal("builtin-fritzbox widget not seeded")
+	}
+	if !fritz.Builtin || fritz.Visible || fritz.Icon != "network" || fritz.W != weather.W {
+		t.Fatalf("fritzbox default = builtin:%v visible:%v icon:%q width:%d, want builtin, hidden (opt-in), network icon, %dpx wide", fritz.Builtin, fritz.Visible, fritz.Icon, fritz.W, weather.W)
+	}
 	if got := bootstrap.Settings["pet.scale"]; got != "0.5" {
 		t.Fatalf("pet.scale default = %q, want smallest picker scale 0.5", got)
 	}

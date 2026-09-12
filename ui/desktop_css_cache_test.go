@@ -17,6 +17,7 @@ func TestDesktopCSSImportsBustComponentCache(t *testing.T) {
 		"/* ui/css/desktop-windows.css */",
 		"/* ui/css/desktop-icons.css */",
 		"/* ui/css/desktop-widgets.css */",
+		"/* ui/css/desktop-widget-fritzbox.css */",
 		"/* ui/css/desktop-modals.css */",
 		"/* ui/css/desktop-shell-overrides.css */",
 	} {

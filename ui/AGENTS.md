@@ -99,6 +99,14 @@ worker. Keep packaging, recovery and offline instructions in
   requests/camera streams on document hiding or widget disposal. Its native dialog
   moves the existing camera image rather than opening a second stream. Verify with
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopPrinterWidgetBrowser`.
+- The opt-in `builtin-fritzbox` widget lives in `js/desktop/core/widget-fritzbox-runtime.js`
+  with hand-built SVG charts in `widget-fritzbox-charts.js` and styles in
+  `css/desktop-widget-fritzbox.css` (part of the desktop shell CSS bundle). It is
+  read-only, reads only the sanitized `/api/desktop/fritzbox/overview` endpoint,
+  renders router text as text, keeps its traffic history in browser memory only and
+  releases timers, observer and listeners on disposal. Its pager, polling and i18n
+  contract lives in `js/desktop/apps/AGENTS.md`. Verify with
+  `go test ./ui -run TestDesktopFritzBoxWidget`.
 
 - Operational pages share one canonical skeleton inside `main.pw-page-frame`:
   a page heading (`pw-page-heading` with `pw-page-heading-copy` and
