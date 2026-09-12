@@ -48,7 +48,7 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 				"limit":            map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12},
 				"asset_id":         prop("string", "Exact asset ID for describe_asset; omit when assembly_id is used"),
 				"assembly_id":      prop("string", "Exact complete assembly ID for describe_asset"),
-				"pack_id":          prop("string", "Pack ID from list_packs; required for describe_pack and import_pack"),
+				"pack_id":          prop("string", "Exact pack_id from the same search_assets match; required for describe_asset, describe_pack and import_pack. An unambiguous accepted plan binding may supply it for describe_asset."),
 				"job_id":           prop("string", "Active Game Maker job ID"),
 				"kind":             map[string]interface{}{"type": "string", "enum": []string{"image", "music"}},
 				"prompt":           prop("string", "Concise asset prompt"),

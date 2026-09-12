@@ -575,8 +575,22 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 		if err != nil {
 			return gameMakerToolError(err)
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "matches": matches, "next_action": "Use describe_asset with one exact asset_id or assembly_id before adding the selection to the plan."})
+		return gameMakerToolJSON(map[string]any{"status": "ok", "matches": matches, "next_action": "Call game_maker_asset operation=describe_asset with pack_id AND asset_id (or assembly_id) from the same match."})
 	case "describe_asset":
+		// The accepted plan already owns exact bindings; never guess across packs.
+		if packID == "" {
+			if plan, planErr := service.GetPlan(ctx, jobID); planErr == nil && plan != nil {
+				for _, asset := range plan.Assets {
+					if asset.AssetID != toolArgString(tc.Params, "asset_id") || asset.AssemblyID != toolArgString(tc.Params, "assembly_id") || asset.PackID == "" {
+						continue
+					}
+					if packID != "" && packID != asset.PackID {
+						return gameMakerToolError(fmt.Errorf("asset ID is used in multiple packs; supply the exact pack_id from the plan"))
+					}
+					packID = asset.PackID
+				}
+			}
+		}
 		detail, err := service.DescribeAsset(packID, toolArgString(tc.Params, "asset_id"), toolArgString(tc.Params, "assembly_id"))
 		if err != nil {
 			return gameMakerToolError(err)

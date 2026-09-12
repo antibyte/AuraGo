@@ -249,6 +249,9 @@ func (s *Service) DescribeAsset(packID, assetID, assemblyID string) (AssetDetail
 }
 
 func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail, error) {
+	if packID == "" {
+		return AssetDetail{}, fmt.Errorf("describe_asset requires pack_id from the search_assets match together with asset_id or assembly_id")
+	}
 	if presentationPack(packID) {
 		if assemblyID != "" {
 			return AssetDetail{}, fmt.Errorf("presentation assets have no assemblies")

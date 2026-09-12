@@ -432,6 +432,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if run.Stage == "visual" {
 		return r.reviewGameImages(ctx, &cfg, client, run)
 	}
+	if run.Stage == "repair" && run.Job.BaseRevision == 0 && slices.ContainsFunc(run.Diagnostics, func(d gamemaker.Diagnostic) bool { return d.Level == "implementation" }) {
+		return r.implementGameStarter(ctx, &cfg, client, run)
+	}
 	cfg.LLM.UseNativeFunctions = true
 	gamePrompt := fmt.Sprintf(`You are Game Maker Studio, isolated job %q, dimension %s, stage %s.
 Use only the allowed Game Maker tools. Do not request user confirmation.
@@ -468,7 +471,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 		}
 	}
 	if run.Project.Dimension == "2d" {
-		gamePrompt += "\n\nSprite contract: use search_assets then describe_asset and follow its aurago-game-1.js helper example. preloadPack loads exact 64x64 frames; createAsset selects an exact asset ID and createAssembly keeps all parts together. Import sheet.json in TypeScript for offline metadata. Never load a built-in sheet as one image or use atlas JSON. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist. Full validation must observe spawning, actions and restart."
+		gamePrompt += "\n\nSprite contract: after plan acceptance, the installed common.ts loads and binds the plan's artwork through body(...,role). Use these exact roles directly; no new search, description or manifest read is needed for planned art. For additional artwork use search_assets then describe_asset with pack_id AND asset_id from the same match and follow its aurago-game-1.js example. preloadPack loads exact 64x64 frames; createAsset selects an exact asset ID and createAssembly keeps all parts together. Import sheet.json in TypeScript for offline metadata. Never load a built-in sheet as one image or use atlas JSON. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist. Full validation must observe spawning, actions and restart."
 	}
 	if run.Project.Dimension == "3d" && run.Stage != "planning" {
 		gamePrompt += "\n\n" + gamemaker.ModelRuntimeGuide
