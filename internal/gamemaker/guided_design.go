@@ -24,6 +24,7 @@ type GameDesign struct {
 	Assets    []DesignAsset  `json:"assets"`
 	Settings  *GameSettings  `json:"settings,omitempty"`
 	Preserve  []string       `json:"preserve,omitempty"`
+	Scenarios []GameScenario `json:"scenarios,omitempty"`
 }
 type DesignAsset struct {
 	Role       string `json:"role"`
@@ -193,6 +194,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	p.Scene = d.Scene
 	p.Mechanics = d.Mechanics
 	p.Preserve = d.Preserve
+	p.Scenarios = d.Scenarios
 	if project.CurrentRevision > 0 {
 		old, err := s.GetPlan(ctx, jobID)
 		if err != nil {
@@ -213,6 +215,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 			}
 			if d.Scene == nil && old.Scene != nil {
 				p.Scene = old.Scene
+			}
+			if d.Scenarios == nil {
+				p.Scenarios = old.Scenarios
 			}
 			if d.Mechanics == nil && old.Mechanics != nil {
 				p.Mechanics = old.Mechanics

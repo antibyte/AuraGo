@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"image/png"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -30,6 +31,18 @@ type GameObservation struct {
 	After          map[string]float64 `json:"after"`
 	EvidenceBefore *GameplayEvidence  `json:"evidence_before,omitempty"`
 	EvidenceAfter  *GameplayEvidence  `json:"evidence_after,omitempty"`
+	TargetRuns     []TargetRun        `json:"target_runs,omitempty"`
+}
+
+// TargetRun records bounded input/geometry evidence, never a client pass verdict.
+type TargetRun struct {
+	Target   string `json:"target"`
+	Mode     string `json:"mode"`
+	Samples  int    `json:"samples"`
+	Inputs   int    `json:"inputs"`
+	Contacts int    `json:"contacts"`
+	Effects  int    `json:"effects"`
+	Reason   string `json:"reason"`
 }
 
 func validateGameReport(report PreviewReport) error {
@@ -37,6 +50,16 @@ func validateGameReport(report PreviewReport) error {
 		return fmt.Errorf("gameplay report exceeds observation/image limit")
 	}
 	for _, o := range report.Observations {
+		if len(o.TargetRuns) > 8 {
+			return fmt.Errorf("too many targeted observations")
+		}
+		for _, run := range o.TargetRuns {
+			if len(run.Target) == 0 || len(run.Target) > 96 || !slices.Contains(targetModes, run.Mode) ||
+				!slices.Contains([]string{"complete", "no_target", "blocked", "timeout", "unsupported", "inactive"}, run.Reason) ||
+				run.Samples < 0 || run.Samples > 160 || run.Inputs < 0 || run.Inputs > 1000 || run.Contacts < 0 || run.Contacts > run.Samples || run.Effects < 0 || run.Effects > run.Samples {
+				return fmt.Errorf("invalid targeted observation")
+			}
+		}
 		if err := validateGameplayEvidence(o.EvidenceBefore); err != nil {
 			return err
 		}
@@ -75,8 +98,9 @@ func validPreviewImage(image string) bool {
 	return err == nil && config.Width > 0 && config.Height > 0 && config.Width <= 1920 && config.Height <= 1080
 }
 
-var gameMetrics = []string{"player_x", "player_y", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events"}
+var gameMetrics = []string{"player_x", "player_y", "player_distance", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events"}
 var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "P", "ESC", "ENTER", "F", "Q", "E"}
+var targetModes = []string{"move", "aim", "reach", "interact", "catch", "avoid", "select"}
 
 func validateScenario(s GameScenario) error {
 	if len(s.ID) < 1 || len(s.ID) > 64 || strings.HasPrefix(s.ID, "required_") {
@@ -93,8 +117,15 @@ func validateScenario(s GameScenario) error {
 	}
 	duration := 0
 	for _, step := range s.Steps {
-		if !slices.Contains([]string{"key", "pointer", "wait", "observe"}, step.Action) {
-			return fmt.Errorf("step action must be key, pointer, wait or observe; JavaScript is not accepted")
+		if !slices.Contains([]string{"key", "pointer", "wait", "observe", "target"}, step.Action) {
+			return fmt.Errorf("step action must be key, pointer, wait, observe or target; JavaScript is not accepted")
+		}
+		if step.Action == "target" {
+			if len(step.Target) == 0 || len(step.Target) > 96 || strings.ContainsAny(step.Target, "\x00\r\n") || !slices.Contains(targetModes, step.Mode) || step.MS < 100 {
+				return fmt.Errorf("target steps require a bounded node ID or role, mode move/aim/reach/interact/catch/avoid/select and 100–4000 ms")
+			}
+		} else if step.Target != "" || step.Mode != "" {
+			return fmt.Errorf("target and mode require action target")
 		}
 		if step.Action == "key" && !slices.Contains(gameKeys, step.Key) {
 			return fmt.Errorf("unsupported key %q", step.Key)
@@ -119,14 +150,25 @@ func requiredScenarios(template string) []GameScenario {
 	check := func(id, metric, compare string, steps ...GameTestStep) GameScenario {
 		return GameScenario{ID: "required_" + id, Metric: metric, Compare: compare, Steps: steps}
 	}
+	target := func(mode, id string) GameTestStep {
+		return GameTestStep{Action: "target", Mode: mode, Target: id, MS: 4000}
+	}
 	if guided3D(template) || template == "three" {
-		rules := check("rules", "hits", "increased", key("W", 1600))
+		role := "item"
+		if template == "transport" {
+			role = "cargo"
+		}
+		if template == "flight" {
+			role = "goal"
+		}
+		rules := check("rules", "hits", "increased", target("reach", role))
 		primary := check("primary", "actions", "increased", key("SPACE", 300))
 		if template == "fps" || template == "space" {
-			rules.Steps = []GameTestStep{key("SPACE", 500)}
+			rules.Steps = []GameTestStep{target("aim", "enemy")}
+			primary.Steps = []GameTestStep{target("aim", "enemy")}
 		}
 		checks := []GameScenario{
-			check("input", "player_x", "changed", key("D", 350)), primary, rules,
+			check("input", "player_distance", "increased", target("move", "player")), primary, rules,
 			check("timed", "ticks", "increased", GameTestStep{Action: "wait", MS: 2100}),
 			check("assets", "invalid_assets", "equals", key("A", 150)),
 			check("end", "ended", "equals", key("ESC", 150)),
@@ -140,14 +182,23 @@ func requiredScenarios(template string) []GameScenario {
 		}
 		return checks
 	}
-	input := check("input", "player_x", "changed", key("RIGHT", 350))
+	input := check("input", "player_distance", "increased", target("move", "player"))
 	primary := check("primary", "actions", "increased", key("SPACE", 300))
-	rules := check("rules", "hits", "increased", key("RIGHT", 650))
-	if template == "shooter" || template == "blocks" {
-		rules.Steps = []GameTestStep{key("SPACE", 2400)}
+	rules := check("rules", "hits", "increased", target("reach", "item"))
+	if template == "blocks" {
+		rules.Steps = []GameTestStep{target("catch", "ball")}
+	}
+	if template == "shooter" {
+		rules.Steps = []GameTestStep{target("aim", "enemy")}
+		primary.Steps = []GameTestStep{target("aim", "enemy")}
 	}
 	if template == "board" {
-		rules.Steps = []GameTestStep{key("SPACE", 150), key("RIGHT", 150), key("SPACE", 150)}
+		rules.Steps = []GameTestStep{target("select", "cell")}
+		input = check("input", "actions", "increased", target("select", "cell"))
+		primary.Steps = []GameTestStep{target("select", "cell")}
+	}
+	if template == "topdown" {
+		primary.Steps = []GameTestStep{target("interact", "goal")}
 	}
 	return []GameScenario{input, primary, rules,
 		check("timed", "ticks", "increased", GameTestStep{Action: "wait", MS: 2100}),
@@ -192,6 +243,14 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 		if found != nil {
 			before, bok := found.Before[scenario.Metric]
 			after, aok := found.After[scenario.Metric]
+			if scenario.Metric == "player_distance" {
+				x1, bx := found.Before["player_x"]
+				y1, by := found.Before["player_y"]
+				x2, ax := found.After["player_x"]
+				y2, ay := found.After["player_y"]
+				before, after = 0, math.Hypot(x2-x1, y2-y1)
+				bok, aok = bx && by && finite(x1) && finite(y1), ax && ay && finite(x2) && finite(y2)
+			}
 			if bok && aok && finite(before) && finite(after) {
 				passed := false
 				switch scenario.Compare {
@@ -211,6 +270,15 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					check.Status = "passed"
 				}
 				check.Observed = fmt.Sprintf("before=%g, after=%g", before, after)
+				if !passed && scenario.Metric == "hits" {
+					for _, metric := range []string{"actions", "spawns", "hit_events", "ended"} {
+						first, a := found.Before[metric]
+						last, b := found.After[metric]
+						if a && b && finite(first) && finite(last) {
+							check.Observed += fmt.Sprintf("; %s=%g->%g", metric, first, last)
+						}
+					}
+				}
 			}
 			if scenario.ID == "required_restart" {
 				for _, metric := range []string{"score", "actions", "hits", "turns", "object_count", "timer_count", "listener_count"} {
@@ -228,6 +296,45 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 						break
 					}
 				}
+			}
+			targetSteps := []GameTestStep{}
+			for _, step := range scenario.Steps {
+				if step.Action == "target" {
+					targetSteps = append(targetSteps, step)
+				}
+			}
+			if len(targetSteps) > 0 {
+				if len(found.TargetRuns) != len(targetSteps) {
+					check.Status = "unavailable"
+					check.Observed = "Missing targeted input/geometry evidence"
+				} else {
+					contacts, effects := 0, 0
+					for i, run := range found.TargetRuns {
+						if run.Target != targetSteps[i].Target || run.Mode != targetSteps[i].Mode {
+							check.Status = "unavailable"
+							check.Observed = "Mismatched target evidence"
+							effects = -1
+							break
+						}
+						contacts += run.Contacts
+						if run.Reason == "unsupported" || run.Reason == "inactive" || run.Reason == "no_target" || run.Reason == "blocked" {
+							check.Status = "unavailable"
+						}
+						if run.Inputs == 0 || run.Samples < 2 || check.Status == "passed" && run.Effects == 0 {
+							check.Status = "unavailable"
+						}
+						if run.Inputs > 0 && run.Samples >= 2 {
+							effects += run.Effects
+						}
+						check.Observed += fmt.Sprintf("; target=%s %s (inputs=%d, contacts=%d, effects=%d)", run.Target, run.Reason, run.Inputs, run.Contacts, run.Effects)
+					}
+					if effects >= 0 && (check.Status == "passed" && effects == 0 || check.Status == "failed" && (contacts == 0 || scenario.Metric != "hits" && scenario.Metric != "actions" && scenario.Metric != "player_distance")) {
+						check.Status = "unavailable"
+					}
+				}
+			} else if check.Status == "failed" && scenario.Metric == "hits" {
+				check.Status = "unavailable"
+				check.Observed += "; blind input did not establish a contact opportunity"
 			}
 		}
 		out = append(out, check)
@@ -420,7 +527,11 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 			for _, c := range result.Checks {
 				if c.Status != "passed" {
 					result.OK = false
-					result.GameplayStatus = "failed"
+					if c.Status == "failed" {
+						result.GameplayStatus = "failed"
+					} else if result.GameplayStatus != "failed" {
+						result.GameplayStatus = "unavailable"
+					}
 					result.Diagnostics = append(result.Diagnostics, Diagnostic{Level: "gameplay", Message: c.ID + ": expected " + c.Expected + "; observed " + c.Observed})
 				}
 			}
@@ -430,6 +541,7 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 			for _, c := range ruleChecks {
 				if c.Status == "failed" {
 					result.OK = false
+					result.GameplayStatus = "failed"
 					result.Diagnostics = append(result.Diagnostics, Diagnostic{Level: "gameplay", Message: c.ID + ": expected " + c.Expected + "; observed " + c.Observed})
 				}
 			}

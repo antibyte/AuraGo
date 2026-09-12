@@ -223,6 +223,15 @@ func gameDesignSchema() map[string]interface{} {
 		}, "role")},
 		"settings": schema(map[string]interface{}{"goal": prop("integer", "1–24 objectives, default 5"), "speed": prop("number", "Guided 3D only: 1–40 meters/second, default 5"), "duration": prop("integer", "15–600 seconds, default 120")}, "goal", "speed", "duration"),
 		"preserve": stringsArray("Existing behaviors kept in edit jobs"),
+		"scenarios": map[string]interface{}{"type": "array", "maxItems": 8, "description": "Optional checks for custom mechanics; use target steps for dynamic targets instead of blind coordinates. Maximum 6 seconds per scenario and 25 seconds total.", "items": schema(map[string]interface{}{
+			"id": prop("string", "Unique check ID, not required_"), "metric": prop("string", "Observed metric such as hits, actions, score, health, lives, goal_remaining or outcome"),
+			"compare": map[string]interface{}{"type": "string", "enum": []string{"increased", "decreased", "changed", "equals", "at_least"}}, "value": prop("number", "Comparison value"),
+			"steps": map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 8, "items": schema(map[string]interface{}{
+				"action": map[string]interface{}{"type": "string", "enum": []string{"target", "key", "pointer", "wait", "observe"}},
+				"target": prop("string", "For target actions: exact scene node ID or body role; use player with mode move"), "mode": map[string]interface{}{"type": "string", "enum": []string{"move", "aim", "reach", "interact", "catch", "avoid", "select"}},
+				"key": prop("string", "For key actions: e.g. SPACE, RIGHT, W"), "x": prop("number", "Logical pointer x"), "y": prop("number", "Logical pointer y"), "ms": prop("integer", "100–4000 for target actions; otherwise 0–4000"),
+			}, "action")},
+		}, "id", "metric", "compare", "value", "steps")},
 		"presentation": schema(map[string]interface{}{
 			"environment": prop("string", "Exact aurago-effects atmosphere ID; search asset_kind effect first"),
 			"effects":     stringsArray("Exact additional aurago-effects IDs"),

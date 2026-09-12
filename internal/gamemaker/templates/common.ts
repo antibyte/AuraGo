@@ -172,6 +172,7 @@ export class GameScene extends Phaser.Scene {
   assetRoles(prefix: string) { return Object.keys(plannedAssets).filter(role=>role===prefix||role.startsWith(prefix+'_')); }
   body(x: number, y: number, w: number, h: number, color: number, fixed = false, role = '') {
     const object = this.add.rectangle(x, y, w, h, color);
+    object.__gmRole=role;
     object.__gmID='body-'+this.gameObjects.length;if(this.gameObjects.length<4096)this.gameObjects.push(object);
     this.physics.add.existing(object, fixed);
     if (!fixed) object.body.setCollideWorldBounds(true);

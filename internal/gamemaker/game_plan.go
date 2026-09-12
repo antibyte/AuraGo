@@ -74,6 +74,8 @@ type GameTestStep struct {
 	X      float64 `json:"x,omitempty"`
 	Y      float64 `json:"y,omitempty"`
 	MS     int     `json:"ms,omitempty"`
+	Target string  `json:"target,omitempty"` // Exact node ID or role; never executable code.
+	Mode   string  `json:"mode,omitempty"`   // move, aim, reach, interact, catch, avoid, select
 }
 
 func templateNames() []string {

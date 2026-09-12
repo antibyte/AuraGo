@@ -172,7 +172,7 @@ func TestOptionalPlanScenariosRetainRequiredChecks(t *testing.T) {
 		t.Fatal(err)
 	}
 	scenarios := gameScenarios(&plan)
-	if len(scenarios) != 8 || scenarios[2].ID != "required_rules" || scenarios[2].Steps[0].MS != 2400 || scenarios[5].ID != "required_end" || scenarios[5].Value != 1 {
+	if len(scenarios) != 8 || scenarios[2].ID != "required_rules" || scenarios[2].Steps[0].Mode != "catch" || scenarios[5].ID != "required_end" || scenarios[5].Value != 1 {
 		t.Fatalf("empty additional scenarios weakened template checks: %+v", scenarios)
 	}
 	observations := successfulObservationFixture(scenarios)
@@ -199,6 +199,29 @@ func TestOptionalPlanScenariosRetainRequiredChecks(t *testing.T) {
 	plan.Scenarios = make([]GameScenario, 9)
 	if err := s.checkPlan(project, plan); err == nil {
 		t.Fatal("extra scenario limit removed")
+	}
+}
+
+func TestShooterHitChecksRetainFailureEvidence(t *testing.T) {
+	scenario := requiredScenarios("shooter")[2]
+	// Server-owned IDs are reserved; validate the same steps as an optional check.
+	copy := scenario
+	copy.ID = "shooter_rules"
+	if err := validateScenario(copy); err != nil {
+		t.Fatal(err)
+	}
+	observation := GameObservation{ID: scenario.ID,
+		Before:     map[string]float64{"hits": 0, "actions": 0, "spawns": 0, "hit_events": 0, "ended": 0},
+		After:      map[string]float64{"hits": 0, "actions": 3, "spawns": 1, "hit_events": 0, "ended": 0},
+		TargetRuns: []TargetRun{{Target: "enemy", Mode: "aim", Samples: 30, Inputs: 3, Contacts: 1, Reason: "timeout"}},
+	}
+	check := compareGameObservations([]GameScenario{scenario}, []GameObservation{observation})[0]
+	if check.Status != "failed" || !strings.Contains(check.Observed, "actions=0->3; spawns=0->1; hit_events=0->0; ended=0->0") {
+		t.Fatalf("shots/spawns must explain a missing hit, never pass it: %+v", check)
+	}
+	delete(observation.After, "hits")
+	if check := compareGameObservations([]GameScenario{scenario}, []GameObservation{observation})[0]; check.Status != "unavailable" {
+		t.Fatalf("missing hits must not be inferred from shots: %+v", check)
 	}
 }
 
@@ -587,6 +610,41 @@ func TestGameObservationsCannotSelfCertifyOrOmitEvidence(t *testing.T) {
 	checks := compareGameObservations(scenarios, observations)
 	if checks[0].Status != "failed" || checks[1].Status != "unavailable" || checks[last].Status != "failed" {
 		t.Fatal(checks)
+	}
+}
+
+func TestTargetEvidenceCannotCertifyMissingOrInactiveActions(t *testing.T) {
+	scenario := requiredScenarios("shooter")[2]
+	for _, kind := range []string{"missing", "mismatch", "counter", "no_input", "blocked", "inactive", "unsupported"} {
+		t.Run(kind, func(t *testing.T) {
+			observations := successfulObservationFixture([]GameScenario{scenario})
+			run := &observations[0].TargetRuns[0]
+			switch kind {
+			case "missing":
+				observations[0].TargetRuns = nil
+			case "mismatch":
+				run.Target = "another-enemy"
+			case "counter":
+				run.Effects = 0
+			case "no_input":
+				run.Inputs = 0
+			default:
+				run.Reason = kind
+			}
+			if got := compareGameObservations([]GameScenario{scenario}, observations)[0]; got.Status != "unavailable" {
+				t.Fatal(got)
+			}
+		})
+	}
+	for _, invalid := range []TargetRun{
+		{Target: "enemy", Mode: "teleport", Reason: "complete"},
+		{Target: "enemy", Mode: "aim", Reason: "passed"},
+		{Target: "enemy", Mode: "aim", Reason: "complete", Samples: 161},
+		{Target: "enemy", Mode: "aim", Reason: "complete", Samples: 2, Effects: 3},
+	} {
+		if err := validateGameReport(PreviewReport{Observations: []GameObservation{{TargetRuns: []TargetRun{invalid}}}}); err == nil {
+			t.Fatalf("accepted invalid evidence: %+v", invalid)
+		}
 	}
 }
 

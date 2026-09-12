@@ -373,6 +373,7 @@ func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 	case "planning":
 		contextData["design_example"] = gamemaker.ExampleGameDesign(run.Project)
 		contextData["planning_contract"] = "Choose only the requested base and features. Optional scene/mechanics fields use schema version 4 and stay style-neutral; custom source remains available after acceptance."
+		contextData["target_test_example"] = gamemaker.GameScenario{ID: "collect_crystal", Metric: "pickup_events", Compare: "increased", Steps: []gamemaker.GameTestStep{{Action: "target", Mode: "reach", Target: "crystal", MS: 4000}}}
 		if len(run.AssetPacks) > 0 {
 			contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)
 		}

@@ -90,6 +90,33 @@ input/action/timer contract. Scene-based games check only selected mechanics,
 actual state changes, declared outcomes, asset integrity and restart cleanup.
 For a missing hit, compare the accepted steps' duration with distance/speed and
 the actual collider route. Hits count collisions, not only destroyed targets.
+Key steps send one keydown, hold, then release; they do not repeat keydown.
+Target steps observe real objects and drive normal keys/pointer input: movement,
+aiming, collecting/reaching, interaction, ball catching/avoidance and board selection.
+They follow moving targets and registered obstacles without changing the game.
+Preserve the intended firing mode; do not add auto-aim, move enemies, expose a
+"pass" callback or force a game outcome to make a test succeed.
+Failed hit observations include actions, spawns, hit_events and ended when present.
+One action before the first spawn suggests input/spawn timing; actions and spawns
+without contacts require checking projectile travel and blockers. These counts
+are diagnostic evidence, never a substitute for a real collision or health change.
+For custom mechanics include optional `scenarios` in `set_design`, for example:
+```json
+{"id":"collect_crystal","metric":"pickup_events","compare":"increased","value":0,"steps":[{"action":"target","target":"crystal","mode":"reach","ms":4000}]}
+```
+`target` is an exact scene node ID or `body(...,role)` role, not a file or query.
+Modes: `move` (target `player`), `aim`, `reach`, `interact`, `catch`, `avoid`, `select`.
+Use aim for enemies, reach for pickups/checkpoints, interact for a nearby action,
+catch for a paddle following a ball, avoid for a natural miss, select for a free
+board cell. `player_distance` is measured from engine positions, not game counters.
+Custom routes can chain target steps, with the existing 6-second scenario and
+25-second total additional-test limits. No JavaScript or state-setting commands.
+The common helpers retain observable roles and IDs for procedural and imported art.
+Unrecognized custom controls, absent/offscreen targets, sealed routes or insufficient
+time remain `unavailable`, not proof of a game bug. An increased counter without
+target effects also stays unavailable. An observed contact without the required
+response can fail. Preserve passing mechanics and report missing coverage honestly;
+neither partial/targeted checks nor unavailable required checks allow publication.
 If input and assets passed but hits did not, retain those working parts. Read
 the current file and inspect the collider arguments/callback first. An array
 of `{body,art}` records is not an array of physics GameObjects; use a persistent

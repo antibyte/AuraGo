@@ -177,7 +177,7 @@ func TestGameMakerProjectSchemaExposesOptionalSceneAndMechanics(t *testing.T) {
 		t.Fatalf("validate schema check_ids = %#v", validate["check_ids"])
 	}
 	design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
-	for _, key := range []string{"scene", "mechanics"} {
+	for _, key := range []string{"scene", "mechanics", "scenarios"} {
 		if _, ok := design[key]; !ok {
 			t.Fatalf("design schema missing optional %s", key)
 		}

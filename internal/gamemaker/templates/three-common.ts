@@ -30,6 +30,7 @@ export function startGame(config: any) {
   const presentation=presentationPlan?createPresentation({config:presentationPlan,root,adapter:createThreeAdapter({scene,camera,renderer,sun,ambient}),report:(message:any)=>console.warn(message)}):null;
   let footstepAt=0,finishReported=false;
   const owned:any[] = [], live:any[] = [], objects:any[] = [], loaded = new Map();
+  const observedIDs=new WeakMap();let observedID=0;
   const position = new T.Vector3(), vector = new T.Vector3(), ray = new T.Raycaster();
   const player = new T.Group();scene.add(player);
   const floor = new T.Mesh(presentationPlan?.environment==='coast'?new T.CircleGeometry(12,48):new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0x526b4d,roughness:1}));
@@ -248,7 +249,7 @@ export function startGame(config: any) {
       for(const unit of [arms,weapon])unit.root.traverse((n:any)=>n.castShadow=false);weaponAction('idle');
     }
     ready=true;reset();resize();config.setup?.(api);
-    const binding={kind:'three',canvas:renderer.domElement,alive:()=>ready&&!disposed,snapshot:()=>snapshot(),audit:()=>builder?.audit?.()||null};
+    const binding={kind:'three',canvas:renderer.domElement,alive:()=>ready&&!disposed,snapshot:()=>snapshot(),audit:()=>builder?.audit?.()||null,observeTargets};
     (window as any).__AURAGO_GAME_TEST__=binding;
     frame=requestAnimationFrame(draw);
   }
@@ -299,6 +300,23 @@ export function startGame(config: any) {
     for(const unit of live)if(!unit.procedural)A.updateInstance(unit,dt,camera);
   }
   function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:0,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:0,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
+  // Read-only geometry for the preview driver; no movement, damage or verdict hooks.
+  function observeTargets(){
+    const look=new T.Raycaster();camera.updateMatrixWorld();
+    if(config.mode==='fps')look.setFromCamera({x:0,y:0},camera);else look.set(player.position,new T.Vector3(0,0,1));
+    let aimed='',nearest=Infinity;
+    const targets=objects.slice(0,256).map((o:any)=>{
+      if(!observedIDs.has(o))observedIDs.set(o,'object-'+(++observedID));
+      const mesh=o.unit.root,id=o.nodeID||observedIDs.get(o),box=new T.Box3().setFromObject(mesh),center=box.getCenter(new T.Vector3()),size=box.getSize(new T.Vector3());
+      const projected=center.clone().project(camera),active=mesh.visible&&!!mesh.parent,record=builder?.nodes.get(o.nodeID);
+      const solid=builder?!!o.node?.collider&&!o.node.behaviors.some((b:any)=>['collect','reach','projectile'].includes(b.type)):['tree','building','obstacle'].includes(o.role);
+      if(active&&(solid||o.role==='enemy'||o.node?.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))){
+        const hit=look.intersectObject(mesh,true)[0];if(hit&&hit.distance<nearest){nearest=hit.distance;aimed=id;}
+      }
+      return {id,roles:[o.role||'',...(o.node?.behaviors||[]).map((b:any)=>b.type)],x:center.x,y:center.z,z:center.y,w:size.x,h:size.z,depth:size.y,active,visible:active&&projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1&&Math.abs(projected.y)<=1,solid,health:record?.health};
+    });
+    return {kind:'3d',active:active&&!paused&&!disposed,mode:config.mode,player:{x:player.position.x,y:player.position.z,z:player.position.y,w:.6,h:.6,aim,pitch},eye:{x:camera.position.x,y:camera.position.z,z:camera.position.y},targets,aimed,projectiles:[],bounds:{x:sceneBounds.min[0],y:sceneBounds.min[2],w:sceneBounds.max[0]-sceneBounds.min[0],h:sceneBounds.max[2]-sceneBounds.min[2]},truncated:objects.length>256};
+  }
   function draw(now:number){
     frame=0;if(disposed||document.hidden)return;
     const dt=last?Math.min(.05,(now-last)/1000):0;last=now;

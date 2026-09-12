@@ -332,6 +332,7 @@ func TestDesignCarriesOptionalSceneAndMechanics(t *testing.T) {
 		Base: "minimal", Objective: "Explore freely",
 		Features: []string{"Movement"},
 		Scene:    scene, Mechanics: map[string]any{"outcomes": []any{"won"}},
+		Scenarios: []GameScenario{{ID: "reach_goal", Metric: "pickup_events", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "goal", Mode: "reach", MS: 4000}}}},
 	}
 	plan, err := service.planFromDesign(context.Background(), "", project, design)
 	if err != nil {
@@ -342,5 +343,16 @@ func TestDesignCarriesOptionalSceneAndMechanics(t *testing.T) {
 	}
 	if plan.Rules["failure"] == "Health or time exhausted" || plan.Rules["completion"] == "Reach the objective; show result and allow restart" {
 		t.Fatalf("minimal design received forced outcomes: %+v", plan.Rules)
+	}
+	if len(plan.Scenarios) != 1 || plan.Scenarios[0].Steps[0].Target != "goal" {
+		t.Fatalf("targeted scenarios not propagated: %+v", plan.Scenarios)
+	}
+	design.Scenarios[0].Steps[0].Mode = "teleport"
+	invalid, err := service.planFromDesign(context.Background(), "", project, design)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.checkPlan(project, invalid); err == nil {
+		t.Fatal("unsupported test control accepted")
 	}
 }

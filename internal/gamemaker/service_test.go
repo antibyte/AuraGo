@@ -208,6 +208,9 @@ func successfulObservationFixture(scenarios []GameScenario) []GameObservation {
 		if scenario.Compare == "decreased" {
 			after[scenario.Metric] = -1
 		}
+		if scenario.Metric == "player_distance" {
+			before["player_x"], before["player_y"], after["player_x"], after["player_y"] = 0, 0, 1, 0
+		}
 		if scenario.ID == "required_restart" {
 			for _, key := range []string{"score", "actions", "hits", "turns", "object_count", "timer_count", "listener_count"} {
 				before[key] = 0
@@ -215,7 +218,13 @@ func successfulObservationFixture(scenarios []GameScenario) []GameObservation {
 				after["restart1_"+key] = 0
 			}
 		}
-		out = append(out, GameObservation{ID: scenario.ID, Before: before, After: after})
+		runs := []TargetRun{}
+		for _, step := range scenario.Steps {
+			if step.Action == "target" {
+				runs = append(runs, TargetRun{Target: step.Target, Mode: step.Mode, Samples: 2, Inputs: 1, Contacts: 1, Effects: 1, Reason: "complete"})
+			}
+		}
+		out = append(out, GameObservation{ID: scenario.ID, Before: before, After: after, TargetRuns: runs})
 	}
 	return out
 }
