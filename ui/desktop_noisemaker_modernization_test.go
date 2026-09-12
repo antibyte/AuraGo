@@ -338,6 +338,8 @@ func TestDesktopNoisemakerRefreshStyles(t *testing.T) {
 		".nm-splitter {",
 		".nm-splitter:focus-visible",
 		".noisemaker-app.is-create-collapsed .nm-pane-create",
+		// explicit grid placement: hiding the create pane must not shift the library into the 6px splitter track
+		".nm-pane-library { grid-column: 3; }",
 		".noisemaker-app.is-compact .nm-workbench",
 		".noisemaker-app.is-compact[data-nm-pane=\"create\"] .nm-pane-library",
 		".noisemaker-app.is-compact[data-nm-pane=\"library\"] .nm-pane-create",
@@ -345,7 +347,11 @@ func TestDesktopNoisemakerRefreshStyles(t *testing.T) {
 		".nm-preset.is-active",
 		".nm-mode-switch",
 		".nm-grid {",
+		// cards use overflow:hidden, so auto rows would be squeezed into the definite grid height
+		"grid-auto-rows: max-content;",
 		".nm-grid--list",
+		".nm-create-action {",
+		"position: sticky;",
 		".nm-card.is-playing",
 		".nm-card.is-selected",
 		".nm-card.is-highlighted",

@@ -118,7 +118,7 @@
         function switchesMarkup() {
             const c = caps || {};
             const cover = c.covers_enabled && mode === 'custom'
-                ? '<label class="nm-check"><input type="checkbox" data-nm-field="cover">' + esc(t('desktop.noisemaker_cover_label')) + '</label>' +
+                ? '<label class="nm-switch"><input type="checkbox" data-nm-field="cover"><span class="nm-switch-track" aria-hidden="true"></span>' + esc(t('desktop.noisemaker_cover_label')) + '</label>' +
                   '<span class="nm-hint">' + esc(t('desktop.noisemaker_cover_hint', { provider: c.cover_provider || '' })) + '</span>'
                 : '';
             return '<div class="nm-form-row">' +
