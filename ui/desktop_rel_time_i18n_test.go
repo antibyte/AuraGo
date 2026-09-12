@@ -10,12 +10,12 @@ import (
 func TestDesktopRelTimeI18n(t *testing.T) {
 	t.Parallel()
 
-	mission := readDesktopAssetText(t, "js/desktop/apps/mission-control.js")
+	mission := readDesktopAssetText(t, "js/desktop/apps/mission-control-triggers.js")
 	if !strings.Contains(mission, "t('desktop.rel_time_seconds', { count: cfg.min_interval_seconds })") {
-		t.Fatal("mission control min-interval must use desktop.rel_time_seconds")
+		t.Fatal("mission control triggers min-interval must use desktop.rel_time_seconds")
 	}
 	if strings.Contains(mission, "min_interval_seconds + 's'") {
-		t.Fatal("mission control still hardcodes min_interval_seconds + 's'")
+		t.Fatal("mission control triggers still hardcodes min_interval_seconds + 's'")
 	}
 
 	sip := readDesktopAssetText(t, "js/desktop/apps/sip-phone.js")

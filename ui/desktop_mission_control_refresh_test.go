@@ -141,3 +141,38 @@ func TestDesktopMissionControlScheduleModuleContract(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopMissionControlTriggerModuleContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-triggers.js")
+	for _, marker := range []string{
+		"window.MissionControlTriggers = {",
+		"function summary(mission, t, ctx)",
+		"function createPicker(deps)",
+		"function createConfigPanel(deps)",
+		"const REMOTE_ALLOWED = new Set(['system_startup', 'mqtt_message', 'home_assistant_state'])",
+		"t('desktop.rel_time_seconds', { count: cfg.min_interval_seconds })",
+		"'desktop.mc_trigger_group_missions'",
+		"'desktop.mc_trigger_group_communication'",
+		"'desktop.mc_trigger_group_devices'",
+		"'desktop.mc_trigger_group_planner'",
+		"'desktop.mc_trigger_group_invasion'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control-triggers.js missing marker %q", marker)
+		}
+	}
+	for _, key := range []string{
+		"mission_completed", "email_received", "webhook", "egg_hatched", "nest_cleared", "mqtt_message",
+		"system_startup", "home_assistant_state", "device_connected", "device_disconnected", "fritzbox_call",
+		"budget_warning", "budget_exceeded", "planner_appointment_due", "planner_todo_overdue", "planner_operational_issue",
+	} {
+		if !strings.Contains(source, "key: '"+key+"'") {
+			t.Fatalf("trigger catalog missing %q", key)
+		}
+	}
+	if missionControlEmojiRe.MatchString(source) {
+		t.Fatalf("triggers module must not embed emoji")
+	}
+}
