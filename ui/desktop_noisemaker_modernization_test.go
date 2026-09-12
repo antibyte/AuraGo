@@ -151,3 +151,37 @@ func TestDesktopNoisemakerRefreshMenusModule(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerRefreshLibraryModule(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/noisemaker-library.js")
+	for _, marker := range []string{
+		"window.NoisemakerLibrary = { create, formatDuration, formatDate }",
+		"function formatDuration(ms)",
+		"data-nm-filter=\"favorites\"",
+		"data-nm-view=\"list\"",
+		"data-nm-select-toggle",
+		"nm-selection-bar",
+		"nm-grid--list",
+		"class=\"nm-card-fav\"",
+		"class=\"nm-card-check\"",
+		"IntersectionObserver",
+		"function setSelectMode(on)",
+		"function selectRange(track)",
+		"function highlight(id)",
+		"is-highlighted",
+		"emit('contextmenu', { x: event.clientX, y: event.clientY, track })",
+		"no_favorites_title",
+		"nm-skeleton",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("noisemaker-library.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"new Audio(", "nm-player", "alert(", "confirm(", "window.NoisemakerApp", "window.NoisemakerPlayer"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("noisemaker-library.js must not contain %q", forbidden)
+		}
+	}
+}
