@@ -1,733 +1,635 @@
+// Mission Control - Virtual Desktop app shell (master-detail workbench).
+// Composes MissionControlSchedule/Triggers/Menus/List/Detail/Editor.
 (function () {
     'use strict';
 
     const instances = new Map();
-    const P = 'vd-mc';
+    const PREFS_KEY = 'aurago.desktop.mission-control.prefs';
+    const COMPACT_BREAKPOINT = 720;
+    const LIST_MIN = 260, LIST_MAX = 460, LIST_DEFAULT = 320;
+    const HISTORY_PAGE = 25;
+    const FILTERS = ['all', 'manual', 'scheduled', 'triggered', 'errors'];
+    const SORTS = ['name', 'last_run', 'next_run', 'priority'];
 
-    const SVG = {
-        play: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>',
-        edit: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z"/><path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z"/></svg>',
-        trash: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/></svg>',
-        copy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z"/><path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z"/></svg>',
-        chevron: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>',
-        clock: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .2.08.39.22.53l3 3a.75.75 0 101.06-1.06L10.75 9.69V5z" clip-rule="evenodd"/></svg>',
-        bolt: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.983 1.907a.75.75 0 00-1.292-.657l-8.5 9.5A.75.75 0 002.75 12h6.572l-1.305 6.093a.75.75 0 001.292.657l8.5-9.5A.75.75 0 0017.25 8h-6.572l1.305-6.093z" clip-rule="evenodd"/></svg>',
-        calendar: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/></svg>',
-        hand: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a1 1 0 00-1 1v8.5L4.78 10.28a1 1 0 10-1.56 1.44l3 4A1 1 0 007 16h6a3 3 0 003-3V8a1 1 0 10-2 0V6a1 1 0 10-2 0V4a1 1 0 10-2 0V3a1 1 0 10-2 0v8a.5.5 0 11-1 0V3a1 1 0 00-1-1z"/></svg>',
-        checkCircle: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>',
-        xCircle: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>',
-        cog: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>',
-        info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>',
-        refresh: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd"/></svg>',
-        fileText: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>',
-        lock: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>',
-        x: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>'
-    };
+    function clamp(n, lo, hi) { n = Number(n); if (Number.isNaN(n)) return lo; return Math.min(hi, Math.max(lo, n)); }
 
-    const TRIGGER_TYPES = [
-        { key: 'mission_completed', icon: '✅', labelKey: 'missions.trigger_mission_completed' },
-        { key: 'email_received', icon: '📧', labelKey: 'missions.trigger_email_received' },
-        { key: 'webhook', icon: '🪝', labelKey: 'missions.trigger_webhook' },
-        { key: 'egg_hatched', icon: '🥚', labelKey: 'missions.trigger_egg_hatched' },
-        { key: 'nest_cleared', icon: '🪺', labelKey: 'missions.trigger_nest_cleared' },
-        { key: 'mqtt_message', icon: '📡', labelKey: 'missions.trigger_mqtt_message' },
-        { key: 'system_startup', icon: '🟢', labelKey: 'missions.trigger_system_startup' },
-        { key: 'home_assistant_state', icon: '🏠', labelKey: 'missions.trigger_home_assistant_state' },
-        { key: 'device_connected', icon: '🔌', labelKey: 'missions.trigger_device_connected' },
-        { key: 'device_disconnected', icon: '⚡', labelKey: 'missions.trigger_device_disconnected' },
-        { key: 'fritzbox_call', icon: '📞', labelKey: 'missions.trigger_fritzbox_call' },
-        { key: 'budget_warning', icon: '💰', labelKey: 'missions.trigger_budget_warning' },
-        { key: 'budget_exceeded', icon: '🚫', labelKey: 'missions.trigger_budget_exceeded' },
-        { key: 'planner_appointment_due', icon: '📅', labelKey: 'missions.trigger_planner_appointment_due' },
-        { key: 'planner_todo_overdue', icon: '📝', labelKey: 'missions.trigger_planner_todo_overdue' },
-        { key: 'planner_operational_issue', icon: '🧯', labelKey: 'missions.trigger_planner_operational_issue' }
-    ];
+    function loadPrefs() {
+        let raw = {};
+        try { raw = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; } catch (_) { raw = {}; }
+        return {
+            filter: FILTERS.includes(raw.filter) ? raw.filter : 'all',
+            sort: SORTS.includes(raw.sort) ? raw.sort : 'name',
+            listWidth: clamp(raw.listWidth || LIST_DEFAULT, LIST_MIN, LIST_MAX),
+            listCollapsed: !!raw.listCollapsed
+        };
+    }
 
-    const REMOTE_ALLOWED_TRIGGERS = new Set(['system_startup', 'mqtt_message', 'home_assistant_state']);
-
-    const CRON_PRESETS = [
-        { value: '', labelKey: 'missions.form_cron_preset_custom' },
-        { value: '*/5 * * * *', labelKey: 'missions.cron_preset_every_5min' },
-        { value: '*/15 * * * *', labelKey: 'missions.cron_preset_every_15min' },
-        { value: '*/30 * * * *', labelKey: 'missions.cron_preset_every_30min' },
-        { value: '0 * * * *', labelKey: 'missions.cron_preset_every_hour' },
-        { value: '0 */6 * * *', labelKey: 'missions.cron_preset_every_6hours' },
-        { value: '0 0 * * *', labelKey: 'missions.cron_preset_daily_midnight' },
-        { value: '0 9 * * *', labelKey: 'missions.cron_preset_daily_9am' },
-        { value: '0 9 * * 1', labelKey: 'missions.cron_preset_weekly_monday' },
-        { value: '0 0 1 * *', labelKey: 'missions.cron_preset_monthly_first' }
-    ];
+    function savePrefs(state) {
+        try { localStorage.setItem(PREFS_KEY, JSON.stringify({ filter: state.filter, sort: state.sort, listWidth: state.listWidth, listCollapsed: state.listCollapsed })); } catch (_) { /* storage unavailable */ }
+    }
 
     function render(container, windowId, context) {
         dispose(windowId);
 
-        const { esc, t, api, notify, readonly, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, confirmDialog } = context;
+        const { esc, t, api, notify, readonly, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, confirmDialog, showContextMenu, setWindowBeforeClose, isActive } = context;
+        const S = window.MissionControlSchedule, TR = window.MissionControlTriggers, MN = window.MissionControlMenus;
+        if (!S || !TR || !MN || !window.MissionControlList || !window.MissionControlDetail || !window.MissionControlEditor) {
+            container.innerHTML = `<div class="vd-mc vd-mc--fatal">${esc(t('desktop.mc_load_error'))}</div>`;
+            return;
+        }
+        const lang = String(window.SYSTEM_LANG || document.documentElement.lang || 'en');
+        const svg = MN.ICONS;
+        const prefs = loadPrefs();
 
         const state = {
-            missions: [],
-            queue: { items: [], running: '' },
-            webhooks: [],
-            currentFilter: 'all',
-            viewMode: localStorage.getItem('mc-view-mode') || 'grid',
-            searchQuery: '',
-            expandedCards: new Set(),
-            editingId: null,
-            initialLoad: false,
-            lastDataHash: '',
-            remoteTargets: [],
-            disposed: false,
-            sseHandler: null
+            missions: [], queue: { items: [], running: '' },
+            selectedId: '', filter: prefs.filter, sort: prefs.sort, query: '', tab: 'overview',
+            listWidth: prefs.listWidth, listCollapsed: prefs.listCollapsed, compact: false, compactView: 'list',
+            editing: null, busy: '', cancelling: new Set(), runStarted: new Map(), preparedOpen: false,
+            history: { missionId: '', items: [], total: 0, loading: false, error: '', filter: 'all' },
+            initialLoad: false, live: false, disposed: false,
+            sseHandler: null, keydownHandler: null, timer: null, resizeObserver: null, menuSignature: ''
         };
         instances.set(windowId, state);
 
-        const $ = (suffix) => container.querySelector(`[data-mc="${suffix}"]`);
-        const $$ = (suffix) => container.querySelectorAll(`[data-mc="${suffix}"]`);
-
-        function missionIsRunning(mission, queueState = state.queue) {
-            if (!mission) return false;
-            return mission.id === queueState.running || mission.status === 'running';
-        }
-
-        function getRunningMissions(missionsList = state.missions, queueState = state.queue) {
-            const seen = new Set();
-            const running = [];
-            const add = (mission) => {
-                if (!mission || seen.has(mission.id)) return;
-                seen.add(mission.id);
-                running.push(mission);
-            };
-            if (queueState.running) {
-                add(missionsList.find((m) => m.id === queueState.running));
+        // ── formatting helpers shared with list/detail ──
+        const fmt = {
+            relative(iso) {
+                const ts = Date.parse(iso || '');
+                if (!ts) return '';
+                const diff = ts - Date.now();
+                const abs = Math.abs(diff);
+                if (abs < 45000) return t('desktop.mc_time_now');
+                const value = abs < 3600000 ? t('desktop.rel_time_minutes', { count: Math.max(1, Math.round(abs / 60000)) })
+                    : abs < 86400000 ? t('desktop.rel_time_hours', { count: Math.round(abs / 3600000) })
+                        : t('desktop.rel_time_days', { count: Math.round(abs / 86400000) });
+                return diff > 0 ? t('desktop.mc_time_in', { value }) : t('desktop.mc_time_ago', { value });
+            },
+            dateTime(iso) {
+                const d = new Date(iso);
+                if (Number.isNaN(d.getTime())) return '';
+                try { return d.toLocaleString(lang, { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return d.toLocaleString(); }
+            },
+            duration(ms) {
+                const s = Math.max(1, Math.round((Number(ms) || 0) / 1000));
+                if (s < 60) return t('desktop.rel_time_seconds', { count: s });
+                const m = Math.floor(s / 60);
+                if (m < 60) return `${t('desktop.rel_time_minutes', { count: m })} ${t('desktop.rel_time_seconds', { count: s % 60 })}`;
+                return `${t('desktop.rel_time_hours', { count: Math.floor(m / 60) })} ${t('desktop.rel_time_minutes', { count: m % 60 })}`;
+            },
+            clock(ms) {
+                const s = Math.max(0, Math.floor(ms / 1000));
+                const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+                return (h ? `${h}:` : '') + `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
             }
-            missionsList.forEach((m) => {
-                if (m.status === 'running') add(m);
-            });
-            return running;
-        }
+        };
 
-        function toastForMissionDispatch(data) {
-            const status = data && data.status ? data.status : 'queued';
-            if (status === 'running') return t('missions.toast_running');
-            if (status === 'skipped') return t('missions.toast_trigger_skipped');
-            return t('missions.toast_queued');
-        }
+        // ── layout ──
+        container.innerHTML = `
+        <div class="vd-mc" data-mc-root style="--mc-list-width:${state.listWidth}px">
+            <div class="vd-mc-toolbar" role="toolbar" aria-label="Mission Control">
+                <button type="button" class="vd-mc-btn vd-mc-btn--icon" data-mc-list-toggle title="${esc(t(state.listCollapsed ? 'desktop.mc_list_expand' : 'desktop.mc_list_collapse'))}" aria-label="${esc(t('desktop.mc_toolbar_list_toggle'))}" aria-pressed="${!state.listCollapsed}">${svg.sidebar}</button>
+                <label class="vd-mc-search">${svg.search}<input type="search" data-mc-search placeholder="${esc(t('desktop.mc_search_placeholder'))}" aria-label="${esc(t('desktop.mc_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocomplete="off" spellcheck="false"><button type="button" class="vd-mc-search-clear" data-mc-search-clear hidden aria-label="${esc(t('desktop.mc_list_clear_filter'))}">${svg.x}</button></label>
+                <label class="vd-mc-toolbar-select"><span>${esc(t('desktop.mc_filter_label'))}</span><select data-mc-filter aria-label="${esc(t('desktop.mc_filter_label'))}">${FILTERS.map(f => `<option value="${f}">${esc(t('desktop.mc_filter_' + f))}</option>`).join('')}</select></label>
+                <label class="vd-mc-toolbar-select"><span>${esc(t('desktop.mc_sort_label'))}</span><select data-mc-sort aria-label="${esc(t('desktop.mc_sort_label'))}">${SORTS.map(s => `<option value="${s}">${esc(t('desktop.mc_sort_' + s))}</option>`).join('')}</select></label>
+                <span class="vd-mc-toolbar-spacer"></span>
+                <button type="button" class="vd-mc-btn vd-mc-btn--icon" data-mc-refresh title="${esc(t('desktop.mc_toolbar_refresh'))}" aria-label="${esc(t('desktop.mc_toolbar_refresh'))}">${svg.refresh}</button>
+                ${readonly ? '' : `<button type="button" class="vd-mc-btn vd-mc-btn--primary" data-mc-new>${svg.plus}<span>${esc(t('desktop.mc_new_mission'))}</span></button>`}
+            </div>
+            ${readonly ? `<div class="vd-mc-banner" role="status">${svg.info}<span>${esc(t('desktop.mc_readonly_banner'))}</span></div>` : ''}
+            <div class="vd-mc-body" data-mc-body>
+                <aside class="vd-mc-listpane" data-mc-listpane></aside>
+                <div class="vd-mc-splitter" data-mc-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-valuemin="${LIST_MIN}" aria-valuemax="${LIST_MAX}" aria-valuenow="${state.listWidth}" aria-label="${esc(t('desktop.mc_menu_list_panel'))}"></div>
+                <main class="vd-mc-main" data-mc-main>
+                    <button type="button" class="vd-mc-back" data-mc-back hidden>${svg.chevronLeft}<span>${esc(t('desktop.mc_back_to_list'))}</span></button>
+                    <div class="vd-mc-loading" data-mc-loading>${esc(t('desktop.loading'))}</div>
+                    <div class="vd-mc-loaderror" data-mc-loaderror hidden>${svg.alert}<span>${esc(t('desktop.mc_load_error'))}</span><span class="vd-mc-muted" data-mc-loaderror-detail></span><button type="button" class="vd-mc-btn" data-mc-retry>${esc(t('desktop.mc_retry'))}</button></div>
+                </main>
+            </div>
+            <footer class="vd-mc-statusbar" role="status" aria-live="polite">
+                <span data-mc-status-counts></span>
+                <span data-mc-status-next></span>
+                <span class="vd-mc-status-live" data-mc-status-live>${esc(t('desktop.mc_status_offline'))}</span>
+            </footer>
+        </div>`;
+        const root = container.querySelector('[data-mc-root]');
+        const $ = (sel) => root.querySelector(sel);
+        const main = $('[data-mc-main]');
 
-        container.innerHTML = `<div class="${P}"><div class="${P}-loading" data-mc="loading">${esc(t('desktop.loading'))}</div></div>`;
+        const list = window.MissionControlList.create({ esc, t, lang, svg, triggers: TR, schedule: S, readonly, fmt });
+        const detail = window.MissionControlDetail.create({ esc, t, lang, svg, triggers: TR, schedule: S, readonly, fmt });
+        const editor = window.MissionControlEditor.create({ esc, t, lang, svg, request: api, schedule: S, triggers: TR, missions: () => state.missions, readonly });
+        $('[data-mc-listpane]').appendChild(list.element);
+        main.appendChild(detail.element);
+        main.appendChild(editor.element);
+        detail.element.hidden = true;
+        editor.element.hidden = true;
+        $('[data-mc-filter]').value = state.filter;
+        $('[data-mc-sort]').value = state.sort;
+        list.setFilter(state.filter);
+        list.setSort(state.sort);
+        root.classList.toggle('is-list-collapsed', state.listCollapsed);
 
-        setupSSE();
-        loadData();
-        setupMenus();
-        setupContextMenu();
-
-        function setupSSE() {
-            if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
-                state.sseHandler = function (payload) {
-                    if (!state.initialLoad || state.disposed) return;
-                    const normalized = normalizeMissionControlPayload(payload);
-                    state.missions = normalized.missions;
-                    state.queue = normalized.queue;
-                    renderAll();
-                };
-                window.AuraSSE.on('mission_update', state.sseHandler);
-            }
-        }
-
-        function setupMenus() {
-            if (typeof setWindowMenus !== 'function') return;
-            setWindowMenus(windowId, [
-                {
-                    id: 'file', labelKey: 'desktop.menu_file', items: [
-                        { id: 'new', labelKey: 'desktop.mc_new_mission', icon: 'plus', shortcut: 'Ctrl+N', action: () => openModal() }
-                    ]
-                },
-                {
-                    id: 'view', labelKey: 'desktop.menu_view', items: [
-                        { id: 'grid', labelKey: 'desktop.people_grid_view', checked: () => state.viewMode === 'grid', action: () => setViewMode('grid') },
-                        { id: 'list', labelKey: 'desktop.people_list_view', checked: () => state.viewMode === 'list', action: () => setViewMode('list') },
-                        { type: 'separator' },
-                        { id: 'filter-all', labelKey: 'missions.filter_all', checked: () => state.currentFilter === 'all', action: () => setFilter('all') },
-                        { id: 'filter-manual', labelKey: 'missions.filter_manual', checked: () => state.currentFilter === 'manual', action: () => setFilter('manual') },
-                        { id: 'filter-scheduled', labelKey: 'missions.filter_scheduled', checked: () => state.currentFilter === 'scheduled', action: () => setFilter('scheduled') },
-                        { id: 'filter-triggered', labelKey: 'missions.filter_triggered', checked: () => state.currentFilter === 'triggered', action: () => setFilter('triggered') }
-                    ]
-                }
-            ]);
-        }
-
-        function setupContextMenu() {
-            if (typeof wireContextMenuBoundary === 'function') {
-                wireContextMenuBoundary(container);
-            }
-            container.addEventListener('contextmenu', (e) => {
-                const card = e.target.closest(`.${P}-card, .${P}-card-list`);
-                if (!card) return;
-                e.preventDefault();
-                const mid = card.dataset.missionId;
-                const mission = state.missions.find(m => m.id === mid);
-                if (!mission) return;
-                const isRunning = missionIsRunning(mission);
-                const items = [
-                    { icon: 'play', label: t('missions.card_btn_run_title'), action: () => runMission(mid), disabled: isRunning },
-                    { icon: 'edit', label: t('missions.card_btn_edit_title'), action: () => openModal(mid) },
-                    { icon: 'copy', label: t('missions.card_btn_duplicate_title'), action: () => duplicateMission(mid) },
-                    { separator: true },
-                    { icon: 'trash', label: t('missions.card_btn_delete_title'), action: () => deleteMission(mid), disabled: !!mission.locked }
-                ];
-                if (typeof context.showContextMenu === 'function') {
-                    context.showContextMenu(e.clientX, e.clientY, items);
-                }
-            });
-        }
-
-        function handleKeydown(e) {
-            if (state.disposed) return;
-            if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openModal(); }
-        }
-        state.keydownHandler = handleKeydown;
-        document.addEventListener('keydown', handleKeydown);
-
-        async function loadData() {
-            try {
-                const data = await api('/api/missions/v2');
-                const normalized = normalizeMissionControlPayload(data);
-                state.missions = normalized.missions;
-                state.queue = normalized.queue;
-                state.initialLoad = true;
-                renderAll();
-            } catch (err) {
-                console.error('MC: load failed', err);
-                const host = container.querySelector(`.${P}`);
-                if (host) {
-                    const detail = err && err.message ? ': ' + esc(err.message) : '';
-                    host.innerHTML = `<div class="${P}-empty"><div class="${P}-empty-icon">⚠️</div><div class="${P}-empty-text">${esc(t('missions.empty_load_error'))}${detail}</div><button type="button" class="${P}-btn" data-mc="retry" style="margin-top:8px">${esc(t('desktop.retry'))}</button></div>`;
-                    const retry = host.querySelector('[data-mc="retry"]');
-                    if (retry) retry.addEventListener('click', () => { host.innerHTML = `<div class="${P}-loading">${esc(t('desktop.loading'))}</div>`; loadData(); });
-                }
-            }
-        }
-
+        // ── payload normalizers (kept for TestDesktopMissionControlNormalizesListPayload) ──
         function normalizeMissionControlPayload(data) {
             data = data || {};
             const missions = Array.isArray(data.missions)
                 ? data.missions
                 : (Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
-            return {
-                missions,
-                queue: normalizeMissionQueue(data.queue)
-            };
+            return { missions, queue: normalizeMissionQueue(data.queue) };
         }
-
         function normalizeMissionQueue(queue) {
             queue = queue || {};
-            return {
-                items: Array.isArray(queue.items) ? queue.items : [],
-                running: typeof queue.running === 'string' ? queue.running : ''
-            };
+            return { items: Array.isArray(queue.items) ? queue.items : [], running: typeof queue.running === 'string' ? queue.running : '' };
+        }
+        function missionIsRunning(mission, queueState = state.queue) {
+            if (!mission) return false;
+            return mission.id === queueState.running || mission.status === 'running';
+        }
+        function getRunningMissions(missionsList = state.missions, queueState = state.queue) {
+            const seen = new Set();
+            const running = [];
+            const add = (mission) => { if (!mission || seen.has(mission.id)) return; seen.add(mission.id); running.push(mission); };
+            if (queueState.running) add(missionsList.find(m => m.id === queueState.running));
+            missionsList.forEach(m => { if (m.status === 'running') add(m); });
+            return running;
+        }
+        function toastForMissionDispatch(data) {
+            const status = data && data.status ? data.status : 'queued';
+            if (status === 'running') return t('desktop.mc_toast_run_started');
+            if (status === 'skipped') return t('desktop.mc_toast_run_skipped');
+            return t('desktop.mc_toast_run_queued');
+        }
+        const selected = () => state.missions.find(m => m.id === state.selectedId) || null;
+        const byId = (id) => state.missions.find(m => m.id === id) || null;
+        const queuePosition = (id) => { const idx = state.queue.items.findIndex(item => item.mission_id === id); return idx < 0 ? 0 : idx + 1; };
+        const failToast = (err) => notify(t('desktop.mc_toast_action_failed', { error: (err && err.message) || String(err) }), 'error');
+
+        // ── data ──
+        async function loadData() {
+            try {
+                const data = await api('/api/missions/v2');
+                if (state.disposed) return;
+                applyData(data);
+                state.initialLoad = true;
+                $('[data-mc-loading]').hidden = true;
+                $('[data-mc-loaderror]').hidden = true;
+                if (!state.editing) detail.element.hidden = false;
+                list.setData({ missions: state.missions, queue: state.queue });
+                if (!state.selectedId && !state.compact && list.visibleIds().length) selectMission(list.visibleIds()[0], false);
+                syncAll();
+            } catch (err) {
+                if (state.disposed) return;
+                console.error('MC: load failed', err);
+                if (!state.initialLoad) {
+                    $('[data-mc-loading]').hidden = true;
+                    $('[data-mc-loaderror]').hidden = false;
+                    $('[data-mc-loaderror-detail]').textContent = err && err.message ? err.message : '';
+                } else failToast(err);
+            }
         }
 
-        function renderAll() {
+        function applyData(data) {
+            const normalized = normalizeMissionControlPayload(data);
+            const before = new Set(getRunningMissions().map(m => m.id));
+            state.missions = normalized.missions;
+            state.queue = normalized.queue;
+            const after = new Set(getRunningMissions().map(m => m.id));
+            after.forEach(id => { if (!state.runStarted.has(id)) state.runStarted.set(id, Date.now()); });
+            before.forEach(id => {
+                if (after.has(id)) return;
+                state.runStarted.delete(id);
+                state.cancelling.delete(id);
+                if (state.history.missionId === id) loadHistory(true);
+            });
+            if (state.selectedId && !byId(state.selectedId)) {
+                state.selectedId = '';
+                if (state.editing && state.editing.mode === 'edit') closeEditor(true);
+            }
+        }
+
+        // ── sync ──
+        function syncAll() {
             if (state.disposed) return;
-            const dataHash = JSON.stringify(state.missions) + '||' + JSON.stringify(state.queue) + '||' + state.currentFilter + '||' + state.searchQuery;
-            const changed = dataHash !== state.lastDataHash;
-            state.lastDataHash = dataHash;
-
-            const host = container.querySelector(`.${P}`);
-            if (!host) return;
-
-            if (!state.initialLoad) {
-                host.innerHTML = `<div class="${P}-skeleton"></div><div class="${P}-skeleton"></div><div class="${P}-skeleton"></div>`;
-                return;
-            }
-
-            const hasContent = host.querySelector(`.${P}-toolbar`);
-            if (!hasContent) {
-                host.innerHTML = buildLayout();
-                bindLayoutEvents();
-            }
-
-            renderStatusBar();
-            if (changed) {
-                renderQueue();
-                renderTabs();
-                renderGrid();
-            }
+            list.setData({ missions: state.missions, queue: state.queue });
+            list.setSelected(state.selectedId);
+            syncDetail();
+            syncStatus();
+            syncMenus();
+            syncCompact();
         }
 
-        function buildLayout() {
-            return `
-                <div class="${P}-toolbar" data-mc="toolbar">
-                    <button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new">+ ${esc(t('desktop.mc_new_mission'))}</button>
-                    <input type="text" class="${P}-search" data-mc="search" placeholder="${esc(t('desktop.mc_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
-                    <select class="${P}-filter-select" data-mc="filter-select">
-                        <option value="all">${esc(t('missions.filter_all'))}</option>
-                        <option value="manual">${esc(t('missions.filter_manual'))}</option>
-                        <option value="scheduled">${esc(t('missions.filter_scheduled'))}</option>
-                        <option value="triggered">${esc(t('missions.filter_triggered'))}</option>
-                    </select>
-                    <div class="${P}-view-toggle">
-                        <button type="button" class="${P}-view-btn${state.viewMode === 'grid' ? ' active' : ''}" data-mc="view-grid" title="Grid">▦</button>
-                        <button type="button" class="${P}-view-btn${state.viewMode === 'list' ? ' active' : ''}" data-mc="view-list" title="List">☰</button>
-                    </div>
-                </div>
-                <div class="${P}-status-bar" data-mc="status-bar"></div>
-                <div class="${P}-queue" data-mc="queue" style="display:none"></div>
-                <div class="${P}-tabs" data-mc="tabs"></div>
-                <div class="${P}-grid${state.viewMode === 'list' ? ' list-view' : ''}" data-mc="grid"></div>
-            `;
+        function syncDetail() {
+            if (state.editing) return;
+            const m = selected();
+            if (!m) { detail.showEmpty(); stopTimer(); return; }
+            const running = missionIsRunning(m);
+            detail.setMission(m, { running, queuePosition: queuePosition(m.id), cancelling: state.cancelling.has(m.id), busy: state.busy });
+            detail.setTab(state.tab);
+            if (running) startTimer(); else stopTimer();
         }
 
-        function bindLayoutEvents() {
-            const btnNew = $('btn-new');
-            if (btnNew) btnNew.addEventListener('click', () => openModal());
-
-            const search = $('search');
-            if (search) search.addEventListener('input', (e) => { state.searchQuery = e.target.value.toLowerCase(); renderGrid(); });
-
-            const filterSel = $('filter-select');
-            if (filterSel) filterSel.addEventListener('change', (e) => setFilter(e.target.value));
-
-            const viewGrid = $('view-grid');
-            const viewList = $('view-list');
-            if (viewGrid) viewGrid.addEventListener('click', () => setViewMode('grid'));
-            if (viewList) viewList.addEventListener('click', () => setViewMode('list'));
-
-            const grid = $('grid');
-            if (grid) {
-                grid.addEventListener('click', handleGridClick);
-            }
-
-            const queueEl = $('queue');
-            if (queueEl) {
-                queueEl.addEventListener('click', (e) => {
-                    const btn = e.target.closest(`[data-mc-action="remove-queue"]`);
-                    if (btn) removeFromQueue(btn.dataset.missionId);
-                });
-            }
+        function syncStatus() {
+            const counts = list.counts();
+            const parts = [counts.total === 1 ? t('desktop.mc_status_missions_one') : t('desktop.mc_status_missions', { count: counts.total })];
+            if (counts.shown !== counts.total) parts.push(t('desktop.mc_status_filtered', { shown: counts.shown, total: counts.total }));
+            if (counts.running) parts.push(t('desktop.mc_status_running', { count: counts.running }));
+            if (counts.waiting) parts.push(t('desktop.mc_status_waiting', { count: counts.waiting }));
+            if (!counts.running && !counts.waiting && counts.total) parts.push(t('desktop.mc_status_idle'));
+            $('[data-mc-status-counts]').textContent = parts.join(' · ');
+            const next = state.missions.filter(m => m.execution_type === 'scheduled' && m.enabled !== false && m.next_run)
+                .sort((a, b) => Date.parse(a.next_run) - Date.parse(b.next_run))[0];
+            $('[data-mc-status-next]').textContent = next ? t('desktop.mc_status_next', { name: next.name, when: fmt.relative(next.next_run) }) : '';
+            const live = $('[data-mc-status-live]');
+            live.textContent = t(state.live ? 'desktop.mc_status_live' : 'desktop.mc_status_offline');
+            live.classList.toggle('is-live', state.live);
         }
 
-        function handleGridClick(e) {
-            const emptyBtn = e.target.closest('[data-mc="btn-new-empty"]');
-            if (emptyBtn) { openModal(); return; }
-            const actionEl = e.target.closest('[data-mc-action]');
-            if (!actionEl) return;
-            const mid = actionEl.dataset.missionId;
-            const action = actionEl.dataset.mcAction;
-            switch (action) {
-                case 'toggle-expand': toggleExpand(mid); break;
-                case 'run': runMission(mid); break;
-                case 'edit': openModal(mid); break;
-                case 'duplicate': duplicateMission(mid); break;
-                case 'delete': deleteMission(mid); break;
-                case 'prepare': prepareMission(mid); break;
-                case 'invalidate-prep': invalidatePrep(mid); break;
-                case 'view-prep': viewPrep(mid); break;
-                case 'toggle-log':
-                    actionEl.classList.toggle('open');
-                    const log = actionEl.nextElementSibling;
-                    if (log) log.style.display = log.style.display === 'none' ? '' : 'none';
-                    break;
-            }
-        }
-
-        function setFilter(f) {
-            state.currentFilter = f;
-            const sel = $('filter-select');
-            if (sel) sel.value = f;
-            renderTabs();
-            renderGrid();
-            setupMenus();
-        }
-
-        function setViewMode(m) {
-            state.viewMode = m;
-            localStorage.setItem('mc-view-mode', m);
-            const grid = $('grid');
-            if (grid) grid.classList.toggle('list-view', m === 'list');
-            $$('view-grid').forEach(b => b.classList.toggle('active', m === 'grid'));
-            $$('view-list').forEach(b => b.classList.toggle('active', m === 'list'));
-            renderGrid();
-            setupMenus();
-        }
-
-        function toggleExpand(id) {
-            if (state.expandedCards.has(id)) state.expandedCards.delete(id);
-            else state.expandedCards.add(id);
-            const card = container.querySelector(`[data-mission-id="${CSS.escape(id)}"]`);
-            if (card) card.classList.toggle('expanded', state.expandedCards.has(id));
-        }
-
-        // ── Status Bar ──
-        function renderStatusBar() {
-            const bar = $('status-bar');
-            if (!bar) return;
-            const total = state.missions.length;
-            const running = state.missions.filter(m => m.status === 'running').length;
-            const queued = state.queue.items.length;
-            const triggered = state.missions.filter(m => m.execution_type === 'triggered').length;
-            bar.innerHTML = `
-                <div class="${P}-stat"><span class="${P}-stat-icon">📋</span><span><span class="${P}-stat-value">${total}</span><br><span class="${P}-stat-label">${esc(t('missions.status_total'))}</span></span></div>
-                <div class="${P}-stat${running > 0 ? ' running' : ''}"><span class="${P}-stat-icon">▶️</span><span><span class="${P}-stat-value">${running}</span><br><span class="${P}-stat-label">${esc(t('missions.status_running'))}</span></span></div>
-                <div class="${P}-stat"><span class="${P}-stat-icon">⏳</span><span><span class="${P}-stat-value">${queued}</span><br><span class="${P}-stat-label">${esc(t('missions.status_queue'))}</span></span></div>
-                <div class="${P}-stat"><span class="${P}-stat-icon">⚡</span><span><span class="${P}-stat-value">${triggered}</span><br><span class="${P}-stat-label">${esc(t('missions.status_triggered'))}</span></span></div>
-            `;
-        }
-
-        // ── Queue ──
-        function renderQueue() {
-            const el = $('queue');
-            if (!el) return;
-            const runningMissions = getRunningMissions();
-            if (state.queue.items.length === 0 && runningMissions.length === 0) {
-                el.style.display = 'none';
-                return;
-            }
-            el.style.display = '';
-            let html = `<div class="${P}-queue-header"><span>${esc(t('missions.queue_title'))}</span><span class="${P}-queue-badge">${esc(t('missions.queue_serial_badge'))}</span></div><div class="${P}-queue-items">`;
-
-            runningMissions.forEach((rm) => {
-                html += `<div class="${P}-queue-item running"><span class="${P}-queue-pos">▶</span><span class="${P}-queue-name">${esc(rm.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_running_now'))}</span></div>`;
-            });
-            state.queue.items.forEach((item, idx) => {
-                const m = state.missions.find(ms => ms.id === item.mission_id);
-                if (!m) return;
-                html += `<div class="${P}-queue-item"><span class="${P}-queue-pos">${idx + 1}</span><span class="${P}-queue-name">${esc(m.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_priority_prefix'))} ${m.priority}</span><button type="button" class="${P}-queue-remove" data-mc-action="remove-queue" data-mission-id="${escAttr(m.id)}" title="${esc(t('missions.queue_remove_title'))}">${SVG.x}</button></div>`;
-            });
-            html += '</div>';
-            el.innerHTML = html;
-        }
-
-        // ── Tabs ──
-        function renderTabs() {
-            const el = $('tabs');
-            if (!el) return;
-            const filters = [
-                { key: 'all', labelKey: 'missions.filter_all', fallback: 'All' },
-                { key: 'manual', labelKey: 'missions.filter_manual', fallback: 'Manual' },
-                { key: 'scheduled', labelKey: 'missions.filter_scheduled', fallback: 'Scheduled' },
-                { key: 'triggered', labelKey: 'missions.filter_triggered', fallback: 'Triggered' }
-            ];
-            el.innerHTML = filters.map(f =>
-                `<button type="button" class="${P}-tab${state.currentFilter === f.key ? ' active' : ''}" data-mc-filter="${f.key}">${esc(t(f.labelKey, f.fallback))}</button>`
-            ).join('');
-            el.onclick = (e) => {
-                const btn = e.target.closest(`.${P}-tab`);
-                if (btn) setFilter(btn.dataset.mcFilter);
+        const menuModel = { t, readonly, s: {}, actions: {} };
+        function syncMenus() {
+            if (typeof setWindowMenus !== 'function') return;
+            const m = selected();
+            const running = !!(m && missionIsRunning(m));
+            menuModel.s = {
+                selected: m, running, queued: !!(m && queuePosition(m.id)),
+                queuedIds: new Set(state.queue.items.map(item => item.mission_id)),
+                canCancel: !!(m && running && m.runner_type !== 'remote' && !state.cancelling.has(m.id)),
+                filter: state.filter, sort: state.sort, tab: state.tab, listCollapsed: state.listCollapsed, editing: !!state.editing
             };
+            const sig = JSON.stringify([m && m.id, m && m.enabled, m && m.locked, m && m.preparation_status, m && m.runner_type, running, menuModel.s.queued, menuModel.s.canCancel, state.filter, state.sort, state.tab, state.listCollapsed, !!state.editing]);
+            if (sig === state.menuSignature) return;
+            state.menuSignature = sig;
+            setWindowMenus(windowId, MN.windowMenus(menuModel));
         }
 
-        // ── Grid ──
-        function renderGrid() {
-            const el = $('grid');
-            if (!el) return;
-            let filtered = state.missions;
-            if (state.currentFilter !== 'all') filtered = filtered.filter(m => m.execution_type === state.currentFilter);
-            if (state.searchQuery) filtered = filtered.filter(m => (m.name || '').toLowerCase().includes(state.searchQuery) || (m.prompt || '').toLowerCase().includes(state.searchQuery));
-
-            if (filtered.length === 0) {
-                el.innerHTML = `<div class="${P}-empty" style="grid-column:1/-1"><div class="${P}-empty-icon">🚀</div><div class="${P}-empty-text">${esc(state.currentFilter === 'all' ? t('missions.empty_create_first') : t('missions.empty_no_missions_of_type'))}</div><button type="button" class="${P}-btn ${P}-btn-primary" data-mc="btn-new-empty">+ ${esc(t('desktop.mc_new_mission'))}</button></div>`;
-                return;
-            }
-
-            if (state.viewMode === 'list') {
-                el.innerHTML = filtered.map(m => renderListCard(m)).join('');
-            } else {
-                el.innerHTML = filtered.map(m => renderGridCard(m)).join('');
-            }
+        function syncCompact() {
+            const showDetail = state.compactView === 'detail' && (state.selectedId || state.editing);
+            root.classList.toggle('is-compact', state.compact);
+            root.classList.toggle('is-compact-detail', state.compact && !!showDetail);
+            $('[data-mc-back]').hidden = !(state.compact && showDetail);
         }
 
-        // ── Card Rendering ──
-        function renderGridCard(mission) {
-            const isRunning = missionIsRunning(mission);
-            const isQueued = !isRunning && state.queue.items.some(i => i.mission_id === mission.id);
-            const isExpanded = state.expandedCards.has(mission.id);
-            const mid = escAttr(mission.id);
-            const statusKind = isRunning ? 'running' : isQueued ? 'queued' : (mission.execution_type || 'manual');
-            const statusClass = isRunning ? ' running' : isQueued ? ' queued' : '';
+        // ── running timer ──
+        function startTimer() {
+            if (state.timer) return;
+            const tick = () => {
+                const m = selected();
+                if (!m || !missionIsRunning(m)) { stopTimer(); return; }
+                detail.setElapsed(fmt.clock(Date.now() - (state.runStarted.get(m.id) || Date.now())));
+            };
+            tick();
+            state.timer = setInterval(tick, 1000);
+        }
+        function stopTimer() { if (state.timer) { clearInterval(state.timer); state.timer = null; } }
 
-            const chip = renderStatusChip(mission, isRunning, isQueued);
-            const remoteBadge = mission.runner_type === 'remote' ? `<span class="${P}-remote-badge">${esc(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>` : '';
-            const prepBadge = renderPrepBadge(mission);
-
-            let triggerPill = '';
-            if (mission.execution_type === 'triggered' && mission.trigger_config) {
-                const txt = renderTriggerText(mission);
-                if (txt) triggerPill = `<div class="${P}-trigger-pill" title="${escAttr(txt.replace(/<[^>]+>/g, ''))}">${SVG.bolt}<span>${txt}</span></div>`;
-            }
-
-            const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
-            const hasError = !isRunning && mission.last_result === 'error';
-            const resultIcon = hasError ? SVG.xCircle : (mission.last_result === 'success' ? SVG.checkCircle : '');
-            const resultClass = hasError ? `${P}-meta-item--error` : (mission.last_result === 'success' ? `${P}-meta-item--ok` : '');
-            const lockedMark = mission.locked ? `<span class="${P}-card-name-lock" title="${esc(t('missions.card_locked_title'))}">${SVG.lock}</span>` : '';
-
-            return `
-                <article class="${P}-card${statusClass}${isExpanded ? ' expanded' : ''}" data-priority="${escAttr(mission.priority)}" data-status="${statusKind}" data-mission-id="${mid}">
-                    <div class="${P}-card-header" data-mc-action="toggle-expand" data-mission-id="${mid}">
-                        <div class="${P}-card-header-left">${chip}${remoteBadge}${prepBadge}</div>
-                        <button type="button" class="${P}-expand-btn" data-mc-action="toggle-expand" data-mission-id="${mid}" aria-expanded="${isExpanded}">${SVG.chevron}</button>
-                    </div>
-                    <div class="${P}-card-body" data-mc-action="edit" data-mission-id="${mid}">
-                        <div class="${P}-card-name"><span>${esc(mission.name)}</span>${lockedMark}</div>
-                        ${triggerPill}
-                        <p class="${P}-card-prompt">${esc(mission.prompt)}</p>
-                        <div class="${P}-meta-row">
-                            <div class="${P}-meta">
-                                <span class="${P}-meta-item ${resultClass}">${resultIcon ? `<span class="${P}-meta-icon">${resultIcon}</span>` : `<span>${SVG.clock}</span>`}<span>${lastRun}</span></span>
-                                <span class="${P}-meta-item">${esc(t('missions.meta_run_count', { count: mission.run_count }) || (mission.run_count + 'x'))}</span>
-                            </div>
-                            <div style="display:flex;gap:4px;align-items:center">
-                                <button type="button" class="${P}-run-btn" data-mc-action="run" data-mission-id="${mid}" ${isRunning ? 'disabled' : ''}>${SVG.play}<span>${esc(t('missions.card_run_label'))}</span></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="${P}-card-expand">
-                        <div class="${P}-card-expand-inner">
-                            ${mission.prompt ? `<div class="${P}-prompt-full">${esc(mission.prompt)}</div>` : ''}
-                            ${mission.last_output ? `<div class="${P}-log-block"><div class="${P}-log-head" data-mc-action="toggle-log">${SVG.fileText}<span>${esc(t('missions.card_view_log'))}</span></div><pre class="${P}-log-body" style="display:none">${esc(extractLastOutput(mission.last_output))}</pre></div>` : ''}
-                            <div class="${P}-actions-secondary">
-                                ${renderPrepButtons(mission, isRunning)}
-                                <button type="button" class="${P}-action-btn" data-mc-action="duplicate" data-mission-id="${mid}" title="${esc(t('missions.card_btn_duplicate_title'))}">${SVG.copy}</button>
-                                <button type="button" class="${P}-action-btn" data-mc-action="edit" data-mission-id="${mid}" title="${esc(t('missions.card_btn_edit_title'))}">${SVG.edit}</button>
-                                <button type="button" class="${P}-action-btn ${P}-action-btn--danger" data-mc-action="delete" data-mission-id="${mid}" title="${esc(t('missions.card_btn_delete_title'))}" ${mission.locked ? 'disabled' : ''}>${SVG.trash}</button>
-                            </div>
-                        </div>
-                    </div>
-                </article>`;
+        // ── selection / tabs / history ──
+        async function selectMission(id, fromUser) {
+            if (!id || id === state.selectedId) { if (state.compact && fromUser) { state.compactView = 'detail'; syncCompact(); } return; }
+            if (state.editing && !(await closeEditor(false))) { list.setSelected(state.selectedId); return; }
+            state.selectedId = id;
+            state.tab = 'overview';
+            state.preparedOpen = false;
+            state.history = { missionId: '', items: [], total: 0, loading: false, error: '', filter: 'all' };
+            if (state.compact && fromUser) state.compactView = 'detail';
+            list.setSelected(id);
+            detail.element.hidden = false;
+            syncDetail(); syncMenus(); syncCompact();
         }
 
-        function renderListCard(mission) {
-            const isRunning = missionIsRunning(mission);
-            const isQueued = !isRunning && state.queue.items.some(i => i.mission_id === mission.id);
-            const mid = escAttr(mission.id);
-            const typeIcon = { manual: '👆', scheduled: '📅', triggered: '⚡' }[mission.execution_type] || '👆';
-            const statusBadge = isRunning ? `<span class="${P}-chip ${P}-chip--running">${esc(t('missions.card_badge_running'))}</span>` : isQueued ? `<span class="${P}-chip ${P}-chip--queued">${esc(t('missions.card_badge_queued'))}</span>` : '';
-            const prepBadge = renderPrepBadge(mission);
-            const runnerBadge = mission.runner_type === 'remote' ? `<span class="${P}-remote-badge">${esc(mission.remote_egg_name || t('missions.card_remote_badge'))}</span>` : '';
-
-            return `
-                <div class="${P}-card-list${isRunning ? ' running' : ''}" data-mission-id="${mid}" data-mc-action="edit" data-mc-action-param="${mid}">
-                    <span class="${P}-card-list-icon">${typeIcon}</span>
-                    <span class="${P}-card-list-name">${esc(mission.name)}</span>
-                    ${mission.locked ? `<span class="${P}-card-name-lock">${SVG.lock}</span>` : ''}
-                    <div class="${P}-card-list-badges">${statusBadge}${prepBadge}${runnerBadge}</div>
-                    <div class="${P}-card-list-actions">
-                        <button type="button" class="${P}-action-btn" data-mc-action="run" data-mission-id="${mid}" title="${esc(t('missions.card_btn_run_title'))}" ${isRunning ? 'disabled' : ''}>${SVG.play}</button>
-                        <button type="button" class="${P}-action-btn" data-mc-action="edit" data-mission-id="${mid}" title="${esc(t('missions.card_btn_edit_title'))}">${SVG.edit}</button>
-                        <button type="button" class="${P}-action-btn" data-mc-action="duplicate" data-mission-id="${mid}" title="${esc(t('missions.card_btn_duplicate_title'))}">${SVG.copy}</button>
-                        <button type="button" class="${P}-action-btn ${P}-action-btn--danger" data-mc-action="delete" data-mission-id="${mid}" title="${esc(t('missions.card_btn_delete_title'))}" ${mission.locked ? 'disabled' : ''}>${SVG.trash}</button>
-                    </div>
-                </div>`;
+        function setTab(tab) {
+            if (!selected()) return;
+            state.tab = tab === 'history' ? 'history' : 'overview';
+            detail.setTab(state.tab);
+            if (state.tab === 'history' && state.history.missionId !== state.selectedId) loadHistory(true);
+            syncMenus();
         }
 
-        // ── Status Chip ──
-        function renderStatusChip(mission, isRunning, isQueued) {
-            let kind, label, icon;
-            if (isRunning) { kind = 'running'; label = t('missions.card_badge_running'); icon = SVG.play; }
-            else if (isQueued) { kind = 'queued'; label = t('missions.card_badge_queued'); icon = SVG.clock; }
-            else {
-                kind = mission.execution_type || 'manual';
-                if (kind === 'scheduled') { label = t('missions.filter_scheduled'); icon = SVG.calendar; }
-                else if (kind === 'triggered') { label = t('missions.filter_triggered'); icon = SVG.bolt; }
-                else { label = t('missions.filter_manual'); icon = SVG.hand; }
-            }
-            return `<span class="${P}-chip ${P}-chip--${kind}"><span class="${P}-chip-priority" data-priority="${escAttr(mission.priority)}"></span><span class="${P}-chip-icon">${icon}</span><span>${esc(label)}</span></span>`;
-        }
-
-        function renderPrepBadge(mission) {
-            const s = mission.preparation_status;
-            if (!s || s === 'none') return '';
-            const label = t('missions.prep_status_' + s, s);
-            return `<span class="${P}-prep-badge ${s}">${esc(label)}</span>`;
-        }
-
-        function renderPrepButtons(mission, isRunning) {
-            const s = mission.preparation_status || 'none';
-            const mid = escAttr(mission.id);
-            if (s === 'prepared') {
-                return `<button type="button" class="${P}-action-btn" data-mc-action="view-prep" data-mission-id="${mid}" title="${esc(t('missions.prep_view_title'))}">${SVG.info}</button><button type="button" class="${P}-action-btn" data-mc-action="invalidate-prep" data-mission-id="${mid}" title="${esc(t('missions.prep_btn_invalidate'))}">${SVG.refresh}</button>`;
-            }
-            return `<button type="button" class="${P}-action-btn" data-mc-action="prepare" data-mission-id="${mid}" title="${esc(t('missions.prep_btn_prepare'))}" ${s === 'preparing' || isRunning ? 'disabled' : ''}>${SVG.cog}</button>`;
-        }
-
-        // ── Trigger Text ──
-        function renderTriggerText(mission) {
-            const cfg = mission.trigger_config || {};
-            let txt = '';
-            switch (mission.trigger_type) {
-                case 'mission_completed': {
-                    const src = cfg.source_mission_name || cfg.source_mission_id || t('missions.trigger_info_unknown_mission');
-                    txt = t('missions.trigger_info_when_completed', { name: src }) || ('When "' + src + '" completed');
-                    if (cfg.require_success) txt += ' ' + t('missions.trigger_info_only_on_success');
-                    break;
-                }
-                case 'email_received': {
-                    const parts = [];
-                    if (cfg.email_folder) parts.push(t('missions.trigger_info_folder_prefix') + ' ' + cfg.email_folder);
-                    if (cfg.email_subject_contains) parts.push(t('missions.trigger_info_subject_prefix') + ' "' + cfg.email_subject_contains + '"');
-                    if (cfg.email_from_contains) parts.push(t('missions.trigger_info_from_prefix') + ' "' + cfg.email_from_contains + '"');
-                    txt = parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_any_email');
-                    break;
-                }
-                case 'webhook': txt = t('missions.trigger_info_webhook_prefix') + ' ' + (cfg.webhook_slug || cfg.webhook_id || t('missions.trigger_info_webhook_unknown')); break;
-                case 'egg_hatched': {
-                    const egg = cfg.egg_name || cfg.egg_id ? t('missions.trigger_info_egg_prefix') + ' ' + (cfg.egg_name || cfg.egg_id) : t('missions.trigger_info_any_egg');
-                    const nest = cfg.nest_name || cfg.nest_id ? ', ' + t('missions.trigger_info_nest_prefix') + ' ' + (cfg.nest_name || cfg.nest_id) : '';
-                    txt = '🥚 ' + egg + nest; break;
-                }
-                case 'nest_cleared': txt = '🪺 ' + (cfg.nest_name || cfg.nest_id ? t('missions.trigger_info_nest_prefix') + ' ' + (cfg.nest_name || cfg.nest_id) : t('missions.trigger_info_any_nest')); break;
-                case 'mqtt_message': {
-                    const parts = [t('missions.trigger_info_mqtt_topic_prefix') + ' ' + (cfg.mqtt_topic || '#')];
-                    if (cfg.mqtt_payload_contains) parts.push(t('missions.trigger_info_mqtt_payload_prefix') + ' "' + cfg.mqtt_payload_contains + '"');
-                    txt = '📡 ' + parts.join(' | '); break;
-                }
-                case 'system_startup': txt = t('missions.trigger_system_startup_badge'); break;
-                case 'home_assistant_state': {
-                    const parts = [t('missions.trigger_info_ha_entity_prefix') + ' ' + (cfg.ha_entity_id || t('missions.trigger_info_ha_any_entity'))];
-                    if (cfg.ha_state_equals) parts.push(t('missions.trigger_info_ha_state_prefix') + ' "' + cfg.ha_state_equals + '"');
-                    txt = '🏠 ' + parts.join(' | '); break;
-                }
-                case 'device_connected': txt = '🔌 ' + t('missions.trigger_info_device_connected_prefix') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device')); break;
-                case 'device_disconnected': txt = '⚡ ' + t('missions.trigger_info_device_disconnected_prefix') + ' ' + (cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device')); break;
-                case 'fritzbox_call': txt = '📞 ' + t('missions.trigger_info_fritzbox_prefix') + ' ' + (cfg.call_type || t('missions.trigger_info_fritzbox_any')); break;
-                case 'budget_warning': txt = '💰 ' + t('missions.trigger_budget_warning_badge'); break;
-                case 'budget_exceeded': txt = '🚫 ' + t('missions.trigger_budget_exceeded_badge'); break;
-                case 'planner_appointment_due': {
-                    const parts = [];
-                    if (cfg.planner_appointment_id) parts.push(t('missions.trigger_info_planner_appointment_id_prefix') + ' ' + cfg.planner_appointment_id);
-                    if (cfg.planner_title_contains) parts.push(t('missions.trigger_info_planner_title_prefix') + ' "' + cfg.planner_title_contains + '"');
-                    txt = '📅 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_appointment')); break;
-                }
-                case 'planner_todo_overdue': {
-                    const parts = [];
-                    if (cfg.planner_todo_id) parts.push(t('missions.trigger_info_planner_todo_id_prefix') + ' ' + cfg.planner_todo_id);
-                    if (cfg.planner_title_contains) parts.push(t('missions.trigger_info_planner_title_prefix') + ' "' + cfg.planner_title_contains + '"');
-                    txt = '📝 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_todo')); break;
-                }
-                case 'planner_operational_issue': {
-                    const parts = [];
-                    if (cfg.planner_issue_source) parts.push(t('missions.trigger_info_planner_issue_source_prefix') + ' ' + cfg.planner_issue_source);
-                    if (cfg.planner_issue_severity) parts.push(t('missions.trigger_info_planner_issue_severity_prefix') + ' ' + cfg.planner_issue_severity);
-                    txt = '🧯 ' + (parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_issue')); break;
-                }
-            }
-            if (cfg.min_interval_seconds) {
-                const intv = t('missions.trigger_info_min_interval_prefix') + ' ' + t('desktop.rel_time_seconds', { count: cfg.min_interval_seconds });
-                txt = txt ? txt + ' | ' + intv : intv;
-            }
-            return txt;
-        }
-
-        // ── API Actions ──
-        async function runMission(id) {
+        async function loadHistory(reset) {
+            const m = selected();
+            if (!m) return;
+            const h = state.history;
+            if (reset) Object.assign(h, { missionId: m.id, items: [], total: 0, error: '' });
+            h.loading = true;
+            detail.setHistory(h);
+            const params = new URLSearchParams({ mission_id: m.id, limit: String(HISTORY_PAGE), offset: String(h.items.length) });
+            if (h.filter === 'success') params.set('result', 'success');
+            if (h.filter === 'error' || h.filter === 'cancelled') params.set('result', 'error');
             try {
-                const data = await api('/api/missions/v2/' + id + '/run', { method: 'POST' });
+                const data = await api('/api/missions/v2/history?' + params.toString());
+                if (state.disposed || h.missionId !== state.selectedId) return;
+                const entries = Array.isArray(data && data.entries) ? data.entries : [];
+                h.items = reset ? entries : h.items.concat(entries);
+                h.total = Number(data && data.total) || h.items.length;
+                h.error = '';
+            } catch (err) {
+                h.error = (err && err.message) || 'error';
+            } finally {
+                h.loading = false;
+                if (!state.disposed && h.missionId === state.selectedId) detail.setHistory(h);
+            }
+        }
+
+        // ── actions ──
+        async function withBusy(name, fn) {
+            if (readonly) { notify(t('desktop.mc_toast_readonly'), 'error'); return; }
+            state.busy = name;
+            syncDetail();
+            try { await fn(); } catch (err) { failToast(err); } finally { state.busy = ''; if (!state.disposed) { syncDetail(); syncMenus(); } }
+        }
+        const actions = {
+            refresh: () => loadData(),
+            newMission: () => openEditor('new', null),
+            edit: () => { const m = selected(); if (m) openEditor('edit', m); },
+            duplicate: () => { const m = selected(); if (m) openEditor('duplicate', m); },
+            run: () => actions.runMission(state.selectedId),
+            cancelRun: () => actions.cancelMission(state.selectedId),
+            removeFromQueue: () => actions.removeMissionFromQueue(state.selectedId),
+            togglePause: () => actions.togglePauseMission(state.selectedId),
+            toggleLock: () => actions.toggleLockMission(state.selectedId),
+            delete: () => actions.deleteMission(state.selectedId),
+            prepare: () => actions.prepareMission(state.selectedId),
+            invalidatePrep: () => actions.invalidatePrepMission(state.selectedId),
+            setFilter: (f) => { state.filter = FILTERS.includes(f) ? f : 'all'; $('[data-mc-filter]').value = state.filter; list.setFilter(state.filter); savePrefs(state); syncStatus(); syncMenus(); },
+            setSort: (s) => { state.sort = SORTS.includes(s) ? s : 'name'; $('[data-mc-sort]').value = state.sort; list.setSort(state.sort); savePrefs(state); syncMenus(); },
+            setTab,
+            toggleList: () => { state.listCollapsed = !state.listCollapsed; root.classList.toggle('is-list-collapsed', state.listCollapsed); const tb = $('[data-mc-list-toggle]'); tb.setAttribute('aria-pressed', String(!state.listCollapsed)); tb.title = t(state.listCollapsed ? 'desktop.mc_list_expand' : 'desktop.mc_list_collapse'); savePrefs(state); syncMenus(); },
+            runMission: (id) => withBusy('run', async () => {
+                const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
                 notify(toastForMissionDispatch(data || {}));
-                loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
-        }
-
-        async function removeFromQueue(id) {
-            try {
-                await api('/api/missions/v2/' + id + '/queue', { method: 'DELETE' });
-                notify(t('missions.toast_removed_from_queue'));
-                loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
-        }
-
-        async function deleteMission(id) {
-            const m = state.missions.find(x => x.id === id);
-            if (!m) return;
-            if (typeof confirmDialog === 'function') {
-                const ok = await confirmDialog(t('missions.confirm_delete', { name: m.name }) || ('Delete "' + m.name + '"?'));
+                await loadData();
+            }),
+            cancelMission: (id) => withBusy('cancel', async () => {
+                await api('/api/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                state.cancelling.add(id);
+                notify(t('desktop.mc_toast_cancel_requested'));
+            }),
+            removeMissionFromQueue: (id) => withBusy('removeQueue', async () => {
+                await api('/api/missions/v2/' + encodeURIComponent(id) + '/queue', { method: 'DELETE' });
+                notify(t('desktop.mc_toast_removed_queue'));
+                await loadData();
+            }),
+            togglePauseMission: (id) => withBusy('pause', async () => {
+                const m = byId(id); if (!m) return;
+                await putMission(m, { enabled: m.enabled === false });
+                notify(t(m.enabled === false ? 'desktop.mc_toast_resumed' : 'desktop.mc_toast_paused'));
+                await loadData();
+            }),
+            toggleLockMission: (id) => withBusy('lock', async () => {
+                const m = byId(id); if (!m) return;
+                await putMission(m, { locked: !m.locked });
+                notify(t(m.locked ? 'desktop.mc_toast_unlocked' : 'desktop.mc_toast_locked'));
+                await loadData();
+            }),
+            deleteMission: async (id) => {
+                const m = byId(id); if (!m || readonly) return;
+                const ok = await confirmDialog(t('desktop.mc_delete_title'), t('desktop.mc_delete_message', { name: m.name }));
                 if (!ok) return;
+                await withBusy('delete', async () => {
+                    await api('/api/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
+                    notify(t('desktop.mc_toast_deleted'));
+                    if (state.selectedId === id) state.selectedId = '';
+                    await loadData();
+                });
+            },
+            prepareMission: (id) => withBusy('prepare', async () => {
+                await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepare', { method: 'POST' });
+                notify(t('desktop.mc_toast_prepare_started'));
+                await loadData();
+            }),
+            invalidatePrepMission: (id) => withBusy('invalidatePrep', async () => {
+                await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepared', { method: 'DELETE' });
+                state.preparedOpen = false;
+                detail.setPrepared(null, false);
+                notify(t('desktop.mc_toast_prep_discarded'));
+                await loadData();
+            }),
+            viewPrep: async (id) => {
+                if (state.preparedOpen) { state.preparedOpen = false; detail.setPrepared(null, false); return; }
+                detail.setPrepared(null, true);
+                try {
+                    const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepared');
+                    if (state.selectedId !== id) return;
+                    state.preparedOpen = true;
+                    detail.setPrepared(data || {}, false);
+                } catch (err) { detail.setPrepared(null, false); failToast(err); }
+            },
+            copyOutput: async (id) => {
+                const m = byId(id); if (!m) return;
+                try {
+                    await navigator.clipboard.writeText(window.MissionControlDetail.extractLastOutput(m.last_output));
+                    notify(t('desktop.mc_overview_copied'));
+                } catch (err) { failToast(err); }
+            },
+            editMission: (id) => { const m = byId(id); if (m) openEditor('edit', m); },
+            duplicateMission: (id) => { const m = byId(id); if (m) openEditor('duplicate', m); }
+        };
+        menuModel.actions = actions;
+
+        function putMission(mission, patch) {
+            const body = Object.assign({}, mission, patch);
+            delete body.next_run;
+            return api('/api/missions/v2/' + encodeURIComponent(mission.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        }
+
+        // ── editor ──
+        async function openEditor(mode, mission) {
+            if (readonly) { notify(t('desktop.mc_toast_readonly'), 'error'); return; }
+            if (state.editing && !(await closeEditor(false))) return;
+            state.editing = { mode, id: mode === 'edit' && mission ? mission.id : '' };
+            if (mode === 'edit' && mission) { state.selectedId = mission.id; list.setSelected(mission.id); }
+            stopTimer();
+            detail.element.hidden = true;
+            editor.open({ mode, mission });
+            if (state.compact) state.compactView = 'detail';
+            syncMenus(); syncCompact();
+        }
+
+        // Returns true when the editor is closed (either clean, confirmed discard or forced).
+        async function closeEditor(force) {
+            if (!state.editing) return true;
+            if (!force && editor.isDirty()) {
+                const ok = await confirmDialog(t('desktop.mc_editor_discard_title'), t('desktop.mc_editor_discard_message'));
+                if (!ok) return false;
             }
+            editor.close();
+            state.editing = null;
+            if (state.initialLoad) detail.element.hidden = false;
+            if (state.compact && !state.selectedId) state.compactView = 'list';
+            syncDetail(); syncMenus(); syncCompact();
+            return true;
+        }
+
+        editor.on('cancel', () => closeEditor(false));
+        editor.on('save', async ({ mode, id, payload }) => {
+            editor.setSaving(true);
+            editor.setServerError('');
             try {
-                await api('/api/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
-                notify(t('missions.toast_mission_deleted'));
-                loadData();
-            } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
-        }
-
-        function duplicateMission(id) {
-            const m = state.missions.find(x => x.id === id);
-            if (!m) return;
-            openModal(null, m);
-        }
-
-        async function prepareMission(id) {
-            try {
-                await api('/api/missions/v2/' + id + '/prepare', { method: 'POST' });
-                notify(t('missions.prep_toast_started'));
-                loadData();
-            } catch (err) { notify(t('missions.prep_toast_error') + ': ' + err.message, 'error'); }
-        }
-
-        async function invalidatePrep(id) {
-            try {
-                await api('/api/missions/v2/' + id + '/prepared', { method: 'DELETE' });
-                notify(t('missions.prep_toast_invalidated'));
-                loadData();
-            } catch (err) { notify(t('missions.prep_toast_error') + ': ' + err.message, 'error'); }
-        }
-
-        async function viewPrep(id) {
-            try {
-                const data = await api('/api/missions/v2/' + id + '/prepared');
-                let content = '';
-                if (data.analysis) {
-                    const a = data.analysis;
-                    if (a.summary) content += a.summary + '\n\n';
-                    if (a.essential_tools && a.essential_tools.length) { content += '── Tools ──\n'; a.essential_tools.forEach(tool => { content += '• ' + tool.tool_name + ': ' + tool.purpose + '\n'; }); content += '\n'; }
-                    if (a.step_plan && a.step_plan.length) { content += '── Steps ──\n'; a.step_plan.forEach((s, i) => { content += (i + 1) + '. ' + s.action + (s.expectation ? ' — ' + s.expectation : '') + '\n'; }); content += '\n'; }
-                    if (a.pitfalls && a.pitfalls.length) { content += '── Pitfalls ──\n'; a.pitfalls.forEach(p => { content += '⚠ ' + p.risk + (p.mitigation ? ' → ' + p.mitigation : '') + '\n'; }); }
-                    if (data.confidence) content += t('missions.prep_confidence') + ': ' + Math.round(data.confidence * 100) + '%';
-                } else { content = JSON.stringify(data, null, 2); }
-                showInfoModal(t('missions.prep_view_title'), content);
-            } catch (err) { notify(t('missions.prep_toast_error') + ': ' + err.message, 'error'); }
-        }
-
-        // ── Modal ──
-        // Modal functions are provided by mission-control-modal.js (loaded first via module-loader.js).
-        const { openModal, showInfoModal } = window.MissionControlModal.createModal(
-            { P, SVG, TRIGGER_TYPES, CRON_PRESETS, esc, t, api, notify, state, escAttr, loadData, container });
-
-        // ── Helpers ──
-        function escAttr(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-
-        function extractLastOutput(raw) {
-            if (!raw) return '';
-            if (!raw.trimStart().startsWith('{')) return raw;
-            try { const obj = JSON.parse(raw); if (obj.choices && obj.choices[0]?.message) return obj.choices[0].message.content || raw; } catch (_) { }
-            return raw;
-        }
-
-        function formatTime(iso) {
-            if (!iso) return t('missions.time_never');
-            const diff = Date.now() - new Date(iso).getTime();
-            const min = Math.floor(diff / 60000);
-            if (min < 1) return t('missions.time_just_now');
-            if (min < 60) return t('missions.time_minutes_ago', { n: min }) || (min + 'm ago');
-            const hrs = Math.floor(diff / 3600000);
-            if (hrs < 24) return t('missions.time_hours_ago', { n: hrs }) || (hrs + 'h ago');
-            const days = Math.floor(diff / 86400000);
-            if (days < 7) return t('missions.time_days_ago', { n: days }) || (days + 'd ago');
-            return new Date(iso).toLocaleDateString();
-        }
-
-        // ── Dispose ──
-        dispose = function (wid) {
-            const st = instances.get(wid);
-            if (!st) return;
-            st.disposed = true;
-            if (st.sseHandler && window.AuraSSE && typeof window.AuraSSE.off === 'function') {
-                window.AuraSSE.off('mission_update', st.sseHandler);
+                const url = mode === 'edit' ? '/api/missions/v2/' + encodeURIComponent(id) : '/api/missions/v2';
+                const res = await api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                notify(t(mode === 'edit' ? 'desktop.mc_toast_saved' : 'desktop.mc_toast_created'));
+                const newId = mode === 'edit' ? id : (res && res.id) || '';
+                editor.close();
+                state.editing = null;
+                await loadData();
+                if (newId && byId(newId)) { state.selectedId = newId; list.setSelected(newId); }
+                detail.element.hidden = false;
+                if (state.compact) state.compactView = 'detail';
+                syncAll();
+                list.focusSelected();
+            } catch (err) {
+                editor.setSaving(false);
+                editor.setServerError((err && err.message) || String(err));
             }
-            if (st.keydownHandler) {
-                document.removeEventListener('keydown', st.keydownHandler);
-                st.keydownHandler = null;
-            }
-            instances.delete(wid);
-        }.bind(null, windowId);
+        });
+        if (typeof setWindowBeforeClose === 'function') {
+            setWindowBeforeClose(windowId, async () => {
+                if (!state.editing || !editor.isDirty()) return true;
+                return confirmDialog(t('desktop.mc_editor_discard_title'), t('desktop.mc_editor_discard_message'));
+            });
+        }
+
+        // ── list / detail events ──
+        list.on('select', (id) => selectMission(id, true));
+        list.on('activate', (id) => { selectMission(id, true); if (!state.editing) { const tab = detail.element.querySelector('[data-mc-tab="overview"]'); if (tab) tab.focus(); } });
+        list.on('run', (id) => actions.runMission(id));
+        list.on('delete', (id) => actions.deleteMission(id));
+        list.on('new', () => actions.newMission());
+        list.on('clearFilter', () => { actions.setFilter('all'); setQuery(''); });
+        list.on('contextmenu', ({ x, y, missionId, queued }) => {
+            if (typeof showContextMenu !== 'function') return;
+            const m = byId(missionId);
+            if (!m) { showContextMenu(x, y, MN.listContextItems(menuModel)); return; }
+            syncMenus();
+            showContextMenu(x, y, queued ? MN.queueContextItems(menuModel, missionId).concat([{ separator: true }], MN.missionContextItems(menuModel, m)) : MN.missionContextItems(menuModel, m));
+        });
+        detail.on('tab', setTab);
+        detail.on('historyFilter', (f) => { state.history.filter = f; loadHistory(true); });
+        detail.on('historyMore', () => loadHistory(false));
+        detail.on('historyRetry', () => loadHistory(true));
+        detail.on('contextmenu', ({ x, y, missionId }) => { const m = byId(missionId); if (m && typeof showContextMenu === 'function') { syncMenus(); showContextMenu(x, y, MN.missionContextItems(menuModel, m)); } });
+        detail.on('action', ({ name, missionId, x, y }) => {
+            const map = { run: 'runMission', cancel: 'cancelMission', removeQueue: 'removeMissionFromQueue', edit: 'editMission', duplicate: 'duplicateMission', delete: 'deleteMission', pause: 'togglePauseMission', resume: 'togglePauseMission', lock: 'toggleLockMission', unlock: 'toggleLockMission', prepare: 'prepareMission', invalidatePrep: 'invalidatePrepMission', viewPrep: 'viewPrep', copyOutput: 'copyOutput' };
+            if (name === 'more') { const m = byId(missionId); if (m && typeof showContextMenu === 'function') { syncMenus(); showContextMenu(x, y, MN.missionContextItems(menuModel, m)); } return; }
+            if (map[name]) actions[map[name]](missionId);
+        });
+
+        // ── toolbar ──
+        const searchInput = $('[data-mc-search]');
+        function setQuery(text) {
+            state.query = text || '';
+            if (searchInput.value !== state.query) searchInput.value = state.query;
+            $('[data-mc-search-clear]').hidden = !state.query;
+            list.setQuery(state.query);
+            syncStatus();
+        }
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => setQuery(searchInput.value), 120); });
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') { event.stopPropagation(); setQuery(''); }
+            if (event.key === 'ArrowDown' || event.key === 'Enter') { event.preventDefault(); list.element.focus(); }
+        });
+        $('[data-mc-search-clear]').addEventListener('click', () => { setQuery(''); searchInput.focus(); });
+        $('[data-mc-filter]').addEventListener('change', (event) => actions.setFilter(event.target.value));
+        $('[data-mc-sort]').addEventListener('change', (event) => actions.setSort(event.target.value));
+        $('[data-mc-refresh]').addEventListener('click', () => actions.refresh());
+        $('[data-mc-list-toggle]').addEventListener('click', () => actions.toggleList());
+        $('[data-mc-retry]').addEventListener('click', () => { $('[data-mc-loaderror]').hidden = true; $('[data-mc-loading]').hidden = false; loadData(); });
+        $('[data-mc-back]').addEventListener('click', async () => { if (state.editing && !(await closeEditor(false))) return; state.compactView = 'list'; syncCompact(); list.focusSelected(); });
+        const newBtn = $('[data-mc-new]');
+        if (newBtn) newBtn.addEventListener('click', () => actions.newMission());
+
+        // ── splitter (pointer + keyboard) ──
+        const splitter = $('[data-mc-splitter]');
+        function setListWidth(px, persist) {
+            state.listWidth = clamp(Math.round(px), LIST_MIN, LIST_MAX);
+            root.style.setProperty('--mc-list-width', state.listWidth + 'px');
+            splitter.setAttribute('aria-valuenow', String(state.listWidth));
+            if (persist) savePrefs(state);
+        }
+        splitter.addEventListener('pointerdown', (event) => {
+            if (state.compact) return;
+            event.preventDefault();
+            const startX = event.clientX, startWidth = state.listWidth;
+            root.classList.add('is-resizing');
+            splitter.setPointerCapture(event.pointerId);
+            const move = (ev) => setListWidth(startWidth + (ev.clientX - startX), false);
+            const up = () => { root.classList.remove('is-resizing'); splitter.removeEventListener('pointermove', move); splitter.removeEventListener('pointerup', up); splitter.removeEventListener('pointercancel', up); savePrefs(state); };
+            splitter.addEventListener('pointermove', move);
+            splitter.addEventListener('pointerup', up);
+            splitter.addEventListener('pointercancel', up);
+        });
+        splitter.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowLeft') { event.preventDefault(); setListWidth(state.listWidth - 16, true); }
+            else if (event.key === 'ArrowRight') { event.preventDefault(); setListWidth(state.listWidth + 16, true); }
+            else if (event.key === 'Home') { event.preventDefault(); setListWidth(LIST_MIN, true); }
+            else if (event.key === 'End') { event.preventDefault(); setListWidth(LIST_MAX, true); }
+        });
+        splitter.addEventListener('dblclick', () => setListWidth(LIST_DEFAULT, true));
+
+        // ── compact mode ──
+        if (typeof ResizeObserver === 'function') {
+            state.resizeObserver = new ResizeObserver((entries) => {
+                const width = entries[0] && entries[0].contentRect ? entries[0].contentRect.width : root.clientWidth;
+                const compact = width > 0 && width < COMPACT_BREAKPOINT;
+                if (compact === state.compact) return;
+                state.compact = compact;
+                if (compact && !state.selectedId && !state.editing) state.compactView = 'list';
+                syncCompact();
+            });
+            state.resizeObserver.observe(root);
+        }
+
+        // ── keyboard shortcuts (window-scoped) ──
+        function handleKeydown(e) {
+            if (state.disposed) return;
+            if (typeof isActive === 'function' && !isActive()) return;
+            const inField = e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
+            const mod = e.ctrlKey || e.metaKey;
+            if (mod && e.key.toLowerCase() === 'f') { e.preventDefault(); searchInput.focus(); searchInput.select(); return; }
+            if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); actions.toggleList(); return; }
+            if (e.key === 'F5') { e.preventDefault(); actions.refresh(); return; }
+            if (state.editing) return; // the editor owns Esc / Ctrl+Enter / Ctrl+S
+            if (mod && e.key.toLowerCase() === 'n') { e.preventDefault(); actions.newMission(); return; }
+            if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); actions.edit(); return; }
+            if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); actions.duplicate(); return; }
+            if (mod && e.key === 'Enter') { e.preventDefault(); if (menuModel.s.selected && !menuModel.s.running && !menuModel.s.queued) actions.run(); return; }
+            if (mod && e.key === '1') { e.preventDefault(); setTab('overview'); return; }
+            if (mod && e.key === '2') { e.preventDefault(); setTab('history'); return; }
+            if (!inField && e.key === 'Escape' && state.compact && state.compactView === 'detail') { e.preventDefault(); state.compactView = 'list'; syncCompact(); list.focusSelected(); }
+        }
+        state.keydownHandler = handleKeydown;
+        document.addEventListener('keydown', handleKeydown);
+
+        // ── SSE ──
+        if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
+            state.sseHandler = function (payload) {
+                if (!state.initialLoad || state.disposed) return;
+                state.live = true;
+                applyData(payload);
+                syncAll();
+            };
+            window.AuraSSE.on('mission_update', state.sseHandler);
+            state.live = true;
+        }
+
+        if (typeof wireContextMenuBoundary === 'function') wireContextMenuBoundary(container);
+        root.addEventListener('contextmenu', (event) => {
+            // Blank areas of the main pane: generic list actions. List/detail handle their own targets.
+            if (event.target.closest('.vd-mc-list, .vd-mc-detail, .vd-mc-editor, input, textarea, select')) return;
+            event.preventDefault();
+            if (typeof showContextMenu === 'function') showContextMenu(event.clientX, event.clientY, MN.listContextItems(menuModel));
+        });
+
+        state.cleanup = () => {
+            stopTimer();
+            clearTimeout(searchTimer);
+            if (state.resizeObserver) { state.resizeObserver.disconnect(); state.resizeObserver = null; }
+            list.dispose(); detail.dispose(); editor.dispose();
+            if (typeof clearWindowMenus === 'function') clearWindowMenus(windowId);
+        };
+
+        syncMenus();
+        loadData();
     }
 
     function dispose(windowId) {
@@ -741,6 +643,7 @@
             document.removeEventListener('keydown', st.keydownHandler);
             st.keydownHandler = null;
         }
+        if (typeof st.cleanup === 'function') { try { st.cleanup(); } catch (err) { console.warn('MC: cleanup failed', err); } }
         instances.delete(windowId);
     }
 

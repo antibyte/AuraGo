@@ -307,7 +307,15 @@
         },
         'mission-control': {
             styles: appStyles('/css/desktop-app-mission-control.css'),
-            scripts: ['/js/desktop/apps/mission-control-modal.js', '/js/desktop/apps/mission-control.js']
+            scripts: [
+                '/js/desktop/apps/mission-control-schedule.js',
+                '/js/desktop/apps/mission-control-triggers.js',
+                '/js/desktop/apps/mission-control-menus.js',
+                '/js/desktop/apps/mission-control-list.js',
+                '/js/desktop/apps/mission-control-detail.js',
+                '/js/desktop/apps/mission-control-editor.js',
+                '/js/desktop/apps/mission-control.js'
+            ]
         },
         'cheater': {
             styles: appStyles('/css/desktop-app-cheater.css', '/css/hljs-github.min.css'),

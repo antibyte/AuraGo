@@ -1785,8 +1785,10 @@ if (appId === 'pixel') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, notify: showDesktopNotification,
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
-                setWindowMenus, clearWindowMenus, wireContextMenuBoundary,
-                confirmDialog, promptDialog
+                setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
+                confirmDialog, promptDialog,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                isActive: () => state.activeWindowId === id
             }));
         }
         return renderGeneratedApp(id, appId);

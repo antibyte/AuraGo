@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -331,5 +332,83 @@ func TestDesktopMissionControlEditorModuleContract(t *testing.T) {
 	}
 	if strings.Contains(source, "missions.form_priority_") {
 		t.Fatalf("editor must use the emoji-free desktop.mc_priority_* labels")
+	}
+}
+
+func TestDesktopMissionControlShellComposesModules(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control.js")
+	for _, marker := range []string{
+		"window.MissionControlApp = { render, dispose }",
+		"window.MissionControlList.create(",
+		"window.MissionControlDetail.create(",
+		"window.MissionControlEditor.create(",
+		"MN.windowMenus(menuModel)",
+		"MN.missionContextItems(menuModel, ",
+		"'aurago.desktop.mission-control.prefs'",
+		"data-mc-splitter",
+		"data-mc-search",
+		"data-mc-filter",
+		"data-mc-sort",
+		"data-mc-status-live",
+		"setWindowBeforeClose(windowId,",
+		"'/api/missions/v2/' + encodeURIComponent(id) + '/cancel'",
+		"'/api/missions/v2/history?'",
+		"ResizeObserver",
+		"is-compact",
+		"state.keydownHandler = handleKeydown",
+		"document.removeEventListener('keydown', st.keydownHandler)",
+		"st.keydownHandler = null",
+		"inputmode=\"search\"",
+		"enterkeyhint=\"search\"",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"MissionControlModal", "mc-view-mode", "desktop.mc_view_grid", "desktop.mc_view_list", "alert(", "window.confirm(", "window.prompt("} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("mission-control.js must not reference %q", forbidden)
+		}
+	}
+
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	for _, script := range []string{
+		"/js/desktop/apps/mission-control-schedule.js",
+		"/js/desktop/apps/mission-control-triggers.js",
+		"/js/desktop/apps/mission-control-menus.js",
+		"/js/desktop/apps/mission-control-list.js",
+		"/js/desktop/apps/mission-control-detail.js",
+		"/js/desktop/apps/mission-control-editor.js",
+		"/js/desktop/apps/mission-control.js",
+	} {
+		if !strings.Contains(loader, script) {
+			t.Fatalf("module-loader.js missing mission control script %q", script)
+		}
+	}
+	if strings.Contains(loader, "mission-control-modal.js") {
+		t.Fatalf("module-loader.js still loads the removed mission-control-modal.js")
+	}
+	if idx := strings.Index(loader, "mission-control-schedule.js"); idx < 0 || idx > strings.Index(loader, "apps/mission-control.js'") {
+		t.Fatalf("mission control helper modules must load before the shell")
+	}
+
+	routing := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	start := strings.Index(routing, "appId === 'mission-control'")
+	if start < 0 {
+		t.Fatalf("menus-and-routing.js missing mission-control route")
+	}
+	block := routing[start:]
+	if end := strings.Index(block, "}));"); end > 0 {
+		block = block[:end]
+	}
+	for _, want := range []string{"showContextMenu", "setWindowBeforeClose", "isActive: () => state.activeWindowId === id"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("mission-control render context missing %q", want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join("js", "desktop", "apps", "mission-control-modal.js")); !os.IsNotExist(err) {
+		t.Fatalf("mission-control-modal.js must be deleted")
 	}
 }
