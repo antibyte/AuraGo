@@ -525,3 +525,99 @@ func TestNoisemakerTracksFavoritesFilterAndFields(t *testing.T) {
 		t.Fatalf("tags must be an array, got %#v", track["tags"])
 	}
 }
+
+func noisemakerPatch(t *testing.T, s *Server, id int64, body string) (*httptest.ResponseRecorder, map[string]interface{}) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/desktop/noisemaker/tracks/%d", id), strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handleNoisemakerTrackItem(s).ServeHTTP(rec, req)
+	var payload map[string]interface{}
+	_ = json.Unmarshal(rec.Body.Bytes(), &payload)
+	return rec, payload
+}
+
+func TestNoisemakerPatchFavoriteAddAndRemove(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_patch.mp3")
+
+	rec, payload := noisemakerPatch(t, s, id, `{"favorite":true}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	track := payload["track"].(map[string]interface{})
+	if track["favorite"] != true {
+		t.Fatalf("favorite = %#v, want true", track["favorite"])
+	}
+	item, err := tools.GetMedia(s.MediaRegistryDB, id)
+	if err != nil {
+		t.Fatalf("GetMedia: %v", err)
+	}
+	if !noisemakerHasTag(*item, "favorite") {
+		t.Fatalf("tags = %#v, want favorite tag", item.Tags)
+	}
+
+	rec, payload = noisemakerPatch(t, s, id, `{"favorite":false}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if payload["track"].(map[string]interface{})["favorite"] != false {
+		t.Fatalf("favorite should be false after removal")
+	}
+	item, _ = tools.GetMedia(s.MediaRegistryDB, id)
+	if noisemakerHasTag(*item, "favorite") {
+		t.Fatalf("favorite tag still present: %#v", item.Tags)
+	}
+}
+
+func TestNoisemakerPatchRejectsBadInput(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_patch_bad.mp3")
+
+	if rec, _ := noisemakerPatch(t, s, id, `{}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("missing favorite: status = %d, want 400", rec.Code)
+	}
+	if rec, _ := noisemakerPatch(t, s, id, `{"favorite":"yes"`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid json: status = %d, want 400", rec.Code)
+	}
+	if rec, _ := noisemakerPatch(t, s, 424242, `{"favorite":true}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown id: status = %d, want 404", rec.Code)
+	}
+	imgID, _, err := tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{MediaType: "image", SourceTool: "generate_image", Filename: "img_patch.png", Format: "png"})
+	if err != nil {
+		t.Fatalf("RegisterMedia: %v", err)
+	}
+	if rec, _ := noisemakerPatch(t, s, imgID, `{"favorite":true}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("non-music: status = %d, want 404", rec.Code)
+	}
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/desktop/noisemaker/tracks/%d", id), strings.NewReader(`{"favorite":true}`))
+	rec := httptest.NewRecorder()
+	handleNoisemakerTrackItem(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("PUT: status = %d, want 405", rec.Code)
+	}
+}
+
+func TestNoisemakerPatchReadonly(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	cfg.VirtualDesktop.ReadOnly = true
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_patch_ro.mp3")
+	if rec, _ := noisemakerPatch(t, s, id, `{"favorite":true}`); rec.Code != http.StatusForbidden {
+		t.Fatalf("readonly: status = %d, want 403", rec.Code)
+	}
+}
+
+func TestNoisemakerTrackItemDispatchesDelete(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_item_delete.mp3")
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/desktop/noisemaker/tracks/%d", id), nil)
+	rec := httptest.NewRecorder()
+	handleNoisemakerTrackItem(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("DELETE via item handler: status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}

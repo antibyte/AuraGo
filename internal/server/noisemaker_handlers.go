@@ -33,6 +33,7 @@ const (
 	noisemakerMaxContextLength   = 4000
 	noisemakerTracksDefaultLimit = 60
 	noisemakerTracksMaxLimit     = 200
+	noisemakerPatchBodyLimit     = int64(4 * 1024)
 )
 
 // noisemakerFavoriteTag marks a song as favorite in the media registry tags.
@@ -83,6 +84,10 @@ type noisemakerEnhanceRequest struct {
 	Text    string `json:"text"`    // current field content (may be empty for random/from-scratch)
 	Context string `json:"context"` // supporting context (idea/style of the other field)
 	Lang    string `json:"lang"`    // UI language hint for from-scratch generation
+}
+
+type noisemakerTrackPatchRequest struct {
+	Favorite *bool `json:"favorite"`
 }
 
 type noisemakerGenerateRequest struct {
@@ -601,11 +606,8 @@ func handleNoisemakerTrackDelete(s *Server) http.HandlerFunc {
 			return
 		}
 
-		idStr := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/noisemaker/tracks/"), "/")
-		id, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil || id <= 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid track ID"})
+		id, ok := noisemakerTrackIDFromPath(w, r)
+		if !ok {
 			return
 		}
 		if s.MediaRegistryDB == nil {
@@ -631,6 +633,101 @@ func handleNoisemakerTrackDelete(s *Server) http.HandlerFunc {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Track deleted"})
+	}
+}
+
+// noisemakerTrackIDFromPath parses the {id} segment of /api/desktop/noisemaker/tracks/{id}
+// and writes a 400 response when it is missing or not a positive integer.
+func noisemakerTrackIDFromPath(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	idStr := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/noisemaker/tracks/"), "/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid track ID"})
+		return 0, false
+	}
+	return id, true
+}
+
+// handleNoisemakerTrackItem routes /api/desktop/noisemaker/tracks/{id}:
+// DELETE removes a song, PATCH updates its favorite flag.
+func handleNoisemakerTrackItem(s *Server) http.HandlerFunc {
+	del := handleNoisemakerTrackDelete(s)
+	patch := handleNoisemakerTrackPatch(s)
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			del(w, r)
+		case http.MethodPatch:
+			patch(w, r)
+		default:
+			if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+				return
+			}
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleNoisemakerTrackPatch handles PATCH /api/desktop/noisemaker/tracks/{id}
+// with body {"favorite": true|false}. Only music items can be updated.
+func handleNoisemakerTrackPatch(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
+		if r.Method != http.MethodPatch {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		s.CfgMu.RLock()
+		readonly := s.Cfg.VirtualDesktop.ReadOnly
+		s.CfgMu.RUnlock()
+		if readonly {
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "read-only mode"})
+			return
+		}
+		id, ok := noisemakerTrackIDFromPath(w, r)
+		if !ok {
+			return
+		}
+		if s.MediaRegistryDB == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "media registry is not available"})
+			return
+		}
+		var body noisemakerTrackPatchRequest
+		if err := decodeDesktopJSON(w, r, &body, noisemakerPatchBodyLimit); err != nil || body.Favorite == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "favorite (true or false) is required"})
+			return
+		}
+		item, err := tools.GetMedia(s.MediaRegistryDB, id)
+		if err != nil || item.MediaType != "music" {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "track not found"})
+			return
+		}
+		mode := "remove"
+		if *body.Favorite {
+			mode = "add"
+		}
+		if err := tools.TagMedia(s.MediaRegistryDB, id, []string{noisemakerFavoriteTag}, mode); err != nil {
+			s.Logger.Error("Noisemaker: failed to update favorite", "track_id", id, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to update favorite"})
+			return
+		}
+		updated, err := tools.GetMedia(s.MediaRegistryDB, id)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to reload track"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "track": noisemakerTrackJSON(*updated)})
 	}
 }
 
