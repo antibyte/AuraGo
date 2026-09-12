@@ -580,3 +580,71 @@ func TestDispatchMediaRegistryRejectsPathTraversal(t *testing.T) {
 		t.Fatalf("expected error for path traversal, got: %s", resp)
 	}
 }
+
+func TestInitMediaRegistryDBAddsLyricsColumnAndUpdateMediaText(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-lyrics.db")
+	legacyDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
+	}
+	if _, err := legacyDB.Exec(`CREATE TABLE media_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		media_type TEXT NOT NULL DEFAULT 'image',
+		filename TEXT NOT NULL,
+		file_path TEXT NOT NULL DEFAULT '',
+		web_path TEXT NOT NULL DEFAULT '',
+		style TEXT DEFAULT '',
+		hash TEXT DEFAULT '',
+		deleted INTEGER DEFAULT 0
+	);`); err != nil {
+		legacyDB.Close()
+		t.Fatalf("seed legacy db: %v", err)
+	}
+	if err := legacyDB.Close(); err != nil {
+		t.Fatalf("close legacy db: %v", err)
+	}
+
+	db, err := InitMediaRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB should add the lyrics column: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterMedia(db, MediaItem{
+		MediaType:  "music",
+		SourceTool: "generate_music",
+		Filename:   "song.mp3",
+		Prompt:     "synthwave — night drive",
+	})
+	if err != nil {
+		t.Fatalf("register music: %v", err)
+	}
+	if err := UpdateMediaText(db, id, "synthwave, 80s", "[Verse 1]\nNeon lights"); err != nil {
+		t.Fatalf("UpdateMediaText: %v", err)
+	}
+	item, err := GetMedia(db, id)
+	if err != nil {
+		t.Fatalf("GetMedia: %v", err)
+	}
+	if item.Style != "synthwave, 80s" {
+		t.Fatalf("style = %q, want synthwave, 80s", item.Style)
+	}
+	if item.Lyrics != "[Verse 1]\nNeon lights" {
+		t.Fatalf("lyrics = %q, want stored lyrics", item.Lyrics)
+	}
+	if item.UpdatedAt == "" {
+		t.Fatal("UpdateMediaText must refresh updated_at")
+	}
+	if err := UpdateMediaText(db, 999999, "x", "y"); err == nil {
+		t.Fatal("UpdateMediaText should fail for a missing item")
+	}
+	page, total, err := SearchMedia(db, "", "music", nil, 10, 0)
+	if err != nil || total != 1 || len(page) != 1 {
+		t.Fatalf("SearchMedia = %d items / total %d / err %v, want 1/1/nil", len(page), total, err)
+	}
+	if page[0].Lyrics != "[Verse 1]\nNeon lights" {
+		t.Fatalf("SearchMedia must scan lyrics, got %q", page[0].Lyrics)
+	}
+}
