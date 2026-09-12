@@ -53,6 +53,12 @@ and `ja`. An omitted seed is random; zero is a valid deterministic seed. Without
 a local language model, provide lyrics or select instrumental. Local mode never
 silently invokes the chat/cloud LLM to write lyrics.
 
+Vulkan synthesizes directly from the musical description and lyrics through DiT.
+Instrumental pieces and supplied lyrics skip the LM. Automatic lyrics use the local
+LM's inspire mode, preserving the requested duration, prompt, seed and model.
+LM audio codes are not used: forcing them to a requested length can produce repeated
+noise/silence conditioning. Native LM end tokens remain unchanged.
+
 One request owns the worker at a time; others receive `acestep_busy`. The native
 API is polled every two seconds. The default deadline is 1800 seconds. Canceling
 or timing out stops the dedicated container to terminate actual inference,
@@ -113,7 +119,9 @@ An image build is not hardware acceptance. Each release still needs actual
 instrumental/vocal generation, seed-zero, timeout and cancellation checks on
 NVIDIA, AMD, Intel and Windows/NVIDIA. Record driver, selected profile, image
 digest and model fingerprint for those checks. Never report GPU acceptance from
-the CPU or mocked profile tests.
+the CPU or mocked profile tests. MP3 decoding, duration and nonzero volume alone
+do not establish musical quality; compare and listen to actual instrumental and
+vocal samples before accepting that quality.
 
 Upstream references: [API](https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/docs/en/API.md),
 [GPU profiles](https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/docs/en/GPU_COMPATIBILITY.md),

@@ -55,6 +55,37 @@ class VulkanContract(unittest.TestCase):
             self.assertEqual(runtime.native_job('/synth', {}), (b'audio', 'audio/mpeg'))
             self.assertEqual(native.call_args.args[1], '/job?id=0123456789abcdef&result=1')
 
+    def test_instrumental_and_supplied_lyrics_skip_lm_audio_codes(self):
+        profile = self.profile()
+        for lyrics in ('[Instrumental]', '[Verse]\nA new day begins'):
+            request = runtime.generation_request({'prompt': 'Piano', 'lyrics': lyrics,
+                                                 'use_random_seed': False, 'seed': 0}, profile)
+            with patch.object(runtime, 'PROFILE', profile), patch.object(runtime, 'native_job', side_effect=RuntimeError('synth reached')) as native:
+                with self.assertRaisesRegex(RuntimeError, 'synth reached'): runtime.render(request)
+                self.assertEqual(native.call_count, 1)
+                self.assertEqual(native.call_args.args[0], '/synth')
+                self.assertNotIn('audio_codes', native.call_args.args[1])
+                self.assertEqual(native.call_args.args[1]['lyrics'], lyrics)
+                self.assertEqual(native.call_args.args[1]['seed'], 0)
+
+    def test_generated_lyrics_cannot_replace_user_settings_or_add_audio_codes(self):
+        profile = self.profile()
+        request = runtime.generation_request({'prompt': 'Piano', 'audio_duration': 120,
+                                             'use_random_seed': False, 'seed': 0}, profile)
+        expected = dict(request, lyrics='[Verse]\nA new day begins')
+        result = json.dumps([{'lyrics': expected['lyrics'], 'audio_codes': '35847,35847',
+                              'duration': 600, 'caption': 'changed', 'seed': 99, 'synth_model': '/foreign/model'}]).encode()
+        with patch.object(runtime, 'PROFILE', profile), patch.object(runtime, 'native_job', side_effect=[(result, ''), RuntimeError('synth reached')]) as native:
+            with self.assertRaisesRegex(RuntimeError, 'synth reached'): runtime.render(request)
+            self.assertEqual(native.call_args_list[0].args[0], '/lm')
+            self.assertEqual(native.call_args_list[0].args[1]['lm_mode'], 'inspire')
+            self.assertEqual(native.call_args_list[1].args, ('/synth', expected))
+        for lyrics in ('', '  ', 123, 'a' * 32001):
+            request = runtime.generation_request({'prompt': 'Piano'}, profile)
+            with patch.object(runtime, 'PROFILE', profile), patch.object(runtime, 'native_job', return_value=(json.dumps([{'lyrics': lyrics}]).encode(), '')) as native:
+                with self.assertRaisesRegex(RuntimeError, 'invalid_result'): runtime.render(request)
+                self.assertEqual(native.call_count, 1)
+
     def test_auth_busy_readiness_and_audio_confinement(self):
         server = runtime.ThreadingHTTPServer(('127.0.0.1', 0), runtime.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
@@ -89,11 +120,12 @@ class VulkanContract(unittest.TestCase):
                 '        int tok            = sample_top_k_p(lg.data(), V, temperature, top_p, top_k, seqs[i].rng);',
                 '            compact_logits[0] = lc[eos_idx];',
                 '                seqs[orig_i].audio_codes.push_back(tok - AUDIO_CODE_BASE);']))
+            original_lm = lm.read_text()
             patch_vulkan.patch(directory)
             self.assertIn('store_require_dit', file.read_text())
             self.assertIn('store_require_lm', file.read_text())
             self.assertIn('key.adapter_scale = 1.0f', file.read_text())
-            self.assertIn('ceil(aces[orig_i].duration * 5)', lm.read_text())
+            self.assertEqual(lm.read_text(), original_lm)
             file.write_text('changed upstream')
             with self.assertRaises(AssertionError): patch_vulkan.patch(directory)
 

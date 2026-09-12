@@ -20,8 +20,10 @@ model/cache volumes, Vault authentication and serial generation.
   The standard-library adapter exposes only the existing authenticated private
   API; native port 8002 stays container-loopback. Select the real PCI/render node,
   verify GGML Vulkan matrix multiplication, and force that backend for inference.
-  The build patch loads the selected models before native health and constrains
-  LM audio-code generation to the requested duration at 5Hz. Qualification
+  The build patch only loads the selected models before native health. Text-to-music
+  uses direct DiT conditioning; the local LM's inspire mode only fills missing lyrics.
+  Never force LM stop tokens or feed forced-length audio codes into synthesis.
+  Preserve user duration, prompt, seed and model selection after lyric generation. Qualification
   requires an actual ten-second MP3. Restart loads models but reuses the
   image/model/hardware-bound qualification. Never accept software Vulkan as a GPU.
 
@@ -33,3 +35,5 @@ model/cache volumes, Vault authentication and serial generation.
   real GPU audio separately; the CPU/PyTorch runtime is not a Vulkan substitute.
 - Image builds and CPU tests do not establish GPU acceptance. Follow
   `documentation/ace-step-local.md` for hardware, UI and release checks.
+- Decodable MP3, duration and nonzero volume establish transport, not musical quality.
+  Keep listening comparisons for instrumental and vocal output before quality acceptance.

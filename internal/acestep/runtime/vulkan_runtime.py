@@ -141,16 +141,21 @@ def generation_request(body, profile):
 
 
 def render(request):
-    if PROFILE['lm_model']:
-        raw, _ = native_job('/lm', request)
+    # Text-to-music uses DiT's text conditioning. Forced-length LM audio codes
+    # can collapse into repeated silence/noise codes and override that conditioning.
+    # The optional local LM writes missing lyrics only; it never controls audio length.
+    if not request['lyrics'].strip():
+        if not PROFILE['lm_model']: raise ValueError('lyrics_required')
+        raw, _ = native_job('/lm', dict(request, lm_mode='inspire'))
         enriched = json.loads(raw)
         if not isinstance(enriched, list) or len(enriched) != 1 or not isinstance(enriched[0], dict):
             raise RuntimeError('acestep_invalid_result')
-        # Only generated music content crosses this boundary. Never forward paths/options.
-        for key in ('audio_codes', 'lyrics'):
-            value = enriched[0].get(key, '')
-            if not isinstance(value, str) or len(value) > 100000: raise RuntimeError('acestep_invalid_result')
-            if key == 'audio_codes' or not request['lyrics'].strip(): request[key] = value
+        # Preserve user prompt, duration, seed and model selection. Never forward
+        # generated paths, options or audio codes from the native result.
+        lyrics = enriched[0].get('lyrics', '')
+        if not isinstance(lyrics, str) or not lyrics.strip() or len(lyrics.encode()) > 32000:
+            raise RuntimeError('acestep_invalid_result')
+        request['lyrics'] = lyrics
     raw, content_type = native_job('/synth', request)
     message = BytesParser(policy=email_policy).parsebytes(('Content-Type: ' + content_type + '\r\n\r\n').encode() + raw)
     if message.get_content_type() != 'multipart/mixed': raise RuntimeError('acestep_invalid_audio_result')
