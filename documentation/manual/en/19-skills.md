@@ -6,6 +6,8 @@
 
 Two families: **Python skills** for execution, **Agent Skills** (`SKILL.md`) for repeatable workflows. Create new Agent Skills through the Skill Manager — do not drop folders in by hand.
 
+After startup, Agent Skill verification runs in the background so a slow Guardian or SkillSpector cannot delay the web interface or trigger an update rollback. Game Maker remains unavailable until its skills are verified. Shutdown cancels unfinished checks without approving them; the startup verification has a five-minute limit.
+
 ---
 
 ## What are Skills?

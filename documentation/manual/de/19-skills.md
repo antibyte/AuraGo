@@ -6,6 +6,8 @@
 
 Zwei Familien: **Python-Skills** zum Ausführen, **Agent Skills** (`SKILL.md`) für wiederholbare Abläufe. Neue Agent Skills nur über den Skill Manager, nicht per Hand in den Ordner legen.
 
+Nach dem Start läuft die Prüfung der Agent Skills im Hintergrund. Ein langsamer Guardian oder SkillSpector verzögert dadurch weder die Weboberfläche noch löst er einen Update-Rollback aus. Game Maker bleibt bis zur Prüfung seiner Skills nicht verfügbar. Beim Herunterfahren werden offene Prüfungen ohne Freigabe abgebrochen; die Startprüfung ist auf fünf Minuten begrenzt.
+
 > 💡 **Skill Manager:** Uploads, Aktivierung und Sicherheits-Scan über **Config → Tools → Fähigkeiten-Manager** oder die Seite **Skills** (`/skills`).
 
 ---

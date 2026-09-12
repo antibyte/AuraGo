@@ -844,6 +844,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 #### Skill Creation Rules
 - AuraGo has two skill families: Python skills for executable reusable capabilities, and Agent Skills for `SKILL.md` workflow/domain-guidance packages.
+- Agent Skill disk reconciliation and optional remote security scans run after manager/Game Maker initialization in a shutdown-bound background task (five-minute ceiling). They must not block core HTTP readiness. Game Maker remains pending until verification finishes; cancellation must not persist a scanned package or grant readiness. Existing package-hash checks continue to reject changed skills before use.
 - Prefer Python skills for deterministic execution, APIs, parsers, data/file transforms, Vault access, Tool Bridge use, and structured automation.
 - Prefer Agent Skills for reusable agent behavior, checklists, review/debug workflows, domain methods, curated references, templates, and agentskills.io/Codex/Claude-style requests.
 - Create or import Agent Skills only through the Agent Skill Manager/API/UI path, then verify, approve warnings if needed, and enable; do not write directly into `agent_workspace/agent_skills`.

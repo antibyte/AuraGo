@@ -539,8 +539,10 @@ func Start(opts StartOptions) error {
 	s.restartUptimeKumaPoller()
 
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
-	s.initSkillManagers(serverCtx, installDir)
+	installedSkills := s.initSkillManagers(serverCtx, installDir)
 	s.initGameMaker()
+	// Remote security scanners must not delay the core HTTP readiness check.
+	go s.syncAgentSkills(serverCtx, cfg, installedSkills)
 
 	// Initialize Remote Control Hub
 	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
@@ -1408,16 +1410,16 @@ func shouldSeedWelcomeContent(isFirstStart bool) bool {
 	return isFirstStart
 }
 
-func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
+func (s *Server) initSkillManagers(ctx context.Context, installDir string) gamemaker.SkillInstallResult {
 	cfg := s.Cfg
 	logger := s.Logger
 	if cfg == nil || logger == nil {
-		return
+		return gamemaker.SkillInstallResult{}
 	}
 	skillsDB, err := tools.InitSkillsDB(cfg.SQLite.SkillsPath)
 	if err != nil {
 		logger.Warn("Failed to initialize Skills DB", "error", err, "path", cfg.SQLite.SkillsPath)
-		return
+		return gamemaker.SkillInstallResult{}
 	}
 	s.SkillsDB = skillsDB
 
@@ -1437,7 +1439,7 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
 
 	if err := tools.MigrateAgentSkillsDB(skillsDB); err != nil {
 		logger.Warn("Failed to initialize Agent Skills schema", "error", err)
-		return
+		return gamemaker.SkillInstallResult{}
 	}
 	installResult, installErr := gamemaker.InstallBundledSkills(cfg.Directories.AgentSkillsDir)
 	if installErr != nil {
@@ -1446,15 +1448,43 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
 	}
 	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
 	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
+	s.gameMakerSkills = append([]gamemaker.SkillInfo(nil), installResult.Skills...)
+	for i := range s.gameMakerSkills {
+		if s.gameMakerSkills[i].Status != "hash_mismatch" {
+			s.gameMakerSkills[i].Status = "pending"
+		}
+	}
+	logger.Info("Agent Skills initialized; security verification pending", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
+	return installResult
+}
+
+func (s *Server) syncAgentSkills(ctx context.Context, cfg *config.Config, installResult gamemaker.SkillInstallResult) {
+	if s.AgentSkillManager == nil {
+		return
+	}
+	// Bound optional startup work, while retaining the server shutdown context.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	s.CfgMu.RLock()
+	guardian := s.LLMGuardian
+	useGuardian := cfg.Tools.SkillManager.ScanWithGuardian
+	s.CfgMu.RUnlock()
 	bundledOrigins := make(map[string]tools.SkillOrigin, len(installResult.Skills))
 	for _, bundledSkill := range installResult.Skills {
 		bundledOrigins[bundledSkill.Name] = tools.OriginSystem
 	}
-	if err := s.AgentSkillManager.SyncFromDiskWithOrigins(ctx, bundledOrigins, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian, skillSpectorConfig(s)); err != nil {
-		logger.Warn("Failed to sync Agent Skills from disk", "error", err)
+	if err := s.AgentSkillManager.SyncFromDiskWithOrigins(ctx, bundledOrigins, guardian, useGuardian, skillSpectorConfig(s)); err != nil {
+		s.Logger.Warn("Failed to sync Agent Skills from disk", "error", err)
+		return
 	}
-	s.gameMakerSkills, s.gameMakerSkillsReady = verifyGameMakerAgentSkills(s.AgentSkillManager, installResult, logger)
-	logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
+	if ctx.Err() != nil {
+		return
+	}
+	skills, ready := verifyGameMakerAgentSkills(s.AgentSkillManager, installResult, s.Logger)
+	if s.GameMaker != nil {
+		s.GameMaker.SetSkillStatus(skills, ready)
+	}
+	s.Logger.Info("Agent Skills security verification completed", "game_maker_skills_ready", ready)
 }
 
 // runHTTP starts the server in HTTP mode (for local/LAN use)

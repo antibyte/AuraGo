@@ -885,6 +885,9 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 // system/user/agent creator is known by the caller. Other discoveries remain
 // legacy_unknown and are excluded from automatic maintenance mutations.
 func (m *AgentSkillManager) SyncFromDiskWithOrigins(ctx context.Context, origins map[string]SkillOrigin, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	entries, err := os.ReadDir(m.agentSkillsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -893,6 +896,9 @@ func (m *AgentSkillManager) SyncFromDiskWithOrigins(ctx context.Context, origins
 		return err
 	}
 	for _, ent := range entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !ent.IsDir() || strings.HasPrefix(ent.Name(), ".") {
 			continue
 		}
@@ -915,6 +921,9 @@ func (m *AgentSkillManager) SyncFromDiskWithOrigins(ctx context.Context, origins
 			continue
 		}
 		report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if scanErr != nil && m.logger != nil {
 			m.logger.Warn("Agent Skill scan failed during sync", "name", pkg.Name, "error", scanErr)
 		}
