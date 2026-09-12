@@ -325,3 +325,50 @@ func TestDesktopNoisemakerRefreshAssets(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerRefreshStyles(t *testing.T) {
+	css := readDesktopAssetText(t, "css/desktop-app-noisemaker.css")
+	for _, marker := range []string{
+		".noisemaker-app {",
+		"--nm-bg: var(--vd-theme-app-bg)",
+		"--nm-create-width",
+		".noisemaker-app [hidden] { display: none !important; }",
+		".nm-workbench {",
+		".nm-splitter {",
+		".nm-splitter:focus-visible",
+		".noisemaker-app.is-create-collapsed .nm-pane-create",
+		".noisemaker-app.is-compact .nm-workbench",
+		".noisemaker-app.is-compact[data-nm-pane=\"create\"] .nm-pane-library",
+		".noisemaker-app.is-compact[data-nm-pane=\"library\"] .nm-pane-create",
+		".nm-presets {",
+		".nm-preset.is-active",
+		".nm-mode-switch",
+		".nm-grid {",
+		".nm-grid--list",
+		".nm-card.is-playing",
+		".nm-card.is-selected",
+		".nm-card.is-highlighted",
+		".nm-row {",
+		".nm-selection-bar {",
+		".nm-skeleton {",
+		".nm-player {",
+		".nm-player.is-visible",
+		".nm-player-viz",
+		".nm-now-playing {",
+		".nm-now-playing.is-open",
+		".nm-np-hero",
+		".nm-queue-item.is-current",
+		"@media (max-width: 720px)",
+		"@media (prefers-reduced-motion: reduce)",
+		"@keyframes nm-eq",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop-app-noisemaker.css missing %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"var(--vd-surface, #111827)", ".nm-tab {", ".nm-view {", ".nm-player-btn"} {
+		if strings.Contains(css, forbidden) {
+			t.Fatalf("desktop-app-noisemaker.css must not contain %q", forbidden)
+		}
+	}
+}
