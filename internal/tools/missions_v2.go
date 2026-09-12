@@ -2101,6 +2101,30 @@ func (m *MissionManagerV2) Get(id string) (*MissionV2, bool) {
 	return &cp, true
 }
 
+// NextRun returns the next scheduled execution for an enabled scheduled
+// mission. Manual, triggered, disabled and unknown missions report false, as
+// does a manager without a cron engine.
+func (m *MissionManagerV2) NextRun(id string) (time.Time, bool) {
+	if m.cron == nil {
+		return time.Time{}, false
+	}
+	m.mu.RLock()
+	mission, ok := m.missions[id]
+	var (
+		enabled   bool
+		scheduled bool
+	)
+	if ok {
+		enabled = mission.Enabled
+		scheduled = mission.ExecutionType == ExecutionScheduled && strings.TrimSpace(mission.Schedule) != ""
+	}
+	m.mu.RUnlock()
+	if !ok || !enabled || !scheduled {
+		return time.Time{}, false
+	}
+	return m.cron.NextRun("mission_" + id)
+}
+
 // List returns all missions
 func (m *MissionManagerV2) List() []*MissionV2 {
 	m.mu.RLock()

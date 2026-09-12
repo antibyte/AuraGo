@@ -1972,3 +1972,49 @@ func TestRemoveFromQueueResetsOrphanQueuedStatus(t *testing.T) {
 		t.Fatalf("status = %q, want idle", got.Status)
 	}
 }
+
+func TestMissionManagerV2NextRunFollowsScheduleAndEnabledState(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{MissionsEnabled: true, SchedulerEnabled: true, AllowFilesystemWrite: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+	dir := tempSystemTaskDir(t)
+	cronMgr := NewCronManager(dir)
+	if err := cronMgr.Start(func(string) {}); err != nil {
+		t.Fatalf("failed to start cron manager: %v", err)
+	}
+	defer cronMgr.Stop()
+	mgr := NewMissionManagerV2(dir, cronMgr)
+
+	scheduled := &MissionV2{ID: "m_sched", Name: "Sched", Prompt: "p", ExecutionType: ExecutionScheduled, Schedule: "0 9 * * *", Enabled: true}
+	if err := mgr.Create(scheduled); err != nil {
+		t.Fatalf("create scheduled: %v", err)
+	}
+	manual := &MissionV2{ID: "m_manual", Name: "Manual", Prompt: "p", ExecutionType: ExecutionManual, Enabled: true}
+	if err := mgr.Create(manual); err != nil {
+		t.Fatalf("create manual: %v", err)
+	}
+
+	if next, ok := mgr.NextRun("m_sched"); !ok || next.IsZero() {
+		t.Fatalf("expected next run for enabled scheduled mission, got %v %v", next, ok)
+	}
+	if _, ok := mgr.NextRun("m_manual"); ok {
+		t.Fatalf("manual mission must not report a next run")
+	}
+	if _, ok := mgr.NextRun("unknown"); ok {
+		t.Fatalf("unknown mission must not report a next run")
+	}
+
+	scheduled.Enabled = false
+	if err := mgr.Update("m_sched", scheduled); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	if _, ok := mgr.NextRun("m_sched"); ok {
+		t.Fatalf("disabled scheduled mission must not report a next run")
+	}
+
+	nilCron := NewMissionManagerV2(t.TempDir(), nil)
+	if _, ok := nilCron.NextRun("anything"); ok {
+		t.Fatalf("manager without cron must not report a next run")
+	}
+}

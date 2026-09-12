@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCronManagerDeniesMutationWithoutRuntimePolicy(t *testing.T) {
@@ -369,5 +370,39 @@ func TestCronManagerRemovesDisabledJobs(t *testing.T) {
 	}
 	if jobs := mgr.GetJobs(); len(jobs) != 0 {
 		t.Fatalf("jobs after disabled remove = %+v, want none", jobs)
+	}
+}
+
+func TestCronManagerNextRunReportsRegisteredJobs(t *testing.T) {
+	mgr := NewCronManager(tempSystemTaskDir(t))
+	t.Cleanup(func() { _ = mgr.Close() })
+	if _, ok := mgr.NextRun("missing"); ok {
+		t.Fatalf("expected no next run for unknown job")
+	}
+	if _, err := mgr.ManageScheduleWithSource("add", "mission_next", "0 9 * * *", "prompt", "", "mission"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	// robfig/cron only computes Next after the engine has started.
+	if _, ok := mgr.NextRun("mission_next"); ok {
+		t.Fatalf("expected no next run before Start()")
+	}
+	if err := mgr.Start(func(string) {}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	next, ok := mgr.NextRun("mission_next")
+	if !ok {
+		t.Fatalf("expected next run after Start()")
+	}
+	if !next.After(time.Now().Add(-time.Minute)) {
+		t.Fatalf("next run %v is in the past", next)
+	}
+	if next.Hour() != 9 || next.Minute() != 0 {
+		t.Fatalf("expected 09:00 next run, got %v", next)
+	}
+	if _, err := mgr.ManageScheduleWithSource("remove", "mission_next", "", "", "", "mission"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, ok := mgr.NextRun("mission_next"); ok {
+		t.Fatalf("expected no next run after removal")
 	}
 }

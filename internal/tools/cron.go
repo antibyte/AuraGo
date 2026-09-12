@@ -56,6 +56,23 @@ func NewCronManager(dataDir string) *CronManager {
 	}
 }
 
+// NextRun reports the next scheduled execution of a registered job. The
+// boolean is false when the job is unknown or the engine has not been started
+// yet: robfig/cron only computes Next for running engines.
+func (m *CronManager) NextRun(jobID string) (time.Time, bool) {
+	m.mu.Lock()
+	entryID, ok := m.cronEntryIDs[jobID]
+	m.mu.Unlock()
+	if !ok {
+		return time.Time{}, false
+	}
+	entry := m.engine.Entry(entryID)
+	if !entry.Valid() || entry.Next.IsZero() {
+		return time.Time{}, false
+	}
+	return entry.Next, true
+}
+
 func newCronParser() cron.Parser {
 	return cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 }
