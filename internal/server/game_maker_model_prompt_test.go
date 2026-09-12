@@ -3,13 +3,16 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -152,5 +155,132 @@ func TestCompactGameMakerContextPreservesExamplesAndFirstFailure(t *testing.T) {
 	}
 	if strings.Contains(text, "\"nodes\":[") || strings.Contains(text, "\"regions\":[") {
 		t.Fatalf("repair context included full scene arrays: %s", text)
+	}
+}
+
+func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		t.Run(dimension, func(t *testing.T) {
+			root := t.TempDir()
+			service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer service.Close()
+			previous := gamemaker.DefaultService()
+			gamemaker.SetDefaultService(service)
+			defer gamemaker.SetDefaultService(previous)
+			service.SetSkillStatus(nil, true)
+			cfg := &config.Config{}
+			cfg.LLM.Model, cfg.LLM.ProviderType = "test-game-model", "openai"
+			cfg.Agent.ContextWindow = 65536
+			cfg.CircuitBreaker.LLMTimeoutSeconds, cfg.CircuitBreaker.MaxToolCalls = 10, 1
+			cfg.GameMaker.Enabled = true
+			cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
+			var calls, finalCalls atomic.Int32
+			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var request openai.ChatCompletionRequest
+				if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+					t.Error(err)
+					return
+				}
+				calls.Add(1)
+				w.Header().Set("Content-Type", "text/event-stream")
+				if len(request.Tools) > 0 {
+					// The system limit is one, but Game Maker guarantees 40 calls.
+					batch := make([]map[string]any, 40)
+					for i := range batch {
+						args, _ := json.Marshal(map[string]any{"operation": "write", "path": "src/main.ts", "content": fmt.Sprintf("// tool-%d\nconst broken = ;", i+1)})
+						batch[i] = map[string]any{"index": i, "id": fmt.Sprintf("write-%d", i), "type": "function", "function": map[string]any{"name": "game_maker_file", "arguments": string(args)}}
+					}
+					encoded, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "tool_calls": batch}, "finish_reason": "tool_calls"}}})
+					fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", encoded)
+					return
+				}
+				finalCalls.Add(1)
+				code := "export const forbiddenExtraWrite = 1;"
+				content := `<tool_call><function=game_maker_file><parameter=operation>write</parameter><parameter=path>src/main.ts</parameter><parameter=content>` + code + `</parameter></function></tool_call>`
+				encoded, _ := json.Marshal(content)
+				fmt.Fprintf(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":%s},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n", encoded)
+			}))
+			defer provider.Close()
+			clientConfig := openai.DefaultConfig("local-test")
+			clientConfig.BaseURL = provider.URL
+			server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+			server.Registry = tools.NewProcessRegistry(server.Logger)
+			server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer server.ShortTermMem.Close()
+			runner := &gameMakerAgentRunner{server: server, service: service}
+			// Planning must not accept a missing design at the same tool limit.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			err = runner.RunGameMakerJob(ctx, gamemaker.JobRun{Stage: "planning", Job: gamemaker.Job{ID: "job_unplanned", Prompt: "Create a game"}, Project: gamemaker.Project{Dimension: dimension}})
+			cancel()
+			if err == nil || !strings.Contains(err.Error(), "tool_limit_final_response_invalid") {
+				t.Fatalf("planning incorrectly recovered: %v", err)
+			}
+			calls.Store(0)
+			finalCalls.Store(0)
+			project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Bounded work", Description: "Custom challenge", Dimension: dimension})
+			if err != nil {
+				t.Fatal(err)
+			}
+			service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+				if run.Stage == "planning" {
+					base := "minimal"
+					if dimension == "3d" {
+						base = "three"
+					}
+					return service.SetDesignJSON(ctx, run.Job.ID, []byte(fmt.Sprintf(`{"base":%q,"objective":"Custom challenge","features":["Custom mechanic"]}`, base)))
+				}
+				if err := runner.RunGameMakerJob(ctx, run); err != nil {
+					return err
+				}
+				code, err := service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+				if err != nil || !strings.Contains(code, "// tool-40\nconst broken = ;") || strings.Contains(code, "forbiddenExtraWrite") {
+					return fmt.Errorf("extra call changed source: %q, %v", code, err)
+				}
+				if run.Stage == "repair" {
+					if len(run.Diagnostics) == 0 || !strings.Contains(run.Diagnostics[0].Message, "Unexpected") {
+						return fmt.Errorf("compiler failure did not reach repair: %+v", run.Diagnostics)
+					}
+					return errors.New("verified validation handoff")
+				}
+				return nil
+			}))
+			job, err := service.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{Prompt: "Build a custom game"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for deadline := time.Now().Add(20 * time.Second); ; {
+				done, err := service.GetJob(context.Background(), job.ID)
+				if err == nil && done.Status == "failed" {
+					if done.Error != "verified validation handoff" || done.ResultRevision != 0 || calls.Load() != 4 || finalCalls.Load() != 2 {
+						t.Fatalf("unexpected result: %+v, requests=%d, final=%d", done, calls.Load(), finalCalls.Load())
+					}
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("tool limit did not terminate the job")
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+			if cfg.CircuitBreaker.MaxToolCalls != 1 {
+				t.Fatal("Game Maker changed the global system limit")
+			}
+		})
+	}
+}
+
+func TestGameMakerToolCallLimit(t *testing.T) {
+	for _, tc := range []struct{ system, want int }{
+		{-1, 40}, {0, 40}, {1, 40}, {20, 40}, {31, 40}, {32, 40},
+		{33, 42}, {40, 50}, {50, 63}, {51, 64}, {100, 125}, {math.MaxInt, math.MaxInt},
+	} {
+		if got := gameMakerToolCallLimit(tc.system); got != tc.want {
+			t.Errorf("system=%d: got %d, want %d", tc.system, got, tc.want)
+		}
 	}
 }

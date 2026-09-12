@@ -507,7 +507,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Circuit breaker - berechne Basis-Limit (Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist)
-		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
+		effectiveMaxCalls := calculateEffectiveMaxCalls(runCfg, ToolCall{}, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
 
 		if s.toolCallCount >= effectiveMaxCalls {
 			if !toolLimitFinalizing {
@@ -1839,7 +1839,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)
-		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
+		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(runCfg, tc, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
 
 		if tc.IsTool && s.toolCallCount < effectiveMaxCallsWithTool {
 			resp, err, shouldContinue := executeAgentToolTurn(s, ctx, tc, resp, content, useNativePath, nativeAssistantMsg, lastUserMsg, triggerValue, xmlFallbackHandledThisTurn)

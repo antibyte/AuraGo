@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"aurago/internal/gamemaker"
@@ -507,6 +508,12 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 			for name, target := range map[string]*int{"start_line": &start, "end_line": &end} {
 				if value, exists := tc.Params[name]; exists && value != nil {
 					n, ok := value.(float64)
+					// XML fallback parameters are text; retain the same numeric bounds.
+					if text, isText := value.(string); isText {
+						var err error
+						n, err = strconv.ParseFloat(strings.TrimSpace(text), 64)
+						ok = err == nil
+					}
 					if !ok || math.IsNaN(n) || n < 0 || n > 10000000 || n != math.Trunc(n) {
 						return gameMakerToolError(fmt.Errorf("%s must be a nonnegative integer", name)), true
 					}

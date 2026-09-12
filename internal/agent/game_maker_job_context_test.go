@@ -60,6 +60,30 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 				return fmt.Errorf("%s admitted a foreign job: %s", action, out)
 			}
 		}
+		// Native JSON numbers and XML text must address the same bounded range.
+		if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "src/lines.ts", strings.Repeat("// line\n", 350), ""); err != nil {
+			return err
+		}
+		var previousRead string
+		for _, tc := range []ToolCall{
+			native(map[string]any{"operation": "read", "path": "src/lines.ts", "start_line": 121, "end_line": 160}),
+			ParseToolCall(`<tool_call><function=game_maker_file><parameter=operation>read</parameter><parameter=path>src/lines.ts</parameter><parameter=start_line>121</parameter><parameter=end_line>160</parameter></function></tool_call>`),
+			native(map[string]any{"operation": "read", "path": "src/lines.ts", "start_line": "121", "end_line": "160"}),
+		} {
+			out, _ := dispatchGameMaker(bound, tc, nil)
+			if !strings.Contains(out, `"start_line":121`) || !strings.Contains(out, `"end_line":160`) || previousRead != "" && previousRead != out {
+				return fmt.Errorf("native/XML line range mismatch: %s", out)
+			}
+			previousRead = out
+		}
+		for _, field := range []string{"start_line", "end_line"} {
+			for _, bad := range []any{"1.5", "-1", "NaN", "Inf", "10000001", "1e500", "", "true", "121x", true} {
+				out, _ := dispatchGameMaker(bound, native(map[string]any{"operation": "read", "path": "src/lines.ts", field: bad}), nil)
+				if !strings.Contains(out, field+" must be a nonnegative integer") {
+					return fmt.Errorf("invalid %s=%v accepted: %s", field, bad, out)
+				}
+			}
+		}
 		for _, check := range []struct {
 			ctx  context.Context
 			tc   ToolCall

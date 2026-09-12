@@ -1837,7 +1837,11 @@ func decodeBase64(s string) ([]byte, error) {
 // basierend auf Personality Traits, Homepage-MaxCalls und explizitem Override.
 // homepageActiveInChain wird true sobald das Homepage-Tool in der aktuellen Aktionskette
 // aufgerufen wurde – ab dann gilt das erhöhte Limit für die gesamte Kette.
-func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
+func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
+	if runCfg.ToolCallLimit > 0 {
+		return runCfg.ToolCallLimit
+	}
+	cfg := runCfg.Config
 	if cfg == nil {
 		return 10
 	}

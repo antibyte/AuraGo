@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -400,6 +401,15 @@ func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 	return contextData
 }
 
+func gameMakerToolCallLimit(systemLimit int) int {
+	base := max(0, systemLimit)
+	bonus := base / 4
+	if base%4 != 0 {
+		bonus++
+	}
+	return max(40, base+min(bonus, math.MaxInt-base))
+}
+
 func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemaker.JobRun) error {
 	s := r.server
 	if s == nil || s.Cfg == nil || s.LLMClient == nil {
@@ -485,6 +495,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 		runCfg.AllowedTools = append(runCfg.AllowedTools, definition.Function.Name)
 	}
 	runCfg.UserIntent = run.Job.Prompt
+	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true
 	if run.Stage == "planning" {
@@ -496,7 +507,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	runCfg.VoiceOutputActive = false
 
 	slog.Info("game maker job starting", "job_id", run.Job.ID, "project_id", run.Project.ID,
-		"provider_id", cfg.LLM.Provider, "provider_type", cfg.LLM.ProviderType, "model", cfg.LLM.Model)
+		"provider_id", cfg.LLM.Provider, "provider_type", cfg.LLM.ProviderType, "model", cfg.LLM.Model, "tool_limit", runCfg.ToolCallLimit)
 	data, _ := json.Marshal(contextData)
 	req := openai.ChatCompletionRequest{
 		Model: cfg.LLM.Model,
@@ -516,6 +527,12 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	}()
 	response, err := agent.ExecuteAgentLoop(gamemaker.WithJobContext(ctx, run.Job.ID), req, runCfg, true, broker)
 	if err != nil {
+		if agent.IsToolLimitFinalResponseInvalid(err) && ctx.Err() == nil && (run.Stage == "building" || run.Stage == "repair") {
+			// The rejected extra call stays unexecuted. The orchestrator validates
+			// the saved source and owns the remaining repair budget, not final prose.
+			slog.Info("game maker tool limit reached; validating saved source", "job_id", run.Job.ID, "stage", run.Stage)
+			return nil
+		}
 		return fmt.Errorf("Game Maker agent loop: %w", err)
 	}
 	// A server-owned phase boundary may finish without model prose. An empty

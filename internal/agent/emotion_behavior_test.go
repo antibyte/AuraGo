@@ -204,9 +204,12 @@ func TestCalculateEffectiveMaxCallsAddsOneForHighThoroughness(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.CircuitBreaker.MaxToolCalls = 10
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	got := calculateEffectiveMaxCalls(cfg, ToolCall{}, false, true, stm, logger)
+	got := calculateEffectiveMaxCalls(RunConfig{Config: cfg}, ToolCall{}, false, true, stm, logger)
 	if got != 11 {
 		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 11", got)
+	}
+	if got := calculateEffectiveMaxCalls(RunConfig{Config: cfg, ToolCallLimit: 40}, ToolCall{}, false, true, stm, logger); got != 40 {
+		t.Fatalf("fixed run budget changed by thoroughness: %d", got)
 	}
 }
 
@@ -242,9 +245,12 @@ func TestCalculateEffectiveMaxCallsReducesForTenseRecoveryState(t *testing.T) {
 	cfg.Personality.EngineV2 = true
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	got := calculateEffectiveMaxCalls(cfg, ToolCall{}, false, true, stm, logger)
+	got := calculateEffectiveMaxCalls(RunConfig{Config: cfg}, ToolCall{}, false, true, stm, logger)
 	if got != 9 {
 		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 9", got)
+	}
+	if got := calculateEffectiveMaxCalls(RunConfig{Config: cfg, ToolCallLimit: 40}, ToolCall{}, false, true, stm, logger); got != 40 {
+		t.Fatalf("fixed run budget fell below its minimum: %d", got)
 	}
 }
 
@@ -255,7 +261,7 @@ func TestCalculateEffectiveMaxCallsAppliesHomepageLimitForFocusedTools(t *testin
 	cfg.Homepage.CircuitBreakerMaxCalls = 75
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	got := calculateEffectiveMaxCalls(cfg, ToolCall{Action: "homepage_deploy"}, false, false, nil, logger)
+	got := calculateEffectiveMaxCalls(RunConfig{Config: cfg}, ToolCall{Action: "homepage_deploy"}, false, false, nil, logger)
 	if got != 75 {
 		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 75", got)
 	}

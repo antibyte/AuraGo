@@ -1133,6 +1133,9 @@ type RunConfig struct {
 	// tool-result bookkeeping and return without another dispatch or LLM request.
 	// It must inspect authoritative state, never model prose or tool-output text.
 	RunComplete func() bool
+	// ToolCallLimit is an optional server-owned fixed budget for this run.
+	// Zero retains the normal system/personality/tool-specific calculation.
+	ToolCallLimit int
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.
 	AllowedTools []string
