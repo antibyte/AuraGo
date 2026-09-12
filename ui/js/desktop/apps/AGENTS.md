@@ -1606,9 +1606,12 @@ registration lives in `internal/desktop/types.go`.
   first); favorites are the `favorite` media tag toggled via PATCH. HTTP 200
   `{status:error}` track pages throw and leave the current list in place; toasts
   use the server message or `desktop.noisemaker_error_unknown` (never on
-  `AbortError`). `needmore` first enqueues remaining loaded tracks via
-  `queueHas` (library order), then pages; `cancelPendingAutoplay` when nothing
-  is added. Compact windows (`is-compact`, < 860 px) apply the same narrow
+  `AbortError`). `needmore` runs `continueQueue`: enqueue remaining loaded
+  tracks via `queueHas` (library order), else wait for a library load that is
+  already running (`tracksInFlight`) and re-check, else fetch the next page;
+  `cancelPendingAutoplay` only when nothing more can arrive. Toasts go through
+  the shell's `toast()` helper, which builds the `{ title, message, type,
+  appId }` payload `showDesktopNotification` expects. Compact windows (`is-compact`, < 860 px) apply the same narrow
   player, list-row and Now-Playing rules as the 720 px viewport fallback.
   Volume `change` events still save prefs; the menubar rebuilds only when
   shuffle, repeat, visualizer or muted change. Visible UI strings use
