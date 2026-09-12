@@ -269,6 +269,8 @@
     }
 
     function teardownModules(S) {
+        S.loadSeq++;
+        S.tracksLoading = false;
         if (S.resizeObserver) { try { S.resizeObserver.disconnect(); } catch (_) {} S.resizeObserver = null; }
         for (const key of ['create', 'library', 'player']) {
             if (S[key]) { try { S[key].dispose(); } catch (_) {} S[key] = null; }
@@ -358,7 +360,7 @@
         S.library.setLoading(true);
         try {
             const data = await fetchTrackPage(S, 0);
-            if (S.disposed || seq !== S.loadSeq) return;
+            if (S.disposed || seq !== S.loadSeq || !S.library) return;
             S.tracks = Array.isArray(data.items) ? data.items : [];
             S.tracksTotal = Number(data.total) || 0;
             if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
@@ -367,8 +369,9 @@
             const current = S.player ? S.player.current() : null;
             if (current) S.library.setPlaying(current.id, S.player.isPlaying());
         } catch (_) {
-            if (S.disposed || seq !== S.loadSeq) return;
+            if (S.disposed || seq !== S.loadSeq || !S.library) return;
         }
+        if (!S.library) return;
         S.tracksLoading = false;
         S.library.setLoading(false);
         if (!S.loadedOnce) {
@@ -382,23 +385,27 @@
     async function loadMoreTracks(S) {
         if (!S.library || S.tracksLoading || S.disposed) return [];
         if (S.tracksTotal > 0 && S.tracks.length >= S.tracksTotal) return [];
+        const seq = S.loadSeq;
         S.tracksLoading = true;
         syncPagination(S, true);
         let additions = [];
         try {
             const data = await fetchTrackPage(S, S.tracks.length);
-            if (S.disposed) return [];
+            if (S.disposed || seq !== S.loadSeq || !S.library) return [];
             additions = Array.isArray(data.items) ? data.items : [];
             S.tracks = S.tracks.concat(additions);
             S.tracksTotal = Number(data.total) || S.tracksTotal;
             if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
             S.library.appendTracks(additions);
         } catch (_) {
-            if (S.disposed) return [];
+            if (S.disposed || seq !== S.loadSeq || !S.library) return [];
+        } finally {
+            if (!S.disposed && seq === S.loadSeq && S.library) {
+                S.tracksLoading = false;
+                syncPagination(S, false);
+                syncHeader(S);
+            }
         }
-        S.tracksLoading = false;
-        syncPagination(S, false);
-        syncHeader(S);
         return additions;
     }
 

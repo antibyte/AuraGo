@@ -313,6 +313,7 @@ func TestDesktopNoisemakerRefreshAssets(t *testing.T) {
 		"tracks_deleted_partial",
 		"favorite_failed",
 		"playback_failed",
+		"seq !== S.loadSeq || !S.library",
 	} {
 		if !strings.Contains(shell, marker) {
 			t.Fatalf("noisemaker.js missing %q", marker)
