@@ -437,7 +437,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 Use only the allowed Game Maker tools. Do not request user confirmation.
 The server binds every tool call to this job. job_id may be omitted here;
 an explicit different job_id is rejected. Read the relevant source range, then
-prefer operation="replace" with its sha256. Use write for new files only.
+use operation="replace" with its sha256 for targeted changes. For a new game,
+operation="write" may replace src/main.ts with the complete implementation;
+pass expected_sha256 from the read. Preserve common.ts and its lifecycle.
 Check build.ok after each edit before runtime validation.
 In planning: use the supplied example, search_assets as needed, then set_design. End
 the planning turn immediately after acceptance. The server installs the selected

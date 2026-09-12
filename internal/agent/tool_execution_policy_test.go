@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/gamemaker"
 	"aurago/internal/memory"
 	"aurago/internal/tools/outputcompress"
 
@@ -325,5 +326,39 @@ func TestFinalizeToolExecutionUsesPrimaryOutputVaultForLargeNativeOutput(t *test
 	}
 	if !strings.Contains(archived.SummaryContent, "/srv/app/main.go:11") {
 		t.Fatalf("summary should retain useful path/line details, got: %s", archived.SummaryContent)
+	}
+}
+
+func TestGameMakerSourceStaysInlineWithoutArchiveReader(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	cfg.Agent.OutputCompression.Enabled = true
+	cfg.Agent.OutputCompression.Reversible.Enabled = true
+	cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault = true
+	cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 6000
+	for _, dimension := range []string{"2d", "3d"} {
+		for _, stage := range []string{"building", "repair"} {
+			t.Run(dimension+"/"+stage, func(t *testing.T) {
+				allowed := []string{}
+				for _, definition := range GameMakerPhaseToolSchemas(stage, dimension) {
+					allowed = append(allowed, definition.Function.Name)
+				}
+				raw := gameMakerToolJSON(gamemaker.SourceRead{Path: "src/common.ts", Content: strings.Repeat("// reusable game lifecycle\n", 240) + "export const tail = 7;", SHA256: "full-file-digest", StartLine: 1, EndLine: 240, TotalLines: 600})
+				state := newToolRecoveryState()
+				result := finalizeToolExecution(context.Background(), ToolCall{Action: "game_maker_file", NativeCallID: "source-" + dimension + stage}, raw, false, cfg, stm, "game-maker-test", &state, &openai.ChatCompletionRequest{}, logger, AgentTelemetryScope{}, "v1", 0, RunConfig{AllowedTools: allowed})
+				if result.Content != raw || result.OutputRef != "" {
+					t.Fatalf("source or full-file digest hidden behind inaccessible archive: %s", result.Content)
+				}
+				if result.EventContent != raw {
+					t.Fatal("source event changed")
+				}
+			})
+		}
 	}
 }

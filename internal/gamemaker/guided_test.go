@@ -128,6 +128,13 @@ func TestSourceEditsReturnCompilerFeedbackAndPreserveStaleFiles(t *testing.T) {
 		if _, err = s.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", 1, 300); err == nil {
 			t.Error("unbounded range accepted")
 		}
+		full, err := s.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", 1, 240)
+		if err != nil || full.EndLine != full.TotalLines || full.SHA256 != good.SHA256 || !strings.Contains(full.Content, "const fixed = 1;") {
+			t.Errorf("bounded range must stop at EOF and retain the full digest: %+v %v", full, err)
+		}
+		if _, err = s.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", full.TotalLines+1, full.TotalLines+2); err == nil {
+			t.Error("range starting past EOF accepted")
+		}
 		return errors.New("checked edits")
 	}))
 	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})

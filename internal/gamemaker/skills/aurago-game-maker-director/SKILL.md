@@ -25,7 +25,10 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
    extend it only after it validates.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
    Read a bounded line range, then use `replace` with unique `old_text`, `new_text`
-   and the returned full-file `expected_sha256`. Use `write` for new files. Studio binds
+   and the returned full-file `expected_sha256`. For a new game, `write` may replace
+   `src/main.ts` with the complete implementation and its read `expected_sha256`;
+   preserve `common.ts` and its lifecycle. Use targeted replacements for existing
+   games. Studio binds
    `job_id` server-side and accepts an omitted operation when content is present.
    A different explicit job ID is rejected. Check both `written` and `build.ok`;
    repair returned compiler errors before runtime validation. Rejected writes

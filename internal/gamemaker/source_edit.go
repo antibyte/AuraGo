@@ -42,9 +42,10 @@ func (s *Service) ReadJobFileRange(ctx context.Context, jobID, path string, star
 	if end == 0 {
 		end = min(start+119, len(lines))
 	}
-	if start < 1 || end < start || start > len(lines) || end > len(lines) || end-start >= 240 {
+	if start < 1 || end < start || start > len(lines) || end-start >= 240 {
 		return SourceRead{}, fmt.Errorf("choose 1-based start_line/end_line within 1–%d, at most 240 lines", len(lines))
 	}
+	end = min(end, len(lines))
 	selected := strings.Join(lines[start-1:end], "\n")
 	if len(selected) > 24000 {
 		return SourceRead{}, fmt.Errorf("range exceeds 24000 bytes; choose fewer lines or read source instead of minified vendor files")

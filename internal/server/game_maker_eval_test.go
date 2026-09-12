@@ -87,6 +87,9 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	cfg := &config.Config{}
 	// Preserve the configured global cap; provider/model limits resolve normally.
 	cfg.Agent.ContextWindow = original.Agent.ContextWindow
+	// Exercise the same output path as Studio, including its archive threshold.
+	cfg.Agent.ToolOutputLimit = original.Agent.ToolOutputLimit
+	cfg.Agent.OutputCompression = original.Agent.OutputCompression
 	cfg.CircuitBreaker = original.CircuitBreaker
 	// Match config.Load defaults when these fields are omitted from YAML.
 	if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {

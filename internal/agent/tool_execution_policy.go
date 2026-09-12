@@ -244,7 +244,10 @@ func finalizeToolExecution(
 		resultContent = augmentToolFailureContent(trackingTC, resultContent, policyResult.ErrorSummary)
 	}
 	outputRef := ""
-	if !guardianBlocked {
+	// Scoped builders cannot follow archive references when retrieval is excluded.
+	// Keep their bounded inline response rather than advertise an unusable tool.
+	_, canReadOutput := normalizedAllowedToolSet(runCfg.AllowedTools)["read_tool_output"]
+	if !guardianBlocked && (runCfg.AllowedTools == nil || canReadOutput) {
 		if compactContent, ref, ok := maybeStorePrimaryToolOutputVault(ctx, tc, trackingTC, eventContent, resultContent, toolFailed, cfg, shortTermMem, sessionID, logger); ok {
 			resultContent = compactContent
 			outputRef = ref
