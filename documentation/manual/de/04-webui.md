@@ -237,7 +237,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
-| **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV), Geräusche- und Musikgenerator |
+| **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV); Noisemaker: KI-Musikstudio als Werkbank – links die Song-Erstellung (Einfach-Modus mit Genre-Presets oder Eigener Modus mit Stil, Lyrics, Titel und lokalen ACE-Step-Reglern), rechts die Bibliothek (Raster/Liste, Suche, Favoriten, Mehrfachauswahl) und unten eine persistente Player-Leiste mit Warteschlange, Shuffle/Repeat, Visualizer und „Jetzt läuft“-Ansicht. Fenstermenüs (Datei/Bearbeiten/Ansicht/Wiedergabe) und Kontextmenüs decken alle Aktionen ab. |
 | **Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung mit Sprite-Bibliothek und Asset-Browser |
 | **OpenSCAD / 3D Viewer** | Parametrisches 3D-Modellieren mit Vorschau bzw. STL-Betrachter |
 | **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen |
