@@ -67,6 +67,9 @@ func TestGuidedBrowser(t *testing.T) {
 					d.Base = mode
 					if d.Settings != nil {
 						d.Settings.Duration = 15
+						if mode == "flight" {
+							d.Settings.Duration = 0
+						}
 					}
 					d.Objective = map[string]string{"fps": "Forest patrol", "exploration": "Collect the crystals", "transport": "Deliver the cargo", "flight": "Fly through all gates", "space": "Clear the asteroids"}[mode]
 					if d.Objective == "" {
@@ -90,6 +93,9 @@ func TestGuidedBrowser(t *testing.T) {
 					}
 					// A small actual rule change, using the same edit primitive advertised to LLMs.
 					old, replacement := `"speed": 5`, `"speed": 6`
+					if dimension == "3d" && !strings.Contains(source, old) {
+						old, replacement = `"speed":5`, `"speed":6`
+					}
 					if dimension == "2d" {
 						old, replacement = "this.state.score++", "this.state.score += 2"
 						if mode == "shooter" {

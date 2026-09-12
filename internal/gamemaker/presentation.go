@@ -17,7 +17,7 @@ const PresentationVersion = "1.0.0"
 
 const PresentationGuide = `Presentation: search_assets(asset_kind="effect" or "audio") and describe_asset return exact local presets. In set_design add optional presentation:{environment:"forest-rain",effects:["blood-spray","blood-pool"],sounds:[{event:"step",sound:"step-grass"},{event:"shot",sound:"rifle"},{event:"hit",sound:"impact-flesh"}],quality:"auto"}. The server resolves versions/dependencies and imports after acceptance. Guided templates already own weather, a single mixer and loop update/disposal. Do not read vendor code or implement another animation/audio loop.
 Keep src/presentation.json connected to createPresentation and keep feedback/update/dispose hooks in common.ts. Never set the config/controller to null or remove requested effects/sounds to fix an unrelated gameplay error; repair only the reported fault. A playable game with imported but disconnected presentation assets fails the accepted plan.
-Complete combinations: forest FPS uses forest-rain, blood-spray/blood-pool/muzzle-flash, step-grass/rifle/impact-flesh; rainy 2D adventure uses forest-rain, water-ripple/pickup-glow, step-water/pickup; coastal flight uses coast, engine-trail/water-splash, engine/pickup; space uses space, explosion/metal-sparks, laser/impact-metal/explosion-small. Bind sounds to known events (step,jump,land,shot,reload,hit,pickup,win,lose,splash,interact,engine,ui,ambient).
+Complete combinations: forest FPS uses forest-rain, blood-spray/blood-pool/muzzle-flash, step-grass/rifle/impact-flesh; rainy 2D adventure uses forest-rain, water-ripple/pickup-glow, step-water/pickup; coastal flight uses coast, engine-trail/water-splash, engine/pickup; space uses space, explosion/metal-sparks, laser/impact-metal/explosion-small. Bind sounds to known events (step,jump,land,shot,reload,hit,pickup,win,lose,splash,interact,engine,ui,ambient). Event names and sound IDs differ: {event:"win",sound:"victory"}, {event:"lose",sound:"defeat"}.
 Custom integration: import config from './presentation.json'; import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js'; const presentation=createPresentation({config,root,adapter:createThreeAdapter({scene,camera,renderer,sun,ambient})}); registerSurface(ground,{kind:'ground'}), registerSurface(roof,{kind:'roof'}); call presentation.update(dt) and presentation.render() in the existing loop instead of renderer.render; event('hit',hit.point.toArray(),worldNormal.toArray(),'metal' or 'stone' or 'flesh') only on actual contact. For Phaser import createPhaserAdapter from aurago-effects-2d-1.js and pass {scene:this,view:'top' or 'side'}; call update(dt) in inherited GameScene lifecycle; no explicit render. In guided 2D use this.feedback(event,object,material). Controller: set(id,parameters), emit(id,{position:[x,y,z],normal:[0,1,0]}), applyObject(object,'hologram'|'dissolve'|'hit-flash'), setEnvironment(importedAtmosphereID), setPaused(bool), setActive(bool), reset(), dispose(). Never invent parameters; use describe_asset defaults. Audio unlocks on real interaction; presentation.audio.play(id,{position:[x,y,z]}), setRoom('outside'|'small-room'|'hall'), setVolume(0..1), setMuted(bool). Imported generated music can connect to audio.context via audio.connectMusic(node). Preview and ZIP use identical local files. Preserve working old games without presentation; when adding it to an old game integrate these lifecycle hooks explicitly.`
 
 // Presentation contains semantic choices only. The service resolves local files.
@@ -72,11 +72,25 @@ func readPresentationPack(id string) (PresentationManifest, error) {
 	}
 	return m, nil
 }
+func canonicalSoundID(id string) string {
+	switch id {
+	case "win":
+		return "victory"
+	case "lose":
+		return "defeat"
+	default:
+		return id
+	}
+}
+
 func presentationAsset(m PresentationManifest, id string) (PresentationAsset, error) {
 	for _, a := range m.Assets {
 		if a.ID == id {
 			return a, nil
 		}
+	}
+	if m.Kind == "audio" && canonicalSoundID(id) != id {
+		return PresentationAsset{}, fmt.Errorf("unknown audio asset %q; use sound:%q (keep event:%q)", id, canonicalSoundID(id), id)
 	}
 	return PresentationAsset{}, fmt.Errorf("unknown %s asset %q; use search_assets", m.Kind, id)
 }
@@ -141,6 +155,11 @@ func searchPresentation(query, pack, kind, view string, limit int) ([]AssetSearc
 	}
 	out := []AssetSearchResult{}
 	terms := strings.Fields(strings.ToLower(query))
+	if kind == "audio" {
+		for i, term := range terms {
+			terms[i] = canonicalSoundID(term)
+		}
+	}
 	for _, a := range m.Assets {
 		score := 0
 		text := strings.ToLower(a.ID + " " + a.Name + " " + a.Description + " " + strings.Join(a.Tags, " "))

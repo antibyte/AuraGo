@@ -85,6 +85,12 @@ func TestBuilderBrowser(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if dimension == "3d" {
+				code := "import {startGame} from './common';let charge=0;startGame({mode:'exploration',objective:'Deliver the parcel',speed:5,goal:1,duration:0,step(dt,api){if(api.input.isDown('c'))charge+=dt;document.getElementById('game-root').dataset.charge=String(charge)},reset(){charge=0}});"
+				if err := os.WriteFile(filepath.Join(dir, "src/main.ts"), []byte(code), 0640); err != nil {
+					t.Fatal(err)
+				}
+			}
 			data, _ := json.Marshal(plan)
 			if err := os.MkdirAll(filepath.Join(dir, ".aurago"), 0750); err != nil {
 				t.Fatal(err)
@@ -154,6 +160,23 @@ func TestBuilderBrowser(t *testing.T) {
 				page.MustActivate()
 				time.Sleep(350 * time.Millisecond)
 				page.MustElement("canvas").MustClick()
+				if dimension == "3d" {
+					if err := page.Keyboard.Press(input.KeyC); err != nil {
+						t.Fatal(err)
+					}
+					time.Sleep(450 * time.Millisecond)
+					if err := page.Keyboard.Release(input.KeyC); err != nil {
+						t.Fatal(err)
+					}
+					charge := page.MustEval(`()=>Number(document.getElementById('game-root').dataset.charge)`).Num()
+					if charge < .15 {
+						t.Fatalf("custom charge did not react to real input: %g", charge)
+					}
+					time.Sleep(150 * time.Millisecond)
+					if after := page.MustEval(`()=>Number(document.getElementById('game-root').dataset.charge)`).Num(); after > charge+.06 {
+						t.Fatalf("released input kept charging: %g -> %g", charge, after)
+					}
+				}
 				if dimension == "2d" {
 					if err := page.Keyboard.Press(input.Space); err != nil {
 						t.Fatal(err)

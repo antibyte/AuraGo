@@ -212,6 +212,9 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return fmt.Errorf("plan: submit exactly one JSON object")
 	}
+	if err := normalizePlanBindings(&plan); err != nil {
+		return err
+	}
 	data, err = json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode game plan: %w", err)
@@ -318,7 +321,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	}
 	if p.Gameplay != nil {
 		if !guided3D(p.Template) {
-			return bad("gameplay", "settings apply to guided 3D bases only; change other games in their source")
+			return bad("gameplay", "settings apply to fps/exploration/transport/flight/space only. For minimal/three or 2D, omit settings in set_design; put movement values in mechanics.blocks[].params and custom values in source")
 		}
 		if err := p.Gameplay.validate(); err != nil {
 			return err

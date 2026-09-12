@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 )
 
 type mechanicBlock struct {
@@ -61,6 +62,14 @@ func validateMechanicBlocks(mechanics map[string]any) error {
 			}
 			if err := safeMechanicKeys(params); err != nil {
 				return err
+			}
+			for _, key := range []string{"target", "role"} {
+				if value, exists := params[key]; exists {
+					text, ok := value.(string)
+					if !ok || len(text) > 96 {
+						return fmt.Errorf("mechanic %s: %s must be a bounded string", block.ID, key)
+					}
+				}
 			}
 			for _, key := range []string{"speed", "gravity", "jump_speed", "interval", "ttl", "lifetime", "cooldown", "duration", "seconds", "count", "amount", "health", "zoom", "fov", "smoothing"} {
 				if value, exists := params[key]; exists {
@@ -130,6 +139,73 @@ func safeMechanicKeys(value any) error {
 	return nil
 }
 
+// binding mirrors the runtime: top-level fields take precedence over params.
+func (block mechanicBlock) binding() (string, string) {
+	var params struct{ Target, Role string }
+	_ = json.Unmarshal([]byte(block.Params), &params)
+	target, role := block.Target, block.Role
+	if target == "" {
+		target = params.Target
+	}
+	if role == "" {
+		role = params.Role
+	}
+	return strings.TrimSpace(target), strings.TrimSpace(role)
+}
+
+// Resolve only unambiguous conveniences before persisting either plan format.
+// Direct file edits still use the canonical IDs recorded in the accepted plan.
+func normalizePlanBindings(plan *GamePlan) error {
+	if err := validateGameMechanics(plan.Mechanics); err != nil {
+		return err
+	}
+	player := ""
+	if plan.Scene != nil {
+		for _, node := range plan.Scene.Nodes {
+			if node.Kind == "player" || node.Properties["player"] == true {
+				if player != "" {
+					player = ""
+					break
+				}
+				player = node.ID
+			}
+		}
+	}
+	raw, _ := json.Marshal(plan.Mechanics["blocks"])
+	var blocks []mechanicBlock
+	_ = json.Unmarshal(raw, &blocks)
+	changed := false
+	for i, block := range blocks {
+		target, role := block.binding()
+		if block.Kind == "movement" && target == "" && role == "" && player != "" && (block.Enabled == nil || *block.Enabled) {
+			blocks[i].Target = player
+			changed = true
+		}
+	}
+	if changed {
+		plan.Mechanics["blocks"] = blocks
+	}
+	if plan.Presentation != nil {
+		for i := range plan.Presentation.Sounds {
+			plan.Presentation.Sounds[i].Sound = canonicalSoundID(plan.Presentation.Sounds[i].Sound)
+		}
+	}
+	raw, _ = json.Marshal(plan.Mechanics["events"])
+	var events []mechanicEvent
+	_ = json.Unmarshal(raw, &events)
+	changed = false
+	for i, event := range events {
+		if sound := canonicalSoundID(event.Sound); sound != event.Sound {
+			events[i].Sound = sound
+			changed = true
+		}
+	}
+	if changed {
+		plan.Mechanics["events"] = events
+	}
+	return nil
+}
+
 func validateMechanicBindings(plan GamePlan) error {
 	var blocks []mechanicBlock
 	raw, _ := json.Marshal(plan.Mechanics["blocks"])
@@ -150,10 +226,11 @@ func validateMechanicBindings(plan GamePlan) error {
 		if block.Enabled != nil && !*block.Enabled {
 			continue
 		}
-		if plan.Scene != nil && block.Kind != "camera" && block.Target == "" && block.Role == "" {
-			return fmt.Errorf("mechanic %s requires an explicit target node or asset role", block.ID)
+		target, role := block.binding()
+		if plan.Scene != nil && block.Kind != "camera" && target == "" && role == "" {
+			return fmt.Errorf("mechanic %s requires target matching a scene.nodes[].id or role matching a scene.placements[].asset_role; movement defaults only when the scene has exactly one player", block.ID)
 		}
-		if plan.Scene != nil && (block.Target != "" && !ids[block.Target] || block.Role != "" && !roles[block.Role]) {
+		if plan.Scene != nil && (target != "" && !ids[target] || target == "" && role != "" && !roles[role]) {
 			return fmt.Errorf("mechanic %s references an unknown target or asset role", block.ID)
 		}
 	}

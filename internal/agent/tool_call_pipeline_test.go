@@ -324,6 +324,32 @@ func TestRecoverFrom422TreatsInvalidFunctionArgs400AsRecoverable(t *testing.T) {
 	}
 }
 
+func TestRecoverFromAgnesToolArguments400(t *testing.T) {
+	req := openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+		{Role: openai.ChatMessageRoleUser, Content: "Build a forest game"},
+		{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{ID: "bad", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_file", Arguments: `{"content":`}}}},
+		{Role: openai.ChatMessageRoleTool, ToolCallID: "bad", Content: "invalid arguments"},
+	}}
+	count := 0
+	recovered, err := recoverFrom422(errors.New("status: 400 Bad Request, message: Assistant tool call function.arguments must be valid JSON."), &count, &req, nil, nil, "GameMaker", AgentTelemetryScope{})
+	if err != nil || !recovered || count != 1 {
+		t.Fatalf("recovered=%v count=%d err=%v", recovered, count, err)
+	}
+	for _, message := range req.Messages {
+		for _, call := range message.ToolCalls {
+			if call.ID == "bad" {
+				t.Fatal("invalid tool round retained in retry")
+			}
+		}
+	}
+	for _, message := range []string{"400 Bad Request: invalid model", "400 arguments must be valid JSON", "500 Assistant tool call arguments must be valid JSON"} {
+		if isUnprocessableProviderError(errors.New(message)) {
+			t.Fatalf("unrelated failure classified as recoverable: %s", message)
+		}
+	}
+}
+
 func TestRecoverFromProviderContextLimitKeepsIntentAndTwoToolRounds(t *testing.T) {
 	req := openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: "sys"},

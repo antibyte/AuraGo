@@ -2455,6 +2455,14 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 			}
 		}
 		if validIDs {
+			for _, tc := range r.assistant.ToolCalls {
+				if args := strings.TrimSpace(tc.Function.Arguments); args != "" && !json.Valid([]byte(args)) {
+					validIDs = false
+					break
+				}
+			}
+		}
+		if validIDs {
 			lastCompleteRound = ri
 			break
 		}

@@ -25,6 +25,14 @@ free-code `three` can be continuous without a forced combat rule or timer. A
 free-code `three` startup pass still leaves gameplay unverified until live
 observations cover it.
 
+Custom hooks use `api.input.isDown("s")` (lowercase KeyboardEvent.key),
+`api.player`, `api.state`, `api.ended`, `api.win()` and `api.lose()`.
+`step(dt, api)` runs only while playing; `action(api)` may return false to replace
+boost/fire. `reset(api)` must clear custom charge, delivery and HUD state.
+Do not read private `__keys`. Guided settings accept `duration: 0` for no countdown.
+Example: `step(dt, api) { if (api.input.isDown("s")) charge = Math.min(100, charge + dt * 25); }`.
+Verify the visible charge with a real key press before claiming the mechanic works.
+
 - Establish renderer, scene, camera, resize handling, lighting, and a bounded
   animation loop before adding content.
 - Cap the pixel ratio with `renderer.setPixelRatio(Math.min(devicePixelRatio, 2))`

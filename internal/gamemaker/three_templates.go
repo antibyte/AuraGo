@@ -102,7 +102,7 @@ func threeTemplateSources(plan GamePlan) (map[string][]byte, error) {
 		}
 		config["objects"] = objects
 		encoded, _ := json.Marshal(config)
-		main := "import { startGame } from './common';\n// Edit rules and legacy level objects here. Keep the shared lifecycle in common.ts.\nstartGame(" + string(encoded) + ");\n"
+		main := "import { startGame } from './common';\n// Edit rules and legacy level objects here. Keep the shared lifecycle in common.ts.\n// Hooks: step(dt, api), action(api), reset(api). Read held keys with api.input.isDown(\"s\"); duration:0 disables countdown.\nstartGame(" + string(encoded) + ");\n"
 		return map[string][]byte{"main.ts": []byte(main), "common.ts": []byte(common), "presentation.json": []byte(presentation), "mechanics.json": mechanics, "scene.json": []byte("null\n")}, nil
 	}
 	encoded, _ := json.Marshal(config)
@@ -110,6 +110,6 @@ func threeTemplateSources(plan GamePlan) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	main := "import { startGame } from './common';\n// Tune mode and pacing here. Geometry and behavior live in scene.json.\nstartGame(" + string(encoded) + ");\n"
+	main := "import { startGame } from './common';\n// Tune mode and pacing here. Geometry and behavior live in scene.json.\n// Custom hooks: step(dt, api), action(api), reset(api); read held keys with api.input.isDown(\"s\").\nstartGame(" + string(encoded) + ");\n"
 	return map[string][]byte{"main.ts": []byte(main), "common.ts": []byte(common), "presentation.json": []byte(presentation), "mechanics.json": mechanics, "scene.json": sceneData}, nil
 }

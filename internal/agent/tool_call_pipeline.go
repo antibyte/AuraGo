@@ -221,6 +221,7 @@ func isUnprocessableProviderError(err error) bool {
 		strings.Contains(lowerMsg, "unprocessable") ||
 		(strings.Contains(msg, "400") &&
 			(strings.Contains(lowerMsg, "invalid function arguments json string") ||
+				(strings.Contains(lowerMsg, "assistant tool call") && strings.Contains(lowerMsg, "arguments must be valid json")) ||
 				strings.Contains(lowerMsg, "invalid params") ||
 				strings.Contains(lowerMsg, "tool_call_id") ||
 				strings.Contains(lowerMsg, "tool id") ||

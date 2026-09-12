@@ -295,7 +295,7 @@ export function startGame(config: any) {
       if(moving)presentation?.event('engine',player.position.toArray());else presentation?.audio.stop('engine');
       if(presentationPlan?.effects.some((e:any)=>e.id==='engine-trail'))presentation?.set('engine-trail',{position:player.position.toArray(),intensity:moving?1:0});
     }
-    if(!builder&&(health<=0||time>=config.duration)){ended=true;won=false}
+    if(!builder&&(health<=0||(config.duration>0&&time>=config.duration))){ended=true;won=false}
     for(const unit of live)if(!unit.procedural)A.updateInstance(unit,dt,camera);
   }
   function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:0,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:0,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
@@ -307,7 +307,7 @@ export function startGame(config: any) {
     if(ended&&!finishReported){finishReported=true;presentation?.audio.stop('engine');if(!builder)presentation?.event(won?'win':'lose',player.position.toArray())}
     builder?.render();
     if(presentation){presentation.audio.listener(camera.position.toArray(),camera.getWorldDirection(vector).toArray());presentation.update(dt);presentation.render()}else renderer.render(scene,camera);
-    hud.textContent=config.objective+'\n'+(ended?(won?'COMPLETE':'GAME OVER'):paused?'PAUSED':builder?[sceneState.goal_remaining?`Goals ${sceneState.goal_remaining}`:'',sceneState.lives>0?`Lives ${sceneState.lives}`:'',sceneState.score?`Score ${sceneState.score}`:''].filter(Boolean).join(' · '):`Score ${score} · Health ${Math.ceil(health)} · ${Math.ceil(config.duration-time)}s`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'')+'\nWASD · '+(config.mode==='fps'?'Drag / arrows: aim · Space: fire · F: reload':config.mode==='space'?'Space: fire · Q/E: altitude':config.mode==='flight'?'Space: boost · Q/E: altitude':'Space: boost')+' · R: restart';
+    hud.textContent=config.objective+'\n'+(ended?(won?'COMPLETE':'GAME OVER'):paused?'PAUSED':builder?[sceneState.goal_remaining?`Goals ${sceneState.goal_remaining}`:'',sceneState.lives>0?`Lives ${sceneState.lives}`:'',sceneState.score?`Score ${sceneState.score}`:''].filter(Boolean).join(' · '):`Score ${score} · Health ${Math.ceil(health)}${config.duration>0?` · ${Math.ceil(config.duration-time)}s`:""}`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'')+'\nWASD · '+(config.mode==='fps'?'Drag / arrows: aim · Space: fire · F: reload':config.mode==='space'?'Space: fire · Q/E: altitude':config.mode==='flight'?'Space: boost · Q/E: altitude':'Space: boost')+' · R: restart';
     if(config.hud)hud.textContent=String(config.hud(api));
     frame=requestAnimationFrame(draw);
   }
@@ -317,7 +317,7 @@ export function startGame(config: any) {
     builder?.dispose();for(const record of [player,...objects.map(o=>o.unit.root)])for(const detach of record.userData.sceneAttachments||[])detach();clearSceneDebug();presentation?.dispose();live.forEach(unit=>{if(!unit.procedural)A.disposeInstance(unit)});loaded.forEach(A.releaseAsset);owned.forEach(o=>{o.geometry.dispose();o.material.dispose()});sun.shadow.dispose();renderer.dispose();renderer.forceContextLoss();root.replaceChildren();
     delete (window as any).__AURAGO_GAME_TEST__;
   }
-  const api={scene,camera,player,renderer,get builder(){return builder},get state(){return builder?sceneState:snapshot()},event:(name:string,point?:number[])=>presentation?.event(name,point||player.position.toArray()),win:()=>builder?builder.win():(ended=won=true),lose:()=>builder?builder.lose():(ended=true,won=false),reset,dispose};
+  const api={scene,camera,player,renderer,input:{isDown:(key:string)=>keys.has(String(key).toLowerCase())},get ended(){return ended},get builder(){return builder},get state(){return builder?sceneState:snapshot()},event:(name:string,point?:number[])=>presentation?.event(name,point||player.position.toArray()),win:()=>builder?builder.win():(ended=won=true),lose:()=>builder?builder.lose():(ended=true,won=false),reset,dispose};
   on(window,'pagehide',dispose);
   setup().catch(error=>{if(!disposed){hud.textContent='Cannot load game: '+error.message;console.error(error);dispose()}});
   return api;

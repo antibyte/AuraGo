@@ -38,8 +38,8 @@ type GameSettings struct {
 }
 
 func (g GameSettings) validate() error {
-	if g.Goal < 1 || g.Goal > 24 || !finite(g.Speed) || g.Speed < 1 || g.Speed > 40 || g.Duration < 15 || g.Duration > 600 {
-		return fmt.Errorf("design.settings: goal 1–24, speed 1–40, duration 15–600 seconds required")
+	if g.Goal < 1 || g.Goal > 24 || !finite(g.Speed) || g.Speed < 1 || g.Speed > 40 || (g.Duration != 0 && g.Duration < 15) || g.Duration > 600 {
+		return fmt.Errorf("design.settings: goal 1–24, speed 1–40, duration 0 (no countdown) or 15–600 seconds required")
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func ExampleGameDesign(project Project) GameDesign {
 func (s *Service) expandDesign(ctx context.Context, jobID string, project Project, data []byte) ([]byte, error) {
 	var patch map[string]json.RawMessage
 	if err := json.Unmarshal(data, &patch); err != nil {
-		return nil, fmt.Errorf("design: %w", err)
+		return nil, fmt.Errorf("design: %w. Use inspect.design_example fields; level objects belong in scene.nodes, and generated platforms use scene_generate after plan acceptance. Free mechanics belong in features and source code", err)
 	}
 	s.mu.RLock()
 	draft := map[string]json.RawMessage{}
@@ -89,7 +89,7 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 	dec := json.NewDecoder(bytes.NewReader(merged))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&design); err != nil {
-		return nil, fmt.Errorf("design: %w", err)
+		return nil, fmt.Errorf("design: %w. Use inspect.design_example fields; level objects belong in scene.nodes, and generated platforms use scene_generate after plan acceptance. Free mechanics belong in features and source code", err)
 	}
 	if err := dec.Decode(new(any)); err != io.EOF {
 		return nil, fmt.Errorf("design: submit one object")
@@ -129,7 +129,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	seen := map[string]bool{}
 	for _, a := range d.Assets {
 		if strings.TrimSpace(a.Role) == "" || seen[a.Role] {
-			return p, fmt.Errorf("design.assets: use a unique nonempty role: %q", a.Role)
+			return p, fmt.Errorf("design.assets: use a unique nonempty role: %q. Each role selects one visual asset; use distinct roles (for example cover_wall and cover_barrier) for different models and reuse a role in multiple scene placements. Put effects and sounds in presentation, not assets. Resubmit only the corrected assets array", a.Role)
 		}
 		seen[a.Role] = true
 	}
