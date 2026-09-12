@@ -2,773 +2,867 @@
     'use strict';
 
     // Noisemaker — Suno-style AI music studio for the virtual desktop.
-    // Talks to /api/desktop/noisemaker/* (state, enhance, generate, tracks, delete).
-    // Exposes window.NoisemakerApp = { render, dispose }; every window instance
-    // owns its controllers, timers, and the NoisemakerLibrary player.
+    // Shell module: workbench layout (create pane | library pane, player bar),
+    // preferences, API calls, window/context menus and wiring of the sub-modules
+    // NoisemakerMenus, NoisemakerLibrary, NoisemakerPlayer and NoisemakerCreate.
+    // Talks only to /api/desktop/noisemaker/*.
+    // Exposes window.NoisemakerApp = { render, dispose }.
 
     const instances = new Map();
-    const preferenceKey = 'aurago.desktop.noisemaker.prefs';
-    const NS = 'desktop.noisemaker';
+    const PREF_KEY = 'aurago.desktop.noisemaker.prefs';
+    const NS = 'desktop.noisemaker_';
     const TRACKS_PAGE_SIZE = 60;
+    const CREATE_MIN = 320;
+    const CREATE_MAX = 560;
+    const COMPACT_WIDTH = 860;
+    const DEFAULT_PREFS = { mode: 'simple', style: '', instrumental: false, cover: true, view: 'grid', createWidth: 380, createCollapsed: false, shuffle: false, repeat: 'off', volume: 0.9, muted: false, visualizer: true };
 
-    const STYLE_SUGGESTIONS = ['Pop', 'Lo-Fi', 'Synthwave', 'Techno', 'Hip-Hop', 'Rock', 'Jazz', 'Ambient', 'Epic Orchestra', 'Acoustic', 'EDM', 'Metal'];
-    const IDEA_MAX = 2000;
-    const STYLE_MAX = 500;
-    const LYRICS_MAX = 8000;
-
-    function text(ctx, key, params, fallback) {
-        const fullKey = NS + '_' + key;
-        const value = ctx.t(fullKey, params || {});
-        return value && value !== fullKey ? value : (fallback || fullKey);
-    }
+    const SVG_REFRESH = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>';
+    const SVG_PANEL = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 4v16" stroke="currentColor" stroke-width="2"/></svg>';
 
     function uiLang() {
         return (window.SYSTEM_LANG || document.documentElement.lang || 'en').toString();
     }
 
     function readPrefs() {
-        try {
-            const value = JSON.parse(localStorage.getItem(preferenceKey) || '{}');
-            return {
-                style: String(value.style || ''),
-                instrumental: value.instrumental === true,
-                cover: value.cover !== false
-            };
-        } catch (_) {
-            return { style: '', instrumental: false, cover: true };
-        }
-    }
-
-    function savePrefs(state) {
-        try {
-            localStorage.setItem(preferenceKey, JSON.stringify({
-                style: state.form.style,
-                instrumental: state.form.instrumental,
-                cover: state.form.cover
-            }));
-        } catch (_) {}
-    }
-
-    function createState(host, windowId, ctx) {
-        const prefs = readPrefs();
+        let raw = {};
+        try { raw = JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (_) { raw = {}; }
+        const width = Number(raw.createWidth);
+        const volume = Number(raw.volume);
         return {
-            host, windowId, ctx,
-            disposed: false,
-            controllers: new Set(),
-            caps: null,
-            view: 'create',
-            form: { idea: '', style: prefs.style, lyrics: '', title: '', instrumental: prefs.instrumental, cover: prefs.cover, duration_seconds: '120', bpm: '', vocal_language: '', seed: '' },
-            statusTimer: null,
-            generation: { active: false, startedAt: 0, timerId: null, result: null, error: '', lastParams: null, coverFailed: false },
-            tracks: [],
-            tracksTotal: 0,
-            tracksQuery: '',
-            tracksLoading: false,
-            tracksLoadedOnce: false,
-            library: null,
-            root: null
+            mode: raw.mode === 'custom' ? 'custom' : 'simple',
+            style: String(raw.style || ''),
+            instrumental: raw.instrumental === true,
+            cover: raw.cover !== false,
+            view: raw.view === 'list' ? 'list' : 'grid',
+            createWidth: Number.isFinite(width) ? Math.min(CREATE_MAX, Math.max(CREATE_MIN, width)) : DEFAULT_PREFS.createWidth,
+            createCollapsed: raw.createCollapsed === true,
+            shuffle: raw.shuffle === true,
+            repeat: ['off', 'all', 'one'].includes(raw.repeat) ? raw.repeat : 'off',
+            volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : DEFAULT_PREFS.volume,
+            muted: raw.muted === true,
+            visualizer: raw.visualizer !== false
         };
     }
 
-    async function request(state, path, options) {
+    function savePrefs(prefs) {
+        try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (_) {}
+    }
+
+    function makeT(ctx) {
+        return (key, params, fallback) => {
+            const full = NS + key;
+            const value = ctx.t(full, params || {});
+            return value && value !== full ? value : (fallback || full);
+        };
+    }
+
+    function emptyGeneration() {
+        return { active: false, startedAt: 0, result: null, error: '', coverFailed: false, lastParams: null };
+    }
+
+    async function request(S, path, options) {
         const controller = new AbortController();
-        state.controllers.add(controller);
+        S.controllers.add(controller);
         const requestOptions = Object.assign({}, options || {}, { signal: controller.signal });
         if (requestOptions.body && typeof requestOptions.body !== 'string') {
             requestOptions.headers = Object.assign({ 'Content-Type': 'application/json' }, requestOptions.headers || {});
             requestOptions.body = JSON.stringify(requestOptions.body);
         }
         try {
-            return await state.ctx.api(path, requestOptions);
+            return await S.ctx.api(path, requestOptions);
         } finally {
-            state.controllers.delete(controller);
+            S.controllers.delete(controller);
         }
     }
 
-    // ---------- shell markup ----------
+    // ---------- markup ----------
 
-    function shellMarkup(state) {
-        const ctx = state.ctx;
-        const esc = ctx.esc;
+    function shellMarkup(S) {
+        const esc = S.ctx.esc;
+        const t = S.t;
         return '<div class="noisemaker-app">' +
-            '<div class="nm-header">' +
-                '<div class="nm-brand">' +
-                    '<span class="nm-brand-icon" aria-hidden="true">♪</span>' +
-                    '<div><strong>' + esc(text(ctx, 'title', {}, 'Noisemaker')) + '</strong>' +
-                    '<span>' + esc(text(ctx, 'subtitle', {}, 'AI music studio')) + '</span></div>' +
-                '</div>' +
-                '<div class="nm-tabs" role="tablist">' +
-                    '<button type="button" class="nm-tab" role="tab" data-view="create" aria-selected="true">' + esc(text(ctx, 'tab_create', {}, 'Create')) + '</button>' +
-                    '<button type="button" class="nm-tab" role="tab" data-view="library" aria-selected="false">' + esc(text(ctx, 'tab_library', {}, 'Library')) +
-                        ' <span class="nm-tab-count" data-nm-track-count hidden>0</span></button>' +
+            '<header class="nm-header">' +
+                '<div class="nm-brand"><span class="nm-brand-icon" aria-hidden="true">♪</span>' +
+                    '<div><strong>' + esc(t('title')) + '</strong><span>' + esc(t('subtitle')) + '</span></div></div>' +
+                '<div class="nm-segment nm-pane-switch" role="tablist" data-nm-pane-switch hidden>' +
+                    '<button type="button" class="nm-segment-btn is-active" role="tab" data-nm-pane-btn="create" aria-selected="true">' + esc(t('tab_create')) + '</button>' +
+                    '<button type="button" class="nm-segment-btn" role="tab" data-nm-pane-btn="library" aria-selected="false">' + esc(t('tab_library')) + ' <span class="nm-tab-count" data-nm-track-count hidden>0</span></button>' +
                 '</div>' +
                 '<div class="nm-header-chips">' +
-                    '<span class="nm-chip nm-chip--busy" data-nm-busy hidden>' + esc(text(ctx, 'generating_badge', {}, 'Generating…')) + '</span>' +
+                    '<span class="nm-chip nm-chip--busy" data-nm-busy hidden>' + esc(t('generating_badge')) + '</span>' +
                     '<span class="nm-chip" data-nm-provider hidden></span>' +
                     '<span class="nm-chip nm-chip--muted" data-nm-quota hidden></span>' +
                 '</div>' +
-            '</div>' +
+                '<div class="nm-header-actions">' +
+                    '<button type="button" class="nm-icon-btn" data-nm-refresh aria-label="' + esc(t('refresh')) + '" title="' + esc(t('refresh')) + '">' + SVG_REFRESH + '</button>' +
+                    '<button type="button" class="nm-icon-btn nm-panel-toggle" data-nm-toggle-create aria-pressed="true" aria-label="' + esc(t('create_panel_hide')) + '" title="' + esc(t('create_panel_hide')) + '">' + SVG_PANEL + '</button>' +
+                '</div>' +
+            '</header>' +
             '<div class="nm-body"></div>' +
         '</div>';
     }
 
-    function bodyViewsMarkup() {
-        return '<div class="nm-view nm-view-create is-active" data-view="create"><div class="nm-scroll"><div class="nm-create" data-nm-create></div></div></div>' +
-            '<div class="nm-view nm-view-library" data-view="library"></div>';
-    }
-
-    function createFormMarkup(state) {
-        const ctx = state.ctx;
-        const esc = ctx.esc;
-        const caps = state.caps || {};
-        const llm = caps.llm_available !== false;
-        const aiBtn = (action, labelKey, labelFallback) => !llm ? '' :
-            '<button type="button" class="nm-ai" data-nm-enhance="' + action + '">' +
-            '<span class="nm-ai-glyph" aria-hidden="true">✨</span>' + esc(text(ctx, labelKey, {}, labelFallback)) + '</button>';
-
-        return '' +
-        '<div class="nm-field">' +
-            '<div class="nm-field-head"><label for="nm-idea-' + state.windowId + '">' + esc(text(ctx, 'idea_label', {}, 'Song idea')) + '</label>' +
-                aiBtn('idea', 'idea_enhance', 'Enhance with AI') +
-                (llm ? '<button type="button" class="nm-ai" data-nm-enhance="random"><span class="nm-ai-glyph" aria-hidden="true">🎲</span>' + esc(text(ctx, 'idea_random', {}, 'Surprise me')) + '</button>' : '') +
-            '</div>' +
-            '<textarea id="nm-idea-' + state.windowId + '" class="nm-textarea nm-textarea--idea" data-nm-field="idea" maxlength="' + IDEA_MAX + '" placeholder="' + esc(text(ctx, 'idea_placeholder', {}, 'e.g. An epic synthwave track about a night drive through neon lights…')) + '"></textarea>' +
-            '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="idea"></span></div>' +
+    function workbenchMarkup(S) {
+        const esc = S.ctx.esc;
+        const t = S.t;
+        return '<div class="nm-workbench" data-nm-workbench>' +
+            '<section class="nm-pane nm-pane-create" data-nm-pane="create" aria-label="' + esc(t('tab_create')) + '"></section>' +
+            '<div class="nm-splitter" data-nm-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-valuemin="' + CREATE_MIN + '" aria-valuemax="' + CREATE_MAX + '" aria-valuenow="' + S.prefs.createWidth + '" aria-label="' + esc(t('create_panel')) + '" title="' + esc(t('create_panel')) + '"></div>' +
+            '<section class="nm-pane nm-pane-library" data-nm-pane="library" aria-label="' + esc(t('tab_library')) + '"></section>' +
         '</div>' +
-        '<div class="nm-field">' +
-            '<div class="nm-field-head"><label for="nm-style-' + state.windowId + '">' + esc(text(ctx, 'style_label', {}, 'Style / Genre')) + '</label>' +
-                aiBtn('style', 'style_enhance', 'Improve style') +
-            '</div>' +
-            '<input id="nm-style-' + state.windowId + '" class="nm-input" data-nm-field="style" maxlength="' + STYLE_MAX + '" placeholder="' + esc(text(ctx, 'style_placeholder', {}, 'e.g. synthwave, 80s, driving, female vocals')) + '">' +
-            '<div class="nm-chips" data-nm-chips>' + STYLE_SUGGESTIONS.map(tag =>
-                '<button type="button" class="nm-suggestion" data-nm-chip="' + esc(tag) + '">' + esc(tag) + '</button>').join('') + '</div>' +
-        '</div>' +
-        '<div class="nm-row nm-row--wrap">' +
-            '<label class="nm-switch"><input type="checkbox" data-nm-field="instrumental">' +
-                '<span class="nm-switch-track" aria-hidden="true"></span>' + esc(text(ctx, 'instrumental', {}, 'Instrumental (no vocals)')) + '</label>' +
-            (caps.covers_enabled ?
-                '<label class="nm-check"><input type="checkbox" data-nm-field="cover">' + esc(text(ctx, 'cover_label', {}, 'Generate AI cover')) + '</label>' +
-                '<span class="nm-hint">' + esc(text(ctx, 'cover_hint', { provider: caps.cover_provider || '' }, 'uses the configured image AI')) + '</span>' : '') +
-        '</div>' +
-        '<details class="nm-collapsible" data-nm-lyrics-wrap>' +
-            '<summary>' + esc(text(ctx, 'lyrics_label', {}, 'Lyrics')) + ' <span class="nm-hint">(' + esc(text(ctx, 'optional', {}, 'optional')) + ')</span></summary>' +
-            '<div class="nm-collapsible-body">' +
-                (caps.supports_lyrics === false ?
-                    '<p class="nm-hint">' + esc(text(ctx, 'lyrics_unsupported', {}, 'The current provider does not support custom lyrics.')) + '</p>' :
-                    '<div class="nm-field-head">' + (llm ? '<button type="button" class="nm-ai" data-nm-enhance="lyrics"><span class="nm-ai-glyph" aria-hidden="true">✨</span>' + esc(text(ctx, 'lyrics_generate', {}, 'Write lyrics with AI')) + '</button>' : '') + '</div>' +
-                    '<textarea class="nm-textarea nm-textarea--lyrics" data-nm-field="lyrics" maxlength="' + LYRICS_MAX + '" placeholder="' + esc(text(ctx, 'lyrics_placeholder', {}, 'Your own lyrics (optional)…')) + '"></textarea>' +
-                    '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="lyrics"></span></div>') +
-            '</div>' +
-        '</details>' +
-        '<div class="nm-field">' +
-            '<div class="nm-field-head"><label for="nm-title-' + state.windowId + '">' + esc(text(ctx, 'title_label', {}, 'Title')) + '</label>' +
-                aiBtn('title', 'title_suggest', 'Suggest title') +
-            '</div>' +
-            '<input id="nm-title-' + state.windowId + '" class="nm-input" data-nm-field="title" maxlength="200" placeholder="' + esc(text(ctx, 'title_placeholder', {}, 'Auto-generated if empty')) + '">' +
-        '</div>' +
-        (caps.supports_controls ? localControlsMarkup(state) : '') +
-        '<div class="nm-create-action">' +
-            '<div data-nm-progress-slot></div>' +
-            '<button type="button" class="nm-create-btn" data-nm-create-btn><span aria-hidden="true">♪</span>' + esc(text(ctx, 'create_button', {}, 'Create')) + '</button>' +
-            '<div class="nm-create-reason" data-nm-reason>' + esc(text(ctx, 'create_hint', {}, 'Generation takes about 1–2 minutes.')) + '</div>' +
-            '<div data-nm-result-slot></div>' +
-        '</div>';
+        '<div class="nm-player-slot" data-nm-player-slot></div>';
     }
 
-    function progressMarkup(state) {
-        const ctx = state.ctx;
-        const esc = ctx.esc;
-        return '<div class="nm-progress">' +
-            '<div class="nm-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>' +
-            '<div><strong>' + esc(text(ctx, 'progress_title', {}, 'Your song is being created…')) + '</strong>' +
-            '<p>' + esc(text(ctx, 'progress_hint', {}, 'This usually takes 1–2 minutes. You can keep browsing your library.')) + '</p></div>' +
-            '<span class="nm-progress-time" data-nm-elapsed>' + esc(text(ctx, 'progress_elapsed', { seconds: 0 }, '0 s')) + '</span>' +
-        '</div>';
-    }
-
-    function localControlsMarkup(state) {
-        const esc = state.ctx.esc;
-        const max = state.caps.local?.profile?.max_duration || 600;
-        return '<div class="nm-local-controls">' + [
-            ['duration_seconds', 'number', 'min="10" max="' + max + '" step="1" required'],
-            ['bpm', 'number', 'min="30" max="300" step="1"'],
-            ['vocal_language', 'text', 'maxlength="8" pattern="[a-z]{2,3}(-[A-Za-z]{2,4})?" placeholder="de, en, ja…"'],
-            ['seed', 'number', 'min="0" max="2147483647" step="1"']
-        ].map(([field, type, attrs]) => '<label class="nm-field">' + esc(text(state.ctx, field)) +
-            '<input class="nm-input" type="' + type + '" data-nm-field="' + field + '" value="' + esc(state.form[field]) + '" ' + attrs + '></label>').join('') +
-            '</div><p class="nm-hint">' + esc(text(state.ctx, 'local_help')) + '</p><p class="nm-hint" role="status" aria-live="polite" data-nm-local-status></p>';
-    }
-
-    function resultMarkup(state, result) {
-        const ctx = state.ctx;
-        const esc = ctx.esc;
-        const title = result.title || state.generation.lastParams?.title || text(ctx, 'result_untitled', {}, 'Untitled');
-        const meta = [];
-        if (result.duration_ms) meta.push(window.NoisemakerLibrary.formatDuration(result.duration_ms));
-        if (result.provider) meta.push(result.provider);
-        const lyricsBlock = result.lyrics
-            ? '<details class="nm-collapsible nm-result-lyrics"><summary>' + esc(text(ctx, 'lyrics_label', {}, 'Lyrics')) + (result.auto_lyrics ? ' ✨' : '') + '</summary>' +
-              '<div class="nm-collapsible-body"><pre class="nm-lyrics-text">' + esc(result.lyrics) + '</pre></div></details>'
-            : '';
-        return '<div class="nm-result">' +
-            (result.cover_url
-                ? '<div class="nm-cover"><img src="' + esc(result.cover_url) + '" alt="" draggable="false"></div>'
-                : '<div class="nm-cover nm-cover--empty" aria-hidden="true">♪</div>') +
-            '<div class="nm-result-main">' +
-                '<div class="nm-result-title">' + esc(title) + '</div>' +
-                '<div class="nm-result-meta">' + esc(meta.join(' · ')) + (state.generation.coverFailed ? ' · ' + esc(text(ctx, 'cover_failed', {}, 'cover failed')) : '') + '</div>' +
-                '<audio controls preload="metadata" src="' + esc(result.web_path) + '"></audio>' +
-                '<div class="nm-result-actions">' +
-                    '<button type="button" class="nm-btn nm-btn--primary" data-nm-result-library>' + esc(text(ctx, 'result_show_library', {}, 'Show in library')) + '</button>' +
-                    '<a class="nm-btn" href="' + esc(result.web_path) + '" download="' + esc(result.filename || '') + '">' + esc(text(ctx, 'track_download', {}, 'Download')) + '</a>' +
-                    '<button type="button" class="nm-btn" data-nm-result-new>' + esc(text(ctx, 'result_new', {}, 'New song')) + '</button>' +
-                '</div>' +
-                lyricsBlock +
-            '</div>' +
-        '</div>';
-    }
-
-    function errorMarkup(state, message) {
-        const ctx = state.ctx;
-        const esc = ctx.esc;
-        return '<div class="nm-error">' +
-            '<strong>' + esc(text(ctx, 'error_title', {}, 'Generation failed')) + '</strong>' +
-            '<p>' + esc(message || text(ctx, 'error_unknown', {}, 'Unknown error.')) + '</p>' +
-            '<button type="button" class="nm-btn" data-nm-retry>' + esc(text(ctx, 'error_retry', {}, 'Retry')) + '</button>' +
-        '</div>';
-    }
-
-    function onboardingMarkup(state) {
-        const ctx = state.ctx;
-        const esc = ctx.esc;
+    function onboardingMarkup(S) {
+        const esc = S.ctx.esc;
+        const t = S.t;
         return '<div class="nm-onboarding"><div class="nm-onboarding-card">' +
             '<span class="nm-onboarding-icon" aria-hidden="true">♪</span>' +
-            '<h2>' + esc(text(ctx, 'onboarding_title', {}, 'Music generation is not set up')) + '</h2>' +
-            '<p>' + esc(text(ctx, 'onboarding_hint', {}, 'Enable a music provider (MiniMax or Google Lyria) in the settings to create songs.')) + '</p>' +
+            '<h2>' + esc(t('onboarding_title')) + '</h2>' +
+            '<p>' + esc(t('onboarding_hint')) + '</p>' +
             '<div class="nm-onboarding-actions">' +
-                '<button type="button" class="nm-btn nm-btn--primary" data-nm-open-settings>' + esc(text(ctx, 'onboarding_open_settings', {}, 'Open settings')) + '</button>' +
-                '<button type="button" class="nm-btn" data-nm-recheck>' + esc(text(ctx, 'onboarding_recheck', {}, 'Check again')) + '</button>' +
+                '<button type="button" class="nm-btn nm-btn--primary" data-nm-open-settings>' + esc(t('onboarding_open_settings')) + '</button>' +
+                '<button type="button" class="nm-btn" data-nm-recheck>' + esc(t('onboarding_recheck')) + '</button>' +
             '</div>' +
         '</div></div>';
     }
 
-    // ---------- view helpers ----------
+    // ---------- header ----------
 
-    function qs(state, sel) { return state.root ? state.root.querySelector(sel) : null; }
+    function qs(S, sel) { return S.root ? S.root.querySelector(sel) : null; }
 
-    function syncHeader(state) {
-        const caps = state.caps || {};
-        const providerChip = qs(state, '[data-nm-provider]');
-        if (providerChip) {
-            if (caps.provider_type) {
-                providerChip.hidden = false;
-                providerChip.textContent = caps.model ? caps.provider_type + ' · ' + caps.model : caps.provider_type;
-            } else {
-                providerChip.hidden = true;
-            }
+    function syncHeader(S) {
+        const caps = S.caps || {};
+        const provider = qs(S, '[data-nm-provider]');
+        if (provider) {
+            provider.hidden = !caps.provider_type;
+            provider.textContent = caps.model ? caps.provider_type + ' · ' + caps.model : (caps.provider_type || '');
         }
-        const quotaChip = qs(state, '[data-nm-quota]');
-        if (quotaChip) {
+        const quota = qs(S, '[data-nm-quota]');
+        if (quota) {
             const used = Number(caps.daily_used) || 0;
             const max = Number(caps.daily_max) || 0;
-            quotaChip.hidden = false;
-            quotaChip.textContent = max > 0
-                ? text(state.ctx, 'quota', { used, max }, used + '/' + max + ' today')
-                : text(state.ctx, 'quota_unlimited', { used }, used + ' today');
+            quota.hidden = !caps.enabled;
+            quota.textContent = max > 0 ? S.t('quota', { used, max }) : S.t('quota_unlimited', { used });
         }
-        const busy = qs(state, '[data-nm-busy]');
-        if (busy) busy.hidden = !state.generation.active;
-        const count = qs(state, '[data-nm-track-count]');
+        const busy = qs(S, '[data-nm-busy]');
+        if (busy) busy.hidden = !S.generation.active;
+        const count = qs(S, '[data-nm-track-count]');
         if (count) {
-            const total = state.tracksTotal || state.tracks.length;
+            const total = S.tracksTotal || S.tracks.length;
             count.hidden = total === 0;
             count.textContent = String(total);
         }
     }
 
-    function switchView(state, view) {
-        state.view = view;
-        state.root.querySelectorAll('.nm-tab').forEach(tab => {
-            tab.setAttribute('aria-selected', tab.dataset.view === view ? 'true' : 'false');
-        });
-        state.root.querySelectorAll('.nm-view').forEach(el => {
-            el.classList.toggle('is-active', el.dataset.view === view);
-        });
-        if (view === 'library' && state.tracksLoadedOnce) refreshTracks(state);
-    }
-
-    function syncCounters(state) {
-        state.root.querySelectorAll('[data-nm-counter]').forEach(el => {
-            const field = el.dataset.nmCounter;
-            const len = (state.form[field] || '').length;
-            const max = field === 'lyrics' ? LYRICS_MAX : IDEA_MAX;
-            el.textContent = len > 0 ? len + ' / ' + max : '';
+    function wireHeader(S) {
+        S.root.addEventListener('click', event => {
+            if (event.target.closest('[data-nm-refresh]')) { refreshTracks(S); return; }
+            if (event.target.closest('[data-nm-toggle-create]')) { setCreateCollapsed(S, !S.prefs.createCollapsed); return; }
+            const paneBtn = event.target.closest('[data-nm-pane-btn]');
+            if (paneBtn) { S.paneChosen = true; setActivePane(S, paneBtn.dataset.nmPaneBtn); }
         });
     }
 
-    function syncCreateButton(state) {
-        const btn = qs(state, '[data-nm-create-btn]');
-        const reason = qs(state, '[data-nm-reason]');
-        if (!btn) return;
-        const caps = state.caps || {};
-        const hasInput = !!(state.form.idea.trim() || state.form.style.trim());
-        const max = Number(caps.daily_max) || 0;
-        const used = Number(caps.daily_used) || 0;
-        const quotaHit = max > 0 && used >= max;
-        const local = caps.local;
-        const unavailable = caps.supports_controls && (!local?.ready || local.state === 'busy');
-        const needsLyrics = caps.supports_controls && local?.profile && !local.profile.lm_model && !state.form.instrumental && !state.form.lyrics.trim();
-        const invalid = [...state.root.querySelectorAll('.nm-local-controls input')].find(input => !input.checkValidity());
-        btn.disabled = state.generation.active || !hasInput || quotaHit || unavailable || needsLyrics || invalid;
-        const localStatus = qs(state, '[data-nm-local-status]');
-        if (localStatus) localStatus.textContent = text(state.ctx, 'local_' + (local?.state || 'starting')) + (local?.error_code ? ' · ' + local.error_code : '') + (local?.profile ? ' · ' + local.profile.model : '');
-        if (reason) {
-            if (invalid) {
-                reason.textContent = invalid.validationMessage;
-            } else if (needsLyrics) {
-                reason.textContent = text(state.ctx, 'lyrics_required');
-            } else if (unavailable) {
-                reason.textContent = text(state.ctx, 'local_' + (local?.state || 'starting'));
-            } else if (quotaHit) {
-                reason.textContent = text(state.ctx, 'create_disabled_quota', { used, max }, 'Daily limit reached.');
-            } else if (!hasInput) {
-                reason.textContent = text(state.ctx, 'create_disabled_idea', {}, 'Enter a song idea or a style first.');
-            } else {
-                reason.textContent = text(state.ctx, 'create_hint', {}, 'Generation takes about 1–2 minutes.');
-            }
-        }
-    }
+    // ---------- state / capabilities ----------
 
-    function renderSlots(state) {
-        const progressSlot = qs(state, '[data-nm-progress-slot]');
-        const resultSlot = qs(state, '[data-nm-result-slot]');
-        if (progressSlot) progressSlot.innerHTML = state.generation.active ? progressMarkup(state) : '';
-        if (resultSlot) {
-            if (state.generation.error) {
-                resultSlot.innerHTML = errorMarkup(state, state.generation.error);
-            } else if (state.generation.result) {
-                resultSlot.innerHTML = resultMarkup(state, state.generation.result);
-            } else {
-                resultSlot.innerHTML = '';
-            }
-        }
-        syncCreateButton(state);
-        syncHeader(state);
-    }
-
-    // ---------- data ----------
-
-    async function loadState(state) {
+    async function loadState(S) {
         try {
-            const data = await request(state, '/api/desktop/noisemaker/state');
-            if (state.disposed) return;
-            state.caps = data;
+            const data = await request(S, '/api/desktop/noisemaker/state');
+            if (S.disposed) return;
+            S.caps = data || {};
         } catch (err) {
-            if (state.disposed) return;
-            state.caps = { enabled: false, error: err.message || '' };
+            if (S.disposed) return;
+            S.caps = { enabled: false, error: (err && err.message) || '' };
         }
-        renderApp(state);
-        scheduleLocalStatus(state);
+        renderApp(S);
+        scheduleLocalStatus(S);
     }
 
-    function scheduleLocalStatus(state) {
-        clearTimeout(state.statusTimer);
-        if (state.disposed || !state.caps?.supports_controls) return;
-        state.statusTimer = setTimeout(async () => {
+    function scheduleLocalStatus(S) {
+        clearTimeout(S.statusTimer);
+        if (S.disposed || !S.caps || !S.caps.supports_controls) return;
+        S.statusTimer = setTimeout(async () => {
             try {
-                const caps = await request(state, '/api/desktop/noisemaker/state');
-                if (state.disposed) return;
-                const changed = caps.enabled !== state.caps.enabled || caps.supports_controls !== state.caps.supports_controls || caps.provider_type !== state.caps.provider_type;
-                state.caps = caps;
-                if (changed) renderApp(state);
-                const duration = qs(state, '[data-nm-field="duration_seconds"]');
-                if (duration) duration.max = String(caps.local?.profile?.max_duration || 600);
-                syncCreateButton(state);
+                const caps = await request(S, '/api/desktop/noisemaker/state');
+                if (S.disposed) return;
+                const previous = S.caps || {};
+                const changed = caps.enabled !== previous.enabled || caps.supports_controls !== previous.supports_controls || caps.provider_type !== previous.provider_type;
+                S.caps = caps || {};
+                if (changed) renderApp(S);
+                else if (S.create) S.create.setCaps(S.caps, { light: true });
+                syncHeader(S);
             } catch (_) {}
-            scheduleLocalStatus(state);
+            scheduleLocalStatus(S);
         }, 3000);
-    }
-
-    async function fetchTrackPage(state, offset) {
-        const params = new URLSearchParams({ limit: String(TRACKS_PAGE_SIZE), offset: String(offset) });
-        if (state.tracksQuery) params.set('q', state.tracksQuery);
-        return await request(state, '/api/desktop/noisemaker/tracks?' + params.toString());
-    }
-
-    async function refreshTracks(state) {
-        if (!state.library) return;
-        state.tracksLoading = true;
-        state.library.setLoading(true);
-        try {
-            const data = await fetchTrackPage(state, 0);
-            if (state.disposed) return;
-            state.tracks = Array.isArray(data.items) ? data.items : [];
-            state.tracksTotal = Number(data.total) || 0;
-            if (state.caps && typeof data.daily_used === 'number') state.caps.daily_used = data.daily_used;
-            state.library.setTracks(state.tracks);
-            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
-        } catch (_) {
-            if (state.disposed) return;
-        }
-        state.tracksLoading = false;
-        state.tracksLoadedOnce = true;
-        state.library.setLoading(false);
-        syncHeader(state);
-    }
-
-    async function loadMoreTracks(state) {
-        if (!state.library || state.tracksLoading) return;
-        if (state.tracksTotal > 0 && state.tracks.length >= state.tracksTotal) return;
-        state.tracksLoading = true;
-        state.library.setPagination({ total: state.tracksTotal, hasMore: true, loading: true });
-        try {
-            const data = await fetchTrackPage(state, state.tracks.length);
-            if (state.disposed) return;
-            const additions = Array.isArray(data.items) ? data.items : [];
-            state.tracks = state.tracks.concat(additions);
-            state.tracksTotal = Number(data.total) || state.tracksTotal;
-            if (state.caps && typeof data.daily_used === 'number') state.caps.daily_used = data.daily_used;
-            state.library.appendTracks(additions);
-            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
-        } catch (_) {
-            if (state.disposed) return;
-            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
-        }
-        state.tracksLoading = false;
-        syncHeader(state);
-    }
-
-    // ---------- enhance ----------
-
-    function enhanceContextFor(state, kind) {
-        if (kind === 'idea') return state.form.style.trim();
-        if (kind === 'style') return state.form.idea.trim();
-        return [state.form.idea.trim(), state.form.style.trim()].filter(Boolean).join('\n');
-    }
-
-    async function enhance(state, kind, button) {
-        const apiKind = kind === 'random' ? 'idea' : kind;
-        const fieldFor = { idea: 'idea', random: 'idea', style: 'style', lyrics: 'lyrics', title: 'title' };
-        const field = fieldFor[kind];
-        if (!field) return;
-        const currentValue = kind === 'random' ? '' : (state.form[field] || '');
-        if (kind === 'style' && !currentValue.trim()) return;
-        button.classList.add('is-busy');
-        button.disabled = true;
-        try {
-            const data = await request(state, '/api/desktop/noisemaker/enhance', {
-                method: 'POST',
-                body: {
-                    kind: apiKind,
-                    text: currentValue,
-                    context: enhanceContextFor(state, apiKind),
-                    lang: uiLang()
-                }
-            });
-            if (state.disposed) return;
-            if (data && data.text) {
-                state.form[field] = data.text;
-                const input = qs(state, '[data-nm-field="' + field + '"]');
-                if (input) {
-                    input.value = data.text;
-                    if (field === 'lyrics') {
-                        const wrap = qs(state, '[data-nm-lyrics-wrap]');
-                        if (wrap) wrap.open = true;
-                    }
-                }
-                syncCounters(state);
-                syncCreateButton(state);
-            }
-        } catch (err) {
-            if (state.disposed) return;
-            state.ctx.notify((err && err.message) || text(state.ctx, 'enhance_failed', {}, 'AI enhancement failed.'));
-        } finally {
-            button.classList.remove('is-busy');
-            button.disabled = false;
-        }
-    }
-
-    // ---------- generate ----------
-
-    function startElapsedTimer(state) {
-        stopElapsedTimer(state);
-        state.generation.timerId = setInterval(() => {
-            if (state.disposed) { stopElapsedTimer(state); return; }
-            const el = qs(state, '[data-nm-elapsed]');
-            if (el) {
-                const secs = Math.max(0, Math.round((Date.now() - state.generation.startedAt) / 1000));
-                el.textContent = text(state.ctx, 'progress_elapsed', { seconds: secs }, secs + ' s');
-            }
-        }, 1000);
-    }
-
-    function stopElapsedTimer(state) {
-        if (state.generation.timerId) {
-            clearInterval(state.generation.timerId);
-            state.generation.timerId = null;
-        }
-    }
-
-    async function generate(state) {
-        if (state.generation.active) return;
-        for (const input of state.root.querySelectorAll('.nm-local-controls input')) { if (!input.reportValidity()) return; }
-        const params = {
-            prompt: state.form.idea.trim(),
-            style: state.form.style.trim(),
-            lyrics: state.form.lyrics.trim(),
-            title: state.form.title.trim(),
-            instrumental: state.form.instrumental,
-            cover: state.form.cover && state.caps && state.caps.covers_enabled === true,
-            lang: uiLang()
-        };
-        if (state.caps?.supports_controls) {
-            params.duration_seconds = Number(state.form.duration_seconds);
-            if (state.form.bpm !== '') params.bpm = Number(state.form.bpm);
-            params.vocal_language = state.form.vocal_language.trim();
-            if (state.form.seed !== '') params.seed = Number(state.form.seed);
-        }
-        if (!params.prompt && !params.style) return;
-        state.generation.active = true;
-        state.generation.startedAt = Date.now();
-        state.generation.result = null;
-        state.generation.error = '';
-        state.generation.coverFailed = false;
-        state.generation.lastParams = params;
-        renderSlots(state);
-        startElapsedTimer(state);
-        try {
-            const data = await request(state, '/api/desktop/noisemaker/generate', { method: 'POST', body: params });
-            if (state.disposed) return;
-            state.generation.result = data;
-            state.generation.coverFailed = !!data.cover_error;
-            if (state.caps && typeof data.daily_used === 'number') state.caps.daily_used = data.daily_used;
-            state.ctx.notify(text(state.ctx, 'track_created_toast', { title: data.title || '' }, 'Song created.'));
-            refreshTracks(state);
-        } catch (err) {
-            if (state.disposed) return;
-            let message = (err && err.message) || text(state.ctx, 'error_unknown', {}, 'Unknown error.');
-            if (err && err.body && err.body.code === 'lyrics_required') {
-                message = text(state.ctx, 'lyrics_required', {}, message);
-            }
-            state.generation.error = message;
-        } finally {
-            state.generation.active = false;
-            stopElapsedTimer(state);
-            if (!state.disposed) renderSlots(state);
-        }
-    }
-
-    // ---------- library actions ----------
-
-    async function deleteTrack(state, track) {
-        const confirmed = await state.ctx.confirmDialog(
-            text(state.ctx, 'track_delete_title', {}, 'Delete song?'),
-            text(state.ctx, 'track_delete_confirm', { title: track.title || '' }, 'This song will be permanently deleted.')
-        );
-        if (!confirmed || state.disposed) return;
-        try {
-            await request(state, '/api/desktop/noisemaker/tracks/' + encodeURIComponent(track.id), { method: 'DELETE' });
-            if (state.disposed) return;
-            state.ctx.notify(text(state.ctx, 'track_deleted', {}, 'Song deleted.'));
-            state.tracks = state.tracks.filter(item => item.id !== track.id);
-            state.tracksTotal = Math.max(0, state.tracksTotal - 1);
-            state.library.setTracks(state.tracks);
-            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
-            syncHeader(state);
-        } catch (err) {
-            if (state.disposed) return;
-            state.ctx.notify((err && err.message) || text(state.ctx, 'error_unknown', {}, 'Unknown error.'));
-        }
-    }
-
-    function useTemplate(state, track) {
-        let style = '';
-        let idea = String(track.prompt || '');
-        const sep = idea.indexOf(' — ');
-        if (sep > 0) {
-            style = idea.slice(0, sep);
-            idea = idea.slice(sep + 3);
-        }
-        state.form.idea = idea;
-        if (style) state.form.style = style;
-        state.form.instrumental = !!track.instrumental;
-        const ideaInput = qs(state, '[data-nm-field="idea"]');
-        const styleInput = qs(state, '[data-nm-field="style"]');
-        const instrumentalInput = qs(state, '[data-nm-field="instrumental"]');
-        if (ideaInput) ideaInput.value = state.form.idea;
-        if (styleInput) styleInput.value = state.form.style;
-        if (instrumentalInput) instrumentalInput.checked = state.form.instrumental;
-        savePrefs(state);
-        syncCounters(state);
-        syncCreateButton(state);
-        switchView(state, 'create');
     }
 
     // ---------- render ----------
 
-    function renderApp(state) {
-        if (state.disposed || !state.root) return;
-        const caps = state.caps || {};
-        const body = qs(state, '.nm-body');
-        const tabs = qs(state, '.nm-tabs');
+    function renderApp(S) {
+        if (S.disposed || !S.root) return;
+        const caps = S.caps || {};
+        teardownModules(S);
+        const body = qs(S, '.nm-body');
         if (!caps.enabled) {
-            teardownViews(state);
-            body.innerHTML = onboardingMarkup(state);
-            const openBtn = qs(state, '[data-nm-open-settings]');
-            if (openBtn) openBtn.addEventListener('click', () => window.open('/config', '_blank', 'noopener'));
-            const recheck = qs(state, '[data-nm-recheck]');
-            if (recheck) recheck.addEventListener('click', () => loadState(state));
-            if (tabs) tabs.style.display = 'none';
-            syncHeader(state);
+            body.innerHTML = onboardingMarkup(S);
+            S.root.classList.add('is-onboarding');
+            body.querySelector('[data-nm-open-settings]').addEventListener('click', () => window.open('/config', '_blank', 'noopener'));
+            body.querySelector('[data-nm-recheck]').addEventListener('click', () => loadState(S));
+            const toggle = qs(S, '[data-nm-toggle-create]');
+            if (toggle) toggle.hidden = true;
+            const paneSwitch = qs(S, '[data-nm-pane-switch]');
+            if (paneSwitch) paneSwitch.hidden = true;
+            syncHeader(S);
             return;
         }
-        if (tabs) tabs.style.display = '';
-        teardownViews(state);
-        body.innerHTML = bodyViewsMarkup();
-        mountMainViews(state);
-        switchView(state, state.view || 'create');
-        syncHeader(state);
+        S.root.classList.remove('is-onboarding');
+        body.innerHTML = workbenchMarkup(S);
+        mountModules(S);
+        syncHeader(S);
     }
 
-    function teardownViews(state) {
-        state.tracksLoadedOnce = false;
-        if (state.library) {
-            try { state.library.dispose(); } catch (_) {}
-            state.library = null;
+    function mountModules(S) {
+        const ctx = S.ctx;
+        const lib = window.NoisemakerLibrary;
+        const base = { esc: ctx.esc, t: S.t, lang: S.lang, readonly: S.readonly };
+
+        S.create = window.NoisemakerCreate.create(Object.assign({}, base, {
+            request: (path, options) => request(S, path, options),
+            notify: ctx.notify,
+            formatDuration: lib.formatDuration,
+            windowId: S.windowId,
+            mode: S.prefs.mode,
+            form: { style: S.prefs.style, instrumental: S.prefs.instrumental, cover: S.prefs.cover }
+        }));
+        S.library = window.NoisemakerLibrary.create(base);
+        S.player = window.NoisemakerPlayer.create(Object.assign({}, base, {
+            formatDuration: lib.formatDuration,
+            formatDate: lib.formatDate,
+            hasMore: () => S.tracks.length < S.tracksTotal,
+            isVisible: () => !!(S.root && S.root.isConnected && S.root.offsetParent !== null),
+            prefs: { shuffle: S.prefs.shuffle, repeat: S.prefs.repeat, volume: S.prefs.volume, muted: S.prefs.muted, visualizer: S.prefs.visualizer }
+        }));
+
+        qs(S, '[data-nm-pane="create"]').appendChild(S.create.element);
+        const libraryPane = qs(S, '[data-nm-pane="library"]');
+        libraryPane.appendChild(S.library.element);
+        libraryPane.appendChild(S.player.nowPlayingElement);
+        qs(S, '[data-nm-player-slot]').appendChild(S.player.barElement);
+
+        S.create.setCaps(S.caps);
+        S.create.setGeneration(S.generation);
+        S.library.setView(S.prefs.view);
+        S.library.setFilter(S.filter);
+        S.library.setQuery(S.query);
+
+        wireCreate(S);
+        wireLibrary(S);
+        wirePlayer(S);
+        wireSplitter(S);
+        wireResize(S);
+        applyCreateLayout(S);
+        setActivePane(S, S.activePane);
+        refreshMenus(S);
+        refreshTracks(S);
+    }
+
+    function teardownModules(S) {
+        if (S.resizeObserver) { try { S.resizeObserver.disconnect(); } catch (_) {} S.resizeObserver = null; }
+        for (const key of ['create', 'library', 'player']) {
+            if (S[key]) { try { S[key].dispose(); } catch (_) {} S[key] = null; }
+        }
+        S.loadedOnce = false;
+        S.nowPlayingOpen = false;
+        if (S.root) S.root.classList.remove('is-now-playing');
+        if (typeof S.ctx.clearWindowMenus === 'function') { try { S.ctx.clearWindowMenus(S.windowId); } catch (_) {} }
+    }
+
+    // ---------- module wiring ----------
+
+    function wireCreate(S) {
+        const C = S.create;
+        C.on('generate', params => generate(S, params));
+        C.on('change', form => {
+            S.prefs.style = String(form.style || '');
+            S.prefs.instrumental = !!form.instrumental;
+            S.prefs.cover = form.cover !== false;
+            savePrefs(S.prefs);
+        });
+        C.on('mode', mode => { S.prefs.mode = mode; savePrefs(S.prefs); });
+        C.on('play-result', result => playResult(S, result));
+        C.on('show-in-library', result => showInLibrary(S, result));
+        C.on('new-song', () => newSong(S));
+    }
+
+    function wireLibrary(S) {
+        const L = S.library;
+        L.on('play', (track, list) => S.player.play(track, list && list.length ? list : S.tracks));
+        L.on('enqueue', tracks => enqueueTracks(S, tracks));
+        L.on('favorite', (track, value) => toggleFavorite(S, track, value));
+        L.on('delete', tracks => deleteTracks(S, tracks));
+        L.on('template', track => useTemplate(S, track));
+        L.on('download', tracks => downloadTracks(S, tracks));
+        L.on('contextmenu', payload => showLibraryContextMenu(S, payload));
+        L.on('create', () => focusCreate(S));
+        L.on('loadmore', () => loadMoreTracks(S));
+        L.on('search', query => { S.query = query; refreshTracks(S); });
+        L.on('filter', name => { S.filter = name; refreshTracks(S); refreshMenus(S); });
+        L.on('view', name => { S.prefs.view = name; savePrefs(S.prefs); refreshMenus(S); });
+        L.on('selection', () => refreshMenus(S));
+    }
+
+    function wirePlayer(S) {
+        const P = S.player;
+        P.on('state', payload => {
+            S.library.setPlaying(payload && payload.track ? payload.track.id : null, !!(payload && payload.playing));
+            refreshMenus(S);
+        });
+        P.on('change', prefs => { Object.assign(S.prefs, prefs || {}); savePrefs(S.prefs); refreshMenus(S); });
+        P.on('favorite', (track, value) => toggleFavorite(S, track, value));
+        P.on('delete', track => deleteTracks(S, [track]));
+        P.on('template', track => useTemplate(S, track));
+        P.on('download', track => downloadTracks(S, [track]));
+        P.on('expand', open => {
+            S.nowPlayingOpen = !!open;
+            S.root.classList.toggle('is-now-playing', S.nowPlayingOpen);
+            if (S.nowPlayingOpen && S.compact) { S.paneChosen = true; setActivePane(S, 'library'); }
+            refreshMenus(S);
+        });
+        P.on('needmore', () => {
+            loadMoreTracks(S).then(added => { if (!S.disposed && added.length && S.player) S.player.enqueue(added); });
+        });
+        P.on('error', () => S.ctx.notify(S.t('playback_failed')));
+        P.on('visualizer-unavailable', () => { S.visualizerAvailable = false; refreshMenus(S); });
+    }
+
+    // ---------- tracks ----------
+
+    async function fetchTrackPage(S, offset) {
+        const params = new URLSearchParams({ limit: String(TRACKS_PAGE_SIZE), offset: String(offset) });
+        if (S.query) params.set('q', S.query);
+        if (S.filter === 'favorites') params.set('favorites', '1');
+        return await request(S, '/api/desktop/noisemaker/tracks?' + params.toString());
+    }
+
+    function syncPagination(S, loading) {
+        if (!S.library) return;
+        S.library.setPagination({ total: S.tracksTotal, hasMore: S.tracks.length < S.tracksTotal, loading: !!loading });
+    }
+
+    async function refreshTracks(S) {
+        if (!S.library || S.disposed) return;
+        const seq = ++S.loadSeq;
+        S.tracksLoading = true;
+        S.library.setLoading(true);
+        try {
+            const data = await fetchTrackPage(S, 0);
+            if (S.disposed || seq !== S.loadSeq) return;
+            S.tracks = Array.isArray(data.items) ? data.items : [];
+            S.tracksTotal = Number(data.total) || 0;
+            if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
+            S.library.setTracks(S.tracks);
+            syncPagination(S, false);
+            const current = S.player ? S.player.current() : null;
+            if (current) S.library.setPlaying(current.id, S.player.isPlaying());
+        } catch (_) {
+            if (S.disposed || seq !== S.loadSeq) return;
+        }
+        S.tracksLoading = false;
+        S.library.setLoading(false);
+        if (!S.loadedOnce) {
+            S.loadedOnce = true;
+            if (S.compact && !S.paneChosen) setActivePane(S, S.tracks.length ? 'library' : 'create');
+        }
+        syncHeader(S);
+        refreshMenus(S);
+    }
+
+    async function loadMoreTracks(S) {
+        if (!S.library || S.tracksLoading || S.disposed) return [];
+        if (S.tracksTotal > 0 && S.tracks.length >= S.tracksTotal) return [];
+        S.tracksLoading = true;
+        syncPagination(S, true);
+        let additions = [];
+        try {
+            const data = await fetchTrackPage(S, S.tracks.length);
+            if (S.disposed) return [];
+            additions = Array.isArray(data.items) ? data.items : [];
+            S.tracks = S.tracks.concat(additions);
+            S.tracksTotal = Number(data.total) || S.tracksTotal;
+            if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
+            S.library.appendTracks(additions);
+        } catch (_) {
+            if (S.disposed) return [];
+        }
+        S.tracksLoading = false;
+        syncPagination(S, false);
+        syncHeader(S);
+        return additions;
+    }
+
+    function applyTrackUpdate(S, track) {
+        const idx = S.tracks.findIndex(x => String(x.id) === String(track.id));
+        if (idx >= 0) S.tracks[idx] = Object.assign({}, S.tracks[idx], track);
+        if (S.library) S.library.updateTrack(track);
+        if (S.player) S.player.updateTrack(track);
+    }
+
+    function removeTracksLocally(S, ids) {
+        const set = new Set(ids.map(String));
+        S.tracks = S.tracks.filter(x => !set.has(String(x.id)));
+        S.tracksTotal = Math.max(0, S.tracksTotal - ids.length);
+        if (S.library) S.library.removeTracks(ids);
+        syncPagination(S, false);
+    }
+
+    // ---------- flows ----------
+
+    async function generate(S, params) {
+        if (S.generation.active || !S.create) return;
+        S.generation = { active: true, startedAt: Date.now(), result: null, error: '', coverFailed: false, lastParams: params };
+        S.create.setGeneration(S.generation);
+        syncHeader(S);
+        try {
+            const data = await request(S, '/api/desktop/noisemaker/generate', { method: 'POST', body: params });
+            if (S.disposed) return;
+            S.generation = Object.assign({}, S.generation, { active: false, result: data, coverFailed: !!data.cover_error });
+            if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
+            S.ctx.notify(S.t('track_created_toast', { title: data.title || '' }));
+            S.filter = 'all';
+            S.query = '';
+            if (S.library) { S.library.setFilter('all'); S.library.setQuery(''); }
+            await refreshTracks(S);
+            if (S.disposed) return;
+            const id = data.track ? data.track.id : data.media_id;
+            if (id && S.library) S.library.highlight(id);
+        } catch (err) {
+            if (S.disposed) return;
+            let message = (err && err.message) || S.t('error_unknown');
+            if (err && err.body && err.body.code === 'lyrics_required') message = S.t('lyrics_required');
+            S.generation = Object.assign({}, S.generation, { active: false, error: message });
+        } finally {
+            if (!S.disposed) {
+                S.generation.active = false;
+                if (S.create) S.create.setGeneration(S.generation);
+                syncHeader(S);
+                refreshMenus(S);
+            }
         }
     }
 
-    function mountMainViews(state) {
-        const ctx = state.ctx;
-        const createSlot = qs(state, '[data-nm-create]');
-        createSlot.innerHTML = createFormMarkup(state);
-
-        // Restore persisted form values
-        const ideaInput = qs(state, '[data-nm-field="idea"]');
-        const styleInput = qs(state, '[data-nm-field="style"]');
-        const lyricsInput = qs(state, '[data-nm-field="lyrics"]');
-        const titleInput = qs(state, '[data-nm-field="title"]');
-        const instrumentalInput = qs(state, '[data-nm-field="instrumental"]');
-        const coverInput = qs(state, '[data-nm-field="cover"]');
-        if (ideaInput) ideaInput.value = state.form.idea;
-        if (styleInput) styleInput.value = state.form.style;
-        if (lyricsInput) lyricsInput.value = state.form.lyrics;
-        if (titleInput) titleInput.value = state.form.title;
-        if (instrumentalInput) instrumentalInput.checked = state.form.instrumental;
-        if (coverInput) coverInput.checked = state.form.cover;
-        const lyricsWrapInit = qs(state, '[data-nm-lyrics-wrap]');
-        if (lyricsWrapInit) lyricsWrapInit.classList.toggle('is-disabled', state.form.instrumental);
-
-        createSlot.addEventListener('input', event => {
-            const field = event.target.dataset ? event.target.dataset.nmField : '';
-            if (!field) return;
-            if (event.target.type === 'checkbox') {
-                state.form[field] = event.target.checked;
-            } else {
-                state.form[field] = event.target.value;
-            }
-            if (field === 'instrumental') {
-                const wrap = qs(state, '[data-nm-lyrics-wrap]');
-                if (wrap) {
-                    wrap.classList.toggle('is-disabled', state.form.instrumental);
-                    if (state.form.instrumental) wrap.open = false;
-                }
-            }
-            savePrefs(state);
-            syncCounters(state);
-            syncCreateButton(state);
-        });
-        createSlot.addEventListener('click', event => {
-            const enhanceBtn = event.target.closest('[data-nm-enhance]');
-            if (enhanceBtn) { enhance(state, enhanceBtn.dataset.nmEnhance, enhanceBtn); return; }
-            const chip = event.target.closest('[data-nm-chip]');
-            if (chip) {
-                const tag = chip.dataset.nmChip;
-                const current = state.form.style.trim();
-                const has = current.toLowerCase().split(/[,;]/).map(s => s.trim()).includes(tag.toLowerCase());
-                state.form.style = has ? current : (current ? current + ', ' + tag : tag);
-                if (styleInput) styleInput.value = state.form.style;
-                savePrefs(state);
-                syncCreateButton(state);
-                return;
-            }
-            if (event.target.closest('[data-nm-create-btn]')) { generate(state); return; }
-            if (event.target.closest('[data-nm-retry]')) { generate(state); return; }
-            if (event.target.closest('[data-nm-result-new]')) {
-                state.generation.result = null;
-                state.generation.error = '';
-                renderSlots(state);
-                if (ideaInput) { ideaInput.focus(); ideaInput.select(); }
-                return;
-            }
-            if (event.target.closest('[data-nm-result-library]')) { switchView(state, 'library'); }
-        });
-
-        const libraryView = qs(state, '.nm-view-library');
-        state.library = window.NoisemakerLibrary.create({
-            esc: ctx.esc,
-            lang: uiLang(),
-            t: (key, params, fallback) => {
-                const value = ctx.t(key, params || {});
-                return value && value !== key ? value : (fallback || key);
-            }
-        });
-        libraryView.appendChild(state.library.element);
-        state.library.on('delete', track => deleteTrack(state, track));
-        state.library.on('template', track => useTemplate(state, track));
-        state.library.on('create', () => switchView(state, 'create'));
-        state.library.on('loadmore', () => loadMoreTracks(state));
-        state.library.on('needmore-for-play', () => loadMoreTracks(state));
-        state.library.on('search', value => {
-            state.tracksQuery = String(value || '').trim();
-            refreshTracks(state);
-        });
-
-        syncCounters(state);
-        renderSlots(state);
-        refreshTracks(state);
+    function resultTrack(S, result) {
+        if (!result) return null;
+        if (result.track && result.track.web_path) {
+            const inLibrary = S.tracks.find(x => String(x.id) === String(result.track.id));
+            return inLibrary || result.track;
+        }
+        if (!result.web_path) return null;
+        const params = S.generation.lastParams || {};
+        return {
+            id: 'result-' + (result.media_id || Date.now()),
+            title: result.title || S.t('result_untitled'),
+            web_path: result.web_path,
+            cover_url: result.cover_url || '',
+            duration_ms: result.duration_ms || 0,
+            provider: result.provider || '',
+            lyrics: result.lyrics || '',
+            style: params.style || '',
+            prompt: params.prompt || '',
+            instrumental: !!params.instrumental,
+            favorite: false,
+            tags: []
+        };
     }
 
-    function render(host, windowId, context) {
-        if (!host) return;
-        const ctx = context || {};
-        ctx.esc = ctx.esc || (v => String(v == null ? '' : v));
-        ctx.t = ctx.t || ((k) => k);
-        ctx.api = ctx.api || (() => Promise.reject(new Error('api unavailable')));
-        ctx.notify = ctx.notify || (() => {});
-        ctx.confirmDialog = ctx.confirmDialog || (() => Promise.resolve(false));
-        ctx.iconMarkup = ctx.iconMarkup || ((k, f) => '<span>' + ctx.esc(f || k || '') + '</span>');
+    function playResult(S, result) {
+        const track = resultTrack(S, result);
+        if (!track || !S.player) return;
+        const inLibrary = S.tracks.some(x => String(x.id) === String(track.id));
+        S.player.play(track, inLibrary ? S.tracks : [track]);
+    }
 
-        const state = createState(host, windowId, ctx);
-        instances.set(windowId, state);
+    function showInLibrary(S, result) {
+        if (S.compact) { S.paneChosen = true; setActivePane(S, 'library'); }
+        const id = result && result.track ? result.track.id : (result ? result.media_id : null);
+        if (!id || !S.library) return;
+        if (!S.library.highlight(id)) refreshTracks(S).then(() => { if (!S.disposed && S.library) S.library.highlight(id); });
+    }
 
-        host.innerHTML = shellMarkup(state);
-        state.root = host.querySelector('.noisemaker-app');
+    function newSong(S) {
+        S.generation = emptyGeneration();
+        if (S.create) S.create.setGeneration(S.generation);
+        syncHeader(S);
+        focusCreate(S);
+    }
 
-        state.root.querySelectorAll('.nm-tab').forEach(tab => {
-            tab.addEventListener('click', () => switchView(state, tab.dataset.view));
+    function enqueueTracks(S, tracks) {
+        if (!S.player) return;
+        const count = S.player.enqueue(tracks || []);
+        if (count > 0) S.ctx.notify(count === 1 ? S.t('queue_added_one') : S.t('queue_added', { count }));
+        refreshMenus(S);
+    }
+
+    async function toggleFavorite(S, track, value) {
+        if (S.readonly || !track) return;
+        const next = !!value;
+        applyTrackUpdate(S, Object.assign({}, track, { favorite: next }));
+        try {
+            const data = await request(S, '/api/desktop/noisemaker/tracks/' + encodeURIComponent(track.id), { method: 'PATCH', body: { favorite: next } });
+            if (S.disposed) return;
+            if (data && data.track) applyTrackUpdate(S, data.track);
+            if (S.filter === 'favorites' && !next) removeTracksLocally(S, [track.id]);
+        } catch (err) {
+            if (S.disposed) return;
+            applyTrackUpdate(S, Object.assign({}, track, { favorite: !next }));
+            S.ctx.notify((err && err.message) || S.t('favorite_failed'));
+        }
+        syncHeader(S);
+        refreshMenus(S);
+    }
+
+    async function deleteTracks(S, tracks) {
+        const list = (tracks || []).filter(Boolean);
+        if (!list.length || S.readonly) return;
+        const single = list.length === 1;
+        const confirmed = await S.ctx.confirmDialog(
+            single ? S.t('track_delete_title') : S.t('tracks_delete_title', { count: list.length }),
+            single ? S.t('track_delete_confirm', { title: list[0].title || '' }) : S.t('tracks_delete_confirm', { count: list.length })
+        );
+        if (!confirmed || S.disposed) return;
+        const removed = [];
+        let failed = 0;
+        for (const track of list) {
+            try {
+                await request(S, '/api/desktop/noisemaker/tracks/' + encodeURIComponent(track.id), { method: 'DELETE' });
+                removed.push(track.id);
+            } catch (_) {
+                failed += 1;
+            }
+            if (S.disposed) return;
+        }
+        if (removed.length) {
+            removeTracksLocally(S, removed);
+            if (S.player) S.player.removeTracks(removed);
+            const resultId = S.generation.result && S.generation.result.track ? String(S.generation.result.track.id) : '';
+            if (resultId && removed.some(id => String(id) === resultId)) {
+                S.generation = emptyGeneration();
+                if (S.create) S.create.setGeneration(S.generation);
+            }
+        }
+        if (!failed) S.ctx.notify(single ? S.t('track_deleted') : S.t('tracks_deleted', { count: removed.length }));
+        else if (removed.length) S.ctx.notify(S.t('tracks_deleted_partial', { done: removed.length, total: list.length }));
+        else S.ctx.notify(S.t('track_delete_failed'));
+        syncHeader(S);
+        refreshMenus(S);
+    }
+
+    function downloadTracks(S, tracks) {
+        (tracks || []).filter(track => track && track.web_path).forEach((track, index) => {
+            setTimeout(() => {
+                if (S.disposed) return;
+                const link = document.createElement('a');
+                link.href = track.web_path;
+                link.download = String(track.web_path).split('/').pop() || 'song';
+                link.rel = 'noopener';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            }, index * 350);
         });
+    }
 
-        // Paint a loading skeleton first, then fetch capabilities.
-        const body = state.root.querySelector('.nm-body');
-        body.innerHTML = '<div class="nm-onboarding"><div class="nm-loading">' + ctx.esc(text(ctx, 'library_loading', {}, 'Loading…')) + '</div></div>';
-        loadState(state);
+    function useTemplate(S, track) {
+        if (!track || !S.create) return;
+        let idea = String(track.prompt || '');
+        let style = String(track.style || '');
+        const sep = idea.indexOf(' — ');
+        if (sep > 0) {
+            if (!style) style = idea.slice(0, sep);
+            idea = idea.startsWith(style + ' — ') ? idea.slice(style.length + 3) : idea.slice(sep + 3);
+        }
+        const lyrics = String(track.lyrics || '');
+        if (lyrics) S.create.setMode('custom');
+        S.create.setForm({ idea, style, lyrics, title: '', instrumental: !!track.instrumental });
+        S.prefs.style = style;
+        S.prefs.instrumental = !!track.instrumental;
+        savePrefs(S.prefs);
+        focusCreate(S);
+    }
+
+    function focusCreate(S) {
+        if (S.compact) { S.paneChosen = true; setActivePane(S, 'create'); }
+        else if (S.prefs.createCollapsed) setCreateCollapsed(S, false);
+        if (S.create) S.create.focusIdea();
+    }
+
+    function openDetails(S, track) {
+        if (!S.player || !track) return;
+        const current = S.player.current();
+        if (!current || String(current.id) !== String(track.id)) S.player.play(track, S.tracks);
+        S.player.setNowPlayingOpen(true);
+    }
+
+    // ---------- menus ----------
+
+    function menuTargets(S) {
+        const selection = S.library ? S.library.selectedTracks() : [];
+        if (selection.length) return selection;
+        const current = S.player ? S.player.current() : null;
+        return current ? [current] : [];
+    }
+
+    function menuModel(S) {
+        const selection = S.library ? S.library.selectedTracks() : [];
+        const current = S.player ? S.player.current() : null;
+        const targets = menuTargets(S);
+        return {
+            t: S.t,
+            tFull: S.tFull,
+            readonly: S.readonly,
+            actions: menuActions(S),
+            s: {
+                view: S.prefs.view,
+                filter: S.filter,
+                selectMode: !!(S.library && S.library.isSelectMode()),
+                selectionCount: selection.length,
+                hasTracks: S.tracks.length > 0,
+                hasTarget: targets.length > 0,
+                singleTarget: targets.length === 1,
+                targetFavorite: targets.length === 1 && !!targets[0].favorite,
+                createCollapsed: S.prefs.createCollapsed,
+                nowPlayingOpen: S.nowPlayingOpen,
+                visualizer: S.prefs.visualizer,
+                visualizerAvailable: S.visualizerAvailable,
+                playing: !!(S.player && S.player.isPlaying()),
+                hasCurrent: !!current,
+                shuffle: S.prefs.shuffle,
+                repeat: S.prefs.repeat,
+                queueLength: S.player ? S.player.queue().length : 0,
+                compact: S.compact
+            }
+        };
+    }
+
+    function menuActions(S) {
+        return {
+            newSong: () => newSong(S),
+            downloadTargets: () => downloadTracks(S, menuTargets(S)),
+            templateTarget: () => { const list = menuTargets(S); if (list.length === 1) useTemplate(S, list[0]); },
+            deleteTargets: () => deleteTracks(S, menuTargets(S)),
+            selectAll: () => { if (S.library) S.library.selectAll(); },
+            clearSelection: () => { if (S.library) S.library.clearSelection(); },
+            setSelectMode: on => { if (S.library) S.library.setSelectMode(!!on); refreshMenus(S); },
+            toggleFavoriteTarget: () => { const list = menuTargets(S); if (list.length === 1) toggleFavorite(S, list[0], !list[0].favorite); },
+            refresh: () => refreshTracks(S),
+            setView: name => { S.prefs.view = name; savePrefs(S.prefs); if (S.library) S.library.setView(name); refreshMenus(S); },
+            setFilter: name => { S.filter = name; if (S.library) S.library.setFilter(name); refreshTracks(S); },
+            setCreateCollapsed: collapsed => setCreateCollapsed(S, collapsed),
+            setNowPlayingOpen: open => { if (S.player) S.player.setNowPlayingOpen(!!open); },
+            setVisualizer: on => { if (S.player) S.player.setVisualizer(!!on); },
+            togglePlay: () => {
+                if (!S.player) return;
+                if (S.player.current() || S.player.queue().length) S.player.toggle();
+                else if (S.tracks.length) S.player.play(S.tracks[0], S.tracks);
+            },
+            next: () => { if (S.player) S.player.next(); },
+            prev: () => { if (S.player) S.player.prev(); },
+            setShuffle: on => { if (S.player) S.player.setShuffle(!!on); },
+            setRepeat: mode => { if (S.player) S.player.setRepeat(mode); },
+            clearQueue: () => { if (S.player) S.player.clearQueue(); refreshMenus(S); },
+            targetTracks: track => (S.library ? S.library.targetsFor(track) : [track]),
+            isSelected: track => !!(S.library && S.library.isSelected(track)),
+            playTrack: track => { if (S.player) S.player.play(track, S.tracks); },
+            playTracks: list => { if (S.player && list.length) S.player.play(list[0], list); },
+            enqueueTracks: list => enqueueTracks(S, list),
+            toggleFavorite: track => toggleFavorite(S, track, !track.favorite),
+            useTemplate: track => useTemplate(S, track),
+            downloadTracks: list => downloadTracks(S, list),
+            openDetails: track => openDetails(S, track),
+            toggleSelection: track => { if (S.library) S.library.toggleSelection(track); },
+            deleteTracks: list => deleteTracks(S, list)
+        };
+    }
+
+    function refreshMenus(S) {
+        if (S.disposed || !S.root || !S.library || !S.player || !window.NoisemakerMenus) return;
+        if (typeof S.ctx.setWindowMenus !== 'function') return;
+        S.ctx.setWindowMenus(S.windowId, window.NoisemakerMenus.windowMenus(menuModel(S)));
+    }
+
+    function showLibraryContextMenu(S, payload) {
+        if (!payload || typeof S.ctx.showContextMenu !== 'function' || !window.NoisemakerMenus) return;
+        const model = menuModel(S);
+        const items = payload.track
+            ? window.NoisemakerMenus.trackContextItems(model, payload.track)
+            : window.NoisemakerMenus.libraryContextItems(model);
+        S.ctx.showContextMenu(payload.x, payload.y, items);
+    }
+
+    // ---------- layout ----------
+
+    function applyCreateLayout(S) {
+        const workbench = qs(S, '[data-nm-workbench]');
+        if (!workbench) return;
+        workbench.style.setProperty('--nm-create-width', S.prefs.createWidth + 'px');
+        const collapsed = S.prefs.createCollapsed && !S.compact;
+        S.root.classList.toggle('is-create-collapsed', collapsed);
+        const splitter = qs(S, '[data-nm-splitter]');
+        if (splitter) splitter.setAttribute('aria-valuenow', String(S.prefs.createWidth));
+        const toggle = qs(S, '[data-nm-toggle-create]');
+        if (toggle) {
+            const label = S.t(collapsed ? 'create_panel_show' : 'create_panel_hide');
+            toggle.hidden = S.compact;
+            toggle.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
+            toggle.setAttribute('aria-label', label);
+            toggle.title = label;
+        }
+    }
+
+    function setCreateCollapsed(S, collapsed) {
+        S.prefs.createCollapsed = !!collapsed;
+        savePrefs(S.prefs);
+        applyCreateLayout(S);
+        refreshMenus(S);
+    }
+
+    function setCreateWidth(S, width) {
+        S.prefs.createWidth = Math.round(Math.min(CREATE_MAX, Math.max(CREATE_MIN, width)));
+        applyCreateLayout(S);
+    }
+
+    function wireSplitter(S) {
+        const splitter = qs(S, '[data-nm-splitter]');
+        if (!splitter) return;
+        let dragging = false;
+        let startX = 0;
+        let startWidth = 0;
+        splitter.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || S.compact) return;
+            dragging = true;
+            startX = event.clientX;
+            startWidth = S.prefs.createWidth;
+            if (S.prefs.createCollapsed) { S.prefs.createCollapsed = false; applyCreateLayout(S); }
+            splitter.classList.add('is-dragging');
+            try { splitter.setPointerCapture(event.pointerId); } catch (_) {}
+            event.preventDefault();
+        });
+        splitter.addEventListener('pointermove', event => {
+            if (!dragging) return;
+            setCreateWidth(S, startWidth + (event.clientX - startX));
+        });
+        const stop = event => {
+            if (!dragging) return;
+            dragging = false;
+            splitter.classList.remove('is-dragging');
+            try { splitter.releasePointerCapture(event.pointerId); } catch (_) {}
+            savePrefs(S.prefs);
+            refreshMenus(S);
+        };
+        splitter.addEventListener('pointerup', stop);
+        splitter.addEventListener('pointercancel', stop);
+        splitter.addEventListener('dblclick', () => setCreateCollapsed(S, !S.prefs.createCollapsed));
+        splitter.addEventListener('keydown', event => {
+            let width = null;
+            if (event.key === 'ArrowLeft') width = S.prefs.createWidth - 16;
+            else if (event.key === 'ArrowRight') width = S.prefs.createWidth + 16;
+            else if (event.key === 'Home') width = CREATE_MIN;
+            else if (event.key === 'End') width = CREATE_MAX;
+            else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setCreateCollapsed(S, !S.prefs.createCollapsed); return; }
+            if (width == null) return;
+            event.preventDefault();
+            S.prefs.createCollapsed = false;
+            setCreateWidth(S, width);
+            savePrefs(S.prefs);
+        });
+    }
+
+    function wireResize(S) {
+        if (typeof ResizeObserver !== 'function') { setCompact(S, S.root.clientWidth > 0 && S.root.clientWidth < COMPACT_WIDTH); return; }
+        S.resizeObserver = new ResizeObserver(entries => {
+            if (S.disposed) return;
+            const width = entries[0] && entries[0].contentRect ? entries[0].contentRect.width : S.root.clientWidth;
+            if (width > 0) setCompact(S, width < COMPACT_WIDTH);
+        });
+        S.resizeObserver.observe(S.root);
+        if (S.root.clientWidth > 0) setCompact(S, S.root.clientWidth < COMPACT_WIDTH);
+    }
+
+    function setCompact(S, compact) {
+        if (S.compact === compact) return;
+        S.compact = compact;
+        S.root.classList.toggle('is-compact', compact);
+        const paneSwitch = qs(S, '[data-nm-pane-switch]');
+        if (paneSwitch) paneSwitch.hidden = !compact || S.root.classList.contains('is-onboarding');
+        if (compact && !S.paneChosen && S.loadedOnce) S.activePane = S.tracks.length ? 'library' : 'create';
+        applyCreateLayout(S);
+        setActivePane(S, S.activePane);
+        refreshMenus(S);
+    }
+
+    function setActivePane(S, pane) {
+        S.activePane = pane === 'library' ? 'library' : 'create';
+        S.root.dataset.nmPane = S.activePane;
+        S.root.querySelectorAll('[data-nm-pane-btn]').forEach(btn => {
+            const active = btn.dataset.nmPaneBtn === S.activePane;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+    }
+
+    // ---------- lifecycle ----------
+
+    function render(host, windowId, context) {
+        dispose(windowId);
+        const ctx = Object.assign({
+            esc: value => String(value == null ? '' : value),
+            t: key => key,
+            api: () => Promise.reject(new Error('api unavailable')),
+            notify: () => {},
+            confirmDialog: async () => false
+        }, context || {});
+        const t = makeT(ctx);
+        const tFull = key => { const value = ctx.t(key, {}); return value && value !== key ? value : key; };
+        const S = {
+            host, windowId, ctx, t, tFull,
+            prefs: readPrefs(),
+            lang: uiLang(),
+            readonly: !!ctx.readonly,
+            disposed: false,
+            controllers: new Set(),
+            caps: null,
+            root: null,
+            create: null, library: null, player: null,
+            tracks: [], tracksTotal: 0, query: '', filter: 'all',
+            tracksLoading: false, loadedOnce: false, loadSeq: 0,
+            statusTimer: null,
+            generation: emptyGeneration(),
+            compact: false, activePane: 'create', paneChosen: false,
+            nowPlayingOpen: false, visualizerAvailable: true,
+            resizeObserver: null
+        };
+        instances.set(windowId, S);
+        host.innerHTML = shellMarkup(S);
+        S.root = host.querySelector('.noisemaker-app');
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(S.root);
+        wireHeader(S);
+        qs(S, '.nm-body').innerHTML = '<div class="nm-loading nm-muted">' + ctx.esc(t('library_loading')) + '</div>';
+        loadState(S);
     }
 
     function dispose(windowId) {
-        const state = instances.get(windowId);
-        if (!state) return;
+        const S = instances.get(windowId);
+        if (!S) return;
         instances.delete(windowId);
-        state.disposed = true;
-        clearTimeout(state.statusTimer);
-        stopElapsedTimer(state);
-        state.controllers.forEach(controller => { try { controller.abort(); } catch (_) {} });
-        state.controllers.clear();
-        if (state.library) {
-            try { state.library.dispose(); } catch (_) {}
-            state.library = null;
-        }
-        state.root = null;
+        S.disposed = true;
+        clearTimeout(S.statusTimer);
+        S.controllers.forEach(controller => { try { controller.abort(); } catch (_) {} });
+        S.controllers.clear();
+        teardownModules(S);
+        if (S.host) S.host.innerHTML = '';
+        S.root = null;
     }
 
     window.NoisemakerApp = { render, dispose };

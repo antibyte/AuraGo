@@ -265,3 +265,62 @@ func TestDesktopNoisemakerRefreshCreateModule(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerRefreshAssets(t *testing.T) {
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	wantOrder := "scripts: ['/js/desktop/apps/noisemaker-menus.js', '/js/desktop/apps/noisemaker-library.js', '/js/desktop/apps/noisemaker-player.js', '/js/desktop/apps/noisemaker-create.js', '/js/desktop/apps/noisemaker.js']"
+	if !strings.Contains(loader, wantOrder) {
+		t.Fatalf("module-loader must load the noisemaker modules in order: %s", wantOrder)
+	}
+
+	routing := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	wantCtx := "window.NoisemakerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly() }))"
+	if !strings.Contains(routing, wantCtx) {
+		t.Fatalf("noisemaker window context must expose context menus and readonly: %s", wantCtx)
+	}
+
+	shell := readDesktopAssetText(t, "js/desktop/apps/noisemaker.js")
+	for _, marker := range []string{
+		"window.NoisemakerApp = { render, dispose }",
+		"const PREF_KEY = 'aurago.desktop.noisemaker.prefs'",
+		"const CREATE_MIN = 320",
+		"const CREATE_MAX = 560",
+		"const COMPACT_WIDTH = 860",
+		"const TRACKS_PAGE_SIZE = 60",
+		"window.NoisemakerMenus.windowMenus(menuModel(S))",
+		"window.NoisemakerMenus.trackContextItems(",
+		"window.NoisemakerMenus.libraryContextItems(",
+		"window.NoisemakerLibrary.create(",
+		"window.NoisemakerPlayer.create(",
+		"window.NoisemakerCreate.create(",
+		"data-nm-splitter",
+		"role=\"separator\"",
+		"data-nm-pane=\"create\"",
+		"data-nm-pane=\"library\"",
+		"data-nm-player-slot",
+		"data-nm-pane-switch",
+		"data-nm-toggle-create",
+		"data-nm-refresh",
+		"params.set('favorites', '1')",
+		"method: 'PATCH'",
+		"method: 'DELETE'",
+		"'/api/desktop/noisemaker/generate'",
+		"'/api/desktop/noisemaker/state'",
+		"ctx.clearWindowMenus",
+		"new ResizeObserver(",
+		"ctx.wireContextMenuBoundary(S.root)",
+		"S.ctx.showContextMenu(payload.x, payload.y, items)",
+		"tracks_deleted_partial",
+		"favorite_failed",
+		"playback_failed",
+	} {
+		if !strings.Contains(shell, marker) {
+			t.Fatalf("noisemaker.js missing %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "new Audio(", "/api/music-generation", "desktop.rel_time_", "nm-tab\" role=\"tab\" data-view"} {
+		if strings.Contains(shell, forbidden) {
+			t.Fatalf("noisemaker.js must not contain %q", forbidden)
+		}
+	}
+}
