@@ -126,3 +126,28 @@ func TestDesktopNoisemakerRefreshTranslations(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerRefreshMenusModule(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/noisemaker-menus.js")
+	for _, marker := range []string{
+		"window.NoisemakerMenus = { windowMenus, trackContextItems, libraryContextItems, withCheckIcons }",
+		"function withCheckIcons(items)",
+		"id: 'file'", "id: 'edit'", "id: 'view'", "id: 'playback'",
+		"id: 'new-song'", "id: 'favorite-toggle'", "id: 'select-mode'",
+		"id: 'view-grid'", "id: 'view-list'", "id: 'filter-favorites'", "id: 'create-panel'", "id: 'now-playing'", "id: 'visualizer'",
+		"id: 'play-pause'", "id: 'shuffle'", "'repeat-' + mode", "id: 'clear-queue'",
+		"id: 'enqueue'", "id: 'details'", "id: 'toggle-select'",
+		"tFull('desktop.menu_file')", "tFull('desktop.menu_edit')", "tFull('desktop.menu_view')",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("noisemaker-menus.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "confirm(", "prompt(", "window.NoisemakerApp", "window.NoisemakerLibrary", "window.NoisemakerPlayer"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("noisemaker-menus.js must not contain %q", forbidden)
+		}
+	}
+}
