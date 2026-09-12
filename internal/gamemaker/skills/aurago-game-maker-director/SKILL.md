@@ -40,7 +40,9 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
    scene_inspect while planning, then scene_set, scene_patch, or
    scene_generate after acceptance with the inspected expected_sha256.
    Generators are composable recipes, not a genre or style constraint. Optional
-   mechanics may declare outcomes (won/lost) or lives; omit them for
+   `design.mechanics` may declare `outcomes` (won/lost) or `lives`; these
+   fields belong inside `mechanics`, alongside `blocks` and `events`, never
+   alongside `base` or `objective`. Omit them for
    continuous play. Use source edits for any custom rule or presentation.
    Use agent scene operations only; there is no visual map editor. The canonical
    document is `src/scene.json`. Start with
@@ -68,15 +70,17 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
    `asset_id`/`asset_role` select the visual and placement `behavior` is an
    independent string. A role named `item` does not collect anything by itself;
    `collect` plus `win_when_cleared` supplies that rule. Multiple placements can
-   share one stable `node_id`. For optional helpers, use a mechanics object such
-   as:
+   share one stable `node_id`. For optional helpers, put this fragment inside
+   `set_design.design` (the inner object is also the content of `src/mechanics.json`):
    ```json
    {
-     "lives":3,
-     "blocks":[
-       {"id":"player-health","kind":"health","target":"player","value":3},
-       {"id":"player-fire","kind":"projectile","target":"player","params":"{\"direction\":[1,0,0],\"speed\":420,\"ttl\":1,\"cooldown\":0.25}"}
-     ]
+     "mechanics":{
+       "lives":3,
+       "blocks":[
+         {"id":"player-health","kind":"health","target":"player","value":3},
+         {"id":"player-fire","kind":"projectile","target":"player","params":"{\"direction\":[1,0,0],\"speed\":420,\"ttl\":1,\"cooldown\":0.25}"}
+       ]
+     }
    }
    ```
    The strict tool schema sends `params` as an encoded JSON object; plans and

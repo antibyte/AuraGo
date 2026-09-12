@@ -86,7 +86,7 @@ func gameMakerMechanicsSchema() map[string]interface{} {
 		"params":  prop("string", "Optional JSON object of bounded parameters"),
 		"enabled": prop("boolean", "Whether this optional block is active"),
 	}, "id", "kind")
-	return schema(map[string]interface{}{
+	mechanics := schema(map[string]interface{}{
 		"outcomes": map[string]interface{}{"type": "array", "maxItems": 2, "items": map[string]interface{}{"type": "string", "enum": []string{"won", "lost"}}, "description": "Optional terminal outcomes; omit for continuous play"},
 		"lives":    map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 99, "description": "Optional lives count; no default is imposed"},
 		"blocks":   map[string]interface{}{"type": "array", "maxItems": 32, "items": block},
@@ -96,6 +96,8 @@ func gameMakerMechanicsSchema() map[string]interface{} {
 			"sound":  prop("string", "Optional resolved sound ID"),
 		}, "event")},
 	})
+	mechanics["description"] = "Optional design.mechanics object. Nest outcomes, lives, blocks and events here, not at the design root. Omit for games that use custom source rules."
+	return mechanics
 }
 func gameMakerSceneSchema() map[string]interface{} {
 	vec := func(description string) map[string]interface{} {

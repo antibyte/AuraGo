@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 	"slices"
 	"strings"
 )
@@ -73,6 +74,9 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 		draft[k] = v
 	}
 	s.mu.RUnlock()
+	if err := normalizeDesignMechanics(patch, draft); err != nil {
+		return nil, err
+	}
 	for k, v := range patch {
 		if !bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			draft[k] = v
@@ -105,6 +109,55 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 		return nil, err
 	}
 	return json.Marshal(plan)
+}
+
+// Some models flatten the documented mechanics object. Relocate only its four
+// exact fields; normal plan validation still checks their values and limits.
+func normalizeDesignMechanics(patch, draft map[string]json.RawMessage) error {
+	var mechanics map[string]any
+	changed := false
+	raw := patch["mechanics"]
+	explicit := len(raw) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null"))
+	if !explicit {
+		raw = draft["mechanics"]
+	}
+	for _, key := range []string{"outcomes", "lives", "blocks", "events"} {
+		value, exists := patch[key]
+		if !exists {
+			continue
+		}
+		delete(patch, key)
+		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			continue
+		}
+		if mechanics == nil {
+			if len(raw) > 0 {
+				if err := json.Unmarshal(raw, &mechanics); err != nil {
+					return fmt.Errorf("design.mechanics: expected an object containing outcomes, lives, blocks and events: %w", err)
+				}
+			}
+			if mechanics == nil {
+				mechanics = map[string]any{}
+			}
+		}
+		var decoded any
+		if err := json.Unmarshal(value, &decoded); err != nil {
+			return fmt.Errorf("design.mechanics.%s: %w", key, err)
+		}
+		if nested, exists := mechanics[key]; explicit && exists && nested != nil && !reflect.DeepEqual(nested, decoded) {
+			return fmt.Errorf("design.mechanics.%s: conflicts with design.%s; keep one value inside mechanics", key, key)
+		}
+		mechanics[key] = decoded
+		changed = true
+	}
+	if changed {
+		encoded, err := json.Marshal(mechanics)
+		if err != nil {
+			return fmt.Errorf("design.mechanics: %w", err)
+		}
+		patch["mechanics"] = encoded
+	}
+	return nil
 }
 
 func (s *Service) planFromDesign(ctx context.Context, jobID string, project Project, d GameDesign) (GamePlan, error) {

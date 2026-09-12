@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -86,6 +87,98 @@ func TestGuidedDesignRejectsUnknownFields(t *testing.T) {
 	}
 	if done := waitJob(t, s, job.ID); done.Status != "failed" || !strings.Contains(done.Error, "unknown") {
 		t.Fatal(done)
+	}
+}
+
+func TestGuidedDesignNormalizesMechanicsPlacement(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		t.Run(dimension, func(t *testing.T) {
+			s := newTestService(t)
+			project := createTestProject(t, s, dimension)
+			base := "platformer"
+			if dimension == "3d" {
+				base = "fps"
+			}
+			s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+				if run.Stage != "planning" {
+					plan, err := s.GetPlan(ctx, run.Job.ID)
+					if err != nil {
+						return err
+					}
+					if plan.SchemaVersion != 4 || plan.Mechanics["lives"] != float64(1) || len(plan.Mechanics["blocks"].([]any)) != 2 || len(plan.Mechanics["events"].([]any)) != 1 || len(plan.Mechanics["outcomes"].([]any)) != 2 {
+						return fmt.Errorf("mechanic values lost: %+v", plan.Mechanics)
+					}
+					if plan.Objective != "Complete the unusual challenge" || plan.Scope[0] != "Custom player mechanic" {
+						return errors.New("creative design was replaced")
+					}
+					return errors.New("verified mechanics placement")
+				}
+				// Real failure shape: blocks are nested; the other helper fields are flat.
+				data := []byte(fmt.Sprintf(`{"base":%q,"objective":"Complete the unusual challenge","features":["Custom player mechanic"],"outcomes":["won","lost"],"lives":1,"events":[{"event":"hit"}],"mechanics":{"blocks":[{"id":"move","kind":"movement"},{"id":"look","kind":"camera"}]}}`, base))
+				// Exercise the encoded provider transport at the shared public boundary.
+				if dimension == "3d" {
+					data, _ = json.Marshal(string(data))
+				}
+				return s.SetDesignJSON(ctx, run.Job.ID, data)
+			}))
+			job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if done := waitJob(t, s, job.ID); done.Error != "verified mechanics placement" {
+				t.Fatal(done)
+			}
+		})
+	}
+}
+
+func TestGuidedMechanicsPlacementPreservesValidationAndCorrections(t *testing.T) {
+	for _, tc := range []struct{ name, fields, wantError string }{
+		{"flat blocks", `"blocks":[{"id":"move","kind":"movement"}]`, ""},
+		{"equal duplicates", `"outcomes":["won"],"mechanics":{"outcomes":[ "won" ]}`, ""},
+		{"null optional", `"outcomes":null,"lives":null,"mechanics":{"outcomes":["won"]}`, ""},
+		{"conflicting duplicates", `"outcomes":["won"],"mechanics":{"outcomes":["lost"]}`, "design.mechanics.outcomes: conflicts"},
+		{"invalid outcome", `"outcomes":["victory"]`, "plan.mechanics.outcomes"},
+		{"invalid lives", `"lives":100`, "plan.mechanics.lives"},
+		{"invalid block", `"blocks":[{"id":"move","kind":"invented"}]`, "plan.mechanics.blocks"},
+		{"invalid event", `"events":[{"event":"hit","invented":true}]`, "plan.mechanics.events"},
+		{"invalid mechanics", `"lives":3,"mechanics":[]`, "design.mechanics"},
+		{"unknown root", `"outcomes":["won"],"invented":true`, `unknown field "invented"`},
+		{"unknown nested", `"outcomes":["won"],"mechanics":{"invented":true}`, "plan.mechanics.invented"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newTestService(t)
+			project := Project{Dimension: "2d"}
+			data := []byte(`{"base":"minimal","objective":"Explore","features":["Custom rules"],` + tc.fields + `}`)
+			encoded, err := s.expandDesign(context.Background(), "draft", project, data)
+			if err == nil {
+				var plan GamePlan
+				if err = json.Unmarshal(encoded, &plan); err == nil {
+					err = s.checkPlan(project, plan)
+				}
+			}
+			if tc.wantError == "" && err != nil || tc.wantError != "" && (err == nil || !strings.Contains(err.Error(), tc.wantError)) {
+				t.Fatalf("expected %q; got %v", tc.wantError, err)
+			}
+		})
+	}
+	s := newTestService(t)
+	project := Project{Dimension: "2d"}
+	// A correction to a misplaced field must keep existing sibling blocks.
+	_, err := s.expandDesign(context.Background(), "draft", project, []byte(`{"base":"minimal","objective":"Explore","features":["Custom rules"],"mechanics":{"outcomes":["invalid"],"blocks":[{"id":"move","kind":"movement"}]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := s.expandDesign(context.Background(), "draft", project, []byte(`{"outcomes":["won"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan GamePlan
+	if err = json.Unmarshal(encoded, &plan); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.checkPlan(project, plan); err != nil || len(plan.Mechanics["blocks"].([]any)) != 1 || plan.Objective != "Explore" {
+		t.Fatalf("correction lost retained fields: %+v, %v", plan, err)
 	}
 }
 
