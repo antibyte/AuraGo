@@ -418,6 +418,17 @@
 
         // ---- visualizer --------------------------------------------------
 
+        function closeAudioContext() {
+            if (!audioCtx) return;
+            try {
+                if (typeof audioCtx.close === 'function') {
+                    const p = audioCtx.close();
+                    if (p && p.catch) p.catch(() => {});
+                }
+            } catch (_) { /* ignore */ }
+            audioCtx = null;
+        }
+
         function ensureAudioGraph() {
             if (audioCtx || !visualizerAvailable) return;
             const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -436,7 +447,7 @@
                     markVisualizerUnavailable();
                 }
             } catch (_) {
-                audioCtx = null;
+                closeAudioContext();
                 markVisualizerUnavailable();
             }
         }
@@ -661,6 +672,11 @@
             }
         });
 
+        function applySeek() {
+            const dur = Number.isFinite(audio.duration) ? audio.duration : 0;
+            if (dur) audio.currentTime = (Number(seek.value) / 1000) * dur;
+            seeking = false;
+        }
         seek.addEventListener('pointerdown', () => { seeking = true; });
         seek.addEventListener('input', () => {
             const dur = Number.isFinite(audio.duration) ? audio.duration : 0;
@@ -668,11 +684,9 @@
             seeking = true;
             q('[data-nm-current]').textContent = formatDuration((Number(seek.value) / 1000) * dur * 1000);
         });
-        seek.addEventListener('change', () => {
-            const dur = Number.isFinite(audio.duration) ? audio.duration : 0;
-            if (dur) audio.currentTime = (Number(seek.value) / 1000) * dur;
-            seeking = false;
-        });
+        seek.addEventListener('change', applySeek);
+        seek.addEventListener('pointerup', applySeek);
+        seek.addEventListener('pointercancel', applySeek);
         volumeInput.addEventListener('input', () => {
             const value = clamp01(volumeInput.value);
             if (audio.muted && value > 0) audio.muted = false;
@@ -707,8 +721,7 @@
             stopLoop();
             document.removeEventListener('visibilitychange', onVisibility);
             try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (_) { /* ignore */ }
-            if (audioCtx && typeof audioCtx.close === 'function') audioCtx.close().catch(() => {});
-            audioCtx = null;
+            closeAudioContext();
             analyser = null;
             Object.keys(handlers).forEach(key => { handlers[key] = []; });
             bar.remove();

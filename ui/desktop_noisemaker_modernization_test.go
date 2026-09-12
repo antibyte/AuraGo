@@ -216,6 +216,8 @@ func TestDesktopNoisemakerRefreshPlayerModule(t *testing.T) {
 		"errorStreak >= 2",
 		"document.addEventListener('visibilitychange', onVisibility)",
 		"document.removeEventListener('visibilitychange', onVisibility)",
+		"audioCtx.close()",
+		"'pointercancel'",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("noisemaker-player.js missing marker %q", marker)
