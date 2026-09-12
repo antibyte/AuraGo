@@ -186,3 +186,44 @@ func TestDesktopNoisemakerRefreshLibraryModule(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerRefreshPlayerModule(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/noisemaker-player.js")
+	for _, marker := range []string{
+		"window.NoisemakerPlayer = { create }",
+		"new Audio()",
+		"createMediaElementSource(audio)",
+		"createAnalyser()",
+		"analyser.fftSize = 256",
+		"requestAnimationFrame(drawFrame)",
+		"prefers-reduced-motion",
+		"audioCtx.resume()",
+		"getByteFrequencyData",
+		"class=\"nm-player\"",
+		"nm-now-playing",
+		"data-np-lyrics",
+		"data-np-queue",
+		"data-nm-seek",
+		"data-nm-volume",
+		"emit('needmore')",
+		"emit('visualizer-unavailable')",
+		"emit('expand', ",
+		"function setRepeat(mode)",
+		"function setShuffle(value)",
+		"function buildOrder(startIndex)",
+		"errorStreak >= 2",
+		"document.addEventListener('visibilitychange', onVisibility)",
+		"document.removeEventListener('visibilitychange', onVisibility)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("noisemaker-player.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "confirm(", "audioCtx.suspend()", "window.NoisemakerApp", "window.NoisemakerLibrary"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("noisemaker-player.js must not contain %q", forbidden)
+		}
+	}
+}
