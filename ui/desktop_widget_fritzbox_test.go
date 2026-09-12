@@ -29,6 +29,18 @@ func TestDesktopFritzBoxWidgetRuntimeIsRegistered(t *testing.T) {
 		"fritzMergeMonitorSamples(state.history",
 		"fritzAreaChartSVG({",
 		"err.message === 'fritzbox_disabled'",
+		// The widget card captures the pointer on pointerdown so it can be
+		// moved. Swipe paging therefore stays touch/pen only and finishes on
+		// window-level capture listeners that the cleanup removes again.
+		"event.pointerType === 'mouse'",
+		"window.addEventListener('pointermove', onPointerMove, true)",
+		"window.addEventListener('pointerup', endDrag, true)",
+		"window.addEventListener('pointercancel', endDrag, true)",
+		"window.removeEventListener('pointermove', onPointerMove, true)",
+		"window.removeEventListener('pointerup', endDrag, true)",
+		"window.removeEventListener('pointercancel', endDrag, true)",
+		"if (event.buttons === 0 ||",
+		"refs.viewport.addEventListener('wheel', event => {",
 	} {
 		if !strings.Contains(runtime, want) {
 			t.Fatalf("fritzbox widget runtime missing marker %q", want)
@@ -38,6 +50,8 @@ func TestDesktopFritzBoxWidgetRuntimeIsRegistered(t *testing.T) {
 	// Router-provided strings (host names, caller names, numbers, addresses)
 	// must only ever reach the DOM through textContent. innerHTML is reserved
 	// for the static shell, generated numeric SVG markup and trusted glyphs.
+	// Pointer release must never be observed on the viewport alone because
+	// the captured card swallows it and the pager would stick in drag mode.
 	for _, forbidden := range []string{
 		"innerHTML += ",
 		"innerHTML = host",
@@ -45,6 +59,9 @@ func TestDesktopFritzBoxWidgetRuntimeIsRegistered(t *testing.T) {
 		"innerHTML = esc(",
 		"alert(",
 		"fetch('/api/fritzbox",
+		"refs.viewport.addEventListener('pointerup'",
+		"refs.viewport.addEventListener('pointermove'",
+		"refs.viewport.setPointerCapture(",
 	} {
 		if strings.Contains(runtime, forbidden) {
 			t.Fatalf("fritzbox widget runtime must not contain %q", forbidden)

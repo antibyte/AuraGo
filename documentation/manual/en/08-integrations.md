@@ -572,7 +572,7 @@ fritzbox:
 ```
 
 ### Virtual Desktop Widget
-The Virtual Desktop ships a hidden **Fritz!Box** widget that you can add from the widget drawer. It is read-only and shows the most important router facts on swipeable pages (dots, arrows, swipe or arrow keys):
+The Virtual Desktop ships a hidden **Fritz!Box** widget that you can add from the widget drawer. It is read-only and shows the most important router facts on pages you can flip through (dots, arrows, arrow keys, a horizontal trackpad gesture, or swiping on touch devices; with a mouse you keep dragging the widget itself):
 
 - **Connection** – online state, current download/upload with live sparklines, line utilization gauges, public IPv4/IPv6 (copy button), access type, FRITZ!OS and uptime.
 - **Traffic** – a smoothed area chart of the last minutes (seeded from the router's online monitor, then extended locally while the widget is open), totals and peaks. The history lives only in your browser session.

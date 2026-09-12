@@ -123,6 +123,49 @@ renderFritzBoxWidget(document.querySelector('#card'));</script></body></html>`)
 			}
 			shoot("traffic")
 
+			// Horizontal wheel/trackpad gesture pages forward for mouse users
+			// and is consumed so the browser does not navigate history.
+			if !page.MustEval(`()=>{
+				const viewport=document.querySelector('[data-fritz=viewport]');
+				const ev=new WheelEvent('wheel',{deltaX:60,deltaY:4,bubbles:true,cancelable:true});
+				viewport.dispatchEvent(ev);
+				return ev.defaultPrevented;
+			}`).Bool() {
+				t.Fatal("horizontal wheel gesture was not consumed by the pager")
+			}
+			waitForJSBool(t, page, `()=>document.querySelector('[data-fritz-page=devices]').classList.contains('is-active')`)
+
+			// Touch swipe back: the card captures the pointer, so move/up
+			// events arrive on the document rather than on the viewport.
+			page.MustEval(`()=>{
+				const viewport=document.querySelector('[data-fritz=viewport]');
+				const opts={pointerId:7,pointerType:'touch',isPrimary:true,button:0,buttons:1,bubbles:true,cancelable:true};
+				viewport.dispatchEvent(new PointerEvent('pointerdown',Object.assign({clientX:80,clientY:120},opts)));
+				document.body.dispatchEvent(new PointerEvent('pointermove',Object.assign({clientX:140,clientY:124},opts)));
+				document.body.dispatchEvent(new PointerEvent('pointermove',Object.assign({clientX:230,clientY:126},opts)));
+				document.body.dispatchEvent(new PointerEvent('pointerup',Object.assign({clientX:230,clientY:126,buttons:0},opts)));
+			}`)
+			waitForJSBool(t, page, `()=>document.querySelector('[data-fritz-page=traffic]').classList.contains('is-active') && !document.querySelector('[data-fritz=track]').classList.contains('is-dragging')`)
+
+			// Regression: a mouse click inside the widget (whose pointerup is
+			// swallowed by the capturing card) must not leave the pager in a
+			// drag mode that follows every later mouse movement.
+			if !page.MustEval(`()=>{
+				const viewport=document.querySelector('[data-fritz=viewport]');
+				const track=document.querySelector('[data-fritz=track]');
+				const before=track.style.transform;
+				const mouse={pointerId:1,pointerType:'mouse',isPrimary:true,button:0,bubbles:true,cancelable:true};
+				viewport.dispatchEvent(new PointerEvent('pointerdown',Object.assign({clientX:100,clientY:120,buttons:1},mouse)));
+				document.body.dispatchEvent(new PointerEvent('pointerup',Object.assign({clientX:100,clientY:120,buttons:0},mouse)));
+				for (const x of [140,190,260,40]) {
+					viewport.dispatchEvent(new PointerEvent('pointermove',Object.assign({clientX:x,clientY:120,buttons:0},mouse)));
+				}
+				return track.style.transform===before && !track.classList.contains('is-dragging')
+					&& document.querySelector('[data-fritz-page=traffic]').classList.contains('is-active');
+			}`).Bool() {
+				t.Fatal("mouse movement after a click must not drag the pager")
+			}
+
 			// Devices page via keyboard: hostile host name stays text.
 			page.MustEval(`()=>{const root=document.querySelector('.vd-fritz');root.focus();root.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));}`)
 			waitForJSBool(t, page, `()=>document.querySelector('[data-fritz-page=devices]').classList.contains('is-active')`)

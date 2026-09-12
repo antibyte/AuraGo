@@ -656,7 +656,7 @@ fritzbox:
 ```
 
 ### Widget im Virtuellen Desktop
-Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Wischen oder Pfeiltasten):
+Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Pfeiltasten, horizontale Trackpad-Geste oder Wischen auf Touch-Geräten; mit der Maus verschiebst du wie gewohnt das Widget):
 
 - **Verbindung** – Online-Status, aktueller Download/Upload mit Live-Sparklines, Auslastungsanzeigen der Leitung, öffentliche IPv4/IPv6 (Kopier-Button), Zugangsart, FRITZ!OS und Laufzeit.
 - **Traffic** – geglättetes Flächendiagramm der letzten Minuten (startet mit dem Online-Monitor der Box und wächst lokal weiter, solange das Widget offen ist), Gesamtwerte und Spitzen. Der Verlauf bleibt nur in deiner Browser-Sitzung.

@@ -168,9 +168,14 @@ buttons and menu popovers remain excluded from those gestures.
   helpers in `core/widget-fritzbox-charts.js`) is hidden by default, uses the
   shared 320px width at 300px height and reads only
   `GET /api/desktop/fritzbox/overview?sections=...`. Pages (connection, traffic,
-  devices, telephony) are a swipeable pager with `role="tablist"` dots, arrows,
-  pointer swipe and Arrow/Home/End keys; the last page persists in
-  `localStorage` key `aurago.desktop.fritzbox.page`. Sections whose capability
+  devices, telephony) are a pager with `role="tablist"` dots, arrows,
+  Arrow/Home/End keys, horizontal wheel/trackpad gestures and touch/pen swipe;
+  the last page persists in `localStorage` key `aurago.desktop.fritzbox.page`.
+  The widget card captures every pointer on `pointerdown` so it can be moved,
+  therefore a mouse never starts a swipe and swipe move/up/cancel handling
+  listens on `window` in the capture phase (removed in the cleanup); a swipe
+  aborts when the card enters `vd-dragging` or a long press triggers. Never
+  attach the swipe's `pointerup` to the viewport alone. Sections whose capability
   is off are dropped; `fritzbox_disabled` shows `widget_fritzbox_disabled_hint`
   and stops polling. Polling: connection every 5 s while visible (keeps the
   traffic history continuous on every page), devices/telephony every 60 s plus

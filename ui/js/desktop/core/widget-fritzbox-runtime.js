@@ -538,26 +538,43 @@
                 } catch (_) { /* clipboard denied */ }
             });
         }
+        /* Swipe paging is touch/pen only. The widget card captures the pointer
+           on pointerdown so it can be moved around the desktop, which means the
+           viewport never receives the matching pointerup. Follow-up events are
+           therefore observed on window in the capture phase and a mouse keeps
+           its usual card-drag behaviour (pages change via arrows, dots, keys or
+           horizontal wheel gestures). */
+        const card = container.closest('.vd-widget-card');
+        const cancelDrag = () => {
+            if (!state.drag) return;
+            state.drag = null;
+            refs.track.classList.remove('is-dragging');
+            setPage(state.page, false);
+        };
         refs.viewport.addEventListener('pointerdown', event => {
-            if (event.button !== 0 || event.target.closest('button')) return;
+            if (state.drag) cancelDrag();
+            if (event.button !== 0 || event.pointerType === 'mouse' || event.target.closest('button')) return;
             state.drag = { id: event.pointerId, startX: event.clientX, startY: event.clientY, dx: 0, active: false };
         });
-        refs.viewport.addEventListener('pointermove', event => {
+        const onPointerMove = event => {
             const drag = state.drag;
             if (!drag || drag.id !== event.pointerId) return;
+            if (event.buttons === 0 || (card && (card.classList.contains('vd-dragging') || card.__vdLongPressTriggered))) {
+                cancelDrag();
+                return;
+            }
             const dx = event.clientX - drag.startX;
             const dy = event.clientY - drag.startY;
             if (!drag.active) {
                 if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
                 drag.active = true;
                 refs.track.classList.add('is-dragging');
-                try { refs.viewport.setPointerCapture(event.pointerId); } catch (_) { /* unsupported */ }
             }
             drag.dx = dx;
             const width = refs.viewport.clientWidth || 1;
             const limited = Math.max(-width * 0.6, Math.min(width * 0.6, dx));
             refs.track.style.transform = `translateX(calc(${-state.page * 100}% + ${limited}px))`;
-        });
+        };
         const endDrag = event => {
             const drag = state.drag;
             if (!drag || drag.id !== event.pointerId) return;
@@ -568,8 +585,28 @@
             else if (drag.dx > Math.min(48, width * 0.2)) setPage(state.page - 1, true);
             else setPage(state.page, false);
         };
-        refs.viewport.addEventListener('pointerup', endDrag);
-        refs.viewport.addEventListener('pointercancel', endDrag);
+        window.addEventListener('pointermove', onPointerMove, true);
+        window.addEventListener('pointerup', endDrag, true);
+        window.addEventListener('pointercancel', endDrag, true);
+
+        // Horizontal wheel / trackpad gestures page for mouse users; vertical
+        // wheel keeps scrolling the host and call lists.
+        let wheelDistance = 0;
+        let wheelIdle = 0;
+        let wheelCooldownUntil = 0;
+        refs.viewport.addEventListener('wheel', event => {
+            if (state.pages.length < 2 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+            event.preventDefault();
+            const now = Date.now();
+            if (now < wheelCooldownUntil) return;
+            wheelDistance += event.deltaX;
+            clearTimeout(wheelIdle);
+            wheelIdle = setTimeout(() => { wheelDistance = 0; }, 250);
+            if (Math.abs(wheelDistance) < 40) return;
+            setPage(state.page + (wheelDistance > 0 ? 1 : -1), true);
+            wheelDistance = 0;
+            wheelCooldownUntil = now + 450;
+        }, { passive: false });
         refs['chart-host'].addEventListener('pointermove', showChartTip);
         refs['chart-host'].addEventListener('pointerleave', hideChartTip);
 
@@ -604,11 +641,16 @@
 
         registerWidgetCleanup(() => {
             state.disposed = true;
+            state.drag = null;
             clearTimeout(state.timer);
             clearTimeout(state.copyTimer);
+            clearTimeout(wheelIdle);
             cancelAnimationFrame(resizeFrame);
             if (state.controller) state.controller.abort();
             document.removeEventListener('visibilitychange', onVisibility);
+            window.removeEventListener('pointermove', onPointerMove, true);
+            window.removeEventListener('pointerup', endDrag, true);
+            window.removeEventListener('pointercancel', endDrag, true);
             if (observer) observer.disconnect();
         });
     }
