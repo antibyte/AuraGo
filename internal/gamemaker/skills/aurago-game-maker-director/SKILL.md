@@ -76,7 +76,9 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
      ]
    }
    ```
-   `params` is a JSON object encoded as a string. `target` names the firing
+   The strict tool schema sends `params` as an encoded JSON object; plans and
+   `src/mechanics.json` also accept an ordinary object with identical validation.
+   `target` names the firing
    player node; use `role` instead when that player is selected by an explicit
    asset role. The projectile block is action-driven and does not infer behavior
    from the projectile art. There is no top-level `health` field: use a targeted

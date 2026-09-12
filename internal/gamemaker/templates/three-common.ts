@@ -11,9 +11,9 @@ const T = A.THREE;
 
 export function startGame(config: any) {
   const movement=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='movement'&&b.enabled!==false);
-  if(movement) { const params=JSON.parse(movement.params||'{}'); config={...config,mode:params.mode||config.mode,speed:params.speed??config.speed}; }
+  if(movement) { const params=typeof movement.params==='string'?JSON.parse(movement.params||'{}'):(movement.params||{}); config={...config,mode:params.mode||config.mode,speed:params.speed??config.speed}; }
   const cameraBlock=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='camera'&&b.enabled!==false);
-  const cameraOptions=cameraBlock?JSON.parse(cameraBlock.params||'{}'):{};
+  const cameraOptions=typeof cameraBlock?.params==='string'?JSON.parse(cameraBlock.params||'{}'):(cameraBlock?.params||{});
   const root = document.getElementById('game-root')!;
   const controller = new AbortController(), signal = controller.signal;
   const renderer = new T.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});

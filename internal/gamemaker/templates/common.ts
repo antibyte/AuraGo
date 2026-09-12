@@ -111,7 +111,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player,this.sceneSolids);
     const movement=this.builder.scene.nodes.find((n:any)=>n.kind==='player')?.behaviors.find((b:any)=>b.type==='movement');
     if(movement?.mode==='platformer')this.physics.world.gravity.y=Number(movement.gravity)||900;
-    const cameraBlock=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='camera'&&b.enabled!==false),camera=cameraBlock?JSON.parse(cameraBlock.params||'{}'):{};
+    const cameraBlock=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='camera'&&b.enabled!==false),camera=typeof cameraBlock?.params==='string'?JSON.parse(cameraBlock.params||'{}'):(cameraBlock?.params||{});
     this.cameras.main.setZoom(Phaser.Math.Clamp(Number(camera.zoom)||1,.1,4));
     if(camera.follow!==false&&(width>Number(this.game.config.width)||height>Number(this.game.config.height)))this.cameras.main.startFollow(this.player,true,.12,.12);
     for(const zone of (scenePlan as any)?.zones||[])if(zone.kind==='loss') {

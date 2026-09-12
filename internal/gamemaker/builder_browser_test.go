@@ -46,7 +46,7 @@ func TestBuilderBrowser(t *testing.T) {
 			plan.Objective = "Parcel route — deliver the gold parcel around the stone barrier"
 			plan.Template = "minimal"
 			plan.Assets = nil
-			plan.Mechanics = map[string]any{"outcomes": []string{"won"}}
+			plan.Mechanics = map[string]any{"outcomes": []string{"won"}, "blocks": []mechanicBlock{{ID: "courier-movement", Kind: "movement", Params: mechanicParams{"target": "courier"}}, {ID: "camera", Kind: "camera", Params: mechanicParams{"zoom": 1}}}}
 			scene := Scene{SchemaVersion: 1, Dimension: dimension, Seed: 1729,
 				Levels:      []SceneLevel{{ID: "main", Active: true}},
 				WorldBounds: SceneBounds{Min: Vec3{0, 0, 0}, Max: Vec3{960, 540, 0}},

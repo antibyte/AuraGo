@@ -11,13 +11,40 @@ import (
 )
 
 type mechanicBlock struct {
-	ID      string  `json:"id"`
-	Kind    string  `json:"kind"`
-	Role    string  `json:"role,omitempty"`
-	Target  string  `json:"target,omitempty"`
-	Value   float64 `json:"value,omitempty"`
-	Params  string  `json:"params,omitempty"`
-	Enabled *bool   `json:"enabled,omitempty"`
+	ID      string         `json:"id"`
+	Kind    string         `json:"kind"`
+	Role    string         `json:"role,omitempty"`
+	Target  string         `json:"target,omitempty"`
+	Value   float64        `json:"value,omitempty"`
+	Params  mechanicParams `json:"params,omitempty"`
+	Enabled *bool          `json:"enabled,omitempty"`
+}
+
+// Native strict tool schemas use a string; file and plan inputs may use an object.
+type mechanicParams map[string]any
+
+func (params *mechanicParams) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte("null")) {
+		*params = nil
+		return nil
+	}
+	if len(data) > 0 && data[0] == '"' {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		if text == "" {
+			*params = nil
+			return nil
+		}
+		data = []byte(text)
+	}
+	var value map[string]any
+	if err := json.Unmarshal(data, &value); err != nil || value == nil {
+		return fmt.Errorf("params: expected a JSON object or an encoded JSON object")
+	}
+	*params = value
+	return nil
 }
 
 type mechanicEvent struct {
@@ -52,15 +79,12 @@ func validateMechanicBlocks(mechanics map[string]any) error {
 			return fmt.Errorf("plan.mechanics.blocks[%d]: unique id, supported kind and finite value required", i)
 		}
 		seen[block.ID] = true
-		if len(block.Role) > 64 || len(block.Target) > 96 || len(block.Params) > 4000 {
+		encodedParams, _ := json.Marshal(block.Params)
+		if len(block.Role) > 64 || len(block.Target) > 96 || len(encodedParams) > 4000 {
 			return fmt.Errorf("plan.mechanics.blocks[%d]: oversized binding or parameters", i)
 		}
-		if block.Params != "" {
-			var params map[string]any
-			if err := json.Unmarshal([]byte(block.Params), &params); err != nil || params == nil {
-				return fmt.Errorf("plan.mechanics.blocks[%d].params: expected a JSON object string", i)
-			}
-			if err := safeMechanicKeys(params); err != nil {
+		if params := block.Params; params != nil {
+			if err := safeMechanicKeys(map[string]any(params)); err != nil {
 				return err
 			}
 			for _, key := range []string{"target", "role"} {
@@ -141,14 +165,12 @@ func safeMechanicKeys(value any) error {
 
 // binding mirrors the runtime: top-level fields take precedence over params.
 func (block mechanicBlock) binding() (string, string) {
-	var params struct{ Target, Role string }
-	_ = json.Unmarshal([]byte(block.Params), &params)
 	target, role := block.Target, block.Role
 	if target == "" {
-		target = params.Target
+		target, _ = block.Params["target"].(string)
 	}
 	if role == "" {
-		role = params.Role
+		role, _ = block.Params["role"].(string)
 	}
 	return strings.TrimSpace(target), strings.TrimSpace(role)
 }

@@ -20,6 +20,8 @@ func TestMechanicBindingDefaultsAndRuntimePrecedence(t *testing.T) {
 		{"ambiguous players", `{"id":"move","kind":"movement"}`, 2, "", true},
 		{"no player", `{"id":"move","kind":"movement"}`, 0, "", true},
 		{"explicit target", `{"id":"move","kind":"movement","target":"other"}`, 1, "other", false},
+		{"null parameters", `{"id":"move","kind":"movement","params":null}`, 1, "hero", false},
+		{"object parameters", `{"id":"move","kind":"movement","params":{"target":"other","speed":180}}`, 1, "", false},
 		{"parameter target", `{"id":"move","kind":"movement","params":"{\"target\":\"other\"}"}`, 1, "", false},
 		{"top level overrides parameters", `{"id":"move","kind":"movement","target":"hero","params":"{\"target\":\"absent\"}"}`, 1, "hero", false},
 		{"target overrides role", `{"id":"move","kind":"movement","target":"hero","role":"unplaced"}`, 1, "hero", false},
@@ -76,7 +78,7 @@ func TestPlanBindingNormalizationPersistsBothInputs(t *testing.T) {
 						WorldBounds: SceneBounds{Min: Vec3{}, Max: Vec3{960, 540, 0}},
 						Nodes:       []SceneNode{{ID: "hero", Kind: "player", Position: Vec3{50, 50, 0}, Size: Vec3{20, 20, 0}}}},
 					Presentation: &Presentation{Sounds: []SoundBinding{{Event: "win", Sound: "win"}, {Event: "lose", Sound: "lose"}}},
-					Mechanics:    map[string]any{"blocks": []mechanicBlock{{ID: "walk", Kind: "movement"}}, "events": []mechanicEvent{{Event: "win", Sound: "win"}, {Event: "lose", Sound: "lose"}}}}
+					Mechanics:    map[string]any{"blocks": []mechanicBlock{{ID: "walk", Kind: "movement", Params: mechanicParams{"speed": 180}}}, "events": []mechanicEvent{{Event: "win", Sound: "win"}, {Event: "lose", Sound: "lose"}}}}
 				data, _ := json.Marshal(design)
 				var err error
 				if compact {
@@ -128,6 +130,12 @@ func TestPlanBindingNormalizationPersistsBothInputs(t *testing.T) {
 func TestMechanicsRejectMalformedAndDisconnectedBindings(t *testing.T) {
 	for _, source := range []string{
 		`{"blocks":[{"id":"move","kind":"imaginary"}]}`,
+		`{"blocks":[{"id":"move","kind":"movement","params":[]}]}`,
+		`{"blocks":[{"id":"move","kind":"movement","params":"null"}]}`,
+		`{"blocks":[{"id":"move","kind":"movement","params":{"speed":-1}}]}`,
+		`{"blocks":[{"id":"move","kind":"movement","params":{"target":12}}]}`,
+		`{"blocks":[{"id":"move","kind":"movement","params":{"nested":{"constructor":{}}}}]}`,
+		`{"blocks":[{"id":"move","kind":"movement","params":{"custom":"` + strings.Repeat("x", 4000) + `"}}]}`,
 		`{"blocks":[{"id":"move","kind":"movement","params":"[]"}]}`,
 		`{"blocks":[{"id":"move","kind":"movement","params":"{\"__proto__\":{}}"}]}`,
 		`{"events":[{"event":"hit"},{"event":"hit"}]}`,
