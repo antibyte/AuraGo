@@ -396,6 +396,8 @@ func TestDesktopNoisemakerReviewFixes(t *testing.T) {
 		"S.tracks.filter(track => !S.player.queueHas(track.id))",
 		"S.player.cancelPendingAutoplay()",
 		"S.visualizerAvailable = S.player.visualizerAvailable()",
+		// desktop toasts take a payload object; a bare string renders an empty toast
+		"title: S.t('desktop.app_noisemaker'), message: String(message || ''), appId: 'noisemaker'",
 		"S.prefs.shuffle !== prevShuffle || S.prefs.repeat !== prevRepeat || S.prefs.visualizer !== prevVisualizer || S.prefs.muted !== prevMuted",
 	} {
 		if !strings.Contains(shell, marker) {

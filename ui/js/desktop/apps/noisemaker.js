@@ -230,7 +230,7 @@
 
         S.create = window.NoisemakerCreate.create(Object.assign({}, base, {
             request: (path, options) => request(S, path, options),
-            notify: ctx.notify,
+            notify: message => toast(S, message, 'error'),
             formatDuration: lib.formatDuration,
             windowId: S.windowId,
             mode: S.prefs.mode,
@@ -356,7 +356,7 @@
                 else S.player.cancelPendingAutoplay();
             });
         });
-        P.on('error', () => S.ctx.notify(S.t('desktop.noisemaker_playback_failed')));
+        P.on('error', () => toast(S, S.t('desktop.noisemaker_playback_failed'), 'error'));
         P.on('visualizer-unavailable', () => { S.visualizerAvailable = false; refreshMenus(S); });
     }
 
@@ -371,9 +371,17 @@
         return data;
     }
 
+    // Desktop toasts take a payload ({ title, message, type }); a bare string would render an empty toast.
+    function toast(S, message, type) {
+        if (S.disposed || typeof S.ctx.notify !== 'function') return;
+        const payload = { title: S.t('desktop.app_noisemaker'), message: String(message || ''), appId: 'noisemaker' };
+        if (type) payload.type = type;
+        S.ctx.notify(payload);
+    }
+
     function notifyTracksError(S, err) {
         if (S.disposed || (err && err.name === 'AbortError')) return;
-        S.ctx.notify((err && err.message) || S.t('desktop.noisemaker_error_unknown'));
+        toast(S, (err && err.message) || S.t('desktop.noisemaker_error_unknown'), 'error');
     }
 
     function syncPagination(S, loading) {
@@ -467,7 +475,7 @@
             if (S.disposed) return;
             S.generation = Object.assign({}, S.generation, { active: false, result: data, coverFailed: !!data.cover_error });
             if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
-            S.ctx.notify(S.t('desktop.noisemaker_track_created_toast', { title: data.title || '' }));
+            toast(S, S.t('desktop.noisemaker_track_created_toast', { title: data.title || '' }));
             S.filter = 'all';
             S.query = '';
             if (S.library) { S.library.setFilter('all'); S.library.setQuery(''); }
@@ -538,7 +546,7 @@
     function enqueueTracks(S, tracks) {
         if (!S.player) return;
         const count = S.player.enqueue(tracks || []);
-        if (count > 0) S.ctx.notify(count === 1 ? S.t('desktop.noisemaker_queue_added_one') : S.t('desktop.noisemaker_queue_added', { count }));
+        if (count > 0) toast(S, count === 1 ? S.t('desktop.noisemaker_queue_added_one') : S.t('desktop.noisemaker_queue_added', { count }));
         refreshMenus(S);
     }
 
@@ -554,7 +562,7 @@
         } catch (err) {
             if (S.disposed) return;
             applyTrackUpdate(S, Object.assign({}, track, { favorite: !next }));
-            S.ctx.notify((err && err.message) || S.t('desktop.noisemaker_favorite_failed'));
+            toast(S, (err && err.message) || S.t('desktop.noisemaker_favorite_failed'), 'error');
         }
         syncHeader(S);
         refreshMenus(S);
@@ -589,9 +597,9 @@
                 if (S.create) S.create.setGeneration(S.generation);
             }
         }
-        if (!failed) S.ctx.notify(single ? S.t('desktop.noisemaker_track_deleted') : S.t('desktop.noisemaker_tracks_deleted', { count: removed.length }));
-        else if (removed.length) S.ctx.notify(S.t('desktop.noisemaker_tracks_deleted_partial', { done: removed.length, total: list.length }));
-        else S.ctx.notify(S.t('desktop.noisemaker_track_delete_failed'));
+        if (!failed) toast(S, single ? S.t('desktop.noisemaker_track_deleted') : S.t('desktop.noisemaker_tracks_deleted', { count: removed.length }));
+        else if (removed.length) toast(S, S.t('desktop.noisemaker_tracks_deleted_partial', { done: removed.length, total: list.length }), 'error');
+        else toast(S, S.t('desktop.noisemaker_track_delete_failed'), 'error');
         syncHeader(S);
         refreshMenus(S);
     }
