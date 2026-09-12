@@ -212,3 +212,38 @@ func TestDesktopMissionControlMenusModuleContract(t *testing.T) {
 		t.Fatalf("menus module must not hardcode English menu labels")
 	}
 }
+
+func TestDesktopMissionControlListModuleContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-list.js")
+	for _, marker := range []string{
+		"window.MissionControlList = { create }",
+		"function create(deps)",
+		"element.setAttribute('role', 'listbox')",
+		"row.setAttribute('role', 'option')",
+		"aria-selected",
+		"'desktop.mc_section_running'",
+		"'desktop.mc_section_waiting'",
+		"'desktop.mc_section_missions'",
+		"'desktop.mc_list_empty_title'",
+		"'desktop.mc_list_no_match_title'",
+		"case 'ArrowDown'",
+		"case 'ArrowUp'",
+		"case 'Home'",
+		"case 'End'",
+		"case 'Enter'",
+		"case 'Delete'",
+		"function rowSignature(",
+		"rows.get(",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control-list.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "confirm(", "innerHTML = ''; // full rerender"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("list module must not use %q", forbidden)
+		}
+	}
+}
