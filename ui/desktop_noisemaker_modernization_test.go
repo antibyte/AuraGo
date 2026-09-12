@@ -112,14 +112,17 @@ func TestDesktopNoisemakerRefreshTranslations(t *testing.T) {
 		if !strings.Contains(values["desktop.noisemaker_onboarding_hint"], "ACE-Step") {
 			t.Fatalf("%s: onboarding hint must mention ACE-Step", path)
 		}
-	}
-	de, err := os.ReadFile(filepath.Join("lang", "desktop", "de.json"))
-	if err != nil {
-		t.Fatalf("read de.json: %v", err)
-	}
-	for _, forbidden := range []string{"Sie k", "Loeschen", "Auswaehlen", "hinzufuegen"} {
-		if strings.Contains(string(de), forbidden) {
-			t.Fatalf("de.json must use Du form and real umlauts, found %q", forbidden)
+		if lang == "de" {
+			for key, value := range values {
+				if !strings.HasPrefix(key, "desktop.noisemaker_") {
+					continue
+				}
+				for _, forbidden := range []string{"Sie k", "Loeschen", "Auswaehlen", "hinzufuegen"} {
+					if strings.Contains(value, forbidden) {
+						t.Fatalf("%s: %s must use Du form and real umlauts, found %q", path, key, forbidden)
+					}
+				}
+			}
 		}
 	}
 }
