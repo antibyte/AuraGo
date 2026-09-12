@@ -395,6 +395,10 @@ func TestDesktopNoisemakerReviewFixes(t *testing.T) {
 		"desktop.noisemaker_error_unknown",
 		"S.tracks.filter(track => !S.player.queueHas(track.id))",
 		"S.player.cancelPendingAutoplay()",
+		// end of queue waits for a library load that is already running instead of giving up
+		"function continueQueue(S, attempt)",
+		"S.tracksInFlight.then(() => continueQueue(S, attempt + 1))",
+		"function loadMoreTracks(S) { return S.tracksLoading ? Promise.resolve([]) : watchLoad(S, loadMoreTracksNow(S)); }",
 		"S.visualizerAvailable = S.player.visualizerAvailable()",
 		// desktop toasts take a payload object; a bare string renders an empty toast
 		"title: S.t('desktop.app_noisemaker'), message: String(message || ''), appId: 'noisemaker'",

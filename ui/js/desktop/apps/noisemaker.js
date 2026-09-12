@@ -343,24 +343,43 @@
             if (S.nowPlayingOpen && S.compact) { S.paneChosen = true; setActivePane(S, 'library'); }
             refreshMenus(S);
         });
-        P.on('needmore', () => {
-            if (S.disposed || !S.player) return;
-            const rest = S.tracks.filter(track => !S.player.queueHas(track.id));
-            if (rest.length) {
-                S.player.enqueue(rest);
-                return;
-            }
-            loadMoreTracks(S).then(added => {
-                if (S.disposed || !S.player) return;
-                if (added.length) S.player.enqueue(added);
-                else S.player.cancelPendingAutoplay();
-            });
-        });
+        P.on('needmore', () => continueQueue(S, 0));
         P.on('error', () => toast(S, S.t('desktop.noisemaker_playback_failed'), 'error'));
         P.on('visualizer-unavailable', () => { S.visualizerAvailable = false; refreshMenus(S); });
     }
 
+    // End of queue: first continue with loaded-but-unqueued library tracks (library order), then wait for a
+    // page that is already loading, then fetch the next page; give up only when nothing more can arrive.
+    function continueQueue(S, attempt) {
+        if (S.disposed || !S.player) return;
+        const rest = S.tracks.filter(track => !S.player.queueHas(track.id));
+        if (rest.length) { S.player.enqueue(rest); return; }
+        if (attempt >= 3) { S.player.cancelPendingAutoplay(); return; }
+        if (S.tracksLoading && S.tracksInFlight) {
+            S.tracksInFlight.then(() => continueQueue(S, attempt + 1));
+            return;
+        }
+        if (S.tracksTotal > 0 && S.tracks.length >= S.tracksTotal) { S.player.cancelPendingAutoplay(); return; }
+        loadMoreTracks(S).then(added => {
+            if (S.disposed || !S.player) return;
+            if (added.length) S.player.enqueue(added);
+            else if (S.tracksLoading && S.tracksInFlight) continueQueue(S, attempt + 1);
+            else S.player.cancelPendingAutoplay();
+        });
+    }
+
     // ---------- tracks ----------
+
+    // Remembers the currently running library load so continueQueue can wait for it instead of giving up.
+    function watchLoad(S, promise) {
+        const settled = promise.catch(() => undefined);
+        S.tracksInFlight = settled;
+        settled.then(() => { if (S.tracksInFlight === settled) S.tracksInFlight = null; });
+        return promise;
+    }
+
+    function refreshTracks(S) { return watchLoad(S, refreshTracksNow(S)); }
+    function loadMoreTracks(S) { return S.tracksLoading ? Promise.resolve([]) : watchLoad(S, loadMoreTracksNow(S)); }
 
     async function fetchTrackPage(S, offset) {
         const params = new URLSearchParams({ limit: String(TRACKS_PAGE_SIZE), offset: String(offset) });
@@ -389,7 +408,7 @@
         S.library.setPagination({ total: S.tracksTotal, hasMore: S.tracks.length < S.tracksTotal, loading: !!loading });
     }
 
-    async function refreshTracks(S) {
+    async function refreshTracksNow(S) {
         if (!S.library || S.disposed) return;
         const seq = ++S.loadSeq;
         S.tracksLoading = true;
@@ -411,6 +430,7 @@
         if (!S.library) return;
         S.tracksLoading = false;
         S.library.setLoading(false);
+        syncPagination(S, false); // also after a failed refresh that superseded a running load-more
         if (!S.loadedOnce) {
             S.loadedOnce = true;
             if (S.compact && !S.paneChosen) setActivePane(S, S.tracks.length ? 'library' : 'create');
@@ -419,7 +439,7 @@
         refreshMenus(S);
     }
 
-    async function loadMoreTracks(S) {
+    async function loadMoreTracksNow(S) {
         if (!S.library || S.tracksLoading || S.disposed) return [];
         if (S.tracksTotal > 0 && S.tracks.length >= S.tracksTotal) return [];
         const seq = S.loadSeq;
