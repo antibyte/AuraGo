@@ -187,6 +187,8 @@ type Server struct {
 	WebhookHandler          *webhooks.Handler
 	SSE                     *SSEBroadcaster // shared SSE broadcaster, set by run()
 	MissionManagerV2        *tools.MissionManagerV2
+	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
+	missionRunsOnce         sync.Once
 	EggHub                  *bridge.EggHub
 	RemoteHub               *remote.RemoteHub
 	agodeskDesktopMu        sync.Mutex
@@ -248,6 +250,28 @@ func (s *Server) accessLogger() *slog.Logger {
 		return s.AccessLogger
 	}
 	return s.Logger
+}
+
+// missionRunTracker lazily creates the registry so tests that construct a
+// bare &Server{} keep working.
+func (s *Server) missionRunTracker() *missionRunRegistry {
+	s.missionRunsOnce.Do(func() {
+		if s.missionRuns == nil {
+			s.missionRuns = newMissionRunRegistry()
+		}
+	})
+	return s.missionRuns
+}
+
+// missionRunBaseContext returns the base context for the sync chat branch.
+// Requests without a mission keep the detached background context; mission
+// runs get a registry-backed context that POST /api/missions/v2/{id}/cancel
+// can cancel.
+func missionRunBaseContext(s *Server, missionID string) (context.Context, func()) {
+	if missionID == "" {
+		return context.Background(), func() {}
+	}
+	return s.missionRunTracker().begin(missionID)
 }
 
 func (s *Server) initConfigSnapshot() {
@@ -726,6 +750,12 @@ func Start(opts StartOptions) error {
 				}
 			}
 			setMissionError := func(title, detail string) {
+				if s.missionRunTracker().consumeCancelled(missionID) {
+					logger.Info("[MissionV2] Mission run cancelled by user", "mission_id", missionID)
+					s.MissionManagerV2.SetResult(missionID, "error", tools.MissionCancelledOutput)
+					broadcastMissionState(s)
+					return
+				}
 				recordMissionIssue(title, detail)
 				s.MissionManagerV2.SetResult(missionID, "error", detail)
 				broadcastMissionState(s)
@@ -807,6 +837,10 @@ func Start(opts StartOptions) error {
 					return
 				} else {
 					logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID, "tool_results", toolResults.Value, "tool_results_known", toolResults.Known)
+					// A cancel that raced with a successful completion leaves a
+					// stale flag behind; discard it so it cannot misclassify a
+					// later failure of the same mission.
+					s.missionRunTracker().consumeCancelled(missionID)
 					s.MissionManagerV2.SetResult(missionID, "success", output)
 					if s.PlannerDB != nil {
 						if _, err := planner.ResolveOperationalIssue(s.PlannerDB, "mission|"+missionID, "Mission completed successfully with a verified final response.", time.Now()); err != nil {

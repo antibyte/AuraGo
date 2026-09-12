@@ -639,7 +639,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// Use a detached context for sync requests so a client disconnect
 			// does not abort an in-progress tool chain (e.g. mid-execution after
 			// the agent already started hatching an egg or running a command).
-			syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			// Mission runs register their context so the user can cancel them
+			// via POST /api/missions/v2/{id}/cancel; other sync requests keep
+			// the detached background context.
+			baseCtx, releaseRun := missionRunBaseContext(s, missionID)
+			defer releaseRun()
+			syncCtx, syncCancel := context.WithTimeout(baseCtx, 30*time.Minute)
 			defer syncCancel()
 			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequestContext(r.Context(), sse, sessionID, missionID, isFollowUp))
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)

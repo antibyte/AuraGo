@@ -2018,3 +2018,41 @@ func TestMissionManagerV2NextRunFollowsScheduleAndEnabledState(t *testing.T) {
 		t.Fatalf("manager without cron must not report a next run")
 	}
 }
+
+func TestMissionManagerV2CancelCheck(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{MissionsEnabled: true, SchedulerEnabled: true, AllowFilesystemWrite: true})
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	// Remote missions can only be created with a configured remote client.
+	mgr.SetRemoteMissionClient(&fakeRemoteMissionClient{})
+	if err := mgr.Create(&MissionV2{ID: "m_local", Name: "Local", Prompt: "p", ExecutionType: ExecutionManual, Enabled: true}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := mgr.Create(&MissionV2{ID: "m_remote", Name: "Remote", Prompt: "p", ExecutionType: ExecutionManual, Enabled: true, RunnerType: MissionRunnerRemote, RemoteNestID: "n", RemoteEggID: "e"}); err != nil {
+		t.Fatalf("create remote: %v", err)
+	}
+
+	if err := mgr.CancelCheck("missing"); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found, got %v", err)
+	}
+	if err := mgr.CancelCheck("m_local"); err == nil || !strings.Contains(err.Error(), "not running") {
+		t.Fatalf("expected not running, got %v", err)
+	}
+
+	mgr.mu.Lock()
+	mgr.missions["m_local"].Status = MissionStatusRunning
+	mgr.missions["m_remote"].Status = MissionStatusRunning
+	mgr.mu.Unlock()
+
+	if err := mgr.CancelCheck("m_local"); err != nil {
+		t.Fatalf("running local mission must be cancellable: %v", err)
+	}
+	if err := mgr.CancelCheck("m_remote"); err == nil || !strings.Contains(err.Error(), "not supported") {
+		t.Fatalf("expected remote not supported, got %v", err)
+	}
+
+	ConfigureRuntimePermissions(RuntimePermissions{MissionsEnabled: false})
+	if err := mgr.CancelCheck("m_local"); err == nil {
+		t.Fatalf("cancel must respect the mission mutation permission")
+	}
+	ConfigureRuntimePermissions(RuntimePermissions{MissionsEnabled: true, SchedulerEnabled: true, AllowFilesystemWrite: true})
+}

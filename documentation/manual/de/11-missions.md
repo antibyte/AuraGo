@@ -205,13 +205,20 @@ Missions können jederzeit manuell gestartet werden – unabhängig vom Zeitplan
 curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/run
 ```
 
+**Lauf abbrechen.** Mission Control zeigt während eines lokalen Laufs die Aktion *Lauf abbrechen*. Der Abbruch stoppt die Agentenschleife bei der nächsten Gelegenheit, verbucht den Lauf als fehlgeschlagen mit der Ausgabe `Cancelled by user` und erzeugt kein Betriebsproblem. Remote-Missionen (auf einem Egg) lassen sich hier nicht abbrechen.
+
+```bash
+# Laufende Mission abbrechen
+curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/cancel
+```
+
 ---
 
 ## Monitoring von Missions
 
 ### Status-Übersicht (Web-UI)
 
-Die Mission Control-Oberfläche zeigt eine Echtzeit-Übersicht:
+Die Mission Control-Oberfläche zeigt eine Echtzeit-Übersicht. Zeitplan-Missionen zeigen dort und in der Liste ihren nächsten Lauf („Nächster Lauf"), damit du auf einen Blick siehst, wann eine Mission als Nächstes startet:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

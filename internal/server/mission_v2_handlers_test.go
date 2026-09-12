@@ -420,3 +420,107 @@ func TestMissionV2BroadcastIncludesNextRunForScheduledMissions(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleMissionCancelV2(t *testing.T) {
+	allowMissionMutationsForTest(t)
+	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
+	if err := mgr.Create(&tools.MissionV2{ID: "m_cancel", Name: "Cancel", Prompt: "p", ExecutionType: tools.ExecutionManual, Enabled: true}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	mgr.SetRemoteMissionClient(&fakeHandlerRemoteMissionClient{})
+	if err := mgr.Create(&tools.MissionV2{ID: "m_remote", Name: "Remote", Prompt: "p", ExecutionType: tools.ExecutionManual, Enabled: true, RunnerType: tools.MissionRunnerRemote, RemoteNestID: "n", RemoteEggID: "e"}); err != nil {
+		t.Fatalf("create remote: %v", err)
+	}
+	s := &Server{MissionManagerV2: mgr}
+	post := func(id string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		handleMissionV2ByID(s).ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/missions/v2/"+id+"/cancel", nil))
+		return rr
+	}
+
+	if rr := post("missing"); rr.Code != http.StatusNotFound {
+		t.Fatalf("unknown mission: status %d body %s", rr.Code, rr.Body.String())
+	}
+	if rr := post("m_cancel"); rr.Code != http.StatusConflict {
+		t.Fatalf("idle mission: expected 409, got %d body %s", rr.Code, rr.Body.String())
+	}
+	if rr := post("m_remote"); rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "not supported") {
+		t.Fatalf("remote mission: expected 400 'not supported', got %d body %s", rr.Code, rr.Body.String())
+	}
+
+	rr := httptest.NewRecorder()
+	handleMissionV2ByID(s).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/missions/v2/m_cancel/cancel", nil))
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET cancel: expected 405, got %d", rr.Code)
+	}
+}
+
+// TestHandleMissionCancelV2RunningMission drives the manager through its real
+// queue dispatcher (Start + RunNow with a no-op callback) so the mission
+// genuinely reaches the running state that the cancel route requires.
+func TestHandleMissionCancelV2RunningMission(t *testing.T) {
+	allowMissionMutationsForTest(t)
+	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
+	if err := mgr.Create(&tools.MissionV2{ID: "m_cancel", Name: "Cancel", Prompt: "p", ExecutionType: tools.ExecutionManual, Enabled: true}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// The callback stands in for the chat completion; it never completes, so
+	// the mission stays running until the test ends.
+	mgr.SetCallback(func(prompt, missionID string) {})
+	if err := mgr.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(mgr.Stop)
+	if err := mgr.RunNow("m_cancel"); err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if mission, ok := mgr.Get("m_cancel"); ok && mission.Status == tools.MissionStatusRunning {
+			break
+		}
+		if time.Now().After(deadline) {
+			mission, _ := mgr.Get("m_cancel")
+			t.Fatalf("mission did not reach running state via the queue dispatcher (status %q)", mission.Status)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	s := &Server{MissionManagerV2: mgr}
+	post := func() *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		handleMissionV2ByID(s).ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/missions/v2/m_cancel/cancel", nil))
+		return rr
+	}
+
+	// Running per the manager, but the chat handler has not registered a
+	// context yet: the run cannot be cancelled at this moment.
+	if rr := post(); rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "cannot be cancelled yet") {
+		t.Fatalf("running mission without registered context: expected 409 'cannot be cancelled yet', got %d %s", rr.Code, rr.Body.String())
+	}
+
+	ctx, release := s.missionRunTracker().begin("m_cancel")
+	defer release()
+	rr := post()
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body %s", rr.Code, rr.Body.String())
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil || body["status"] != "cancelling" {
+		t.Fatalf("expected {\"status\":\"cancelling\"}, got %s", rr.Body.String())
+	}
+	if ctx.Err() == nil {
+		t.Fatalf("cancel must cancel the registered run context")
+	}
+	// A repeated cancel of the same run is not a second cancellation.
+	if rr := post(); rr.Code != http.StatusConflict {
+		t.Fatalf("repeated cancel: expected 409, got %d body %s", rr.Code, rr.Body.String())
+	}
+	// The completion callback classifies the failure exactly once.
+	if !s.missionRunTracker().consumeCancelled("m_cancel") {
+		t.Fatalf("cancelled run must be reported to the completion callback")
+	}
+	if s.missionRunTracker().consumeCancelled("m_cancel") {
+		t.Fatalf("cancellation must be consumed only once")
+	}
+}

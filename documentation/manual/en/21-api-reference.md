@@ -674,6 +674,13 @@ PUT /api/missions/v2/{id}
 DELETE /api/missions/v2/{id}
 ```
 
+### Cancel Running Mission
+```http
+POST /api/missions/v2/{id}/cancel
+```
+
+`POST /api/missions/v2/{id}/cancel` — cancels the running local run of a mission. Responds `202 {"status":"cancelling"}`; the run ends shortly afterwards with result `error` and output `Cancelled by user` and is recorded in the history without an operational issue. `409` when the mission is not running or the run cannot be cancelled yet, `400` for remote missions, `404` for unknown IDs.
+
 ### Queue
 ```http
 GET /api/missions/v2/queue

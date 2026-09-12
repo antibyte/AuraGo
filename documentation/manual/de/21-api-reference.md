@@ -667,6 +667,13 @@ PUT /api/missions/v2/{id}
 DELETE /api/missions/v2/{id}
 ```
 
+### Laufende Mission abbrechen
+```http
+POST /api/missions/v2/{id}/cancel
+```
+
+`POST /api/missions/v2/{id}/cancel` — bricht den laufenden lokalen Lauf einer Mission ab. Antwort `202 {"status":"cancelling"}`; der Lauf endet kurz darauf mit Ergebnis `error` und Ausgabe `Cancelled by user` und landet ohne Betriebsproblem im Verlauf. `409`, wenn die Mission nicht läuft oder noch nicht abgebrochen werden kann, `400` bei Remote-Missionen, `404` bei unbekannter ID.
+
 ### Warteschlange
 ```http
 GET /api/missions/v2/queue

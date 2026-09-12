@@ -212,9 +212,17 @@ Missions can be started at any time regardless of schedule.
 curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/run
 ```
 
+**Cancelling a run.** Mission Control shows a *Cancel run* action while a local mission is running. Cancelling stops the agent loop at the next opportunity, records the run as failed with the output `Cancelled by user`, and does not create an operational issue. Remote missions (running on an egg) cannot be cancelled from here.
+
+```bash
+curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/cancel
+```
+
 ---
 
 ## Monitoring
+
+Scheduled missions show their next run (*Next run*) in the mission list and in the overview, so you can see at a glance when a mission fires next.
 
 ### Status Values
 

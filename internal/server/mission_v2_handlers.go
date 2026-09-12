@@ -80,7 +80,7 @@ func missionErrorStatus(err error) int {
 		return http.StatusNotFound
 	case strings.Contains(msg, "required"), strings.Contains(msg, "not supported"), strings.Contains(msg, "disabled"):
 		return http.StatusBadRequest
-	case strings.Contains(msg, "not connected"), strings.Contains(msg, "timed out"), strings.Contains(msg, "cannot remove running"):
+	case strings.Contains(msg, "not connected"), strings.Contains(msg, "timed out"), strings.Contains(msg, "cannot remove running"), strings.Contains(msg, "not running"):
 		return http.StatusConflict
 	case strings.Contains(msg, "not in queue"):
 		return http.StatusNotFound
@@ -249,6 +249,9 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 					handleMissionRemoveFromQueue(s, w, r, id)
 					return
 				}
+			case "cancel":
+				handleMissionCancelV2(s, w, r, id)
+				return
 			case "prepare":
 				handleMissionPrepare(s, w, r, id)
 				return
@@ -377,6 +380,27 @@ func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Requ
 	broadcastMissionState(s)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
+}
+
+// handleMissionCancelV2 cancels the running local run of a mission. The run
+// itself is owned by the sync chat handler; we only cancel its registered
+// context and let the mission callback record the cancelled result.
+func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := s.MissionManagerV2.CancelCheck(id); err != nil {
+		jsonError(w, err.Error(), missionErrorStatus(err))
+		return
+	}
+	if !s.missionRunTracker().cancel(id) {
+		jsonError(w, "mission run cannot be cancelled yet", http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelling"})
 }
 
 // handleMissionQueue returns the current queue status

@@ -81,6 +81,10 @@ const (
 	MissionResultError   = "error"
 )
 
+// MissionCancelledOutput is the recorded output of a run that the user
+// cancelled through the API.
+const MissionCancelledOutput = "Cancelled by user"
+
 // TriggerConfig holds configuration for mission triggers
 type TriggerConfig struct {
 	// For all event triggers
@@ -2123,6 +2127,36 @@ func (m *MissionManagerV2) NextRun(id string) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return m.cron.NextRun("mission_" + id)
+}
+
+// CancelCheck validates that a mission run may be cancelled: mutation
+// permission, existence, local runner and running state. It performs no
+// cancellation itself; the server owns the run context.
+func (m *MissionManagerV2) CancelCheck(id string) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+	m.mu.RLock()
+	mission, ok := m.missions[id]
+	var (
+		remote  bool
+		running bool
+	)
+	if ok {
+		remote = isRemoteMission(mission)
+		running = mission.Status == MissionStatusRunning
+	}
+	m.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("mission not found: %s", id)
+	}
+	if remote {
+		return fmt.Errorf("cancelling remote mission runs is not supported")
+	}
+	if !running {
+		return fmt.Errorf("mission is not running")
+	}
+	return nil
 }
 
 // List returns all missions
