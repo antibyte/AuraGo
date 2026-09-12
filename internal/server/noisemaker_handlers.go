@@ -35,6 +35,49 @@ const (
 	noisemakerTracksMaxLimit     = 200
 )
 
+// noisemakerFavoriteTag marks a song as favorite in the media registry tags.
+const noisemakerFavoriteTag = "favorite"
+
+func noisemakerHasTag(item tools.MediaItem, tag string) bool {
+	for _, t := range item.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// noisemakerTrackJSON serializes a registry item for the library list, the
+// PATCH response and the generate response so every surface sees the same shape.
+func noisemakerTrackJSON(item tools.MediaItem) map[string]interface{} {
+	title := strings.TrimSpace(item.Description)
+	if title == "" {
+		title = limitNoisemakerText(item.Prompt, 100)
+	}
+	tags := item.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	return map[string]interface{}{
+		"id":           item.ID,
+		"title":        title,
+		"prompt":       item.Prompt,
+		"style":        item.Style,
+		"lyrics":       item.Lyrics,
+		"tags":         tags,
+		"favorite":     noisemakerHasTag(item, noisemakerFavoriteTag),
+		"instrumental": noisemakerHasTag(item, "instrumental"),
+		"duration_ms":  item.DurationMs,
+		"file_size":    item.FileSize,
+		"format":       item.Format,
+		"web_path":     item.WebPath,
+		"cover_url":    item.SourceImage,
+		"provider":     item.Provider,
+		"model":        item.Model,
+		"created_at":   item.CreatedAt,
+	}
+}
+
 type noisemakerEnhanceRequest struct {
 	Kind    string `json:"kind"`    // idea | style | lyrics | title
 	Text    string `json:"text"`    // current field content (may be empty for random/from-scratch)
@@ -501,7 +544,11 @@ func handleNoisemakerTracks(s *Server) http.HandlerFunc {
 		}
 
 		query := strings.TrimSpace(r.URL.Query().Get("q"))
-		items, err := searchAllMediaForServer(s.MediaRegistryDB, query, "music")
+		var tags []string
+		if fav := r.URL.Query().Get("favorites"); fav == "1" || fav == "true" {
+			tags = []string{noisemakerFavoriteTag}
+		}
+		items, err := searchAllMediaForServerWithTags(s.MediaRegistryDB, query, "music", tags)
 		if err != nil {
 			s.Logger.Error("Noisemaker: failed to list tracks", "error", err)
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to load tracks"})
@@ -516,32 +563,7 @@ func handleNoisemakerTracks(s *Server) http.HandlerFunc {
 
 		tracks := make([]map[string]interface{}, 0, len(items))
 		for _, item := range items {
-			title := strings.TrimSpace(item.Description)
-			if title == "" {
-				title = limitNoisemakerText(item.Prompt, 100)
-			}
-			instrumental := false
-			for _, tag := range item.Tags {
-				if tag == "instrumental" {
-					instrumental = true
-					break
-				}
-			}
-			tracks = append(tracks, map[string]interface{}{
-				"id":           item.ID,
-				"title":        title,
-				"prompt":       item.Prompt,
-				"tags":         item.Tags,
-				"instrumental": instrumental,
-				"duration_ms":  item.DurationMs,
-				"file_size":    item.FileSize,
-				"format":       item.Format,
-				"web_path":     item.WebPath,
-				"cover_url":    item.SourceImage,
-				"provider":     item.Provider,
-				"model":        item.Model,
-				"created_at":   item.CreatedAt,
-			})
+			tracks = append(tracks, noisemakerTrackJSON(item))
 		}
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{

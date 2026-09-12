@@ -476,3 +476,52 @@ func TestNoisemakerDeleteReadonly(t *testing.T) {
 		t.Fatalf("status code = %d, want 403", rec.Code)
 	}
 }
+
+func TestNoisemakerTracksFavoritesFilterAndFields(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	favID := noisemakerRegisterTrack(t, s, cfg, "music_fav.mp3")
+	noisemakerRegisterTrack(t, s, cfg, "music_plain.mp3")
+	if err := tools.TagMedia(s.MediaRegistryDB, favID, []string{"favorite"}, "add"); err != nil {
+		t.Fatalf("TagMedia: %v", err)
+	}
+	if err := tools.UpdateMediaText(s.MediaRegistryDB, favID, "lofi, chill", "la la la"); err != nil {
+		t.Fatalf("UpdateMediaText: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks", nil)
+	rec := httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var all map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &all); err != nil {
+		t.Fatalf("decode all: %v", err)
+	}
+	if all["total"].(float64) != 2 {
+		t.Fatalf("total = %#v, want 2 without filter", all["total"])
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks?favorites=1", nil)
+	rec = httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var favs map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &favs); err != nil {
+		t.Fatalf("decode favorites: %v", err)
+	}
+	if favs["total"].(float64) != 1 {
+		t.Fatalf("total = %#v, want 1 with favorites=1", favs["total"])
+	}
+	ids := noisemakerTrackIDs(t, favs)
+	if len(ids) != 1 || ids[0] != favID {
+		t.Fatalf("favorites = %#v, want [%d]", ids, favID)
+	}
+	track := favs["items"].([]interface{})[0].(map[string]interface{})
+	if track["favorite"] != true {
+		t.Fatalf("favorite = %#v, want true", track["favorite"])
+	}
+	if track["style"] != "lofi, chill" || track["lyrics"] != "la la la" {
+		t.Fatalf("style/lyrics = %#v/%#v", track["style"], track["lyrics"])
+	}
+	if _, ok := track["tags"].([]interface{}); !ok {
+		t.Fatalf("tags must be an array, got %#v", track["tags"])
+	}
+}
