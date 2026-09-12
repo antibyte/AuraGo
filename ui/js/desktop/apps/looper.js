@@ -97,7 +97,7 @@
             '</aside>' +
             '<section class="vd-looper-editor" data-pane="setup">' +
             '<div class="vd-looper-editor-toolbar">' +
-            '<input type="text" id="looper-name-' + windowId + '" class="vd-looper-name" placeholder="' + esc(t('desktop.looper_name')) + '" ' + (isReadonly ? 'disabled' : '') + '>' +
+            '<input type="text" inputmode="text" enterkeyhint="next" id="looper-name-' + windowId + '" class="vd-looper-name" placeholder="' + esc(t('desktop.looper_name')) + '" ' + (isReadonly ? 'disabled' : '') + '>' +
             '<div class="vd-looper-editor-actions">' +
             '<button type="button" class="vd-looper-icon-btn" id="looper-save-' + windowId + '" title="' + esc(t('desktop.looper_save')) + '" ' + (isReadonly ? 'disabled' : '') + '>' + icon('save') + '</button>' +
             '<button type="button" class="vd-looper-icon-btn" id="looper-dup-' + windowId + '" title="' + esc(t('desktop.looper_duplicate')) + '" ' + (isReadonly ? 'disabled' : '') + '>' + icon('copy') + '</button>' +
@@ -112,7 +112,7 @@
             '</details>' +
             '<div class="vd-looper-settings">' +
             '<label class="vd-looper-setting">' + esc(t('desktop.looper_max_rounds')) +
-            '<input type="number" id="looper-max-' + windowId + '" min="1" max="50" value="10" ' + (isReadonly ? 'disabled' : '') + '></label>' +
+            '<input type="number" inputmode="numeric" enterkeyhint="done" id="looper-max-' + windowId + '" min="1" max="50" value="10" ' + (isReadonly ? 'disabled' : '') + '></label>' +
             '<label class="vd-looper-setting vd-looper-setting-range">' + esc(t('desktop.looper_target_score')) +
             '<span class="vd-looper-range-row"><input type="range" id="looper-score-' + windowId + '" min="50" max="100" value="85" ' + (isReadonly ? 'disabled' : '') + '>' +
             '<output id="looper-score-out-' + windowId + '">85</output></span></label>' +
@@ -124,7 +124,7 @@
             '<details class="vd-looper-disclosure">' +
             '<summary>' + esc(t('desktop.looper_more_options')) + '</summary>' +
             '<label class="vd-looper-setting">' + esc(t('desktop.looper_stall_rounds')) +
-            '<input type="number" id="looper-stall-' + windowId + '" min="0" max="10" value="3" title="' + esc(t('desktop.looper_stall_rounds_help')) + '" ' + (isReadonly ? 'disabled' : '') + '>' +
+            '<input type="number" inputmode="numeric" enterkeyhint="done" id="looper-stall-' + windowId + '" min="0" max="10" value="3" title="' + esc(t('desktop.looper_stall_rounds_help')) + '" ' + (isReadonly ? 'disabled' : '') + '>' +
             '<span class="vd-looper-help">' + esc(t('desktop.looper_stall_rounds_help')) + '</span></label>' +
             '</details></section>' +
             '<section class="vd-looper-side">' +

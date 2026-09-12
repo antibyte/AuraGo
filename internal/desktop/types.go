@@ -413,6 +413,7 @@ var desktopPreferredIconNames = []string{
 	"settings-symbolic",
 	"sliders",
 	"sort",
+	"sound-symbolic",
 	"square",
 	"star",
 	"software-store",

@@ -133,7 +133,8 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const shown = [];
   let submitted;
   const state = {
-    frame: { contentWindow: {} }, project: { id: 'snake' }, channelID: 'channel',
+    frame: { contentWindow: { postMessage() {} } }, project: { id: 'snake' }, channelID: 'channel',
+    container: { querySelector: () => null },
     previewProjectID: 'snake', previewGrant: { token: 'parent-only-token', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() },
     previewReported: new Set(), previewDiagnostics: [], messages: [], selectedAssetPackIDs: ['space-shooter'],
     api: {
@@ -192,6 +193,7 @@ async function testGameMakerSpriteBrowserOwnsSelectionAndCleanup() {
     return nodes.get(key);
   }
   const layer = { querySelector: node };
+  node('[data-asset-kind]').value = 'all';
   const selection = {};
   let finishCatalog, finishDetail, requestSignal, starts = 0;
   const state = { context: { t: key => key, esc: String }, selectedAssetPackIDs: [],
@@ -205,9 +207,11 @@ async function testGameMakerSpriteBrowserOwnsSelectionAndCleanup() {
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
   const assets = context.window.GameMakerStudioAssets;
   assets.show(state, { showModal(_state, _html, mount) { mount(layer); }, modalError() { assert.fail('late request touched closed modal'); } });
-  finishCatalog({ packs: [{ id: 'space-shooter', tags: ['space'], description: 'Ships' }] });
+  finishCatalog({ packs: [{ id: 'space-shooter', kind: 'sprite2d', tags: ['space'], description: 'Ships' }] });
   await Promise.resolve();
   const cards = node('[data-asset-cards]');
+  assert.match(cards.innerHTML, /data-pack="space-shooter"/);
+  assert.equal(typeof finishDetail, 'function', 'the first sprite pack must load its detail');
   cards.handlers.change({ target: { dataset: { selectPack: 'space-shooter' }, checked: true } });
   assert.equal(state.selectedAssetPackIDs.join(), 'space-shooter');
   assert.ok(selection.textContent.includes('pack_space_shooter'));
@@ -237,7 +241,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
     project: { id: 'snake' }, diagnostics: [],
     context: { esc: String, t: String },
     container: { querySelector(selector) {
-      if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {} });
+      if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {}, setAttribute() {} });
       return nodes.get(selector);
     } },
     api: { async previewGrant() { return { url: '/preview', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() }; } }
@@ -245,7 +249,8 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   let nextChannel = 0;
   const context = {
     window: {}, crypto: { getRandomValues: () => [++nextChannel] },
-    document: { createElement: () => ({ contentWindow: {}, setAttribute() {} }) }
+    document: { createElement: () => ({ contentWindow: { postMessage() {} }, setAttribute() {}, addEventListener() {} }) },
+    IntersectionObserver: class { observe() {} disconnect() {} }
   };
   vm.runInNewContext(sourceBetween(app, 'async function refreshPreview(', 'function showCreateModal('), context);
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
@@ -253,6 +258,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   context.window.GameMakerStudioPreview.showLoading = () => {};
   state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
   await context.refreshPreview(state);
+  assert.equal(state.diagnostics.length, 0, 'preview setup must succeed before testing late reports');
   let rejectReport;
   state.api.reportPreview = () => new Promise((_resolve, reject) => { rejectReport = reject; });
   const oldEvent = { source: state.frame.contentWindow, data: {

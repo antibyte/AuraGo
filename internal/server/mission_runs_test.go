@@ -22,12 +22,12 @@ import (
 // blockingCancelTestClient stands in for a long-running LLM turn: it blocks
 // until the request context is cancelled and reports that cancellation.
 type blockingCancelTestClient struct {
-	started chan struct{}
+	started chan context.Context
 }
 
 func (c *blockingCancelTestClient) CreateChatCompletion(ctx context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	select {
-	case c.started <- struct{}{}:
+	case c.started <- ctx:
 	default:
 	}
 	<-ctx.Done()
@@ -51,6 +51,7 @@ func TestHandleChatCompletionsMissionRunIsCancellable(t *testing.T) {
 	t.Cleanup(func() { _ = stm.Close() })
 
 	cfg := &config.Config{}
+	cfg.CircuitBreaker.LLMTimeoutSeconds = 30
 	cfg.LLM.Provider = "main"
 	cfg.LLM.ProviderType = "ollama"
 	cfg.LLM.Model = "cancel-test-model"
@@ -63,7 +64,7 @@ func TestHandleChatCompletionsMissionRunIsCancellable(t *testing.T) {
 		MaxOutputTokens: 1024,
 	}}
 	cfg.LLM.BaseURL = cfg.Providers[0].BaseURL
-	client := &blockingCancelTestClient{started: make(chan struct{}, 1)}
+	client := &blockingCancelTestClient{started: make(chan context.Context, 1)}
 	s := &Server{
 		Cfg:            cfg,
 		Logger:         logger,
@@ -94,9 +95,11 @@ func TestHandleChatCompletionsMissionRunIsCancellable(t *testing.T) {
 		defer close(done)
 		handleChatCompletions(s, nil).ServeHTTP(rec, req)
 	}()
+	defer s.missionRunTracker().cancel("m_e2e")
 
+	var callCtx context.Context
 	select {
-	case <-client.started:
+	case callCtx = <-client.started:
 	case <-done:
 		t.Fatalf("handler returned before the LLM call started: status %d body %s", rec.Code, rec.Body.String())
 	case <-time.After(15 * time.Second):
@@ -109,6 +112,9 @@ func TestHandleChatCompletionsMissionRunIsCancellable(t *testing.T) {
 	case <-done:
 	case <-time.After(15 * time.Second):
 		t.Fatal("handler did not return after the run was cancelled")
+	}
+	if !errors.Is(callCtx.Err(), context.Canceled) {
+		t.Fatalf("LLM call must stop through mission cancellation, got %v", callCtx.Err())
 	}
 	if rec.Header().Get("X-Aurago-Agent-Error") != "true" {
 		t.Fatalf("cancelled run must produce the agent-error response; status %d headers %v body %s", rec.Code, rec.Header(), rec.Body.String())
