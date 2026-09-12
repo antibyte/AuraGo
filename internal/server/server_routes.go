@@ -596,7 +596,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/noisemaker/enhance", handleNoisemakerEnhance(s))
 	mux.HandleFunc("/api/desktop/noisemaker/generate", handleNoisemakerGenerate(s))
 	mux.HandleFunc("/api/desktop/noisemaker/tracks", handleNoisemakerTracks(s))
-	mux.HandleFunc("/api/desktop/noisemaker/tracks/", handleNoisemakerTrackDelete(s))
+	mux.HandleFunc("/api/desktop/noisemaker/tracks/", handleNoisemakerTrackItem(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
 	mux.HandleFunc("/api/agodesk/ws", handleAgodeskWebSocket(s))
 	mux.HandleFunc("/api/agodesk/tts/", handleAgodeskTTSAsset(s))

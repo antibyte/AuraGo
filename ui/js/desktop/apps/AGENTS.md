@@ -1592,31 +1592,55 @@ registration lives in `internal/desktop/types.go`.
   HTTP 202 mutation responses are saved partial successes: close the dialog,
   refresh state, and show the localized reconciliation warning. True save
   failures keep retryable manual sources and setup tokens in window memory.
-- `noisemaker.js` implements the Noisemaker app, a Suno-style AI music studio:
-  create view (song idea, style with suggestion chips, optional lyrics/title,
-  AI enhancement buttons, optional AI cover), generation progress with elapsed
-  timer, result card, library grid, and bottom player bar. It must call only
-  `/api/desktop/noisemaker/*` endpoints and never receives provider credentials;
-  capability gating (music disabled, no LLM, no cover AI, lyrics unsupported)
-  is driven by `/api/desktop/noisemaker/state`, and a disabled integration
-  renders the onboarding card instead of the studio. Exposes
-  `window.NoisemakerApp { render, dispose }`; every window instance owns its
-  enhance/generate AbortControllers, the elapsed timer, form preferences under
-  `aurago.desktop.noisemaker.prefs`, and its NoisemakerLibrary instance.
-- `noisemaker-library.js` implements the library grid plus bottom player bar as
-  `window.NoisemakerLibrary.create(deps)` (factory pattern like
-  CheaterToolbar). It loads before `noisemaker.js` in `module-loader.js`, owns
-  exactly one `<audio>` element per window instance, and its `dispose()` stops
-  playback and detaches all listeners. The track list is server-paginated
-  (`GET /api/desktop/noisemaker/tracks?limit=&offset=&q=`, newest first via
-  `created_at DESC`): the app feeds pages through `setTracks` (reset) and
-  `appendTracks` (next page) and drives `setPagination({total, hasMore,
-  loading})`; the library emits `loadmore` from an IntersectionObserver
-  sentinel (fallback "load more" button), `search` with a 300 ms debounce for
-  server-side search, and `needmore-for-play` when the player reaches the end
-  of the loaded list while more tracks exist.
-- Noisemaker visible UI strings use `desktop.noisemaker_*` keys plus
-  `desktop.app_noisemaker` in all `ui/lang/desktop/*.json` files.
+- `noisemaker.js` — Noisemaker shell (`window.NoisemakerApp = { render, dispose }`):
+  workbench layout (create pane | splitter | library, player bar), prefs in
+  `aurago.desktop.noisemaker.prefs`, API calls to `/api/desktop/noisemaker/*`
+  (state, enhance, generate, tracks, PATCH/DELETE tracks/{id}), window +
+  context menus, compact mode (< 860 px). Loads after the four sub-modules
+  below (see `module-loader.js`). The shell is the only module that talks to
+  the network; it must call only `/api/desktop/noisemaker/*` and never
+  receives provider credentials. Capability gating (music disabled, no LLM,
+  no cover AI, lyrics unsupported) is driven by `/api/desktop/noisemaker/state`;
+  a disabled integration renders the onboarding card instead of the workbench.
+  Tracks are server-paginated (`limit`/`offset`/`q`/`favorites=1`, newest
+  first); favorites are the `favorite` media tag toggled via PATCH. HTTP 200
+  `{status:error}` track pages throw and leave the current list in place; toasts
+  use the server message or `desktop.noisemaker_error_unknown` (never on
+  `AbortError`). `needmore` runs `continueQueue`: enqueue remaining loaded
+  tracks via `queueHas` (library order), else wait for a library load that is
+  already running (`tracksInFlight`) and re-check, else fetch the next page;
+  `cancelPendingAutoplay` only when nothing more can arrive. Toasts go through
+  the shell's `toast()` helper, which builds the `{ title, message, type,
+  appId }` payload `showDesktopNotification` expects. Compact windows (`is-compact`, < 860 px) apply the same narrow
+  player, list-row and Now-Playing rules as the 720 px viewport fallback.
+  Volume `change` events still save prefs; the menubar rebuilds only when
+  shuffle, repeat, visualizer or muted change. Visible UI strings use
+  `desktop.noisemaker_*` keys plus `desktop.app_noisemaker` in all
+  `ui/lang/desktop/*.json` files.
+- `noisemaker-menus.js` — `window.NoisemakerMenus = { windowMenus(m),
+  trackContextItems(m, track), libraryContextItems(m), withCheckIcons }`;
+  pure builders over a model `{ t, tFull, readonly, s, actions }`.
+  `t(key, params, fallback)` expects full keys (`desktop.noisemaker_*`),
+  `tFull` is an alias; all five modules pass full keys so the static i18n key
+  lint covers them.
+- `noisemaker-library.js` — `window.NoisemakerLibrary = { create(deps),
+  formatDuration, formatDate }`; grid/list views, favorites filter, search,
+  multi-select, load-more; emits `play, enqueue, favorite, delete, template,
+  download, contextmenu, create, loadmore, search, filter, view, selection`.
+- `noisemaker-player.js` — `window.NoisemakerPlayer = { create(deps) }`; single
+  `<audio>`, queue with shuffle/repeat/autoplay, Web-Audio visualizer,
+  Now-Playing view; exposes `queueHas` and `cancelPendingAutoplay`;
+  `pendingAutoplay` clears on play/setQueue/clearQueue/stopAudio. Volume slider
+  `input` updates audio/UI only; `change` and mute emit prefs. Visualizer
+  availability is queryable at mount; Now Playing shares `.is-viz-off`.
+  Emits `state, change, favorite, delete, template, download, expand,
+  needmore, error, visualizer-unavailable`.
+- `noisemaker-create.js` — `window.NoisemakerCreate = { create(deps), PRESETS }`;
+  Simple/Custom modes, genre presets, AI enhance, local ACE-Step controls,
+  progress + result card; the root carries the current mode as
+  `data-nm-create-mode`; the segment buttons carry
+  `data-nm-mode="simple|custom"`. Emits `generate, change, mode, play-result,
+  show-in-library, new-song`.
 - `editor-filemenu.js` implements file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Fallback file-list
   empty-state load failures use `desktop.load_failed`. Bundled in the
@@ -1732,14 +1756,22 @@ registration lives in `internal/desktop/types.go`.
   EventSource to `/api/desktop/logs/stream`, readonly-gated download.
   Exposes `window.LogViewerFilters` then `window.LogViewerApp`. No child
   DOX file needed.
-- `noisemaker.js` - Noisemaker app entry: capability state, create view with AI
-  enhancement helpers, synchronous generation flow with progress/result/error
-  slots, onboarding for unconfigured music generation, tab shell. Exposes
-  `window.NoisemakerApp`. No child DOX file needed.
-- `noisemaker-library.js` - Noisemaker library grid and bottom player bar
-  (search, cards, template/download/delete actions, seek/volume, prev/next).
-  Exposes `window.NoisemakerLibrary { create }`; loads before `noisemaker.js`.
-  No child DOX file needed.
+- `noisemaker-menus.js` - Noisemaker window/context menu builders. Exposes
+  `window.NoisemakerMenus`; pure builders over `{ t, tFull, readonly, s,
+  actions }`. Loads before `noisemaker.js`. No child DOX file needed.
+- `noisemaker-library.js` - Noisemaker library grid/list, favorites, search,
+  multi-select and pagination. Exposes
+  `window.NoisemakerLibrary { create, formatDuration, formatDate }`. No child
+  DOX file needed.
+- `noisemaker-player.js` - Noisemaker player bar, queue, visualizer and Now
+  Playing view. Exposes `window.NoisemakerPlayer { create }`. No child DOX
+  file needed.
+- `noisemaker-create.js` - Noisemaker song creation (Simple/Custom modes,
+  presets, ACE-Step controls). Exposes
+  `window.NoisemakerCreate { create, PRESETS }`. No child DOX file needed.
+- `noisemaker.js` - Noisemaker workbench shell orchestrating create pane,
+  library and player. Exposes `window.NoisemakerApp { render, dispose }`;
+  loads after the four sub-modules. No child DOX file needed.
 - `sip-phone.js` - iPhone-inspired SIP softphone: device chassis with glossy
   Dynamic Island and status bar, separate `.sip-phone-hw-*` hardware buttons,
   black screen bezel, aurora mesh wallpaper, `.sip-phone-glare` glass

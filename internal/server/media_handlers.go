@@ -108,11 +108,18 @@ func (s *Server) deleteMediaItemByID(id int64, dataDir string) error {
 }
 
 func searchAllMediaForServer(db *sql.DB, query, mediaType string) ([]tools.MediaItem, error) {
+	return searchAllMediaForServerWithTags(db, query, mediaType, nil)
+}
+
+// searchAllMediaForServerWithTags loads every matching registry item (all pages)
+// so callers can apply display filtering before paginating. tags restricts the
+// result to items carrying every listed tag.
+func searchAllMediaForServerWithTags(db *sql.DB, query, mediaType string, tags []string) ([]tools.MediaItem, error) {
 	const pageSize = 1000
 	var all []tools.MediaItem
 	offset := 0
 	for {
-		page, total, err := tools.SearchMedia(db, query, mediaType, nil, pageSize, offset)
+		page, total, err := tools.SearchMedia(db, query, mediaType, tags, pageSize, offset)
 		if err != nil {
 			return nil, err
 		}

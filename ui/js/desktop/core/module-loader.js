@@ -177,7 +177,7 @@
         },
         'noisemaker': {
             styles: appStyles('/css/desktop-app-noisemaker.css'),
-            scripts: ['/js/desktop/apps/noisemaker-library.js', '/js/desktop/apps/noisemaker.js']
+            scripts: ['/js/desktop/apps/noisemaker-menus.js', '/js/desktop/apps/noisemaker-library.js', '/js/desktop/apps/noisemaker-player.js', '/js/desktop/apps/noisemaker-create.js', '/js/desktop/apps/noisemaker.js']
         },
         'zipper': {
             styles: appStyles('/css/zipper.css'),

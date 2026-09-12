@@ -38,6 +38,7 @@ type MediaItem struct {
 	SourceImage      string   `json:"source_image,omitempty"`
 	Quality          string   `json:"quality,omitempty"`
 	Style            string   `json:"style,omitempty"`
+	Lyrics           string   `json:"lyrics,omitempty"`
 	Size             string   `json:"size,omitempty"`
 	Language         string   `json:"language,omitempty"`
 	VoiceID          string   `json:"voice_id,omitempty"`
@@ -80,6 +81,7 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 		language           TEXT DEFAULT '',
 		voice_id           TEXT DEFAULT '',
 		hash               TEXT DEFAULT '',
+		lyrics             TEXT DEFAULT '',
 		deleted            INTEGER DEFAULT 0
 	);`
 	if _, err := db.Exec(schema); err != nil {
@@ -144,6 +146,7 @@ var mediaRegistryColumns = []mediaRegistryColumnDef{
 	{name: "language", sql: "language TEXT DEFAULT ''"},
 	{name: "voice_id", sql: "voice_id TEXT DEFAULT ''"},
 	{name: "hash", sql: "hash TEXT DEFAULT ''"},
+	{name: "lyrics", sql: "lyrics TEXT DEFAULT ''"},
 	{name: "deleted", sql: "deleted INTEGER DEFAULT 0"},
 }
 
@@ -419,7 +422,7 @@ func searchMediaPage(db *sql.DB, query, mediaType string, tags []string, limit, 
 	}
 
 	args = append(args, limit, offset)
-	rows, err := db.Query("SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash FROM media_items WHERE "+where+" ORDER BY created_at DESC LIMIT ? OFFSET ?", args...)
+	rows, err := db.Query("SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash, lyrics FROM media_items WHERE "+where+" ORDER BY created_at DESC LIMIT ? OFFSET ?", args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to search media items: %w", err)
 	}
@@ -429,7 +432,7 @@ func searchMediaPage(db *sql.DB, query, mediaType string, tags []string, limit, 
 	for rows.Next() {
 		var m MediaItem
 		var tagsStr string
-		if err := rows.Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash); err != nil {
+		if err := rows.Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash, &m.Lyrics); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan media item: %w", err)
 		}
 		if err := json.Unmarshal([]byte(tagsStr), &m.Tags); err != nil {
@@ -453,7 +456,7 @@ func GetMedia(db *sql.DB, id int64) (*MediaItem, error) {
 	}
 	var m MediaItem
 	var tagsStr string
-	err := db.QueryRow("SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash FROM media_items WHERE id = ? AND deleted = 0", id).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash)
+	err := db.QueryRow("SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash, lyrics FROM media_items WHERE id = ? AND deleted = 0", id).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash, &m.Lyrics)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("media item %d not found", id)
@@ -492,10 +495,10 @@ func getMediaByExactField(db *sql.DB, field, value string) (*MediaItem, error) {
 	if field != "web_path" && field != "file_path" {
 		return nil, fmt.Errorf("unsupported media lookup field %q", field)
 	}
-	query := "SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash FROM media_items WHERE " + field + " = ? AND deleted = 0 LIMIT 1"
+	query := "SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash, lyrics FROM media_items WHERE " + field + " = ? AND deleted = 0 LIMIT 1"
 	var m MediaItem
 	var tagsStr string
-	err := db.QueryRow(query, value).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash)
+	err := db.QueryRow(query, value).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash, &m.Lyrics)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("media item with %s %q not found", field, value)
@@ -635,6 +638,16 @@ func UpdateMedia(db *sql.DB, id int64, description string, tags []string) error 
 		return execMediaUpdate(db, id, "UPDATE media_items SET description = ?, tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, string(tagsJSON), now, id)
 	}
 	return execMediaUpdate(db, id, "UPDATE media_items SET description = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, now, id)
+}
+
+// UpdateMediaText stores the style and lyrics of a media item (used by the
+// Noisemaker desktop app for generated songs) and refreshes updated_at.
+func UpdateMediaText(db *sql.DB, id int64, style, lyrics string) error {
+	if db == nil {
+		return fmt.Errorf("media registry DB not initialized")
+	}
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	return execMediaUpdate(db, id, "UPDATE media_items SET style = ?, lyrics = ?, updated_at = ? WHERE id = ? AND deleted = 0", style, lyrics, now, id)
 }
 
 func execMediaUpdate(db *sql.DB, id int64, query string, args ...interface{}) error {

@@ -15012,7 +15012,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('noisemaker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.NoisemakerApp.render === 'function') return window.NoisemakerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
+            if (typeof window.NoisemakerApp.render === 'function') return window.NoisemakerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly() }));
         }
 if (appId === 'zipper') {
             if (!window.ZipperApp) {

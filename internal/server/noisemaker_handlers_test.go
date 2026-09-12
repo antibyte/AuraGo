@@ -476,3 +476,178 @@ func TestNoisemakerDeleteReadonly(t *testing.T) {
 		t.Fatalf("status code = %d, want 403", rec.Code)
 	}
 }
+
+func TestNoisemakerTracksFavoritesFilterAndFields(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	favID := noisemakerRegisterTrack(t, s, cfg, "music_fav.mp3")
+	noisemakerRegisterTrack(t, s, cfg, "music_plain.mp3")
+	if err := tools.TagMedia(s.MediaRegistryDB, favID, []string{"favorite"}, "add"); err != nil {
+		t.Fatalf("TagMedia: %v", err)
+	}
+	if err := tools.UpdateMediaText(s.MediaRegistryDB, favID, "lofi, chill", "la la la"); err != nil {
+		t.Fatalf("UpdateMediaText: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks", nil)
+	rec := httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var all map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &all); err != nil {
+		t.Fatalf("decode all: %v", err)
+	}
+	if all["total"].(float64) != 2 {
+		t.Fatalf("total = %#v, want 2 without filter", all["total"])
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks?favorites=1", nil)
+	rec = httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var favs map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &favs); err != nil {
+		t.Fatalf("decode favorites: %v", err)
+	}
+	if favs["total"].(float64) != 1 {
+		t.Fatalf("total = %#v, want 1 with favorites=1", favs["total"])
+	}
+	ids := noisemakerTrackIDs(t, favs)
+	if len(ids) != 1 || ids[0] != favID {
+		t.Fatalf("favorites = %#v, want [%d]", ids, favID)
+	}
+	track := favs["items"].([]interface{})[0].(map[string]interface{})
+	if track["favorite"] != true {
+		t.Fatalf("favorite = %#v, want true", track["favorite"])
+	}
+	if track["style"] != "lofi, chill" || track["lyrics"] != "la la la" {
+		t.Fatalf("style/lyrics = %#v/%#v", track["style"], track["lyrics"])
+	}
+	if _, ok := track["tags"].([]interface{}); !ok {
+		t.Fatalf("tags must be an array, got %#v", track["tags"])
+	}
+}
+
+func noisemakerPatch(t *testing.T, s *Server, id int64, body string) (*httptest.ResponseRecorder, map[string]interface{}) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/desktop/noisemaker/tracks/%d", id), strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handleNoisemakerTrackItem(s).ServeHTTP(rec, req)
+	var payload map[string]interface{}
+	_ = json.Unmarshal(rec.Body.Bytes(), &payload)
+	return rec, payload
+}
+
+func TestNoisemakerPatchFavoriteAddAndRemove(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_patch.mp3")
+
+	rec, payload := noisemakerPatch(t, s, id, `{"favorite":true}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	track := payload["track"].(map[string]interface{})
+	if track["favorite"] != true {
+		t.Fatalf("favorite = %#v, want true", track["favorite"])
+	}
+	item, err := tools.GetMedia(s.MediaRegistryDB, id)
+	if err != nil {
+		t.Fatalf("GetMedia: %v", err)
+	}
+	if !noisemakerHasTag(*item, "favorite") {
+		t.Fatalf("tags = %#v, want favorite tag", item.Tags)
+	}
+
+	rec, payload = noisemakerPatch(t, s, id, `{"favorite":false}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if payload["track"].(map[string]interface{})["favorite"] != false {
+		t.Fatalf("favorite should be false after removal")
+	}
+	item, _ = tools.GetMedia(s.MediaRegistryDB, id)
+	if noisemakerHasTag(*item, "favorite") {
+		t.Fatalf("favorite tag still present: %#v", item.Tags)
+	}
+}
+
+func TestNoisemakerPatchRejectsBadInput(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_patch_bad.mp3")
+
+	if rec, _ := noisemakerPatch(t, s, id, `{}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("missing favorite: status = %d, want 400", rec.Code)
+	}
+	if rec, _ := noisemakerPatch(t, s, id, `{"favorite":"yes"`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid json: status = %d, want 400", rec.Code)
+	}
+	if rec, _ := noisemakerPatch(t, s, 424242, `{"favorite":true}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown id: status = %d, want 404", rec.Code)
+	}
+	imgID, _, err := tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{MediaType: "image", SourceTool: "generate_image", Filename: "img_patch.png", Format: "png"})
+	if err != nil {
+		t.Fatalf("RegisterMedia: %v", err)
+	}
+	if rec, _ := noisemakerPatch(t, s, imgID, `{"favorite":true}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("non-music: status = %d, want 404", rec.Code)
+	}
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/desktop/noisemaker/tracks/%d", id), strings.NewReader(`{"favorite":true}`))
+	rec := httptest.NewRecorder()
+	handleNoisemakerTrackItem(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("PUT: status = %d, want 405", rec.Code)
+	}
+}
+
+func TestNoisemakerPatchReadonly(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	cfg.VirtualDesktop.ReadOnly = true
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_patch_ro.mp3")
+	if rec, _ := noisemakerPatch(t, s, id, `{"favorite":true}`); rec.Code != http.StatusForbidden {
+		t.Fatalf("readonly: status = %d, want 403", rec.Code)
+	}
+}
+
+func TestNoisemakerTrackItemDispatchesDelete(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_item_delete.mp3")
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/desktop/noisemaker/tracks/%d", id), nil)
+	rec := httptest.NewRecorder()
+	handleNoisemakerTrackItem(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("DELETE via item handler: status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestNoisemakerPersistTrackTextStoresStyleAndLyrics(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_text.mp3")
+
+	track := noisemakerPersistTrackText(s, id, "synthwave, 80s", "[Verse]\nNeon rain")
+	if track == nil {
+		t.Fatal("expected serialized track")
+	}
+	if track["style"] != "synthwave, 80s" || track["lyrics"] != "[Verse]\nNeon rain" {
+		t.Fatalf("style/lyrics = %#v/%#v", track["style"], track["lyrics"])
+	}
+	if track["favorite"] != false || track["id"].(int64) != id {
+		t.Fatalf("favorite/id = %#v/%#v", track["favorite"], track["id"])
+	}
+	item, err := tools.GetMedia(s.MediaRegistryDB, id)
+	if err != nil {
+		t.Fatalf("GetMedia: %v", err)
+	}
+	if item.Lyrics != "[Verse]\nNeon rain" {
+		t.Fatalf("lyrics not persisted: %q", item.Lyrics)
+	}
+	if noisemakerPersistTrackText(s, 0, "x", "y") != nil {
+		t.Fatal("media id 0 must return nil")
+	}
+	if noisemakerPersistTrackText(&Server{Cfg: cfg, Logger: s.Logger}, id, "x", "y") != nil {
+		t.Fatal("missing registry must return nil")
+	}
+}
