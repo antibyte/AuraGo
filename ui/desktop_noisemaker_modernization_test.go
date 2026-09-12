@@ -174,6 +174,7 @@ func TestDesktopNoisemakerRefreshLibraryModule(t *testing.T) {
 		"emit('contextmenu', { x: event.clientX, y: event.clientY, track })",
 		"no_favorites_title",
 		"nm-skeleton",
+		"!trackById(",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("noisemaker-library.js missing marker %q", marker)

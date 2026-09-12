@@ -457,7 +457,13 @@
         }
 
         function appendTracks(list) {
-            const more = (list || []).filter(Boolean);
+            const seen = new Set();
+            const more = (list || []).filter(Boolean).filter(track => {
+                const id = String(track.id);
+                if (!id || seen.has(id) || trackById(id)) return false;
+                seen.add(id);
+                return true;
+            });
             if (!more.length) return;
             if (!tracks.length) { setTracks(more); return; }
             tracks = tracks.concat(more);
