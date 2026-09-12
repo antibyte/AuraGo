@@ -183,6 +183,7 @@
         }
 
         function play(track, context) {
+            pendingAutoplay = false;
             if (!track || !track.web_path) return;
             const cur = current();
             if (cur && sameId(cur.id, track.id)) { toggle(); return; }
@@ -206,6 +207,7 @@
         }
 
         function setQueue(list, index) {
+            pendingAutoplay = false;
             queue = playable(list);
             const idx = Math.min(Math.max(0, Number(index) || 0), Math.max(0, queue.length - 1));
             buildOrder(queue.length ? idx : -1);
@@ -240,6 +242,7 @@
         }
 
         function clearQueue() {
+            pendingAutoplay = false;
             const cur = current();
             queue = cur ? [cur] : [];
             buildOrder(cur ? 0 : -1);
@@ -291,6 +294,14 @@
             renderQueue();
         }
 
+        function queueHas(id) {
+            return queue.some(x => sameId(x.id, id));
+        }
+
+        function cancelPendingAutoplay() {
+            pendingAutoplay = false;
+        }
+
         function updateTrack(track) {
             if (!track) return;
             let touchedCurrent = false;
@@ -319,6 +330,7 @@
         }
 
         function stopAudio() {
+            pendingAutoplay = false;
             audio.pause();
             audio.removeAttribute('src');
             try { audio.load(); } catch (_) { /* ignore */ }
@@ -558,7 +570,9 @@
             bar.classList.toggle('is-shuffle', shuffle);
             bar.classList.toggle('is-muted', audio.muted);
             bar.classList.toggle('is-open', nowPlayingOpen);
-            bar.classList.toggle('is-viz-off', !visualizerOn || !visualizerAvailable);
+            const vizOff = !visualizerOn || !visualizerAvailable;
+            bar.classList.toggle('is-viz-off', vizOff);
+            np.classList.toggle('is-viz-off', vizOff);
             q('[data-nm-act="shuffle"]').setAttribute('aria-pressed', shuffle ? 'true' : 'false');
             q('[data-nm-act="mute"]').setAttribute('aria-pressed', audio.muted ? 'true' : 'false');
             setLabel(q('[data-nm-act="mute"]'), audio.muted ? t('desktop.noisemaker_player_unmute') : t('desktop.noisemaker_player_mute'));
@@ -690,8 +704,10 @@
         volumeInput.addEventListener('input', () => {
             const value = clamp01(volumeInput.value);
             if (audio.muted && value > 0) audio.muted = false;
-            setVolume(value);
+            audio.volume = value;
+            renderBar();
         });
+        volumeInput.addEventListener('change', () => { emitChange(); });
 
         np.addEventListener('click', event => {
             if (event.target.closest('[data-np-back]')) { setNowPlayingOpen(false); return; }
@@ -732,9 +748,10 @@
 
         return {
             barElement: bar, nowPlayingElement: np,
-            play, toggle, next, prev, enqueue, setQueue, queue: () => queue.slice(), clearQueue,
+            play, toggle, next, prev, enqueue, setQueue, queue: () => queue.slice(), queueHas, clearQueue,
             current, isPlaying,
             setShuffle, setRepeat, setVolume, setMuted, setVisualizer, setNowPlayingOpen,
+            cancelPendingAutoplay,
             isNowPlayingOpen: () => nowPlayingOpen, visualizerAvailable: () => visualizerAvailable, prefs: prefsSnapshot,
             updateTrack, removeTracks, on, dispose
         };

@@ -380,3 +380,55 @@ func TestDesktopNoisemakerRefreshStyles(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerReviewFixes(t *testing.T) {
+	t.Parallel()
+
+	shell := readDesktopAssetText(t, "js/desktop/apps/noisemaker.js")
+	player := readDesktopAssetText(t, "js/desktop/apps/noisemaker-player.js")
+	css := readDesktopAssetText(t, "css/desktop-app-noisemaker.css")
+
+	for _, marker := range []string{
+		"data.status === 'error'",
+		"throw new Error(data.message || '')",
+		"err.name === 'AbortError'",
+		"desktop.noisemaker_error_unknown",
+		"S.tracks.filter(track => !S.player.queueHas(track.id))",
+		"S.player.cancelPendingAutoplay()",
+		"S.visualizerAvailable = S.player.visualizerAvailable()",
+		"S.prefs.shuffle !== prevShuffle || S.prefs.repeat !== prevRepeat || S.prefs.visualizer !== prevVisualizer || S.prefs.muted !== prevMuted",
+	} {
+		if !strings.Contains(shell, marker) {
+			t.Fatalf("noisemaker.js missing review-fix marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		"function cancelPendingAutoplay()",
+		"function queueHas(id)",
+		"pendingAutoplay = false",
+		"volumeInput.addEventListener('change', () => { emitChange(); })",
+		"audio.volume = value;",
+		"np.classList.toggle('is-viz-off', vizOff)",
+	} {
+		if !strings.Contains(player, marker) {
+			t.Fatalf("noisemaker-player.js missing review-fix marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		".noisemaker-app.is-compact .nm-player-volume",
+		".noisemaker-app.is-compact .nm-player-info",
+		".noisemaker-app.is-compact .nm-row {",
+		".noisemaker-app.is-compact .nm-np-body",
+		"color-scheme: light",
+		".desktop-body[data-theme=\"fruity\"][data-fruity-mode=\"dark\"] .noisemaker-app",
+		".nm-now-playing.is-viz-off .nm-np-viz",
+		".nm-player-viz { border-radius: 6px; flex: 0 0 auto; height: 40px; width: 80px; color: var(--nm-accent); }",
+		".nm-np-viz { border-radius: 8px; height: 72px; width: min(420px, 100%); color: var(--nm-accent); }",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop-app-noisemaker.css missing review-fix marker %q", marker)
+		}
+	}
+}

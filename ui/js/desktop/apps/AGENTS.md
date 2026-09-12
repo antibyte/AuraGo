@@ -1603,8 +1603,16 @@ registration lives in `internal/desktop/types.go`.
   no cover AI, lyrics unsupported) is driven by `/api/desktop/noisemaker/state`;
   a disabled integration renders the onboarding card instead of the workbench.
   Tracks are server-paginated (`limit`/`offset`/`q`/`favorites=1`, newest
-  first); favorites are the `favorite` media tag toggled via PATCH. Visible UI
-  strings use `desktop.noisemaker_*` keys plus `desktop.app_noisemaker` in all
+  first); favorites are the `favorite` media tag toggled via PATCH. HTTP 200
+  `{status:error}` track pages throw and leave the current list in place; toasts
+  use the server message or `desktop.noisemaker_error_unknown` (never on
+  `AbortError`). `needmore` first enqueues remaining loaded tracks via
+  `queueHas` (library order), then pages; `cancelPendingAutoplay` when nothing
+  is added. Compact windows (`is-compact`, < 860 px) apply the same narrow
+  player, list-row and Now-Playing rules as the 720 px viewport fallback.
+  Volume `change` events still save prefs; the menubar rebuilds only when
+  shuffle, repeat, visualizer or muted change. Visible UI strings use
+  `desktop.noisemaker_*` keys plus `desktop.app_noisemaker` in all
   `ui/lang/desktop/*.json` files.
 - `noisemaker-menus.js` — `window.NoisemakerMenus = { windowMenus(m),
   trackContextItems(m, track), libraryContextItems(m), withCheckIcons }`;
@@ -1618,8 +1626,12 @@ registration lives in `internal/desktop/types.go`.
   download, contextmenu, create, loadmore, search, filter, view, selection`.
 - `noisemaker-player.js` — `window.NoisemakerPlayer = { create(deps) }`; single
   `<audio>`, queue with shuffle/repeat/autoplay, Web-Audio visualizer,
-  Now-Playing view; emits `state, change, favorite, delete, template, download,
-  expand, needmore, error, visualizer-unavailable`.
+  Now-Playing view; exposes `queueHas` and `cancelPendingAutoplay`;
+  `pendingAutoplay` clears on play/setQueue/clearQueue/stopAudio. Volume slider
+  `input` updates audio/UI only; `change` and mute emit prefs. Visualizer
+  availability is queryable at mount; Now Playing shares `.is-viz-off`.
+  Emits `state, change, favorite, delete, template, download, expand,
+  needmore, error, visualizer-unavailable`.
 - `noisemaker-create.js` — `window.NoisemakerCreate = { create(deps), PRESETS }`;
   Simple/Custom modes, genre presets, AI enhance, local ACE-Step controls,
   progress + result card; the root carries the current mode as

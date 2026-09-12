@@ -240,10 +240,11 @@
         S.player = window.NoisemakerPlayer.create(Object.assign({}, base, {
             formatDuration: lib.formatDuration,
             formatDate: lib.formatDate,
-            hasMore: () => S.tracks.length < S.tracksTotal,
+            hasMore: () => (S.player && S.tracks.some(track => !S.player.queueHas(track.id))) || S.tracks.length < S.tracksTotal,
             isVisible: () => !!(S.root && S.root.isConnected && S.root.offsetParent !== null),
             prefs: { shuffle: S.prefs.shuffle, repeat: S.prefs.repeat, volume: S.prefs.volume, muted: S.prefs.muted, visualizer: S.prefs.visualizer }
         }));
+        S.visualizerAvailable = S.player.visualizerAvailable();
 
         qs(S, '[data-nm-pane="create"]').appendChild(S.create.element);
         const libraryPane = qs(S, '[data-nm-pane="library"]');
@@ -321,7 +322,17 @@
             S.library.setPlaying(payload && payload.track ? payload.track.id : null, !!(payload && payload.playing));
             refreshMenus(S);
         });
-        P.on('change', prefs => { Object.assign(S.prefs, prefs || {}); savePrefs(S.prefs); refreshMenus(S); });
+        P.on('change', prefs => {
+            const prevShuffle = S.prefs.shuffle;
+            const prevRepeat = S.prefs.repeat;
+            const prevVisualizer = S.prefs.visualizer;
+            const prevMuted = S.prefs.muted;
+            Object.assign(S.prefs, prefs || {});
+            savePrefs(S.prefs);
+            if (S.prefs.shuffle !== prevShuffle || S.prefs.repeat !== prevRepeat || S.prefs.visualizer !== prevVisualizer || S.prefs.muted !== prevMuted) {
+                refreshMenus(S);
+            }
+        });
         P.on('favorite', (track, value) => toggleFavorite(S, track, value));
         P.on('delete', track => deleteTracks(S, [track]));
         P.on('template', track => useTemplate(S, track));
@@ -333,7 +344,17 @@
             refreshMenus(S);
         });
         P.on('needmore', () => {
-            loadMoreTracks(S).then(added => { if (!S.disposed && added.length && S.player) S.player.enqueue(added); });
+            if (S.disposed || !S.player) return;
+            const rest = S.tracks.filter(track => !S.player.queueHas(track.id));
+            if (rest.length) {
+                S.player.enqueue(rest);
+                return;
+            }
+            loadMoreTracks(S).then(added => {
+                if (S.disposed || !S.player) return;
+                if (added.length) S.player.enqueue(added);
+                else S.player.cancelPendingAutoplay();
+            });
         });
         P.on('error', () => S.ctx.notify(S.t('desktop.noisemaker_playback_failed')));
         P.on('visualizer-unavailable', () => { S.visualizerAvailable = false; refreshMenus(S); });
@@ -345,7 +366,14 @@
         const params = new URLSearchParams({ limit: String(TRACKS_PAGE_SIZE), offset: String(offset) });
         if (S.query) params.set('q', S.query);
         if (S.filter === 'favorites') params.set('favorites', '1');
-        return await request(S, '/api/desktop/noisemaker/tracks?' + params.toString());
+        const data = await request(S, '/api/desktop/noisemaker/tracks?' + params.toString());
+        if (data && data.status === 'error') throw new Error(data.message || '');
+        return data;
+    }
+
+    function notifyTracksError(S, err) {
+        if (S.disposed || (err && err.name === 'AbortError')) return;
+        S.ctx.notify((err && err.message) || S.t('desktop.noisemaker_error_unknown'));
     }
 
     function syncPagination(S, loading) {
@@ -368,8 +396,9 @@
             syncPagination(S, false);
             const current = S.player ? S.player.current() : null;
             if (current) S.library.setPlaying(current.id, S.player.isPlaying());
-        } catch (_) {
+        } catch (err) {
             if (S.disposed || seq !== S.loadSeq || !S.library) return;
+            notifyTracksError(S, err);
         }
         if (!S.library) return;
         S.tracksLoading = false;
@@ -397,8 +426,10 @@
             S.tracksTotal = Number(data.total) || S.tracksTotal;
             if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
             S.library.appendTracks(additions);
-        } catch (_) {
+        } catch (err) {
             if (S.disposed || seq !== S.loadSeq || !S.library) return [];
+            notifyTracksError(S, err);
+            return [];
         } finally {
             if (!S.disposed && seq === S.loadSeq && S.library) {
                 S.tracksLoading = false;
