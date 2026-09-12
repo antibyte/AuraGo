@@ -634,6 +634,10 @@ GET /api/missions
 GET /api/missions/v2
 ```
 
+Mission objects returned by the list and by-id endpoints contain the persisted mission fields plus:
+
+`next_run` (RFC 3339, optional) — next scheduled execution. Present only for enabled scheduled missions; derived at request time and not persisted. Also included in `mission_update` SSE payloads.
+
 ### Create Mission
 ```http
 POST /api/missions/v2

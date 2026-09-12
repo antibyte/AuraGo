@@ -627,6 +627,10 @@ GET /api/missions
 GET /api/missions/v2
 ```
 
+Die Missionsobjekte der Listen- und Einzelabfrage enthalten neben den gespeicherten Feldern zusätzlich:
+
+`next_run` (RFC 3339, optional) — nächste geplante Ausführung. Nur bei aktiven Zeitplan-Missionen vorhanden; wird zur Laufzeit berechnet und nicht gespeichert. Ebenfalls Teil der `mission_update`-SSE-Nachrichten.
+
 ### Mission erstellen
 ```http
 POST /api/missions/v2

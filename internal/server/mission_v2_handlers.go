@@ -25,7 +25,7 @@ func broadcastMissionState(s *Server) {
 	missions := s.MissionManagerV2.List()
 	queue, running := s.MissionManagerV2.GetQueue()
 	s.SSE.BroadcastType(EventMissionUpdate, map[string]interface{}{
-		"missions": missions,
+		"missions": missionPayloads(s.MissionManagerV2, missions),
 		"queue": map[string]interface{}{
 			"items":   queue.List(),
 			"running": running,
@@ -38,6 +38,36 @@ func validateCronExpr(expr string) bool {
 	parser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 	_, err := parser.Parse(expr)
 	return err == nil
+}
+
+// missionV2Payload decorates a mission with runtime-derived fields that are
+// not persisted. next_run is only present for enabled scheduled missions.
+type missionV2Payload struct {
+	*tools.MissionV2
+	NextRun *time.Time `json:"next_run,omitempty"`
+}
+
+// missionPayload builds the JSON representation shared by the list, by-id and
+// SSE mission_update paths. It must be called after the manager has returned
+// its mission copies: MissionManagerV2.NextRun takes the manager lock itself.
+func missionPayload(mgr *tools.MissionManagerV2, mission *tools.MissionV2) missionV2Payload {
+	payload := missionV2Payload{MissionV2: mission}
+	if mgr == nil || mission == nil {
+		return payload
+	}
+	if next, ok := mgr.NextRun(mission.ID); ok {
+		nextCopy := next
+		payload.NextRun = &nextCopy
+	}
+	return payload
+}
+
+func missionPayloads(mgr *tools.MissionManagerV2, missions []*tools.MissionV2) []missionV2Payload {
+	out := make([]missionV2Payload, 0, len(missions))
+	for _, mission := range missions {
+		out = append(out, missionPayload(mgr, mission))
+	}
+	return out
 }
 
 func missionErrorStatus(err error) int {
@@ -102,7 +132,7 @@ func handleListMissionsV2(s *Server) http.HandlerFunc {
 		queue, running := s.MissionManagerV2.GetQueue()
 
 		response := map[string]interface{}{
-			"missions": missions,
+			"missions": missionPayloads(s.MissionManagerV2, missions),
 			"queue": map[string]interface{}{
 				"items":   queue.List(),
 				"running": running,
@@ -248,7 +278,7 @@ func handleMissionGetV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(mission)
+	json.NewEncoder(w).Encode(missionPayload(s.MissionManagerV2, mission))
 }
 
 func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {

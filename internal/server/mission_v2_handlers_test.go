@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/tools"
 )
@@ -272,5 +273,150 @@ func TestHandleMissionRemoveFromQueueReturnsNotFound(t *testing.T) {
 
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("status = %d body=%s, want 404", rr.Code, rr.Body.String())
+	}
+}
+
+func TestMissionV2PayloadsIncludeNextRunForScheduledMissions(t *testing.T) {
+	allowMissionMutationsForTest(t)
+	dir := t.TempDir()
+	cronMgr := tools.NewCronManager(dir)
+	cronMgr.Start(func(string) {})
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mgr := tools.NewMissionManagerV2(dir, cronMgr)
+	if err := mgr.Create(&tools.MissionV2{ID: "m_sched", Name: "Sched", Prompt: "p", ExecutionType: tools.ExecutionScheduled, Schedule: "0 9 * * *", Enabled: true}); err != nil {
+		t.Fatalf("create scheduled: %v", err)
+	}
+	if err := mgr.Create(&tools.MissionV2{ID: "m_manual", Name: "Manual", Prompt: "p", ExecutionType: tools.ExecutionManual, Enabled: true}); err != nil {
+		t.Fatalf("create manual: %v", err)
+	}
+	s := &Server{MissionManagerV2: mgr}
+
+	rr := httptest.NewRecorder()
+	handleListMissionsV2(s).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/missions/v2", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list status %d: %s", rr.Code, rr.Body.String())
+	}
+	var list struct {
+		Missions []map[string]json.RawMessage `json:"missions"`
+		Queue    map[string]json.RawMessage   `json:"queue"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if len(list.Missions) != 2 {
+		t.Fatalf("expected 2 missions, got %d", len(list.Missions))
+	}
+	if _, ok := list.Queue["items"]; !ok {
+		t.Fatalf("queue.items missing from list payload")
+	}
+	for _, m := range list.Missions {
+		var id string
+		_ = json.Unmarshal(m["id"], &id)
+		_, hasNext := m["next_run"]
+		switch id {
+		case "m_sched":
+			if !hasNext {
+				t.Fatalf("scheduled mission must include next_run")
+			}
+			var next time.Time
+			if err := json.Unmarshal(m["next_run"], &next); err != nil || next.IsZero() {
+				t.Fatalf("next_run must be an RFC3339 timestamp, got %s (%v)", m["next_run"], err)
+			}
+		case "m_manual":
+			if hasNext {
+				t.Fatalf("manual mission must omit next_run")
+			}
+		default:
+			t.Fatalf("unexpected mission id %q", id)
+		}
+	}
+
+	rr = httptest.NewRecorder()
+	handleMissionGetV2(s, rr, httptest.NewRequest(http.MethodGet, "/api/missions/v2/m_sched", nil), "m_sched")
+	var single map[string]json.RawMessage
+	if err := json.Unmarshal(rr.Body.Bytes(), &single); err != nil {
+		t.Fatalf("decode single: %v", err)
+	}
+	if _, ok := single["next_run"]; !ok {
+		t.Fatalf("by-id payload must include next_run for scheduled mission")
+	}
+	if _, ok := single["name"]; !ok {
+		t.Fatalf("by-id payload must keep the embedded mission fields")
+	}
+}
+
+func TestMissionV2BroadcastIncludesNextRunForScheduledMissions(t *testing.T) {
+	allowMissionMutationsForTest(t)
+	dir := t.TempDir()
+	cronMgr := tools.NewCronManager(dir)
+	if err := cronMgr.Start(func(string) {}); err != nil {
+		t.Fatalf("start cron: %v", err)
+	}
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mgr := tools.NewMissionManagerV2(dir, cronMgr)
+	if err := mgr.Create(&tools.MissionV2{ID: "m_sched", Name: "Sched", Prompt: "p", ExecutionType: tools.ExecutionScheduled, Schedule: "0 9 * * *", Enabled: true}); err != nil {
+		t.Fatalf("create scheduled: %v", err)
+	}
+	// Create always enables a mission; disable it through Update afterwards.
+	disabled := &tools.MissionV2{ID: "m_disabled", Name: "Disabled", Prompt: "p", ExecutionType: tools.ExecutionScheduled, Schedule: "0 9 * * *"}
+	if err := mgr.Create(disabled); err != nil {
+		t.Fatalf("create disabled: %v", err)
+	}
+	disabled.Enabled = false
+	if err := mgr.Update("m_disabled", disabled); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	sse := NewSSEBroadcaster()
+	events := sse.subscribe()
+	t.Cleanup(func() { sse.unsubscribe(events) })
+	s := &Server{MissionManagerV2: mgr, SSE: sse}
+
+	broadcastMissionState(s)
+
+	var raw string
+	select {
+	case raw = <-events:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no mission_update event broadcast")
+	}
+	var event struct {
+		Type    string `json:"type"`
+		Payload struct {
+			Missions []map[string]json.RawMessage `json:"missions"`
+			Queue    map[string]json.RawMessage   `json:"queue"`
+		} `json:"payload"`
+	}
+	if err := json.Unmarshal([]byte(raw), &event); err != nil {
+		t.Fatalf("decode event: %v (%s)", err, raw)
+	}
+	if event.Type != string(EventMissionUpdate) {
+		t.Fatalf("event type = %q, want %q", event.Type, EventMissionUpdate)
+	}
+	if _, ok := event.Payload.Queue["items"]; !ok {
+		t.Fatalf("queue.items missing from broadcast payload")
+	}
+	if len(event.Payload.Missions) != 2 {
+		t.Fatalf("expected 2 missions in broadcast, got %d", len(event.Payload.Missions))
+	}
+	for _, m := range event.Payload.Missions {
+		var id string
+		_ = json.Unmarshal(m["id"], &id)
+		next, hasNext := m["next_run"]
+		switch id {
+		case "m_sched":
+			if !hasNext {
+				t.Fatalf("broadcast must include next_run for enabled scheduled mission")
+			}
+			var parsed time.Time
+			if err := json.Unmarshal(next, &parsed); err != nil || parsed.IsZero() {
+				t.Fatalf("next_run must be an RFC3339 timestamp, got %s (%v)", next, err)
+			}
+		case "m_disabled":
+			if hasNext {
+				t.Fatalf("broadcast must omit next_run for disabled scheduled mission, got %s", next)
+			}
+		default:
+			t.Fatalf("unexpected mission id %q", id)
+		}
 	}
 }
