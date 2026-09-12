@@ -40,8 +40,8 @@ func TestDesktopElapsedSecondsI18n(t *testing.T) {
 		}
 	}
 
-	noisemaker := readDesktopAssetText(t, "js/desktop/apps/noisemaker.js")
-	if !strings.Contains(noisemaker, "text(ctx, 'progress_elapsed', { seconds: 0 }") {
+	noisemaker := readDesktopAssetText(t, "js/desktop/apps/noisemaker-create.js")
+	if !strings.Contains(noisemaker, "t('desktop.noisemaker_progress_elapsed', { seconds: 0 })") {
 		t.Fatal("noisemaker seed elapsed i18n missing progress_elapsed")
 	}
 	if strings.Contains(noisemaker, "data-nm-elapsed>0 s<") {

@@ -125,7 +125,11 @@ func TestLocalMusicNoisemakerBrowser(t *testing.T) {
 	var locale map[string]string
 	_ = json.Unmarshal(mustReadUIFile(t, "lang/desktop/en.json"), &locale)
 	translations, _ := json.Marshal(locale)
-	markup := `<!doctype html><meta charset="utf-8"><style>` + string(mustReadUIFile(t, "css/desktop-app-noisemaker.css")) + `body{margin:0;width:360px}#host{height:900px}input{max-width:100%}</style><div id="host"></div><script>window.SYSTEM_LANG='en';window.locale=` + string(translations) + `;</script><script>` + string(mustReadUIFile(t, "js/desktop/apps/noisemaker-library.js")) + `</script><script>` + string(mustReadUIFile(t, "js/desktop/apps/noisemaker.js")) + `</script><script>
+	scripts := ""
+	for _, name := range []string{"noisemaker-menus", "noisemaker-library", "noisemaker-player", "noisemaker-create", "noisemaker"} {
+		scripts += `<script>` + string(mustReadUIFile(t, "js/desktop/apps/"+name+".js")) + `</script>`
+	}
+	markup := `<!doctype html><meta charset="utf-8"><style>` + string(mustReadUIFile(t, "css/desktop-app-noisemaker.css")) + `body{margin:0;width:360px}#host{height:900px}input{max-width:100%}</style><div id="host"></div><script>window.SYSTEM_LANG='en';window.locale=` + string(translations) + `;</script>` + scripts + `<script>
  window.requests=[];window.caps={enabled:true,supports_controls:true,supports_lyrics:true,local:{ready:true,state:'ready',profile:{max_duration:120,lm_model:'',model:'turbo'}}};
  const ctx={t:k=>locale[k]||k,esc:v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),notify:()=>{},api:async(path,options={})=>{
  requests.push({path,body:options.body});if(path.endsWith('/state'))return caps;if(path.includes('/tracks'))return {items:[],total:0};if(path.endsWith('/generate'))return {title:'Piano',web_path:'',daily_used:1};return {};
@@ -141,6 +145,8 @@ func TestLocalMusicNoisemakerBrowser(t *testing.T) {
 	_ = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{Width: 360, Height: 900, DeviceScaleFactor: 1, Mobile: false})
 	page.MustWaitLoad()
 	defer page.Close()
+	waitForJSBool(t, page, `() => !!document.querySelector('[data-nm-mode="custom"]')`)
+	page.MustElement(`[data-nm-mode="custom"]`).MustClick()
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-nm-field="seed"]')`)
 	if !page.MustEval(`() => {const grid=document.querySelector('.nm-local-controls');return grid.scrollWidth<=grid.clientWidth+1;}`).Bool() {
 		t.Fatal("controls overflow narrow view")
