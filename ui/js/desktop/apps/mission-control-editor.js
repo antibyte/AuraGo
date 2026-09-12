@@ -29,6 +29,7 @@
         let cheatsheets = null;
         let selectedCheatsheets = [];
         let lastDirty = false;
+        let liveValidation = false; // becomes true after the first save attempt with errors
 
         const picker = triggers.createPicker({ esc, t, svg });
         const config = triggers.createConfigPanel({ esc, t, request, svg, missions });
@@ -317,6 +318,8 @@
             const dirty = isDirty();
             q('[data-mc-editor-unsaved]').hidden = !dirty;
             if (dirty !== lastDirty) { lastDirty = dirty; events.emit('dirty', dirty); }
+            // After the first failed save attempt, field errors follow the input live so fixes are confirmed immediately.
+            if (liveValidation) showErrors(validate());
         }
 
         // ── events ──
@@ -332,7 +335,7 @@
             if (saving || readonly) return;
             const errors = validate();
             showErrors(errors);
-            if (errors.length) { focusFirstError(); return; }
+            if (errors.length) { liveValidation = true; focusFirstError(); return; }
             events.emit('save', { mode, id: mode === 'edit' ? missionId : '', payload: getPayload() });
         });
         q('[data-mc-editor-cancel]').addEventListener('click', () => events.emit('cancel'));
@@ -364,6 +367,7 @@
             q('[data-mc-section="execution"]').open = !!(m.runner_type === 'remote' || m.locked || m.auto_prepare || (m.priority && m.priority !== 'medium') || selectedCheatsheets.length);
             q('[data-mc-editor-title]').textContent = t(mode === 'edit' ? 'desktop.mc_editor_edit_title' : 'desktop.mc_editor_new_title');
             q('[data-mc-editor-save-label]').textContent = t(mode === 'edit' ? 'desktop.mc_editor_save' : 'desktop.mc_editor_save_new');
+            liveValidation = false;
             showErrors([]);
             setSaving(false);
             applyMode();

@@ -184,13 +184,13 @@
                     <pre class="vd-mc-prompt">${esc(mission.prompt || '')}</pre>
                 </article>
                 <article class="vd-mc-card vd-mc-card--facts"><dl class="vd-mc-facts">${factRows()}</dl></article>
+                ${prepMarkup()}
                 <article class="vd-mc-card vd-mc-card--output">
                     <h3 class="vd-mc-card-title">${ic('history')}<span>${esc(t('desktop.mc_overview_last_output'))}</span>
                         ${output ? `<button type="button" class="vd-mc-btn vd-mc-btn--icon vd-mc-btn--ghost" data-mc-action="copyOutput" title="${esc(t('desktop.mc_overview_copy_output'))}" aria-label="${esc(t('desktop.mc_overview_copy_output'))}">${ic('copy')}</button>` : ''}
                     </h3>
                     ${output ? `<pre class="vd-mc-output${mission.last_result === 'error' ? ' is-error' : ''}" data-mc-output>${esc(shown)}</pre>${long ? `<button type="button" class="vd-mc-link" data-mc-output-toggle>${esc(t(outputExpanded ? 'desktop.mc_overview_show_less' : 'desktop.mc_overview_show_more'))}</button>` : ''}` : `<div class="vd-mc-muted">${esc(t('desktop.mc_overview_no_output'))}</div>`}
                 </article>
-                ${prepMarkup()}
             </div>`;
         }
 
@@ -199,7 +199,7 @@
             if (type === 'manual') return t('desktop.mc_filter_manual');
             if (type === 'scheduled') return t('desktop.mc_filter_scheduled');
             const def = triggers.byKey(type);
-            return def ? t(def.labelKey) : type;
+            return def ? (typeof triggers.label === 'function' ? triggers.label(def, t) : t(def.labelKey)) : type;
         }
 
         function runMarkup(run) {

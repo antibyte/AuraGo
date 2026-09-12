@@ -458,9 +458,12 @@ func TestDesktopMissionControlStylesheetContract(t *testing.T) {
 			t.Fatalf("desktop-app-mission-control.css must not contain %q", banned)
 		}
 	}
-	// Only the prefers-reduced-motion block may use !important (animation + transition).
-	if n := strings.Count(css, "!important"); n > 2 {
-		t.Fatalf("stylesheet uses !important %d times; only the reduced-motion block may", n)
+	// Only the [hidden] override and the prefers-reduced-motion block (animation + transition) may use !important.
+	if !strings.Contains(css, ".vd-mc [hidden] { display: none !important; }") {
+		t.Fatalf("stylesheet must force the hidden attribute over its display rules")
+	}
+	if n := strings.Count(css, "!important"); n > 3 {
+		t.Fatalf("stylesheet uses !important %d times; only [hidden] and the reduced-motion block may", n)
 	}
 	if lines := strings.Count(css, "\n"); lines > 1100 {
 		t.Fatalf("stylesheet too long (%d lines); split or trim", lines)

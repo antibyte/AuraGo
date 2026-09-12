@@ -32,6 +32,8 @@
 
 .vd-mc--fatal { display: grid; place-items: center; padding: var(--ds-space-6); color: var(--vd-muted); }
 .vd-mc *, .vd-mc *::before, .vd-mc *::after { box-sizing: border-box; }
+/* The modules toggle visibility through the hidden attribute; it must beat every display rule below. */
+.vd-mc [hidden] { display: none !important; }
 .vd-mc button { font: inherit; color: inherit; }
 .vd-mc svg { width: 1em; height: 1em; flex: none; }
 .vd-mc :focus-visible { outline: none; box-shadow: var(--mc-focus); border-radius: var(--mc-radius-sm); }
@@ -166,14 +168,15 @@
 .vd-mc-row:focus-visible { box-shadow: var(--mc-focus); }
 .vd-mc-row.is-paused .vd-mc-row-name { color: var(--vd-muted); }
 .vd-mc-row-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.vd-mc-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.vd-mc-row-name { font-weight: 600; font-size: var(--ds-type-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-mc-row-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }
+.vd-mc-row-name { flex: 1 1 auto; min-width: 0; max-width: 100%; font-weight: 600; font-size: var(--ds-type-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vd-mc-row-badge { display: inline-flex; align-items: center; color: var(--vd-muted); }
 .vd-mc-row-badge svg { width: 13px; height: 13px; }
 .vd-mc-row-badge--text { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 5px; border: 1px solid var(--vd-theme-border); border-radius: 4px; }
 .vd-mc-row-sub { font-size: var(--ds-type-size-xs); color: var(--vd-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vd-mc-row-meta { display: flex; align-items: center; gap: 6px; }
-.vd-mc-row-time { font-size: var(--ds-type-size-xs); color: var(--vd-muted); white-space: nowrap; }
+.vd-mc-row-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+/* Relative times may wrap onto a second line instead of collapsing into an ellipsis. */
+.vd-mc-row-time { font-size: var(--ds-type-size-xs); color: var(--vd-muted); text-align: right; line-height: 1.25; max-width: 12ch; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .vd-mc-row-quick { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: var(--mc-radius-sm); background: transparent; color: var(--mc-accent); cursor: pointer; opacity: 0; transition: opacity var(--mc-dur) var(--mc-ease), background var(--mc-dur) var(--mc-ease); }
 .vd-mc-row:hover .vd-mc-row-quick, .vd-mc-row.is-selected .vd-mc-row-quick, .vd-mc-row-quick:focus-visible { opacity: 1; }
 .vd-mc-row-quick:hover:not(:disabled) { background: var(--mc-accent-soft); }

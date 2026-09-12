@@ -143,6 +143,12 @@
         return joinParts(parts);
     }
 
+    // Legacy missions.* trigger labels carry a leading emoji pictogram; the desktop
+    // renders its own SVG icons, so only the words are used.
+    function label(type, t) {
+        return String(t(type.labelKey) || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    }
+
     function summary(mission, t, ctx) {
         ctx = ctx || {};
         if (!mission) return '';
@@ -152,9 +158,12 @@
         }
         if (mission.execution_type !== 'triggered') return t('desktop.mc_editor_mode_manual_desc');
         const type = byKey(mission.trigger_type);
-        const label = type ? t(type.labelKey) : (mission.trigger_type || '');
+        const name = type ? label(type, t) : (mission.trigger_type || '');
         const extra = detail(mission, t);
-        return extra ? label + ' · ' + extra : label;
+        if (!extra) return name;
+        // Legacy detail strings may already start with the type name ("Webhook: digest"); avoid "Webhook · Webhook: digest".
+        if (name && extra.toLowerCase().startsWith(name.toLowerCase())) return extra;
+        return name + ' · ' + extra;
     }
 
     function emitter() {
@@ -232,14 +241,14 @@
             const iconWrap = make('span', 'vd-mc-trigger-option-icon');
             iconWrap.append(icon(svg, type.icon));
             const textWrap = make('span', 'vd-mc-trigger-option-text');
-            textWrap.append(textEl('span', 'vd-mc-trigger-option-label', t(type.labelKey)), textEl('span', 'vd-mc-trigger-option-hint', t(type.hintKey)));
+            textWrap.append(textEl('span', 'vd-mc-trigger-option-label', label(type, t)), textEl('span', 'vd-mc-trigger-option-hint', t(type.hintKey)));
             button.append(iconWrap, textWrap);
             return button;
         }
 
         function matches(type) {
             if (!query) return true;
-            const hay = (t(type.labelKey) + ' ' + t(type.hintKey) + ' ' + type.key).toLowerCase();
+            const hay = (label(type, t) + ' ' + t(type.hintKey) + ' ' + type.key).toLowerCase();
             return hay.includes(query);
         }
 
@@ -264,7 +273,7 @@
             const iconWrap = make('span', 'vd-mc-trigger-current-icon');
             iconWrap.append(icon(svg, current ? current.icon : 'bolt'));
             const textWrap = make('span', 'vd-mc-trigger-current-text');
-            textWrap.append(textEl('span', 'vd-mc-trigger-current-label', current ? t(current.labelKey) : t('desktop.mc_trigger_none_selected')));
+            textWrap.append(textEl('span', 'vd-mc-trigger-current-label', current ? label(current, t) : t('desktop.mc_trigger_none_selected')));
             if (current) textWrap.append(textEl('span', 'vd-mc-trigger-current-hint', t(current.hintKey)));
             const action = textEl('span', 'vd-mc-trigger-current-action', t('desktop.mc_trigger_change'));
             action.append(icon(svg, open ? 'chevronUp' : 'chevronDown'));
@@ -535,5 +544,5 @@
         };
     }
 
-    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, summary, detail, createPicker, createConfigPanel };
+    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, createPicker, createConfigPanel };
 })();
