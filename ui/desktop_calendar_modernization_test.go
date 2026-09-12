@@ -44,12 +44,20 @@ func TestDesktopCalendarModernizationAssets(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"alert(",
+		// The shell's active view lives in data-cal-mode. A data-cal-view
+		// attribute on the shell made every click inside the calendar match
+		// the view-tab branch of the delegated click handler.
+		`class="vd-calendar-shell" data-cal-view`,
+		"shell.dataset.calView",
 	} {
 		for _, part := range []string{"js/desktop/apps/calendar.js", "js/desktop/apps/calendar-views.js", "js/desktop/apps/calendar-editor.js"} {
 			if strings.Contains(readDesktopAssetText(t, part), forbidden) {
 				t.Fatalf("%s must not use %q", part, forbidden)
 			}
 		}
+	}
+	if !strings.Contains(source, `class="vd-calendar-shell" data-cal-mode=`) || !strings.Contains(source, "shell.dataset.calMode = session.view") {
+		t.Fatal("calendar shell must expose the active view via data-cal-mode")
 	}
 }
 
@@ -70,6 +78,7 @@ func TestDesktopCalendarModernizationStyles(t *testing.T) {
 		".vd-calendar-skeleton",
 		".vd-calendar-recurring",
 		".vd-calendar-editor",
+		".vd-calendar-editor [hidden]",
 		"color-scheme: light",
 		"prefers-reduced-motion",
 		"hover: none",

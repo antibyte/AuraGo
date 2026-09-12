@@ -17,7 +17,7 @@
 
     function calendarShellHTML(session) {
         const viewButtons = CAL_VIEWS.map(view => `<button type="button" class="vd-calendar-view-button" role="tab" data-cal-view="${view}" aria-selected="false" title="${esc(t(`desktop.cal_${view}`))} (${view.charAt(0).toUpperCase()})">${esc(t(`desktop.cal_${view}`))}</button>`).join('');
-        return `<div class="vd-calendar-shell" data-cal-view="${esc(session.view)}">
+        return `<div class="vd-calendar-shell" data-cal-mode="${esc(session.view)}">
             <header class="vd-calendar-command">
                 <div class="vd-calendar-command-group">
                     <button type="button" class="vd-calendar-icon-button" data-cal-sidebar-toggle aria-pressed="${session.sidebarOpen ? 'true' : 'false'}" title="${esc(t('desktop.cal_toggle_sidebar'))}" aria-label="${esc(t('desktop.cal_toggle_sidebar'))}">${iconMarkup('columns', '|', 'vd-calendar-action-icon', 15)}</button>
@@ -175,7 +175,9 @@
         const shell = host.querySelector('.vd-calendar-shell');
         if (!shell) return;
         const searching = !!session.query.trim();
-        shell.dataset.calView = session.view;
+        // The active view lives in data-cal-mode; data-cal-view is reserved for
+        // the toolbar tabs so click delegation never matches the shell itself.
+        shell.dataset.calMode = session.view;
         shell.classList.toggle('is-sidebar-collapsed', !session.sidebarOpen);
         shell.classList.toggle('is-searching', searching);
         shell.classList.toggle('is-loading', session.loading && !session.loaded);

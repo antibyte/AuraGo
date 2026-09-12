@@ -1,5 +1,13 @@
 /* desktop-app-calendar.css - Calendar app (shell, month/week/day/agenda views, editor, peek, snackbar) */
 
+/* Several calendar elements toggle the hidden attribute while their class sets
+   display: flex/grid; keep the attribute authoritative inside the app. */
+.vd-calendar-shell [hidden],
+.vd-calendar-editor [hidden],
+.vd-calendar-peek [hidden] {
+    display: none !important;
+}
+
 .vd-calendar-shell {
     --cal-accent-rgb: var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166);
     --cal-accent: var(--vd-accent, rgb(var(--cal-accent-rgb)));

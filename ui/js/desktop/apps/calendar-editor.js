@@ -276,6 +276,8 @@
         if (!backdrop) return;
         session.editor = null;
         const restore = backdrop.__calendarRestoreFocus;
+        if (backdrop.__calendarDocKeydown) document.removeEventListener('keydown', backdrop.__calendarDocKeydown, true);
+        backdrop.__calendarDocKeydown = null;
         backdrop.classList.add('is-closing');
         const finish = () => backdrop.remove();
         if (document.body.dataset.animations === 'false') finish(); else setTimeout(finish, 140);
@@ -379,6 +381,15 @@
                 showError(err && err.message ? err.message : t('desktop.request_failed'));
             }
         });
+        // The dialog is modal: Escape closes it even while focus still sits on
+        // the control that opened it. Keys inside the form keep their own handler.
+        backdrop.__calendarDocKeydown = event => {
+            if (event.key !== 'Escape' || session.editor !== backdrop || backdrop.contains(event.target)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeCalendarEditor(session);
+        };
+        document.addEventListener('keydown', backdrop.__calendarDocKeydown, true);
         backdrop.addEventListener('mousedown', event => { if (event.target === backdrop) backdrop.dataset.dismiss = 'true'; });
         backdrop.addEventListener('mouseup', event => {
             if (event.target === backdrop && backdrop.dataset.dismiss === 'true') closeCalendarEditor(session);

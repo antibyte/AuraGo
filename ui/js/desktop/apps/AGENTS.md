@@ -710,6 +710,17 @@ buttons and menu popovers remain excluded from those gestures.
   `D`/`W`/`M`/`A` views, `/` search, arrows/PageUp/PageDown navigate, arrows on
   month cells move the roving selection, `Esc` clears search. Searching
   switches to the agenda view and restores the previous view when cleared.
+  All shell clicks go through one delegated handler in `wireCalendarShell`
+  that matches `data-cal-*` selectors with `closest`, so the shell element
+  itself must never carry one of those attributes: the active view is exposed
+  as `data-cal-mode` and `data-cal-view` belongs to the toolbar tabs only. The
+  editor is appended to `document.body` as a modal; a document-level
+  capture `keydown` closes it on `Escape` regardless of focus and is removed
+  in `closeCalendarEditor`. The stylesheet keeps `[hidden]` authoritative
+  inside `.vd-calendar-shell`, `.vd-calendar-editor` and `.vd-calendar-peek`
+  because several fields use flex/grid classes. Verify with
+  `go test ./ui -run TestDesktopCalendar` (the browser flow needs
+  `AURAGO_RUN_BROWSER_SMOKE=1`).
 - `cheater*.js` implements the Cheater app, a cheat-sheet manager with a
   textarea-based Markdown editor, live preview, Markdown toolbar, command
   palette (spotlight), and attachments side panel.
