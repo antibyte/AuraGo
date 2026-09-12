@@ -285,3 +285,51 @@ func TestDesktopMissionControlDetailModuleContract(t *testing.T) {
 		t.Fatalf("detail module must use the emoji-free desktop.mc_priority_* labels")
 	}
 }
+
+func TestDesktopMissionControlEditorModuleContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-editor.js")
+	for _, marker := range []string{
+		"window.MissionControlEditor = { create }",
+		"function create(deps)",
+		"element.setAttribute('novalidate', '')",
+		"role=\"radiogroup\"",
+		"<details class=\"vd-mc-editor-section vd-mc-editor-advanced\"",
+		"'desktop.mc_editor_section_task'",
+		"'desktop.mc_editor_section_when'",
+		"'desktop.mc_editor_section_execution'",
+		"'desktop.mc_editor_section_advanced'",
+		"'desktop.mc_editor_mode_' + key",
+		"'desktop.mc_editor_mode_' + key + '_desc'",
+		"'desktop.mc_priority_' + p",
+		"'desktop.mc_schedule_quick'",
+		"'desktop.mc_schedule_preview'",
+		"'desktop.mc_schedule_preview_invalid'",
+		"'desktop.mc_editor_remote_required'",
+		"'desktop.mc_editor_error_summary'",
+		"'desktop.mc_editor_duplicate_suffix'",
+		"/api/missions/v2/remote-targets",
+		"/api/cheatsheets?active=true&created_by=user",
+		"inputmode=\"numeric\"",
+		"enterkeyhint=",
+		"function isDirty()",
+		"function getPayload()",
+		"function validate()",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control-editor.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "confirm(", "prompt("} {
+		if strings.Contains(source, forbidden+"'") || strings.Contains(source, "window."+forbidden) {
+			t.Fatalf("editor must not use blocking dialogs (%s)", forbidden)
+		}
+	}
+	if strings.Contains(source, "enabled: true,") {
+		t.Fatalf("editor must send the Active toggle value, not a hardcoded enabled: true")
+	}
+	if strings.Contains(source, "missions.form_priority_") {
+		t.Fatalf("editor must use the emoji-free desktop.mc_priority_* labels")
+	}
+}
