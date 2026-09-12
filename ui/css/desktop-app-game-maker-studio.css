@@ -350,7 +350,7 @@
 .gm-preview-pane {
     grid-template-rows: auto minmax(0, 1fr) auto;
     border-left: 1px solid var(--gm-line);
-    background: #0c0d13;
+    background: var(--gm-bg);
 }
 
 .gm-pane-head {
@@ -509,7 +509,7 @@
 .gm-change-form {
     padding: 11px 14px 14px;
     border-top: 1px solid var(--gm-line);
-    background: rgba(14, 15, 22, 0.76);
+    background: var(--gm-panel);
 }
 
 .gm-change-form > label {
@@ -909,7 +909,8 @@
 
 /* --- Preview toolbar, loading and stale states --- */
 
-.gm-preview-tools {
+.gm-preview-pane .gm-pane-head > div:first-child { min-width: 0; }
+.gm-preview-tools { flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -919,6 +920,10 @@
     min-width: 34px;
     padding: 0 8px;
 }
+
+.gm-preview-tools button[aria-pressed="true"] { color: var(--gm-accent); border-color: var(--gm-accent); background: color-mix(in srgb, var(--gm-accent) 16%, var(--gm-panel)); }
+.gm-preview-tools svg { display: block; }
+@media (max-width: 600px), (pointer: coarse) { .gm-preview-tools button { min-width: 44px; min-height: 44px; } }
 
 .gm-preview-loading {
     position: absolute;

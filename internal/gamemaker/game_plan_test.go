@@ -629,3 +629,34 @@ func TestSpriteUsageReferencesAndTransforms(t *testing.T) {
 		t.Fatal("invented attack or missing direction")
 	}
 }
+
+func TestOptionalMechanicsDoNotImposeOutcomes(t *testing.T) {
+	service := newTestService(t)
+	project := createTestProject(t, service, "2d")
+	plan := ExampleGamePlan(project)
+	plan.SchemaVersion = 4
+	plan.Mechanics = map[string]any{
+		"outcomes": []any{"won"},
+		"lives":    float64(1),
+	}
+	if err := service.checkPlan(project, plan); err != nil {
+		t.Fatalf("optional peaceful mechanics rejected: %v", err)
+	}
+	plan.Mechanics = map[string]any{"blocks": []any{}}
+	if err := service.checkPlan(project, plan); err != nil {
+		t.Fatalf("continuous-play mechanics rejected: %v", err)
+	}
+	plan.SchemaVersion = 3
+	if err := service.checkPlan(project, plan); err == nil || !strings.Contains(err.Error(), "requires schema 4") {
+		t.Fatalf("schema3 mechanics accepted: %v", err)
+	}
+	plan.SchemaVersion = 4
+	plan.Mechanics = map[string]any{"outcomes": []any{"won", "won"}}
+	if err := service.checkPlan(project, plan); err == nil || !strings.Contains(err.Error(), "duplicate won") {
+		t.Fatalf("duplicate outcomes accepted: %v", err)
+	}
+	plan.Mechanics = map[string]any{"lives": float64(0)}
+	if err := service.checkPlan(project, plan); err == nil || !strings.Contains(err.Error(), "lives") {
+		t.Fatalf("invalid lives accepted: %v", err)
+	}
+}

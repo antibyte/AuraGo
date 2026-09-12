@@ -77,7 +77,7 @@ func (s *Service) Subscribe(projectID string) (<-chan Event, func()) {
 // access to the database.
 func (s *Service) EmitAgentEvent(ctx context.Context, projectID, jobID, eventType string, payload map[string]any) error {
 	switch eventType {
-	case "text_delta", "skill_activation", "file_changed", "asset_changed", "diagnostic", "phase":
+	case "text_delta", "skill_activation", "file_changed", "asset_changed", "diagnostic", "phase", "token_usage", "tool_call":
 	default:
 		return fmt.Errorf("unsupported game maker agent event %q", eventType)
 	}

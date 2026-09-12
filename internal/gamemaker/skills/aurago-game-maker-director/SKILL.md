@@ -33,6 +33,55 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
    If a write does not have the expected effect, fix the parameters and retry
    once; do not switch to `execute_python`, `execute_shell`, `filesystem`, or
    any tool outside the allowed Game Maker scope.
+   Scene/map data is optional: use the compact scene fields in set_design or
+   scene_inspect while planning, then scene_set, scene_patch, or
+   scene_generate after acceptance with the inspected expected_sha256.
+   Generators are composable recipes, not a genre or style constraint. Optional
+   mechanics may declare outcomes (won/lost) or lives; omit them for
+   continuous play. Use source edits for any custom rule or presentation.
+   Use agent scene operations only; there is no visual map editor. The canonical
+   document is `src/scene.json`. Start with
+   `scene_inspect`, then mutate only after acceptance with the current
+   `expected_sha256`:
+   ```json
+   {"job_id":"JOB","operation":"scene_inspect"}
+   ```
+   ```json
+   {"job_id":"JOB","operation":"scene_patch","expected_sha256":"HASH","patch":{"nodes":[{"id":"parcel","kind":"item","position":[430,270,0],"size":[20,20,0]}]}}
+   ```
+   A minimal accepted 2D scene keeps all coordinates as three numbers:
+   ```json
+   {
+     "schema_version":1,"dimension":"2d","seed":1729,"navigation":"topdown",
+     "levels":[{"id":"main","active":true}],
+     "world_bounds":{"min":[0,0,0],"max":[960,540,0]},
+     "nodes":[
+       {"id":"player","kind":"player","position":[80,270,0],"size":[24,24,0],"properties":{"player":true}},
+       {"id":"parcel","kind":"item","position":[400,270,0],"size":[20,20,0],"properties":{"win_when_cleared":true}}
+     ],
+     "placements":[{"id":"parcel-art","node_id":"parcel","asset_role":"item","behavior":"collect","position":[400,270,0]}]
+   }
+   ```
+   `asset_id`/`asset_role` select the visual and placement `behavior` is an
+   independent string. A role named `item` does not collect anything by itself;
+   `collect` plus `win_when_cleared` supplies that rule. Multiple placements can
+   share one stable `node_id`. For optional helpers, use a mechanics object such
+   as:
+   ```json
+   {
+     "lives":3,
+     "blocks":[
+       {"id":"player-health","kind":"health","target":"player","value":3},
+       {"id":"player-fire","kind":"projectile","target":"player","params":"{\"direction\":[1,0,0],\"speed\":420,\"ttl\":1,\"cooldown\":0.25}"}
+     ]
+   }
+   ```
+   `params` is a JSON object encoded as a string. `target` names the firing
+   player node; use `role` instead when that player is selected by an explicit
+   asset role. The projectile block is action-driven and does not infer behavior
+   from the projectile art. There is no top-level `health` field: use a targeted
+   health block. Omit `outcomes` and `lives` for continuous play; use source
+   edits for rules outside the bounded helpers.
 5. Prefer offline sprite packs or 3D models and respect the user's selection.
    Describe relevant packs, import additional matches as needed, and use exact
    JSON frame/animation definitions. Custom generation requires the media
@@ -82,20 +131,20 @@ Choose `shooter`, `platformer`, `topdown`, `blocks`, `board`, `minimal` for 2D;
 free code. Guided 3D installs a small editable `startGame(config)` entry with
 all chosen model roles bound to the shared runtime. Additional requested rules
 need real edits; preserve rendering, input, animations and disposal.
-Use `blocks` for Breakout/Arkanoid, `platformer` for jump-and-run, `topdown` for
-adventure, `shooter` for shooting games and `board` for cards/board games.
-`minimal` is for games without a matching template, such as Snake; it is only
-the schema example's default, not the recommended choice for every request.
+Optional starting points include `blocks` for Breakout, `platformer` for
+jump-and-run, `topdown` for adventure, `shooter` and `board`.
+Use `minimal` or `three` with individual mechanics and free hooks when that
+better preserves the requested idea. No timer, combat or collection goal is mandatory.
 The server installs a new supported template once; edits keep their existing code.
 Record objective, core_loop, 1–12 scope features, perspective, resolution (default
 960×540), camera, controls, states (including playing), progress/failure/completion
 rules, assumptions and fallback. Edits must list `preserve` behavior.
-For 3D use schema_version 3, units `metres` and at most 64 roles. Each model role
+For new 3D plans use schema_version 4, units `metres` and at most 64 roles. Each model role
 has exact pack/version/asset_id, positive metric scale, declared animation IDs and
 collider `catalog|box|sphere|capsule|mesh|none`. Omit sprite-only display_height
 and origin. Include the user's selected models when relevant; search and describe
 missing roles. Imports occur only after acceptance and contain selected models.
-New full plans use schema_version 3 in both dimensions; existing versions 1/2 remain readable. For each sprite role specify the exact pack version, asset OR assembly ID,
+New full plans use schema_version 4 in both dimensions; existing versions 1–3 remain readable. For each sprite role specify the exact pack version, asset OR assembly ID,
 related animation IDs, direction, display_height, normalized origin and collider
 (none/rectangle/circle/feet). Use a procedural role with fallback when appropriate.
 Never claim an attack animation exists because a character can attack logically.
@@ -117,11 +166,11 @@ all library IDs and supplies `fallback` describing its shape, color and size.
 Search one role at a time within a known pack (for example `query: "ball"`,
 `pack_id: "blocks-and-balls"`), then describe the returned exact ID.
 
-Use `scenarios: []` when the immutable template minimums cover the core loop.
-They already check movement, primary action, a rule effect, timers, delayed
-events, ESC end, assets and two restarts. Do not invent duplicate launch/movement/
-hit tests just to fill the plan. Add at most eight scenarios only for additional
-deterministic behavior that those checks cannot cover. A complete scenario:
+Use `scenarios: []` when existing checks cover the implemented behavior.
+Legacy templates retain their existing checks; scene-based games use relevant
+mechanics, actual objects, outcomes and lifecycle observations. Omitted timer,
+combat or primary-action mechanics do not need dummy counters or fake effects.
+Add at most eight scenarios for additional deterministic behavior. A complete scenario:
 ```json
 {"id":"shooting","steps":[{"action":"key","key":"SPACE","ms":500}],"metric":"actions","compare":"increased","value":0}
 ```
@@ -149,7 +198,8 @@ W/A/S/D/SPACE/R/ESC/ENTER. Maximum eight steps and six seconds per scenario,
 25 seconds combined. Compare increased/decreased/changed/equals. Metrics:
 player_x/player_y, actions, score, hits, spawns, turns, ticks, ended, object_count,
 timer_count, listener_count, invalid_assets, assets_used, elapsed_ms.
-Define observable results, not a `passed` flag. Keep the standard Arrow/Space/R
-inputs usable for template tests, even when adding alternative player controls.
+Define observable results, not a `passed` flag. Preserve a chosen legacy
+template's controls, or declare and test the custom controls of a scene-based
+game. A passing startup test does not certify unobserved custom gameplay.
 
 Presentation choices belong in the optional set_design.presentation block. Use catalog IDs for environments, effects and event-bound sounds; the server writes src/presentation.json and imports dependencies. Never build a second weather or audio loop. Adding presentation to an older free-code game also requires the documented controller hooks.

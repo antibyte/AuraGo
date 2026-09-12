@@ -52,6 +52,7 @@
             if (state.previewGrant?.scenarios?.length) {
                 state.frame.contentWindow.postMessage({ source: 'aurago-studio', type: 'run-tests', channel: state.channelID, scenarios: state.previewGrant.scenarios }, '*');
             }
+            setSceneDebug(state, state.sceneDebug);
             clearLoading(state);
             return;
         }
@@ -60,6 +61,12 @@
             level: 'runtime',
             message
         });
+    }
+
+    function setSceneDebug(state, enabled) {
+        state.sceneDebug = enabled === true;
+        state.container.querySelector('[data-gm-action="scene_debug"]')?.setAttribute('aria-pressed', String(state.sceneDebug));
+        if (!state.disposed && state.frame && state.channelID) state.frame.contentWindow.postMessage({ source: 'aurago-studio', type: 'scene-debug', channel: state.channelID, enabled: state.sceneDebug }, '*');
     }
 
     function showLoading(state, shellEl, frame) {
@@ -139,5 +146,5 @@
         }
     }
 
-    window.GameMakerStudioPreview = { handleMessage, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
+    window.GameMakerStudioPreview = { handleMessage, setSceneDebug, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
 })();

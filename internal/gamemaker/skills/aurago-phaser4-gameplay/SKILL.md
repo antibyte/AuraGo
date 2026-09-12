@@ -28,7 +28,15 @@ when complexity justifies them.
 - Make keyboard controls explicit and include touch or pointer controls when
   the game concept is likely to be used on mobile.
 - Reference project assets with relative paths (`assets/...`); load them in
-  `preload` and confirm the exact paths returned by `game_maker_asset`.
+  `preload` and confirm the exact paths returned by `game_maker_asset`. Keep
+  map/scene data optional and use source edits for custom mechanics; scene
+  generators only provide composable placement recipes.
+  The installed `common.ts` consumes a nonempty `src/scene.json` automatically
+  and calls the builder inside the shared `step`/`action` lifecycle. Scene data
+  can coexist with unrestricted source rules: when overriding `action()`, call
+  `super.action()` so scene action helpers still run; when overriding `step()`,
+  call `super.step(delta)` before custom updates. A null or empty scene keeps
+  the legacy source path.
 - Unlock audio only after a player gesture; keep music opt-in with a mute.
 - Pool frequently spawned objects and never allocate objects or arrays in the
   per-frame `update` path.
@@ -81,7 +89,7 @@ import { preloadPack, registerAnimations, createAsset, setFacing, playAction } f
 import meta from '../assets/builtin/human-characters-animated/2/sheet.json';
 class RangerGame extends GameScene {
   art: any; attackUntil=0;
-  preload() { preloadPack(this,meta,'assets/builtin/human-characters-animated/2/sheet.png'); }
+  preload() { super.preload(); preloadPack(this,meta,'assets/builtin/human-characters-animated/2/sheet.png'); }
   setup() {
     super.setup();this.attackUntil=0;this.player.setVisible(false);
     registerAnimations(this,meta);

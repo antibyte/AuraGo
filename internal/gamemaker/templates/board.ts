@@ -1,7 +1,7 @@
 import { GameScene, start } from './common';
 class Board extends GameScene {
   selected=0; cells:any[]=[]; marks:number[]=[];
-  setup() {
+  setup() { if (this.setupScene()) return;
     this.selected=0;this.marks=Array(9).fill(0);this.cells=[];
     for(let i=0;i<9;i++){
       const cell=this.add.rectangle(360+(i%3)*100,180+Math.floor(i/3)*100,90,90,0x334155).setInteractive();
@@ -12,7 +12,7 @@ class Board extends GameScene {
     }
     this.player=this.add.rectangle(360,180,96,96).setStrokeStyle(3,0xfacc15);
   }
-  action() {
+  action() { if (this.builder) { super.action(); return; }
     if(this.marks[this.selected])return;
     const turn=this.state.turns%2+1;this.marks[this.selected]=turn;
     const cell=this.cells[this.selected];
@@ -23,7 +23,7 @@ class Board extends GameScene {
     const won=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>this.marks[i]===turn));
     if(won||this.state.turns===9)this.end(won);
   }
-  step() {
+  step() { if (this.builder) { super.step(0);return; }
     if(this.inputKeys.pressed('RIGHT'))this.selected=(this.selected+1)%9;
     if(this.inputKeys.pressed('LEFT'))this.selected=(this.selected+8)%9;
     if(this.inputKeys.pressed('DOWN'))this.selected=(this.selected+3)%9;

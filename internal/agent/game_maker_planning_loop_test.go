@@ -75,7 +75,7 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 						attempts = 3
 					}
 					for i := 0; i < attempts; i++ {
-						plan.SchemaVersion = i + 4 // Distinct invalid plans; versions 1–3 are supported.
+						plan.SchemaVersion = i + 5 // Distinct invalid plans; versions 1–4 are supported.
 						var payload any = plan
 						if mode == "schema_exhausted" {
 							// Unknown fields must survive native parsing and exhaust

@@ -157,3 +157,191 @@ func TestGameMakerAssetSchemaKeepsGenerationAndPackOperations(t *testing.T) {
 	}
 	t.Fatal("missing game_maker_asset")
 }
+
+func TestGameMakerProjectSchemaExposesOptionalSceneAndMechanics(t *testing.T) {
+	props := nativeToolProperties(t, appendGameMakerToolSchemas(nil, ToolFeatureFlags{GameMakerEnabled: true}), "game_maker_project")
+	operation := props["operation"].(map[string]interface{})["enum"]
+	for _, want := range []string{"scene_inspect", "scene_set", "scene_patch", "scene_generate"} {
+		if !containsInterfaceString(operation, want) {
+			t.Fatalf("project operation enum missing %s: %#v", want, operation)
+		}
+	}
+	for _, key := range []string{"scene", "patch", "generate", "expected_sha256", "node_ids", "region_id", "dry_run"} {
+		if _, ok := props[key]; !ok {
+			t.Fatalf("project schema missing %s", key)
+		}
+	}
+	validate := nativeToolProperties(t, appendGameMakerToolSchemas(nil, ToolFeatureFlags{GameMakerEnabled: true}), "game_maker_validate")
+	checkIDs, ok := validate["check_ids"].(map[string]interface{})
+	if !ok || checkIDs["maxItems"] != 16 {
+		t.Fatalf("validate schema check_ids = %#v", validate["check_ids"])
+	}
+	design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
+	for _, key := range []string{"scene", "mechanics"} {
+		if _, ok := design[key]; !ok {
+			t.Fatalf("design schema missing optional %s", key)
+		}
+	}
+	planning := nativeToolProperties(t, GameMakerPhaseToolSchemas("planning", "2d"), "game_maker_project")
+	for _, key := range []string{"scene", "patch", "generate", "expected_sha256", "dry_run"} {
+		if _, ok := planning[key]; ok {
+			t.Fatalf("planning schema exposed mutation payload %s", key)
+		}
+	}
+	for _, key := range []string{"node_ids", "region_id"} {
+		if _, ok := planning[key]; !ok {
+			t.Fatalf("planning schema missing inspect filter %s", key)
+		}
+	}
+	building := nativeToolProperties(t, GameMakerPhaseToolSchemas("building", "2d"), "game_maker_project")
+	for _, key := range []string{"scene", "patch", "generate", "expected_sha256", "dry_run"} {
+		if _, ok := building[key]; !ok {
+			t.Fatalf("building schema missing %s", key)
+		}
+	}
+}
+
+func TestGameMakerPlanResponseCompactsScene(t *testing.T) {
+	plan := gamemaker.GamePlan{
+		SchemaVersion: 4,
+		Scene: &gamemaker.Scene{
+			SchemaVersion: 1, Dimension: "2d", Seed: 4,
+			Levels: []gamemaker.SceneLevel{{ID: "main", Active: true}},
+			Nodes:  []gamemaker.SceneNode{{ID: "player", Kind: "player"}},
+		},
+	}
+	result, ok := gameMakerPlanResult(&plan).(map[string]any)
+	if !ok {
+		t.Fatal("plan response is not an object")
+	}
+	scene, ok := result["scene"].(map[string]any)
+	if !ok || scene["path"] != gamemaker.SceneFilePath || scene["schema_version"] != 1 {
+		t.Fatalf("compacted scene header missing: %#v", result["scene"])
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "\"nodes\":[") {
+		t.Fatalf("get_plan returned full scene arrays: %s", encoded)
+	}
+}
+
+func TestGameMakerMechanicsSchemaUsesBoundedKinds(t *testing.T) {
+	schemaValue := gameMakerMechanicsSchema()
+	properties := schemaValue["properties"].(map[string]interface{})
+	blocks := properties["blocks"].(map[string]interface{})
+	item := blocks["items"].(map[string]interface{})
+	blockProperties := item["properties"].(map[string]interface{})
+	kind := blockProperties["kind"].(map[string]interface{})
+	want := []string{
+		"movement", "camera", "health", "collect", "destroy", "reach", "survive", "checkpoint",
+		"patrol", "chase", "keepdistance", "damage", "projectile", "waves", "inventory", "dialogue", "unlock",
+	}
+	got, ok := kind["enum"].([]string)
+	if !ok || !slices.Equal(got, want) {
+		t.Fatalf("mechanics kind enum = %#v, want %#v", kind["enum"], want)
+	}
+	params := blockProperties["params"].(map[string]interface{})
+	if params["type"] != "string" {
+		t.Fatalf("mechanics params type = %#v, want string", params["type"])
+	}
+}
+
+func TestGameMakerSceneResultForwardsHashesAndPrioritizesConflict(t *testing.T) {
+	result := gamemaker.SceneResult{
+		SHA256:         "next",
+		CurrentSHA256:  "current",
+		ProposedSHA256: "next",
+		Diagnostics: []gamemaker.SceneDiagnostic{{
+			Severity: "warning",
+			Path:     "reachability",
+			Message:  "not proven",
+		}},
+	}
+	output := gameMakerSceneResult("scene_patch", result, errors.New("scene_sha256_conflict"))
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(output, "Tool Output: ")), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["current_sha256"] != "current" || decoded["proposed_sha256"] != "next" {
+		t.Fatalf("conditional hashes were not forwarded: %#v", decoded)
+	}
+	if decoded["first_failure"] != "scene_sha256_conflict" {
+		t.Fatalf("first failure = %#v, want fallback conflict", decoded["first_failure"])
+	}
+
+	result.Changes = &gamemaker.SceneChanges{Modified: []string{"node-player"}, Counts: map[string]int{"nodes": 1}}
+	output = gameMakerSceneResult("scene_patch", result, errors.New("scene_sha256_conflict"))
+	if !strings.Contains(output, "\"changes\":{\"modified\":[\"node-player\"]") {
+		t.Fatalf("scene changes were not compactly forwarded: %s", output)
+	}
+
+	result.Diagnostics = []gamemaker.SceneDiagnostic{{
+		Severity: "error",
+		Path:     "scene",
+		Message:  "invalid node",
+	}}
+	output = gameMakerSceneResult("scene_patch", result, errors.New("scene_sha256_conflict"))
+	if !strings.Contains(output, "\"first_failure\":\"scene: invalid node\"") {
+		t.Fatalf("diagnostic error should take precedence: %s", output)
+	}
+}
+
+func TestGameMakerSceneInspectFilterCompactsSelectedNodes(t *testing.T) {
+	scene := gamemaker.Scene{
+		SchemaVersion: 1,
+		Dimension:     "2d",
+		Levels:        []gamemaker.SceneLevel{{ID: "main", Active: true}},
+	}
+	for i := 0; i < 40; i++ {
+		region := "west"
+		if i%2 == 0 {
+			region = "east"
+		}
+		scene.Nodes = append(scene.Nodes, gamemaker.SceneNode{
+			ID: iotaSceneNodeID(i), Kind: "prop", Position: gamemaker.Vec3{float64(i), 2, 0},
+			Size: gamemaker.Vec3{1, 1, 0}, RegionID: region,
+			Properties: map[string]any{"color": i},
+		})
+	}
+	scene.Placements = []gamemaker.ScenePlacement{{
+		ID: "prop-placement", NodeID: iotaSceneNodeID(3), AssetRole: "prop", Behavior: "decorative",
+		Position: gamemaker.Vec3{3, 2, 0},
+	}}
+	filter, err := gameMakerSceneFilterFromParams(map[string]any{
+		"node_ids":  []any{iotaSceneNodeID(3), iotaSceneNodeID(4)},
+		"region_id": "west",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail := gameMakerSceneDetail(scene, filter)
+	nodes := detail["nodes"].([]map[string]any)
+	if len(nodes) != 1 || nodes[0]["id"] != iotaSceneNodeID(3) {
+		t.Fatalf("filtered nodes = %#v", nodes)
+	}
+	if _, ok := nodes[0]["placements"]; !ok {
+		t.Fatalf("selected node lost its exact placement binding: %#v", nodes[0])
+	}
+
+	regionFilter, err := gameMakerSceneFilterFromParams(map[string]any{"region_id": "east"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail = gameMakerSceneDetail(scene, regionFilter)
+	if len(detail["nodes"].([]map[string]any)) != 20 || len(detail["regions"].([]gamemaker.SceneRegion)) != 0 {
+		t.Fatalf("region details = %#v", detail)
+	}
+	for i := 0; i < 40; i++ {
+		scene.Nodes = append(scene.Nodes, gamemaker.SceneNode{ID: iotaSceneNodeID(100 + i), RegionID: "east"})
+	}
+	detail = gameMakerSceneDetail(scene, regionFilter)
+	if len(detail["nodes"].([]map[string]any)) != 32 || detail["truncated"] != true {
+		t.Fatalf("region detail cap = %#v", detail)
+	}
+}
+
+func iotaSceneNodeID(index int) string {
+	return fmt.Sprintf("node-%d", index)
+}

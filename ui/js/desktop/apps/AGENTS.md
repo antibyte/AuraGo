@@ -812,6 +812,13 @@ registration lives in `internal/desktop/types.go`.
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
   document-level overflow-menu listeners, and `message` listener.
+- Scene diagnostics use the current preview channel and parent-window binding.
+  The toggle exposes boundaries, colliders, IDs and routes only in Studio; ZIP
+  exports never enable the overlay. Keep rule evidence separate from startup
+  status and display unverified custom gameplay honestly. The shared scene and
+  mechanics helpers use the existing engine loop, pause and disposal owners.
+  Verify with `GAMEMAKER_BUILDER_BROWSER=1` and `TestBuilderBrowser`, including
+  actual inputs, repeated resource counts, exported games and narrow layouts.
 - Sprite selection is window-local and prepares the next create/edit request
   via `asset_pack_ids`; selecting packs never starts a job. Clear selection only
   after job acceptance. The asset browser owns an AbortController and animation

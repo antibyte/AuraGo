@@ -228,3 +228,55 @@ func TestGameMakerSSEReplaysMoreThanOnePageWithoutGaps(t *testing.T) {
 		t.Fatal(fmt.Errorf("SSE replay stopped at event %d, want %d", gotLastID, wantLastID))
 	}
 }
+
+func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
+	root := t.TempDir()
+	service, err := gamemaker.NewService(gamemaker.Options{
+		DBPath: filepath.Join(root, "game_maker.db"), WorkspacePath: filepath.Join(root, "workspace"),
+		Enabled: true, AllowCreate: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Token metrics", Dimension: "2d", Description: "bounded usage"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	broker := &gameMakerBroker{service: service, projectID: project.ID, jobID: "job-1"}
+	broker.SendTokenUpdate(-1, 20_000_000, 42, 0, 0, true, true, "unexpected")
+	broker.Send("tool_start", "game_maker_project")
+	broker.Send("tool_start", "game_maker_validate")
+	events, err := service.EventsAfter(context.Background(), project.ID, 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metricCalls := 0
+	for _, event := range events {
+		if event.Type == "tool_call" {
+			metricCalls++
+			if len(event.Payload) != 1 || event.Payload["attempted"] != true {
+				t.Fatal("tool arguments leaked", event.Payload)
+			}
+		}
+	}
+	if metricCalls != 2 {
+		t.Fatal("missing tool attempt metrics", metricCalls)
+	}
+	var payload map[string]any
+	for _, event := range events {
+		if event.Type == "token_usage" {
+			payload = event.Payload
+			break
+		}
+	}
+	if payload == nil {
+		t.Fatalf("token event missing: %+v", events)
+	}
+	if payload["prompt_tokens"] != float64(0) || payload["completion_tokens"] != float64(gameMakerTokenMetricMax) || payload["total_tokens"] != float64(42) {
+		t.Fatalf("bounded token payload = %+v", payload)
+	}
+	if payload["estimated"] != true || payload["token_source"] != "unknown" {
+		t.Fatalf("token metadata = %+v", payload)
+	}
+}

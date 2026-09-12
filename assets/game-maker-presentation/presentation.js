@@ -5,6 +5,8 @@ export function createPresentation({adapter,config,root,report=console.warn,cont
     config ||= {effects:[],sounds:[],bindings:[],quality:'auto'};
     const records=new Map((config.effects||[]).map(e=>[e.id,e])), active=new Map(), lifecycle=new AbortController();
     const audio=createAudio({sounds:config.sounds,base:config.base,root,report,dimension:adapter.dimension});
+    const usage={events:{},effects:{},sounds:{}};
+    const count=(group,id)=>{if(Object.keys(group).length<64||Object.hasOwn(group,id))group[id]=Math.min(1000000,(group[id]||0)+1)};
     const bindings=new Map();for(const b of config.bindings||[])bindings.set(b.event,[...(bindings.get(b.event)||[]),b.sound]);
     let quality=config.quality||'auto',level=2,time=0,paused=false,inactive=document.hidden,disposed=false,slow=0,fast=0,blood=true,thunderAt=0;
     const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.matches;
@@ -26,13 +28,15 @@ export function createPresentation({adapter,config,root,report=console.warn,cont
         if(paused||inactive||disposed)return;
         const p=params(id,options);
         if(id.startsWith('blood')&&!blood){if(records.has('metal-sparks'))adapter.emit('metal-sparks',p);return}
-        adapter.emit(id,p);
+        adapter.emit(id,p);count(usage.effects,id);
     }
+    const customEvents=new Map();
     const eventEffects={shot:['muzzle-flash'],hit:['blood-spray','blood-pool','blood-decal','metal-sparks','stone-debris','hit-flash'],pickup:['pickup-glow'],splash:['water-splash','water-ripple'],win:['magic']};
     function event(name,position=[0,0,0],normal=[0,1,0],material='flesh'){
         if(paused||inactive||disposed)return;
-        for(const id of eventEffects[name]||[])if(records.has(id)&&(!id.startsWith('blood')||material==='flesh')&&(id!=='metal-sparks'||material==='metal')&&(id!=='stone-debris'||material==='stone'))emit(id,{position,normal});
-        const ids=bindings.get(name),id=ids?.[Math.floor(Math.random()*ids.length)];if(id)audio.play(id,{position:adapter.dimension==='2d'?[position[0],position[1],0]:position});
+        count(usage.events,name);
+        for(const id of customEvents.has(name)?customEvents.get(name).effects:eventEffects[name]||[])if(records.has(id)&&(!id.startsWith('blood')||material==='flesh')&&(id!=='metal-sparks'||material==='metal')&&(id!=='stone-debris'||material==='stone'))emit(id,{position,normal});
+        const ids=customEvents.has(name)?customEvents.get(name).sounds:bindings.get(name),id=ids?.[Math.floor(Math.random()*ids.length)];if(id){count(usage.sounds,id);audio.play(id,{position:adapter.dimension==='2d'?[position[0],position[1],0]:position});}
     }
     function syncPause(){audio.setPaused(paused||inactive)}
     lifecycle.signal.addEventListener('abort',()=>audio.dispose(),{once:true});
@@ -42,6 +46,12 @@ export function createPresentation({adapter,config,root,report=console.warn,cont
     let ambient=(env?.sounds||[]).filter(id=>config.sounds?.find(s=>s.id===id)?.loop);
     if(bindings.has('ambient'))ambient.push(...bindings.get('ambient'));
     const api={audio,set,emit,event,
+        bindEvent(name,{effect,sound}={}){
+            if(typeof name!=='string'||!name||name.length>64)throw Error('presentation: invalid event name');
+            if(effect&&!records.has(effect))throw Error('presentation: event effect was not imported '+effect);
+            if(sound&&!config.sounds?.some(s=>s.id===sound))throw Error('presentation: event sound was not imported '+sound);
+            customEvents.set(name,{effects:effect?[effect]:[],sounds:sound?[sound]:[]});return api;
+        },
         setEnvironment(id){const e=records.get(id);if(e?.category!=='environment')throw Error('presentation: environment was not imported');active.clear();adapter.clear?.();for(const effect of e.effects)set(effect);ambient=e.sounds.filter(s=>config.sounds?.find(a=>a.id===s)?.loop);audio.ambience(ambient);return api},
         setPaused(v){paused=!!v;syncPause()},setActive(v){inactive=!v||document.hidden;syncPause()},
         setBlood(v){blood=!!v;adapter.blood?.(blood)},
@@ -58,7 +68,9 @@ export function createPresentation({adapter,config,root,report=console.warn,cont
             }else audio.ambience(ambient);
         },
         render(){adapter.render?.()},resize(){adapter.resize?.()},
-        reset(){time=thunderAt=0;adapter.reset();audio.reset();slow=fast=0},
+        reset(){time=thunderAt=0;adapter.reset();audio.reset();slow=fast=0;for(const group of Object.values(usage))for(const key of Object.keys(group))delete group[key]},
+        // Counts show controller delivery; audio requests do not prove audibility.
+        audit(){return {events:{...usage.events},effects:{...usage.effects},sounds:{...usage.sounds}}},
         stats(){return {...adapter.stats(),...audio.stats(),quality:['low','medium','high'][level],time}},
         dispose(){if(disposed)return;disposed=true;lifecycle.abort();panel?.remove();adapter.dispose()},
     };

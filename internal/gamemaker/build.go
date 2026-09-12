@@ -75,6 +75,12 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	if manifest.Dimension != "2d" && manifest.Dimension != "3d" {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "game.json", Message: "Manifest dimension must be 2d or 3d"}}}
 	}
+	sceneDiagnostics := checkBuilderScene(projectDir)
+	for _, diagnostic := range sceneDiagnostics {
+		if diagnostic.Level == "error" {
+			return BuildResult{Diagnostics: sceneDiagnostics}
+		}
+	}
 	if err := installRuntime(projectDir, manifest.Dimension); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
@@ -126,6 +132,9 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		}
 		return BuildResult{Diagnostics: diagnostics}
 	}
+	if err := checkBuilderBuildGraph(projectDir, build.Metafile); err != nil {
+		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: SceneFilePath, Message: err.Error()}}}
+	}
 	if err := checkPresentationBuild(projectDir, manifest.Dimension, build.Metafile); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: "src/presentation.json", Message: err.Error()}}}
 	}
@@ -139,7 +148,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	if err := validateTreeLimits(projectDir, maxFiles, maxBytes); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
-	return BuildResult{OK: true}
+	return BuildResult{OK: true, Diagnostics: sceneDiagnostics}
 }
 
 // Guard the common loader boundary, including variable URLs and config arrays.

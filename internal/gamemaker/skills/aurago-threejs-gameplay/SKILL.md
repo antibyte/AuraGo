@@ -17,6 +17,13 @@ Prefer a guided base (`fps`, `exploration`, `transport`, `flight`, `space`) via
 common.ts model loading, animation and lifecycle. All selected roles are bound.
 The following engine reference applies when extending that base or using free
 code (`three`). Import the pinned local Three.js runtime; build a playable game.
+Scene-backed `three` is opt-in. An accepted plan with a scene emits the
+canonical `src/scene.json`; `startGame(config)` loads it and the shared loop
+runs the builder alongside `config.action` and `config.step`. A null scene keeps
+the legacy `config.objects` path. Scene mechanics are optional, so `minimal` and
+free-code `three` can be continuous without a forced combat rule or timer. A
+free-code `three` startup pass still leaves gameplay unverified until live
+observations cover it.
 
 - Establish renderer, scene, camera, resize handling, lighting, and a bounded
   animation loop before adding content.

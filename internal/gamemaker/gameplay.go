@@ -25,9 +25,11 @@ type CheckResult struct {
 	Steps    []GameTestStep `json:"steps,omitempty"`
 }
 type GameObservation struct {
-	ID     string             `json:"id"`
-	Before map[string]float64 `json:"before"`
-	After  map[string]float64 `json:"after"`
+	ID             string             `json:"id"`
+	Before         map[string]float64 `json:"before"`
+	After          map[string]float64 `json:"after"`
+	EvidenceBefore *GameplayEvidence  `json:"evidence_before,omitempty"`
+	EvidenceAfter  *GameplayEvidence  `json:"evidence_after,omitempty"`
 }
 
 func validateGameReport(report PreviewReport) error {
@@ -35,6 +37,12 @@ func validateGameReport(report PreviewReport) error {
 		return fmt.Errorf("gameplay report exceeds observation/image limit")
 	}
 	for _, o := range report.Observations {
+		if err := validateGameplayEvidence(o.EvidenceBefore); err != nil {
+			return err
+		}
+		if err := validateGameplayEvidence(o.EvidenceAfter); err != nil {
+			return err
+		}
 		if len(o.ID) > 64 || len(o.Before) > 32 || len(o.After) > 64 {
 			return fmt.Errorf("oversized gameplay observation")
 		}
@@ -67,8 +75,8 @@ func validPreviewImage(image string) bool {
 	return err == nil && config.Width > 0 && config.Height > 0 && config.Width <= 1920 && config.Height <= 1080
 }
 
-var gameMetrics = []string{"player_x", "player_y", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health"}
-var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "ESC", "ENTER", "F", "Q", "E"}
+var gameMetrics = []string{"player_x", "player_y", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events"}
+var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "P", "ESC", "ENTER", "F", "Q", "E"}
 
 func validateScenario(s GameScenario) error {
 	if len(s.ID) < 1 || len(s.ID) > 64 || strings.HasPrefix(s.ID, "required_") {
@@ -111,7 +119,7 @@ func requiredScenarios(template string) []GameScenario {
 	check := func(id, metric, compare string, steps ...GameTestStep) GameScenario {
 		return GameScenario{ID: "required_" + id, Metric: metric, Compare: compare, Steps: steps}
 	}
-	if guided3D(template) {
+	if guided3D(template) || template == "three" {
 		rules := check("rules", "hits", "increased", key("W", 1600))
 		primary := check("primary", "actions", "increased", key("SPACE", 300))
 		if template == "fps" || template == "space" {
@@ -152,6 +160,13 @@ func requiredScenarios(template string) []GameScenario {
 
 func gameScenarios(plan *GamePlan) []GameScenario {
 	out := requiredScenarios(plan.Template)
+	// Schema 4 compositions use their declared scenarios for special mechanics.
+	// The starter's genre loop must not become a requirement of the new game.
+	if plan.SchemaVersion >= 4 && (plan.Scene != nil || plan.Template == "minimal" || plan.Template == "three") {
+		out = slices.DeleteFunc(out, func(s GameScenario) bool {
+			return s.ID == "required_input" || s.ID == "required_rules" || s.ID == "required_primary" || s.ID == "required_aim" || s.ID == "required_reload" || s.ID == "required_models"
+		})
+	}
 	for i := range out {
 		if out[i].ID == "required_end" {
 			out[i].Value = 1
@@ -236,10 +251,81 @@ func (s *Service) StopAfterValidation(jobID string, repairRound bool) func() boo
 	}
 }
 
+// Scene-backed Three games expose the same bounded observation contract.
+func sceneBackedGame(plan GamePlan) bool {
+	return guided3D(plan.Template) || plan.Template == "three" && plan.SchemaVersion >= 4 && plan.Scene != nil
+}
+
+const maxTargetedGameMakerChecks = 16
+
+func normalizeTargetedGameMakerChecks(checkIDs []string) ([]string, error) {
+	if len(checkIDs) > maxTargetedGameMakerChecks {
+		return nil, fmt.Errorf("check_ids must contain at most %d existing checks", maxTargetedGameMakerChecks)
+	}
+	out := make([]string, 0, len(checkIDs))
+	seen := make(map[string]bool, len(checkIDs))
+	for _, raw := range checkIDs {
+		id := strings.TrimSpace(raw)
+		if id == "" || len(id) > 64 || seen[id] {
+			return nil, fmt.Errorf("check_ids must contain unique nonempty check IDs")
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+func selectTargetedGameMakerScenarios(scenarios []GameScenario, checkIDs []string) ([]GameScenario, error) {
+	if len(checkIDs) == 0 {
+		return append([]GameScenario(nil), scenarios...), nil
+	}
+	requested := make(map[string]bool, len(checkIDs))
+	for _, id := range checkIDs {
+		requested[id] = true
+	}
+	selected := make([]GameScenario, 0, len(checkIDs))
+	for _, scenario := range scenarios {
+		if requested[scenario.ID] {
+			selected = append(selected, scenario)
+		}
+	}
+	if len(selected) != len(checkIDs) {
+		return nil, fmt.Errorf("check_ids must reference existing checks")
+	}
+	return selected, nil
+}
+
+// sceneBackedCurrentAt accepts a plan-bound scene or the canonical staged scene
+// written later by scene_set/scene_patch. The caller may already hold Service.mu,
+// so this helper never resolves a job through JobDirectory.
+func sceneBackedCurrentAt(stage string, plan *GamePlan) bool {
+	if plan != nil && sceneBackedGame(*plan) {
+		return true
+	}
+	data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(SceneFilePath)))
+	if err != nil || bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return false
+	}
+	scene, err := DecodeSceneJSON(data)
+	return err == nil && scene.Dimension == "3d"
+}
+
+func (s *Service) sceneBackedCurrent(ctx context.Context, jobID string, plan *GamePlan) bool {
+	stage, err := s.JobDirectory(jobID)
+	return err == nil && sceneBackedCurrentAt(stage, plan)
+}
+
 // Omitted scope remains startup-compatible. Publication calls full for 2D.
-func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (result BuildResult) {
+func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, requestedCheckIDs ...string) (result BuildResult) {
 	if scope == "" {
 		scope = "startup"
+	}
+	targetedChecks, checkErr := normalizeTargetedGameMakerChecks(requestedCheckIDs)
+	if checkErr != nil {
+		return previewUnavailable(checkErr.Error())
+	}
+	if len(targetedChecks) > 0 && scope == "startup" {
+		return previewUnavailable("check_ids require gameplay or full scope")
 	}
 	if !slices.Contains([]string{"startup", "gameplay", "full"}, scope) {
 		return previewUnavailable("scope must be startup, gameplay or full")
@@ -274,7 +360,8 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (re
 	if planErr != nil {
 		return previewUnavailable(planErr.Error())
 	}
-	if project.Dimension == "3d" && (plan == nil || !guided3D(plan.Template)) && scope != "startup" {
+	sceneBacked := s.sceneBackedCurrent(ctx, jobID, plan)
+	if project.Dimension == "3d" && !sceneBacked && scope != "startup" {
 		return BuildResult{GameplayStatus: "unavailable", Diagnostics: []Diagnostic{{Level: "error", Message: "3D gameplay tests are not available; use startup scope"}}}
 	}
 	missing, err := s.unchangedGameStarter(ctx, jobID, project.Dimension)
@@ -291,9 +378,22 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (re
 		return result
 	}
 	check := result.check
+	if len(targetedChecks) > 0 {
+		selected, selectErr := selectTargetedGameMakerScenarios(check.Scenarios, targetedChecks)
+		if selectErr != nil {
+			return previewUnavailable(selectErr.Error())
+		}
+		s.mu.Lock()
+		if s.previewCheck == check {
+			check.Scenarios = selected
+		}
+		s.mu.Unlock()
+	}
 	result = s.waitForPreview(ctx, check, 12*time.Second)
 	result.check = check
+	result.TargetedChecks = len(targetedChecks) > 0
 	result.GameplayStatus = "unverified"
+	result.RulesStatus = "unverified"
 	result.VisualStatus = "skipped"
 	if !result.OK || scope == "startup" {
 		return result
@@ -321,6 +421,15 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string) (re
 				if c.Status != "passed" {
 					result.OK = false
 					result.GameplayStatus = "failed"
+					result.Diagnostics = append(result.Diagnostics, Diagnostic{Level: "gameplay", Message: c.ID + ": expected " + c.Expected + "; observed " + c.Observed})
+				}
+			}
+			ruleStatus, ruleChecks := compareGameplayEvidence(plan, observations)
+			result.RulesStatus = ruleStatus
+			result.Checks = append(result.Checks, ruleChecks...)
+			for _, c := range ruleChecks {
+				if c.Status == "failed" {
+					result.OK = false
 					result.Diagnostics = append(result.Diagnostics, Diagnostic{Level: "gameplay", Message: c.ID + ": expected " + c.Expected + "; observed " + c.Observed})
 				}
 			}

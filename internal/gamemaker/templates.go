@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,21 +26,38 @@ func (s *Service) unchangedGameStarter(ctx context.Context, jobID, dimension str
 	if err != nil {
 		return false, err
 	}
-	if normalize(main) == normalize(threeScaffold) || normalize(main) == normalize(phaserScaffold) {
+	if normalize(main) == normalize(phaserScaffold) {
 		return true, nil
+	}
+	if normalize(main) == normalize(threeScaffold) {
+		if dimension == "2d" {
+			return true, nil
+		}
+		// A scene_set/scene_patch is an implementation even when the legacy
+		// Three starter source remains unchanged. Missing legacy data files keep
+		// the old starter result; any actual data change clears it.
+		var mechanics []byte = []byte("null")
+		if plan, planErr := s.GetPlan(ctx, jobID); planErr == nil && plan != nil && plan.Mechanics != nil {
+			if encoded, encodeErr := json.Marshal(plan.Mechanics); encodeErr == nil {
+				mechanics = encoded
+			}
+		}
+		return s.unchangedStarterDataFiles(ctx, jobID, map[string][]byte{
+			"scene.json":     []byte("null\n"),
+			"mechanics.json": mechanics,
+		})
 	}
 	if dimension != "2d" {
 		plan, err := s.GetPlan(ctx, jobID)
 		if err != nil {
 			return false, err
 		}
-		if plan != nil && guided3D(plan.Template) {
+		if plan != nil && (guided3D(plan.Template) || (plan.Template == "three" && plan.Scene != nil)) {
 			files, err := threeTemplateSources(*plan)
 			if err != nil {
 				return false, err
 			}
-			common, err := s.ReadJobFile(ctx, jobID, "src/common.ts")
-			return err == nil && normalize(main) == normalize(string(files["main.ts"])) && normalize(common) == normalize(string(files["common.ts"])), err
+			return s.unchangedManagedTemplateFiles(ctx, jobID, files, normalize)
 		}
 		return false, nil
 	}
@@ -48,11 +66,41 @@ func (s *Service) unchangedGameStarter(ctx context.Context, jobID, dimension str
 		return false, err
 	}
 	files, err := gameTemplateSources(*plan)
-	if err != nil || normalize(main) != normalize(string(files["main.ts"])) {
+	if err != nil {
 		return false, err
 	}
-	common, err := s.ReadJobFile(ctx, jobID, "src/common.ts")
-	return err == nil && normalize(common) == normalize(string(files["common.ts"])), err
+	return s.unchangedManagedTemplateFiles(ctx, jobID, files, normalize)
+}
+
+// unchangedStarterDataFiles preserves legacy scaffold compatibility while
+// treating an existing changed scene or mechanics document as implementation.
+func (s *Service) unchangedStarterDataFiles(ctx context.Context, jobID string, expected map[string][]byte) (bool, error) {
+	for path, want := range expected {
+		got, err := s.ReadJobFile(ctx, jobID, "src/"+path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return false, err
+		}
+		if strings.TrimSpace(got) != strings.TrimSpace(string(want)) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (s *Service) unchangedManagedTemplateFiles(ctx context.Context, jobID string, expected map[string][]byte, normalize func(string) string) (bool, error) {
+	for path, want := range expected {
+		got, err := s.ReadJobFile(ctx, jobID, "src/"+path)
+		if err != nil {
+			return false, err
+		}
+		if normalize(got) != normalize(string(want)) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func installGameTemplate(stage string, plan GamePlan) error {
@@ -70,7 +118,7 @@ func installGameTemplate(stage string, plan GamePlan) error {
 
 // Use the same plan-bound sources for installation and unchanged-template checks.
 func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
-	if guided3D(plan.Template) {
+	if guided3D(plan.Template) || (plan.Template == "three" && plan.Scene != nil) {
 		return threeTemplateSources(plan)
 	}
 	if !slices.Contains(templateNames()[:6], plan.Template) {
@@ -117,6 +165,20 @@ func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
 		return nil, err
 	}
 	files["presentation.json"] = []byte(presentation)
+	mechanics, err := json.Marshal(plan.Mechanics)
+	if err != nil {
+		return nil, fmt.Errorf("encode mechanics: %w", err)
+	}
+	files["mechanics.json"] = mechanics
+	if plan.Scene == nil {
+		files["scene.json"] = []byte("null\n")
+	} else {
+		scene, err := MarshalSceneJSON(*plan.Scene)
+		if err != nil {
+			return nil, err
+		}
+		files["scene.json"] = scene
+	}
 	return files, nil
 }
 

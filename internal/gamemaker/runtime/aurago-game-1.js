@@ -120,14 +120,31 @@ export function setFacing(object, dx, dy) {
 
 // Keys belong to the scene. No persistent window listeners survive restart.
 export function createInputs(scene) {
-  const keys = scene.input.keyboard.addKeys('LEFT,RIGHT,UP,DOWN,W,A,S,D,SPACE,R,ESC,ENTER');
+  const keys = scene.input.keyboard.addKeys('LEFT,RIGHT,UP,DOWN,W,A,S,D,SPACE,R,P,ESC,ENTER');
   scene.events.once('shutdown', () => {
     for (const key of Object.values(keys)) scene.input.keyboard.removeKey(key, true);
   });
+  const held=new Set(), edges=new Set();
+  const touch=document.createElement('div');
+  touch.className='aurago-game-touch';
+  const style=document.createElement('style');
+  style.textContent='.aurago-game-touch{display:none;position:absolute;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));gap:5px;z-index:1000;pointer-events:none;flex-wrap:wrap}.aurago-game-touch button{pointer-events:auto;touch-action:none;min-width:44px;min-height:44px;border:1px solid #8eafc666;border-radius:8px;background:#152635e8;color:#fff;font:14px system-ui}@media(pointer:coarse),(max-width:650px){.aurago-game-touch{display:flex}}';
+  touch.append(style);
+  const cleanup=new AbortController();
+  for(const [label,name] of [['◀','LEFT'],['▲','UP'],['▼','DOWN'],['▶','RIGHT'],['Action','SPACE'],['Pause','P'],['Restart','R']]) {
+    const button=document.createElement('button');button.textContent=label;button.setAttribute('aria-label',name);
+    button.addEventListener('pointerdown',event=>{event.preventDefault();button.setPointerCapture(event.pointerId);held.add(name);edges.add(name)},{signal:cleanup.signal});
+    const release=()=>held.delete(name);
+    button.addEventListener('pointerup',release,{signal:cleanup.signal});button.addEventListener('pointercancel',release,{signal:cleanup.signal});touch.append(button);
+  }
+  (document.getElementById('game-root')||document.body).append(touch);
+  window.addEventListener('blur',()=>{held.clear();edges.clear()},{signal:cleanup.signal});
+  scene.events.once('shutdown',()=>{cleanup.abort();touch.remove();held.clear();edges.clear()});
+  const down=(...names)=>names.some(name=>keys[name].isDown||held.has(name));
   return {
-    keys,
-    vector: () => ({ x: Number(keys.RIGHT.isDown || keys.D.isDown) - Number(keys.LEFT.isDown || keys.A.isDown), y: Number(keys.DOWN.isDown || keys.S.isDown) - Number(keys.UP.isDown || keys.W.isDown) }),
-    pressed: name => { const key = need(keys[name], `unknown input ${name}`); return globalThis.Phaser.Input.Keyboard.JustDown(key); }
+    keys, down,
+    vector: () => ({x:Number(down('RIGHT','D'))-Number(down('LEFT','A')),y:Number(down('DOWN','S'))-Number(down('UP','W'))}),
+    pressed: name => {const key=need(keys[name],`unknown input ${name}`),edge=edges.delete(name);return globalThis.Phaser.Input.Keyboard.JustDown(key)||edge}
   };
 }
 

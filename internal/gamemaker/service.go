@@ -677,7 +677,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 
-	if job.BaseRevision == 0 && (project.Dimension == "2d" || guided3D(plan.Template)) {
+	if job.BaseRevision == 0 && (project.Dimension == "2d" || sceneBackedGame(*plan)) {
 		if err := installGameTemplate(stage, *plan); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
@@ -696,7 +696,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 	scope := "full"
-	if project.Dimension == "3d" && !guided3D(plan.Template) {
+	if project.Dimension == "3d" && !s.sceneBackedCurrent(ctx, job.ID, plan) {
 		scope = "startup"
 	}
 	result := s.ValidateJobScope(ctx, job.ID, scope)
@@ -934,6 +934,9 @@ func (s *Service) writeJobFile(ctx context.Context, jobID, rawPath, content stri
 	}
 	if err := validateTreeLimits(stage, s.opts.MaxFilesPerProject-extraFiles, s.opts.MaxProjectBytes-int64(len(content))+oldBytes); err != nil {
 		return fmt.Errorf("source exceeds project limits: %w", err)
+	}
+	if err := validateBuilderSource(stage, rel, content); err != nil {
+		return err
 	}
 	if err := s.validateScriptAssetImports(ctx, jobID, rel, content); err != nil {
 		return err

@@ -139,6 +139,7 @@
                             <div class="gm-pane-head">
                                 <div><span class="gm-kicker">${esc(t('game_maker.live_preview'))}</span><h2>${esc(t('game_maker.play_here'))}</h2></div>
                                 <div class="gm-preview-tools">
+                                    <button type="button" data-gm-action="scene_debug" aria-pressed="false" aria-label="${esc(t('game_maker.scene_debug'))}" title="${esc(t('game_maker.scene_debug'))}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
                                     <button type="button" data-gm-action="reload" disabled>${esc(t('game_maker.reload'))}</button>
                                     <button type="button" data-gm-action="fullscreen" disabled
                                         aria-label="${esc(t('game_maker.fullscreen'))}" title="${esc(t('game_maker.fullscreen'))}">⛶</button>
@@ -216,6 +217,7 @@
                 export: () => exportProject(state),
                 stop: () => stopJob(state),
                 reload: () => refreshPreview(state),
+                scene_debug: () => preview && preview.setSceneDebug(state, !state.sceneDebug),
                 fullscreen: () => preview && preview.toggleFullscreen(state),
                 open_tab: () => preview && preview.openTab(state),
                 rename: () => renameProject(state),
@@ -509,8 +511,9 @@
         case 'validation_result': {
             const result = payload.result || {};
             appendActivity(state, state.context.t('game_maker.gameplay_checks') + ': ' + state.context.t('game_maker.check_' + (result.gameplay_status || 'unavailable')));
+            appendActivity(state, state.context.t('game_maker.rules_checks') + ': ' + state.context.t('game_maker.check_' + (result.rules_status || 'unverified')));
             for (const check of result.checks || []) {
-                if (check.status !== 'passed') addDiagnostic(state, { level: 'error', message: check.id + ': ' + check.expected + ' — ' + check.observed });
+                if (check.status !== 'passed') addDiagnostic(state, { level: check.status === 'failed' ? 'error' : 'info', message: check.id + ': ' + check.expected + ' — ' + check.observed });
             }
             break;
         }
@@ -677,7 +680,7 @@
             // Attach load listeners before assigning src so cached responses
             // cannot settle the iframe before the loading overlay is armed.
             if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.showLoading(state, shell, frame);
-            frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID);
+            frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID) + (state.sceneDebug ? '&gm-debug=1' : '');
         } catch (error) {
             if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
             addDiagnostic(state, { level: 'error', message: error.message || String(error) });

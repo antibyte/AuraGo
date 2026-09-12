@@ -18,7 +18,11 @@ const gamePlanPath = ".aurago/game-plan.json"
 
 // GamePlan is a bounded design artifact, never executable or trusted instructions.
 type GamePlan struct {
-	Presentation  *Presentation     `json:"presentation,omitempty"`
+	Presentation *Presentation `json:"presentation,omitempty"`
+	// Scene is an optional, validated agent-built scene graph. It is data, not executable code.
+	Scene *Scene `json:"scene,omitempty"`
+	// Mechanics contains optional bounded helper declarations; custom source remains authoritative.
+	Mechanics     map[string]any    `json:"mechanics,omitempty"`
 	SchemaVersion int               `json:"schema_version"`
 	Gameplay      *GameSettings     `json:"gameplay,omitempty"`
 	Units         string            `json:"units,omitempty"`
@@ -266,16 +270,38 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 
 func (s *Service) checkPlan(project Project, p GamePlan) error {
 	bad := func(field, message string) error { return fmt.Errorf("plan.%s: %s", field, message) }
-	if p.SchemaVersion < 1 || p.SchemaVersion > 3 {
-		return bad("schema_version", "must be 1, 2 or 3")
+	if p.SchemaVersion < 1 || p.SchemaVersion > 4 {
+		return bad("schema_version", "must be 1, 2, 3 or 4")
 	}
 	modelPlan := p.SchemaVersion >= 2 && project.Dimension == "3d"
 	if p.Presentation != nil {
-		if p.SchemaVersion != 3 {
-			return bad("presentation", "requires schema 3")
+		if p.SchemaVersion < 3 {
+			return bad("presentation", "requires schema 3 or newer")
 		}
 		if _, _, e := resolvePresentation(p.Presentation); e != nil {
 			return e
+		}
+	}
+	if p.Scene != nil {
+		if p.SchemaVersion < 4 {
+			return bad("scene", "requires schema 4")
+		}
+		if p.Scene.Dimension != project.Dimension {
+			return bad("scene.dimension", "must match the project dimension")
+		}
+		if err := validateScene(*p.Scene, AssetCatalog{}); err != nil {
+			return err
+		}
+	}
+	if p.Mechanics != nil {
+		if p.SchemaVersion < 4 {
+			return bad("mechanics", "requires schema 4")
+		}
+		if err := validateGameMechanics(p.Mechanics); err != nil {
+			return err
+		}
+		if err := validateMechanicBindings(p); err != nil {
+			return err
 		}
 	}
 	if modelPlan && p.Units != "metres" {
@@ -473,6 +499,56 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	}
 	if duration > 25000 {
 		return bad("scenarios", "additional scenarios must total at most 25 seconds")
+	}
+	return nil
+}
+
+func validateGameMechanics(mechanics map[string]any) error {
+	if err := validateMechanicBlocks(mechanics); err != nil {
+		return err
+	}
+	if len(mechanics) > 16 {
+		return fmt.Errorf("plan.mechanics: at most 16 optional mechanic groups")
+	}
+	if raw, ok := mechanics["outcomes"]; ok && raw != nil {
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return fmt.Errorf("plan.mechanics.outcomes: encode: %w", err)
+		}
+		var outcomes []string
+		if err := json.Unmarshal(data, &outcomes); err != nil {
+			return fmt.Errorf("plan.mechanics.outcomes: use an array containing only won and lost")
+		}
+		if len(outcomes) > 2 {
+			return fmt.Errorf("plan.mechanics.outcomes: at most two optional outcomes")
+		}
+		seen := map[string]bool{}
+		for _, outcome := range outcomes {
+			if outcome != "won" && outcome != "lost" {
+				return fmt.Errorf("plan.mechanics.outcomes: use won or lost")
+			}
+			if seen[outcome] {
+				return fmt.Errorf("plan.mechanics.outcomes: duplicate %s", outcome)
+			}
+			seen[outcome] = true
+		}
+	}
+	if raw, ok := mechanics["lives"]; ok && raw != nil {
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return fmt.Errorf("plan.mechanics.lives: encode: %w", err)
+		}
+		var lives float64
+		if err := json.Unmarshal(data, &lives); err != nil || !finite(lives) || lives < 1 || lives > 99 || lives != math.Trunc(lives) {
+			return fmt.Errorf("plan.mechanics.lives: use an integer from 1 to 99")
+		}
+	}
+	data, err := json.Marshal(mechanics)
+	if err != nil {
+		return fmt.Errorf("plan.mechanics: encode: %w", err)
+	}
+	if len(data) > 12000 {
+		return fmt.Errorf("plan.mechanics: exceeds 12000 bytes")
 	}
 	return nil
 }

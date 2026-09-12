@@ -430,7 +430,7 @@ func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testi
 	if err := service.db.QueryRow(`SELECT COUNT(*) FROM gm_blobs`).Scan(&blobCount); err != nil {
 		t.Fatal(err)
 	}
-	if err := service.db.QueryRow(`SELECT COUNT(*) FROM gm_revision_files WHERE revision_id=?`, restored.ID).Scan(&revisionFileCount); err != nil {
+	if err := service.db.QueryRow(`SELECT COUNT(DISTINCT content_hash) FROM gm_revision_files WHERE revision_id=?`, restored.ID).Scan(&revisionFileCount); err != nil {
 		t.Fatal(err)
 	}
 	if blobCount != revisionFileCount {

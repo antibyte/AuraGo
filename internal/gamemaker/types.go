@@ -159,6 +159,8 @@ type BuildResult struct {
 	RuntimeStatus  string        `json:"runtime_status,omitempty"`
 	GameplayStatus string        `json:"gameplay_status,omitempty"`
 	VisualStatus   string        `json:"visual_status,omitempty"`
+	RulesStatus    string        `json:"rules_status,omitempty"`
+	TargetedChecks bool          `json:"targeted_checks,omitempty"`
 	Checks         []CheckResult `json:"checks,omitempty"`
 	Images         []string      `json:"-"`
 }

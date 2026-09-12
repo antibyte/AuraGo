@@ -140,13 +140,14 @@ console.log('PASS: helper animation order/holds, idempotence, facing, missing ac
 
 const previewWindow = {};
 vm.runInNewContext(fs.readFileSync(new URL('../ui/js/desktop/apps/game-maker-studio-preview.js', import.meta.url),'utf8'), {window:previewWindow,clearTimeout});
-const reports=[],sent=[],diagnostics=[];
-const previewState={frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
+const reports=[],sent=[],diagnostics=[];let debugPressed='false';
+const previewState={container:{querySelector:()=>({setAttribute:(name,value)=>{if(name==='aria-pressed')debugPressed=value}})},frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
   previewGrant:{token:'token',validation_id:'build',expires_at:new Date(Date.now()+60000).toISOString(),scenarios:[{id:'required_input'}]},api:{reportPreview:(id,payload)=>{reports.push({id,payload});return Promise.resolve();}},addDiagnostic:message=>diagnostics.push(message)};
 const receive=(data,source=previewState.frame.contentWindow)=>previewWindow.GameMakerStudioPreview.handleMessage(previewState,{source,data:{source:'aurago-game',channel:'channel',...data}});
 receive({type:'ready',boot:true,visible:true},{});receive({type:'ready',boot:false,visible:true});receive({type:'ready',boot:true,visible:true,channel:'stale'});
 assert.equal(reports.length,0,'only the current iframe and server boot may establish readiness');
 receive({type:'ready',boot:true,visible:true});assert.equal(reports[0].payload.canvas_visible,true);assert.equal(sent[0].type,'run-tests');
+previewWindow.GameMakerStudioPreview.setSceneDebug(previewState,true);assert.equal(debugPressed,'true');assert.equal(sent.at(-1).type,'scene-debug');assert.equal(sent.at(-1).channel,'channel');
 receive({type:'gameplay',observations:Array(17).fill({})});assert.equal(reports.length,1);
 receive({type:'gameplay',observations:[{id:'required_input',before:{player_x:1},after:{player_x:2}}],images:['data:image/png;base64,a','b','c']});
 assert.equal(reports.length,2);assert.equal(reports[1].payload.images.length,2);assert.equal(reports[1].payload.token,'token');

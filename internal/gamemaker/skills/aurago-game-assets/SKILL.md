@@ -48,6 +48,11 @@ Use `bounds`, `collider` and `connections` for collisions and modular placement.
 Architecture follows a 2 m grid / 3 m storey; roads are 8 m wide. Centered aircraft,
 planets and FPS view rigs differ from ground-based origins. No physics, ragdoll,
 speech-face animation or combat AI is included. Implement game rules separately.
+For scene data, keep the same boundary: `placements[].asset_id` and
+`placements[].asset_role` identify the visual, while `placements[].behavior` is
+a separate string such as `collect` or `decorative`. An `item` or `projectile`
+role does not activate a rule; bind mechanics to an explicit node ID or asset
+role, and use source code for behavior outside the bounded helpers.
 
 Compact starting selections (describe first; choose only what the game needs):
 

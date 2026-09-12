@@ -71,7 +71,11 @@ func (s *Service) publishValidated(ctx context.Context, stage string, project Pr
 			return Revision{}, fmt.Errorf("decode publication plan: %w", err)
 		}
 	}
-	if (project.Dimension == "2d" || guided3D(plan.Template)) && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
+	sceneBacked := project.Dimension == "3d" && sceneBackedCurrentAt(stage, &plan)
+	if result.TargetedChecks {
+		return Revision{}, fmt.Errorf("targeted check validation cannot be published")
+	}
+	if (project.Dimension == "2d" || sceneBacked) && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
 		return Revision{}, fmt.Errorf("publication requires full gameplay observations")
 	}
 	if err := writeValidationReport(stage, result, s.opts.MaxFilesPerProject, s.opts.MaxFileBytes, s.opts.MaxProjectBytes); err != nil {

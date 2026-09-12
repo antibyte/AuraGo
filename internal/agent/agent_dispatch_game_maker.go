@@ -1,10 +1,12 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -14,6 +16,412 @@ import (
 	"aurago/internal/tools"
 )
 
+func gameMakerScenePayload(params map[string]any, key string) ([]byte, error) {
+	value, ok := params[key]
+	if !ok || value == nil {
+		return nil, fmt.Errorf("%s is required", key)
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("encode %s: %w", key, err)
+	}
+	data = bytes.TrimSpace(data)
+	if len(data) > 32768 {
+		return nil, fmt.Errorf("%s exceeds the 32 KiB operation limit", key)
+	}
+	if len(data) > 0 && data[0] == '"' {
+		var encoded string
+		if err := json.Unmarshal(data, &encoded); err != nil {
+			return nil, fmt.Errorf("decode %s JSON string: %w", key, err)
+		}
+		data = bytes.TrimSpace([]byte(encoded))
+	}
+	if len(data) == 0 || data[0] != '{' {
+		return nil, fmt.Errorf("%s must be a JSON object", key)
+	}
+	return data, nil
+}
+
+func gameMakerSceneDryRun(params map[string]any) bool {
+	value, ok := params["dry_run"].(bool)
+	return ok && value
+}
+
+type gameMakerSceneFilter struct {
+	NodeIDs   []string
+	NodeIDSet map[string]struct{}
+	RegionID  string
+}
+
+func gameMakerSceneFilterFromParams(params map[string]any) (gameMakerSceneFilter, error) {
+	filter := gameMakerSceneFilter{NodeIDSet: map[string]struct{}{}}
+	if raw, ok := params["node_ids"]; ok && raw != nil {
+		var values []any
+		switch typed := raw.(type) {
+		case []any:
+			values = typed
+		case []string:
+			values = make([]any, len(typed))
+			for i, value := range typed {
+				values[i] = value
+			}
+		default:
+			return filter, fmt.Errorf("node_ids must be an array of strings")
+		}
+		if len(values) > 32 {
+			return filter, fmt.Errorf("node_ids accepts at most 32 IDs")
+		}
+		for _, value := range values {
+			id, ok := value.(string)
+			id = strings.TrimSpace(id)
+			if !ok || id == "" {
+				return filter, fmt.Errorf("node_ids must contain non-empty strings")
+			}
+			if len(id) > 128 {
+				return filter, fmt.Errorf("node_ids entries must be at most 128 characters")
+			}
+			if _, seen := filter.NodeIDSet[id]; seen {
+				continue
+			}
+			filter.NodeIDSet[id] = struct{}{}
+			filter.NodeIDs = append(filter.NodeIDs, id)
+		}
+	}
+	filter.RegionID = strings.TrimSpace(toolArgString(params, "region_id"))
+	if len(filter.RegionID) > 128 {
+		return filter, fmt.Errorf("region_id must be at most 128 characters")
+	}
+	return filter, nil
+}
+
+func (f gameMakerSceneFilter) enabled() bool {
+	return len(f.NodeIDs) > 0 || f.RegionID != ""
+}
+
+func (f gameMakerSceneFilter) selectsNode(node gamemaker.SceneNode) bool {
+	if len(f.NodeIDs) > 0 {
+		if _, ok := f.NodeIDSet[node.ID]; !ok {
+			return false
+		}
+	}
+	return f.RegionID == "" || node.RegionID == f.RegionID
+}
+
+func compactGameMakerSceneProperties(properties map[string]any) any {
+	if properties == nil {
+		return nil
+	}
+	data, err := json.Marshal(properties)
+	if err == nil && len(data) <= 2048 {
+		return properties
+	}
+	size := len(data)
+	if err != nil {
+		size = 0
+	}
+	return map[string]any{"truncated": true, "bytes": size}
+}
+
+func gameMakerSceneDetail(scene gamemaker.Scene, filter gameMakerSceneFilter) map[string]any {
+	detail := map[string]any{
+		"nodes":   []map[string]any{},
+		"regions": []gamemaker.SceneRegion{},
+	}
+	filterData := map[string]any{}
+	if len(filter.NodeIDs) > 0 {
+		filterData["node_ids"] = filter.NodeIDs
+	}
+	if filter.RegionID != "" {
+		filterData["region_id"] = filter.RegionID
+	}
+	detail["filter"] = filterData
+
+	selectedRegions := map[string]struct{}{}
+	nodes := detail["nodes"].([]map[string]any)
+	truncated := false
+	for _, node := range scene.Nodes {
+		if !filter.selectsNode(node) {
+			continue
+		}
+		if len(nodes) >= 32 {
+			truncated = true
+			break
+		}
+		if node.RegionID != "" {
+			selectedRegions[node.RegionID] = struct{}{}
+		}
+		entry := map[string]any{
+			"id": node.ID, "kind": node.Kind, "position": node.Position, "size": node.Size,
+			"pinned": node.Pinned, "level_id": node.LevelID, "region_id": node.RegionID,
+		}
+		if node.Properties != nil {
+			entry["properties"] = compactGameMakerSceneProperties(node.Properties)
+		}
+		placements := make([]gamemaker.ScenePlacement, 0, 8)
+		for _, placement := range scene.Placements {
+			if placement.NodeID == node.ID {
+				if len(placements) >= 8 {
+					truncated = true
+					break
+				}
+				placements = append(placements, placement)
+			}
+		}
+		if len(placements) > 0 {
+			entry["placements"] = placements
+		}
+		colliders := make([]gamemaker.SceneCollider, 0, 8)
+		for _, collider := range scene.Colliders {
+			if collider.NodeID == node.ID {
+				if len(colliders) >= 8 {
+					truncated = true
+					break
+				}
+				colliders = append(colliders, collider)
+			}
+		}
+		if len(colliders) > 0 {
+			entry["colliders"] = colliders
+		}
+		attachments := make([]gamemaker.SceneAttachment, 0, 8)
+		for _, attachment := range scene.Attachments {
+			if attachment.NodeID == node.ID {
+				if len(attachments) >= 8 {
+					truncated = true
+					break
+				}
+				attachments = append(attachments, attachment)
+			}
+		}
+		if len(attachments) > 0 {
+			entry["attachments"] = attachments
+		}
+		nodes = append(nodes, entry)
+	}
+	detail["nodes"] = nodes
+
+	regions := detail["regions"].([]gamemaker.SceneRegion)
+	for _, region := range scene.Regions {
+		_, selectedByNode := selectedRegions[region.ID]
+		if filter.RegionID != "" && region.ID != filter.RegionID {
+			continue
+		}
+		if filter.RegionID == "" && len(filter.NodeIDs) > 0 && !selectedByNode {
+			continue
+		}
+		if len(regions) >= 32 {
+			truncated = true
+			break
+		}
+		regions = append(regions, region)
+	}
+	detail["regions"] = regions
+	if truncated {
+		detail["truncated"] = true
+	}
+	return detail
+}
+
+func gameMakerSceneSummary(scene gamemaker.Scene) map[string]any {
+	activeLevel := ""
+	levels := make([]string, 0, len(scene.Levels))
+	for _, level := range scene.Levels {
+		if len(levels) < 16 {
+			levels = append(levels, level.ID)
+		}
+		if level.Active {
+			activeLevel = level.ID
+		}
+	}
+	nodeIDs := make([]string, 0, min(64, len(scene.Nodes)))
+	for _, node := range scene.Nodes {
+		if len(nodeIDs) >= 64 {
+			break
+		}
+		nodeIDs = append(nodeIDs, node.ID)
+	}
+	regionIDs := make([]string, 0, min(64, len(scene.Regions)))
+	for _, region := range scene.Regions {
+		if len(regionIDs) >= 64 {
+			break
+		}
+		regionIDs = append(regionIDs, region.ID)
+	}
+	zoneIDs := make([]string, 0, min(64, len(scene.Zones)))
+	for _, zone := range scene.Zones {
+		if len(zoneIDs) >= 64 {
+			break
+		}
+		zoneIDs = append(zoneIDs, zone.ID)
+	}
+	bindings := make([]map[string]any, 0, len(scene.Placements))
+	for _, placement := range scene.Placements {
+		if len(bindings) >= 64 {
+			break
+		}
+		bindings = append(bindings, map[string]any{
+			"id": placement.ID, "node_id": placement.NodeID, "asset_id": placement.AssetID,
+			"asset_role": placement.AssetRole, "behavior": placement.Behavior,
+		})
+	}
+	return map[string]any{
+		"schema_version": scene.SchemaVersion, "dimension": scene.Dimension, "navigation": scene.Navigation,
+		"seed": scene.Seed, "active_level": activeLevel, "levels": levels,
+		"node_ids": nodeIDs, "region_ids": regionIDs, "zone_ids": zoneIDs,
+		"node_count": len(scene.Nodes), "region_count": len(scene.Regions),
+		"placement_count": len(scene.Placements), "collider_count": len(scene.Colliders),
+		"attachment_count": len(scene.Attachments), "zone_count": len(scene.Zones),
+		"route_count": len(scene.Routes), "bindings": bindings,
+	}
+}
+
+func gameMakerSceneFirstFailure(result gamemaker.SceneResult, fallback error) string {
+	for _, diagnostic := range result.Diagnostics {
+		if diagnostic.Severity == "error" {
+			return diagnostic.Path + ": " + diagnostic.Message
+		}
+	}
+	if fallback != nil {
+		return fallback.Error()
+	}
+	if len(result.Diagnostics) > 0 {
+		diagnostic := result.Diagnostics[0]
+		return diagnostic.Path + ": " + diagnostic.Message
+	}
+	return ""
+}
+
+func gameMakerSceneResult(operation string, result gamemaker.SceneResult, err error, details ...map[string]any) string {
+	summary := gameMakerSceneSummary(result.Scene)
+	out := map[string]any{
+		"status": "ok", "operation": operation, "path": result.Path, "exists": result.Exists,
+		"written": result.Written, "dry_run": result.DryRun, "sha256": result.SHA256,
+		"current_sha256": result.CurrentSHA256, "proposed_sha256": result.ProposedSHA256,
+		"scene_summary": summary, "diagnostics": result.Diagnostics,
+	}
+	if result.Changes != nil {
+		out["changes"] = result.Changes
+	}
+	if len(details) > 0 && details[0] != nil {
+		out["scene_detail"] = details[0]
+	}
+	if err != nil {
+		out["status"] = "error"
+		out["first_failure"] = gameMakerSceneFirstFailure(result, err)
+		out["next_action"] = "Inspect the first_failure, correct only the scene payload, then retry with the current sha256. Scene structure does not certify gameplay."
+	} else if operation == "scene_inspect" {
+		if result.Exists {
+			out["next_action"] = "Use this sha256 for a conditional scene_patch or scene_set; run gameplay validation separately."
+		} else {
+			out["next_action"] = "Create an optional scene with scene_set or continue with source code; custom code remains supported."
+		}
+	} else {
+		out["next_action"] = "Run game_maker_validate with scope gameplay or full. Scene validation covers structure and references, not gameplay quality."
+	}
+	if len(result.Diagnostics) > 16 {
+		out["diagnostics"] = result.Diagnostics[:16]
+	}
+	return gameMakerToolJSON(out)
+}
+
+func gameMakerPlanResult(plan *gamemaker.GamePlan) any {
+	if plan == nil {
+		return nil
+	}
+	data, err := json.Marshal(plan)
+	if err != nil {
+		return plan
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return plan
+	}
+	if plan.Scene != nil {
+		result["scene"] = map[string]any{
+			"path": gamemaker.SceneFilePath, "schema_version": plan.Scene.SchemaVersion,
+			"dimension": plan.Scene.Dimension, "seed": plan.Scene.Seed,
+			"summary": gameMakerSceneSummary(*plan.Scene),
+		}
+	}
+	return result
+}
+
+func dispatchGameMakerScene(ctx context.Context, tc ToolCall, service *gamemaker.Service, jobID string) string {
+	operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
+	expected := toolArgString(tc.Params, "expected_sha256")
+	dryRun := gameMakerSceneDryRun(tc.Params)
+	switch operation {
+	case "scene_inspect":
+		filter, filterErr := gameMakerSceneFilterFromParams(tc.Params)
+		if filterErr != nil {
+			return gameMakerToolError(filterErr)
+		}
+		result, err := service.InspectScene(ctx, jobID)
+		var detail map[string]any
+		if err == nil && filter.enabled() {
+			detail = gameMakerSceneDetail(result.Scene, filter)
+		}
+		return gameMakerSceneResult(operation, result, err, detail)
+	case "scene_set":
+		data, err := gameMakerScenePayload(tc.Params, "scene")
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		result, err := service.SetSceneJSON(ctx, jobID, expected, data, dryRun)
+		return gameMakerSceneResult(operation, result, err)
+	case "scene_patch":
+		data, err := gameMakerScenePayload(tc.Params, "patch")
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		result, err := service.PatchSceneJSON(ctx, jobID, expected, data, dryRun)
+		return gameMakerSceneResult(operation, result, err)
+	case "scene_generate":
+		data, err := gameMakerScenePayload(tc.Params, "generate")
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		var request gamemaker.GenerateSceneRegionRequest
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&request); err != nil {
+			return gameMakerToolError(fmt.Errorf("decode generate: %w", err))
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			if err == nil {
+				return gameMakerToolError(fmt.Errorf("decode generate: multiple values"))
+			}
+			return gameMakerToolError(fmt.Errorf("decode generate: %w", err))
+		}
+		result, err := service.GenerateSceneRegionJSON(ctx, jobID, expected, request, dryRun)
+		return gameMakerSceneResult(operation, result, err)
+	default:
+		return gameMakerToolError(fmt.Errorf("unknown scene operation %q", operation))
+	}
+}
+
+func gameMakerCheckIDsFromParams(params map[string]interface{}) ([]string, error) {
+	raw, exists := params["check_ids"]
+	if !exists || raw == nil {
+		return nil, nil
+	}
+	values, ok := raw.([]interface{})
+	if !ok {
+		if typed, typedOK := raw.([]string); typedOK {
+			return append([]string(nil), typed...), nil
+		}
+		return nil, fmt.Errorf("check_ids must be an array of strings")
+	}
+	out := make([]string, len(values))
+	for i, value := range values {
+		id, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("check_ids must be an array of strings")
+		}
+		out[i] = id
+	}
+	return out, nil
+}
 func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	switch tc.Action {
 	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
@@ -42,12 +450,15 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		if err != nil {
 			return gameMakerToolError(err), true
 		}
+		if strings.HasPrefix(operation, "scene_") {
+			return dispatchGameMakerScene(ctx, tc, service, jobID), true
+		}
 		if operation == "get_plan" {
 			plan, err := service.GetPlan(ctx, jobID)
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "plan": plan}), true
+			return gameMakerToolJSON(map[string]any{"status": "ok", "plan": gameMakerPlanResult(plan)}), true
 		}
 		if operation == "set_plan" || operation == "set_design" {
 			field := "plan"
@@ -134,7 +545,11 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		return gameMakerToolJSON(map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}), true
 
 	case "game_maker_validate":
-		result := service.ValidateJobScope(ctx, jobID, toolArgString(tc.Params, "scope"))
+		checkIDs, checkErr := gameMakerCheckIDsFromParams(tc.Params)
+		if checkErr != nil {
+			return gameMakerToolError(checkErr), true
+		}
+		result := service.ValidateJobScope(ctx, jobID, toolArgString(tc.Params, "scope"), checkIDs...)
 		return gameMakerToolJSON(map[string]any{"status": gameMakerValidationStatus(result.OK), "result": result}), true
 
 	case "game_maker_asset":

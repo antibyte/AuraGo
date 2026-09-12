@@ -113,3 +113,44 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestCompactGameMakerContextPreservesExamplesAndFirstFailure(t *testing.T) {
+	plan := &gamemaker.GamePlan{
+		SchemaVersion: 4,
+		Template:      "minimal",
+		Objective:     "Explore",
+		Scene: &gamemaker.Scene{
+			SchemaVersion: 1, Dimension: "2d", Seed: 7,
+			Levels: []gamemaker.SceneLevel{{ID: "main", Active: true}},
+			Placements: []gamemaker.ScenePlacement{{
+				ID: "player_art", NodeID: "player", AssetID: "hero",
+				AssetRole: "player", Behavior: "controlled",
+			}},
+		},
+		Mechanics: map[string]any{"outcomes": []any{"won"}},
+	}
+	run := gamemaker.JobRun{
+		Stage: "repair", Plan: plan,
+		Checks:      []gamemaker.CheckResult{{ID: "required_rules", Status: "failed", Expected: "hits increased", Observed: "before=0, after=0"}},
+		Diagnostics: []gamemaker.Diagnostic{{Level: "error", File: "src/main.ts", Line: 9, Message: "compile failure"}},
+		AssetPacks: []gamemaker.ImportedAssetPack{{
+			ID: gamemaker.ModelPackID, Version: "1", Kind: "model3d",
+			AssetIDs: []string{"hero"}, Manifests: map[string]string{"hero": "assets/hero.json"},
+			ThreeExample: "EXECUTABLE_THREE_EXAMPLE",
+		}},
+	}
+	data := compactGameMakerContext(run)
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(encoded)
+	for _, want := range []string{"EXECUTABLE_THREE_EXAMPLE", "required_rules", "first_failure", "rules_status", "player_art", "outcomes"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("compact repair context lost %s: %s", want, text)
+		}
+	}
+	if strings.Contains(text, "\"nodes\":[") || strings.Contains(text, "\"regions\":[") {
+		t.Fatalf("repair context included full scene arrays: %s", text)
+	}
+}

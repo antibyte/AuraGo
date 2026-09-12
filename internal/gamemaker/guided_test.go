@@ -219,3 +219,28 @@ func TestGuidedEditPreservesExistingAssetsAndCode(t *testing.T) {
 		t.Fatal(finished)
 	}
 }
+
+func TestDesignCarriesOptionalSceneAndMechanics(t *testing.T) {
+	service := newTestService(t)
+	project := Project{ID: "project", Dimension: "2d"}
+	scene := &Scene{
+		SchemaVersion: 1, Dimension: "2d", Seed: 11,
+		Levels:      []SceneLevel{{ID: "main", Active: true}},
+		WorldBounds: SceneBounds{Min: Vec3{0, 0, 0}, Max: Vec3{960, 540, 0}},
+	}
+	design := GameDesign{
+		Base: "minimal", Objective: "Explore freely",
+		Features: []string{"Movement"},
+		Scene:    scene, Mechanics: map[string]any{"outcomes": []any{"won"}},
+	}
+	plan, err := service.planFromDesign(context.Background(), "", project, design)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.SchemaVersion != 4 || plan.Scene != scene || plan.Mechanics["outcomes"] == nil {
+		t.Fatalf("optional design fields were not propagated: %+v", plan)
+	}
+	if plan.Rules["failure"] == "Health or time exhausted" || plan.Rules["completion"] == "Reach the objective; show result and allow restart" {
+		t.Fatalf("minimal design received forced outcomes: %+v", plan.Rules)
+	}
+}

@@ -13,12 +13,16 @@ import (
 // A small public design describes choices; the server owns technical plan fields.
 type GameDesign struct {
 	Presentation *Presentation `json:"presentation,omitempty"`
-	Base         string        `json:"base"`
-	Objective    string        `json:"objective"`
-	Features     []string      `json:"features"`
-	Assets       []DesignAsset `json:"assets"`
-	Settings     *GameSettings `json:"settings,omitempty"`
-	Preserve     []string      `json:"preserve,omitempty"`
+	// Scene is optional and validated separately from source code; omitting it keeps the classic flow.
+	Scene *Scene `json:"scene,omitempty"`
+	// Mechanics is a bounded optional helper declaration; arbitrary gameplay remains source-editable.
+	Mechanics map[string]any `json:"mechanics,omitempty"`
+	Base      string         `json:"base"`
+	Objective string         `json:"objective"`
+	Features  []string       `json:"features"`
+	Assets    []DesignAsset  `json:"assets"`
+	Settings  *GameSettings  `json:"settings,omitempty"`
+	Preserve  []string       `json:"preserve,omitempty"`
 }
 type DesignAsset struct {
 	Role       string `json:"role"`
@@ -113,6 +117,13 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	}
 	p.CoreLoop = "Use the displayed controls to pursue: " + d.Objective
 	p.Rules = map[string]string{"progress": d.Objective, "failure": "Health or time exhausted", "completion": "Reach the objective; show result and allow restart"}
+	if d.Base == "minimal" || d.Base == "three" {
+		p.Rules = map[string]string{
+			"progress":   d.Objective,
+			"failure":    "No loss condition is required unless requested by the design",
+			"completion": "No win condition is required unless requested by the design",
+		}
+	}
 	p.Fallback = "Use the explicitly named procedural role where no library asset is selected"
 	p.Gameplay = d.Settings
 	seen := map[string]bool{}
@@ -126,6 +137,8 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 		p.Gameplay = &GameSettings{Goal: 5, Speed: 5, Duration: 120}
 	}
 	p.Presentation = d.Presentation
+	p.Scene = d.Scene
+	p.Mechanics = d.Mechanics
 	p.Preserve = d.Preserve
 	if project.CurrentRevision > 0 {
 		old, err := s.GetPlan(ctx, jobID)
@@ -144,6 +157,12 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 			}
 			if d.Settings == nil && old.Gameplay != nil {
 				p.Gameplay = old.Gameplay
+			}
+			if d.Scene == nil && old.Scene != nil {
+				p.Scene = old.Scene
+			}
+			if d.Mechanics == nil && old.Mechanics != nil {
+				p.Mechanics = old.Mechanics
 			}
 		}
 	}
@@ -200,6 +219,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	if p.Presentation != nil {
 		p.SchemaVersion = 3
 		p.Presentation.Version = PresentationVersion
+	}
+	if p.Scene != nil || p.Mechanics != nil {
+		p.SchemaVersion = 4
 	}
 	return p, nil
 }

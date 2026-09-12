@@ -12,8 +12,7 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_validate
 
 # Game QA
 
-Use deterministic, scene-first checks. This package contains original AuraGo
-guidance and copies no TinySwords code, text, scripts, or assets.
+Use deterministic, scene-first checks. Scene structure is an input to QA: inspect the optional graph and exact bindings, then run bounded browser scenarios. Separate compiler/runtime diagnostics from unproven game quality. This package contains original AuraGo guidance and copies no TinySwords code, text, scripts, or assets.
 
 1. Call `game_maker_validate` with `scope: full` for 2D and guided 3D and inspect every check.
    Implement the accepted game first. Unchanged 2D/3D starters are rejected;
@@ -64,12 +63,31 @@ at most 60 seconds: startup, fixed template tests and the accepted plan scenario
 The driver accepts only bounded key/pointer/wait/observe commands, no JavaScript.
 It takes numeric snapshots before/after real input; the server compares them.
 `bindGameTest(scene,state,player)` connects the current live scene/object and
-state counters: actions, score, hits, spawns, turns, ticks, ended (0/1). Update these
+state counters: actions, score, hits, spawns, turns, ticks, ended (0 while playing, nonzero after an outcome). Update these
 only in actual game event handlers. Position, object/timer/listener counts and
 asset integrity are measured from the engine. Never fabricate observations.
+For a scene-backed run, inspect `scene.auditGame()` in Phaser or the Three
+binding's `audit()` after each real input. The bounded result has this shape:
+```json
+{
+  "outcome":"won",
+  "roles":[{"role":"parcel","asset_id":"runtime-parcel","count":1}],
+  "events":{"pickup":1,"win":1},
+  "event_trace":[{"type":"pickup","id":"parcel","at":0.016}],
+  "faults":[],
+  "nodes":[{"id":"parcel","active":false,"health":1,"x":10,"y":10,"z":0}]
+}
+```
+`events` is a string-to-count map; keep the diagnostic `event_trace` separate.
+Roles and asset IDs come from actual host-rendered objects, and empty roles are
+omitted. `reset()` must return `outcome:"playing"` and clear event counters.
+This snapshot still cannot prove controls or game quality. Static reachability
+is conservative for topdown, ground, platforms and routes; custom navigation
+and free-code `three` remain unverified until live observations cover them.
 Test input resets with R between scenarios and after the run. Retain R restart
-and ESC end/forfeit. Required tests exercise input, primary action, rules,
-timed activity, terminal state, sprite integrity, and two successive restarts.
+where that binding is part of the game. Legacy templates exercise their existing
+input/action/timer contract. Scene-based games check only selected mechanics,
+actual state changes, declared outcomes, asset integrity and restart cleanup.
 For a missing hit, compare the accepted steps' duration with distance/speed and
 the actual collider route. Hits count collisions, not only destroyed targets.
 If input and assets passed but hits did not, retain those working parts. Read
