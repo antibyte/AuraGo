@@ -247,3 +247,41 @@ func TestDesktopMissionControlListModuleContract(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopMissionControlDetailModuleContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-detail.js")
+	for _, marker := range []string{
+		"window.MissionControlDetail = { create, extractLastOutput }",
+		"function create(deps)",
+		"function extractLastOutput(raw)",
+		"role=\"tablist\"",
+		"role=\"tab\"",
+		"role=\"tabpanel\"",
+		"data-mc-panel=\"overview\"",
+		"data-mc-panel=\"history\"",
+		"'desktop.mc_tab_overview'",
+		"'desktop.mc_tab_history'",
+		"'desktop.mc_action_cancel'",
+		"'desktop.mc_action_cancelling'",
+		"'desktop.mc_overview_queued_position'",
+		"'desktop.mc_overview_running_since'",
+		"'desktop.mc_history_filter_cancelled'",
+		"'desktop.mc_history_load_more'",
+		"'desktop.mc_prep_title'",
+		"'desktop.mc_empty_title'",
+		"'desktop.mc_priority_' + priority",
+		"Cancelled by user",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control-detail.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "alert(") || strings.Contains(source, "confirm(") {
+		t.Fatalf("detail module must not use blocking dialogs")
+	}
+	if strings.Contains(source, "missions.form_priority_") {
+		t.Fatalf("detail module must use the emoji-free desktop.mc_priority_* labels")
+	}
+}
