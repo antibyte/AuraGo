@@ -474,7 +474,7 @@
     width: 40px;
 }
 .nm-card-play svg { height: 18px; width: 18px; }
-.nm-card:hover .nm-card-play, .nm-card:focus-within .nm-card-play, .nm-card.is-current .nm-card-play, .nm-row .nm-card-play { opacity: 1; transform: none; }
+.nm-card:hover .nm-card-play, .nm-card:focus-within .nm-card-play, .nm-card.is-current .nm-card-play { opacity: 1; transform: none; }
 .nm-svg-pause, .is-playing .nm-svg-play { display: none; }
 .is-playing .nm-svg-pause { display: block; }
 .nm-card-fav {
@@ -554,7 +554,7 @@
 .nm-library.is-select-mode .nm-row .nm-card-check { display: inline-flex; }
 .nm-row-media { height: 44px; position: relative; width: 44px; }
 .nm-row-cover { height: 100%; width: 100%; border-radius: 8px; }
-.nm-row .nm-card-play { bottom: auto; height: 28px; left: 8px; right: auto; top: 8px; width: 28px; opacity: 0; box-shadow: none; }
+.nm-row .nm-card-play { bottom: auto; height: 28px; left: 8px; right: auto; top: 8px; width: 28px; opacity: 0; box-shadow: none; transform: none; }
 .nm-row:hover .nm-card-play, .nm-row.is-current .nm-card-play, .nm-row:focus-within .nm-card-play { opacity: 1; }
 .nm-row .nm-card-play svg { height: 14px; width: 14px; }
 .nm-row-main { display: grid; gap: 2px; min-width: 0; }
@@ -584,7 +584,7 @@
 .nm-player {
     align-items: center;
     background: var(--nm-chrome);
-    border-top: 1px solid var(--nm-border);
+    border-top: 1px solid transparent;
     display: grid;
     gap: 14px;
     grid-template-columns: auto minmax(100px, 1fr) minmax(240px, 2fr) minmax(140px, 1fr);
@@ -593,9 +593,10 @@
     opacity: 0;
     overflow: hidden;
     padding: 0 14px;
-    transition: max-height .25s ease, opacity .2s ease;
+    transition: max-height .25s ease, opacity .2s ease, border-color .2s ease, visibility 0s linear .25s;
+    visibility: hidden;
 }
-.nm-player.is-visible { max-height: var(--nm-player-height); opacity: 1; }
+.nm-player.is-visible { max-height: var(--nm-player-height); opacity: 1; visibility: visible; border-top-color: var(--nm-border); transition: max-height .25s ease, opacity .2s ease, border-color .2s ease, visibility 0s; }
 .nm-player-cover { background: none; border: 0; cursor: pointer; display: inline-flex; padding: 0; }
 .nm-player-cover-img { height: 48px; width: 48px; border-radius: 8px; }
 .nm-player-info { display: grid; gap: 2px; min-width: 0; }

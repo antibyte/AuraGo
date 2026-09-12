@@ -353,6 +353,7 @@ func TestDesktopNoisemakerRefreshStyles(t *testing.T) {
 		".nm-skeleton {",
 		".nm-player {",
 		".nm-player.is-visible",
+		"visibility: visible; border-top-color: var(--nm-border);",
 		".nm-player-viz",
 		".nm-now-playing {",
 		".nm-now-playing.is-open",
