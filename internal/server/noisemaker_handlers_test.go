@@ -621,3 +621,33 @@ func TestNoisemakerTrackItemDispatchesDelete(t *testing.T) {
 		t.Fatalf("DELETE via item handler: status = %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestNoisemakerPersistTrackTextStoresStyleAndLyrics(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	id := noisemakerRegisterTrack(t, s, cfg, "music_text.mp3")
+
+	track := noisemakerPersistTrackText(s, id, "synthwave, 80s", "[Verse]\nNeon rain")
+	if track == nil {
+		t.Fatal("expected serialized track")
+	}
+	if track["style"] != "synthwave, 80s" || track["lyrics"] != "[Verse]\nNeon rain" {
+		t.Fatalf("style/lyrics = %#v/%#v", track["style"], track["lyrics"])
+	}
+	if track["favorite"] != false || track["id"].(int64) != id {
+		t.Fatalf("favorite/id = %#v/%#v", track["favorite"], track["id"])
+	}
+	item, err := tools.GetMedia(s.MediaRegistryDB, id)
+	if err != nil {
+		t.Fatalf("GetMedia: %v", err)
+	}
+	if item.Lyrics != "[Verse]\nNeon rain" {
+		t.Fatalf("lyrics not persisted: %q", item.Lyrics)
+	}
+	if noisemakerPersistTrackText(s, 0, "x", "y") != nil {
+		t.Fatal("media id 0 must return nil")
+	}
+	if noisemakerPersistTrackText(&Server{Cfg: cfg, Logger: s.Logger}, id, "x", "y") != nil {
+		t.Fatal("missing registry must return nil")
+	}
+}

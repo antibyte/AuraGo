@@ -79,6 +79,22 @@ func noisemakerTrackJSON(item tools.MediaItem) map[string]interface{} {
 	}
 }
 
+// noisemakerPersistTrackText stores the style and lyrics of a freshly generated
+// song and returns the serialized registry item, or nil when no registry entry exists.
+func noisemakerPersistTrackText(s *Server, mediaID int64, style, lyrics string) map[string]interface{} {
+	if s.MediaRegistryDB == nil || mediaID <= 0 {
+		return nil
+	}
+	if err := tools.UpdateMediaText(s.MediaRegistryDB, mediaID, style, lyrics); err != nil && s.Logger != nil {
+		s.Logger.Warn("Noisemaker: failed to store track text", "media_id", mediaID, "error", err)
+	}
+	item, err := tools.GetMedia(s.MediaRegistryDB, mediaID)
+	if err != nil {
+		return nil
+	}
+	return noisemakerTrackJSON(*item)
+}
+
 type noisemakerEnhanceRequest struct {
 	Kind    string `json:"kind"`    // idea | style | lyrics | title
 	Text    string `json:"text"`    // current field content (may be empty for random/from-scratch)
@@ -428,7 +444,7 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			}
 		}
 
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		response := map[string]interface{}{
 			"status":        "ok",
 			"title":         result.Title,
 			"filename":      result.Filename,
@@ -445,7 +461,11 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			"auto_lyrics":   autoLyrics,
 			"cover_url":     coverURL,
 			"cover_error":   coverError,
-		})
+		}
+		if track := noisemakerPersistTrackText(s, result.MediaID, body.Style, lyrics); track != nil {
+			response["track"] = track
+		}
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
