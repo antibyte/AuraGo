@@ -412,3 +412,57 @@ func TestDesktopMissionControlShellComposesModules(t *testing.T) {
 		t.Fatalf("mission-control-modal.js must be deleted")
 	}
 }
+
+func TestDesktopMissionControlStylesheetContract(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-app-mission-control.css")
+	for _, marker := range []string{
+		".vd-mc {",
+		"background: var(--vd-theme-app-bg);",
+		"--vd-surface: var(--vd-theme-panel-bg);",
+		"--mc-list-width",
+		"--mc-accent:",
+		"--mc-success:",
+		"--mc-warning:",
+		"--mc-danger:",
+		"--mc-focus:",
+		".vd-mc-body {",
+		".vd-mc-listpane",
+		".vd-mc-splitter",
+		".vd-mc.is-list-collapsed",
+		".vd-mc.is-compact",
+		".vd-mc.is-compact-detail",
+		".vd-mc-row.is-selected",
+		".vd-mc-row-state[data-state=\"running\"]",
+		".vd-mc-pill[data-state=\"error\"]",
+		".vd-mc-hero",
+		".vd-mc-tabs",
+		".vd-mc-cards",
+		".vd-mc-editor",
+		".vd-mc-segmented",
+		".vd-mc-switch",
+		".vd-mc-trigger-picker",
+		".vd-mc-statusbar",
+		"@keyframes vd-mc-pulse",
+		"@media (prefers-reduced-motion: reduce)",
+		".desktop-body[data-theme=\"fruity\"] .vd-mc",
+		":focus-visible",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop-app-mission-control.css missing %q", marker)
+		}
+	}
+	for _, banned := range []string{"#181c24", "#22262e", "--vd-text: #e8ecf1", "cyberwar", ".vd-mc-card-list", ".vd-mc-stat "} {
+		if strings.Contains(css, banned) {
+			t.Fatalf("desktop-app-mission-control.css must not contain %q", banned)
+		}
+	}
+	// Only the prefers-reduced-motion block may use !important (animation + transition).
+	if n := strings.Count(css, "!important"); n > 2 {
+		t.Fatalf("stylesheet uses !important %d times; only the reduced-motion block may", n)
+	}
+	if lines := strings.Count(css, "\n"); lines > 1100 {
+		t.Fatalf("stylesheet too long (%d lines); split or trim", lines)
+	}
+}
