@@ -176,3 +176,39 @@ func TestDesktopMissionControlTriggerModuleContract(t *testing.T) {
 		t.Fatalf("triggers module must not embed emoji")
 	}
 }
+
+func TestDesktopMissionControlMenusModuleContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-menus.js")
+	for _, marker := range []string{
+		"window.MissionControlMenus = {",
+		"id: 'file', labelKey: 'desktop.menu_file'",
+		"id: 'view', labelKey: 'desktop.menu_view'",
+		"function windowMenus(m)",
+		"function missionContextItems(m, mission)",
+		"function queueContextItems(m, missionId)",
+		"function listContextItems(m)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control-menus.js missing marker %q", marker)
+		}
+	}
+	for _, id := range []string{
+		"'new-mission'", "'duplicate'", "'run'", "'cancel-run'", "'remove-from-queue'", "'pause-resume'", "'lock-toggle'", "'prepare'", "'invalidate-prep'", "'edit'", "'delete'",
+		"'refresh'", "'filter-all'", "'filter-manual'", "'filter-scheduled'", "'filter-triggered'", "'filter-errors'",
+		"'sort-name'", "'sort-last-run'", "'sort-next-run'", "'sort-priority'", "'tab-overview'", "'tab-history'", "'list-panel'",
+	} {
+		if !strings.Contains(source, "id: "+id) {
+			t.Fatalf("menus module missing menu id %s", id)
+		}
+	}
+	for _, iconName := range []string{"play", "stop", "plus", "copy", "edit", "trash", "lock", "unlock", "pause", "refresh", "search", "x", "chevronDown", "chevronUp", "chevronLeft", "more", "check", "alert", "clock", "calendar", "bolt", "hand", "sidebar", "history", "sparkles", "mail", "webhook", "phone", "radio", "home", "plug", "plugOff", "wallet", "walletOff", "power", "egg", "nest", "listCheck", "sliders", "globe", "queue", "info", "arrowUp"} {
+		if !strings.Contains(source, iconName+": `<svg") {
+			t.Fatalf("ICONS missing %q", iconName)
+		}
+	}
+	if strings.Contains(source, "label: 'File'") || strings.Contains(source, "label: 'View'") {
+		t.Fatalf("menus module must not hardcode English menu labels")
+	}
+}

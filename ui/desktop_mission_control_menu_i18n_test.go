@@ -10,7 +10,7 @@ import (
 func TestDesktopMissionControlMenuI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/mission-control.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-menus.js")
 	for _, want := range []string{
 		"id: 'file', labelKey: 'desktop.menu_file'",
 		"id: 'view', labelKey: 'desktop.menu_view'",
