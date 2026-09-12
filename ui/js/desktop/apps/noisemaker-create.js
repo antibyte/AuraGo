@@ -218,8 +218,8 @@
             formEl.innerHTML = mode === 'simple'
                 ? ideaFieldMarkup() + presetsMarkup() + switchesMarkup()
                 : ideaFieldMarkup() + styleFieldMarkup() + switchesMarkup() + lyricsMarkup() + titleMarkup() + (c.supports_controls ? localControlsMarkup() : '');
-            root.dataset.nmMode = mode;
-            root.querySelectorAll('[data-nm-mode]').forEach(btn => {
+            root.dataset.nmCreateMode = mode;
+            root.querySelectorAll('.nm-segment-btn[data-nm-mode]').forEach(btn => {
                 const active = btn.dataset.nmMode === mode;
                 btn.classList.toggle('is-active', active);
                 btn.setAttribute('aria-selected', active ? 'true' : 'false');
@@ -506,7 +506,7 @@
         });
 
         root.addEventListener('click', event => {
-            const modeBtn = event.target.closest('[data-nm-mode]');
+            const modeBtn = event.target.closest('.nm-segment-btn[data-nm-mode]');
             if (modeBtn) { setMode(modeBtn.dataset.nmMode); return; }
             if (event.target.closest('[data-nm-switch-custom]')) {
                 setMode('custom');

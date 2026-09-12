@@ -239,6 +239,7 @@ func TestDesktopNoisemakerRefreshCreateModule(t *testing.T) {
 		"id: 'techno'", "id: 'boombap'", "id: 'jazz'", "id: 'ambient'",
 		"data-nm-mode=\"simple\"",
 		"data-nm-mode=\"custom\"",
+		"closest('.nm-segment-btn[data-nm-mode]')",
 		"data-nm-preset=\"",
 		"nm-preset--",
 		"data-nm-switch-custom",
