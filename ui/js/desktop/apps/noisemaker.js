@@ -51,7 +51,7 @@
 
     function makeT(ctx) {
         return (key, params, fallback) => {
-            const full = NS + key;
+            const full = String(key || '').startsWith('desktop.') ? key : NS + key;
             const value = ctx.t(full, params || {});
             return value && value !== full ? value : (fallback || full);
         };
@@ -84,19 +84,19 @@
         return '<div class="noisemaker-app">' +
             '<header class="nm-header">' +
                 '<div class="nm-brand"><span class="nm-brand-icon" aria-hidden="true">♪</span>' +
-                    '<div><strong>' + esc(t('title')) + '</strong><span>' + esc(t('subtitle')) + '</span></div></div>' +
+                    '<div><strong>' + esc(t('desktop.noisemaker_title')) + '</strong><span>' + esc(t('desktop.noisemaker_subtitle')) + '</span></div></div>' +
                 '<div class="nm-segment nm-pane-switch" role="tablist" data-nm-pane-switch hidden>' +
-                    '<button type="button" class="nm-segment-btn is-active" role="tab" data-nm-pane-btn="create" aria-selected="true">' + esc(t('tab_create')) + '</button>' +
-                    '<button type="button" class="nm-segment-btn" role="tab" data-nm-pane-btn="library" aria-selected="false">' + esc(t('tab_library')) + ' <span class="nm-tab-count" data-nm-track-count hidden>0</span></button>' +
+                    '<button type="button" class="nm-segment-btn is-active" role="tab" data-nm-pane-btn="create" aria-selected="true">' + esc(t('desktop.noisemaker_tab_create')) + '</button>' +
+                    '<button type="button" class="nm-segment-btn" role="tab" data-nm-pane-btn="library" aria-selected="false">' + esc(t('desktop.noisemaker_tab_library')) + ' <span class="nm-tab-count" data-nm-track-count hidden>0</span></button>' +
                 '</div>' +
                 '<div class="nm-header-chips">' +
-                    '<span class="nm-chip nm-chip--busy" data-nm-busy hidden>' + esc(t('generating_badge')) + '</span>' +
+                    '<span class="nm-chip nm-chip--busy" data-nm-busy hidden>' + esc(t('desktop.noisemaker_generating_badge')) + '</span>' +
                     '<span class="nm-chip" data-nm-provider hidden></span>' +
                     '<span class="nm-chip nm-chip--muted" data-nm-quota hidden></span>' +
                 '</div>' +
                 '<div class="nm-header-actions">' +
-                    '<button type="button" class="nm-icon-btn" data-nm-refresh aria-label="' + esc(t('refresh')) + '" title="' + esc(t('refresh')) + '">' + SVG_REFRESH + '</button>' +
-                    '<button type="button" class="nm-icon-btn nm-panel-toggle" data-nm-toggle-create aria-pressed="true" aria-label="' + esc(t('create_panel_hide')) + '" title="' + esc(t('create_panel_hide')) + '">' + SVG_PANEL + '</button>' +
+                    '<button type="button" class="nm-icon-btn" data-nm-refresh aria-label="' + esc(t('desktop.noisemaker_refresh')) + '" title="' + esc(t('desktop.noisemaker_refresh')) + '">' + SVG_REFRESH + '</button>' +
+                    '<button type="button" class="nm-icon-btn nm-panel-toggle" data-nm-toggle-create aria-pressed="true" aria-label="' + esc(t('desktop.noisemaker_create_panel_hide')) + '" title="' + esc(t('desktop.noisemaker_create_panel_hide')) + '">' + SVG_PANEL + '</button>' +
                 '</div>' +
             '</header>' +
             '<div class="nm-body"></div>' +
@@ -107,9 +107,9 @@
         const esc = S.ctx.esc;
         const t = S.t;
         return '<div class="nm-workbench" data-nm-workbench>' +
-            '<section class="nm-pane nm-pane-create" data-nm-pane="create" aria-label="' + esc(t('tab_create')) + '"></section>' +
-            '<div class="nm-splitter" data-nm-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-valuemin="' + CREATE_MIN + '" aria-valuemax="' + CREATE_MAX + '" aria-valuenow="' + S.prefs.createWidth + '" aria-label="' + esc(t('create_panel')) + '" title="' + esc(t('create_panel')) + '"></div>' +
-            '<section class="nm-pane nm-pane-library" data-nm-pane="library" aria-label="' + esc(t('tab_library')) + '"></section>' +
+            '<section class="nm-pane nm-pane-create" data-nm-pane="create" aria-label="' + esc(t('desktop.noisemaker_tab_create')) + '"></section>' +
+            '<div class="nm-splitter" data-nm-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-valuemin="' + CREATE_MIN + '" aria-valuemax="' + CREATE_MAX + '" aria-valuenow="' + S.prefs.createWidth + '" aria-label="' + esc(t('desktop.noisemaker_create_panel')) + '" title="' + esc(t('desktop.noisemaker_create_panel')) + '"></div>' +
+            '<section class="nm-pane nm-pane-library" data-nm-pane="library" aria-label="' + esc(t('desktop.noisemaker_tab_library')) + '"></section>' +
         '</div>' +
         '<div class="nm-player-slot" data-nm-player-slot></div>';
     }
@@ -119,11 +119,11 @@
         const t = S.t;
         return '<div class="nm-onboarding"><div class="nm-onboarding-card">' +
             '<span class="nm-onboarding-icon" aria-hidden="true">♪</span>' +
-            '<h2>' + esc(t('onboarding_title')) + '</h2>' +
-            '<p>' + esc(t('onboarding_hint')) + '</p>' +
+            '<h2>' + esc(t('desktop.noisemaker_onboarding_title')) + '</h2>' +
+            '<p>' + esc(t('desktop.noisemaker_onboarding_hint')) + '</p>' +
             '<div class="nm-onboarding-actions">' +
-                '<button type="button" class="nm-btn nm-btn--primary" data-nm-open-settings>' + esc(t('onboarding_open_settings')) + '</button>' +
-                '<button type="button" class="nm-btn" data-nm-recheck>' + esc(t('onboarding_recheck')) + '</button>' +
+                '<button type="button" class="nm-btn nm-btn--primary" data-nm-open-settings>' + esc(t('desktop.noisemaker_onboarding_open_settings')) + '</button>' +
+                '<button type="button" class="nm-btn" data-nm-recheck>' + esc(t('desktop.noisemaker_onboarding_recheck')) + '</button>' +
             '</div>' +
         '</div></div>';
     }
@@ -144,7 +144,7 @@
             const used = Number(caps.daily_used) || 0;
             const max = Number(caps.daily_max) || 0;
             quota.hidden = !caps.enabled;
-            quota.textContent = max > 0 ? S.t('quota', { used, max }) : S.t('quota_unlimited', { used });
+            quota.textContent = max > 0 ? S.t('desktop.noisemaker_quota', { used, max }) : S.t('desktop.noisemaker_quota_unlimited', { used });
         }
         const busy = qs(S, '[data-nm-busy]');
         if (busy) busy.hidden = !S.generation.active;
@@ -333,7 +333,7 @@
         P.on('needmore', () => {
             loadMoreTracks(S).then(added => { if (!S.disposed && added.length && S.player) S.player.enqueue(added); });
         });
-        P.on('error', () => S.ctx.notify(S.t('playback_failed')));
+        P.on('error', () => S.ctx.notify(S.t('desktop.noisemaker_playback_failed')));
         P.on('visualizer-unavailable', () => { S.visualizerAvailable = false; refreshMenus(S); });
     }
 
@@ -429,7 +429,7 @@
             if (S.disposed) return;
             S.generation = Object.assign({}, S.generation, { active: false, result: data, coverFailed: !!data.cover_error });
             if (S.caps && typeof data.daily_used === 'number') S.caps.daily_used = data.daily_used;
-            S.ctx.notify(S.t('track_created_toast', { title: data.title || '' }));
+            S.ctx.notify(S.t('desktop.noisemaker_track_created_toast', { title: data.title || '' }));
             S.filter = 'all';
             S.query = '';
             if (S.library) { S.library.setFilter('all'); S.library.setQuery(''); }
@@ -439,8 +439,8 @@
             if (id && S.library) S.library.highlight(id);
         } catch (err) {
             if (S.disposed) return;
-            let message = (err && err.message) || S.t('error_unknown');
-            if (err && err.body && err.body.code === 'lyrics_required') message = S.t('lyrics_required');
+            let message = (err && err.message) || S.t('desktop.noisemaker_error_unknown');
+            if (err && err.body && err.body.code === 'lyrics_required') message = S.t('desktop.noisemaker_lyrics_required');
             S.generation = Object.assign({}, S.generation, { active: false, error: message });
         } finally {
             if (!S.disposed) {
@@ -462,7 +462,7 @@
         const params = S.generation.lastParams || {};
         return {
             id: 'result-' + (result.media_id || Date.now()),
-            title: result.title || S.t('result_untitled'),
+            title: result.title || S.t('desktop.noisemaker_result_untitled'),
             web_path: result.web_path,
             cover_url: result.cover_url || '',
             duration_ms: result.duration_ms || 0,
@@ -500,7 +500,7 @@
     function enqueueTracks(S, tracks) {
         if (!S.player) return;
         const count = S.player.enqueue(tracks || []);
-        if (count > 0) S.ctx.notify(count === 1 ? S.t('queue_added_one') : S.t('queue_added', { count }));
+        if (count > 0) S.ctx.notify(count === 1 ? S.t('desktop.noisemaker_queue_added_one') : S.t('desktop.noisemaker_queue_added', { count }));
         refreshMenus(S);
     }
 
@@ -516,7 +516,7 @@
         } catch (err) {
             if (S.disposed) return;
             applyTrackUpdate(S, Object.assign({}, track, { favorite: !next }));
-            S.ctx.notify((err && err.message) || S.t('favorite_failed'));
+            S.ctx.notify((err && err.message) || S.t('desktop.noisemaker_favorite_failed'));
         }
         syncHeader(S);
         refreshMenus(S);
@@ -527,8 +527,8 @@
         if (!list.length || S.readonly) return;
         const single = list.length === 1;
         const confirmed = await S.ctx.confirmDialog(
-            single ? S.t('track_delete_title') : S.t('tracks_delete_title', { count: list.length }),
-            single ? S.t('track_delete_confirm', { title: list[0].title || '' }) : S.t('tracks_delete_confirm', { count: list.length })
+            single ? S.t('desktop.noisemaker_track_delete_title') : S.t('desktop.noisemaker_tracks_delete_title', { count: list.length }),
+            single ? S.t('desktop.noisemaker_track_delete_confirm', { title: list[0].title || '' }) : S.t('desktop.noisemaker_tracks_delete_confirm', { count: list.length })
         );
         if (!confirmed || S.disposed) return;
         const removed = [];
@@ -551,9 +551,9 @@
                 if (S.create) S.create.setGeneration(S.generation);
             }
         }
-        if (!failed) S.ctx.notify(single ? S.t('track_deleted') : S.t('tracks_deleted', { count: removed.length }));
-        else if (removed.length) S.ctx.notify(S.t('tracks_deleted_partial', { done: removed.length, total: list.length }));
-        else S.ctx.notify(S.t('track_delete_failed'));
+        if (!failed) S.ctx.notify(single ? S.t('desktop.noisemaker_track_deleted') : S.t('desktop.noisemaker_tracks_deleted', { count: removed.length }));
+        else if (removed.length) S.ctx.notify(S.t('desktop.noisemaker_tracks_deleted_partial', { done: removed.length, total: list.length }));
+        else S.ctx.notify(S.t('desktop.noisemaker_track_delete_failed'));
         syncHeader(S);
         refreshMenus(S);
     }
@@ -713,7 +713,7 @@
         if (splitter) splitter.setAttribute('aria-valuenow', String(S.prefs.createWidth));
         const toggle = qs(S, '[data-nm-toggle-create]');
         if (toggle) {
-            const label = S.t(collapsed ? 'create_panel_show' : 'create_panel_hide');
+            const label = S.t(collapsed ? 'desktop.noisemaker_create_panel_show' : 'desktop.noisemaker_create_panel_hide');
             toggle.hidden = S.compact;
             toggle.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
             toggle.setAttribute('aria-label', label);
@@ -824,7 +824,7 @@
             confirmDialog: async () => false
         }, context || {});
         const t = makeT(ctx);
-        const tFull = key => { const value = ctx.t(key, {}); return value && value !== key ? value : key; };
+        const tFull = t;
         const S = {
             host, windowId, ctx, t, tFull,
             prefs: readPrefs(),
@@ -848,7 +848,7 @@
         S.root = host.querySelector('.noisemaker-app');
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(S.root);
         wireHeader(S);
-        qs(S, '.nm-body').innerHTML = '<div class="nm-loading nm-muted">' + ctx.esc(t('library_loading')) + '</div>';
+        qs(S, '.nm-body').innerHTML = '<div class="nm-loading nm-muted">' + ctx.esc(t('desktop.noisemaker_library_loading')) + '</div>';
         loadState(S);
     }
 

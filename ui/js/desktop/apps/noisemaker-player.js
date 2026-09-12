@@ -75,11 +75,11 @@
         const barShell = document.createElement('div');
         barShell.innerHTML = '<div class="nm-player" role="region"></div>';
         const bar = barShell.firstElementChild;
-        bar.setAttribute('aria-label', t('now_playing'));
+        bar.setAttribute('aria-label', t('desktop.noisemaker_now_playing'));
         bar.innerHTML = barMarkup();
         const np = document.createElement('section');
         np.className = 'nm-now-playing';
-        np.setAttribute('aria-label', t('now_playing'));
+        np.setAttribute('aria-label', t('desktop.noisemaker_now_playing'));
         np.hidden = true;
         np.innerHTML = nowPlayingMarkup();
 
@@ -92,33 +92,33 @@
         volumeInput.value = String(audio.volume);
 
         function barMarkup() {
-            return `<button type="button" class="nm-player-cover" data-nm-act="expand" aria-label="${esc(t('player_expand'))}" title="${esc(t('player_expand'))}"><span class="nm-cover nm-player-cover-img" data-nm-cover></span></button>
+            return `<button type="button" class="nm-player-cover" data-nm-act="expand" aria-label="${esc(t('desktop.noisemaker_player_expand'))}" title="${esc(t('desktop.noisemaker_player_expand'))}"><span class="nm-cover nm-player-cover-img" data-nm-cover></span></button>
             <div class="nm-player-info">
                 <div class="nm-player-title" data-nm-title></div>
                 <div class="nm-player-meta nm-muted" data-nm-meta></div>
             </div>
             <div class="nm-player-center">
                 <div class="nm-player-controls">
-                    <button type="button" class="nm-icon-btn nm-player-mode" data-nm-act="shuffle" aria-pressed="false" aria-label="${esc(t('player_shuffle'))}" title="${esc(t('player_shuffle'))}">${SVG.shuffle}</button>
-                    <button type="button" class="nm-icon-btn" data-nm-act="prev" aria-label="${esc(t('player_previous'))}" title="${esc(t('player_previous'))}">${SVG.prev}</button>
-                    <button type="button" class="nm-player-play" data-nm-act="toggle" aria-label="${esc(t('player_play'))}" title="${esc(t('player_play'))}">${SVG.play}${SVG.pause}</button>
-                    <button type="button" class="nm-icon-btn" data-nm-act="next" aria-label="${esc(t('player_next'))}" title="${esc(t('player_next'))}">${SVG.next}</button>
-                    <button type="button" class="nm-icon-btn nm-player-mode" data-nm-act="repeat" data-repeat="off" aria-label="${esc(t('player_repeat_off'))}" title="${esc(t('player_repeat_off'))}">${SVG.repeat}<span class="nm-repeat-one" aria-hidden="true">1</span></button>
+                    <button type="button" class="nm-icon-btn nm-player-mode" data-nm-act="shuffle" aria-pressed="false" aria-label="${esc(t('desktop.noisemaker_player_shuffle'))}" title="${esc(t('desktop.noisemaker_player_shuffle'))}">${SVG.shuffle}</button>
+                    <button type="button" class="nm-icon-btn" data-nm-act="prev" aria-label="${esc(t('desktop.noisemaker_player_previous'))}" title="${esc(t('desktop.noisemaker_player_previous'))}">${SVG.prev}</button>
+                    <button type="button" class="nm-player-play" data-nm-act="toggle" aria-label="${esc(t('desktop.noisemaker_player_play'))}" title="${esc(t('desktop.noisemaker_player_play'))}">${SVG.play}${SVG.pause}</button>
+                    <button type="button" class="nm-icon-btn" data-nm-act="next" aria-label="${esc(t('desktop.noisemaker_player_next'))}" title="${esc(t('desktop.noisemaker_player_next'))}">${SVG.next}</button>
+                    <button type="button" class="nm-icon-btn nm-player-mode" data-nm-act="repeat" data-repeat="off" aria-label="${esc(t('desktop.noisemaker_player_repeat_off'))}" title="${esc(t('desktop.noisemaker_player_repeat_off'))}">${SVG.repeat}<span class="nm-repeat-one" aria-hidden="true">1</span></button>
                 </div>
                 <div class="nm-player-track">
                     <span class="nm-player-time" data-nm-current>0:00</span>
-                    <input type="range" class="nm-range nm-seek" data-nm-seek min="0" max="1000" value="0" step="1" aria-label="${esc(t('player_seek'))}">
+                    <input type="range" class="nm-range nm-seek" data-nm-seek min="0" max="1000" value="0" step="1" aria-label="${esc(t('desktop.noisemaker_player_seek'))}">
                     <span class="nm-player-time" data-nm-total>0:00</span>
                 </div>
             </div>
             <div class="nm-player-extras">
                 <canvas class="nm-player-viz" data-nm-viz width="96" height="48" aria-hidden="true"></canvas>
-                <button type="button" class="nm-icon-btn nm-player-fav" data-nm-act="favorite" aria-pressed="false" aria-label="${esc(t('favorite_add'))}" title="${esc(t('favorite_add'))}" ${readonly ? 'disabled' : ''}>${SVG.heart}</button>
+                <button type="button" class="nm-icon-btn nm-player-fav" data-nm-act="favorite" aria-pressed="false" aria-label="${esc(t('desktop.noisemaker_favorite_add'))}" title="${esc(t('desktop.noisemaker_favorite_add'))}" ${readonly ? 'disabled' : ''}>${SVG.heart}</button>
                 <div class="nm-player-volume">
-                    <button type="button" class="nm-icon-btn nm-player-mute" data-nm-act="mute" aria-pressed="false" aria-label="${esc(t('player_mute'))}" title="${esc(t('player_mute'))}">${SVG.volume}${SVG.muted}</button>
-                    <input type="range" class="nm-range nm-volume" data-nm-volume min="0" max="1" step="0.01" value="0.9" aria-label="${esc(t('player_volume'))}">
+                    <button type="button" class="nm-icon-btn nm-player-mute" data-nm-act="mute" aria-pressed="false" aria-label="${esc(t('desktop.noisemaker_player_mute'))}" title="${esc(t('desktop.noisemaker_player_mute'))}">${SVG.volume}${SVG.muted}</button>
+                    <input type="range" class="nm-range nm-volume" data-nm-volume min="0" max="1" step="0.01" value="0.9" aria-label="${esc(t('desktop.noisemaker_player_volume'))}">
                 </div>
-                <button type="button" class="nm-icon-btn nm-player-expand" data-nm-act="expand" aria-expanded="false" aria-label="${esc(t('player_expand'))}" title="${esc(t('player_expand'))}">${SVG.expand}${SVG.collapse}</button>
+                <button type="button" class="nm-icon-btn nm-player-expand" data-nm-act="expand" aria-expanded="false" aria-label="${esc(t('desktop.noisemaker_player_expand'))}" title="${esc(t('desktop.noisemaker_player_expand'))}">${SVG.expand}${SVG.collapse}</button>
             </div>`;
         }
 
@@ -126,8 +126,8 @@
             return `<div class="nm-np-backdrop" data-np-backdrop aria-hidden="true"></div>
             <div class="nm-np-inner">
                 <div class="nm-np-top">
-                    <button type="button" class="nm-btn nm-np-back" data-np-back>${SVG.back}<span>${esc(t('back_to_library'))}</span></button>
-                    <span class="nm-np-label">${esc(t('now_playing'))}</span>
+                    <button type="button" class="nm-btn nm-np-back" data-np-back>${SVG.back}<span>${esc(t('desktop.noisemaker_back_to_library'))}</span></button>
+                    <span class="nm-np-label">${esc(t('desktop.noisemaker_now_playing'))}</span>
                 </div>
                 <div class="nm-np-body">
                     <div class="nm-np-hero">
@@ -137,20 +137,20 @@
                         <div class="nm-np-meta nm-muted" data-np-meta></div>
                         <canvas class="nm-np-viz" data-np-viz height="72" aria-hidden="true"></canvas>
                         <div class="nm-np-actions">
-                            <button type="button" class="nm-btn nm-np-fav" data-np-action="favorite" aria-pressed="false" ${readonly ? 'disabled' : ''}>${SVG.heart}<span data-np-fav-label>${esc(t('favorite_add'))}</span></button>
-                            <button type="button" class="nm-btn" data-np-action="download">${SVG.download}<span>${esc(t('track_download'))}</span></button>
-                            <button type="button" class="nm-btn" data-np-action="template">${SVG.template}<span>${esc(t('track_use_template'))}</span></button>
-                            ${readonly ? '' : `<button type="button" class="nm-btn nm-btn--danger" data-np-action="delete">${SVG.trash}<span>${esc(t('track_delete'))}</span></button>`}
+                            <button type="button" class="nm-btn nm-np-fav" data-np-action="favorite" aria-pressed="false" ${readonly ? 'disabled' : ''}>${SVG.heart}<span data-np-fav-label>${esc(t('desktop.noisemaker_favorite_add'))}</span></button>
+                            <button type="button" class="nm-btn" data-np-action="download">${SVG.download}<span>${esc(t('desktop.noisemaker_track_download'))}</span></button>
+                            <button type="button" class="nm-btn" data-np-action="template">${SVG.template}<span>${esc(t('desktop.noisemaker_track_use_template'))}</span></button>
+                            ${readonly ? '' : `<button type="button" class="nm-btn nm-btn--danger" data-np-action="delete">${SVG.trash}<span>${esc(t('desktop.noisemaker_track_delete'))}</span></button>`}
                         </div>
                         <section class="nm-np-lyrics">
-                            <h3>${esc(t('lyrics_label'))}</h3>
+                            <h3>${esc(t('desktop.noisemaker_lyrics_label'))}</h3>
                             <pre class="nm-lyrics-text" data-np-lyrics></pre>
                         </section>
                     </div>
                     <aside class="nm-np-queue">
                         <div class="nm-np-queue-head">
-                            <h3>${esc(t('queue_title'))} <span class="nm-muted" data-np-queue-count></span></h3>
-                            <button type="button" class="nm-btn nm-btn--small" data-np-queue-clear>${esc(t('queue_clear'))}</button>
+                            <h3>${esc(t('desktop.noisemaker_queue_title'))} <span class="nm-muted" data-np-queue-count></span></h3>
+                            <button type="button" class="nm-btn nm-btn--small" data-np-queue-clear>${esc(t('desktop.noisemaker_queue_clear'))}</button>
                         </div>
                         <ol class="nm-queue-list" data-np-queue></ol>
                     </aside>
@@ -162,7 +162,7 @@
 
         function current() { return pos >= 0 && pos < order.length ? queue[order[pos]] : null; }
         function isPlaying() { return !!current() && !audio.paused && !audio.ended; }
-        function trackTitle(track) { return (track && track.title) || t('result_untitled'); }
+        function trackTitle(track) { return (track && track.title) || t('desktop.noisemaker_result_untitled'); }
         function sameId(a, b) { return String(a) === String(b); }
         function playable(list) { return (list || []).filter(x => x && x.web_path); }
 
@@ -561,17 +561,17 @@
             bar.classList.toggle('is-viz-off', !visualizerOn || !visualizerAvailable);
             q('[data-nm-act="shuffle"]').setAttribute('aria-pressed', shuffle ? 'true' : 'false');
             q('[data-nm-act="mute"]').setAttribute('aria-pressed', audio.muted ? 'true' : 'false');
-            setLabel(q('[data-nm-act="mute"]'), audio.muted ? t('player_unmute') : t('player_mute'));
+            setLabel(q('[data-nm-act="mute"]'), audio.muted ? t('desktop.noisemaker_player_unmute') : t('desktop.noisemaker_player_mute'));
             const repeatBtn = q('[data-nm-act="repeat"]');
             repeatBtn.dataset.repeat = repeat;
             repeatBtn.classList.toggle('is-active', repeat !== 'off');
             repeatBtn.setAttribute('aria-pressed', repeat !== 'off' ? 'true' : 'false');
-            setLabel(repeatBtn, t('player_repeat_' + repeat));
-            setLabel(q('[data-nm-act="toggle"]'), playing ? t('player_pause') : t('player_play'));
+            setLabel(repeatBtn, t('desktop.noisemaker_player_repeat_' + repeat));
+            setLabel(q('[data-nm-act="toggle"]'), playing ? t('desktop.noisemaker_player_pause') : t('desktop.noisemaker_player_play'));
             const expandBtn = q('.nm-player-expand');
             expandBtn.setAttribute('aria-expanded', nowPlayingOpen ? 'true' : 'false');
-            setLabel(expandBtn, nowPlayingOpen ? t('player_collapse') : t('player_expand'));
-            setLabel(q('.nm-player-cover'), nowPlayingOpen ? t('player_collapse') : t('player_expand'));
+            setLabel(expandBtn, nowPlayingOpen ? t('desktop.noisemaker_player_collapse') : t('desktop.noisemaker_player_expand'));
+            setLabel(q('.nm-player-cover'), nowPlayingOpen ? t('desktop.noisemaker_player_collapse') : t('desktop.noisemaker_player_expand'));
             if (volumeInput.value !== String(audio.volume)) volumeInput.value = String(audio.volume);
             if (!track) return;
             q('[data-nm-cover]').innerHTML = coverHTML(track);
@@ -580,7 +580,7 @@
             const fav = q('[data-nm-act="favorite"]');
             fav.setAttribute('aria-pressed', track.favorite ? 'true' : 'false');
             fav.classList.toggle('is-active', !!track.favorite);
-            setLabel(fav, track.favorite ? t('favorite_remove') : t('favorite_add'));
+            setLabel(fav, track.favorite ? t('desktop.noisemaker_favorite_remove') : t('desktop.noisemaker_favorite_add'));
         }
 
         function renderTime() {
@@ -603,7 +603,7 @@
             nq('[data-np-title]').textContent = trackTitle(track);
             const chips = String(track.style || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 8);
             nq('[data-np-chips]').innerHTML = chips.map(c => `<span class="nm-chip">${esc(c)}</span>`).join('')
-                + (track.instrumental ? `<span class="nm-chip nm-chip--muted">${esc(t('instrumental_tag'))}</span>` : '');
+                + (track.instrumental ? `<span class="nm-chip nm-chip--muted">${esc(t('desktop.noisemaker_instrumental_tag'))}</span>` : '');
             const meta = [];
             if (track.duration_ms) meta.push(formatDuration(track.duration_ms));
             if (track.provider) meta.push(track.provider + (track.model ? ' · ' + track.model : ''));
@@ -612,12 +612,12 @@
             nq('[data-np-meta]').textContent = meta.join('  ·  ');
             const lyrics = String(track.lyrics || '').trim();
             const lyricsEl = nq('[data-np-lyrics]');
-            lyricsEl.textContent = lyrics || t('lyrics_empty');
+            lyricsEl.textContent = lyrics || t('desktop.noisemaker_lyrics_empty');
             lyricsEl.classList.toggle('is-empty', !lyrics);
             const fav = nq('[data-np-action="favorite"]');
             fav.setAttribute('aria-pressed', track.favorite ? 'true' : 'false');
             fav.classList.toggle('is-active', !!track.favorite);
-            nq('[data-np-fav-label]').textContent = track.favorite ? t('favorite_remove') : t('favorite_add');
+            nq('[data-np-fav-label]').textContent = track.favorite ? t('desktop.noisemaker_favorite_remove') : t('desktop.noisemaker_favorite_add');
             renderQueue();
             if (open && (audio.paused || reducedMotion)) paintIdle();
         }
@@ -627,7 +627,7 @@
             nq('[data-np-queue-count]').textContent = queue.length ? String(queue.length) : '';
             nq('[data-np-queue-clear]').disabled = queue.length <= 1;
             if (!order.length) {
-                list.innerHTML = `<li class="nm-queue-empty nm-muted">${esc(t('queue_empty'))}</li>`;
+                list.innerHTML = `<li class="nm-queue-empty nm-muted">${esc(t('desktop.noisemaker_queue_empty'))}</li>`;
                 return;
             }
             list.innerHTML = order.map((qi, i) => {
@@ -640,7 +640,7 @@
                         <span class="nm-queue-text"><span class="nm-queue-title">${esc(trackTitle(track))}</span><span class="nm-queue-sub nm-muted">${esc(track.style || track.provider || '')}</span></span>
                         <span class="nm-queue-duration nm-muted">${track.duration_ms ? esc(formatDuration(track.duration_ms)) : ''}</span>
                     </button>
-                    <button type="button" class="nm-icon-btn nm-queue-remove" data-queue-remove="${i}" aria-label="${esc(t('queue_remove'))}" title="${esc(t('queue_remove'))}">${SVG.close}</button>
+                    <button type="button" class="nm-icon-btn nm-queue-remove" data-queue-remove="${i}" aria-label="${esc(t('desktop.noisemaker_queue_remove'))}" title="${esc(t('desktop.noisemaker_queue_remove'))}">${SVG.close}</button>
                 </li>`;
             }).join('');
         }

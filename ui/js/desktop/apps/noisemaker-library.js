@@ -3,7 +3,7 @@
 
     // NoisemakerLibrary - song grid/list for the Noisemaker desktop app.
     // Factory: create(deps) -> controller. deps = { esc, t, lang, readonly }.
-    // t(key, params, fallback) resolves desktop.noisemaker_<key>.
+    // t(key, params, fallback) expects a full desktop.noisemaker_* key.
     // Events: play(track, list), enqueue(tracks), favorite(track, value), delete(tracks),
     // template(track), download(tracks), contextmenu({ x, y, track|null }), create(),
     // loadmore(), search(query), filter(name), view(name), selection(ids).
@@ -86,23 +86,23 @@
         const selectionCount = root.querySelector('[data-nm-selection-count]');
 
         function toolbarMarkup() {
-            const search = t('library_search');
+            const search = t('desktop.noisemaker_library_search');
             return `<div class="nm-library-toolbar">
                 <label class="nm-search">
                     <span class="nm-search-glyph">${SVG.search}</span>
                     <input class="nm-input nm-search-input" type="search" data-nm-search placeholder="${esc(search)}" aria-label="${esc(search)}" autocomplete="off">
                 </label>
                 <div class="nm-segment" role="group">
-                    <button type="button" class="nm-segment-btn is-active" data-nm-filter="all" aria-pressed="true">${esc(t('filter_all'))}</button>
-                    <button type="button" class="nm-segment-btn" data-nm-filter="favorites" aria-pressed="false">${SVG.heart}<span>${esc(t('filter_favorites'))}</span></button>
+                    <button type="button" class="nm-segment-btn is-active" data-nm-filter="all" aria-pressed="true">${esc(t('desktop.noisemaker_filter_all'))}</button>
+                    <button type="button" class="nm-segment-btn" data-nm-filter="favorites" aria-pressed="false">${SVG.heart}<span>${esc(t('desktop.noisemaker_filter_favorites'))}</span></button>
                 </div>
                 <span class="nm-toolbar-count nm-muted" data-nm-count></span>
                 <span class="nm-toolbar-spacer"></span>
                 <div class="nm-segment nm-segment--icons" role="group">
-                    <button type="button" class="nm-segment-btn is-active" data-nm-view="grid" aria-pressed="true" title="${esc(t('view_grid'))}" aria-label="${esc(t('view_grid'))}">${SVG.grid}</button>
-                    <button type="button" class="nm-segment-btn" data-nm-view="list" aria-pressed="false" title="${esc(t('view_list'))}" aria-label="${esc(t('view_list'))}">${SVG.list}</button>
+                    <button type="button" class="nm-segment-btn is-active" data-nm-view="grid" aria-pressed="true" title="${esc(t('desktop.noisemaker_view_grid'))}" aria-label="${esc(t('desktop.noisemaker_view_grid'))}">${SVG.grid}</button>
+                    <button type="button" class="nm-segment-btn" data-nm-view="list" aria-pressed="false" title="${esc(t('desktop.noisemaker_view_list'))}" aria-label="${esc(t('desktop.noisemaker_view_list'))}">${SVG.list}</button>
                 </div>
-                <button type="button" class="nm-btn nm-select-toggle" data-nm-select-toggle aria-pressed="false">${SVG.check}<span>${esc(t('select'))}</span></button>
+                <button type="button" class="nm-btn nm-select-toggle" data-nm-select-toggle aria-pressed="false">${SVG.check}<span>${esc(t('desktop.noisemaker_select'))}</span></button>
             </div>`;
         }
 
@@ -110,16 +110,16 @@
             return `<div class="nm-selection-bar" data-nm-selection-bar hidden role="toolbar">
                 <span class="nm-selection-count" data-nm-selection-count></span>
                 <div class="nm-selection-actions">
-                    <button type="button" class="nm-btn nm-btn--primary" data-nm-sel="play">${SVG.play}<span>${esc(t('player_play'))}</span></button>
-                    <button type="button" class="nm-btn" data-nm-sel="enqueue">${esc(t('enqueue'))}</button>
-                    <button type="button" class="nm-btn" data-nm-sel="download">${SVG.download}<span>${esc(t('track_download'))}</span></button>
-                    ${readonly ? '' : `<button type="button" class="nm-btn nm-btn--danger" data-nm-sel="delete">${SVG.trash}<span>${esc(t('track_delete'))}</span></button>`}
+                    <button type="button" class="nm-btn nm-btn--primary" data-nm-sel="play">${SVG.play}<span>${esc(t('desktop.noisemaker_player_play'))}</span></button>
+                    <button type="button" class="nm-btn" data-nm-sel="enqueue">${esc(t('desktop.noisemaker_enqueue'))}</button>
+                    <button type="button" class="nm-btn" data-nm-sel="download">${SVG.download}<span>${esc(t('desktop.noisemaker_track_download'))}</span></button>
+                    ${readonly ? '' : `<button type="button" class="nm-btn nm-btn--danger" data-nm-sel="delete">${SVG.trash}<span>${esc(t('desktop.noisemaker_track_delete'))}</span></button>`}
                 </div>
-                <button type="button" class="nm-icon-btn" data-nm-sel="close" aria-label="${esc(t('select_none'))}" title="${esc(t('select_none'))}">${SVG.close}</button>
+                <button type="button" class="nm-icon-btn" data-nm-sel="close" aria-label="${esc(t('desktop.noisemaker_select_none'))}" title="${esc(t('desktop.noisemaker_select_none'))}">${SVG.close}</button>
             </div>`;
         }
 
-        function trackTitle(track) { return track.title || t('result_untitled'); }
+        function trackTitle(track) { return track.title || t('desktop.noisemaker_result_untitled'); }
         function trackStyle(track) { return track.style || ''; }
 
         function coverMarkup(track, extraClass) {
@@ -149,20 +149,20 @@
 
         function actionsMarkup(track) {
             return `<div class="nm-card-actions">
-                <button type="button" class="nm-icon-btn nm-act-template" title="${esc(t('track_use_template'))}" aria-label="${esc(t('track_use_template'))}">${SVG.template}</button>
-                <button type="button" class="nm-icon-btn nm-act-download" title="${esc(t('track_download'))}" aria-label="${esc(t('track_download'))}">${SVG.download}</button>
-                ${readonly ? '' : `<button type="button" class="nm-icon-btn nm-icon-btn--danger nm-act-delete" title="${esc(t('track_delete'))}" aria-label="${esc(t('track_delete'))}">${SVG.trash}</button>`}
-                <button type="button" class="nm-icon-btn nm-act-more" title="${esc(t('more_actions'))}" aria-label="${esc(t('more_actions'))}" aria-haspopup="menu">${SVG.more}</button>
+                <button type="button" class="nm-icon-btn nm-act-template" title="${esc(t('desktop.noisemaker_track_use_template'))}" aria-label="${esc(t('desktop.noisemaker_track_use_template'))}">${SVG.template}</button>
+                <button type="button" class="nm-icon-btn nm-act-download" title="${esc(t('desktop.noisemaker_track_download'))}" aria-label="${esc(t('desktop.noisemaker_track_download'))}">${SVG.download}</button>
+                ${readonly ? '' : `<button type="button" class="nm-icon-btn nm-icon-btn--danger nm-act-delete" title="${esc(t('desktop.noisemaker_track_delete'))}" aria-label="${esc(t('desktop.noisemaker_track_delete'))}">${SVG.trash}</button>`}
+                <button type="button" class="nm-icon-btn nm-act-more" title="${esc(t('desktop.noisemaker_more_actions'))}" aria-label="${esc(t('desktop.noisemaker_more_actions'))}" aria-haspopup="menu">${SVG.more}</button>
             </div>`;
         }
 
         function favMarkup(track) {
-            const label = track.favorite ? t('favorite_remove') : t('favorite_add');
+            const label = track.favorite ? t('desktop.noisemaker_favorite_remove') : t('desktop.noisemaker_favorite_add');
             return `<button type="button" class="nm-card-fav" aria-pressed="${track.favorite ? 'true' : 'false'}" aria-label="${esc(label)}" title="${esc(label)}" ${readonly ? 'disabled' : ''}>${SVG.heart}</button>`;
         }
 
         function checkMarkup(track) {
-            return `<button type="button" class="nm-card-check" aria-pressed="${selected.has(String(track.id)) ? 'true' : 'false'}" aria-label="${esc(t('select'))}" tabindex="-1">${SVG.check}</button>`;
+            return `<button type="button" class="nm-card-check" aria-pressed="${selected.has(String(track.id)) ? 'true' : 'false'}" aria-label="${esc(t('desktop.noisemaker_select'))}" tabindex="-1">${SVG.check}</button>`;
         }
 
         function cardMarkup(track) {
@@ -173,7 +173,7 @@
                 ${checkMarkup(track)}
                 <div class="nm-card-media">
                     ${coverMarkup(track, 'nm-card-cover')}
-                    <button type="button" class="nm-card-play" aria-label="${esc(t('player_play'))}" tabindex="-1">${SVG.play}${SVG.pause}</button>
+                    <button type="button" class="nm-card-play" aria-label="${esc(t('desktop.noisemaker_player_play'))}" tabindex="-1">${SVG.play}${SVG.pause}</button>
                     ${favMarkup(track)}
                 </div>
                 <div class="nm-card-body">
@@ -181,7 +181,7 @@
                     <div class="nm-card-style" title="${esc(style)}">${esc(style)}</div>
                     <div class="nm-card-meta nm-muted">${metaMarkup(track)}</div>
                     <div class="nm-card-foot">
-                        ${track.instrumental ? `<span class="nm-tag">${esc(t('instrumental_tag'))}</span>` : '<span></span>'}
+                        ${track.instrumental ? `<span class="nm-tag">${esc(t('desktop.noisemaker_instrumental_tag'))}</span>` : '<span></span>'}
                         ${actionsMarkup(track)}
                     </div>
                 </div>
@@ -196,7 +196,7 @@
                 ${checkMarkup(track)}
                 <div class="nm-row-media">
                     ${coverMarkup(track, 'nm-row-cover')}
-                    <button type="button" class="nm-card-play" aria-label="${esc(t('player_play'))}" tabindex="-1">${SVG.play}${SVG.pause}</button>
+                    <button type="button" class="nm-card-play" aria-label="${esc(t('desktop.noisemaker_player_play'))}" tabindex="-1">${SVG.play}${SVG.pause}</button>
                 </div>
                 <div class="nm-row-main">
                     <div class="nm-card-title" title="${esc(title)}">${esc(title)}</div>
@@ -220,17 +220,17 @@
 
         function emptyMarkup() {
             if (loading) return skeletonMarkup();
-            if (query) return `<div class="nm-empty"><div class="nm-empty-icon">${SVG.search}</div><div class="nm-empty-title">${esc(t('no_results'))}</div></div>`;
-            if (filter === 'favorites') return `<div class="nm-empty"><div class="nm-empty-icon">${SVG.heart}</div><div class="nm-empty-title">${esc(t('no_favorites_title'))}</div><div class="nm-empty-hint nm-muted">${esc(t('no_favorites_hint'))}</div></div>`;
-            return `<div class="nm-empty"><div class="nm-empty-icon">${SVG.note}</div><div class="nm-empty-title">${esc(t('library_empty_title'))}</div><div class="nm-empty-hint nm-muted">${esc(t('library_empty_hint'))}</div><button type="button" class="nm-btn nm-btn--primary nm-empty-cta" data-nm-empty-create>${esc(t('library_empty_cta'))}</button></div>`;
+            if (query) return `<div class="nm-empty"><div class="nm-empty-icon">${SVG.search}</div><div class="nm-empty-title">${esc(t('desktop.noisemaker_no_results'))}</div></div>`;
+            if (filter === 'favorites') return `<div class="nm-empty"><div class="nm-empty-icon">${SVG.heart}</div><div class="nm-empty-title">${esc(t('desktop.noisemaker_no_favorites_title'))}</div><div class="nm-empty-hint nm-muted">${esc(t('desktop.noisemaker_no_favorites_hint'))}</div></div>`;
+            return `<div class="nm-empty"><div class="nm-empty-icon">${SVG.note}</div><div class="nm-empty-title">${esc(t('desktop.noisemaker_library_empty_title'))}</div><div class="nm-empty-hint nm-muted">${esc(t('desktop.noisemaker_library_empty_hint'))}</div><button type="button" class="nm-btn nm-btn--primary nm-empty-cta" data-nm-empty-create>${esc(t('desktop.noisemaker_library_empty_cta'))}</button></div>`;
         }
 
         function footMarkup() {
             if (!tracks.length) return '';
             const total = pagination.total || tracks.length;
-            const shown = t('showing_of', { loaded: tracks.length, total }, tracks.length + ' / ' + total);
+            const shown = t('desktop.noisemaker_showing_of', { loaded: tracks.length, total }, tracks.length + ' / ' + total);
             const more = pagination.hasMore
-                ? `<button type="button" class="nm-btn nm-load-more" data-nm-load-more ${pagination.loading ? 'disabled' : ''}>${esc(pagination.loading ? t('library_loading') : t('load_more'))}</button>`
+                ? `<button type="button" class="nm-btn nm-load-more" data-nm-load-more ${pagination.loading ? 'disabled' : ''}>${esc(pagination.loading ? t('desktop.noisemaker_library_loading') : t('desktop.noisemaker_load_more'))}</button>`
                 : '';
             return `<div class="nm-grid-foot" data-nm-foot><span class="nm-muted">${esc(shown)}</span>${more}</div>`;
         }
@@ -260,7 +260,7 @@
 
         function updateCount() {
             const total = pagination.total || tracks.length;
-            countEl.textContent = tracks.length ? t('showing_of', { loaded: tracks.length, total }, tracks.length + ' / ' + total) : '';
+            countEl.textContent = tracks.length ? t('desktop.noisemaker_showing_of', { loaded: tracks.length, total }, tracks.length + ' / ' + total) : '';
         }
 
         function observeFoot() {
@@ -298,7 +298,7 @@
             });
             const n = selected.size;
             selectionBar.hidden = n === 0;
-            selectionCount.textContent = n === 1 ? t('selected_count_one') : t('selected_count', { count: n });
+            selectionCount.textContent = n === 1 ? t('desktop.noisemaker_selected_count_one') : t('desktop.noisemaker_selected_count', { count: n });
             root.classList.toggle('has-selection', n > 0);
             emit('selection', Array.from(selected));
         }
@@ -547,7 +547,7 @@
                 el.classList.toggle('is-current', isCurrent);
                 el.classList.toggle('is-playing', isCurrent && playing);
                 const btn = el.querySelector('.nm-card-play');
-                if (btn) btn.setAttribute('aria-label', isCurrent && playing ? t('player_pause') : t('player_play'));
+                if (btn) btn.setAttribute('aria-label', isCurrent && playing ? t('desktop.noisemaker_player_pause') : t('desktop.noisemaker_player_play'));
             });
         }
 

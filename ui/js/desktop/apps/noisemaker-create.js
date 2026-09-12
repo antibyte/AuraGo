@@ -58,15 +58,15 @@
         root.innerHTML =
             '<div class="nm-create-scroll">' +
                 '<div class="nm-create-head">' +
-                    '<div class="nm-segment nm-mode-switch" role="tablist" aria-label="' + esc(t('mode_simple')) + ' / ' + esc(t('mode_custom')) + '">' +
-                        '<button type="button" class="nm-segment-btn" role="tab" data-nm-mode="simple" aria-selected="false">' + esc(t('mode_simple')) + '</button>' +
-                        '<button type="button" class="nm-segment-btn" role="tab" data-nm-mode="custom" aria-selected="false">' + esc(t('mode_custom')) + '</button>' +
+                    '<div class="nm-segment nm-mode-switch" role="tablist" aria-label="' + esc(t('desktop.noisemaker_mode_simple')) + ' / ' + esc(t('desktop.noisemaker_mode_custom')) + '">' +
+                        '<button type="button" class="nm-segment-btn" role="tab" data-nm-mode="simple" aria-selected="false">' + esc(t('desktop.noisemaker_mode_simple')) + '</button>' +
+                        '<button type="button" class="nm-segment-btn" role="tab" data-nm-mode="custom" aria-selected="false">' + esc(t('desktop.noisemaker_mode_custom')) + '</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="nm-create-form" data-nm-form></div>' +
                 '<div class="nm-create-action">' +
                     '<div data-nm-progress-slot></div>' +
-                    '<button type="button" class="nm-create-btn" data-nm-create-btn><span aria-hidden="true">♪</span><span>' + esc(t('create_button')) + '</span></button>' +
+                    '<button type="button" class="nm-create-btn" data-nm-create-btn><span aria-hidden="true">♪</span><span>' + esc(t('desktop.noisemaker_create_button')) + '</span></button>' +
                     '<div class="nm-create-reason" data-nm-reason></div>' +
                     '<div data-nm-result-slot></div>' +
                 '</div>' +
@@ -80,37 +80,37 @@
         function aiButton(action, key, glyph) {
             if (!caps || caps.llm_available === false) return '';
             return '<button type="button" class="nm-ai" data-nm-enhance="' + action + '">' +
-                '<span class="nm-ai-glyph" aria-hidden="true">' + (glyph || '✨') + '</span>' + esc(t(key)) + '</button>';
+                '<span class="nm-ai-glyph" aria-hidden="true">' + (glyph || '✨') + '</span>' + esc(t('desktop.noisemaker_' + key)) + '</button>';
         }
 
         function ideaFieldMarkup() {
             return '<div class="nm-field">' +
-                '<div class="nm-field-head"><label for="nm-idea-' + esc(windowId) + '">' + esc(t('idea_label')) + '</label>' +
+                '<div class="nm-field-head"><label for="nm-idea-' + esc(windowId) + '">' + esc(t('desktop.noisemaker_idea_label')) + '</label>' +
                     aiButton('idea', 'idea_enhance') + aiButton('random', 'idea_random', '🎲') + '</div>' +
-                '<textarea id="nm-idea-' + esc(windowId) + '" class="nm-textarea nm-textarea--idea" data-nm-field="idea" maxlength="' + IDEA_MAX + '" placeholder="' + esc(t('idea_placeholder')) + '"></textarea>' +
+                '<textarea id="nm-idea-' + esc(windowId) + '" class="nm-textarea nm-textarea--idea" data-nm-field="idea" maxlength="' + IDEA_MAX + '" placeholder="' + esc(t('desktop.noisemaker_idea_placeholder')) + '"></textarea>' +
                 '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="idea"></span></div>' +
             '</div>';
         }
 
         function presetsMarkup() {
             return '<div class="nm-field">' +
-                '<div class="nm-field-head"><span class="nm-field-label">' + esc(t('presets_label')) + '</span></div>' +
-                '<div class="nm-presets" role="listbox" aria-label="' + esc(t('presets_label')) + '">' +
-                    PRESETS.map(p => '<button type="button" class="nm-preset nm-preset--' + p.id + '" role="option" data-nm-preset="' + p.id + '" aria-selected="false" title="' + esc(t('preset_' + p.id + '_hint')) + '">' +
+                '<div class="nm-field-head"><span class="nm-field-label">' + esc(t('desktop.noisemaker_presets_label')) + '</span></div>' +
+                '<div class="nm-presets" role="listbox" aria-label="' + esc(t('desktop.noisemaker_presets_label')) + '">' +
+                    PRESETS.map(p => '<button type="button" class="nm-preset nm-preset--' + p.id + '" role="option" data-nm-preset="' + p.id + '" aria-selected="false" title="' + esc(t('desktop.noisemaker_preset_' + p.id + '_hint')) + '">' +
                         '<span class="nm-preset-glyph" aria-hidden="true">' + p.glyph + '</span>' +
-                        '<span class="nm-preset-name">' + esc(t('preset_' + p.id)) + '</span>' +
-                        '<span class="nm-preset-hint">' + esc(t('preset_' + p.id + '_hint')) + '</span>' +
+                        '<span class="nm-preset-name">' + esc(t('desktop.noisemaker_preset_' + p.id)) + '</span>' +
+                        '<span class="nm-preset-hint">' + esc(t('desktop.noisemaker_preset_' + p.id + '_hint')) + '</span>' +
                     '</button>').join('') +
                 '</div>' +
                 '<div class="nm-simple-style" data-nm-simple-style hidden><span class="nm-simple-style-text"></span>' +
-                    '<button type="button" class="nm-icon-btn nm-icon-btn--small" data-nm-clear-style aria-label="' + esc(t('select_none')) + '" title="' + esc(t('select_none')) + '">×</button></div>' +
+                    '<button type="button" class="nm-icon-btn nm-icon-btn--small" data-nm-clear-style aria-label="' + esc(t('desktop.noisemaker_select_none')) + '" title="' + esc(t('desktop.noisemaker_select_none')) + '">×</button></div>' +
             '</div>';
         }
 
         function styleFieldMarkup() {
             return '<div class="nm-field">' +
-                '<div class="nm-field-head"><label for="nm-style-' + esc(windowId) + '">' + esc(t('style_label')) + '</label>' + aiButton('style', 'style_enhance') + '</div>' +
-                '<input id="nm-style-' + esc(windowId) + '" class="nm-input" data-nm-field="style" maxlength="' + STYLE_MAX + '" placeholder="' + esc(t('style_placeholder')) + '">' +
+                '<div class="nm-field-head"><label for="nm-style-' + esc(windowId) + '">' + esc(t('desktop.noisemaker_style_label')) + '</label>' + aiButton('style', 'style_enhance') + '</div>' +
+                '<input id="nm-style-' + esc(windowId) + '" class="nm-input" data-nm-field="style" maxlength="' + STYLE_MAX + '" placeholder="' + esc(t('desktop.noisemaker_style_placeholder')) + '">' +
                 '<div class="nm-chips">' + STYLE_SUGGESTIONS.map(tag => '<button type="button" class="nm-suggestion" data-nm-chip="' + esc(tag) + '">' + esc(tag) + '</button>').join('') + '</div>' +
             '</div>';
         }
@@ -118,11 +118,11 @@
         function switchesMarkup() {
             const c = caps || {};
             const cover = c.covers_enabled && mode === 'custom'
-                ? '<label class="nm-check"><input type="checkbox" data-nm-field="cover">' + esc(t('cover_label')) + '</label>' +
-                  '<span class="nm-hint">' + esc(t('cover_hint', { provider: c.cover_provider || '' })) + '</span>'
+                ? '<label class="nm-check"><input type="checkbox" data-nm-field="cover">' + esc(t('desktop.noisemaker_cover_label')) + '</label>' +
+                  '<span class="nm-hint">' + esc(t('desktop.noisemaker_cover_hint', { provider: c.cover_provider || '' })) + '</span>'
                 : '';
             return '<div class="nm-form-row">' +
-                '<label class="nm-switch"><input type="checkbox" data-nm-field="instrumental"><span class="nm-switch-track" aria-hidden="true"></span>' + esc(t('instrumental')) + '</label>' +
+                '<label class="nm-switch"><input type="checkbox" data-nm-field="instrumental"><span class="nm-switch-track" aria-hidden="true"></span>' + esc(t('desktop.noisemaker_instrumental')) + '</label>' +
                 cover +
             '</div>';
         }
@@ -130,20 +130,20 @@
         function lyricsMarkup() {
             const c = caps || {};
             const body = c.supports_lyrics === false
-                ? '<p class="nm-hint">' + esc(t('lyrics_unsupported')) + '</p>'
+                ? '<p class="nm-hint">' + esc(t('desktop.noisemaker_lyrics_unsupported')) + '</p>'
                 : '<div class="nm-field-head">' + aiButton('lyrics', 'lyrics_generate') + '</div>' +
-                  '<textarea class="nm-textarea nm-textarea--lyrics" data-nm-field="lyrics" maxlength="' + LYRICS_MAX + '" placeholder="' + esc(t('lyrics_placeholder')) + '"></textarea>' +
+                  '<textarea class="nm-textarea nm-textarea--lyrics" data-nm-field="lyrics" maxlength="' + LYRICS_MAX + '" placeholder="' + esc(t('desktop.noisemaker_lyrics_placeholder')) + '"></textarea>' +
                   '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="lyrics"></span></div>';
             return '<details class="nm-collapsible" data-nm-lyrics-wrap' + (form.lyrics ? ' open' : '') + '>' +
-                '<summary>' + esc(t('lyrics_label')) + ' <span class="nm-hint">(' + esc(t('optional')) + ')</span></summary>' +
+                '<summary>' + esc(t('desktop.noisemaker_lyrics_label')) + ' <span class="nm-hint">(' + esc(t('desktop.noisemaker_optional')) + ')</span></summary>' +
                 '<div class="nm-collapsible-body">' + body + '</div>' +
             '</details>';
         }
 
         function titleMarkup() {
             return '<div class="nm-field">' +
-                '<div class="nm-field-head"><label for="nm-title-' + esc(windowId) + '">' + esc(t('title_label')) + '</label>' + aiButton('title', 'title_suggest') + '</div>' +
-                '<input id="nm-title-' + esc(windowId) + '" class="nm-input" data-nm-field="title" maxlength="' + TITLE_MAX + '" placeholder="' + esc(t('title_placeholder')) + '">' +
+                '<div class="nm-field-head"><label for="nm-title-' + esc(windowId) + '">' + esc(t('desktop.noisemaker_title_label')) + '</label>' + aiButton('title', 'title_suggest') + '</div>' +
+                '<input id="nm-title-' + esc(windowId) + '" class="nm-input" data-nm-field="title" maxlength="' + TITLE_MAX + '" placeholder="' + esc(t('desktop.noisemaker_title_placeholder')) + '">' +
             '</div>';
         }
 
@@ -158,34 +158,34 @@
                 ['vocal_language', 'text', 'maxlength="8" pattern="[a-z]{2,3}(-[A-Za-z]{2,4})?" placeholder="de, en, ja…"']
             ];
             return '<div class="nm-local-controls">' +
-                inputs.map(([field, type, attrs]) => '<label class="nm-field">' + esc(t(field)) +
+                inputs.map(([field, type, attrs]) => '<label class="nm-field">' + esc(t('desktop.noisemaker_' + field)) +
                     '<input class="nm-input" type="' + type + '" data-nm-field="' + field + '" ' + attrs + '></label>').join('') +
-                '<label class="nm-field">' + esc(t('seed')) +
+                '<label class="nm-field">' + esc(t('desktop.noisemaker_seed')) +
                     '<input class="nm-input" type="number" data-nm-field="seed" min="0" max="2147483647" step="1"></label>' +
             '</div>' +
-            '<p class="nm-hint">' + esc(t('local_help')) + '</p>' +
+            '<p class="nm-hint">' + esc(t('desktop.noisemaker_local_help')) + '</p>' +
             '<p class="nm-hint" role="status" aria-live="polite" data-nm-local-status></p>';
         }
 
         function progressMarkup() {
             return '<div class="nm-progress">' +
                 '<div class="nm-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>' +
-                '<div><strong>' + esc(t('progress_title')) + '</strong><p>' + esc(t('progress_hint')) + '</p></div>' +
-                '<span class="nm-progress-time" data-nm-elapsed>' + esc(t('progress_elapsed', { seconds: 0 })) + '</span>' +
+                '<div><strong>' + esc(t('desktop.noisemaker_progress_title')) + '</strong><p>' + esc(t('desktop.noisemaker_progress_hint')) + '</p></div>' +
+                '<span class="nm-progress-time" data-nm-elapsed>' + esc(t('desktop.noisemaker_progress_elapsed', { seconds: 0 })) + '</span>' +
             '</div>';
         }
 
         function resultMarkup(result) {
-            const title = result.title || (generation.lastParams && generation.lastParams.title) || t('result_untitled');
+            const title = result.title || (generation.lastParams && generation.lastParams.title) || t('desktop.noisemaker_result_untitled');
             const meta = [];
             if (result.duration_ms) meta.push(formatDuration(result.duration_ms));
             if (result.provider) meta.push(result.provider);
-            if (generation.coverFailed) meta.push(t('cover_failed'));
+            if (generation.coverFailed) meta.push(t('desktop.noisemaker_cover_failed'));
             const cover = result.cover_url
                 ? '<div class="nm-cover nm-result-cover"><img src="' + esc(result.cover_url) + '" alt="" draggable="false"></div>'
                 : '<div class="nm-cover nm-result-cover nm-cover--empty" aria-hidden="true">♪</div>';
             const lyrics = result.lyrics
-                ? '<details class="nm-collapsible nm-result-lyrics"><summary>' + esc(t('lyrics_label')) + (result.auto_lyrics ? ' ✨' : '') + '</summary>' +
+                ? '<details class="nm-collapsible nm-result-lyrics"><summary>' + esc(t('desktop.noisemaker_lyrics_label')) + (result.auto_lyrics ? ' ✨' : '') + '</summary>' +
                   '<div class="nm-collapsible-body"><pre class="nm-lyrics-text">' + esc(result.lyrics) + '</pre></div></details>'
                 : '';
             return '<div class="nm-result">' + cover +
@@ -193,10 +193,10 @@
                     '<div class="nm-result-title">' + esc(title) + '</div>' +
                     '<div class="nm-result-meta nm-muted">' + esc(meta.join(' · ')) + '</div>' +
                     '<div class="nm-result-actions">' +
-                        '<button type="button" class="nm-btn nm-btn--primary" data-nm-result-play>▶ ' + esc(t('result_play')) + '</button>' +
-                        '<button type="button" class="nm-btn" data-nm-result-library>' + esc(t('result_show_library')) + '</button>' +
-                        '<a class="nm-btn" href="' + esc(result.web_path || '#') + '" download="' + esc(result.filename || '') + '">' + esc(t('track_download')) + '</a>' +
-                        '<button type="button" class="nm-btn" data-nm-result-new>' + esc(t('result_new')) + '</button>' +
+                        '<button type="button" class="nm-btn nm-btn--primary" data-nm-result-play>▶ ' + esc(t('desktop.noisemaker_result_play')) + '</button>' +
+                        '<button type="button" class="nm-btn" data-nm-result-library>' + esc(t('desktop.noisemaker_result_show_library')) + '</button>' +
+                        '<a class="nm-btn" href="' + esc(result.web_path || '#') + '" download="' + esc(result.filename || '') + '">' + esc(t('desktop.noisemaker_track_download')) + '</a>' +
+                        '<button type="button" class="nm-btn" data-nm-result-new>' + esc(t('desktop.noisemaker_result_new')) + '</button>' +
                     '</div>' +
                     lyrics +
                 '</div>' +
@@ -205,9 +205,9 @@
 
         function errorMarkup(message) {
             return '<div class="nm-error" role="alert">' +
-                '<strong>' + esc(t('error_title')) + '</strong>' +
-                '<p>' + esc(message || t('error_unknown')) + '</p>' +
-                '<button type="button" class="nm-btn" data-nm-retry>' + esc(t('error_retry')) + '</button>' +
+                '<strong>' + esc(t('desktop.noisemaker_error_title')) + '</strong>' +
+                '<p>' + esc(message || t('desktop.noisemaker_error_unknown')) + '</p>' +
+                '<button type="button" class="nm-btn" data-nm-retry>' + esc(t('desktop.noisemaker_error_retry')) + '</button>' +
             '</div>';
         }
 
@@ -298,7 +298,7 @@
 
             const localStatus = qs('[data-nm-local-status]');
             if (localStatus) {
-                localStatus.textContent = t('local_' + ((local && local.state) || 'starting')) +
+                localStatus.textContent = t('desktop.noisemaker_local_' + ((local && local.state) || 'starting')) +
                     (local && local.error_code ? ' · ' + local.error_code : '') +
                     (local && local.profile ? ' · ' + local.profile.model : '');
             }
@@ -307,18 +307,18 @@
             if (invalid) {
                 reason.textContent = invalid.validationMessage;
             } else if (lyricsMissing) {
-                reason.textContent = t('lyrics_required');
+                reason.textContent = t('desktop.noisemaker_lyrics_required');
                 if (mode === 'simple') {
-                    reason.insertAdjacentHTML('beforeend', ' <button type="button" class="nm-link-btn" data-nm-switch-custom>' + esc(t('mode_switch_custom')) + '</button>');
+                    reason.insertAdjacentHTML('beforeend', ' <button type="button" class="nm-link-btn" data-nm-switch-custom>' + esc(t('desktop.noisemaker_mode_switch_custom')) + '</button>');
                 }
             } else if (unavailable) {
-                reason.textContent = t('local_' + ((local && local.state) || 'starting'));
+                reason.textContent = t('desktop.noisemaker_local_' + ((local && local.state) || 'starting'));
             } else if (quotaHit) {
-                reason.textContent = t('create_disabled_quota', { used, max });
+                reason.textContent = t('desktop.noisemaker_create_disabled_quota', { used, max });
             } else if (!hasInput) {
-                reason.textContent = t('create_disabled_idea');
+                reason.textContent = t('desktop.noisemaker_create_disabled_idea');
             } else {
-                reason.textContent = t('create_hint');
+                reason.textContent = t('desktop.noisemaker_create_hint');
             }
         }
 
@@ -338,7 +338,7 @@
                 const el = qs('[data-nm-elapsed]');
                 if (!el) return;
                 const secs = Math.max(0, Math.round((Date.now() - generation.startedAt) / 1000));
-                el.textContent = t('progress_elapsed', { seconds: secs });
+                el.textContent = t('desktop.noisemaker_progress_elapsed', { seconds: secs });
             }, 1000);
         }
 
@@ -426,7 +426,7 @@
                 }
             } catch (err) {
                 if (disposed) return;
-                notify((err && err.message) || t('enhance_failed'));
+                notify((err && err.message) || t('desktop.noisemaker_enhance_failed'));
             } finally {
                 button.classList.remove('is-busy');
                 button.disabled = false;
