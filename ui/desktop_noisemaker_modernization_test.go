@@ -229,3 +229,39 @@ func TestDesktopNoisemakerRefreshPlayerModule(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopNoisemakerRefreshCreateModule(t *testing.T) {
+	src := readDesktopAssetText(t, "js/desktop/apps/noisemaker-create.js")
+	for _, marker := range []string{
+		"window.NoisemakerCreate = { create, PRESETS }",
+		"const PRESETS = [",
+		"id: 'lofi'", "id: 'synthwave'", "id: 'orchestral'", "id: 'folk'",
+		"id: 'techno'", "id: 'boombap'", "id: 'jazz'", "id: 'ambient'",
+		"data-nm-mode=\"simple\"",
+		"data-nm-mode=\"custom\"",
+		"data-nm-preset=\"",
+		"nm-preset--",
+		"data-nm-switch-custom",
+		"data-nm-result-play",
+		"data-nm-result-library",
+		"data-nm-result-new",
+		"data-nm-field=\"seed\"",
+		"data-nm-local-status",
+		"data-nm-elapsed",
+		"emit('generate', params)",
+		"emit('new-song')",
+		"emit('play-result', generation.result)",
+		"/api/desktop/noisemaker/enhance",
+		"function setGeneration(next)",
+		"function setCaps(next, options)",
+	} {
+		if !strings.Contains(src, marker) {
+			t.Fatalf("noisemaker-create.js missing %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"<audio", "alert(", "window.NoisemakerApp", "/api/desktop/noisemaker/generate", "localStorage"} {
+		if strings.Contains(src, forbidden) {
+			t.Fatalf("noisemaker-create.js must not contain %q", forbidden)
+		}
+	}
+}
