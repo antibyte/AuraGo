@@ -142,8 +142,8 @@
                 },
                 {
                     id: 'view', labelKey: 'desktop.menu_view', items: [
-                        { id: 'grid', labelKey: 'desktop.mc_view_grid', checked: () => state.viewMode === 'grid', action: () => setViewMode('grid') },
-                        { id: 'list', labelKey: 'desktop.mc_view_list', checked: () => state.viewMode === 'list', action: () => setViewMode('list') },
+                        { id: 'grid', labelKey: 'desktop.people_grid_view', checked: () => state.viewMode === 'grid', action: () => setViewMode('grid') },
+                        { id: 'list', labelKey: 'desktop.people_list_view', checked: () => state.viewMode === 'list', action: () => setViewMode('list') },
                         { type: 'separator' },
                         { id: 'filter-all', labelKey: 'missions.filter_all', checked: () => state.currentFilter === 'all', action: () => setFilter('all') },
                         { id: 'filter-manual', labelKey: 'missions.filter_manual', checked: () => state.currentFilter === 'manual', action: () => setFilter('manual') },
