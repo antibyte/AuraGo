@@ -275,23 +275,15 @@ UI sounds for the Virtual Desktop are **opt-in** and **off by default**. Open **
 
 Scheduled work and prepared prompts — **not** eggs and nests. Those live under [Invasion Control](12-invasion.md).
 
-Typical pieces: queue, execution, history, and prepared missions.
+The app is a two-pane workbench:
 
-### Card View
+- **Left: mission list.** Grouped into *Running now*, *Waiting* and *Missions*. Search, filter (all / manual / scheduled / triggered / errors) and sort (name, last run, next run, priority) live in the toolbar. Hover a row for a quick *Run now* button; right-click for the full menu. Arrow keys move the selection, `Enter` jumps into the details, `Del` deletes. Drag the divider to resize the list, or hide it with `Ctrl+B`.
+- **Right: details.** The header shows the mission's state, when it runs and the primary action — *Run now*, *Cancel run* (local missions) or *Remove from queue*. The **Overview** tab shows the task, next/last run, run count, execution settings, the prepared context and the last output (with copy). The **History** tab lists past runs with trigger, duration and result; click a run to read its output. Filter by success, errors or cancelled runs.
+- **Editor.** *New mission* (`Ctrl+N`), *Edit* (`Ctrl+E`) and *Duplicate* (`Ctrl+D`) open the editor in the right pane. It has three sections: *Task* (name, description, active), *When to run* (manual, scheduled with a plain-language schedule builder, or one of the grouped triggers with its settings) and *Execution* (priority, local or remote target, lock, auto-prepare, cheatsheets — collapsed unless in use). Fields with problems are highlighted after the first save attempt and clear as soon as you fix them. Unsaved changes are protected when you switch missions or close the window.
 
-Each mission is shown as a card:
+The status bar shows how many missions exist, how many are running or waiting, the next scheduled run and whether live updates are connected. Below 720 px width the app switches to a single pane with a *Back to list* button.
 
-```
-┌─────────────────┐
-│ Mission Name    │
-│ 🟢 Active       │
-│                 │
-│ Last Run:       │
-│ Today, 14:23    │
-│                 │
-│ [Edit]          │
-└─────────────────┘
-```
+Details on triggers, schedules, remote execution and the REST API are in [Missions](11-missions.md).
 
 ## Looper
 

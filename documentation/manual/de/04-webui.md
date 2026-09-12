@@ -273,30 +273,17 @@ UI-Sounds für den Virtual Desktop sind **opt-in** und **standardmäßig aus**. 
 
 ## Mission Control
 
-Oberfläche für automatisierte Aufgaben (Cron-ähnliche Ausführung).
+Geplante Aufgaben und vorbereitete Prompts — **nicht** Eggs und Nests. Die findest du unter [Invasion Control](12-invasion.md).
 
-### Karten-Ansicht
+Die App ist eine zweigeteilte Werkbank:
 
-Jede Mission wird als Karte dargestellt:
+- **Links: Missionsliste.** Gruppiert in *Läuft gerade*, *Wartet* und *Missionen*. Suche, Filter (alle / manuell / geplant / ausgelöst / Fehler) und Sortierung (Name, letzter Lauf, nächster Lauf, Priorität) sitzen in der Werkzeugleiste. Fährst du über eine Zeile, erscheint ein *Jetzt ausführen*-Knopf; ein Rechtsklick öffnet das vollständige Menü. Mit den Pfeiltasten bewegst du die Auswahl, `Enter` springt in die Details, `Entf` löscht. Ziehe den Trenner, um die Liste breiter oder schmaler zu machen, oder blende sie mit `Strg+B` aus.
+- **Rechts: Details.** Der Kopf zeigt den Zustand der Mission, wann sie läuft und die wichtigste Aktion — *Jetzt ausführen*, *Lauf abbrechen* (lokale Missionen) oder *Aus Warteschlange entfernen*. Der Tab **Übersicht** zeigt die Aufgabe, nächsten und letzten Lauf, Anzahl der Läufe, Ausführungseinstellungen, den vorbereiteten Kontext und die letzte Ausgabe (mit Kopieren). Der Tab **Verlauf** listet vergangene Läufe mit Auslöser, Dauer und Ergebnis; klicke einen Lauf an, um seine Ausgabe zu lesen. Filtere nach Erfolg, Fehlern oder abgebrochenen Läufen.
+- **Editor.** *Neue Mission* (`Strg+N`), *Bearbeiten* (`Strg+E`) und *Duplizieren* (`Strg+D`) öffnen den Editor im rechten Bereich. Er hat drei Abschnitte: *Aufgabe* (Name, Beschreibung, aktiv), *Wann ausführen* (manuell, geplant mit einem Zeitplan-Baukasten in Klartext oder einer der gruppierten Auslöser mit seinen Einstellungen) und *Ausführung* (Priorität, lokales oder entferntes Ziel, Sperre, automatische Vorbereitung, Cheatsheets — eingeklappt, solange nichts davon in Benutzung ist). Felder mit Problemen werden nach dem ersten Speicherversuch markiert und verschwinden, sobald du sie korrigierst. Ungespeicherte Änderungen sind geschützt, wenn du die Mission wechselst oder das Fenster schließt.
 
-```
-┌─────────────────┐
-│ Mission Name    │
-│ 🟢 Aktiv        │
-│                 │
-│ Letzter Lauf:   │
-│ Heute, 14:23    │
-│                 │
-│ [Bearbeiten]    │
-└─────────────────┘
-```
+Die Statusleiste zeigt, wie viele Missionen es gibt, wie viele laufen oder warten, den nächsten geplanten Lauf und ob Live-Updates verbunden sind. Unter 720 px Breite wechselt die App in eine einspaltige Ansicht mit einem Knopf *Zurück zur Liste*.
 
-### Funktionen
-
-- Missionen erstellen und planen (einmalig oder wiederkehrend)
-- Prompt-Vorlagen für automatisierte Abläufe
-- Historie der vergangenen Läufe einsehen
-- Vorbereitete Missionen (Prepared Missions) als Bibliothek
+Details zu Auslösern, Zeitplänen, Remote-Ausführung und der REST-API stehen unter [Missionen](11-missions.md).
 
 ## Looper
 

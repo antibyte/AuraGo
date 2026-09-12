@@ -270,8 +270,8 @@ buttons and menu popovers remain excluded from those gestures.
   Pass `t` into `updateMediaSession`. Radio `t` stays key-only;
   interpolate via `.replace`. Do not hardcode `K`/`M`, `Radio`, or
   `AuraGo Radio` there.
-- Mission Control trigger min-interval uses `desktop.rel_time_seconds` with
-  `{{count}}`. Keep SIP/Noisemaker duration formatting unchanged.
+- Mission Control formatting rules live in the "Mission Control contract"
+  section. Keep SIP/Noisemaker duration formatting unchanged.
   System World shows localized timestamps; compact uptime reuses
   `desktop.system_info_uptime_days_hours`, `desktop.system_info_uptime_hours_minutes`
   and `desktop.system_info_uptime_minutes`. Budget uses `desktop.looper_cost`;
@@ -337,8 +337,6 @@ buttons and menu popovers remain excluded from those gestures.
   `codeStudio.shell_n` with `{{n}}` plus `codeStudio.title`. The zen
   exit tooltip reuses `codeStudio.exitZen`. Do not hardcode English
   `Shell N`, `Code Studio - Shell`, or `Exit Zen Mode (Esc)` there.
-- Mission Control window menus use `desktop.menu_file` and
-  `desktop.menu_view`. Do not hardcode English File/View there.
 - Shell new-file and new-folder prompt defaults use
   `desktop.new_file_default` and `desktop.new_folder`. Do not hardcode
   `untitled.txt` or `New Folder` in those prompts. Leave editor path
@@ -533,6 +531,38 @@ buttons and menu popovers remain excluded from those gestures.
   `go test ./internal/desktop -run RecursiveCacheInvalidated` (recursive list
   cache invalidation after desktop mutations). See
   `documentation/desktop-gallery.md` for the user-facing description.
+
+### Mission Control contract
+
+- Mission Control is a master-detail workbench composed of
+  `mission-control-schedule.js` (pure cron builder/describer),
+  `mission-control-triggers.js` (grouped trigger catalog, picker, config
+  panel), `mission-control-menus.js` (inline SVG icons, window + context menu
+  builders), `mission-control-list.js`, `mission-control-detail.js`,
+  `mission-control-editor.js` and the shell `mission-control.js`. Load order in
+  `module-loader.js` is helpers first, shell last; there is no modal module.
+  Keep `window.MissionControlApp = { render, dispose }` and every module below
+  the desktop JS line budget.
+- Mission Control UI text lives under `desktop.mc_*` (all 16 locales,
+  `TestDesktopMissionControlTranslationsCoverAllLocales`); trigger labels and
+  hints reuse `missions.*`, with leading legacy emoji stripped through
+  `MissionControlTriggers.label`. Priorities use the emoji-free
+  `desktop.mc_priority_*`, never `missions.form_priority_*`. Window menus use
+  `desktop.menu_file` / `desktop.menu_view`; the trigger min-interval uses
+  `desktop.rel_time_seconds` with `{{count}}`. Menu `icon` values are desktop
+  icon keys (mini/Papirus); the inline `ICONS` map is for in-app markup only.
+- The shell persists filter/sort/list width/collapsed state under
+  `aurago.desktop.mission-control.prefs`, switches to single-pane below 720 px,
+  registers a `beforeClose` dirty guard through `setWindowBeforeClose`, and
+  scopes document shortcuts with `isActive()`. Local running missions can be
+  cancelled via `POST /api/missions/v2/{id}/cancel`; `next_run` comes from the
+  mission payload. The editor re-validates live after the first failed save.
+- `.vd-mc [hidden]` forces `display: none` because module display rules
+  otherwise beat the UA hidden default; keep the stylesheet theme-native
+  (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals.
+- Verify with `go test ./ui -run 'MissionControl|RelTime'`,
+  `node scripts/test-mission-control-schedule.mjs` and the opt-in
+  `TestDesktopMissionControlBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
 
 ### App theme bridge contract
 
@@ -1359,7 +1389,9 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run TestDesktopWeatherWidgetI18n`
 - `go test ./ui/ -run TestDesktopVirtualComputersDurationI18n`
 - `go test ./ui/ -run TestDesktopCalculatorBackI18n`
-- `go test ./ui/ -run TestDesktopMissionControlMenuI18n`
+- `go test ./ui/ -run 'TestDesktopMissionControl|TestMissionControlDispose'`
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopMissionControlBrowser -count=1`
+- `node scripts/test-mission-control-schedule.mjs`
 - `go test ./ui/ -run TestDesktopFileManagerTemplateI18n`
 - `go test ./ui/ -run TestDesktopWidgetDisplayTitle`
 - `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`
