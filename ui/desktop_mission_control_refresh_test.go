@@ -115,3 +115,29 @@ func TestDesktopMissionControlTranslationsCoverAllLocales(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopMissionControlScheduleModuleContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/mission-control-schedule.js")
+	for _, marker := range []string{
+		"window.MissionControlSchedule = {",
+		"function parse(expr)",
+		"function build(state)",
+		"function describe(expr, t, lang)",
+		"function validate(expr)",
+		"function isSupported(expr)",
+		"'desktop.mc_schedule_every_minutes'",
+		"'desktop.mc_schedule_weekly_at'",
+		"'desktop.mc_schedule_descriptor_'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("mission-control-schedule.js missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"document.", "localStorage", "fetch("} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("schedule module must stay pure; found %q", forbidden)
+		}
+	}
+}
