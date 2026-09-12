@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
@@ -31,6 +31,13 @@ class VulkanContract(unittest.TestCase):
         self.assertNotIn('xl-turbo', self.profile(20.9)['model'])
         self.assertEqual(self.profile(21, True)['lm_model'], '')
         self.assertEqual(self.profile(10)['fingerprint'], self.profile(11)['fingerprint'])
+        self.assertEqual(self.profile()['compute_precision'], 'fp32')
+
+    def test_probe_enforces_verified_vulkan_math(self):
+        with patch.dict(os.environ, GGML_VK_DISABLE_F16='0'), patch.object(runtime.common, 'device_groups', return_value=[]), \
+             patch.object(runtime.subprocess, 'run', return_value=Mock(returncode=1)) as run:
+            self.assertEqual(runtime.probe()['devices'], [])
+            self.assertEqual(run.call_args.kwargs['env']['GGML_VK_DISABLE_F16'], '1')
 
     def test_parameters_and_seed_zero(self):
         profile = self.profile()
@@ -54,37 +61,6 @@ class VulkanContract(unittest.TestCase):
         with patch.object(runtime, 'native', side_effect=[(b'{"id":"0123456789abcdef"}', ''), (b'{"status":"done"}', ''), (b'audio', 'audio/mpeg')]) as native:
             self.assertEqual(runtime.native_job('/synth', {}), (b'audio', 'audio/mpeg'))
             self.assertEqual(native.call_args.args[1], '/job?id=0123456789abcdef&result=1')
-
-    def test_instrumental_and_supplied_lyrics_skip_lm_audio_codes(self):
-        profile = self.profile()
-        for lyrics in ('[Instrumental]', '[Verse]\nA new day begins'):
-            request = runtime.generation_request({'prompt': 'Piano', 'lyrics': lyrics,
-                                                 'use_random_seed': False, 'seed': 0}, profile)
-            with patch.object(runtime, 'PROFILE', profile), patch.object(runtime, 'native_job', side_effect=RuntimeError('synth reached')) as native:
-                with self.assertRaisesRegex(RuntimeError, 'synth reached'): runtime.render(request)
-                self.assertEqual(native.call_count, 1)
-                self.assertEqual(native.call_args.args[0], '/synth')
-                self.assertNotIn('audio_codes', native.call_args.args[1])
-                self.assertEqual(native.call_args.args[1]['lyrics'], lyrics)
-                self.assertEqual(native.call_args.args[1]['seed'], 0)
-
-    def test_generated_lyrics_cannot_replace_user_settings_or_add_audio_codes(self):
-        profile = self.profile()
-        request = runtime.generation_request({'prompt': 'Piano', 'audio_duration': 120,
-                                             'use_random_seed': False, 'seed': 0}, profile)
-        expected = dict(request, lyrics='[Verse]\nA new day begins')
-        result = json.dumps([{'lyrics': expected['lyrics'], 'audio_codes': '35847,35847',
-                              'duration': 600, 'caption': 'changed', 'seed': 99, 'synth_model': '/foreign/model'}]).encode()
-        with patch.object(runtime, 'PROFILE', profile), patch.object(runtime, 'native_job', side_effect=[(result, ''), RuntimeError('synth reached')]) as native:
-            with self.assertRaisesRegex(RuntimeError, 'synth reached'): runtime.render(request)
-            self.assertEqual(native.call_args_list[0].args[0], '/lm')
-            self.assertEqual(native.call_args_list[0].args[1]['lm_mode'], 'inspire')
-            self.assertEqual(native.call_args_list[1].args, ('/synth', expected))
-        for lyrics in ('', '  ', 123, 'a' * 32001):
-            request = runtime.generation_request({'prompt': 'Piano'}, profile)
-            with patch.object(runtime, 'PROFILE', profile), patch.object(runtime, 'native_job', return_value=(json.dumps([{'lyrics': lyrics}]).encode(), '')) as native:
-                with self.assertRaisesRegex(RuntimeError, 'invalid_result'): runtime.render(request)
-                self.assertEqual(native.call_count, 1)
 
     def test_auth_busy_readiness_and_audio_confinement(self):
         server = runtime.ThreadingHTTPServer(('127.0.0.1', 0), runtime.Handler)
@@ -120,12 +96,11 @@ class VulkanContract(unittest.TestCase):
                 '        int tok            = sample_top_k_p(lg.data(), V, temperature, top_p, top_k, seqs[i].rng);',
                 '            compact_logits[0] = lc[eos_idx];',
                 '                seqs[orig_i].audio_codes.push_back(tok - AUDIO_CODE_BASE);']))
-            original_lm = lm.read_text()
             patch_vulkan.patch(directory)
             self.assertIn('store_require_dit', file.read_text())
             self.assertIn('store_require_lm', file.read_text())
             self.assertIn('key.adapter_scale = 1.0f', file.read_text())
-            self.assertEqual(lm.read_text(), original_lm)
+            self.assertIn('ceil(aces[orig_i].duration * 5)', lm.read_text())
             file.write_text('changed upstream')
             with self.assertRaises(AssertionError): patch_vulkan.patch(directory)
 

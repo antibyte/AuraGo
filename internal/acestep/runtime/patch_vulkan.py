@@ -1,4 +1,4 @@
-"""Preload the pinned worker without modifying native generation or stop tokens."""
+"""Preload the pinned worker and honor explicit duration during LM code generation."""
 from pathlib import Path
 import sys
 
@@ -44,6 +44,25 @@ def patch(root):
     }
 '''
     source.write_text(text.replace(anchor, anchor + preload))
+    source = Path(root) / 'src/pipeline-lm.cpp'
+    text = source.read_text()
+    replacements = {
+        '        int tok            = sample_top_k_p(lg.data(), V, temperature, top_p, top_k, seqs[i].rng);':
+        '''        // AuraGo: explicit duration owns the 5Hz code count, not an early EOS.
+        if (aces[i].duration > 0) lg[TOKEN_IM_END] = -1e9f;
+        int tok            = sample_top_k_p(lg.data(), V, temperature, top_p, top_k, seqs[i].rng);''',
+        '            compact_logits[0] = lc[eos_idx];':
+        '''            compact_logits[0] = aces[orig_i].duration > 0 ? -1e9f : lc[eos_idx];''',
+        '                seqs[orig_i].audio_codes.push_back(tok - AUDIO_CODE_BASE);':
+        '''                seqs[orig_i].audio_codes.push_back(tok - AUDIO_CODE_BASE);
+                if (aces[orig_i].duration > 0 &&
+                    seqs[orig_i].audio_codes.size() >= (size_t) ceil(aces[orig_i].duration * 5))
+                    seqs[orig_i].done = true;''',
+    }
+    for anchor, replacement in replacements.items():
+        assert text.count(anchor) == 1, 'native LM duration path changed'
+        text = text.replace(anchor, replacement)
+    source.write_text(text)
 
 
 if __name__ == '__main__':

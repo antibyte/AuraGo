@@ -33,6 +33,13 @@ can support older AMD integrated GPUs where the ROCm wheel has no working
 kernels; a working Vulkan compute driver and adequate memory are still required.
 Software Vulkan devices are rejected. Windows Docker GPU restrictions remain.
 
+The Vulkan runtime enforces FP32 arithmetic (`GGML_VK_DISABLE_F16=1`) for both
+hardware probing and inference. FP16 arithmetic produced incoherent LM text and
+audio codes on tested Ryzen/Renoir hardware; the same GPU and models produced
+coherent text with FP32. Model weights remain Q8/Q4 as selected and inference
+stays GPU-accelerated. Status exposes `compute_precision`; it is included in the
+profile fingerprint so older qualification results cannot certify this setting.
+
 Vulkan starts with Q8 2B Turbo (Q4 below 6 GiB usable memory), selecting XL Turbo
 at 20 GiB. The local LM is omitted below 8 GiB, uses 0.6B from 8 GiB and 1.7B
 from 12 GiB. The conservative retry uses Q4 2B without LM. Duration limits are
@@ -52,12 +59,6 @@ above 600 seconds. BPM is 30–300. Vocal language accepts codes such as `de`, `
 and `ja`. An omitted seed is random; zero is a valid deterministic seed. Without
 a local language model, provide lyrics or select instrumental. Local mode never
 silently invokes the chat/cloud LLM to write lyrics.
-
-Vulkan synthesizes directly from the musical description and lyrics through DiT.
-Instrumental pieces and supplied lyrics skip the LM. Automatic lyrics use the local
-LM's inspire mode, preserving the requested duration, prompt, seed and model.
-LM audio codes are not used: forcing them to a requested length can produce repeated
-noise/silence conditioning. Native LM end tokens remain unchanged.
 
 One request owns the worker at a time; others receive `acestep_busy`. The native
 API is polled every two seconds. The default deadline is 1800 seconds. Canceling
@@ -119,9 +120,9 @@ An image build is not hardware acceptance. Each release still needs actual
 instrumental/vocal generation, seed-zero, timeout and cancellation checks on
 NVIDIA, AMD, Intel and Windows/NVIDIA. Record driver, selected profile, image
 digest and model fingerprint for those checks. Never report GPU acceptance from
-the CPU or mocked profile tests. MP3 decoding, duration and nonzero volume alone
-do not establish musical quality; compare and listen to actual instrumental and
-vocal samples before accepting that quality.
+the CPU or mocked profile tests. MP3 decoding, duration and volume alone do not
+establish musical quality. Check LM text coherence and listen to actual
+instrumental and vocal samples before accepting that quality.
 
 Upstream references: [API](https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/docs/en/API.md),
 [GPU profiles](https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/docs/en/GPU_COMPATIBILITY.md),

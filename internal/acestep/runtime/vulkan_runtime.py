@@ -40,7 +40,10 @@ FILES = {
 def probe():
     groups = common.device_groups()
     result = {'devices': [], 'groups': groups}
-    listed = subprocess.run([str(BIN / 'aurago-vulkan-probe')], capture_output=True, timeout=60)
+    # Qwen LM inference on Renoir produces degenerate text/codes with FP16 math.
+    # Use the same verified FP32 Vulkan arithmetic for probes and the worker.
+    env = dict(os.environ, GGML_VK_DISABLE_F16='1')
+    listed = subprocess.run([str(BIN / 'aurago-vulkan-probe')], capture_output=True, timeout=60, env=env)
     if listed.returncode: return result
     for item in json.loads(listed.stdout):
         pci, name = item['pci'], item['backend_name']
@@ -50,7 +53,7 @@ def probe():
                  if (Path('/sys/class/drm') / n.name / 'device').resolve().name == pci]
         if not nodes: continue  # Also excludes software Vulkan devices such as llvmpipe.
         try:
-            test = subprocess.run([str(BIN / 'aurago-vulkan-probe'), name], capture_output=True, timeout=60)
+            test = subprocess.run([str(BIN / 'aurago-vulkan-probe'), name], capture_output=True, timeout=60, env=env)
             if test.returncode: continue
         except subprocess.TimeoutExpired:
             continue
@@ -76,7 +79,7 @@ def choose_profile(device, reserve, conservative=False):
     if ram < 4: raise RuntimeError('acestep_insufficient_ram')
     profile = {'device': device, 'model': model, 'lm_model': lm, 'lm_backend': 'ggml',
                'max_duration': 120 if conservative or budget < 12 else 240 if budget < 20 else 600,
-               'quantization': quant, 'offload': False, 'offload_dit': False,
+               'quantization': quant, 'compute_precision': 'fp32', 'offload': False, 'offload_dit': False,
                'compile': False, 'flash_attention': True, 'ram_gb': ram,
                'disk_gb': shutil.disk_usage(common.MODELS).free / 2**30}
     identity = {k: v for k, v in profile.items() if k not in ('device', 'ram_gb', 'disk_gb')}
@@ -141,21 +144,16 @@ def generation_request(body, profile):
 
 
 def render(request):
-    # Text-to-music uses DiT's text conditioning. Forced-length LM audio codes
-    # can collapse into repeated silence/noise codes and override that conditioning.
-    # The optional local LM writes missing lyrics only; it never controls audio length.
-    if not request['lyrics'].strip():
-        if not PROFILE['lm_model']: raise ValueError('lyrics_required')
-        raw, _ = native_job('/lm', dict(request, lm_mode='inspire'))
+    if PROFILE['lm_model']:
+        raw, _ = native_job('/lm', request)
         enriched = json.loads(raw)
         if not isinstance(enriched, list) or len(enriched) != 1 or not isinstance(enriched[0], dict):
             raise RuntimeError('acestep_invalid_result')
-        # Preserve user prompt, duration, seed and model selection. Never forward
-        # generated paths, options or audio codes from the native result.
-        lyrics = enriched[0].get('lyrics', '')
-        if not isinstance(lyrics, str) or not lyrics.strip() or len(lyrics.encode()) > 32000:
-            raise RuntimeError('acestep_invalid_result')
-        request['lyrics'] = lyrics
+        # Only generated music content crosses this boundary. Never forward paths/options.
+        for key in ('audio_codes', 'lyrics'):
+            value = enriched[0].get(key, '')
+            if not isinstance(value, str) or len(value) > 100000: raise RuntimeError('acestep_invalid_result')
+            if key == 'audio_codes' or not request['lyrics'].strip(): request[key] = value
     raw, content_type = native_job('/synth', request)
     message = BytesParser(policy=email_policy).parsebytes(('Content-Type: ' + content_type + '\r\n\r\n').encode() + raw)
     if message.get_content_type() != 'multipart/mixed': raise RuntimeError('acestep_invalid_audio_result')
@@ -236,7 +234,7 @@ def initialize():
             link.symlink_to(model_dir / name)
         AUDIO.mkdir(parents=True, exist_ok=True)
         with LOCK: STATE['state'] = 'loading'
-        env = dict(os.environ, GGML_BACKEND='Vulkan' + str(device['index']))
+        env = dict(os.environ, GGML_BACKEND='Vulkan' + str(device['index']), GGML_VK_DISABLE_F16='1')
         env.pop('ACESTEP_API_KEY', None)
         WORKER = subprocess.Popen([str(BIN / 'ace-server'), '--models', str(view), '--host', '127.0.0.1',
                                    '--port', '8002', '--keep-loaded', '--max-batch', '1', '--max-seq', '8192',

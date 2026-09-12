@@ -112,6 +112,8 @@ type Profile struct {
 	RAMGB          float64 `json:"ram_gb"`
 	DiskGB         float64 `json:"disk_gb"`
 	Fingerprint    string  `json:"fingerprint"`
+
+	ComputePrecision string `json:"compute_precision,omitempty"`
 }
 
 type Status struct {

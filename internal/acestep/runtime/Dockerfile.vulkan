@@ -18,6 +18,7 @@ FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebff
 LABEL org.opencontainers.image.source="https://github.com/antibyte/AuraGo"
 RUN apt-get update && apt-get install -y --no-install-recommends python3 ca-certificates ffmpeg libvulkan1 mesa-vulkan-drivers libgomp1 && rm -rf /var/lib/apt/lists/*
 ENV AURAGO_BACKEND=vulkan PYTHONPATH=/opt/aurago PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    GGML_VK_DISABLE_F16=1 \
     LD_LIBRARY_PATH=/opt/acestep HOME=/app/.cache XDG_CACHE_HOME=/app/.cache XDG_RUNTIME_DIR=/tmp
 COPY --from=build /src/build/ace-server /src/build/aurago-vulkan-probe /src/build/*.so* /opt/acestep/
 COPY --from=build /src/LICENSE /opt/acestep/licenses/acestep-LICENSE
