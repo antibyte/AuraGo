@@ -69,7 +69,9 @@ type agodeskChatResult struct {
 var agodeskAgentChatRunner = runAgodeskAgentChat
 
 var agodeskDoneTagPattern = regexp.MustCompile(`(?i)<\s*/?\s*done\s*/?\s*>`)
-var agodeskServedMediaPathPattern = regexp.MustCompile(`(?i)/files/(audio|generated_images|generated_videos|images|documents|downloads)/[^\s)\]"'<>]+`)
+
+// Prose references end at Markdown/JSON delimiters or query/fragment markers.
+var agodeskServedMediaPathPattern = regexp.MustCompile(`(?i)/files/(audio|generated_images|generated_videos|images|documents|downloads)/[^\s)\]"'<>?&#\\\x60]+`)
 
 var errAgodeskAgentTimeout = errors.New("agent request timed out")
 
@@ -2362,7 +2364,7 @@ func agodeskRewriteMediaPath(s *Server, pathValue string) string {
 	if err != nil || !strings.HasPrefix(parsed.Path, "/files/") {
 		return pathValue
 	}
-	rel := strings.TrimPrefix(parsed.Path, "/files/")
+	rel := strings.TrimPrefix(parsed.EscapedPath(), "/files/")
 	bucket, rest, ok := strings.Cut(rel, "/")
 	if !ok || !agodeskMediaBucketAllowed(bucket) || strings.TrimSpace(rest) == "" {
 		return pathValue

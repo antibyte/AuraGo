@@ -719,6 +719,12 @@ Tools are defined in `internal/tools/`:
 - Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
 
 ### Server Architecture
+- AgoDesk extracts `/files/...` references from prose before signing; Markdown,
+  JSON escape, query and fragment delimiters must not become filename bytes.
+  Preserve escaped filenames and structured payload queries when rewriting URLs;
+  never repair contaminated signed URLs in the asset handler. Verify with tests
+  `TestAgodeskMediaReferencesServeSignedAudio` and
+  `TestAgodeskChatBrokerDeduplicatesDelimitedMediaPaths`.
 - Single HTTP server with SSE for streaming
 - `internal/httpstream.WithWriteTimeout` wraps the outer HTTP handler for local,
   HTTPS and Tailscale listeners/proxies. Successful SSE and MJPEG responses renew

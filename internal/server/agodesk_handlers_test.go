@@ -1259,6 +1259,93 @@ func TestAgodeskChatBrokerEmitsChatMediaFromAssistantText(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatBrokerDeduplicatesDelimitedMediaPaths(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.media_events"}),
+	}
+	envs := readAgodeskBrokerEventEnvelopes(t, state, nil,
+		agodeskBrokerTestEvent{event: "tool_output", message: `Web: /files/audio/song.mp3\u0026`},
+		agodeskBrokerTestEvent{event: "final_response", message: "Audio: `/files/audio/song.mp3&`"},
+		agodeskBrokerTestEvent{event: "audio", message: `{"path":"/files/audio/song.mp3"}`},
+	)
+	if len(envs) != 1 || envs[0].Type != agodesk.TypeChatMedia {
+		t.Fatalf("envelopes = %+v, want one chat.media", envs)
+	}
+	var payload agodesk.ChatMediaPayload
+	decodeAgodeskTestPayload(t, envs[0], &payload)
+	if payload.Path != "/api/agodesk/media/audio/song.mp3" {
+		t.Fatalf("media path = %q, want clean audio path", payload.Path)
+	}
+}
+
+func TestAgodeskMediaReferencesServeSignedAudio(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.PasswordHash = "configured"
+	s.Cfg.Auth.SessionSecret = "test-secret"
+	s.Cfg.Directories.DataDir = t.TempDir()
+	audioDir := filepath.Join(s.Cfg.Directories.DataDir, "audio")
+	if err := os.MkdirAll(audioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/agodesk/media/", handleAgodeskMediaAsset(s))
+	handler := authMiddleware(s, mux)
+	for _, tt := range []struct {
+		name, message, filename string
+	}{
+		{"plain", "/files/audio/song.mp3", "song.mp3"},
+		{"ampersand", "/files/audio/song.mp3&", "song.mp3"},
+		{"html_entity", "/files/audio/song.mp3&amp;", "song.mp3"},
+		{"json_escape", `Tool Output: {"web_path":"/files/audio/song.mp3\u0026"}`, "song.mp3"},
+		{"escaped_quote", `\"/files/audio/song.mp3\"`, "song.mp3"},
+		{"backtick", "`/files/audio/song.mp3`", "song.mp3"},
+		{"query", "/files/audio/song.mp3?download=1&", "song.mp3"},
+		{"fragment", "/files/audio/song.mp3#player", "song.mp3"},
+		{"markdown", "[Listen](/files/audio/song.mp3).", "song.mp3"},
+		{"encoded_filename", "/files/audio/mix%25%20%26%20%23.mp3&", "mix% & #.mp3"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := os.WriteFile(filepath.Join(audioDir, tt.filename), []byte("song-data"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			for source, extract := range map[string]func(string) (string, string, bool){
+				"tool_output": agodeskMediaEventFromToolOutput,
+				"assistant":   agodeskMediaEventFromServedPaths,
+			} {
+				t.Run(source, func(t *testing.T) {
+					event, message, ok := extract(tt.message)
+					if !ok || event != "audio" {
+						t.Fatalf("extraction = %q, %v; want audio", event, ok)
+					}
+					payload, ok := agodeskChatMediaPayload(s, event, message, "agodesk:dev-1", "sess-1", "req-1", nil)
+					if !ok {
+						t.Fatal("media payload rejected")
+					}
+					req := httptest.NewRequest(http.MethodGet, payload.Path, nil)
+					if req.URL.Path != "/api/agodesk/media/audio/"+tt.filename || len(req.URL.Query()) != 2 {
+						t.Fatalf("signed media URL contains text delimiters: %q", payload.Path)
+					}
+					rec := httptest.NewRecorder()
+					handler.ServeHTTP(rec, req)
+					if rec.Code != http.StatusOK || rec.Body.String() != "song-data" || !strings.HasPrefix(rec.Header().Get("Content-Type"), "audio/") {
+						t.Fatalf("audio fetch: status=%d, type=%q, body=%q", rec.Code, rec.Header().Get("Content-Type"), rec.Body.String())
+					}
+					for _, tampered := range []string{strings.Replace(payload.Path, "/audio/", "/images/", 1), payload.Path + "&inline=1"} {
+						rec = httptest.NewRecorder()
+						handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tampered, nil))
+						if rec.Code != http.StatusUnauthorized {
+							t.Fatalf("tampered media status = %d, want 401", rec.Code)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestAgodeskChatBrokerIgnoresTTSToolOutputForMedia(t *testing.T) {
 	state := &agodeskConnectionState{
 		sessionID:    "agodesk:dev-1",
