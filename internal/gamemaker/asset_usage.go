@@ -32,6 +32,8 @@ type PackAsset struct {
 	Origin       Point         `json:"origin"`
 	AssemblyPart bool          `json:"assembly_part,omitempty"`
 	Transform    TransformRule `json:"transform"`
+
+	CompatibleViews []string `json:"compatible_views,omitempty"`
 }
 type PackAnimation struct {
 	ID        string `json:"id"`
@@ -78,6 +80,8 @@ type AssetSearchResult struct {
 	Direction      string   `json:"direction"`
 	Fragment       bool     `json:"fragment,omitempty"`
 	score          int
+
+	CompatibleViews []string `json:"compatible_views,omitempty"`
 }
 type AssetDetail struct {
 	Presentation *PresentationAsset `json:"presentation,omitempty"`
@@ -92,6 +96,14 @@ type AssetDetail struct {
 	Variants       []PackAsset     `json:"variants,omitempty"`
 	Animations     []PackAnimation `json:"animations"`
 	MissingActions []string        `json:"missing_actions"`
+}
+
+// Additional perspectives are reviewed catalog data, never agent-supplied overrides.
+func (d AssetDetail) supportsPerspective(view string) bool {
+	if d.Asset != nil && slices.Contains(d.Asset.CompatibleViews, view) {
+		return true
+	}
+	return !(d.View == "top" && view == "side" || d.View == "side" && view != "side")
 }
 
 func readPackUsage(id string) (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, error) {
@@ -183,7 +195,7 @@ func searchAssets(query, packID, view string, limit int, kinds ...string) ([]Ass
 			return nil, err
 		}
 		add := func(r AssetSearchResult, tags []string) {
-			if view != "" && r.View != view {
+			if view != "" && r.View != view && !slices.Contains(r.CompatibleViews, view) {
 				return
 			}
 			text := strings.ToLower(r.AssetID + " " + r.AssemblyID + " " + r.Name + " " + r.Description + " " + strings.Join(tags, " "))
@@ -212,7 +224,7 @@ func searchAssets(query, packID, view string, limit int, kinds ...string) ([]Ass
 			out = append(out, r)
 		}
 		for _, a := range assets {
-			result := AssetSearchResult{Entity: a.Entity, AssetID: a.ID, Name: a.Name, Description: a.Description, View: a.View, Direction: a.Direction, Fragment: a.AssemblyPart}
+			result := AssetSearchResult{Entity: a.Entity, AssetID: a.ID, Name: a.Name, Description: a.Description, View: a.View, CompatibleViews: a.CompatibleViews, Direction: a.Direction, Fragment: a.AssemblyPart}
 			if a.Model != nil {
 				result.Kind = "model3d"
 				result.Category = a.Model.Category

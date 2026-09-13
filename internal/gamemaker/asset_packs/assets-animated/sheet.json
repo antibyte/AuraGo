@@ -8,7 +8,7 @@
     "environment"
   ],
   "schema_version": 1,
-  "version": "2",
+  "version": "3",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -833,6 +833,10 @@
         "flip_x": false,
         "flip_y": false
       },
+      "compatible_views": [
+        "top",
+        "side"
+      ],
       "frames": [
         0,
         1,
@@ -903,6 +907,10 @@
         "flip_x": false,
         "flip_y": false
       },
+      "compatible_views": [
+        "top",
+        "side"
+      ],
       "frames": [
         20,
         21,
@@ -938,6 +946,10 @@
         "flip_x": false,
         "flip_y": false
       },
+      "compatible_views": [
+        "top",
+        "side"
+      ],
       "frames": [
         30,
         31,
@@ -966,14 +978,18 @@
         "spin"
       ],
       "view": "top",
-      "entity": "coin_spin",
-      "action": "effect",
+      "entity": "coin",
+      "action": "spin",
       "transform": {
         "mode": "fixed",
         "forward_radians": 0,
         "flip_x": false,
         "flip_y": false
       },
+      "compatible_views": [
+        "top",
+        "side"
+      ],
       "frames": [
         40,
         41,
@@ -1280,8 +1296,8 @@
       "frame_rate": 12,
       "repeat": -1,
       "yoyo": false,
-      "entity": "coin_spin",
-      "action": "effect",
+      "entity": "coin",
+      "action": "spin",
       "direction": "none"
     },
     {

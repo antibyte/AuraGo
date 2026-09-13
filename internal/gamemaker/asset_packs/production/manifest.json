@@ -1466,7 +1466,11 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "compatible_views": [
+          "top",
+          "side"
+        ]
       },
       {
         "id": "campfire",
@@ -1528,7 +1532,11 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "compatible_views": [
+          "top",
+          "side"
+        ]
       },
       {
         "id": "portal",
@@ -1559,7 +1567,11 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "compatible_views": [
+          "top",
+          "side"
+        ]
       },
       {
         "id": "coin_spin",
@@ -1584,14 +1596,18 @@
           44
         ],
         "loop": true,
-        "action": "effect",
-        "entity": "coin_spin",
+        "action": "spin",
+        "entity": "coin",
         "transform": {
           "mode": "fixed",
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "compatible_views": [
+          "top",
+          "side"
+        ]
       },
       {
         "id": "chest_open",
@@ -1757,7 +1773,7 @@
         }
       }
     ],
-    "version": "2"
+    "version": "3"
   },
   {
     "id": "human-characters-top-down",

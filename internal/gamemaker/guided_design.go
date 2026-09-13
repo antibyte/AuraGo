@@ -260,7 +260,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 					return p, fmt.Errorf("design.assets[%d]: %w", i, err)
 				}
 				spec.Version = detail.Version
-				if project.Dimension == "2d" && (detail.View == "top" && p.Perspective == "side" || detail.View == "side" && p.Perspective != "side") {
+				if project.Dimension == "2d" && !detail.supportsPerspective(p.Perspective) {
 					message := fmt.Sprintf("design.assets[%d] role %q: %s/%s%s is %s-view art; base %q needs %s-view art", i, a.Role, a.PackID, a.AssetID, a.AssemblyID, detail.View, d.Base, p.Perspective)
 					query := a.Role
 					if detail.Asset != nil {

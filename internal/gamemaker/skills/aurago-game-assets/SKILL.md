@@ -18,6 +18,8 @@ Match the requested camera before searching: platformer requires `view: side`,
 topdown requires `view: top`. On a compact-design mismatch choose a returned
 compatible catalog alternative and resubmit the complete assets array, retaining
 all other roles. Never switch the genre or edit read-only asset view metadata.
+Search also includes sprites whose reviewed `compatible_views` support the
+requested camera, such as animated coins. Keep their original IDs and animations.
 
 ## Original 3D models
 

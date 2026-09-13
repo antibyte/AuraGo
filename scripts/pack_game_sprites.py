@@ -107,6 +107,11 @@ def pack(definition, source_root, check=False):
             ids.append(index)
             frames.append({"index": index, "asset_id": asset["id"], "x": x, "y": y, "w": 64, "h": 64})
         item = {key: asset[key] for key in ("id", "name", "description", "tags", "view", "entity", "action", "transform")}
+        if "compatible_views" in asset:
+            views = asset["compatible_views"]
+            if not isinstance(views, list) or not views or any(v not in ("side", "top", "board") for v in views):
+                raise ValueError(f"Invalid compatible_views: {asset['id']}")
+            item["compatible_views"] = views
         item.update(frames=ids, direction=asset.get("direction", "none"),
                     origin={"x": .5, "y": .9375 if asset.get("view") == "side" else .5},
                     flip_x=asset["transform"]["flip_x"])

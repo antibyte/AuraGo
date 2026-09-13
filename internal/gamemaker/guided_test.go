@@ -106,6 +106,69 @@ func TestGuidedPerspectiveCorrectionPreservesPlatformer(t *testing.T) {
 	}
 }
 
+func TestGuidedAnimatedCoinSupportsBothPerspectives(t *testing.T) {
+	s := newTestService(t)
+	for _, id := range []string{"coin_spin", "explosion", "smoke", "portal"} {
+		detail, err := s.DescribeAsset("assets-animated", id, "")
+		if err != nil || !detail.supportsPerspective("side") || !detail.supportsPerspective("top") {
+			t.Fatalf("reviewed sprite lost a perspective: %s %v", id, err)
+		}
+	}
+	matches, err := s.SearchAssets("coin", "", "side", 12)
+	if err != nil || len(matches) == 0 {
+		t.Fatalf("coin search: %+v %v", matches, err)
+	}
+	for _, match := range matches {
+		if match.AssetID == "rotor_spin" {
+			t.Fatal("coin search suggested a rotor")
+		}
+	}
+	for _, base := range []string{"platformer", "topdown"} {
+		t.Run(base, func(t *testing.T) {
+			project := createTestProject(t, s, "2d")
+			s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+				if run.Stage == "building" {
+					a := run.Plan.Assets[0]
+					if run.Plan.Template != base || a.Role != "coin" || a.PackID != "assets-animated" || a.AssetID != "coin_spin" || a.Version != "3" {
+						t.Fatalf("selected animated coin replaced: %+v", run.Plan)
+					}
+					detail, err := s.DescribeAsset(a.PackID, a.AssetID, "")
+					if err != nil || len(detail.Animations) != 1 || detail.Animations[0].ID != "coin_spin" || detail.Animations[0].Entity != "coin" || detail.Animations[0].Action != "spin" {
+						t.Fatalf("coin animation not retained: %+v %v", detail, err)
+					}
+					matches, err := s.SearchAssets("coin", "assets-animated", run.Plan.Perspective, 6)
+					if err != nil || len(matches) != 1 || matches[0].AssetID != a.AssetID || len(matches[0].CompatibleViews) != 2 {
+						t.Fatalf("compatible coin missing in search: %+v %v", matches, err)
+					}
+					// Full plans use the same catalog rule and retain their animation checks.
+					p := *run.Plan
+					p.Assets = append([]PlanAsset(nil), p.Assets...)
+					p.Assets[0].Animations = []string{"coin_spin"}
+					if err := s.checkPlan(project, p); err != nil {
+						t.Fatalf("full plan rejected compatible animation: %v", err)
+					}
+					if base == "platformer" {
+						p.Assets[0].AssetID = "chest_open"
+						p.Assets[0].Animations = nil
+						if err := s.checkPlan(project, p); err == nil || !strings.Contains(err.Error(), "perspective") {
+							t.Fatalf("directional art lost its restriction: %v", err)
+						}
+					}
+					return errors.New("coin accepted on first submission")
+				}
+				return s.SetDesignJSON(ctx, run.Job.ID, []byte(fmt.Sprintf(`{"base":%q,"objective":"Collect coins","features":["Animated coins"],"assets":[{"role":"coin","pack_id":"assets-animated","asset_id":"coin_spin"}]}`, base)))
+			}))
+			job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if done := waitJob(t, s, job.ID); done.Error != "coin accepted on first submission" {
+				t.Fatal(done.Error)
+			}
+		})
+	}
+}
+
 func TestGuidedDesignRejectsUnknownFields(t *testing.T) {
 	s := newTestService(t)
 	for _, base := range []string{"fps", "exploration", "transport", "flight", "space"} {

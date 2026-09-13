@@ -11,6 +11,11 @@ hashes also travel in metadata. Preserve originals; change pose/crop choices in
 Bump the pack's `version` when changing already-released artwork or metadata;
 existing projects keep their earlier versioned copies.
 
+Version 3 of `assets-animated` corrects the coin's entity/action to `coin`/`spin`.
+Reviewed explosion, smoke, portal and coin sprites support both top and side
+views through explicit `compatible_views`; directional world objects retain
+their original view restrictions. Pixels, frames and animation IDs are unchanged.
+
 Version 2 adds explicit reviewed entity/action groups and per-asset/assembly
 transforms; PNG pixels are unchanged. `mode` is fixed, flip, directional or
 rotate. `forward_radians` uses screen coordinates: right 0, down pi/2, left pi,

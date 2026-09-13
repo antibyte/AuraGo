@@ -450,7 +450,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 				return bad(field, "select the complete assembly, not an isolated fragment")
 			}
 			view := detail.View
-			if project.Dimension == "2d" && (view == "side" && p.Perspective != "side" || view == "top" && p.Perspective == "side") {
+			if project.Dimension == "2d" && !detail.supportsPerspective(p.Perspective) {
 				return bad("perspective", fmt.Sprintf("%s uses %s-view art: set plan.perspective to %q or select compatible art; asset view is read-only catalog metadata", field, view, view))
 			}
 			if !modelPlan && !detail.allowsDirection(a.Direction) {

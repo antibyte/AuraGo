@@ -29,7 +29,7 @@ func TestSpritePackContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if pack.SchemaVersion != 1 || pack.Version != "2" || pack.Columns != 10 || pack.Rows != 10 || pack.FrameWidth != 64 || pack.FrameHeight != 64 || pack.Image != "sheet.png" {
+			if pack.SchemaVersion != 1 || pack.Version != summary.Version || pack.Columns != 10 || pack.Rows != 10 || pack.FrameWidth != 64 || pack.FrameHeight != 64 || pack.Image != "sheet.png" {
 				t.Fatal("invalid grid contract")
 			}
 			data, err := s.AssetPackFile(summary.ID, "sheet.png")
@@ -308,7 +308,8 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 			return fmt.Errorf("project import inventory incomplete: %d, %v", len(inventory), err)
 		}
 		for _, copy := range inventory {
-			if copy.Version != "2" || copy.Image == "" || copy.Metadata == "" {
+			pack, err := s.DescribeAssetPack(copy.ID)
+			if err != nil || copy.Version != pack.Version || copy.Image == "" || copy.Metadata == "" {
 				return fmt.Errorf("invalid imported context: %+v", copy)
 			}
 		}
@@ -350,9 +351,13 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 		files[f.Name] = data
 	}
 	for _, id := range ids {
+		pack, err := s.DescribeAssetPack(id)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for _, filename := range []string{"sheet.png", "sheet.json"} {
 			want, _ := s.AssetPackFile(id, filename)
-			path := "assets/builtin/" + id + "/2/" + filename
+			path := "assets/builtin/" + id + "/" + pack.Version + "/" + filename
 			if !bytes.Equal(files[path], want) {
 				t.Fatalf("exported project copy differs: %s", path)
 			}
