@@ -12,6 +12,16 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_validate
 
 # Game QA
 
+Repair tools are already attached; no discovery or activation is needed.
+Use `game_maker_file(operation: read, path, start_line, end_line)` at the reported
+source location, then `game_maker_file(operation: replace, path,
+expected_sha256, old_text, new_text)` with the returned full-file hash and one
+unique exact block. Keep unrelated code. Check `written` and `build.ok`, reuse
+the returned `sha256` for subsequent edits, and reread on conflicts. Use
+`game_maker_project(operation: list_files)` only when a source path is unknown.
+Repeat specific existing checks with `game_maker_validate(check_ids: [...])`;
+partial checks do not replace the final full validation.
+
 Use deterministic, scene-first checks. Scene structure is an input to QA: inspect the optional graph and exact bindings, then run bounded browser scenarios. Separate compiler/runtime diagnostics from unproven game quality. This package contains original AuraGo guidance and copies no TinySwords code, text, scripts, or assets.
 
 1. Call `game_maker_validate` with `scope: full` for 2D and guided 3D and inspect every check.

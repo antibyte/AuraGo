@@ -12,6 +12,14 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 
 # Three.js Gameplay
 
+Coding tools are already attached: call `game_maker_file` directly with
+`operation: read` (`path`, `start_line`, `end_line`), then `operation: replace`
+(`path`, current `expected_sha256`, unique `old_text`, `new_text`). Use `write`
+with complete `content` for new modules; inspect `written`, `sha256` and
+`build.ok` after edits. `game_maker_project(operation: list_files)` finds unknown
+paths. No tool discovery or activation is needed. Planning permits reads only;
+after acceptance, implement and validate using the supported scope below.
+
 Prefer a guided base (`fps`, `exploration`, `transport`, `flight`, `space`) via
 `set_design`. Edit its short main.ts config and game-specific hooks, retaining
 common.ts model loading, animation and lifecycle. All selected roles are bound.

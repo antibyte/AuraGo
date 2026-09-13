@@ -16,6 +16,33 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 Create one self-contained, offline, single-player browser game. Do not add
 multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 
+## Coding tools already available
+
+Call these native tools directly; do not discover, activate or search for an
+editor. Use the actual job ID from the supplied context in place of `JOB`.
+Planning exposes `read` only; `write` and `replace` become available after plan
+acceptance. The same tools serve both 2D and 3D building and repair.
+
+| Task | Tool and arguments |
+| --- | --- |
+| Find project files when their paths are unknown | `game_maker_project({"job_id":"JOB","operation":"list_files"})` |
+| Read the relevant source range and its full-file hash | `game_maker_file({"job_id":"JOB","operation":"read","path":"src/main.ts","start_line":1,"end_line":120})` |
+| Change one exact, unique block | `game_maker_file({"job_id":"JOB","operation":"replace","path":"src/main.ts","expected_sha256":"HASH_FROM_READ","old_text":"EXACT_EXISTING_BLOCK","new_text":"REPLACEMENT_BLOCK"})` |
+| Create a new module | `game_maker_file({"job_id":"JOB","operation":"write","path":"src/helpers.ts","content":"COMPLETE_SOURCE"})` |
+| Check the completed change in Studio | `game_maker_validate({"job_id":"JOB","scope":"full"})` |
+
+Prefer `replace` for existing code; empty `new_text` deletes the selected block.
+For a deliberate complete rewrite, use `write` with full content and the current
+`expected_sha256`. Line numbers are one-based; read at most 240 lines per call.
+Each successful edit returns a new `sha256`: use it for the next edit of that
+file. On a hash conflict, reread the affected range and adjust the change;
+never remove the precondition to force an overwrite. `written: true` means the
+file was saved, not that it compiles: check `build.ok` and fix its source
+diagnostics before runtime validation. Do not rewrite `vendor/` or `dist/`, run
+shell commands, or search for generic coding tools outside this job's scope.
+
+## Job workflow
+
 1. Use the supplied job context; inspect only information that is missing.
 2. Submit compact `set_design` using `design_example`: base, objective, features
    and selected asset roles. The server supplies metadata and canonical fields.
