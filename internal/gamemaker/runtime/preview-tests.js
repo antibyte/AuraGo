@@ -28,6 +28,10 @@
       listener_count:scene.input.keyboard.eventNames().reduce((n,event)=>n+scene.input.keyboard.listenerCount(event),0),
       elapsed_ms:scene.elapsed,...inspectAssets(scene)};
     for(const name of ['actions','score','hits','spawns','turns','ticks','ended','lives','health','goal_remaining','outcome','hit_events','pickup_events','win_events','lose_events'])if(Number.isFinite(state[name]))result[name]=state[name];
+    // Older source templates counted pickups as hits; observe their real pickup
+    // events without changing game state or treating combat hits as collection.
+    const pickups=scene.auditGame?.()?.events?.pickup;
+    if(Number.isFinite(pickups))result.pickup_events=pickups;
     return result;
   }
   function evidence() {

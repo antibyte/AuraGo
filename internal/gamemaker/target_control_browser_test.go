@@ -32,6 +32,7 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"around_wall", "topdown", "passed"}, {"sealed_wall", "topdown", "unavailable"}, {"interaction", "topdown", "passed"},
 		{"raised_collectible", "platformer", "passed"}, {"occupied_cell", "board", "passed"}, {"natural_miss", "blocks", "passed"},
 		{"floor_movement", "platformer", "passed"}, {"floor_pickup", "platformer", "passed"},
+		{"scene_pickup", "platformer", "passed"}, {"pickup_counter_only", "platformer", "unavailable"},
 		{"floor_disabled", "platformer", "failed"}, {"floor_embedded", "platformer", "unavailable"},
 		{"catalog_coin", "platformer", "passed"}, {"unknown_coin", "platformer", "unavailable"}, {"explicit_coin", "platformer", "unavailable"},
 		{"fps_offset", "three", "passed"}, {"fps_cover", "three", "passed"}, {"fps_sealed", "three", "unavailable"},
@@ -106,6 +107,29 @@ func TestTargetControlBrowser(t *testing.T) {
 			if err := installGameTemplate(root, plan); err != nil {
 				t.Fatal(err)
 			}
+			if tc.name == "scene_pickup" {
+				// Scene tools can add nodes after plan acceptance. Collection uses
+				// the builder's pickup counter, while combat hits must remain zero.
+				scene := Scene{SchemaVersion: 1, Dimension: "2d", Seed: 41, Levels: []SceneLevel{{ID: "main", Active: true}}, WorldBounds: SceneBounds{Min: Vec3{0, 0, 0}, Max: Vec3{960, 540, 0}},
+					Nodes: []SceneNode{
+						{ID: "player", Kind: "player", Position: Vec3{160, 450, 0}, Size: Vec3{28, 40, 0}},
+						{ID: "ground", Kind: "obstacle", Position: Vec3{480, 520, 0}, Size: Vec3{960, 40, 0}},
+						{ID: "coin", Kind: "entity", Position: Vec3{280, 470, 0}, Size: Vec3{20, 20, 0}},
+					},
+					Colliders:  []SceneCollider{{ID: "floor", NodeID: "ground", Shape: "box", Extents: Vec3{480, 20, 0}}},
+					Placements: []ScenePlacement{{ID: "coin-art", NodeID: "coin", AssetRole: "item", Behavior: "collect", Position: Vec3{280, 470, 0}}},
+				}
+				data, err := MarshalSceneJSON(scene)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(root, SceneFilePath), data, 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(root, "src/mechanics.json"), []byte(`{"blocks":[{"id":"walk","kind":"movement","target":"player","params":{"mode":"platformer","speed":240,"gravity":900}}]}`), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
 			path := filepath.Join(root, "src/main.ts")
 			source, err := os.ReadFile(path)
 			if err != nil {
@@ -118,6 +142,9 @@ func TestTargetControlBrowser(t *testing.T) {
 				source = bytes.ReplaceAll(source, []byte(old), []byte(next))
 			}
 			switch tc.name {
+			case "pickup_counter_only":
+				replace("this.physics.add.overlap(this.player,coin,", "this.physics.add.overlap(this.player,this.physics.add.group(),")
+				replace("this.state.actions++;", "this.state.actions++;this.feedback('pickup',this.player);")
 			case "floor_movement", "floor_pickup", "floor_disabled", "floor_embedded":
 				replace("160, 450, 28, 40", "80, 450, 28, 40")
 				replace("480, 520, 960, 40", "760, 500, 1600, 40")
@@ -157,7 +184,6 @@ func TestTargetControlBrowser(t *testing.T) {
 					// An exact but offscreen object must not be replaced by a nearby art alias.
 					replace("const danger =", "this.body(2000,470,20,20,0xff0000,true,'coin'); const danger =")
 				}
-				replace("coin.destroy();", "coin.destroy();this.state.pickup_events++;")
 			case "occupied_cell":
 				replace("this.marks=Array(9).fill(0);", "this.marks=Array(9).fill(0);this.marks[0]=1;")
 			}
@@ -211,6 +237,9 @@ func TestTargetControlBrowser(t *testing.T) {
 			checks := compareGameObservations([]GameScenario{scenario}, report.Observations)
 			if checks[0].Status != tc.want {
 				t.Fatalf("want %s: %+v", tc.want, checks)
+			}
+			if tc.name == "scene_pickup" && (report.Observations[0].After["hits"] != 0 || report.Observations[0].After["pickup_events"] != 1) {
+				t.Fatalf("collection must not count as combat: %+v", report.Observations[0])
 			}
 			t.Logf("%s: %+v", tc.name, checks)
 		})

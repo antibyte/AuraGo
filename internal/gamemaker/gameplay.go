@@ -185,6 +185,9 @@ func requiredScenarios(template string) []GameScenario {
 	input := check("input", "player_distance", "increased", target("move", "player"))
 	primary := check("primary", "actions", "increased", key("SPACE", 300))
 	rules := check("rules", "hits", "increased", target("reach", "item"))
+	if template == "platformer" || template == "topdown" || template == "minimal" {
+		rules.Metric = "pickup_events"
+	}
 	if template == "blocks" {
 		rules.Steps = []GameTestStep{target("catch", "ball")}
 	}
