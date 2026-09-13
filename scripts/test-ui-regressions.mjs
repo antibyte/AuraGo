@@ -127,6 +127,66 @@ function testVersionedServiceWorkerRegistration() {
   assert.deepEqual(registrations, ['/sw.js?v=chat-build']);
 }
 
+async function testGameMakerEventConnectionLifecycle() {
+  const app = read('ui/js/desktop/apps/game-maker-studio.js');
+  const sources = [], statuses = [], cards = [], phases = {};
+  const context = {
+    EventSource: class { constructor() { sources.push(this); } addEventListener() {} close() { this.closed = true; } },
+    eventTypes: ['job_status'], terminalStatuses: new Set(['ready', 'failed', 'cancelled']),
+    updateStatus(_state, status) { statuses.push(status); }, syncJobControls() {}, finalizeStreaming() {}, stopElapsed() {},
+    phaseMarkup(_state, status) { return status; }, renderProjects() {},
+    async reloadProjectRecord() {}, appendResultCard(_state, kind, message) { cards.push({ kind, message }); }
+  };
+  vm.createContext(context);
+  for (const [start, end] of [['function connectEvents(', 'function parseEvent('], ['function closeEvents(', 'function dispose('], ['function handleJobStatus(', 'function finalizeStreaming(']]) {
+    vm.runInContext(sourceBetween(app, start, end), context);
+  }
+  const state = { project: { id: 'bo', status: 'draft' }, job: { id: 'job', status: 'building' },
+    api: { eventURL: () => '/events' }, container: { querySelector: () => phases }, context: { t: key => key } };
+  context.connectEvents(state);
+  const first = sources[0];
+  first.onerror();
+  assert.equal(statuses.at(-1), 'reconnecting');
+  first.onopen();
+  assert.equal(statuses.at(-1), 'building', 'open without replayed events restores job state');
+  assert.equal(state.reconnecting, false);
+  context.handleJobStatus(state, { status: 'cancelled', error: 'Game creation exceeded its time limit.' });
+  await Promise.resolve();
+  assert.equal(phases.innerHTML, 'cancelled', 'terminal jobs leave the active building phase');
+  assert.equal(cards[0].kind, 'cancelled');
+  assert.equal(cards[0].message, 'Game creation exceeded its time limit.');
+  for (const status of ['cancelled', 'failed', 'ready']) {
+    state.job.status = status;
+    first.onerror(); first.onopen();
+    assert.deepEqual(statuses.slice(-2), [status, status], 'transport cannot obscure a terminal job');
+  }
+  context.closeEvents(state);
+  assert.equal(first.closed, true);
+  assert.equal(state.reconnecting, false);
+  context.connectEvents(state);
+  const count = statuses.length;
+  first.onerror(); first.onopen();
+  assert.equal(statuses.length, count, 'old project stream cannot update the new project');
+  state.disposed = true;
+  sources[1].onerror(); sources[1].onopen();
+  assert.equal(statuses.length, count, 'disposed windows ignore late callbacks');
+
+  // A project refresh must retain the terminal job badge and ignore old responses.
+  context.setButton = () => {};
+  state.disposed = false; state.capabilities = {}; state.job.status = 'cancelled';
+  vm.runInContext(sourceBetween(app, 'function renderProjectMeta(', 'function renderConversation('), context);
+  context.renderProjectMeta(state);
+  assert.equal(statuses.at(-1), 'cancelled', 'draft project metadata must not overwrite cancelled job');
+  let resolve;
+  state.api.getProject = () => new Promise(done => { resolve = done; });
+  vm.runInContext(sourceBetween(app, 'async function reloadProjectRecord(', 'function appendAgentDelta('), context);
+  const pending = context.reloadProjectRecord(state);
+  state.project = { id: 'new-project' };
+  resolve({ project: { id: 'bo' } });
+  await pending;
+  assert.equal(state.project.id, 'new-project');
+}
+
 async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
   const sent = [];
@@ -2038,6 +2098,7 @@ async function testStoreOperationFailuresRemainVisible() {
 const tests = [
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
+  ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
   ['Game Maker stops reports from expired or finished validation', testGameMakerPreviewStopsExpiredValidation],

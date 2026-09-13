@@ -410,7 +410,7 @@
         setButton(state, 'open_tab', Boolean(project.current_revision));
         setButton(state, 'code', Boolean(state.capabilities.code_studio && project.current_revision));
         syncJobControls(state);
-        updateStatus(state, project.status || 'draft');
+        updateStatus(state, state.job?.status || project.status || 'draft');
     }
 
     function renderConversation(state) {
@@ -452,6 +452,11 @@
         if (!state.project || typeof EventSource !== 'function') return;
         const source = new EventSource(state.api.eventURL(state.project.id, state.lastEventID));
         state.eventSource = source;
+        source.onopen = () => {
+            if (state.disposed || source !== state.eventSource) return;
+            state.reconnecting = false;
+            updateStatus(state, state.job?.status || state.project?.status || 'draft');
+        };
         eventTypes.forEach(type => source.addEventListener(type, event => {
             if (state.disposed || source !== state.eventSource) return;
             const payload = parseEvent(event);
@@ -460,8 +465,9 @@
             handleEvent(state, payload);
         }));
         source.onerror = () => {
+            if (state.disposed || source !== state.eventSource) return;
             state.reconnecting = true;
-            updateStatus(state, 'reconnecting');
+            updateStatus(state, terminalStatuses.has(state.job?.status) ? state.job.status : 'reconnecting');
         };
     }
 
@@ -547,11 +553,13 @@
         finalizeStreaming(state);
         stopElapsed(state);
         const status = payload.status;
+        const job = state.job;
         state.activeJob = null;
         state.repairCount = 0;
         state.lastPhase = '';
+        state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, status);
         reloadProjectRecord(state).then(() => {
-            if (state.disposed) return;
+            if (state.disposed || state.job !== job) return;
             if (status === 'ready') {
                 if (state.project?.dimension === '3d') appendActivity(state, state.context.t('game_maker.gameplay_unverified'));
                 const revision = (state.job && state.job.result_revision) ||
@@ -562,7 +570,7 @@
                 appendResultCard(state, 'error', payload.error ||
                     (state.job && state.job.error) || state.context.t('game_maker.job_failed_title'));
             } else {
-                appendActivity(state, state.context.t('game_maker.status_cancelled'));
+                appendResultCard(state, 'cancelled', payload.error || state.job?.error || state.context.t('game_maker.status_cancelled'));
             }
             renderProjects(state);
         });
@@ -584,7 +592,7 @@
             card.innerHTML = `<strong>${esc(message)}</strong>
                 <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
         } else {
-            card.innerHTML = `<strong>${esc(t('game_maker.job_failed_title'))}</strong>
+            card.innerHTML = `<strong>${esc(t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title'))}</strong>
                 <p>${esc(message)}</p>
                 <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>`;
         }
@@ -609,9 +617,10 @@
 
     async function reloadProjectRecord(state) {
         if (!state.project) return;
+        const projectID = state.project.id;
         try {
-            const body = await state.api.getProject(state.project.id);
-            if (state.disposed) return;
+            const body = await state.api.getProject(projectID);
+            if (state.disposed || state.project?.id !== projectID) return;
             state.project = body.project;
             state.messages = body.messages || state.messages;
             const index = state.projects.findIndex(item => item.id === state.project.id);
@@ -1082,6 +1091,7 @@
     function closeEvents(state) {
         if (state.eventSource) state.eventSource.close();
         state.eventSource = null;
+        state.reconnecting = false;
         state.lastEventID = 0;
     }
 

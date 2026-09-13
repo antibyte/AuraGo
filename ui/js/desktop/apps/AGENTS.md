@@ -912,6 +912,10 @@ registration lives in `internal/desktop/types.go`.
   marks the single globally running job (library spinner, disabled change
   form plus hint in other projects) and is polled only while another project
   is busy.
+- EventSource open restores status even without replayed events; stale callbacks
+  cannot affect another project or disposed window. Terminal job status survives
+  reconnects and project refreshes. Cancellation shows its server reason and retry
+  action, with no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
 - Game Maker visible strings use `game_maker.*` plus
   `desktop.app_game_maker_studio` in all 16 `ui/lang/desktop/*.json` files.
   Missing skills/revisions modals throw `game_maker.modules_load_failed`.
