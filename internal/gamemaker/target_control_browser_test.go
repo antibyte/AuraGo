@@ -31,8 +31,10 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"moving_enemy", "shooter", "passed"}, {"missing_enemy", "shooter", "unavailable"}, {"counter_only", "shooter", "unavailable"},
 		{"around_wall", "topdown", "passed"}, {"sealed_wall", "topdown", "unavailable"}, {"interaction", "topdown", "passed"},
 		{"raised_collectible", "platformer", "passed"}, {"occupied_cell", "board", "passed"}, {"natural_miss", "blocks", "passed"},
+		{"catalog_coin", "platformer", "passed"}, {"unknown_coin", "platformer", "unavailable"}, {"explicit_coin", "platformer", "unavailable"},
 		{"fps_offset", "three", "passed"}, {"fps_cover", "three", "passed"}, {"fps_sealed", "three", "unavailable"},
 		{"ground_route", "three", "passed"},
+		{"model_asset_target", "three", "passed"},
 		{"move_blocked_right", "topdown", "passed"}, {"move_disabled", "topdown", "failed"},
 		{"paused", "topdown", "unavailable"},
 	} {
@@ -62,11 +64,14 @@ func TestTargetControlBrowser(t *testing.T) {
 			if tc.name == "natural_miss" {
 				scenario = GameScenario{ID: "natural_loss", Metric: "lives", Compare: "decreased", Steps: []GameTestStep{{Action: "target", Target: "ball", Mode: "avoid", MS: 4000}}}
 			}
+			if tc.name == "catalog_coin" || tc.name == "unknown_coin" || tc.name == "explicit_coin" {
+				scenario = GameScenario{ID: "collect_coin_check", Metric: "pickup_events", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "coin", Mode: "reach", MS: 4000}}}
+			}
 			if dimension == "3d" {
 				at := Vec3{3, 1, 7}
 				behavior := "destroy"
 				mode := "aim"
-				if tc.name == "ground_route" {
+				if tc.name == "ground_route" || tc.name == "model_asset_target" {
 					at = Vec3{0, .5, 6}
 					behavior = "collect"
 					mode = "reach"
@@ -89,8 +94,11 @@ func TestTargetControlBrowser(t *testing.T) {
 				}
 				plan.Scene = &scene
 				scenario = GameScenario{ID: "target_rule", Metric: "hits", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "target", Mode: mode, MS: 4000}}}
-				if tc.name == "ground_route" {
+				if tc.name == "ground_route" || tc.name == "model_asset_target" {
 					scenario.Metric = "pickup_events"
+				}
+				if tc.name == "model_asset_target" {
+					scenario.Steps[0].Target = "crystal"
 				}
 			}
 			if err := installGameTemplate(root, plan); err != nil {
@@ -126,15 +134,30 @@ func TestTargetControlBrowser(t *testing.T) {
 				replace("500,270,70,140", "300,270,70,540")
 			case "raised_collectible":
 				replace("280,470,20,20", "350,390,20,20")
+			case "catalog_coin", "unknown_coin", "explicit_coin":
+				// Reproduce the metadata attached by body(...,'item') for planned coin art.
+				id := "coin"
+				if tc.name == "unknown_coin" {
+					id = "other-coin"
+				}
+				replace("const danger =", "coin.__gmAssets=[{role:'item',asset_id:'"+id+"'}]; const danger =")
+				if tc.name == "explicit_coin" {
+					// An exact but offscreen object must not be replaced by a nearby art alias.
+					replace("const danger =", "this.body(2000,470,20,20,0xff0000,true,'coin'); const danger =")
+				}
+				replace("coin.destroy();", "coin.destroy();this.state.pickup_events++;")
 			case "occupied_cell":
 				replace("this.marks=Array(9).fill(0);", "this.marks=Array(9).fill(0);this.marks[0]=1;")
 			}
 			if dimension == "3d" {
 				mode := "fps"
-				if tc.name == "ground_route" {
+				if tc.name == "ground_route" || tc.name == "model_asset_target" {
 					mode = "exploration"
 				}
 				source = []byte("import {startGame} from './common';startGame({mode:'" + mode + "',objective:'Reach the target',speed:6,goal:1,duration:0,objects:[]});")
+				if tc.name == "model_asset_target" {
+					source = bytes.Replace(source, []byte("objects:[]"), []byte("objects:[],setup(api){api.builder.nodes.get('target').object.userData.assetID='crystal';}"), 1)
+				}
 			}
 			if err := os.WriteFile(path, source, 0600); err != nil {
 				t.Fatal(err)

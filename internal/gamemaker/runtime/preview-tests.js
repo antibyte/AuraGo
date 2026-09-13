@@ -86,7 +86,7 @@
       const roles=[o.__gmRole,...(o.__gmAssets||[]).map(a=>a.role),r?.node.role,...(r?.node.behaviors||[]).map(a=>a.type)].filter(Boolean);
       if(children(scene.enemies).includes(o))roles.push('enemy');if(o===scene.ball)roles.push('ball');if(board.includes(o))roles.push('cell');if(shots.has(o))roles.push('projectile');
       const active=o.active===true&&(!body||body.enable!==false),x=rect.x+rect.width/2,y=rect.y+rect.height/2;
-      return {id:r?.node.id||o.__auragoBrickID||o.__gmID||identity(o),roles,x,y,z:0,w:rect.width,h:rect.height,active,
+      return {id:r?.node.id||o.__auragoBrickID||o.__gmID||identity(o),roles,asset_ids:(o.__gmAssets||[]).map(a=>a.asset_id).filter(Boolean),x,y,z:0,w:rect.width,h:rect.height,active,
         visible:active&&x+rect.width/2>=view.x&&x-rect.width/2<=view.right&&y+rect.height/2>=view.y&&y-rect.height/2<=view.bottom,
         solid:active&&body?.immovable&&linked(o,player),health:r?.health??o.__hp,mark:board.includes(o)?scene.marks?.[board.indexOf(o)]:Boolean(o.opened),
         vx:body?.velocity?.x||0,vy:body?.velocity?.y||0,grounded:body?.blocked?.down||body?.touching?.down,
@@ -151,8 +151,12 @@
           if(view.mode==='fps'&&vector[0])key=vector[0]>0?'A':'D';
           result.contacts++;result.reason='timeout';apply(new Set([key]));await wait(50);continue;
         }
+        // Models sometimes name the exact catalog asset (coin) instead of its
+        // role (item). Resolve only metadata on actual objects, never guessed art.
+        const direct=o=>o.id===command.target||o.roles?.some(r=>r===command.target||r.startsWith(command.target+'_'));
+        const hasDirect=view.targets.some(direct);
         const p=view.player,now=snapshot(inspectAssets),candidates=view.targets.filter(o=>o.active&&o.visible&&
-          (o.id===command.target||o.roles?.some(r=>r===command.target||r.startsWith(command.target+'_')))&&
+          (hasDirect?direct(o):o.asset_ids?.includes(command.target))&&
           (command.mode!=='select'||!o.mark));
         if(command.mode==='avoid'&&view.kind==='2d'&&view.targets.some(o=>o.id===lock&&o.y-o.h/2>(view.bounds.bottom??view.bounds.y+view.bounds.height)))observedMiss=true;
         if(observedMiss&&Number.isFinite(now.lives)&&now.lives<baseline.lives)result.effects=1;
