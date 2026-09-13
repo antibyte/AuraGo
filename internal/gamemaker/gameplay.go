@@ -394,8 +394,8 @@ func (s *Service) stopAfterValidation(jobID string, repairRound bool, exploratio
 			// A first edit must not disable the stall guard for the rest of the job.
 			// Check only at the existing exploration interval; invalid tool attempts
 			// and repeated reads do not postpone validation of the saved implementation.
-			var write int64
-			if err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id),0) FROM gm_events WHERE job_id=? AND event_type='file_changed'", jobID).Scan(&write); err != nil {
+			write, err := s.LastSourceWriteID(ctx, jobID)
+			if err != nil {
 				return false
 			}
 			if write == lastWrite {

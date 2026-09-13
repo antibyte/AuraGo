@@ -284,3 +284,82 @@ func TestGameMakerToolCallLimit(t *testing.T) {
 		}
 	}
 }
+
+func TestGameMakerEmptyFinalValidatesOnlyNewlySavedWork(t *testing.T) {
+	root := t.TempDir()
+	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	previous := gamemaker.DefaultService()
+	gamemaker.SetDefaultService(service)
+	defer gamemaker.SetDefaultService(previous)
+	service.SetSkillStatus(nil, true)
+	var calls atomic.Int32
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		if calls.Add(1) == 1 {
+			args, _ := json.Marshal(map[string]any{"operation": "write", "path": "src/main.ts", "content": "const broken = ;"})
+			delta := map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": "saved-edit", "type": "function", "function": map[string]any{"name": "game_maker_file", "arguments": string(args)}}}}
+			data, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": delta, "finish_reason": "tool_calls"}}})
+			fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", data)
+			return
+		}
+		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer provider.Close()
+	cfg := &config.Config{}
+	cfg.LLM.Model, cfg.LLM.ProviderType = "test-game-model", "openai"
+	cfg.Agent.ContextWindow = 65536
+	cfg.CircuitBreaker.LLMTimeoutSeconds = 10
+	cfg.GameMaker.Enabled = true
+	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
+	clientConfig := openai.DefaultConfig("local-test")
+	clientConfig.BaseURL = provider.URL
+	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server.Registry = tools.NewProcessRegistry(server.Logger)
+	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.ShortTermMem.Close()
+	runner := &gameMakerAgentRunner{server: server, service: service}
+	service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		if run.Stage == "planning" {
+			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"minimal","objective":"Custom challenge","features":["Custom mechanic"]}`))
+		}
+		if run.Stage == "repair" {
+			if len(run.Diagnostics) == 0 || !strings.Contains(run.Diagnostics[0].Message, "Unexpected") {
+				return fmt.Errorf("saved invalid source bypassed validation: %+v", run.Diagnostics)
+			}
+			// Old building writes cannot count as progress in a later empty repair.
+			if err := runner.RunGameMakerJob(ctx, run); err == nil || !strings.Contains(err.Error(), "empty response") {
+				return fmt.Errorf("empty repair reused earlier writes: %v", err)
+			}
+			return errors.New("verified empty-final validation handoff")
+		}
+		return runner.RunGameMakerJob(ctx, run)
+	}))
+	project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Empty final", Description: "Custom challenge", Dimension: "2d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := service.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{Prompt: "Implement the game"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(20 * time.Second); ; {
+		done, err := service.GetJob(context.Background(), job.ID)
+		if err == nil && done.Status == "failed" {
+			if done.Error != "verified empty-final validation handoff" || done.ResultRevision != 0 {
+				t.Fatalf("unexpected completion: %+v", done)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("empty-final job did not terminate")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}

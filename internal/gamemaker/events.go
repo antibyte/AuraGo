@@ -53,6 +53,16 @@ func (s *Service) EventsAfter(ctx context.Context, projectID string, afterID int
 	return out, rows.Err()
 }
 
+// LastSourceWriteID is a job-local progress cursor, not validation evidence.
+func (s *Service) LastSourceWriteID(ctx context.Context, jobID string) (int64, error) {
+	var id int64
+	err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id),0) FROM gm_events WHERE job_id=? AND event_type='file_changed'", jobID).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("read game maker source progress: %w", err)
+	}
+	return id, nil
+}
+
 func (s *Service) Subscribe(projectID string) (<-chan Event, func()) {
 	ch := make(chan Event, 32)
 	s.mu.Lock()

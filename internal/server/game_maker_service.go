@@ -526,6 +526,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 			}
 		}
 	}()
+	sourceBefore, sourceErr := r.service.LastSourceWriteID(ctx, run.Job.ID)
 	response, err := agent.ExecuteAgentLoop(gamemaker.WithJobContext(ctx, run.Job.ID), req, runCfg, true, broker)
 	if err != nil {
 		if agent.IsToolLimitFinalResponseInvalid(err) && ctx.Err() == nil && (run.Stage == "building" || run.Stage == "repair") {
@@ -540,6 +541,14 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	// provider completion otherwise means no successful agent completion.
 	completed := runCfg.RunComplete != nil && runCfg.RunComplete()
 	if !completed && (len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" || strings.TrimSpace(response.Choices[0].Message.Content) == "[Empty Response]") {
+		if ctx.Err() == nil && sourceErr == nil && (run.Stage == "building" || run.Stage == "repair") {
+			if sourceAfter, err := r.service.LastSourceWriteID(ctx, run.Job.ID); err == nil && sourceAfter > sourceBefore {
+				// Saved work still needs the orchestrator's normal validation. Never
+				// publish an unchanged older revision merely because prose is absent.
+				slog.Info("game maker empty final response; validating saved source", "job_id", run.Job.ID, "stage", run.Stage)
+				return nil
+			}
+		}
 		return fmt.Errorf("Game Maker model returned an empty response after retry; the job was not completed")
 	}
 	answer := strings.TrimSpace(broker.text())
