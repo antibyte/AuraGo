@@ -247,6 +247,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	}
 	if len(d.Assets) > 0 {
 		p.Assets = nil
+		var viewErrors []string
 		for i, a := range d.Assets {
 			spec := PlanAsset{Role: a.Role, PackID: a.PackID, AssetID: a.AssetID, AssemblyID: a.AssemblyID, Direction: "none", DisplayHeight: 48, Origin: Point{.5, .5}, Collider: "rectangle", Scale: 1, Fallback: a.Fallback}
 			if project.Dimension == "3d" {
@@ -259,6 +260,31 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 					return p, fmt.Errorf("design.assets[%d]: %w", i, err)
 				}
 				spec.Version = detail.Version
+				if project.Dimension == "2d" && (detail.View == "top" && p.Perspective == "side" || detail.View == "side" && p.Perspective != "side") {
+					message := fmt.Sprintf("design.assets[%d] role %q: %s/%s%s is %s-view art; base %q needs %s-view art", i, a.Role, a.PackID, a.AssetID, a.AssemblyID, detail.View, d.Base, p.Perspective)
+					query := a.Role
+					if detail.Asset != nil {
+						query = strings.ReplaceAll(detail.Asset.Entity, "_", " ")
+					}
+					if detail.Assembly != nil {
+						query = detail.Assembly.Name
+					}
+					matches, err := searchAssets(query, "", p.Perspective, 2, "sprite2d")
+					if err != nil {
+						return p, fmt.Errorf("find compatible art: %w", err)
+					}
+					alternatives := []DesignAsset{}
+					for _, match := range matches {
+						if !match.Fragment {
+							alternatives = append(alternatives, DesignAsset{Role: a.Role, PackID: match.PackID, AssetID: match.AssetID, AssemblyID: match.AssemblyID})
+						}
+					}
+					if len(alternatives) > 0 {
+						encoded, _ := json.Marshal(alternatives)
+						message += "; compatible alternatives (choose one): " + string(encoded)
+					}
+					viewErrors = append(viewErrors, message)
+				}
 				if detail.Model != nil {
 					spec.Collider = "catalog"
 				} else if detail.Asset != nil {
@@ -272,6 +298,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 				return p, fmt.Errorf("design.assets[%d]: select catalog IDs or describe fallback graphics", i)
 			}
 			p.Assets = append(p.Assets, spec)
+		}
+		if len(viewErrors) > 0 {
+			return p, fmt.Errorf("%s. Keep base %q. Resubmit set_design with the complete corrected assets array, retaining compatible roles. Search other artwork with search_assets(view=%q); do not set plan.perspective or asset.view in design", strings.Join(viewErrors, "; "), d.Base, p.Perspective)
 		}
 	}
 	if p.Presentation != nil {

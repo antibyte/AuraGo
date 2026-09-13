@@ -19,6 +19,10 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 1. Use the supplied job context; inspect only information that is missing.
 2. Submit compact `set_design` using `design_example`: base, objective, features
    and selected asset roles. The server supplies metadata and canonical fields.
+   For platformer use search_assets(view="side"); topdown uses view="top".
+   Keep the requested base when asset views conflict: replace incompatible entries
+   in the complete assets array using the returned catalog alternatives. Compact
+   design has no plan.perspective or asset.view field; never invent either one.
    For edits read the existing plan and affected source first. Never send planning prose to the player. After acceptance,
    end the turn: the server imports planned packs and begins the building round.
 3. Keep the first implementation the smallest loop that is actually playable;

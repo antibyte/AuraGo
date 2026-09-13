@@ -14,6 +14,10 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 # Game Assets
 
 Ask for only assets that materially improve the current game.
+Match the requested camera before searching: platformer requires `view: side`,
+topdown requires `view: top`. On a compact-design mismatch choose a returned
+compatible catalog alternative and resubmit the complete assets array, retaining
+all other roles. Never switch the genre or edit read-only asset view metadata.
 
 ## Original 3D models
 

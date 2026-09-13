@@ -48,6 +48,64 @@ func TestGuidedDesignResolvesCatalogAndCorrections(t *testing.T) {
 	}
 }
 
+func TestGuidedPerspectiveCorrectionPreservesPlatformer(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage == "building" {
+			if run.Plan.Template != "platformer" || run.Plan.Perspective != "side" || run.Plan.Objective != "Collect coins and avoid enemies" || len(run.Plan.Assets) != 3 || run.Plan.Assets[2].Fallback != "Golden coin" {
+				t.Errorf("correction changed intent or discarded a role: %+v", run.Plan)
+			}
+			return errors.New("perspective repaired")
+		}
+		design := GameDesign{Base: "platformer", Objective: "Collect coins and avoid enemies", Features: []string{"Jump between platforms"}, Assets: []DesignAsset{
+			{Role: "player", PackID: "robots-drones-animated-top-down", AssetID: "service_robot_move_down"},
+			{Role: "enemy", PackID: "robots-drones-animated-top-down", AssetID: "service_robot_move_down"},
+			{Role: "item", Fallback: "Golden coin"},
+		}}
+		data, _ := json.Marshal(design)
+		err := s.SetDesignJSON(ctx, run.Job.ID, data)
+		if err == nil {
+			t.Fatal("incompatible artwork accepted")
+		}
+		for _, want := range []string{"design.assets[0]", "design.assets[1]", `Keep base "platformer"`, `search_assets(view="side")`, "complete corrected assets array"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("missing actionable correction %q: %v", want, err)
+			}
+		}
+		// Use the exact catalog alternatives returned in the failure, not invented IDs.
+		parts := strings.Split(err.Error(), "compatible alternatives (choose one): ")
+		if len(parts) != 3 {
+			t.Fatalf("missing alternatives for both roles: %v", err)
+		}
+		for i, part := range parts[1:] {
+			var alternatives []DesignAsset
+			if e := json.NewDecoder(strings.NewReader(part)).Decode(&alternatives); e != nil || len(alternatives) == 0 {
+				t.Fatalf("invalid suggestions: %v", e)
+			}
+			for _, a := range alternatives {
+				detail, e := s.DescribeAsset(a.PackID, a.AssetID, a.AssemblyID)
+				if e != nil || detail.View != "side" || a.Role != design.Assets[i].Role {
+					t.Fatalf("incompatible suggestion: %+v %v", a, e)
+				}
+			}
+			design.Assets[i] = alternatives[0]
+		}
+		if plan, _ := s.GetPlan(ctx, run.Job.ID); plan != nil {
+			t.Error("rejected design installed a plan")
+		}
+		data, _ = json.Marshal(map[string]any{"assets": design.Assets})
+		return s.SetDesignJSON(ctx, run.Job.ID, data)
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done := waitJob(t, s, job.ID); done.Error != "perspective repaired" {
+		t.Fatal(done.Error)
+	}
+}
+
 func TestGuidedDesignRejectsUnknownFields(t *testing.T) {
 	s := newTestService(t)
 	for _, base := range []string{"fps", "exploration", "transport", "flight", "space"} {

@@ -124,6 +124,11 @@ func (s *Service) SearchAssets(query, packID, view string, limit int, kinds ...s
 	if !s.policy.Enabled {
 		return nil, ErrDisabled
 	}
+	return searchAssets(query, packID, view, limit, kinds...)
+}
+
+// Catalog-only lookup also serves plan validation while its policy lock is held.
+func searchAssets(query, packID, view string, limit int, kinds ...string) ([]AssetSearchResult, error) {
 	if len(query) > 200 {
 		return nil, fmt.Errorf("asset query exceeds 200 characters")
 	}
