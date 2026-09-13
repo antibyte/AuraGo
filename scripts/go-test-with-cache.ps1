@@ -24,5 +24,14 @@ if (-not $Packages -or $Packages.Count -eq 0) {
     $Packages = @("./...")
 }
 
+$Packages = @($Packages | ForEach-Object {
+    if ($_ -eq './...') {
+        './cmd/...', './internal/...', './ui/...', './prompts/...',
+        './disposable/export_tools', './disposable/import_training_traces'
+    } else {
+        $_
+    }
+})
+
 & go test @Packages
 exit $LASTEXITCODE

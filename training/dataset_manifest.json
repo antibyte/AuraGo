@@ -1,9 +1,9 @@
 {
   "schema_version": "2.0",
   "scenario_count": 5000,
-  "challenge_count": 406,
-  "tool_count": 203,
-  "operation_count": 1041,
+  "challenge_count": 424,
+  "tool_count": 212,
+  "operation_count": 1125,
   "language_counts": {
     "de": 3000,
     "en": 2000
@@ -21,25 +21,25 @@
     "tool_recovery": 375
   },
   "split_counts": {
-    "test": 546,
-    "train": 3936,
-    "validation": 518
+    "test": 487,
+    "train": 4004,
+    "validation": 509
   },
   "sha256": {
-    "dataset_alpaca.jsonl": "3ed36daa6c423f2ca25911e892cc127afa81da97791ce7c7e05216a4ce5328af",
-    "dataset_challenge_native_fc.jsonl": "2e3d2cbdeb5ee18ac96506cf577552acf21f1852f4af22881a57f33f0b2d6c68",
-    "dataset_chatml.jsonl": "d2938e797e1c63a696fd3dab6fd7323b244a20488eb71f567416ff21de320121",
-    "dataset_native_fc.jsonl": "d2938e797e1c63a696fd3dab6fd7323b244a20488eb71f567416ff21de320121",
-    "dataset_native_fc_test.jsonl": "35b03960ba3d85e3a702d97b6132cb0b4cf191dba2d671468b2b6164eae7613d",
-    "dataset_native_fc_train.jsonl": "c30b872eec6012ef9d2f4e697d441a52f756f819d3cb16d1d40b4e852f15f112",
-    "dataset_native_fc_validation.jsonl": "5433c284a773a1a6f7a60e75f7cc0b1c7aa3ae35fbb608b44c5326080be08078",
-    "dataset_sharegpt.jsonl": "38baa9f207b013503faf5a0807c4c99cc07c2beff90e436743790a7a23481ada",
-    "dataset_tagged_fc.jsonl": "509ed7cd77a1d08827dd80f66b4710e3aa25760479703b67e132faf01313d0be",
-    "dataset_tagged_fc_test.jsonl": "0fa7c3cce585048ba1ef10fcc6736d711443ba0b8bba0c82e0b2fdafefe9b464",
-    "dataset_tagged_fc_train.jsonl": "71c540bf08407ca3c20ea9aca5a4b0726b9b821f4126eb9ff6551c36c9e4f378",
-    "dataset_tagged_fc_validation.jsonl": "6c817c2e24f387d04a364848d1b6bd44288e37230af618ee206aff9c82837385",
-    "tools_catalog.json": "051f78fae541d7843e6613d62a4c791976cccd0e69373f3df8e5c2f6a34af5c1",
-    "tools_catalog.md": "b44a88a991cb38b13123490d3423458e2ae2835bece3f6902a2228624ca420ad",
-    "tools_list_compact.json": "bde4fa1288c2c3b5d117b5c2f219b38cc0ebd76d7d458ba72634dde92365efa3"
+    "dataset_alpaca.jsonl": "6be8e046f3d95bda0d2ecbd8d93b44cf667ca054df8c4ffe67d123bd5f8fd8f9",
+    "dataset_challenge_native_fc.jsonl": "a1397cf1586c5101cb46f6558a65aacf58ba30d18f2d44ce082184df6e5de212",
+    "dataset_chatml.jsonl": "27afc6f7abfcc322755669160d8ffad8ddcdee1d9f4c0beae2c8db9337950b28",
+    "dataset_native_fc.jsonl": "27afc6f7abfcc322755669160d8ffad8ddcdee1d9f4c0beae2c8db9337950b28",
+    "dataset_native_fc_test.jsonl": "19b35662be9b22d91a940797cc98870b653a3405cb18c91876ec507a4b43a10a",
+    "dataset_native_fc_train.jsonl": "ce06be08829a8954506cf6efa378bd2e80bd5386d7aa1d1e2ae246f89ceafb86",
+    "dataset_native_fc_validation.jsonl": "f536d66b6deada8c85b522a66ce0a5a682b87d5008ca3fad7c3f0db6884288a1",
+    "dataset_sharegpt.jsonl": "554f820518113b468d8cb85c83f5be9c56d0f81215cd1a92b2b0bbc9c213db1f",
+    "dataset_tagged_fc.jsonl": "a70e6e06c82f4299c4e3c5b09bddbb5344d249845f9fe94c445b725efd9464ad",
+    "dataset_tagged_fc_test.jsonl": "0f2aa4155140f16c4cb01f5e8814fdbd1c4a2eb1be1b1e794cced323697e282d",
+    "dataset_tagged_fc_train.jsonl": "44e45a526d9648ee57c66ef4bb03a7df9aa0c9a48b51526cf12e04f1d6d6e6ca",
+    "dataset_tagged_fc_validation.jsonl": "35a77908f046cd3b3222e9dd4dffa6a523bcdc0f06c051dd1d4f8fcdbaaa6d81",
+    "tools_catalog.json": "422eafccd7357f730a5a14b6ada9e3dee87cc39f09f2144239c7ca38b901b53a",
+    "tools_catalog.md": "643e74ac848ce77fcd11ce23cc9f386d35b4edbfd30a71779df0c4a12ccf6fed",
+    "tools_list_compact.json": "cc55d3ce774cf9eabc48fa9ded8e128a7ea4e5623d3002f0b879f9051bbd61d5"
   }
 }

@@ -7,7 +7,7 @@ small model on AuraGo's native tools. The current pack is generated from
 
 Current generated inventory:
 
-- 202 tools and 1,041 schema-declared operations
+- 212 tools and 1,125 schema-declared operations
 - 5,000 training scenarios: 3,000 German and 2,000 English
 - deterministic family-level train/validation/test splits
 - Permanently held-out challenge scenarios, exactly two per tool
@@ -62,10 +62,12 @@ go run ./disposable/export_tools --out training --check
 ```
 
 If the native AuraGo schemas change, bootstrap new manifests and review the
-entire manifest diff before accepting it:
+manifest diff in a scratch directory before accepting it:
 
 ```bash
-go run ./disposable/export_tools --out training --bootstrap-contracts
+go run ./disposable/export_tools --out disposable/_training-review --bootstrap-contracts
+# Reconcile reviewed manifests into training/, preserving curated fixtures and tiers.
+go run ./disposable/export_tools --out training
 python training/validate_dataset.py --all
 ```
 
@@ -75,6 +77,12 @@ generation fails on unknown tools, missing operations, schema drift, invalid
 fixtures, incomplete tier assignments, distribution drift, duplicate
 conversations, broken call IDs, mismatched results, native/tagged differences,
 secrets, PII patterns, or split leakage.
+
+`--check` generates comparison files only in a temporary directory; it does not
+write to the checked-in training pack. The independent Python validator pins
+the reviewed tool count. Update that count when accepting catalog changes.
+Multi-call examples fill per-tool coverage gaps before ordinary catalog cycling,
+so bilingual operation coverage cannot crowd out Core/Extended/Rare minimums.
 
 ## Curated trace import
 
@@ -129,6 +137,7 @@ python training/train_unsloth.py \
   --model Qwen/Qwen3-1.7B \
   --train-dataset training/dataset_native_fc_train.jsonl \
   --eval-dataset training/dataset_native_fc_validation.jsonl \
+  --max-length 16384 \
   --smoke
 ```
 
@@ -137,6 +146,13 @@ structured `tool_calls` to the model's native tokenizer chat template, checks
 the response markers used for masking, trains only on assistant responses, and
 keeps tool results as context. Token-limit violations, leakage, or masking
 precondition failures abort the run.
+
+The complete Game Maker schema alone exceeds the former 6,500-token estimate.
+Export and validation now allow at most 12,000 estimated schema tokens per row;
+use `--max-length 16384` for this pack and retain the real tokenizer length check.
+Some model templates may need more space: inspect its reported row lengths
+before increasing the limit within the selected model's supported context.
+The lightweight trainer default remains available for smaller custom datasets.
 
 Full runs use separate training/evaluation files, early stopping, Trackio,
 checkpoints, and a run manifest containing the Git commit, dataset hashes,
@@ -147,6 +163,7 @@ budget for every candidate and three seeds for the two finalists:
 python training/train_unsloth.py \
   --model Qwen/Qwen3-1.7B \
   --epochs 2 \
+  --max-length 16384 \
   --seed 42 \
   --production \
   --estimated-cost-usd 8.50 \

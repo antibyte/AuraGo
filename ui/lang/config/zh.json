@@ -1,4 +1,6 @@
 {
+  "config.local_llm.qwen_option": "AuraGo-Qwen",
+  "config.local_llm.ling_option": "AuraGo-Ling",
   "config.local_llm.spark_option": "AuraGo-Spark (实验性)",
   "config.local_llm.spark_quality": "实验性模型：至少需要 6 GB 显存。64K 上下文，Thinking 已开启。此微调模型尚未验证开启 Thinking 时的 64K 运行；语言表达和指令遵循可能不可靠。",
   "config.local_llm.model_family": "模型",

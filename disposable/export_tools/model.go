@@ -24,7 +24,7 @@ const (
 	contractVersion      = 2
 	targetScenarioCount  = 5000
 	maxToolsPerScenario  = 20
-	maxSchemaTokens      = 6500
+	maxSchemaTokens      = 12000 // Complete Game Maker schemas require a 16K training sequence.
 )
 
 var coreToolNames = map[string]bool{

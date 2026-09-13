@@ -455,7 +455,7 @@
             <!-- ═══ Optional AuraGo-Qwen local test model ═══ -->
             <div class="setup-section" id="step-local-llm">
                 <div class="section-header">
-                    <div class="section-badge">◈ AuraGo-Qwen / AuraGo-Ling</div>
+                    <div class="section-badge" data-i18n="config.section.local_llm.label"></div>
                     <h2 class="section-title" data-i18n="config.section.local_llm.label"></h2>
                     <p class="section-desc" data-i18n="config.local_llm.purpose"></p>
                 </div>
@@ -476,8 +476,8 @@
                         <div class="field-group">
                             <label class="field-label" for="setup-local-llm-family" data-i18n="config.local_llm.model_family"></label>
                             <select class="field-select" id="setup-local-llm-family">
-                                <option value="qwen">AuraGo-Qwen</option>
-                                <option value="ling">AuraGo-Ling</option>
+                                <option value="qwen" data-i18n="config.local_llm.qwen_option"></option>
+                                <option value="ling" data-i18n="config.local_llm.ling_option"></option>
                                 <option value="spark" data-i18n="config.local_llm.spark_option"></option>
                             </select>
                             <div id="setup-local-llm-ling-quality" class="field-hint is-hidden" data-i18n="config.local_llm.ling_quality"></div>

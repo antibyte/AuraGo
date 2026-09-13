@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "f477678a4223f9d3445726725316a7fd5e034052bb6a0bf509eed9fcc47d8e35",
+  "schema_sha256": "a372b038b9106f0a6b5b94a54c6a49bfbf40d748dd90213375ef66086303d09c",
   "tools": {
     "activate_agent_skill": {
       "default_arguments": {
@@ -1443,10 +1443,165 @@
         }
       ]
     },
+    "cyd_display": {
+      "default_arguments": {
+        "operation": "status"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "brightness",
+          "arguments": {
+            "brightness": 128,
+            "operation": "brightness"
+          },
+          "required_fields": [
+            "brightness",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "clear",
+          "arguments": {
+            "operation": "clear"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "led",
+          "arguments": {
+            "led": "green",
+            "operation": "led"
+          },
+          "required_fields": [
+            "led",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "notify",
+          "arguments": {
+            "message": "Backup completed",
+            "operation": "notify",
+            "title": "Backup"
+          },
+          "required_fields": [
+            "message",
+            "operation",
+            "title"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "page",
+          "arguments": {
+            "operation": "page",
+            "page": "status"
+          },
+          "required_fields": [
+            "operation",
+            "page"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "show",
+          "arguments": {
+            "message": "Preparing the next task",
+            "operation": "show"
+          },
+          "required_fields": [
+            "message",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "status",
+          "arguments": {
+            "operation": "status"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
     "ddg_search": {
       "default_arguments": {
         "query": "service status"
       }
+    },
+    "desktop_notes": {
+      "default_arguments": {
+        "operation": "list"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "create",
+          "arguments": {
+            "content": "# Project notes\n\nReview the test results.",
+            "operation": "create",
+            "title": "Project notes"
+          },
+          "required_fields": [
+            "content",
+            "operation",
+            "title"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list",
+          "arguments": {
+            "operation": "list"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "read",
+          "arguments": {
+            "operation": "read",
+            "path": "Documents/Notes/project-notes.md"
+          },
+          "required_fields": [
+            "operation",
+            "path"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "search",
+          "arguments": {
+            "operation": "search",
+            "query": "project"
+          },
+          "required_fields": [
+            "operation",
+            "query"
+          ],
+          "excluded_fields": []
+        }
+      ]
     },
     "detect_file_type": {
       "default_arguments": {
@@ -3063,7 +3218,103 @@
         "kind": "image",
         "path": "workspace/example.txt",
         "prompt": "A calm landscape at sunset"
-      }
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "describe_asset",
+          "arguments": {
+            "asset_id": "example-asset",
+            "job_id": "example-id",
+            "operation": "describe_asset",
+            "pack_id": "example-pack"
+          },
+          "required_fields": [
+            "asset_id",
+            "job_id",
+            "operation",
+            "pack_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "describe_pack",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "describe_pack",
+            "pack_id": "example-pack"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "pack_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "generate",
+          "arguments": {
+            "job_id": "example-id",
+            "kind": "image",
+            "operation": "generate",
+            "path": "assets/background.png",
+            "prompt": "A calm landscape at sunset"
+          },
+          "required_fields": [
+            "job_id",
+            "kind",
+            "operation",
+            "path",
+            "prompt"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "import_pack",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "import_pack",
+            "pack_id": "example-pack"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "pack_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_packs",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "list_packs"
+          },
+          "required_fields": [
+            "job_id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "search_assets",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "search_assets",
+            "query": "spaceship"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "query"
+          ],
+          "excluded_fields": []
+        }
+      ]
     },
     "game_maker_file": {
       "default_arguments": {
@@ -3082,6 +3333,27 @@
           },
           "required_fields": [
             "job_id",
+            "operation",
+            "path"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "replace",
+          "arguments": {
+            "expected_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "job_id": "example-id",
+            "new_text": "const speed = 4;",
+            "old_text": "const speed = 3;",
+            "operation": "replace",
+            "path": "src/main.ts"
+          },
+          "required_fields": [
+            "expected_sha256",
+            "job_id",
+            "new_text",
+            "old_text",
             "operation",
             "path"
           ],
@@ -3112,6 +3384,19 @@
       "operations": [
         {
           "selector": "operation",
+          "value": "get_plan",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "get_plan"
+          },
+          "required_fields": [
+            "job_id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
           "value": "inspect",
           "arguments": {
             "job_id": "example-id",
@@ -3133,6 +3418,148 @@
           "required_fields": [
             "job_id",
             "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scene_generate",
+          "arguments": {
+            "dry_run": true,
+            "generate": {
+              "kind": "grid",
+              "region_id": "example-region",
+              "seed": 42,
+              "bounds": {
+                "min": [
+                  0,
+                  0,
+                  0
+                ],
+                "max": [
+                  960,
+                  540,
+                  0
+                ]
+              }
+            },
+            "job_id": "example-id",
+            "operation": "scene_generate"
+          },
+          "required_fields": [
+            "dry_run",
+            "generate",
+            "job_id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scene_inspect",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "scene_inspect"
+          },
+          "required_fields": [
+            "job_id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scene_patch",
+          "arguments": {
+            "expected_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "job_id": "example-id",
+            "operation": "scene_patch",
+            "patch": {
+              "seed": 43
+            }
+          },
+          "required_fields": [
+            "expected_sha256",
+            "job_id",
+            "operation",
+            "patch"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scene_set",
+          "arguments": {
+            "expected_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "job_id": "example-id",
+            "operation": "scene_set",
+            "scene": {
+              "schema_version": 1,
+              "dimension": "2d",
+              "seed": 42,
+              "levels": [
+                {
+                  "id": "main",
+                  "active": true
+                }
+              ],
+              "world_bounds": {
+                "min": [
+                  0,
+                  0,
+                  0
+                ],
+                "max": [
+                  960,
+                  540,
+                  0
+                ]
+              }
+            }
+          },
+          "required_fields": [
+            "expected_sha256",
+            "job_id",
+            "operation",
+            "scene"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "set_design",
+          "arguments": {
+            "design": {
+              "base": "topdown",
+              "objective": "Collect all stars",
+              "features": [
+                "Move with arrow keys",
+                "Collect five stars",
+                "Restart with R"
+              ]
+            },
+            "job_id": "example-id",
+            "operation": "set_design"
+          },
+          "required_fields": [
+            "design",
+            "job_id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "set_plan",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "set_plan",
+            "plan": "{\"schema_version\": 3, \"template\": \"topdown\", \"objective\": \"Collect five stars\", \"core_loop\": \"Move, collect stars, and show progress\", \"scope\": [\"One arena with five stars\"], \"perspective\": \"top\", \"width\": 960, \"height\": 540, \"camera\": \"Fixed viewport\", \"controls\": {\"move\": \"Arrow keys\", \"restart\": \"R\"}, \"states\": [\"playing\", \"ended\"], \"rules\": {\"progress\": \"Each star adds one point\", \"failure\": \"No defeat condition\", \"completion\": \"Collect five stars\"}, \"assets\": [], \"assumptions\": [\"Single-player offline game\"], \"fallback\": \"Use labeled procedural shapes\"}"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "plan"
           ],
           "excluded_fields": []
         }
@@ -3757,6 +4184,239 @@
         }
       ]
     },
+    "here_now_site": {
+      "default_arguments": {
+        "operation": "publish",
+        "project_dir": "example-site"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "delete_site",
+          "arguments": {
+            "confirm": true,
+            "operation": "delete_site",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "confirm",
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "delete_version",
+          "arguments": {
+            "confirm": true,
+            "operation": "delete_version",
+            "slug": "example-site",
+            "version_id": "example-version"
+          },
+          "required_fields": [
+            "confirm",
+            "operation",
+            "slug",
+            "version_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "duplicate",
+          "arguments": {
+            "operation": "duplicate",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "publish",
+          "arguments": {
+            "operation": "publish",
+            "project_dir": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "project_dir"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "remove_password",
+          "arguments": {
+            "operation": "remove_password",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "restore_version",
+          "arguments": {
+            "operation": "restore_version",
+            "slug": "example-site",
+            "version_id": "example-version"
+          },
+          "required_fields": [
+            "operation",
+            "slug",
+            "version_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "set_password",
+          "arguments": {
+            "operation": "set_password",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "update",
+          "arguments": {
+            "operation": "update",
+            "project_dir": "example-site",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "project_dir",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "update_access",
+          "arguments": {
+            "mode": "account_members",
+            "operation": "update_access",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "mode",
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "update_metadata",
+          "arguments": {
+            "display_name": "Example site",
+            "operation": "update_metadata",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "display_name",
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
+    "here_now_sites": {
+      "default_arguments": {
+        "operation": "list_accounts"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "get_access",
+          "arguments": {
+            "operation": "get_access",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "get_site",
+          "arguments": {
+            "operation": "get_site",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_accounts",
+          "arguments": {
+            "operation": "list_accounts"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_sites",
+          "arguments": {
+            "operation": "list_sites"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_versions",
+          "arguments": {
+            "operation": "list_versions",
+            "slug": "example-site"
+          },
+          "required_fields": [
+            "operation",
+            "slug"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "search_sites",
+          "arguments": {
+            "operation": "search_sites",
+            "query": "example"
+          },
+          "required_fields": [
+            "operation",
+            "query"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
     "home_assistant": {
       "default_arguments": {
         "operation": "get_states"
@@ -3832,6 +4492,19 @@
           "arguments": {
             "operation": "deploy",
             "project_dir": "example"
+          },
+          "required_fields": [
+            "operation",
+            "project_dir"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "deploy_here_now",
+          "arguments": {
+            "operation": "deploy_here_now",
+            "project_dir": "example-site"
           },
           "required_fields": [
             "operation",
@@ -7837,6 +8510,76 @@
         }
       ]
     },
+    "meshcore": {
+      "default_arguments": {
+        "operation": "status"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "channels",
+          "arguments": {
+            "operation": "channels"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "contacts",
+          "arguments": {
+            "operation": "contacts"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "send_channel",
+          "arguments": {
+            "channel": 1,
+            "operation": "send_channel",
+            "text": "The scheduled task is complete."
+          },
+          "required_fields": [
+            "channel",
+            "operation",
+            "text"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "send_direct",
+          "arguments": {
+            "node_key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "operation": "send_direct",
+            "text": "The scheduled task is complete."
+          },
+          "required_fields": [
+            "node_key",
+            "operation",
+            "text"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "status",
+          "arguments": {
+            "operation": "status"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
     "mqtt_get_messages": {
       "default_arguments": {
         "limit": 1
@@ -9417,6 +10160,21 @@
         },
         {
           "selector": "operation",
+          "value": "reset",
+          "arguments": {
+            "operation": "reset",
+            "vm_type": "qemu",
+            "vmid": "100"
+          },
+          "required_fields": [
+            "operation",
+            "vm_type",
+            "vmid"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
           "value": "resume",
           "arguments": {
             "operation": "resume"
@@ -10166,6 +10924,11 @@
     "send_image": {
       "default_arguments": {
         "path": "workspace/example.txt"
+      }
+    },
+    "send_notification": {
+      "default_arguments": {
+        "message": "Example content"
       }
     },
     "send_telegram": {
@@ -11670,6 +12433,328 @@
         }
       ]
     },
+    "virtual_browser": {
+      "default_arguments": {
+        "operation": "open",
+        "workspace_id": "example-id"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "click",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "element_ref": "example-element",
+            "operation": "click",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "element_ref",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "click_xy",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "click_xy",
+            "workspace_id": "example-workspace",
+            "x": 100,
+            "y": 100
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "workspace_id",
+            "x",
+            "y"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "close",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "close",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "credential_fill",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "grant_id": "example-approved-grant",
+            "operation": "credential_fill",
+            "submit": false,
+            "url": "https://example.com",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "grant_id",
+            "operation",
+            "submit",
+            "url",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "drag",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "drag",
+            "to_x": 200,
+            "to_y": 200,
+            "workspace_id": "example-workspace",
+            "x": 100,
+            "y": 100
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "to_x",
+            "to_y",
+            "workspace_id",
+            "x",
+            "y"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "inspect",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "inspect",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_downloads",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "list_downloads",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_tabs",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "list_tabs",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "navigate",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "navigate",
+            "url": "https://example.com",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "url",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "open",
+          "arguments": {
+            "operation": "open",
+            "workspace_id": "example-id"
+          },
+          "required_fields": [
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "press",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "key": "Enter",
+            "operation": "press",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "key",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "screenshot",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "screenshot",
+            "path": "screenshot.png",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "path",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scroll",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "delta_y": 300,
+            "operation": "scroll",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "delta_y",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "select",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "element_ref": "example-element",
+            "operation": "select",
+            "value": "example-option",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "element_ref",
+            "operation",
+            "value",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "switch_tab",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "switch_tab",
+            "page_id": "example-page",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "page_id",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "type",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "element_ref": "example-element",
+            "operation": "type",
+            "text": "Example query",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "element_ref",
+            "operation",
+            "text",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "upload_file",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "upload_file",
+            "path": "notes.txt",
+            "selector": "input[type=file]",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "path",
+            "selector",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "wait",
+          "arguments": {
+            "browser_session_id": "example-browser",
+            "operation": "wait",
+            "selector": "#ready",
+            "timeout_ms": 1000,
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "browser_session_id",
+            "operation",
+            "selector",
+            "timeout_ms",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
     "virtual_computers": {
       "default_arguments": {
         "operation": "status"
@@ -11948,9 +13033,19 @@
         }
       ]
     },
+    "virtual_desktop_app_install": {
+      "default_arguments": {
+        "manifest": {
+          "id": "example-app",
+          "name": "Example app",
+          "entry": "index.html"
+        },
+        "files": "{\"index.html\": \"<!doctype html><html lang=\\\"en\\\"><meta charset=\\\"utf-8\\\"><title>Example app</title><h1>Example app</h1></html>\"}"
+      }
+    },
     "virtual_desktop_apps": {
       "default_arguments": {
-        "operation": "install_app"
+        "operation": "list_apps"
       },
       "operations": [
         {
@@ -11972,19 +13067,6 @@
           "arguments": {
             "app_id": "example-id",
             "operation": "get_app"
-          },
-          "required_fields": [
-            "app_id",
-            "operation"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
-          "value": "install_app",
-          "arguments": {
-            "app_id": "example-id",
-            "operation": "install_app"
           },
           "required_fields": [
             "app_id",
@@ -12235,6 +13317,295 @@
           "required_fields": [
             "operation",
             "widget_id"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
+    "virtual_workspace": {
+      "default_arguments": {
+        "operation": "open",
+        "template": "python"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "cancel_job",
+          "arguments": {
+            "job_id": "example-job",
+            "operation": "cancel_job",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "checkpoint",
+          "arguments": {
+            "operation": "checkpoint",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "close",
+          "arguments": {
+            "operation": "close",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "download",
+          "arguments": {
+            "operation": "download",
+            "path": "notes.txt",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "operation",
+            "path",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "exec",
+          "arguments": {
+            "command": "pwd",
+            "operation": "exec",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "command",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "get",
+          "arguments": {
+            "operation": "get",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "job_input",
+          "arguments": {
+            "input": "help\n",
+            "job_id": "example-job",
+            "operation": "job_input",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "input",
+            "job_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "job_output",
+          "arguments": {
+            "job_id": "example-job",
+            "operation": "job_output",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "job_status",
+          "arguments": {
+            "job_id": "example-job",
+            "operation": "job_status",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list",
+          "arguments": {
+            "operation": "list"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_files",
+          "arguments": {
+            "operation": "list_files",
+            "path": ".",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "operation",
+            "path",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_grantable_credentials",
+          "arguments": {
+            "operation": "list_grantable_credentials"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "open",
+          "arguments": {
+            "operation": "open",
+            "template": "python"
+          },
+          "required_fields": [
+            "operation",
+            "template"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "read_file",
+          "arguments": {
+            "operation": "read_file",
+            "path": "notes.txt",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "operation",
+            "path",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "request_credential_grant",
+          "arguments": {
+            "credential_id": "example-credential",
+            "operation": "request_credential_grant",
+            "origin": "https://example.com",
+            "purpose": "Sign in to the selected example site",
+            "usage_type": "browser",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "credential_id",
+            "operation",
+            "origin",
+            "purpose",
+            "usage_type",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "revoke_credential_grant",
+          "arguments": {
+            "grant_id": "example-grant",
+            "operation": "revoke_credential_grant",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "grant_id",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "start_job",
+          "arguments": {
+            "command": "pwd",
+            "operation": "start_job",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "command",
+            "operation",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "upload",
+          "arguments": {
+            "content": "Example notes",
+            "operation": "upload",
+            "path": "notes.txt",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "content",
+            "operation",
+            "path",
+            "workspace_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "write_file",
+          "arguments": {
+            "content": "Example notes",
+            "operation": "write_file",
+            "path": "notes.txt",
+            "workspace_id": "example-workspace"
+          },
+          "required_fields": [
+            "content",
+            "operation",
+            "path",
+            "workspace_id"
           ],
           "excluded_fields": []
         }

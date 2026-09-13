@@ -20,11 +20,11 @@ except ImportError as exc:  # pragma: no cover - exercised by CLI environments
 
 
 SCHEMA_VERSION = "2.0"
-EXPECTED_TOOLS = 203
+EXPECTED_TOOLS = 212
 EXPECTED_SCENARIOS = 5000
 EXPECTED_CHALLENGE = EXPECTED_TOOLS * 2
 MAX_TOOLS = 20
-MAX_SCHEMA_TOKENS = 6500
+MAX_SCHEMA_TOKENS = 12000  # Keep aligned with the exporter; train with at least 16K sequences.
 TOOL_TAG = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
 SECRET_PATTERNS = [
     re.compile(r"(?i)\b(?:api[_-]?key|token|password|secret)\s*[=:]\s*(?!example\b|\[redacted\])\S{8,}"),

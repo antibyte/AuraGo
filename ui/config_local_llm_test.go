@@ -91,6 +91,8 @@ func TestLocalLLMSetupIsOptionalAndInstallRunsAfterSetupSave(t *testing.T) {
 		`id="setup-local-llm-family"`,
 		`data-i18n="config.local_llm.ling_quality"`,
 		`data-i18n="config.local_llm.spark_quality"`,
+		`<option value="qwen" data-i18n="config.local_llm.qwen_option"></option>`,
+		`<option value="ling" data-i18n="config.local_llm.ling_option"></option>`,
 		`<option value="spark"`,
 	} {
 		if !strings.Contains(html, required) {

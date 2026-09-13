@@ -1,4 +1,6 @@
 {
+  "config.local_llm.qwen_option": "AuraGo-Qwen",
+  "config.local_llm.ling_option": "AuraGo-Ling",
   "config.local_llm.spark_option": "AuraGo-Spark (experimentell)",
   "config.local_llm.spark_quality": "Experimentelles Modell: mindestens 6 GB VRAM nötig. 64K Kontext, Thinking an. Der 64K-Betrieb mit Thinking wurde für dieses Fine-Tune noch nicht validiert; Sprache und Anweisungsbefolgung können unzuverlässig sein.",
   "config.local_llm.model_family": "Modell",

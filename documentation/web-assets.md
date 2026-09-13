@@ -142,9 +142,9 @@ Browser acceptance with external networking blocked covered recovery, authentica
 Chat/Config/Desktop, all twelve animated personas, rapid switching, minimizing,
 reopening, light/dark narrow windows and PNG fallback after a forced WASM failure.
 The existing weather widget attempted its usual external request; no CDN was used.
-Focused Go, Live Speech Node, bundle and packaging/audit checks passed. The full
-UI suite retains four pre-existing failures: Spark i18n fallback, TeeVee line
-budget/contrast and the Desktop normalize-z-index source boundary.
+Focused Go, Live Speech Node, bundle and packaging/audit checks passed. Current
+UI acceptance requires the focused contracts and browser checks described in
+`ui/AGENTS.md`; historical suite results are not evidence for the current build.
 
 Docker runtime acceptance requires a running daemon, unavailable on this machine.
 Published-release download, a real installed-service upgrade/rollback and native

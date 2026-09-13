@@ -131,6 +131,7 @@ docs/superpowers/
 .worktrees/
 #Agent files
 AGENTS.md
+!/AGENTS.md
 .commandcode/
 .kilo/
 .kilocode/
@@ -169,3 +170,6 @@ data/missions_v2.json
 terminals/
 # Generated, immutable browser resource sets (cmd/assetpack).
 /assets/web/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

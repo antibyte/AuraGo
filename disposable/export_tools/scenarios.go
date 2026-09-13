@@ -155,8 +155,22 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 		scenarios = append(scenarios, scenario)
 		sequence++
 	}
+	targetCounts := make(map[string]int, len(tools))
+	for _, scenario := range scenarios {
+		targetCounts[scenario.Expectations.TargetTool]++
+	}
+	minimumCoverage := map[string]int{"core": 20, "extended": 10, "rare": 6}
 	for i := 0; i < multiCount; i++ {
 		firstTool := tools[sequence%len(tools)]
+		// Fill actual coverage gaps before cycling; catalog growth changes how
+		// many direct scenarios remain after bilingual operation coverage.
+		largestGap := 0
+		for _, candidate := range tools {
+			if gap := minimumCoverage[candidate.Tier] - targetCounts[candidate.Name]; gap > largestGap {
+				firstTool = candidate
+				largestGap = gap
+			}
+		}
 		secondTool := tools[(sequence*17+11)%len(tools)]
 		firstFixtures := choicesByTool[firstTool.Name]
 		secondFixtures := choicesByTool[secondTool.Name]
@@ -172,6 +186,7 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 			return nil, nil, err
 		}
 		scenarios = append(scenarios, scenario)
+		targetCounts[scenario.Expectations.TargetTool]++
 		sequence++
 	}
 	for i := 0; i < discoveryCount; i++ {

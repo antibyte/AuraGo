@@ -190,3 +190,15 @@ func TestReadJSONReportsSourceLine(t *testing.T) {
 		t.Fatalf("readJSON error = %v, want file and line 3", err)
 	}
 }
+
+func TestCurrentCatalogTrainingCoverage(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The full current catalog exhausted the old direct-example allocation.
+	// Keep bilingual operations, tier coverage and schema limits enforced together.
+	if _, err := buildTrainingPack(root, filepath.Join(root, "training"), false); err != nil {
+		t.Fatal(err)
+	}
+}
