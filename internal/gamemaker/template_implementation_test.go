@@ -3,9 +3,85 @@ package gamemaker
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestReadOnlyBuildingYieldsToImplementationRepair(t *testing.T) {
+	for _, base := range []string{"platformer", "fps", "three"} {
+		t.Run(base, func(t *testing.T) {
+			s := newTestService(t)
+			dimension := "3d"
+			if base == "platformer" {
+				dimension = "2d"
+			}
+			project := createTestProject(t, s, dimension)
+			repairs := 0
+			s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+				if run.Stage == "planning" {
+					return s.SetDesignJSON(ctx, run.Job.ID, []byte(fmt.Sprintf(`{"base":%q,"objective":"Custom game","features":["custom rules"]}`, base)))
+				}
+				if run.Stage == "repair" {
+					repairs++
+					if !strings.Contains(diagnosticsText(run.Diagnostics), "No implementation was written") {
+						t.Errorf("missing implementation handoff: %+v", run.Diagnostics)
+					}
+					return fmt.Errorf("verified implementation handoff")
+				}
+				past := time.Now().Add(-time.Second)
+				if s.StopAfterValidation(run.Job.ID, false)() || s.stopAfterValidation(run.Job.ID, true, past)() {
+					t.Error("fresh building or repair lost its budget")
+				}
+				stop := s.stopAfterValidation(run.Job.ID, false, past)
+				if !stop() {
+					t.Error("read-only building did not yield after exploration deadline")
+				}
+				// A real existing revision must never trigger new-starter recovery.
+				if _, err := s.db.ExecContext(ctx, "UPDATE gm_jobs SET base_revision=1 WHERE id=?", run.Job.ID); err != nil {
+					return err
+				}
+				if s.stopAfterValidation(run.Job.ID, false, past)() {
+					t.Error("existing game lost its editing budget")
+				}
+				if _, err := s.db.ExecContext(ctx, "UPDATE gm_jobs SET base_revision=0 WHERE id=?", run.Job.ID); err != nil {
+					return err
+				}
+				for _, path := range []string{"src/main.ts", "src/common.ts", "src/scene.json", "src/mechanics.json"} {
+					before, err := s.ReadJobFile(ctx, run.Job.ID, path)
+					if err != nil {
+						continue // Free Three.js has no common helper.
+					}
+					content := before + "\nexport const customRule = 1;\n"
+					if strings.HasSuffix(path, ".json") {
+						content = `{"customRule":1}`
+					}
+					// Exercise starter comparison directly; separate scene tests own schema validation.
+					stage, _ := s.JobDirectory(run.Job.ID)
+					if err := os.WriteFile(filepath.Join(stage, filepath.FromSlash(path)), []byte(content), 0o640); err != nil {
+						return err
+					}
+					if s.stopAfterValidation(run.Job.ID, false, past)() {
+						t.Errorf("work in %s was treated as read-only exploration", path)
+					}
+					if err := os.WriteFile(filepath.Join(stage, filepath.FromSlash(path)), []byte(before), 0o640); err != nil {
+						return err
+					}
+				}
+				return nil // Orchestrator must still reject the restored unchanged starter.
+			}))
+			job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if done := waitJob(t, s, job.ID); done.Error != "verified implementation handoff" || repairs != 1 || done.ResultRevision != 0 {
+				t.Fatalf("unexpected completion: %+v; repairs=%d", done, repairs)
+			}
+		})
+	}
+}
 
 func TestUnimplemented2DTemplatesCannotPublish(t *testing.T) {
 	for _, template := range templateNames()[:6] {

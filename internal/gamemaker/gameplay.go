@@ -344,17 +344,54 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 
 // StopAfterValidation ends a repair round after its first check. Building may
 // continue after core checks until repairs are exhausted or feedback is absent.
-// Results from preceding rounds cannot end a new round.
+// Read-only new-game exploration yields to implementation recovery before the
+// job deadline. Results from preceding rounds cannot end a new round.
 func (s *Service) StopAfterValidation(jobID string, repairRound bool) func() bool {
+	// Reserve time for implementation and validation when a new-game agent only
+	// explores. This does not reduce the tool budget of productive runs.
+	return s.stopAfterValidation(jobID, repairRound, time.Now().Add(min(5*time.Minute, s.opts.JobTimeout/4)))
+}
+
+func (s *Service) stopAfterValidation(jobID string, repairRound bool, explorationDeadline time.Time) func() bool {
 	s.mu.RLock()
 	previous := s.lastValidation[jobID]
 	s.mu.RUnlock()
 	return func() bool {
 		s.mu.RLock()
-		defer s.mu.RUnlock()
+		active := s.activeJobID == jobID
 		current := s.lastValidation[jobID]
-		return s.activeJobID == jobID && current != nil && current != previous &&
+		validated := current != nil && current != previous &&
 			(repairRound || s.validationFailures[jobID] >= 4 || current.RuntimeStatus == "unavailable" || current.GameplayStatus == "unavailable")
+		s.mu.RUnlock()
+		if !active || validated {
+			return active && validated
+		}
+		if repairRound || explorationDeadline.IsZero() || time.Now().Before(explorationDeadline) {
+			return false
+		}
+		ctx := context.Background()
+		job, err := s.GetJob(ctx, jobID)
+		if err != nil {
+			return false
+		}
+		if job.BaseRevision != 0 {
+			explorationDeadline = time.Time{} // Existing games keep their full editing budget.
+			return false
+		}
+		project, err := s.GetProject(ctx, job.ProjectID)
+		if err != nil {
+			return false
+		}
+		unchanged, err := s.unchangedGameStarter(ctx, jobID, project.Dimension)
+		if err != nil {
+			return false
+		}
+		if !unchanged {
+			explorationDeadline = time.Time{} // Source, scene and mechanics all count as work.
+		}
+		// Normal validation reports the unchanged starter, then the existing
+		// bounded implementation repair writes code. No check is bypassed.
+		return unchanged
 	}
 }
 
