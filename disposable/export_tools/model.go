@@ -283,7 +283,7 @@ func manualMetadata(root, toolName string) (string, string) {
 	if err != nil {
 		return "", ""
 	}
-	body := string(data)
+	body := strings.ReplaceAll(string(data), "\r\n", "\n")
 	if strings.HasPrefix(body, "---") {
 		if end := strings.Index(body[3:], "---"); end >= 0 {
 			body = strings.TrimSpace(body[3+end+3:])

@@ -191,6 +191,30 @@ func TestReadJSONReportsSourceLine(t *testing.T) {
 	}
 }
 
+func TestManualMetadataIgnoresCheckoutLineEndings(t *testing.T) {
+	root := t.TempDir()
+	manualDir := filepath.Join(root, "prompts", "tools_manuals")
+	if err := os.MkdirAll(manualDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(manualDir, "test_tool.md")
+	for _, prefix := range []string{"", "---\nname: test_tool\n---\n"} {
+		manual := prefix + strings.Repeat("A line of documentation.\n", 50)
+		var expected string
+		for _, ending := range []string{"\n", "\r\n"} {
+			if err := os.WriteFile(path, []byte(strings.ReplaceAll(manual, "\n", ending)), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, snippet := manualMetadata(root, "test_tool")
+			if ending == "\n" {
+				expected = snippet
+			} else if snippet != expected {
+				t.Fatal("manual snippet and truncation must be identical for LF and CRLF checkouts")
+			}
+		}
+	}
+}
+
 func TestCurrentCatalogTrainingCoverage(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
