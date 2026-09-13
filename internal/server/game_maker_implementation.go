@@ -54,7 +54,7 @@ Do not reproduce common.ts, diagnostic instrumentation or asset manifests. No re
 	}
 	response, _, err := agent.ExecuteMinimalLoop(ctx, client, cfg.LLM.Model, system, string(data), nil,
 		&agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}},
-		nil, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0})
+		nil, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true})
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
 	broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")
 	if err != nil {

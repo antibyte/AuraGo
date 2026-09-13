@@ -33,6 +33,10 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 		{"2d", "platformer", "length", "export const partial ="},
 		{"2d", "platformer", "stop", ""},
 		{"2d", "platformer", "stop", "```typescript\npartial"},
+		{"2d", "platformer", "", "export const requestedGame = 7;"},
+		{"2d", "platformer", "tool_calls", "export const requestedGame = 7;"},
+		{"2d", "platformer", "stream_error", "export const requestedGame = 7;"},
+		{"2d", "platformer", "timeout", "export const requestedGame = 7;"},
 	} {
 		t.Run(scenario.dimension+"/"+scenario.finish+fmt.Sprint(len(scenario.code)), func(t *testing.T) {
 			root := t.TempDir()
@@ -57,15 +61,41 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if len(body.Tools) != 0 {
 					t.Error("recovery exposed discovery tools")
 				}
+				if !body.Stream {
+					t.Error("source generation must stream instead of waiting for the complete file in response headers")
+					<-req.Context().Done()
+					return
+				}
 				if len(body.Messages) != 2 || scenario.base != "three" && !strings.Contains(body.Messages[1].Content, "src/common.ts") || !strings.Contains(body.Messages[1].Content, "src/main.ts") {
 					t.Error("missing actual source context")
 				}
-				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReason(scenario.finish), Message: openai.ChatCompletionMessage{Role: "assistant", Content: scenario.code}}}, Usage: openai.Usage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120}})
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.(http.Flusher).Flush()
+				// Full output takes longer than the header timeout; streaming must survive it.
+				time.Sleep(120 * time.Millisecond)
+				for _, content := range []string{scenario.code[:len(scenario.code)/2], scenario.code[len(scenario.code)/2:]} {
+					chunk, _ := json.Marshal(openai.ChatCompletionStreamResponse{Choices: []openai.ChatCompletionStreamChoice{{Delta: openai.ChatCompletionStreamChoiceDelta{Content: content}}}})
+					fmt.Fprintf(w, "data: %s\n\n", chunk)
+					w.(http.Flusher).Flush()
+				}
+				if scenario.finish == "stream_error" {
+					fmt.Fprint(w, "data: {\"error\":{\"message\":\"interrupted stream\",\"type\":\"server_error\"}}\n\n")
+					return
+				}
+				choice := openai.ChatCompletionStreamChoice{FinishReason: openai.FinishReason(scenario.finish)}
+				if scenario.finish == "tool_calls" {
+					choice.Delta.ToolCalls = []openai.ToolCall{{ID: "forbidden", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_file", Arguments: `{}`}}}
+				}
+				chunk, _ := json.Marshal(openai.ChatCompletionStreamResponse{Choices: []openai.ChatCompletionStreamChoice{choice}, Usage: &openai.Usage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120}})
+				fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", chunk)
 			}))
 			defer provider.Close()
 			clientCfg := openai.DefaultConfig("test-only")
 			clientCfg.BaseURL = provider.URL
+			clientCfg.HTTPClient = &http.Client{Transport: &http.Transport{ResponseHeaderTimeout: 50 * time.Millisecond}, Timeout: 3 * time.Second}
+			if scenario.finish == "timeout" {
+				clientCfg.HTTPClient = &http.Client{Timeout: 70 * time.Millisecond}
+			}
 			cfg := &config.Config{}
 			cfg.LLM.Model, cfg.LLM.ProviderType = "test-model", "openai"
 			cfg.Agent.ContextWindow = 65536
@@ -83,7 +113,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				err := runner.RunGameMakerJob(ctx, run)
 				after, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
 				commonAfter, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/common.ts")
-				valid := strings.Contains(scenario.code, "requestedGame")
+				valid := scenario.finish == "stop" && strings.Contains(scenario.code, "requestedGame")
 				if valid && (err != nil || !strings.Contains(after, "export const requestedGame = 7;") || strings.Contains(after, "```")) {
 					t.Errorf("code not written: %v", err)
 				}

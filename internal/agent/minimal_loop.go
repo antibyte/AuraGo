@@ -29,6 +29,9 @@ type MinimalLoopResult struct {
 
 // MinimalLoopOptions controls optional behaviour of ExecuteMinimalLoop.
 type MinimalLoopOptions struct {
+	// StreamText buffers a tool-free completion from SSE, avoiding a wait for the
+	// entire output before response headers. Other minimal-loop callers stay unchanged.
+	StreamText bool
 	// MaxToolCalls limits individual calls including parallel batches; zero keeps the legacy limit.
 	MaxToolCalls int
 	// MaxToolRounds caps the number of tool-call follow-up rounds.
@@ -123,6 +126,7 @@ func ExecuteMinimalLoop(
 		Model:    model,
 		Messages: messages,
 		Tools:    reqTools,
+		Stream:   opts != nil && opts.StreamText && noTools,
 	}
 	tokenCache := newTokenCountCache(512)
 	formatRetried := false
@@ -131,7 +135,13 @@ func ExecuteMinimalLoop(
 		if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, addenda...); err != nil {
 			return result, req.Messages, err
 		}
-		resp, err := client.CreateChatCompletion(ctx, req)
+		var resp openai.ChatCompletionResponse
+		var err error
+		if opts != nil && opts.StreamText && noTools {
+			resp, err = minimalLoopStreamText(ctx, client, req)
+		} else {
+			resp, err = client.CreateChatCompletion(ctx, req)
+		}
 		if err != nil {
 			return result, req.Messages, fmt.Errorf("llm call failed: %w", err)
 		}
