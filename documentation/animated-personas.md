@@ -90,7 +90,8 @@ contour while thinking; all characters use localized blink regions.
 `AuraRealtimeSpeechUI.setVisible(root, visible)`. Webchat mounts hidden; opening
 it starts neither a microphone nor a voice session. Closing its overlay pauses
 animation while preserving the session. Desktop disposal retains its existing
-`keepSession` semantics. Reduced motion keeps the selected PNG, and all loads
+`keepSession` semantics. While the selected animation is loading, the portrait stays empty instead of
+showing the static PNG. Reduced motion keeps the selected PNG, and all loads
 are generation-checked against switches/disposal. Rive load failure is bounded
 to 15 seconds with a static fallback, without either CDN fallback.
 

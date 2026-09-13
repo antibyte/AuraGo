@@ -26,6 +26,7 @@ Reviewed Rive payloads for the shared Live Speech persona renderer.
 - `mouthOpen` only gates the discrete pose selected by `viseme`; it does not
   continuously resize an AA mouth. Speech energy must change actual poses.
 - Preserve the original PNG fallback, including `custom` (no animated payload).
+  The Live Speech renderer must not show that PNG as a loading stand-in.
 
 ## Work Guidance
 

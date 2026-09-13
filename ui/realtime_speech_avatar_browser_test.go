@@ -74,7 +74,7 @@ if(surface==='webchat')AuraRealtimeSpeechUI.setVisible(root,true);
                 const key=surface==='webchat'?'friend':'neutral',avatar=root.querySelector('[data-realtime-avatar]');
                 const requests=performance.getEntriesByType('resource').map(entry=>new URL(entry.name).pathname);
                 const portraits=requests.filter(path=>path.startsWith('/img/personas/')&&path.endsWith('.png'));
-                if(!portraits.length||portraits.some(path=>path!=='/img/personas/'+key+'.png'))throw Error('Unselected loading persona: '+portraits.join(','));
+                if(portraits.length)throw Error('Static stand-in loaded before live persona: '+portraits.join(','));
                 const animations=requests.filter(path=>path.endsWith('.riv'));
                 if(animations.length!==1||animations[0]!=='/img/personas/animated/'+key+'.riv')throw Error('Unselected animation loaded');
                 if(avatar.dataset.persona!==key||AuraRealtimeSpeech.sessionId)throw Error('Opening changed persona or started speech');

@@ -193,6 +193,15 @@ idle.step(17000); assert.equal(idleInputs.mode.value, 0, 'errors must never turn
 idleView.dispose();
 assert.equal(idle.frames.size, 0); assert.equal(idle.timers.size, 0);
 
+// Loading the live view must not flash the static portrait before Rive is ready.
+const pending = harness({ key: 'neutral', autoLoad: false });
+const pendingView = pending.mount(true); await flush();
+assert.equal(pending.image.src, undefined, 'live persona must stay empty until animation or a real fallback');
+assert.equal(pending.host.dataset.persona, 'neutral');
+pending.players[0].options.onLoad();
+assert.equal(pending.image.src, undefined, 'a successful live load must not reveal the static stand-in');
+pendingView.dispose();
+
 // Late Rive callbacks, reduced motion on first open, and failure fallback.
 const late = harness({ key: 'neutral', autoLoad: false });
 const lateView = late.mount(true); await flush();

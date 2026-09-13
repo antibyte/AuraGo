@@ -56,7 +56,11 @@
         host.innerHTML = '<img alt="" decoding="async"><canvas aria-hidden="true"></canvas>';
         const poster = host.querySelector('img'), canvas = host.querySelector('canvas');
         const fallback = versioned('/img/personas/custom.png');
-        poster.onerror = () => { if (poster.getAttribute('src') !== fallback) poster.src = fallback; };
+        poster.onerror = () => {
+            const src = poster.getAttribute('src');
+            if (!src || src === fallback) return;
+            poster.src = fallback;
+        };
         host.dataset.animated = 'false';
 
         function activeView() { return !disposed && visible && inView && !document.hidden && !motion.matches && host.isConnected; }
@@ -152,15 +156,23 @@
                 key = window._activePersonaIconKey || resolved;
                 entry = entries.find(item => item.key === key) || null;
                 host.dataset.persona = entry ? entry.key : 'custom';
-                poster.src = entry ? versioned('/img/personas/' + entry.key + '.png') : fallback;
-                if (!entry || !activeView()) return;
+                const posterSrc = entry ? versioned('/img/personas/' + entry.key + '.png') : fallback;
+                if (!entry || !activeView()) {
+                    poster.src = posterSrc;
+                    return;
+                }
                 const rive = await riveRuntime();
-                if (disposed || token !== generation || !activeView()) return;
+                if (disposed || token !== generation) return;
+                if (!activeView()) {
+                    if (visible && inView && !document.hidden) poster.src = posterSrc;
+                    return;
+                }
                 const fail = () => {
                     if (disposed || token !== generation) return;
                     ++generation;
                     loading = false;
                     destroyPlayer();
+                    if (!poster.getAttribute('src')) poster.src = posterSrc;
                 };
                 // Also bounds runtimes that never call onLoadError after a WASM failure.
                 loadTimer = window.setTimeout(fail, 15000);
@@ -187,7 +199,9 @@
             } catch (_) {
                 if (!disposed && token === generation) {
                     destroyPlayer();
-                    if (!poster.getAttribute('src')) poster.src = fallback;
+                    if (!poster.getAttribute('src')) {
+                        poster.src = entry ? versioned('/img/personas/' + entry.key + '.png') : fallback;
+                    }
                 }
             } finally {
                 if (token === generation && !player) loading = false;
