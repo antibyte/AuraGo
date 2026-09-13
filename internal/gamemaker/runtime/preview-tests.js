@@ -99,7 +99,10 @@
   // moves objects, and unsupported platform physics remains unverified.
   function waypoint(view,target){
     const p=view.player,solids=view.targets.filter(o=>o.solid&&o.id!==target.id),bounds=view.bounds;
-    const blocked=(x,y)=>solids.some(o=>overlaps({x,y,w:p.w,h:p.h},o,.05));
+    // Walking aims at the target's horizontal position, not its lower centre.
+    // Ground contact is support, not a wall; retain actual penetrating obstacles.
+    if(view.mode==='platformer')target={...target,y:p.y};
+    const blocked=(x,y)=>solids.some(o=>overlaps({x,y,w:p.w,h:p.h},o,view.mode==='platformer'?-.05:.05));
     const lineClear=(a,b)=>{const n=Math.min(128,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/Math.max(p.w,p.h,.3)));for(let i=1;i<=n;i++)if(blocked(a.x+(b.x-a.x)*i/n,a.y+(b.y-a.y)*i/n))return false;return true};
     if(lineClear(p,target))return target;
     const cell=Math.max(view.kind==='3d'?.75:16,p.w,p.h,Math.max(bounds.width||bounds.w,bounds.height||bounds.h)/48);
@@ -233,6 +236,8 @@
         priorActions=now.actions||0;apply(want);await wait(50);
       }
       if(result.reason==='no_target'&&saw)result.reason='timeout';
+      // A skipped vertical probe must not erase the free horizontal attempts.
+      if(command.mode==='move'&&result.reason==='blocked'&&result.inputs&&result.contacts)result.reason='timeout';
     }finally{apply(new Set());}
     return result;
   }

@@ -332,9 +332,9 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 						check.Status = "unavailable"
 					}
 				}
-			} else if check.Status == "failed" && scenario.Metric == "hits" {
+			} else if check.Status == "failed" && slices.Contains([]string{"hits", "hit_events", "pickup_events", "health", "lives", "goal_remaining", "outcome", "win_events", "lose_events"}, scenario.Metric) && scenario.ID != "required_end" {
 				check.Status = "unavailable"
-				check.Observed += "; blind input did not establish a contact opportunity"
+				check.Observed += "; blind input did not establish the required gameplay opportunity; use an observed target and the metric for the actual action"
 			}
 		}
 		out = append(out, check)
@@ -356,6 +356,7 @@ func (s *Service) stopAfterValidation(jobID string, repairRound bool, exploratio
 	s.mu.RLock()
 	previous := s.lastValidation[jobID]
 	s.mu.RUnlock()
+	var lastWrite int64 = -1
 	return func() bool {
 		s.mu.RLock()
 		active := s.activeJobID == jobID
@@ -387,7 +388,18 @@ func (s *Service) stopAfterValidation(jobID string, repairRound bool, exploratio
 			return false
 		}
 		if !unchanged {
-			explorationDeadline = time.Time{} // Source, scene and mechanics all count as work.
+			// A first edit must not disable the stall guard for the rest of the job.
+			// Check only at the existing exploration interval; invalid tool attempts
+			// and repeated reads do not postpone validation of the saved implementation.
+			var write int64
+			if err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id),0) FROM gm_events WHERE job_id=? AND event_type='file_changed'", jobID).Scan(&write); err != nil {
+				return false
+			}
+			if write == lastWrite {
+				return true
+			}
+			lastWrite = write
+			explorationDeadline = time.Now().Add(min(5*time.Minute, s.opts.JobTimeout/4))
 		}
 		// Normal validation reports the unchanged starter, then the existing
 		// bounded implementation repair writes code. No check is bypassed.

@@ -648,6 +648,20 @@ func TestTargetEvidenceCannotCertifyMissingOrInactiveActions(t *testing.T) {
 	}
 }
 
+func TestBlindGameplayFailureRemainsUnverified(t *testing.T) {
+	for _, metric := range []string{"outcome", "pickup_events", "hit_events", "hits", "health", "lives", "goal_remaining", "win_events", "lose_events", "actions"} {
+		scenario := GameScenario{ID: "stomp_enemy", Metric: metric, Compare: "changed", Steps: []GameTestStep{{Action: "key", Key: "RIGHT", MS: 1000}, {Action: "key", Key: "SPACE", MS: 200}}}
+		observation := GameObservation{ID: scenario.ID, Before: map[string]float64{metric: 0}, After: map[string]float64{metric: 0}}
+		want := "unavailable"
+		if metric == "actions" {
+			want = "failed" // A direct input counter is still testable without a target.
+		}
+		if got := compareGameObservations([]GameScenario{scenario}, []GameObservation{observation})[0]; got.Status != want {
+			t.Fatalf("%s: %+v", metric, got)
+		}
+	}
+}
+
 func TestSpriteUsageReferencesAndTransforms(t *testing.T) {
 	s := newTestService(t)
 	packs, _ := s.ListAssetPacks()

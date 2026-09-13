@@ -83,6 +83,53 @@ func TestReadOnlyBuildingYieldsToImplementationRepair(t *testing.T) {
 	}
 }
 
+func TestStalledImplementationYieldsToValidation(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage == "planning" {
+			return s.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Collect coins","features":["Custom coins"]}`))
+		}
+		source, err := s.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+		if err != nil {
+			return err
+		}
+		// Shorten only the polling interval; the already-running job retains its context.
+		s.opts.JobTimeout = 40 * time.Millisecond
+		stop := s.stopAfterValidation(run.Job.ID, false, time.Now().Add(-time.Second))
+		for i := range 2 {
+			if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "src/main.ts", source+fmt.Sprintf("\nexport const customRule = %d;", i), ""); err != nil {
+				return err
+			}
+			time.Sleep(20 * time.Millisecond)
+			if stop() {
+				t.Fatal("productive source changes ended the building round")
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+		if _, err := s.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", 1, 5); err != nil {
+			return err
+		}
+		if _, err := s.ReplaceJobFile(ctx, run.Job.ID, "src/main.ts", "absent", "replacement", "wrong-hash"); err == nil {
+			return fmt.Errorf("invalid edit accepted")
+		}
+		if !stop() {
+			t.Error("reads and failed edits prolonged a stalled implementation")
+		}
+		if s.stopAfterValidation(run.Job.ID, true, time.Now().Add(-time.Second))() {
+			t.Error("repair budget changed")
+		}
+		return fmt.Errorf("verified stall handoff")
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done := waitJob(t, s, job.ID); done.Error != "verified stall handoff" {
+		t.Fatal(done.Error)
+	}
+}
+
 func TestUnimplemented2DTemplatesCannotPublish(t *testing.T) {
 	for _, template := range templateNames()[:6] {
 		t.Run(template, func(t *testing.T) {

@@ -31,6 +31,8 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"moving_enemy", "shooter", "passed"}, {"missing_enemy", "shooter", "unavailable"}, {"counter_only", "shooter", "unavailable"},
 		{"around_wall", "topdown", "passed"}, {"sealed_wall", "topdown", "unavailable"}, {"interaction", "topdown", "passed"},
 		{"raised_collectible", "platformer", "passed"}, {"occupied_cell", "board", "passed"}, {"natural_miss", "blocks", "passed"},
+		{"floor_movement", "platformer", "passed"}, {"floor_pickup", "platformer", "passed"},
+		{"floor_disabled", "platformer", "failed"}, {"floor_embedded", "platformer", "unavailable"},
 		{"catalog_coin", "platformer", "passed"}, {"unknown_coin", "platformer", "unavailable"}, {"explicit_coin", "platformer", "unavailable"},
 		{"fps_offset", "three", "passed"}, {"fps_cover", "three", "passed"}, {"fps_sealed", "three", "unavailable"},
 		{"ground_route", "three", "passed"},
@@ -55,7 +57,7 @@ func TestTargetControlBrowser(t *testing.T) {
 			if tc.name == "paused" {
 				scenario.Steps = append([]GameTestStep{{Action: "key", Key: "P", MS: 100}}, scenario.Steps...)
 			}
-			if tc.name == "move_blocked_right" || tc.name == "move_disabled" {
+			if tc.name == "move_blocked_right" || tc.name == "move_disabled" || tc.name == "floor_movement" || tc.name == "floor_disabled" || tc.name == "floor_embedded" {
 				scenario = requiredScenarios(tc.base)[0]
 			}
 			if tc.name == "interaction" {
@@ -116,6 +118,16 @@ func TestTargetControlBrowser(t *testing.T) {
 				source = bytes.ReplaceAll(source, []byte(old), []byte(next))
 			}
 			switch tc.name {
+			case "floor_movement", "floor_pickup", "floor_disabled", "floor_embedded":
+				replace("160, 450, 28, 40", "80, 450, 28, 40")
+				replace("480, 520, 960, 40", "760, 500, 1600, 40")
+				replace("this.physics.add.collider(this.player, ground);", "const solids=this.physics.add.staticGroup();solids.add(ground);this.physics.add.collider(this.player, solids);")
+				if tc.name == "floor_disabled" {
+					replace("this.inputKeys.vector().x * 240", "0")
+				}
+				if tc.name == "floor_embedded" {
+					replace("80, 450, 28, 40", "80, 470, 28, 40")
+				}
 			case "move_blocked_right":
 				replace("500,270,70,140", "274,270,40,140")
 			case "move_disabled":
