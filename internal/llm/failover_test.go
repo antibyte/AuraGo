@@ -360,13 +360,14 @@ func TestFailoverStalePrimaryProbeDoesNotSwitchBack(t *testing.T) {
 	}
 }
 
-func TestLLMHTTPClientHasGlobalAndHeaderTimeouts(t *testing.T) {
+func TestLLMHTTPClientHasResponseAndHeaderTimeouts(t *testing.T) {
 	client := buildLLMHTTPClient(&config.Config{}, "minimax", "", "https://api.example.test/v1")
 	if client == nil {
 		t.Fatal("buildLLMHTTPClient returned nil")
 	}
-	if client.Timeout <= 0 {
-		t.Fatal("expected global HTTP client timeout")
+	bounded, ok := client.Transport.(*responseTimeoutTransport)
+	if client.Timeout != 0 || !ok || bounded.timeout != 3*time.Minute {
+		t.Fatal("expected stream-aware response timeout instead of a global stream cutoff")
 	}
 	transport, ok := unwrapLLMTransport(client.Transport).(*http.Transport)
 	if !ok {
@@ -375,11 +376,8 @@ func TestLLMHTTPClientHasGlobalAndHeaderTimeouts(t *testing.T) {
 	if transport.ResponseHeaderTimeout <= 0 {
 		t.Fatal("expected response header timeout")
 	}
-	if client.Timeout < transport.ResponseHeaderTimeout {
-		t.Fatalf("client timeout %s is smaller than response header timeout %s", client.Timeout, transport.ResponseHeaderTimeout)
-	}
-	if client.Timeout > 5*time.Minute {
-		t.Fatalf("client timeout %s is unexpectedly large", client.Timeout)
+	if bounded.timeout < transport.ResponseHeaderTimeout {
+		t.Fatalf("response timeout %s is smaller than response header timeout %s", bounded.timeout, transport.ResponseHeaderTimeout)
 	}
 }
 
@@ -403,8 +401,8 @@ func TestProviderSpecificHeaderTimeoutDoesNotExceedClientTimeout(t *testing.T) {
 	if transport.ResponseHeaderTimeout < minExpected {
 		t.Fatalf("ResponseHeaderTimeout = %s, want at least %s", transport.ResponseHeaderTimeout, minExpected)
 	}
-	if client.Timeout < transport.ResponseHeaderTimeout {
-		t.Fatalf("client timeout %s is smaller than response header timeout %s", client.Timeout, transport.ResponseHeaderTimeout)
+	if client.Transport.(*responseTimeoutTransport).timeout < transport.ResponseHeaderTimeout {
+		t.Fatal("response timeout is smaller than response header timeout")
 	}
 
 	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = false
@@ -421,6 +419,8 @@ func TestProviderSpecificHeaderTimeoutDoesNotExceedClientTimeout(t *testing.T) {
 func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 	for {
 		switch t := rt.(type) {
+		case *responseTimeoutTransport:
+			rt = t.base
 		case *miniMaxTransport:
 			rt = t.base
 		case *openAIPromptCacheTransport:

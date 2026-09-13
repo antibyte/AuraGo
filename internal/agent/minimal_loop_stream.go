@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"aurago/internal/llm"
 
@@ -21,14 +22,17 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 	var text strings.Builder
 	var finish openai.FinishReason
 	var usage openai.Usage
+	chunks, lastChunk := 0, time.Now()
 	for {
 		chunk, err := stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return openai.ChatCompletionResponse{}, err
+			return openai.ChatCompletionResponse{}, fmt.Errorf("text stream interrupted (%d chunks, %d text bytes, %s since last chunk): %w", chunks, text.Len(), time.Since(lastChunk).Round(time.Second), err)
 		}
+		chunks++
+		lastChunk = time.Now()
 		if chunk.Usage != nil {
 			usage = *chunk.Usage
 		}
