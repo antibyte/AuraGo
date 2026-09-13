@@ -40,6 +40,7 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"model_asset_target", "three", "passed"},
 		{"move_blocked_right", "topdown", "passed"}, {"move_disabled", "topdown", "failed"},
 		{"paused", "topdown", "unavailable"},
+		{"manual_player", "minimal", "passed"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -54,7 +55,13 @@ func TestTargetControlBrowser(t *testing.T) {
 			plan := ExampleGamePlan(project)
 			plan.Template = tc.base
 			plan.Assets = nil
+			if tc.name == "manual_player" {
+				plan.Assets = []PlanAsset{{Role: "player", PackID: "blocks-and-balls", Version: "2", AssetID: "paddle_01"}}
+			}
 			scenario := requiredScenarios(tc.base)[2]
+			if tc.name == "manual_player" {
+				scenario = requiredScenarios(tc.base)[0]
+			}
 			if tc.name == "paused" {
 				scenario.Steps = append([]GameTestStep{{Action: "key", Key: "P", MS: 100}}, scenario.Steps...)
 			}
@@ -106,6 +113,30 @@ func TestTargetControlBrowser(t *testing.T) {
 			}
 			if err := installGameTemplate(root, plan); err != nil {
 				t.Fatal(err)
+			}
+			if tc.name == "manual_player" {
+				// The public manual example must not create a second sprite when
+				// common.ts already contains an accepted player asset binding.
+				for _, name := range []string{"sheet.png", "sheet.json"} {
+					data, err := bundledAssetPackFile("blocks-and-balls", name)
+					if err != nil {
+						t.Fatal(err)
+					}
+					path := filepath.Join(root, "assets/builtin/blocks-and-balls/2", name)
+					if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(path, data, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				detail, err := (&Service{}).describeAsset("blocks-and-balls", "paddle_01", "")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(root, "src/main.ts"), []byte(detail.Example), 0600); err != nil {
+					t.Fatal(err)
+				}
 			}
 			if tc.name == "scene_pickup" {
 				// Scene tools can add nodes after plan acceptance. Collection uses
@@ -235,6 +266,12 @@ func TestTargetControlBrowser(t *testing.T) {
 				t.Fatalf("test left keys held: %s", held)
 			}
 			checks := compareGameObservations([]GameScenario{scenario}, report.Observations)
+			if tc.name == "manual_player" {
+				count := page.MustEval(`()=>window.__AURAGO_GAME_TEST__.scene.children.list.filter(o=>o.active&&o.type==='Sprite'&&o.texture.key==='blocks-and-balls@2').length`).Int()
+				if count != 1 {
+					t.Fatalf("manual example drew %d player sprites, want one", count)
+				}
+			}
 			if checks[0].Status != tc.want {
 				t.Fatalf("want %s: %+v", tc.want, checks)
 			}

@@ -357,21 +357,25 @@ func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail
 		factory = "createAssembly"
 		id = assemblyID
 	}
-	d.Example = fmt.Sprintf(`// Complete src/main.ts example. Merge these lifecycle methods into your game;
-// retain the accepted rules and the installed common.ts lifecycle.
+	d.Example = fmt.Sprintf(`// Manual artwork example for a collision body WITHOUT a planned role.
+// In an existing game, body(..., 'player') already creates, sizes, follows and
+// animates planned art. Do not add createAsset/createAssembly for that body:
+// hiding the collision proxy does not hide its automatically managed sprite.
+// Retain the accepted rules and the installed common.ts lifecycle.
 import { GameScene, start } from './common';
 import { preloadPack, registerAnimations, %s, setFacing, playAction } from '../vendor/aurago-game-1.js';
 import meta from '../assets/builtin/%s/%s/sheet.json';
 class AssetGame extends GameScene {
   art: any;
-  preload() { preloadPack(this, meta, 'assets/builtin/%s/%s/sheet.png'); }
+  preload() { super.preload(); preloadPack(this, meta, 'assets/builtin/%s/%s/sheet.png'); }
   setup() {
-    super.setup(); // Creates this.player, the dynamic collision/test object.
+    // Empty role deliberately opts out of automatic artwork for this body.
+    this.player = this.body(240,270,28,28,0x5eead4,false,'');
     this.player.setVisible(false);
     registerAnimations(this, meta);
     this.art = %s(this, meta, %q, this.player.x, this.player.y);
     const target = this.body(360,270,20,20,0xfacc15,true);
-    this.physics.add.overlap(this.player,target,()=>{target.destroy();this.state.score++;this.state.hits++;});
+    this.physics.add.overlap(this.player,target,()=>{this.feedback('pickup',target);target.destroy();this.state.score++;this.state.hits++;});
   }
   step(delta: number) {
     super.step(delta);

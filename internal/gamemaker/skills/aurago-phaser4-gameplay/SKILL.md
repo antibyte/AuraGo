@@ -79,6 +79,10 @@ Keep the installed `src/common.ts` template lifecycle:
   `super.preload()` if adding a preload override. `this.body(x,y,w,h,color,fixed,role)`
   uses the exact planned role and keeps a separate collision proxy. The blocks
   template already connects player, ball and block variants; extend it in place.
+- `body(...,'player')` already creates, sizes, follows and animates its sprite.
+  Do not add another `createAsset`/`createAssembly` for that body. Hiding the
+  collision rectangle does not hide the managed sprite. Use the following
+  manual example only with an explicitly empty role; do not mix both paths.
 - `createAsset(this,meta,'paddle_01',x,y)` resolves the numeric frame. Never call
   `this.add.sprite(x,y,meta,'paddle_01')`: JSON is not a texture key and an asset ID
   is not a frame number. Merely importing createAsset does not use it.
@@ -91,11 +95,12 @@ class RangerGame extends GameScene {
   art: any; attackUntil=0;
   preload() { super.preload(); preloadPack(this,meta,'assets/builtin/human-characters-animated/2/sheet.png'); }
   setup() {
-    super.setup();this.attackUntil=0;this.player.setVisible(false);
+    this.player=this.body(240,270,28,28,0x5eead4,false,'');
+    this.attackUntil=0;this.player.setVisible(false);
     registerAnimations(this,meta);
     this.art=createAsset(this,meta,'ranger_idle',this.player.x,this.player.y).setScale(2);
     const coin=this.body(360,270,20,20,0xfacc15,true);
-    this.physics.add.overlap(this.player,coin,()=>{coin.destroy();this.state.score++;this.state.hits++;});
+    this.physics.add.overlap(this.player,coin,()=>{this.feedback('pickup',coin);coin.destroy();this.state.score++;this.state.hits++;});
   }
   action() {this.state.actions++;this.attackUntil=this.elapsed+650;playAction(this.art,'attack');}
   step(delta: number) {
