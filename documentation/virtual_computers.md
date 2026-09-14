@@ -70,6 +70,11 @@ micro-VMs do not start a browser. If upgrading from an image without this
 autostart, run Virtual Computers setup/repair to rebuild the desktop image and
 then start a new desktop VM. Already running VMs retain their existing image.
 
+Python snapshots include the workspace VSock device and wait for the agent's
+listener before reporting `BORING_READY`. Restores and forks rebind the socket
+to the new machine. After updating from older snapshots, run setup/repair to
+rebuild them; a host binary update alone cannot add the device to an old snapshot.
+
 When Virtual Computers is enabled, its management application is available directly at:
 
 ```text

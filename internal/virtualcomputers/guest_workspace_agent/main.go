@@ -319,6 +319,7 @@ func main() {
 	port := flag.Uint("vsock-port", defaultVSockPort, "guest vsock port")
 	listenTCP := flag.String("listen-tcp", "", "development-only TCP listen address")
 	desktopBrowser := flag.Bool("desktop-browser", false, "open the managed visible browser on desktop boot")
+	bootReady := flag.Bool("boot-ready", false, "report guest boot readiness after the workspace listener is bound")
 	flag.Parse()
 	svc, err := newService()
 	if err != nil {
@@ -344,6 +345,9 @@ func main() {
 		MaxHeaderBytes:    16 * 1024,
 	}
 	log.Printf("aurago-workspace-agent listening on %s", listener.Addr())
+	if *bootReady {
+		log.Print("BORING_READY")
+	}
 	if *desktopBrowser {
 		// Use the same controller as browser.open; concurrent RPC calls reuse its
 		// session. Browser startup must not delay the guest health/RPC listener.

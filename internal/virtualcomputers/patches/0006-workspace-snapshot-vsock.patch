@@ -1,0 +1,17 @@
+diff --git a/infra/latitude/build-template.sh b/infra/latitude/build-template.sh
+--- a/infra/latitude/build-template.sh
++++ b/infra/latitude/build-template.sh
+@@ -142,0 +143,4 @@
++# The workspace listener must have a device before guest readiness/snapshot.
++api PUT /vsock \
++  "{\"guest_cid\":3,\"uds_path\":\"${WORK}/vsock\"}" >/dev/null
++
+diff --git a/boringd/firecracker.go b/boringd/firecracker.go
+--- a/boringd/firecracker.go
++++ b/boringd/firecracker.go
+@@ -474,0 +475,5 @@
++	// Rebind the snapshot's build-time socket inside this machine's own jail.
++	// Also applies to forks and published templates carrying a vsock device.
++	if d.vsockUDS != "" {
++		load["vsock_override"] = map[string]any{"uds_path": d.apiVsock}
++	}

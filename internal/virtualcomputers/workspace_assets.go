@@ -20,6 +20,8 @@ const (
 	workspaceTemplateSHA256      = "b48d9702ec3ea5b05db5b241af37b07a3e2a2a2d641234cfbdcf90bf69b38d92"
 	workspaceMachineVolumeSHA256 = "6a6a9e58cd5cebb8def27a25722245ed546530a3eb3770bed81bcf8048551e15"
 	workspaceMachineSHA256       = "eb294a8e665cfe7d9e1855afb5edc4b829ca6ab7cbc149ca38f33d915fab22f9"
+	workspaceSnapshotSHA256      = "d8dc45aeba926903b4321001a56a2714dab035510aa63ce6c936e4a957dbb51d"
+	workspaceFirecrackerSHA256   = "80723bfd39819fb2c7a8d1b136533345a400e2c13b97b162f71681b352c0cf3d"
 )
 
 // The guest sources compile in the AuraGo module for tests. module.txt and
@@ -75,7 +77,9 @@ printf '%s  %s\n' \
     '` + workspaceServerSHA256 + `' "${REPO_DIR}/boringd/server.go" \
     '` + workspaceTemplateSHA256 + `' "${REPO_DIR}/boringd/templates.go" \
     '` + workspaceMachineVolumeSHA256 + `' "${REPO_DIR}/boringd/machinevolume.go" \
-    '` + workspaceMachineSHA256 + `' "${REPO_DIR}/boringd/machine.go" | sha256sum -c -
+    '` + workspaceMachineSHA256 + `' "${REPO_DIR}/boringd/machine.go" \
+    '` + workspaceSnapshotSHA256 + `' "${REPO_DIR}/infra/latitude/build-template.sh" \
+    '` + workspaceFirecrackerSHA256 + `' "${REPO_DIR}/boringd/firecracker.go" | sha256sum -c -
 for patch in "${PATCH_DIR}"/*.patch; do
   git -C "${REPO_DIR}" apply --unidiff-zero --check "${patch}"
   git -C "${REPO_DIR}" apply --unidiff-zero "${patch}"
@@ -141,9 +145,10 @@ inject_workspace_agent() {
     sed -i '\|^[[:space:]]*\(DISPLAY=:0 \)\?/usr/local/bin/aurago-workspace-agent |d' "${mount_dir}/sbin/boring-init"
     sed -i '/^echo BORING_READY/i DISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>\&1 \&' "${mount_dir}/sbin/boring-init"
   else
-    if ! grep -q 'aurago-workspace-agent' "${mount_dir}/etc/inittab"; then
-      printf '%s\n' '::respawn:/usr/local/bin/aurago-workspace-agent' >> "${mount_dir}/etc/inittab"
-    fi
+    # BusyBox runs sysinit before respawn: the upstream ready marker races the
+    # agent and snapshots a guest that cannot accept workspace connections yet.
+    sed -i '/^::sysinit:.*echo BORING_READY/d; \|^::respawn:/usr/local/bin/aurago-workspace-agent|d' "${mount_dir}/etc/inittab"
+    printf '%s\n' '::respawn:/usr/local/bin/aurago-workspace-agent --boot-ready' >> "${mount_dir}/etc/inittab"
   fi
   ) || status=$?
   {

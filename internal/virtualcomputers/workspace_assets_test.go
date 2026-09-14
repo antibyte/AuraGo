@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestDesktopBrowserLaunchReinjection(t *testing.T) {
+func TestWorkspaceBootReinjection(t *testing.T) {
 	bash, err := exec.LookPath("bash")
 	if _, statErr := os.Stat(`C:/Program Files/Git/bin/bash.exe`); statErr == nil {
 		bash, err = `C:/Program Files/Git/bin/bash.exe`, nil
@@ -17,27 +17,38 @@ func TestDesktopBrowserLaunchReinjection(t *testing.T) {
 	if err != nil {
 		t.Skip("bash is required to exercise guest init rewriting")
 	}
-	var commands []string
+	var desktop, python []string
 	for _, line := range strings.Split(workspaceGuestInstallSnippet(), "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "sed -i ") {
-			commands = append(commands, strings.TrimSpace(line))
+		if strings.HasPrefix(strings.TrimSpace(line), "sed -i ") && strings.Contains(line, "/sbin/boring-init") {
+			desktop = append(desktop, strings.TrimSpace(line))
+		}
+		if strings.Contains(line, `"${mount_dir}/etc/inittab"`) {
+			python = append(python, strings.TrimSpace(line))
 		}
 	}
-	if len(commands) != 2 {
-		t.Fatalf("expected two init rewrite commands, got %d", len(commands))
+	if len(desktop) != 2 || len(python) != 2 {
+		t.Fatal("expected two rewrite commands per image")
 	}
-	for _, previous := range []string{"", "/usr/local/bin/aurago-workspace-agent >>/var/log/aurago-workspace-agent.log 2>&1 &\n"} {
-		t.Run(previous, func(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, before, after string
+		commands                  []string
+	}{
+		{"desktop", "sbin/boring-init", "#!/bin/sh\nstart_x\necho BORING_READY\nwait\n", "#!/bin/sh\nstart_x\nDISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", desktop},
+		{"old-desktop", "sbin/boring-init", "#!/bin/sh\nstart_x\n/usr/local/bin/aurago-workspace-agent >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", "#!/bin/sh\nstart_x\nDISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", desktop},
+		{"python", "etc/inittab", "::sysinit:/bin/mount -t proc proc /proc\n::sysinit:/bin/sh -c 'echo BORING_READY > /dev/ttyS0'\nttyS0::respawn:/bin/sh -l\n", "::sysinit:/bin/mount -t proc proc /proc\nttyS0::respawn:/bin/sh -l\n::respawn:/usr/local/bin/aurago-workspace-agent --boot-ready\n", python},
+		{"old-python", "etc/inittab", "::sysinit:/bin/sh -c 'echo BORING_READY > /dev/ttyS0'\nttyS0::respawn:/bin/sh -l\n::respawn:/usr/local/bin/aurago-workspace-agent\n", "ttyS0::respawn:/bin/sh -l\n::respawn:/usr/local/bin/aurago-workspace-agent --boot-ready\n", python},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
-			if err := os.Mkdir(filepath.Join(root, "sbin"), 0755); err != nil {
+			initPath := filepath.Join(root, tc.path)
+			if err := os.Mkdir(filepath.Dir(initPath), 0755); err != nil {
 				t.Fatal(err)
 			}
-			initPath := filepath.Join(root, "sbin", "boring-init")
-			if err := os.WriteFile(initPath, []byte("#!/bin/sh\nstart_x\n"+previous+"echo BORING_READY\nwait\n"), 0755); err != nil {
+			if err := os.WriteFile(initPath, []byte(tc.before), 0755); err != nil {
 				t.Fatal(err)
 			}
 			for range 2 {
-				cmd := exec.Command(bash, "-c", "mount_dir=\"$1\"\n"+strings.Join(commands, "\n"), "test", filepath.ToSlash(root))
+				cmd := exec.Command(bash, "-c", "mount_dir=\"$1\"\n"+strings.Join(tc.commands, "\n"), "test", filepath.ToSlash(root))
 				if output, err := cmd.CombinedOutput(); err != nil {
 					t.Fatalf("rewrite failed: %v\n%s", err, output)
 				}
@@ -46,8 +57,7 @@ func TestDesktopBrowserLaunchReinjection(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := "#!/bin/sh\nstart_x\nDISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n"
-			if string(got) != want {
+			if string(got) != tc.after {
 				t.Fatalf("unexpected init after reinjection:\n%s", got)
 			}
 		})
@@ -100,11 +110,14 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 		workspaceTemplateSHA256,
 		workspaceMachineVolumeSHA256,
 		workspaceMachineSHA256,
+		workspaceSnapshotSHA256,
+		workspaceFirecrackerSHA256,
 		"0001-workspace-vsock-proxy.patch",
 		"0002-python-template-vsock.patch",
 		"0003-workspace-v2-volumes.patch",
 		"0004-per-workspace-network-policy.patch",
 		"0005-workspace-capability-status.patch",
+		"0006-workspace-snapshot-vsock.patch",
 	} {
 		if !strings.Contains(patchScript, required) {
 			t.Fatalf("patch install script is missing %q", required)
@@ -144,6 +157,19 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	guestSource, err := workspaceAssets.ReadFile("guest_workspace_agent/main.go")
 	if err != nil || !strings.Contains(string(guestSource), WorkspaceProtocolVersion) {
 		t.Fatalf("embedded guest source does not declare protocol %q: %v", WorkspaceProtocolVersion, err)
+	}
+	bound := strings.Index(string(guestSource), `log.Printf("aurago-workspace-agent listening`)
+	ready := strings.Index(string(guestSource), `log.Print("BORING_READY")`)
+	if bound < 0 || ready <= bound {
+		t.Fatal("Python readiness must follow successful workspace listener binding")
+	}
+	snapshotPatch, err := workspaceAssets.ReadFile("patches/0006-workspace-snapshot-vsock.patch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vsock := strings.Index(string(snapshotPatch), "+api PUT /vsock")
+	if vsock < 0 || !strings.Contains(string(snapshotPatch), "@@ -142,0 +143,4 @@") || !strings.Contains(string(snapshotPatch), `load["vsock_override"] = map[string]any{"uds_path": d.apiVsock}`) {
+		t.Fatal("Python snapshots need a vsock device before boot and a per-machine socket on restore")
 	}
 }
 
