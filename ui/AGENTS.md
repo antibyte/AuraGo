@@ -297,10 +297,14 @@ worker. Keep packaging, recovery and offline instructions in
   their DOM-diff snapshots so API-only reordering cannot leave stale cards.
 - The service worker caches only same-origin static assets, retains full
   versioned request URLs, and keeps HTML, API, event, and auth traffic network-only.
-  `site.webmanifest` must keep `id`, `start_url` and `scope` at `/`. Chat
-  registration uses `updateViaCache: 'none'`. Precache failures must not block
-  install. Standalone PWA resume reconnects `AuraSSE` after hide/freeze/offline
-  and reloads once when `/api/ready` reports a different `X-AuraGo-Asset-Set`.
+  `site.webmanifest` must keep `id`, `start_url` and `scope` at `/`, expose
+  `any` plus `maskable` icons, a description, and Chat/Desktop shortcuts.
+  Pages that link the manifest declare `apple-mobile-web-app-capable` and
+  `mobile-web-app-capable`. `initPWA` registers the service worker even without
+  `PushManager`. Chat registration uses `updateViaCache: 'none'`. Precache
+  failures must not block install. Standalone PWA resume reconnects `AuraSSE`
+  after hide/freeze/offline and reloads once when `/api/ready` reports a
+  different `X-AuraGo-Asset-Set`.
 - CanvasUI components are vendored as local framework-free ESM under
   `ui/js/vendor/canvasui/` with committed `manifest.json`, `LICENSE.txt`, and
   pinned upstream provenance. They must not load remote assets at runtime and

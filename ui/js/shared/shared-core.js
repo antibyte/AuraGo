@@ -225,6 +225,18 @@ function ensureBrandIcons() {
         href: '/site.webmanifest'
     });
     ensureHeadAsset('meta', {
+        name: 'apple-mobile-web-app-title',
+        content: 'AuraGo'
+    });
+    ensureHeadAsset('meta', {
+        name: 'apple-mobile-web-app-capable',
+        content: 'yes'
+    });
+    ensureHeadAsset('meta', {
+        name: 'mobile-web-app-capable',
+        content: 'yes'
+    });
+    ensureHeadAsset('meta', {
         name: 'theme-color',
         content: '#111827'
     });
@@ -1217,12 +1229,13 @@ async function initPWA() {
         return { available: true, permission };
     };
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('serviceWorker' in navigator)) {
         window._pushStatus = { available: false, reason: 'not-supported' };
         return;
     }
 
-    // 2. Register Service Worker
+    // 2. Register Service Worker even when PushManager is unavailable, so
+    // installable caching still works on browsers without Web Push.
     let registration;
     const swURL = serviceWorkerURL();
     try {
@@ -1242,8 +1255,15 @@ async function initPWA() {
         }
     }
 
-    // 3. Expose push status and opt-in helpers on window for use by the chat UI
     window._swRegistration = registration;
+
+    if (!('PushManager' in window) || typeof Notification === 'undefined') {
+        window._pushStatus = { available: false, reason: 'not-supported' };
+        window.dispatchEvent(new CustomEvent('pwa-ready'));
+        return;
+    }
+
+    // 3. Expose push status and opt-in helpers on window for use by the chat UI
 
     window.requestPushPermission = async function () {
         if (Notification.permission === 'denied') {

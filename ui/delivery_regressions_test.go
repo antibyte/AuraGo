@@ -98,10 +98,49 @@ func TestPWAManifestHasStableStartURL(t *testing.T) {
 		`"scope": "/"`,
 		`"id": "/"`,
 		`"display": "standalone"`,
+		`"lang": "en"`,
+		`"description":`,
+		`"purpose": "any"`,
+		`"purpose": "maskable"`,
+		`"shortcuts"`,
+		`"url": "/"`,
+		`"url": "/desktop"`,
 	} {
 		if !strings.Contains(manifest, marker) {
 			t.Fatalf("PWA manifest is missing installable start contract %q", marker)
 		}
+	}
+}
+
+func TestPWAHTMLDeclaresAppleWebAppCapable(t *testing.T) {
+	t.Parallel()
+
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read ui directory: %v", err)
+	}
+	checked := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".html") {
+			continue
+		}
+		html := normalizeAssetText(mustReadUIFile(t, entry.Name()))
+		if !strings.Contains(html, `href="/site.webmanifest"`) {
+			continue
+		}
+		checked++
+		for _, marker := range []string{
+			`name="apple-mobile-web-app-capable"`,
+			`name="mobile-web-app-capable"`,
+			`name="apple-mobile-web-app-title"`,
+		} {
+			if !strings.Contains(html, marker) {
+				t.Fatalf("%s is missing PWA install meta %q", entry.Name(), marker)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("expected HTML pages that link the web manifest")
 	}
 }
 
@@ -115,10 +154,18 @@ func TestPWARegistrationRetriesOneTransientScriptFetchFailure(t *testing.T) {
 		"setTimeout(resolve, 1500)",
 		"registered after retry",
 		"initial error:",
+		"if (!('serviceWorker' in navigator)) {",
+		"name: 'apple-mobile-web-app-capable'",
+		"name: 'mobile-web-app-capable'",
 	} {
 		if !strings.Contains(shared, marker) {
 			t.Fatalf("PWA registration retry is missing %q", marker)
 		}
+	}
+	registerAt := strings.Index(shared, "navigator.serviceWorker.register(swURL, { updateViaCache: 'none' })")
+	pushGateAt := strings.LastIndex(shared, "!('PushManager' in window)")
+	if registerAt < 0 || pushGateAt < 0 || pushGateAt < registerAt {
+		t.Fatal("service worker registration must run even when PushManager is missing")
 	}
 }
 

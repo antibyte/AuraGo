@@ -93,6 +93,8 @@ including in the service worker. Versioned resources retain cache and Range
 support; HTML, authentication and APIs are not used as offline UI substitutes.
 Installed standalone PWAs reconnect EventSource after background freeze and
 reload once when `X-AuraGo-Asset-Set` no longer matches the loaded BuildVersion.
+The manifest ships `any` and `maskable` icons plus Chat/Desktop shortcuts; the
+service worker still registers when Web Push is unavailable.
 `/api/assets/status` reports the expected set and readiness; `/api/system/info`
 adds `asset_set_id` and `assets_ready`. `/api/ready` retains its backend status
 and adds `X-AuraGo-Asset-Set` and `X-AuraGo-Assets-Ready` headers. A pinned binary's

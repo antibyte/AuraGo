@@ -245,6 +245,9 @@ func TestDesktopHasPWAMetaTags(t *testing.T) {
 		`<link rel="manifest" href="/site.webmanifest" />`,
 		`<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />`,
 		`<meta name="theme-color" content="#11151c" />`,
+		`<meta name="apple-mobile-web-app-title" content="AuraGo" />`,
+		`<meta name="apple-mobile-web-app-capable" content="yes" />`,
+		`<meta name="mobile-web-app-capable" content="yes" />`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("desktop.html missing PWA meta tag %q", want)
