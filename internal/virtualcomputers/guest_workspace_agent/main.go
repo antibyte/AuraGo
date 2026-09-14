@@ -318,6 +318,7 @@ func newService() (*service, error) {
 func main() {
 	port := flag.Uint("vsock-port", defaultVSockPort, "guest vsock port")
 	listenTCP := flag.String("listen-tcp", "", "development-only TCP listen address")
+	desktopBrowser := flag.Bool("desktop-browser", false, "open the managed visible browser on desktop boot")
 	flag.Parse()
 	svc, err := newService()
 	if err != nil {
@@ -343,6 +344,15 @@ func main() {
 		MaxHeaderBytes:    16 * 1024,
 	}
 	log.Printf("aurago-workspace-agent listening on %s", listener.Addr())
+	if *desktopBrowser {
+		// Use the same controller as browser.open; concurrent RPC calls reuse its
+		// session. Browser startup must not delay the guest health/RPC listener.
+		go func() {
+			if _, err := svc.browser.perform(context.Background(), browserRequest{Operation: "open"}); err != nil {
+				log.Printf("desktop browser startup failed: %v", err)
+			}
+		}()
+	}
 	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

@@ -2,9 +2,57 @@ package virtualcomputers
 
 import (
 	"encoding/hex"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestDesktopBrowserLaunchReinjection(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if _, statErr := os.Stat(`C:/Program Files/Git/bin/bash.exe`); statErr == nil {
+		bash, err = `C:/Program Files/Git/bin/bash.exe`, nil
+	}
+	if err != nil {
+		t.Skip("bash is required to exercise guest init rewriting")
+	}
+	var commands []string
+	for _, line := range strings.Split(workspaceGuestInstallSnippet(), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "sed -i ") {
+			commands = append(commands, strings.TrimSpace(line))
+		}
+	}
+	if len(commands) != 2 {
+		t.Fatalf("expected two init rewrite commands, got %d", len(commands))
+	}
+	for _, previous := range []string{"", "/usr/local/bin/aurago-workspace-agent >>/var/log/aurago-workspace-agent.log 2>&1 &\n"} {
+		t.Run(previous, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.Mkdir(filepath.Join(root, "sbin"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			initPath := filepath.Join(root, "sbin", "boring-init")
+			if err := os.WriteFile(initPath, []byte("#!/bin/sh\nstart_x\n"+previous+"echo BORING_READY\nwait\n"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			for range 2 {
+				cmd := exec.Command(bash, "-c", "mount_dir=\"$1\"\n"+strings.Join(commands, "\n"), "test", filepath.ToSlash(root))
+				if output, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("rewrite failed: %v\n%s", err, output)
+				}
+			}
+			got, err := os.ReadFile(initPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "#!/bin/sh\nstart_x\nDISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n"
+			if string(got) != want {
+				t.Fatalf("unexpected init after reinjection:\n%s", got)
+			}
+		})
+	}
+}
 
 func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	wantSourceHashes := map[string]string{
@@ -88,7 +136,7 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	}
 
 	guestScript := workspaceGuestInstallSnippet()
-	for _, required := range []string{"go.mod", "go.sum", "aurago-workspace-agent", "/workspace", "/run/aurago", "Remove the upstream unmanaged Chromium launch", "boring-init.aurago"} {
+	for _, required := range []string{"go.mod", "go.sum", "aurago-workspace-agent", "/workspace", "/run/aurago", "Remove the upstream unmanaged Chromium launch", "boring-init.aurago", "DISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser"} {
 		if !strings.Contains(guestScript, required) {
 			t.Fatalf("guest install script is missing %q", required)
 		}

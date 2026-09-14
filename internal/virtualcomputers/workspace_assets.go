@@ -136,9 +136,10 @@ inject_workspace_agent() {
 	' "${mount_dir}/sbin/boring-init" > "${mount_dir}/sbin/boring-init.aurago"
 	install -m0755 "${mount_dir}/sbin/boring-init.aurago" "${mount_dir}/sbin/boring-init"
 	rm -f "${mount_dir}/sbin/boring-init.aurago"
-    if ! grep -q 'aurago-workspace-agent' "${mount_dir}/sbin/boring-init"; then
-      sed -i '/^echo BORING_READY/i /usr/local/bin/aurago-workspace-agent >>/var/log/aurago-workspace-agent.log 2>\&1 \&' "${mount_dir}/sbin/boring-init"
-    fi
+    # Replace our previous launch as well, so reinjection enables the browser
+    # without adding a second agent or restoring the unmanaged Chromium process.
+    sed -i '\|^[[:space:]]*\(DISPLAY=:0 \)\?/usr/local/bin/aurago-workspace-agent |d' "${mount_dir}/sbin/boring-init"
+    sed -i '/^echo BORING_READY/i DISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>\&1 \&' "${mount_dir}/sbin/boring-init"
   else
     if ! grep -q 'aurago-workspace-agent' "${mount_dir}/etc/inittab"; then
       printf '%s\n' '::respawn:/usr/local/bin/aurago-workspace-agent' >> "${mount_dir}/etc/inittab"

@@ -64,6 +64,12 @@ The administrative API is rooted at `/api/virtual-computers/workspaces`, with jo
 
 ## Browser access
 
+Desktop micro-VMs open the guest agent's visible Chromium session automatically
+on display `:0`. Structured browser actions reuse that same instance; Python
+micro-VMs do not start a browser. If upgrading from an image without this
+autostart, run Virtual Computers setup/repair to rebuild the desktop image and
+then start a new desktop VM. Already running VMs retain their existing image.
+
 When Virtual Computers is enabled, its management application is available directly at:
 
 ```text
