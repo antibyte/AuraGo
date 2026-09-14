@@ -42,6 +42,7 @@ func TestServiceWorkerKeepsPushHandlersAndSecureStaticCachePolicy(t *testing.T) 
 		"event.respondWith(fetch(request))",
 		"try { await cache.put(key, response.clone()); } catch (_) { }",
 		"key.startsWith('aurago-') && key !== STATIC_CACHE",
+		"CORE_ASSETS.map(url => cache.add(url).catch(() => {}))",
 	} {
 		if !strings.Contains(sw, marker) {
 			t.Fatalf("service worker is missing delivery contract marker %q", marker)
@@ -75,13 +76,31 @@ func TestSharedLifecycleOrdersDisposerBeforeSSEAndPreservesBFCache(t *testing.T)
 		"window.addEventListener('pagehide', function (event)",
 		"if (event.persisted) return;",
 		"window.addEventListener('beforeunload'",
-		"window.addEventListener('pageshow', function (event)",
-		"event.persisted",
-		"!window.AuraSSE.isConnected()",
-		"window.AuraSSE.connect();",
+		"document.addEventListener('visibilitychange', _resume)",
+		"window.addEventListener('pageshow', _resume)",
+		"window.addEventListener('online', _resume)",
+		"document.addEventListener('freeze', _suspend)",
+		"_es.readyState === EventSource.OPEN",
+		"X-AuraGo-Asset-Set",
 	} {
 		if !strings.Contains(shared, marker) {
-			t.Fatalf("shared lifecycle is missing BFCache contract marker %q", marker)
+			t.Fatalf("shared lifecycle is missing PWA resume contract marker %q", marker)
+		}
+	}
+}
+
+func TestPWAManifestHasStableStartURL(t *testing.T) {
+	t.Parallel()
+
+	manifest := normalizeAssetText(mustReadUIFile(t, "site.webmanifest"))
+	for _, marker := range []string{
+		`"start_url": "/"`,
+		`"scope": "/"`,
+		`"id": "/"`,
+		`"display": "standalone"`,
+	} {
+		if !strings.Contains(manifest, marker) {
+			t.Fatalf("PWA manifest is missing installable start contract %q", marker)
 		}
 	}
 }

@@ -45,7 +45,7 @@ function normalizeNotificationTarget(rawTarget) {
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(STATIC_CACHE)
-            .then(cache => cache.addAll(CORE_ASSETS))
+            .then(cache => Promise.all(CORE_ASSETS.map(url => cache.add(url).catch(() => {}))))
             .then(() => self.skipWaiting())
     );
 });

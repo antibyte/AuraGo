@@ -356,7 +356,7 @@ tail -50 log/aurago.log > problem-report.log
 |---------|--------|
 | Managed Ollama | `GET /api/ollama/managed/status`, Docker-Logs, GPU-Runtime, Modell-Volume |
 | Security Proxy | `GET /api/proxy/status`, `GET /api/proxy/logs`, Caddyfile neu laden mit `POST /api/proxy/reload` |
-| Web Push / PWA | HTTPS oder localhost, Service Worker, `GET /api/push/status`, Browser-Berechtigungen |
+| Web Push / PWA | HTTPS mit akzeptiertem Zertifikat oder localhost (self-signed LAN blockiert den Service Worker). Installierte App startet unter `/`. Nach Hintergrund/Freeze verbindet `AuraSSE` neu; nach Asset-Update einmal neu laden. `GET /api/push/status` |
 | File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, verwaiste Nodes prüfen |
 | Video Generation | Provider-Key im Vault, Tageslimit, Modellname, `POST /api/video-generation/test` |
 | A2A | Agent Card, Auth-Modus, Remote-Agent-URL, aktivierte Bindings |

@@ -91,6 +91,8 @@ Requests with another version return HTTP 409 with a reload instruction rather
 than silently returning new files. Unversioned subresources are network-only,
 including in the service worker. Versioned resources retain cache and Range
 support; HTML, authentication and APIs are not used as offline UI substitutes.
+Installed standalone PWAs reconnect EventSource after background freeze and
+reload once when `X-AuraGo-Asset-Set` no longer matches the loaded BuildVersion.
 `/api/assets/status` reports the expected set and readiness; `/api/system/info`
 adds `asset_set_id` and `assets_ready`. `/api/ready` retains its backend status
 and adds `X-AuraGo-Asset-Set` and `X-AuraGo-Assets-Ready` headers. A pinned binary's

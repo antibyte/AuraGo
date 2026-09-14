@@ -5,6 +5,6 @@
 
     var script = document.currentScript;
     var swUrl = (script && script.dataset.swUrl) || '/sw.js';
-    navigator.serviceWorker.register(swUrl)
+    navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
         .catch(function (err) { console.warn('Service Worker registration failed:', err); });
 }());

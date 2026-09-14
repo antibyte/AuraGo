@@ -1376,13 +1376,25 @@ window.AuraDisposer = (function () {
     };
 }());
 
-window.addEventListener('pageshow', function (event) {
-    if (!event.persisted) return;
-    if (window.AuraSSE && typeof window.AuraSSE.isConnected === 'function' &&
-        typeof window.AuraSSE.connect === 'function' && !window.AuraSSE.isConnected()) {
-        window.AuraSSE.connect();
-    }
-});
+function checkAssetSetAfterResume() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    var expected = window.AURAGO_BUILD_VERSION || window.BUILD_VERSION || '';
+    if (!expected || expected === 'dev') return;
+    var storageKey = 'aurago-asset-reload';
+    try {
+        var last = sessionStorage.getItem(storageKey);
+        if (last && (Date.now() - Number(last)) < 15000) return;
+    } catch (_) { }
+    fetch('/api/ready', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
+        var current = r.headers.get('X-AuraGo-Asset-Set');
+        if (!current || current === expected) return;
+        try { sessionStorage.setItem(storageKey, String(Date.now())); } catch (_) { }
+        window.location.reload();
+    }).catch(function () { });
+}
+
+window.addEventListener('pageshow', checkAssetSetAfterResume);
+document.addEventListener('visibilitychange', checkAssetSetAfterResume);
 
 // ═══════════════════════════════════════════════════════════════
 // AURA SSE — Shared single EventSource connection
@@ -1501,16 +1513,69 @@ window.AuraSSE = (function () {
         _checkAuthAfterSSEError();
     });
 
+    var _backgrounded = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
+    function _isStandalonePWA() {
+        try {
+            if (window.navigator && window.navigator.standalone === true) return true;
+            if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+        } catch (_) { }
+        return false;
+    }
+
+    function _suspend() {
+        _backgrounded = true;
+        if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+        if (_es) { _es.close(); _es = null; }
+        _connected = false;
+    }
+
+    function _resume(event) {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+            _backgrounded = true;
+            return;
+        }
+        var persisted = !!(event && event.persisted);
+        var cameOnline = !!(event && event.type === 'online');
+        var lifecycleResume = !!(event && event.type === 'resume');
+        var becameVisible = _backgrounded;
+        _backgrounded = false;
+        if (!persisted && !cameOnline && !lifecycleResume && !becameVisible) return;
+        var force = persisted || lifecycleResume || (_isStandalonePWA() && becameVisible);
+        if (!force && _es && _es.readyState === EventSource.OPEN) return;
+        _retryAttempt = 0;
+        if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+        _connect();
+    }
+
+    if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('visibilitychange', _resume);
+        document.addEventListener('freeze', _suspend);
+        document.addEventListener('resume', _resume);
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('pageshow', _resume);
+        window.addEventListener('online', _resume);
+    }
+
     if (window.AuraDisposer) {
         window.AuraDisposer.add(function () {
-            if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
-            if (_es) { _es.close(); _es = null; }
-            _connected = false;
+            if (typeof document !== 'undefined' && document.removeEventListener) {
+                document.removeEventListener('visibilitychange', _resume);
+                document.removeEventListener('freeze', _suspend);
+                document.removeEventListener('resume', _resume);
+            }
+            if (typeof window !== 'undefined' && window.removeEventListener) {
+                window.removeEventListener('pageshow', _resume);
+                window.removeEventListener('online', _resume);
+            }
+            _suspend();
         });
     }
 
     return {
         connect: _connect,
+        resume: _resume,
         setSession: _setSession,
         isConnected: function () { return _connected; },
         on: function (type, fn) {

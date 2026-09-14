@@ -116,15 +116,89 @@ function testVersionedServiceWorkerRegistration() {
     location: { protocol: 'https:' },
     navigator: {
       serviceWorker: {
-        register(url) {
-          registrations.push(url);
+        register(url, options) {
+          registrations.push({ url, options });
           return Promise.resolve({ scope: '/' });
         }
       }
     },
     document: { currentScript: { dataset: { swUrl: '/sw.js?v=chat-build' } } }
   });
-  assert.deepEqual(registrations, ['/sw.js?v=chat-build']);
+  assert.equal(registrations.length, 1);
+  assert.equal(registrations[0].url, '/sw.js?v=chat-build');
+  assert.equal(registrations[0].options.updateViaCache, 'none');
+}
+
+function testAuraSSEResumesWhenVisibleAfterFrozenConnection() {
+  const shared = read('ui/js/shared/shared-core.js');
+  const source = sourceBetween(shared, 'window.AuraSSE = (function ()', '// TAILSCALE LOGIN WATCHER');
+  const sources = [];
+  const documentListeners = {};
+  const windowListeners = {};
+  class FakeEventSource {
+    constructor(url) {
+      this.url = url;
+      this.readyState = FakeEventSource.CONNECTING;
+      sources.push(this);
+    }
+    close() {
+      this.readyState = FakeEventSource.CLOSED;
+      this.closed = true;
+    }
+  }
+  FakeEventSource.CONNECTING = 0;
+  FakeEventSource.OPEN = 1;
+  FakeEventSource.CLOSED = 2;
+
+  const document = {
+    visibilityState: 'visible',
+    addEventListener(type, fn) {
+      (documentListeners[type] = documentListeners[type] || []).push(fn);
+    }
+  };
+  const window = {
+    location: { pathname: '/' },
+    navigator: { standalone: true },
+    matchMedia(query) {
+      return { matches: query === '(display-mode: standalone)' };
+    },
+    AuraDisposer: { add() {} },
+    addEventListener(type, fn) {
+      (windowListeners[type] = windowListeners[type] || []).push(fn);
+    }
+  };
+  const context = {
+    window,
+    document,
+    EventSource: FakeEventSource,
+    localStorage: { getItem: () => 's1' },
+    encodeURIComponent,
+    setTimeout() { return 0; },
+    clearTimeout() {},
+    fetch() { return Promise.resolve({ ok: true, status: 200, json: async () => ({}) }); }
+  };
+  vm.runInNewContext(`${source}\nthis.AuraSSE = window.AuraSSE;`, context);
+
+  assert.ok(documentListeners.visibilitychange, 'PWA resume must listen for visibilitychange');
+  assert.ok(windowListeners.pageshow, 'PWA resume must listen for pageshow');
+  assert.ok(windowListeners.online, 'PWA resume must listen for online');
+  assert.ok(documentListeners.freeze, 'frozen PWAs must drop the dead EventSource');
+
+  context.AuraSSE.connect();
+  assert.equal(sources.length, 1);
+  sources[0].readyState = FakeEventSource.OPEN;
+  sources[0].onopen();
+  assert.equal(context.AuraSSE.isConnected(), true);
+
+  document.visibilityState = 'hidden';
+  documentListeners.visibilitychange.forEach(fn => fn({ type: 'visibilitychange' }));
+  assert.equal(sources.length, 1, 'backgrounding must not tear down a browser EventSource');
+
+  document.visibilityState = 'visible';
+  documentListeners.visibilitychange.forEach(fn => fn({ type: 'visibilitychange' }));
+  assert.equal(sources.length, 2, 'foregrounding a standalone PWA must open a new EventSource');
+  assert.equal(sources[0].closed, true);
+  assert.match(sources[1].url, /session_id=s1/);
 }
 
 async function testGameMakerEventConnectionLifecycle() {
@@ -2108,6 +2182,7 @@ const tests = [
   ['local LLM family selection keeps model, context and draft settings valid', testLocalLLMFamilySelection],
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
+  ['AuraSSE resumes after a frozen PWA becomes visible', testAuraSSEResumesWhenVisibleAfterFrozenConnection],
   ['Game Maker preview loading ignores stale frame settlement', testGameMakerPreviewLoadingIgnoresStaleFrameSettlement],
   ['service worker preserves media range responses', testServiceWorkerPreservesMediaRangeResponses],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
