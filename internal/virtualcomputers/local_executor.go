@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type CommandRunner func(ctx context.Context, name string, args ...string) (string, error)
@@ -38,8 +39,19 @@ func (e LocalCommandExecutor) Preflight(ctx context.Context) (string, error) {
 		"RUNNING_IN_DOCKER=" + boolString(e.runningInDocker()),
 		"HAS_SYSTEMD=" + boolString(e.hasSystemd()),
 		"HAS_SUDO_OR_ROOT=" + boolString(e.hasSudoOrRoot(ctx)),
+		"HAS_DOCKER=" + boolString(e.hasDocker(ctx)),
 	}
 	return strings.Join(checks, "\n") + "\n", nil
+}
+
+func (e LocalCommandExecutor) hasDocker(ctx context.Context) bool {
+	if e.goos() != "linux" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err := e.runner()(ctx, "docker", "info")
+	return err == nil
 }
 
 func (e LocalCommandExecutor) Run(ctx context.Context, command string) (string, error) {

@@ -432,6 +432,7 @@ func TestLocalCommandExecutorPreflightReportsSupportedLinuxHost(t *testing.T) {
 		},
 		EffectiveUID:   func() int { return 0 },
 		DockerDetected: func() bool { return false },
+		CommandRunner:  func(context.Context, string, ...string) (string, error) { return "", nil },
 	}
 	out, err := executor.Preflight(context.Background())
 	if err != nil {
@@ -450,9 +451,40 @@ func TestLocalCommandExecutorPreflightReportsSupportedLinuxHost(t *testing.T) {
 		"RUNNING_IN_DOCKER": "0",
 		"HAS_SYSTEMD":       "1",
 		"HAS_SUDO_OR_ROOT":  "1",
+		"HAS_DOCKER":        "1",
 	} {
 		if got := result.Checks[key]; got != want {
 			t.Fatalf("check %s = %q, want %q; all checks=%v", key, got, want, result.Checks)
+		}
+	}
+}
+
+func TestLocalGaragePreflightChecksDockerDaemon(t *testing.T) {
+	for _, available := range []bool{true, false} {
+		executor := LocalCommandExecutor{
+			RuntimeGOOS: "linux", EffectiveUID: func() int { return 0 },
+			DockerDetected: func() bool { return false },
+			CommandRunner: func(ctx context.Context, name string, args ...string) (string, error) {
+				if name != "docker" || !reflect.DeepEqual(args, []string{"info"}) {
+					t.Fatalf("unexpected probe: %s %v", name, args)
+				}
+				if _, ok := ctx.Deadline(); !ok {
+					t.Fatal("Docker probe must have a deadline")
+				}
+				if !available {
+					return "", errors.New("daemon unavailable")
+				}
+				return "", nil
+			},
+		}
+		manager := SetupManager{Executor: executor, InstallOptions: SetupInstallOptions{AllowVolumes: true, StorageMode: StorageModeManagedGarage}}
+		result, err := manager.Preflight(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		warnsDocker := strings.Contains(strings.Join(result.Warnings, " "), "Docker is required")
+		if result.Checks["HAS_DOCKER"] != boolString(available) || warnsDocker == available {
+			t.Fatalf("available=%v checks=%v warnings=%v", available, result.Checks, result.Warnings)
 		}
 	}
 }
