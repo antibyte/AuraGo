@@ -37,7 +37,12 @@
 
     function agentRequest(state, ui) {
         const c = state.context;
-        return `<div class="vc-agent-request"><label><span>${ui.esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="4000" placeholder="${ui.esc(ui.tx(c, 'desktop.chat_placeholder'))}">${ui.esc(state.agentRequestDraft || '')}</textarea></label><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${ui.esc(ui.tx(c, 'desktop.virtual_computers_task_start'))}</button></div>`;
+        const selected = state.agentWorkspaceId || '';
+        const available = state.workspaces.filter(w => w.state === 'ready' && w.owner_session_id === 'virtual-desktop' && !w.mission_id);
+        const options = available.map(w => `<option value="${ui.esc(w.id)}" ${w.id === selected ? 'selected' : ''}>${ui.esc(w.id)} · ${ui.esc(valueLabel(c, 'template', w.template, ui))}</option>`).join('');
+        const missing = selected && !available.some(w => w.id === selected);
+        const selector = `<label class="vc-agent-workspace"><span>${ui.esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces'))}</span><select data-role="agent-workspace"><option value="">${ui.esc(ui.tx(c, 'desktop.virtual_computers_workspace_auto'))}</option>${options}${missing ? `<option value="${ui.esc(selected)}" selected disabled>${ui.esc(selected)} · ${ui.esc(ui.tx(c, 'desktop.virtual_computers_workspace_unavailable'))}</option>` : ''}</select></label>`;
+        return `<div class="vc-agent-request">${selector}<label><span>${ui.esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="4000" placeholder="${ui.esc(ui.tx(c, 'desktop.chat_placeholder'))}">${ui.esc(state.agentRequestDraft || '')}</textarea></label><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${ui.esc(ui.tx(c, 'desktop.virtual_computers_task_start'))}</button></div>`;
     }
 
     function renderPane(state, ui) {

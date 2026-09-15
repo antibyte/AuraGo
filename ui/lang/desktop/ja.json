@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "操作",
   "game_maker.sound_event_engine": "エンジン",
   "game_maker.sound_event_ui": "インターフェース",
-  "game_maker.sound_event_ambient": "環境音"
+  "game_maker.sound_event_ambient": "環境音",
+  "desktop.virtual_computers_workspace_auto": "自動で選択または作成",
+  "desktop.virtual_computers_workspace_unavailable": "ワークスペースは利用できません。別のものを選択してください。"
 }

@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Interakce",
   "game_maker.sound_event_engine": "Motor",
   "game_maker.sound_event_ui": "Rozhraní",
-  "game_maker.sound_event_ambient": "Prostředí"
+  "game_maker.sound_event_ambient": "Prostředí",
+  "desktop.virtual_computers_workspace_auto": "Automaticky vybrat nebo vytvořit",
+  "desktop.virtual_computers_workspace_unavailable": "Pracovní prostor není dostupný. Vyberte jiný."
 }

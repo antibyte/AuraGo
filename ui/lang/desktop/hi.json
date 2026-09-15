@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "क्रिया",
   "game_maker.sound_event_engine": "इंजन",
   "game_maker.sound_event_ui": "इंटरफ़ेस",
-  "game_maker.sound_event_ambient": "परिवेश"
+  "game_maker.sound_event_ambient": "परिवेश",
+  "desktop.virtual_computers_workspace_auto": "अपने आप चुनें या बनाएँ",
+  "desktop.virtual_computers_workspace_unavailable": "कार्यस्थान उपलब्ध नहीं है। दूसरा चुनें।"
 }

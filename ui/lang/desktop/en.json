@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Interaction",
   "game_maker.sound_event_engine": "Engine",
   "game_maker.sound_event_ui": "Interface",
-  "game_maker.sound_event_ambient": "Ambience"
+  "game_maker.sound_event_ambient": "Ambience",
+  "desktop.virtual_computers_workspace_auto": "Automatically select or create",
+  "desktop.virtual_computers_workspace_unavailable": "Selected workspace is unavailable. Select another."
 }

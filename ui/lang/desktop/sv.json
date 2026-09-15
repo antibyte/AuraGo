@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Interaktion",
   "game_maker.sound_event_engine": "Motor",
   "game_maker.sound_event_ui": "Gränssnitt",
-  "game_maker.sound_event_ambient": "Omgivning"
+  "game_maker.sound_event_ambient": "Omgivning",
+  "desktop.virtual_computers_workspace_auto": "Välj eller skapa automatiskt",
+  "desktop.virtual_computers_workspace_unavailable": "Arbetsytan är inte tillgänglig. Välj en annan."
 }

@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Αλληλεπίδραση",
   "game_maker.sound_event_engine": "Κινητήρας",
   "game_maker.sound_event_ui": "Διεπαφή",
-  "game_maker.sound_event_ambient": "Περιβάλλον"
+  "game_maker.sound_event_ambient": "Περιβάλλον",
+  "desktop.virtual_computers_workspace_auto": "Αυτόματη επιλογή ή δημιουργία",
+  "desktop.virtual_computers_workspace_unavailable": "Ο χώρος δεν είναι διαθέσιμος. Επιλέξτε άλλον."
 }

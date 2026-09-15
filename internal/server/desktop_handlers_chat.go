@@ -468,14 +468,15 @@ type desktopChatContext struct {
 }
 
 type desktopWindowContext struct {
-	Source     string                         `json:"source,omitempty"`
-	AppID      string                         `json:"app_id,omitempty"`
-	StoreAppID string                         `json:"store_app_id,omitempty"`
-	WindowID   string                         `json:"window_id,omitempty"`
-	Label      string                         `json:"label,omitempty"`
-	Purpose    string                         `json:"purpose,omitempty"`
-	Guide      string                         `json:"guide,omitempty"`
-	Resources  []desktopWindowContextResource `json:"resources,omitempty"`
+	WorkspaceID string                         `json:"workspace_id,omitempty"`
+	Source      string                         `json:"source,omitempty"`
+	AppID       string                         `json:"app_id,omitempty"`
+	StoreAppID  string                         `json:"store_app_id,omitempty"`
+	WindowID    string                         `json:"window_id,omitempty"`
+	Label       string                         `json:"label,omitempty"`
+	Purpose     string                         `json:"purpose,omitempty"`
+	Guide       string                         `json:"guide,omitempty"`
+	Resources   []desktopWindowContextResource `json:"resources,omitempty"`
 }
 
 type desktopWindowContextResource struct {
@@ -868,7 +869,7 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 	var b strings.Builder
 	if chatContext.WindowContext != nil && chatContext.WindowContext.AppID == "virtual-computers" {
 		// Select server-owned guidance by app ID; never promote the client guide to instructions.
-		b.WriteString("This request was launched from Virtual Computers. For computer or browser actions, use the enabled virtual_workspace and virtual_browser tools in a visible desktop workspace. First list and reuse an appropriate workspace for this chat, or open one. Use its returned workspace ID consistently. The launch context does not select a particular machine; do not assume a manually opened VM is the agent workspace. Tell the user the workspace ID and how to watch it in Virtual Computers > Agent Workspaces > Observe. browser_automation uses a separate headless session and is not visible there; do not silently substitute it. If the workspace tools are unavailable, explain the missing capability. For CAPTCHA or other human-only steps, request human takeover in that same workspace. These routing defaults do not override an explicit user request or tool permissions.\n\n")
+		b.WriteString("This request was launched from Virtual Computers. For computer or browser actions, use the enabled virtual_workspace and virtual_browser tools in a visible desktop workspace. If the metadata contains a Selected workspace ID, use exactly that workspace through the normal ownership and availability checks. If it is unavailable or inaccessible, report this and ask the user to select another; never silently create or substitute a workspace. Without a selected ID, first list and reuse an appropriate workspace for this chat, or open one. Use its returned workspace ID consistently. A selected workspace is not an ordinary machine ID; do not assume a manually opened VM is the agent workspace. Tell the user the workspace ID and how to watch it in Virtual Computers > Agent Workspaces > Observe. browser_automation uses a separate headless session and is not visible there; do not silently substitute it. If the workspace tools are unavailable, explain the missing capability. For CAPTCHA or other human-only steps, request human takeover in that same workspace. These routing defaults do not override an explicit user request or tool permissions.\n\n")
 	}
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
 	b.WriteString("\n\nNever use file_editor, filesystem, smart_file_read, or other agent_workspace file tools for Virtual Desktop paths. Paths beginning with Apps/ or Widgets/ live in the Virtual Desktop workspace, not agent_workspace/workdir; use virtual_desktop read_file, write_file, install_app, or open_in_app with the same path.")
@@ -993,6 +994,7 @@ func buildDesktopWindowContextPrompt(windowContext *desktopWindowContext) string
 	appendLine("App ID", windowContext.AppID)
 	appendLine("Store app ID", windowContext.StoreAppID)
 	appendLine("Window ID", windowContext.WindowID)
+	appendLine("Selected workspace ID", windowContext.WorkspaceID)
 	appendLine("Purpose", windowContext.Purpose)
 	appendLine("Guide", windowContext.Guide)
 	for i, resource := range windowContext.Resources {

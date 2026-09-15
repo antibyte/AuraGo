@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Samhandling",
   "game_maker.sound_event_engine": "Motor",
   "game_maker.sound_event_ui": "Grensesnitt",
-  "game_maker.sound_event_ambient": "Omgivelser"
+  "game_maker.sound_event_ambient": "Omgivelser",
+  "desktop.virtual_computers_workspace_auto": "Velg eller opprett automatisk",
+  "desktop.virtual_computers_workspace_unavailable": "Arbeidsområdet er utilgjengelig. Velg et annet."
 }

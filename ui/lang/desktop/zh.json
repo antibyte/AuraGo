@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "交互",
   "game_maker.sound_event_engine": "引擎",
   "game_maker.sound_event_ui": "界面",
-  "game_maker.sound_event_ambient": "环境音"
+  "game_maker.sound_event_ambient": "环境音",
+  "desktop.virtual_computers_workspace_auto": "自动选择或创建",
+  "desktop.virtual_computers_workspace_unavailable": "工作区不可用。请选择其他工作区。"
 }

@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Interazione",
   "game_maker.sound_event_engine": "Motore",
   "game_maker.sound_event_ui": "Interfaccia",
-  "game_maker.sound_event_ambient": "Ambiente"
+  "game_maker.sound_event_ambient": "Ambiente",
+  "desktop.virtual_computers_workspace_auto": "Seleziona o crea automaticamente",
+  "desktop.virtual_computers_workspace_unavailable": "Spazio non disponibile. Selezionane un altro."
 }

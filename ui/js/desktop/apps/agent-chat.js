@@ -935,6 +935,7 @@
         const normalized = {
             source: 'desktop-window',
             app_id: limitChatContextString(raw.app_id, 128),
+            workspace_id: limitChatContextString(raw.workspace_id, 160),
             store_app_id: limitChatContextString(raw.store_app_id, 96),
             window_id: limitChatContextString(raw.window_id, 160),
             label: limitChatContextString(raw.label || raw.app_name || raw.app_id, 160),

@@ -330,3 +330,6 @@ button:disabled { opacity: .52; cursor: wait; }
 @media (prefers-reduced-motion: reduce) {
     .vc-app *, .vc-app *::before, .vc-app *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+.vc-agent-workspace { grid-column: 1 / -1; }
+.vc-agent-workspace select { width: 100%; min-width: 0; }

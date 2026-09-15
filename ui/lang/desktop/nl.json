@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Interactie",
   "game_maker.sound_event_engine": "Motor",
   "game_maker.sound_event_ui": "Interface",
-  "game_maker.sound_event_ambient": "Omgeving"
+  "game_maker.sound_event_ambient": "Omgeving",
+  "desktop.virtual_computers_workspace_auto": "Automatisch selecteren of maken",
+  "desktop.virtual_computers_workspace_unavailable": "Werkruimte niet beschikbaar. Selecteer een andere."
 }

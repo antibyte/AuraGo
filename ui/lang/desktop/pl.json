@@ -4142,5 +4142,7 @@
   "game_maker.sound_event_interact": "Interakcja",
   "game_maker.sound_event_engine": "Silnik",
   "game_maker.sound_event_ui": "Interfejs",
-  "game_maker.sound_event_ambient": "Otoczenie"
+  "game_maker.sound_event_ambient": "Otoczenie",
+  "desktop.virtual_computers_workspace_auto": "Wybierz lub utwórz automatycznie",
+  "desktop.virtual_computers_workspace_unavailable": "Obszar roboczy jest niedostępny. Wybierz inny."
 }

@@ -218,6 +218,7 @@
         const modal = state.host.querySelector('[data-role="modal-host"]');
         if (!toolbar || !sections || !statusRegion || !content || !modal) return;
         state.agentRequestDraft = content.querySelector('[data-role="agent-request"]')?.value ?? state.agentRequestDraft ?? '';
+        state.agentWorkspaceId = content.querySelector('[data-role="agent-workspace"]')?.value ?? state.agentWorkspaceId ?? '';
         toolbar.innerHTML = toolbarPane(state);
         sections.innerHTML = sectionTabs(state);
         statusRegion.innerHTML = statusPane(state);
@@ -503,6 +504,11 @@
 
     function openAgentRequest(state) {
         const input = state.host.querySelector('[data-role="agent-request"]');
+        const workspaceId = state.host.querySelector('[data-role="agent-workspace"]')?.value || '';
+        if (workspaceId && !state.workspaces.some(w => w.id === workspaceId && w.state === 'ready' && w.owner_session_id === 'virtual-desktop' && !w.mission_id)) {
+            notify(state, tx(state.context, 'desktop.virtual_computers_workspace_unavailable'), 'error');
+            return;
+        }
         const requestText = input ? input.value.trim() : '';
         if (!requestText || typeof state.context.openApp !== 'function') {
             if (input) input.focus();
@@ -514,6 +520,7 @@
             chat_source_app: 'virtual-computers',
             window_context: {
                 app_id: 'virtual-computers',
+                workspace_id: workspaceId,
                 label: tx(state.context, 'desktop.virtual_computers_title'),
                 purpose: 'Control isolated Firecracker workspaces with the AuraGo main agent.',
                 guide: 'Use virtual_workspace and virtual_browser for this request. Do not use legacy agent task tools.'
