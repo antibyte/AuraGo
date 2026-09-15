@@ -2,6 +2,15 @@
 
 Control the visible headful Chromium inside a `desktop` virtual workspace. VNC observes the same browser and human takeover temporarily owns browser input.
 
+Prefer this tool for interactive website navigation when enabled, unless the user
+explicitly requests background/headless work. `browser_automation` is a separate
+invisible sidecar; its `ba_` session IDs, cookies and tabs cannot be used here.
+First list the current chat's workspaces and reuse the relevant desktop workspace,
+or open one through `virtual_workspace`. Report the returned workspace ID and tell
+the user to open Virtual Computers > Agent Workspaces > Observe. A separately
+created ordinary VM is not automatically the agent's workspace. For a CAPTCHA,
+pause and ask the user to Take control; do not retry to evade the challenge.
+
 ## Workflow
 
 1. Use `open` with the selected `workspace_id`.

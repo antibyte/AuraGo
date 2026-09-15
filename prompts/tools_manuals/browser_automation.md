@@ -1,10 +1,21 @@
 ---
-description: browser_automation: Full browser automation through an optional CloakBrowser stealth sidecar with persistent sessions.
+description: "browser_automation: Background browser automation through a separate headless sidecar."
 ---
 
 # `browser_automation` Tool
 
 The **browser_automation** tool gives you a full browser session for multi-step website workflows using a stealth Chromium browser (CloakBrowser).
+
+This is a separate headless sidecar. Its `ba_` sessions are not visible in Virtual
+Computers and do not share the micro-VM browser's cookies or tabs. When enabled,
+prefer `virtual_workspace` and `virtual_browser` for interactive website navigation
+unless the user explicitly requests background/headless work. Never claim a sidecar
+session is open in the user's visible desktop. If those workspace tools are disabled,
+explain the limitation rather than silently substituting a headless session.
+
+For a CAPTCHA requiring human interaction, stop automated attempts and let the user
+take over a visible workspace. Opening the original URL there creates a separate
+session; do not promise that changing browsers bypasses the challenge.
 
 It is designed for tasks such as:
 - opening a website and navigating through multiple pages

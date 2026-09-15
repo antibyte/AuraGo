@@ -1872,7 +1872,7 @@ func TestSelectedNativeToolDescriptionsStayCompact(t *testing.T) {
 		{name: "homepage_registry", requiredText: []string{"homepage/web", "deploy history", "project history", "add_history", "list_history"}},
 		{name: "web_capture", requiredText: []string{"PNG", "PDF", "Chromium"}},
 		{name: "web_performance_audit", requiredText: []string{"page load", "Chromium"}},
-		{name: "browser_automation", requiredText: []string{"browser sidecar", "screenshots"}},
+		{name: "browser_automation", requiredText: []string{"browser sidecar", "screenshots", "not visible", "virtual_workspace", "virtual_browser"}},
 		{name: "manage_updates", requiredText: []string{"AuraGo updates", "user approval"}},
 		{name: "execute_sudo", requiredText: []string{"sudo", "elevated privileges"}},
 	}
