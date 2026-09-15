@@ -847,6 +847,8 @@ registration lives in `internal/desktop/types.go`.
   `core/menus-and-routing.js`, so `renderCalendar` and its helpers stay inside
   the shared Desktop runtime closure without duplication.
 - Game Maker Studio loads in the order `game-maker-studio-api.js`,
+  `game-maker-studio-activity.js` (`window.GameMakerStudioActivity`: per-window
+  background progress terminal),
   `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
   overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
   (`window.GameMakerStudioModals`: shared modal lifecycle, media toggles,
@@ -912,6 +914,17 @@ registration lives in `internal/desktop/types.go`.
   marks the single globally running job (library spinner, disabled change
   form plus hint in other projects) and is polled only while another project
   is busy.
+- The preview placeholder's adventure terminal consumes only public phase,
+  allowlisted tool names, file/asset updates and check status events. Never feed
+  it model deltas, reasoning, arguments or diagnostic bodies. Render values as
+  bounded text, deduplicate replay IDs and scope them to the current job/project.
+  Keep the existing icon/copy stationary. Limit pending lines to 32 and DOM rows
+  to 24; suspend typing while hidden, offscreen, inactive or showing a game iframe.
+  Reduced motion reveals complete lines without a blinking cursor. Project
+  changes and disposal clear its timeout and history; disposal also disconnects
+  intersection/resize observers and visibility/media listeners.
+  Verify with `TestGameMakerActivityTerminalBrowser`; optional screenshots use
+  `AURAGO_GAME_TERMINAL_SCREENSHOTS` under ignored `reports/`.
 - EventSource open restores status even without replayed events; stale callbacks
   cannot affect another project or disposed window. Terminal job status survives
   reconnects and project refreshes. Cancellation shows its server reason and retry

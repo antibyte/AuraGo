@@ -247,6 +247,8 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 	broker.SendTokenUpdate(-1, 20_000_000, 42, 0, 0, true, true, "unexpected")
 	broker.Send("tool_start", "game_maker_project")
 	broker.Send("tool_start", "game_maker_validate")
+	broker.Send("tool_start", "unknown-tool-with-private-arguments")
+	broker.Send("thinking", "private model reasoning")
 	events, err := service.EventsAfter(context.Background(), project.ID, 0, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -255,12 +257,22 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 	for _, event := range events {
 		if event.Type == "tool_call" {
 			metricCalls++
-			if len(event.Payload) != 1 || event.Payload["attempted"] != true {
+			if event.Payload["attempted"] != true {
 				t.Fatal("tool arguments leaked", event.Payload)
 			}
+			if metricCalls < 3 {
+				if len(event.Payload) != 2 || (event.Payload["tool"] != "game_maker_project" && event.Payload["tool"] != "game_maker_validate") {
+					t.Fatal("missing allowlisted tool name", event.Payload)
+				}
+			} else if len(event.Payload) != 1 {
+				t.Fatal("unrecognized tool content leaked", event.Payload)
+			}
+		}
+		if strings.Contains(fmt.Sprint(event.Payload), "private") {
+			t.Fatal("private content leaked into progress", event.Payload)
 		}
 	}
-	if metricCalls != 2 {
+	if metricCalls != 3 {
 		t.Fatal("missing tool attempt metrics", metricCalls)
 	}
 	var payload map[string]any

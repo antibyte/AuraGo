@@ -566,8 +566,13 @@ func (b *gameMakerBroker) Send(event, message string) {
 		return
 	}
 	if event == "tool_start" && b.service != nil {
-		// Count dispatch attempts without retaining arguments or model text.
-		_ = b.service.EmitAgentEvent(context.Background(), b.projectID, b.jobID, "tool_call", map[string]any{"attempted": true})
+		// Progress may name known tools, but never retain arguments or model text.
+		payload := map[string]any{"attempted": true}
+		switch message {
+		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate", "activate_agent_skill":
+			payload["tool"] = message
+		}
+		_ = b.service.EmitAgentEvent(context.Background(), b.projectID, b.jobID, "tool_call", payload)
 	}
 	if event == "final_response" {
 		b.mu.Lock()

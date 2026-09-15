@@ -5,7 +5,7 @@
     const instances = new Map();
     const eventTypes = [
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
-        'skill_activation', 'file_changed', 'asset_changed', 'preview_reload',
+        'skill_activation', 'file_changed', 'asset_changed', 'preview_reload', 'tool_call',
         'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
@@ -51,6 +51,7 @@
         state.reloadProjectRecord = () => reloadProjectRecord(state);
         state.refreshPreview = () => refreshPreview(state);
         container.innerHTML = shell(state);
+        state.activity = window.GameMakerStudioActivity?.create(state);
         bindShell(state);
         window.addEventListener('message', state.previewListener = event => handlePreviewMessage(state, event));
         initialize(state);
@@ -362,6 +363,7 @@
 
     async function openProject(state, projectID) {
         if (!projectID || state.disposed) return;
+        const requestID = state.projectRequestID = (state.projectRequestID || 0) + 1;
         closeEvents(state);
         stopElapsed(state);
         state.repairCount = 0;
@@ -369,7 +371,15 @@
         state.previewStale = false;
         try {
             const body = await state.api.getProject(projectID);
-            if (state.disposed) return;
+            if (state.disposed || state.projectRequestID !== requestID) return;
+            if (state.project?.id !== projectID) {
+                window.GameMakerStudioPreview?.clearLoading(state);
+                window.GameMakerStudioPreview?.cancelVisual(state);
+                state.previewVisibility?.disconnect();
+                state.previewRequestID = (state.previewRequestID || 0) + 1;
+                state.frame = null; state.previewGrant = null; state.channelID = '';
+                state.activity?.reset();
+            }
             state.project = body.project;
             state.messages = body.messages || [];
             state.job = null;
@@ -389,7 +399,7 @@
             connectEvents(state);
             if (state.project.current_revision) refreshPreview(state);
         } catch (error) {
-            fail(state, error);
+            if (!state.disposed && state.projectRequestID === requestID) fail(state, error);
         }
     }
 
@@ -548,6 +558,7 @@
             });
             break;
         }
+        state.activity?.event(event);
     }
 
     function handleJobStatus(state, payload) {
@@ -690,6 +701,7 @@
             state.previewVisibility?.disconnect();
             shell.replaceChildren(frame);
             state.frame = frame;
+            state.activity?.sync();
             let visible=true;
             const signalActive=()=>frame.contentWindow?.postMessage({type:'aurago:game:active',active:visible&&!document.hidden},'*');
             state.previewVisibility=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;signalActive()});state.previewVisibility.observe(frame);
@@ -999,6 +1011,7 @@
     function syncJobControls(state) {
         const active = Boolean(state.job && activeStatuses.has(state.job.status));
         state.jobActive = active;
+        state.activity?.sync();
         updateJobBanner(state);
         const otherBusy = otherProjectBusy(state);
         const form = state.container.querySelector('[data-gm-change-form]');
@@ -1108,6 +1121,7 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        state.activity?.dispose();
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
         state.previewVisibility?.disconnect();
         closeEvents(state);

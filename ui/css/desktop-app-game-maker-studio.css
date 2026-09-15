@@ -348,6 +348,7 @@
 }
 
 .gm-preview-pane {
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     border-left: 1px solid var(--gm-line);
     background: var(--gm-bg);
@@ -546,6 +547,8 @@
 .gm-preview-shell {
     position: relative;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     min-height: 0;
     overflow: hidden;
     background:
@@ -579,6 +582,95 @@
 
 .gm-preview-empty strong {
     color: var(--gm-text);
+}
+
+/* Adventure-style progress stays behind the original, stationary stage card. */
+.has-build-terminal .gm-preview-empty {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 72% 85%, #24214366, transparent 65%), #0d0e14;
+}
+.has-build-terminal .gm-preview-empty::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(ellipse 56% 22% at center, #0d0e14 15%, #0d0e14eb 52%, transparent 100%);
+}
+.has-build-terminal .gm-preview-empty > :not(.gm-build-terminal) {
+    position: relative;
+    z-index: 2;
+    max-width: calc(100% - 32px);
+    color: #b7b9d0;
+}
+.has-build-terminal .gm-preview-empty strong { color: #f0efff; }
+.has-build-terminal .gm-preview-empty img {
+    opacity: 1;
+    filter: drop-shadow(0 4px 20px #8b7cf636);
+}
+.gm-build-terminal {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+    padding: 24px 28px;
+    gap: 20px;
+    pointer-events: none;
+    text-align: left;
+    user-select: none;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    line-height: 2.6;
+    font-weight: 400;
+    letter-spacing: .1px;
+    color: #8b83aa;
+    -webkit-text-stroke: 1px #f5f1ff;
+    paint-order: stroke fill;
+    text-shadow: 2px 2px 0 #000;
+}
+.gm-build-terminal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: .12;
+    background: repeating-linear-gradient(transparent 0 3px, #000 3px 4px);
+}
+.gm-build-lines {
+    overflow: hidden;
+    min-height: 0;
+    mask-image: linear-gradient(transparent, #000 45px);
+    padding-top: 48px;
+}
+.gm-build-line {
+    position: relative;
+    padding: 6px 0 6px 36px;
+    overflow-wrap: anywhere;
+    opacity: .68;
+}
+.gm-build-line::before {
+    content: attr(data-line);
+    position: absolute;
+    left: 0;
+    color: #4c4664;
+    opacity: .6;
+}
+.gm-build-line:last-child { opacity: 1; }
+.gm-build-prompt { display: flex; gap: 12px; color: #8b83aa; opacity: .85; }
+.gm-build-prompt > :last-child { min-width: 0; overflow-wrap: anywhere; }
+.gm-build-cursor { animation: gm-build-blink 1.2s steps(2, jump-none) infinite; }
+.gm-build-terminal.is-still .gm-build-cursor,
+.desktop-body[data-animations="false"] .gm-build-cursor { animation: none; }
+@keyframes gm-build-blink { to { opacity: .2; } }
+@media (max-width: 700px) {
+    .gm-build-terminal { padding: 16px; font-size: 9px; gap: 12px; }
+    .gm-build-line { padding-left: 28px; }
+    .gm-preview-tools { max-width: 65%; overflow-x: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .gm-build-cursor { animation: none; }
 }
 
 .gm-diagnostics {

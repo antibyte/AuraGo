@@ -33,6 +33,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		"'game-maker-studio'",
 		"/css/desktop-app-game-maker-studio.css",
 		"/js/desktop/apps/game-maker-studio-api.js",
+		"/js/desktop/apps/game-maker-studio-activity.js",
 		"/js/desktop/apps/game-maker-studio.js",
 		"['game_maker']",
 	} {
@@ -103,6 +104,10 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		t.Fatalf("desktop locales = %d, want 16", len(files))
 	}
 	required := []string{
+		"game_maker.terminal_queued", "game_maker.terminal_planning", "game_maker.terminal_building",
+		"game_maker.terminal_validating", "game_maker.terminal_polishing", "game_maker.terminal_cancelling",
+		"game_maker.terminal_files", "game_maker.terminal_assets", "game_maker.terminal_skills",
+		"game_maker.terminal_tool", "game_maker.terminal_waiting",
 		"desktop.app_game_maker_studio",
 		"game_maker.title",
 		"game_maker.new_game",
