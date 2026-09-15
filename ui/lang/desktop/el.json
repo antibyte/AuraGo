@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Διεπαφή",
   "game_maker.sound_event_ambient": "Περιβάλλον",
   "desktop.virtual_computers_workspace_auto": "Αυτόματη επιλογή ή δημιουργία",
-  "desktop.virtual_computers_workspace_unavailable": "Ο χώρος δεν είναι διαθέσιμος. Επιλέξτε άλλον."
+  "desktop.virtual_computers_workspace_unavailable": "Ο χώρος δεν είναι διαθέσιμος. Επιλέξτε άλλον.",
+  "game_maker.visual_review": "Ανάλυση προβολής",
+  "game_maker.visual_capturing": "Λήψη εικόνας παιχνιδιού",
+  "game_maker.visual_analyzing": "Ανάλυση εικόνων",
+  "game_maker.visual_repairing": "Διόρθωση οπτικών σφαλμάτων",
+  "game_maker.visual_capture_unavailable": "Η εικόνα δεν είναι διαθέσιμη",
+  "game_maker.visual_no_vision_route": "Δεν έχει οριστεί οπτικό μοντέλο",
+  "game_maker.visual_public_url_required": "Απαιτείται δημόσια διεύθυνση URL· δεν δημοσιεύτηκε εικόνα",
+  "game_maker.visual_analysis_failed": "Η ανάλυση απέτυχε",
+  "game_maker.visual_invalid_response": "Μη έγκυρη απάντηση ανάλυσης",
+  "game_maker.visual_time_budget": "Ανεπαρκής χρόνος για προαιρετική ανάλυση"
 }

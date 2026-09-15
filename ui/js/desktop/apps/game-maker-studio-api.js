@@ -39,6 +39,7 @@
             previewGrant: id => request('/projects/' + encodeURIComponent(id) + '/preview-token', {
                 method: 'POST'
             }),
+            reviewVisual: (id, body, signal) => request('/projects/' + encodeURIComponent(id) + '/visual-review', {method:'POST',body,signal}),
             reportPreview: (id, body) => request('/projects/' + encodeURIComponent(id) + '/preview-report', {
                 method: 'POST', body, signal: AbortSignal.timeout(5000)
             }),

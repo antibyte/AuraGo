@@ -61,16 +61,56 @@
       default: throw Error('Unsupported test command');
     }
   }
-  async function capture() {
+  let capturing=false;
+  async function capture(scenario='start') {
+    if(capturing)return null;capturing=true;
     try {
-      const b=binding();if(b.kind==='three'){const image=b.canvas.toDataURL('image/png');return image.length<=700000?image:'';}
-      const {scene}=b;
-      return await new Promise(resolve=>{
-        const timer=setTimeout(()=>resolve(''),500);
-        scene.game.renderer.snapshot(image=>{clearTimeout(timer);resolve(image.src.length<=700000?image.src:'');},'image/png');
+      const b=window.__AURAGO_GAME_TEST__,canvas=b?.canvas||b?.scene?.game?.canvas||[...document.querySelectorAll('canvas')].find(c=>c.width>1&&c.height>1&&c.getBoundingClientRect().width>0);
+      if(!canvas||canvas.width*canvas.height>16777216)throw Error('No bounded visible game canvas');
+      const out=document.createElement('canvas');
+      let source=canvas;
+      if(b?.scene?.game?.renderer?.snapshot) {
+        source=await new Promise((resolve,reject)=>{
+          const timer=setTimeout(()=>reject(Error('Snapshot timeout')),1000);
+          b.scene.game.renderer.snapshot(image=>{clearTimeout(timer);resolve(image)},'image/png');
+        });
+      } else {
+        // Read after the game's already scheduled render, without preserving its drawing buffer.
+        await new Promise((resolve,reject)=>{
+          let first,second,timer;
+          const cleanup=()=>{clearTimeout(timer);cancelAnimationFrame(first);cancelAnimationFrame(second);window.removeEventListener('pagehide',hidden)};
+          const hidden=()=>{cleanup();reject(Error('Capture closed'))};
+          window.addEventListener('pagehide',hidden,{once:true});
+          timer=setTimeout(()=>{cleanup();reject(Error('Render timeout'))},1000);
+          first=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>{try{
+            out.width=canvas.width;out.height=canvas.height;out.getContext('2d').drawImage(canvas,0,0);source=out;cleanup();resolve();
+          }catch(e){cleanup();reject(e)}})});
+        });
+
+      }
+      const scaled=document.createElement('canvas'),w=source.naturalWidth||source.width,h=source.naturalHeight||source.height;
+      if(!w||!h)throw Error('Empty capture');
+      let edge=1280,image='';
+      do {const ratio=Math.min(1,edge/Math.max(w,h));scaled.width=Math.max(1,Math.round(w*ratio));scaled.height=Math.max(1,Math.round(h*ratio));
+        const ctx=scaled.getContext('2d');ctx.drawImage(source,0,0,scaled.width,scaled.height);
+        const pixels=ctx.getImageData(0,0,scaled.width,scaled.height).data;
+        if(!pixels.some((v,i)=>i%4===3&&v))throw Error('Empty drawing buffer');
+        image=scaled.toDataURL('image/png');edge=Math.floor(edge*.75);
+      }while(image.length>700000&&edge>=160);
+      if(image.length>700000)throw Error('Capture too large');
+      const hud=[...document.querySelectorAll('[data-hud],#hud,.hud,[role="status"]')].slice(0,8).map(el=>{
+        const r=el.getBoundingClientRect();return {text:(el.innerText||'').slice(0,200),x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)};
       });
-    } catch (_) {return '';}
+      return {image,controlled:!['start','current_view'].includes(scenario),scenario:String(scenario).slice(0,96),at:new Date().toISOString(),width:scaled.width,height:scaled.height,hud:JSON.stringify(hud).slice(0,1000)};
+    } catch (_) {return null;}finally{capturing=false;}
   }
+  window.addEventListener('message',async event=>{
+    const d=event.data;
+    if(event.source!==parent||!channel||d?.channel!==channel||d.source!=='aurago-studio'||d.type!=='capture'||running||capturing)return;
+    if(typeof d.request_id!=='string'||d.request_id.length>96)return;
+    const record=await capture('current_view');
+    parent.postMessage({source:'aurago-game',channel,type:'capture',request_id:d.request_id,captures:record?[record]:[]},'*');
+  });
   const objectIDs=new WeakMap();let nextID=0;
   const identity=o=>{if(!objectIDs.has(o))objectIDs.set(o,'observed-'+(++nextID));return objectIDs.get(o)};
   const children=g=>Array.isArray(g)?g:g?.getChildren?.()||[];
@@ -250,7 +290,7 @@
     if(event.source!==parent||!channel||data?.channel!==channel||data.source!=='aurago-studio'||data.type!=='run-tests'||running)return;
     if(!Array.isArray(data.scenarios)||data.scenarios.length>16)return;
     running=true;
-    const observations=[],images=[];let expired=false,initial;
+    const observations=[],images=[],captures=[];let expired=false,initial;
     const deadline=setTimeout(()=>{expired=true;for(const key of Object.keys(keys))keyEvent(key,false);},55000);
     try {
       // A visible canvas precedes asynchronous GLB loading. Wait for the real
@@ -259,7 +299,7 @@
       while (!window.__AURAGO_GAME_TEST__ && !expired) await wait(100);
       if (expired) throw Error('Game initialization exceeded the test deadline');
       const inspectAssets = binding().kind==='three' ? null : (await import('./vendor/aurago-game-1.js')).inspectAssets;
-      const first=await capture();if(first)images.push(first);
+      const first=await capture('start');if(first)captures.push(first);
       for(const scenario of data.scenarios){
         if(expired)throw Error('Gameplay driver exceeded 55 seconds');
         if(!Array.isArray(scenario.steps)||scenario.steps.length>8)throw Error('Too many test steps');
@@ -269,9 +309,9 @@
         const after=snapshot(inspectAssets);
         if(restart1)for(const [key,value] of Object.entries(restart1))after['restart1_'+key]=value;
         observations.push({id:scenario.id,before,after,evidence_before:evidenceBefore,evidence_after:evidence(),target_runs:targetRuns});
-		if(scenario.id==='required_rules'){const actionImage=await capture();if(actionImage&&images.length<2)images.push(actionImage);}
+		if(scenario.id==='required_rules'){const actionImage=await capture(scenario.id);if(actionImage&&captures.length<2)captures.push(actionImage);}
       }
-      if(images.length<2){const last=await capture();if(last)images.push(last);}
+      if(captures.length<2){const last=await capture('after_scenarios');if(last)captures.push(last);}
     } catch(error) {
       // Missing evidence remains unavailable in the server comparator.
       parent.postMessage({source:'aurago-game',channel,type:'diagnostic',message:String(error).slice(0,1000)},'*');
@@ -279,7 +319,7 @@
       clearTimeout(deadline);
       for(const key of Object.keys(keys))keyEvent(key,false);
       try{await reset();}catch(_){}
-      parent.postMessage({source:'aurago-game',channel,type:'gameplay',observations,images},'*');
+      parent.postMessage({source:'aurago-game',channel,type:'gameplay',observations,images,captures},'*');
     }
   });
 })();

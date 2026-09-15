@@ -155,6 +155,8 @@ func handleGameMakerProjectPath(s *Server) http.HandlerFunc {
 			jsonError(w, "Game Maker route not found", http.StatusNotFound)
 		case "preview-token":
 			handleGameMakerPreviewToken(w, r, s, projectID)
+		case "visual-review":
+			handleGameMakerVisualReview(w, r, s, projectID)
 		case "preview-report":
 			handleGameMakerPreviewReport(w, r, s, projectID)
 		case "export":

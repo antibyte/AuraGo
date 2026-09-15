@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Interface",
   "game_maker.sound_event_ambient": "Omgeving",
   "desktop.virtual_computers_workspace_auto": "Automatisch selecteren of maken",
-  "desktop.virtual_computers_workspace_unavailable": "Werkruimte niet beschikbaar. Selecteer een andere."
+  "desktop.virtual_computers_workspace_unavailable": "Werkruimte niet beschikbaar. Selecteer een andere.",
+  "game_maker.visual_review": "Beeld analyseren",
+  "game_maker.visual_capturing": "Spelbeeld vastleggen",
+  "game_maker.visual_analyzing": "Afbeeldingen analyseren",
+  "game_maker.visual_repairing": "Visuele fouten herstellen",
+  "game_maker.visual_capture_unavailable": "Spelbeeld niet beschikbaar",
+  "game_maker.visual_no_vision_route": "Geen beeldmodel ingesteld",
+  "game_maker.visual_public_url_required": "Provider vereist een openbare URL; geen afbeelding gepubliceerd",
+  "game_maker.visual_analysis_failed": "Beeldanalyse mislukt",
+  "game_maker.visual_invalid_response": "Ongeldig analyseresultaat",
+  "game_maker.visual_time_budget": "Onvoldoende tijd voor optionele beeldanalyse"
 }

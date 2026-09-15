@@ -13,20 +13,31 @@
         if (!state.frame || event.source !== state.frame.contentWindow) return;
         const data = event.data;
         if (!data || typeof data !== 'object' || data.channel !== state.channelID || data.source !== 'aurago-game') return;
-        const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic', 'gameplay']);
+        const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic', 'gameplay', 'capture']);
         if (!allowed.has(data.type)) return;
         // Game-authored ready calls may precede rendering or describe a canvas
         // outside the viewport. Only the server boot's layout check qualifies.
         if (data.type === 'ready' && (data.boot !== true || data.visible !== true)) return;
         if (!state.project || state.previewProjectID !== state.project.id) return;
         if (state.previewGrant?.validation_id && !validationActive(state, state.previewGrant)) return;
+        if(data.type==='capture'){
+            const pending=state.visualCapture;
+            if(!pending||data.request_id!==pending.id)return;
+            clearTimeout(pending.timer);state.visualCapture=null;
+            const captures=boundedCaptures(data.captures);
+            showCaptures(state,captures);
+            if(pending.manual) reviewCurrent(state,captures,pending);
+            else state.api.reportPreview(state.previewProjectID,{token:state.previewGrant.token,type:'capture',captures}).catch(()=>{});
+            return;
+        }
         if (data.type === 'gameplay') {
             if (!state.previewGrant?.validation_id || state.previewReported.has('gameplay')) return;
             if (!Array.isArray(data.observations) || data.observations.length > 16) return;
             const images = Array.isArray(data.images) ? data.images.filter(image => typeof image === 'string' && image.length <= 700000).slice(0, 2) : [];
-            const payload = { token: state.previewGrant.token, type: 'gameplay', observations: data.observations, images };
+            const payload = { token: state.previewGrant.token, type: 'gameplay', observations: data.observations, images, captures:boundedCaptures(data.captures) };
             if (JSON.stringify(payload).length > 1500000) return;
             state.previewReported.add('gameplay');
+            showCaptures(state,payload.captures);
             const grant = state.previewGrant;
             state.api.reportPreview(state.previewProjectID, payload).catch(error => {
                 if (!state.disposed && validationActive(state, grant)) state.addDiagnostic({ level: 'error', message: error.message || String(error) });
@@ -52,6 +63,10 @@
             if (state.previewGrant?.scenarios?.length) {
                 state.frame.contentWindow.postMessage({ source: 'aurago-studio', type: 'run-tests', channel: state.channelID, scenarios: state.previewGrant.scenarios }, '*');
             }
+            if(state.previewGrant?.validation_id&&!state.previewGrant?.scenarios?.length){
+                const grant=state.previewGrant;
+                state.visualStartTimer=setTimeout(()=>{if(!state.disposed&&state.previewGrant===grant)requestCapture(state,false)},3100);
+            }
             setSceneDebug(state, state.sceneDebug);
             clearLoading(state);
             return;
@@ -63,6 +78,56 @@
         });
     }
 
+    function boundedCaptures(input) {
+        return Array.isArray(input)?input.slice(0,2).filter(c=>c&&typeof c.image==='string'&&c.image.startsWith('data:image/png;base64,')&&c.image.length<=700000).map(c=>({
+            image:c.image,controlled:c.controlled===true,scenario:String(c.scenario||'').slice(0,96),at:String(c.at||'').slice(0,40),
+            width:Number(c.width),height:Number(c.height),hud:String(c.hud||'').slice(0,4000)
+        })):[];
+    }
+    function showCaptures(state,captures){
+        const panel=state.container.querySelector('[data-gm-visual]');if(!panel)return;
+        panel.querySelectorAll('img').forEach(img=>img.remove());
+        for(const c of captures){const img=document.createElement('img');img.src=c.image;img.alt=c.scenario;img.style.cssText='max-width:140px;max-height:90px;margin:4px;object-fit:contain';panel.appendChild(img);}
+        panel.hidden=false;
+    }
+    function visualStatus(state,status){
+        const el=state.container.querySelector('[data-gm-visual-status]');
+        if(el)el.textContent=state.context.t('game_maker.visual_'+status);
+    }
+    function showReview(state,result){
+        if(state.disposed)return;
+        const panel=state.container.querySelector('[data-gm-visual]');if(panel)panel.hidden=false;
+        const status=state.container.querySelector('[data-gm-visual-status]');
+        if(status)status.textContent=state.context.t('game_maker.visual_checks')+': '+state.context.t('game_maker.check_'+result.status)+(result.model?' · '+result.model:'')+(result.reason?' · '+state.context.t('game_maker.visual_'+result.reason):'');
+        for(const f of (result.findings||[]).slice(0,6))state.addDiagnostic({level:'info',message:String(f.observation||'').slice(0,600)+' — '+String(f.region||'').slice(0,160)+' — '+String(f.suggestion||'').slice(0,600)});
+    }
+    function cancelVisual(state){
+        if(state.visualCapture)clearTimeout(state.visualCapture.timer);
+        clearTimeout(state.visualStartTimer);state.visualStartTimer=null;state.visualCapture=null;
+        state.visualAbort?.abort();state.visualAbort=null;state.visualBusy=false;
+        const panel=state.container.querySelector('[data-gm-visual]');if(panel){panel.querySelectorAll('img').forEach(img=>img.remove());panel.hidden=true;}
+    }
+    function requestCapture(state,manual=true){
+        if(state.disposed||!state.frame||!state.previewGrant||state.visualBusy||state.visualCapture)return;
+        if(manual&&(state.jobActive||state.previewGrant.validation_id))return;
+        const pending={id:Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-'),manual,grant:state.previewGrant,project:state.project.id};
+        state.visualCapture=pending;
+        const panel=state.container.querySelector('[data-gm-visual]');if(panel)panel.hidden=false;
+        visualStatus(state,'capturing');
+        pending.timer=setTimeout(()=>{if(state.visualCapture!==pending)return;state.visualCapture=null;visualStatus(state,'capture_unavailable')},2500);
+        state.frame.contentWindow.postMessage({source:'aurago-studio',channel:state.channelID,type:'capture',request_id:pending.id},'*');
+    }
+    async function reviewCurrent(state,captures,pending){
+        if(!captures.length){visualStatus(state,'capture_unavailable');return;}
+        state.visualBusy=true;const controller=new AbortController();state.visualAbort=controller;
+        const timer=setTimeout(()=>{controller.abort();if(!state.disposed&&state.previewGrant===pending.grant)visualStatus(state,'analysis_failed')},55000);visualStatus(state,'analyzing');
+        try{
+            const result=await state.api.reviewVisual(pending.project,{token:pending.grant.token,captures,provider_id:state.job?.provider_id||'',model:state.job?.model||''},controller.signal);
+            if(!state.disposed&&state.previewGrant===pending.grant&&!controller.signal.aborted)showReview(state,result);
+        }catch(_){if(!state.disposed&&state.previewGrant===pending.grant&&!controller.signal.aborted)visualStatus(state,'analysis_failed')}
+        finally{clearTimeout(timer);if(state.visualAbort===controller){state.visualAbort=null;state.visualBusy=false}}
+    }
+
     function setSceneDebug(state, enabled) {
         state.sceneDebug = enabled === true;
         state.container.querySelector('[data-gm-action="scene_debug"]')?.setAttribute('aria-pressed', String(state.sceneDebug));
@@ -70,6 +135,7 @@
     }
 
     function showLoading(state, shellEl, frame) {
+        cancelVisual(state);
         clearLoading(state);
         const overlay = document.createElement('div');
         overlay.className = 'gm-preview-loading';
@@ -146,5 +212,5 @@
         }
     }
 
-    window.GameMakerStudioPreview = { handleMessage, setSceneDebug, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
+    window.GameMakerStudioPreview = { requestCapture, cancelVisual, showReview, visualStatus, handleMessage, setSceneDebug, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
 })();

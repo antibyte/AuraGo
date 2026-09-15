@@ -153,6 +153,8 @@ type Diagnostic struct {
 }
 
 type BuildResult struct {
+	Captures       []VisualCapture `json:"-"`
+	Visual         VisualReview    `json:"visual,omitempty"`
 	check          *previewCheck
 	OK             bool          `json:"ok"`
 	Diagnostics    []Diagnostic  `json:"diagnostics"`
@@ -166,6 +168,7 @@ type BuildResult struct {
 }
 
 type JobRun struct {
+	Captures      []VisualCapture
 	Presentation  *Presentation
 	Result        *BuildResult
 	Stage         string

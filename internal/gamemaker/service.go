@@ -24,6 +24,7 @@ import (
 var slugPartPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 type previewToken struct {
+	Revision     int64
 	ValidationID string
 	ProjectID    string
 	JobID        string
@@ -39,6 +40,7 @@ type Service struct {
 
 	mu                 sync.RWMutex
 	buildMu            sync.Mutex
+	visualMu           sync.Mutex
 	fileMu             sync.Mutex
 	designDrafts       map[string]map[string]json.RawMessage
 	runner             Runner
@@ -730,11 +732,10 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
-	// Optional image review is advisory and uses the same selected provider.
-	if len(result.Images) > 0 {
-		_ = runner.RunGameMakerJob(ctx, JobRun{Stage: "visual", Result: &result, Plan: plan, Images: result.Images, Checks: result.Checks, Job: job, Project: project})
-	} else {
-		_ = s.EmitAgentEvent(ctx, project.ID, job.ID, "visual_result", map[string]any{"status": "skipped"})
+	result = s.reviewAndRepairVisual(ctx, runner, JobRun{Plan: plan, Job: job, Project: project, AssetPacks: assetPacks}, result, scope)
+	if !result.OK || ctx.Err() != nil {
+		s.terminateJob(job, ctx, fmt.Errorf("visual repair validation failed: %s", diagnosticsText(result.Diagnostics)))
+		return
 	}
 	revision, err := s.publishValidated(ctx, stage, project, job, result)
 	if err != nil {
@@ -852,6 +853,15 @@ func (s *Service) releaseJob(id string) {
 }
 
 func (s *Service) releaseJobLocked(id string) {
+	// Screenshots outlive neither a completed job nor its diagnostic cache.
+	if last := s.lastValidation[id]; last != nil {
+		last.Images = nil
+		last.Captures = nil
+		if last.check != nil {
+			last.check.Images = nil
+			last.check.Captures = nil
+		}
+	}
 	if s.previewCheck != nil && s.previewCheck.JobID == id {
 		s.previewCheck = nil
 	}

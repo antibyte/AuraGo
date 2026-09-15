@@ -10,6 +10,8 @@ import (
 // previewCheck belongs to one build, never to a previous iframe or revision.
 // All fields are protected by Service.mu.
 type previewCheck struct {
+	CaptureReceived  bool
+	Captures         []VisualCapture
 	ID               string
 	JobID            string
 	ReadyAt          time.Time
@@ -22,6 +24,7 @@ type previewCheck struct {
 }
 
 type PreviewReport struct {
+	Captures      []VisualCapture   `json:"captures,omitempty"`
 	CanvasVisible bool              `json:"canvas_visible,omitempty"`
 	Token         string            `json:"token"`
 	Type          string            `json:"type"`
@@ -73,7 +76,7 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		return ErrDisabled
 	}
 	switch report.Type {
-	case "ready", "runtime_error", "resource_error", "diagnostic", "gameplay":
+	case "ready", "runtime_error", "resource_error", "diagnostic", "gameplay", "capture":
 	default:
 		return fmt.Errorf("unsupported preview report type")
 	}
@@ -95,6 +98,15 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 			check.ReadyAt = time.Now()
 			check.BoundToken = report.Token
 		}
+	} else if report.Type == "capture" {
+		if report.Token != check.BoundToken || check.CaptureReceived {
+			return nil
+		}
+		if !validCaptures(report.Captures) {
+			report.Captures = nil
+		}
+		check.Captures = report.Captures
+		check.CaptureReceived = true
 	} else if report.Type == "gameplay" {
 		if report.Token != check.BoundToken || len(check.Scenarios) == 0 || check.GameplayReceived {
 			return nil
@@ -102,6 +114,11 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		if err := validateGameReport(report); err != nil {
 			return err
 		}
+		if !validCaptures(report.Captures) {
+			report.Captures = nil
+		}
+		check.Captures = report.Captures
+		check.CaptureReceived = true
 		check.Observations = report.Observations
 		for _, image := range report.Images {
 			if validPreviewImage(image) {

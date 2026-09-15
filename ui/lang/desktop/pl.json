@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Interfejs",
   "game_maker.sound_event_ambient": "Otoczenie",
   "desktop.virtual_computers_workspace_auto": "Wybierz lub utwórz automatycznie",
-  "desktop.virtual_computers_workspace_unavailable": "Obszar roboczy jest niedostępny. Wybierz inny."
+  "desktop.virtual_computers_workspace_unavailable": "Obszar roboczy jest niedostępny. Wybierz inny.",
+  "game_maker.visual_review": "Analizuj widok",
+  "game_maker.visual_capturing": "Przechwytywanie obrazu gry",
+  "game_maker.visual_analyzing": "Analizowanie obrazów",
+  "game_maker.visual_repairing": "Naprawianie błędów wizualnych",
+  "game_maker.visual_capture_unavailable": "Obraz gry niedostępny",
+  "game_maker.visual_no_vision_route": "Nie skonfigurowano modelu wizyjnego",
+  "game_maker.visual_public_url_required": "Dostawca wymaga publicznego adresu URL; obraz nie został opublikowany",
+  "game_maker.visual_analysis_failed": "Analiza obrazu nie powiodła się",
+  "game_maker.visual_invalid_response": "Nieprawidłowa odpowiedź analizy",
+  "game_maker.visual_time_budget": "Za mało czasu na opcjonalną analizę obrazu"
 }

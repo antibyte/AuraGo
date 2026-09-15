@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "इंटरफ़ेस",
   "game_maker.sound_event_ambient": "परिवेश",
   "desktop.virtual_computers_workspace_auto": "अपने आप चुनें या बनाएँ",
-  "desktop.virtual_computers_workspace_unavailable": "कार्यस्थान उपलब्ध नहीं है। दूसरा चुनें।"
+  "desktop.virtual_computers_workspace_unavailable": "कार्यस्थान उपलब्ध नहीं है। दूसरा चुनें।",
+  "game_maker.visual_review": "दृश्य का विश्लेषण करें",
+  "game_maker.visual_capturing": "खेल का चित्र लिया जा रहा है",
+  "game_maker.visual_analyzing": "चित्रों का विश्लेषण जारी है",
+  "game_maker.visual_repairing": "दृश्य त्रुटियाँ सुधारी जा रही हैं",
+  "game_maker.visual_capture_unavailable": "खेल का चित्र उपलब्ध नहीं है",
+  "game_maker.visual_no_vision_route": "चित्र समझने वाला मॉडल सेट नहीं है",
+  "game_maker.visual_public_url_required": "प्रदाता को सार्वजनिक URL चाहिए; कोई चित्र प्रकाशित नहीं हुआ",
+  "game_maker.visual_analysis_failed": "चित्र विश्लेषण विफल",
+  "game_maker.visual_invalid_response": "विश्लेषण की प्रतिक्रिया अमान्य है",
+  "game_maker.visual_time_budget": "वैकल्पिक चित्र विश्लेषण के लिए समय पर्याप्त नहीं है"
 }

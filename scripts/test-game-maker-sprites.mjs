@@ -141,7 +141,7 @@ console.log('PASS: helper animation order/holds, idempotence, facing, missing ac
 const previewWindow = {};
 vm.runInNewContext(fs.readFileSync(new URL('../ui/js/desktop/apps/game-maker-studio-preview.js', import.meta.url),'utf8'), {window:previewWindow,clearTimeout});
 const reports=[],sent=[],diagnostics=[];let debugPressed='false';
-const previewState={container:{querySelector:()=>({setAttribute:(name,value)=>{if(name==='aria-pressed')debugPressed=value}})},frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
+const previewState={container:{querySelector:selector=>selector==='[data-gm-visual]'?null:({setAttribute:(name,value)=>{if(name==='aria-pressed')debugPressed=value}})},frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
   previewGrant:{token:'token',validation_id:'build',expires_at:new Date(Date.now()+60000).toISOString(),scenarios:[{id:'required_input'}]},api:{reportPreview:(id,payload)=>{reports.push({id,payload});return Promise.resolve();}},addDiagnostic:message=>diagnostics.push(message)};
 const receive=(data,source=previewState.frame.contentWindow)=>previewWindow.GameMakerStudioPreview.handleMessage(previewState,{source,data:{source:'aurago-game',channel:'channel',...data}});
 receive({type:'ready',boot:true,visible:true},{});receive({type:'ready',boot:false,visible:true});receive({type:'ready',boot:true,visible:true,channel:'stale'});

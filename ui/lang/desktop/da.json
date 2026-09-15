@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Grænseflade",
   "game_maker.sound_event_ambient": "Omgivelser",
   "desktop.virtual_computers_workspace_auto": "Vælg eller opret automatisk",
-  "desktop.virtual_computers_workspace_unavailable": "Arbejdsområdet er utilgængeligt. Vælg et andet."
+  "desktop.virtual_computers_workspace_unavailable": "Arbejdsområdet er utilgængeligt. Vælg et andet.",
+  "game_maker.visual_review": "Analysér visning",
+  "game_maker.visual_capturing": "Optager spilvisning",
+  "game_maker.visual_analyzing": "Analyserer billeder",
+  "game_maker.visual_repairing": "Retter visuelle fejl",
+  "game_maker.visual_capture_unavailable": "Spilbillede utilgængeligt",
+  "game_maker.visual_no_vision_route": "Ingen billedmodel konfigureret",
+  "game_maker.visual_public_url_required": "Udbyderen kræver en offentlig URL; intet billede offentliggjort",
+  "game_maker.visual_analysis_failed": "Billedanalyse mislykkedes",
+  "game_maker.visual_invalid_response": "Ugyldigt analyseresultat",
+  "game_maker.visual_time_budget": "Utilstrækkelig tid til valgfri billedanalyse"
 }

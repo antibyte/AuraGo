@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "界面",
   "game_maker.sound_event_ambient": "环境音",
   "desktop.virtual_computers_workspace_auto": "自动选择或创建",
-  "desktop.virtual_computers_workspace_unavailable": "工作区不可用。请选择其他工作区。"
+  "desktop.virtual_computers_workspace_unavailable": "工作区不可用。请选择其他工作区。",
+  "game_maker.visual_review": "分析画面",
+  "game_maker.visual_capturing": "正在截取游戏画面",
+  "game_maker.visual_analyzing": "正在分析图片",
+  "game_maker.visual_repairing": "正在修复显示问题",
+  "game_maker.visual_capture_unavailable": "无法获取游戏图片",
+  "game_maker.visual_no_vision_route": "未配置支持图片的模型",
+  "game_maker.visual_public_url_required": "此提供商需要公开图片链接；未发布任何图片",
+  "game_maker.visual_analysis_failed": "图片分析失败",
+  "game_maker.visual_invalid_response": "图片分析响应无效",
+  "game_maker.visual_time_budget": "可选图片分析的剩余时间不足"
 }

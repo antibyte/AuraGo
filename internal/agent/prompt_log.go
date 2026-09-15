@@ -62,8 +62,23 @@ func newPromptLogEntry(req openai.ChatCompletionRequest, provider, builderRevisi
 			Retry422Count:     retry422Count,
 			ToolCallCount:     toolCallCount,
 		},
-		Messages: req.Messages,
+		Messages: promptLogMessages(req.Messages),
 	}
+}
+
+// Keep routing and text diagnostics while excluding private image bytes and URLs.
+// Clone multipart content so log redaction never changes the provider request.
+func promptLogMessages(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	out := append([]openai.ChatCompletionMessage(nil), messages...)
+	for i := range out {
+		out[i].MultiContent = append([]openai.ChatMessagePart(nil), out[i].MultiContent...)
+		for j := range out[i].MultiContent {
+			if out[i].MultiContent[j].Type == openai.ChatMessagePartTypeImageURL {
+				out[i].MultiContent[j] = openai.ChatMessagePart{Type: openai.ChatMessagePartTypeText, Text: "[image omitted from prompt log]"}
+			}
+		}
+	}
+	return out
 }
 
 func promptMessagesRevision(messages []openai.ChatCompletionMessage) string {

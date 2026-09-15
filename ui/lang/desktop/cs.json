@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Rozhraní",
   "game_maker.sound_event_ambient": "Prostředí",
   "desktop.virtual_computers_workspace_auto": "Automaticky vybrat nebo vytvořit",
-  "desktop.virtual_computers_workspace_unavailable": "Pracovní prostor není dostupný. Vyberte jiný."
+  "desktop.virtual_computers_workspace_unavailable": "Pracovní prostor není dostupný. Vyberte jiný.",
+  "game_maker.visual_review": "Analyzovat zobrazení",
+  "game_maker.visual_capturing": "Pořizování snímku hry",
+  "game_maker.visual_analyzing": "Analýza obrázků",
+  "game_maker.visual_repairing": "Oprava vizuálních chyb",
+  "game_maker.visual_capture_unavailable": "Snímek hry není dostupný",
+  "game_maker.visual_no_vision_route": "Není nastaven model pro obrázky",
+  "game_maker.visual_public_url_required": "Poskytovatel vyžaduje veřejnou URL; snímek nebyl zveřejněn",
+  "game_maker.visual_analysis_failed": "Analýza selhala",
+  "game_maker.visual_invalid_response": "Neplatná odpověď analýzy",
+  "game_maker.visual_time_budget": "Nedostatek času na volitelnou analýzu"
 }

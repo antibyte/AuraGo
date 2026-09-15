@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Gränssnitt",
   "game_maker.sound_event_ambient": "Omgivning",
   "desktop.virtual_computers_workspace_auto": "Välj eller skapa automatiskt",
-  "desktop.virtual_computers_workspace_unavailable": "Arbetsytan är inte tillgänglig. Välj en annan."
+  "desktop.virtual_computers_workspace_unavailable": "Arbetsytan är inte tillgänglig. Välj en annan.",
+  "game_maker.visual_review": "Analysera vyn",
+  "game_maker.visual_capturing": "Tar bild av spelet",
+  "game_maker.visual_analyzing": "Analyserar bilder",
+  "game_maker.visual_repairing": "Rättar visuella fel",
+  "game_maker.visual_capture_unavailable": "Spelbild saknas",
+  "game_maker.visual_no_vision_route": "Ingen bildmodell konfigurerad",
+  "game_maker.visual_public_url_required": "Leverantören kräver en offentlig URL; ingen bild publicerades",
+  "game_maker.visual_analysis_failed": "Bildanalys misslyckades",
+  "game_maker.visual_invalid_response": "Ogiltigt analysresultat",
+  "game_maker.visual_time_budget": "För lite tid för valfri bildanalys"
 }

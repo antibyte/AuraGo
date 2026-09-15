@@ -4144,5 +4144,15 @@
   "game_maker.sound_event_ui": "Interface",
   "game_maker.sound_event_ambient": "Ambiance",
   "desktop.virtual_computers_workspace_auto": "Sélectionner ou créer automatiquement",
-  "desktop.virtual_computers_workspace_unavailable": "Espace indisponible. Sélectionnez-en un autre."
+  "desktop.virtual_computers_workspace_unavailable": "Espace indisponible. Sélectionnez-en un autre.",
+  "game_maker.visual_review": "Analyser la vue",
+  "game_maker.visual_capturing": "Capture du jeu",
+  "game_maker.visual_analyzing": "Analyse des images",
+  "game_maker.visual_repairing": "Correction des défauts visuels",
+  "game_maker.visual_capture_unavailable": "Image du jeu indisponible",
+  "game_maker.visual_no_vision_route": "Aucun modèle visuel configuré",
+  "game_maker.visual_public_url_required": "Ce fournisseur exige une URL publique ; aucune image publiée",
+  "game_maker.visual_analysis_failed": "Échec de l’analyse",
+  "game_maker.visual_invalid_response": "Réponse d’analyse invalide",
+  "game_maker.visual_time_budget": "Temps insuffisant pour l’analyse facultative"
 }

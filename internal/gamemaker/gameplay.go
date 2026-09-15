@@ -95,7 +95,7 @@ func validPreviewImage(image string) bool {
 		return false
 	}
 	config, err := png.DecodeConfig(bytes.NewReader(data))
-	return err == nil && config.Width > 0 && config.Height > 0 && config.Width <= 1920 && config.Height <= 1080
+	return err == nil && config.Width > 0 && config.Height > 0 && config.Width <= 1920 && config.Height <= 1280
 }
 
 var gameMetrics = []string{"player_x", "player_y", "player_distance", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events"}
@@ -554,6 +554,29 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 	result.GameplayStatus = "unverified"
 	result.RulesStatus = "unverified"
 	result.VisualStatus = "skipped"
+	if result.OK && scope == "startup" {
+		// Capture is optional: a missing image never invalidates the startup verdict.
+		until := time.NewTimer(3 * time.Second)
+		defer until.Stop()
+	captureWait:
+		for {
+			s.mu.RLock()
+			done := check.CaptureReceived
+			same := s.previewCheck == check
+			result.Captures = append([]VisualCapture(nil), check.Captures...)
+			s.mu.RUnlock()
+			if done || !same {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				break captureWait
+			case <-until.C:
+				break captureWait
+			case <-time.After(25 * time.Millisecond):
+			}
+		}
+	}
 	if !result.OK || scope == "startup" {
 		return result
 	}
@@ -566,6 +589,7 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		observations := append([]GameObservation(nil), check.Observations...)
 		diagnostics := append([]Diagnostic(nil), check.Diagnostics...)
 		images := append([]string(nil), check.Images...)
+		captures := append([]VisualCapture(nil), check.Captures...)
 		s.mu.RUnlock()
 		if !current {
 			return previewUnavailable("Preview build changed during gameplay validation")
@@ -598,6 +622,7 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 				}
 			}
 			result.Images = images
+			result.Captures = captures
 			data, _ := json.Marshal(result)
 			_, _ = s.emit(context.Background(), project.ID, jobID, "validation_result", map[string]any{"result": json.RawMessage(data)})
 			return result

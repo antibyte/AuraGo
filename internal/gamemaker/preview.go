@@ -36,7 +36,7 @@ func (s *Service) CreatePreviewGrant(projectID string) (PreviewGrant, error) {
 		validationID = s.previewCheck.ID
 		scenarios = append(scenarios, s.previewCheck.Scenarios...)
 	}
-	s.tokens[token] = previewToken{ProjectID: projectID, JobID: previewJobID, ValidationID: validationID, ExpiresAt: expires}
+	s.tokens[token] = previewToken{Revision: project.CurrentRevision, ProjectID: projectID, JobID: previewJobID, ValidationID: validationID, ExpiresAt: expires}
 	for candidate, grant := range s.tokens {
 		if time.Now().After(grant.ExpiresAt) {
 			delete(s.tokens, candidate)

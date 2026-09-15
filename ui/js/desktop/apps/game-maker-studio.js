@@ -6,7 +6,7 @@
     const eventTypes = [
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
         'skill_activation', 'file_changed', 'asset_changed', 'preview_reload',
-        'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation'
+        'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
@@ -140,6 +140,7 @@
                                 <div><span class="gm-kicker">${esc(t('game_maker.live_preview'))}</span><h2>${esc(t('game_maker.play_here'))}</h2></div>
                                 <div class="gm-preview-tools">
                                     <button type="button" data-gm-action="scene_debug" aria-pressed="false" aria-label="${esc(t('game_maker.scene_debug'))}" title="${esc(t('game_maker.scene_debug'))}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
+                                    <button type="button" data-gm-action="visual_review" disabled>${esc(t('game_maker.visual_review'))}</button>
                                     <button type="button" data-gm-action="reload" disabled>${esc(t('game_maker.reload'))}</button>
                                     <button type="button" data-gm-action="fullscreen" disabled
                                         aria-label="${esc(t('game_maker.fullscreen'))}" title="${esc(t('game_maker.fullscreen'))}">⛶</button>
@@ -154,6 +155,7 @@
                                     <span>${esc(t('game_maker.preview_waiting_hint'))}</span>
                                 </div>
                             </div>
+                            <div data-gm-visual hidden aria-live="polite"><span data-gm-visual-status></span></div>
                             <details class="gm-diagnostics" data-gm-diagnostics>
                                 <summary>${esc(t('game_maker.diagnostics'))} <span data-gm-diagnostic-count>0</span></summary>
                                 <ul data-gm-diagnostic-list></ul>
@@ -216,6 +218,7 @@
                 code: () => openInCodeStudio(state),
                 export: () => exportProject(state),
                 stop: () => stopJob(state),
+                visual_review: () => preview && preview.requestCapture(state),
                 reload: () => refreshPreview(state),
                 scene_debug: () => preview && preview.setSceneDebug(state, !state.sceneDebug),
                 fullscreen: () => preview && preview.toggleFullscreen(state),
@@ -405,6 +408,7 @@
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit));
         setButton(state, 'delete', Boolean(state.capabilities.allow_delete));
         setButton(state, 'export', Boolean(project.current_revision));
+        setButton(state, 'visual_review', Boolean(project.current_revision) && !state.jobActive && !!state.capabilities.allow_edit);
         setButton(state, 'reload', Boolean(project.current_revision));
         setButton(state, 'fullscreen', Boolean(project.current_revision));
         setButton(state, 'open_tab', Boolean(project.current_revision));
@@ -509,6 +513,7 @@
             addDiagnostic(state, payload);
             break;
         case 'validation_reset':
+            window.GameMakerStudioPreview?.cancelVisual(state);
             clearDiagnostics(state);
             state.previewGrant = null;
             state.channelID = '';
@@ -523,7 +528,11 @@
             }
             break;
         }
+        case 'visual_progress':
+            window.GameMakerStudioPreview?.visualStatus(state,payload.status);
+            break;
         case 'visual_result':
+            window.GameMakerStudioPreview?.showReview(state,payload);
             appendActivity(state, state.context.t('game_maker.visual_checks') + ': ' + state.context.t('game_maker.check_' + (payload.status || 'skipped')));
             break;
         case 'visual_observation':
@@ -662,7 +671,7 @@
         if (!state.project) return;
         const projectID = state.project.id;
         const requestID = state.previewRequestID = (state.previewRequestID || 0) + 1;
-        if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
+        if (window.GameMakerStudioPreview) {window.GameMakerStudioPreview.cancelVisual(state);window.GameMakerStudioPreview.clearLoading(state);}
         try {
             const grant = await state.api.previewGrant(projectID);
             if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
@@ -1103,7 +1112,7 @@
         state.previewVisibility?.disconnect();
         closeEvents(state);
         stopElapsed(state);
-        if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
+        if (window.GameMakerStudioPreview) {window.GameMakerStudioPreview.cancelVisual(state);window.GameMakerStudioPreview.clearLoading(state);}
         if (state.busyPoll) clearInterval(state.busyPoll);
         if (state.moreDocListener) document.removeEventListener('click', state.moreDocListener);
         if (state.moreEscListener) document.removeEventListener('keydown', state.moreEscListener);
