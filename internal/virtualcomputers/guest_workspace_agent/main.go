@@ -733,7 +733,8 @@ func (s *service) launchJob(stored *job) error {
 	request := stored.request
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(request.TimeoutSeconds)*time.Second)
 	stored.cancel = cancel
-	command := exec.CommandContext(ctx, "/bin/bash", "--noprofile", "--norc", "-lc", request.Command)
+	// Both Alpine (Python) and Debian (desktop) provide a POSIX shell.
+	command := exec.CommandContext(ctx, "/bin/sh", "-c", request.Command)
 	workingDir := strings.TrimSpace(request.WorkingDir)
 	if workingDir == "" {
 		workingDir = workspaceRoot

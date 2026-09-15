@@ -27,6 +27,9 @@ The same repair installs AuraGo's reviewed workspace extension. It applies only 
 
 Agent Workspaces keep all reasoning in the AuraGo main agent. AuraGo opens an ephemeral Firecracker VM and controls a root shell, `/workspace` files, PTY jobs, and the visible Chromium in that same VM through a vsock-only guest service. VNC observes exactly that Chromium. The guest never receives the boringd bearer token or an LLM API key.
 
+Shell and PTY commands run through `/bin/sh -c` without login profiles. Use POSIX
+shell syntax; the Alpine Python image does not include Bash.
+
 No separate Virtual Computers LLM provider is required. When no legacy `agent_provider` is configured, use the normal AuraGo agent chat; it inherits AuraGo's standard chat provider and operates the VM through `virtual_workspace` and `virtual_browser`.
 
 ```yaml
