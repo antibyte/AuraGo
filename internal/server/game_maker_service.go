@@ -93,60 +93,31 @@ func (s *Server) initGameMaker() {
 	}
 }
 
-func verifyGameMakerAgentSkills(manager *tools.AgentSkillManager, install gamemaker.SkillInstallResult, logger *slog.Logger) ([]gamemaker.SkillInfo, bool) {
+func verifyGameMakerAgentSkills(ctx context.Context, manager *tools.AgentSkillManager, install gamemaker.SkillInstallResult, logger *slog.Logger) ([]gamemaker.SkillInfo, bool) {
 	ready := install.Ready && manager != nil
-	curated := make(map[string]struct{}, len(gamemaker.CuratedSkillNames()))
-	for _, name := range gamemaker.CuratedSkillNames() {
-		curated[name] = struct{}{}
-	}
 	skills := append([]gamemaker.SkillInfo(nil), install.Skills...)
+	if len(skills) != len(gamemaker.CuratedSkillNames()) {
+		ready = false
+	}
+	seen := map[string]bool{}
 	for i := range skills {
-		if skills[i].Status == "hash_mismatch" || manager == nil {
+		name := skills[i].Name
+		if skills[i].Status == "hash_mismatch" || manager == nil || ctx.Err() != nil || seen[name] {
 			ready = false
 			continue
 		}
-		entry, err := manager.GetAgentSkillByName(skills[i].Name)
+		seen[name] = true
+		markdown, err := gamemaker.BundledSkillMarkdown(name)
+		if err == nil {
+			_, err = manager.RegisterBundledAgentSkill(ctx, name, markdown)
+		}
 		if err != nil {
-			skills[i].Status = "missing"
+			skills[i].Status = "verification_failed"
 			ready = false
+			if logger != nil {
+				logger.Warn("Bundled Game Maker Agent Skill verification failed", "name", name, "error", err)
+			}
 			continue
-		}
-		// Curated system skills whose on-disk package matches the embedded bundle
-		// are trusted; a warning verdict from an optional scanner is treated as a
-		// false positive and overridden. Hash mismatches or missing files above
-		// still block, so local edits cannot silently inherit trust.
-		_, isCurated := curated[skills[i].Name]
-		trustedCurated := isCurated && skills[i].Status != "hash_mismatch" && skills[i].Status != "missing"
-		if entry.SecurityStatus != tools.SecurityClean {
-			if !trustedCurated {
-				skills[i].Status = string(entry.SecurityStatus)
-				ready = false
-				continue
-			}
-			entry, err = manager.TrustCuratedAgentSkill(entry.ID, "system:game-maker")
-			if err != nil {
-				skills[i].Status = "trust_error"
-				ready = false
-				if logger != nil {
-					logger.Warn("Failed to trust curated Game Maker Agent Skill", "name", entry.Name, "error", err)
-				}
-				continue
-			}
-		}
-		if _, err := manager.LoadCurrentAgentSkillPackage(entry, "system:game-maker"); err != nil {
-			skills[i].Status = "hash_mismatch"
-			ready = false
-			continue
-		}
-		if !entry.Enabled {
-			if err := manager.EnableAgentSkill(entry.ID, true, "system:game-maker"); err != nil {
-				skills[i].Status = "disabled"
-				ready = false
-				if logger != nil {
-					logger.Warn("Failed to enable bundled Game Maker Agent Skill", "name", entry.Name, "error", err)
-				}
-				continue
-			}
 		}
 		skills[i].Status = "ready"
 	}

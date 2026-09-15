@@ -1482,13 +1482,10 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) gamem
 	}
 	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
 	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
-	s.gameMakerSkills = append([]gamemaker.SkillInfo(nil), installResult.Skills...)
-	for i := range s.gameMakerSkills {
-		if s.gameMakerSkills[i].Status != "hash_mismatch" {
-			s.gameMakerSkills[i].Status = "pending"
-		}
-	}
-	logger.Info("Agent Skills initialized; security verification pending", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
+	// Compile-time packages are checked locally before Game Maker is exposed.
+	// Other discovered skills still use the optional background scanners.
+	s.gameMakerSkills, s.gameMakerSkillsReady = verifyGameMakerAgentSkills(ctx, s.AgentSkillManager, installResult, logger)
+	logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir, "game_maker_skills_ready", s.gameMakerSkillsReady)
 	return installResult
 }
 
@@ -1514,7 +1511,7 @@ func (s *Server) syncAgentSkills(ctx context.Context, cfg *config.Config, instal
 	if ctx.Err() != nil {
 		return
 	}
-	skills, ready := verifyGameMakerAgentSkills(s.AgentSkillManager, installResult, s.Logger)
+	skills, ready := verifyGameMakerAgentSkills(ctx, s.AgentSkillManager, installResult, s.Logger)
 	if s.GameMaker != nil {
 		s.GameMaker.SetSkillStatus(skills, ready)
 	}

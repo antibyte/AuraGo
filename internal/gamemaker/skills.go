@@ -62,6 +62,17 @@ type SkillInstallResult struct {
 	Ready  bool
 }
 
+// BundledSkillMarkdown returns trusted compile-time bytes for a curated package.
+// All currently bundled packages contain exactly this one file.
+func BundledSkillMarkdown(name string) ([]byte, error) {
+	for _, skill := range curatedSkills {
+		if skill.Name == name {
+			return bundledSkills.ReadFile("skills/" + name + "/SKILL.md")
+		}
+	}
+	return nil, fmt.Errorf("unknown bundled game maker skill %q", name)
+}
+
 // InstallBundledSkills installs missing system-managed packages and repairs
 // drifted ones by overwriting them with the bundled version. The curated
 // skills are fully managed by AuraGo, so local edits are discarded on startup

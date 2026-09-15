@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -41,6 +42,14 @@ func TestAgentSkillStartupDoesNotWaitForGuardian(t *testing.T) {
 	cfg.LLMGuardian.ResolvedModel = "fixture"
 	cfg.LLMGuardian.TimeoutSecs = 60
 	cfg.LLMGuardian.FailSafe = "allow" // Cancellation must not persist a fail-open verdict.
+	// A non-bundled package must still wait for the configured external scanner.
+	customDir := filepath.Join(cfg.Directories.AgentSkillsDir, "user-example")
+	if err := os.MkdirAll(customDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(customDir, "SKILL.md"), []byte("---\nname: user-example\ndescription: User package requiring a scan.\n---\nRead the selected data.\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	s := &Server{Cfg: cfg, Logger: logger, LLMGuardian: security.NewLLMGuardian(cfg, logger)}
 	oldSkill, oldAgent := tools.DefaultSkillManager(), tools.DefaultAgentSkillManager()
@@ -65,6 +74,7 @@ func TestAgentSkillStartupDoesNotWaitForGuardian(t *testing.T) {
 	default:
 	}
 	s.GameMaker = &gamemaker.Service{}
+	s.GameMaker.SetSkillStatus(s.gameMakerSkills, s.gameMakerSkillsReady)
 	done := make(chan struct{})
 	go func() { defer close(done); s.syncAgentSkills(ctx, cfg, installed) }()
 	select {
@@ -74,8 +84,8 @@ func TestAgentSkillStartupDoesNotWaitForGuardian(t *testing.T) {
 		<-done
 		t.Fatal("background security scan did not start")
 	}
-	if _, ready := s.GameMaker.SkillStatus(); ready {
-		t.Fatal("Game Maker became ready before security verification")
+	if _, ready := s.GameMaker.SkillStatus(); !ready {
+		t.Fatal("verified binary packages waited for an unrelated external scan")
 	}
 	cancel()
 	select {
@@ -84,8 +94,14 @@ func TestAgentSkillStartupDoesNotWaitForGuardian(t *testing.T) {
 		t.Fatal("security scan ignored shutdown cancellation")
 	}
 	var count int
-	if err := s.SkillsDB.QueryRow("SELECT count(*) FROM agent_skills_registry").Scan(&count); err != nil || count != 0 {
-		t.Fatalf("canceled scan persisted a package: count=%d err=%v", count, err)
+	if err := s.SkillsDB.QueryRow("SELECT count(*) FROM agent_skills_registry").Scan(&count); err != nil || count != len(gamemaker.CuratedSkillNames()) {
+		t.Fatalf("canceled scan changed the verified bundle registry: count=%d err=%v", count, err)
+	}
+	if _, err := s.AgentSkillManager.GetAgentSkillByName("user-example"); err == nil {
+		t.Fatal("canceled user package scan persisted a verdict")
+	}
+	if _, ready := s.GameMaker.SkillStatus(); !ready {
+		t.Fatal("unrelated scanner cancellation revoked verified bundles")
 	}
 	// A subsequent successful pass publishes readiness through the existing service lock.
 	cfg.Tools.SkillManager.ScanWithGuardian = false

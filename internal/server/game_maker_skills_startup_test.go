@@ -102,7 +102,7 @@ Previous bundled content.
 	if err := manager.SyncFromDisk(ctx, nil, false); err != nil {
 		t.Fatal(err)
 	}
-	skills, ready := verifyGameMakerAgentSkills(manager, install, nil)
+	skills, ready := verifyGameMakerAgentSkills(ctx, manager, install, nil)
 	if !ready {
 		t.Fatalf("skills not ready after recovery: %+v", skills)
 	}
@@ -158,7 +158,7 @@ func TestGameMakerSkillStartupTrustsCuratedWarning(t *testing.T) {
 		}
 	}
 
-	skills, ready := verifyGameMakerAgentSkills(manager, install, nil)
+	skills, ready := verifyGameMakerAgentSkills(ctx, manager, install, nil)
 	if !ready {
 		t.Fatalf("skills not ready after trusting curated warnings: %+v", skills)
 	}
@@ -177,5 +177,53 @@ func TestGameMakerSkillStartupTrustsCuratedWarning(t *testing.T) {
 	}
 	if !entry.Enabled {
 		t.Error("aurago-phaser4-gameplay should be enabled after trust")
+	}
+}
+
+func TestGameMakerSkillStartupRejectsRegistryMatchingUnbundledContent(t *testing.T) {
+	for _, path := range []string{"SKILL.md", "references/extra.md", "EXTRA.txt"} {
+		t.Run(path, func(t *testing.T) {
+			ctx := context.Background()
+			dir := t.TempDir()
+			install, err := gamemaker.InstallBundledSkills(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			name := "aurago-game-qa"
+			file := filepath.Join(dir, name, filepath.FromSlash(path))
+			if err := os.MkdirAll(filepath.Dir(file), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			content := []byte("Extra unbundled content")
+			if path == "SKILL.md" {
+				content, err = os.ReadFile(file)
+				if err != nil {
+					t.Fatal(err)
+				}
+				content = append(content, []byte("\nExtra local instruction.\n")...)
+			}
+			if err := os.WriteFile(file, content, 0o640); err != nil {
+				t.Fatal(err)
+			}
+			db, err := tools.InitAgentSkillsDB(filepath.Join(t.TempDir(), "skills.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			manager := tools.NewAgentSkillManager(db, dir, t.TempDir(), nil)
+			// Even a clean scan and matching registry hash are not binary provenance.
+			if err := manager.SyncFromDisk(ctx, nil, false); err != nil {
+				t.Fatal(err)
+			}
+			skills, ready := verifyGameMakerAgentSkills(ctx, manager, install, nil)
+			if ready {
+				t.Fatal("local content was mistaken for the embedded package")
+			}
+			for _, skill := range skills {
+				if skill.Name == name && skill.Status == "ready" {
+					t.Fatal("changed bundle marked ready")
+				}
+			}
+		})
 	}
 }
