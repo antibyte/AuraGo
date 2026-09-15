@@ -29,6 +29,8 @@ type MinimalLoopResult struct {
 
 // MinimalLoopOptions controls optional behaviour of ExecuteMinimalLoop.
 type MinimalLoopOptions struct {
+	PreserveReasoning bool
+	Checkpoint        func([]openai.ChatCompletionMessage) error
 	// StreamText buffers a tool-free completion from SSE, avoiding a wait for the
 	// entire output before response headers. Other minimal-loop callers stay unchanged.
 	StreamText bool
@@ -130,9 +132,15 @@ func ExecuteMinimalLoop(
 	}
 	tokenCache := newTokenCountCache(512)
 	formatRetried := false
+	preserveReasoning := opts != nil && opts.PreserveReasoning
 
 	for round := 0; round <= maxRounds; round++ {
-		if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, addenda...); err != nil {
+		if opts != nil && opts.Checkpoint != nil {
+			if err := opts.Checkpoint(req.Messages); err != nil {
+				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
+			}
+		}
+		if _, err := prepareMinimalLoopRequestWithReasoning(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, addenda...); err != nil {
 			return result, req.Messages, err
 		}
 		var resp openai.ChatCompletionResponse
@@ -143,6 +151,11 @@ func ExecuteMinimalLoop(
 			resp, err = client.CreateChatCompletion(ctx, req)
 		}
 		if err != nil {
+			if opts != nil && opts.Checkpoint != nil && opts.PreserveReasoning && len(resp.Choices) == 1 && resp.Choices[0].Message.ReasoningContent != "" {
+				if saveErr := opts.Checkpoint(append(req.Messages, interruptedReasoningMessage(resp.Choices[0].Message.ReasoningContent))); saveErr != nil {
+					return result, req.Messages, fmt.Errorf("save interrupted reasoning: %w", saveErr)
+				}
+			}
 			return result, req.Messages, fmt.Errorf("llm call failed: %w", err)
 		}
 		if len(resp.Choices) != 1 {
@@ -162,6 +175,11 @@ func ExecuteMinimalLoop(
 
 		// Textual tool syntax is never an answer or an executable fallback.
 		if len(msg.ToolCalls) == 0 {
+			if opts != nil && opts.Checkpoint != nil {
+				if err := opts.Checkpoint(append(req.Messages, msg)); err != nil {
+					return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
+				}
+			}
 			text, textErr := minimalLoopFinalText(msg.Content)
 			if textErr != nil {
 				if len(req.Tools) == 0 || formatRetried || choice.FinishReason != openai.FinishReasonStop {
@@ -203,7 +221,7 @@ func ExecuteMinimalLoop(
 
 	// Tool-round narration is not a final answer. Request a tool-free summary.
 	req.Tools = nil
-	if _, err := prepareMinimalLoopRequest(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, addenda...); err != nil {
+	if _, err := prepareMinimalLoopRequestWithReasoning(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, addenda...); err != nil {
 		return result, req.Messages, err
 	}
 	resp, err := client.CreateChatCompletion(ctx, req)

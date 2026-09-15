@@ -1133,6 +1133,12 @@ type RunConfig struct {
 	// tool-result bookkeeping and return without another dispatch or LLM request.
 	// It must inspect authoritative state, never model prose or tool-output text.
 	RunComplete func() bool
+	// Checkpoint retains a private, provider-native conversation at completed
+	// tool boundaries and on exit. It must not publish messages as user chat.
+	Checkpoint func([]openai.ChatCompletionMessage) error
+	// PreserveReasoning keeps provider-returned reasoning in this isolated
+	// continuation, subject to the same route/context budgets as other history.
+	PreserveReasoning bool
 	// ToolCallLimit is an optional server-owned fixed budget for this run.
 	// Zero retains the normal system/personality/tool-specific calculation.
 	ToolCallLimit int

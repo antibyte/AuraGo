@@ -16,16 +16,17 @@ import (
 
 // streamingResponseResult holds the output of handleStreamingResponse.
 type streamingResponseResult struct {
-	resp              openai.ChatCompletionResponse
-	content           string
-	promptTokens      int
-	completionTokens  int
-	totalTokens       int
-	tokenSource       string
-	contextCancelled  bool
-	err               error
-	recoveryContinue  bool
-	recoveredMessages []openai.ChatCompletionMessage
+	resp                 openai.ChatCompletionResponse
+	content              string
+	promptTokens         int
+	completionTokens     int
+	totalTokens          int
+	tokenSource          string
+	contextCancelled     bool
+	interruptedReasoning string
+	err                  error
+	recoveryContinue     bool
+	recoveredMessages    []openai.ChatCompletionMessage
 }
 
 func shouldSuppressStreamedToolCallJSON(content string) bool {
@@ -372,8 +373,9 @@ func handleStreamingResponse(
 	stm.Close()
 	if midStreamError != nil {
 		return streamingResponseResult{
-			err:              midStreamError,
-			contextCancelled: contextCancelled,
+			err:                  midStreamError,
+			contextCancelled:     contextCancelled,
+			interruptedReasoning: assembledReasoning.String(),
 		}
 	}
 	if doneTagStreamBuf != "" && !xmlToolCallSuppressed {

@@ -290,6 +290,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		DailyTodoReminder: s.dailyTodoReminder,
 	}
 	req = s.req
+	defer func() {
+		if runCfg.Checkpoint == nil {
+			return
+		}
+		messages := append([]openai.ChatCompletionMessage(nil), req.Messages...)
+		if len(response.Choices) == 1 {
+			msg := response.Choices[0].Message
+			if len(msg.ToolCalls) == 0 && (msg.Content != "" || msg.ReasoningContent != "") && msg.Content != "[Empty Response]" {
+				messages = append(messages, msg)
+			}
+		}
+		if err := runCfg.Checkpoint(messages); err != nil && retErr == nil {
+			retErr = fmt.Errorf("save agent continuation: %w", err)
+		}
+	}()
 
 	cfg := s.runCfg.Config
 	logger := s.runCfg.Logger
@@ -369,6 +384,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	loopStartedAt := time.Now()
 	loopIterationCount := 0
 	for {
+		if runCfg.Checkpoint != nil {
+			if err := runCfg.Checkpoint(req.Messages); err != nil {
+				return openai.ChatCompletionResponse{}, fmt.Errorf("save agent continuation: %w", err)
+			}
+		}
 		const maxLoopIterations = 100
 		loopIterationCount++
 
@@ -1505,7 +1525,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Pre-send validation: ensure tool-call integrity before sending to the
 		// provider. This catches orphaned tool results that slipped through
 		// GetForLLM() or were introduced by context compression / trimming.
-		finalizedRequest, finalizeErr := finalizePromptRequestForSend(&req, requestBudget, tokenCache, telemetryScope.ProviderType, s.currentLogger)
+		finalizedRequest, finalizeErr := finalizePromptRequestForSend(&req, requestBudget, tokenCache, telemetryScope.ProviderType, s.currentLogger, runCfg.PreserveReasoning)
 		if finalizeErr != nil {
 			return openai.ChatCompletionResponse{}, finalizeErr
 		}
@@ -1608,6 +1628,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				continue
 			}
 			if result.err != nil {
+				if runCfg.PreserveReasoning && result.interruptedReasoning != "" {
+					req.Messages = append(req.Messages, interruptedReasoningMessage(result.interruptedReasoning))
+				}
 				return openai.ChatCompletionResponse{}, result.err
 			}
 			resp = result.resp
@@ -1635,8 +1658,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 
 		retry422Count = 0 // reset on successful LLM response
+		if runCfg.PreserveReasoning && len(resp.Choices) == 1 && len(resp.Choices[0].Message.ToolCalls) == 0 && strings.TrimSpace(security.StripThinkingTags(content)) == "" {
+			msg := resp.Choices[0].Message
+			if msg.ReasoningContent != "" || msg.Content != "" {
+				req.Messages = append(req.Messages, msg)
+			}
+		}
 
-		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, s.currentLogger, broker, telemetryScope) {
+		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, s.currentLogger, broker, telemetryScope, runCfg.Checkpoint != nil) {
 			continue
 		}
 		emptyRetried = false // reset only after confirmed non-empty response
@@ -1843,6 +1872,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		if tc.IsTool && s.toolCallCount < effectiveMaxCallsWithTool {
 			resp, err, shouldContinue := executeAgentToolTurn(s, ctx, tc, resp, content, useNativePath, nativeAssistantMsg, lastUserMsg, triggerValue, xmlFallbackHandledThisTurn)
+			req = s.req // Include the final tool results even at a phase boundary.
 			if !shouldContinue {
 				return resp, err
 			}

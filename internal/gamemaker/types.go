@@ -86,6 +86,8 @@ type UpdateProjectRequest struct {
 }
 
 type Job struct {
+	// ResumeFrom is server-owned and never accepted as an arbitrary client path.
+	ResumeFrom     string     `json:"-"`
 	ID             string     `json:"id"`
 	ProjectID      string     `json:"project_id"`
 	Kind           string     `json:"kind"`
@@ -103,6 +105,7 @@ type Job struct {
 }
 
 type StartJobRequest struct {
+	Resume             bool          `json:"resume,omitempty"`
 	Presentation       *Presentation `json:"presentation,omitempty"`
 	AssetPackIDs       []string      `json:"asset_pack_ids,omitempty"`
 	ModelAssetIDs      []string      `json:"model_asset_ids,omitempty"`

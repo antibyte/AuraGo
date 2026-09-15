@@ -70,6 +70,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					t.Error("missing actual source context")
 				}
 				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Keep the unusual movement rule\"}}]}\n\n")
 				w.(http.Flusher).Flush()
 				// Full output takes longer than the header timeout; streaming must survive it.
 				time.Sleep(120 * time.Millisecond)
@@ -111,6 +112,13 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				run.Stage = "repair"
 				run.Diagnostics = []gamemaker.Diagnostic{{Level: "implementation", File: "src/main.ts", Message: "unchanged starter"}}
 				err := runner.RunGameMakerJob(ctx, run)
+				conversation, loadErr := svc.LoadAgentConversation(ctx, run.Job.ID)
+				if loadErr != nil || !strings.Contains(string(conversation.Messages), "Keep the unusual movement rule") {
+					t.Errorf("completed/interrupted reasoning was lost: %v", loadErr)
+				}
+				if (scenario.finish == "stream_error" || scenario.finish == "timeout") && !strings.Contains(string(conversation.Messages), "Generation was interrupted") {
+					t.Error("partial reasoning was not identified as interrupted")
+				}
 				after, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
 				commonAfter, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/common.ts")
 				valid := scenario.finish == "stop" && strings.Contains(scenario.code, "requestedGame")

@@ -13,15 +13,21 @@ import (
 )
 
 // Buffer text privately: incomplete source must never reach a file or tool.
-func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req openai.ChatCompletionRequest) (response openai.ChatCompletionResponse, retErr error) {
 	stream, err := client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
 	defer stream.Close()
 	var text strings.Builder
+	var reasoning strings.Builder
 	var finish openai.FinishReason
 	var usage openai.Usage
+	defer func() {
+		if retErr != nil && reasoning.Len() > 0 {
+			response = openai.ChatCompletionResponse{Usage: usage, Choices: []openai.ChatCompletionChoice{{Message: interruptedReasoningMessage(reasoning.String())}}}
+		}
+	}()
 	chunks, lastChunk := 0, time.Now()
 	for {
 		chunk, err := stream.Recv()
@@ -44,6 +50,10 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 				return openai.ChatCompletionResponse{}, fmt.Errorf("text stream exceeds 4 MiB")
 			}
 			text.WriteString(choice.Delta.Content)
+			if reasoning.Len()+len(choice.Delta.ReasoningContent) > 4*1024*1024 {
+				return openai.ChatCompletionResponse{}, fmt.Errorf("reasoning stream exceeds 4 MiB")
+			}
+			reasoning.WriteString(choice.Delta.ReasoningContent)
 			if choice.FinishReason != "" {
 				finish = choice.FinishReason
 			}
@@ -57,6 +67,6 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 	}
 	return openai.ChatCompletionResponse{Usage: usage, Choices: []openai.ChatCompletionChoice{{
 		FinishReason: finish,
-		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: text.String()},
+		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: text.String(), ReasoningContent: reasoning.String()},
 	}}}, nil
 }

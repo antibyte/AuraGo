@@ -27,11 +27,12 @@ import (
 // Exercise the real agent request construction/fitting, not a replacement job runner.
 func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 	root := t.TempDir()
-	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games")})
+	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer service.Close()
+	service.SetSkillStatus(nil, true)
 	cfg := &config.Config{}
 	cfg.LLM.Model = "test-game-model"
 	cfg.LLM.ProviderType = "openai"
@@ -55,7 +56,7 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		if request.Model == "empty-game-model" {
 			content = ""
 		}
-		fmt.Fprintf(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":%q},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n", content)
+		fmt.Fprintf(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":%q,\"reasoning_content\":\"Keep the forest and FPS controls\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n", content)
 	}))
 	defer provider.Close()
 	clientConfig := openai.DefaultConfig("local-test")
@@ -69,9 +70,37 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 	}
 	defer server.ShortTermMem.Close()
 	runner := &gameMakerAgentRunner{server: server, service: service}
+	project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "FPS", Dimension: "3d", Description: "FPS shooter"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoke := func(ctx context.Context, fixture gamemaker.JobRun) error {
+		result := make(chan error, 1)
+		service.SetRunner(implementationTestRunner(func(ctx context.Context, actual gamemaker.JobRun) error {
+			fixture.Job, fixture.Project = actual.Job, actual.Project
+			result <- runner.RunGameMakerJob(ctx, fixture)
+			return errors.New("fixture complete")
+		}))
+		_, err := service.StartJob(ctx, project.ID, gamemaker.StartJobRequest{Prompt: "continue", Resume: true})
+		if err != nil {
+			return err
+		}
+		select {
+		case err = <-result:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); {
+			if service.ActiveJobInfo(ctx) == nil {
+				break
+			}
+			time.Sleep(time.Millisecond)
+		}
+		return err
+	}
 	for _, stage := range []string{"building", "repair"} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err := runner.RunGameMakerJob(ctx, gamemaker.JobRun{
+		err := invoke(ctx, gamemaker.JobRun{
 			Stage: stage, Job: gamemaker.Job{ID: "job_model_prompt", Prompt: "FPS shooter"},
 			Project:    gamemaker.Project{ID: "model-project", Dimension: "3d"},
 			AssetPacks: []gamemaker.ImportedAssetPack{{ID: gamemaker.ModelPackID, Kind: "model3d", Version: "1.0.0", AssetIDs: []string{"fps-rifle"}, Manifests: map[string]string{"fps-rifle": "assets/builtin/aurago-low-poly/1.0.0/assets/fps-rifle.json"}, ThreeExample: "EXACT_PROJECT_LOCAL_MODEL_EXAMPLE"}},
@@ -87,12 +116,17 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 			t.Fatal("agent request was never constructed")
 		}
 		var system, user strings.Builder
+		priorReasoning := false
 		for _, message := range request.Messages {
+			priorReasoning = priorReasoning || message.ReasoningContent == "Keep the forest and FPS controls"
 			if message.Role == "system" {
 				system.WriteString(message.Content)
 			} else if message.Role == "user" {
 				user.WriteString(message.Content)
 			}
+		}
+		if !strings.Contains(user.String(), "Original game request:\nFPS shooter") || (stage == "repair" && !priorReasoning) {
+			t.Fatal("continuation lost the original request or provider reasoning")
 		}
 		for _, required := range []string{"A.loadAsset(manifest", "A.createInstance(asset", "record.root", "A.releaseAsset(asset)", "fps_binding.weapon_translation", "do not read minified vendor"} {
 			if !strings.Contains(system.String(), required) {
@@ -106,7 +140,7 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 	cfg.LLM.Model = "empty-game-model"
 	for _, stage := range []string{"building", "repair"} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err := runner.RunGameMakerJob(ctx, gamemaker.JobRun{
+		err := invoke(ctx, gamemaker.JobRun{
 			Stage: stage, Job: gamemaker.Job{ID: "job_empty_" + stage, Prompt: "a fps game in the woods"},
 			Project: gamemaker.Project{ID: "empty-project", Dimension: "2d"},
 		})
@@ -215,11 +249,27 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 			defer server.ShortTermMem.Close()
 			runner := &gameMakerAgentRunner{server: server, service: service}
 			// Planning must not accept a missing design at the same tool limit.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			err = runner.RunGameMakerJob(ctx, gamemaker.JobRun{Stage: "planning", Job: gamemaker.Job{ID: "job_unplanned", Prompt: "Create a game"}, Project: gamemaker.Project{Dimension: dimension}})
-			cancel()
-			if err == nil || !strings.Contains(err.Error(), "tool_limit_final_response_invalid") {
-				t.Fatalf("planning incorrectly recovered: %v", err)
+			unplanned, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "No plan", Dimension: dimension, Description: "Create a game"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			service.SetRunner(runner)
+			unplannedJob, err := service.StartJob(context.Background(), unplanned.ID, gamemaker.StartJobRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for deadline := time.Now().Add(10 * time.Second); ; {
+				done, err := service.GetJob(context.Background(), unplannedJob.ID)
+				if err == nil && done.Status == "failed" && service.ActiveJobInfo(context.Background()) == nil {
+					if !strings.Contains(done.Error, "tool_limit_final_response_invalid") {
+						t.Fatalf("planning incorrectly recovered: %s", done.Error)
+					}
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("planning did not stop at tool limit")
+				}
+				time.Sleep(time.Millisecond)
 			}
 			calls.Store(0)
 			finalCalls.Store(0)

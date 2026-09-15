@@ -55,7 +55,7 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 				data, _ := json.Marshal(plan)
 				planCall := call("plan", "game_maker_project", map[string]any{"operation": "set_plan", "plan": string(data)})
 				tail := call("tail", "game_maker_file", map[string]any{"operation": "read", "path": "src/main.ts"})
-				message := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{planCall, tail}}
+				message := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ReasoningContent: "Preserve the Breakout power-up plan", ToolCalls: []openai.ToolCall{planCall, tail}}
 				if mode == "batched" || mode == "without_boundary" {
 					inspect := call("inspect", "game_maker_project", map[string]any{"operation": "list_files"})
 					message.ToolCalls = append([]openai.ToolCall{inspect}, message.ToolCalls...)
@@ -97,7 +97,23 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 				if mode != "without_boundary" {
 					runCfg.RunComplete = func() bool { return s.PlanningComplete(run.Job.ID) }
 				}
+				var checkpoint []openai.ChatCompletionMessage
+				runCfg.PreserveReasoning = true
+				runCfg.Checkpoint = func(messages []openai.ChatCompletionMessage) error {
+					data, _ := json.Marshal(messages)
+					return json.Unmarshal(data, &checkpoint)
+				}
 				_, loopErr := ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: project.Description}}}, runCfg, false, NoopBroker{})
+				if mode == "native" || mode == "batched" || mode == "correction" {
+					foundReasoning, foundResult := false, false
+					for _, m := range checkpoint {
+						foundReasoning = foundReasoning || m.ReasoningContent == message.ReasoningContent
+						foundResult = foundResult || (m.Role == "tool" && m.ToolCallID == "plan")
+					}
+					if !foundReasoning || !foundResult {
+						loopErr = fmt.Errorf("phase checkpoint lost reasoning or final tool result")
+					}
+				}
 				if mode == "without_boundary" {
 					if !IsToolLimitFinalResponseInvalid(loopErr) {
 						loopResult <- fmt.Errorf("control did not reproduce reported error: %v", loopErr)

@@ -38,7 +38,7 @@ func applyPromptSecurityToRequest(req *openai.ChatCompletionRequest, cfg *config
 	}
 }
 
-func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *RequestBudget, cache *tokenCountCache, providerType string, logger *slog.Logger) (promptRequestFinalization, error) {
+func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *RequestBudget, cache *tokenCountCache, providerType string, logger *slog.Logger, preserveReasoning ...bool) (promptRequestFinalization, error) {
 	if req == nil {
 		return promptRequestFinalization{}, fmt.Errorf("chat completion request is required")
 	}
@@ -63,7 +63,10 @@ func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *Req
 
 	before := len(req.Messages)
 	sanitized, dropped := SanitizeToolMessages(req.Messages)
-	req.Messages = sanitizeReasoningForRequestRoutes(sanitized, budget.Routes, providerType, req.Model)
+	req.Messages = sanitized
+	if len(preserveReasoning) == 0 || !preserveReasoning[0] {
+		req.Messages = sanitizeReasoningForRequestRoutes(sanitized, budget.Routes, providerType, req.Model)
+	}
 	if dropped > 0 {
 		logger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
 			"dropped", dropped, "before", before, "after", len(req.Messages))

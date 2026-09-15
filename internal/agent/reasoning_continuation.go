@@ -6,6 +6,14 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+func interruptedReasoningMessage(reasoning string) openai.ChatCompletionMessage {
+	return openai.ChatCompletionMessage{
+		Role:             openai.ChatMessageRoleAssistant,
+		Content:          "Generation was interrupted. Only an incomplete reasoning fragment was received; no source or tool call from this response was applied.",
+		ReasoningContent: reasoning,
+	}
+}
+
 // sanitizeReasoningForContinuation prevents completed hidden reasoning from
 // growing without bound. Providers that require reasoning on a tool-call
 // continuation retain only the newest assistant tool-call block.

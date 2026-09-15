@@ -354,6 +354,10 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	workingCopies, err := s.projectWorkingCopyIDs(ctx, id)
+	if err != nil {
+		return err
+	}
 	projectDir := filepath.Join(s.opts.WorkspacePath, filepath.FromSlash(project.ProjectKey))
 	if err := rejectSymlinkComponents(s.opts.WorkspacePath, projectDir); err != nil {
 		return err
@@ -380,6 +384,9 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 		if err := os.RemoveAll(backupDir); err != nil && s.opts.Logger != nil {
 			s.opts.Logger.Warn("Failed to remove deleted Game Maker project backup", "path", backupDir, "error", err)
 		}
+	}
+	for _, jobID := range workingCopies {
+		s.removeWorkingCopy(jobID)
 	}
 	if err := s.pruneOrphanBlobs(context.Background()); err != nil && s.opts.Logger != nil {
 		s.opts.Logger.Warn("Failed to prune orphaned Game Maker blobs", "error", err)
@@ -436,6 +443,16 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		musicGeneration = *req.MusicGeneration && policy.AllowMediaGeneration
 	}
 	prompt := strings.TrimSpace(req.Prompt)
+	var resumeFrom string
+	if req.Resume || isContinuationPrompt(prompt) {
+		resumeFrom, err = s.resumableJob(ctx, project)
+		if err != nil {
+			return Job{}, fmt.Errorf("restore game maker working copy: %w", err)
+		}
+		if prompt == "" {
+			prompt = "Continue the previous task. Keep its original goal and completed work; fix the remaining failures."
+		}
+	}
 	kind := "create"
 	if project.CurrentRevision > 0 {
 		kind = "edit"
@@ -449,6 +466,7 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	model := firstNonEmpty(req.Model, project.Model)
 	now := time.Now().UTC()
 	job := Job{
+		ResumeFrom:   resumeFrom,
 		ID:           randomID("job"),
 		ProjectID:    project.ID,
 		Kind:         kind,
@@ -515,18 +533,26 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
-	defer os.RemoveAll(stage)
 
-	if err := s.updateJobPhase(ctx, &job, "planning"); err != nil {
-		s.terminateJob(job, ctx, err)
-		return
-	}
-	if job.BaseRevision > 0 {
+	if job.ResumeFrom != "" {
+		source := filepath.Join(s.stagingDir, job.ResumeFrom)
+		if err := copyTree(source, stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes); err != nil {
+			_ = os.RemoveAll(stage)
+			s.terminateJob(job, ctx, fmt.Errorf("restore game maker working copy: %w", err))
+			return
+		}
+	} else if job.BaseRevision > 0 {
 		if err := s.copyPublishedProject(project, stage); err != nil {
+			_ = os.RemoveAll(stage)
 			s.terminateJob(job, ctx, err)
 			return
 		}
 	} else if err := WriteScaffold(stage, project); err != nil {
+		_ = os.RemoveAll(stage)
+		s.terminateJob(job, ctx, err)
+		return
+	}
+	if err := s.updateJobPhase(ctx, &job, "planning"); err != nil {
 		s.terminateJob(job, ctx, err)
 		return
 	}
@@ -562,10 +588,24 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	}
 	var plan *GamePlan
 	planDiagnostics := diagnostics
+	if job.ResumeFrom != "" {
+		if previous, err := s.GetPlan(ctx, job.ID); err == nil && previous != nil {
+			// Revalidate the stored plan through the normal gates without asking
+			// the model to redesign an already accepted game on every retry.
+			if err := s.SetPlan(ctx, job.ID, *previous); err != nil {
+				planDiagnostics = []Diagnostic{{Level: "plan", Message: err.Error()}}
+			}
+		}
+	}
 	for attempt := 0; attempt < 3; attempt++ {
-		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, Presentation: selection}); err != nil {
-			s.terminateJob(job, ctx, err)
-			return
+		s.mu.RLock()
+		restoredPlan := s.acceptedPlans[job.ID]
+		s.mu.RUnlock()
+		if !restoredPlan {
+			if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, Presentation: selection}); err != nil {
+				s.terminateJob(job, ctx, err)
+				return
+			}
 		}
 		s.mu.RLock()
 		accepted := s.acceptedPlans[job.ID]
@@ -679,7 +719,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 
-	if job.BaseRevision == 0 && (project.Dimension == "2d" || sceneBackedGame(*plan)) {
+	_, restoredTemplateErr := os.Stat(filepath.Join(stage, "src", "common.ts"))
+	if job.BaseRevision == 0 && (job.ResumeFrom == "" || restoredTemplateErr != nil) && (project.Dimension == "2d" || sceneBackedGame(*plan)) {
 		if err := installGameTemplate(stage, *plan); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
@@ -750,8 +791,9 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	s.mu.Lock()
 	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=? WHERE id=?`,
 		revision.Number, now, job.ID)
-	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
+	s.finishWorkingCopy(job)
+	s.releaseJob(job.ID)
 	s.mu.RLock()
 	summary := s.jobSummaries[job.ID]
 	s.mu.RUnlock()
@@ -815,8 +857,9 @@ func (s *Service) failJob(job Job, failure error) {
 	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,finished_at=? WHERE id=?`,
 		message, now, job.ID)
 	_, _ = s.db.Exec(`UPDATE gm_projects SET status='failed',updated_at=? WHERE id=?`, now, job.ProjectID)
-	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
+	s.finishWorkingCopy(job)
+	s.releaseJob(job.ID)
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "diagnostic",
 		map[string]any{"level": "error", "message": message})
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
@@ -840,8 +883,9 @@ func (s *Service) cancelledJob(job Job, cause error) {
 	s.mu.Lock()
 	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,finished_at=? WHERE id=?`,
 		message, now, job.ID)
-	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
+	s.finishWorkingCopy(job)
+	s.releaseJob(job.ID)
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
 		map[string]any{"status": "cancelled", "error": message})
 }

@@ -23,6 +23,10 @@ type minimalPromptPreparation struct {
 }
 
 func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
+	return prepareMinimalLoopRequestWithReasoning(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, false, addenda...)
+}
+
+func prepareMinimalLoopRequestWithReasoning(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
 	if req == nil {
 		return minimalPromptPreparation{}, fmt.Errorf("chat completion request is required")
 	}
@@ -119,7 +123,7 @@ func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client l
 	if len(budget.Routes) > 0 {
 		providerType = budget.Routes[0].Limits.Route.ProviderType
 	}
-	finalized, err := finalizePromptRequestForSend(req, budget, tokenCache, providerType, logger)
+	finalized, err := finalizePromptRequestForSend(req, budget, tokenCache, providerType, logger, preserveReasoning)
 	if err != nil {
 		return minimalPromptPreparation{}, err
 	}

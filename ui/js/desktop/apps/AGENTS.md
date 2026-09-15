@@ -929,6 +929,11 @@ registration lives in `internal/desktop/types.go`.
   cannot affect another project or disposed window. Terminal job status survives
   reconnects and project refreshes. Cancellation shows its server reason and retry
   action, with no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
+- Game Maker retry buttons submit `resume: true` directly through the existing
+  job-start flow, even after reopening the app. Preserve unsent editor text,
+  lock immediately against duplicate requests, and retain normal permission
+  and global-job gates. Private reasoning stays server-side, outside the
+  progress terminal and chat.
 - Game Maker visible strings use `game_maker.*` plus
   `desktop.app_game_maker_studio` in all 16 `ui/lang/desktop/*.json` files.
   Missing skills/revisions modals throw `game_maker.modules_load_failed`.

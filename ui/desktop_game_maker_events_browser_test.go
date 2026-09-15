@@ -42,9 +42,13 @@ func TestGameMakerEventsReconnectBrowser(t *testing.T) {
 <script src="/js/desktop/apps/game-maker-studio.js"></script>
 <script>
 const project={id:'bo',name:'bo',description:'Breakout',dimension:'2d',status:'draft',current_revision:0};
+window.jobRequests=[];
 GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
  esc:value=>String(value??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),t:key=>key,
- api:async path=>path.endsWith('/capabilities')?{enabled:true,allow_create:true,skills_ready:true,phaser_version:'4.2.1'}:path.endsWith('/projects')?{projects:[project]}:{project,messages:[]}
+ api:async (path,opts)=>{
+  if(path.endsWith('/jobs')) {window.jobRequests.push(JSON.parse(opts.body));return new Promise(resolve=>window.finishRetry=()=>resolve({id:'resumed',status:'queued'}));}
+  return path.endsWith('/capabilities')?{enabled:true,allow_create:true,allow_edit:true,skills_ready:true,phaser_version:'4.2.1'}:path.endsWith('/projects')?{projects:[project]}:{project,messages:[]};
+ }
 });
 </script>`)
 	})
@@ -67,6 +71,18 @@ GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
 	}
 	if page.MustHas("[data-gm-phases] .is-current") {
 		t.Fatal("cancelled job still has an active phase")
+	}
+	// Retry starts a continuation even after reopening (lastPrompt is empty),
+	// retains an unsent edit, and locks immediately against duplicate clicks.
+	page.Timeout(5 * time.Second).MustElement("[data-gm-change-form] textarea").MustInput("Unsent creative change")
+	page.MustElement("[data-gm-retry]").MustClick()
+	page.MustEval(`()=>document.querySelector('[data-gm-retry]')?.click()`)
+	if !page.MustEval(`()=>jobRequests.length===1&&jobRequests[0].resume===true&&document.querySelector('[data-gm-change-form] textarea').value==='Unsent creative change'`).Bool() {
+		t.Fatal("retry did not directly submit one continuation or replaced the unsent edit")
+	}
+	page.MustEval(`()=>finishRetry()`)
+	if err := page.Timeout(time.Second).Wait(rod.Eval(`()=>GameMakerStudioApp.instances.get('fixture').job?.id==='resumed'`)); err != nil {
+		t.Fatal(err)
 	}
 	page.MustEval(`()=>GameMakerStudioApp.dispose('fixture')`)
 }

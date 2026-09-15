@@ -37,7 +37,6 @@
             elapsedTimer: null,
             repairCount: 0,
             lastPhase: '',
-            lastPrompt: '',
             busyPoll: null,
             previewLoadTimer: null,
             previewLoadClear: null,
@@ -627,12 +626,7 @@
     }
 
     function retryLastPrompt(state) {
-        const form = state.container.querySelector('[data-gm-change-form]');
-        const textarea = form.querySelector('textarea');
-        if (!state.lastPrompt || textarea.disabled) return;
-        textarea.value = state.lastPrompt;
-        autoGrow(textarea);
-        textarea.focus();
+        return submitChange(state, true);
     }
 
     async function reloadProjectRecord(state) {
@@ -844,7 +838,6 @@
                     });
                     closeModal(state);
                     state.projects.unshift(createdProject);
-                    state.lastPrompt = request.description;
                     if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
                     state.jobStartedAt = Date.now();
                     state.activeJob = { job_id: job.id, project_id: createdProject.id, status: job.status, phase: job.phase };
@@ -867,11 +860,11 @@
         });
     }
 
-    async function submitChange(state) {
+    async function submitChange(state, resume = false) {
         const form = state.container.querySelector('[data-gm-change-form]');
         const input = form.querySelector('textarea');
-        const prompt = input.value.trim();
-        if (!prompt || !state.project || state.jobActive) return;
+        const prompt = resume ? state.context.t('game_maker.retry') : input.value.trim();
+        if (!prompt || !state.project || state.jobActive || input.disabled) return;
         if (state.project.dimension !== '3d' && state.selectedModelAssetIDs?.length) {
             fail(state, new Error(state.context.t('game_maker.model_requires_3d')));
             return;
@@ -881,8 +874,10 @@
         state.jobActive = true;
         input.disabled = true;
         form.querySelector('button[type="submit"]').disabled = true;
-        input.value = '';
-        autoGrow(input);
+        if (!resume) {
+            input.value = '';
+            autoGrow(input);
+        }
         try {
             finalizeStreaming(state);
             state.messages.push({ role: 'user', content: prompt });
@@ -890,6 +885,7 @@
             scrollConversation(state);
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
+                resume,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: state.selectedAssetPackIDs || [],
                 model_asset_ids: state.project.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
@@ -897,7 +893,6 @@
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });
-            state.lastPrompt = prompt;
             if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
             state.jobStartedAt = Date.now();
             state.repairCount = 0;
@@ -906,8 +901,10 @@
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
             syncJobControls(state);
         } catch (error) {
-            input.value = prompt;
-            autoGrow(input);
+            if (!resume) {
+                input.value = prompt;
+                autoGrow(input);
+            }
             state.jobActive = false;
             input.disabled = false;
             form.querySelector('button[type="submit"]').disabled = false;

@@ -384,7 +384,7 @@ func recoverFromEmptyResponse(resp openai.ChatCompletionResponse, content string
 	return recoverFromEmptyResponseWithPolicy(defaultRecoveryPolicy(), resp, content, req, emptyRetried, logger, broker, scope)
 }
 
-func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatCompletionResponse, content string, req *openai.ChatCompletionRequest, emptyRetried *bool, logger *slog.Logger, broker FeedbackBroker, scope AgentTelemetryScope) bool {
+func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatCompletionResponse, content string, req *openai.ChatCompletionRequest, emptyRetried *bool, logger *slog.Logger, broker FeedbackBroker, scope AgentTelemetryScope, preserveContext ...bool) bool {
 	// Treat a response that contains only <think>…</think> blocks (and nothing visible
 	// after stripping them) as effectively empty — the model spent all tokens reasoning
 	// but produced no actual output.  Without this check the raw content is non-empty
@@ -415,6 +415,14 @@ func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatC
 	}
 
 	*emptyRetried = true
+	if len(preserveContext) > 0 && preserveContext[0] {
+		// An empty completion is not evidence of a context overflow. Keep the
+		// working conversation; normal route-aware fitting still runs on retry.
+		if logger != nil {
+			logger.Warn("[Sync] Empty response; retrying with preserved task context")
+		}
+		return true
+	}
 	RecordToolPolicyEventForScope(scope, "empty_response_without_tool_calls")
 	RecordToolRecoveryEventForScope(scope, "empty_response_recovered")
 	emptyReason := "empty_response"

@@ -49,6 +49,12 @@ CREATE TABLE IF NOT EXISTS gm_jobs (
  FOREIGN KEY(project_id) REFERENCES gm_projects(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS gm_jobs_project_idx ON gm_jobs(project_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS gm_agent_context (
+ project_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL,
+ messages BLOB NOT NULL, updated_at DATETIME NOT NULL,
+ FOREIGN KEY(project_id) REFERENCES gm_projects(id) ON DELETE CASCADE,
+ FOREIGN KEY(job_id) REFERENCES gm_jobs(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS gm_events (
  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT NOT NULL, job_id TEXT NOT NULL DEFAULT '',
  event_type TEXT NOT NULL, payload TEXT NOT NULL DEFAULT '{}', created_at DATETIME NOT NULL,
