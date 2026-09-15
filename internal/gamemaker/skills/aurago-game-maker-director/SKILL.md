@@ -148,7 +148,13 @@ change, validate it, and describe the player-visible result.
 ## Required internal design
 
 Prefer `set_design`; omitted/null fields retain a failed compact draft, while
-arrays replace whole. `settings` (goal/speed/duration) apply only to guided 3D.
+arrays replace whole. `settings` (goal/speed/duration) apply only to guided 3D
+(`fps`, `exploration`, `transport`, `flight`, `space`). For free `three` and
+all 2D bases omit `settings`; after a settings error, omitting it or submitting
+`{"settings":null}` clears the incompatible draft value. Keep the chosen base,
+objective, assets and creative mechanics. Describe custom tuning in features and
+source; supported movement helpers use `mechanics.blocks[].params`. Guided 3D
+keeps omitted/null settings and accepts duration 0 to disable its countdown.
 Legacy full `set_plan` remains compatible for existing callers.
 The plan is versioned at `.aurago/game-plan.json`; use plan tools, not
 file writes, to access it. It is revisioned but excluded from ZIP export. It is

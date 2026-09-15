@@ -211,6 +211,9 @@ func gameDesignSchema() map[string]interface{} {
 	stringsArray := func(description string) map[string]interface{} {
 		return map[string]interface{}{"type": "array", "items": prop("string", ""), "description": description}
 	}
+	settings := schema(map[string]interface{}{"goal": prop("integer", "1–24 objectives, default 5"), "speed": prop("number", "1–40 meters/second, default 5"), "duration": prop("integer", "0 disables countdown; otherwise 15–600 seconds, default 120")}, "goal", "speed", "duration")
+	settings["type"] = []string{"object", "null"}
+	settings["description"] = "Only for bases fps/exploration/transport/flight/space. Omit or use null for three and all 2D bases; this also clears incompatible settings from a failed draft. Keep the requested base. Describe custom tuning in features/source or supported mechanics.blocks[].params."
 	return schema(map[string]interface{}{
 		"base":      map[string]interface{}{"type": "string", "enum": []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space"}},
 		"objective": prop("string", "Concrete player objective"),
@@ -221,7 +224,7 @@ func gameDesignSchema() map[string]interface{} {
 			"role":    prop("string", "player, enemy, item, tree, arms, weapon, cargo, goal, building, planet or a distinct custom role"),
 			"pack_id": prop("string", "Exact catalog pack; empty for procedural art"), "asset_id": prop("string", "Exact model/sprite ID"), "assembly_id": prop("string", "Complete sprite assembly ID instead of asset_id"), "fallback": prop("string", "Named procedural graphic when no pack is selected"),
 		}, "role")},
-		"settings": schema(map[string]interface{}{"goal": prop("integer", "1–24 objectives, default 5"), "speed": prop("number", "Guided 3D only: 1–40 meters/second, default 5"), "duration": prop("integer", "15–600 seconds, default 120")}, "goal", "speed", "duration"),
+		"settings": settings,
 		"preserve": stringsArray("Existing behaviors kept in edit jobs"),
 		"scenarios": map[string]interface{}{"type": "array", "maxItems": 8, "description": "Optional checks for custom mechanics; use target steps for dynamic targets instead of blind coordinates. Maximum 6 seconds per scenario and 25 seconds total.", "items": schema(map[string]interface{}{
 			"id": prop("string", "Unique check ID, not required_"), "metric": prop("string", "Observed metric such as hits, actions, score, health, lives, goal_remaining or outcome"),

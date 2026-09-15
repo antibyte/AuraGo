@@ -25,6 +25,10 @@ Prefer a guided base (`fps`, `exploration`, `transport`, `flight`, `space`) via
 common.ts model loading, animation and lifecycle. All selected roles are bound.
 The following engine reference applies when extending that base or using free
 code (`three`). Import the pinned local Three.js runtime; build a playable game.
+For `base:"three"`, omit `settings` in `set_design`: that object configures only
+the five guided bases. A correction with `{"settings":null}` clears incompatible
+draft settings without changing the chosen base or game idea. Put custom runner
+speed, obstacles and progression in features and source or supported helper params.
 Scene-backed `three` is opt-in. An accepted plan with a scene emits the
 canonical `src/scene.json`; `startGame(config)` loads it and the shared loop
 runs the builder alongside `config.action` and `config.step`. A null scene keeps

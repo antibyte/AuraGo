@@ -323,7 +323,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	}
 	if p.Gameplay != nil {
 		if !guided3D(p.Template) {
-			return bad("gameplay", "settings apply to fps/exploration/transport/flight/space only. For minimal/three or 2D, omit settings in set_design; put movement values in mechanics.blocks[].params and custom values in source")
+			return bad("gameplay", "settings apply to fps/exploration/transport/flight/space only. Keep the requested template and remove gameplay from this full plan. For set_design corrections omit settings or send settings:null; put supported movement values in mechanics.blocks[].params and custom values in features/source")
 		}
 		if err := p.Gameplay.validate(); err != nil {
 			return err

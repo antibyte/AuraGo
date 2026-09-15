@@ -83,6 +83,15 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 			draft[k] = v
 		}
 	}
+	// The correction for unsupported settings is to omit/null them. Do not
+	// resurrect them from a failed draft when the effective base cannot use them.
+	// Guided bases still retain omitted/null values, including a disabled timer.
+	var base string
+	if json.Unmarshal(draft["base"], &base) == nil && slices.Contains(templateNames(), base) && !guided3D(base) {
+		if raw := patch["settings"]; len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			delete(draft, "settings")
+		}
+	}
 	merged, err := json.Marshal(draft)
 	if err != nil {
 		return nil, err
@@ -169,6 +178,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	if !slices.Contains(templateNames(), d.Base) || is3DTemplate(d.Base) != (project.Dimension == "3d") {
 		return p, fmt.Errorf("design.base: choose a base matching project dimension (%s)", project.Dimension)
 	}
+	if d.Settings != nil && !guided3D(d.Base) {
+		return p, fmt.Errorf("design.settings: goal/speed/duration apply only to fps/exploration/transport/flight/space, not base %q. Keep base %q and resubmit set_design with {\"settings\":null}, or omit settings in the correction. Other design fields are retained. Put custom tuning in features and source, or supported movement values in mechanics.blocks[].params", d.Base, d.Base)
+	}
 	p.CoreLoop = "Use the displayed controls to pursue: " + d.Objective
 	p.Rules = map[string]string{"progress": d.Objective, "failure": "Health or time exhausted", "completion": "Reach the objective; show result and allow restart"}
 	if d.Base == "minimal" || d.Base == "three" {
@@ -210,7 +222,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 			if len(d.Assets) == 0 {
 				p.Assets = old.Assets
 			}
-			if d.Settings == nil && old.Gameplay != nil {
+			if guided3D(d.Base) && d.Settings == nil && old.Gameplay != nil {
 				p.Gameplay = old.Gameplay
 			}
 			if d.Scene == nil && old.Scene != nil {

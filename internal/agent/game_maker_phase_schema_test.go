@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -48,6 +49,34 @@ func TestGameMakerPhaseSchemasRemainStrictObjects(t *testing.T) {
 	for _, tool := range GameMakerPhaseToolSchemas("planning", "3d") {
 		if tool.Function.Name == "game_maker_project" && tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})["design"] == nil {
 			t.Fatal("shared mutable schema")
+		}
+	}
+}
+
+func TestGameMakerSettingsSchemaExplainsFreeBaseCorrection(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		for _, tool := range newNativeToolSchemaSnapshot(GameMakerPhaseToolSchemas("planning", dimension)).StrictSchemas() {
+			if tool.Function.Name != "game_maker_project" {
+				continue
+			}
+			props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
+			design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
+			settings, exists := design["settings"]
+			if dimension == "2d" {
+				if exists {
+					t.Fatal("2D planning advertises guided settings")
+				}
+				continue
+			}
+			encoded, err := json.Marshal(settings)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{"fps/exploration/transport/flight/space", "null", "three", "failed draft", "Keep the requested base", "0 disables countdown"} {
+				if !strings.Contains(string(encoded), want) {
+					t.Errorf("strict provider lost %q: %s", want, encoded)
+				}
+			}
 		}
 	}
 }
