@@ -29,7 +29,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/creack/pty"
@@ -1530,10 +1529,6 @@ func (b *browserController) openLocked(ctx context.Context, request browserReque
 		chromedp.UserDataDir(chromiumProfileDir),
 	)
 	b.allocatorCtx, b.allocatorEnd = chromedp.NewExecAllocator(context.Background(), options...)
-	b.browserCtx, b.browserEnd = chromedp.NewContext(b.allocatorCtx)
-	b.tabCtx, b.tabEnd = chromedp.NewContext(b.browserCtx)
-	startCtx, cancel := context.WithTimeout(b.tabCtx, 30*time.Second)
-	defer cancel()
 	initialURL := "about:blank"
 	if strings.TrimSpace(request.URL) != "" {
 		if err := validateBrowserURL(request.URL); err != nil {
@@ -1547,12 +1542,15 @@ func (b *browserController) openLocked(ctx context.Context, request browserReque
 		b.closeLocked()
 		return err
 	}
-	if err := chromedp.Run(startCtx,
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			return browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllow).WithDownloadPath(downloadDir).WithEventsEnabled(true).Do(ctx)
-		}),
-		chromedp.Navigate(initialURL),
-	); err != nil {
+	b.browserCtx, b.browserEnd, err = startManagedBrowser(ctx, b.allocatorCtx, downloadDir)
+	if err != nil {
+		b.closeLocked()
+		return fmt.Errorf("start Chromium: %w", err)
+	}
+	b.tabCtx, b.tabEnd = context.WithCancel(b.browserCtx)
+	startCtx, cancel := context.WithTimeout(b.tabCtx, 30*time.Second)
+	defer cancel()
+	if err := chromedp.Run(startCtx, chromedp.Navigate(initialURL)); err != nil {
 		b.closeLocked()
 		return fmt.Errorf("start Chromium: %w", err)
 	}
