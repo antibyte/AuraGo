@@ -103,7 +103,7 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	cfg.GameMaker.AllowEdit = true
 	cfg.Directories.ToolsDir = filepath.Join(root, "tools")
 	cfg.Directories.WorkspaceDir = root
-	requiredModels := map[string]string{"agnesai": "agnes-2.5-flash", "stepfun": "step-3.7-flash"}
+	requiredModels := gameMakerEvaluationModels()
 	for _, id := range []string{"agnesai", "stepfun"} {
 		p := original.FindProvider(id)
 		if p == nil {
