@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "Venter på modellens svar.",
+  "game_maker.terminal_model_receiving": "Mottar svaret.",
+  "game_maker.terminal_model_retrying": "Ingen brukbare resultater: ber om neste konkrete trinn på nytt.",
+  "game_maker.terminal_model_recovering": "Kontrollerer lagret arbeid for begrenset gjenoppretting av kode.",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

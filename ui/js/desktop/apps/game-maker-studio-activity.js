@@ -22,7 +22,7 @@
         const motion = matchMedia('(prefers-reduced-motion: reduce)');
         const reducedMotion = () => motion.matches || document.body.dataset.animations === 'false';
         let timer = null, disposed = false, visible = true, jobID = '', lastID = 0;
-        let queue = [], current = null, lastText = '', lastPhase = '', sequence = 0;
+        let queue = [], current = null, lastText = '', lastPhase = '', sequence = 0, stoppedAt = '';
         const t = key => state.context.t('game_maker.' + key);
         const text = value => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 240);
         const elapsed = () => {
@@ -34,7 +34,7 @@
 
         function clear() {
             clearTimer();
-            queue = []; current = null; lastText = ''; lastPhase = ''; sequence = 0; lastID = 0;
+            queue = []; current = null; lastText = ''; lastPhase = ''; sequence = 0; lastID = 0; stoppedAt = '';
             lines.replaceChildren(); prompt.textContent = ''; terminal.remove();
         }
 
@@ -68,6 +68,22 @@
             timer = setTimeout(tick, current ? 36 : queue.length ? 380 : 1000);
         }
 
+        function finish() {
+            clearTimer();
+            if (current) { current.row.textContent = current.chars.join(''); current = null; }
+            for (const value of queue) {
+                const row = document.createElement('div');
+                row.className = 'gm-build-line'; row.dataset.line = (++sequence).toString().padStart(2, '0');
+                row.textContent = value; lines.appendChild(row);
+            }
+            queue = [];
+            while (lines.children.length > 24) lines.firstElementChild.remove();
+            if (!stoppedAt) stoppedAt = elapsed();
+            prompt.textContent = t('status_' + state.job.status) + ' · ' + stoppedAt;
+            terminal.classList.add('is-still');
+            lines.scrollTop = lines.scrollHeight;
+        }
+
         function sync() {
             if (disposed) return;
             const nextJob = state.job?.id || '';
@@ -78,12 +94,14 @@
                 add(t('terminal_' + phase));
             }
             const empty = shell.querySelector('.gm-preview-empty');
-            if (!running() || !empty) {
+            const stopped = ['failed', 'cancelled'].includes(state.job?.status) && !!lastPhase;
+            if ((!running() && !stopped) || !empty) {
                 clearTimer(); terminal.remove(); shell.classList.remove('has-build-terminal');
                 return;
             }
             if (!terminal.isConnected) empty.prepend(terminal);
             shell.classList.add('has-build-terminal');
+            if (stopped) { finish(); return; }
             if (visible && !document.hidden && timer === null) tick();
         }
 
@@ -96,6 +114,9 @@
             if (id) lastID = id;
             const p = event.payload || {};
             switch (event.type) {
+            case 'model_progress':
+                if (['waiting', 'receiving', 'retrying', 'recovering'].includes(p.status)) add(t('terminal_model_' + p.status) + ' · ' + elapsed());
+                break;
             case 'tool_call': add(t('terminal_' + (tools[p.tool] || 'tool'))); break;
             case 'file_changed': add(t('updated') + ' > ' + text(p.path)); break;
             case 'asset_changed': add(t('assets') + ' > ' + text(p.path || p.kind)); break;

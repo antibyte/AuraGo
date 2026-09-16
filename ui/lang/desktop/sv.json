@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "Väntar på modellens svar.",
+  "game_maker.terminal_model_receiving": "Tar emot svaret.",
+  "game_maker.terminal_model_retrying": "Inget användbart resultat: begär nästa konkreta steg igen.",
+  "game_maker.terminal_model_recovering": "Kontrollerar sparat arbete för begränsad kodåterställning.",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

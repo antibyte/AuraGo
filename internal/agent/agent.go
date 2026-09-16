@@ -1139,6 +1139,9 @@ type RunConfig struct {
 	// PreserveReasoning keeps provider-returned reasoning in this isolated
 	// continuation, subject to the same route/context budgets as other history.
 	PreserveReasoning bool
+	// RequireCompleteStream prevents interrupted or truncated provider output
+	// from being treated as executable work in an isolated coding workflow.
+	RequireCompleteStream bool
 	// ToolCallLimit is an optional server-owned fixed budget for this run.
 	// Zero retains the normal system/personality/tool-specific calculation.
 	ToolCallLimit int

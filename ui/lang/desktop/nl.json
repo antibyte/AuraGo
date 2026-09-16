@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "Wachten op het antwoord van het model.",
+  "game_maker.terminal_model_receiving": "Antwoord wordt ontvangen.",
+  "game_maker.terminal_model_retrying": "Geen bruikbare uitvoer: de volgende concrete stap wordt opnieuw gevraagd.",
+  "game_maker.terminal_model_recovering": "Opgeslagen werk controleren voor begrensd codeherstel.",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

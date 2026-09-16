@@ -249,12 +249,25 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 	broker.Send("tool_start", "game_maker_validate")
 	broker.Send("tool_start", "unknown-tool-with-private-arguments")
 	broker.Send("thinking", "private model reasoning")
-	events, err := service.EventsAfter(context.Background(), project.ID, 0, 10)
+	broker.Send("model_progress", "waiting")
+	for i := 0; i < 100; i++ {
+		broker.Send("model_progress", "receiving")
+	}
+	broker.Send("model_progress", "retrying")
+	broker.Send("model_progress", "private model reasoning")
+	events, err := service.EventsAfter(context.Background(), project.ID, 0, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 	metricCalls := 0
+	progressCalls := 0
 	for _, event := range events {
+		if event.Type == "model_progress" {
+			progressCalls++
+			if len(event.Payload) != 1 || !slices.Contains([]string{"waiting", "receiving", "retrying"}, fmt.Sprint(event.Payload["status"])) {
+				t.Fatal("invalid progress payload", event.Payload)
+			}
+		}
 		if event.Type == "tool_call" {
 			metricCalls++
 			if event.Payload["attempted"] != true {
@@ -274,6 +287,9 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 	}
 	if metricCalls != 3 {
 		t.Fatal("missing tool attempt metrics", metricCalls)
+	}
+	if progressCalls != 3 {
+		t.Fatal("missing or unbounded model progress", progressCalls)
 	}
 	var payload map[string]any
 	for _, event := range events {

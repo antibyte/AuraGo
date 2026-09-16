@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "モデルの応答を待っています。",
+  "game_maker.terminal_model_receiving": "応答を受信しています。",
+  "game_maker.terminal_model_retrying": "利用可能な出力がありません。次の具体的な手順を再度要求します。",
+  "game_maker.terminal_model_recovering": "回数を制限したコード復旧のため保存済みの作業を確認しています。",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

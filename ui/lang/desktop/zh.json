@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "正在等待模型回复。",
+  "game_maker.terminal_model_receiving": "正在接收回复。",
+  "game_maker.terminal_model_retrying": "没有可用输出：再次请求执行下一个具体步骤。",
+  "game_maker.terminal_model_recovering": "正在检查已保存的工作，以进行有限次数的代码恢复。",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

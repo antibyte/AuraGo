@@ -410,12 +410,13 @@ func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatC
 		}
 		return false
 	}
-	if *emptyRetried || !effectivelyEmpty || len(resp.Choices) == 0 || len(req.Messages) < policy.minMessagesForEmptyRetry() {
+	keepContext := len(preserveContext) > 0 && preserveContext[0]
+	if *emptyRetried || !effectivelyEmpty || len(resp.Choices) == 0 || (!keepContext && len(req.Messages) < policy.minMessagesForEmptyRetry()) {
 		return false
 	}
 
 	*emptyRetried = true
-	if len(preserveContext) > 0 && preserveContext[0] {
+	if keepContext {
 		// An empty completion is not evidence of a context overflow. Keep the
 		// working conversation; normal route-aware fitting still runs on retry.
 		if logger != nil {

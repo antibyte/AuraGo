@@ -181,7 +181,9 @@ func handleStreamingResponse(
 	cancelResp func(),
 	chunkIdleTimeout time.Duration,
 	retry422Count *int,
+	requireComplete ...bool,
 ) streamingResponseResult {
+	strict := len(requireComplete) > 0 && requireComplete[0]
 	streamAcct := streamingAccountingState{}
 	contextCancelled := false
 	var stm *openai.ChatCompletionStream
@@ -256,6 +258,9 @@ func handleStreamingResponse(
 		var ok bool
 		select {
 		case <-timer.C:
+			if strict {
+				midStreamError = fmt.Errorf("model stream stalled for %s: %w", idleTimeout, context.DeadlineExceeded)
+			}
 			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			llm.ReportLLMHealthEvent(llm.HealthEvent{
@@ -296,6 +301,9 @@ func handleStreamingResponse(
 
 		chunk, rErr := rr.chunk, rr.err
 		if rErr != nil {
+			if strict && rErr.Error() != "EOF" {
+				midStreamError = fmt.Errorf("model stream interrupted: %w", rErr)
+			}
 			if rErr.Error() != "EOF" {
 				if llmCtx.Err() == context.Canceled || llm.IsContextError(rErr) {
 					currentLogger.Debug("Stream canceled", "error", rErr)
@@ -324,6 +332,9 @@ func handleStreamingResponse(
 			delta := chunk.Choices[0].Delta
 			if delta.ReasoningContent != "" {
 				assembledReasoning.WriteString(delta.ReasoningContent)
+			}
+			if strict && (delta.ReasoningContent != "" || delta.Content != "" || len(delta.ToolCalls) > 0) {
+				broker.Send("model_progress", "receiving")
 			}
 			if delta.Content != "" {
 				assembledResponse.WriteString(delta.Content)
@@ -371,6 +382,18 @@ func handleStreamingResponse(
 	}
 	_ = recvEg.Wait()
 	stm.Close()
+	if strict && midStreamError == nil {
+		if llmCtx.Err() != nil {
+			midStreamError = fmt.Errorf("model stream interrupted: %w", llmCtx.Err())
+		} else if lastFinishReason == "" {
+			midStreamError = fmt.Errorf("model stream ended without a completion marker; incomplete output was not applied")
+		} else if lastFinishReason != "stop" && lastFinishReason != "tool_calls" && (assembledResponse.Len() > 0 || len(tcAssembler.Assemble()) > 0) {
+			midStreamError = fmt.Errorf("model stream was incomplete (%s); incomplete output was not applied", lastFinishReason)
+		}
+	}
+	if strict {
+		currentLogger.Info("[Stream] Completion summary", "finish_reason", lastFinishReason, "text_bytes", assembledResponse.Len(), "reasoning_bytes", assembledReasoning.Len(), "tool_calls", len(tcAssembler.Assemble()), "interrupted", midStreamError != nil)
+	}
 	if midStreamError != nil {
 		return streamingResponseResult{
 			err:                  midStreamError,
@@ -429,7 +452,7 @@ func handleStreamingResponse(
 
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
-			{Message: openai.ChatCompletionMessage{
+			{FinishReason: openai.FinishReason(lastFinishReason), Message: openai.ChatCompletionMessage{
 				Role:             openai.ChatMessageRoleAssistant,
 				Content:          content,
 				ReasoningContent: reasoningContent,

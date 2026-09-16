@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "En attente de la réponse du modèle.",
+  "game_maker.terminal_model_receiving": "Réception de la réponse.",
+  "game_maker.terminal_model_retrying": "Aucun résultat exploitable : nouvelle demande de la prochaine étape concrète.",
+  "game_maker.terminal_model_recovering": "Vérification du travail enregistré pour une récupération limitée du code.",
   "cheater.agent_badge": "dernière utilisation {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Déposez le fichier ici ou cliquez",

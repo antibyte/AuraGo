@@ -494,6 +494,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	runCfg.UserIntent = gameMakerUserIntent(run)
 	runCfg.Checkpoint = checkpoint
 	runCfg.PreserveReasoning = true
+	runCfg.RequireCompleteStream = true
 	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true
@@ -536,7 +537,8 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 		}
 	}()
 	sourceBefore, sourceErr := r.service.LastSourceWriteID(ctx, run.Job.ID)
-	response, err := agent.ExecuteAgentLoop(gamemaker.WithJobContext(ctx, run.Job.ID), req, runCfg, true, broker)
+	callCtx := llm.WithStreamAttemptTimeout(gamemaker.WithJobContext(ctx, run.Job.ID), time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
+	response, err := agent.ExecuteAgentLoop(callCtx, req, runCfg, true, broker)
 	if err != nil {
 		if agent.IsToolLimitFinalResponseInvalid(err) && ctx.Err() == nil && (run.Stage == "building" || run.Stage == "repair") {
 			// The rejected extra call stays unexecuted. The orchestrator validates
@@ -550,6 +552,13 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	// provider completion otherwise means no successful agent completion.
 	completed := runCfg.RunComplete != nil && runCfg.RunComplete()
 	if !completed && (len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" || strings.TrimSpace(response.Choices[0].Message.Content) == "[Empty Response]") {
+		if ctx.Err() == nil && run.Stage == "building" && run.Job.BaseRevision == 0 && run.Plan != nil {
+			// The unchanged-starter check owns a bounded, tool-free implementation
+			// repair. Reaching it is not success and must not publish the starter.
+			broker.Send("model_progress", "recovering")
+			slog.Info("game maker empty building response; checking source before bounded implementation recovery", "job_id", run.Job.ID)
+			return nil
+		}
 		if ctx.Err() == nil && sourceErr == nil && (run.Stage == "building" || run.Stage == "repair") {
 			if sourceAfter, err := r.service.LastSourceWriteID(ctx, run.Job.ID); err == nil && sourceAfter > sourceBefore {
 				// Saved work still needs the orchestrator's normal validation. Never
@@ -580,15 +589,33 @@ func gameMakerDiagnosticContext(diagnostics []gamemaker.Diagnostic) string {
 }
 
 type gameMakerBroker struct {
-	service   *gamemaker.Service
-	projectID string
-	jobID     string
-	mu        sync.Mutex
-	response  strings.Builder
+	service    *gamemaker.Service
+	projectID  string
+	jobID      string
+	mu         sync.Mutex
+	response   strings.Builder
+	progress   string
+	progressAt time.Time
 }
 
 func (b *gameMakerBroker) Send(event, message string) {
 	if strings.TrimSpace(message) == "" {
+		return
+	}
+	if event == "model_progress" && b.service != nil {
+		switch message {
+		case "waiting", "receiving", "retrying", "recovering":
+		default:
+			return
+		}
+		b.mu.Lock()
+		if b.progress == message && time.Since(b.progressAt) < 10*time.Second {
+			b.mu.Unlock()
+			return
+		}
+		b.progress, b.progressAt = message, time.Now()
+		b.mu.Unlock()
+		_ = b.service.EmitAgentEvent(context.Background(), b.projectID, b.jobID, "model_progress", map[string]any{"status": message})
 		return
 	}
 	if event == "tool_start" && b.service != nil {

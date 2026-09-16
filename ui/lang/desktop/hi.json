@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "मॉडल के जवाब की प्रतीक्षा है।",
+  "game_maker.terminal_model_receiving": "जवाब प्राप्त हो रहा है।",
+  "game_maker.terminal_model_retrying": "कोई उपयोगी परिणाम नहीं: अगला ठोस कदम फिर से मांगा जा रहा है।",
+  "game_maker.terminal_model_recovering": "सीमित कोड पुनर्प्राप्ति के लिए सहेजे गए काम की जाँच हो रही है।",
   "cheater.agent_badge": "last used {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Drop file here or click",

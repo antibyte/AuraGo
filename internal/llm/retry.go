@@ -312,7 +312,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 	noCancel := func() {}
 
 	for {
-		timeout := perAttemptTimeout()
+		timeout := streamAttemptTimeout(ctx)
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
 		providerBefore, modelBefore := activeProviderAndModel(client, req.Model)
 

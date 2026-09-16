@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "Warte auf die Modellantwort.",
+  "game_maker.terminal_model_receiving": "Antwort wird empfangen.",
+  "game_maker.terminal_model_retrying": "Keine nutzbare Ausgabe: nächster konkreter Schritt wird erneut angefordert.",
+  "game_maker.terminal_model_recovering": "Prüfe den Arbeitsstand für die begrenzte Code-Wiederherstellung.",
   "cheater.agent_badge": "vor {{time}} benutzt",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Datei hier ablegen oder klicken",

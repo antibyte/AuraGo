@@ -51,7 +51,8 @@ window.clearTimeout=id=>{activityTimers.delete(id);nativeClear(id)};
 const projects=[{id:'forest',name:'Waldabenteuer',description:'Ein Plattformspiel mit Münzen und Gegnern im Wald.',dimension:'2d',status:'draft',current_revision:0},{id:'other',name:'Weltraum',dimension:'3d',status:'draft',current_revision:0}];
 fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
  esc:value=>String(value??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),t:(key,args)=>{let value=lang[key]||key;for(const [k,v] of Object.entries(args||{}))value=value.replace('{'+k+'}',v);return value},
- api:async path=>path.endsWith('/capabilities')?{enabled:true,allow_create:true,allow_edit:true,skills_ready:true,phaser_version:'4.2.1',three_version:'0.185.1',active_job:{job_id:'job',project_id:'forest',status:'planning',phase:'planning'}}:path.endsWith('/projects')?{projects}:path.endsWith('/preview-token')?{url:'/preview-fixture',token:'fixture'}:{project:projects.find(p=>path.endsWith('/'+p.id))||projects[0],messages:[]}
+ confirmDialog:async()=>true,
+ api:async path=>path.endsWith('/capabilities')?{enabled:true,allow_create:true,allow_edit:true,allow_delete:true,skills_ready:true,phaser_version:'4.2.1',three_version:'0.185.1',active_job:{job_id:'job',project_id:'forest',status:'planning',phase:'planning'}}:path.endsWith('/projects')?{projects}:path.endsWith('/preview-token')?{url:'/preview-fixture',token:'fixture'}:{project:projects.find(p=>path.endsWith('/'+p.id))||projects[0],messages:[]}
 }));
 </script></body></html>`)
 	})
@@ -84,6 +85,9 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.r
 		send(i+3, "file_changed", map[string]any{"path": path})
 	}
 	page.MustWait(`()=>document.querySelector('.gm-build-lines')?.textContent.includes('src/main.ts')`)
+	send(0, "model_progress", map[string]any{"status": "receiving", "content": "PRIVATE_SENTINEL"})
+	send(0, "model_progress", map[string]any{"status": "retrying"})
+	page.MustWait(`()=>document.querySelector('.gm-build-lines')?.textContent.includes('erneut angefordert')`)
 	if !page.MustEval(`()=>Math.abs(document.querySelector('.gm-preview-empty img').getBoundingClientRect().y-iconY)<1&&document.querySelector('.gm-preview-empty strong').textContent===fixedCopy&&getComputedStyle(document.querySelector('.gm-build-cursor')).animationName==='none'&&getComputedStyle(document.querySelector('.gm-build-terminal')).fontFamily.includes('Press Start 2P')`).Bool() {
 		t.Fatal("foreground moved or reduced motion/font contract failed")
 	}
@@ -126,17 +130,27 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.r
 	page.MustEval(`()=>document.querySelector('[data-gm-preview]').style.display=''`)
 	page.MustWait(`()=>activityTimers.size===1`)
 	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job.status='failed';s.activity.sync()}`)
-	if !page.MustEval(`()=>activityTimers.size===0&&!document.querySelector('.gm-build-terminal')`).Bool() {
-		t.Fatal("finished job retained the active terminal")
+	if !page.MustEval(`()=>activityTimers.size===0&&document.querySelector('.gm-build-terminal.is-still')&&document.querySelector('.gm-build-lines').textContent.includes('file-89.ts')`).Bool() {
+		t.Fatal("failed job lost its progress or kept animating")
 	}
 	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job={id:'retry',status:'building',phase:'building'};s.activity.sync()}`)
 	page.MustWait(`()=>activityTimers.size===1&&document.querySelectorAll('.gm-build-line').length===1`)
 	page.MustEval(`()=>GameMakerStudioApp.instances.get('fixture').refreshPreview()`)
 	page.MustWait(`()=>!!document.querySelector('.gm-preview-frame')&&!document.querySelector('.gm-build-terminal')&&activityTimers.size===0`)
+	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.activeJob=null;}`)
 	page.MustElement(`[data-project-id="other"]`).MustClick()
 	page.MustWait(`()=>GameMakerStudioApp.instances.get('fixture').project.id==='other'&&!document.querySelector('.gm-preview-frame')`)
 	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job={id:'another',status:'planning',phase:'planning'};s.activity.sync()}`)
 	page.MustWait(`()=>activityTimers.size===1`)
+	// Deleting rebuilds the shell. The next job must use the new preview node,
+	// not a detached element captured by the previous activity controller.
+	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job.status='failed';s.activity.sync()}`)
+	page.MustElement(`[data-gm-action="delete"]`).MustClick()
+	page.MustWait(`()=>!GameMakerStudioApp.instances.get('fixture').project&&activityTimers.size===0`)
+	page.MustElement(`[data-project-id="forest"]`).MustClick()
+	page.MustWait(`()=>GameMakerStudioApp.instances.get('fixture').project?.id==='forest'`)
+	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job={id:'after-delete',status:'planning',phase:'planning'};s.activity.sync()}`)
+	page.MustWait(`()=>activityTimers.size===1&&document.querySelector('.gm-build-line')?.textContent.length>4`)
 	page.MustEval(`()=>GameMakerStudioApp.dispose('fixture')`)
 	if !page.MustEval(`()=>activityTimers.size===0&&!document.querySelector('.gm-build-terminal')`).Bool() {
 		t.Fatal("terminal survived disposal")

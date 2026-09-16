@@ -1,4 +1,8 @@
 {
+  "game_maker.terminal_model_waiting": "Čekání na odpověď modelu.",
+  "game_maker.terminal_model_receiving": "Přijímání odpovědi.",
+  "game_maker.terminal_model_retrying": "Žádný použitelný výstup: znovu žádám další konkrétní krok.",
+  "game_maker.terminal_model_recovering": "Kontroluji uloženou práci pro omezenou obnovu kódu.",
   "cheater.agent_badge": "naposledy použitý {{time}}",
   "cheater.app_name": "Cheater",
   "cheater.attach_drop_hint": "Přetáhněte soubor sem nebo klikněte na tlačítko",

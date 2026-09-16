@@ -1615,6 +1615,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		var tokenSource string
 
 		if stream {
+			if runCfg.RequireCompleteStream {
+				broker.Send("model_progress", "waiting")
+			}
 			chunkIdleTimeout := time.Duration(cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds) * time.Second
 			if chunkIdleTimeout <= 0 {
 				chunkIdleTimeout = 30 * time.Second
@@ -1622,7 +1625,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if llmTimeout > 0 && chunkIdleTimeout > llmTimeout {
 				chunkIdleTimeout = llmTimeout
 			}
-			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count)
+			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count, runCfg.RequireCompleteStream)
 			if result.recoveryContinue {
 				req.Messages = result.recoveredMessages
 				continue
@@ -1666,6 +1669,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, s.currentLogger, broker, telemetryScope, runCfg.Checkpoint != nil) {
+			if runCfg.RequireCompleteStream {
+				broker.Send("model_progress", "retrying")
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "The previous response produced no usable text or complete tool call. Continue from the existing plan and results. Perform the next small concrete step now with the supplied tools; do not restart planning or repeat completed reads. Keep reasoning brief enough to leave room for the tool call. Never claim completion without the required checks."})
+			}
 			continue
 		}
 		emptyRetried = false // reset only after confirmed non-empty response

@@ -5,7 +5,7 @@
     const instances = new Map();
     const eventTypes = [
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
-        'skill_activation', 'file_changed', 'asset_changed', 'preview_reload', 'tool_call',
+        'skill_activation', 'file_changed', 'asset_changed', 'preview_reload', 'tool_call', 'model_progress',
         'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
@@ -947,7 +947,9 @@
             state.job = null;
             stopElapsed(state);
             closeEvents(state);
+            state.activity?.dispose();
             state.container.innerHTML = shell(state);
+            state.activity = window.GameMakerStudioActivity?.create(state);
             bindShell(state);
             applyCapabilities(state);
             renderProjects(state);
