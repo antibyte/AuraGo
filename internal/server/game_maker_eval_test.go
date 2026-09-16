@@ -194,8 +194,12 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	if err = os.MkdirAll(reports, 0700); err != nil {
 		t.Fatal(err)
 	}
+	tasks := gameMakerEvaluationTasks(os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1")
+	if os.Getenv("GAMEMAKER_EVAL_WORLDS") == "1" {
+		tasks = gameMakerWorldEvaluationTasks()
+	}
 	for _, provider := range cfg.Providers {
-		for _, task := range gameMakerEvaluationTasks(os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1") {
+		for _, task := range tasks {
 			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" {
 				if task.dimension == "3d" {
 					task.prompt += " Add the built-in forest-rain atmosphere, blood-spray and blood-pool on actual target hits, muzzle-flash on shots, grass footsteps, rifle shots and flesh impact sounds. Use presentation in set_design and the existing guided lifecycle."
@@ -247,13 +251,13 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 					planErr = json.Unmarshal(data, plan)
 				}
 			}
-			if (os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" || os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1") && job.Status != "ready" {
+			if (os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" || os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1" || os.Getenv("GAMEMAKER_EVAL_WORLDS") == "1") && job.Status != "ready" {
 				t.Errorf("presentation game did not become ready: %s: %s", job.Status, job.Error)
 			}
 			if os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" && (planErr != nil || plan == nil || plan.Presentation == nil || plan.Presentation.Environment == "" || len(plan.Presentation.Sounds) < 2 || len(plan.Presentation.Effects) < 2) {
 				t.Errorf("%s/%s: missing requested presentation in accepted plan", provider.ID, task.name)
 			}
-			if (os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" || os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1") && job.Status == "ready" {
+			if (os.Getenv("GAMEMAKER_EVAL_PRESENTATION") == "1" || os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1" || os.Getenv("GAMEMAKER_EVAL_WORLDS") == "1") && job.Status == "ready" {
 				file, err := os.Create(filepath.Join(reports, provider.ID+"-"+task.name+".zip"))
 				if err != nil {
 					t.Fatal(err)

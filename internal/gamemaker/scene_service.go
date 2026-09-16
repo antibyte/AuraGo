@@ -270,6 +270,12 @@ func (s *Service) GenerateSceneRegionJSON(ctx context.Context, jobID, expectedSH
 				}
 			}
 		}
+		if asset, ok := catalog.Roles[strings.TrimSpace(req.AssetRole)]; ok {
+			if req.AssetID != asset.ID {
+				return SceneResult{}, fmt.Errorf("asset_id must match the accepted role")
+			}
+			req.Assets.Assets[asset.ID] = asset
+		}
 	}
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()

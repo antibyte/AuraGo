@@ -20,12 +20,14 @@ import (
 var assetPackFS = webassets.Namespace("gamemaker")
 
 type AssetPackSummary struct {
-	Kind        string   `json:"kind,omitempty"`
-	ID          string   `json:"id"`
-	Version     string   `json:"version"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
+	ManifestSchema int      `json:"manifest_schema,omitempty"`
+	SelectionMode  string   `json:"selection_mode,omitempty"`
+	Kind           string   `json:"kind,omitempty"`
+	ID             string   `json:"id"`
+	Version        string   `json:"version"`
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	Tags           []string `json:"tags"`
 }
 
 type AssetPack struct {
@@ -42,6 +44,7 @@ type AssetPack struct {
 	Assemblies    json.RawMessage `json:"assemblies,omitempty"`
 	Provenance    json.RawMessage `json:"provenance"`
 	Categories    json.RawMessage `json:"categories,omitempty"`
+	Atlases       json.RawMessage `json:"atlases,omitempty"`
 }
 
 type ImportedAssetPack struct {
@@ -79,7 +82,7 @@ func (s *Service) validateScriptAssetImports(ctx context.Context, jobID, rel, co
 	var examples []string
 	for _, pack := range packs {
 		present[pack.Metadata] = pack.Image
-		if pack.Kind == "model3d" || presentationPack(pack.ID) {
+		if len(pack.Manifests) > 0 {
 			for _, meta := range pack.Manifests {
 				present[meta] = meta
 			}
@@ -145,6 +148,40 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 	modelPacks := map[string]int{}
 	for _, file := range files {
 		parts := strings.Split(file, "/")
+		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && atlasPack(parts[2]) && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
+			stage, e := s.JobDirectory(jobID)
+			if e != nil {
+				return nil, e
+			}
+			path, _, e := secureJoin(stage, file, false)
+			if e != nil {
+				return nil, e
+			}
+			data, e := os.ReadFile(path)
+			if e != nil {
+				return nil, e
+			}
+			var m AtlasManifest
+			if json.Unmarshal(data, &m) != nil || m.ID != parts[2] || len(m.Assets) != 1 {
+				continue
+			}
+			base := strings.Join(parts[:4], "/") + "/"
+			complete := len(m.Atlases) > 0
+			for _, p := range m.Atlases {
+				complete = complete && present[base+p.File]
+			}
+			if complete {
+				a := m.Assets[0]
+				if index, exists := modelPacks[base]; exists {
+					out[index].AssetIDs = append(out[index].AssetIDs, a.ID)
+					out[index].Manifests[a.ID] = file
+				} else {
+					modelPacks[base] = len(out)
+					out = append(out, ImportedAssetPack{ID: m.ID, Kind: "sprite2d", Version: m.Version, Metadata: file, AssetIDs: []string{a.ID}, Manifests: map[string]string{a.ID: file}, PhaserExample: atlasExample(m.ID, m.Version, a.ID)})
+				}
+			}
+			continue
+		}
 		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && presentationPack(parts[2]) && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
 			stage, e := s.JobDirectory(jobID)
 			if e != nil {
@@ -179,7 +216,7 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 			}
 			continue
 		}
-		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && parts[2] == ModelPackID && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
+		if len(parts) == 6 && parts[0] == "assets" && parts[1] == "builtin" && modelPack(parts[2]) && parts[4] == "assets" && strings.HasSuffix(parts[5], ".json") {
 			stage, err := s.JobDirectory(jobID)
 			if err != nil {
 				return nil, err
@@ -193,7 +230,7 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 				return nil, err
 			}
 			var manifest ModelManifest
-			if json.Unmarshal(data, &manifest) != nil || manifest.ID != ModelPackID || len(manifest.Assets) != 1 {
+			if json.Unmarshal(data, &manifest) != nil || manifest.ID != parts[2] || len(manifest.Assets) != 1 {
 				continue
 			}
 			asset := manifest.Assets[0]
@@ -208,7 +245,7 @@ func (s *Service) importedJobPacks(ctx context.Context, jobID string) ([]Importe
 					out[index].Manifests[asset.ID] = file
 				} else {
 					modelPacks[base] = len(out)
-					out = append(out, ImportedAssetPack{ID: ModelPackID, Version: parts[3], Kind: "model3d", Metadata: file, AssetIDs: []string{asset.ID}, Manifests: map[string]string{asset.ID: file}, ThreeExample: modelExample(parts[3], asset.ID)})
+					out = append(out, ImportedAssetPack{ID: parts[2], Version: parts[3], Kind: "model3d", Metadata: file, AssetIDs: []string{asset.ID}, Manifests: map[string]string{asset.ID: file}, ThreeExample: modelExample(parts[3], asset.ID, parts[2])})
 				}
 			}
 			continue
@@ -251,6 +288,9 @@ func (s *Service) AssetPackFile(id, filename string) ([]byte, error) {
 }
 
 func bundledAssetPackFile(id, filename string) ([]byte, error) {
+	if atlasPack(id) {
+		return bundledAtlasFile(id, filename)
+	}
 	if presentationPack(id) {
 		return bundledPresentationFile(id, filename)
 	}
@@ -264,8 +304,8 @@ func bundledAssetPackFile(id, filename string) ([]byte, error) {
 		}
 		return data, err
 	}
-	if id == ModelPackID {
-		return bundledModelFile(filename)
+	if modelPack(id) {
+		return bundledModelFile(filename, id)
 	}
 	if id == "" || strings.ContainsAny(id, "/\\.\x00") || (filename != "sheet.png" && filename != "sheet.json") {
 		return nil, ErrNotFound
@@ -279,7 +319,7 @@ func bundledAssetPackFile(id, filename string) ([]byte, error) {
 
 func (s *Service) DescribeAssetPack(id string) (AssetPack, error) {
 	filename := "sheet.json"
-	if id == ModelPackID || presentationPack(id) {
+	if modelPack(id) || atlasPack(id) || presentationPack(id) {
 		filename = "manifest.json"
 	}
 	data, err := s.AssetPackFile(id, filename)
@@ -334,8 +374,10 @@ func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string, assetID
 	var err error
 	if presentationPack(id) {
 		result, err = s.importPresentation(ctx, jobID, id, assetIDs)
-	} else if id == ModelPackID {
-		result, err = s.importModels(ctx, jobID, assetIDs)
+	} else if atlasPack(id) {
+		result, err = s.importAtlas(ctx, jobID, id, assetIDs)
+	} else if modelPack(id) {
+		result, err = s.importModels(ctx, jobID, assetIDs, id)
 	} else if len(assetIDs) > 0 {
 		err = fmt.Errorf("asset_ids is only supported for model3d packs")
 	} else {

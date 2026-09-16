@@ -8,6 +8,9 @@ import (
 )
 
 func conservativeReachability(scene Scene, nodes map[string]SceneNode) []SceneDiagnostic {
+	if isIsometricScene(&scene) {
+		return isometricReachability(scene)
+	}
 	navigation := strings.ToLower(strings.TrimSpace(scene.Navigation))
 	if len(nodes) == 0 || len(scene.Zones) == 0 {
 		switch navigation {

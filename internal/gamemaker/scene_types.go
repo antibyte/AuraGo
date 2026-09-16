@@ -9,7 +9,7 @@ const (
 	SceneMaxItems = 4096
 )
 
-// Vec3 is used for both dimensions. A 2D scene always stores z as zero.
+// Vec3 uses z=0 in ordinary 2D scenes and elevation in schema-2 isometric scenes.
 type Vec3 [3]float64
 
 type SceneBounds struct {
@@ -102,6 +102,7 @@ type SceneRoute struct {
 }
 
 type Scene struct {
+	Projection    *SceneProjection  `json:"projection,omitempty"`
 	SchemaVersion int               `json:"schema_version"`
 	Dimension     string            `json:"dimension"`
 	Seed          int64             `json:"seed"`
@@ -119,6 +120,17 @@ type Scene struct {
 	Metadata      map[string]any    `json:"metadata,omitempty"`
 }
 
+type SceneProjection struct {
+	Kind       string `json:"kind"`
+	TileWidth  int    `json:"tile_width"`
+	TileHeight int    `json:"tile_height"`
+	HeightStep int    `json:"height_step"`
+}
+
+func isIsometricScene(scene *Scene) bool {
+	return scene != nil && scene.SchemaVersion == 2 && scene.Dimension == "2d" && scene.Projection != nil && scene.Projection.Kind == "isometric"
+}
+
 // SceneAsset describes only the accepted catalog facts needed by validation.
 // A catalog entry without roles or sockets cannot authorize those references.
 type SceneAsset struct {
@@ -130,6 +142,7 @@ type SceneAsset struct {
 
 type SceneAssetCatalog struct {
 	Assets map[string]SceneAsset `json:"assets,omitempty"`
+	Roles  map[string]SceneAsset `json:"roles,omitempty"`
 }
 
 // AssetCatalog is kept as the short public name used by agent/runtime callers.
@@ -193,22 +206,32 @@ type ScenePatch struct {
 }
 
 type GenerateSceneRegionRequest struct {
-	RegionID    string       `json:"region_id"`
-	Kind        string       `json:"kind"`
-	Bounds      SceneBounds  `json:"bounds"`
-	Seed        int64        `json:"seed"`
-	LevelID     string       `json:"level_id,omitempty"`
-	Density     int          `json:"density,omitempty"`
-	CellSize    float64      `json:"cell_size,omitempty"`
-	MinDistance float64      `json:"min_distance,omitempty"`
-	Clear       bool         `json:"clear,omitempty"`
-	NodeKind    string       `json:"node_kind,omitempty"`
-	AssetID     string       `json:"asset_id,omitempty"`
-	AssetRole   string       `json:"asset_role,omitempty"`
-	Behavior    string       `json:"behavior,omitempty"`
-	ZoneKind    string       `json:"zone_kind,omitempty"`
-	DryRun      bool         `json:"dry_run,omitempty"`
-	Assets      AssetCatalog `json:"-"`
+	TileRoles      *IsometricTileRoles `json:"tile_roles,omitempty"`
+	ConnectHeights bool                `json:"connect_heights,omitempty"`
+	RegionID       string              `json:"region_id"`
+	Kind           string              `json:"kind"`
+	Bounds         SceneBounds         `json:"bounds"`
+	Seed           int64               `json:"seed"`
+	LevelID        string              `json:"level_id,omitempty"`
+	Density        int                 `json:"density,omitempty"`
+	CellSize       float64             `json:"cell_size,omitempty"`
+	MinDistance    float64             `json:"min_distance,omitempty"`
+	Clear          bool                `json:"clear,omitempty"`
+	NodeKind       string              `json:"node_kind,omitempty"`
+	AssetID        string              `json:"asset_id,omitempty"`
+	AssetRole      string              `json:"asset_role,omitempty"`
+	Behavior       string              `json:"behavior,omitempty"`
+	ZoneKind       string              `json:"zone_kind,omitempty"`
+	DryRun         bool                `json:"dry_run,omitempty"`
+	Assets         AssetCatalog        `json:"-"`
+}
+
+// Roles resolve through the accepted plan, never through guessed model names.
+type IsometricTileRoles struct {
+	Edge        string `json:"edge,omitempty"`
+	OuterCorner string `json:"outer_corner,omitempty"`
+	InnerCorner string `json:"inner_corner,omitempty"`
+	Stairs      string `json:"stairs,omitempty"`
 }
 
 func (s Scene) MarshalJSON() ([]byte, error) {

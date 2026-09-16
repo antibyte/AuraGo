@@ -4,7 +4,7 @@
     const packName = (state, id) => state.context.t('game_maker.pack_' + id.replaceAll('-', '_'));
     function selectionText(state) {
         const ids = state.selectedAssetPackIDs || [];
-        const models = [...(state.selectedModelAssetIDs || []),...(state.selectedPresentation?.effects||[]),...(state.selectedPresentation?.sounds||[]).map(s=>s.sound),...(state.selectedPresentation?.environment?[state.selectedPresentation.environment]:[])];
+        const models = [...(state.selectedModelAssetIDs || []),...(state.selectedAssetSelections || []).map(a=>a.pack_id+'/'+a.asset_id),...(state.selectedPresentation?.effects||[]),...(state.selectedPresentation?.sounds||[]).map(s=>s.sound),...(state.selectedPresentation?.environment?[state.selectedPresentation.environment]:[])];
         return ids.length || models.length ? state.context.t('game_maker.assets_selected') + ': ' + [...ids.map(id => packName(state, id)), ...models].join(', ')
             : state.context.t('game_maker.assets_automatic');
     }
@@ -17,8 +17,13 @@
     function clearSelection(state) {
         state.selectedAssetPackIDs = [];
         state.selectedModelAssetIDs = [];
+        state.selectedAssetSelections = [];
         state.selectedPresentation = null;
         updateSelection(state);
+    }
+    function selectionError(state,dimension) {
+        return (state.selectedAssetSelections||[]).some(a=>state.selectedAssetDimensions[a.pack_id]!==dimension)
+            ? state.context.t('game_maker.assets_dimension_mismatch') : '';
     }
     function show(state, helpers) {
         const { esc, t } = state.context;
@@ -32,7 +37,7 @@
             ${selectionMarkup(state)}<footer><button type="button" data-clear-selection>${esc(t('game_maker.assets_auto_button'))}</button>
                 <button type="button" data-modal-close>${esc(t('game_maker.close'))}</button></footer></section>`, layer => {
             const abort = new AbortController();
-            let timer = null, detailID = 0, packs = [], modelPack = null, presentationPacks = [], viewerCleanup = null;
+            let timer = null, detailID = 0, packs = [], modelPacks = [], atlasPacks = [], presentationPacks = [], viewerCleanup = null;
             const cleanup = () => {
                 abort.abort(); clearInterval(timer);
                 viewerCleanup?.(); viewerCleanup = null;
@@ -46,23 +51,24 @@
             const selected = () => state.selectedAssetPackIDs || [];
             function renderCards() {
                 const query = search.value.trim().toLowerCase();
-                const visible = packs.filter(pack => pack.kind === 'sprite2d' && ['all','sprite2d'].includes(kind.value) && (!category.value || category.value === pack.id) &&
+                const visible = packs.filter(pack => pack.kind === 'sprite2d' && pack.manifest_schema !== 2 && ['all','sprite2d'].includes(kind.value) && (!category.value || category.value === pack.id) &&
                     [packName(state, pack.id), pack.description, ...pack.tags].join(' ').toLowerCase().includes(query));
                 cards.innerHTML = visible.map(pack => `<article class="gm-asset-card" role="listitem">
                     <button type="button" data-pack="${esc(pack.id)}"><img src="${esc(state.api.assetPackImageURL(pack.id))}" alt="" loading="lazy">
                     <strong>${esc(packName(state, pack.id))}</strong></button><label><input type="checkbox" aria-label="${esc(packName(state, pack.id) + ': ' + t('game_maker.assets_use_next'))}" data-select-pack="${esc(pack.id)}" ${selected().includes(pack.id) ? 'checked' : ''}>
                         ${esc(t('game_maker.assets_use_next'))}</label></article>`).join('');
-                const models = (modelPack?.assets || []).filter(model => ['all','model3d'].includes(kind.value) &&
-                    (!category.value || category.value === modelPack.id || category.value === '3d:' + model.category) &&
-                    [model.name, model.description, ...model.tags].join(' ').toLowerCase().includes(query));
-                cards.innerHTML += models.map(model => `<article class="gm-asset-card gm-model-card" role="listitem">
-                    <button type="button" data-model="${esc(model.id)}"><img src="${esc(state.api.assetPackFileURL(modelPack.id, model.preview))}" alt="" loading="lazy">
-                    <strong>${esc(model.name)}</strong></button><label><input type="checkbox" data-select-model="${esc(model.id)}"
-                    aria-label="${esc(model.name + ': ' + t('game_maker.assets_use_next'))}" ${(state.selectedModelAssetIDs || []).includes(model.id) ? 'checked' : ''}>
-                    ${esc(t('game_maker.assets_use_next'))}</label></article>`).join('');
+                const models = modelPacks.flatMap(pack=>pack.assets.map(asset=>({pack,asset}))).filter(({pack,asset}) => ['all','model3d'].includes(kind.value) &&
+                    (!category.value || category.value === pack.id || category.value === '3d:' + asset.category) &&
+                    [asset.name, asset.description, ...asset.tags].join(' ').toLowerCase().includes(query));
+                const sprites = atlasPacks.flatMap(pack=>pack.assets.map(asset=>({pack,asset}))).filter(({pack,asset})=>['all','sprite2d'].includes(kind.value)&&(!category.value||category.value===pack.id)&&[asset.name,asset.description,...asset.tags].join(' ').toLowerCase().includes(query));
+                cards.innerHTML += [...models,...sprites].map(({pack,asset}) => {
+                    const selected=(state.selectedAssetSelections||[]).some(a=>a.pack_id===pack.id&&a.asset_id===asset.id)||(pack.id==='aurago-low-poly'&&(state.selectedModelAssetIDs||[]).includes(asset.id));
+                    const thumb=`<img src="${esc(state.api.assetPackFileURL(pack.id,asset.preview))}" alt="" loading="lazy" ${pack.schema_version===2?'style="image-rendering:pixelated"':''}>`;
+                    return `<article class="gm-asset-card gm-model-card" role="listitem"><button type="button" data-entry="${esc(asset.id)}" data-entry-pack="${esc(pack.id)}">${thumb}<strong>${esc(asset.name)}</strong></button><label><input type="checkbox" data-select-entry="${esc(asset.id)}" data-entry-pack="${esc(pack.id)}" aria-label="${esc(asset.name+': '+t('game_maker.assets_use_next'))}" ${selected?'checked':''}>${esc(t('game_maker.assets_use_next'))}</label></article>`;
+                }).join('');
                 const presentation = presentationPacks.flatMap(pack=>pack.assets.map(asset=>({pack,asset}))).filter(({pack,asset})=>['all',pack.kind].includes(kind.value)&&(!category.value||category.value===pack.id)&&[asset.name,asset.description,...asset.tags].join(' ').toLowerCase().includes(query));
                 cards.innerHTML += presentation.map(({pack,asset})=>`<article class="gm-asset-card" role="listitem"><button type="button" data-presentation="${esc(asset.id)}" data-presentation-pack="${esc(pack.id)}"><span style="font:48px system-ui;color:${pack.kind==='audio'?'#d6a7ff':'#6bddd5'};height:80px;display:grid;place-items:center" aria-hidden="true">${pack.kind==='audio'?'♪':'≋'}</span><strong>${esc(asset.name)}</strong></button><label><input type="checkbox" aria-label="${esc(asset.name + ": " + t('game_maker.assets_use_next'))}" data-select-presentation="${esc(asset.id)}" data-presentation-pack="${esc(pack.id)}" ${(state.selectedPresentation?.effects||[]).includes(asset.id)||state.selectedPresentation?.environment===asset.id||(state.selectedPresentation?.sounds||[]).some(s=>s.sound===asset.id)?'checked':''}>${esc(t('game_maker.assets_use_next'))}</label></article>`).join('');
-                if (!visible.length && !models.length && !presentation.length) cards.innerHTML = `<p>${esc(t('game_maker.assets_no_results'))}</p>`;
+                if (!visible.length && !models.length && !sprites.length && !presentation.length) cards.innerHTML = `<p>${esc(t('game_maker.assets_no_results'))}</p>`;
             }
             async function showPack(id) {
                 clearInterval(timer);
@@ -179,17 +185,17 @@
                     }
                 } catch (error) { if (current() && detailID === requestID) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
             }
-            function showModel(id) {
-                const model = modelPack?.assets.find(a => a.id === id);
-                if (!model) return;
+            function showEntry(packID,id) {
+                const pack=[...modelPacks,...atlasPacks].find(p=>p.id===packID), asset=pack?.assets.find(a=>a.id===id);
+                if(!asset)return;
                 ++detailID; clearInterval(timer); viewerCleanup?.();
-                viewerCleanup = window.GameMakerStudioModels.mount(state, detail, modelPack, model);
+                viewerCleanup = pack.kind==='model3d' ? window.GameMakerStudioModels.mount(state,detail,pack,asset) : mountAtlas(state,detail,pack,asset);
             }
             cards.addEventListener('click', event => {
                 const effect=event.target.closest('[data-presentation]');
                 if(effect){++detailID;clearInterval(timer);viewerCleanup?.();const pack=presentationPacks.find(p=>p.id===effect.dataset.presentationPack);viewerCleanup=mountPresentation(state,detail,pack,pack.assets.find(a=>a.id===effect.dataset.presentation),presentationPacks);return}
-                const model = event.target.closest('[data-model]');
-                if (model) { showModel(model.dataset.model); return; }
+                const entry = event.target.closest('[data-entry]');
+                if (entry) { showEntry(entry.dataset.entryPack,entry.dataset.entry); return; }
                 const button = event.target.closest('[data-pack]'); if (button) showPack(button.dataset.pack);
             });
             cards.addEventListener('change', event => {
@@ -204,14 +210,18 @@
                     if(!p.environment&&!p.effects.length&&!p.sounds.length)state.selectedPresentation=null;
                     renderCards();updateSelection(state);return;
                 }
-                const modelID = event.target.dataset.selectModel;
-                if (modelID) {
-                    if (!modelPack?.assets.some(a => a.id === modelID)) return;
-                    const chosen = state.selectedModelAssetIDs || [];
-                    if (event.target.checked && chosen.length >= 64 && !chosen.includes(modelID)) {
+                const assetID = event.target.dataset.selectEntry, packID=event.target.dataset.entryPack;
+                if (assetID) {
+                    const pack=[...modelPacks,...atlasPacks].find(p=>p.id===packID);
+                    if (!pack?.assets.some(a=>a.id===assetID)) return;
+                    const chosen = state.selectedAssetSelections || [];
+                    if (event.target.checked && chosen.length+(state.selectedModelAssetIDs||[]).length >= 64) {
                         event.target.checked = false; helpers.modalError(layer, t('game_maker.model_limit')); return;
                     }
-                    state.selectedModelAssetIDs = event.target.checked ? [...new Set([...chosen, modelID])] : chosen.filter(id => id !== modelID);
+                    state.selectedAssetSelections=chosen.filter(a=>a.pack_id!==packID||a.asset_id!==assetID);
+                    if(packID==='aurago-low-poly')state.selectedModelAssetIDs=(state.selectedModelAssetIDs||[]).filter(id=>id!==assetID);
+                    if(event.target.checked)state.selectedAssetSelections.push({pack_id:packID,asset_id:assetID});
+                    state.selectedAssetDimensions ||= {};state.selectedAssetDimensions[packID]=pack.kind==='model3d'?'3d':'2d';
                     updateSelection(state); return;
                 }
                 const id = event.target.dataset.selectPack;
@@ -225,11 +235,10 @@
             state.api.assetPacks({ signal: abort.signal }).then(async body => {
                 if (!current()) return;
                 packs = body.packs;
-                const models = packs.find(p => p.kind === 'model3d');
                 category.innerHTML += packs.filter(p => p.kind === 'sprite2d').map(p => `<option value="${esc(p.id)}">${esc(packName(state, p.id))}</option>`).join('');
                 renderCards();
-                if (models) {
-                    try { modelPack = await state.api.modelPack(models.id, { signal: abort.signal }); }
+                for (const summary of packs.filter(p=>p.kind==='model3d'||p.manifest_schema===2)) {
+                    try { const pack=await state.api.modelPack(summary.id, { signal: abort.signal });if(!current())return;(pack.kind==='model3d'?modelPacks:atlasPacks).push(pack); }
                     catch (error) { if (current()) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
                     if (!current()) return;
                 }
@@ -237,16 +246,64 @@
                     try {const manifest=await state.api.modelPack(p.id,{signal:abort.signal});if(!current())return;presentationPacks.push(manifest);category.innerHTML+=`<option value="${esc(p.id)}">${esc(t('game_maker.asset_kind_'+p.kind))}</option>`}
                     catch(error){if(current())helpers.modalError(layer,error.message)}
                 }
-                if (modelPack) {
-                    category.innerHTML += `<option value="${esc(models.id)}">${esc(t('game_maker.models'))}</option>` +
-                        modelPack.categories.map(c => `<option value="3d:${esc(c.id)}">3D · ${esc(t('game_maker.model_category_' + c.id))}</option>`).join('');
+                for (const pack of modelPacks) {
+                    const title=packName(state,pack.id);
+                    category.innerHTML += `<option value="${esc(pack.id)}">${esc(title.startsWith('game_maker.')?pack.name:title)}</option>`;
                 }
-                if (state.project?.dimension === '3d' && modelPack) category.value = models.id;
+                for(const cat of new Set(modelPacks.flatMap(p=>p.assets.map(a=>a.category)))){
+                    const key='game_maker.model_category_'+({people:'humans',nature:'vegetation',harbor:'architecture',coast:'landscape',equipment:'props'}[cat]||cat),translated=t(key);
+                    category.innerHTML+=`<option value="${esc('3d:'+cat)}">3D · ${esc(translated===key?cat:translated)}</option>`;
+                }
+                if (state.project?.dimension === '3d' && modelPacks.length) category.value = modelPacks[0].id;
                 renderCards();
-                if (category.value === models?.id && modelPack?.assets.length) showModel(modelPack.assets[0].id);
-                else if (packs.some(p=>p.kind==='sprite2d')) showPack(packs.find(p => p.kind === 'sprite2d').id);
+                const first=modelPacks.find(p=>p.id===category.value);
+                if(first?.assets.length)showEntry(first.id,first.assets[0].id);
+                else if (packs.some(p=>p.kind==='sprite2d'&&p.manifest_schema!==2)) showPack(packs.find(p => p.kind === 'sprite2d'&&p.manifest_schema!==2).id);
+                else if(atlasPacks[0]?.assets.length)showEntry(atlasPacks[0].id,atlasPacks[0].assets[0].id);
             }).catch(error => { if (current()) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); });
         });
+    }
+    function mountAtlas(state,host,pack,asset) {
+        const {esc,t}=state.context,abort=new AbortController();
+        let disposed=false,clock=0,playing=false,visible=true,lastDraw=0,sequence=0;
+        const pages=new Map(),urls=[],clips=pack.animations.filter(a=>a.asset_id===asset.id);
+        host.innerHTML=`<h3>${esc(asset.name)}</h3><p>${esc(asset.description)}</p><div class="gm-asset-stage"><canvas width="384" height="384" style="width:100%;max-width:384px;image-rendering:pixelated"></canvas></div><div class="gm-model-controls"><label>${esc(t('game_maker.assets_direction'))}<select data-direction>${asset.directions.map(d=>`<option>${esc(d.id)}</option>`).join('')}</select></label><label>${esc(t('game_maker.assets_animation'))}<select data-action>${[...new Set(clips.map(c=>c.action))].map(a=>`<option>${esc(a)}</option>`).join('')}</select></label><button data-play>${esc(t('game_maker.assets_play'))}</button><button data-pause>${esc(t('game_maker.assets_pause'))}</button>${asset.view==='isometric'?`<label>${esc(t('game_maker.assets_elevation'))}<input data-elevation type="range" min="0" max="3" step="1" value="0"></label>`:''}</div><p data-status role="status"></p>`;
+        const canvas=host.querySelector('canvas'),ctx=canvas.getContext('2d'),direction=host.querySelector('[data-direction]'),action=host.querySelector('[data-action]'),status=host.querySelector('[data-status]');
+        const controls=host.querySelector('.gm-model-controls');
+        for(const layer of asset.layers||[])controls.insertAdjacentHTML('beforeend',`<label><input type="checkbox" data-layer="${esc(layer.id)}" checked>${esc(t('game_maker.asset_layer_'+layer.id))}</label>`);
+        controls.insertAdjacentHTML('beforeend',`<label>${esc(t('codeStudio.zoomIn'))}<select data-zoom><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>`);
+        const zoom=host.querySelector('[data-zoom]');zoom.onchange=()=>draw();
+        for(const input of host.querySelectorAll('[data-layer]'))input.onchange=()=>draw();
+        function page(name){
+            if(!pages.has(name))pages.set(name,(async()=>{const res=await fetch(state.api.assetPackFileURL(pack.id,name),{signal:abort.signal});if(!res.ok)throw Error(t('game_maker.assets_load_failed'));const blob=await res.blob();if(disposed)return null;const url=URL.createObjectURL(blob);urls.push(url);const image=new Image();image.src=url;await image.decode();return image;})());
+            return pages.get(name);
+        }
+        const clip=()=>clips.find(c=>c.action===action.value&&c.direction===direction.value);
+        async function draw() {
+            if(disposed)return;const request=++lastDraw,c=clip(),frames=c?.frames||asset.frames,index=frames[Math.min(frames.length-1,sequence)],f=pack.frames.find(f=>f.id===index);if(!f)return;
+            try {
+                const visibleLayers=(asset.layers||[]).filter(l=>host.querySelector(`[data-layer="${CSS.escape(l.id)}"]`).checked).map(l=>pack.frames.find(f=>f.id===l.frames[direction.value]));
+                const images=await Promise.all([f,...visibleLayers].map(f=>page(f.atlas)));if(disposed||request!==lastDraw)return;
+                ctx.clearRect(0,0,384,384);ctx.imageSmoothingEnabled=false;
+                ctx.save();const z=Number(zoom.value);ctx.translate(192,240);ctx.scale(z,z);ctx.translate(-192,-240);
+                const elevation=Number(host.querySelector('[data-elevation]')?.value||0);
+                if(asset.view==='isometric') {ctx.strokeStyle='#6b7c90';ctx.lineWidth=1;for(let x=-1;x<=1;x++)for(let y=-1;y<=1;y++){const sx=192+(x-y)*64,sy=270+(x+y)*32;ctx.beginPath();ctx.moveTo(sx,sy-32);ctx.lineTo(sx+64,sy);ctx.lineTo(sx,sy+32);ctx.lineTo(sx-64,sy);ctx.closePath();ctx.stroke();}}
+                const scale=asset.view==='isometric'?1:Math.max(1,Math.floor(320/Math.max(f.width,f.height)));
+                const x=asset.view==='isometric'?192-f.width*asset.origin.x*scale:(384-f.width*scale)/2;
+                const y=asset.view==='isometric'?270-f.height*asset.origin.y*scale-elevation*32:(384-f.height*scale)/2;
+                [f,...visibleLayers].forEach((frame,i)=>ctx.drawImage(images[i],frame.x,frame.y,frame.width,frame.height,x,y,frame.width*scale,frame.height*scale));ctx.restore();
+                status.textContent=`${asset.view} · ${f.width} × ${f.height} · ${t('game_maker.assets_frame')} ${sequence+1}/${frames.length}`;
+            }catch(error){if(!disposed)status.textContent=error.message;}
+        }
+        function stop(){clearInterval(clock);clock=0;}
+        function play(){stop();if(!playing||!visible||document.hidden)return;const c=clip();if(!c||c.frames.length<2){draw();return;}clock=setInterval(()=>{sequence++;if(sequence>=c.frames.length){if(c.repeat!==-1){sequence=c.frames.length-1;playing=false;stop();}else sequence=0;}draw();},1000/c.frame_rate);}
+        direction.onchange=action.onchange=()=>{sequence=0;draw();play();};
+        host.querySelector('[data-play]').onclick=()=>{sequence=0;playing=true;draw();play();};
+        host.querySelector('[data-pause]').onclick=()=>{playing=false;stop();};
+        host.querySelector('[data-elevation]')?.addEventListener('input',draw,{signal:abort.signal});
+        document.addEventListener('visibilitychange',play,{signal:abort.signal});
+        const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;play();});observer.observe(canvas);draw();
+        return()=>{disposed=true;abort.abort();stop();observer.disconnect();for(const url of urls)URL.revokeObjectURL(url);pages.clear();};
     }
     function soundEvent(a) {
         if(a.loop)return a.id==='engine'?'engine':'ambient';
@@ -303,5 +360,5 @@
         return()=>{if(disposed)return;disposed=true;revision++;abort.abort();visibility.disconnect();stop()};
     }
 
-    window.GameMakerStudioAssets = { show, selectionMarkup, updateSelection, clearSelection };
+    window.GameMakerStudioAssets = { show, selectionMarkup, updateSelection, clearSelection, selectionError };
 })();

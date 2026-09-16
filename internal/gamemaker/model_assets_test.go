@@ -18,7 +18,7 @@ import (
 func TestModelPackCatalogIntegrity(t *testing.T) {
 	s := newTestService(t)
 	packs, err := s.ListAssetPacks()
-	if err != nil || len(packs) != 21 {
+	if err != nil || len(packs) != 25 {
 		t.Fatalf("catalog: %d, %v", len(packs), err)
 	}
 	m, err := readModelManifest()

@@ -18,6 +18,13 @@
             </div><p data-model-status role="status">${esc(t('game_maker.loading'))}</p>`;
         const stage = host.querySelector('[data-model-stage]'), status = host.querySelector('[data-model-status]');
         const animation = host.querySelector('[data-model-animation]'), lod = host.querySelector('[data-model-lod]');
+        for(const layer of model.layers||[]){
+            host.querySelector('.gm-model-controls').insertAdjacentHTML('beforeend',`<label><input type="checkbox" data-model-layer="${esc(layer.id)}" checked>${esc(t('game_maker.asset_layer_'+layer.id))}</label>`);
+            host.querySelector(`[data-model-layer="${CSS.escape(layer.id)}"]`).addEventListener('change',event=>{
+                if(instance)for(const level of instance.levels){const part=level.getObjectByName(layer.node);if(part)part.visible=event.target.checked;}
+                invalidate();
+            },{signal:abort.signal});
+        }
         let scene, camera;
         function draw(now) {
             frame = 0;

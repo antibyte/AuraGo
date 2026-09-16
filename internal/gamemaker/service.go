@@ -417,6 +417,10 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		return Job{}, err
 	}
 	modelAssetIDs := append([]string(nil), req.ModelAssetIDs...)
+	assetSelections, err := s.validateAssetSelections(project.Dimension, req.AssetSelections)
+	if err != nil {
+		return Job{}, err
+	}
 	if _, _, err := resolvePresentation(req.Presentation); err != nil {
 		return Job{}, err
 	}
@@ -509,11 +513,15 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
 	_, _ = s.emit(ctx, project.ID, job.ID, "job_status", map[string]any{"status": "queued", "job": job})
-	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs, modelAssetIDs, req.Presentation)
+	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs, modelAssetIDs, req.Presentation, assetSelections)
 	return job, nil
 }
 
-func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs, modelAssetIDs []string, selection *Presentation) {
+func (s *Service) executeJob(ctx context.Context, job Job, project Project, diagnostics []Diagnostic, assetPackIDs, modelAssetIDs []string, selection *Presentation, selectedAssets ...[]AssetSelection) {
+	var assetSelections []AssetSelection
+	if len(selectedAssets) > 0 {
+		assetSelections = selectedAssets[0]
+	}
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -602,7 +610,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		restoredPlan := s.acceptedPlans[job.ID]
 		s.mu.RUnlock()
 		if !restoredPlan {
-			if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, Presentation: selection}); err != nil {
+			if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, AssetSelections: assetSelections, Presentation: selection}); err != nil {
 				s.terminateJob(job, ctx, err)
 				return
 			}
@@ -620,6 +628,11 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 				return
 			}
 			missing := []string{}
+			for _, selected := range assetSelections {
+				if !slices.ContainsFunc(plan.Assets, func(a PlanAsset) bool { return a.PackID == selected.PackID && a.AssetID == selected.AssetID }) {
+					missing = append(missing, selected.PackID+"/"+selected.AssetID)
+				}
+			}
 			if selection != nil {
 				wantedFX, wantedAudio, _ := resolvePresentation(selection)
 				actualFX, actualAudio, _ := resolvePresentation(plan.Presentation)
@@ -674,13 +687,13 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		return
 	}
 	imported := map[string]bool{}
-	selectedModels := []string{}
+	selectedModels := map[string][]string{}
 	for _, p := range assetPacks {
 		imported[p.ID+"@"+p.Version] = true
 	}
 	for _, a := range plan.Assets {
-		if a.PackID == ModelPackID {
-			selectedModels = append(selectedModels, a.AssetID)
+		if modelPack(a.PackID) || atlasPack(a.PackID) {
+			selectedModels[a.PackID] = append(selectedModels[a.PackID], a.AssetID)
 			continue
 		}
 		if a.PackID == "" || imported[a.PackID+"@"+a.Version] {
@@ -694,8 +707,14 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		assetPacks = append(assetPacks, p)
 		imported[p.ID+"@"+p.Version] = true
 	}
-	if len(selectedModels) > 0 {
-		p, err := s.importModels(ctx, job.ID, selectedModels)
+	for packID, ids := range selectedModels {
+		var p ImportedAssetPack
+		var err error
+		if atlasPack(packID) {
+			p, err = s.importAtlas(ctx, job.ID, packID, ids)
+		} else {
+			p, err = s.importModels(ctx, job.ID, ids, packID)
+		}
 		if err != nil {
 			s.terminateJob(job, ctx, err)
 			return

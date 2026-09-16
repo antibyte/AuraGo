@@ -281,5 +281,63 @@
       "audio",
       "presentation"
     ]
+  },
+  {
+    "id": "aurago-pirates-3d",
+    "name": "AuraGo Pirates 3D",
+    "description": "Original maritime low-poly assets.",
+    "tags": [
+      "pirates",
+      "steampunk",
+      "maritime"
+    ],
+    "version": "1.0.0",
+    "kind": "model3d",
+    "selection_mode": "assets"
+  },
+  {
+    "id": "aurago-pirates-topdown",
+    "name": "AuraGo Pirates Top",
+    "description": "Original animated maritime pixel art.",
+    "tags": [
+      "pirates",
+      "steampunk",
+      "maritime",
+      "top"
+    ],
+    "version": "1.0.0",
+    "kind": "sprite2d",
+    "selection_mode": "assets",
+    "manifest_schema": 2
+  },
+  {
+    "id": "aurago-pirates-side",
+    "name": "AuraGo Pirates Side",
+    "description": "Original animated maritime pixel art.",
+    "tags": [
+      "pirates",
+      "steampunk",
+      "maritime",
+      "side"
+    ],
+    "version": "1.0.0",
+    "kind": "sprite2d",
+    "selection_mode": "assets",
+    "manifest_schema": 2
+  },
+  {
+    "id": "aurago-isometric",
+    "name": "AuraGo Isometric",
+    "description": "Original animated isometric pixel worlds.",
+    "tags": [
+      "isometric",
+      "village",
+      "city",
+      "sci-fi"
+    ],
+    "version": "1.0.0",
+    "kind": "sprite2d",
+    "selection_mode": "assets",
+    "manifest_schema": 2
   }
 ]

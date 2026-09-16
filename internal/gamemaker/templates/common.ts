@@ -1,6 +1,7 @@
 import { createInputs, bindGameTest, preloadPack, registerAnimations, createAsset, createAssembly, fitVisual, playAction, setFacing } from '../vendor/aurago-game-1.js';
 import {createPresentation, createPhaserAdapter} from '../vendor/aurago-effects-2d-1.js';
 import {createScene2D, hasSceneNodes} from '../vendor/scene-builder.js';
+import {createIsometricWorld, projectIso} from '../vendor/isometric.js';
 import presentationPlan from './presentation.json';
 import scenePlan from './scene.json';
 import mechanicsPlan from './mechanics.json';
@@ -11,12 +12,12 @@ const plannedAssets: any = {};
 // Keep this lifecycle when adapting a template. State belongs to each scene run.
 export class GameScene extends Phaser.Scene {
   player: any; inputKeys: any; hud: any;
-  state: any; elapsed = 0; presentation: any; builder: any; sceneDebugGraphics: any; footstepAt = 0; wasGrounded = false;
+  state: any; elapsed = 0; presentation: any; builder: any; isometric: any; isoPlayerID = ''; sceneDebugGraphics: any; footstepAt = 0; wasGrounded = false;
   visuals: any[] = []; gameObjects:any[]=[]; gameEvents:any={}; gameTrace:any[]=[]; sceneSolids:any; sceneDebugLabels: any[] = []; manualPause = false; previewActive = true;
   constructor() { super('main'); }
   preload() {
     for (const meta of new Set(Object.values(plannedAssets).map((a:any)=>a.meta))) {
-      preloadPack(this, meta, `assets/builtin/${meta.id}/${meta.version}/sheet.png`);
+      preloadPack(this, meta, `assets/builtin/${meta.id}/${meta.version}/${meta.schema_version === 2 ? '' : 'sheet.png'}`);
     }
   }
   create() {
@@ -39,6 +40,7 @@ export class GameScene extends Phaser.Scene {
     const activation=(event:MessageEvent)=>{if(event.source===parent&&event.data?.type==='aurago:game:active')active(event.data.active===true)};
     window.addEventListener('message',activation);
     this.events.once('shutdown',()=>{this.builder?.dispose();this.builder=null;this.sceneDebugGraphics=null;this.sceneDebugLabels=[];this.presentation?.dispose();this.presentation=null;this.game.events.off('hidden',paused);this.game.events.off('visible',resumed);window.removeEventListener('message',activation)});
+    this.events.once('shutdown',()=>{this.isometric?.dispose();this.isometric=null;});
     this.setup();
     bindGameTest(this, this.state, this.player);
     this.time.addEvent({ delay: 1000, loop: true, callback: () => { if (!this.state.ended&&!this.manualPause&&this.previewActive) { this.state.ticks++; this.tick(); } } });
@@ -48,6 +50,7 @@ export class GameScene extends Phaser.Scene {
   // fallback when an older project has no nodes in scene.json.
   setupScene() {
     if (!hasSceneNodes(scenePlan)) return false;
+    if((scenePlan as any).projection?.kind==='isometric')return this.setupIsometricScene();
     this.sceneSolids=this.physics.add.staticGroup();
     this.builder = createScene2D(scenePlan, {
       viewport: { width: this.game.config.width, height: this.game.config.height },
@@ -168,6 +171,53 @@ export class GameScene extends Phaser.Scene {
       this.sceneDebugLabels.push(this.add.text(bounds.x,bounds.y-labelSize-2,record.node.id,{fontSize:labelSize+'px',color:'#fbbf24',backgroundColor:'#081018'}).setDepth(3001));
     }
   }
+  setupIsometricScene() {
+    const raw:any=scenePlan;this.physics.world.gravity.y=0;
+    this.isometric=createIsometricWorld(raw,{
+      origin:{x:Number(this.game.config.width)/2,y:80},
+      create:(node:any)=>{
+        const placement=raw.placements?.find((p:any)=>p.node_id===node.id),spec=plannedAssets[placement?.asset_role];
+        const art=spec?createAsset(this,spec.meta,spec.id,0,0):this.add.rectangle(0,0,node.kind==='player'?16:8,node.kind==='player'?24:8,0x5eead4);
+        if(spec&&placement?.rotation?.[2]){const angle=placement.rotation[2],p=projectIso([Math.cos(angle),Math.sin(angle),0]);setFacing(art,p.x,p.y);}
+        art.__gmID=node.id;art.__gmRole=placement?.asset_role||'';art.__gmAssets=spec?[{role:placement.asset_role,pack_id:spec.meta.id,asset_id:spec.id}]:[];
+        if(!spec&&node.properties?.walkable)art.setVisible(false);
+        this.gameObjects.push(art);
+        if(node.kind==='player'||node.properties?.player){this.player=art;this.isoPlayerID=node.id;this.physics.add.existing(art);art.body.setAllowGravity(false);art.body.moves=false;}
+        return art;
+      },
+      position:(art:any,p:any,depth:number)=>{art.setPosition(p.x,p.y).setDepth(depth);art.body?.updateFromGameObject();},
+      visible:(art:any,value:boolean)=>art.setVisible(value),destroy:(art:any)=>art.destroy(),
+      moved:(record:any)=>{if(record.node.id===this.isoPlayerID)this.checkIsometricContacts(record);},
+      renderDebug:()=>this.renderIsometricDebug(),
+      debugChanged:(on:boolean)=>{if(!on){this.sceneDebugGraphics?.clear();for(const label of this.sceneDebugLabels)label.destroy();this.sceneDebugLabels=[];}}
+    });
+    if(!this.player)throw Error('Isometric scene needs a player node');
+    this.hud.setDepth(1e8);this.cameras.main.startFollow(this.player,true,.12,.12);
+    return true;
+  }
+  checkIsometricContacts(player:any) {
+    for(const r of [...this.isometric.records.values()] as any[]) {
+      if(this.isometric.records.get(player.node.id)!==player)break;
+      if(r===player||!r.object.active||Math.abs(player.at[2]-r.at[2])>.2||Math.hypot(player.at[0]-r.at[0],player.at[1]-r.at[1])>.4)continue;
+      if(r.node.properties?.pickup){this.state.score++;this.state.pickup_events++;this.feedback('pickup',r.object);this.isometric.remove(r.node.id);}
+      if(r.node.properties?.goal)this.end(true);
+      this.isometricContact(r.node,player.node);
+    }
+  }
+  // Hooks for authored rules. The helpers never infer behavior from an asset ID.
+  isometricContact(_node:any,_player:any) {}
+  isometricAction() {}
+  renderIsometricDebug(){
+    if(!this.sceneDebugGraphics)this.sceneDebugGraphics=this.add.graphics().setDepth(1e7);
+    const g=this.sceneDebugGraphics.clear();for(const label of this.sceneDebugLabels)label.destroy();this.sceneDebugLabels=[];
+    for(const r of [...this.isometric.records.values()].slice(0,256) as any[]){
+      const n=r.node,size=n.properties?.footprint||[1,1],x=r.at[0],y=r.at[1],z=r.at[2];
+      const corners=[[x,y,z],[x+size[0],y,z],[x+size[0],y+size[1],z],[x,y+size[1],z]].map(p=>this.isometric.project(p));
+      g.lineStyle(1,n.properties?.solid?0xf87171:n.properties?.goal?0xfbbf24:0x58a6ff,.8);g.beginPath();g.moveTo(corners[0].x,corners[0].y);for(const c of corners.slice(1))g.lineTo(c.x,c.y);g.closePath();g.strokePath();
+      if(!n.properties?.walkable)this.sceneDebugLabels.push(this.add.text(corners[0].x,corners[0].y,n.id+' z='+z,{fontSize:'11px',color:'#fff',backgroundColor:'#081018'}).setDepth(1e7+1));
+    }
+  }
+  changeIsometricLevel(id:string) {this.isometric.level(id);this.gameObjects=this.gameObjects.filter((o:any)=>o.active);bindGameTest(this,this.state,this.player);this.cameras.main.startFollow(this.player,true,.12,.12);}
   setup() { if (this.setupScene()) return; this.player = this.body(240, 270, 28, 28, 0x5eead4,false,"player"); }
   assetRoles(prefix: string) { return Object.keys(plannedAssets).filter(role=>role===prefix||role.startsWith(prefix+'_')); }
   body(x: number, y: number, w: number, h: number, color: number, fixed = false, role = '') {
@@ -197,8 +247,15 @@ export class GameScene extends Phaser.Scene {
     return object;
   }
   tick() {}
-  action() { this.state.actions++;if(this.builder&&this.physics.world.gravity.y&&(this.player.body.blocked.down||this.player.body.touching.down)){this.player.body.setVelocityY(-420);this.feedback('jump');}this.builder?.action?.(); }
+  action() { this.state.actions++;if(this.isometric){this.isometricAction();return;}if(this.builder&&this.physics.world.gravity.y&&(this.player.body.blocked.down||this.player.body.touching.down)){this.player.body.setVelocityY(-420);this.feedback('jump');}this.builder?.action?.(); }
   step(_delta: number) {
+    if(this.isometric){
+      const v=this.inputKeys.vector(),length=Math.max(1,Math.hypot(v.x,v.y)),node=this.isometric.records.get(this.isoPlayerID)?.node;
+      const speed=Number(node?.properties?.speed)||2.5,dx=(v.x+v.y)/2/length*speed*_delta,dy=(v.y-v.x)/2/length*speed*_delta;
+      const moved=this.isometric.move(this.isoPlayerID,dx,dy),placement=(scenePlan as any).placements?.find((p:any)=>p.node_id===this.isoPlayerID),spec=plannedAssets[placement?.asset_role];
+      if(spec){const vector=projectIso([dx,dy,0]);setFacing(this.player,vector.x,vector.y);const action=moved?'walk':'idle';if(spec.meta.animations.some((a:any)=>a.asset_id===spec.id&&a.action===action))playAction(this.player,action);}
+      return;
+    }
     const v=this.inputKeys.vector(),record=this.builder?.scene.nodes.find((n:any)=>n.kind==='player'||n.properties?.player);
     const control=record?.behaviors.find((b:any)=>b.type==='movement')||{};
     const speed=Number(control.speed)||240, length=Math.max(1,Math.hypot(v.x,v.y));
@@ -231,11 +288,19 @@ export class GameScene extends Phaser.Scene {
       const velocity=object.body?.velocity;
       if(asset && velocity){
         const moving=Math.abs(velocity.x)+Math.abs(velocity.y)>1;
+        if(spec.meta.schema_version===2){
+          if(moving)setFacing(art,velocity.x,velocity.y);
+          const available=spec.meta.animations.filter((a:any)=>a.asset_id===asset.id);
+          const preferred=moving?['walk','move','swim','sailing','run']:['idle','tread_water','sailing'];
+          const action=preferred.find(name=>available.some((a:any)=>a.action===name));
+          if(action)playAction(art,action);
+        }else{
         const direction=Math.abs(velocity.x)>=Math.abs(velocity.y)?(velocity.x<0?'left':'right'):(velocity.y<0?'up':'down');
         const supported=asset.transform.mode==='rotate'||asset.transform.flip_x&&['left','right'].includes(direction)||spec.meta.assets.some((a:any)=>a.entity===asset.entity&&a.direction===direction);
         if(moving&&supported)setFacing(art,velocity.x,velocity.y);
         const action=spec.meta.animations.find((a:any)=>(a.entity?a.entity===asset.entity:a.asset_id===asset.id)&&a.direction===(moving&&supported?direction:asset.direction)&&(moving?['walk','move'].includes(a.action):a.action==='idle'));
         if(action)playAction(art,action.action);
+        }
       }
       art.setPosition(object.x+offset.x, object.y+offset.y).setDepth(object.depth);
       return true;
@@ -250,6 +315,7 @@ export class GameScene extends Phaser.Scene {
       this.presentation.update(Math.min(delta,50)/1000);
     }
     this.builder?.render();
+    this.isometric?.render();
     this.paintHUD();
   }
 }

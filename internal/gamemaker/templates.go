@@ -131,11 +131,16 @@ func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
 			continue
 		}
 		key := a.PackID + "@" + a.Version
+		metadata := "sheet.json"
+		if atlasPack(a.PackID) {
+			metadata = "assets/" + a.AssetID + ".json"
+			key += "/" + a.AssetID
+		}
 		name, ok := packNames[key]
 		if !ok {
 			name = fmt.Sprintf("pack%d", len(packNames))
 			packNames[key] = name
-			path, _ := json.Marshal("../assets/builtin/" + a.PackID + "/" + a.Version + "/sheet.json")
+			path, _ := json.Marshal("../assets/builtin/" + a.PackID + "/" + a.Version + "/" + metadata)
 			imports = append(imports, fmt.Sprintf("import %s from %s;", name, path))
 		}
 		role, _ := json.Marshal(a.Role)

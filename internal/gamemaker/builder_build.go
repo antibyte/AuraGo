@@ -105,25 +105,24 @@ func loadSceneMechanics(dir string, scene *Scene) error {
 
 // Resolve the same local dimensions for spatial validation and generation.
 func sceneCatalogForPlan(plan GamePlan) (AssetCatalog, error) {
-	catalog := AssetCatalog{Assets: map[string]SceneAsset{}}
-	var models *ModelManifest
+	catalog := AssetCatalog{Assets: map[string]SceneAsset{}, Roles: map[string]SceneAsset{}}
+	models := map[string]ModelManifest{}
+	identities := map[string]string{}
 	for _, a := range plan.Assets {
 		id := a.AssetID
 		if a.AssemblyID != "" {
 			id = a.AssemblyID
 		}
-		asset := catalog.Assets[id]
-		asset.ID = id
-		asset.Roles = append(asset.Roles, a.Role)
-		if a.PackID == ModelPackID {
-			if models == nil {
-				m, err := readModelManifest()
+		asset := SceneAsset{ID: id, Roles: []string{a.Role}}
+		if modelPack(a.PackID) {
+			if _, exists := models[a.PackID]; !exists {
+				m, err := readModelManifest(a.PackID)
 				if err != nil {
 					return catalog, err
 				}
-				models = &m
+				models[a.PackID] = m
 			}
-			for _, m := range models.Assets {
+			for _, m := range models[a.PackID].Assets {
 				if m.ID == id {
 					scale := a.Scale
 					if scale <= 0 {
@@ -140,24 +139,48 @@ func sceneCatalogForPlan(plan GamePlan) (AssetCatalog, error) {
 				}
 			}
 		} else if a.PackID != "" && a.DisplayHeight > 0 {
-			pack, _, assemblies, _, err := readPackUsage(a.PackID)
+			pack, sprites, assemblies, _, err := readPackUsage(a.PackID)
 			if err != nil {
 				return catalog, err
 			}
 			width, height := float64(pack.FrameWidth), float64(pack.FrameHeight)
+			for _, sprite := range sprites {
+				if sprite.ID != a.AssetID {
+					continue
+				}
+				if pack.SchemaVersion == 2 {
+					width, height = float64(sprite.Width), float64(sprite.Height)
+				}
+				if plan.Perspective == "isometric" {
+					var footprint []float64
+					if json.Unmarshal(sprite.Footprint, &footprint) == nil && len(footprint) == 2 {
+						asset.Bounds = SceneBounds{Min: Vec3{-footprint[0] / 2, -footprint[1] / 2, 0}, Max: Vec3{footprint[0] / 2, footprint[1] / 2, 0}}
+					}
+				}
+			}
 			for _, assembly := range assemblies {
 				if assembly.ID == a.AssemblyID {
 					width, height = float64(assembly.Width), float64(assembly.Height)
 					break
 				}
 			}
-			if height > 0 {
+			if height > 0 && plan.Perspective != "isometric" {
 				width = width * a.DisplayHeight / height
 				height = a.DisplayHeight
 				asset.Bounds = SceneBounds{Min: Vec3{-width / 2, -height / 2, 0}, Max: Vec3{width / 2, height / 2, 0}}
 			}
 		}
-		catalog.Assets[id] = asset
+		catalog.Roles[a.Role] = asset
+		identity := a.PackID + "/" + id
+		if prior, seen := identities[id]; !seen || prior == identity {
+			old := catalog.Assets[id]
+			asset.Roles = append(old.Roles, asset.Roles...)
+			catalog.Assets[id] = asset
+			identities[id] = identity
+		} else {
+			delete(catalog.Assets, id)
+			identities[id] = "ambiguous"
+		}
 	}
 	return catalog, nil
 }

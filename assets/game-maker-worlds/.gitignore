@@ -1,0 +1,4 @@
+*.blend1
+production/sprites/
+production/review/
+__pycache__/

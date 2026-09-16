@@ -339,6 +339,9 @@ func gameMakerRepairPacket(run gamemaker.JobRun) map[string]any {
 
 func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 	contextData := map[string]any{"stage": run.Stage, "original_request": run.Project.Description, "current_request": run.Job.Prompt}
+	if len(run.AssetSelections) > 0 {
+		contextData["user_selected_assets"] = run.AssetSelections[:min(64, len(run.AssetSelections))]
+	}
 	switch run.Stage {
 	case "planning":
 		if run.Plan != nil {

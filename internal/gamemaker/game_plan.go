@@ -334,8 +334,14 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 			return bad(key, "provide 1–2000 characters")
 		}
 	}
-	if !slices.Contains([]string{"side", "top", "board", "3d"}, p.Perspective) {
-		return bad("perspective", "choose side, top, board or 3d")
+	if !slices.Contains([]string{"side", "top", "board", "3d", "isometric"}, p.Perspective) {
+		return bad("perspective", "choose side, top, board, isometric or 3d")
+	}
+	if (p.Perspective == "isometric") != isIsometricScene(p.Scene) {
+		return bad("perspective", "isometric requires a matching scene schema 2 projection")
+	}
+	if p.Perspective == "isometric" && p.Template != "minimal" {
+		return bad("template", "use minimal with scene schema 2 for isometric movement; extend isometricAction/isometricContact for your own rules")
 	}
 	if project.Dimension == "3d" && p.Perspective != "3d" || project.Dimension == "2d" && p.Perspective == "3d" {
 		return bad("perspective", "must match the project dimension")
@@ -376,6 +382,9 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	if modelPlan {
 		maxAssets = 64
 	}
+	if slices.ContainsFunc(p.Assets, func(a PlanAsset) bool { return atlasPack(a.PackID) }) {
+		maxAssets = 64
+	}
 	if len(p.Assets) < 1 || len(p.Assets) > maxAssets || len(p.Assumptions) > 12 {
 		return bad("assets", fmt.Sprintf("map 1–%d visual roles, including procedural graphics; limit assumptions to 12", maxAssets))
 	}
@@ -408,7 +417,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 				if !slices.Contains([]string{"none", "rectangle", "circle", "feet"}, a.Collider) {
 					return bad(field+".collider", "choose none, rectangle, circle or feet")
 				}
-				if !slices.Contains([]string{"up", "right", "down", "left", "none"}, a.Direction) {
+				if !slices.Contains([]string{"up", "right", "down", "left", "none", "up-right", "down-right", "down-left", "up-left"}, a.Direction) && !(atlasPack(a.PackID) && strings.HasPrefix(a.Direction, "heading-")) {
 					return bad(field+".direction", "use up, right, down, left or none")
 				}
 			}
@@ -480,7 +489,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 			}
 		}
 		for _, a := range p.Assets {
-			if a.PackID != ModelPackID {
+			if !modelPack(a.PackID) {
 				return bad("assets", "guided 3D requires local catalog models for every role")
 			}
 		}

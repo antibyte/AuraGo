@@ -16,6 +16,15 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
 
 # Local Contracts
 
+- Four additional packs are produced by `assets/game-maker-worlds/`: 120 marine
+  GLBs, the same 120 motifs in separate top/side pixel packs and 240 isometric
+  entries. Runtime caps are 48/20/16/40 MiB plus 4 MiB shared helpers. All four
+  use explicit 1–64 asset selections and the existing atomic import path.
+  Sprite **manifest schema 2** uses multiple PNG atlases (max 2048), arbitrary
+  frame rectangles, directions, anchors, event cues and optional roof/front-wall
+  layers. This is distinct from the older sheet's content version number.
+  Both old sheets and new atlases remain supported. Never guess paths from IDs.
+
 - Catalog `kind` distinguishes `sprite2d` and `model3d`. The 3D catalog is
   `aurago-low-poly@1.0.0` and its complete uncompressed runtime is at most 100 MiB.
   GLBs use metres, +Y up/+Z forward, exact local dependency hashes and declared

@@ -21,6 +21,65 @@ all other roles. Never switch the genre or edit read-only asset view metadata.
 Search also includes sprites whose reviewed `compatible_views` support the
 requested camera, such as animated coins. Keep their original IDs and animations.
 
+## Maritime and isometric additions
+
+`scene_generate` supports `tile_roles:{edge,outer_corner,inner_corner,stairs}`
+for isometric floor grids. Values are existing accepted **roles**, not asset IDs.
+The server chooses the four actual rendered orientations and preserves pinned
+nodes. `connect_heights:true` adds declared stairs from generated lower tiles
+to adjacent floors one elevation step above. Use `terrain-*-stairs` for a
+one-step connection; do not substitute a full-storey architectural staircase.
+Inspect the dry-run before applying local changes.
+
+For buildings with `asset.layers`, use
+`setAssetLayerVisible(sprite, exactLayerID, false)` from `aurago-game-1.js`.
+The helper keeps roof/front-wall visuals attached and destroys them with the
+base sprite. Do not create a second building overlay yourself. Isometric
+modular roof nodes can use `world.hideRoof(regionID, true)`.
+3D `model.layers` supplies exact mesh node names for all LODs; set the declared
+nodes' visibility on each `record.levels` entry when entering/leaving a building.
+Ship `damaged` and `repair` are visible state animations, not health changes.
+The game still owns damage, collision and destruction rules.
+
+Search by `view` before choosing art: `aurago-pirates-3d`,
+`aurago-pirates-topdown`, `aurago-pirates-side` and `aurago-isometric` are
+separate packs at version `1.0.0`. Keep the returned pack/asset pair together;
+the same motif ID intentionally occurs in several packs. `user_selected_assets`
+contains the user's exact pairs. Never silently substitute a different view.
+
+For sprite manifest schema 2, `import_pack` also requires exact `asset_ids`
+(1–64); import only the selection. Use the returned per-asset `manifests` and
+`phaser_example`, not `sheet.png` or guessed numeric frames. `preloadPack` takes
+the returned asset folder ending in `/`; `registerAnimations` registers its
+variable-size atlas frames. `setFacing(art,dx,dy)` chooses a declared direction;
+`playAction` uses only a declared action. An `asset-event` is an animation cue,
+never a collision or a damage verdict. Existing GameScene bodies already own
+their art: adding another sprite produces a duplicate character.
+
+Sea combat: search ships, describe their waterline, bow/stern and gun sockets;
+move the hull with game code and emit shots at the returned sockets. Diving:
+search divers, sharks and treasure, select `swim` only when listed, and measure
+contacts at actual positions. Top-view and side-view art are never interchangeable.
+Reuse presentation water, bubbles, weather and sound instead of new managers.
+For schema-2 sprites, `getAssetSocket(sprite, exactSocketID)` returns the world
+position for the current facing, scale and parent transform. These are declared
+**rest-pose** anchors, suitable for hull wakes and gun origins; they do not track
+animated hands. Architectural `connections` retain their stated metric source
+units, distinct from sprite pixels and isometric scene cells.
+
+Isometric games use `base: minimal` and scene schema 2 with
+`projection:{kind:"isometric",tile_width:128,tile_height:64,height_step:32}`.
+The server derives plan perspective. Positions are grid x/y and integer height
+levels, not screen pixels. Floor nodes use integer cell corners with
+`properties:{walkable:true,footprint:[1,1]}`; actors use cell centers.
+Connect adjacent floor node IDs with `kind: stairs` or `ramp` routes to change
+height. Separate overlapping interiors into levels. Ordinary GameScene setup
+loads the scene; extend `isometricAction()` and `isometricContact(node,player)`
+for authored rules. Use `this.isometric.project`, `.unproject`, `.pick`, `.move`,
+`.setSolid`, `.hideRoof` and `changeIsometricLevel` rather than guessing the
+projection or using Arcade screen-pixel collisions. Keep inherited update,
+pause and restart. Custom conditions still require observed runtime tests.
+
 ## Original 3D models
 
 The same library contains `kind: model3d` pack `aurago-low-poly` version `1.0.0`:

@@ -24,6 +24,9 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 	}}
 	if dimension == "2d" {
 		return append(assets, runtimeAsset{
+			embeddedPath: "runtime/isometric.js",
+			projectPath:  "vendor/isometric.js",
+		}, runtimeAsset{
 			embeddedPath: "runtime/aurago-effects-2d-1.js",
 			projectPath:  "vendor/aurago-effects-2d-1.js",
 		}, runtimeAsset{

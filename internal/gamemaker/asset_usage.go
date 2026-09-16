@@ -33,18 +33,30 @@ type PackAsset struct {
 	AssemblyPart bool          `json:"assembly_part,omitempty"`
 	Transform    TransformRule `json:"transform"`
 
-	CompatibleViews []string `json:"compatible_views,omitempty"`
+	CompatibleViews []string          `json:"compatible_views,omitempty"`
+	Directions      []SpriteDirection `json:"directions,omitempty"`
+	Width           int               `json:"width,omitempty"`
+	Height          int               `json:"height,omitempty"`
+	Footprint       json.RawMessage   `json:"footprint,omitempty"`
+	Waterline       *float64          `json:"waterline,omitempty"`
+	Layers          []SpriteLayer     `json:"layers,omitempty"`
+	Sockets         []SpriteSocket    `json:"sockets,omitempty"`
+	Connections     json.RawMessage   `json:"connections,omitempty"`
+	Preview         string            `json:"preview,omitempty"`
+	PreviewFile     *ModelFile        `json:"preview_file,omitempty"`
+	SourceSHA256    string            `json:"source_sha256,omitempty"`
 }
 type PackAnimation struct {
-	ID        string `json:"id"`
-	AssetID   string `json:"asset_id"`
-	Frames    []int  `json:"frames"`
-	FrameRate int    `json:"frame_rate"`
-	Repeat    int    `json:"repeat"`
-	Yoyo      bool   `json:"yoyo"`
-	Entity    string `json:"entity"`
-	Action    string `json:"action"`
-	Direction string `json:"direction"`
+	ID        string        `json:"id"`
+	AssetID   string        `json:"asset_id"`
+	Frames    []int         `json:"frames"`
+	FrameRate int           `json:"frame_rate"`
+	Repeat    int           `json:"repeat"`
+	Yoyo      bool          `json:"yoyo"`
+	Entity    string        `json:"entity"`
+	Action    string        `json:"action"`
+	Direction string        `json:"direction"`
+	Events    []SpriteEvent `json:"events,omitempty"`
 }
 type PackAssembly struct {
 	ID          string        `json:"id"`
@@ -100,6 +112,9 @@ type AssetDetail struct {
 
 // Additional perspectives are reviewed catalog data, never agent-supplied overrides.
 func (d AssetDetail) supportsPerspective(view string) bool {
+	if d.View == "isometric" || view == "isometric" {
+		return d.View == view
+	}
 	if d.Asset != nil && slices.Contains(d.Asset.CompatibleViews, view) {
 		return true
 	}
@@ -107,8 +122,12 @@ func (d AssetDetail) supportsPerspective(view string) bool {
 }
 
 func readPackUsage(id string) (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, error) {
-	if id == ModelPackID {
-		return readModelUsage()
+	if modelPack(id) {
+		return readModelUsage(id)
+	}
+	if atlasPack(id) {
+		m, err := readAtlasManifest(id)
+		return AssetPack{AssetPackSummary: m.AssetPackSummary, SchemaVersion: 2, Categories: m.Categories}, m.Assets, nil, m.Animations, err
 	}
 	data, err := bundledAssetPackFile(id, "sheet.json")
 	if err != nil {
@@ -144,8 +163,8 @@ func searchAssets(query, packID, view string, limit int, kinds ...string) ([]Ass
 	if len(query) > 200 {
 		return nil, fmt.Errorf("asset query exceeds 200 characters")
 	}
-	if view != "" && !slices.Contains([]string{"side", "top", "board", "3d"}, view) {
-		return nil, fmt.Errorf("view must be side, top, board or 3d")
+	if view != "" && !slices.Contains([]string{"side", "top", "board", "3d", "isometric"}, view) {
+		return nil, fmt.Errorf("view must be side, top, board, isometric or 3d")
 	}
 	if limit <= 0 {
 		limit = 6
@@ -262,7 +281,21 @@ func (s *Service) DescribeAsset(packID, assetID, assemblyID string) (AssetDetail
 	if !s.policy.Enabled {
 		return AssetDetail{}, ErrDisabled
 	}
-	return s.describeAsset(packID, assetID, assemblyID)
+	detail, err := s.describeAsset(packID, assetID, assemblyID)
+	if err == nil && detail.Asset != nil && len(detail.Asset.Directions) > 0 {
+		// Models need action names and the declared direction set, not thousands
+		// of frame numbers. Validation still uses the complete internal manifest.
+		clips := make([]PackAnimation, 0)
+		for _, clip := range detail.Animations {
+			if clip.Direction == detail.Asset.Direction {
+				clip.Frames = nil
+				clips = append(clips, clip)
+			}
+		}
+		detail.Animations = clips
+		detail.Example = "// Animation list shows the default direction; asset.directions lists all views.\n// setFacing chooses the matching clip from imported metadata; never guess frame IDs.\n" + detail.Example
+	}
+	return detail, err
 }
 
 func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail, error) {
@@ -295,7 +328,7 @@ func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail
 			}
 			d.Model = a.Model
 			d.View = "3d"
-			d.Example = modelExample(p.Version, a.ID)
+			d.Example = modelExample(p.Version, a.ID, p.ID)
 			for _, clip := range animations {
 				if clip.AssetID == a.ID {
 					d.Animations = append(d.Animations, clip)
@@ -352,6 +385,10 @@ func (s *Service) describeAsset(packID, assetID, assemblyID string) (AssetDetail
 		}
 	}
 	factory := "createAsset"
+	if p.SchemaVersion == 2 && d.Asset != nil {
+		d.Example = atlasExample(p.ID, p.Version, d.Asset.ID)
+		return d, nil
+	}
 	id := assetID
 	if d.Assembly != nil {
 		factory = "createAssembly"
@@ -399,6 +436,9 @@ func (d AssetDetail) allowsDirection(direction string) bool {
 	a := d.Asset
 	if a == nil {
 		return false
+	}
+	if slices.ContainsFunc(a.Directions, func(d SpriteDirection) bool { return d.ID == direction }) {
+		return true
 	}
 	if direction == a.Direction || a.Transform.Mode == "rotate" {
 		return true

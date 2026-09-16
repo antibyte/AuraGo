@@ -1,0 +1,6 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AuraGo maritime reference</title><style>
+*{box-sizing:border-box}body{margin:0;background:#092936;color:#fff;font:16px system-ui}canvas{display:block;max-width:100%;touch-action:none}#hud{position:absolute;inset:16px auto auto 16px;pointer-events:none;text-shadow:0 2px 3px #000}h1{font-size:20px;margin:0 0 6px}#controls{position:absolute;bottom:16px;left:16px;display:flex;gap:8px}button{color:white;background:#173b50d9;border:1px solid #91d0df;border-radius:8px;min-width:48px;min-height:48px;font:inherit}#game-root{width:100vw;height:100vh}
+</style><div id="game-root"></div><div id="hud"><h1 id="title"></h1><div id="status">Loading local assets…</div><p>Arrows/WASD: move · Space: action · P: pause · R: restart</p></div>
+<div id="controls"><button data-key="ArrowLeft">←</button><button data-key="ArrowUp">↑</button><button data-key="ArrowDown">↓</button><button data-key="ArrowRight">→</button><button data-key="Space">Action</button><button data-key="KeyP">Pause</button><button data-key="KeyR">Restart</button></div>
+<script src="vendor/phaser-4.2.1.min.js"></script><script type="module" src="dist/game.js"></script></html>

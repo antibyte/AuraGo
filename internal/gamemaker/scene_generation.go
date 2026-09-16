@@ -203,7 +203,9 @@ func sceneNodeClear(scene Scene, p Vec3, clearance float64, assets AssetCatalog,
 }
 
 func appendSceneNode(scene *Scene, node SceneNode, req GenerateSceneRegionRequest) {
-	node.Size = sceneGeneratedNodeSize(node.Size, scene.Dimension, req.Assets, req.AssetID)
+	if !isIsometricScene(scene) {
+		node.Size = sceneGeneratedNodeSize(node.Size, scene.Dimension, req.Assets, req.AssetID)
+	}
 	for _, existing := range scene.Nodes {
 		if existing.ID == node.ID {
 			return
@@ -218,7 +220,7 @@ func appendSceneNode(scene *Scene, node SceneNode, req GenerateSceneRegionReques
 		placement := ScenePlacement{ID: stableSceneChildID("placement", node.ID), NodeID: node.ID, AssetID: req.AssetID, AssetRole: req.AssetRole, Behavior: behavior, Position: node.Position, Scale: Vec3{1, 1, 1}, LevelID: node.LevelID, RegionID: req.RegionID}
 		if asset, ok := req.Assets.Assets[req.AssetID]; ok && sceneAssetBoundsAvailable(asset.Bounds) {
 			placement.Position = node.Position.Sub(sceneCenter(asset.Bounds))
-			if scene.Dimension == "2d" {
+			if scene.Dimension == "2d" && !isIsometricScene(scene) {
 				placement.Position[2] = 0
 			}
 		}
@@ -622,7 +624,7 @@ func GenerateSceneRegion(scene Scene, req GenerateSceneRegionRequest) (Scene, er
 		req.Behavior = "decorative"
 	}
 	addNode := func(index int, position, size Vec3) SceneNode {
-		if scene.Dimension == "2d" {
+		if scene.Dimension == "2d" && !isIsometricScene(&scene) {
 			position[2] = 0
 			size[2] = 0
 		}
@@ -634,6 +636,14 @@ func GenerateSceneRegion(scene Scene, req GenerateSceneRegionRequest) (Scene, er
 			position[axis] = sceneClampCenter(position[axis], req.Bounds.Min[axis], req.Bounds.Max[axis], size[axis]/2)
 		}
 		node := SceneNode{ID: stableSceneID("node", req.RegionID, req.Seed, index), Kind: req.NodeKind, Position: position, Size: size, LevelID: req.LevelID, RegionID: req.RegionID}
+		if isIsometricScene(&scene) {
+			node.Position = Vec3{math.Floor(position[0]), math.Floor(position[1]), req.Bounds.Min[2]}
+			node.Size = Vec3{}
+			node.Properties = map[string]any{"footprint": []float64{1, 1}}
+			if req.NodeKind == "floor" || req.NodeKind == "terrain" {
+				node.Properties["walkable"] = true
+			}
+		}
 		appendSceneNode(&out, node, req)
 		for _, existing := range out.Nodes {
 			if existing.ID == node.ID {
@@ -813,6 +823,11 @@ func GenerateSceneRegion(scene Scene, req GenerateSceneRegionRequest) (Scene, er
 		}
 	}
 	sort.SliceStable(out.Nodes, func(i, j int) bool { return out.Nodes[i].ID < out.Nodes[j].ID })
+	if req.TileRoles != nil || req.ConnectHeights {
+		if err := generateIsometricJoins(&out, req); err != nil {
+			return Scene{}, err
+		}
+	}
 	if err := validateScene(out, req.Assets); err != nil {
 		return Scene{}, err
 	}

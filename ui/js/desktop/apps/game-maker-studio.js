@@ -31,6 +31,8 @@
             diagnostics: [],
             selectedAssetPackIDs: [],
             selectedModelAssetIDs: [],
+            selectedAssetSelections: [],
+            selectedAssetDimensions: {},
             selectedPresentation: null,
             activeJob: null,
             jobStartedAt: 0,
@@ -752,6 +754,7 @@
         const cap = state.capabilities;
         if (capabilityState(cap).status !== 'ready') return;
         const { esc, t } = state.context;
+        const prefer3D=state.selectedModelAssetIDs?.length || state.selectedAssetSelections?.some(a=>state.selectedAssetDimensions[a.pack_id]==='3d');
         const providers = (cap.providers || []).map(provider =>
             `<option value="${esc(provider.id)}" data-model="${esc(provider.model || '')}"
                 ${provider.id === cap.default_provider_id ? 'selected' : ''}>${esc(provider.name || provider.id)}</option>`
@@ -765,8 +768,8 @@
                     <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
                 <label>${esc(t('game_maker.project_name'))}<input name="name" maxlength="120" required autofocus></label>
                 <fieldset><legend>${esc(t('game_maker.dimension'))}</legend>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${state.selectedModelAssetIDs?.length ? '' : 'checked'}><strong>2D</strong><span>Phaser ${esc(cap.phaser_version)}</span></label>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${state.selectedModelAssetIDs?.length ? 'checked' : ''}><strong>3D</strong><span>Three.js ${esc(cap.three_version)}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${prefer3D ? '' : 'checked'}><strong>2D</strong><span>Phaser ${esc(cap.phaser_version)}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${prefer3D ? 'checked' : ''}><strong>3D</strong><span>Three.js ${esc(cap.three_version)}</span></label>
                 </fieldset>
                 <label>${esc(t('game_maker.description'))}<textarea name="description" rows="5" maxlength="12000" required
                     placeholder="${esc(t('game_maker.description_placeholder'))}"></textarea></label>
@@ -808,6 +811,8 @@
                 if (creating) return;
                 creating = true;
                 const data = new FormData(form);
+                const selectionError=window.GameMakerStudioAssets?.selectionError(state,String(data.get('dimension')));
+                if(selectionError){creating=false;modalError(layer,selectionError);return;}
                 if (data.get('dimension') !== '3d' && state.selectedModelAssetIDs?.length) {
                     creating = false;
                     modalError(layer, t('game_maker.model_requires_3d'));
@@ -830,6 +835,7 @@
                         prompt: request.description,
                         asset_pack_ids: state.selectedAssetPackIDs || [],
                         model_asset_ids: request.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
+                        asset_selections: state.selectedAssetSelections||[],
                         presentation: state.selectedPresentation,
                         provider_id: request.provider_id,
                         model: request.model,
@@ -865,6 +871,8 @@
         const input = form.querySelector('textarea');
         const prompt = resume ? state.context.t('game_maker.retry') : input.value.trim();
         if (!prompt || !state.project || state.jobActive || input.disabled) return;
+        const selectionError=window.GameMakerStudioAssets?.selectionError(state,state.project.dimension);
+        if(selectionError){fail(state,new Error(selectionError));return;}
         if (state.project.dimension !== '3d' && state.selectedModelAssetIDs?.length) {
             fail(state, new Error(state.context.t('game_maker.model_requires_3d')));
             return;
@@ -889,6 +897,7 @@
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: state.selectedAssetPackIDs || [],
                 model_asset_ids: state.project.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
+                asset_selections: state.selectedAssetSelections||[],
                 presentation: state.selectedPresentation,
                 provider_id: state.project.provider_id,
                 model: state.project.model

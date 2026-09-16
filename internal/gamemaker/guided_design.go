@@ -242,6 +242,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	if d.Base == "board" {
 		p.Perspective = "board"
 	}
+	if isIsometricScene(p.Scene) {
+		p.Perspective = "isometric"
+	}
 	if project.Dimension == "3d" {
 		p.Controls = map[string]string{"move": "WASD", "primary": "Space / click", "restart": "R", "aim": "Mouse drag or arrows", "reload": "F", "altitude": "Q/E"}
 	}

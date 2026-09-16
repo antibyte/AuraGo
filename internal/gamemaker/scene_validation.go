@@ -97,6 +97,15 @@ func sceneItemExtent(node SceneNode) Vec3 {
 
 func placementAssetID(placement ScenePlacement) string { return strings.TrimSpace(placement.AssetID) }
 
+// Roles are unique within a plan; bare motif IDs need not be unique across packs.
+func sceneBoundAsset(catalog AssetCatalog, placement ScenePlacement) (SceneAsset, bool) {
+	if asset, ok := catalog.Roles[placement.AssetRole]; ok {
+		return asset, placement.AssetID == "" || asset.ID == placement.AssetID
+	}
+	asset, ok := catalog.Assets[placementAssetID(placement)]
+	return asset, ok
+}
+
 func sceneScale(value float64) float64 {
 	if math.Abs(value) <= 1e-9 {
 		return 1
@@ -172,7 +181,7 @@ func sceneNodeBounds(node SceneNode, placements []ScenePlacement, colliders []Sc
 		if placement.NodeID != node.ID {
 			continue
 		}
-		if asset, ok := assets.Assets[placementAssetID(placement)]; ok {
+		if asset, ok := sceneBoundAsset(assets, placement); ok {
 			if placementBounds, ok := scenePlacementBounds(placement, asset, dimension); ok {
 				bounds = unionSceneBounds(bounds, placementBounds)
 			}
@@ -212,8 +221,13 @@ func ValidateScene(scene Scene, assets AssetCatalog) []SceneDiagnostic {
 			out = append(out, sceneError(collection.path, fmt.Sprintf("at most %d entries are supported", SceneMaxItems)))
 		}
 	}
-	if scene.SchemaVersion != SceneSchemaVersion {
-		out = append(out, sceneError("schema_version", fmt.Sprintf("must be %d", SceneSchemaVersion)))
+	if scene.SchemaVersion != 1 && scene.SchemaVersion != 2 {
+		out = append(out, sceneError("schema_version", "must be 1 or 2"))
+	}
+	if scene.Projection != nil {
+		if !isIsometricScene(&scene) || scene.Projection.TileWidth != 128 || scene.Projection.TileHeight != 64 || scene.Projection.HeightStep != 32 {
+			out = append(out, sceneError("projection", "isometric requires scene schema 2, dimension 2d, 128x64 tiles and height_step 32"))
+		}
 	}
 	scene.Dimension = strings.ToLower(strings.TrimSpace(scene.Dimension))
 	if scene.Dimension != "2d" && scene.Dimension != "3d" {
@@ -331,9 +345,9 @@ func ValidateScene(scene Scene, assets AssetCatalog) []SceneDiagnostic {
 			out = append(out, sceneError(path+".region_id", "references an unknown region"))
 		}
 		placementsByNode[placement.NodeID] = placement
-		if len(assets.Assets) > 0 {
+		if len(assets.Assets) > 0 || len(assets.Roles) > 0 {
 			assetID := placementAssetID(placement)
-			asset, ok := assets.Assets[assetID]
+			asset, ok := sceneBoundAsset(assets, placement)
 			if !ok {
 				out = append(out, sceneError(path+".asset_id", "is not an accepted catalog asset"))
 			} else {
@@ -398,12 +412,14 @@ func ValidateScene(scene Scene, assets AssetCatalog) []SceneDiagnostic {
 		if attachment.RegionID != "" && !regionIDs[attachment.RegionID] {
 			out = append(out, sceneError(path+".region_id", "references an unknown region"))
 		}
-		if len(assets.Assets) > 0 {
+		if len(assets.Assets) > 0 || len(assets.Roles) > 0 {
 			assetID := attachment.AssetID
 			if assetID == "" {
 				assetID = placementsByNode[attachment.NodeID].AssetID
 			}
-			asset, ok := assets.Assets[assetID]
+			placement := placementsByNode[attachment.NodeID]
+			placement.AssetID = assetID
+			asset, ok := sceneBoundAsset(assets, placement)
 			if !ok {
 				out = append(out, sceneError(path+".asset_id", "is not an accepted catalog asset"))
 			} else if len(asset.Sockets) == 0 || !containsString(asset.Sockets, attachment.Socket) {
@@ -467,7 +483,7 @@ func ValidateScene(scene Scene, assets AssetCatalog) []SceneDiagnostic {
 		}
 	}
 
-	if scene.Dimension == "2d" {
+	if scene.Dimension == "2d" && !isIsometricScene(&scene) {
 		zeroZ := func(path string, value Vec3) {
 			if value[2] != 0 {
 				out = append(out, sceneError(path, "2d coordinates must use z=0"))

@@ -105,16 +105,22 @@ type Job struct {
 }
 
 type StartJobRequest struct {
-	Resume             bool          `json:"resume,omitempty"`
-	Presentation       *Presentation `json:"presentation,omitempty"`
-	AssetPackIDs       []string      `json:"asset_pack_ids,omitempty"`
-	ModelAssetIDs      []string      `json:"model_asset_ids,omitempty"`
-	PreviewDiagnostics []Diagnostic  `json:"preview_diagnostics,omitempty"`
-	Prompt             string        `json:"prompt"`
-	ProviderID         string        `json:"provider_id"`
-	Model              string        `json:"model"`
-	ImageGeneration    *bool         `json:"image_generation,omitempty"`
-	MusicGeneration    *bool         `json:"music_generation,omitempty"`
+	AssetSelections    []AssetSelection `json:"asset_selections,omitempty"`
+	Resume             bool             `json:"resume,omitempty"`
+	Presentation       *Presentation    `json:"presentation,omitempty"`
+	AssetPackIDs       []string         `json:"asset_pack_ids,omitempty"`
+	ModelAssetIDs      []string         `json:"model_asset_ids,omitempty"`
+	PreviewDiagnostics []Diagnostic     `json:"preview_diagnostics,omitempty"`
+	Prompt             string           `json:"prompt"`
+	ProviderID         string           `json:"provider_id"`
+	Model              string           `json:"model"`
+	ImageGeneration    *bool            `json:"image_generation,omitempty"`
+	MusicGeneration    *bool            `json:"music_generation,omitempty"`
+}
+
+type AssetSelection struct {
+	PackID  string `json:"pack_id"`
+	AssetID string `json:"asset_id"`
 }
 
 type Event struct {
@@ -171,18 +177,19 @@ type BuildResult struct {
 }
 
 type JobRun struct {
-	Captures      []VisualCapture
-	Presentation  *Presentation
-	Result        *BuildResult
-	Stage         string
-	Plan          *GamePlan
-	Checks        []CheckResult
-	Images        []string
-	AssetPacks    []ImportedAssetPack
-	ModelAssetIDs []string
-	Job           Job
-	Project       Project
-	Diagnostics   []Diagnostic
+	Captures        []VisualCapture
+	Presentation    *Presentation
+	Result          *BuildResult
+	Stage           string
+	Plan            *GamePlan
+	Checks          []CheckResult
+	Images          []string
+	AssetPacks      []ImportedAssetPack
+	ModelAssetIDs   []string
+	AssetSelections []AssetSelection
+	Job             Job
+	Project         Project
+	Diagnostics     []Diagnostic
 }
 
 // Runner is implemented by the server layer to execute the AuraGo agent with

@@ -20,7 +20,7 @@ const ModelPackID = "aurago-low-poly"
 const ModelRuntimeGuide = `3D model runtime API (complete public gameplay contract; do not read minified vendor files):
 import * as A from '../vendor/aurago-three-assets-1.js'; A.THREE is the pinned Three.js module.
 Import each returned per-model JSON path relative to src/main.ts.
-await A.loadAsset(manifest, exactAssetID, 'assets/builtin/aurago-low-poly/VERSION/', {signal}) returns an asset handle.
+await A.loadAsset(manifest, exactAssetID, 'assets/builtin/PACK_ID/VERSION/', {signal}) returns an asset handle; use the returned pack ID and version.
 manifest is the whole imported JSON, not manifest.assets[0]. The base is relative to document.baseURI, must end in / and must not start with ../ or /.
 A.createInstance(asset, {shadows:true, onEvent:(eventName,instance)=>{}}) returns a record. Add record.root (a THREE.Group) to scene; do not add the record itself.
 A.playAction(record, exactClipID, {fade:0.15,restart:false}) returns void. Set restart:true for repeated shots; unknown clips throw.
@@ -73,7 +73,13 @@ type ModelAsset struct {
 	FPSBinding  json.RawMessage `json:"fps_binding,omitempty"`
 	PreviewFile *ModelFile      `json:"preview_file,omitempty"`
 	Connections json.RawMessage `json:"connections,omitempty"`
-	Bounds      struct {
+	Waterline   *float64        `json:"waterline,omitempty"`
+	Footprint   json.RawMessage `json:"footprint,omitempty"`
+	Layers      []struct {
+		ID   string `json:"id"`
+		Node string `json:"node"`
+	} `json:"layers,omitempty"`
+	Bounds struct {
 		Min [3]float64 `json:"min"`
 		Max [3]float64 `json:"max"`
 	} `json:"bounds"`
@@ -102,16 +108,20 @@ type ModelManifest struct {
 	Assets        []ModelAsset    `json:"assets"`
 }
 
-func readModelManifest() (ModelManifest, error) {
+func readModelManifest(packIDs ...string) (ModelManifest, error) {
 	var manifest ModelManifest
-	data, err := assetPackFS.ReadFile("asset_packs/" + ModelPackID + "/manifest.json")
+	id := modelPackArgument(packIDs)
+	if !modelPack(id) {
+		return manifest, ErrNotFound
+	}
+	data, err := assetPackFS.ReadFile("asset_packs/" + id + "/manifest.json")
 	if err != nil {
 		return manifest, fmt.Errorf("read 3D catalog: %w", err)
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return manifest, fmt.Errorf("decode 3D catalog: %w", err)
 	}
-	if manifest.ID != ModelPackID || manifest.Kind != "model3d" || !safeModelComponent(manifest.Version) {
+	if manifest.ID != id || manifest.Kind != "model3d" || !safeModelComponent(manifest.Version) {
 		return manifest, fmt.Errorf("invalid 3D catalog identity")
 	}
 	return manifest, nil
@@ -129,8 +139,8 @@ func modelFiles(asset ModelAsset) []ModelFile {
 	return files
 }
 
-func readModelUsage() (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, error) {
-	m, err := readModelManifest()
+func readModelUsage(packIDs ...string) (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, error) {
+	m, err := readModelManifest(packIDs...)
 	if err != nil {
 		return AssetPack{}, nil, nil, nil, err
 	}
@@ -148,12 +158,12 @@ func readModelUsage() (AssetPack, []PackAsset, []PackAssembly, []PackAnimation, 
 }
 
 // The manifest is the allowlist; no arbitrary directory/file serving is allowed.
-func bundledModelFile(filename string) ([]byte, error) {
+func bundledModelFile(filename string, packIDs ...string) ([]byte, error) {
 	clean, err := safeRelativePath(filename, false)
 	if err != nil || clean != filename {
 		return nil, ErrNotFound
 	}
-	manifest, err := readModelManifest()
+	manifest, err := readModelManifest(packIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -167,15 +177,15 @@ func bundledModelFile(filename string) ([]byte, error) {
 	if !allowed {
 		return nil, ErrNotFound
 	}
-	data, err := assetPackFS.ReadFile("asset_packs/" + ModelPackID + "/" + filename)
+	data, err := assetPackFS.ReadFile("asset_packs/" + manifest.ID + "/" + filename)
 	if err != nil {
 		return nil, ErrNotFound
 	}
 	return data, nil
 }
 
-func validateModelSelection(ids []string) ([]ModelAsset, ModelManifest, error) {
-	manifest, err := readModelManifest()
+func validateModelSelection(ids []string, packIDs ...string) ([]ModelAsset, ModelManifest, error) {
+	manifest, err := readModelManifest(packIDs...)
 	if err != nil {
 		return nil, manifest, err
 	}
@@ -198,7 +208,8 @@ func validateModelSelection(ids []string) ([]ModelAsset, ModelManifest, error) {
 	return selected, manifest, nil
 }
 
-func modelExample(version, id string) string {
+func modelExample(version, id string, packIDs ...string) string {
+	packID := modelPackArgument(packIDs)
 	return fmt.Sprintf(`// Merge into the existing Three.js game and its single update/dispose lifecycle.
 import { loadAsset, createInstance, playAction, updateInstance, disposeInstance, releaseAsset } from '../vendor/aurago-three-assets-1.js';
 import meta from '../assets/builtin/%s/%s/assets/%s.json';
@@ -208,12 +219,12 @@ scene.add(instance.root); // metres, +Y up, +Z forward; use documented bounds/co
 // playAction(instance, 'idle'); // Only use actions listed by describe_asset.
 // In the existing game loop: updateInstance(instance, deltaSeconds, camera);
 // On teardown: disposeInstance(instance); releaseAsset(asset);
-`, ModelPackID, version, id, id, ModelPackID, version)
+`, packID, version, id, id, packID, version)
 }
 
 // Add a verified selection under the existing build lock. Each immutable file is
 // published once; a failed transaction removes only files added by this import.
-func (s *Service) importModels(ctx context.Context, jobID string, ids []string) (ImportedAssetPack, error) {
+func (s *Service) importModels(ctx context.Context, jobID string, ids []string, packIDs ...string) (ImportedAssetPack, error) {
 	project, _, err := s.ProjectForJob(ctx, jobID)
 	if err != nil {
 		return ImportedAssetPack{}, err
@@ -221,7 +232,7 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 	if project.Dimension != "3d" {
 		return ImportedAssetPack{}, fmt.Errorf("3D models require a 3D project")
 	}
-	selected, manifest, err := validateModelSelection(ids)
+	selected, manifest, err := validateModelSelection(ids, packIDs...)
 	if err != nil {
 		return ImportedAssetPack{}, err
 	}
@@ -231,10 +242,10 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 	}
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
-	rel := "assets/builtin/" + ModelPackID + "/" + manifest.Version
-	result := ImportedAssetPack{ID: ModelPackID, Version: manifest.Version, Kind: "model3d", Manifests: map[string]string{}}
+	rel := "assets/builtin/" + manifest.ID + "/" + manifest.Version
+	result := ImportedAssetPack{ID: manifest.ID, Version: manifest.Version, Kind: "model3d", Manifests: map[string]string{}}
 	wanted := map[string][]byte{}
-	license, err := bundledModelFile("LICENSE.txt")
+	license, err := bundledModelFile("LICENSE.txt", manifest.ID)
 	if err != nil {
 		return result, err
 	}
@@ -244,7 +255,7 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 			if _, exists := wanted[file.File]; exists {
 				continue
 			}
-			data, err := bundledModelFile(file.File)
+			data, err := bundledModelFile(file.File, manifest.ID)
 			if err != nil {
 				return result, fmt.Errorf("read model dependency: %w", err)
 			}
@@ -272,7 +283,7 @@ func (s *Service) importModels(ctx context.Context, jobID string, ids []string) 
 		result.Manifests[asset.ID] = rel + "/" + name
 	}
 	result.Metadata = result.Manifests[result.AssetIDs[0]]
-	result.ThreeExample = modelExample(manifest.Version, result.AssetIDs[0])
+	result.ThreeExample = modelExample(manifest.Version, result.AssetIDs[0], manifest.ID)
 	return s.publishAssetSelection(ctx, jobID, stage, rel, wanted, result)
 }
 
