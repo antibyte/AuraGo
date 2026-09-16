@@ -102,9 +102,7 @@ func TestBuilderBrowser(t *testing.T) {
 			if !result.OK {
 				t.Fatalf("build: %+v", result.Diagnostics)
 			}
-			if _, err := s.db.Exec(`UPDATE gm_projects SET current_revision=1 WHERE id=?`, project.ID); err != nil {
-				t.Fatal(err)
-			}
+			publishExportFixture(t, s, project, dir)
 			var output bytes.Buffer
 			if _, err := s.WriteExport(context.Background(), project.ID, &output); err != nil {
 				t.Fatal(err)
@@ -189,7 +187,10 @@ func TestBuilderBrowser(t *testing.T) {
 						t.Fatalf("custom action beside scene failed: %s", page.MustEval(`()=>({state:__AURAGO_GAME_TEST__.state,errors:builderErrors,hidden:document.hidden,focus:document.hasFocus(),active:document.activeElement?.tagName,sys:__AURAGO_GAME_TEST__.scene.sys.settings,loop:{running:__AURAGO_GAME_TEST__.scene.game.loop.running,frame:__AURAGO_GAME_TEST__.scene.game.loop.frame,hasFocus:__AURAGO_GAME_TEST__.scene.game.loop.hasFocus},key:{down:__AURAGO_GAME_TEST__.scene.inputKeys.keys.SPACE.isDown,enabled:__AURAGO_GAME_TEST__.scene.input.keyboard.enabled}})`).String())
 					}
 				}
-				reports, _ := filepath.Abs("../../reports/game-maker-builder/browser")
+				reports := os.Getenv("GAMEMAKER_BUILDER_REPORTS")
+				if reports == "" {
+					reports, _ = filepath.Abs("../../reports/game-maker-builder/browser")
+				}
 				os.MkdirAll(reports, 0750)
 				page.MustScreenshot(filepath.Join(reports, dimension+"-"+target.name+"-start.png"))
 				hold := func(key input.Key, duration time.Duration) {

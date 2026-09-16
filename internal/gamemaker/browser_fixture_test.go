@@ -129,9 +129,7 @@ func TestGameMakerBrowserFixtures(t *testing.T) {
 			t.Fatal(result.Diagnostics)
 		}
 		// Exercise the real ZIP writer; revision admission is tested separately.
-		if _, err := service.db.Exec(`UPDATE gm_projects SET current_revision=1 WHERE id=?`, project.ID); err != nil {
-			t.Fatal(err)
-		}
+		publishExportFixture(t, service, project, dir)
 		var output bytes.Buffer
 		if _, err := service.WriteExport(context.Background(), project.ID, &output); err != nil {
 			t.Fatal(err)

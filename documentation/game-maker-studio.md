@@ -279,10 +279,34 @@ history. ZIP export contains:
 - the compiled `dist/` output;
 - local runtime files under `vendor/`;
 - project assets;
-- `THIRD_PARTY_NOTICES.md`.
+- `THIRD_PARTY_NOTICES.md` and `README-AuraGo.txt` with standalone launch instructions.
 
 Staging files, preview tokens, ledger data, revision metadata, and AuraGo
 secrets are excluded.
+
+Export reads the last published revision from the content-addressed store, with
+size and SHA-256 verification. Unpublished Code Studio edits and concurrent
+publications cannot mix source and compiled output in a download. Missing entry
+files or damaged blobs reject the export. The HTTP route completes a temporary
+ZIP before sending download headers; errors return JSON instead of a partial ZIP.
+Existing revision runtimes are retained, with bundled fallbacks for missing
+legacy runtime files.
+
+Extract the complete archive and serve its root using any static HTTP(S) server.
+For local play with Python 3 installed, run `py -3 -m http.server 8000 --bind
+127.0.0.1` on Windows or `python3 -m http.server 8000 --bind 127.0.0.1` on
+Linux/macOS, then open `http://127.0.0.1:8000/`. Do not open `index.html` directly
+as `file://`, because browsers restrict module and asset loading. AuraGo, npm,
+another build and an internet connection are not required to play. Audio starts
+after player interaction.
+
+`TestExportedProjectsBrowser` accepts a local fixture directory through
+`GAMEMAKER_EXPORT_PROJECTS` (one published game folder per child). It exports via
+the production ZIP writer, extracts the archive and opens it in Chrome from a
+static-host subdirectory without the preview boot or driver. It exercises real
+input, checks runtime/resource errors and external requests, and decodes the
+packaged WAVs. Optional screenshots/ZIPs go to `GAMEMAKER_EXPORT_REPORTS`; keep
+these and any real project fixtures under ignored `reports/`.
 
 ## Security model
 

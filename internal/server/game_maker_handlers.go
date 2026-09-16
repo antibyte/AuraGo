@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -446,22 +447,29 @@ func handleGameMakerExport(w http.ResponseWriter, r *http.Request, s *Server, pr
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	project, err := s.GameMaker.GetProject(r.Context(), projectID)
+	// Complete the ZIP before committing download headers. Otherwise a missing
+	// blob, cancellation or disk error turns into a successful but broken ZIP.
+	archive, err := os.CreateTemp("", "aurago-game-export-*.zip")
 	if err != nil {
-		handleGameMakerError(w, err)
+		jsonError(w, "Could not prepare game export", http.StatusInternalServerError)
 		return
 	}
-	exportName := project.Slug + ".zip"
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(exportName, `"`, "")))
-	_, err = s.GameMaker.WriteExport(r.Context(), projectID, w)
+	defer func() {
+		_ = archive.Close()
+		_ = os.Remove(archive.Name())
+	}()
+	exportName, err := s.GameMaker.WriteExport(r.Context(), projectID, archive)
 	if err != nil {
 		if s.Logger != nil {
 			s.Logger.Warn("Game Maker export failed", "project_id", projectID, "error", err)
 		}
+		handleGameMakerError(w, err)
 		return
 	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(exportName, `"`, "")))
+	http.ServeContent(w, r, exportName, time.Time{}, archive)
 }
 
 func decodeGameMakerJSON(w http.ResponseWriter, r *http.Request, destination any) error {
