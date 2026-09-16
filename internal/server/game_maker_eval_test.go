@@ -23,6 +23,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	openai "github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
 )
 
@@ -269,12 +270,56 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 				}
 			}
 			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "plan": plan, "events": reportEvents, "events_total": len(events), "events_complete": eventsComplete && eventsErr == nil, "event_read_error": eventsErr != nil, "event_metrics": summarizeGameMakerEvalEvents(events, eventsComplete && eventsErr == nil), "brief_requirements": task.requirements, "context_cap": cfg.Agent.ContextWindow, "tool_limit": cfg.CircuitBreaker.MaxToolCalls, "llm_timeout_seconds": cfg.CircuitBreaker.LLMTimeoutSeconds, "job_timeout_seconds": jobTimeout.Seconds()}
+			// Retain only protocol shape before the temporary DB is removed, so a
+			// provider rejection can be diagnosed without exporting private text.
+			conversation, conversationErr := service.LoadAgentConversation(context.Background(), job.ID)
+			if conversationErr == nil && len(conversation.Messages) > 0 {
+				var messages []openai.ChatCompletionMessage
+				if json.Unmarshal(conversation.Messages, &messages) == nil {
+					result["conversation_shape"] = gameMakerEvalConversationShape(messages)
+				}
+			}
 			encoded, _ := json.MarshalIndent(result, "", "  ")
 			if err = os.WriteFile(filepath.Join(reports, provider.ID+"-"+task.name+".json"), encoded, 0600); err != nil {
 				t.Fatal(err)
 			}
 			t.Logf("model=%s task=%s status=%s seconds=%.1f error=%s", provider.Model, task.name, job.Status, time.Since(started).Seconds(), job.Error)
 		}
+	}
+}
+
+// No content, reasoning, tool IDs, arguments, or arbitrary role names leave
+// the private checkpoint. The last 32 records are sufficient for empty/tool
+// message protocol failures and cannot grow with an unbounded conversation.
+func gameMakerEvalConversationShape(messages []openai.ChatCompletionMessage) []map[string]any {
+	start := max(0, len(messages)-32)
+	shape := make([]map[string]any, 0, len(messages)-start)
+	for i := start; i < len(messages); i++ {
+		m := messages[i]
+		role := "unknown"
+		switch m.Role {
+		case "system", "developer", "user", "assistant", "tool", "function":
+			role = m.Role
+		}
+		shape = append(shape, map[string]any{"index": i, "role": role, "content_bytes": len(m.Content), "content_parts": len(m.MultiContent), "reasoning_bytes": len(m.ReasoningContent), "tool_calls": len(m.ToolCalls), "tool_response": m.ToolCallID != "", "function_call": m.FunctionCall != nil})
+	}
+	return shape
+}
+
+func TestGameMakerEvalConversationShapeExcludesPrivateText(t *testing.T) {
+	messages := make([]openai.ChatCompletionMessage, 40)
+	for i := range messages {
+		messages[i] = openai.ChatCompletionMessage{Role: "assistant", Content: "private-content", ReasoningContent: "private-reasoning", ToolCallID: "private-call-id", ToolCalls: []openai.ToolCall{{ID: "private-call-id", Function: openai.FunctionCall{Name: "private-tool", Arguments: "private-arguments"}}}}
+	}
+	messages[38].Role = "private-role"
+	messages[39] = openai.ChatCompletionMessage{Role: "assistant", ReasoningContent: "private-reasoning"}
+	shape := gameMakerEvalConversationShape(messages)
+	encoded, err := json.Marshal(shape)
+	if err != nil || strings.Contains(string(encoded), "private-") {
+		t.Fatal("protocol shape leaked private checkpoint text")
+	}
+	if len(shape) != 32 || shape[0]["index"] != 8 || shape[30]["role"] != "unknown" || shape[31]["content_bytes"] != 0 || shape[31]["reasoning_bytes"] != 17 || shape[31]["tool_calls"] != 0 {
+		t.Fatalf("incorrect bounded protocol shape: %s", encoded)
 	}
 }
 

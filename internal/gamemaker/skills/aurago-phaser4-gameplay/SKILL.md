@@ -55,8 +55,10 @@ when complexity justifies them.
 - Use `Phaser.Utils.Array.GetRandom(values)` or `Phaser.Math.RND.pick(values)`
   for a random array element. `Phaser.Math.pick` does not exist. Keep spawning,
   shooting, collision and restart paths executable during testing; errors in
-  a delayed callback are runtime failures too. Scale per-frame movement by
-  `delta / 1000` and reset score/game-over flags when restarting a scene.
+  a delayed callback are runtime failures too. In GameScene `step(deltaSeconds)`,
+  movement is `speed * deltaSeconds`: the hook already receives seconds, so never
+  divide by 1000 again. Only a standalone Phaser Scene's raw `update(time, delta)`
+  receives milliseconds. Reset score/game-over flags when restarting a scene.
 
 Validate after scene wiring, after gameplay rules, and after final polish.
 
@@ -205,6 +207,8 @@ Buildings, cards, signs and terrain cannot be flipped/rotated unless metadata
 explicitly permits it. Do not rotate a side-view person into a top-down person.
 playAction ignores a repeated request for the currently running animation;
 call it when the action changes and let one-shot attacks/deaths finish.
+Pass the action alone, for example `playAction(art, 'idle')`, never an animation
+ID such as `idle/heading-0`. Use `setFacing(art, dx, dy)` to select direction.
 
 For an assembly, createAssembly returns one container with original part offsets.
 Scale the container uniformly. Move a separate hidden rectangular/circular

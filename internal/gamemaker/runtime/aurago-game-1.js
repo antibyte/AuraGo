@@ -151,9 +151,13 @@ export function playAction(object, action) {
     u.action = action;
     return object;
   }
-  const candidates = u.meta.animations.filter(a => (a.entity ? a.entity === u.a.entity : a.asset_id === u.a.id) && a.action === action);
+  const clips = u.meta.animations.filter(a => a.entity ? a.entity === u.a.entity : a.asset_id === u.a.id);
+  const candidates = clips.filter(a => a.action === action);
   const animation = candidates.find(a => a.direction === u.direction) || candidates.find(a => a.direction === u.a.direction && u.a.transform.mode !== 'directional');
-  need(animation, `${u.a.id}: action ${action}/${u.direction} unavailable; available: ${u.meta.animations.filter(a => a.entity === u.a.entity).map(a => `${a.action}/${a.direction}`).join(', ') || 'none'}`);
+  if (!animation) {
+    const actions = [...new Set(clips.filter(a => a.direction === u.direction || (a.direction === u.a.direction && u.a.transform.mode !== 'directional')).map(a => a.action))];
+    need(false, `${u.a.id}: action ${JSON.stringify(action)} unavailable for direction ${u.direction}; available actions: ${actions.map(a => JSON.stringify(a)).join(', ') || 'none'}. Pass only the action to playAction(object, action); use setFacing(object, dx, dy) for direction, not an action/direction or animation ID.`);
+  }
   object.play(animKey(u.meta, animation.id), true);
   u.action = action;
   return object;

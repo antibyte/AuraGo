@@ -158,7 +158,7 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 				system.WriteString(message.Content)
 			}
 		}
-		for _, required := range []string{"schema_version:2 atlases", "variable frames", "setFacing", "exact imported manifest path"} {
+		for _, required := range []string{"schema_version:2 atlases", "variable frames", "setFacing", "exact imported manifest path", "playAction(art, 'idle')", "GameScene.step(deltaSeconds) already receives seconds", "never divide by 1000 again"} {
 			if !strings.Contains(system.String(), required) {
 				t.Errorf("%s lost the atlas contract: %s", stage, required)
 			}

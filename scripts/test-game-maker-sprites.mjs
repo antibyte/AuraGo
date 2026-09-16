@@ -83,6 +83,8 @@ class Sprite {
   setSize(w,h){this.width=w;this.height=h;return this;}
   play(key,ignore){assert.ok(definitions.has(key));if(!(ignore&&this.current===key))animationStarts++;this.current=key;return this;}
   add(child){(this.list ||= []).push(child);return this;}
+  on(){return this;}
+  once(){return this;}
 }
 const objects=[];
 const scene={
@@ -108,6 +110,27 @@ delete globalThis.document;
 helpers.playAction(ranger,'walk');const starts=animationStarts;helpers.playAction(ranger,'walk');assert.equal(animationStarts,starts);
 helpers.setFacing(ranger,-1,0);assert.equal(ranger.flipX,true);helpers.setFacing(ranger,0,0);assert.equal(ranger.flipX,true);
 assert.throws(()=>helpers.playAction(ranger,'invented'),/unavailable/);
+assert.throws(()=>helpers.playAction(ranger,'walk/right'),error=>{
+  assert.match(error.message,/available actions:.*"walk"/);
+  assert.match(error.message,/setFacing\(object, dx, dy\)/);
+  assert.doesNotMatch(error.message.split('available actions:')[1],/"walk\/right"/);
+  return true;
+});
+// Reproduce the atlas failure from the live maritime evaluation. Valid repair
+// hints must name actions for this asset, not animation IDs or another asset.
+const atlas=JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_packs/aurago-pirates-topdown/manifest.json',import.meta.url)));
+const atlasScene={...scene,textures:{exists:()=>true,get:()=>({has:()=>true})}};
+helpers.registerAnimations(atlasScene,atlas);
+const island=helpers.createAsset(atlasScene,atlas,'coast-island',0,0);
+helpers.playAction(island,'idle');
+assert.throws(()=>helpers.playAction(island,'idle/heading-0'),error=>{
+  assert.match(error.message,/available actions: "idle"\./);
+  assert.match(error.message,/Pass only the action to playAction/);
+  assert.doesNotMatch(error.message,/available actions:.*"sailing"/);
+  return true;
+});
+helpers.playAction(island,'idle');
+objects.splice(objects.indexOf(island),1);
 assert.throws(()=>helpers.setFacing(ranger,0,-1),/forbidden/);
 helpers.registerAnimations(scene,recipes);
 const tank=helpers.createAssembly(scene,recipes,'tank',240,150),offsets=tank.list.map(p=>[p.x,p.y]);
