@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/input"
-	"github.com/go-rod/rod/lib/launcher"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/launcher"
 )
 
 func TestWorldIsometricExportBrowser(t *testing.T) {
@@ -177,9 +178,22 @@ start(Island);`))
 			}
 		}
 	}
+	down(input.KeyP)
+	page.MustWait(`()=>__AURAGO_GAME_TEST__.scene.manualPause`)
+	up(input.KeyP)
+	beforePause := page.MustEval(`()=>JSON.stringify(__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at)`).Str()
+	down(input.ArrowDown, input.ArrowRight)
+	time.Sleep(250 * time.Millisecond)
+	up(input.ArrowDown, input.ArrowRight)
+	if after := page.MustEval(`()=>JSON.stringify(__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at)`).Str(); after != beforePause {
+		t.Fatal("paused isometric player moved")
+	}
+	down(input.KeyP)
+	page.MustWait(`()=>!__AURAGO_GAME_TEST__.scene.manualPause`)
+	up(input.KeyP)
 	down(input.ArrowDown, input.ArrowRight)
 	page.MustWait(`()=>__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at[0]>4.5`)
-	up(input.ArrowDown, input.ArrowRight)
+	up(input.ArrowDown, input.ArrowRight, input.Space)
 	if !page.MustEval(`()=>__AURAGO_GAME_TEST__.state.score===1&&__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at[2]===1`).Bool() {
 		t.Fatal("real input did not collect token through stairs")
 	}
@@ -199,7 +213,32 @@ start(Island);`))
 	}
 	down(input.KeyR)
 	page.MustWait(`()=>__AURAGO_GAME_TEST__.state.score===0&&__AURAGO_GAME_TEST__.state.outcome===0`)
-	if n := page.MustEval(`()=>__AURAGO_GAME_TEST__.scene.isometric.inspect().objects`).Int(); n != 40 {
-		t.Fatalf("restart leaked/omitted objects: %d", n)
+	up(input.KeyR)
+	resources := `()=>{const s=__AURAGO_GAME_TEST__.scene;return JSON.stringify({objects:s.isometric.inspect().objects,children:s.children.list.length,postupdate:s.events.listenerCount('postupdate'),hidden:s.game.events.listenerCount('hidden')})}`
+	baseline := page.MustEval(resources).Str()
+	if page.MustEval(`()=>__AURAGO_GAME_TEST__.scene.isometric.inspect().objects`).Int() != 40 {
+		t.Fatal("restart omitted objects")
+	}
+	for i := 0; i < 3; i++ {
+		down(input.ArrowDown, input.ArrowRight)
+		page.MustWait(`()=>__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at[0]>1.7`)
+		up(input.ArrowDown, input.ArrowRight)
+		down(input.KeyR)
+		page.MustWait(`()=>__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at[0]===1.5`)
+		up(input.KeyR)
+		if got := page.MustEval(resources).Str(); got != baseline {
+			t.Fatalf("restart leaked resources: before=%s after=%s", baseline, got)
+		}
+	}
+	other := browser.MustPage("about:blank").MustActivate()
+	page.MustWait(`()=>document.hidden`)
+	other.Close()
+	page.MustActivate()
+	page.MustWait(`()=>!document.hidden`)
+	down(input.ArrowDown, input.ArrowRight)
+	page.MustWait(`()=>__AURAGO_GAME_TEST__.scene.isometric.records.get('player').at[0]>1.7`)
+	up(input.ArrowDown, input.ArrowRight)
+	if got := page.MustEval(resources).Str(); got != baseline {
+		t.Fatalf("focus change leaked resources: before=%s after=%s", baseline, got)
 	}
 }
