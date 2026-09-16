@@ -930,6 +930,9 @@ registration lives in `internal/desktop/types.go`.
   terminal transcript with no animation timer. Recreate the activity controller
   whenever deleting a project replaces the shell, so later jobs target the new
   preview node. Keep all 16 desktop locales aligned.
+- Render terminal text at 16px (12px on narrow views) in local Press Start 2P with full opacity
+  and a square outside-only white outline. Do not apply text strokes or scanlines
+  over glyphs; keep the stage-card fade localized so surrounding lines stay legible.
 - EventSource open restores status even without replayed events; stale callbacks
   cannot affect another project or disposed window. Terminal job status survives
   reconnects and project refreshes. Cancellation shows its server reason and retry
