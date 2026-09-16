@@ -38,10 +38,13 @@ Use deterministic, scene-first checks. Scene structure is an input to QA: inspec
 7. Keep runtime/assets project-local. The agent has no ZIP/browser tool; the
    automated release fixtures verify exported reference games. Never claim that
    you personally tested an export during a normal generation job.
-8. For imported sprites, confirm both local PNG/JSON files, exact numeric frames,
+8. For imported sprites, confirm local PNG/JSON files and exact declared frames,
    direction, origin and actual movement. Check borders on light and dark scenes.
-   Use `load.spritesheet` with 64×64 frames; a full sheet shown as one sprite is
-   a failed asset integration. The build includes a loader guard for this error.
+   Use the import's `preloadPack` helper example: legacy schema 1 uses 64×64
+   sheets; schema 2 uses variable-size atlas frames, anchors, layers and declared
+   directions. Never force a 64×64 grid on the new maritime/isometric atlases.
+   A full sheet shown as one sprite is a failed asset integration. The build
+   includes a loader guard for this error.
    Never substitute a catalog URL for the project copy or claim that loading a
    sheet proves gameplay.
    A pack JSON object passed as a texture key is rejected during startup with

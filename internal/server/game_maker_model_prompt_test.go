@@ -137,6 +137,41 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 			t.Errorf("%s request lost local import paths/example", stage)
 		}
 	}
+	project, err = service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Harbour", Dimension: "2d", Description: "Isometric harbour"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range []string{"planning", "building"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := invoke(ctx, gamemaker.JobRun{Stage: stage, AssetPacks: []gamemaker.ImportedAssetPack{{
+			ID: "aurago-isometric", Kind: "sprite2d", Version: "1.0.0",
+			Manifests: map[string]string{"people-adventurer-1": "assets/builtin/aurago-isometric/1.0.0/assets/people-adventurer-1.json"},
+		}}})
+		cancel()
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := <-requests
+		var system strings.Builder
+		for _, message := range request.Messages {
+			if message.Role == "system" {
+				system.WriteString(message.Content)
+			}
+		}
+		for _, required := range []string{"schema_version:2 atlases", "variable frames", "setFacing", "exact imported manifest path"} {
+			if !strings.Contains(system.String(), required) {
+				t.Errorf("%s lost the atlas contract: %s", stage, required)
+			}
+		}
+		for _, obsolete := range []string{"preloadPack loads exact 64x64 frames", "Never load a built-in sheet as one image or use atlas JSON"} {
+			if strings.Contains(system.String(), obsolete) {
+				t.Errorf("%s still contradicts atlas support: %s", stage, obsolete)
+			}
+		}
+		if stage == "planning" && !strings.Contains(system.String(), gamemaker.PresentationPlanningGuide) {
+			t.Error("planning lost atmosphere/effect distinction and supported sound events")
+		}
+	}
 	cfg.LLM.Model = "empty-game-model"
 	for _, stage := range []string{"building", "repair"} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

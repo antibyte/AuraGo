@@ -15,6 +15,10 @@ const EffectsPackID = "aurago-effects"
 const SoundsPackID = "aurago-sounds"
 const PresentationVersion = "1.0.0"
 
+const presentationSoundEvents = "step jump land shot reload hit pickup win lose splash interact engine ui ambient"
+
+const PresentationPlanningGuide = `Optional presentation uses exact catalog IDs. environment is an atmosphere: forest-day, forest-night, forest-rain, desert, storm, coast, industrial or space; it may be omitted. Individual presets go in effects, not environment. Underwater example: presentation:{effects:["underwater"],quality:"auto"}. Sound bindings use {event:"shot",sound:"rifle"}; supported events: ` + presentationSoundEvents + `. Use {event:"win",sound:"victory"} and {event:"lose",sound:"defeat"}. Keep each event/sound pair once. Search/describe provides exact effect and sound IDs; do not invent them.`
+
 const PresentationGuide = `Presentation: search_assets(asset_kind="effect" or "audio") and describe_asset return exact local presets. In set_design add optional presentation:{environment:"forest-rain",effects:["blood-spray","blood-pool"],sounds:[{event:"step",sound:"step-grass"},{event:"shot",sound:"rifle"},{event:"hit",sound:"impact-flesh"}],quality:"auto"}. The server resolves versions/dependencies and imports after acceptance. Guided templates already own weather, a single mixer and loop update/disposal. Do not read vendor code or implement another animation/audio loop.
 Keep src/presentation.json connected to createPresentation and keep feedback/update/dispose hooks in common.ts. Never set the config/controller to null or remove requested effects/sounds to fix an unrelated gameplay error; repair only the reported fault. A playable game with imported but disconnected presentation assets fails the accepted plan.
 Complete combinations: forest FPS uses forest-rain, blood-spray/blood-pool/muzzle-flash, step-grass/rifle/impact-flesh; rainy 2D adventure uses forest-rain, water-ripple/pickup-glow, step-water/pickup; coastal flight uses coast, engine-trail/water-splash, engine/pickup; space uses space, explosion/metal-sparks, laser/impact-metal/explosion-small. Bind sounds to known events (step,jump,land,shot,reload,hit,pickup,win,lose,splash,interact,engine,ui,ambient). Event names and sound IDs differ: {event:"win",sound:"victory"}, {event:"lose",sound:"defeat"}.
@@ -91,6 +95,15 @@ func presentationAsset(m PresentationManifest, id string) (PresentationAsset, er
 	}
 	if m.Kind == "audio" && canonicalSoundID(id) != id {
 		return PresentationAsset{}, fmt.Errorf("unknown audio asset %q; use sound:%q (keep event:%q)", id, canonicalSoundID(id), id)
+	}
+	if m.Kind == "audio" && strings.TrimSpace(id) != "" {
+		if matches, err := searchPresentation(id, m.ID, "audio", "", 3); err == nil && len(matches) > 0 {
+			ids := make([]string, 0, len(matches))
+			for _, match := range matches {
+				ids = append(ids, match.AssetID)
+			}
+			return PresentationAsset{}, fmt.Errorf("unknown audio asset %q; matching catalog sound IDs: %s. Choose one, or search_assets(asset_kind=\"audio\") for another sound", id, strings.Join(ids, ", "))
+		}
 	}
 	return PresentationAsset{}, fmt.Errorf("unknown %s asset %q; use search_assets", m.Kind, id)
 }
@@ -213,10 +226,10 @@ func resolvePresentation(p *Presentation) ([]PresentationAsset, []PresentationAs
 	if p.Environment != "" {
 		a, e := presentationAsset(em, p.Environment)
 		if e != nil {
-			return nil, nil, e
+			return nil, nil, fmt.Errorf("presentation.environment: unknown atmosphere %q; choose %s or omit environment", p.Environment, presentationAtmospheres(em))
 		}
 		if a.Category != "environment" {
-			return nil, nil, fmt.Errorf("presentation.environment: choose an atmosphere")
+			return nil, nil, fmt.Errorf("presentation.environment: %q is an effect; put it in presentation.effects instead. Omit environment or choose %s", a.ID, presentationAtmospheres(em))
 		}
 		effects = append(effects, a)
 		seenE[a.ID] = true
@@ -233,7 +246,7 @@ func resolvePresentation(p *Presentation) ([]PresentationAsset, []PresentationAs
 			return nil, nil, e
 		}
 		if a.Category == "environment" {
-			return nil, nil, fmt.Errorf("presentation.effects: put atmosphere in environment")
+			return nil, nil, fmt.Errorf("presentation.effects: put atmosphere %q in presentation.environment instead", a.ID)
 		}
 		if !seenE[id] {
 			seenE[id] = true
@@ -241,16 +254,29 @@ func resolvePresentation(p *Presentation) ([]PresentationAsset, []PresentationAs
 		}
 	}
 	events := map[string]bool{}
-	for _, b := range p.Sounds {
-		if !slices.Contains([]string{"step", "jump", "land", "shot", "reload", "hit", "pickup", "win", "lose", "splash", "interact", "engine", "ui", "ambient"}, b.Event) || events[b.Event+":"+b.Sound] {
-			return nil, nil, fmt.Errorf("presentation.sounds: use unique supported event names")
+	for i, b := range p.Sounds {
+		if !slices.Contains(strings.Fields(presentationSoundEvents), b.Event) {
+			return nil, nil, fmt.Errorf("presentation.sounds[%d].event: %q is unsupported; choose %s. Event names differ from sound IDs: {event:\"win\",sound:\"victory\"}, {event:\"lose\",sound:\"defeat\"}", i, b.Event, presentationSoundEvents)
+		}
+		if events[b.Event+":"+b.Sound] {
+			return nil, nil, fmt.Errorf("presentation.sounds[%d]: duplicate binding {event:%q,sound:%q}; keep this pair only once", i, b.Event, b.Sound)
 		}
 		events[b.Event+":"+b.Sound] = true
 		if e := addSound(b.Sound); e != nil {
-			return nil, nil, e
+			return nil, nil, fmt.Errorf("presentation.sounds[%d].sound: %w", i, e)
 		}
 	}
 	return effects, sounds, nil
+}
+
+func presentationAtmospheres(m PresentationManifest) string {
+	ids := []string{}
+	for _, a := range m.Assets {
+		if a.Category == "environment" {
+			ids = append(ids, a.ID)
+		}
+	}
+	return strings.Join(ids, ", ")
 }
 func presentationConfig(p *Presentation) (string, error) {
 	effects, sounds, err := resolvePresentation(p)

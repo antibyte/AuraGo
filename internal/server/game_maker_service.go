@@ -459,7 +459,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	gamePrompt += "\n\nScene operations are optional map data: scene_inspect is read-only in planning; after plan acceptance, scene_set, scene_patch and scene_generate use the current sha256 and remain composable recipes. Scene validation covers structure and references, while game_maker_file remains the escape hatch for unrestricted custom code."
 	if run.Stage == "planning" || run.Presentation != nil || (run.Plan != nil && run.Plan.Presentation != nil) {
 		if run.Stage == "planning" && run.Presentation == nil {
-			gamePrompt += "\nOptional presentation is selected only with exact IDs from search_assets/describe_asset; leave it empty when it does not serve the requested game."
+			gamePrompt += "\n\n" + gamemaker.PresentationPlanningGuide
 		} else {
 			gamePrompt += "\n\n" + gamemaker.PresentationGuide
 		}
@@ -481,7 +481,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 		}
 	}
 	if run.Project.Dimension == "2d" {
-		gamePrompt += "\n\nSprite contract: after plan acceptance, the installed common.ts loads and binds the plan's artwork through body(...,role). Use these exact roles directly; no new search, description or manifest read is needed for planned art. For additional artwork use search_assets then describe_asset with pack_id AND asset_id from the same match and follow its aurago-game-1.js example. preloadPack loads exact 64x64 frames; createAsset selects an exact asset ID and createAssembly keeps all parts together. Import sheet.json in TypeScript for offline metadata. Never load a built-in sheet as one image or use atlas JSON. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist. Full validation must observe spawning, actions and restart."
+		gamePrompt += "\n\nSprite contract: after plan acceptance, the installed common.ts loads and binds the plan's artwork through body(...,role). Use these exact roles directly; no new search, description or manifest read is needed for planned art. For additional artwork use search_assets then describe_asset with pack_id AND asset_id from the same match and follow its aurago-game-1.js example. preloadPack handles both legacy 64x64 sheets and schema_version:2 atlases with variable frames, anchors, layers and directions. Use the exact imported manifest path and helper example; do not assume a grid or load atlas PNGs/JSON directly with Phaser. createAsset selects an exact asset ID, registerAnimations/playAction use declared actions and setFacing selects a declared direction. createAssembly keeps legacy parts together. GameScene.body already owns its art; never add another sprite for that role. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist. Full validation must observe spawning, actions and restart."
 	}
 	if run.Project.Dimension == "3d" && run.Stage != "planning" {
 		gamePrompt += "\n\n" + gamemaker.ModelRuntimeGuide

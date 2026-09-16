@@ -111,6 +111,41 @@ func TestPresentationCatalog(t *testing.T) {
 	}
 }
 
+func TestPresentationPlanningCorrections(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		plan Presentation
+		want []string
+	}{
+		{"effect as atmosphere", Presentation{Environment: "underwater"}, []string{"presentation.environment", `"underwater" is an effect`, "presentation.effects", "coast"}},
+		{"unknown atmosphere", Presentation{Environment: "ocean-floor"}, []string{`unknown atmosphere "ocean-floor"`, "coast", "omit environment"}},
+		{"atmosphere as effect", Presentation{Effects: []string{"coast"}}, []string{`atmosphere "coast"`, "presentation.environment"}},
+		{"sound ID as event", Presentation{Sounds: []SoundBinding{{"victory", "victory"}}}, []string{"presentation.sounds[0].event", `"victory" is unsupported`, `event:"win",sound:"victory"`, "shot"}},
+		{"duplicate binding", Presentation{Sounds: []SoundBinding{{"shot", "rifle"}, {"shot", "rifle"}}}, []string{"presentation.sounds[1]", "duplicate binding", `event:"shot",sound:"rifle"`, "only once"}},
+		{"unknown sound", Presentation{Sounds: []SoundBinding{{"shot", "cannon-does-not-exist"}}}, []string{"presentation.sounds[0].sound", "cannon-does-not-exist", "search_assets"}},
+		{"effect ID used for sound", Presentation{Sounds: []SoundBinding{{"hit", "explosion"}}}, []string{"presentation.sounds[0].sound", `unknown audio asset "explosion"`, "explosion-small", "explosion-large"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := resolvePresentation(&tc.plan)
+			if err == nil {
+				t.Fatal("invalid presentation accepted")
+			}
+			for _, fragment := range tc.want {
+				if !strings.Contains(err.Error(), fragment) {
+					t.Errorf("correction missing %q: %v", fragment, err)
+				}
+			}
+		})
+	}
+	// The suggested underwater composition resolves without inventing an
+	// atmosphere. Distinct sounds on the same supported event remain valid.
+	p := &Presentation{Effects: []string{"underwater"}, Quality: "auto", Sounds: []SoundBinding{{"shot", "rifle"}, {"shot", "laser"}, {"win", "victory"}, {"lose", "defeat"}}}
+	effects, sounds, err := resolvePresentation(p)
+	if err != nil || len(effects) != 1 || effects[0].ID != "underwater" || len(sounds) != 4 {
+		t.Fatalf("documented correction did not resolve: effects=%d sounds=%d err=%v", len(effects), len(sounds), err)
+	}
+}
+
 func TestPresentationPlanVersions(t *testing.T) {
 	s := newTestService(t)
 	for _, dim := range []string{"2d", "3d"} {
