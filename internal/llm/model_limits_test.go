@@ -90,6 +90,20 @@ func TestResolveModelLimitsPrecedenceAndCaps(t *testing.T) {
 	}
 }
 
+func TestAgnesTransportThinkingSurvivesUnknownModelMetadata(t *testing.T) {
+	for _, provider := range []string{"agnes", " AGNES ", "custom"} {
+		route := ModelRoute{ProviderType: provider, Model: "agnes-future-flash", Primary: true, ContextWindowOverride: 512000, MaxOutputTokensOverride: 65536}
+		for _, limits := range []ModelLimits{ResolveModelLimits(context.Background(), route, 131072, nil), ResolveModelLimitsCached(route, 131072)} {
+			if limits.Reasoning != (provider != "custom") || limits.ContextWindow != 131072 || limits.MaxOutputTokens != 65536 || !limits.ContextCapApplied || limits.Unknown {
+				t.Fatalf("transport thinking or explicit limits lost: %+v", limits)
+			}
+			if limits.OutputSource != "provider_override" || limits.ProbeStatus != "not_needed" {
+				t.Fatalf("provider override unexpectedly required registry/probe: %+v", limits)
+			}
+		}
+	}
+}
+
 func TestManagedLingLimitsBeforeRuntimeStarts(t *testing.T) {
 	var probes atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

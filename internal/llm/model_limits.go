@@ -170,7 +170,10 @@ func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 
 	limits := ModelLimits{Route: route}
 	registry, registryOK := resolveRegistryModelMetadata(route.ProviderType, route.Model)
-	limits.Reasoning = registryOK && registry.SupportsReasoning
+	// The Agnes transport always enables thinking, including for new model IDs
+	// not yet present in the registry. Budget its output accordingly without
+	// guessing context/output limits or bypassing explicit provider overrides.
+	limits.Reasoning = (registryOK && registry.SupportsReasoning) || strings.EqualFold(strings.TrimSpace(route.ProviderType), "agnes")
 
 	if route.ContextWindowOverride > 0 {
 		limits.ContextWindow = route.ContextWindowOverride

@@ -90,6 +90,33 @@ func TestNewRequestBudgetReasoningAndSmallestFailoverLimits(t *testing.T) {
 	}
 }
 
+func TestRequestBudgetUsesAgnesTransportThinkingWithProviderOverrides(t *testing.T) {
+	for _, tc := range []struct {
+		name                      string
+		requested, fallback, want int
+	}{
+		{"unknown thinking model", 0, 0, llm.ReasoningOutputTokens},
+		{"explicit smaller request", 1200, 0, 1200},
+		{"smaller failover ceiling", 0, 2048, 2048},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			routes := []llm.ModelRoute{{ProviderType: "agnes", Model: "agnes-future-flash", Primary: true, ContextWindowOverride: 512000, MaxOutputTokensOverride: 65536}}
+			if tc.fallback > 0 {
+				routes = append(routes, llm.ModelRoute{ProviderType: "custom", Model: "fallback", ContextWindowOverride: 32768, MaxOutputTokensOverride: tc.fallback})
+			}
+			cfg := &config.Config{}
+			cfg.Agent.ContextWindow = 131072
+			budget, err := newRequestBudget(context.Background(), cfg, &budgetRouteClient{routes: routes}, openai.ChatCompletionRequest{MaxTokens: tc.requested}, budgetTestLogger())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if budget.CompletionReserve != tc.want || budget.Routes[0].Limits.ContextWindow != 131072 {
+				t.Fatalf("incorrect thinking reserve or global cap: %+v", budget)
+			}
+		})
+	}
+}
+
 func TestNewRequestBudgetUsesSpeechLabStyleSelectedSingleRoute(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.Provider = "speech-selected"
