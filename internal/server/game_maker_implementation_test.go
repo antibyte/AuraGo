@@ -73,7 +73,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					<-req.Context().Done()
 					return
 				}
-				if len(body.Messages) != 2 || scenario.base != "three" && !strings.Contains(body.Messages[1].Content, "src/common.ts") || !strings.Contains(body.Messages[1].Content, "src/main.ts") {
+				if requests == 1 && (len(body.Messages) != 2 || scenario.base != "three" && !strings.Contains(body.Messages[1].Content, "src/common.ts") || !strings.Contains(body.Messages[1].Content, "src/main.ts")) {
 					t.Error("missing actual source context")
 				}
 				w.Header().Set("Content-Type", "text/event-stream")
@@ -157,7 +157,11 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if !valid && (err == nil || after != before) {
 					t.Errorf("incomplete response changed the starter: %v", err)
 				}
-				if common != commonAfter || requests != 1 {
+				wantRequests := 1
+				if scenario.finish == "" {
+					wantRequests = 2 // Missing completion markers permit one whole-request retry.
+				}
+				if common != commonAfter || requests != wantRequests {
 					t.Error("recovery rewrote lifecycle or repeated requests")
 				}
 				// This fixture checks the write path, not gameplay acceptance.

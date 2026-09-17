@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -11,6 +12,11 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 )
+
+// ErrIncompleteTextStream marks an EOF without the provider's completion marker.
+// It never makes buffered text safe to apply. An isolated caller may retry the
+// entire request within its own deadline and retry budget.
+var ErrIncompleteTextStream = errors.New("text stream ended without a finish reason")
 
 // Buffer text privately: incomplete source must never reach a file or tool.
 func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req openai.ChatCompletionRequest) (response openai.ChatCompletionResponse, retErr error) {
@@ -63,7 +69,7 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 		return openai.ChatCompletionResponse{}, err
 	}
 	if finish == "" {
-		return openai.ChatCompletionResponse{}, fmt.Errorf("text stream ended without a finish reason")
+		return openai.ChatCompletionResponse{}, fmt.Errorf("%w (%d chunks, %d text bytes, %d reasoning bytes); incomplete output was discarded", ErrIncompleteTextStream, chunks, text.Len(), reasoning.Len())
 	}
 	return openai.ChatCompletionResponse{Usage: usage, Choices: []openai.ChatCompletionChoice{{
 		FinishReason: finish,

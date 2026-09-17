@@ -44,10 +44,6 @@ func (r *gameMakerAgentRunner) implementGameStarter(ctx context.Context, cfg *co
 	if err != nil {
 		return err
 	}
-	history, checkpoint, err := r.gameConversation(ctx, cfg, run)
-	if err != nil {
-		return err
-	}
 	data, err := json.Marshal(map[string]any{"request": gameMakerUserIntent(run), "previous_user_requests": requests, "plan": compactGameMakerPlan(run.Plan), "files": files, "imports": compactGameMakerImports(run.AssetPacks)})
 	if err != nil {
 		return err
@@ -60,14 +56,7 @@ Do not reproduce common.ts, diagnostic instrumentation or asset manifests. No re
 	if run.Project.Dimension == "3d" {
 		system += "\n" + gamemaker.ModelRuntimeGuide
 	}
-	if len(history) > 0 {
-		history = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: system}}, history...)
-	}
-	response, completion, err := agent.ExecuteMinimalLoop(ctx, client, cfg.LLM.Model, system, string(data), nil,
-		&agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}},
-		history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, PreserveReasoning: true, Checkpoint: checkpoint})
-	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
-	broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")
+	response, completion, err := r.gameStarterCompletion(ctx, cfg, client, run, system, string(data))
 	if err != nil {
 		if !errors.Is(err, agent.ErrUnexpectedToolCallText) || response.FinishReason != openai.FinishReasonStop {
 			return fmt.Errorf("starter implementation: %w", err)
