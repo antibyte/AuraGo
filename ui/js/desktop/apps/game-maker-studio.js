@@ -759,9 +759,13 @@
             `<option value="${esc(provider.id)}" data-model="${esc(provider.model || '')}"
                 ${provider.id === cap.default_provider_id ? 'selected' : ''}>${esc(provider.name || provider.id)}</option>`
         ).join('');
-        const chips = [1, 2, 3, 4].map(n =>
-            `<button type="button" data-idea="${n}">${esc(t('game_maker.example_idea_' + n))}</button>`
-        ).join('');
+        const examples = [['2d', [1, 2, 4, 5, 6, 7, 8]], ['3d', [3, 9, 10, 11, 12, 13]]];
+        const chips = examples.map(([dimension, ideas]) => `
+            <div class="gm-idea-chips" role="group" aria-label="${dimension.toUpperCase()}">
+                <span>${dimension.toUpperCase()}</span>${ideas.map(n =>
+                    `<button type="button" data-idea="${n}" data-dimension="${dimension}">${esc(t('game_maker.example_idea_' + n))}</button>`
+                ).join('')}
+            </div>`).join('');
         showModal(state, `
             <form class="gm-modal gm-create-modal" data-gm-create>
                 <header><div><span>${esc(t('game_maker.create_kicker'))}</span><h2>${esc(t('game_maker.create_title'))}</h2></div>
@@ -774,8 +778,8 @@
                 <label>${esc(t('game_maker.description'))}<textarea name="description" rows="5" maxlength="12000" required
                     placeholder="${esc(t('game_maker.description_placeholder'))}"></textarea></label>
                 <small class="gm-field-help">${esc(t('game_maker.description_help'))}</small>
-                <div class="gm-idea-chips" role="group" aria-label="${esc(t('game_maker.example_ideas_label'))}">
-                    <span>${esc(t('game_maker.example_ideas_label'))}</span>${chips}
+                <div class="gm-idea-examples" role="group" aria-label="${esc(t('game_maker.example_ideas_label'))}">
+                    <span class="gm-field-help">${esc(t('game_maker.example_ideas_label'))}</span>${chips}
                 </div>
                 <div class="gm-form-grid">
                     <label>${esc(t('game_maker.provider'))}<select name="provider_id">${providers}</select></label>
@@ -803,6 +807,7 @@
                     if (!overwrite) return;
                 }
                 target.value = idea;
+                form.querySelector(`input[name="dimension"][value="${chip.dataset.dimension}"]`).checked = true;
                 target.focus();
             }));
             let creating = false;

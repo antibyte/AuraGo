@@ -1147,6 +1147,11 @@
     line-height: 1.45;
 }
 
+.gm-idea-examples {
+    display: grid;
+    gap: 9px;
+}
+
 .gm-idea-chips {
     display: flex;
     align-items: center;
@@ -1155,7 +1160,7 @@
 }
 
 .gm-idea-chips > span {
-    margin-right: 2px;
+    flex-basis: 100%;
     color: var(--gm-muted);
     font-size: 10px;
     font-weight: 700;
@@ -1165,7 +1170,10 @@
 
 .gm-idea-chips button {
     min-height: 30px;
-    padding: 0 11px;
+    max-width: 100%;
+    padding: 6px 11px;
+    white-space: normal;
+    text-align: left;
     border-radius: 99px;
     font-size: 11px;
 }
