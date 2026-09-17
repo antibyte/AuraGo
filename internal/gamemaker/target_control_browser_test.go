@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +42,10 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"move_blocked_right", "topdown", "passed"}, {"move_disabled", "topdown", "failed"},
 		{"paused", "topdown", "unavailable"},
 		{"manual_player", "minimal", "passed"},
+		{"terminal_goal_actions", "topdown", "passed"}, {"terminal_goal_outcome", "topdown", "passed"},
+		{"terminal_near_goal", "topdown", "passed"}, {"terminal_far_goal", "topdown", "unavailable"},
+		{"terminal_lost_goal", "topdown", "unavailable"}, {"terminal_preended", "topdown", "unavailable"},
+		{"terminal_three_goal", "three", "passed"}, {"terminal_three_elevated", "three", "unavailable"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -101,6 +106,14 @@ func TestTargetControlBrowser(t *testing.T) {
 						scene.Nodes[1].Position = Vec3{0, 1, 7}
 						scene.Placements[0].Position = scene.Nodes[1].Position
 					}
+				}
+				if strings.HasPrefix(tc.name, "terminal_three_") {
+					scene.Nodes = scene.Nodes[:2]
+					scene.Nodes[1].Position = Vec3{0, .5, 4}
+					if tc.name == "terminal_three_elevated" {
+						scene.Nodes[1].Position[1] = 4
+					}
+					scene.Colliders, scene.Placements = nil, nil
 				}
 				plan.Scene = &scene
 				scenario = GameScenario{ID: "target_rule", Metric: "hits", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "target", Mode: mode, MS: 4000}}}
@@ -226,6 +239,49 @@ func TestTargetControlBrowser(t *testing.T) {
 				source = []byte("import {startGame} from './common';startGame({mode:'" + mode + "',objective:'Reach the target',speed:6,goal:1,duration:0,objects:[]});")
 				if tc.name == "model_asset_target" {
 					source = bytes.Replace(source, []byte("objects:[]"), []byte("objects:[],setup(api){api.builder.nodes.get('target').object.userData.assetID='crystal';}"), 1)
+				}
+			}
+			if strings.HasPrefix(tc.name, "terminal_") {
+				// A custom game can end on contact without marking or removing its
+				// goal. The driver must observe that final contact before stopping.
+				scenario = GameScenario{ID: "open_chest", Metric: "actions", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "goal", Mode: "reach", MS: 2500}}}
+				source = []byte(`import {GameScene,start} from './common';
+class ContactGoal extends GameScene {
+  chest:any;
+  setup(){
+    this.player=this.body(240,270,28,32,0x5eead4,false,'player');
+    this.chest=this.body(420,270,32,24,0xd97706,true,'goal');
+    this.physics.add.overlap(this.player,this.chest,()=>{this.state.actions++;this.end(true)});
+  }
+}
+start(ContactGoal);`)
+				switch tc.name {
+				case "terminal_goal_outcome":
+					scenario.Metric, scenario.Compare, scenario.Value = "outcome", "equals", 1
+				case "terminal_near_goal":
+					scenario.Steps[0].Mode = "interact"
+					// A solid chest stops movement at its edge. Only the normal action
+					// can open it; the final bodies never overlap.
+					source = bytes.ReplaceAll(source, []byte("this.physics.add.overlap(this.player,this.chest,()=>{this.state.actions++;this.end(true)});"), []byte("this.physics.add.collider(this.player,this.chest);"))
+					source = bytes.Replace(source, []byte("chest:any;"), []byte("chest:any; action(){if(Math.abs(this.player.x-this.chest.x)<36){this.state.actions++;this.end(true)}}"), 1)
+				case "terminal_far_goal":
+					// A global counter and victory while moving far from the goal
+					// must not substitute for evidence of the targeted interaction.
+					source = bytes.Replace(source, []byte("chest:any;"), []byte("chest:any; step(dt:number){super.step(dt);if(this.player.x>250){this.state.actions++;this.end(true)}}"), 1)
+				case "terminal_lost_goal":
+					source = bytes.ReplaceAll(source, []byte("this.end(true)"), []byte("this.end(false)"))
+				case "terminal_preended":
+					scenario.Metric, scenario.Compare, scenario.Value = "outcome", "equals", 1
+					source = bytes.Replace(source, []byte("this.physics.add.overlap"), []byte("this.player.setPosition(420,270);this.end(true);this.physics.add.overlap"), 1)
+				case "terminal_three_goal", "terminal_three_elevated":
+					scenario.Metric, scenario.Compare, scenario.Value = "outcome", "equals", 1
+					scenario.Steps[0].Target = "target"
+					source = []byte(`import {startGame} from './common';
+startGame({mode:'exploration',speed:6,goal:1,duration:0,objects:[],
+  step(dt,api){const goal=api.builder.nodes.get('target').object;
+    if(Math.abs(api.player.position.z-goal.position.z)<.7)api.win();
+  }
+});`)
 				}
 			}
 			if err := os.WriteFile(path, source, 0600); err != nil {

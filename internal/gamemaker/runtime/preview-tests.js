@@ -178,7 +178,7 @@
     if(!modes.includes(command.mode)||typeof command.target!=='string'||!command.target||command.target.length>96||command.ms<100||command.ms>4000)throw Error('Invalid target command');
     const apply=want=>{for(const key of held)if(!want.has(key)){keyEvent(key,false);held.delete(key)}for(const key of want)if(!held.has(key)){keyEvent(key,true);held.add(key);result.inputs++}};
     const changed=()=>{const now=snapshot(inspectAssets)[scenario.metric],before=baseline[scenario.metric];return Number.isFinite(now)&&Number.isFinite(before)&&(scenario.compare==='increased'?now>before:scenario.compare==='decreased'?now<before:scenario.compare==='changed'?now!==before:scenario.compare==='equals'?now===scenario.value:now>=scenario.value)};
-    let prior=new Map(),priorActions=baseline.actions||0,lastFire=-1000,lock='',direction=null,saw=false,observedMiss=false;
+    let prior=new Map(),priorActions=baseline.actions||0,lastFire=-1000,lock='',interacted='',direction=null,saw=false,observedMiss=false;
     const begin=performance.now();
     try{
       while(performance.now()-begin<command.ms&&!expired()&&result.samples<160){
@@ -213,8 +213,20 @@
         const removed=[...prior.values()].filter(o=>o.active&&relevant(o)&&!view.targets.some(n=>n.id===o.id)).length;
         result.effects+=Math.min(1,effects+removed);
         if(result.inputs&&result.effects&&changed()){result.reason='complete';break;}
+        if(now.ended){
+          // A goal callback can win and pause physics in the same frame. Inspect
+          // the already pursued target before stopping; no new target selection
+          // or counter-only victory may stand in for the final physical contact.
+          const goal=candidates.find(o=>o.id===lock);
+          const vertical=goal&&(view.kind!=='3d'||Math.abs((p.z+.85)-goal.z)<(.85+(goal.depth||0)/2));
+          const contact=goal&&vertical&&(overlaps(p,goal)||command.mode==='interact'&&interacted===goal.id&&overlaps(p,goal,view.kind==='3d'?1:3));
+          if(result.inputs&&prior.has(lock)&&contact&&baseline.ended===0&&baseline.outcome===0&&now.outcome===1&&
+            ['reach','interact'].includes(command.mode)&&['actions','outcome','win_events'].includes(scenario.metric)&&changed()){
+            result.contacts++;result.effects++;result.reason='complete';
+          }else result.reason='timeout';
+          break;
+        }
         prior=new Map(view.targets.map(o=>[o.id,{...o}]));
-        if(now.ended){result.reason='timeout';break;}
         const target=candidates.find(o=>o.id===lock)||candidates.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
         if(!target){apply(new Set(view.mode==='fps'&&view.targets.some(o=>o.active&&(o.id===command.target||o.roles?.includes(command.target)))?['RIGHT']:[]));await wait(50);continue;}
         lock=target.id;saw=true;result.reason='timeout';
@@ -276,7 +288,7 @@
           const vertical=view.kind!=='3d'||Math.abs((p.z+.85)-target.z)<(.85+(target.depth||0)/2);
           if(overlaps(p,target)&&vertical&&result.inputs&&changed()&&['player_x','player_y','health','lives','outcome'].includes(scenario.metric)){result.effects++;result.reason='complete';break;}
         }
-        if(fire&&elapsed-lastFire>=300){want.add('SPACE');lastFire=elapsed;}
+        if(fire&&elapsed-lastFire>=300){want.add('SPACE');lastFire=elapsed;if(command.mode==='interact'&&near&&!held.has('SPACE'))interacted=target.id;}
         priorActions=now.actions||0;apply(want);await wait(50);
       }
       if(result.reason==='no_target'&&saw)result.reason='timeout';

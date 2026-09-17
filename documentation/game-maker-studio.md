@@ -253,6 +253,13 @@ interval, terminal state, sprite integrity and two consecutive restarts. Missing
 measurements are unavailable, not passed. A new build invalidates prior evidence
 and replaces preview diagnostics. The driver resets the game after testing.
 
+Targeted reach/interact checks inspect the final contact before stopping at game
+end. A goal may finish the game and pause physics without removing or marking its
+object. A new victory at the already pursued target can prove that interaction;
+nearby interactions additionally require the driver's action input. Checks retain
+3D height checks and reject remote victories, pre-existing wins, losses and
+counter-only changes as proof of the requested goal interaction.
+
 All 2D publication uses full validation; 3D publication currently uses startup
 and explicitly reports gameplay unverified. Technical failures share at most
 three repair passes across tool calls and orchestration, with no nested allowance.
