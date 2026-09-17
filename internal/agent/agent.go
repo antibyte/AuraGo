@@ -1139,6 +1139,10 @@ type RunConfig struct {
 	// PreserveReasoning keeps provider-returned reasoning in this isolated
 	// continuation, subject to the same route/context budgets as other history.
 	PreserveReasoning bool
+	// StableSystemPrompt snapshots the base instructions for an isolated run.
+	// Dynamic feedback belongs in appended messages; route budgets and dispatch
+	// policy are still checked on every iteration. Start a new run for a new phase.
+	StableSystemPrompt bool
 	// RequireCompleteStream prevents interrupted or truncated provider output
 	// from being treated as executable work in an isolated coding workflow.
 	RequireCompleteStream bool

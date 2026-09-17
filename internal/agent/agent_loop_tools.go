@@ -77,7 +77,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		if len(s.pendingSummaryBatch) == 0 {
 			s.pendingSummaryBatch = nil
 		}
-	} else if s.recoveryState.handleDuplicateToolCall(ptc, &s.req, currentLogger, s.telemetryScope) {
+	} else if s.blockDuplicateToolCall(ptc) {
 		pResultContent = blockedToolOutputFromRequest(&s.req)
 		actionBlocked = true
 		circuitBreakerOpen = true
@@ -94,6 +94,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs, s.runCfg)
 	pResultContent = policyResult.Content
+	s.noteGameMakerToolProgress(policyResult.Failed, actionBlocked)
 	recordVirtualDesktopAppVerification(ptc, pResultContent, policyResult.Failed, &s.recoveryState)
 	deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
 	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Failed)
@@ -173,8 +174,6 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		})
 		if circuitBreakerOpen {
 			appendSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker, notExecutedDueToCircuitBreakerResult())
-			s.req.Tools = nil
-			s.req.ToolChoice = "none"
 		}
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {
@@ -192,8 +191,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	}
 	if circuitBreakerOpen {
 		s.pendingTCs = nil
-		s.req.Tools = nil
-		s.req.ToolChoice = "none"
+		s.restrictToolsAfterCircuitBreaker()
 	}
 	s.lastResponseWasTool = true
 	return true
@@ -331,7 +329,7 @@ func executeAgentToolTurn(
 	}
 
 	recoveryMessageStart := len(s.req.Messages)
-	if s.recoveryState.handleDuplicateToolCall(tc, &s.req, currentLogger, s.telemetryScope) {
+	if s.blockDuplicateToolCall(tc) {
 		syntheticResult := blockedToolOutputFromRequest(&s.req)
 		deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
 		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, syntheticResult)
@@ -368,8 +366,7 @@ func executeAgentToolTurn(
 			)
 		}
 		s.pendingTCs = nil
-		s.req.Tools = nil
-		s.req.ToolChoice = "none"
+		s.restrictToolsAfterCircuitBreaker()
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 		broker.Send("tool_output", syntheticResult)
 		broker.Send("tool_end", tc.Action)
@@ -406,6 +403,7 @@ func executeAgentToolTurn(
 	}
 	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
 	resultContent = policyResult.Content
+	s.noteGameMakerToolProgress(policyResult.Failed, false)
 	recordVirtualDesktopAppVerification(tc, resultContent, policyResult.Failed, &s.recoveryState)
 	invalidateTurnSnapshotAfterTool(s, tc, policyResult.Failed)
 	eventContent := policyResult.EventContent
@@ -607,7 +605,7 @@ func executeAgentToolTurn(
 				if len(nativePendingSummaryBatch) == 0 {
 					nativePendingSummaryBatch = nil
 				}
-			} else if s.recoveryState.handleDuplicateToolCall(btc, &s.req, currentLogger, s.telemetryScope) {
+			} else if s.blockDuplicateToolCall(btc) {
 				bResult = blockedToolOutputFromRequest(&s.req)
 				batchedBlocked = true
 				circuitBreakerOpen = true
@@ -625,6 +623,7 @@ func executeAgentToolTurn(
 				policyResult = finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
 			}
 			bResult = policyResult.Content
+			s.noteGameMakerToolProgress(policyResult.Failed, batchedBlocked)
 			recordVirtualDesktopAppVerification(btc, bResult, policyResult.Failed, &s.recoveryState)
 			deferredRecoveryMessages = append(deferredRecoveryMessages, detachNewSystemMessages(&s.req, recoveryMessageStart)...)
 			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Failed)
@@ -693,8 +692,7 @@ func executeAgentToolTurn(
 		}
 		if circuitBreakerOpen {
 			s.pendingTCs = nil
-			s.req.Tools = nil
-			s.req.ToolChoice = "none"
+			s.restrictToolsAfterCircuitBreaker()
 		}
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {

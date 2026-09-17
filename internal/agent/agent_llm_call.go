@@ -324,6 +324,7 @@ func handleStreamingResponse(
 		if chunk.Usage != nil {
 			cachedTokens := 0
 			if chunk.Usage.PromptTokensDetails != nil {
+				streamAcct.providerCacheReported = true
 				cachedTokens = chunk.Usage.PromptTokensDetails.CachedTokens
 			}
 			streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens, cachedTokens)
@@ -449,7 +450,7 @@ func handleStreamingResponse(
 		CompletionTokens: completionTokens,
 		TotalTokens:      totalTokens,
 	}
-	if streamAcct.providerCached > 0 {
+	if streamAcct.providerCacheReported {
 		usage.PromptTokensDetails = &openai.PromptTokensDetails{CachedTokens: streamAcct.providerCached}
 	}
 

@@ -172,11 +172,12 @@ func (a *StreamToolCallAssembler) Assemble() []openai.ToolCall {
 }
 
 type streamingAccountingState struct {
-	hasProviderUsage   bool
-	providerPrompt     int
-	providerCompletion int
-	providerCached     int
-	finalized          bool
+	hasProviderUsage      bool
+	providerPrompt        int
+	providerCompletion    int
+	providerCached        int
+	providerCacheReported bool
+	finalized             bool
 }
 
 func (s *streamingAccountingState) recordProviderUsage(prompt, completion, cached int) {

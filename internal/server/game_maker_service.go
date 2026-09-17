@@ -497,6 +497,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	runCfg.UserIntent = gameMakerUserIntent(run)
 	runCfg.Checkpoint = checkpoint
 	runCfg.PreserveReasoning = true
+	runCfg.StableSystemPrompt = true
 	runCfg.RequireCompleteStream = true
 	runCfg.RetryStreamIdle = true
 	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)

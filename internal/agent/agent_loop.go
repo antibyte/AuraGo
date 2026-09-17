@@ -199,10 +199,11 @@ type agentLoopState struct {
 	guardian      *security.Guardian
 	llmGuardian   *security.LLMGuardian
 
-	useNativeFunctions    bool
-	adaptiveFilteredTools []string
-	nativeSchemaSnapshot  *nativeToolSchemaSnapshot
-	turnSnapshot          *turnContextSnapshot
+	useNativeFunctions       bool
+	adaptiveFilteredTools    []string
+	nativeSchemaSnapshot     *nativeToolSchemaSnapshot
+	turnSnapshot             *turnContextSnapshot
+	gameMakerDuplicateBlocks int
 }
 
 // makeDispatchContext builds a DispatchContext from the current loop state.
@@ -392,6 +393,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		const maxLoopIterations = 100
 		loopIterationCount++
+		if s.gameMakerDuplicateBlocks >= maxGameMakerDuplicateBlocks {
+			return openai.ChatCompletionResponse{}, fmt.Errorf("game maker stopped after %d blocked duplicate tool requests; saved progress is retained", s.gameMakerDuplicateBlocks)
+		}
 
 		// Safety: prevent infinite loops
 		if loopIterationCount > maxLoopIterations {
@@ -537,7 +541,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: breakerMsg})
 				toolLimitFinalizing = true
 			}
-			req.Tools = nil // Physically remove tool schemas to prevent infinite loops
+			if runCfg.StableSystemPrompt {
+				// Keep the cacheable tool catalog. Dispatch below still rejects
+				// every native or textual tool call from this final response.
+				req.ToolChoice = "none"
+			} else {
+				req.Tools = nil
+			}
 		}
 
 		// Resolve the budget for the exact request shape of this iteration. Tool
@@ -1303,7 +1313,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		})
 
 		budgetHint := ""
-		if budgetTracker != nil {
+		if budgetTracker != nil && !runCfg.StableSystemPrompt {
 			budgetHint = budgetTracker.GetPromptHint()
 		}
 
@@ -1316,6 +1326,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			cachedSysPrompt != "" &&
 			!cachedSysPromptAt.IsZero() &&
 			time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
+		if runCfg.StableSystemPrompt && cachedSysPrompt != "" {
+			// Isolated Game Maker phases have a fixed tool scope and contract.
+			// Do not rewrite their prefix because of wall time, error counters,
+			// guide selection, or unrelated background state.
+			cacheHit = true
+		}
 
 		promptBuildStarted := time.Now()
 		sysPrompt := ""
@@ -1325,11 +1341,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		basePrompt := ""
 		basePromptTokens := 0
 		if cacheHit {
-			basePrompt, basePromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
+			if runCfg.StableSystemPrompt {
+				basePrompt, basePromptTokens = cachedSysPrompt, tokenCache.Count(cachedSysPrompt, req.Model)
+			} else {
+				basePrompt, basePromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
+			}
 		} else {
 			baseResult := prompts.BuildSystemPromptBaseDetailed(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			basePrompt, basePromptTokens = baseResult.Text, baseResult.Tokens
-			if cacheKeyErr == nil && cacheKey != "" {
+			if runCfg.StableSystemPrompt || (cacheKeyErr == nil && cacheKey != "") {
 				cachedSysPromptKey = cacheKey
 				cachedSysPrompt = basePrompt
 				cachedSysPromptAt = time.Now()
@@ -1668,6 +1688,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		cancelResp()
 		resolveContextBudgetFailure(runCfg, req.Model)
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
+		// Log provider measurements even for empty-output recovery rounds. The
+		// local system_cache_hit metric is not a provider prefix-cache hit.
+		cacheFields := []any{"model", req.Model, "prompt_tokens", resp.Usage.PromptTokens, "cache_usage_reported", resp.Usage.PromptTokensDetails != nil}
+		if details := resp.Usage.PromptTokensDetails; details != nil {
+			cacheFields = append(cacheFields, "cached_tokens", details.CachedTokens)
+		}
+		s.currentLogger.Info("[PromptCache] Provider usage", cacheFields...)
 
 		retry422Count = 0 // reset on successful LLM response
 		if runCfg.PreserveReasoning && len(resp.Choices) == 1 && len(resp.Choices[0].Message.ToolCalls) == 0 && strings.TrimSpace(security.StripThinkingTags(content)) == "" {
@@ -1700,6 +1727,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		s.currentLogger.Info("[LLM Response Received]", "content_len", len(content))
 		lastActivity = time.Now() // LLM activity
 
+		// Recovery and tool dispatch must extend the exact prepared request.
+		// A pre-build copy resurrects old prompts/history after a tool round.
+		s.req = req
 		parsedToolResp := parseToolResponse(resp, s.currentLogger, telemetryScope)
 		// Strip the <done/> completion signal from the raw content that gets persisted
 		// to history. The streaming layer already filters it from SSE deltas, but the
@@ -1784,9 +1814,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			SetGlobalTokenEstimated(true)
 			s.currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
 		}
-		if details := resp.Usage.PromptTokensDetails; details != nil && details.CachedTokens > 0 {
-			s.currentLogger.Debug("[PromptCache] Provider reported cached prompt tokens", "cached_tokens", details.CachedTokens, "prompt_tokens", promptTokens, "model", req.Model)
-		}
 
 		sessionTokens += totalTokens
 		localGlobalTotal := AddGlobalTokenCount(totalTokens)
@@ -1870,6 +1897,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		s.req = req // Include any token-budget feedback appended since parsing.
 		content, tc, shouldContinue, xmlFallbackHandled := handleAgentLoopRecoveries(s, content, tc, parsedToolResp, useNativePath, emotionPolicy)
 		if shouldContinue {
 			explicitTools = s.explicitTools

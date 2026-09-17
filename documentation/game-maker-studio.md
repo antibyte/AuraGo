@@ -71,6 +71,21 @@ After a validated revision is ready, enter a change request to create the next
 revision. Stop cancels the staging job without changing the last playable
 version.
 
+Within each planning/build/repair phase, the system instructions (including the
+phase-start timestamp) and native tool catalog remain stable for provider prefix
+caching. New tool results and recovery feedback extend the existing conversation;
+provider-supported reasoning stays attached to its original messages. Current
+route/context budgets and tool authorization are still enforced on every request;
+necessary context compaction can reduce cache reuse.
+
+Duplicate calls are blocked without removing the other Game Maker tools or
+switching the agent into text-tool mode. Three duplicate blocks without a successful
+different tool step stop that run and retain its continuation and working files.
+The final tool-budget response keeps the schema catalog with tool choice disabled;
+calls in that response are rejected. The `[PromptCache] Provider usage` log reports available cached-token
+measurements, including zero hits. `cache_usage_reported=false` means unknown, not
+zero. `system_cache_hit` only measures AuraGo's local prompt-construction cache.
+
 ## Studio workflow
 
 - The creation dialog offers localized idea chips and a short description

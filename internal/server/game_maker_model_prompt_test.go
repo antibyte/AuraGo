@@ -255,7 +255,7 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 				}
 				calls.Add(1)
 				w.Header().Set("Content-Type", "text/event-stream")
-				if len(request.Tools) > 0 {
+				if request.ToolChoice != "none" {
 					// The system limit is one, but Game Maker guarantees 40 calls.
 					batch := make([]map[string]any, 40)
 					for i := range batch {
@@ -265,6 +265,9 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 					encoded, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "tool_calls": batch}, "finish_reason": "tool_calls"}}})
 					fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", encoded)
 					return
+				}
+				if len(request.Tools) == 0 {
+					t.Error("finalization discarded the cacheable tool catalog")
 				}
 				finalCalls.Add(1)
 				code := "export const forbiddenExtraWrite = 1;"
