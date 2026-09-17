@@ -71,7 +71,14 @@ export function createPhaserAdapter({scene,view='top',report=console.warn}) {
         if(post){
             const main=scene.cameras.main;
             for(const object of cameraFlags.keys())if(!object.scene)cameraFlags.delete(object);
-            for(const object of scene.children.list){if(!cameraFlags.has(object))cameraFlags.set(object,object.cameraFilter);object.cameraFilter=cameraFlags.get(object)|(object.depth>=1000?main.id:hudCamera.id)}
+            for(const object of scene.children.list){
+                if(!cameraFlags.has(object))cameraFlags.set(object,object.cameraFilter);
+                // World Y is often used as depth in scrolling/isometric games.
+                // Keep legacy fixed HUDs compatible, but never classify by depth alone.
+                const marker=object.getData?.('auragoHUD');
+                const hud=marker===true||(marker===undefined&&object.scrollFactorX===0&&object.scrollFactorY===0&&object.depth>=1000);
+                object.cameraFilter=cameraFlags.get(object)|(hud?main.id:hudCamera.id);
+            }
             post.uniforms.auraTime=time;post.uniforms.auraFlags=[intensity('vignette'),level>0?intensity('film-grain'):0,!reduced?intensity('heat-haze'):0,!reduced?intensity('underwater'):0];post.uniforms.auraMore=[level>0?intensity('bloom'):0,intensity('color-grade'),darkness,0];
         }
         drawSky();c.clearRect(0,0,w,h);drawWater();

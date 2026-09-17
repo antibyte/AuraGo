@@ -33,7 +33,7 @@ export class GameScene extends Phaser.Scene {
     for (const meta of new Set(Object.values(plannedAssets).map((a:any)=>a.meta))) registerAnimations(this, meta);
     this.state = { score: 0, actions: 0, hits: 0, spawns: 0, turns: 0, ended: 0, ticks: 0, lives: 0, goal_remaining: 0, outcome: 0, hit_events: 0, pickup_events: 0, win_events: 0, lose_events: 0 };
     this.inputKeys = createInputs(this);
-    this.hud = this.add.text(18, 16, '', { fontFamily: 'monospace', fontSize: '20px', color: '#ffffff' }).setDepth(1000).setScrollFactor(0);
+    this.hud = this.add.text(18, 16, '', { fontFamily: 'monospace', fontSize: '20px', color: '#ffffff' }).setDepth(1000).setScrollFactor(0).setData('auragoHUD', true);
     this.footstepAt = 0; this.wasGrounded = false;
     this.presentation = createPresentation({config:{...presentationPlan,feedback:true},root:document.getElementById('game-root'),adapter:createPhaserAdapter({scene:this,view:this.physics.world.gravity.y?'side':'top'}),report:(message:any)=>console.warn(message)});
     const active=(value:boolean)=>{this.previewActive=value;this.time.paused=!value||this.manualPause;this.presentation?.setActive(value);if(!value)this.physics.pause();else if(!this.manualPause&&!this.state.ended&&!this.respawnAt)this.physics.resume();};

@@ -221,7 +221,9 @@ Phaser API references:
 https://docs.phaser.io/phaser/concepts/gameobjects/components
 https://docs.phaser.io/phaser/concepts/gameobjects/container
 
-Optional set_design.presentation installs the shared weather and sound controller in GameScene. Emit feedback through this.feedback(event, object, material) from actual gameplay callbacks; a shot is not a hit. HUD objects use depth 1000 or higher so world filters exclude them. Custom code uses createPhaserAdapter({scene:this,view:"side" or "top"}) and the existing update/shutdown lifecycle. Canvas mode has documented shader fallbacks.
+Optional set_design.presentation installs the shared weather and sound controller in GameScene. Emit feedback through this.feedback(event, object, material) from actual gameplay callbacks; a shot is not a hit. Mark fixed HUD roots with setScrollFactor(0).setData('auragoHUD', true) so world filters exclude them. World actors can use setDepth(actor.y) even beyond Y=1000. Custom code uses createPhaserAdapter({scene:this,view:"side" or "top"}) and the existing update/shutdown lifecycle. Canvas mode has documented shader fallbacks.
+
+Keep artwork size and collision footprint separate. body(x,y,w,h,color,fixed,role) fits the art inside w/h while keeping its aspect ratio; it does not shrink the collider to match. A 128x256 tower fitted into 150x150 is only 75x150 visually: use this.body(x,y,75,150,0x8d8d7a,true,'building') for that extent, then narrow the collider further only where the visible ground footprint warrants it. Do not make every building a square obstacle. Check normal movement beside all four edges; transparent padding, roofs and canopies are not automatically solid ground.
 
 ## Complete loops and worlds
 

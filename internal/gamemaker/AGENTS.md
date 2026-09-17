@@ -35,6 +35,10 @@ revision publication and standalone export for Phaser and Three.js games.
   remain authoritative for scene-driven games. Do not double-apply damage.
 - Level contents are authored source or scene data. Helpers select actual levels;
   never claim progression by cloning an empty map or incrementing a label.
+- Phaser HUD roots use screen-fixed coordinates and explicit `auragoHUD` data.
+  World depth may equal world Y; crossing depth 1000 must never hide actors.
+  Asset fitting preserves aspect ratio without resizing authored colliders.
+  Keep collision footprints separate from artwork and transparent padding.
 
 ## Work Guidance
 

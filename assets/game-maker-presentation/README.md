@@ -60,7 +60,11 @@ removeGround(); removeRoof(); fx.dispose();
 
 For 2D, import `createPhaserAdapter` from `aurago-effects-2d-1.js`, pass
 `{scene: this, view: 'side'}` or `view: 'top'`, and call `update(dt)` from the
-existing scene update. Phaser renders normally. HUD objects use depth >=1000;
+existing scene update. Phaser renders normally. Mark screen-fixed HUD roots with
+`setScrollFactor(0).setData('auragoHUD', true)`; choose their depth independently.
+Legacy screen-fixed objects at depth >=1000 remain compatible. World objects may
+use any depth, including their world Y for sorting. Set `auragoHUD` to `false` to
+keep an otherwise HUD-like fixed object in the filtered world camera;
 3D HUD stays in DOM. Canvas mode reports its shader fallbacks.
 
 `set(id, params)` configures an imported continuous effect; point emitters such
