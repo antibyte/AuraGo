@@ -31,14 +31,19 @@ results="$bundle/results/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$results"
 agnes_model="${GAMEMAKER_EVAL_AGNES_MODEL:-agnes-3.0-flash}"
 stepfun_model="${GAMEMAKER_EVAL_STEPFUN_MODEL:-step-3.7-flash}"
-printf '%s\\n' "Six world-pack tasks; results: $results" 'Keep Chrome connected to the evaluation parent on port 8896.'
+provider="${GAMEMAKER_EVAL_PROVIDER:-}"
+task="${GAMEMAKER_EVAL_TASK:-}"
+printf '%s\\n' "World-pack comparison; results: $results" 'Keep Chrome connected to the evaluation parent on port 8896; generation waits for that connection.'
 printf '%s\\n' "Expected models: Agnes $agnes_model; StepFun $stepfun_model"
+printf '%s\\n' "Filters: provider=${provider:-all}; task=${task:-all}. Private workspaces remain on this server for diagnosis."
 exec sudo systemd-run --unit="aurago-worlds-eval-$(date +%s)" --wait --collect --pipe --uid=aurago \\
   --property="WorkingDirectory=$bundle/internal/server" \\
   --property=EnvironmentFile=/etc/aurago/master.key --property=UMask=0077 \\
   --setenv=GAMEMAKER_EVAL_CONFIG=/home/aurago/aurago/config.yaml \\
   --setenv=GAMEMAKER_EVAL_WORLDS=1 --setenv="GAMEMAKER_EVAL_REPORT_DIR=$results" \\
   --setenv="GAMEMAKER_EVAL_AGNES_MODEL=$agnes_model" --setenv="GAMEMAKER_EVAL_STEPFUN_MODEL=$stepfun_model" \\
+  --setenv="GAMEMAKER_EVAL_PROVIDER=$provider" --setenv="GAMEMAKER_EVAL_TASK=$task" \\
+  --setenv=GAMEMAKER_EVAL_KEEP_WORKSPACE=1 \\
   "$bundle/game-maker-eval-linux.test" -test.run '^TestGameMakerLiveEvaluation$' -test.v -test.timeout 200m
 '''
 (out/'run-model-comparison.sh').write_text(runner,encoding='utf-8',newline='\n')

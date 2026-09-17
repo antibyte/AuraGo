@@ -70,7 +70,24 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 		t.Fatal(err)
 	}
 	master = ""
+	reports := os.Getenv("GAMEMAKER_EVAL_REPORT_DIR")
+	if reports == "" {
+		reports = filepath.Join(filepath.Dir(configPath), "reports", "game-maker-evaluation")
+	}
+	if err = os.MkdirAll(reports, 0700); err != nil {
+		t.Fatal(err)
+	}
 	root := t.TempDir()
+	retainedWorkspace := ""
+	if os.Getenv("GAMEMAKER_EVAL_KEEP_WORKSPACE") == "1" {
+		// Keep failed source/builds for offline diagnosis without another paid
+		// generation. Private continuation state stays on this provider host.
+		root, err = os.MkdirTemp(reports, "workspace-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		retainedWorkspace = filepath.Base(root)
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	jobTimeout := time.Duration(original.GameMaker.JobTimeoutSeconds) * time.Second
 	if jobTimeout <= 0 {
@@ -134,12 +151,15 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	service.SetRunner(&gameMakerAgentRunner{server: server, service: service})
 	var mu sync.RWMutex
 	var projectID, jobID string
+	probe := &gameMakerEvalBrowserProbe{}
 	parent, err := os.ReadFile("../gamemaker/testdata/studio-parent.html")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Keep polling across successive evaluation jobs; this is a local test parent.
 	html := strings.Replace(string(parent), "if(polling||window.done)return", "if(polling)return", 1)
+	html = strings.Replace(html, "state.job.status", "state.job?.status", 1)
+	html = strings.Replace(html, "fetch('/state')", "fetch('/state?browser=1')", 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.RLock()
 		pid, jid := projectID, jobID
@@ -150,6 +170,7 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 			fmt.Fprint(w, html)
 			return
 		case "/state":
+			probe.polled(r, time.Now())
 			job, _ := service.GetJob(r.Context(), jid)
 			grant, _ := service.CreatePreviewGrant(pid)
 			json.NewEncoder(w).Encode(map[string]any{"job": job, "grant": grant})
@@ -157,11 +178,15 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 		case "/report":
 			var report gamemaker.PreviewReport
 			if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1600000)).Decode(&report) != nil {
+				probe.reported(false)
 				w.WriteHeader(400)
 				return
 			}
 			if err := service.ReportPreview(pid, report); err != nil {
+				probe.reported(false)
 				http.Error(w, err.Error(), 400)
+			} else {
+				probe.reported(true)
 			}
 			return
 		}
@@ -188,16 +213,21 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	go httpServer.Serve(listener)
 	defer httpServer.Close()
 	t.Log("Evaluation parent ready at http://127.0.0.1:8896/ (SSH tunnel, no service replacement)")
-	reports := filepath.Join(filepath.Dir(configPath), "reports", "game-maker-evaluation")
-	if dir := os.Getenv("GAMEMAKER_EVAL_REPORT_DIR"); dir != "" {
-		reports = dir
-	}
-	if err = os.MkdirAll(reports, 0700); err != nil {
-		t.Fatal(err)
-	}
 	tasks := gameMakerEvaluationTasks(os.Getenv("GAMEMAKER_EVAL_BUILDER") == "1")
 	if os.Getenv("GAMEMAKER_EVAL_WORLDS") == "1" {
 		tasks = gameMakerWorldEvaluationTasks()
+	}
+	providerFilter := os.Getenv("GAMEMAKER_EVAL_PROVIDER")
+	if providerFilter != "" && providerFilter != "agnesai" && providerFilter != "stepfun" {
+		t.Fatal("GAMEMAKER_EVAL_PROVIDER must be agnesai or stepfun")
+	}
+	taskFilter := os.Getenv("GAMEMAKER_EVAL_TASK")
+	taskFound := taskFilter == ""
+	for _, task := range tasks {
+		taskFound = taskFound || task.name == taskFilter
+	}
+	if !taskFound {
+		t.Fatal("GAMEMAKER_EVAL_TASK does not select an evaluation task")
 	}
 	for _, provider := range cfg.Providers {
 		for _, task := range tasks {
@@ -214,6 +244,15 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 			if only := os.Getenv("GAMEMAKER_EVAL_TASK"); only != "" && only != task.name {
 				continue
 			}
+			// Do not spend another provider request while the Chrome parent is
+			// disconnected. This is infrastructure evidence, not a gameplay pass.
+			browserCtx, cancelBrowserWait := context.WithTimeout(context.Background(), 2*time.Minute)
+			err := waitForGameMakerEvalBrowser(browserCtx, probe)
+			cancelBrowserWait()
+			if err != nil {
+				t.Fatalf("evaluation stopped before %s/%s: Chrome parent on port 8896 is disconnected; no generation started", provider.ID, task.name)
+			}
+			probe.resetReports()
 			p, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: task.name, Dimension: task.dimension, Description: task.prompt, ProviderID: provider.ID, Model: provider.Model})
 			if err != nil {
 				t.Fatal(err)
@@ -270,6 +309,10 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 				}
 			}
 			result := map[string]any{"model": provider.Model, "provider": provider.ID, "task": task.name, "seconds": time.Since(started).Seconds(), "job": job, "plan": plan, "events": reportEvents, "events_total": len(events), "events_complete": eventsComplete && eventsErr == nil, "event_read_error": eventsErr != nil, "event_metrics": summarizeGameMakerEvalEvents(events, eventsComplete && eventsErr == nil), "brief_requirements": task.requirements, "context_cap": cfg.Agent.ContextWindow, "tool_limit": cfg.CircuitBreaker.MaxToolCalls, "llm_timeout_seconds": cfg.CircuitBreaker.LLMTimeoutSeconds, "job_timeout_seconds": jobTimeout.Seconds()}
+			result["browser_connection"] = probe.snapshot(time.Now())
+			if retainedWorkspace != "" {
+				result["private_workspace"] = retainedWorkspace
+			}
 			// Retain only protocol shape before the temporary DB is removed, so a
 			// provider rejection can be diagnosed without exporting private text.
 			conversation, conversationErr := service.LoadAgentConversation(context.Background(), job.ID)
