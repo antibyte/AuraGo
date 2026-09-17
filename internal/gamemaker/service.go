@@ -488,7 +488,7 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		s.mu.Unlock()
 		return Job{}, ErrBusy
 	}
-	jobCtx, cancel := context.WithTimeout(context.Background(), s.opts.JobTimeout)
+	jobCtx, cancel := s.jobContext(job, project)
 	s.activeJobID = job.ID
 	s.jobCancels[job.ID] = cancel
 	s.mu.Unlock()
@@ -747,7 +747,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	}
 	if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "building", Plan: plan, Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			s.cancelledJob(job, ctx.Err())
+			s.cancelledJob(job, context.Cause(ctx))
 			return
 		}
 		s.terminateJob(job, ctx, err)
@@ -887,7 +887,7 @@ func (s *Service) failJob(job Job, failure error) {
 
 func (s *Service) terminateJob(job Job, ctx context.Context, failure error) {
 	if ctx != nil && (errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded)) {
-		s.cancelledJob(job, ctx.Err())
+		s.cancelledJob(job, context.Cause(ctx))
 		return
 	}
 	s.failJob(job, failure)

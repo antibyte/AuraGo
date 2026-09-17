@@ -35,6 +35,17 @@ while shared AuraGo Media Registry files remain protected.
 music use the separate `max_asset_size_mb` limit. The total project limit still
 applies to both.
 
+`job_timeout_seconds` is the normal total job budget (30 minutes by default).
+If an accepted game has changed source within the final third of that budget
+(at most ten minutes ago) and its current build compiled successfully, it gets
+one finishing window of half the configured budget, capped at 15 minutes.
+The default maximum is therefore 45 minutes for an actively developed game.
+Unchanged starters, failed builds, asset imports, reads and model activity alone
+do not qualify. The Studio diagnostics report the extension. Tool, repair and
+individual LLM-call limits still apply, cancellation stays immediate, and only
+normal validation can publish the game. **Try again** resumes the saved working
+copy and agent context after a timeout.
+
 ## Creating and refining a game
 
 Open **Game Maker Studio** from the Virtual Desktop and select **New game**.
@@ -69,7 +80,7 @@ version.
   stepper below it mirrors the same state.
 - Finished jobs end with a result card in the conversation: a playable
   revision offers **Play now**, a failure shows the error and a **Try again**
-  button that restores the last prompt for editing.
+  button that continues the saved working copy and agent context.
 - The preview toolbar reloads the game, toggles fullscreen, or opens the
   current revision in a new browser tab with a fresh preview token. While a
   newer build is running, the preview carries an "updating" badge.
