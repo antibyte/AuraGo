@@ -118,6 +118,8 @@ co_agents:
 
 The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Writer co-agents run without runtime tool schemas by default so short writing tasks do not pay the latency cost of unrelated tools. Set the field to `""` to disable this default, or replace it with your own writing rules.
 
+The compact guidance adapts [Humanizer 3.0](https://github.com/blader/humanizer/blob/main/SKILL.md): revise artificial contrasts, inflated claims, and repetitive closing lines while preserving the writer's voice. It adds German and multilingual conventions, protects quotations and technical literals, and silently checks for lost claims, invented details, and fresh formulaic phrasing before delivery. Updates preserve existing custom additional prompts. Attribution and the MIT license are in `THIRD_PARTY_NOTICES.md`.
+
 ---
 
 ## Spawning Co-Agents

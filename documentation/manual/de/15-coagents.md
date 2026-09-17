@@ -124,6 +124,8 @@ co_agents:
 
 Der `writer`-Spezialist nutzt standardmäßig einen mehrsprachigen Natural-Writing-Zusatzprompt in `co_agents.specialists.writer.additional_prompt`. Er hilft dem Autor-Co-Agenten, generische KI-Formulierungen zu vermeiden, Sprache und Register der Aufgabe zu erhalten und bei Umschreibungen keine Fakten zu erfinden. Writer-Co-Agenten laufen standardmäßig ohne Runtime-Tool-Schemas, damit kurze Schreibaufgaben nicht die Latenz unpassender Tools mitbezahlen. Setze das Feld auf `""`, um den Default zu deaktivieren, oder ersetze ihn durch eigene Schreibregeln.
 
+Der kompakte Zusatz übernimmt das Konzept von [Humanizer 3.0](https://github.com/blader/humanizer/blob/main/SKILL.md): künstliche Gegensätze, aufgeblasene Aussagen und wiederholte Schlusssätze gezielt überarbeiten, ohne die eigene Stimme zu glätten. Er ergänzt Regeln für deutsche und mehrsprachige Texte, schützt Zitate und technische Angaben und prüft vor der Ausgabe still auf verlorene Aussagen, erfundene Details und neue Floskeln. Bestehende eigene Zusatzprompts werden bei Updates nicht ersetzt. Herkunft und MIT-Lizenz stehen in `THIRD_PARTY_NOTICES.md`.
+
 ### Modell-Auswahl
 
 > 💡 **Tipp:** Nutze für Co-Agenten ein kleineres, schnelleres Modell als den Main-Agenten:
