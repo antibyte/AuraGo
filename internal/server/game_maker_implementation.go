@@ -63,13 +63,22 @@ Do not reproduce common.ts, diagnostic instrumentation or asset manifests. No re
 	if len(history) > 0 {
 		history = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: system}}, history...)
 	}
-	response, _, err := agent.ExecuteMinimalLoop(ctx, client, cfg.LLM.Model, system, string(data), nil,
+	response, completion, err := agent.ExecuteMinimalLoop(ctx, client, cfg.LLM.Model, system, string(data), nil,
 		&agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}},
 		history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, PreserveReasoning: true, Checkpoint: checkpoint})
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
 	broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")
 	if err != nil {
-		return fmt.Errorf("starter implementation: %w", err)
+		if !errors.Is(err, agent.ErrUnexpectedToolCallText) || response.FinishReason != openai.FinishReasonStop {
+			return fmt.Errorf("starter implementation: %w", err)
+		}
+		// Some providers retain their tool-output format after switching to code
+		// generation. Extract only this exact file revision, never execute tools.
+		code, extractErr := gameStarterWrappedSource(agent.LastAssistantPlainText(completion), run.Job.ID, main.SHA256)
+		if extractErr != nil {
+			return fmt.Errorf("starter implementation: %w; source envelope rejected: %v", err, extractErr)
+		}
+		response.Response = code
 	}
 	if response.FinishReason != openai.FinishReasonStop {
 		return fmt.Errorf("starter implementation was incomplete (%s); source was not changed", response.FinishReason)

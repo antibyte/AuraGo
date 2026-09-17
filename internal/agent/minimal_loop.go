@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"log/slog"
@@ -43,6 +44,11 @@ type MinimalLoopOptions struct {
 }
 
 const defaultMaxToolRounds = 3
+
+// ErrUnexpectedToolCallText rejects textual tool syntax without executing it.
+// Callers may inspect the rejected assistant message for their own bounded data
+// format, but must not dispatch it as a tool call.
+var ErrUnexpectedToolCallText = errors.New("unexpected tool-call text in llm response")
 
 // ExecuteMinimalLoop runs a single-turn agent execution with tools but without
 // personality, memory, RAG, or other heavy agent-loop features. It is used by
@@ -267,7 +273,7 @@ func minimalLoopFinalText(content string) (string, error) {
 	probe := html.UnescapeString(text)
 	_, toolMarkup := shouldSuppressStreamedToolCallText(probe)
 	if toolMarkup || shouldSuppressStreamedToolCallJSON(probe) || (strings.Contains(probe, "{") && ParseToolCall(probe).IsTool) {
-		return "", fmt.Errorf("unexpected tool-call text in llm response")
+		return "", ErrUnexpectedToolCallText
 	}
 	return text, nil
 }

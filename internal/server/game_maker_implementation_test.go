@@ -26,19 +26,25 @@ func (f implementationTestRunner) RunGameMakerJob(ctx context.Context, run gamem
 }
 
 func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
-	for _, scenario := range []struct{ dimension, base, finish, code string }{
-		{"2d", "platformer", "stop", "export const requestedGame = 7;"},
-		{"3d", "fps", "stop", "```typescript\nexport const requestedGame = 7;\n```"},
-		{"3d", "three", "stop", "export const requestedGame = 7;"},
-		{"2d", "platformer", "length", "export const partial ="},
-		{"2d", "platformer", "stop", ""},
-		{"2d", "platformer", "stop", "```typescript\npartial"},
-		{"2d", "platformer", "", "export const requestedGame = 7;"},
-		{"2d", "platformer", "tool_calls", "export const requestedGame = 7;"},
-		{"2d", "platformer", "stream_error", "export const requestedGame = 7;"},
-		{"2d", "platformer", "timeout", "export const requestedGame = 7;"},
+	for _, scenario := range []struct{ dimension, base, finish, code, envelope string }{
+		{"2d", "platformer", "stop", "export const requestedGame = 7;", ""},
+		{"3d", "fps", "stop", "```typescript\nexport const requestedGame = 7;\n```", ""},
+		{"3d", "three", "stop", "export const requestedGame = 7;", ""},
+		{"2d", "platformer", "length", "export const partial =", ""},
+		{"2d", "platformer", "stop", "", ""},
+		{"2d", "platformer", "stop", "```typescript\npartial", ""},
+		{"2d", "platformer", "", "export const requestedGame = 7;", ""},
+		{"2d", "platformer", "tool_calls", "export const requestedGame = 7;", ""},
+		{"2d", "platformer", "stream_error", "export const requestedGame = 7;", ""},
+		{"2d", "platformer", "timeout", "export const requestedGame = 7;", ""},
+		{"2d", "platformer", "stop", "export const requestedGame = 7;", "wrapped"},
+		{"3d", "flight", "stop", "export const requestedGame = 7;", "wrapped"},
+		{"3d", "flight", "stop", "export const requestedGame = ;", "wrapped"},
+		{"3d", "flight", "stop", "export const requestedGame = 7;", "stale"},
+		{"3d", "flight", "stop", "export const requestedGame = 7;", "wrong-file"},
+		{"3d", "flight", "length", "export const requestedGame = 7;", "wrapped"},
 	} {
-		t.Run(scenario.dimension+"/"+scenario.finish+fmt.Sprint(len(scenario.code)), func(t *testing.T) {
+		t.Run(scenario.dimension+"/"+scenario.finish+fmt.Sprint(len(scenario.code))+"/"+scenario.envelope, func(t *testing.T) {
 			root := t.TempDir()
 			svc, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "game.db"), WorkspacePath: filepath.Join(root, "workspace"), Enabled: true, AllowCreate: true, AllowEdit: true})
 			if err != nil {
@@ -51,6 +57,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			requests := 0
+			var activeJobID, sourceRevision string
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				var body openai.ChatCompletionRequest
 				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
@@ -74,7 +81,17 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				w.(http.Flusher).Flush()
 				// Full output takes longer than the header timeout; streaming must survive it.
 				time.Sleep(120 * time.Millisecond)
-				for _, content := range []string{scenario.code[:len(scenario.code)/2], scenario.code[len(scenario.code)/2:]} {
+				wireCode := scenario.code
+				if scenario.envelope != "" {
+					wireCode = starterSourceEnvelope(activeJobID, sourceRevision, wireCode)
+					if scenario.envelope == "stale" {
+						wireCode = strings.Replace(wireCode, sourceRevision, "stale", 1)
+					}
+					if scenario.envelope == "wrong-file" {
+						wireCode = strings.Replace(wireCode, "src/main.ts", "src/common.ts", 1)
+					}
+				}
+				for _, content := range []string{wireCode[:len(wireCode)/2], wireCode[len(wireCode)/2:]} {
 					chunk, _ := json.Marshal(openai.ChatCompletionStreamResponse{Choices: []openai.ChatCompletionStreamChoice{{Delta: openai.ChatCompletionStreamChoiceDelta{Content: content}}}})
 					fmt.Fprintf(w, "data: %s\n\n", chunk)
 					w.(http.Flusher).Flush()
@@ -108,6 +125,11 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					return svc.SetDesignJSON(ctx, run.Job.ID, []byte(fmt.Sprintf(`{"base":%q,"objective":"Requested game","features":["custom rules"]}`, scenario.base)))
 				}
 				before, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+				entry, readErr := svc.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", 1, 240)
+				if readErr != nil {
+					return readErr
+				}
+				activeJobID, sourceRevision = run.Job.ID, entry.SHA256
 				common, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/common.ts")
 				run.Stage = "repair"
 				run.Diagnostics = []gamemaker.Diagnostic{{Level: "implementation", File: "src/main.ts", Message: "unchanged starter"}}
@@ -121,9 +143,16 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				}
 				after, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
 				commonAfter, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/common.ts")
-				valid := scenario.finish == "stop" && strings.Contains(scenario.code, "requestedGame")
-				if valid && (err != nil || !strings.Contains(after, "export const requestedGame = 7;") || strings.Contains(after, "```")) {
+				valid := scenario.finish == "stop" && strings.Contains(scenario.code, "requestedGame") && (scenario.envelope == "" || scenario.envelope == "wrapped")
+				if valid && (err != nil || !strings.Contains(after, "export const requestedGame =") || strings.Contains(after, "```")) {
 					t.Errorf("code not written: %v", err)
+				}
+				if valid && scenario.envelope == "wrapped" {
+					build := svc.BuildJob(ctx, run.Job.ID)
+					broken := strings.Contains(scenario.code, "= ;")
+					if broken && (build.OK || len(build.Diagnostics) == 0) || !broken && (!build.OK || build.RuntimeStatus != "unverified") {
+						t.Errorf("extracted source bypassed compiler or runtime verification: %+v", build)
+					}
 				}
 				if !valid && (err == nil || after != before) {
 					t.Errorf("incomplete response changed the starter: %v", err)
