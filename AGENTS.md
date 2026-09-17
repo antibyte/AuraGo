@@ -1175,7 +1175,7 @@ Current child AGENTS.md files:
 - `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
 - `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.
 - `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
-- `internal/gamemaker/asset_packs/AGENTS.md` — Offline sprite content, retained Imagegen sources, frame metadata and reproducible packing/visual checks.
+- `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.

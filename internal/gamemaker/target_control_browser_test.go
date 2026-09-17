@@ -207,8 +207,11 @@ func TestTargetControlBrowser(t *testing.T) {
 				replace("this.physics.add.overlap(this.player,coin,", "this.physics.add.overlap(this.player,this.physics.add.group(),")
 				replace("this.state.actions++;", "this.state.actions++;this.feedback('pickup',this.player);")
 			case "floor_movement", "floor_pickup", "floor_disabled", "floor_embedded":
+				// Preserve the original reproduction bounds independently of the
+				// starter's new scrolling world and camera.
+				replace("this.configureWorld(width,720)", "this.configureWorld(960,540,false)")
 				replace("160, 450, 28, 40", "80, 450, 28, 40")
-				replace("480, 520, 960, 40", "760, 500, 1600, 40")
+				replace("width/2, 520, width, 40", "760, 500, 1600, 40")
 				replace("this.physics.add.collider(this.player, ground);", "const solids=this.physics.add.staticGroup();solids.add(ground);this.physics.add.collider(this.player, solids);")
 				if tc.name == "floor_disabled" {
 					replace("this.inputKeys.vector().x * 240", "0")
@@ -221,7 +224,7 @@ func TestTargetControlBrowser(t *testing.T) {
 			case "move_disabled":
 				replace("super.step(delta);this.player.setDepth", "this.player.body.setVelocity(0,0);this.player.setDepth")
 			case "moving_enemy":
-				replace("this.player.x, 100", "650, 100")
+				replace("this.body(x, 100", "this.body(650, 100")
 				replace("setVelocityY(70)", "setVelocity(-60,70)")
 			case "missing_enemy":
 				replace("this.spawn();", "")

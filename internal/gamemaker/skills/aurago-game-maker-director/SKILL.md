@@ -52,8 +52,9 @@ shell commands, or search for generic coding tools outside this job's scope.
    design has no plan.perspective or asset.view field; never invent either one.
    For edits read the existing plan and affected source first. Never send planning prose to the player. After acceptance,
    end the turn: the server imports planned packs and begins the building round.
-3. Keep the first implementation the smallest loop that is actually playable;
-   extend it only after it validates.
+3. Implement a complete playable slice of the accepted experience, including
+   feedback, recovery/result and its promised world/progression. A working input
+   loop is a milestone, not a finished game; validate after the coherent change.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
    Read a bounded line range, then use `replace` with unique `old_text`, `new_text`
    and the returned full-file `expected_sha256`. For a new game, `write` may replace
@@ -249,3 +250,23 @@ template's controls, or declare and test the custom controls of a scene-based
 game. A passing startup test does not certify unobserved custom gameplay.
 
 Presentation choices belong in the optional set_design.presentation block. Use catalog IDs for environments, effects and event-bound sounds; the server writes src/presentation.json and imports dependencies. Never build a second weather or audio loop. Adding presentation to an older free-code game also requires the documented controller hooks.
+
+## Player experience, not just technical validity
+
+Describe these choices in the existing `features` array (no invented schema fields):
+- The core action and its visible/audible consequences. Real contacts trigger
+  feedback; firing alone must not produce a hit. Lives changing in text is insufficient.
+- Life loss: a short readable response, a safe checkpoint/respawn with protection,
+  or clear final defeat. Never silently leave the player frozen.
+- World: screen-sized board/arena, scrolling traversal, or open exploration.
+  Exploration normally spans several viewports with useful landmarks, alternate
+  routes, discoveries and changing challenges. Camera and collision bounds must agree.
+- Progression: distinct stages, areas, waves or evolving endless rules. Normally
+  include at least two meaningful challenges; an explicitly single-board puzzle
+  or arena is valid. Do not manufacture depth by duplicating the map.
+- Completion: readable outcome, summary, restart and next-stage/continue when
+  available. Peaceful sandboxes need continued play, not invented death or timers.
+
+New common.ts provides the shared feedback/result/stage helpers documented in
+phase context. Existing projects keep their code: inspect available helpers and
+add missing behavior deliberately rather than overwriting the whole game.

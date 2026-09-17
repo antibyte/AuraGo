@@ -37,6 +37,7 @@ export function createPresentation({adapter,config,root,report=console.warn,cont
         count(usage.events,name);
         for(const id of customEvents.has(name)?customEvents.get(name).effects:eventEffects[name]||[])if(records.has(id)&&(!id.startsWith('blood')||material==='flesh')&&(id!=='metal-sparks'||material==='metal')&&(id!=='stone-debris'||material==='stone'))emit(id,{position,normal});
         const ids=customEvents.has(name)?customEvents.get(name).sounds:bindings.get(name),id=ids?.[Math.floor(Math.random()*ids.length)];if(id){count(usage.sounds,id);audio.play(id,{position:adapter.dimension==='2d'?[position[0],position[1],0]:position});}
+        else if(config.feedback===true&&!customEvents.has(name))audio.cue(name);
     }
     function syncPause(){audio.setPaused(paused||inactive)}
     lifecycle.signal.addEventListener('abort',()=>audio.dispose(),{once:true});
@@ -75,11 +76,11 @@ export function createPresentation({adapter,config,root,report=console.warn,cont
         dispose(){if(disposed)return;disposed=true;lifecycle.abort();panel?.remove();adapter.dispose()},
     };
     let panel;
-    if(controls&&(records.size||config.sounds?.length)){
+    if(controls&&(records.size||config.sounds?.length||config.feedback===true)){
         panel=document.createElement('div');panel.className='aurago-game-presentation';panel.style.cssText='position:absolute;right:12px;top:12px;z-index:1100;display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid #ffffff30;border-radius:12px;background:#101822d9;color:#fff;font:12px system-ui;max-width:90%';
-        const mute=document.createElement('button');mute.textContent='♪';mute.title='Sound';mute.setAttribute('aria-label','Mute sound');mute.setAttribute('aria-pressed','false');let muted=false;
+        const mute=document.createElement('button');mute.textContent=audio.preferences.muted?'♫ ×':'♪';mute.title='Sound';mute.setAttribute('aria-label','Mute sound');mute.setAttribute('aria-pressed',String(audio.preferences.muted));let muted=audio.preferences.muted;
         mute.onclick=()=>{muted=!muted;mute.textContent=muted?'♫ ×':'♪';mute.setAttribute('aria-pressed',String(muted));audio.setMuted(muted)};
-        const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='100';volume.value='55';volume.style.width='68px';volume.setAttribute('aria-label','Volume');volume.oninput=()=>audio.setVolume(+volume.value/100);
+        const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='100';volume.value=String(Math.round(audio.preferences.volume*100));volume.style.width='68px';volume.setAttribute('aria-label','Volume');volume.oninput=()=>audio.setVolume(+volume.value/100);
         const qualitySelect=document.createElement('select');qualitySelect.setAttribute('aria-label','Effects quality');for(const id of ['auto','low','medium','high'])qualitySelect.add(new Option(id,id));qualitySelect.value=quality;qualitySelect.onchange=()=>api.setQuality(qualitySelect.value);
         panel.append(mute,volume,qualitySelect);
         if([...records.keys()].some(id=>id.startsWith('blood'))){const b=document.createElement('button');b.textContent='●';b.title='Blood effects';b.setAttribute('aria-label','Blood effects');b.setAttribute('aria-pressed','true');b.onclick=()=>{api.setBlood(!blood);b.setAttribute('aria-pressed',String(blood))};panel.append(b)}

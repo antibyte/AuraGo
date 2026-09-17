@@ -79,3 +79,20 @@ sprite helpers and their 2D gameplay tests do not apply to Three.js. A sprite PN
 is a texture, not a 3D character model. Optional image review is advisory only.
 
 For presentation, use the local aurago-effects-3d-1.js controller documented in the job context. The five guided bases already update/render/dispose it. Register real ground/roof meshes, send actual hit points and world normals, and use the same camera as the audio listener. Point emitters require an explicit position. Keep HUD in DOM outside the scene renderer. No duplicate animation loop or AudioContext.
+
+## Complete loops and authored stages
+
+New `startGame(config)` accepts `levels:[{id,title,objects,goal,...}, ...]`;
+provide genuinely different object layouts or use distinct scene.json levels.
+Stage entries override the base config. A real win offers Continue; the current
+renderer/resources are released before the next stage starts. R restarts the
+campaign. `worldBounds:{min:[-100,-10,-100],max:[100,40,180]}` configures an authored
+world without scene.json; camera follow remains in the shared loop. Add actual
+routes, landmarks, cover and discoveries, not empty space.
+
+For authored rules, `api.damagePlayer(amount)` changes health/lives, produces
+feedback and checkpoint recovery. `api.setCheckpoint([x,y,z])` sets a safe respawn.
+The scene builder retains its own health/contact rules. `api.event('hit',point)`
+provides feedback only; emit it after a real hit. `api.win()`/`api.lose()` display
+an outcome and restart/next-stage controls. The shared flow supplies basic cues
+without imported packs and uses the existing mixer. Keep pause and dispose owners.

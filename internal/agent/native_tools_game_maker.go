@@ -247,7 +247,7 @@ func gameDesignSchema() map[string]interface{} {
 			"environment": prop("string", "Exact aurago-effects atmosphere ID; search asset_kind effect first"),
 			"effects":     stringsArray("Exact additional aurago-effects IDs"),
 			"sounds": map[string]interface{}{"type": "array", "maxItems": 40, "items": schema(map[string]interface{}{
-				"event": map[string]interface{}{"type": "string", "enum": []string{"step", "jump", "land", "shot", "reload", "hit", "pickup", "win", "lose", "splash", "interact", "engine", "ui", "ambient"}},
+				"event": map[string]interface{}{"type": "string", "enum": []string{"step", "jump", "land", "shot", "reload", "hit", "damage", "death", "respawn", "pickup", "win", "lose", "splash", "interact", "engine", "ui", "ambient"}},
 				"sound": prop("string", "Exact aurago-sounds ID"),
 			}, "event", "sound")},
 			"quality": map[string]interface{}{"type": "string", "enum": []string{"auto", "low", "medium", "high"}},

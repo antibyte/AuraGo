@@ -55,7 +55,7 @@ func ExampleGameDesign(project Project) GameDesign {
 	if project.Dimension == "3d" {
 		base = "exploration"
 	}
-	d := GameDesign{Base: base, Objective: "Collect the crystals before time runs out", Features: []string{"Collectibles and obstacles", "Score, timer and restart"}, Assets: []DesignAsset{}, Settings: &GameSettings{Goal: 5, Speed: 5, Duration: 120}}
+	d := GameDesign{Base: base, Objective: "Explore the grove and unlock the ruined sanctuary", Features: []string{"A scrolling world with landmarks, connected paths and discoveries", "Two distinct areas: gather a key in the grove, then solve the sanctuary challenge", "Visible pickup and damage feedback, checkpoint recovery, result screen and continuation"}, Assets: []DesignAsset{}, Settings: &GameSettings{Goal: 5, Speed: 5, Duration: 0}}
 	if project.Dimension != "3d" {
 		d.Settings = nil
 	}

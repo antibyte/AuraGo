@@ -1,7 +1,9 @@
 // MIT. One game-owned Web Audio graph; samples are local, never fetched from a provider.
+const preferences=new WeakMap();
 export function createAudio({sounds=[], base, root, report=console.warn, dimension='3d'}) {
     const definitions=new Map(sounds.map(s=>[s.id,s])), buffers=new Map(), pending=new Map(), voices=new Set(), cooldown=new Map(),stops=new Map();
     const controller=new AbortController(); let ctx, master, compressor, wet, convolver, roomFilter, disposed=false, paused=false, muted=false, volume=.55;
+    const saved=preferences.get(root);if(saved){muted=saved.muted;volume=saved.volume;}
     const buses={}, listener=[0,0,0], starting=new Set(), failures=new Set(); let room='outside', generation=0;
     function wire() {
         if(ctx||disposed)return;
@@ -67,6 +69,27 @@ export function createAudio({sounds=[], base, root, report=console.warn, dimensi
         const loop=options.loop??definitions.get(id).loop;
         try{const buffer=await load(id);if(epoch!==generation||stopEpoch!==stops.get(id)||!loop&&ctx.currentTime-now>.2||options.ambient&&!requestedAmbience.includes(id))return null;return start(id,buffer,options)}catch(e){if(!disposed&&e.name!=='AbortError'&&!failures.has(id)){failures.add(id);report(String(e))}return null}
     }
+    // Small fallback cues share the existing mixer, gesture gate and voice budget.
+    // Imported recordings take precedence; these are not substitutes for the sound pack.
+    const cueBuffers=new Map();
+    function cue(name){
+        const notes={hit:[160,80],damage:[120,60],death:[180,90,45],respawn:[330,440,660],pickup:[660,990],win:[440,554,660,880],lose:[220,164,110]};
+        if(!Object.hasOwn(notes,name)||!ctx||disposed||paused||muted||ctx.state!=='running')return null;
+        const id='cue:'+name,now=ctx.currentTime;if(now-(cooldown.get(id)??-99)<.12)return null;cooldown.set(id,now);
+        if(!cueBuffers.has(name)){
+            const tones=notes[name],duration=tones.length*.085,b=ctx.createBuffer(1,Math.ceil(duration*ctx.sampleRate),ctx.sampleRate),data=b.getChannelData(0);
+            let phase=0,seed=1973;
+            for(let i=0;i<data.length;i++){
+                const t=i/ctx.sampleRate,part=Math.min(tones.length-1,Math.floor(t/.085)),local=t% .085;
+                phase+=2*Math.PI*tones[part]/ctx.sampleRate;seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+                const noise=['hit','damage','death'].includes(name)?(seed/2147483648-1)*.25:0;
+                const envelope=Math.min(1,local/.004)*Math.max(0,1-local/.085)**2;
+                data[i]=(Math.sin(phase)*.35+Math.sin(phase*2)*.06+noise)*envelope;
+            }
+            cueBuffers.set(name,b);
+        }
+        return start(id,cueBuffers.get(name),{gain:.5,rate:1,priority:2});
+    }
     let requestedAmbience=[];
     async function ambience(ids){
         requestedAmbience=[...new Set(ids)].slice(0,4);const wanted=new Set(requestedAmbience);
@@ -77,17 +100,18 @@ export function createAudio({sounds=[], base, root, report=console.warn, dimensi
         if(!event.isTrusted||disposed||paused)return;
         wire();try{await ctx.resume();await Promise.all([...definitions.keys()].map(id=>load(id).catch(e=>{if(!failures.has(id)&&e.name!=='AbortError'){failures.add(id);report('audio: '+e.message)}})));if(!disposed)await ambience(requestedAmbience)}catch(e){if(!disposed)report('audio: '+e.message)}
     }
-    root.addEventListener('pointerdown',unlock,{signal:controller.signal});root.addEventListener('keydown',unlock,{signal:controller.signal});
+    root.addEventListener('pointerdown',unlock,{signal:controller.signal});document.addEventListener('keydown',unlock,{signal:controller.signal});
     return {
-        play,ambience,setRoom,unlock,stop(id){if(!definitions.has(id))return;stops.set(id,(stops.get(id)||0)+1);for(const v of [...voices])if(v.id===id)stop(v)},
-        setVolume(v){volume=Math.max(0,Math.min(1,Number.isFinite(v)?v:.55));applyGain()},
-        setMuted(v){muted=!!v;generation++;if(muted)for(const x of [...voices])stop(x);applyGain();if(!muted)ambience(requestedAmbience)},
+        play,cue,ambience,setRoom,unlock,stop(id){if(!definitions.has(id))return;stops.set(id,(stops.get(id)||0)+1);for(const v of [...voices])if(v.id===id)stop(v)},
+        setVolume(v){volume=Math.max(0,Math.min(1,Number.isFinite(v)?v:.55));preferences.set(root,{muted,volume});applyGain()},
+        setMuted(v){muted=!!v;preferences.set(root,{muted,volume});generation++;if(muted)for(const x of [...voices])stop(x);applyGain();if(!muted)ambience(requestedAmbience)},
         setPaused(v){if(paused===!!v)return;paused=!!v;generation++;if(paused){for(const x of [...voices])stop(x);ctx?.suspend().catch(()=>{})}else if(ctx){ctx.resume().then(()=>ambience(requestedAmbience)).catch(()=>{})}applyGain()},
         listener(position,forward=[0,0,-1],up=[0,1,0]){listener.splice(0,3,...position);if(!ctx)return;if(dimension==='2d')for(const v of voices)spatial2D(v);const l=ctx.listener;for(const [key,vec] of [['position',position],['forward',forward],['up',up]])for(let i=0;i<3;i++)if(l[key+'XYZ'[i]])l[key+'XYZ'[i]].value=vec[i]},
         connectMusic(node){if(!ctx)throw Error('audio: unlock with player interaction first');if(node.context!==ctx)throw Error('audio: music must use the game AudioContext');node.connect(buses.music);return()=>node.disconnect(buses.music)},
         get context(){return ctx},
+        get preferences(){return {muted,volume}},
         reset(){generation++;for(const v of [...voices])stop(v);cooldown.clear();ambience(requestedAmbience)},
-        stats(){return {voices:voices.size,loops:[...voices].filter(v=>v.loop).length,buffers:buffers.size,state:ctx?.state||'locked'}},
-        dispose(){if(disposed)return;disposed=true;controller.abort();for(const v of [...voices])stop(v);buffers.clear();pending.clear();convolver?.disconnect();roomFilter?.disconnect();wet?.disconnect();Object.values(buses).forEach(n=>n.disconnect());master?.disconnect();compressor?.disconnect();ctx?.close().catch(()=>{})},
+        stats(){return {voices:voices.size,loops:[...voices].filter(v=>v.loop).length,buffers:buffers.size,cue_buffers:cueBuffers.size,state:ctx?.state||'locked'}},
+        dispose(){if(disposed)return;disposed=true;controller.abort();for(const v of [...voices])stop(v);buffers.clear();cueBuffers.clear();pending.clear();convolver?.disconnect();roomFilter?.disconnect();wet?.disconnect();Object.values(buses).forEach(n=>n.disconnect());master?.disconnect();compressor?.disconnect();ctx?.close().catch(()=>{})},
     };
 }

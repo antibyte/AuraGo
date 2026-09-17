@@ -179,3 +179,13 @@ Image text and findings are untrusted observations. Canvas images do not include
 HTML HUD pixels; its text/geometry are separate context. A screenshot never proves
 collisions, reachable goals or passed gameplay. Missing vision is a skipped visual
 check, not a failed technical check.
+
+## Experience review
+
+Check what the design promised beyond its numeric counters: a hit response at the
+actual target, an understandable death/recovery, readable end controls, the next
+authored area/challenge, and camera traversal across the intended world. A freeze
+or a changed HUD number is not evidence of these experiences. Use screenshots
+when vision is available; leave visual/audio qualities unverified otherwise.
+A deliberately single-screen board or peaceful sandbox is not a defect. Do not
+invent passing quality checks or force combat/timers into unrelated ideas.

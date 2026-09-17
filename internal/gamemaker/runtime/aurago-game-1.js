@@ -205,6 +205,8 @@ export function createInputs(scene) {
     for (const key of Object.values(keys)) scene.input.keyboard.removeKey(key, true);
   });
   const held=new Set(), edges=new Set();
+  // Preserve a quick tap even if keyup arrives before the next scene update.
+  for(const [name,key] of Object.entries(keys))key.on('down',()=>edges.add(name));
   const touch=document.createElement('div');
   touch.className='aurago-game-touch';
   const style=document.createElement('style');

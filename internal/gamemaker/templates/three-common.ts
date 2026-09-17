@@ -2,6 +2,7 @@
 import * as A from '../vendor/aurago-three-assets-1.js';
 import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js';
 import {createScene3D,hasSceneNodes} from '../vendor/scene-builder.js';
+import {createGameFlow,levelChoices,sceneForLevel} from '../vendor/game-flow.js';
 import presentationPlan from './presentation.json';
 import scenePlan from './scene.json';
 import mechanicsPlan from './mechanics.json';
@@ -10,6 +11,9 @@ const roles: any = {};
 const T = A.THREE;
 
 export function startGame(config: any) {
+  const campaign=config,levels=levelChoices(scenePlan,config.levels||[]),levelIndex=Math.max(0,Math.min(levels.length-1,Math.floor(config.levelIndex??(scenePlan as any)?.levels?.findIndex((l:any)=>l.active))||0));
+  config={...config,...levels[levelIndex]};
+  const levelScene=sceneForLevel(scenePlan,levels[levelIndex]?.id);
   const movement=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='movement'&&b.enabled!==false);
   if(movement) { const params=typeof movement.params==='string'?JSON.parse(movement.params||'{}'):(movement.params||{}); config={...config,mode:params.mode||config.mode,speed:params.speed??config.speed}; }
   const cameraBlock=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='camera'&&b.enabled!==false);
@@ -27,7 +31,7 @@ export function startGame(config: any) {
   const sun = new T.DirectionalLight(0xffe9c2,2.8); sun.position.set(-20,35,-10);sun.castShadow=true;
   sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-35,right:35,top:35,bottom:-35});sun.shadow.normalBias=.05;
   const ambient=new T.HemisphereLight(0xcfe8ff,0x51633a,2.2);scene.add(sun,ambient,camera);
-  const presentation=presentationPlan?createPresentation({config:presentationPlan,root,adapter:createThreeAdapter({scene,camera,renderer,sun,ambient}),report:(message:any)=>console.warn(message)}):null;
+  const presentation=createPresentation({config:{...presentationPlan,feedback:true},root,adapter:createThreeAdapter({scene,camera,renderer,sun,ambient}),report:(message:any)=>console.warn(message)});
   let footstepAt=0,finishReported=false;
   const owned:any[] = [], live:any[] = [], objects:any[] = [], loaded = new Map();
   const observedIDs=new WeakMap();let observedID=0;
@@ -46,6 +50,22 @@ export function startGame(config: any) {
   let frame=0,last=0,disposed=false,ready=false,arms:any,weapon:any,avatar:any,paused=false;
   let builder:any=null, debugGroup:any=null, cameraBounds:any=null,active=true, sceneBounds:any={min:[-45,0,-20],max:[45,30,170]};
   const sceneState:any={score:0,hits:0,actions:0,lives:0,goal_remaining:0,outcome:0,hit_events:0,pickup_events:0,win_events:0,lose_events:0};
+  let lives=Math.max(1,Math.floor(config.lives)||3),respawnAt=0,invulnerableUntil=0;
+  const checkpoint=new T.Vector3();
+  const flow=createGameFlow({root,stage:levelIndex,stages:levels,restart:()=>restartGame(),advance:()=>nextLevel(),
+    feedback:(name:string,point:any,normal:any,material:any)=>presentation.event(name,point||player.position.toArray(),normal,material),
+    project:(point:any)=>{if(!point)return null;const p=new T.Vector3(...point).project(camera);return p.z>=-1&&p.z<=1?{x:(p.x+1)/2,y:(1-p.y)/2}:null;}});
+  function nextLevel(){if(!ended||!won||levelIndex+1>=levels.length)return;dispose();return startGame({...campaign,levelIndex:levelIndex+1});}
+  function restartGame(){if(levelIndex){dispose();return startGame({...campaign,levelIndex:0});}reset();}
+  function damagePlayer(amount=25){
+    if(builder)throw Error('Scene damage is owned by scene health/contact rules');
+    if(ended||paused||!active||time<invulnerableUntil||respawnAt||!Number.isFinite(amount)||amount<=0)return false;
+    health=Math.max(0,health-amount);invulnerableUntil=time+.75;
+    if(health>0){flow.event('damage',player.position.toArray());return true;}
+    lives--;flow.event('death',player.position.toArray());
+    if(lives<=0){ended=true;won=false;}else{respawnAt=time+.65;invulnerableUntil=time+1.7;}
+    return true;
+  }
   const clip=(unit:any,name:string,restart=false)=>{
     if(!unit)return;
     if(unit.asset.model.animations.some((c:any)=>c.id===name))A.playAction(unit,name,{fade:.12,restart});
@@ -53,11 +73,13 @@ export function startGame(config: any) {
   const weaponAction=(name:string)=>{const prefix=weapon?.asset.model.fps_binding?.arm_action_prefix||'';clip(arms,prefix+name,true);clip(weapon,name,true)};
   const resize=()=>{renderer.setSize(root.clientWidth||innerWidth,root.clientHeight||innerHeight);camera.aspect=renderer.domElement.width/renderer.domElement.height;camera.updateProjectionMatrix();presentation?.resize()};
   function reset(){
+    flow.reset();lives=Math.max(1,Math.floor(config.lives)||3);respawnAt=invulnerableUntil=0;
     presentation?.reset();presentation?.setPaused(false);footstepAt=0;finishReported=false;
     time=score=hits=actions=reloads=0;sceneState.score=sceneState.hits=sceneState.actions=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=-1;keys.clear();
     player.position.set(0,config.mode==='flight'?5:config.mode==='space'?4:0,0);player.rotation.set(0,0,0);
     for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true}
     if(avatar)clip(avatar,'idle');weaponAction('idle');builder?.reset();cameraUpdate(1);config.reset?.(api);
+    checkpoint.copy(player.position);flow.update(0,snapshot());if(levels.length>1)flow.message(levels[levelIndex].title,1.8);
   }
   // Keep the real shot and read-only preview geometry on the same aim path.
   function aimRay(caster:any){
@@ -65,7 +87,7 @@ export function startGame(config: any) {
     else caster.set(player.position,new T.Vector3(0,0,1));
   }
   function fire(){
-    if(ended||!ready||paused||!active||time-shotAt<.22||time<reloadAt)return;
+    if(ended||!ready||paused||!active||respawnAt||time-shotAt<.22||time<reloadAt)return;
     if(config.mode==='fps'&&!ammo){reload();return}
     shotAt=time;actions++;if(config.mode==='fps'){ammo--;weaponAction('fire')}
     aimRay(ray);
@@ -78,7 +100,7 @@ export function startGame(config: any) {
       o.unit.root.updateMatrixWorld(true);const contact=ray.intersectObject(o.unit.root,true)[0];
       if(contact&&contact.distance<distance){distance=contact.distance;closest=o;hitPoint.copy(contact.point);hitNormal.copy(contact.face?.normal||ray.ray.direction.clone().negate()).transformDirection(contact.object.matrixWorld)}
     }
-    if(closest){if(builder) { if(closest.node.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))builder.hit(closest.nodeID,{point:hitPoint.toArray(),normal:hitNormal.toArray()}); }else{presentation?.event('hit',hitPoint.toArray(),hitNormal.toArray(),config.mode==='space'?'metal':'flesh');closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}}
+    if(closest){if(builder) { if(closest.node.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))builder.hit(closest.nodeID,{point:hitPoint.toArray(),normal:hitNormal.toArray()}); }else{flow.event('hit',hitPoint.toArray(),hitNormal.toArray(),config.mode==='space'?'metal':'flesh');closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}}
   }
   function reload(){
     if(config.mode!=='fps'||ended||reloadAt>time||ammo===8)return;
@@ -86,11 +108,11 @@ export function startGame(config: any) {
     const name=ammo?'reload':'reload_empty';weaponAction(name);
     reloadAt=time+(weapon?.asset.model.animations.find((c:any)=>c.id===name)?.duration||1.5);
   }
-  function primary(){if(ended||!ready||paused||!active)return;if(config.action?.(api)===false)return;if(builder?.action?.()>0){actions++;return;}if(config.mode==='fps'||config.mode==='space')fire();else if(!ended&&ready&&!paused&&active){boostUntil=time+1.5;actions++}}
+  function primary(){if(ended||!ready||paused||!active||respawnAt)return;if(config.action?.(api)===false)return;if(builder?.action?.()>0){actions++;return;}if(config.mode==='fps'||config.mode==='space')fire();else if(!ended&&ready&&!paused&&active){boostUntil=time+1.5;actions++}}
   function key(event:KeyboardEvent,down:boolean){
     const name=event.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(name))event.preventDefault();
     if(down)keys.add(name);else keys.delete(name);
-    if(down&&!event.repeat){if(name==='r')reset();if(name==='f')reload();if(name==='escape'){ended=true;document.exitPointerLock?.()}if(name===' ')primary();if(name==='p')paused=!paused}
+    if(down&&!event.repeat){if(name==='r')restartGame();if(name==='f')reload();if(name==='escape'){ended=true;document.exitPointerLock?.()}if(name===' ')primary();if(name==='p')paused=!paused}
   }
   on(window,'keydown',(e:KeyboardEvent)=>key(e,true));on(window,'keyup',(e:KeyboardEvent)=>key(e,false));
   on(window,'message',(e:MessageEvent)=>{if(e.source===parent&&e.data?.type==='aurago:game:active'){active=e.data.active===true;keys.clear();last=0;presentation?.setActive(active)}});
@@ -101,7 +123,7 @@ export function startGame(config: any) {
   for(const [label,keyName] of [['◀','a'],['▲','w'],['▼','s'],['▶','d'],['Action',' '],['Pause','p'],['Reload','f'],['Restart','r'],['Descend','q'],['Ascend','e']]){
     if(keyName==='f'&&config.mode!=='fps'||['q','e'].includes(keyName)&&!['flight','space'].includes(config.mode))continue;
     const b=document.createElement('button');b.textContent=label;b.setAttribute('aria-label',label);b.style.cssText='pointer-events:auto;touch-action:none;border:1px solid #8eafc666;border-radius:9px;background:#152635dc;color:white;padding:12px 16px;min-height:44px';
-    on(b,'pointerdown',(e:PointerEvent)=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys.add(keyName);if(keyName===' ')primary();if(keyName==='f')reload();if(keyName==='r')reset();if(keyName==='p')paused=!paused});
+    on(b,'pointerdown',(e:PointerEvent)=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys.add(keyName);if(keyName===' ')primary();if(keyName==='f')reload();if(keyName==='r')restartGame();if(keyName==='p')paused=!paused});
     on(b,'pointerup',()=>keys.delete(keyName));on(b,'pointercancel',()=>keys.delete(keyName));controls.append(b);
   }
   function instantiate(role:string,at:number[]){
@@ -176,8 +198,8 @@ export function startGame(config: any) {
       if(disposed){A.releaseAsset(asset);return}loaded.set(role,asset);
     }
     if(loaded.has('player')){avatar=instantiate('player',[0,0,0]);player.add(avatar.root);clip(avatar,'idle')}
-    if(hasSceneNodes(scenePlan)){
-      builder=createScene3D(scenePlan,{
+    if(hasSceneNodes(levelScene)){
+      builder=createScene3D(levelScene,{
         state:sceneState, mechanics:mechanicsPlan,
         createNode:(node:any)=>{
           if(node.kind==='player'||node.properties?.player===true) {
@@ -224,7 +246,7 @@ export function startGame(config: any) {
         actualAssetID:(_node:any,object:any)=>object.userData.assetID||'',
         event:(name:string,node:any,detail:any={})=>{
           const point=builder?.nodes.get(node?.id)?.object?.position||player.position;
-          presentation?.event(name,detail.point||point.toArray(),detail.normal);
+          flow.event(name,detail.point||point.toArray(),detail.normal);
         },
         presentation,
         end:(complete:boolean)=>{ended=true;won=complete},
@@ -239,6 +261,7 @@ export function startGame(config: any) {
       sceneBounds=builder.scene.world_bounds;cameraBounds=builder.scene.camera_bounds;
       camera.near=.015;camera.far=Math.max(80,Math.hypot(...sceneBounds.max.map((v:number,i:number)=>v-sceneBounds.min[i]))*2);camera.updateProjectionMatrix();
     } else {
+      if(config.worldBounds){const b=config.worldBounds;if(!b.min?.every(Number.isFinite)||!b.max?.every(Number.isFinite)||b.min.length!==3||b.max.length!==3||b.min.some((v:number,i:number)=>v>=b.max[i]))throw Error('Invalid worldBounds');sceneBounds=b;}
       for(const spec of config.objects){
         if(!Array.isArray(spec.at)||spec.at.length!==3||!spec.at.every(Number.isFinite))throw Error('Each object requires at:[x,y,z]');
         const unit=instantiate(spec.role,spec.at);clip(unit,'idle');
@@ -264,6 +287,7 @@ export function startGame(config: any) {
   }
   function update(dt:number){
     time+=dt;if(reloadAt&&time>=reloadAt){reloadAt=0;ammo=8;reloads++;weaponAction('idle')}
+    if(respawnAt){if(time<respawnAt)return;respawnAt=0;health=100;player.position.copy(checkpoint);keys.clear();flow.event('respawn',player.position.toArray());}
     const has=(...names:string[])=>names.some(n=>keys.has(n));
     const x=Number(has('d',...(config.mode==='fps'?[]:['arrowright'])))-Number(has('a',...(config.mode==='fps'?[]:['arrowleft'])));
     const z=Number(has('w',...(config.mode==='fps'?[]:['arrowup'])))-Number(has('s',...(config.mode==='fps'?[]:['arrowdown'])));
@@ -285,11 +309,11 @@ export function startGame(config: any) {
       }
       if(o.role==='enemy'){
         if(config.mode==='exploration'){mesh.position.x=o.start.x+Math.sin(time*.7)*3;clip(o.unit,'walk')}
-        if(d<2 || config.mode==='fps'&&d<18&&time>5)health-=dt*(config.mode==='fps'?3:18);
+        if(d<2 || config.mode==='fps'&&d<18&&time>5)damagePlayer(config.mode==='fps'?5:18);
       }
-      if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){presentation?.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
+      if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
       if(o.role==='goal'&&d<(config.mode==='flight'?3:2.5)){
-        if(config.mode==='flight'){presentation?.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
+        if(config.mode==='flight'){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
         else if(carrying){score++;hits++;ended=won=true}
       }
     }
@@ -300,10 +324,10 @@ export function startGame(config: any) {
       if(moving)presentation?.event('engine',player.position.toArray());else presentation?.audio.stop('engine');
       if(presentationPlan?.effects.some((e:any)=>e.id==='engine-trail'))presentation?.set('engine-trail',{position:player.position.toArray(),intensity:moving?1:0});
     }
-    if(!builder&&(health<=0||(config.duration>0&&time>=config.duration))){ended=true;won=false}
+    if(!builder&&(config.duration>0&&time>=config.duration)){ended=true;won=false}
     for(const unit of live)if(!unit.procedural)A.updateInstance(unit,dt,camera);
   }
-  function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:0,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:0,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
+  function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:lives,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:0,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
   // Read-only geometry for the preview driver; no movement, damage or verdict hooks.
   function observeTargets(){
     const look=new T.Raycaster();camera.updateMatrixWorld();
@@ -328,12 +352,13 @@ export function startGame(config: any) {
   function draw(now:number){
     frame=0;if(disposed||document.hidden)return;
     const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
-    if(ready&&active&&!ended&&!paused){update(dt);config.step?.(dt,api);}
+    if(ready&&active&&!ended&&!paused){update(dt);if(!respawnAt&&!ended)config.step?.(dt,api);}
     presentation?.setPaused(paused||!active);
-    if(ended&&!finishReported){finishReported=true;presentation?.audio.stop('engine');if(!builder)presentation?.event(won?'win':'lose',player.position.toArray())}
+    if(ready)flow.update(dt,snapshot(),active&&!paused);
+    if(ended&&!finishReported){finishReported=true;presentation?.audio.stop('engine');document.exitPointerLock?.()}
     builder?.render();
     if(presentation){presentation.audio.listener(camera.position.toArray(),camera.getWorldDirection(vector).toArray());presentation.update(dt);presentation.render()}else renderer.render(scene,camera);
-    hud.textContent=config.objective+'\n'+(ended?(won?'COMPLETE':'GAME OVER'):paused?'PAUSED':builder?[sceneState.goal_remaining?`Goals ${sceneState.goal_remaining}`:'',sceneState.lives>0?`Lives ${sceneState.lives}`:'',sceneState.score?`Score ${sceneState.score}`:''].filter(Boolean).join(' · '):`Score ${score} · Health ${Math.ceil(health)}${config.duration>0?` · ${Math.ceil(config.duration-time)}s`:""}`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'')+'\nWASD · '+(config.mode==='fps'?'Drag / arrows: aim · Space: fire · F: reload':config.mode==='space'?'Space: fire · Q/E: altitude':config.mode==='flight'?'Space: boost · Q/E: altitude':'Space: boost')+' · R: restart';
+    hud.textContent=config.objective+'\n'+(ended?(won?'COMPLETE':'GAME OVER'):paused?'PAUSED':builder?[sceneState.goal_remaining?`Goals ${sceneState.goal_remaining}`:'',sceneState.lives>0?`Lives ${sceneState.lives}`:'',sceneState.score?`Score ${sceneState.score}`:''].filter(Boolean).join(' · '):`Score ${score} · Lives ${lives} · Health ${Math.ceil(health)}${config.duration>0?` · ${Math.ceil(config.duration-time)}s`:""}`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'')+'\nWASD · '+(config.mode==='fps'?'Drag / arrows: aim · Space: fire · F: reload':config.mode==='space'?'Space: fire · Q/E: altitude':config.mode==='flight'?'Space: boost · Q/E: altitude':'Space: boost')+' · R: restart';
     if(config.hud)hud.textContent=String(config.hud(api));
     frame=requestAnimationFrame(draw);
   }
@@ -341,9 +366,9 @@ export function startGame(config: any) {
   function dispose(){
     if(disposed)return;disposed=true;ready=false;config.dispose?.(api);controller.abort();cancelAnimationFrame(frame);keys.clear();document.exitPointerLock?.();
     builder?.dispose();for(const record of [player,...objects.map(o=>o.unit.root)])for(const detach of record.userData.sceneAttachments||[])detach();clearSceneDebug();presentation?.dispose();live.forEach(unit=>{if(!unit.procedural)A.disposeInstance(unit)});loaded.forEach(A.releaseAsset);owned.forEach(o=>{o.geometry.dispose();o.material.dispose()});sun.shadow.dispose();renderer.dispose();renderer.forceContextLoss();root.replaceChildren();
-    delete (window as any).__AURAGO_GAME_TEST__;
+    flow.dispose();delete (window as any).__AURAGO_GAME_TEST__;
   }
-  const api={scene,camera,player,renderer,input:{isDown:(key:string)=>keys.has(String(key).toLowerCase())},get ended(){return ended},get builder(){return builder},get state(){return builder?sceneState:snapshot()},event:(name:string,point?:number[])=>presentation?.event(name,point||player.position.toArray()),win:()=>builder?builder.win():(ended=won=true),lose:()=>builder?builder.lose():(ended=true,won=false),reset,dispose};
+  const api={scene,camera,player,renderer,presentation,input:{isDown:(key:string)=>keys.has(String(key).toLowerCase())},get ended(){return ended},get builder(){return builder},get state(){return builder?sceneState:snapshot()},event:(name:string,point?:number[])=>flow.event(name,point||player.position.toArray()),damagePlayer,setCheckpoint:(point:number[])=>{if(point.length!==3||!point.every(Number.isFinite))throw Error('Invalid checkpoint');checkpoint.fromArray(point);},levelIndex,nextLevel,feedback:flow,win:()=>builder?builder.win():(ended=won=true),lose:()=>builder?builder.lose():(ended=true,won=false),reset:restartGame,dispose};
   on(window,'pagehide',dispose);
   setup().catch(error=>{if(!disposed){hud.textContent='Cannot load game: '+error.message;console.error(error);dispose()}});
   return api;

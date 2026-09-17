@@ -222,3 +222,21 @@ https://docs.phaser.io/phaser/concepts/gameobjects/components
 https://docs.phaser.io/phaser/concepts/gameobjects/container
 
 Optional set_design.presentation installs the shared weather and sound controller in GameScene. Emit feedback through this.feedback(event, object, material) from actual gameplay callbacks; a shot is not a hit. HUD objects use depth 1000 or higher so world filters exclude them. Custom code uses createPhaserAdapter({scene:this,view:"side" or "top"}) and the existing update/shutdown lifecycle. Canvas mode has documented shader fallbacks.
+
+## Complete loops and worlds
+
+In a new GameScene, call `configureLevels([{id:'grove',title:'Grove'},
+{id:'ruins',title:'Ruins'}])` in `setup()`. Select distinct authored layouts with
+`this.levelIndex`; do not override create/update. After creating the player,
+`configureWorld(2400,1200)` sets world/camera bounds and follow. The HUD stays
+screen-fixed. `end(true)` shows the result and Continue if another stage exists;
+`restartGame()` restarts the whole campaign. Score/lives carry to the next stage.
+Scene JSON levels also use this flow; assign actual nodes to each level.
+
+For an authored life-based game, initialize `state.lives`, call `setCheckpoint(x,y)`
+at a safe location and `damagePlayer()` only on actual harmful contact. It consumes
+one life, shows a death cue, pauses play briefly, respawns and protects the player.
+Scene-builder health/contact rules remain their own authority. `feedback('hit',enemy)`
+belongs after successful damage/contact; `feedback('pickup',item)` precedes removal.
+The shared controller provides visible markers, basic sound cues and outcome UI.
+Imported effects/sounds enrich this response. Do not create another AudioContext.
