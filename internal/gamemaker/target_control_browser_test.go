@@ -37,6 +37,10 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"floor_disabled", "platformer", "failed"}, {"floor_embedded", "platformer", "unavailable"},
 		{"catalog_coin", "platformer", "passed"}, {"unknown_coin", "platformer", "unavailable"}, {"explicit_coin", "platformer", "unavailable"},
 		{"fps_offset", "three", "passed"}, {"fps_cover", "three", "passed"}, {"fps_sealed", "three", "unavailable"},
+		{"space_fixed", "three", "passed"}, {"space_camera", "three", "passed"}, {"space_camera_moving", "three", "passed"},
+		{"space_legacy_fixed", "three", "passed"}, {"space_legacy_camera", "three", "passed"},
+		{"space_no_fire", "three", "unavailable"}, {"space_counter_only", "three", "unavailable"},
+		{"space_occluded", "three", "unavailable"}, {"space_invalid_ray", "three", "unavailable"},
 		{"ground_route", "three", "passed"},
 		{"model_asset_target", "three", "passed"},
 		{"move_blocked_right", "topdown", "passed"}, {"move_disabled", "topdown", "failed"},
@@ -114,6 +118,19 @@ func TestTargetControlBrowser(t *testing.T) {
 						scene.Nodes[1].Position[1] = 4
 					}
 					scene.Colliders, scene.Placements = nil, nil
+				}
+				if strings.HasPrefix(tc.name, "space_") {
+					scene.Nodes = scene.Nodes[:2]
+					scene.Colliders = nil
+					scene.WorldBounds = SceneBounds{Min: Vec3{-25, 0, -20}, Max: Vec3{25, 30, 80}}
+					scene.Nodes[0].Position = Vec3{0, 4, 0}
+					scene.Nodes[1].Position = Vec3{-8, 6, 26}
+					scene.Nodes[1].Size = Vec3{2, .7, 3}
+					scene.Placements[0].Position = scene.Nodes[1].Position
+					if tc.name == "space_occluded" {
+						scene.Nodes = append(scene.Nodes, SceneNode{ID: "wall", Kind: "obstacle", Position: Vec3{0, 15, 15}, Size: Vec3{50, 30, 1}})
+						scene.Colliders = []SceneCollider{{ID: "wall-body", NodeID: "wall", Shape: "box", Extents: Vec3{25, 15, .5}}}
+					}
 				}
 				plan.Scene = &scene
 				scenario = GameScenario{ID: "target_rule", Metric: "hits", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "target", Mode: mode, MS: 4000}}}
@@ -233,10 +250,52 @@ func TestTargetControlBrowser(t *testing.T) {
 			}
 			if dimension == "3d" {
 				mode := "fps"
+				if strings.HasPrefix(tc.name, "space_") {
+					mode = "space"
+					commonPath := filepath.Join(root, "src", "common.ts")
+					common, err := os.ReadFile(commonPath)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if strings.Contains(tc.name, "legacy") {
+						legacy, err := os.ReadFile("testdata/legacy-three-observer.ts")
+						if err != nil {
+							t.Fatal(err)
+						}
+						start, end := bytes.Index(common, []byte("  function observeTargets(){")), bytes.Index(common, []byte("  function draw("))
+						common = append(append(append([]byte{}, common[:start]...), legacy...), common[end:]...)
+						if strings.Contains(tc.name, "camera") {
+							common = bytes.Replace(common, []byte("if(config.mode==='fps')look.setFromCamera({x:0,y:0},camera);"), []byte("if(config.mode==='fps'||config.mode==='space'){camera.updateMatrixWorld();look.setFromCamera({x:0,y:0},camera)}"), 1)
+						}
+					}
+					if tc.name != "space_fixed" && tc.name != "space_legacy_fixed" {
+						// Custom camera-directed shooting; both fire and the observer use it.
+						common = bytes.Replace(common, []byte("if(config.mode==='fps'){camera.updateMatrixWorld();caster.setFromCamera"), []byte("if(config.mode==='fps'||config.mode==='space'){camera.updateMatrixWorld();caster.setFromCamera"), 1)
+					}
+					if tc.name == "space_no_fire" {
+						common = bytes.Replace(common, []byte("function fire(){"), []byte("function fire(){return;"), 1)
+					}
+					if tc.name == "space_counter_only" {
+						common = bytes.Replace(common, []byte("function fire(){"), []byte("function fire(){sceneState.hits++;return;"), 1)
+					}
+					if tc.name == "space_invalid_ray" {
+						common = bytes.Replace(common, []byte("},aim_ray,targets,"), []byte("},aim_ray:{origin:{x:0,y:0,z:0},direction:{x:0,y:0,z:0}},targets,"), 1)
+					}
+					if err := os.WriteFile(commonPath, common, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
 				if tc.name == "ground_route" || tc.name == "model_asset_target" {
 					mode = "exploration"
 				}
 				source = []byte("import {startGame} from './common';startGame({mode:'" + mode + "',objective:'Reach the target',speed:6,goal:1,duration:0,objects:[]});")
+				if strings.HasPrefix(tc.name, "space_") {
+					source = bytes.Replace(source, []byte("speed:6"), []byte("speed:14"), 1)
+				}
+				if tc.name == "space_camera_moving" {
+					source = bytes.Replace(source, []byte("startGame({"), []byte("let elapsed=0;startGame({"), 1)
+					source = bytes.Replace(source, []byte("objects:[]"), []byte("objects:[],reset(){elapsed=0},step(dt,api){elapsed+=dt;api.builder.nodes.get('target').object.position.x=-8+Math.sin(elapsed*3)*2;}"), 1)
+				}
 				if tc.name == "model_asset_target" {
 					source = bytes.Replace(source, []byte("objects:[]"), []byte("objects:[],setup(api){api.builder.nodes.get('target').object.userData.assetID='crystal';}"), 1)
 				}

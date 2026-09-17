@@ -101,8 +101,11 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		}
 	}
 	banner := ""
+	var plugins []api.Plugin
 	if manifest.Dimension == "2d" {
 		banner = phaserSpriteGuard
+	} else {
+		plugins = append(plugins, threeObservationPlugin(projectDir))
 	}
 	build := api.Build(api.BuildOptions{
 		AbsWorkingDir: projectDir,
@@ -118,6 +121,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		LogLevel:      api.LogLevelSilent,
 		LegalComments: api.LegalCommentsLinked,
 		Banner:        map[string]string{"js": banner},
+		Plugins:       plugins,
 	})
 	if len(build.Errors) > 0 {
 		diagnostics := make([]Diagnostic, 0, len(build.Errors))

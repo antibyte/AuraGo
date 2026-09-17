@@ -238,7 +238,8 @@
           if(view.mode==='fps'){const a=p.aim,c=Math.cos(a),s=Math.sin(a);[x,y]=[-(x*c-y*s),x*s+y*c];}
           if(Math.abs(x)>tolerance)want.add(x>0?'D':'A');
           if(view.mode!=='platformer'&&Math.abs(y)>tolerance)want.add(y>0?(view.kind==='3d'?'W':'S'):(view.kind==='3d'?'S':'W'));
-          if(['flight','space'].includes(view.mode)&&Math.abs(target.z-p.z)>.25)want.add(target.z>p.z?'E':'Q');
+          const altitude=point.z??target.z;
+          if(['flight','space'].includes(view.mode)&&Math.abs(altitude-p.z)>(command.mode==='aim'?.15:.25))want.add(altitude>p.z?'E':'Q');
         };
         let fire=false;
         if(command.mode==='select'){
@@ -258,7 +259,15 @@
               fire=view.aimed===target.id;
               if(!fire&&Math.abs(yaw)<.08&&Math.abs(pitch)<.08)steer(waypoint(view,target));
             }else if(view.mode==='space'){
-              steer({x:target.x,y:Math.min(p.y,target.y-4)});fire=view.aimed===target.id;
+              // Translate toward the actual shot ray, not an assumed +Z gun.
+              // Legacy templates without ray metadata used player-relative +Z.
+              const ray=view.aim_ray??{origin:p,direction:{x:0,y:1,z:0}},o=ray.origin,d=ray.direction;
+              const length=d&&Math.hypot(d.x,d.y,d.z);
+              if(!o||!d||![o.x,o.y,o.z,d.x,d.y,d.z,length].every(Number.isFinite)||length<.001){result.reason='unsupported';break;}
+              const unit={x:d.x/length,y:d.y/length,z:d.z/length};
+              const distance=Math.max(4,(target.x-o.x)*unit.x+(target.y-o.y)*unit.y+(target.z-o.z)*unit.z);
+              fire=view.aimed===target.id;
+              if(!fire)steer({x:p.x+target.x-o.x-unit.x*distance,y:p.y+target.y-o.y-unit.y*distance,z:p.z+target.z-o.z-unit.z*distance});
             }else {result.reason='unsupported';break;}
             if(fire&&(now.actions||0)>priorActions)result.contacts++;
           }else{
@@ -289,7 +298,7 @@
           if(overlaps(p,target)&&vertical&&result.inputs&&changed()&&['player_x','player_y','health','lives','outcome'].includes(scenario.metric)){result.effects++;result.reason='complete';break;}
         }
         if(fire&&elapsed-lastFire>=300){want.add('SPACE');lastFire=elapsed;if(command.mode==='interact'&&near&&!held.has('SPACE'))interacted=target.id;}
-        priorActions=now.actions||0;apply(want);await wait(50);
+        priorActions=now.actions||0;apply(want);await wait(view.kind==='3d'&&view.mode==='space'&&command.mode==='aim'?25:50);
       }
       if(result.reason==='no_target'&&saw)result.reason='timeout';
       // A skipped vertical probe must not erase the free horizontal attempts.

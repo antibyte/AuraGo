@@ -59,12 +59,16 @@ export function startGame(config: any) {
     for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true}
     if(avatar)clip(avatar,'idle');weaponAction('idle');builder?.reset();cameraUpdate(1);config.reset?.(api);
   }
+  // Keep the real shot and read-only preview geometry on the same aim path.
+  function aimRay(caster:any){
+    if(config.mode==='fps'){camera.updateMatrixWorld();caster.setFromCamera({x:0,y:0},camera)}
+    else caster.set(player.position,new T.Vector3(0,0,1));
+  }
   function fire(){
     if(ended||!ready||paused||!active||time-shotAt<.22||time<reloadAt)return;
     if(config.mode==='fps'&&!ammo){reload();return}
     shotAt=time;actions++;if(config.mode==='fps'){ammo--;weaponAction('fire')}
-    if(config.mode==='fps'){camera.updateMatrixWorld();ray.setFromCamera({x:0,y:0},camera)}
-    else {vector.set(0,0,1);ray.set(player.position,vector)}
+    aimRay(ray);
     presentation?.event('shot',camera.position.clone().addScaledVector(ray.ray.direction,.8).toArray());
     let closest:any=null,distance=80,hitPoint=new T.Vector3(),hitNormal=new T.Vector3();
     for(const o of objects){
@@ -303,7 +307,7 @@ export function startGame(config: any) {
   // Read-only geometry for the preview driver; no movement, damage or verdict hooks.
   function observeTargets(){
     const look=new T.Raycaster();camera.updateMatrixWorld();
-    if(config.mode==='fps')look.setFromCamera({x:0,y:0},camera);else look.set(player.position,new T.Vector3(0,0,1));
+    aimRay(look);
     let aimed='',nearest=Infinity;
     const targets=objects.slice(0,256).map((o:any)=>{
       if(!observedIDs.has(o))observedIDs.set(o,'object-'+(++observedID));
@@ -316,7 +320,10 @@ export function startGame(config: any) {
       const asset_ids=[mesh.userData.assetID,...(mesh.userData.sceneVisuals||[]).map((v:any)=>v.unit.root.userData.assetID)].filter(Boolean);
       return {id,roles:[o.role||'',...(o.node?.behaviors||[]).map((b:any)=>b.type)],asset_ids,x:center.x,y:center.z,z:center.y,w:size.x,h:size.z,depth:size.y,active,visible:active&&projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<=1&&Math.abs(projected.y)<=1,solid,health:record?.health};
     });
-    return {kind:'3d',active:active&&!paused&&!disposed,mode:config.mode,player:{x:player.position.x,y:player.position.z,z:player.position.y,w:.6,h:.6,aim,pitch},eye:{x:camera.position.x,y:camera.position.z,z:camera.position.y},targets,aimed,projectiles:[],bounds:{x:sceneBounds.min[0],y:sceneBounds.min[2],w:sceneBounds.max[0]-sceneBounds.min[0],h:sceneBounds.max[2]-sceneBounds.min[2]},truncated:objects.length>256};
+    // Observer coordinates use x/y for the ground plane and z for altitude.
+    const origin=look.ray.origin,direction=look.ray.direction;
+    const aim_ray={origin:{x:origin.x,y:origin.z,z:origin.y},direction:{x:direction.x,y:direction.z,z:direction.y}};
+    return {kind:'3d',active:active&&!paused&&!disposed,mode:config.mode,player:{x:player.position.x,y:player.position.z,z:player.position.y,w:.6,h:.6,aim,pitch},eye:{x:camera.position.x,y:camera.position.z,z:camera.position.y},aim_ray,targets,aimed,projectiles:[],bounds:{x:sceneBounds.min[0],y:sceneBounds.min[2],w:sceneBounds.max[0]-sceneBounds.min[0],h:sceneBounds.max[2]-sceneBounds.min[2]},truncated:objects.length>256};
   }
   function draw(now:number){
     frame=0;if(disposed||document.hidden)return;
