@@ -336,6 +336,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	recoveryPolicy := s.recoveryPolicy
 	recoveryState := s.recoveryState
 	emptyRetried := s.emptyRetried
+	streamIdleRetried := false
 	retry422Count := s.retry422Count
 	homepageUsedInChain := s.homepageUsedInChain
 	helperManager := s.helperManager
@@ -1633,6 +1634,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if result.err != nil {
 				if runCfg.PreserveReasoning && result.interruptedReasoning != "" {
 					req.Messages = append(req.Messages, interruptedReasoningMessage(result.interruptedReasoning))
+				}
+				if runCfg.RequireCompleteStream && runCfg.RetryStreamIdle && !streamIdleRetried && ctx.Err() == nil && errors.Is(result.err, errStreamIdleTimeout) {
+					// No calls from the incomplete response were dispatched. Keep
+					// completed rounds and tool counts instead of restarting the job.
+					streamIdleRetried = true
+					broker.Send("model_progress", "retrying")
+					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "The previous response stream stalled. Its incomplete source and tool calls were discarded. Continue the current task from the completed tool results above; do not repeat completed actions."})
+					continue
 				}
 				return openai.ChatCompletionResponse{}, result.err
 			}

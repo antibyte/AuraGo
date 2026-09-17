@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/sync/errgroup"
 )
+
+var errStreamIdleTimeout = errors.New("model stream stalled")
 
 // streamingResponseResult holds the output of handleStreamingResponse.
 type streamingResponseResult struct {
@@ -259,7 +262,7 @@ func handleStreamingResponse(
 		select {
 		case <-timer.C:
 			if strict {
-				midStreamError = fmt.Errorf("model stream stalled for %s: %w", idleTimeout, context.DeadlineExceeded)
+				midStreamError = fmt.Errorf("%w for %s: %w", errStreamIdleTimeout, idleTimeout, context.DeadlineExceeded)
 			}
 			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)

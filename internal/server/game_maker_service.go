@@ -498,6 +498,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 	runCfg.Checkpoint = checkpoint
 	runCfg.PreserveReasoning = true
 	runCfg.RequireCompleteStream = true
+	runCfg.RetryStreamIdle = true
 	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true

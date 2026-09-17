@@ -1142,6 +1142,9 @@ type RunConfig struct {
 	// RequireCompleteStream prevents interrupted or truncated provider output
 	// from being treated as executable work in an isolated coding workflow.
 	RequireCompleteStream bool
+	// RetryStreamIdle allows one stalled-stream retry per isolated run. It
+	// requires complete-stream validation and retains the current tool budget.
+	RetryStreamIdle bool
 	// ToolCallLimit is an optional server-owned fixed budget for this run.
 	// Zero retains the normal system/personality/tool-specific calculation.
 	ToolCallLimit int
