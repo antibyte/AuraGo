@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -35,6 +36,15 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 		{"length", "3d", "length", "stop", false},
 		{"provider_error", "3d", "provider_error", "stop", false},
 		{"stale_revision", "3d", "eof", "stop", true},
+		{"format_2d", "2d", "format", "stop", false},
+		{"format_3d", "3d", "format", "stop", false},
+		{"repeated_format", "3d", "format", "format", false},
+		{"format_after_eof", "3d", "eof", "format", false},
+		{"eof_after_format", "3d", "format", "eof", false},
+		{"deadline_after_format", "3d", "format", "deadline", false},
+		{"cancel_after_format", "3d", "format", "cancel", false},
+		{"format_stale_revision", "3d", "format", "stop", true},
+		{"truncated_format", "3d", "format_length", "stop", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -47,9 +57,14 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 			var requests, active atomic.Int32
 			var jobID string
 			var cancelRequest context.CancelFunc
+			var firstRequest openai.ChatCompletionRequest
 			const partial = "export const discardedPartial = 1;"
 			const complete = "export const recoveredGame = 2;"
 			const concurrent = "export const concurrentEdit = 3;"
+			const priorReasoning = "Retain the distinctive movement mechanic."
+			const rejected = "I will write the game and update its helper.\n" +
+				"<tool_call>game_maker_file<arg_key>operation</arg_key><arg_value>write</arg_value><arg_key>job_id</arg_key><arg_value>job_old</arg_value><arg_key>path</arg_key><arg_value>src/main.ts</arg_value><arg_key>content</arg_key><arg_value>export const rejectedSource = 1;</arg_value></tool_call>\n" +
+				"<tool_call>game_maker_file<arg_key>operation</arg_key><arg_value>replace</arg_value><arg_key>path</arg_key><arg_value>src/common.ts</arg_value><arg_key>old_text</arg_key><arg_value>placeholder</arg_value><arg_key>new_text</arg_key><arg_value>unsafe</arg_value><arg_key>expected_sha256</arg_key><arg_value>old-revision</arg_value></tool_call>"
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				active.Add(1)
 				defer active.Add(-1)
@@ -62,19 +77,43 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				if !body.Stream || len(body.Tools) != 0 || n > 2 {
 					t.Error("unbounded retry or unexpected tool-enabled request")
 				}
+				if n == 1 {
+					firstRequest = body
+					last := body.Messages[len(body.Messages)-1].Content
+					if !strings.Contains(last, "Source-generation phase:") || !strings.HasSuffix(last, "Return only the complete TypeScript source for src/main.ts.") {
+						t.Error("missing explicit transition from tool use to source generation")
+					}
+				}
 				if n == 2 {
-					dataCount, retainedReasoning := 0, false
+					if len(body.Messages) <= len(firstRequest.Messages) || !reflect.DeepEqual(body.Messages[:len(firstRequest.Messages)], firstRequest.Messages) {
+						t.Error("correction rewrote the cache prefix or previous context")
+					}
+					dataCount, retainedReasoning, retainedPrior := 0, false, false
+					retainedCalls, retainedResults := 0, 0
 					for _, message := range body.Messages {
 						if strings.Contains(message.Content, `"previous_user_requests"`) {
 							dataCount++
 						}
 						retainedReasoning = retainedReasoning || message.ReasoningContent == "private interrupted game reasoning"
+						retainedPrior = retainedPrior || message.ReasoningContent == priorReasoning
+						retainedCalls += len(message.ToolCalls)
+						if message.Role == "tool" && message.ToolCallID == "historical-read" {
+							retainedResults++
+						}
 						if strings.Contains(message.Content, partial) {
 							t.Error("retry received unsafe partial source")
 						}
 					}
-					if dataCount != 1 || !retainedReasoning || !strings.Contains(body.Messages[len(body.Messages)-1].Content, "from the beginning") {
+					if dataCount != 1 || !retainedReasoning || !retainedPrior || retainedCalls != 1 || retainedResults != 1 {
 						t.Error("retry lost context/reasoning or duplicated the source snapshot")
+					}
+					correction := body.Messages[len(body.Messages)-1].Content
+					if tc.first == "format" {
+						if !strings.Contains(correction, "None of those calls were executed") || !strings.Contains(correction, "complete TypeScript source for src/main.ts") {
+							t.Error("missing bounded code-only format correction")
+						}
+					} else if !strings.Contains(correction, "from the beginning") {
+						t.Error("missing stream restart guidance")
 					}
 					if tc.stale {
 						if _, err := svc.WriteJobFileChecked(req.Context(), jobID, "src/main.ts", concurrent, ""); err != nil {
@@ -94,6 +133,15 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				}
 				if mode == "stop" {
 					send(complete, "", "stop")
+					fmt.Fprint(w, "data: [DONE]\n\n")
+					return
+				}
+				if mode == "format" || mode == "format_length" {
+					finish := "stop"
+					if mode == "format_length" {
+						finish = "length"
+					}
+					send(rejected, "private interrupted game reasoning", finish)
 					fmt.Fprint(w, "data: [DONE]\n\n")
 					return
 				}
@@ -139,6 +187,15 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				}
 				jobID = run.Job.ID
 				before, _ := svc.ReadJobFile(ctx, jobID, "src/main.ts")
+				commonBefore, _ := svc.ReadJobFile(ctx, jobID, "src/common.ts")
+				prior, _ := json.Marshal([]openai.ChatCompletionMessage{
+					{Role: "user", Content: "Keep the original unusual game mechanic."},
+					{Role: "assistant", ReasoningContent: priorReasoning, ToolCalls: []openai.ToolCall{{ID: "historical-read", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_file", Arguments: `{"operation":"read","path":"src/common.ts"}`}}}},
+					{Role: "tool", ToolCallID: "historical-read", Content: `{"content":"historical helper snapshot"}`},
+				})
+				if err := svc.SaveAgentConversation(ctx, jobID, cfg.LLM.Provider, cfg.LLM.Model, prior); err != nil {
+					return err
+				}
 				callCtx, cancel := context.WithCancel(ctx)
 				defer cancel()
 				cancelRequest = cancel
@@ -148,13 +205,17 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 					t.Error("configured per-attempt deadline was not enforced")
 				}
 				wantRequests := int32(1)
-				if tc.first == "eof" || tc.first == "deadline" {
+				if tc.first == "eof" || tc.first == "deadline" || tc.first == "format" {
 					wantRequests = 2
 				}
 				if requests.Load() != wantRequests {
 					t.Errorf("requests=%d, want %d", requests.Load(), wantRequests)
 				}
 				after, _ := svc.ReadJobFile(ctx, jobID, "src/main.ts")
+				commonAfter, _ := svc.ReadJobFile(ctx, jobID, "src/common.ts")
+				if commonAfter != commonBefore || strings.Contains(after, "rejectedSource") {
+					t.Error("rejected tool text was applied to project files")
+				}
 				want := before
 				valid := wantRequests == 2 && tc.second == "stop" && !tc.stale
 				if valid {
@@ -170,7 +231,7 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				if !matches || valid != (err == nil) {
 					t.Errorf("invalid write or recovery result: valid=%v, source matches=%v, err=%v", valid, matches, err)
 				}
-				if tc.first == "cancel" && !errors.Is(err, context.Canceled) || tc.second == "deadline" && !errors.Is(err, context.DeadlineExceeded) {
+				if (tc.first == "cancel" || tc.second == "cancel") && !errors.Is(err, context.Canceled) || tc.second == "deadline" && !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("lost cancellation/deadline: %v", err)
 				}
 				if valid {

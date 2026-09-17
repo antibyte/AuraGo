@@ -161,6 +161,9 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if scenario.finish == "" {
 					wantRequests = 2 // Missing completion markers permit one whole-request retry.
 				}
+				if scenario.finish == "stop" && (scenario.envelope == "stale" || scenario.envelope == "wrong-file") {
+					wantRequests = 2 // Rejected envelopes get one code-only correction, never dispatch.
+				}
 				if common != commonAfter || requests != wantRequests {
 					t.Error("recovery rewrote lifecycle or repeated requests")
 				}

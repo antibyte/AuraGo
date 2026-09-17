@@ -86,6 +86,17 @@ calls in that response are rejected. The `[PromptCache] Provider usage` log repo
 measurements, including zero hits. `cache_usage_reported=false` means unknown, not
 zero. `system_cache_hit` only measures AuraGo's local prompt-construction cache.
 
+When an accepted new-game plan still has unchanged starter code, the bounded
+implementation fallback explicitly switches to source generation for `src/main.ts`.
+It retains the conversation and private reasoning, supplies the current source
+snapshot once, and requests complete TypeScript without tool calls. A completed
+response in the old tool-call format gets one corrective request, sharing the
+existing single retry with stream/deadline recovery. The correction appends
+feedback without rewriting the prompt prefix or resending the snapshot. No
+rejected call is executed; additional files, stale revisions and incomplete
+source remain protected. Normal compilation and browser validation still decide
+whether the resulting game is ready.
+
 ## Studio workflow
 
 - The creation dialog offers localized idea chips and a short description
