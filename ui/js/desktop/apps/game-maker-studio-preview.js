@@ -87,7 +87,7 @@
     function showCaptures(state,captures){
         const panel=state.container.querySelector('[data-gm-visual]');if(!panel)return;
         panel.querySelectorAll('img').forEach(img=>img.remove());
-        for(const c of captures){const img=document.createElement('img');img.src=c.image;img.alt=c.scenario;img.style.cssText='max-width:140px;max-height:90px;margin:4px;object-fit:contain';panel.appendChild(img);}
+        for(const c of captures){const img=document.createElement('img');img.src=c.image;img.alt=c.scenario;panel.appendChild(img);}
         panel.hidden=false;
     }
     function visualStatus(state,status){

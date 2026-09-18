@@ -122,6 +122,13 @@ Modes: `move` (target `player`), `aim`, `reach`, `interact`, `catch`, `avoid`, `
 Use aim for enemies, reach for pickups/checkpoints, interact for a nearby action,
 catch for a paddle following a ball, avoid for a natural miss, select for a free
 board cell. `player_distance` is measured from engine positions, not game counters.
+`actions` measures primary actions, not steering or walking. A movement-only
+target test must use positions or `player_distance`; never add fake counter
+increments to satisfy a mismatched test. Before/after positions establish only
+displacement, not correct steering direction or smooth motion. Verify those
+with real left/right inputs and a sequence of positions/orientations, and keep
+that quality requirement unverified until observed. Fix a mismatched scenario
+definition instead of changing already-working movement to satisfy it.
 Custom routes can chain target steps, with the existing 6-second scenario and
 25-second total additional-test limits. No JavaScript or state-setting commands.
 The common helpers retain observable roles and IDs for procedural and imported art.

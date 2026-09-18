@@ -32,6 +32,9 @@ type MinimalLoopResult struct {
 type MinimalLoopOptions struct {
 	PreserveReasoning bool
 	Checkpoint        func([]openai.ChatCompletionMessage) error
+	// ResponseFormat is opt-in for tool-free structured workflows. The caller
+	// must resolve provider support before requesting a structured format.
+	ResponseFormat *openai.ChatCompletionResponseFormat
 	// StreamText buffers a tool-free completion from SSE, avoiding a wait for the
 	// entire output before response headers. Other minimal-loop callers stay unchanged.
 	StreamText bool
@@ -135,6 +138,9 @@ func ExecuteMinimalLoop(
 		Messages: messages,
 		Tools:    reqTools,
 		Stream:   opts != nil && opts.StreamText && noTools,
+	}
+	if opts != nil && noTools {
+		req.ResponseFormat = opts.ResponseFormat
 	}
 	tokenCache := newTokenCountCache(512)
 	formatRetried := false

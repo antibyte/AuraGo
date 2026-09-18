@@ -1892,6 +1892,10 @@ registration lives in `internal/desktop/types.go`.
 - `game-maker-studio.js` - Game Maker Studio shell. Missing
   skills/revisions modals throw `game_maker.modules_load_failed`
   via `state.context.t(key)`. Exposes `window.GameMakerStudioApp`.
+  Its optional screenshot-review strip has an explicit, height-bounded grid row;
+  status text and thumbnails must not squeeze the live game into a narrow band.
+  Verify wide/narrow layout and stale-review cleanup with
+  `TestGameMakerVisualStripLayoutBrowser` / `TestGameMakerManualVisualLifecycleBrowser`.
   No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -

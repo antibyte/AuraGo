@@ -349,7 +349,7 @@
 
 .gm-preview-pane {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     border-left: 1px solid var(--gm-line);
     background: var(--gm-bg);
 }
@@ -562,6 +562,40 @@
     height: 100%;
     border: 0;
     background: #050509;
+}
+
+/* The optional review strip must not take an implicit, expanding grid row. */
+.gm-preview-pane > .gm-diagnostics { grid-row: 4; }
+.gm-visual-strip {
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    max-height: 88px;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    overflow: auto;
+    border-top: 1px solid var(--gm-line);
+    background: var(--gm-panel);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.gm-visual-strip[hidden] { display: none; }
+.gm-visual-strip [data-gm-visual-status] {
+    flex: 1 1 180px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.gm-visual-strip img {
+    flex: 0 0 auto;
+    width: 100px;
+    height: 60px;
+    object-fit: contain;
+}
+@media (max-width: 700px) {
+    .gm-visual-strip { gap: 6px; padding: 6px 8px; }
+    .gm-visual-strip img { width: 64px; height: 42px; }
 }
 
 .gm-preview-empty {

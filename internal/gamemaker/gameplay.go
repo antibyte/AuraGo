@@ -141,7 +141,40 @@ func validateScenario(s GameScenario) error {
 	if duration > 6000 {
 		return fmt.Errorf("scenario exceeds six seconds")
 	}
+	if hint := scenarioMetricHint(s); hint != "" {
+		return errors.New(hint)
+	}
 	return nil
+}
+
+// Targeted movement only establishes position changes. Catch this common
+// model-authored mismatch before a browser run, without rewriting the test or
+// fabricating primary actions in the game. Other custom input contracts remain
+// available; this guard is specific to the built-in move driver.
+func scenarioMetricHint(s GameScenario) string {
+	if s.Metric != "actions" || (s.Compare != "increased" && s.Compare != "changed") {
+		return ""
+	}
+	move := false
+	for _, step := range s.Steps {
+		switch step.Action {
+		case "target":
+			if step.Mode != "move" {
+				return ""
+			}
+			move = true
+		case "pointer":
+			return ""
+		case "key":
+			if !slices.Contains([]string{"W", "A", "S", "D", "LEFT", "RIGHT", "UP", "DOWN", "Q", "E"}, step.Key) {
+				return ""
+			}
+		}
+	}
+	if move {
+		return "movement-only target steps do not prove primary actions; measure player_distance/player_x/player_y for movement or send the actual action input. Never increment actions merely to satisfy this check. A position delta alone does not prove steering direction or smoothness"
+	}
+	return ""
 }
 
 // Template minimums are server-owned. The plan can add checks, never remove them.
@@ -273,6 +306,11 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					check.Status = "passed"
 				}
 				check.Observed = fmt.Sprintf("before=%g, after=%g", before, after)
+				if !passed {
+					if hint := scenarioMetricHint(scenario); hint != "" {
+						check.Observed += "; check definition: " + hint
+					}
+				}
 				if !passed && scenario.Metric == "hits" {
 					for _, metric := range []string{"actions", "spawns", "hit_events", "ended"} {
 						first, a := found.Before[metric]

@@ -225,6 +225,41 @@ func TestShooterHitChecksRetainFailureEvidence(t *testing.T) {
 	}
 }
 
+func TestMovementScenarioDoesNotInventPrimaryActions(t *testing.T) {
+	scenario := GameScenario{ID: "smooth_steering_no_jump", Metric: "actions", Compare: "increased", Steps: []GameTestStep{
+		{Action: "target", Target: "player", Mode: "move", MS: 800},
+		{Action: "key", Key: "D", MS: 600}, {Action: "observe"},
+	}}
+	if err := validateScenario(scenario); err == nil || !strings.Contains(err.Error(), "player_distance") {
+		t.Fatalf("movement/action mismatch was not explained before acceptance: %v", err)
+	}
+	// Already accepted older plans need useful repair guidance, not a false pass.
+	observation := GameObservation{ID: scenario.ID, Before: map[string]float64{"actions": 0}, After: map[string]float64{"actions": 0},
+		TargetRuns: []TargetRun{{Target: "player", Mode: "move", Samples: 12, Inputs: 3, Contacts: 12, Effects: 1, Reason: "complete"}},
+	}
+	check := compareGameObservations([]GameScenario{scenario}, []GameObservation{observation})[0]
+	if check.Status != "failed" || !strings.Contains(check.Observed, "check definition:") || !strings.Contains(check.Observed, "smoothness") {
+		t.Fatalf("bad scenario hidden or misdiagnosed as broken steering: %+v", check)
+	}
+	for _, variant := range []string{"position", "primary", "custom_key"} {
+		t.Run(variant, func(t *testing.T) {
+			copy := scenario
+			copy.Steps = append([]GameTestStep(nil), scenario.Steps...)
+			switch variant {
+			case "position":
+				copy.Metric = "player_distance"
+			case "primary":
+				copy.Steps = append(copy.Steps, GameTestStep{Action: "key", Key: "SPACE", MS: 100})
+			case "custom_key":
+				copy.Steps = copy.Steps[1:]
+			}
+			if err := validateScenario(copy); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestBreakoutPlanCorrectionsPreserveAssetIntent(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")

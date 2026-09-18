@@ -157,7 +157,7 @@
                                     <span>${esc(t('game_maker.preview_waiting_hint'))}</span>
                                 </div>
                             </div>
-                            <div data-gm-visual hidden aria-live="polite"><span data-gm-visual-status></span></div>
+                            <div class="gm-visual-strip" data-gm-visual hidden aria-live="polite"><span data-gm-visual-status></span></div>
                             <details class="gm-diagnostics" data-gm-diagnostics>
                                 <summary>${esc(t('game_maker.diagnostics'))} <span data-gm-diagnostic-count>0</span></summary>
                                 <ul data-gm-diagnostic-list></ul>

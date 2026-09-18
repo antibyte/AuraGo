@@ -47,6 +47,25 @@ func minimalLoopTestRoutes() []llm.ModelRoute {
 	}
 }
 
+func TestMinimalLoopResponseFormatIsOptInAndToolFree(t *testing.T) {
+	for _, restricted := range []bool{true, false} {
+		client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
+		cfg := &config.Config{}
+		cfg.Agent.ContextWindow = 6000
+		opts := &MinimalLoopOptions{MaxToolRounds: 1, ResponseFormat: llm.JSONResponseFormat(true)}
+		if restricted {
+			opts.MaxToolRounds = 0
+		}
+		_, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Return JSON.", "Inspect the image.", nil, &DispatchContext{Cfg: cfg}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), opts)
+		if err != nil || len(client.requests) != 1 {
+			t.Fatalf("request failed: %v", err)
+		}
+		if (client.requests[0].ResponseFormat != nil) != restricted {
+			t.Fatal("structured output leaked outside the explicitly tool-free workflow")
+		}
+	}
+}
+
 func TestPrepareMinimalLoopRequestFitsEveryRouteAndKeepsToolGroupsAtomic(t *testing.T) {
 	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
 	cfg := &config.Config{}

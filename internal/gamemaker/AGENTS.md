@@ -42,6 +42,12 @@ revision publication and standalone export for Phaser and Three.js games.
 - Preview startup judges canvas layout only in an active, sized viewport after
   continuous layout settling. Hidden Studio windows/tabs are not game errors.
   Genuine invisible canvases still fail with measured layout diagnostics.
+- Movement-only target scenarios measure positions, not primary-action counts.
+  Explain mismatched legacy checks without marking them passed or fabricating
+  counters. A displacement check alone never proves steering smoothness.
+- Visual review stays advisory and uses the selected multimodal route directly.
+  Request JSON mode only for supported providers; tolerate normal JSON wrappers
+  and allow at most one format correction within the original review deadline.
 
 ## Work Guidance
 
