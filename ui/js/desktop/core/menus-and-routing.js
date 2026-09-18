@@ -1753,6 +1753,13 @@ if (appId === 'pixel') {
             }
             if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'detective') {
+            if (!window.DetectiveApp) {
+                window.AuraDesktopModules.loadAppScript('detective').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.DetectiveApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog }));
+        }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {
                 window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

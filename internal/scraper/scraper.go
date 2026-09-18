@@ -8,6 +8,7 @@ package scraper
 
 import (
 	"aurago/internal/security"
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -47,6 +48,7 @@ type Scraper interface {
 // If guardian is non-nil, all Markdown output is scanned for prompt injection
 // patterns and wrapped in <external_data> isolation tags before being returned.
 type AgentScraper struct {
+	ctx      context.Context
 	guardian *security.Guardian // nil = no scanning (e.g. unit tests)
 }
 
@@ -54,7 +56,16 @@ type AgentScraper struct {
 // Pass a *security.Guardian to enable prompt-injection scanning and output isolation.
 // Pass nil to skip scanning (useful in tests).
 func New(g *security.Guardian) *AgentScraper {
-	return &AgentScraper{guardian: g}
+	return &AgentScraper{guardian: g, ctx: context.Background()}
+}
+
+func (a *AgentScraper) WithContext(ctx context.Context) *AgentScraper {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	copy := *a
+	copy.ctx = ctx
+	return &copy
 }
 
 // FetchStatic fetches a URL using colly (no JavaScript) and returns a ScrapeResult.
@@ -71,7 +82,7 @@ func (a *AgentScraper) FetchStatic(rawURL string) (*ScrapeResult, error) {
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 		colly.MaxDepth(1),
 	)
-	c.SetClient(security.NewSSRFProtectedHTTPClient(20 * time.Second))
+	c.SetClient(security.HTTPClientWithContext(security.NewSSRFProtectedHTTPClient(20*time.Second), a.ctx))
 
 	// Capture the full HTML response body.
 	c.OnResponse(func(r *colly.Response) {
@@ -118,19 +129,24 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 
 	// Launch a headless browser; prefer a system Chrome/Chromium installation,
 	// fall back to rod's auto-download mechanism.
-	u, err := launcher.New().
+	l := launcher.New().Context(a.ctx).
 		Headless(true).
-		NoSandbox(true). // Required in containerised / CI environments.
-		Launch()
+		NoSandbox(true) // Required in containerised / CI environments.
+	u, err := l.Launch()
 	if err != nil {
 		return nil, fmt.Errorf("rod launcher: %w", err)
 	}
+	defer func() { l.Kill(); l.Cleanup() }()
 
-	browser := rod.New().ControlURL(u)
+	browser := rod.New().Context(a.ctx).ControlURL(u)
 	if err := browser.Connect(); err != nil {
 		return nil, fmt.Errorf("rod connect: %w", err)
 	}
-	defer browser.MustClose()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = browser.Context(ctx).Close()
+	}()
 
 	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
 	if err != nil {

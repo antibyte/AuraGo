@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Undersökningar med spårbara källor",
+  "config.detective.enabled": "Aktivera Detective",
+  "config.detective.iterations": "Iterationer",
+  "config.detective.tokens": "Tokengräns (0 = ingen extra gräns)",
+  "config.detective.quick": "Snabb",
+  "config.detective.normal": "Normal",
+  "config.detective.maximum": "Maximal ansträngning",
+  "config.detective.tools": "verktygsanrop",
+  "config.detective.readonly": "Säkert skrivskyddat läge",
+  "config.detective.seconds": "Tidsgräns för jobb (sekunder)",
+  "config.detective.restart": "Starta om AuraGo efter ändring av insatsprofiler. Befintliga körningar behåller sina budgetar."
+}

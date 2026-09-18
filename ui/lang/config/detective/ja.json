@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "出典を確認できる調査",
+  "config.detective.enabled": "Detective を有効にする",
+  "config.detective.iterations": "反復回数",
+  "config.detective.tokens": "トークン上限（0 = 追加制限なし）",
+  "config.detective.quick": "短時間",
+  "config.detective.normal": "標準",
+  "config.detective.maximum": "最大限",
+  "config.detective.tools": "ツール呼び出し",
+  "config.detective.readonly": "安全な読み取り専用モード",
+  "config.detective.seconds": "ジョブのタイムアウト (秒)",
+  "config.detective.restart": "調査強度の設定を変更した後は AuraGo を再起動してください。既存の調査の予算は変わりません。"
+}

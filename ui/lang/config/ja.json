@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "拒否",
   "config.local_llm.cache_state_degraded": "低下",
   "config.realtime_speech.keyless": "APIキー不要。Speech Lab コンテナを使います。",
-  "config.realtime_speech.speech_lab_help": "このプロファイルは ASR/TTS に Speech Lab / s2s コンテナを使います。メディア → Speech Lab で起動または設定してください。"
+  "config.realtime_speech.speech_lab_help": "このプロファイルは ASR/TTS に Speech Lab / s2s コンテナを使います。メディア → Speech Lab で起動または設定してください。",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "出典を確認できる調査"
 }

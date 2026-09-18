@@ -599,6 +599,7 @@ func Load(path string) (*Config, error) {
 	// Game Maker is an explicit high-trust capability. It remains disabled and
 	// read-only until an administrator enables the required mutation scopes.
 	cfg.GameMaker.ReadOnly = true
+	cfg.Detective.Enabled = true
 	cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
 	cfg.GameMaker.MaxProjects = 25
 	cfg.GameMaker.MaxFilesPerProject = 250
@@ -2991,6 +2992,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "openscad", "max_render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds},
 		{[]string{"virtual_desktop", "openscad", "job_retention_days"}, c.VirtualDesktop.OpenSCAD.JobRetentionDays},
 		{[]string{"game_maker", "enabled"}, c.GameMaker.Enabled},
+		{[]string{"detective"}, c.Detective},
 		{[]string{"game_maker", "readonly"}, c.GameMaker.ReadOnly},
 		{[]string{"game_maker", "allow_create"}, c.GameMaker.AllowCreate},
 		{[]string{"game_maker", "allow_edit"}, c.GameMaker.AllowEdit},

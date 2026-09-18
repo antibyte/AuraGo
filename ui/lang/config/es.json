@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Rechazada",
   "config.local_llm.cache_state_degraded": "Degradada",
   "config.realtime_speech.keyless": "Sin clave API. Usa el contenedor Speech Lab.",
-  "config.realtime_speech.speech_lab_help": "Este perfil usa el contenedor Speech Lab / s2s para ASR y TTS. Inícialo o configúralo en Medios → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Este perfil usa el contenedor Speech Lab / s2s para ASR y TTS. Inícialo o configúralo en Medios → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Investigaciones con fuentes verificables"
 }

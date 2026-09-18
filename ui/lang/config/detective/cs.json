@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Průzkumy s ověřitelnými zdroji",
+  "config.detective.enabled": "Zapnout Detective",
+  "config.detective.iterations": "Iterace",
+  "config.detective.tokens": "Limit tokenů (0 = bez dalšího limitu)",
+  "config.detective.quick": "Rychle",
+  "config.detective.normal": "Normálně",
+  "config.detective.maximum": "Maximální úsilí",
+  "config.detective.tools": "volání nástrojů",
+  "config.detective.readonly": "Bezpečný režim jen pro čtení",
+  "config.detective.seconds": "Časový limit úlohy (sekundy)",
+  "config.detective.restart": "Po změně profilů intenzity restartujte AuraGo. Stávající běhy si zachovají přijaté rozpočty."
+}

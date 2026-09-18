@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	stdhtml "html"
@@ -27,7 +28,7 @@ type ddgTitleLink struct {
 }
 
 // ExecuteDDGSearch performs a DuckDuckGo HTML search
-func ExecuteDDGSearch(query string, maxResults int) string {
+func ExecuteDDGSearch(query string, maxResults int, contexts ...context.Context) string {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return formatError("query is required")
@@ -40,7 +41,7 @@ func ExecuteDDGSearch(query string, maxResults int) string {
 	formData := url.Values{}
 	formData.Set("q", query)
 
-	req, err := http.NewRequest("POST", "https://lite.duckduckgo.com/lite/", strings.NewReader(formData.Encode()))
+	req, err := http.NewRequestWithContext(requestContext(contexts), "POST", "https://lite.duckduckgo.com/lite/", strings.NewReader(formData.Encode()))
 	if err != nil {
 		return formatError(fmt.Sprintf("Failed to create request: %v", err))
 	}

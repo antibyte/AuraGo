@@ -1,5 +1,18 @@
 # Desktop App Modules - Child DOX Contract
 
+## Detective
+- `detective-views.js` precedes `detective.js`; both use the native Desktop theme
+  tokens and `desktop-app-detective.css`. Register the built-in `detective` app
+  with the existing search icon. All sixteen locales use `desktop.detective_*`.
+- `DetectiveApp` owns a per-window instance with cancellable polling. Disposal
+  ends UI requests only; research remains owned by the server. Render evidence
+  and structured report blocks as escaped text. Only HTTP(S) source links are
+  clickable; private integration receipts never masquerade as website links.
+- Export links always name an immutable report revision. Autor opens a new,
+  create-only DOCX copy. No private model continuation is returned to the UI.
+- Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
+  Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
+
 ## Purpose
 
 This subtree owns built-in virtual desktop app modules that are loaded lazily by

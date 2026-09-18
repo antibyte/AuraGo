@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Afgewezen",
   "config.local_llm.cache_state_degraded": "Beperkt",
   "config.realtime_speech.keyless": "Geen API-sleutel. Gebruikt de Speech Lab-container.",
-  "config.realtime_speech.speech_lab_help": "Dit profiel gebruikt de Speech Lab-/s2s-container voor ASR en TTS. Start of configureer hem onder Media → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Dit profiel gebruikt de Speech Lab-/s2s-container voor ASR en TTS. Start of configureer hem onder Media → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Onderzoek met controleerbare bronnen"
 }

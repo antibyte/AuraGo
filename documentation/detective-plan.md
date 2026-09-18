@@ -1,7 +1,11 @@
 # Detective: agent-driven research for the Virtual Desktop
 
-Status: proposed implementation plan, 2026-09-19. Source review baseline:
-`c1b1de0a4`. This document adds no runtime functionality.
+Status: implementation baseline delivered, 2026-09-19. Original source review
+baseline: `c1b1de0a4`. See [Detective usage and implementation](detective.md) for
+the implemented behavior and remaining acceptance work. The requirements below
+retain the broader target: live comparative runs, full multilingual PDF/office
+acceptance, advanced evidence provenance, retention and configurable concurrency
+are not certified by the initial implementation.
 
 ## Purpose
 

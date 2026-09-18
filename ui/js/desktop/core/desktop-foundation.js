@@ -586,6 +586,7 @@
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
+            'detective': 'DetectiveApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',

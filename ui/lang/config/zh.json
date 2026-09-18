@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "已拒绝",
   "config.local_llm.cache_state_degraded": "已降级",
   "config.realtime_speech.keyless": "无需 API 密钥。使用 Speech Lab 容器。",
-  "config.realtime_speech.speech_lab_help": "此配置使用 Speech Lab / s2s 容器进行识别和合成。请在 媒体 → Speech Lab 中启动或配置。"
+  "config.realtime_speech.speech_lab_help": "此配置使用 Speech Lab / s2s 容器进行识别和合成。请在 媒体 → Speech Lab 中启动或配置。",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "来源可追溯的研究"
 }

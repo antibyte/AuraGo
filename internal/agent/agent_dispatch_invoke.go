@@ -64,6 +64,9 @@ func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 			action = entry.Name
 		}
 		routed := toolCallFromInvokeArgs(action, args)
+		if dc.ExecutionHooks != nil {
+			return DispatchToolCall(ctx, &routed, dc, dc.UserContext)
+		}
 		if result, ok := dispatchExec(ctx, routed, dc); ok {
 			return result
 		}
@@ -77,8 +80,16 @@ func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 			return result
 		}
 	case ToolKindSkill:
+		if dc.ExecutionHooks != nil {
+			routed := ToolCall{Action: "execute_skill", Skill: entry.Routing.SkillName, SkillArgs: args, Params: args}
+			return DispatchToolCall(ctx, &routed, dc, dc.UserContext)
+		}
 		return dispatchCommMustHandle(ctx, ToolCall{Action: "execute_skill", Skill: entry.Routing.SkillName, SkillArgs: args, Params: args}, dc)
 	case ToolKindCustom:
+		if dc.ExecutionHooks != nil {
+			routed := ToolCall{Action: "run_tool", Name: entry.Routing.CustomName, Params: map[string]interface{}{"name": entry.Routing.CustomName, "args": args}}
+			return DispatchToolCall(ctx, &routed, dc, dc.UserContext)
+		}
 		return dispatchExecMustHandle(ctx, ToolCall{Action: "run_tool", Name: entry.Routing.CustomName, Params: map[string]interface{}{"name": entry.Routing.CustomName, "args": args}}, dc)
 	}
 

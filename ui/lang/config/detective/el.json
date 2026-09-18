@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Έρευνες με επαληθεύσιμες πηγές",
+  "config.detective.enabled": "Ενεργοποίηση Detective",
+  "config.detective.iterations": "Επαναλήψεις",
+  "config.detective.tokens": "Όριο token (0 = χωρίς πρόσθετο όριο)",
+  "config.detective.quick": "Γρήγορη",
+  "config.detective.normal": "Κανονική",
+  "config.detective.maximum": "Μέγιστη προσπάθεια",
+  "config.detective.tools": "κλήσεις εργαλείων",
+  "config.detective.readonly": "Ασφαλής λειτουργία μόνο για ανάγνωση",
+  "config.detective.seconds": "Χρονικό όριο εργασίας (δευτερόλεπτα)",
+  "config.detective.restart": "Επανεκκινήστε το AuraGo μετά την αλλαγή προφίλ προσπάθειας. Οι υπάρχουσες εκτελέσεις διατηρούν τα όριά τους."
+}

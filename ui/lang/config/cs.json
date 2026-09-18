@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Odmítnuto",
   "config.local_llm.cache_state_degraded": "Omezený",
   "config.realtime_speech.keyless": "Bez API klíče. Používá kontejner Speech Lab.",
-  "config.realtime_speech.speech_lab_help": "Tento profil používá kontejner Speech Lab / s2s pro ASR a TTS. Spusť nebo nastav ho v Média → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Tento profil používá kontejner Speech Lab / s2s pro ASR a TTS. Spusť nebo nastav ho v Média → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Průzkumy s ověřitelnými zdroji"
 }

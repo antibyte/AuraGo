@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "来源可追溯的研究",
+  "config.detective.enabled": "启用 Detective",
+  "config.detective.iterations": "迭代次数",
+  "config.detective.tokens": "令牌上限（0 = 无额外限制）",
+  "config.detective.quick": "快速",
+  "config.detective.normal": "标准",
+  "config.detective.maximum": "最大努力",
+  "config.detective.tools": "工具调用",
+  "config.detective.readonly": "安全只读模式",
+  "config.detective.seconds": "任务超时（秒）",
+  "config.detective.restart": "更改研究强度配置后请重启 AuraGo。现有研究保留已接受的预算。"
+}

@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "अस्वीकृत",
   "config.local_llm.cache_state_degraded": "सीमित",
   "config.realtime_speech.keyless": "कोई API कुंजी नहीं। Speech Lab कंटेनर का उपयोग करता है।",
-  "config.realtime_speech.speech_lab_help": "यह प्रोफ़ाइल ASR और TTS के लिए Speech Lab / s2s कंटेनर का उपयोग करती है। इसे मीडिया → Speech Lab में शुरू या सेट करें।"
+  "config.realtime_speech.speech_lab_help": "यह प्रोफ़ाइल ASR और TTS के लिए Speech Lab / s2s कंटेनर का उपयोग करती है। इसे मीडिया → Speech Lab में शुरू या सेट करें।",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "सत्यापनीय स्रोतों के साथ शोध"
 }

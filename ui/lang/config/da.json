@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Afvist",
   "config.local_llm.cache_state_degraded": "Forringet",
   "config.realtime_speech.keyless": "Ingen API-nøgle. Bruger Speech Lab-containeren.",
-  "config.realtime_speech.speech_lab_help": "Denne profil bruger Speech Lab-/s2s-containeren til ASR og TTS. Start eller konfigurer den under Medier → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Denne profil bruger Speech Lab-/s2s-containeren til ASR og TTS. Start eller konfigurer den under Medier → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Undersøgelser med sporbare kilder"
 }

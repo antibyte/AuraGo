@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,20 +34,20 @@ func formatWikipediaError(msg string) string {
 }
 
 // ExecuteWikipediaSearch queries the Wikipedia REST API for page summaries
-func ExecuteWikipediaSearch(query, lang string) string {
+func ExecuteWikipediaSearch(query, lang string, contexts ...context.Context) string {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return formatWikipediaError("Wikipedia query must not be empty.")
 	}
 	lang = wikipediaNormalizeLang(lang)
 
-	data, err := fetchWikipediaSummary(lang, query)
+	data, err := fetchWikipediaSummary(lang, query, contexts...)
 	if errors.Is(err, errWikipediaNotFound) {
-		bestTitle, searchErr := searchWikipediaTitle(lang, query)
+		bestTitle, searchErr := searchWikipediaTitle(lang, query, contexts...)
 		if searchErr != nil {
 			return formatWikipediaError(fmt.Sprintf("No Wikipedia article found for '%s'.", query))
 		}
-		data, err = fetchWikipediaSummary(lang, bestTitle)
+		data, err = fetchWikipediaSummary(lang, bestTitle, contexts...)
 	}
 	if err != nil {
 		if errors.Is(err, errWikipediaNotFound) {
@@ -96,10 +97,10 @@ func wikipediaNormalizeLang(lang string) string {
 	return i18n.NormalizeLang(normalized)
 }
 
-func fetchWikipediaSummary(lang, query string) (map[string]interface{}, error) {
+func fetchWikipediaSummary(lang, query string, contexts ...context.Context) (map[string]interface{}, error) {
 	apiURL := fmt.Sprintf("%s/api/rest_v1/page/summary/%s", wikipediaBaseURLForLang(lang), url.PathEscape(query))
 
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(requestContext(contexts), "GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -125,13 +126,13 @@ func fetchWikipediaSummary(lang, query string) (map[string]interface{}, error) {
 	return data, nil
 }
 
-func searchWikipediaTitle(lang, query string) (string, error) {
+func searchWikipediaTitle(lang, query string, contexts ...context.Context) (string, error) {
 	apiURL := fmt.Sprintf("%s/w/api.php?action=query&format=json&list=search&srlimit=1&srsearch=%s",
 		wikipediaBaseURLForLang(lang),
 		url.QueryEscape(query),
 	)
 
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(requestContext(contexts), "GET", apiURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create search request: %w", err)
 	}

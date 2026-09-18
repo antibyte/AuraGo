@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Rejeté",
   "config.local_llm.cache_state_degraded": "Dégradé",
   "config.realtime_speech.keyless": "Pas de clé API. Utilise le conteneur Speech Lab.",
-  "config.realtime_speech.speech_lab_help": "Ce profil utilise le conteneur Speech Lab / s2s pour l’ASR et la synthèse. Démarre-le ou configure-le sous Médias → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Ce profil utilise le conteneur Speech Lab / s2s pour l’ASR et la synthèse. Démarre-le ou configure-le sous Médias → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Des recherches aux sources vérifiables"
 }

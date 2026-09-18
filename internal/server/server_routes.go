@@ -650,6 +650,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		startVirtualComputersCgroupMonitor(serverCtx, s, s.Logger)
 	}
 	registerGameMakerRoutes(mux, s)
+	registerDetectiveRoutes(mux, s)
 
 	// Pixel image editor endpoints
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))

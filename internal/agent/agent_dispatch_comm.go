@@ -1136,7 +1136,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "site_crawler":
 			req := decodeSiteCrawlerArgs(tc)
 			logger.Info("LLM requested site crawler", "url", req.URL, "max_depth", req.MaxDepth, "max_pages", req.MaxPages)
-			return "Tool Output: " + tools.ExecuteCrawler(req.URL, req.MaxDepth, req.MaxPages, req.AllowedDomains, req.Selector)
+			return "Tool Output: " + tools.ExecuteCrawler(req.URL, req.MaxDepth, req.MaxPages, req.AllowedDomains, req.Selector, ctx)
 
 		case "whois_lookup":
 			req := decodeWhoisLookupArgs(tc)

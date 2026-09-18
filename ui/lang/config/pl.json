@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Odrzucona",
   "config.local_llm.cache_state_degraded": "Ograniczona",
   "config.realtime_speech.keyless": "Bez klucza API. Używa kontenera Speech Lab.",
-  "config.realtime_speech.speech_lab_help": "Ten profil używa kontenera Speech Lab / s2s do ASR i TTS. Uruchom go lub skonfiguruj w Media → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Ten profil używa kontenera Speech Lab / s2s do ASR i TTS. Uruchom go lub skonfiguruj w Media → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Badania z weryfikowalnymi źródłami"
 }

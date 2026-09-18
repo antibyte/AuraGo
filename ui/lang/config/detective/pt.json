@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Pesquisas com fontes verificáveis",
+  "config.detective.enabled": "Ativar Detective",
+  "config.detective.iterations": "Iterações",
+  "config.detective.tokens": "Limite de tokens (0 = sem limite adicional)",
+  "config.detective.quick": "Rápida",
+  "config.detective.normal": "Normal",
+  "config.detective.maximum": "Esforço máximo",
+  "config.detective.tools": "chamadas de ferramentas",
+  "config.detective.readonly": "Modo seguro só de leitura",
+  "config.detective.seconds": "Tempo limite da tarefa (segundos)",
+  "config.detective.restart": "Reinicie o AuraGo após alterar os perfis de esforço. As pesquisas existentes mantêm os orçamentos aceites."
+}

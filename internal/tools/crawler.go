@@ -3,6 +3,7 @@ package tools
 
 import (
 	"aurago/internal/security"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -38,7 +39,7 @@ var crawlerGuardian = security.NewGuardian(nil)
 // maxPages       – maximum total pages to crawl (1-100, default: 20)
 // allowedDomains – comma-separated whitelist; empty = auto-detect from startURL
 // selector       – optional CSS selector to extract specific content from each page
-func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, selector string) string {
+func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, selector string, contexts ...context.Context) string {
 	encode := func(r crawlResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -89,7 +90,7 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		colly.MaxDepth(maxDepth),
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 	)
-	c.SetClient(security.NewSSRFProtectedHTTPClient(20 * time.Second))
+	c.SetClient(security.HTTPClientWithContext(security.NewSSRFProtectedHTTPClient(20*time.Second), requestContext(contexts)))
 	c.Limit(&colly.LimitRule{
 		Parallelism: 2,
 	})
@@ -109,7 +110,7 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		}
 		mu.Lock()
 		linkSet[href] = true
-		shouldVisit := pageCount < maxPages
+		shouldVisit := pageCount < maxPages && requestContext(contexts).Err() == nil
 		mu.Unlock()
 		if shouldVisit {
 			_ = e.Request.Visit(href)

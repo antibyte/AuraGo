@@ -1631,3 +1631,5 @@
         scroll-behavior: auto;
     }
 }
+
+.pw-page[data-workspace-page="config"] .config-icon-slot-115 { background-position: 50% 100%; }

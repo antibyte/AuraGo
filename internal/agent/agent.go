@@ -1078,6 +1078,9 @@ func (tc ToolCall) GetArgs() []string {
 // RunConfig holds all the dependencies required to run the agent loop,
 // consolidating the parameter list that was previously over 20 items long.
 type RunConfig struct {
+	// ExecutionHooks are optional server-owned boundaries for isolated jobs.
+	ExecutionHooks     *ExecutionHooks
+	IterationLimit     int
 	Config             *config.Config
 	Logger             *slog.Logger
 	LLMClient          llm.ChatClient
@@ -1169,11 +1172,26 @@ type RunConfig struct {
 	VaultSecretTarget   vaultprompt.Target
 }
 
-func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (output string) {
+	if hooks := dc.ExecutionHooks; hooks != nil {
+		if hooks.BeforeTool != nil {
+			if err := hooks.BeforeTool(ctx, tc); err != nil {
+				return executionHookError(err)
+			}
+		}
+		if hooks.AfterTool != nil {
+			defer func() { output = hooks.AfterTool(ctx, tc, output) }()
+		}
+	}
 	sessionID := dc.SessionID
 	logger := dc.Logger
 	if !dispatchToolAllowed(dc, tc.Action) {
 		return toolScopeDeniedOutput(tc.Action)
+	}
+	if dc.ExecutionHooks != nil && dc.ExecutionHooks.HandleTool != nil {
+		if result, handled := dc.ExecutionHooks.HandleTool(ctx, tc); handled {
+			return result
+		}
 	}
 	if tc.Action == "brave_search" && dc.MessageSource == "meshcore_reply" {
 		return dispatchMeshCoreSearch(tc, dc)

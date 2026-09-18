@@ -459,4 +459,5 @@
     <title>meshcore</title>
     <path d="M34 90 64 32 94 90Z" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linejoin="round"/><circle cx="64" cy="32" r="12" fill="#6fca8f"/><circle cx="34" cy="90" r="12" fill="#35c7d3"/><circle cx="94" cy="90" r="12" fill="#4f8ee8"/>
   </g>
+  <g class="cfg-icon-cell" data-key="detective" data-slot="115" transform="translate(640 1280)"><title>detective</title><circle cx="54" cy="52" r="27" fill="#35c7d3" opacity=".15"/><circle cx="54" cy="52" r="27" fill="none" stroke="#35c7d3" stroke-width="7"/><path d="M74 73 103 102" stroke="#7da3c8" stroke-width="10" stroke-linecap="round"/></g>
 </svg>

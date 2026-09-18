@@ -1915,6 +1915,7 @@ type Config struct {
 	Dograh            DograhConfig            `yaml:"dograh"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	GameMaker         GameMakerConfig         `yaml:"game_maker"`
+	Detective         DetectiveConfig         `yaml:"detective"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -152,7 +153,7 @@ func braveFormatAPIError(statusCode int, body []byte) string {
 // count is the number of results (1-20; 0 defaults to 10).
 // country is the two-letter country code for localised results (e.g. "DE", "US"; empty = global).
 // lang is the search language code (e.g. "de", "en"; empty = default).
-func ExecuteBraveSearch(apiKey, query string, count int, country, lang string) string {
+func ExecuteBraveSearch(apiKey, query string, count int, country, lang string, contexts ...context.Context) string {
 	if apiKey == "" {
 		return formatError("Brave Search API key is missing. Set it in Settings › Brave Search (the key is stored securely in the vault).")
 	}
@@ -183,7 +184,7 @@ func ExecuteBraveSearch(apiKey, query string, count int, country, lang string) s
 
 	endpoint := "https://api.search.brave.com/res/v1/web/search?" + params.Encode()
 
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(requestContext(contexts), "GET", endpoint, nil)
 	if err != nil {
 		return formatError(fmt.Sprintf("failed to build request: %v", err))
 	}

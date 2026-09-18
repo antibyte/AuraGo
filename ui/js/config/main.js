@@ -93,6 +93,7 @@ const SECTIONS = [
             { key: 'space_agent', icon: '🛰️', label: t('config.section.space_agent.label'), desc: t('config.section.space_agent.desc') },
             { key: 'virtual_desktop', icon: '▣', label: t('config.section.virtual_desktop.label'), desc: t('config.section.virtual_desktop.desc') },
             { key: 'game_maker', icon: '🎮', label: t('config.section.game_maker.label'), desc: t('config.section.game_maker.desc') },
+            { key: 'detective', icon: '🔎', label: t('config.section.detective.label'), desc: t('config.section.detective.desc') },
             { key: 'virtual_computers', icon: 'VC', label: t('config.section.virtual_computers.label'), desc: t('config.section.virtual_computers.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
@@ -517,6 +518,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     space_agent: 33,
     virtual_desktop: 34,
     game_maker: 108,
+    detective: 115,
     virtual_computers: 35,
     sandbox: 36,
     info_tools: 37,
@@ -600,6 +602,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
+    detective: "<circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"#35c7d3\" opacity=\".15\"/><circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"7\"/><path d=\"M74 73 103 102\" stroke=\"#7da3c8\" stroke-width=\"10\" stroke-linecap=\"round\"/>",
     meshcore: "<path d=\"M34 90 64 32 94 90Z\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><circle cx=\"64\" cy=\"32\" r=\"12\" fill=\"#6fca8f\"/><circle cx=\"34\" cy=\"90\" r=\"12\" fill=\"#35c7d3\"/><circle cx=\"94\" cy=\"90\" r=\"12\" fill=\"#4f8ee8\"/>",
     overview: "<g fill=\"#7da3c8\"><rect x=\"28\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\"/><rect x=\"72\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"28\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"72\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\"/></g><path d=\"M43 43h42M43 85h42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     agent: "<circle cx=\"64\" cy=\"64\" r=\"23\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/><path d=\"M64 23v13M64 92v13M23 64h13M92 64h13M35 35l9 9M84 84l9 9M93 35l-9 9M44 84l-9 9\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><circle cx=\"64\" cy=\"64\" r=\"8\" fill=\"#35c7d3\"/><text x=\"64\" y=\"64\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"18\" font-weight=\"800\" fill=\"#7da3c8\">A</text>",
@@ -3037,6 +3040,7 @@ const SECTION_MODULES = {
     space_agent: { m: 'space_agent', fn: 'renderSpaceAgentSection' },
     virtual_desktop: { m: 'virtual_desktop', fn: 'renderVirtualDesktopSection' },
     game_maker: { m: 'game_maker', fn: 'renderGameMakerSection' },
+    detective: { m: 'detective', fn: 'renderDetectiveSection' },
     virtual_computers: { m: 'virtual_computers', fn: 'renderVirtualComputersSection' },
     media_conversion: { m: 'media_conversion', fn: 'renderMediaConversionSection' },
     video_download: { m: 'video_download', fn: 'renderVideoDownloadSection' },

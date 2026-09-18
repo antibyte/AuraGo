@@ -611,5 +611,7 @@
   "config.local_llm.cache_state_rejected": "Απορρίφθηκε",
   "config.local_llm.cache_state_degraded": "Υποβαθμισμένη",
   "config.realtime_speech.keyless": "Χωρίς κλειδί API. Χρησιμοποιεί το container Speech Lab.",
-  "config.realtime_speech.speech_lab_help": "Αυτό το προφίλ χρησιμοποιεί το container Speech Lab / s2s για ASR και TTS. Ξεκίνα ή ρύθμισέ το στο Πολυμέσα → Speech Lab."
+  "config.realtime_speech.speech_lab_help": "Αυτό το προφίλ χρησιμοποιεί το container Speech Lab / s2s για ASR και TTS. Ξεκίνα ή ρύθμισέ το στο Πολυμέσα → Speech Lab.",
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Έρευνες με επαληθεύσιμες πηγές"
 }

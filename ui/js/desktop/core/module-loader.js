@@ -331,6 +331,10 @@
                 '/js/desktop/apps/cheater-attachments.js'
             ]
         },
+        'detective': {
+            styles: appStyles('/css/desktop-app-detective.css'),
+            scripts: ['/js/desktop/apps/detective-views.js', '/js/desktop/apps/detective.js']
+        },
         'homepage-studio': {
             styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [

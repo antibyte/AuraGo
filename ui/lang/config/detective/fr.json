@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Des recherches aux sources vérifiables",
+  "config.detective.enabled": "Activer Detective",
+  "config.detective.iterations": "Itérations",
+  "config.detective.tokens": "Limite de jetons (0 = sans limite supplémentaire)",
+  "config.detective.quick": "Rapide",
+  "config.detective.normal": "Normale",
+  "config.detective.maximum": "Effort maximal",
+  "config.detective.tools": "appels d’outils",
+  "config.detective.readonly": "Mode sécurisé en lecture seule",
+  "config.detective.seconds": "Délai d'une tâche (secondes)",
+  "config.detective.restart": "Redémarrez AuraGo après modification des profils. Les recherches existantes conservent leurs budgets acceptés."
+}

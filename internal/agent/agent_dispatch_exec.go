@@ -1301,6 +1301,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			logger.Info("LLM requested generic API request", "url", req.URL)
 			apiOpts := tools.APIRequestOptions{}
 			apiOpts.AllowedLocalOllamaBaseURL = cfg.Ollama.URL
+			apiOpts.Context = ctx
 			return tools.ExecuteAPIRequestWithOptions(req.Method, req.URL, req.Body, req.Headers, apiOpts)
 
 		case "koofr", "koofr_api", "koofr_op":

@@ -30,6 +30,7 @@ import (
 	"aurago/internal/cyd"
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
+	"aurago/internal/detective"
 	"aurago/internal/discord"
 	"aurago/internal/dockerutil"
 	"aurago/internal/fritzbox"
@@ -229,6 +230,7 @@ type Server struct {
 	VirtualComputersDB      *virtualcomputers.Ledger
 	VirtualWorkspaceManager *virtualcomputers.WorkspaceManager
 	GameMaker               *gamemaker.Service
+	Detective               *detective.Service
 	gameMakerSkills         []gamemaker.SkillInfo
 	gameMakerSkillsReady    bool
 	DesktopMu               sync.Mutex
@@ -445,6 +447,9 @@ func Start(opts StartOptions) error {
 		if s.GameMaker != nil {
 			_ = s.GameMaker.Close()
 		}
+		if s.Detective != nil {
+			_ = s.Detective.Close()
+		}
 		if gamemaker.DefaultService() == s.GameMaker {
 			gamemaker.SetDefaultService(nil)
 		}
@@ -565,6 +570,7 @@ func Start(opts StartOptions) error {
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
 	installedSkills := s.initSkillManagers(serverCtx, installDir)
 	s.initGameMaker()
+	s.initDetective()
 	// Remote security scanners must not delay the core HTTP readiness check.
 	go s.syncAgentSkills(serverCtx, cfg, installedSkills)
 

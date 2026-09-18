@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ var apiLocalOllamaHTTPClient = &http.Client{
 }
 
 type APIRequestOptions struct {
+	Context                   context.Context
 	AllowedLocalOllamaBaseURL string
 }
 
@@ -77,7 +79,7 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 		reqBody = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, rawURL, reqBody)
+	req, err := http.NewRequestWithContext(requestContext([]context.Context{opts.Context}), method, rawURL, reqBody)
 	if err != nil {
 		return encode(APIResult{Status: "error", Message: fmt.Sprintf("Failed to create request: %v", err)})
 	}

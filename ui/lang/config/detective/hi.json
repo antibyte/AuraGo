@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "सत्यापनीय स्रोतों के साथ शोध",
+  "config.detective.enabled": "Detective सक्षम करें",
+  "config.detective.iterations": "पुनरावृत्तियाँ",
+  "config.detective.tokens": "टोकन सीमा (0 = कोई अतिरिक्त सीमा नहीं)",
+  "config.detective.quick": "त्वरित",
+  "config.detective.normal": "सामान्य",
+  "config.detective.maximum": "अधिकतम प्रयास",
+  "config.detective.tools": "उपकरण कॉल",
+  "config.detective.readonly": "सुरक्षित केवल-पठन मोड",
+  "config.detective.seconds": "कार्य समय-सीमा (सेकंड)",
+  "config.detective.restart": "प्रयास प्रोफ़ाइल बदलने के बाद AuraGo पुनः शुरू करें। मौजूदा शोध अपने स्वीकृत बजट बनाए रखते हैं।"
+}

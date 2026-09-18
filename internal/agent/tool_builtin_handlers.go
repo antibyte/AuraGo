@@ -28,6 +28,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		}
 		req := decodeWebScraperArgs(args)
 		scraped := tools.ExecuteWebScraperWithOptions(req.URL, tools.WebScraperOptions{
+			Context:         ctx,
 			Mode:            req.Mode,
 			WaitForSelector: req.WaitForSelector,
 			Selector:        req.Selector,
@@ -53,7 +54,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 	case "wikipedia_search":
 		req := decodeWikipediaSearchArgs(args)
 		req.Language = resolveWikipediaLanguage(req.Language, cfg.Agent.SystemLanguage)
-		result := tools.ExecuteWikipediaSearch(req.Query, req.Language)
+		result := tools.ExecuteWikipediaSearch(req.Query, req.Language, ctx)
 		if cfg.Tools.Wikipedia.SummaryMode {
 			searchQuery := req.SearchQuery
 			if searchQuery == "" {
@@ -80,7 +81,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			}
 			return "Tool Output: " + security.Scrub(preferredResult), true
 		}
-		result := tools.ExecuteDDGSearch(req.Query, req.MaxResults)
+		result := tools.ExecuteDDGSearch(req.Query, req.MaxResults, ctx)
 		if cfg.Tools.DDGSearch.SummaryMode {
 			searchQuery := req.SearchQuery
 			if searchQuery == "" {
@@ -137,7 +138,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			}
 			return "Tool Output: " + security.Scrub(preferredResult), true
 		}
-		return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, req.Query, req.Count, country, lang), true
+		return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, req.Query, req.Count, country, lang, ctx), true
 
 	case "paperless", "paperless_ngx":
 		if !cfg.PaperlessNGX.Enabled {

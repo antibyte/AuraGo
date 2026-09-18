@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Recherchen mit nachvollziehbaren Quellen",
+  "config.detective.enabled": "Detective aktivieren",
+  "config.detective.iterations": "Iterationen",
+  "config.detective.tokens": "Tokenlimit (0 = kein zusätzliches Limit)",
+  "config.detective.quick": "Schnell",
+  "config.detective.normal": "Normal",
+  "config.detective.maximum": "Maximale Anstrengung",
+  "config.detective.tools": "Werkzeugaufrufe",
+  "config.detective.readonly": "Nur-Lesen-Sicherheitsmodus",
+  "config.detective.seconds": "Job-Zeitlimit (Sekunden)",
+  "config.detective.restart": "Nach Änderungen der Intensitätsprofile AuraGo neu starten. Bestehende Läufe behalten ihre angenommenen Budgets."
+}

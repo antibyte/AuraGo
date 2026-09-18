@@ -209,6 +209,7 @@ type agentLoopState struct {
 // makeDispatchContext builds a DispatchContext from the current loop state.
 func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *DispatchContext {
 	return &DispatchContext{
+		ExecutionHooks:       s.runCfg.ExecutionHooks,
 		Cfg:                  s.runCfg.Config,
 		Logger:               s.currentLogger,
 		LLMClient:            s.runCfg.LLMClient,
@@ -276,6 +277,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			recordContextBudgetFailure(runCfg, req.Model, retErr)
 		}
 	}()
+	if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.OnAcquire != nil {
+		var cancel context.CancelFunc
+		ctx, cancel, err = runCfg.ExecutionHooks.OnAcquire(ctx)
+		if err != nil {
+			return openai.ChatCompletionResponse{}, err
+		}
+		defer cancel()
+	}
 
 	ackMeshCoreNotice := appendMeshCoreNotice(&runCfg)
 	defer func() {
@@ -391,7 +400,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				return openai.ChatCompletionResponse{}, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
-		const maxLoopIterations = 100
+		maxLoopIterations := 100
+		if runCfg.IterationLimit > 0 {
+			maxLoopIterations = min(runCfg.IterationLimit, 750)
+		}
+		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.BeforeIteration != nil {
+			if err := runCfg.ExecutionHooks.BeforeIteration(ctx); err != nil {
+				return openai.ChatCompletionResponse{}, err
+			}
+		}
 		loopIterationCount++
 		if s.gameMakerDuplicateBlocks >= maxGameMakerDuplicateBlocks {
 			return openai.ChatCompletionResponse{}, fmt.Errorf("game maker stopped after %d blocked duplicate tool requests; saved progress is retained", s.gameMakerDuplicateBlocks)
@@ -1620,6 +1637,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
+		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.BeforeRequest != nil {
+			estimated := countMessageTokens(req.Messages, req.Model, tokenCache) + estimateToolSchemaListTokens(req.Tools)
+			if err := runCfg.ExecutionHooks.BeforeRequest(ctx, &req, estimated); err != nil {
+				return openai.ChatCompletionResponse{}, err
+			}
+		}
 
 		// Configurable timeout for each individual LLM call to prevent infinite hangs
 		llmTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
@@ -1690,6 +1713,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 		// Log provider measurements even for empty-output recovery rounds. The
 		// local system_cache_hit metric is not a provider prefix-cache hit.
+		hookBudgetRecorded, hookBudgetWarning := false, false
+		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
+			measured := resp.Usage
+			if measured.PromptTokens == 0 && measured.CompletionTokens == 0 {
+				measured.PromptTokens, measured.CompletionTokens, measured.TotalTokens, _, _ = applyTokenEstimationFallback(0, 0, 0, "", req, content)
+			}
+			// Charge responses before an execution hook or empty-output retry can
+			// exit this round. The normal accounting block below must not double bill.
+			if budgetTracker != nil {
+				model := resp.Model
+				if model == "" {
+					model = req.Model
+				}
+				category := "chat"
+				if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
+					category = "coagent"
+				}
+				hookBudgetWarning = budgetTracker.RecordForCategory(category, model, measured.PromptTokens, measured.CompletionTokens)
+				hookBudgetRecorded = true
+			}
+			if err := runCfg.ExecutionHooks.AfterResponse(measured); err != nil {
+				return openai.ChatCompletionResponse{}, err
+			}
+		}
 		cacheFields := []any{"model", req.Model, "prompt_tokens", resp.Usage.PromptTokens, "cache_usage_reported", resp.Usage.PromptTokensDetails != nil}
 		if details := resp.Usage.PromptTokensDetails; details != nil {
 			cacheFields = append(cacheFields, "cached_tokens", details.CachedTokens)
@@ -1837,7 +1884,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
 				budgetCategory = "coagent"
 			}
-			crossedWarning := budgetTracker.RecordForCategory(budgetCategory, actualModel, promptTokens, completionTokens)
+			crossedWarning := hookBudgetWarning
+			if !hookBudgetRecorded {
+				crossedWarning = budgetTracker.RecordForCategory(budgetCategory, actualModel, promptTokens, completionTokens)
+			}
 			budgetJSON := budgetTracker.GetStatusJSON()
 			if budgetJSON != "" {
 				broker.SendJSON(budgetJSON)

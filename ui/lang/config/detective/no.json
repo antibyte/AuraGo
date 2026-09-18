@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Undersøkelser med sporbare kilder",
+  "config.detective.enabled": "Aktiver Detective",
+  "config.detective.iterations": "Iterasjoner",
+  "config.detective.tokens": "Tokengrense (0 = ingen ekstra grense)",
+  "config.detective.quick": "Rask",
+  "config.detective.normal": "Normal",
+  "config.detective.maximum": "Maksimal innsats",
+  "config.detective.tools": "verktøykall",
+  "config.detective.readonly": "Sikker skrivebeskyttet modus",
+  "config.detective.seconds": "Tidsavbrudd for jobb (sekunder)",
+  "config.detective.restart": "Start AuraGo på nytt etter endring av innsatsprofiler. Eksisterende kjøringer beholder sine budsjetter."
+}

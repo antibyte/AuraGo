@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Research with traceable sources",
+  "config.detective.enabled": "Enable Detective",
+  "config.detective.iterations": "Iterations",
+  "config.detective.tokens": "Token limit (0 = no additional limit)",
+  "config.detective.quick": "Quick",
+  "config.detective.normal": "Normal",
+  "config.detective.maximum": "Maximum effort",
+  "config.detective.tools": "tool calls",
+  "config.detective.readonly": "Read-only safety mode",
+  "config.detective.seconds": "Job timeout (seconds)",
+  "config.detective.restart": "Restart AuraGo after changing effort profiles. Existing runs keep their accepted budgets."
+}

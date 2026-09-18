@@ -1,0 +1,14 @@
+{
+  "config.section.detective.label": "Detective",
+  "config.section.detective.desc": "Onderzoek met controleerbare bronnen",
+  "config.detective.enabled": "Detective inschakelen",
+  "config.detective.iterations": "Iteraties",
+  "config.detective.tokens": "Tokenlimiet (0 = geen extra limiet)",
+  "config.detective.quick": "Snel",
+  "config.detective.normal": "Normaal",
+  "config.detective.maximum": "Maximale inspanning",
+  "config.detective.tools": "toolaanroepen",
+  "config.detective.readonly": "Veilige alleen-lezenmodus",
+  "config.detective.seconds": "Jobtime-out (seconden)",
+  "config.detective.restart": "Herstart AuraGo na het wijzigen van de inspanningsprofielen. Bestaande onderzoeken behouden hun budgetten."
+}

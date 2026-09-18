@@ -1099,6 +1099,16 @@ virtual_desktop:
         render_timeout_seconds: 120                        # default compiler timeout
         max_render_timeout_seconds: 600                    # hard timeout cap
         job_retention_days: 7                              # cached render job retention
+detective:
+  enabled: true
+  readonly: false
+  profiles:
+    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}
+    normal: {seconds: 900, tools: 100, iterations: 140, tokens: 0}
+    maximum: {seconds: 3600, tools: 250, iterations: 320, tokens: 0}
+  # Exact read operations for optional connected services. Empty denies extras.
+  extra_read_operations: {}
+
 game_maker:
     enabled: false                                         # enable Game Maker Studio APIs and agent tools
     readonly: true                                         # secure default: browse existing projects only
