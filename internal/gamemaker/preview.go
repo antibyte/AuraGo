@@ -182,28 +182,53 @@ const previewBootScript = `<script ` + previewBootMarker + `>
   window.addEventListener("unhandledrejection", function (event) {
     reportError("runtime_error", event.reason);
   });
-  var readySent = false;
-  var startedAt = performance.now();
+  var readySent = false, layoutFailed = false, hostActive = true;
+  var invalidSince = null, layoutTimer, observer;
   function visibleCanvas() {
     var canvases = document.querySelectorAll("canvas");
     for (var i = 0; i < canvases.length; i++) {
       var canvas = canvases[i], rect = canvas.getBoundingClientRect();
-      var style = getComputedStyle(canvas);
-      if (canvas.width > 0 && canvas.height > 0 && rect.width > 0 && rect.height > 0 &&
-          rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth &&
-          style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0) return true;
+      if (!(canvas.width > 0 && canvas.height > 0 && rect.width > 0 && rect.height > 0 &&
+          rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth)) continue;
+      var visible = true;
+      for (var el = canvas; el; el = el.parentElement) {
+        var style = getComputedStyle(el);
+        if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse" || Number(style.opacity) === 0) { visible = false; break; }
+      }
+      if (visible) return true;
     }
     return false;
   }
+  function stopLayoutWatch() {
+    clearInterval(layoutTimer);
+    window.removeEventListener("resize", tick);
+    window.removeEventListener("message", activity);
+    document.removeEventListener("visibilitychange", tick);
+  }
   function notifyReady() {
-    if (readySent || !channel || !document.querySelector("canvas")) return;
+    if (readySent || layoutFailed || document.readyState === "loading") return;
+    if (!channel) { stopLayoutWatch(); return; }
+    // Studio minimization, tab changes and an unsized iframe are host states,
+    // not evidence of a broken game. Resume observation when the host returns.
+    if (!hostActive || document.hidden || innerWidth <= 0 || innerHeight <= 0) { invalidSince = null; return; }
+    var canvas = document.querySelector("canvas");
+    if (!canvas) { invalidSince = null; return; }
     if (!visibleCanvas()) {
-      if (performance.now() - startedAt >= 1000) {
-        reportError("runtime_error", "Game canvas is hidden or outside the preview viewport. Mount the renderer in the visible game-root container (Phaser config parent: 'game-root') and check canvas layout.");
+      if (invalidSince === null) invalidSince = performance.now();
+      // Allow async renderer setup and layout to settle. Only continuous bad
+      // layout in an active viewport is a game error; report it once.
+      if (performance.now() - invalidSince >= 3000) {
+        var rect = canvas.getBoundingClientRect();
+        layoutFailed = true;
+        stopLayoutWatch();
+        reportError("runtime_error", "Game canvas remains hidden or outside the active preview viewport. Check the renderer's canvas and container layout. " +
+          "canvas=" + Math.round(rect.width) + "x" + Math.round(rect.height) + " at " + Math.round(rect.left) + "," + Math.round(rect.top) +
+          "; viewport=" + innerWidth + "x" + innerHeight + "; buffer=" + canvas.width + "x" + canvas.height);
       }
       return;
     }
     readySent = true;
+    stopLayoutWatch();
     try {
       parent.postMessage({ source: "aurago-game", type: "ready", channel: channel, canvas: true, boot: true, visible: true }, "*");
     } catch (_) {}
@@ -212,17 +237,24 @@ const previewBootScript = `<script ` + previewBootMarker + `>
     hideStaleLoading();
     notifyReady();
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", tick, { once: true });
-  } else {
+  function activity(event) {
+    if (event.source !== parent || event.data?.type !== "aurago:game:active" || typeof event.data.active !== "boolean") return;
+    hostActive = event.data.active;
     tick();
   }
+  window.addEventListener("message", activity);
+  window.addEventListener("resize", tick);
+  window.addEventListener("pagehide", function () { stopLayoutWatch(); if (observer) observer.disconnect(); }, { once: true });
+  document.addEventListener("visibilitychange", tick);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", tick, { once: true });
+  }
   try {
-    new MutationObserver(tick).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    observer = new MutationObserver(tick);
+    observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   } catch (_) {}
-  setTimeout(tick, 250);
-  setTimeout(tick, 1000);
-  setTimeout(function () { hideStaleLoading(); notifyReady(); }, 4000);
+  layoutTimer = setInterval(tick, 250);
+  tick();
 })();
 </script>`
 

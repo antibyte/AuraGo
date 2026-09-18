@@ -39,6 +39,9 @@ revision publication and standalone export for Phaser and Three.js games.
   World depth may equal world Y; crossing depth 1000 must never hide actors.
   Asset fitting preserves aspect ratio without resizing authored colliders.
   Keep collision footprints separate from artwork and transparent padding.
+- Preview startup judges canvas layout only in an active, sized viewport after
+  continuous layout settling. Hidden Studio windows/tabs are not game errors.
+  Genuine invisible canvases still fail with measured layout diagnostics.
 
 ## Work Guidance
 
@@ -53,6 +56,8 @@ Do not patch a published game merely because a new starter changed.
   pause, stage/result/restart and narrow-screen controls in exported 2D/3D fixtures.
 - `GAMEMAKER_TARGET_BROWSER=1`: positive and negative read-only target evidence.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
+- `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid
+  canvases and loading-HUD recovery in Chrome.
 - `node scripts/build-game-maker-presentation.js --check` and
   `node scripts/test-game-maker-presentation-evidence.mjs`.
 - Package changed runtimes with the matching resource flags and verify `--check-assets`.
