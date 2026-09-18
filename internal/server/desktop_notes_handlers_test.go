@@ -4,10 +4,61 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"aurago/internal/desktop"
 )
+
+func TestDesktopNotesMetadataFirstUse(t *testing.T) {
+	s := newDesktopOfficeTestServer(t)
+	h := handleDesktopNotes(s)
+	request := func(method, path, header, version, content string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{"path": path, "content": content})
+		r := httptest.NewRequest(method, "/api/desktop/notes?path="+url.QueryEscape(path), bytes.NewReader(body))
+		if header != "" {
+			r.Header.Set(header, version)
+		}
+		w := httptest.NewRecorder()
+		h(w, r)
+		return w
+	}
+	path := desktop.NotesDirectory + "/notes.meta.json"
+	// The secure file reader wraps fs.ErrNotExist with path context. The client
+	// must receive 404 so it can initialize the optional sidecar conditionally.
+	for _, missing := range []string{path, desktop.NotesDirectory + "/absent.md"} {
+		if w := request("GET", missing, "", "", ""); w.Code != 404 {
+			t.Fatalf("missing %s: status=%d body=%s", missing, w.Code, w.Body.String())
+		}
+	}
+	initial := `{"version":1,"pinned":[],"sort":"modified","last_note":"Documents/Notes/example.md"}`
+	created := request("PUT", path, "If-None-Match", "*", initial)
+	if created.Code != 200 {
+		t.Fatalf("create sidecar: %d %s", created.Code, created.Body.String())
+	}
+	read := request("GET", path, "", "", "")
+	var saved struct{ Content, Version string }
+	if err := json.Unmarshal(read.Body.Bytes(), &saved); err != nil || read.Code != 200 || saved.Content != initial || saved.Version != created.Header().Get("ETag") {
+		t.Fatalf("read sidecar: %d %s, error=%v", read.Code, read.Body.String(), err)
+	}
+	updated := request("PUT", path, "If-Match", saved.Version, `{"version":1,"pinned":["Documents/Notes/example.md"],"sort":"name"}`)
+	if updated.Code != 200 {
+		t.Fatalf("update sidecar: %d %s", updated.Code, updated.Body.String())
+	}
+	for _, precondition := range [][2]string{{"If-Match", saved.Version}, {"If-None-Match", "*"}} {
+		if w := request("PUT", path, precondition[0], precondition[1], initial); w.Code != 412 {
+			t.Fatalf("sidecar overwrite protection: %d %s", w.Code, w.Body.String())
+		}
+	}
+	if w := request("GET", "Documents/Notes/not-a-note.json", "", "", ""); w.Code != 400 {
+		t.Fatalf("invalid paths must stay invalid: %d %s", w.Code, w.Body.String())
+	}
+	listed := request("GET", "", "", "", "")
+	var result desktop.NotesResult
+	if err := json.Unmarshal(listed.Body.Bytes(), &result); err != nil || listed.Code != 200 || result.Total != 0 {
+		t.Fatalf("metadata leaked into note list: %d %s", listed.Code, listed.Body.String())
+	}
+}
 
 func TestDesktopNotesVersionsAndTrash(t *testing.T) {
 	s := newDesktopOfficeTestServer(t)

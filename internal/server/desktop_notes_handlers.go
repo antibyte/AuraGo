@@ -37,7 +37,7 @@ func handleDesktopNotes(s *Server) http.HandlerFunc {
 			if errors.Is(err, desktop.ErrNoteConflict) {
 				code = 412
 			}
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				code = 404
 			}
 			jsonError(w, err.Error(), code)

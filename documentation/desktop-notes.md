@@ -17,6 +17,9 @@ The library searches the same complete corpus used by the agent. Search is pagin
 `/api/desktop/notes` uses existing authentication, CSRF and Desktop permission gates:
 
 - GET reads a complete note and its ETag, or searches with q/folder/tag/offset/limit.
+- GET also reads `Documents/Notes/notes.meta.json`. A missing sidecar or note
+  returns 404, including errors wrapped by secure path validation; the app
+  initializes the sidecar with create-only PUT on first use.
 - POST creates a distinct new Markdown note.
 - PUT requires `If-Match` or create-only `If-None-Match: *`.
 - PATCH moves, trashes or restores a note with its source ETag. Trash paths preserve the original folder beneath `Trash/Notes/<unique id>/`.
