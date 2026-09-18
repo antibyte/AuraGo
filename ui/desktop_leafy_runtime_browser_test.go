@@ -37,7 +37,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	if cut < 0 {
 		t.Fatal("shell startup seam missing")
 	}
-	shell = shell[:cut] + `window.aurora={renderWidgets,handleDesktopEvent,state,openApp,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,renderTaskbar,closeWindow,focusWindow,minimizeWindow,toggleMaximizeWindow,switchSpace,setWindowMenus,clearWindowMenus,showContextMenu,showDesktopContextMenu,closeContextMenu,iconMarkup,wireShellChromeControls,bindViewportMetrics,applyWindowSnap,disposeWebampMusic,handleDesktopKeydown,showWidgetManager,showAppManager,openDesktopFileDialog,openStartMenu,closeStartMenu,launchStandaloneWebamp};})();`
+	shell = shell[:cut] + `window.aurora={startDesktopSelectionDrag,updateDesktopSelectionDrag,finishDesktopSelectionDrag,renderWidgets,handleDesktopEvent,state,openApp,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,renderTaskbar,closeWindow,focusWindow,minimizeWindow,toggleMaximizeWindow,switchSpace,setWindowMenus,clearWindowMenus,showContextMenu,showDesktopContextMenu,closeContextMenu,iconMarkup,wireShellChromeControls,bindViewportMetrics,applyWindowSnap,disposeWebampMusic,handleDesktopKeydown,showWidgetManager,showAppManager,openDesktopFileDialog,openStartMenu,closeStartMenu,launchStandaloneWebamp};})();`
 	apps, _ := json.Marshal(desktop.BuiltinApps())
 	words := map[string]string{}
 	fs.WalkDir(Content, "lang", func(path string, d fs.DirEntry, err error) error {
@@ -158,6 +158,11 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
   aurora.state.bootstrap.settings['desktop.show_widgets']=true;
   aurora.state.bootstrap.settings['appearance.wallpaper']='paper_waves';
   aurora.applyDesktopSettings();
+  const workspace=document.getElementById('vd-workspace');
+  workspace.addEventListener('pointerdown',aurora.startDesktopSelectionDrag);
+  workspace.addEventListener('pointermove',aurora.updateDesktopSelectionDrag);
+  workspace.addEventListener('pointerup',aurora.finishDesktopSelectionDrag);
+  workspace.addEventListener('pointercancel',aurora.finishDesktopSelectionDrag);
   aurora.state.bootstrap.widgets=[{id:'builtin-leafy',title:'Leafy',type:'builtin',runtime:'builtin',visible:true,builtin:true,icon:'leafy'}];
   window.leafyNativeTimeout=window.setTimeout;
   window.setTimeout=(fn,delay,...args)=>{
@@ -175,6 +180,17 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.Timeout(10 * time.Second).MustElement("[data-action='replant']").MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().revision===1`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-seedling.png"))
+	page.MustElement(".vd-leafy-panel [data-action='close']").MustClick()
+	pot := page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-pot').getBoundingClientRect();window.beforePotDrag={...AuraLeafy.active.layout.root};return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
+	page.Mouse.MustMoveTo(pot.Get("x").Num(), pot.Get("y").Num()).MustDown(proto.InputMouseButtonLeft).MustMoveTo(pot.Get("x").Num()+150, pot.Get("y").Num()-70).MustUp(proto.InputMouseButtonLeft)
+	if !page.MustEval(`()=>{const a=AuraLeafy.active.layout.root;return a.x>beforePotDrag.x+140&&a.y>beforePotDrag.y+60&&!!localStorage.getItem('aurago.leafy.anchor.v1')&&document.querySelector('.vd-leafy-panel').hidden&&!document.querySelector('[data-selection-marquee]')}`).Bool() {
+		t.Fatal("dragging the pot did not move and persist Leafy independently of desktop selection")
+	}
+	page.MustElement(".vd-leafy-pot").MustClick()
+	if page.MustEval(`()=>document.querySelector('.vd-leafy-panel').hidden`).Bool() {
+		t.Fatal("a click on the pot no longer opens care")
+	}
+	page.MustElement(".vd-leafy-panel [data-action='close']").MustClick()
 	// Drive the scheduled refresh across real server simulation hours, without
 	// a care action, event, remount or revision change to trigger the redraw.
 	for hour := 1; hour <= 2; hour++ {
@@ -223,6 +239,20 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 			}
 		}
 	}
+	// Exercise native touch input in the narrow viewport, including cancellation.
+	page.MustEval(`()=>{window.leafyTouchEvents=[];for(const type of ['pointerdown','pointerup','pointercancel','click'])document.addEventListener(type,e=>leafyTouchEvents.push({type,target:e.target.className,detail:e.detail,pointer:e.pointerType}),{capture:true})}`)
+	touchPot := page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-pot').getBoundingClientRect();window.beforeTouchDrag={...AuraLeafy.active.layout.root};return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
+	page.Touch.MustStart(&proto.InputTouchPoint{X: touchPot.Get("x").Num(), Y: touchPot.Get("y").Num()}).MustMove(&proto.InputTouchPoint{X: touchPot.Get("x").Num() + 70, Y: touchPot.Get("y").Num() - 35}).MustEnd()
+	page.Timeout(5 * time.Second).MustWait(`()=>AuraLeafy.active.layout.root.x>beforeTouchDrag.x+60`)
+	page.MustEval(`()=>{if(!document.querySelector('.vd-leafy-panel').hidden||document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Touch drag opened care or kept its offset')}`)
+	touchPot = page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-pot').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
+	page.Touch.MustTap(touchPot.Get("x").Num(), touchPot.Get("y").Num())
+	if err := page.Timeout(5 * time.Second).Wait(rod.Eval(`()=>!document.querySelector('.vd-leafy-panel').hidden`)); err != nil {
+		t.Fatal("touch tap did not open care", page.MustEval(`()=>JSON.stringify(leafyTouchEvents)`).Str())
+	}
+	page.MustElement(".vd-leafy-panel [data-action='close']").MustClick()
+	page.Touch.MustStart(&proto.InputTouchPoint{X: touchPot.Get("x").Num(), Y: touchPot.Get("y").Num()}).MustMove(&proto.InputTouchPoint{X: touchPot.Get("x").Num() - 40, Y: touchPot.Get("y").Num() - 20}).MustCancel()
+	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-dragging')||document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Cancelled touch left a drag active')}`)
 	page.MustSetViewport(1920, 1080, 1, false)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {
 		t.Fatal(err)
@@ -238,11 +268,11 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	page.MustEval(`()=>{const move=document.querySelector('.vd-leafy-move');move.focus();move.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));if(!localStorage.getItem('aurago.leafy.anchor.v1'))throw Error('Pot position not saved');}`)
-	grip := page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-move').getBoundingClientRect();window.preDragFrames=AuraLeafy.active.metrics().frames;return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
+	grip := page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-move').getBoundingClientRect();window.preDragRoot={...AuraLeafy.active.layout.root};window.preDragFrames=AuraLeafy.active.metrics().frames;return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
 	page.Mouse.MustMoveTo(grip.Get("x").Num(), grip.Get("y").Num()).MustDown(proto.InputMouseButtonLeft).MustMoveTo(grip.Get("x").Num()+45, grip.Get("y").Num()-30)
 	page.MustEval(`()=>{if(AuraLeafy.active.metrics().frames!==preDragFrames)throw Error('Drag rebuilt geometry');}`)
 	page.Mouse.MustUp(proto.InputMouseButtonLeft)
-	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Drag left a canvas offset');}`)
+	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Drag left a canvas offset');if(AuraLeafy.active.layout.root.x<preDragRoot.x+40)throw Error('Grip did not move plant');}`)
 	page.MustSetViewport(1366, 768, 2, false)
 	page.MustEval(`()=>{fixtureTheme('fruity-dark');aurora.state.bootstrap.settings['appearance.density']='compact';aurora.applyDesktopSettings();}`)
 	page.MustEval(`async()=>{await new Promise(r=>setTimeout(r,300))}`)

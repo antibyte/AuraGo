@@ -93,6 +93,9 @@ worker. Keep packaging, recovery and offline instructions in
   Server state and revisioned actions live in `internal/desktop/plant_*.go`.
   Healthy uncapped stems add a node each server hour. Scheduled snapshots must
   redraw this growth even when no care action changes the revision.
+  Drag the pot or its grip with mouse/touch; a click/tap still opens care.
+  Keep desktop selection out of these gestures, persist the local anchor on
+  release, and clear drag capture/offsets on cancellation, blur and disposal.
   See `documentation/leafy.md` for care, atlas baking and browser checks.
 - The opt-in `builtin-printer` widget lives in `js/desktop/core/widget-printer-runtime.js`.
   Keep missing printer metrics unknown, render filenames as text, and stop status

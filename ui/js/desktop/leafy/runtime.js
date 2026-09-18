@@ -17,7 +17,7 @@
         shell.innerHTML='<img src="'+window.AuraLazyAssets.versionedURL('/img/leafy/icon.svg')+'" alt="">';
         (document.querySelector('.vd-taskbar-system')||document.body).prepend(shell);
         let snapshot=null, renderer=null, fallback=false, dead=false, busy=false, hidden=false, scissors=false, selection=null, anchor={x:.40,y:.91};
-        let poll=0,breeze=0,frame=0,resize=0,undoTimer=0,fetching=false,pendingRefresh=false,drag=null;
+        let poll=0,breeze=0,frame=0,resize=0,undoTimer=0,fetching=false,pendingRefresh=false,drag=null,suppressPotClick=false;
         let pendingAction=null, message='', bounds={width:innerWidth,height:innerHeight}, renderKey='';
         try {const saved=JSON.parse(localStorage.getItem('aurago.leafy.anchor.v1')); if(Number.isFinite(saved?.x)&&Number.isFinite(saved?.y))anchor=saved;} catch (_) {}
         const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
@@ -181,7 +181,8 @@
                 }
             }finally{busy=false;drawPanel();if(pendingRefresh&&!dead){pendingRefresh=false;refresh();}}
         }
-        listen(shell,'click',()=>openPanel(panel.hidden)); listen(pot,'click',()=>openPanel(panel.hidden));
+        listen(shell,'click',()=>openPanel(panel.hidden));
+        listen(pot,'click',event=>{const handled=suppressPotClick&&(event.detail>0||event.pointerType==='touch');suppressPotClick=false;if(!handled)openPanel(panel.hidden);});
         listen(panel,'click',async event=>{
             const a=event.target.closest('button[data-action]')?.dataset.action;if(!a)return;
             if(a==='close')return openPanel(false);
@@ -203,18 +204,39 @@
         listen(document,'keydown',event=>{
             if(event.key==='Escape'&&(!panel.hidden||scissors)){setScissors(false);openPanel(false);}
         });
-        listen(move,'pointerdown',event=>{
-            if(event.button!==0)return;event.preventDefault();if(scissors)setScissors(false);move.setPointerCapture(event.pointerId);
-            drag={id:event.pointerId,x:event.clientX,y:event.clientY,anchor:{...anchor}};stopMotion();
-        });
-        listen(move,'pointermove',event=>{
-            if(!drag||event.pointerId!==drag.id)return;
-            anchor={x:drag.anchor.x+(event.clientX-drag.x)/bounds.width,y:drag.anchor.y+(event.clientY-drag.y)/bounds.height};
-            size();
-            canvas.style.transform='translate('+((anchor.x-drag.anchor.x)*bounds.width)+'px,'+((anchor.y-drag.anchor.y)*bounds.height)+'px)';
-        });
-        const endDrag=()=>{if(drag){if(move.hasPointerCapture(drag.id))move.releasePointerCapture(drag.id);drag=null;canvas.style.transform='';draw();try{localStorage.setItem('aurago.leafy.anchor.v1',JSON.stringify(anchor));}catch(_){}scheduleBreeze();}};
-        listen(move,'pointerup',endDrag);listen(move,'pointercancel',endDrag);
+        const endDrag=event=>{
+            if(!drag||(event?.pointerId!==undefined&&event.pointerId!==drag.id))return;
+            const completed=drag;drag=null;
+            if(completed.element.hasPointerCapture(completed.id))completed.element.releasePointerCapture(completed.id);
+            const tapped=completed.element===pot&&!completed.moved&&event?.type==='pointerup'&&event.pointerType==='touch';
+            suppressPotClick=completed.element===pot&&(completed.moved||tapped);
+            root.classList.remove('vd-leafy-dragging');canvas.style.transform='';draw();
+            if(completed.moved)try{localStorage.setItem('aurago.leafy.anchor.v1',JSON.stringify(anchor));}catch(_){}
+            // Touch capture may suppress the compatibility click. Activate
+            // taps here and ignore that click if the browser also emits it.
+            if(tapped)openPanel(panel.hidden);
+        };
+        for(const handle of [pot,move]){
+            listen(handle,'pointerdown',event=>{
+                if(event.button!==0||drag)return;
+                // Preserve the pot's native tap/click; stop desktop selection
+                // without cancelling touch activation. CSS disables panning.
+                if(handle===move)event.preventDefault();event.stopPropagation();suppressPotClick=false;
+                if(scissors)setScissors(false);handle.setPointerCapture(event.pointerId);
+                drag={id:event.pointerId,element:handle,x:event.clientX,y:event.clientY,anchor:{...anchor},moved:false};stopMotion();
+            });
+            listen(handle,'pointermove',event=>{
+                if(!drag||event.pointerId!==drag.id)return;
+                const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+                if(!drag.moved&&Math.hypot(dx,dy)<5)return;
+                drag.moved=true;root.classList.add('vd-leafy-dragging');
+                anchor={x:drag.anchor.x+dx/bounds.width,y:drag.anchor.y+dy/bounds.height};
+                size();
+                canvas.style.transform='translate('+((anchor.x-drag.anchor.x)*bounds.width)+'px,'+((anchor.y-drag.anchor.y)*bounds.height)+'px)';
+            });
+            for(const type of ['pointerup','pointercancel','lostpointercapture'])listen(handle,type,endDrag);
+        }
+        listen(window,'blur',endDrag);
         listen(move,'keydown',event=>{
             const delta={ArrowLeft:[-.02,0],ArrowRight:[.02,0],ArrowUp:[0,-.02],ArrowDown:[0,.02]}[event.key];
             if(delta){event.preventDefault();event.stopPropagation();anchor.x+=delta[0];anchor.y+=delta[1];draw();try{localStorage.setItem('aurago.leafy.anchor.v1',JSON.stringify(anchor));}catch(_){}}

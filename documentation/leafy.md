@@ -15,8 +15,9 @@ Use **Prune** to select a stem on the desktop, inspect its highlighted growth an
 confirm **Cut here**. The branch selector also supports keyboard operation.
 **Trim to pot** cuts all vines after confirmation. A cut can be undone for
 30 seconds; healthy cut stems produce new shoots after six biological hours.
-Esc puts the scissors away. Drag the grip below the pot, or focus it and use
-arrow keys to reposition the plant.
+Esc puts the scissors away. Drag the pot or the grip below it with mouse or
+touch to reposition the plant. A short click or tap on the pot opens care.
+You can also focus the grip and use arrow keys to move the plant.
 
 **Vacation** freezes growth and care, including while the desktop is closed.
 End vacation to continue without catching up the paused time. Hiding the
