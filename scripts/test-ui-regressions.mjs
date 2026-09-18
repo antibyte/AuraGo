@@ -278,6 +278,7 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   };
   const context = {
     window: {}, addDiagnostic(_state, diagnostic) { shown.push(diagnostic); },
+    setTimeout() { return 1; }, clearTimeout() {},
     autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {}
   };
   vm.runInNewContext(sourceBetween(app, 'function handlePreviewMessage(', 'function addDiagnostic('), context);
@@ -375,7 +376,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
     project: { id: 'snake' }, diagnostics: [],
     context: { esc: String, t: String },
     container: { querySelector(selector) {
-      if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {}, setAttribute() {} });
+      if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {}, setAttribute() {}, querySelectorAll: () => [] });
       return nodes.get(selector);
     } },
     api: { async previewGrant() { return { url: '/preview', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() }; } }
@@ -383,6 +384,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   let nextChannel = 0;
   const context = {
     window: {}, crypto: { getRandomValues: () => [++nextChannel] },
+    setTimeout() { return 1; }, clearTimeout() {},
     document: { createElement: () => ({ contentWindow: { postMessage() {} }, setAttribute() {}, addEventListener() {} }) },
     IntersectionObserver: class { observe() {} disconnect() {} }
   };
@@ -473,35 +475,64 @@ async function testGameMakerPreviewStopsExpiredValidation() {
 
 function testGameMakerBootDetectsInvisibleCanvasAndEngineErrors() {
   const source = sourceBetween(read('internal/gamemaker/preview.go'), '(function () {', '</script>');
-  const messages = [], timers = [];
-  let now = 0;
-  let rect = { top: 650, bottom: 1100, left: 0, right: 800, width: 800, height: 450 };
-  const canvas = { width: 700, height: 504, getBoundingClientRect: () => rect };
-  const context = {
-    window: { addEventListener() {} },
-    console: { error() {} },
-    parent: { postMessage: message => messages.push(message) },
-    performance: { now: () => now },
-    location: { hash: '#gm-channel=test' }, URLSearchParams,
-    innerHeight: 600, innerWidth: 800,
-    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
-    MutationObserver: class { observe() {} },
-    setTimeout: callback => timers.push(callback),
-    document: { readyState: 'complete', documentElement: {},
-      querySelector: () => canvas,
-      querySelectorAll: selector => selector === 'canvas' ? [canvas] : [] }
-  };
-  vm.runInNewContext(source, context);
-  assert.equal(messages.length, 0, 'an offscreen canvas must not signal success');
-  now = 1001;
-  timers[0]();
-  assert.match(messages[0].message, /canvas is hidden or outside/);
-  context.console.error('Failed to process file:', 'image', '"snake"');
-  assert.match(messages[1].message, /Failed to process file: image "snake"/);
-  rect = { ...rect, top: 0, bottom: 450 };
-  timers[1]();
-  assert.equal(messages[2].type, 'ready');
-  assert.equal(messages[2].visible, true);
+  function boot() {
+    const messages = [], listeners = new Map();
+    let now = 0, interval = null;
+    const rect = { top: 650, bottom: 1100, left: 0, right: 800, width: 800, height: 450 };
+    const canvas = { width: 700, height: 504, getBoundingClientRect: () => rect };
+    const events = {
+      addEventListener: (type, fn) => listeners.set(type, fn),
+      removeEventListener: type => listeners.delete(type)
+    };
+    const context = {
+      window: { ...events }, console: { error() {} },
+      parent: { postMessage: message => messages.push(message) },
+      performance: { now: () => now },
+      location: { hash: '#gm-channel=test' }, URLSearchParams,
+      innerHeight: 600, innerWidth: 800,
+      getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
+      MutationObserver: class { observe() {} disconnect() {} },
+      setInterval(callback) { interval = callback; return 1; },
+      clearInterval() { interval = null; },
+      document: { ...events, hidden: false, readyState: 'complete', documentElement: {},
+        querySelector: () => canvas,
+        querySelectorAll: selector => selector === 'canvas' ? [canvas] : [] }
+    };
+    vm.runInNewContext(source, context);
+    return { context, messages, rect, listeners,
+      tick(time) { now = time; interval?.(); },
+      watching: () => interval !== null };
+  }
+  const failed = boot();
+  failed.tick(2999);
+  assert.equal(failed.messages.length, 0, 'layout gets a settling period before failure');
+  failed.tick(3000);
+  assert.match(failed.messages[0].message, /canvas remains hidden or outside/);
+  assert.equal(failed.watching(), false, 'a conclusive failure stops the layout timer');
+  failed.context.console.error('Failed to process file:', 'image', '"snake"');
+  assert.match(failed.messages[1].message, /Failed to process file: image "snake"/);
+  Object.assign(failed.rect, { top: 0, bottom: 450 });
+  failed.tick(4000);
+  assert.equal(failed.messages.length, 2, 'a failed boot must not later report success');
+
+  const resumed = boot();
+  resumed.context.document.hidden = true;
+  resumed.tick(4000);
+  resumed.context.document.hidden = false;
+  resumed.context.innerHeight = 0;
+  resumed.tick(8000);
+  resumed.context.innerHeight = 600;
+  resumed.listeners.get('message')({ source: resumed.context.parent, data: { type: 'aurago:game:active', active: false } });
+  resumed.tick(12000);
+  assert.equal(resumed.messages.length, 0, 'hidden, unsized or inactive host previews are not game failures');
+  resumed.listeners.get('message')({ source: resumed.context.parent, data: { type: 'aurago:game:active', active: true } });
+  resumed.tick(14999);
+  assert.equal(resumed.messages.length, 0, 'resuming starts a fresh layout settling period');
+  Object.assign(resumed.rect, { top: 0, bottom: 450 });
+  resumed.tick(15000);
+  assert.equal(resumed.messages[0].type, 'ready');
+  assert.equal(resumed.messages[0].visible, true);
+  assert.equal(resumed.watching(), false);
 }
 
 function testDesktopMediaKeysAreInBootstrapScope() {
@@ -557,6 +588,7 @@ function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
     },
     previewLoadTimer: null,
     previewLoadClear: null,
+    container: { querySelector: () => null },
     addDiagnostic() {}
   };
   const shell = {

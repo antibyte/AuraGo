@@ -807,12 +807,12 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	job.Phase = "ready"
 	job.ResultRevision = revision.Number
 	job.FinishedAt = &now
+	s.finishWorkingCopy(job)
 	s.mu.Lock()
 	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=? WHERE id=?`,
 		revision.Number, now, job.ID)
+	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
-	s.finishWorkingCopy(job)
-	s.releaseJob(job.ID)
 	s.mu.RLock()
 	summary := s.jobSummaries[job.ID]
 	s.mu.RUnlock()
@@ -872,13 +872,14 @@ func (s *Service) updateJobPhase(ctx context.Context, job *Job, phase string) er
 func (s *Service) failJob(job Job, failure error) {
 	now := time.Now().UTC()
 	message := strings.TrimSpace(failure.Error())
+	job.Status = "failed"
+	s.finishWorkingCopy(job)
 	s.mu.Lock()
 	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,finished_at=? WHERE id=?`,
 		message, now, job.ID)
 	_, _ = s.db.Exec(`UPDATE gm_projects SET status='failed',updated_at=? WHERE id=?`, now, job.ProjectID)
+	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
-	s.finishWorkingCopy(job)
-	s.releaseJob(job.ID)
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "diagnostic",
 		map[string]any{"level": "error", "message": message})
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
@@ -899,12 +900,13 @@ func (s *Service) cancelledJob(job Job, cause error) {
 	if errors.Is(cause, context.DeadlineExceeded) {
 		message = "Game creation exceeded its time limit."
 	}
+	job.Status = "cancelled"
+	s.finishWorkingCopy(job)
 	s.mu.Lock()
 	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,finished_at=? WHERE id=?`,
 		message, now, job.ID)
+	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
-	s.finishWorkingCopy(job)
-	s.releaseJob(job.ID)
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
 		map[string]any{"status": "cancelled", "error": message})
 }

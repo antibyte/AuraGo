@@ -17,6 +17,9 @@ revision publication and standalone export for Phaser and Three.js games.
 
 ## Local Contracts
 
+- Terminal job states become observable only after working-copy cleanup, with the
+  writer released under the same lock. Immediate retries and revision restores
+  must not race a job that has already reported completion.
 - Complete experiences include consequences, recovery or results, a suitable world
   and meaningful progression. Single-screen boards and peaceful sandboxes remain
   valid; do not require combat, lives, timers or linear levels for every idea.

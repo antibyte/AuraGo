@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -12,7 +14,9 @@ import (
 
 func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 	var executable string
-	for _, name := range []string{"chromium", "chromium-browser", "google-chrome", `C:/Program Files/Google/Chrome/Application/chrome.exe`} {
+	// Hosted runners provide CHROME_BIN for their supported stable browser;
+	// their separate Chromium snapshot can have different startup requirements.
+	for _, name := range []string{os.Getenv("CHROME_BIN"), "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", `C:/Program Files/Google/Chrome/Application/chrome.exe`} {
 		if path, err := exec.LookPath(name); err == nil {
 			executable = path
 			break
@@ -21,15 +25,19 @@ func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 	if executable == "" {
 		t.Skip("Chrome or Chromium is required")
 	}
+	t.Logf("browser executable: %s", executable)
+	var output bytes.Buffer
 	options := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(executable),
-		chromedp.NoSandbox, chromedp.UserDataDir(t.TempDir()))
+		chromedp.NoSandbox, chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.UserDataDir(t.TempDir()), chromedp.CombinedOutput(&output))
 	allocatorCtx, closeAllocator := chromedp.NewExecAllocator(context.Background(), options...)
 	defer closeAllocator()
 	requestCtx, endRequest := context.WithTimeout(context.Background(), 20*time.Second)
 	defer endRequest()
 	browserCtx, closeBrowser, err := startManagedBrowser(requestCtx, allocatorCtx, t.TempDir())
 	if err != nil {
-		t.Fatal(err)
+		closeAllocator()
+		t.Fatalf("start %s: %v\n%s", executable, err, output.String())
 	}
 	defer closeBrowser()
 	process := chromedp.FromContext(browserCtx).Browser.Process()

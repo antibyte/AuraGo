@@ -164,7 +164,9 @@ func createTestProject(t *testing.T, service *Service, dimension string) Project
 
 func waitJob(t *testing.T, service *Service, id string) Job {
 	t.Helper()
-	deadline := time.Now().Add(8 * time.Second)
+	// Sprite imports copy large local packs; allow disk contention during the
+	// full package/race suite without changing the production job budget.
+	deadline := time.Now().Add(30 * time.Second)
 	lastValidation := ""
 	for time.Now().Before(deadline) {
 		job, err := service.GetJob(context.Background(), id)
@@ -187,11 +189,18 @@ func waitJob(t *testing.T, service *Service, id string) Job {
 			}
 		}
 		if err == nil && !activeJobStatus(job.Status) {
+			service.mu.RLock()
+			active := service.activeJobID == id
+			service.mu.RUnlock()
+			if active {
+				t.Fatalf("terminal job %s still holds the writer (%s)", id, job.Status)
+			}
 			return job
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("job %s did not finish", id)
+	job, err := service.GetJob(context.Background(), id)
+	t.Fatalf("job %s did not finish: status=%s phase=%s error=%s read_error=%v", id, job.Status, job.Phase, job.Error, err)
 	return Job{}
 }
 

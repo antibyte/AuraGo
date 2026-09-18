@@ -130,14 +130,11 @@ func (s *Service) resumableJob(ctx context.Context, project Project) (string, er
 
 // Keep only the latest failed working copy per project. It remains private;
 // published revisions and validation gates are independent of this checkpoint.
+// The caller supplies the final status and retains the writer until cleanup ends.
 func (s *Service) finishWorkingCopy(job Job) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	current, err := s.GetJob(ctx, job.ID)
-	if err != nil {
-		return // Preserve recoverable files if shutdown closed the database.
-	}
-	if current.Status != "ready" {
+	if job.Status != "ready" {
 		if _, err := os.Stat(filepath.Join(s.stagingDir, job.ID)); err != nil {
 			return // Initialization failed: keep the previous working copy intact.
 		}
@@ -147,7 +144,7 @@ func (s *Service) finishWorkingCopy(job Job) {
 		return
 	}
 	for _, id := range ids {
-		if id != job.ID || current.Status == "ready" {
+		if id != job.ID || job.Status == "ready" {
 			s.removeWorkingCopy(id)
 		}
 	}

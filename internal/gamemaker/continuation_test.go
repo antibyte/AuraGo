@@ -31,6 +31,42 @@ func waitContinuationIdle(t *testing.T, s *Service) {
 	t.Fatal("writer not released")
 }
 
+func TestWorkingCopyCleanupBeforeTerminalStatus(t *testing.T) {
+	for _, status := range []string{"ready", "failed", "cancelled"} {
+		t.Run(status, func(t *testing.T) {
+			s := newTestService(t)
+			p := createTestProject(t, s, "2d")
+			for _, id := range []string{"old-draft", "current-draft"} {
+				_, err := s.db.Exec(`INSERT INTO gm_jobs
+					(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at)
+					VALUES(?,?,?,?,?,?,?,?,?,?)`, id, p.ID, "create", "test", "building", "building", "", "", 0, time.Now().UTC())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.MkdirAll(filepath.Join(s.stagingDir, id), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Cleanup must use the pending final status. Publishing it first would
+			// let clients retry/restore while the previous writer is still busy.
+			s.finishWorkingCopy(Job{ID: "current-draft", ProjectID: p.ID, Status: status})
+			if _, err := os.Stat(filepath.Join(s.stagingDir, "old-draft")); !os.IsNotExist(err) {
+				t.Fatalf("obsolete draft was not removed: %v", err)
+			}
+			_, err := os.Stat(filepath.Join(s.stagingDir, "current-draft"))
+			if status == "ready" && !os.IsNotExist(err) {
+				t.Fatalf("published draft was not removed: %v", err)
+			} else if status != "ready" && err != nil {
+				t.Fatalf("recoverable draft was lost: %v", err)
+			}
+			job, err := s.GetJob(context.Background(), "current-draft")
+			if err != nil || job.Status != "building" {
+				t.Fatalf("cleanup published a terminal status: %+v, %v", job, err)
+			}
+		})
+	}
+}
+
 func TestContinuationRestoresPrivateContextAndWorkingCopy(t *testing.T) {
 	for _, dimension := range []string{"2d", "3d"} {
 		t.Run(dimension, func(t *testing.T) {

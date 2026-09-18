@@ -23,7 +23,7 @@
         const reducedMotion = () => motion.matches || document.body.dataset.animations === 'false';
         let timer = null, disposed = false, visible = true, jobID = '', lastID = 0;
         let queue = [], current = null, lastText = '', lastPhase = '', sequence = 0, stoppedAt = '';
-        const t = key => state.context.t('game_maker.' + key);
+        const t = key => state.context.t(key);
         const text = value => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 240);
         const elapsed = () => {
             const seconds = Math.max(0, Math.floor((Date.now() - (state.jobStartedAt || Date.now())) / 1000));
@@ -50,7 +50,7 @@
             timer = null;
             if (!running() || !visible || document.hidden || !terminal.isConnected) return;
             terminal.classList.toggle('is-still', reducedMotion());
-            prompt.textContent = t(state.reconnecting ? 'status_reconnecting' : 'terminal_waiting') + ' · ' + elapsed();
+            prompt.textContent = t(state.reconnecting ? 'game_maker.status_reconnecting' : 'game_maker.terminal_waiting') + ' · ' + elapsed();
             if (!current && queue.length) {
                 const row = document.createElement('div');
                 row.className = 'gm-build-line';
@@ -79,7 +79,7 @@
             queue = [];
             while (lines.children.length > 24) lines.firstElementChild.remove();
             if (!stoppedAt) stoppedAt = elapsed();
-            prompt.textContent = t('status_' + state.job.status) + ' · ' + stoppedAt;
+            prompt.textContent = t('game_maker.status_' + state.job.status) + ' · ' + stoppedAt;
             terminal.classList.add('is-still');
             lines.scrollTop = lines.scrollHeight;
         }
@@ -91,7 +91,7 @@
             const phase = state.job?.phase || state.job?.status;
             if (running() && phase !== lastPhase && phases.has(phase)) {
                 lastPhase = phase;
-                add(t('terminal_' + phase));
+                add(t('game_maker.terminal_' + phase));
             }
             const empty = shell.querySelector('.gm-preview-empty');
             const stopped = ['failed', 'cancelled'].includes(state.job?.status) && !!lastPhase;
@@ -115,20 +115,20 @@
             const p = event.payload || {};
             switch (event.type) {
             case 'model_progress':
-                if (['waiting', 'receiving', 'retrying', 'recovering'].includes(p.status)) add(t('terminal_model_' + p.status) + ' · ' + elapsed());
+                if (['waiting', 'receiving', 'retrying', 'recovering'].includes(p.status)) add(t('game_maker.terminal_model_' + p.status) + ' · ' + elapsed());
                 break;
-            case 'tool_call': add(t('terminal_' + (tools[p.tool] || 'tool'))); break;
-            case 'file_changed': add(t('updated') + ' > ' + text(p.path)); break;
-            case 'asset_changed': add(t('assets') + ' > ' + text(p.path || p.kind)); break;
-            case 'skill_activation': add(t('skill_loaded')); break;
+            case 'tool_call': add(t('game_maker.terminal_' + (tools[p.tool] || 'tool'))); break;
+            case 'file_changed': add(t('game_maker.updated') + ' > ' + text(p.path)); break;
+            case 'asset_changed': add(t('game_maker.assets') + ' > ' + text(p.path || p.kind)); break;
+            case 'skill_activation': add(t('game_maker.skill_loaded')); break;
             case 'validation_result':
                 for (const kind of ['gameplay', 'rules']) {
                     const status = p.result?.[kind + '_status'];
-                    if (['passed', 'failed', 'unverified', 'unavailable'].includes(status)) add(t(kind + '_checks') + ' > ' + t('check_' + status));
+                    if (['passed', 'failed', 'unverified', 'unavailable'].includes(status)) add(t('game_maker.' + kind + '_checks') + ' > ' + t('game_maker.check_' + status));
                 }
                 break;
             case 'visual_progress':
-                if (['capturing', 'analyzing', 'repairing'].includes(p.status)) add(t('visual_' + p.status));
+                if (['capturing', 'analyzing', 'repairing'].includes(p.status)) add(t('game_maker.visual_' + p.status));
                 break;
             }
         }

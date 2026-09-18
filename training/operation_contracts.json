@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "a372b038b9106f0a6b5b94a54c6a49bfbf40d748dd90213375ef66086303d09c",
+  "schema_sha256": "4aa3058df1c5f63563b6b5d4d0327abd21b9c2ed7984657bb588936c16d5b45e",
   "tools": {
     "activate_agent_skill": {
       "default_arguments": {
