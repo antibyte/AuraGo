@@ -92,9 +92,9 @@ func TestDesktopFruityWorkbenchesDoNotPaintDarkGlassOnLightText(t *testing.T) {
 	}
 
 	homepage := readDesktopAssetText(t, "css/desktop-app-homepage-studio.css")
-	fruityHomepage := cssRuleBodyInFruityThemeTest(t, homepage, `.desktop-body[data-theme="fruity"] .vd-hp-studio`)
-	if strings.Contains(fruityHomepage, "rgba(18, 24, 34") {
-		t.Fatalf("fruity light Homepage Studio must not force dark glass over --vd-text: %q", fruityHomepage)
+	homepageTheme := cssRuleBodyInFruityThemeTest(t, homepage, `.vd-hp-studio`)
+	if strings.Contains(homepageTheme, "rgba(18, 24, 34") {
+		t.Fatalf("Homepage Studio must not force dark glass over --vd-text: %q", homepageTheme)
 	}
 	if !strings.Contains(homepage, "--hp-bg: var(--vd-theme-app-bg)") {
 		t.Fatalf("Homepage Studio must read theme tokens in source CSS")

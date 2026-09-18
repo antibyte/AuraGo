@@ -130,7 +130,7 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-common.css", ".vd-live-speech-lab"},
 		{"css/desktop-app-homepage-studio.css", ".vd-hp-studio"},
 		{"css/desktop-app-homepage-studio.css", "--hp-bg: var(--vd-theme-app-bg)"},
-		{"css/desktop-app-homepage-studio.css", "background: #071018"},
+		{"css/desktop-app-homepage-studio.css", "background: var(--hp-bg)"},
 		{"css/desktop-app-game-maker-studio.css", ".gm-studio"},
 		{"css/desktop-app-game-maker-studio.css", "--gm-bg: var(--vd-theme-app-bg)"},
 		{"css/desktop-app-game-maker-studio.css", "background: #050509"},

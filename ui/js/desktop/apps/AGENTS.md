@@ -1369,6 +1369,10 @@ registration lives in `internal/desktop/types.go`.
   site cards, drift badges, deploy targets/deployments/remote observations,
   reconcile) and History (search, type filter, offset pagination) tabs.
   The welcome hero offers localized prompt suggestion chips.
+- Homepage Studio chrome uses the shared `--vd-theme-*` materials and Desktop
+  accent in `css/desktop-app-homepage-studio.css`. Keep panels, empty/loading
+  previews, controls and history badges legible in Standard and Fruity light/dark;
+  avoid a separate gradient palette. The website iframe retains its own colors.
 - Homepage Studio exposes `window.HomepageStudioApp = { render, dispose }`;
   every window instance owns its AbortControllers, busy/persist timers,
   listeners, and sub-module instances and must release them in `dispose`.
