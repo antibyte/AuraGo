@@ -248,14 +248,41 @@ func downsampleU8(in []int16, from, to int) []uint8 {
 		step = 1
 	}
 	n := len(in) / step
-	out := make([]uint8, n)
+	if n == 0 {
+		return nil
+	}
+	// One-pole lowpass near 3 kHz, then decimate, then a little low shelf.
+	// Skipping the filter aliases 6 kHz down to 2 kHz and sounds metallic.
+	lp := 0
+	acc := make([]int, n)
+	peak := 1
+	slow := 0
 	for i := 0; i < n; i++ {
 		sum := 0
 		base := i * step
 		for j := 0; j < step; j++ {
-			sum += int(in[base+j])
+			x := int(in[base+j])
+			lp += (x - lp) / 2
+			sum += lp
 		}
-		v := (sum / step) / 256
+		v := sum / step
+		slow += (v - slow) / 6
+		v += slow / 2
+		acc[i] = v
+		a := v
+		if a < 0 {
+			a = -a
+		}
+		if a > peak {
+			peak = a
+		}
+	}
+	if peak < 4096 {
+		peak = 4096
+	}
+	out := make([]uint8, n)
+	for i := 0; i < n; i++ {
+		v := acc[i] * 110 / peak
 		u := v + 128
 		if u < 0 {
 			u = 0

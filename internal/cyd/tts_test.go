@@ -2,6 +2,7 @@ package cyd
 
 import (
 	"encoding/binary"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,6 +53,64 @@ func TestMeshSpeakParts(t *testing.T) {
 	if title != "MeshCore" || body != "ping" {
 		t.Fatalf("key name = %q %q", title, body)
 	}
+}
+
+func TestPCM8kFromWAVPeakNormalizesQuietSource(t *testing.T) {
+	const from = 24000
+	const n = 2400 // 100 ms
+	data := make([]byte, n*2)
+	for i := 0; i < n; i++ {
+		// Quiet sanoTTS-like peak (~8000 of 32767), not full scale.
+		v := int16(8000 * (i%20 - 10) / 10)
+		binary.LittleEndian.PutUint16(data[i*2:], uint16(v))
+	}
+	pcm, err := PCM8kFromWAV(makeWav(1, 16, from, data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	peak := 0
+	for _, s := range pcm {
+		d := int(s) - 128
+		if d < 0 {
+			d = -d
+		}
+		if d > peak {
+			peak = d
+		}
+	}
+	if peak < 80 {
+		t.Fatalf("quiet source was not normalized, peakdev=%d", peak)
+	}
+}
+
+func TestDownsampleAttenuatesAboveNyquist(t *testing.T) {
+	const rate = 24000
+	const n = 24000
+	low := downsampleU8(sine16(rate, n, 1000, 12000), rate, SpeakRate)
+	high := downsampleU8(sine16(rate, n, 6000, 12000), rate, SpeakRate)
+	if rmsDev(high) > rmsDev(low)*0.5 {
+		t.Fatalf("6 kHz not filtered: 1kHz rms=%.1f 6kHz rms=%.1f", rmsDev(low), rmsDev(high))
+	}
+}
+
+func sine16(rate, n int, hz, amp float64) []int16 {
+	out := make([]int16, n)
+	for i := 0; i < n; i++ {
+		out[i] = int16(amp * math.Sin(2*math.Pi*hz*float64(i)/float64(rate)))
+	}
+	return out
+}
+
+func rmsDev(p []uint8) float64 {
+	if len(p) == 0 {
+		return 0
+	}
+	var s float64
+	for _, v := range p {
+		d := float64(int(v) - 128)
+		s += d * d
+	}
+	return math.Sqrt(s / float64(len(p)))
 }
 
 func TestPCM8kFromWAVDownsamples(t *testing.T) {
